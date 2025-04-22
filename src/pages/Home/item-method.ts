@@ -1,6 +1,8 @@
 import { produce } from "immer";
 import { Item } from "./Item";
 import { createContext } from "react";
+import { err, ok, Result, tryResult } from "../../utils";
+import Database from "@tauri-apps/plugin-sql";
 
 export const ItemContext = createContext<{
 	items: Item[];
@@ -99,4 +101,43 @@ export const itemMethod = (setItems: React.Dispatch<React.SetStateAction<Item[]>
 			})
 		);
 	},
+	addItemBarcode: async (barcode: string): Promise<string | null> => {
+		const [errMsg, item] = await addBarcode(barcode);
+		if (errMsg !== null) return errMsg;
+		setItems((items) =>
+			produce(items, (draft) => {
+				draft.push({
+					name: item.name,
+					price: item.price,
+					stock: item.stock,
+					id: item.id,
+					qty: "1",
+					disc: {
+						value: "0",
+						type: "number",
+					},
+				});
+			})
+		);
+		return null;
+	},
 });
+
+async function addBarcode(barcode: string): Promise<Result<string, DB.Item>> {
+	const [errDb, db] = await tryResult({
+		run: () => Database.load("sqlite:mydatabase.db"),
+	});
+	if (errDb) {
+		console.error("Gagal memuat database");
+		return err("Gagal memuat database");
+	}
+	const [errMsg, item] = await tryResult({
+		run: async () => {
+			const items = await db.select<DB.Item[]>("SELECT * FROM items WHERE barcode = ?1", [barcode]);
+			return items.length ? items[0] : null;
+		},
+	});
+	if (errMsg) return err(errMsg);
+	if (item === null) return err("Barang tidak ada");
+	return ok(item);
+}

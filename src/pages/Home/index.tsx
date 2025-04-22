@@ -18,6 +18,7 @@ export default function Page() {
 		},
 		{
 			id: 1,
+			stock: 20,
 			disc: {
 				type: "number",
 				value: "0",

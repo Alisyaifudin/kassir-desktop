@@ -50,16 +50,16 @@ export function Manual() {
 		<>
 			<h2 className="font-bold">Manual</h2>
 			<form onSubmit={handleSubmit} className="flex flex-col gap-2">
-				<Field label="Nama">
+				<Field label="Nama" error={error.name}>
 					<Input type="text" required name="name" />
 				</Field>
-				<Field label="Harga">
+				<Field label="Harga" error={error.price}>
 					<div className="flex items-center gap-1">
 						<p>Rp</p>
 						<Input type="number" required name="price" />
 					</div>
 				</Field>
-				<Field label="Kuantitas">
+				<Field label="Kuantitas" error={error.qty}>
 					<Input type="number" defaultValue={1} required name="qty" />
 				</Field>
 				<div className="flex gap-1 items-end">
@@ -78,6 +78,7 @@ export function Manual() {
 						<option value="percent">Persen</option>
 					</select>
 				</div>
+				{error.disc === "" ? null : <p className="text-red-500">{error.disc}</p>}
 				<Button>Tambahkan</Button>
 			</form>
 		</>

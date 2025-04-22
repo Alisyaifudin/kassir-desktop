@@ -3,6 +3,7 @@ import { cn } from "../../utils";
 import Decimal from "decimal.js";
 import { useContext } from "react";
 import { ItemContext, itemMethod } from "./item-method";
+import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 
 export type Item = {
 	id?: number;
@@ -20,7 +21,7 @@ type Props = {
 	index: number;
 } & Item;
 
-export function ItemComponent({ id, disc, name, price, qty, index }: Props) {
+export function ItemComponent({ id, disc, name, price, qty, index, stock }: Props) {
 	const { setItems } = useContext(ItemContext);
 	const { editName, deleteItem, editDiscType, editDiscVal, editPrice, editQty } =
 		itemMethod(setItems);
@@ -32,7 +33,17 @@ export function ItemComponent({ id, disc, name, price, qty, index }: Props) {
 		>
 			<div className="flex justify-center items-center">
 				<p className="text-center">{index + 1}</p>
-				{id === undefined ? null : <Lock size={15} />}
+				{id === undefined ? null : (
+					<Popover>
+						<PopoverTrigger>
+							<Lock size={15} />
+						</PopoverTrigger>
+						<PopoverContent align="end" className="w-24">
+							<p>id: {id}</p>
+							<p>stok: {stock}</p>
+						</PopoverContent>
+					</Popover>
+				)}
 			</div>
 			{id !== undefined ? (
 				<p>{name}</p>
