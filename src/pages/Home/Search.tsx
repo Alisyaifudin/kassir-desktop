@@ -32,7 +32,6 @@ export function Search() {
 	};
 	return (
 		<>
-			<h2 className="font-bold">Cari</h2>
 			<Field label="Nama">
 				<Input type="text" value={name} onChange={handleChange} />
 			</Field>

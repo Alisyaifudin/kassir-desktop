@@ -5,11 +5,13 @@ import { useContext, useState } from "react";
 import { z } from "zod";
 import { ItemContext, itemMethod } from "./item-method";
 import { Loader2, Search } from "lucide-react";
+import { useDb } from "../../Layout";
 
 export function Barcode() {
 	const [error, setError] = useState("");
 	const { setItems } = useContext(ItemContext);
-	const { addItemBarcode } = itemMethod(setItems);
+	const db = useDb();
+	const { addItemBarcode } = itemMethod(db, setItems);
 	const [loading, setLoading] = useState(false);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();

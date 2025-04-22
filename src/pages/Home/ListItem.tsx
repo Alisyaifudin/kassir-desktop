@@ -66,9 +66,9 @@ export function ListItem() {
 				</div>
 			</div>
 			<div className="flex items-center pr-1 h-[150px] gap-2">
-				<div className="flex gap-2 text-7xl flex-1  h-full items-center">
+				<div className="flex flex-col gap-2 flex-1  h-full items-center">
 					<p className="font-bold">Total:</p>
-					<p>Rp{total.toNumber().toLocaleString("de-DE")}</p>
+					<p className="text-7xl">Rp{total.toNumber().toLocaleString("de-DE")}</p>
 				</div>
 				<div className="flex-1 flex flex-col gap-1 h-full">
 					<label className="grid grid-cols-[90px_1fr] items-center">
