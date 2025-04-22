@@ -15,7 +15,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
 import Database from "@tauri-apps/plugin-sql";
 import { update } from "./update";
-import { Delete } from "./Delete";
+import { DeleteBtn } from "./DeleteBtn";
 
 export const route: RouteObject = {
 	Component: Page,
@@ -128,7 +128,7 @@ export default function Page() {
 						Simpan
 						{loading && <Loader2 className="animate-spin" />}
 					</Button>
-					<Delete id={item.id} name={item.name} />
+					<DeleteBtn id={item.id} name={item.name} />
 				</div>
 				{error.global === "" ? null : <p className="text-red-500">{error.global}</p>}
 			</form>

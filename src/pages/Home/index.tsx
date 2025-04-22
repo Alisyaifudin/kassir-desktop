@@ -1,13 +1,14 @@
-import { Link } from "react-router";
+import { useState } from "react";
+import { InputItem } from "./InputItem";
+import { ListItem } from "./ListItem";
+import { Item } from "./Item";
 
 export default function Page() {
+	const [items, setItems] = useState<Item[]>([]);
 	return (
-		<main>
-			<header>
-				<nav></nav>
-			</header>
-			<p>uwu</p>
-			<Link to="/owo">owo</Link>
+		<main className="flex gap-2 p-2 h-[calc(100vh-60px)]">
+			<ListItem items={items} />
+			<InputItem />
 		</main>
 	);
 }

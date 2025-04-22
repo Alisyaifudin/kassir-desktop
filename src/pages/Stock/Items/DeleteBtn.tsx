@@ -13,7 +13,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { del } from "./delete";
 
-export function Delete({ id, name }: { id: number; name: string }) {
+export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const navigate = useNavigate();
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
