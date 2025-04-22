@@ -15,9 +15,35 @@ pub fn run() {
             description: "create_initial_tables",
             sql: "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price TEXT NOT NULL, stock INTEGER NOT NULL, barcode TEXT UNIQUE);",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "create_record_tables",
+            sql: "CREATE TABLE records ( \
+            id INTEGER PRIMARY KEY, \
+            time INTEGER NOT NULL, \
+            total TEXT NOT NULL, \
+            pay TEXT NOT NULL, \
+            disc_val TEXT, \
+            disc_type TEXT CHECK (disc_type IN ('number', 'percent')), \
+            change TEXT NOT NULL \
+            ); \
+            CREATE TABLE record_items ( \
+            id INTEGER PRIMARY KEY, \
+            record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+            name TEXT NOT NULL, \
+            price TEXT NOT NULL, \
+            qty INTEGER NOT NULL, \
+            subtotal TEXT NOT NULL, \
+            disc_val TEXT, \
+            disc_type TEXT CHECK (disc_type IN ('number', 'percent')), \
+            time INTEGER NOT NULL \
+            );",
+            kind: MigrationKind::Up,
         }
     ];
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:mydatabase.db", migrations)

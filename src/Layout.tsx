@@ -2,6 +2,8 @@ import { Link, LoaderFunctionArgs, Outlet, useLoaderData, useOutletContext } fro
 import { Button } from "./components/ui/button";
 import Database from "@tauri-apps/plugin-sql";
 import { useEffect, useState } from "react";
+import { Store } from "@tauri-apps/plugin-store";
+import { Settings } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url);
@@ -21,13 +23,17 @@ function getTitle(path: string): string {
 function Layout() {
 	const { path } = useLoaderData<typeof loader>();
 	const [db, setDb] = useState<Database | null>(null);
+	const [store, setStore] = useState<Store | null>(null);
 	useEffect(() => {
+		Store.load("store.json", { autoSave: false }).then((store) => {
+			setStore(store);
+		});
 		Database.load("sqlite:mydatabase.db").then((db) => {
 			setDb(db);
 		});
 	}, []);
 
-	if (db === null) {
+	if (db === null || store === null) {
 		return null;
 	}
 	return (
@@ -43,13 +49,30 @@ function Layout() {
 						</li>
 						<li>
 							<Button variant="outline" asChild>
+								<Link to="/">Beli</Link>
+							</Button>
+						</li>
+						<li>
+							<Button variant="outline" asChild>
 								<Link to="/stock">Stok</Link>
+							</Button>
+						</li>
+						<li>
+							<Button variant="outline" asChild>
+								<Link to="/records">Riwayat</Link>
+							</Button>
+						</li>
+						<li>
+							<Button asChild size="icon" className="rounded-full">
+								<Link to="/setting">
+									<Settings />
+								</Link>
 							</Button>
 						</li>
 					</ul>
 				</nav>
 			</header>
-			<Outlet context={{ db }} />
+			<Outlet context={{ db, store }} />
 		</>
 	);
 }
@@ -57,6 +80,11 @@ function Layout() {
 export const useDb = () => {
 	const { db } = useOutletContext<{ db: Database }>();
 	return db;
+};
+
+export const useStore = () => {
+	const { store } = useOutletContext<{ store: Store }>();
+	return store;
 };
 
 export default Layout;

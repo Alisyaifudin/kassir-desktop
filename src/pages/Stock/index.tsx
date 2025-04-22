@@ -1,9 +1,14 @@
-import { Await, Link } from "react-router";
+import { Await, Link, RouteObject } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { ItemList } from "./ItemList";
 import { useDb } from "../../Layout";
 import { Suspense } from "react";
+import { route as newItemRoute } from "./NewItem/index.tsx";
+export const route: RouteObject = {
+	path: "stock",
+	children: [{ index: true, Component: Page }, newItemRoute],
+};
 
 export default function Page() {
 	const items = useItems();

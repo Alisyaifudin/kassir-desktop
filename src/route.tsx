@@ -1,9 +1,9 @@
 import { createBrowserRouter } from "react-router";
 import Home from "./pages/Home/index.tsx";
-import Stock from "./pages/Stock/index.tsx";
+import {route as stockRoute} from "./pages/Stock/index.tsx";
 import Layout, { loader } from "./Layout.tsx";
-import { route as newItemRouter } from "./pages/Stock/NewItem/index.tsx";
-import { route as itemRouter } from "./pages/Stock/Items/index.tsx";
+import { route as itemRoute } from "./pages/Stock/Items/index.tsx";
+import { route as settingRoute } from "./pages/Setting/index.tsx";
 
 export const router = createBrowserRouter([
 	{
@@ -12,11 +12,9 @@ export const router = createBrowserRouter([
 		loader,
 		children: [
 			{ index: true, Component: Home },
-			itemRouter,
-			{
-				path: "stock",
-				children: [{ index: true, Component: Stock }, newItemRouter],
-			},
+			itemRoute,
+			stockRoute,
+			settingRoute
 		],
 	},
 ]);
