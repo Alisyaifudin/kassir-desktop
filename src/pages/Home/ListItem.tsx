@@ -2,28 +2,31 @@ import Decimal from "decimal.js";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { calcSubtotal, Item, ItemComponent } from "./Item";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { cn } from "../../utils";
+import { ItemContext } from "./item-method";
 
-type Props = {
-	items: Item[];
-	editName: (index: number, name: string) => void;
-	editPrice: (index: number, price: string) => void;
-	editDiscVal: (index: number, value: string) => void;
-	editDiscType: (index: number, type: string) => void;
-	editQty: (index: number, qty: string) => void;
-	deleteItem: (index: number) => void;
-};
+// type Props = {
+// 	items: Item[];
+// 	editName: (index: number, name: string) => void;
+// 	editPrice: (index: number, price: string) => void;
+// 	editDiscVal: (index: number, value: string) => void;
+// 	editDiscType: (index: number, type: string) => void;
+// 	editQty: (index: number, qty: string) => void;
+// 	deleteItem: (index: number) => void;
+// };
 
-export function ListItem({
-	items,
-	editName,
-	editPrice,
-	editDiscType,
-	editDiscVal,
-	editQty,
-	deleteItem,
-}: Props) {
+// export function ListItem({
+// 	items,
+// 	editName,
+// 	editPrice,
+// 	editDiscType,
+// 	editDiscVal,
+// 	editQty,
+// 	deleteItem,
+// }: Props) {
+export function ListItem() {
+	const { items } = useContext(ItemContext);
 	const [pay, setPay] = useState("");
 	const [disc, setDisc] = useState<{ type: "number" | "percent"; value: string }>({
 		type: "number",
@@ -77,17 +80,7 @@ export function ListItem({
 				</div>
 				<div className="flex flex-col overflow-y-auto">
 					{items.map((item, i) => (
-						<ItemComponent
-							{...item}
-							index={i}
-							key={i}
-							editName={editName}
-							editPrice={editPrice}
-							editDiscType={editDiscType}
-							editDiscVal={editDiscVal}
-							editQty={editQty}
-							deleteItem={deleteItem}
-						/>
+						<ItemComponent {...item} index={i} key={i} />
 					))}
 				</div>
 			</div>

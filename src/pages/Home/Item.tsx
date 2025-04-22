@@ -1,6 +1,8 @@
 import { X, Lock } from "lucide-react";
 import { cn } from "../../utils";
 import Decimal from "decimal.js";
+import { useContext } from "react";
+import { ItemContext, itemMethod } from "./item-method";
 
 export type Item = {
 	id?: number;
@@ -15,29 +17,13 @@ export type Item = {
 };
 
 type Props = {
-	editName: (index: number, name: string) => void;
-	editPrice: (index: number, price: string) => void;
-	editDiscVal: (index: number, value: string) => void;
-	editDiscType: (index: number, type: string) => void;
-	editQty: (index: number, qty: string) => void;
-	deleteItem: (index: number) => void;
 	index: number;
 } & Item;
 
-export function ItemComponent({
-	id,
-	disc,
-	name,
-	price,
-	qty,
-	index,
-	editName,
-	editPrice,
-	editDiscType,
-	editDiscVal,
-	editQty,
-	deleteItem,
-}: Props) {
+export function ItemComponent({ id, disc, name, price, qty, index }: Props) {
+	const { setItems } = useContext(ItemContext);
+	const { editName, deleteItem, editDiscType, editDiscVal, editPrice, editQty } =
+		itemMethod(setItems);
 	return (
 		<div
 			className={cn("grid grid-cols-[50px_1fr_100px_170px_50px_100px_25px] gap-1 items-center", {
