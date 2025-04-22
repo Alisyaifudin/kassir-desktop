@@ -21,11 +21,12 @@ type ItemListProps = {
 };
 
 export function ItemList({ items }: ItemListProps) {
+	console.log({ items });
 	return (
 		<Table>
 			<TableHeader>
 				<TableRow>
-					<TableHead className="w-[100px]">No</TableHead>
+					<TableHead className="w-[50px]">No</TableHead>
 					<TableHead className="w-[200px]">Barcode</TableHead>
 					<TableHead>Nama</TableHead>
 					<TableHead className="text-right w-[100px]">Harga</TableHead>

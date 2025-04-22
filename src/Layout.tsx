@@ -7,11 +7,14 @@ export function loader({ request }: LoaderFunctionArgs) {
 	return { path };
 }
 
-const title = {
-	"/": "Jual",
-	"/stock": "Stok",
-	"/stock/new": "New",
-} as Record<string, string>;
+function getTitle(path: string): string {
+	if (path === "/") {
+		return "Jual";
+	} else if (path.includes("stock") || path.includes("items")) {
+		return "Stok";
+	}
+	return "";
+}
 
 function Layout() {
 	const { path } = useLoaderData<typeof loader>();
@@ -19,7 +22,7 @@ function Layout() {
 		<>
 			<header className="bg-sky-300">
 				<nav className="flex p-3 justify-between">
-					<p className="text-xl font-bold">{title[path]}</p>
+					<p className="text-xl font-bold">{getTitle(path)}</p>
 					<ul className="flex gap-5 justify-end">
 						<li>
 							<Button variant="outline" asChild>

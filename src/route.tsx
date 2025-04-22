@@ -3,6 +3,7 @@ import Home from "./pages/Home.tsx";
 import Stock, { loader as stockLoader } from "./pages/Stock/index.tsx";
 import Layout, { loader } from "./Layout.tsx";
 import { route as newItemRouter } from "./pages/NewItem/index.tsx";
+import { route as itemRouter } from "./pages/Items/index.tsx";
 
 export const router = createBrowserRouter([
 	{
@@ -11,6 +12,7 @@ export const router = createBrowserRouter([
 		loader,
 		children: [
 			{ index: true, Component: Home },
+			itemRouter,
 			{
 				path: "stock",
 				children: [{ index: true, loader: stockLoader, Component: Stock }, newItemRouter],
