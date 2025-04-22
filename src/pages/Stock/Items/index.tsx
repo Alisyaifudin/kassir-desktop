@@ -1,29 +1,55 @@
-import { Link, LoaderFunctionArgs, RouteObject, useNavigate } from "react-router";
+import {
+	Link,
+	LoaderFunctionArgs,
+	redirect,
+	RouteObject,
+	useLoaderData,
+	useNavigate,
+} from "react-router";
 import { z } from "zod";
-import { numeric, numerish } from "../../utils";
+import { numeric, numerish } from "../../../utils";
 import { useState } from "react";
 import { Field } from "./Field";
-import { insert } from "./insert";
-import { Button } from "../../components/ui/button";
-import { ChevronLeft } from "lucide-react";
-import { Input } from "../../components/ui/input";
+import { Button } from "../../../components/ui/button";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { Input } from "../../../components/ui/input";
+import Database from "@tauri-apps/plugin-sql";
+import { update } from "./update";
+import { Delete } from "./Delete";
 
 export const route: RouteObject = {
 	Component: Page,
 	loader,
-	path: "new",
+	path: "/items/:id",
 };
 
-export async function loader({}: LoaderFunctionArgs) {}
+export async function loader({ params }: LoaderFunctionArgs) {
+	const db = await Database.load("sqlite:mydatabase.db");
+	const items = await db.select<
+		{
+			name: string;
+			price: string;
+			barcode: string | null;
+			stock: number;
+			id: number;
+		}[]
+	>("SELECT * FROM items WHERE id = $1", [params.id]);
+	if (items.length === 0) {
+		return redirect("/stock");
+	}
+	return { item: items[0] };
+}
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numerish,
 	stock: numeric,
 	barcode: numerish.nullable(),
+	id: z.number(),
 });
 
 export default function Page() {
 	const navigate = useNavigate();
+	const { item } = useLoaderData<typeof loader>();
 	const [error, setError] = useState({ name: "", price: "", stock: "", barcode: "", global: "" });
 	const [loading, setLoading] = useState(false);
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -34,6 +60,7 @@ export default function Page() {
 			price: formData.get("price"),
 			stock: formData.get("stock"),
 			barcode: formData.get("barcode"),
+			id: item.id,
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -47,7 +74,7 @@ export default function Page() {
 			return;
 		}
 		setLoading(true);
-		insert(parsed.data).then((err) => {
+		update(parsed.data).then((err) => {
 			if (err) {
 				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
 				setLoading(false);
@@ -65,24 +92,44 @@ export default function Page() {
 					<ChevronLeft /> Kembali
 				</Link>
 			</Button>
-			<h1 className="font-bold text-3xl">Tambah barang</h1>
+			<h1 className="font-bold text-3xl">Edit barang</h1>
 			<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 				<Field error={error.name} label="Name*:">
-					<Input type="text" className="outline w-[400px]" name="name" required />
+					<Input type="text" className="outline" name="name" required defaultValue={item.name} />
 				</Field>
 				<Field error={error.price} label="Harga*:">
-					<Input type="number" className="outline w-[300px]" name="price" required />
+					<Input
+						type="number"
+						className="outline w-[300px]"
+						name="price"
+						required
+						defaultValue={item.price}
+					/>
 				</Field>
 				<Field error={error.stock} label="Stok*:">
-					<Input type="number" className="outline w-[100px]" name="stock" required />
+					<Input
+						type="number"
+						className="outline w-[100px]"
+						name="stock"
+						required
+						defaultValue={item.stock}
+					/>
 				</Field>
 				<Field error={error.barcode} label="Barcode:">
-					<Input type="number" className="outline w-[300px]" name="barcode" />
+					<Input
+						type="number"
+						className="outline w-[300px]"
+						name="barcode"
+						defaultValue={item.barcode ?? ""}
+					/>
 				</Field>
-				<Button className="w-fit" type="submit">
-					Simpan
-				</Button>
-				{loading && <p>Loading...</p>}
+				<div className="flex items-center justify-between">
+					<Button className="w-fit" type="submit">
+						Simpan
+						{loading && <Loader2 className="animate-spin" />}
+					</Button>
+					<Delete id={item.id} name={item.name} />
+				</div>
 				{error.global === "" ? null : <p className="text-red-500">{error.global}</p>}
 			</form>
 		</main>

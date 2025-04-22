@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { tryResult } from "../../utils";
+import { tryResult } from "../../../utils";
 
 export async function update(data: {
 	name: string;
@@ -16,7 +16,7 @@ export async function update(data: {
 		return "Gagal memuat database";
 	}
 	const [errMsg] = await tryResult({
-		message: "Gagal menyimpan barang",
+		message: "Gagal mengedit barang",
 		run: async () =>
 			db.execute("UPDATE items SET name = $1, stock = $2, price = $3, barcode = $4 WHERE id = $5", [
 				data.name,

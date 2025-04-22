@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { tryResult } from "../../utils";
+import { tryResult } from "../../../utils";
 
 export async function insert(data: {
 	name: string;
@@ -23,10 +23,11 @@ export async function insert(data: {
 					[data.name, data.stock, data.price, data.barcode]
 				);
 			} else {
-				return await db.execute(
-					"INSERT INTO items (name, stock, price) VALUES ($1, $2, $3)",
-					[data.name, data.stock, data.price]
-				);
+				return await db.execute("INSERT INTO items (name, stock, price) VALUES ($1, $2, $3)", [
+					data.name,
+					data.stock,
+					data.price,
+				]);
 			}
 		},
 	});
