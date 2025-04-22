@@ -1,4 +1,5 @@
-import { LoaderFunctionArgs, Outlet, useLoaderData } from "react-router";
+import { Link, LoaderFunctionArgs, Outlet, useLoaderData } from "react-router";
+import { Button } from "./components/ui/button";
 
 export function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url);
@@ -19,12 +20,16 @@ function Layout() {
 			<header className="bg-sky-300">
 				<nav className="flex p-3 justify-between">
 					<p className="text-xl font-bold">{title[path]}</p>
-					<ul className="flex gap-5 justify-end underline">
+					<ul className="flex gap-5 justify-end">
 						<li>
-							<a href="/">Jual</a>
+							<Button variant="outline" asChild>
+								<Link to="/">Jual</Link>
+							</Button>
 						</li>
 						<li>
-							<a href="/stock">Stok</a>
+							<Button variant="outline" asChild>
+								<Link to="/stock">Stok</Link>
+							</Button>
 						</li>
 					</ul>
 				</nav>

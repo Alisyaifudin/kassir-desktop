@@ -24,7 +24,7 @@ export async function insert(data: {
 				);
 			} else {
 				return await db.execute(
-					"INSERT INTO items (name, stock, price, barcode) VALUES ($1, $2, $3)",
+					"INSERT INTO items (name, stock, price) VALUES ($1, $2, $3)",
 					[data.name, data.stock, data.price]
 				);
 			}

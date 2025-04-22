@@ -1,10 +1,12 @@
-import { LoaderFunctionArgs, RouteObject, useNavigate } from "react-router";
+import { Link, LoaderFunctionArgs, RouteObject, useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric, numerish } from "../../utils";
 import { useState } from "react";
 import { Field } from "./Field";
 import { insert } from "./insert";
 import { Button } from "../../components/ui/button";
+import { ChevronLeft } from "lucide-react";
+import { Input } from "../../components/ui/input";
 
 export const route: RouteObject = {
 	Component: Page,
@@ -57,20 +59,26 @@ export default function Page() {
 	};
 	return (
 		<main className="p-2">
+			<Button asChild variant="link">
+				<Link to="/stock">
+					{" "}
+					<ChevronLeft /> Kembali
+				</Link>
+			</Button>
 			<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 				<Field error={error.name} label="Name*:">
-					<input type="text" className="outline w-[400px]" name="name" required />
+					<Input type="text" className="outline w-[400px]" name="name" required />
 				</Field>
 				<Field error={error.price} label="Harga*:">
-					<input type="number" className="outline" name="price" required />
+					<Input type="number" className="outline w-[300px]" name="price" required />
 				</Field>
 				<Field error={error.stock} label="Stok*:">
-					<input type="number" className="outline w-[100px]" name="stock" required />
+					<Input type="number" className="outline w-[100px]" name="stock" required />
 				</Field>
 				<Field error={error.barcode} label="Barcode:">
-					<input type="number" className="outline" name="barcode" />
+					<Input type="number" className="outline w-[300px]" name="barcode" />
 				</Field>
-				<Button className="w-fit" variant="destructive" type="submit">
+				<Button className="w-fit" type="submit">
 					Simpan
 				</Button>
 				{loading && <p>Loading...</p>}

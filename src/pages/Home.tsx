@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 export default function Page() {
 	return (
 		<main>
@@ -5,7 +7,7 @@ export default function Page() {
 				<nav></nav>
 			</header>
 			<p>uwu</p>
-			<a href="/owo">owo</a>
+			<Link to="/owo">owo</Link>
 		</main>
 	);
 }
