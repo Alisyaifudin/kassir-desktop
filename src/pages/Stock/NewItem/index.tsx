@@ -1,4 +1,4 @@
-import { Link, LoaderFunctionArgs, RouteObject, useNavigate } from "react-router";
+import { Link, RouteObject, useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric, numerish } from "../../../utils";
 import { useState } from "react";
@@ -10,11 +10,9 @@ import { Input } from "../../../components/ui/input";
 
 export const route: RouteObject = {
 	Component: Page,
-	loader,
 	path: "new",
 };
 
-export async function loader({}: LoaderFunctionArgs) {}
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numerish,

@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { useContext } from "react";
 import { ItemContext, itemMethod } from "./item-method";
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
+import { useDb } from "../../Layout";
 
 export type Item = {
 	id?: number;
@@ -23,8 +24,9 @@ type Props = {
 
 export function ItemComponent({ id, disc, name, price, qty, index, stock }: Props) {
 	const { setItems } = useContext(ItemContext);
+	const db = useDb();
 	const { editName, deleteItem, editDiscType, editDiscVal, editPrice, editQty } =
-		itemMethod(setItems);
+		itemMethod(db, setItems);
 	return (
 		<div
 			className={cn("grid grid-cols-[50px_1fr_100px_170px_50px_100px_25px] gap-1 items-center", {

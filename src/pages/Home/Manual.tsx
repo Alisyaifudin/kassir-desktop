@@ -5,6 +5,7 @@ import { useContext, useState } from "react";
 import { z } from "zod";
 import { numerish } from "../../utils";
 import { ItemContext, itemMethod } from "./item-method";
+import { useDb } from "../../Layout";
 
 const itemSchema = z.object({
 	name: z.string().min(1),
@@ -20,7 +21,8 @@ export function Manual() {
 	const [disc, setDisc] = useState("number");
 	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "" });
 	const { setItems } = useContext(ItemContext);
-	const { addItemManual } = itemMethod(setItems);
+	const db = useDb();
+	const { addItemManual } = itemMethod(db, setItems);
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);

@@ -21,7 +21,6 @@ type ItemListProps = {
 };
 
 export function ItemList({ items }: ItemListProps) {
-	console.log({ items });
 	return (
 		<Table>
 			<TableHeader>

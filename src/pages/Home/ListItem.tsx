@@ -6,25 +6,6 @@ import { useContext, useState } from "react";
 import { cn } from "../../utils";
 import { ItemContext } from "./item-method";
 
-// type Props = {
-// 	items: Item[];
-// 	editName: (index: number, name: string) => void;
-// 	editPrice: (index: number, price: string) => void;
-// 	editDiscVal: (index: number, value: string) => void;
-// 	editDiscType: (index: number, type: string) => void;
-// 	editQty: (index: number, qty: string) => void;
-// 	deleteItem: (index: number) => void;
-// };
-
-// export function ListItem({
-// 	items,
-// 	editName,
-// 	editPrice,
-// 	editDiscType,
-// 	editDiscVal,
-// 	editQty,
-// 	deleteItem,
-// }: Props) {
 export function ListItem() {
 	const { items } = useContext(ItemContext);
 	const [pay, setPay] = useState("");

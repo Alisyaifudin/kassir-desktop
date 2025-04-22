@@ -1,4 +1,5 @@
 import {
+	Await,
 	Link,
 	LoaderFunctionArgs,
 	redirect,
@@ -8,7 +9,7 @@ import {
 } from "react-router";
 import { z } from "zod";
 import { numeric, numerish } from "../../../utils";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Field } from "./Field";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -16,6 +17,8 @@ import { Input } from "../../../components/ui/input";
 import Database from "@tauri-apps/plugin-sql";
 import { update } from "./update";
 import { DeleteBtn } from "./DeleteBtn";
+import { useDb } from "../../../Layout";
+import Redirect from "../../../components/Redirect";
 
 export const route: RouteObject = {
 	Component: Page,
@@ -24,20 +27,11 @@ export const route: RouteObject = {
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {
-	const db = await Database.load("sqlite:mydatabase.db");
-	const items = await db.select<
-		{
-			name: string;
-			price: string;
-			barcode: string | null;
-			stock: number;
-			id: number;
-		}[]
-	>("SELECT * FROM items WHERE id = $1", [params.id]);
-	if (items.length === 0) {
+	const parsed = numeric.safeParse(params.id);
+	if (!parsed.success) {
 		return redirect("/stock");
 	}
-	return { item: items[0] };
+	return { id: parsed.data };
 }
 const dataSchema = z.object({
 	name: z.string().min(1),
@@ -48,10 +42,35 @@ const dataSchema = z.object({
 });
 
 export default function Page() {
-	const navigate = useNavigate();
-	const { item } = useLoaderData<typeof loader>();
+	const { id } = useLoaderData<typeof loader>();
+	const item = useItem(id);
+	return (
+		<main className="p-2 mx-auto w-full max-w-2xl flex flex-col gap-2">
+			<Button asChild variant="link" className="self-start">
+				<Link to="/stock">
+					{" "}
+					<ChevronLeft /> Kembali
+				</Link>
+			</Button>
+			<h1 className="font-bold text-3xl">Edit barang</h1>
+			<Suspense fallback={<Loader2 className="animate-spin"></Loader2>}>
+				<Await resolve={item}>
+					{(item) => {
+						if (item === null) {
+							return <Redirect to="/stock" />;
+						}
+						return <Form item={item} />;
+					}}
+				</Await>
+			</Suspense>
+		</main>
+	);
+}
+
+function Form({ item }: { item: DB.Item }) {
 	const [error, setError] = useState({ name: "", price: "", stock: "", barcode: "", global: "" });
 	const [loading, setLoading] = useState(false);
+	const navigate = useNavigate();
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -85,53 +104,66 @@ export default function Page() {
 		});
 	};
 	return (
-		<main className="p-2 mx-auto w-full max-w-2xl flex flex-col gap-2">
-			<Button asChild variant="link" className="self-start">
-				<Link to="/stock">
-					{" "}
-					<ChevronLeft /> Kembali
-				</Link>
-			</Button>
-			<h1 className="font-bold text-3xl">Edit barang</h1>
-			<form onSubmit={handleSubmit} className="flex flex-col gap-2">
-				<Field error={error.name} label="Name*:">
-					<Input type="text" className="outline" name="name" required defaultValue={item.name} />
-				</Field>
-				<Field error={error.price} label="Harga*:">
-					<Input
-						type="number"
-						className="outline w-[300px]"
-						name="price"
-						required
-						defaultValue={item.price}
-					/>
-				</Field>
-				<Field error={error.stock} label="Stok*:">
-					<Input
-						type="number"
-						className="outline w-[100px]"
-						name="stock"
-						required
-						defaultValue={item.stock}
-					/>
-				</Field>
-				<Field error={error.barcode} label="Barcode:">
-					<Input
-						type="number"
-						className="outline w-[300px]"
-						name="barcode"
-						defaultValue={item.barcode ?? ""}
-					/>
-				</Field>
-				<div className="flex items-center justify-between">
-					<Button className="w-fit" type="submit">
-						Simpan
-						{loading && <Loader2 className="animate-spin" />}
-					</Button>
-					<DeleteBtn id={item.id} name={item.name} />
-				</div>
-				{error.global === "" ? null : <p className="text-red-500">{error.global}</p>}
-			</form>
-		</main>
+		<form onSubmit={handleSubmit} className="flex flex-col gap-2">
+			<Field error={error.name} label="Name*:">
+				<Input type="text" className="outline" name="name" required defaultValue={item.name} />
+			</Field>
+			<Field error={error.price} label="Harga*:">
+				<Input
+					type="number"
+					className="outline w-[300px]"
+					name="price"
+					required
+					defaultValue={item.price}
+				/>
+			</Field>
+			<Field error={error.stock} label="Stok*:">
+				<Input
+					type="number"
+					className="outline w-[100px]"
+					name="stock"
+					required
+					defaultValue={item.stock}
+				/>
+			</Field>
+			<Field error={error.barcode} label="Barcode:">
+				<Input
+					type="number"
+					className="outline w-[300px]"
+					name="barcode"
+					defaultValue={item.barcode ?? ""}
+				/>
+			</Field>
+			<div className="flex items-center justify-between">
+				<Button className="w-fit" type="submit">
+					Simpan
+					{loading && <Loader2 className="animate-spin" />}
+				</Button>
+				<DeleteBtn id={item.id} name={item.name} />
+			</div>
+			{error.global === "" ? null : <p className="text-red-500">{error.global}</p>}
+		</form>
 	);
+}
+
+const useItem = (id: number) => {
+	const db = useDb();
+	const item = getItem(db, id);
+	return item;
+};
+
+async function getItem(db: Database, id: number): Promise<DB.Item | null> {
+	const items = await db.select<
+		{
+			name: string;
+			price: string;
+			barcode: string | null;
+			stock: number;
+			id: number;
+		}[]
+	>("SELECT * FROM items WHERE id = $1", [id]);
+	if (items.length === 0) {
+		return null;
+	}
+	return items[0];
 }

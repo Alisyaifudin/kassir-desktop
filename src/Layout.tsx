@@ -1,7 +1,9 @@
-import { Link, LoaderFunctionArgs, Outlet, useLoaderData } from "react-router";
+import { Link, LoaderFunctionArgs, Outlet, useLoaderData, useOutletContext } from "react-router";
 import { Button } from "./components/ui/button";
+import Database from "@tauri-apps/plugin-sql";
+import { useEffect, useState } from "react";
 
-export function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url);
 	const path = url.pathname;
 	return { path };
@@ -18,6 +20,16 @@ function getTitle(path: string): string {
 
 function Layout() {
 	const { path } = useLoaderData<typeof loader>();
+	const [db, setDb] = useState<Database | null>(null);
+	useEffect(() => {
+		Database.load("sqlite:mydatabase.db").then((db) => {
+			setDb(db);
+		});
+	}, []);
+
+	if (db === null) {
+		return null;
+	}
 	return (
 		<>
 			<header className="bg-sky-300">
@@ -37,9 +49,14 @@ function Layout() {
 					</ul>
 				</nav>
 			</header>
-			<Outlet />
+			<Outlet context={{ db }} />
 		</>
 	);
 }
+
+export const useDb = () => {
+	const { db } = useOutletContext<{ db: Database }>();
+	return db;
+};
 
 export default Layout;

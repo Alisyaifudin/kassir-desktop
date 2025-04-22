@@ -10,7 +10,10 @@ export const ItemContext = createContext<{
 }>({ items: [], setItems: () => {} });
 export const ItemContextProvider = ItemContext.Provider;
 
-export const itemMethod = (setItems: React.Dispatch<React.SetStateAction<Item[]>>) => ({
+export const itemMethod = (
+	db: Database,
+	setItems: React.Dispatch<React.SetStateAction<Item[]>>
+) => ({
 	deleteItem: (index: number) => {
 		setItems((prev) => prev.filter((_, i) => i !== index));
 	},
@@ -101,8 +104,35 @@ export const itemMethod = (setItems: React.Dispatch<React.SetStateAction<Item[]>
 			})
 		);
 	},
+	addItemSelect: ({
+		name,
+		price,
+		stock,
+		id,
+	}: {
+		name: string;
+		price: string;
+		stock: number;
+		id: number;
+	}) => {
+		setItems((items) =>
+			produce(items, (draft) => {
+				draft.push({
+					name,
+					price,
+					qty: "1",
+					disc: {
+						value: "0",
+						type: "number"
+					},
+					stock,
+					id,
+				});
+			})
+		);
+	},
 	addItemBarcode: async (barcode: string): Promise<string | null> => {
-		const [errMsg, item] = await addBarcode(barcode);
+		const [errMsg, item] = await addBarcode(db, barcode);
 		if (errMsg !== null) return errMsg;
 		setItems((items) =>
 			produce(items, (draft) => {
@@ -123,14 +153,7 @@ export const itemMethod = (setItems: React.Dispatch<React.SetStateAction<Item[]>
 	},
 });
 
-async function addBarcode(barcode: string): Promise<Result<string, DB.Item>> {
-	const [errDb, db] = await tryResult({
-		run: () => Database.load("sqlite:mydatabase.db"),
-	});
-	if (errDb) {
-		console.error("Gagal memuat database");
-		return err("Gagal memuat database");
-	}
+async function addBarcode(db: Database, barcode: string): Promise<Result<string, DB.Item>> {
 	const [errMsg, item] = await tryResult({
 		run: async () => {
 			const items = await db.select<DB.Item[]>("SELECT * FROM items WHERE barcode = ?1", [barcode]);

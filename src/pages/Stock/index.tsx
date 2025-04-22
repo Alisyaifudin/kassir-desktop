@@ -1,25 +1,12 @@
-import { Link, LoaderFunctionArgs, useLoaderData } from "react-router";
-import Database from "@tauri-apps/plugin-sql";
+import { Await, Link } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { ItemList } from "./ItemList";
-
-export async function loader({}: LoaderFunctionArgs) {
-	const db = await Database.load("sqlite:mydatabase.db");
-	const items = await db.select<
-		{
-			name: string;
-			price: string;
-			barcode: string | null;
-			stock: number;
-			id: number,
-		}[]
-	>("SELECT * FROM items");
-	return { items };
-}
+import { useDb } from "../../Layout";
+import { Suspense } from "react";
 
 export default function Page() {
-	const { items } = useLoaderData<typeof loader>();
+	const items = useItems();
 	return (
 		<main className="flex flex-col gap-2 p-2">
 			<Button asChild size="icon" className="rounded-full self-end">
@@ -27,8 +14,23 @@ export default function Page() {
 					<Plus />
 				</Link>
 			</Button>
-			{/* <div>{JSON.stringify(result)}</div> */}
-			<ItemList items={items} />
+			<Suspense fallback={<p>Loading...</p>}>
+				<Await resolve={items}>{(items) => <ItemList items={items} />}</Await>
+			</Suspense>
 		</main>
 	);
 }
+
+const useItems = () => {
+	const db = useDb();
+	const items = db.select<
+		{
+			name: string;
+			price: string;
+			barcode: string | null;
+			stock: number;
+			id: number;
+		}[]
+	>("SELECT * FROM items");
+	return items;
+};

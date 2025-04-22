@@ -9,8 +9,6 @@ export function InputItem() {
 			<hr />
 			<Search />
 			<hr />
-			<div className="flex-1" />
-			<hr />
 			<Manual />
 		</aside>
 	);
