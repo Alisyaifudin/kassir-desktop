@@ -10,7 +10,7 @@ import {
 } from "../../../components/ui/table";
 export function ItemList({ items, record }: { record: DB.Record; items: DB.RecordItem[] }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
-	const [width, setWidth] = useState(78);
+	const [width] = useState(72);
 	useEffect(() => {
 		const style = document.createElement("style");
 		style.textContent = `

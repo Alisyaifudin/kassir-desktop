@@ -8,8 +8,8 @@ type AwaitProps<T> = {
 
 export function Await<T>({
 	state: { data, error, loading },
-	Loading = <p>Loading...</p>,
-	Error = <p>Error</p>,
+	Loading = null,
+	Error = null,
 	children,
 }: AwaitProps<T>) {
 	if (loading) {
