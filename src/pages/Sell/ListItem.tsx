@@ -4,7 +4,10 @@ import { Input } from "../../components/ui/input";
 import { calcSubtotal, Item, ItemComponent } from "./Item";
 import { useContext, useState } from "react";
 import { cn } from "../../utils";
-import { ItemContext } from "./item-method";
+import { ItemContext, itemMethod } from "./item-method";
+import { useDb } from "../../Layout";
+import { useNavigate } from "react-router";
+import { Loader2 } from "lucide-react";
 
 export function ListItem() {
 	const { items } = useContext(ItemContext);
@@ -13,9 +16,15 @@ export function ListItem() {
 		type: "number",
 		value: "",
 	});
+	const { setItems } = useContext(ItemContext);
+	const db = useDb();
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
+	const { submitPayment } = itemMethod(db, setItems);
+	const navigate = useNavigate();
 	const rawTotal = calcRawTotal(items);
 	const total = calcTotal(rawTotal, disc);
-	const change = calcChange(total, pay).toNumber();
+	const change = calcChange(total, pay);
 	const editPay = (value: string) => {
 		if (Number.isNaN(value) || Number(value) < 0 || Number(value) >= 1e9) {
 			return;
@@ -45,6 +54,38 @@ export function ListItem() {
 			value = "100";
 		}
 		setDisc({ value, type });
+	};
+	const handlePay = () => {
+		if (change.toNumber() < 0 || Number.isNaN(pay) || pay === "") {
+			return;
+		}
+		setLoading(true);
+		submitPayment(
+			{
+				change: change.toString(),
+				disc_type: disc.type,
+				disc_val: disc.value,
+				pay,
+				total: total.toString(),
+			},
+			items
+		)
+			.then((res) => {
+				const [errMsg, id] = res;
+				if (errMsg) {
+					setError(errMsg);
+					setLoading(false);
+					return;
+				}
+				setError("");
+				setLoading(false);
+				navigate(`/records/${id}`);
+			})
+			.catch((e) => {
+				console.error(e);
+				setError("Aplikasi bermasalah");
+				setLoading(false);
+			});
 	};
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
@@ -95,11 +136,14 @@ export function ListItem() {
 					</div>
 					<div className="grid grid-cols-[91px_1fr] h-[30px] items-center">
 						<p>Kembalian:</p>
-						<p className={cn({ "bg-red-500 text-white px-1": change < 0 })}>
-							{change.toLocaleString("de-DE")}
+						<p className={cn({ "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
+							{change.toNumber().toLocaleString("de-DE")}
 						</p>
 					</div>
-					<Button disabled={change < 0}>Bayar</Button>
+					<Button onClick={handlePay} disabled={change.toNumber() < 0}>
+						Bayar {loading && <Loader2 className="animate-spin" />}
+					</Button>
+					{error === "" ? null : <p className="text-red-500">{error}</p>}
 				</div>
 			</div>
 			<div></div>

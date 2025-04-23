@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import { ItemList } from "./ItemList";
 import { useDb } from "../../Layout";
 import { Suspense } from "react";
-import { route as newItemRoute } from "./NewItem/index.tsx";
+import { route as newItemRoute } from "./New-Item/index.tsx";
 export const route: RouteObject = {
 	path: "stock",
 	children: [{ index: true, Component: Page }, newItemRoute],

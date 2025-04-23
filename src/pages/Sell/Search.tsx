@@ -62,7 +62,7 @@ async function searchItem(db: Database, name: string): Promise<Result<string, DB
 	return tryResult({
 		run: async () =>
 			db.select<DB.Item[]>(
-				"SELECT * FROM items WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' LIMIT 20",
+				"SELECT * FROM items WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND stock > 0 LIMIT 20",
 				[name.trim()]
 			),
 	});

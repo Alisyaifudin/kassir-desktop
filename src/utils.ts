@@ -42,3 +42,18 @@ export async function tryResult<R, const T = DefaultMessage>({
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
+
+export const monthNames = {
+	0: "Januari",
+	1: "Februari",
+	2: "Maret",
+	3: "April",
+	4: "Mei",
+	5: "Juni",
+	6: "Juli",
+	7: "Agustus",
+	8: "September",
+	9: "Oktober",
+	10: "November",
+	11: "Desember",
+} as Record<number, string>;

@@ -2,7 +2,6 @@ import { Await, RouteObject } from "react-router";
 import { Button } from "../../components/ui/button";
 import { useStore } from "../../Layout";
 import { Suspense, useState } from "react";
-import { Store } from "@tauri-apps/plugin-store";
 import { Input } from "../../components/ui/input";
 import { getSetting } from "./get-setting";
 import { Loader2 } from "lucide-react";

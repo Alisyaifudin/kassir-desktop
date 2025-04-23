@@ -1,8 +1,9 @@
 import { produce } from "immer";
-import { Item } from "./Item";
+import { calcSubtotal, Item } from "./Item";
 import { createContext } from "react";
 import { err, ok, Result, tryResult } from "../../utils";
 import Database from "@tauri-apps/plugin-sql";
+import { Temporal } from "temporal-polyfill";
 
 export const ItemContext = createContext<{
 	items: Item[];
@@ -115,6 +116,9 @@ export const itemMethod = (
 		stock: number;
 		id: number;
 	}) => {
+		if (stock === 0) {
+			return;
+		}
 		setItems((items) =>
 			produce(items, (draft) => {
 				draft.push({
@@ -123,7 +127,7 @@ export const itemMethod = (
 					qty: "1",
 					disc: {
 						value: "0",
-						type: "number"
+						type: "number",
 					},
 					stock,
 					id,
@@ -151,6 +155,35 @@ export const itemMethod = (
 		);
 		return null;
 	},
+	submitPayment: async (
+		record: Omit<DB.Record, "id"| "time">,
+		items: Item[],
+	): Promise<Result<string, number>> => {
+		const time = Temporal.Now.instant().epochMilliseconds;
+		const [errInsertRecord, id] = await addRecord(db, record, time);
+		if (errInsertRecord !== null) {
+			return err(errInsertRecord);
+		}
+		const itemsTranform = items.map((item): Omit<DB.RecordItem, "id"> & {item_id?: number} => {
+			const subtotal = calcSubtotal(item.disc, item.price, item.qty).toString();
+			return {
+				disc_type: item.disc.type,
+				disc_val: item.disc.value,
+				name: item.name,
+				price: item.price,
+				qty: Number(item.qty),
+				record_id: id,
+				subtotal,
+				time,
+				item_id: item.id
+			};
+		});
+		const errInsertItems = await addRecordItems(db, itemsTranform, time, id);
+		if (errInsertItems) {
+			return err(errInsertItems);
+		}
+		return ok(id);
+	},
 });
 
 async function addBarcode(db: Database, barcode: string): Promise<Result<string, DB.Item>> {
@@ -162,5 +195,49 @@ async function addBarcode(db: Database, barcode: string): Promise<Result<string,
 	});
 	if (errMsg) return err(errMsg);
 	if (item === null) return err("Barang tidak ada");
+	if (item.stock === 0) return err("Stok habis");
 	return ok(item);
+}
+
+async function addRecord(
+	db: Database,
+	record: Omit<DB.Record, "id"|"time">,
+	time: number
+): Promise<Result<string, number>> {
+	const [errMsg, res] = await tryResult({
+		run: () =>
+			db.execute(
+				`INSERT INTO records (time, total, pay, disc_val, disc_type, change) 
+			 VALUES ($1, $2, $3, $4, $5, $6)`,
+				[time, record.total, record.pay, record.disc_val, record.disc_type, record.change]
+			),
+	});
+	if (errMsg) return err(errMsg);
+	if (res.lastInsertId === undefined) return err("Gagal menambahkan catatan");
+	return ok(res.lastInsertId);
+}
+async function addRecordItems(
+	db: Database,
+	items: (Omit<DB.RecordItem, "id"> & {item_id?: number})[],
+	time: number,
+	recordId: number
+): Promise<string | null> {
+	const [errMsg] = await tryResult({
+		run: () => {
+			const promises = [];
+			for (const item of items) {
+				promises.push(db.execute(
+					`INSERT INTO record_items (record_id, time, name, price, qty, subtotal, disc_val, disc_type) 
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+				 [recordId, time, item.name, item.price, item.qty, item.subtotal, item.disc_val, item.disc_type]
+				));
+				if (item.item_id !== undefined) {
+					promises.push(db.execute(`UPDATE items SET stock = stock - $1 WHERE id = $2`, [item.qty, item.item_id]));
+				}
+			}
+			return Promise.all(promises);
+		}
+	});
+	if (errMsg) return errMsg;
+	return null;
 }
