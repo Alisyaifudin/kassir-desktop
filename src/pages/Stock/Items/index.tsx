@@ -1,5 +1,4 @@
 import {
-	Await,
 	Link,
 	LoaderFunctionArgs,
 	redirect,
@@ -9,7 +8,7 @@ import {
 } from "react-router";
 import { z } from "zod";
 import { numeric, numerish } from "../../../utils";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { Field } from "./Field";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -19,6 +18,8 @@ import { update } from "./update";
 import { DeleteBtn } from "./DeleteBtn";
 import { useDb } from "../../../Layout";
 import Redirect from "../../../components/Redirect";
+import { Await } from "../../../components/Await";
+import { useFetch } from "../../../hooks/useFetch";
 
 export const route: RouteObject = {
 	Component: Page,
@@ -53,16 +54,14 @@ export default function Page() {
 				</Link>
 			</Button>
 			<h1 className="font-bold text-3xl">Edit barang</h1>
-			<Suspense fallback={<Loader2 className="animate-spin"></Loader2>}>
-				<Await resolve={item}>
-					{(item) => {
-						if (item === null) {
-							return <Redirect to="/stock" />;
-						}
-						return <Form item={item} />;
-					}}
-				</Await>
-			</Suspense>
+			<Await state={item} Loading={<Loader2 className="animate-spin" />}>
+				{(item) => {
+					if (item === null) {
+						return <Redirect to="/stock" />;
+					}
+					return <Form item={item} />;
+				}}
+			</Await>
 		</main>
 	);
 }
@@ -148,7 +147,7 @@ function Form({ item }: { item: DB.Item }) {
 
 const useItem = (id: number) => {
 	const db = useDb();
-	const item = getItem(db, id);
+	const item = useFetch(getItem(db, id));
 	return item;
 };
 
