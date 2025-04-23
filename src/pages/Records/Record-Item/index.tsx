@@ -1,12 +1,6 @@
-import {
-	Link,
-	LoaderFunctionArgs,
-	redirect,
-	RouteObject,
-	useLoaderData,
-} from "react-router";
+import { Link, LoaderFunctionArgs, redirect, RouteObject, useLoaderData } from "react-router";
 import { err, numeric, ok, Result, tryResult } from "../../../utils";
-import {  useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDb } from "../../../Layout";
 import Database from "@tauri-apps/plugin-sql";
 import { Button } from "../../../components/ui/button";
@@ -35,12 +29,12 @@ export default function Page() {
 	const [time, setTime] = useState<number>(Temporal.Now.instant().epochMilliseconds);
 	const state = useRecord(id);
 	return (
-		<main className="flex flex-col gap-2 p-2">
+		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
 			<Button asChild variant="link" className="self-start">
 				<Link
 					to={{
 						pathname: "/records",
-						search: "?time=" + time,
+						search: `?time=${time}&selected=${id}`,
 					}}
 				>
 					{" "}
@@ -48,17 +42,17 @@ export default function Page() {
 				</Link>
 			</Button>
 			<Await state={state}>
-					{(data) => {
-						const [errMsg, res] = data;
-						if (errMsg !== null) {
-							return <p className="text-red-500">{errMsg}</p>;
-						}
-						useEffect(() => {
-							setTime(res.record.time);
-						}, []);
-						return <ItemList record={res.record} items={res.items} />;
-					}}
-				</Await>
+				{(data) => {
+					const [errMsg, res] = data;
+					if (errMsg !== null) {
+						return <p className="text-red-500">{errMsg}</p>;
+					}
+					useEffect(() => {
+						setTime(res.record.time);
+					}, []);
+					return <ItemList record={res.record} items={res.items} />;
+				}}
+			</Await>
 		</main>
 	);
 }

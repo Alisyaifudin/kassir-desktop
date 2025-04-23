@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { Temporal } from "temporal-polyfill";
 
 export const numerish = z.string().refine((val) => !isNaN(Number(val)), {
 	message: "Harus angka",
@@ -57,3 +58,22 @@ export const monthNames = {
 	10: "November",
 	11: "Desember",
 } as Record<number, string>;
+
+export function formatDate(epochMilli: number, type: "short" | "long" = "short"): string {
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
+	const { day, month, year } = date;
+	switch (type) {
+		case "short":
+			return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+		case "long":
+			return `${day} ${monthNames[month]} ${year}`;
+	}
+}
+
+export function formatTime(epochMilli: number): string {
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
+	const { hour, minute } = date;
+	return `${hour}:${minute.toString().padStart(2, "0")}`;
+}

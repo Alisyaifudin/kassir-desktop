@@ -3,12 +3,10 @@ import { useDb } from "../../Layout";
 import { RecordList } from "./RecordList";
 import { route as itemRoute } from "./Record-Item";
 import { Temporal } from "temporal-polyfill";
-import { monthNames } from "../../utils";
+import { formatDate } from "../../utils";
 import { useFetch } from "../../hooks/useFetch";
 import { Await } from "../../components/Await";
-import { Separator } from "../../components/ui/separator";
 import { ItemList } from "./ItemList";
-import { useState } from "react";
 
 export const route: RouteObject = {
 	path: "records",
@@ -18,23 +16,14 @@ export const route: RouteObject = {
 function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url);
 	const time = getTime(url.searchParams);
-	return { time };
-}
-
-function getTime(search: URLSearchParams): number {
-	const timeStr = search.get("time");
-	if (timeStr === null || Number.isNaN(timeStr)) {
-		return Temporal.Now.instant().epochMilliseconds;
-	}
-	return Number(timeStr);
+	const selected = getSelected(url.searchParams);
+	return { time, selected };
 }
 
 export default function Page() {
-	const { time } = useLoaderData<typeof loader>();
+	const { time, selected } = useLoaderData<typeof loader>();
 	const tz = Temporal.Now.timeZoneId();
-	const [selected, setSelected] = useState<number | null>(null);
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
-	const { day, month, year } = date;
 	const state = useRecords(date);
 	const [_, setSearch] = useSearchParams();
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,32 +36,34 @@ export default function Page() {
 			day,
 			hour: 12,
 		}).epochMilliseconds;
-		setSearch({
+		setSearch((search) => ({
+			...search,
 			time: epoch.toString(),
-		});
+		}));
 	};
 	const selectRecord = (id: number) => () => {
-		setSelected((prev) => (prev === id ? null : id));
+		setSearch((search) => ({
+			...search,
+			selected: selected === id ? null : id,
+		}));
 	};
 	return (
-		<main className="flex flex-col gap-2 p-2  flex-1">
+		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto">
 			<div className="flex gap-2 items-center ">
 				<input
 					type="date"
 					className="outline rounded-md"
-					value={`${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`}
+					value={formatDate(time)}
 					onChange={handleChange}
 				/>
-				<p>
-					Tanggal {day} {monthNames[month]} {year}
-				</p>
+				<p>Tanggal {formatDate(time, "long")}</p>
 			</div>
 			<Await state={state}>
 				{(data) => (
-					<div className="grid grid-cols-[1fr_1px_3fr] gap-2 h-full">
+					<div className="grid grid-cols-[1fr_1px_3fr] gap-2 h-full overflow-y-auto">
 						<RecordList records={data[0]} selectRecord={selectRecord} selected={selected} />
 						<div className="border-l" />
-						<ItemList allItems={data[1]} recordId={selected} />
+						<ItemList allItems={data[1]} recordId={selected} records={data[0]} />
 					</div>
 				)}
 			</Await>
@@ -96,4 +87,20 @@ function useRecords(date: Temporal.ZonedDateTime) {
 	]);
 	const state = useFetch(promises);
 	return state;
+}
+
+function getTime(search: URLSearchParams): number {
+	const timeStr = search.get("time");
+	if (timeStr === null || Number.isNaN(timeStr)) {
+		return Temporal.Now.instant().epochMilliseconds;
+	}
+	return Number(timeStr);
+}
+
+function getSelected(search: URLSearchParams): number | null {
+	const selected = search.get("selected");
+	if (selected === null || Number.isNaN(selected)) {
+		return null;
+	}
+	return Number(selected);
 }
