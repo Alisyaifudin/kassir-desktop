@@ -6,15 +6,13 @@ import {
 	TableHeader,
 	TableRow,
 } from "../../components/ui/table";
-import { cn } from "../../utils";
-
 type RecordListProps = {
-	records: DB.Record[];
-	selectRecord: (id: number) => () => void;
-	selected: number | null;
+	allItems: DB.RecordItem[];
+	recordId: number | null;
 };
 
-export function RecordList({ records, selected, selectRecord }: RecordListProps) {
+export function ItemList({ allItems, recordId }: RecordListProps) {
+	const items = recordId === null ? [] : allItems.filter((item) => item.record_id === recordId);
 	return (
 		<Table>
 			<TableHeader>
@@ -25,15 +23,11 @@ export function RecordList({ records, selected, selectRecord }: RecordListProps)
 				</TableRow>
 			</TableHeader>
 			<TableBody>
-				{records.map((record, i) => (
-					<TableRow
-						key={i}
-						onClick={selectRecord(record.id)}
-						className={cn({ "bg-sky-200 hover:bg-sky-100": selected === record.id })}
-					>
+				{items.map((record, i) => (
+					<TableRow key={i}>
 						<TableCell>{i + 1}</TableCell>
 						<TableCell>{record.time ?? ""}</TableCell>
-						<TableCell>{record.total}</TableCell>
+						<TableCell>{record.name}</TableCell>
 					</TableRow>
 				))}
 			</TableBody>

@@ -2,6 +2,10 @@
 
 body {
   zoom: 1.5;
+  height: calc(66.66vh);
+  #root {
+    height: 100%;
+  }
 }
 
 @layer base {

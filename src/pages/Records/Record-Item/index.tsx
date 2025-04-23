@@ -65,7 +65,7 @@ export default function Page() {
 
 function useRecord(id: number) {
 	const db = useDb();
-	const res = useFetch(() => getRecord(db, id));
+	const res = useFetch(getRecord(db, id));
 	return res;
 }
 
