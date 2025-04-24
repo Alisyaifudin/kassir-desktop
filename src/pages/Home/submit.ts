@@ -3,6 +3,7 @@ import { Database } from "../../database";
 import { err, ok, Result } from "../../utils";
 import { Item } from "./Item";
 import Decimal from "decimal.js";
+import { Tax } from "./reducer";
 
 export async function submitPayment(
 	db: Database,
@@ -62,7 +63,20 @@ export function calcSubtotal(
 	return total.sub(val);
 }
 
-export const calcTotal = (
+export function calcTotal(
+	total: Decimal,
+	taxes: Tax[],
+) {
+	const totalTax = taxes.reduce((acc, curr) => calcTax(total, curr.value).add(acc), new Decimal(0));
+	return total.add(totalTax);
+}
+
+export function calcTax(total: Decimal, value: number) {
+	const val = total.times(value).div(100).round();
+	return val;
+}
+
+export const calcTotalBeforeTax = (
 	items: Item[],
 	disc: { type: "number" | "percent"; value: string }
 ): Decimal => {

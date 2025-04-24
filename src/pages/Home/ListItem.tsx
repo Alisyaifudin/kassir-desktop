@@ -7,10 +7,18 @@ import { useDb } from "../../Layout";
 import { useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";
 import { ItemContext } from "./reducer";
-import { calcChange, calcTotal, submitPayment } from "./submit";
+import { calcChange, calcTotal, calcTotalBeforeTax, submitPayment } from "./submit";
+import { TaxItem } from "./Tax";
 
-export function ListItem() {
-	const { items } = useContext(ItemContext);
+export function ListItem({
+	variant,
+	setVar,
+}: {
+	variant: "sell" | "buy";
+	setVar: (variant: "sell" | "buy") => void;
+}) {
+	const { state } = useContext(ItemContext);
+	const { items, taxes } = state;
 	const [pay, setPay] = useState("");
 	const [disc, setDisc] = useState<{ type: "number" | "percent"; value: string }>({
 		type: "number",
@@ -20,7 +28,8 @@ export function ListItem() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const navigate = useNavigate();
-	const total = calcTotal(items, disc);
+	const totalBeforeTax = calcTotalBeforeTax(items, disc);
+	const total = calcTotal(totalBeforeTax, taxes);
 	const change = calcChange(total, pay);
 	const editPay = (value: string) => {
 		if (Number.isNaN(value) || Number(value) < 0 || Number(value) >= 1e9) {
@@ -87,10 +96,26 @@ export function ListItem() {
 				setLoading(false);
 			});
 	};
+	console.log({ taxes });
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
 			<div className="outline h-full flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
-				<h1 className="text-2xl font-bold">Barang</h1>
+				<div className="flex gap-2 items-center">
+					<Button
+						onClick={() => setVar("sell")}
+						className={variant === "sell" ? "text-2xl font-bold" : "text-black/50"}
+						variant={variant === "sell" ? "default" : "ghost"}
+					>
+						<h2 className="">Jual</h2>
+					</Button>
+					<Button
+						onClick={() => setVar("buy")}
+						className={variant === "buy" ? "text-2xl font-bold" : "text-black/50"}
+						variant={variant === "buy" ? "default" : "ghost"}
+					>
+						<h2 className="">Beli</h2>
+					</Button>
+				</div>
 				<div className="grid grid-cols-[50px_1fr_100px_170px_50px_100px_25px] gap-1 outline">
 					<p className="border-r">No.</p>
 					<p className="border-r">Nama</p>
@@ -103,6 +128,15 @@ export function ListItem() {
 				<div className="flex flex-col overflow-y-auto">
 					{items.map((item, i) => (
 						<ItemComponent {...item} index={i} key={i} />
+					))}
+					{taxes.map((tax, i) => (
+						<TaxItem
+							index={i}
+							key={i}
+							name={tax.name}
+							value={tax.value}
+							totalBeforeTax={totalBeforeTax}
+						/>
 					))}
 				</div>
 			</div>

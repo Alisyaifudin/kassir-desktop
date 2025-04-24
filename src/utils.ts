@@ -7,7 +7,7 @@ export const numerish = z.string().refine((val) => !isNaN(Number(val)), {
 	message: "Harus angka",
 });
 
-export const numeric = numerish.transform((val) => Number(val));
+export const numeric = numerish.transform((val) => Number(val))
 
 export type Result<E, T> = [E, null] | [null, T];
 

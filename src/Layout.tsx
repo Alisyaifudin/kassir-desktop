@@ -15,7 +15,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 function getTitle(path: string): string {
 	if (path === "/") {
-		return "Jual";
+		return "Toko";
 	} else if (path === "/buy") {
 		return "Beli";
 	} else if (path === "/setting") {
@@ -52,12 +52,7 @@ function Layout() {
 					<ul className="flex gap-5 justify-end">
 						<li>
 							<Button variant="outline" asChild>
-								<a href="/">Jual</a>
-							</Button>
-						</li>
-						<li>
-							<Button variant="outline" asChild>
-								<a href="/buy">Beli</a>
+								<a href="/">Toko</a>
 							</Button>
 						</li>
 						<li>

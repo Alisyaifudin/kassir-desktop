@@ -1,6 +1,7 @@
 import { Manual } from "./Manual";
 import { Search } from "./Search";
 import { Barcode } from "./Barcode";
+import { TaxField } from "./Tax";
 
 export function InputItem() {
 	return (
@@ -8,6 +9,8 @@ export function InputItem() {
 			<Barcode />
 			<hr />
 			<Search />
+			<hr />
+			<TaxField />
 			<hr />
 			<Manual />
 		</aside>
