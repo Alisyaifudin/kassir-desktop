@@ -2,4 +2,4 @@
 
 Aplikasi untuk kasir.
 
-![beranda](images\beranda.png)
+![beranda](images/beranda.png)
