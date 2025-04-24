@@ -8,7 +8,7 @@ export function Item({ disc_type, disc_val, name, price, qty, subtotal }: Props)
 	const disc = calcDisc(disc_type, disc_val, subtotal);
 	return (
 		<div className="flex flex-col">
-			<p>{name}</p>
+			<p className="text-wrap">{name}</p>
 			<div className="flex justify-between">
 				<div className="flex gap-1">
 					<p>{price.toLocaleString("id-ID")}</p>

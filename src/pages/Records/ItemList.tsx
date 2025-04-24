@@ -8,6 +8,7 @@ import {
 	TableRow,
 } from "../../components/ui/table";
 import { Link } from "react-router";
+import Decimal from "decimal.js";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
@@ -40,9 +41,11 @@ export function ItemList({ allItems, timestamp, records }: RecordListProps) {
 				<TableHeader>
 					<TableRow>
 						<TableHead className="w-[50px]">No</TableHead>
-						<TableHead className="w-[200px]">Nama</TableHead>
-						<TableHead className="flex justify-between items-center">
-							Total
+						<TableHead>Nama</TableHead>
+						<TableHead className="w-[50px]">Qty</TableHead>
+						<TableHead className="w-[100px] text-end">Diskon</TableHead>
+						<TableHead className="w-[100px] text-end">Total</TableHead>
+						<TableHead className="w-[40px]">
 							{timestamp === null ? null : (
 								<Link to={`/records/${timestamp}`}>
 									<SquareArrowOutUpRight />
@@ -52,17 +55,21 @@ export function ItemList({ allItems, timestamp, records }: RecordListProps) {
 					</TableRow>
 				</TableHeader>
 				<TableBody className="border-b">
-					{items.map((record, i) => (
+					{items.map((item, i) => (
 						<TableRow key={i}>
 							<TableCell>{i + 1}</TableCell>
-							<TableCell>{record.timestamp}</TableCell>
-							<TableCell>{record.name}</TableCell>
+							<TableCell>{item.name}</TableCell>
+							<TableCell className="text-center">{item.qty}</TableCell>
+							<TableCell className="text-end">
+								{calcDisc(item.disc_type, item.disc_val, item.subtotal)}
+							</TableCell>
+							<TableCell className="text-end">{item.subtotal.toLocaleString("id-ID")}</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
 			</Table>
 			{record === null ? null : (
-				<div className="flex gap-2 flex-col items-end">
+				<div className="flex flex-col items-end">
 					<div className="grid grid-cols-[100px_100px]">
 						<p>Total:</p>{" "}
 						<p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
@@ -79,4 +86,13 @@ export function ItemList({ allItems, timestamp, records }: RecordListProps) {
 			)}
 		</div>
 	);
+}
+
+function calcDisc(type: "number" | "percent", value: number, subtotal: number) {
+	switch (type) {
+		case "number":
+			return value;
+		case "percent":
+			return new Decimal(subtotal).times(value).div(100).toNumber();
+	}
 }
