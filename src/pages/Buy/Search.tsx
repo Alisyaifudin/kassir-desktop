@@ -1,33 +1,43 @@
 import { Field } from "./Field";
 import { Input } from "../../components/ui/input";
 import { useContext, useState } from "react";
-import { Result, tryResult } from "../../utils";
-import Database from "@tauri-apps/plugin-sql";
 import { useDb } from "../../Layout";
-import { ItemContext, itemMethod } from "./item-method";
+import { ItemContext } from "./reducer";
 
 export function Search() {
 	const [name, setName] = useState("");
-	const [items, setItems] = useState<DB.Item[]>([]);
+	const [products, setProducts] = useState<DB.Product[]>([]);
 	const [error, setError] = useState("");
-	const { setItems: setItemsG } = useContext(ItemContext);
+	const { dispatch } = useContext(ItemContext);
 	const db = useDb();
-	const { addItemSelect } = itemMethod(db, setItemsG);
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const n = e.currentTarget.value;
 		setName(n);
 		if (n === "") {
-			setItems([]);
+			setProducts([]);
 			return;
 		}
-		searchItem(db, n).then((res) => {
+		db.product.search(n).then((res) => {
 			const [errMsg, items] = res;
 			if (errMsg !== null) {
 				setError(errMsg);
 				return;
 			}
 			setError("");
-			setItems(items);
+			setProducts(items);
+		});
+	};
+	const handleClick = (product: DB.Product) => () => {
+		setName("");
+		setProducts([]);
+		dispatch({
+			action: "add-select",
+			data: {
+				id: product.id,
+				name: product.name,
+				price: product.price.toString(),
+				stock: product.stock,
+			},
 		});
 	};
 	return (
@@ -38,17 +48,10 @@ export function Search() {
 			{error ? <p className="text-red-500">{error}</p> : null}
 			<div className="flex-1 overflow-auto">
 				<ol className="flex flex-col gap-1">
-					{items.map((item, i) => (
+					{products.map((product, i) => (
 						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
-							<button
-								onClick={() => {
-									setName("");
-									setItems([]);
-									addItemSelect(item);
-								}}
-								className="cursor-pointer"
-							>
-								{item.name}
+							<button onClick={handleClick(product)} className="cursor-pointer">
+								{product.name}
 							</button>
 						</li>
 					))}
@@ -56,14 +59,4 @@ export function Search() {
 			</div>
 		</>
 	);
-}
-
-async function searchItem(db: Database, name: string): Promise<Result<string, DB.Item[]>> {
-	return tryResult({
-		run: async () =>
-			db.select<DB.Item[]>(
-				"SELECT * FROM items WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' LIMIT 20",
-				[name.trim()]
-			),
-	});
 }

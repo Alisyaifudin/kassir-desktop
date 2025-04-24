@@ -4,14 +4,13 @@ import { Input } from "../../components/ui/input";
 import { useContext, useState } from "react";
 import { z } from "zod";
 import { numerish } from "../../utils";
-import { ItemContext, itemMethod } from "./item-method";
-import { useDb } from "../../Layout";
 import {
 	Accordion,
 	AccordionItem,
 	AccordionTrigger,
 	AccordionContent,
 } from "../../components/ui/accordion";
+import { ItemContext } from "./reducer";
 
 const itemSchema = z.object({
 	name: z.string().min(1),
@@ -21,15 +20,12 @@ const itemSchema = z.object({
 		type: z.enum(["number", "percent"]),
 		value: numerish,
 	}),
-	barcode: numerish.nullable(),
 });
 
 export function Manual() {
 	const [disc, setDisc] = useState("number");
-	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "", barcode: "" });
-	const { setItems } = useContext(ItemContext);
-	const db = useDb();
-	const { addItemManual } = itemMethod(db, setItems);
+	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "" });
+	const { dispatch } = useContext(ItemContext);
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -49,11 +45,14 @@ export function Manual() {
 				price: errs.price?.join("; ") ?? "",
 				qty: errs.qty?.join("; ") ?? "",
 				disc: errs.disc?.join("; ") ?? "",
-				barcode: errs.barcode?.join("; ") ?? "",
 			});
 			return;
 		}
-		addItemManual(parsed.data);
+		const { disc, name, price, qty } = parsed.data;
+		dispatch({
+			action: "add-manual",
+			data: { disc, name, price, qty },
+		});
 		e.currentTarget.reset();
 	};
 	return (
@@ -63,7 +62,7 @@ export function Manual() {
 					<h2 className="font-bold">Manual</h2>
 				</AccordionTrigger>
 				<AccordionContent>
-					<form onSubmit={handleSubmit} className="flex px-1 flex-col gap-2">
+					<form onSubmit={handleSubmit} className="flex flex-col px-1 gap-2">
 						<Field label="Nama" error={error.name}>
 							<Input type="text" required name="name" />
 						</Field>
@@ -93,9 +92,6 @@ export function Manual() {
 							</select>
 						</div>
 						{error.disc === "" ? null : <p className="text-red-500">{error.disc}</p>}
-						<Field label="Barcode" error={error.barcode}>
-							<Input type="number" name="barcode" />
-						</Field>
 						<Button>Tambahkan</Button>
 					</form>
 				</AccordionContent>

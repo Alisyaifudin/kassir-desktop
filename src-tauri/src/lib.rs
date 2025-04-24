@@ -8,18 +8,23 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let sql: &'static str = include_str!("../src/migration.sql");
     let migrations = vec![
         // Define your migrations here
         Migration {
             version: 1,
             description: "create_initial_tables",
-            sql,
+            sql: include_str!("../src/migration-01.sql"),
             kind: MigrationKind::Up,
         },
-        
+        Migration {
+            version: 2,
+            description: "fix_products_table",
+            sql: include_str!("../src/migration-02.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(
             tauri_plugin_sql::Builder::default()

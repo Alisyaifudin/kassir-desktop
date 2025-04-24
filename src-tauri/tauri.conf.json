@@ -14,7 +14,9 @@
       {
         "title": "kassir",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "resizable": true,
+        "maximized": true
       }
     ],
     "security": {
@@ -24,9 +26,16 @@
   "plugins": {
     "sql": {
       "preload": ["sqlite:data.db"]
+    },
+    "updater": {
+      "windows": {
+        "installMode": "passive"
+      },
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ3NDM1RThDMDEzOUM5REMKUldUY3lUa0JqRjVEMTROcVp3QXhSQVJJRGJaNjdvZ0dmcjExbjUwVDM0UnFjeklHR2lMaVBqdWEK"
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [

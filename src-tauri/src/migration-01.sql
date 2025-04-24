@@ -6,14 +6,16 @@ CREATE TABLE products (
 ) STRICT;
 
 CREATE TABLE records (
-  timestamp INTEGER PRIMAY KEY,
+  timestamp INTEGER PRIMARY KEY,
   total INTEGER NOT NULL,
   pay INTEGER NOT NULL,
-  disc_val INTEGER,
-  disc_type TEXT CHECK (disc_type IN ('number', 'percent')),
+  disc_val INTEGER NOT NULL,
+  disc_type TEXT NOT NULL CHECK (disc_type IN ('number', 'percent')),
   change INTEGER,
   variant TEXT CHECK (variant IN ('sell', 'buy'))
 ) STRICT;
+
+CREATE INDEX idx_records_variant ON records(variant);
 
 CREATE TABLE taxes (
   id INTEGER PRIMARY KEY,
@@ -29,7 +31,7 @@ CREATE TABLE record_items (
   price INTEGER NOT NULL,
   qty INTEGER NOT NULL,
   subtotal INTEGER NOT NULL,
-  disc_val INTEGER,
-  disc_type TEXT CHECK (disc_type IN ('number', 'percent')),
+  disc_val INTEGER NOT NULL,
+  disc_type TEXT NOT NULL CHECK (disc_type IN ('number', 'percent')),
   capital INTEGER
 ) STRICT;

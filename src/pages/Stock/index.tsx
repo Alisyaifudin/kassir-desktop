@@ -21,7 +21,15 @@ export default function Page() {
 					<Plus />
 				</Link>
 			</Button>
-			<Await state={items}>{(items) => <ProductList products={items} />}</Await>
+			<Await state={items}>
+				{(data) => {
+					const [errMsg, products] = data;
+					if (errMsg !== null) {
+						return <p>{errMsg}</p>;
+					}
+					return <ProductList products={products} />;
+				}}
+			</Await>
 		</main>
 	);
 }

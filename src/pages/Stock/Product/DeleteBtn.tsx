@@ -11,7 +11,6 @@ import {
 } from "../../../components/ui/dialog";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { del } from "./delete";
 import { useDb } from "../../../Layout";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {
@@ -21,7 +20,7 @@ export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const [loading, setLoading] = useState(false);
 	const handleClick = () => {
 		setLoading(true);
-		del(db, id).then((err) => {
+		db.product.delete(id).then((err) => {
 			if (err) {
 				setError(err);
 				setLoading(false);

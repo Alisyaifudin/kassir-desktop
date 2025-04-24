@@ -11,29 +11,29 @@ import { Link } from "react-router";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
-	recordId: number | null;
+	timestamp: number | null;
 };
 
 function filterData(
-	recordId: number | null,
+	timestamp: number | null,
 	allItems: DB.RecordItem[],
 	records: DB.Record[]
 ): { items: DB.RecordItem[] } & ({ record: null } | { record: DB.Record }) {
-	if (recordId === null) {
+	if (timestamp === null) {
 		return { items: [], record: null };
 	}
-	const record = records.find((r) => r.id === recordId);
+	const record = records.find((r) => r.timestamp === timestamp);
 	if (record === undefined) {
 		return { items: [], record: null };
 	}
 	return {
-		items: allItems.filter((item) => item.record_id === recordId),
+		items: allItems.filter((item) => item.timestamp === timestamp),
 		record,
 	};
 }
 
-export function ItemList({ allItems, recordId, records }: RecordListProps) {
-	const { items, record } = filterData(recordId, allItems, records);
+export function ItemList({ allItems, timestamp, records }: RecordListProps) {
+	const { items, record } = filterData(timestamp, allItems, records);
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<Table>
@@ -43,8 +43,8 @@ export function ItemList({ allItems, recordId, records }: RecordListProps) {
 						<TableHead className="w-[200px]">Nama</TableHead>
 						<TableHead className="flex justify-between items-center">
 							Total
-							{recordId === null ? null : (
-								<Link to={`/records/${recordId}`}>
+							{timestamp === null ? null : (
+								<Link to={`/records/${timestamp}`}>
 									<SquareArrowOutUpRight />
 								</Link>
 							)}
@@ -55,7 +55,7 @@ export function ItemList({ allItems, recordId, records }: RecordListProps) {
 					{items.map((record, i) => (
 						<TableRow key={i}>
 							<TableCell>{i + 1}</TableCell>
-							<TableCell>{record.time ?? ""}</TableCell>
+							<TableCell>{record.timestamp}</TableCell>
 							<TableCell>{record.name}</TableCell>
 						</TableRow>
 					))}

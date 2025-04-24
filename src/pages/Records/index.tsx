@@ -41,10 +41,10 @@ export default function Page() {
 			time: epoch.toString(),
 		}));
 	};
-	const selectRecord = (id: number) => () => {
+	const selectRecord = (timestamp: number) => () => {
 		setSearch((search) => ({
 			...search,
-			selected: selected === id ? null : id,
+			selected: selected === timestamp ? null : timestamp,
 		}));
 	};
 	return (
@@ -59,13 +59,22 @@ export default function Page() {
 				<p>Tanggal {formatDate(time, "long")}</p>
 			</div>
 			<Await state={state}>
-				{(data) => (
-					<div className="grid grid-cols-[1fr_1px_3fr] gap-2 h-full overflow-y-auto">
-						<RecordList records={data[0]} selectRecord={selectRecord} selected={selected} />
-						<div className="border-l" />
-						<ItemList allItems={data[1]} recordId={selected} records={data[0]} />
-					</div>
-				)}
+				{(data) => {
+					const [[errRecords, records], [errItems, items]] = data;
+					if (errRecords !== null) {
+						return <p className="text-red-500">{errRecords}</p>;
+					}
+					if (errItems !== null) {
+						return <p className="text-red-500">{errItems}</p>;
+					}
+					return (
+						<div className="grid grid-cols-[1fr_1px_3fr] gap-2 h-full overflow-y-auto">
+							<RecordList records={records} selectRecord={selectRecord} selected={selected} />
+							<div className="border-l" />
+							<ItemList allItems={items} timestamp={selected} records={records} />
+						</div>
+					);
+				}}
 			</Await>
 		</main>
 	);
@@ -76,14 +85,8 @@ function useRecords(date: Temporal.ZonedDateTime) {
 	const start = date.startOfDay().epochMilliseconds;
 	const end = date.startOfDay().add(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
 	const promises = Promise.all([
-		db.select<DB.Record[]>(
-			"SELECT * FROM records WHERE time BETWEEN $1 AND $2 ORDER BY time DESC",
-			[start, end]
-		),
-		db.select<DB.RecordItem[]>(
-			"SELECT * FROM record_items WHERE time BETWEEN $1 AND $2 ORDER BY time DESC",
-			[start, end]
-		),
+		db.record.getByRange(start, end),
+		db.recordItem.getByRange(start, end),
 	]);
 	const state = useFetch(promises);
 	return state;

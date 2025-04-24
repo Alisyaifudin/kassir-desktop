@@ -13,7 +13,6 @@ import { Field } from "./Field";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
-import { update } from "./update";
 import { DeleteBtn } from "./DeleteBtn";
 import { useDb } from "../../../Layout";
 import Redirect from "../../../components/Redirect";
@@ -54,11 +53,15 @@ export default function Page() {
 			</Button>
 			<h1 className="font-bold text-3xl">Edit barang</h1>
 			<Await state={item} Loading={<Loader2 className="animate-spin" />}>
-				{(item) => {
-					if (item === null) {
+				{(data) => {
+					const [errMsg, product] = data;
+					if (errMsg !== null) {
+						return <p className="text-red-500">{errMsg}</p>;
+					}
+					if (product === null) {
 						return <Redirect to="/stock" />;
 					}
-					return <Form product={item} />;
+					return <Form product={product} />;
 				}}
 			</Await>
 		</main>
@@ -92,7 +95,7 @@ function Form({ product }: { product: DB.Product }) {
 			return;
 		}
 		setLoading(true);
-		update(db, parsed.data).then((err) => {
+		db.product.update(parsed.data).then((err) => {
 			if (err) {
 				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
 				setLoading(false);

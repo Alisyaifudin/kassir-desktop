@@ -11,8 +11,8 @@ declare namespace DB {
 		total: number;
 		pay: number;
 		variant: "buy" | "sell";
-		disc_val: number | null;
-		disc_type: "number" | "percent" | null;
+		disc_val: number;
+		disc_type: "number" | "percent";
 		change: string;
 	}
 	interface Tax {
@@ -28,8 +28,8 @@ declare namespace DB {
 		price: number;
 		qty: number;
 		subtotal: number;
-		disc_val: number | null;
-		disc_type: "number" | "percent" | null;
+		disc_val: number;
+		disc_type: "number" | "percent";
 		capital: number | null;
 	}
 }

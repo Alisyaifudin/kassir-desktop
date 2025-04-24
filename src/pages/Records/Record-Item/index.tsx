@@ -1,40 +1,37 @@
 import { Link, LoaderFunctionArgs, redirect, RouteObject, useLoaderData } from "react-router";
-import { err, numeric, ok, Result, tryResult } from "../../../utils";
-import { useEffect, useState } from "react";
+import { err, numeric, ok, Result } from "../../../utils";
 import { useDb } from "../../../Layout";
-import Database from "@tauri-apps/plugin-sql";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft } from "lucide-react";
-import { Temporal } from "temporal-polyfill";
 import { ItemList } from "./ItemList";
 import { Await } from "../../../components/Await";
 import { useFetch } from "../../../hooks/useFetch";
+import { Database } from "../../../database";
 
 export const route: RouteObject = {
-	path: ":id",
+	path: ":timestamp",
 	Component: Page,
 	loader,
 };
 
 function loader({ params }: LoaderFunctionArgs) {
-	const parsed = numeric.safeParse(params.id);
+	const parsed = numeric.safeParse(params.timestamp);
 	if (!parsed.success) {
 		return redirect("/records");
 	}
-	return { id: parsed.data };
+	return { timestamp: parsed.data };
 }
 
 export default function Page() {
-	const { id } = useLoaderData<typeof loader>();
-	const [time, setTime] = useState<number>(Temporal.Now.instant().epochMilliseconds);
-	const state = useRecord(id);
+	const { timestamp } = useLoaderData<typeof loader>();
+	const state = useRecord(timestamp);
 	return (
 		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
 			<Button asChild variant="link" className="self-start">
 				<Link
 					to={{
 						pathname: "/records",
-						search: `?time=${time}&selected=${id}`,
+						search: `?time=${timestamp}&selected=${timestamp}`,
 					}}
 				>
 					{" "}
@@ -47,9 +44,6 @@ export default function Page() {
 					if (errMsg !== null) {
 						return <p className="text-red-500">{errMsg}</p>;
 					}
-					useEffect(() => {
-						setTime(res.record.time);
-					}, []);
 					return <ItemList record={res.record} items={res.items} />;
 				}}
 			</Await>
@@ -57,33 +51,33 @@ export default function Page() {
 	);
 }
 
-function useRecord(id: number) {
+function useRecord(timestamp: number) {
 	const db = useDb();
-	const res = useFetch(getRecord(db, id));
+	const res = useFetch(getRecord(db, timestamp));
 	return res;
 }
 
 async function getRecord(
 	db: Database,
-	id: number
+	timestamp: number
 ): Promise<Result<string, { record: DB.Record; items: DB.RecordItem[] }>> {
-	const [errMsg, res] = await tryResult({
-		run: async () => {
-			const all = await Promise.all([
-				db.select<DB.Record[]>("SELECT * FROM records WHERE id = $1", [id]),
-				db.select<DB.RecordItem[]>("SELECT * FROM record_items WHERE record_id = $1", [id]),
-			]);
-			const records = all[0];
-			if (records.length === 0) {
-				return null;
-			}
-			return {
-				record: records[0],
-				items: all[1],
-			};
-		},
+	const all = await Promise.all([
+		db.record.getByTime(timestamp),
+		db.recordItem.getAllByTime(timestamp),
+	]);
+	const [errRecord, record] = all[0];
+	if (errRecord) {
+		return err(errRecord);
+	}
+	if (record === null) {
+		return err("Catatan tidak ada");
+	}
+	const [errItems, items] = all[1];
+	if (errItems !== null) {
+		return err(errItems);
+	}
+	return ok({
+		record,
+		items,
 	});
-	if (errMsg) return err(errMsg);
-	if (res === null) return err("Riwayat tidak ditemukan");
-	return ok(res);
 }

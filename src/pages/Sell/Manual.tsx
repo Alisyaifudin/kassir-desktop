@@ -4,14 +4,13 @@ import { Input } from "../../components/ui/input";
 import { useContext, useState } from "react";
 import { z } from "zod";
 import { numerish } from "../../utils";
-import { ItemContext, itemMethod } from "./item-method";
-import { useDb } from "../../Layout";
 import {
 	Accordion,
 	AccordionItem,
 	AccordionTrigger,
 	AccordionContent,
 } from "../../components/ui/accordion";
+import { ItemContext } from "./reducer";
 
 const itemSchema = z.object({
 	name: z.string().min(1),
@@ -21,15 +20,12 @@ const itemSchema = z.object({
 		type: z.enum(["number", "percent"]),
 		value: numerish,
 	}),
-	barcode: numerish.nullable()
 });
 
 export function Manual() {
 	const [disc, setDisc] = useState("number");
 	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "" });
-	const { setItems } = useContext(ItemContext);
-	const db = useDb();
-	const { addItemManual } = itemMethod(db, setItems);
+	const { dispatch } = useContext(ItemContext);
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -41,7 +37,6 @@ export function Manual() {
 				value: formData.get("disc-value"),
 				type: formData.get("disc-type"),
 			},
-			barcode: formData.get("barcode")
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -53,7 +48,11 @@ export function Manual() {
 			});
 			return;
 		}
-		addItemManual(parsed.data);
+		const { disc, name, price, qty } = parsed.data;
+		dispatch({
+			action: "add-manual",
+			data: { disc, name, price, qty },
+		});
 		e.currentTarget.reset();
 	};
 	return (

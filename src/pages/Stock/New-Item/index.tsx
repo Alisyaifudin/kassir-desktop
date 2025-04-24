@@ -3,7 +3,6 @@ import { z } from "zod";
 import { numeric } from "../../../utils";
 import { useState } from "react";
 import { Field } from "./Field";
-import { insert } from "./insert";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
@@ -47,7 +46,7 @@ export default function Page() {
 			return;
 		}
 		setLoading(true);
-		insert(db, parsed.data).then((err) => {
+		db.product.insert(parsed.data).then((err) => {
 			if (err) {
 				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
 				setLoading(false);
