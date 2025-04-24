@@ -8,14 +8,26 @@ export const useSetting = () => {
 	return setting;
 };
 
-export async function getSetting(store: Store) {
-	const setting = await Promise.all([store.owner.get(), store.address.get()]);
-	return { owner: setting[0], address: setting[1] };
+export async function getSetting<S extends Record<string, { get: () => Promise<any> }>>(
+	store: S
+): Promise<{
+	[K in keyof S]: Awaited<ReturnType<S[K]["get"]>>;
+}> {
+	const entries = await Promise.all(
+		(Object.keys(store) as Array<keyof S>).map(async (key) => {
+			const value = await store[key].get();
+			return [key, value] as const;
+		})
+	);
+
+	return Object.fromEntries(entries) as {
+		[K in keyof S]: Awaited<ReturnType<S[K]["get"]>>;
+	};
 }
 
 export async function setSetting(store: Store, setting: Partial<Record<keyof Store, string>>) {
 	const promises = Object.entries(setting).map(([key, value]) => {
-		if (value) {
+		if (value !== undefined) {
 			return store[key as keyof Store].set(value);
 		}
 	});
