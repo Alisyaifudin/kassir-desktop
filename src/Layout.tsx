@@ -1,4 +1,9 @@
-import { LoaderFunctionArgs, Outlet, useLoaderData, useOutletContext } from "react-router";
+import {
+	Link,
+	Outlet,
+	useLocation,
+	useOutletContext,
+} from "react-router";
 import { Button } from "./components/ui/button";
 import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { useEffect, useState } from "react";
@@ -6,12 +11,6 @@ import { Store as StoreTauri } from "@tauri-apps/plugin-store";
 import { Settings } from "lucide-react";
 import { type Database, generateDB } from "./database";
 import { generateStore, Store } from "./store";
-
-export async function loader({ request }: LoaderFunctionArgs) {
-	const url = new URL(request.url);
-	const path = url.pathname;
-	return { path };
-}
 
 function getTitle(path: string): string {
 	if (path === "/") {
@@ -29,7 +28,9 @@ function getTitle(path: string): string {
 }
 
 function Layout() {
-	const { path } = useLoaderData<typeof loader>();
+	const { pathname } = useLocation();
+	// const { path } = useLoaderData<typeof loader>();
+
 	const [db, setDb] = useState<Database | null>(null);
 	const [store, setStore] = useState<Store | null>(null);
 	useEffect(() => {
@@ -48,28 +49,34 @@ function Layout() {
 		<>
 			<header className="bg-sky-300">
 				<nav className="flex p-3 justify-between">
-					<p className="text-xl font-bold">{getTitle(path)}</p>
+					<p className="text-xl font-bold">{getTitle(pathname)}</p>
 					<ul className="flex gap-5 justify-end">
 						<li>
 							<Button variant="outline" asChild>
-								<a href="/">Toko</a>
+								{/* <a href="/">Toko</a> */}
+								<Link to="/">Toko</Link>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								<a href="/stock">Stok</a>
+								{/* <a href="/stock">Stok</a> */}
+								<Link to="/stock">Stok</Link>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								<a href="/records">Riwayat</a>
+								{/* <a href="/records">Riwayat</a> */}
+								<Link to="/records">Riwayat</Link>
 							</Button>
 						</li>
 						<li>
 							<Button asChild size="icon" className="rounded-full">
-								<a href="/setting">
+								{/* <a href="/setting">
 									<Settings />
-								</a>
+								</a> */}
+								<Link to="/setting">
+									<Settings />
+								</Link>
 							</Button>
 						</li>
 					</ul>

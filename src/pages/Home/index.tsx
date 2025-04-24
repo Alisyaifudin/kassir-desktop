@@ -23,15 +23,15 @@ export default function Page() {
 	);
 }
 
-function getMode(search: URLSearchParams): "sell" | "buy" {
+export function getMode(search: URLSearchParams): "sell" | "buy" {
 	const parsed = z.enum(["sell", "buy"]).safeParse(search.get("mode"));
 	const mode = parsed.success ? parsed.data : "sell";
 	return mode;
 }
 
-function setMode(setSearch: SetURLSearchParams, reset: () => void) {
+function setMode(setSearch: SetURLSearchParams, reset?: () => void) {
 	return function (mode: "sell" | "buy") {
 		setSearch({ mode });
-		reset();
+		reset?.();
 	};
 }

@@ -6,7 +6,7 @@ export type FetchState<T> =
 	| { loading: false; data: null; error: unknown }
 	| { loading: false; data: T; error: null };
 
-export function useFetch<T>(promise: Promise<T>): FetchState<T> {
+export function useFetch<T>(promise: Promise<T>, deps?: React.DependencyList): FetchState<T> {
 	const [state, setState] = useState<FetchState<T>>({
 		loading: true,
 		data: null,
@@ -29,7 +29,7 @@ export function useFetch<T>(promise: Promise<T>): FetchState<T> {
 					error,
 				});
 			});
-	}, []);
+	}, deps);
 
 	return state;
 }

@@ -10,6 +10,7 @@ import {
 } from "../../../components/ui/table";
 export function ItemList({ items, record }: { record: DB.Record; items: DB.RecordItem[] }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
+
 	const [width] = useState(72);
 	useEffect(() => {
 		const style = document.createElement("style");
@@ -53,7 +54,8 @@ export function ItemList({ items, record }: { record: DB.Record; items: DB.Recor
 					<TableRow>
 						<TableHead className="w-[50px]">No</TableHead>
 						<TableHead>Nama</TableHead>
-						<TableHead className="w-[200px]">Total</TableHead>
+						<TableHead className="w-[100px]">Total</TableHead>
+						{record.mode === "buy" ? <TableHead className="w-[100px]">Modal</TableHead> : null}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -62,6 +64,7 @@ export function ItemList({ items, record }: { record: DB.Record; items: DB.Recor
 							<TableCell>{i + 1}</TableCell>
 							<TableCell>{item.name ?? ""}</TableCell>
 							<TableCell>{item.subtotal}</TableCell>
+							{record.mode === "buy" ? <TableHead>{item.capital}</TableHead> : null}
 						</TableRow>
 					))}
 				</TableBody>

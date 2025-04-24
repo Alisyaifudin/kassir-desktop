@@ -6,7 +6,7 @@ export const genRecord = (db: Database) => ({
 		return tryResult({
 			run: () =>
 				db.select<DB.Record[]>(
-					"SELECT * FROM records WHERE mode = 'sell' AND timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
+					"SELECT * FROM records WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
 					[start, end]
 				),
 		});

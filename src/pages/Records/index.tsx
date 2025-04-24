@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, RouteObject, useLoaderData, useSearchParams } from "react-router";
+import { RouteObject, SetURLSearchParams, useSearchParams } from "react-router";
 import { useDb } from "../../Layout";
 import { RecordList } from "./RecordList";
 import { route as itemRoute } from "./Record-Item";
@@ -7,25 +7,23 @@ import { formatDate } from "../../utils";
 import { useFetch } from "../../hooks/useFetch";
 import { Await } from "../../components/Await";
 import { ItemList } from "./ItemList";
+import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
+import { getMode } from "../Home";
 
 export const route: RouteObject = {
 	path: "records",
-	children: [{ index: true, Component: Page, loader }, itemRoute],
+	children: [{ index: true, Component: Page }, itemRoute],
 };
 
-function loader({ request }: LoaderFunctionArgs) {
-	const url = new URL(request.url);
-	const time = getTime(url.searchParams);
-	const selected = getSelected(url.searchParams);
-	return { time, selected };
-}
-
 export default function Page() {
-	const { time, selected } = useLoaderData<typeof loader>();
+	const [search, setSearch] = useSearchParams();
+	const mode = getMode(search);
+	const time = getTime(search);
+	const selected = getSelected(search);
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const state = useRecords(date);
-	const [_, setSearch] = useSearchParams();
+
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const date = e.currentTarget.value;
 		const [year, month, day] = date.split("-").map(Number);
@@ -36,16 +34,10 @@ export default function Page() {
 			day,
 			hour: 12,
 		}).epochMilliseconds;
-		setSearch((search) => ({
-			...search,
-			time: epoch.toString(),
-		}));
+		setTime(setSearch, epoch);
 	};
 	const selectRecord = (timestamp: number) => () => {
-		setSearch((search) => ({
-			...search,
-			selected: selected === timestamp ? null : timestamp,
-		}));
+		setSelected(setSearch, timestamp, selected);
 	};
 	return (
 		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto">
@@ -69,7 +61,37 @@ export default function Page() {
 					}
 					return (
 						<div className="grid grid-cols-[1fr_1px_3fr] gap-2 h-full overflow-y-auto">
-							<RecordList records={records} selectRecord={selectRecord} selected={selected} />
+							<Tabs
+								value={mode}
+								onValueChange={(v) => {
+									if (v !== "sell" && v !== "buy") {
+										return;
+									}
+									setMode(setSearch, v);
+								}}
+								className="w-[400px]"
+							>
+								<TabsList>
+									<TabsTrigger value="sell">Jual</TabsTrigger>
+									<TabsTrigger value="buy">Beli</TabsTrigger>
+								</TabsList>
+								<TabsContent value="sell">
+									<RecordList
+										records={records}
+										selectRecord={selectRecord}
+										selected={selected}
+										mode="sell"
+									/>
+								</TabsContent>
+								<TabsContent value="buy">
+									<RecordList
+										records={records}
+										selectRecord={selectRecord}
+										selected={selected}
+										mode="buy"
+									/>
+								</TabsContent>
+							</Tabs>
 							<div className="border-l" />
 							<ItemList allItems={items} timestamp={selected} records={records} />
 						</div>
@@ -88,7 +110,7 @@ function useRecords(date: Temporal.ZonedDateTime) {
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
 	]);
-	const state = useFetch(promises);
+	const state = useFetch(promises, [date]);
 	return state;
 }
 
@@ -100,10 +122,39 @@ function getTime(search: URLSearchParams): number {
 	return Number(timeStr);
 }
 
+function setTime(setSearch: SetURLSearchParams, time: number) {
+	setSearch((search) => {
+		const params = new URLSearchParams(search);
+		params.set("time", time.toString());
+		return params;
+	});
+}
+
 function getSelected(search: URLSearchParams): number | null {
 	const selected = search.get("selected");
 	if (selected === null || Number.isNaN(selected)) {
 		return null;
 	}
 	return Number(selected);
+}
+
+function setSelected(setSearch: SetURLSearchParams, timestamp: number, selected: number | null) {
+	setSearch((prev) => {
+		const params = new URLSearchParams(prev);
+		if (timestamp === selected) {
+			params.delete("selected");
+		} else {
+			params.set("selected", timestamp.toString());
+		}
+		return params;
+	});
+}
+
+function setMode(setSearch: SetURLSearchParams, mode: "sell" | "buy") {
+	setSearch((prev) => {
+		const params = new URLSearchParams(prev);
+		params.set("mode", mode);
+		params.delete("selected");
+		return params;
+	});
 }

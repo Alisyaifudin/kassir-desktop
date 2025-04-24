@@ -36,6 +36,6 @@ export default function Page() {
 
 const useItems = () => {
 	const db = useDb();
-	const items = useFetch(db.product.getAll());
+	const items = useFetch(db.product.getAll(), []);
 	return items;
 };

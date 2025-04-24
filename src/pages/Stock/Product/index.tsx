@@ -150,6 +150,6 @@ function Form({ product }: { product: DB.Product }) {
 
 const useItem = (id: number) => {
 	const db = useDb();
-	const item = useFetch(db.product.get(id));
+	const item = useFetch(db.product.get(id), []);
 	return item;
 };

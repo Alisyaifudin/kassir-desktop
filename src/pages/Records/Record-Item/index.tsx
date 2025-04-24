@@ -7,6 +7,7 @@ import { ItemList } from "./ItemList";
 import { Await } from "../../../components/Await";
 import { useFetch } from "../../../hooks/useFetch";
 import { Database } from "../../../database";
+import { useEffect, useState } from "react";
 
 export const route: RouteObject = {
 	path: ":timestamp",
@@ -22,28 +23,41 @@ function loader({ params }: LoaderFunctionArgs) {
 	return { timestamp: parsed.data };
 }
 
+const title = {
+	buy: "Beli",
+	sell: "Jual",
+	"": "",
+} as Record<string, string>;
+
 export default function Page() {
 	const { timestamp } = useLoaderData<typeof loader>();
+	const [mode, setMode] = useState<string>("");
 	const state = useRecord(timestamp);
 	return (
 		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
-			<Button asChild variant="link" className="self-start">
-				<Link
-					to={{
-						pathname: "/records",
-						search: `?time=${timestamp}&selected=${timestamp}`,
-					}}
-				>
-					{" "}
-					<ChevronLeft /> Kembali
-				</Link>
-			</Button>
+			<div className="flex items-center gap-2">
+				<Button asChild variant="link" className="self-start">
+					<Link
+						to={{
+							pathname: "/records",
+							search: `?time=${timestamp}&selected=${timestamp}`,
+						}}
+					>
+						{" "}
+						<ChevronLeft /> Kembali
+					</Link>
+				</Button>
+				<h2 className="font-bold border px-2 rounded-md">{title[mode]}</h2>
+			</div>
 			<Await state={state}>
 				{(data) => {
 					const [errMsg, res] = data;
 					if (errMsg !== null) {
 						return <p className="text-red-500">{errMsg}</p>;
 					}
+					useEffect(() => {
+						setMode(res.record.mode);
+					}, []);
 					return <ItemList record={res.record} items={res.items} />;
 				}}
 			</Await>
@@ -53,7 +67,7 @@ export default function Page() {
 
 function useRecord(timestamp: number) {
 	const db = useDb();
-	const res = useFetch(getRecord(db, timestamp));
+	const res = useFetch(getRecord(db, timestamp), []);
 	return res;
 }
 

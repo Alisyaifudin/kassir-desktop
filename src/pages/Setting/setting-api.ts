@@ -4,7 +4,7 @@ import { Store } from "../../store";
 
 export const useSetting = () => {
 	const store = useStore();
-	const setting = useFetch(getSetting(store));
+	const setting = useFetch(getSetting(store), []);
 	return setting;
 };
 

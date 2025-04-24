@@ -59,7 +59,6 @@ export function ItemList({ allItems, timestamp, records }: RecordListProps) {
 							<TableCell>{record.name}</TableCell>
 						</TableRow>
 					))}
-					
 				</TableBody>
 			</Table>
 			{record === null ? null : (
