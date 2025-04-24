@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../components/ui/button";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "../../../components/ui/table";
+import { Temporal } from "temporal-polyfill";
+import { formatDate, formatTime } from "../../../utils";
+import { Item } from "./Item";
+import Decimal from "decimal.js";
+import { useSetting } from "../../Setting/setting-api";
+import { Await } from "../../../components/Await";
 export function ItemList({ items, record }: { record: DB.Record; items: DB.RecordItem[] }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
-
+	const info = useInfo();
 	const [width] = useState(72);
 	useEffect(() => {
 		const style = document.createElement("style");
@@ -47,42 +45,82 @@ export function ItemList({ items, record }: { record: DB.Record; items: DB.Recor
 		document.documentElement.style.setProperty("--paper-width", `${width}`);
 		window.print();
 	};
+	const today = Temporal.Now.instant().epochMilliseconds;
+	const disc = calcDisc(record.disc_type, record.disc_val, record.total);
 	return (
-		<div id="print-container" className="flex flex-col gap-2 overflow-auto">
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[50px]">No</TableHead>
-						<TableHead>Nama</TableHead>
-						<TableHead className="w-[100px]">Total</TableHead>
-						{record.mode === "buy" ? <TableHead className="w-[100px]">Modal</TableHead> : null}
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{items.map((item, i) => (
-						<TableRow key={i}>
-							<TableCell>{i + 1}</TableCell>
-							<TableCell>{item.name ?? ""}</TableCell>
-							<TableCell>{item.subtotal}</TableCell>
-							{record.mode === "buy" ? <TableHead>{item.capital}</TableHead> : null}
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-			<div className="flex gap-2 flex-col items-end">
-				<div className="grid grid-cols-[100px_100px]">
-					<p>Total:</p> <p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
-				</div>
-				<div className="grid grid-cols-[100px_100px]">
-					<p>Pembayaran:</p>{" "}
-					<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>
-				</div>
-				<div className="grid grid-cols-[100px_100px]">
-					<p>Kembalian:</p>{" "}
-					<p className="text-end">Rp{Number(record.change).toLocaleString("de-DE")}</p>
-				</div>
-			</div>
-			<Button onClick={print}>Cetak</Button>
+		<div className="flex flex-col gap-5">
+			<Await state={info}>
+				{(data) => (
+					<div id="print-container" className="flex flex-col gap-2 overflow-auto text-xs">
+						<div className="flex flex-col">
+							<p className="text-center font-bold">{data.owner}</p>
+							<p className="text-center">{data.desc}</p>
+							<p className="text-end">{data.address}</p>
+							<p className="text-end">
+								{formatDate(today, "short").replace(/-/g, "/")}, {formatTime(today)}
+							</p>
+						</div>
+						<hr />
+						{items.map((item, i) => (
+							<Item {...item} i={i} />
+						))}
+						<hr />
+						<div className="flex justify-end">
+							<div className="flex flex-col items-end">
+								{record.disc_val > 0 ? (
+									<>
+										<div className="grid grid-cols-[100px_90px]">
+											<p>Subtotal:</p>{" "}
+											<p className="text-end">
+												Rp{(Number(record.total) + disc).toLocaleString("de-DE")}
+											</p>
+										</div>
+										<div className="grid grid-cols-[100px_90px]">
+											<p>Diskon:</p> <p className="text-end">Rp{disc.toLocaleString("de-DE")}</p>
+										</div>
+										<hr className="w-full" />
+									</>
+								) : null}
+								<div className="grid grid-cols-[50px_90px]">
+									<p>Total:</p>{" "}
+									<p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
+								</div>
+								<div className="grid grid-cols-[50px_90px]">
+									<p>Pembayaran:</p>
+									<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>
+								</div>
+								<hr className="w-full" />
+								<div className="grid grid-cols-[50px_90px]">
+									<p>Kembalian:</p>{" "}
+									<p className="text-end">Rp{Number(record.change).toLocaleString("de-DE")}</p>
+								</div>
+							</div>
+						</div>
+						<div className="flex items-center flex-col">
+							<p>Terimakasih telah berbelanja di toko kami</p>
+							<p>Barang yang sudah dibeli tidak dapat ditukar lagi</p>
+							<p>IG: {data.ig}</p>
+							<p>Shopee: {data.shopee}</p>
+						</div>
+					</div>
+				)}
+			</Await>
+			<Button className="self-end" onClick={print}>
+				Cetak
+			</Button>
 		</div>
 	);
+}
+
+function calcDisc(type: "number" | "percent", value: number, subtotal: number) {
+	switch (type) {
+		case "number":
+			return value;
+		case "percent":
+			return new Decimal(subtotal).times(value).div(100).toNumber();
+	}
+}
+
+function useInfo() {
+	return useSetting();
 }

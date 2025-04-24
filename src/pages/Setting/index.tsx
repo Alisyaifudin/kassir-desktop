@@ -22,7 +22,7 @@ export default function Page() {
 	return <Await state={setting}>{(setting) => <Setting {...setting} />}</Await>;
 }
 
-function Setting({ owner, address, ig, tiktok, wa }: Partial<Record<keyof Store, string>>) {
+function Setting({ owner, address, ig, shopee, desc }: Partial<Record<keyof Store, string>>) {
 	const store = useStore();
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -33,10 +33,10 @@ function Setting({ owner, address, ig, tiktok, wa }: Partial<Record<keyof Store,
 		setLoading(true);
 		setSetting(store, {
 			owner: (formData.get("owner") as string) ?? undefined,
+			desc: (formData.get("desc") as string) ?? undefined,
 			address: (formData.get("address") as string) ?? undefined,
-			wa: (formData.get("wa") as string) ?? undefined,
 			ig: (formData.get("ig") as string) ?? undefined,
-			tiktok: (formData.get("tiktok") as string) ?? undefined,
+			shopee: (formData.get("shopee") as string) ?? undefined,
 		})
 			.then(() => {
 				setError("");
@@ -141,24 +141,24 @@ function Setting({ owner, address, ig, tiktok, wa }: Partial<Record<keyof Store,
 					<Input type="text" defaultValue={owner} name="owner" />
 				</label>
 				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
+					<span>Deskripsi</span>
+					:
+					<Input type="text" defaultValue={desc} name="desc" />
+				</label>
+				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
 					<span>Alamat</span>
 					:
 					<Input type="text" defaultValue={address} name="address" />
 				</label>
 				<label className="grid grid-cols-[100px_1px_1fr]  items-center gap-1">
-					<span>WA</span>
+					<span>Shopee</span>
 					:
-					<Input type="text" defaultValue={wa} name="wa" pattern="\d*" />
+					<Input type="text" defaultValue={shopee} name="shopee" />
 				</label>
 				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
 					<span>Instagram</span>
 					:
 					<Input type="text" defaultValue={ig} name="ig" />
-				</label>
-				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
-					<span>TikTok</span>
-					:
-					<Input type="text" defaultValue={tiktok} name="tiktok" />
 				</label>
 				<Button>Simpan {loading && <Loader2 className="animate-spin" />}</Button>
 				{error === "" ? null : <p className="text-red-500">{error}</p>}

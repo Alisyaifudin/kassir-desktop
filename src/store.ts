@@ -4,6 +4,10 @@ export const generateStore = (store: StoreTauri) => ({
 		get: () => store.get<string>("owner"),
 		set: (owner: string) => store.set("owner", owner),
 	},
+	desc: {
+		get: () => store.get<string>("desc"),
+		set: (desc: string) => store.set("desc", desc),
+	},
 	address: {
 		get: () => store.get<string>("address"),
 		set: (address: string) => store.set("address", address),
@@ -12,15 +16,18 @@ export const generateStore = (store: StoreTauri) => ({
 		get: () => store.get<string>("ig"),
 		set: (ig: string) => store.set("ig", ig),
 	},
-	tiktok: {
-		get: () => store.get<string>("tiktok"),
-		set: (tiktok: string) => store.set("tiktok", tiktok),
+	shopee: {
+		get: () => store.get<string>("shopee"),
+		set: (shopee: string) => store.set("shopee", shopee),
 	},
-	wa: {
-		get: () => store.get<string>("wa"),
-		set: (wa: string) => store.set("wa", wa),
-	},
-	
+	// tiktok: {
+	// 	get: () => store.get<string>("tiktok"),
+	// 	set: (tiktok: string) => store.set("tiktok", tiktok),
+	// },
+	// wa: {
+	// 	get: () => store.get<string>("wa"),
+	// 	set: (wa: string) => store.set("wa", wa),
+	// },
 });
 
 export type Store = ReturnType<typeof generateStore>;
