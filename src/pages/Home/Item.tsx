@@ -18,10 +18,11 @@ export type Item = {
 
 type Props = {
 	index: number;
+	variant: "sell" | "buy";
 } & Item;
 
 // stock later
-export function ItemComponent({ id, disc, name, price, qty, index }: Props) {
+export function ItemComponent({ id, disc, name, price, qty, index, variant }: Props) {
 	const { dispatch } = useContext(ItemContext);
 	return (
 		<div
@@ -42,7 +43,7 @@ export function ItemComponent({ id, disc, name, price, qty, index }: Props) {
 					onChange={(e) => dispatch({ action: "edit-name", index, name: e.currentTarget.value })}
 				></input>
 			)}
-			{id !== undefined ? (
+			{id !== undefined && variant === "sell" ? (
 				<p>{Number(price).toLocaleString("de-DE")}</p>
 			) : (
 				<input
@@ -76,7 +77,9 @@ export function ItemComponent({ id, disc, name, price, qty, index }: Props) {
 				type="number"
 				className="px-0.5"
 				value={qty}
-				onChange={(e) => dispatch({ action: "edit-qty", index, qty: e.currentTarget.value })}
+				onChange={(e) =>
+					dispatch({ action: "edit-qty", index, qty: e.currentTarget.value, variant })
+				}
 			></input>
 			<p>{calcSubtotal(disc, price, qty).toNumber().toLocaleString("id-ID")}</p>
 			<div className="py-0.5 flex items-center">

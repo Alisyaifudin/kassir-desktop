@@ -7,6 +7,7 @@ import { Tax } from "./reducer";
 
 export async function submitPayment(
 	db: Database,
+	variant: "buy" | "sell",
 	record: {
 		total: number;
 		pay: number;
@@ -16,15 +17,17 @@ export async function submitPayment(
 		};
 		change: number;
 	},
-	items: Item[]
+	items: Item[],
+	taxes: Tax[]
 ): Promise<Result<string, number>> {
 	const timestamp = Temporal.Now.instant().epochMilliseconds;
-	const errInsertRecord = await db.record.add("sell", timestamp, record);
-	if (errInsertRecord !== null) {
-		return err(errInsertRecord);
+	let totalItem = 0;
+	for (const item of items) {
+		totalItem += Number(item.qty);
 	}
 	const itemsTranform = items.map((item) => {
 		const subtotal = calcSubtotal(item.disc, item.price, item.qty).toNumber();
+		const capital = variant === "buy" ? calcCapital(record.total, item, totalItem) : null;
 		return {
 			timestamp,
 			disc_type: item.disc.type,
@@ -34,12 +37,20 @@ export async function submitPayment(
 			qty: Number(item.qty),
 			subtotal,
 			product_id: item.id,
-			capital: null,
+			capital,
 		};
 	});
-	const errInsertItems = await db.recordItem.add(itemsTranform, timestamp);
-	if (errInsertItems) {
-		return err(errInsertItems);
+	const res = await Promise.all([
+		db.record.add(variant, timestamp, record),
+		db.recordItem.add(itemsTranform, timestamp, variant),
+		db.tax.add(taxes, timestamp),
+	]);
+	const errs = [];
+	for (const errMsg of res) {
+		if (errMsg !== null) errs.push(errMsg);
+	}
+	if (errs.length > 0) {
+		return err(errs.join("; "));
 	}
 	return ok(timestamp);
 }
@@ -63,10 +74,7 @@ export function calcSubtotal(
 	return total.sub(val);
 }
 
-export function calcTotal(
-	total: Decimal,
-	taxes: Tax[],
-) {
+export function calcTotal(total: Decimal, taxes: Tax[]) {
 	const totalTax = taxes.reduce((acc, curr) => calcTax(total, curr.value).add(acc), new Decimal(0));
 	return total.add(totalTax);
 }
@@ -95,4 +103,9 @@ export const calcTotalBeforeTax = (
 
 export function calcChange(total: Decimal, pay: string): Decimal {
 	return new Decimal(pay === "" ? 0 : pay).sub(total);
+}
+
+export function calcCapital(grandTotal: number, item: Item, totalItem: number): number {
+	const capital = (grandTotal * Number(item.qty)) / totalItem;
+	return capital;
 }

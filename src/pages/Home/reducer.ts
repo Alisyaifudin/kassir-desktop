@@ -10,18 +10,18 @@ export type Tax = {
 export const ItemContext = createContext<{
 	state: State;
 	dispatch: React.Dispatch<Action>;
-	variant: "sell" | "buy"
+	variant: "sell" | "buy";
 }>({ state: { items: [], taxes: [] }, dispatch: () => {}, variant: "sell" });
 export const ItemContextProvider = ItemContext.Provider;
 
 export type State = { items: Item[]; taxes: Tax[] };
 export type Action =
+	| { action: "reset" }
 	| { action: "delete"; index: number }
 	| { action: "edit-name"; index: number; name: string }
 	| { action: "edit-price"; index: number; price: string }
-	| { action: "edit-qty"; index: number; qty: string }
+	| { action: "edit-qty"; index: number; qty: string; variant: "sell" | "buy" }
 	| { action: "edit-disc-val"; index: number; value: string }
-	| { action: "edit-disc-type"; index: number; type: string }
 	| { action: "edit-disc-type"; index: number; type: string }
 	| { action: "add-tax"; name: string; value: number }
 	| { action: "delete-tax"; index: number }
@@ -58,8 +58,10 @@ export type Action =
 
 export function itemReducer(state: State, action: Action): State {
 	switch (action.action) {
+		case "reset":
+			return { items: [], taxes: [] };
 		case "delete":
-			return {...state, items: state.items.filter((_, i) => i !== action.index)};
+			return { ...state, items: state.items.filter((_, i) => i !== action.index) };
 		case "edit-name":
 			return produce(state, (draft) => {
 				draft.items[action.index].name = action.name;
@@ -74,12 +76,14 @@ export function itemReducer(state: State, action: Action): State {
 			});
 		}
 		case "edit-qty": {
-			const { index, qty } = action;
+			const { index, qty, variant } = action;
+			if (Number.isNaN(qty) || Number(qty) < 0 || Number(qty) >= 10_000) {
+				return state;
+			}
 			if (
-				Number.isNaN(qty) ||
-				Number(qty) < 0 ||
-				Number(qty) >= 10_000 ||
-				(state.items[index].stock !== undefined && Number(qty) > state.items[index].stock)
+				variant === "sell" &&
+				state.items[index].stock !== undefined &&
+				Number(qty) > state.items[index].stock
 			) {
 				return state;
 			}

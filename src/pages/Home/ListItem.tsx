@@ -68,6 +68,7 @@ export function ListItem({
 		setLoading(true);
 		submitPayment(
 			db,
+			variant,
 			{
 				change: change.toNumber(),
 				disc: {
@@ -77,7 +78,8 @@ export function ListItem({
 				pay: Number(pay),
 				total: total.toNumber(),
 			},
-			items
+			items,
+			taxes
 		)
 			.then((res) => {
 				const [errMsg, timestamp] = res;
@@ -127,7 +129,7 @@ export function ListItem({
 				</div>
 				<div className="flex flex-col overflow-y-auto">
 					{items.map((item, i) => (
-						<ItemComponent {...item} index={i} key={i} />
+						<ItemComponent {...item} index={i} key={i} variant={variant} />
 					))}
 					{taxes.map((tax, i) => (
 						<TaxItem

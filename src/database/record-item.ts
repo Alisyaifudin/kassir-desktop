@@ -24,7 +24,8 @@ export function genRecordItem(db: Database) {
 		},
 		add: async (
 			items: (Omit<DB.RecordItem, "id"> & { product_id?: number })[],
-			timestamp: number
+			timestamp: number,
+			variant: "sell" | "buy"
 		): Promise<string | null> => {
 			const [errMsg] = await tryResult({
 				run: () => {
@@ -47,8 +48,9 @@ export function genRecordItem(db: Database) {
 							)
 						);
 						if (item.product_id !== undefined) {
+							const operation = variant === "buy" ? "+" : "-";
 							promises.push(
-								db.execute(`UPDATE products SET stock = stock - $1 WHERE id = $2`, [
+								db.execute(`UPDATE products SET stock = stock ${operation} $1 WHERE id = $2`, [
 									item.qty,
 									item.product_id,
 								])
