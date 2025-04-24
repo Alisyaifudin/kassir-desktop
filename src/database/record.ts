@@ -6,7 +6,7 @@ export const genRecord = (db: Database) => ({
 		return tryResult({
 			run: () =>
 				db.select<DB.Record[]>(
-					"SELECT * FROM records WHERE variant = 'sell' AND timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
+					"SELECT * FROM records WHERE mode = 'sell' AND timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
 					[start, end]
 				),
 		});
@@ -20,7 +20,7 @@ export const genRecord = (db: Database) => ({
 		return ok(records[0]);
 	},
 	add: async (
-		variant: "sell" | "buy",
+		mode: "sell" | "buy",
 		timestamp: number,
 		data: {
 			total: number;
@@ -35,9 +35,9 @@ export const genRecord = (db: Database) => ({
 		const [errMsg, res] = await tryResult({
 			run: () =>
 				db.execute(
-					`INSERT INTO records (variant, timestamp, total, pay, disc_val, disc_type, change)
+					`INSERT INTO records (mode, timestamp, total, pay, disc_val, disc_type, change)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-					[variant, timestamp, data.total, data.pay, data.disc.value, data.disc.type, data.change]
+					[mode, timestamp, data.total, data.pay, data.disc.value, data.disc.type, data.change]
 				),
 		});
 		if (errMsg) return errMsg;

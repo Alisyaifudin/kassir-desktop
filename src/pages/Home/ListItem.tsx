@@ -11,11 +11,11 @@ import { calcChange, calcTotal, calcTotalBeforeTax, submitPayment } from "./subm
 import { TaxItem } from "./Tax";
 
 export function ListItem({
-	variant,
-	setVar,
+	mode,
+	setMode,
 }: {
-	variant: "sell" | "buy";
-	setVar: (variant: "sell" | "buy") => void;
+	mode: "sell" | "buy";
+	setMode: (mode: "sell" | "buy") => void;
 }) {
 	const { state } = useContext(ItemContext);
 	const { items, taxes } = state;
@@ -68,7 +68,7 @@ export function ListItem({
 		setLoading(true);
 		submitPayment(
 			db,
-			variant,
+			mode,
 			{
 				change: change.toNumber(),
 				disc: {
@@ -104,16 +104,16 @@ export function ListItem({
 			<div className="outline h-full flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
 				<div className="flex gap-2 items-center">
 					<Button
-						onClick={() => setVar("sell")}
-						className={variant === "sell" ? "text-2xl font-bold" : "text-black/50"}
-						variant={variant === "sell" ? "default" : "ghost"}
+						onClick={() => setMode("sell")}
+						className={mode === "sell" ? "text-2xl font-bold" : "text-black/50"}
+						variant={mode === "sell" ? "default" : "ghost"}
 					>
 						<h2 className="">Jual</h2>
 					</Button>
 					<Button
-						onClick={() => setVar("buy")}
-						className={variant === "buy" ? "text-2xl font-bold" : "text-black/50"}
-						variant={variant === "buy" ? "default" : "ghost"}
+						onClick={() => setMode("buy")}
+						className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
+						variant={mode === "buy" ? "default" : "ghost"}
 					>
 						<h2 className="">Beli</h2>
 					</Button>
@@ -129,7 +129,7 @@ export function ListItem({
 				</div>
 				<div className="flex flex-col overflow-y-auto">
 					{items.map((item, i) => (
-						<ItemComponent {...item} index={i} key={i} variant={variant} />
+						<ItemComponent {...item} index={i} key={i} mode={mode} />
 					))}
 					{taxes.map((tax, i) => (
 						<TaxItem

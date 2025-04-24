@@ -7,7 +7,7 @@ import { Tax } from "./reducer";
 
 export async function submitPayment(
 	db: Database,
-	variant: "buy" | "sell",
+	mode: "buy" | "sell",
 	record: {
 		total: number;
 		pay: number;
@@ -27,7 +27,7 @@ export async function submitPayment(
 	}
 	const itemsTranform = items.map((item) => {
 		const subtotal = calcSubtotal(item.disc, item.price, item.qty).toNumber();
-		const capital = variant === "buy" ? calcCapital(record.total, item, totalItem) : null;
+		const capital = mode === "buy" ? calcCapital(record.total, item, totalItem) : null;
 		return {
 			timestamp,
 			disc_type: item.disc.type,
@@ -41,8 +41,8 @@ export async function submitPayment(
 		};
 	});
 	const res = await Promise.all([
-		db.record.add(variant, timestamp, record),
-		db.recordItem.add(itemsTranform, timestamp, variant),
+		db.record.add(mode, timestamp, record),
+		db.recordItem.add(itemsTranform, timestamp, mode),
 		db.tax.add(taxes, timestamp),
 	]);
 	const errs = [];

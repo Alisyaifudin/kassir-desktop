@@ -10,8 +10,8 @@ export type Tax = {
 export const ItemContext = createContext<{
 	state: State;
 	dispatch: React.Dispatch<Action>;
-	variant: "sell" | "buy";
-}>({ state: { items: [], taxes: [] }, dispatch: () => {}, variant: "sell" });
+	mode: "sell" | "buy";
+}>({ state: { items: [], taxes: [] }, dispatch: () => {}, mode: "sell" });
 export const ItemContextProvider = ItemContext.Provider;
 
 export type State = { items: Item[]; taxes: Tax[] };
@@ -20,7 +20,7 @@ export type Action =
 	| { action: "delete"; index: number }
 	| { action: "edit-name"; index: number; name: string }
 	| { action: "edit-price"; index: number; price: string }
-	| { action: "edit-qty"; index: number; qty: string; variant: "sell" | "buy" }
+	| { action: "edit-qty"; index: number; qty: string; mode: "sell" | "buy" }
 	| { action: "edit-disc-val"; index: number; value: string }
 	| { action: "edit-disc-type"; index: number; type: string }
 	| { action: "add-tax"; name: string; value: number }
@@ -76,12 +76,12 @@ export function itemReducer(state: State, action: Action): State {
 			});
 		}
 		case "edit-qty": {
-			const { index, qty, variant } = action;
+			const { index, qty, mode } = action;
 			if (Number.isNaN(qty) || Number(qty) < 0 || Number(qty) >= 10_000) {
 				return state;
 			}
 			if (
-				variant === "sell" &&
+				mode === "sell" &&
 				state.items[index].stock !== undefined &&
 				Number(qty) > state.items[index].stock
 			) {

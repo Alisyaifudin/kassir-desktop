@@ -9,7 +9,6 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![
-        // Define your migrations here
         Migration {
             version: 1,
             description: "create_initial_tables",
@@ -20,6 +19,12 @@ pub fn run() {
             version: 2,
             description: "fix_products_table",
             sql: include_str!("../src/migration-02.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 3,
+            description: "rename_variant_to_mode",
+            sql: include_str!("../src/migration-03.sql"),
             kind: MigrationKind::Up,
         },
     ];

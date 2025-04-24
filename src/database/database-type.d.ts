@@ -10,7 +10,7 @@ declare namespace DB {
 		timestamp: number; // primary key
 		total: number;
 		pay: number;
-		variant: "buy" | "sell";
+		mode: "buy" | "sell";
 		disc_val: number;
 		disc_type: "number" | "percent";
 		change: string;
