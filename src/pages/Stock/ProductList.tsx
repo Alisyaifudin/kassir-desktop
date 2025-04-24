@@ -10,17 +10,11 @@ import {
 import { Button } from "../../components/ui/button";
 import { Link } from "react-router";
 
-type ItemListProps = {
-	items: {
-		id: number;
-		barcode: string | null;
-		name: string;
-		price: string;
-		stock: number;
-	}[];
+type Props = {
+	products: DB.Product[];
 };
 
-export function ItemList({ items }: ItemListProps) {
+export function ProductList({ products }: Props) {
 	return (
 		<Table>
 			<TableHeader>
@@ -34,18 +28,18 @@ export function ItemList({ items }: ItemListProps) {
 				</TableRow>
 			</TableHeader>
 			<TableBody>
-				{items.map((item, i) => (
+				{products.map((product, i) => (
 					<TableRow key={i}>
 						<TableCell>{i + 1}</TableCell>
-						<TableCell>{item.barcode ?? ""}</TableCell>
-						<TableCell>{item.name}</TableCell>
+						<TableCell>{product.barcode ?? ""}</TableCell>
+						<TableCell>{product.name}</TableCell>
 						<TableCell className="text-right">
-							{Number(item.price).toLocaleString("de-DE")}
+							{product.price.toLocaleString("id-ID")}
 						</TableCell>
-						<TableCell className="text-right">{item.stock}</TableCell>
+						<TableCell className="text-right">{product.stock}</TableCell>
 						<TableCell>
 							<Button variant="link" className="p-0" asChild>
-								<Link to={`/items/${item.id}`}>
+								<Link to={`/stock/${product.id}`}>
 									<Pencil />
 								</Link>
 							</Button>

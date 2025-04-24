@@ -1,14 +1,15 @@
 import { Link, RouteObject } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { ItemList } from "./ItemList";
+import { ProductList } from "./ProductList.tsx";
 import { useDb } from "../../Layout";
-import { route as newItemRoute } from "./New-Item/index.tsx";
+import { route as newItemRoute } from "./New-Item";
+import { route as productRoute } from "./Product";
 import { Await } from "../../components/Await.tsx";
 import { useFetch } from "../../hooks/useFetch.tsx";
 export const route: RouteObject = {
 	path: "stock",
-	children: [{ index: true, Component: Page }, newItemRoute],
+	children: [{ index: true, Component: Page }, newItemRoute, productRoute],
 };
 
 export default function Page() {
@@ -20,23 +21,13 @@ export default function Page() {
 					<Plus />
 				</Link>
 			</Button>
-			<Await state={items}>{(items) => <ItemList items={items} />}</Await>
+			<Await state={items}>{(items) => <ProductList products={items} />}</Await>
 		</main>
 	);
 }
 
 const useItems = () => {
 	const db = useDb();
-	const items = useFetch(
-		db.select<
-			{
-				name: string;
-				price: string;
-				barcode: string | null;
-				stock: number;
-				id: number;
-			}[]
-		>("SELECT * FROM items")
-	);
+	const items = useFetch(db.product.getAll());
 	return items;
 };

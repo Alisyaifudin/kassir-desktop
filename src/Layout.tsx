@@ -1,9 +1,11 @@
-import { Link, LoaderFunctionArgs, Outlet, useLoaderData, useOutletContext } from "react-router";
+import { LoaderFunctionArgs, Outlet, useLoaderData, useOutletContext } from "react-router";
 import { Button } from "./components/ui/button";
-import Database from "@tauri-apps/plugin-sql";
+import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { useEffect, useState } from "react";
-import { Store } from "@tauri-apps/plugin-store";
+import { Store as StoreTauri } from "@tauri-apps/plugin-store";
 import { Settings } from "lucide-react";
+import { type Database, generateDB } from "./database";
+import { generateStore, Store } from "./store";
 
 export async function loader({ request }: LoaderFunctionArgs) {
 	const url = new URL(request.url);
@@ -14,6 +16,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 function getTitle(path: string): string {
 	if (path === "/") {
 		return "Jual";
+	} else if (path === "/buy") {
+		return "Beli";
+	} else if (path === "/setting") {
+		return "Pengaturan";
+	} else if (path.includes("records")) {
+		return "Riwayat";
 	} else if (path.includes("stock") || path.includes("items")) {
 		return "Stok";
 	}
@@ -25,11 +33,11 @@ function Layout() {
 	const [db, setDb] = useState<Database | null>(null);
 	const [store, setStore] = useState<Store | null>(null);
 	useEffect(() => {
-		Store.load("store.json", { autoSave: false }).then((store) => {
-			setStore(store);
+		StoreTauri.load("store.json", { autoSave: false }).then((store) => {
+			setStore(generateStore(store));
 		});
-		Database.load("sqlite:mydatabase.db").then((db) => {
-			setDb(db);
+		DatabaseTauri.load("sqlite:data.db").then((db) => {
+			setDb(generateDB(db));
 		});
 	}, []);
 
@@ -44,29 +52,29 @@ function Layout() {
 					<ul className="flex gap-5 justify-end">
 						<li>
 							<Button variant="outline" asChild>
-								<Link to="/">Jual</Link>
+								<a href="/">Jual</a>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								<Link to="/">Beli</Link>
+								<a href="/buy">Beli</a>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								<Link to="/stock">Stok</Link>
+								<a href="/stock">Stok</a>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								<Link to="/records">Riwayat</Link>
+								<a href="/records">Riwayat</a>
 							</Button>
 						</li>
 						<li>
 							<Button asChild size="icon" className="rounded-full">
-								<Link to="/setting">
+								<a href="/setting">
 									<Settings />
-								</Link>
+								</a>
 							</Button>
 						</li>
 					</ul>

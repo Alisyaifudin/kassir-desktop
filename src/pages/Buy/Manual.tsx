@@ -21,11 +21,12 @@ const itemSchema = z.object({
 		type: z.enum(["number", "percent"]),
 		value: numerish,
 	}),
+	barcode: numerish.nullable(),
 });
 
 export function Manual() {
 	const [disc, setDisc] = useState("number");
-	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "" });
+	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "", barcode: "" });
 	const { setItems } = useContext(ItemContext);
 	const db = useDb();
 	const { addItemManual } = itemMethod(db, setItems);
@@ -48,6 +49,7 @@ export function Manual() {
 				price: errs.price?.join("; ") ?? "",
 				qty: errs.qty?.join("; ") ?? "",
 				disc: errs.disc?.join("; ") ?? "",
+				barcode: errs.barcode?.join("; ") ?? "",
 			});
 			return;
 		}
@@ -61,7 +63,7 @@ export function Manual() {
 					<h2 className="font-bold">Manual</h2>
 				</AccordionTrigger>
 				<AccordionContent>
-					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
+					<form onSubmit={handleSubmit} className="flex px-1 flex-col gap-2">
 						<Field label="Nama" error={error.name}>
 							<Input type="text" required name="name" />
 						</Field>
@@ -91,6 +93,9 @@ export function Manual() {
 							</select>
 						</div>
 						{error.disc === "" ? null : <p className="text-red-500">{error.disc}</p>}
+						<Field label="Barcode" error={error.barcode}>
+							<Input type="number" name="barcode" />
+						</Field>
 						<Button>Tambahkan</Button>
 					</form>
 				</AccordionContent>

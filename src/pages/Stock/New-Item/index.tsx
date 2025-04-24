@@ -1,12 +1,13 @@
 import { Link, RouteObject, useNavigate } from "react-router";
 import { z } from "zod";
-import { numeric, numerish } from "../../../utils";
+import { numeric } from "../../../utils";
 import { useState } from "react";
 import { Field } from "./Field";
 import { insert } from "./insert";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
+import { useDb } from "../../../Layout";
 
 export const route: RouteObject = {
 	Component: Page,
@@ -15,15 +16,16 @@ export const route: RouteObject = {
 
 const dataSchema = z.object({
 	name: z.string().min(1),
-	price: numerish,
+	price: numeric,
 	stock: numeric,
-	barcode: numerish.nullable(),
+	barcode: numeric.nullable(),
 });
 
 export default function Page() {
 	const navigate = useNavigate();
 	const [error, setError] = useState({ name: "", price: "", stock: "", barcode: "", global: "" });
 	const [loading, setLoading] = useState(false);
+	const db = useDb();
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -45,7 +47,7 @@ export default function Page() {
 			return;
 		}
 		setLoading(true);
-		insert(parsed.data).then((err) => {
+		insert(db, parsed.data).then((err) => {
 			if (err) {
 				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
 				setLoading(false);

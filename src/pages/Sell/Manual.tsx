@@ -21,6 +21,7 @@ const itemSchema = z.object({
 		type: z.enum(["number", "percent"]),
 		value: numerish,
 	}),
+	barcode: numerish.nullable()
 });
 
 export function Manual() {
@@ -40,6 +41,7 @@ export function Manual() {
 				value: formData.get("disc-value"),
 				type: formData.get("disc-type"),
 			},
+			barcode: formData.get("barcode")
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -61,7 +63,7 @@ export function Manual() {
 					<h2 className="font-bold">Manual</h2>
 				</AccordionTrigger>
 				<AccordionContent>
-					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
+					<form onSubmit={handleSubmit} className="flex flex-col px-1 gap-2">
 						<Field label="Nama" error={error.name}>
 							<Input type="text" required name="name" />
 						</Field>

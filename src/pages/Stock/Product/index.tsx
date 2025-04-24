@@ -7,13 +7,12 @@ import {
 	useNavigate,
 } from "react-router";
 import { z } from "zod";
-import { numeric, numerish } from "../../../utils";
+import { numeric } from "../../../utils";
 import { useState } from "react";
 import { Field } from "./Field";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
-import Database from "@tauri-apps/plugin-sql";
 import { update } from "./update";
 import { DeleteBtn } from "./DeleteBtn";
 import { useDb } from "../../../Layout";
@@ -24,7 +23,7 @@ import { useFetch } from "../../../hooks/useFetch";
 export const route: RouteObject = {
 	Component: Page,
 	loader,
-	path: "/items/:id",
+	path: ":id",
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -36,9 +35,9 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 const dataSchema = z.object({
 	name: z.string().min(1),
-	price: numerish,
+	price: numeric,
 	stock: numeric,
-	barcode: numerish.nullable(),
+	barcode: numeric.nullable(),
 	id: z.number(),
 });
 
@@ -59,14 +58,15 @@ export default function Page() {
 					if (item === null) {
 						return <Redirect to="/stock" />;
 					}
-					return <Form item={item} />;
+					return <Form product={item} />;
 				}}
 			</Await>
 		</main>
 	);
 }
 
-function Form({ item }: { item: DB.Item }) {
+function Form({ product }: { product: DB.Product }) {
+	const db = useDb();
 	const [error, setError] = useState({ name: "", price: "", stock: "", barcode: "", global: "" });
 	const [loading, setLoading] = useState(false);
 	const navigate = useNavigate();
@@ -78,7 +78,7 @@ function Form({ item }: { item: DB.Item }) {
 			price: formData.get("price"),
 			stock: formData.get("stock"),
 			barcode: formData.get("barcode"),
-			id: item.id,
+			id: product.id,
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -92,7 +92,7 @@ function Form({ item }: { item: DB.Item }) {
 			return;
 		}
 		setLoading(true);
-		update(parsed.data).then((err) => {
+		update(db, parsed.data).then((err) => {
 			if (err) {
 				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
 				setLoading(false);
@@ -105,7 +105,7 @@ function Form({ item }: { item: DB.Item }) {
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 			<Field error={error.name} label="Name*:">
-				<Input type="text" className="outline" name="name" required defaultValue={item.name} />
+				<Input type="text" className="outline" name="name" required defaultValue={product.name} />
 			</Field>
 			<Field error={error.price} label="Harga*:">
 				<Input
@@ -113,7 +113,7 @@ function Form({ item }: { item: DB.Item }) {
 					className="outline w-[300px]"
 					name="price"
 					required
-					defaultValue={item.price}
+					defaultValue={product.price}
 				/>
 			</Field>
 			<Field error={error.stock} label="Stok*:">
@@ -122,7 +122,7 @@ function Form({ item }: { item: DB.Item }) {
 					className="outline w-[100px]"
 					name="stock"
 					required
-					defaultValue={item.stock}
+					defaultValue={product.stock}
 				/>
 			</Field>
 			<Field error={error.barcode} label="Barcode:">
@@ -130,7 +130,7 @@ function Form({ item }: { item: DB.Item }) {
 					type="number"
 					className="outline w-[300px]"
 					name="barcode"
-					defaultValue={item.barcode ?? ""}
+					defaultValue={product.barcode ?? ""}
 				/>
 			</Field>
 			<div className="flex items-center justify-between">
@@ -138,7 +138,7 @@ function Form({ item }: { item: DB.Item }) {
 					Simpan
 					{loading && <Loader2 className="animate-spin" />}
 				</Button>
-				<DeleteBtn id={item.id} name={item.name} />
+				<DeleteBtn id={product.id} name={product.name} />
 			</div>
 			{error.global === "" ? null : <p className="text-red-500">{error.global}</p>}
 		</form>
@@ -147,22 +147,6 @@ function Form({ item }: { item: DB.Item }) {
 
 const useItem = (id: number) => {
 	const db = useDb();
-	const item = useFetch(getItem(db, id));
+	const item = useFetch(db.product.get(id));
 	return item;
 };
-
-async function getItem(db: Database, id: number): Promise<DB.Item | null> {
-	const items = await db.select<
-		{
-			name: string;
-			price: string;
-			barcode: string | null;
-			stock: number;
-			id: number;
-		}[]
-	>("SELECT * FROM items WHERE id = $1", [id]);
-	if (items.length === 0) {
-		return null;
-	}
-	return items[0];
-}

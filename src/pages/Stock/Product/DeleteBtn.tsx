@@ -12,14 +12,16 @@ import {
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { del } from "./delete";
+import { useDb } from "../../../Layout";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const navigate = useNavigate();
+	const db = useDb();
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const handleClick = () => {
 		setLoading(true);
-		del(id).then((err) => {
+		del(db, id).then((err) => {
 			if (err) {
 				setError(err);
 				setLoading(false);

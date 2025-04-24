@@ -40,8 +40,7 @@ export const itemMethod = (
 			if (
 				Number.isNaN(qty) ||
 				Number(qty) < 0 ||
-				Number(qty) >= 10_000 ||
-				(items[index].stock !== undefined && Number(qty) > items[index].stock)
+				Number(qty) >= 10_000
 			) {
 				return items;
 			}
@@ -85,6 +84,7 @@ export const itemMethod = (
 		price,
 		qty,
 		disc,
+		barcode
 	}: {
 		name: string;
 		price: string;
@@ -93,6 +93,7 @@ export const itemMethod = (
 			type: "number" | "percent";
 			value: string;
 		};
+		barcode: null | string;
 	}) => {
 		setItems((items) =>
 			produce(items, (draft) => {
@@ -101,6 +102,7 @@ export const itemMethod = (
 					price,
 					qty,
 					disc,
+					barcode
 				});
 			})
 		);
@@ -108,28 +110,25 @@ export const itemMethod = (
 	addItemSelect: ({
 		name,
 		price,
-		stock,
 		id,
+		barcode
 	}: {
 		name: string;
 		price: string;
-		stock: number;
 		id: number;
+		barcode: string | null;
 	}) => {
-		if (stock === 0) {
-			return;
-		}
 		setItems((items) =>
 			produce(items, (draft) => {
 				draft.push({
 					name,
+					barcode,
 					price,
 					qty: "1",
 					disc: {
 						value: "0",
 						type: "number",
 					},
-					stock,
 					id,
 				});
 			})
@@ -143,13 +142,13 @@ export const itemMethod = (
 				draft.push({
 					name: item.name,
 					price: item.price,
-					stock: item.stock,
 					id: item.id,
 					qty: "1",
 					disc: {
 						value: "0",
 						type: "number",
 					},
+					barcode
 				});
 			})
 		);

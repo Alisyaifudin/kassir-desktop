@@ -8,7 +8,6 @@ import { useDb } from "../../Layout";
 
 export type Item = {
 	id?: number;
-	stock?: number;
 	name: string;
 	price: string;
 	qty: string;
@@ -16,20 +15,21 @@ export type Item = {
 		value: string;
 		type: "number" | "percent";
 	};
+	barcode: string | null;
 };
 
 type Props = {
 	index: number;
 } & Item;
 
-export function ItemComponent({ id, disc, name, price, qty, index, stock }: Props) {
+export function ItemComponent({ id, disc, name, price, qty, index, barcode }: Props) {
 	const { setItems } = useContext(ItemContext);
 	const db = useDb();
 	const { editName, deleteItem, editDiscType, editDiscVal, editPrice, editQty } =
 		itemMethod(db, setItems);
 	return (
 		<div
-			className={cn("grid grid-cols-[50px_1fr_100px_170px_50px_100px_25px] gap-1 items-center", {
+			className={cn("grid grid-cols-[50px_150px_1fr_100px_170px_50px_100px_25px] gap-1 items-center", {
 				"bg-muted": index % 2 == 0,
 			})}
 		>
@@ -42,11 +42,11 @@ export function ItemComponent({ id, disc, name, price, qty, index, stock }: Prop
 						</PopoverTrigger>
 						<PopoverContent align="end" className="w-24">
 							<p>id: {id}</p>
-							<p>stok: {stock}</p>
 						</PopoverContent>
 					</Popover>
 				)}
 			</div>
+			<p>{barcode ?? ""}</p>
 			{id !== undefined ? (
 				<p>{name}</p>
 			) : (

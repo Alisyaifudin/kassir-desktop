@@ -3,6 +3,12 @@ import { InputItem } from "./InputItem";
 import { ListItem } from "./ListItem";
 import { Item } from "./Item";
 import { ItemContextProvider } from "./item-method";
+import { RouteObject } from "react-router";
+
+export const route: RouteObject = {
+	Component: Page,
+	path: "/buy",
+};
 
 export default function Page() {
 	const [items, setItems] = useState<Item[]>([]);

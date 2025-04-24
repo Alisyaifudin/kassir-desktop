@@ -1,18 +1,23 @@
-import { Store } from "@tauri-apps/plugin-store";
 import { useStore } from "../../Layout";
 import { useFetch } from "../../hooks/useFetch";
+import { Store } from "../../store";
 
 export const useSetting = () => {
-	const s = useStore();
-	const setting = useFetch(getSetting(s));
+	const store = useStore();
+	const setting = useFetch(getSetting(store));
 	return setting;
 };
 
 export async function getSetting(store: Store) {
-	const setting = await Promise.all([store.get<string>("owner"), store.get<string>("address")]);
+	const setting = await Promise.all([store.owner.get(), store.address.get()]);
 	return { owner: setting[0], address: setting[1] };
 }
 
-export async function setSetting(store: Store, setting: { owner?: string; address?: string }) {
-	await Promise.all([store.set("owner", setting.owner), store.set("address", setting.address)]);
+export async function setSetting(store: Store, setting: Partial<Record<keyof Store, string>>) {
+	const promises = Object.entries(setting).map(([key, value]) => {
+		if (value) {
+			return store[key as keyof Store].set(value);
+		}
+	});
+	await Promise.all(promises);
 }
