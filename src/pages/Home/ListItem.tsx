@@ -98,7 +98,6 @@ export function ListItem({
 				setLoading(false);
 			});
 	};
-	console.log({ taxes });
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
 			<div className="outline h-full flex-1 p-1 flex flex-col gap-1 overflow-y-auto">

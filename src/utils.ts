@@ -7,7 +7,7 @@ export const numerish = z.string().refine((val) => !isNaN(Number(val)), {
 	message: "Harus angka",
 });
 
-export const numeric = numerish.transform((val) => Number(val))
+export const numeric = numerish.transform((val) => Number(val));
 
 export type Result<E, T> = [E, null] | [null, T];
 
@@ -71,9 +71,22 @@ export function formatDate(epochMilli: number, type: "short" | "long" = "short")
 	}
 }
 
+export const dateStringSchema = z.string().regex(
+	/^\d+-\d{2}-\d{2}$/, // Regular expression to match any number of digits for the year, followed by MM-DD
+	"Tanggal tidak valid"
+);
+
 export function formatTime(epochMilli: number): string {
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
 	const { hour, minute } = date;
 	return `${hour}:${minute.toString().padStart(2, "0")}`;
+}
+
+export function dateToEpoch(date: string): number {
+	const [year, month, day] = date.split("-").map(Number);
+	const tz = Temporal.Now.timeZoneId();
+	const t = Temporal.ZonedDateTime.from({ timeZone: tz, year, month, day }).startOfDay()
+		.epochMilliseconds;
+	return t;
 }

@@ -52,7 +52,6 @@ export async function submitPayment(
 	if (errs.length > 0) {
 		return err(errs.join("; "));
 	}
-	console.log("submitting", record, itemsTranform);
 	return ok(timestamp);
 }
 
