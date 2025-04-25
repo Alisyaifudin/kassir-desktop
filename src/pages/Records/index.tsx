@@ -40,8 +40,8 @@ export default function Page() {
 		setSelected(setSearch, timestamp, selected);
 	};
 	return (
-		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto">
-			<div className="flex gap-2 items-center ">
+		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto text-3xl">
+			<div className="flex gap-2 items-center">
 				<input
 					type="date"
 					className="outline rounded-md"
@@ -60,7 +60,7 @@ export default function Page() {
 						return <p className="text-red-500">{errItems}</p>;
 					}
 					return (
-						<div className="grid grid-cols-[1fr_1px_3fr] gap-2 h-full overflow-y-auto">
+						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-y-auto">
 							<Tabs
 								value={mode}
 								onValueChange={(v) => {
@@ -69,7 +69,6 @@ export default function Page() {
 									}
 									setMode(setSearch, v);
 								}}
-								className="w-[400px]"
 							>
 								<TabsList>
 									<TabsTrigger value="sell">Jual</TabsTrigger>
@@ -93,7 +92,7 @@ export default function Page() {
 								</TabsContent>
 							</Tabs>
 							<div className="border-l" />
-							<ItemList allItems={items} timestamp={selected} records={records} />
+							<ItemList allItems={items} timestamp={selected} records={records} mode={mode} />
 						</div>
 					);
 				}}

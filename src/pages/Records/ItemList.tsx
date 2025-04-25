@@ -13,6 +13,7 @@ type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
 	timestamp: number | null;
+	mode: "buy"|"sell"
 };
 
 function filterData(
@@ -33,22 +34,23 @@ function filterData(
 	};
 }
 
-export function ItemList({ allItems, timestamp, records }: RecordListProps) {
+export function ItemList({ allItems, timestamp, records, mode }: RecordListProps) {
 	const { items, record } = filterData(timestamp, allItems, records);
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
-			<Table>
+			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
 						<TableHead className="w-[50px]">No</TableHead>
 						<TableHead>Nama</TableHead>
-						<TableHead className="w-[50px]">Qty</TableHead>
-						<TableHead className="w-[100px] text-end">Diskon</TableHead>
-						<TableHead className="w-[100px] text-end">Total</TableHead>
-						<TableHead className="w-[40px]">
+						<TableHead className="w-[70px]">Qty</TableHead>
+						<TableHead className="w-[150px] text-end">Diskon</TableHead>
+						<TableHead className="w-[150px] text-end">Total</TableHead>
+						{mode === "buy" ? <TableHead className="w-[150px] text-end">Modal</TableHead> : null }
+						<TableHead className="w-[50px]">
 							{timestamp === null ? null : (
 								<Link to={`/records/${timestamp}`}>
-									<SquareArrowOutUpRight />
+									<SquareArrowOutUpRight size={35} />
 								</Link>
 							)}
 						</TableHead>
@@ -64,22 +66,23 @@ export function ItemList({ allItems, timestamp, records }: RecordListProps) {
 								{calcDisc(item.disc_type, item.disc_val, item.subtotal)}
 							</TableCell>
 							<TableCell className="text-end">{item.subtotal.toLocaleString("id-ID")}</TableCell>
+							{mode === "buy" ? <TableCell className="w-[150px] text-end">{item.capital}</TableCell> : null }
 						</TableRow>
 					))}
 				</TableBody>
 			</Table>
 			{record === null ? null : (
 				<div className="flex flex-col items-end">
-					<div className="grid grid-cols-[100px_100px]">
-						<p>Total:</p>{" "}
+					<div className="grid grid-cols-[170px_200px]">
+						<p className="text-end">Total:</p>
 						<p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
 					</div>
-					<div className="grid grid-cols-[100px_100px]">
-						<p>Pembayaran:</p>{" "}
+					<div className="grid grid-cols-[170px_200px]">
+						<p className="text-end">Pembayaran:</p>
 						<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>
 					</div>
-					<div className="grid grid-cols-[100px_100px]">
-						<p>Kembalian:</p>{" "}
+					<div className="grid grid-cols-[170px_200px]">
+						<p className="text-end">Kembalian:</p>{" "}
 						<p className="text-end">Rp{Number(record.change).toLocaleString("de-DE")}</p>
 					</div>
 				</div>

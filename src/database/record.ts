@@ -24,6 +24,7 @@ export const genRecord = (db: Database) => ({
 		timestamp: number,
 		data: {
 			total: number;
+			grand_total: number;
 			pay: number;
 			disc: {
 				value: number | null;
@@ -35,9 +36,9 @@ export const genRecord = (db: Database) => ({
 		const [errMsg, res] = await tryResult({
 			run: () =>
 				db.execute(
-					`INSERT INTO records (mode, timestamp, total, pay, disc_val, disc_type, change)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-					[mode, timestamp, data.total, data.pay, data.disc.value, data.disc.type, data.change]
+					`INSERT INTO records (mode, timestamp, grand_total, pay, disc_val, disc_type, change, total)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+					[mode, timestamp, data.grand_total, data.pay, data.disc.value, data.disc.type, data.change, data.total]
 				),
 		});
 		if (errMsg) return errMsg;

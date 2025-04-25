@@ -76,7 +76,8 @@ export function ListItem({
 					type: disc.type,
 				},
 				pay: Number(pay),
-				total: total.toNumber(),
+				total: totalBeforeTax.toNumber(),
+				grand_total: total.toNumber(),
 			},
 			items,
 			taxes
@@ -172,8 +173,7 @@ export function ListItem({
 						</select>
 					</div>
 					<div className="grid grid-cols-[140px_20px_1fr] h-[60px] text-3xl items-center">
-						<p className="text-3xl">Kembalian</p>
-						:
+						<p className="text-3xl">Kembalian</p>:
 						<p className={cn("text-3xl", { "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
 							{change.toNumber().toLocaleString("de-DE")}
 						</p>

@@ -17,11 +17,11 @@ type RecordListProps = {
 
 export function RecordList({ records, selected, selectRecord, mode }: RecordListProps) {
 	return (
-		<Table>
+		<Table className="text-3xl">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[30px]">No</TableHead>
-					<TableHead className="w-[90px] text-center">Tanggal</TableHead>
+					<TableHead className="w-[200px] text-center">Tanggal</TableHead>
 					<TableHead className="w-[70px] text-center">Waktu</TableHead>
 					<TableHead className="text-right">Total</TableHead>
 				</TableRow>

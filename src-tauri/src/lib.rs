@@ -27,6 +27,12 @@ pub fn run() {
             sql: include_str!("../src/migration-03.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "add_grand_total",
+            sql: include_str!("../src/migration-04.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())

@@ -9,6 +9,7 @@ declare namespace DB {
 	interface Record {
 		timestamp: number; // primary key
 		total: number;
+		grand_total: number;
 		pay: number;
 		mode: "buy" | "sell";
 		disc_val: number;

@@ -10,6 +10,7 @@ export async function submitPayment(
 	mode: "buy" | "sell",
 	record: {
 		total: number;
+		grand_total: number;
 		pay: number;
 		disc: {
 			value: number;
