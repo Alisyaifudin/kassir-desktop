@@ -11,6 +11,8 @@ import { Temporal } from "temporal-polyfill";
 import { dateStringSchema, dateToEpoch, formatDate } from "../../utils";
 import { z } from "zod";
 import JSZip from "jszip";
+import { FieldText } from "./FieldText";
+import { Textarea } from "../../components/ui/Textarea";
 
 export const route: RouteObject = {
 	path: "setting",
@@ -133,37 +135,30 @@ function Setting({ owner, address, ig, shopee, desc }: Partial<Record<keyof Stor
 		URL.revokeObjectURL(url);
 	};
 	return (
-		<main className="flex flex-col gap-2 p-2 flex-1 w-full max-w-xl mx-auto justify-between">
+		<main className="flex flex-col gap-2 p-2 flex-1 w-full max-w-7xl mx-auto justify-between">
 			<form onSubmit={handleSubmit} className="flex flex-col gap-2">
-				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
-					<span>Nama Toko</span>
-					:
+				<FieldText label="Nama Toko">
 					<Input type="text" defaultValue={owner} name="owner" />
-				</label>
-				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
-					<span>Deskripsi</span>
-					:
-					<Input type="text" defaultValue={desc} name="desc" />
-				</label>
-				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
-					<span>Alamat</span>
-					:
+				</FieldText>
+				<FieldText label="Alamat">
 					<Input type="text" defaultValue={address} name="address" />
-				</label>
-				<label className="grid grid-cols-[100px_1px_1fr]  items-center gap-1">
-					<span>Shopee</span>
-					:
+				</FieldText>
+				<FieldText label="Shopee">
 					<Input type="text" defaultValue={shopee} name="shopee" />
-				</label>
-				<label className="grid grid-cols-[100px_1px_1fr] items-center gap-1">
-					<span>Instagram</span>
-					:
+				</FieldText>
+				<FieldText label="Instagram">
 					<Input type="text" defaultValue={ig} name="ig" />
+				</FieldText>
+				<label className="flex flex-col gap-1 text-3xl">
+					<div>
+						<span>Deskripsi:</span>
+					</div>
+					<Textarea name="desc" defaultValue={desc}></Textarea>
 				</label>
 				<Button>Simpan {loading && <Loader2 className="animate-spin" />}</Button>
 				{error === "" ? null : <p className="text-red-500">{error}</p>}
 			</form>
-			<form onSubmit={handleDownload}>
+			<form onSubmit={handleDownload} className="text-3xl">
 				<p className="font-bold">Unduh Data</p>
 				<div className="flex gap-3 items-end">
 					<label className="flex flex-col gap-1">
@@ -174,7 +169,7 @@ function Setting({ owner, address, ig, shopee, desc }: Partial<Record<keyof Stor
 							defaultValue={formatDate(startOfMonth.epochMilliseconds)}
 						/>
 					</label>
-					<div className="h-8">&mdash;</div>
+					<div className="h-12">&mdash;</div>
 					<label className="flex flex-col gap-1">
 						<span>Sampai:</span>
 						<Input type="date" name="end" defaultValue={formatDate(endOfMonth.epochMilliseconds)} />
