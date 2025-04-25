@@ -39,7 +39,7 @@ function Layout() {
 
 	return (
 		<>
-			<header className="bg-sky-300 h-[100px] flex items-center">
+			<header className="bg-sky-300 h-[78px] flex items-center">
 				<nav className="flex p-3 justify-between w-full items-center">
 					<p className="text-5xl font-bold">{getTitle(pathname)}</p>
 					<ul className="flex gap-5 justify-end items-center">

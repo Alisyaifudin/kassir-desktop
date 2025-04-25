@@ -33,9 +33,7 @@ export function ProductList({ products }: Props) {
 						<TableCell>{i + 1}</TableCell>
 						<TableCell>{product.barcode ?? ""}</TableCell>
 						<TableCell>{product.name}</TableCell>
-						<TableCell className="text-right">
-							{product.price.toLocaleString("id-ID")}
-						</TableCell>
+						<TableCell className="text-right">{product.price.toLocaleString("id-ID")}</TableCell>
 						<TableCell className="text-right">{product.stock}</TableCell>
 						<TableCell>
 							<Button variant="link" className="p-0" asChild>
