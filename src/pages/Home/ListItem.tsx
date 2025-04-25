@@ -118,7 +118,7 @@ export function ListItem({
 						<h2 className="">Beli</h2>
 					</Button>
 				</div>
-				<div className="grid grid-cols-[50px_1fr_150px_230px_70px_150px_50px] gap-1 outline text-3xl">
+				<div className="grid grid-cols-[70px_1fr_150px_230px_70px_150px_50px] gap-1 outline text-3xl">
 					<p className="border-r">No</p>
 					<p className="border-r">Nama</p>
 					<p className="border-r">Harga</p>
