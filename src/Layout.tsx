@@ -39,27 +39,27 @@ function Layout() {
 
 	return (
 		<>
-			<header className="bg-sky-300">
-				<nav className="flex p-3 justify-between">
-					<p className="text-xl font-bold">{getTitle(pathname)}</p>
-					<ul className="flex gap-5 justify-end">
+			<header className="bg-sky-300 h-[100px] flex items-center">
+				<nav className="flex p-3 justify-between w-full items-center">
+					<p className="text-5xl font-bold">{getTitle(pathname)}</p>
+					<ul className="flex gap-5 justify-end items-center">
 						<li>
-							<Button variant="outline" asChild>
+							<Button variant="outline" className="text-3xl" asChild>
 								<Link to="/">Toko</Link>
 							</Button>
 						</li>
 						<li>
-							<Button variant="outline" asChild>
+							<Button variant="outline" className="text-3xl" asChild>
 								<Link to="/stock">Stok</Link>
 							</Button>
 						</li>
 						<li>
-							<Button variant="outline" asChild>
+							<Button variant="outline" className="text-3xl" asChild>
 								<Link to="/records">Riwayat</Link>
 							</Button>
 						</li>
 						<li>
-							<Button asChild size="icon" className="rounded-full">
+							<Button asChild className="rounded-full h-[50px]">
 								<Link to="/setting">
 									<Settings />
 								</Link>

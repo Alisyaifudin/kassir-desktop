@@ -50,7 +50,7 @@ export function Search() {
 				<ol className="flex flex-col gap-1">
 					{products.map((product, i) => (
 						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
-							<button onClick={handleClick(product)} className="cursor-pointer">
+							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
 								{product.name}
 							</button>
 						</li>

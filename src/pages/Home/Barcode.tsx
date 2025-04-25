@@ -6,6 +6,7 @@ import { Loader2, Search } from "lucide-react";
 import { useDb } from "../../Layout";
 import { ItemContext } from "./reducer";
 import { numeric } from "../../utils";
+import { TextError } from "../../components/TextError";
 
 export function Barcode() {
 	const [error, setError] = useState("");
@@ -44,14 +45,16 @@ export function Barcode() {
 	return (
 		<form onSubmit={handleSubmit}>
 			<Field label="Barcode">
-				<div className="flex gap-1 items-center">
-					<Input type="number" name="barcode" required />
-					<Button disabled={loading} className="w-fit px-2">
-						{loading ? <Loader2 className="animate-spin" /> : <Search />}
+				<div className="flex gap-1 items-center ">
+					<div className="flex-1">
+						<Input type="number" name="barcode" required />
+					</div>
+					<Button disabled={loading} className="h-13 w-13 px-0 py-0">
+						{loading ? <Loader2 className="animate-spin" size={30} /> : <Search size={35} />}
 					</Button>
 				</div>
 			</Field>
-			{error === "" ? null : <p className="text-red-500">{error}</p>}
+			{error === "" ? null : <TextError>{error}</TextError>}
 		</form>
 	);
 }

@@ -48,7 +48,7 @@ export function TaxField() {
 	};
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-1">
-			<h2 className="font-bold">Pajak</h2>
+			<h2 className="font-bold text-2xl">Pajak</h2>
 			<Field label="Nama" error={error.name}>
 				<Input type="text" name="name" />
 			</Field>
@@ -74,7 +74,7 @@ export function TaxItem({
 	const { dispatch } = useContext(ItemContext);
 	const tax = calcTax(totalBeforeTax, value);
 	return (
-		<div className="grid grid-cols-[1fr_50px_117px_25px] justify-end gap-1">
+		<div className="grid grid-cols-[1fr_70px_160px_50px] justify-end gap-1 text-3xl">
 			<p className="text-end">{name}</p>
 			<p className="text-end">{value}%</p>
 			<p className="text-end">Rp{tax.toNumber().toLocaleString("id-ID")}</p>
@@ -83,7 +83,7 @@ export function TaxItem({
 					onClick={() => dispatch({ action: "delete-tax", index })}
 					className="bg-red-500 text-white"
 				>
-					<X />
+					<X size={35} />
 				</button>
 			</div>
 		</div>

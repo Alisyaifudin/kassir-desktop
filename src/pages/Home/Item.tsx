@@ -26,7 +26,7 @@ export function ItemComponent({ id, disc, name, price, qty, index, mode }: Props
 	const { dispatch } = useContext(ItemContext);
 	return (
 		<div
-			className={cn("grid grid-cols-[50px_1fr_100px_170px_50px_100px_25px] gap-1 items-center", {
+			className={cn("grid grid-cols-[50px_1fr_150px_230px_70px_150px_50px] gap-1 items-center text-3xl", {
 				"bg-muted": index % 2 == 0,
 			})}
 		>
@@ -56,7 +56,7 @@ export function ItemComponent({ id, disc, name, price, qty, index, mode }: Props
 			<div className="flex gap-1">
 				<input
 					type="number"
-					className="w-[93px] px-1"
+					className="w-full px-1"
 					value={disc.value}
 					onChange={(e) =>
 						dispatch({ action: "edit-disc-val", index, value: e.currentTarget.value })
@@ -67,7 +67,7 @@ export function ItemComponent({ id, disc, name, price, qty, index, mode }: Props
 					onChange={(e) =>
 						dispatch({ action: "edit-disc-type", index, type: e.currentTarget.value })
 					}
-					className=" w-[70px] outline"
+					className=" w-[110px] border"
 				>
 					<option value="number">Angka</option>
 					<option value="percent">Persen</option>
@@ -87,7 +87,7 @@ export function ItemComponent({ id, disc, name, price, qty, index, mode }: Props
 					onClick={() => dispatch({ action: "delete", index })}
 					className="bg-red-500 text-white"
 				>
-					<X />
+					<X size={35} />
 				</button>
 			</div>
 		</div>

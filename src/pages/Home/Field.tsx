@@ -1,4 +1,5 @@
 import React from "react";
+import { TextError } from "../../components/TextError";
 
 export function Field({
 	label,
@@ -11,9 +12,9 @@ export function Field({
 }) {
 	return (
 		<label className="flex flex-col gap-1 w-full">
-			<span>{label}:</span>
+			<span className="text-3xl">{label}:</span>
 			{children}
-			{error === undefined || error === "" ? null : <p className="text-red-500">{error}</p>}
+			{error === undefined || error === "" ? null : <TextError>{error}</TextError>}
 		</label>
 	);
 }

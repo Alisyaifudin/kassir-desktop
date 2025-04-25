@@ -146,17 +146,25 @@ export function itemReducer(state: State, action: Action): State {
 				return state;
 			}
 			return produce(state, (draft) => {
-				draft.items.push({
-					name,
-					price,
-					qty: "1",
-					disc: {
-						value: "0",
-						type: "number",
-					},
-					stock,
-					id,
-				});
+				const itemIndex = draft.items.findIndex((item) => item.id === id);
+				if (itemIndex === -1) {
+					draft.items.push({
+						name,
+						price,
+						qty: "1",
+						disc: {
+							value: "0",
+							type: "number",
+						},
+						stock,
+						id,
+					});
+				} else if (
+					draft.items[itemIndex].stock !== undefined &&
+					Number(draft.items[itemIndex].qty) < draft.items[itemIndex].stock
+				) {
+					draft.items[itemIndex].qty = String(Number(draft.items[itemIndex].qty) + 1);
+				}
 			});
 		}
 		case "add-barcode": {

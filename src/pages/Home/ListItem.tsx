@@ -100,7 +100,7 @@ export function ListItem({
 	};
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
-			<div className="outline h-full flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
+			<div className="outline flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
 				<div className="flex gap-2 items-center">
 					<Button
 						onClick={() => setMode("sell")}
@@ -117,8 +117,8 @@ export function ListItem({
 						<h2 className="">Beli</h2>
 					</Button>
 				</div>
-				<div className="grid grid-cols-[50px_1fr_100px_170px_50px_100px_25px] gap-1 outline">
-					<p className="border-r">No.</p>
+				<div className="grid grid-cols-[50px_1fr_150px_230px_70px_150px_50px] gap-1 outline text-3xl">
+					<p className="border-r">No</p>
 					<p className="border-r">Nama</p>
 					<p className="border-r">Harga</p>
 					<p className="border-r">Diskon</p>
@@ -141,19 +141,21 @@ export function ListItem({
 					))}
 				</div>
 			</div>
-			<div className="flex items-center pr-1 h-[150px] gap-2">
+			<div className="flex items-center pr-1 h-fit gap-2">
 				<div className="flex flex-col gap-2 flex-1  h-full items-center">
-					<p className="font-bold">Total:</p>
-					<p className="text-7xl">Rp{total.toNumber().toLocaleString("de-DE")}</p>
+					<p className="font-bold text-3xl">Total</p>
+					<p className="text-8xl">Rp{total.toNumber().toLocaleString("de-DE")}</p>
 				</div>
-				<div className="flex-1 flex flex-col gap-1 h-full">
-					<label className="grid grid-cols-[90px_1fr] items-center">
-						<span>Bayar:</span>
+				<div className="flex-1 flex flex-col gap-1 h-fit">
+					<label className="grid grid-cols-[140px_10px_1fr] items-center text-3xl">
+						<span className="text-3xl">Bayar</span>
+						:
 						<Input type="number" value={pay} onChange={(e) => editPay(e.currentTarget.value)} />
 					</label>
 					<div className="flex gap-2">
-						<label className="grid grid-cols-[90px_1fr] items-center flex-1">
-							<span>Diskon:</span>
+						<label className="grid grid-cols-[140px_10px_1fr] items-center flex-1 text-3xl">
+							<span className="text-3xl">Diskon</span>
+							:
 							<Input
 								type="number"
 								value={disc.value}
@@ -163,15 +165,16 @@ export function ListItem({
 						<select
 							value={disc.type}
 							onChange={(e) => editTotalDiscType(e.currentTarget.value)}
-							className=" w-[70px] outline"
+							className=" w-[100px] outline text-2xl"
 						>
 							<option value="number">Angka</option>
 							<option value="percent">Persen</option>
 						</select>
 					</div>
-					<div className="grid grid-cols-[91px_1fr] h-[30px] items-center">
-						<p>Kembalian:</p>
-						<p className={cn({ "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
+					<div className="grid grid-cols-[140px_20px_1fr] h-[60px] text-3xl items-center">
+						<p className="text-3xl">Kembalian</p>
+						:
+						<p className={cn("text-3xl", { "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
 							{change.toNumber().toLocaleString("de-DE")}
 						</p>
 					</div>
@@ -181,7 +184,6 @@ export function ListItem({
 					{error === "" ? null : <p className="text-red-500">{error}</p>}
 				</div>
 			</div>
-			<div></div>
 		</div>
 	);
 }
