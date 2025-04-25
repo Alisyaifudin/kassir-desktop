@@ -1,14 +1,9 @@
-import {
-	Link,
-	Outlet,
-	useLocation,
-	useOutletContext,
-} from "react-router";
+import { Link, Outlet, useLocation, useOutletContext } from "react-router";
 import { Button } from "./components/ui/button";
 import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { useEffect, useState } from "react";
 import { Store as StoreTauri } from "@tauri-apps/plugin-store";
-import { Settings } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { type Database, generateDB } from "./database";
 import { generateStore, Store } from "./store";
 
@@ -42,9 +37,6 @@ function Layout() {
 		});
 	}, []);
 
-	if (db === null || store === null) {
-		return null;
-	}
 	return (
 		<>
 			<header className="bg-sky-300">
@@ -53,27 +45,21 @@ function Layout() {
 					<ul className="flex gap-5 justify-end">
 						<li>
 							<Button variant="outline" asChild>
-								{/* <a href="/">Toko</a> */}
 								<Link to="/">Toko</Link>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								{/* <a href="/stock">Stok</a> */}
 								<Link to="/stock">Stok</Link>
 							</Button>
 						</li>
 						<li>
 							<Button variant="outline" asChild>
-								{/* <a href="/records">Riwayat</a> */}
 								<Link to="/records">Riwayat</Link>
 							</Button>
 						</li>
 						<li>
 							<Button asChild size="icon" className="rounded-full">
-								{/* <a href="/setting">
-									<Settings />
-								</a> */}
 								<Link to="/setting">
 									<Settings />
 								</Link>
@@ -82,9 +68,20 @@ function Layout() {
 					</ul>
 				</nav>
 			</header>
-			<Outlet context={{ db, store }} />
+			<App db={db} store={store} />
 		</>
 	);
+}
+
+function App({ db, store }: { store: Store | null; db: Database | null }) {
+	if (db === null || store === null) {
+		return (
+			<main className="flex justify-center items-center flex-1">
+				<Loader2 className="animate-spin" />
+			</main>
+		);
+	}
+	return <Outlet context={{ db, store }} />;
 }
 
 export const useDb = () => {
