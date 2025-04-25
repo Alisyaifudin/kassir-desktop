@@ -3,7 +3,7 @@ name: Build Tauri App for Windows
 on:
   push:
     tags:
-      - 'v*' # Runs on version tags like v1.0.0
+      - 'v*' # Only build on tags like v1.0.0
 
 jobs:
   build:
@@ -12,7 +12,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Cache bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - uses: tauri-apps/tauri-action@v0.5.20
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Release ${{ github.ref_name }}"
