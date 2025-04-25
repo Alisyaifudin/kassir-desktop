@@ -1,37 +1,57 @@
-name: Build Tauri App for Windows
+name: "Publish Windows App with Bun"
 
 on:
   push:
-    tags:
-      - 'v*' # Only build on tags like v1.0.0
+    branches:
+      - release
 
 jobs:
-  build:
+  build-and-publish:
+    permissions:
+      contents: write
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Install bun
-        shell: powershell
-        run: |
-          irm https://bun.sh/install.ps1 | iex
-          echo "$env:USERPROFILE\.bun\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      # Step 1: Checkout your code
+      - uses: actions/checkout@v4
 
-      - name: Cache bun dependencies
+      # Step 2: Install Bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      # Step 3: Cache Bun dependencies
+      - name: Cache Bun dependencies
         uses: actions/cache@v3
+        id: bun-cache
         with:
           path: |
-            ~/.bun/install/cache
+            ~/.bun
             node_modules
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      - uses: tauri-apps/tauri-action@v0.5.20
+      # Step 4: Install Rust
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Release ${{ github.ref_name }}"
-          releaseDraft: true
-          prerelease: false
+          toolchain: stable
+
+      # Step 5: Install frontend dependencies with Bun
+      - name: Install dependencies with Bun
+        run: bun install
+        # Only run if cache wasn't restored (optional optimization)
+        if: steps.bun-cache.outputs.cache-hit != 'true'
+
+      # Step 6: Build and publish with Tauri
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__
+          releaseName: "App v__VERSION__"
+          releaseBody: "Windows version of the app"
+          releaseDraft: true
+          prerelease: false
