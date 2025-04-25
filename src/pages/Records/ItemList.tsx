@@ -9,11 +9,12 @@ import {
 } from "../../components/ui/table";
 import { Link } from "react-router";
 import Decimal from "decimal.js";
+import { DeleteBtn } from "./DeleteBtn";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
 	timestamp: number | null;
-	mode: "buy"|"sell"
+	mode: "buy" | "sell";
 };
 
 function filterData(
@@ -46,7 +47,7 @@ export function ItemList({ allItems, timestamp, records, mode }: RecordListProps
 						<TableHead className="w-[70px]">Qty</TableHead>
 						<TableHead className="w-[150px] text-end">Diskon</TableHead>
 						<TableHead className="w-[150px] text-end">Total</TableHead>
-						{mode === "buy" ? <TableHead className="w-[150px] text-end">Modal</TableHead> : null }
+						{mode === "buy" ? <TableHead className="w-[150px] text-end">Modal</TableHead> : null}
 						<TableHead className="w-[50px]">
 							{timestamp === null ? null : (
 								<Link to={`/records/${timestamp}`}>
@@ -66,7 +67,9 @@ export function ItemList({ allItems, timestamp, records, mode }: RecordListProps
 								{calcDisc(item.disc_type, item.disc_val, item.subtotal)}
 							</TableCell>
 							<TableCell className="text-end">{item.subtotal.toLocaleString("id-ID")}</TableCell>
-							{mode === "buy" ? <TableCell className="w-[150px] text-end">{item.capital}</TableCell> : null }
+							{mode === "buy" ? (
+								<TableCell className="w-[150px] text-end">{item.capital}</TableCell>
+							) : null}
 						</TableRow>
 					))}
 				</TableBody>
@@ -84,6 +87,9 @@ export function ItemList({ allItems, timestamp, records, mode }: RecordListProps
 					<div className="grid grid-cols-[170px_200px]">
 						<p className="text-end">Kembalian:</p>{" "}
 						<p className="text-end">Rp{Number(record.change).toLocaleString("de-DE")}</p>
+					</div>
+					<div className="pt-20">
+						<DeleteBtn timestamp={record.timestamp} />
 					</div>
 				</div>
 			)}

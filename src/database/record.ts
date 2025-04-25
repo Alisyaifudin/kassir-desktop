@@ -38,11 +38,26 @@ export const genRecord = (db: Database) => ({
 				db.execute(
 					`INSERT INTO records (mode, timestamp, grand_total, pay, disc_val, disc_type, change, total)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-					[mode, timestamp, data.grand_total, data.pay, data.disc.value, data.disc.type, data.change, data.total]
+					[
+						mode,
+						timestamp,
+						data.grand_total,
+						data.pay,
+						data.disc.value,
+						data.disc.type,
+						data.change,
+						data.total,
+					]
 				),
 		});
 		if (errMsg) return errMsg;
 		if (res.lastInsertId === undefined) return "Gagal menambahkan catatan";
 		return null;
+	},
+	delete: async (timestamp: number): Promise<string | null> => {
+		const [errMsg] = await tryResult({
+			run: () => db.execute("DELETE FROM records WHERE timestamp = $1", [timestamp]),
+		});
+		return errMsg;
 	},
 });
