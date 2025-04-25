@@ -10,6 +10,7 @@ import {
 import { Link } from "react-router";
 import Decimal from "decimal.js";
 import { DeleteBtn } from "./DeleteBtn";
+import { Button } from "../../components/ui/button";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
@@ -88,7 +89,10 @@ export function ItemList({ allItems, timestamp, records, mode }: RecordListProps
 						<p className="text-end">Kembalian:</p>{" "}
 						<p className="text-end">Rp{Number(record.change).toLocaleString("de-DE")}</p>
 					</div>
-					<div className="pt-20">
+					<div className="pt-20 flex justify-between w-full">
+						<Button asChild>
+							<Link to={`/records/${timestamp}`}>Lihat</Link>
+						</Button>
 						<DeleteBtn timestamp={record.timestamp} />
 					</div>
 				</div>
