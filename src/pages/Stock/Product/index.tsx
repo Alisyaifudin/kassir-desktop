@@ -9,7 +9,7 @@ import {
 import { z } from "zod";
 import { numeric } from "../../../utils";
 import { useState } from "react";
-import { Field } from "./Field";
+import { Field } from "../Field";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
@@ -37,7 +37,10 @@ const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
 	stock: numeric,
-	barcode: numeric.nullable(),
+	barcode: z
+		.string()
+		.refine((v) => !Number.isNaN(v))
+		.transform((v) => (v === "" ? null : Number(v))),
 	id: z.number(),
 });
 
@@ -45,7 +48,7 @@ export default function Page() {
 	const { id } = useLoaderData<typeof loader>();
 	const item = useItem(id);
 	return (
-		<main className="p-2 mx-auto w-full max-w-2xl flex flex-col gap-2">
+		<main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
 			<Button asChild variant="link" className="self-start">
 				<Link to="/stock">
 					{" "}

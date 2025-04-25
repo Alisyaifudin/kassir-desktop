@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { ProductList } from "./ProductList.tsx";
 import { useDb } from "../../Layout";
-import { route as newItemRoute } from "./New-Item";
+import { route as newItemRoute } from "./New-Item.tsx";
 import { route as productRoute } from "./Product";
 import { Await } from "../../components/Await.tsx";
 import { useFetch } from "../../hooks/useFetch.tsx";

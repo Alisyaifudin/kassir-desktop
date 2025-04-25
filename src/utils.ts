@@ -3,7 +3,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 
-export const numerish = z.string().refine((val) => !isNaN(Number(val)), {
+export const numerish = z.string().refine((val) => val !== "" && !Number.isNaN(Number(val)), {
 	message: "Harus angka",
 });
 
