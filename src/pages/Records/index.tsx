@@ -9,6 +9,7 @@ import { Await } from "../../components/Await";
 import { ItemList } from "./ItemList";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
 import { getMode } from "../Home";
+import { TextError } from "../../components/TextError";
 
 export const route: RouteObject = {
 	path: "records",
@@ -54,10 +55,10 @@ export default function Page() {
 				{(data) => {
 					const [[errRecords, records], [errItems, items]] = data;
 					if (errRecords !== null) {
-						return <p className="text-red-500">{errRecords}</p>;
+						return <TextError>{errRecords}</TextError>;
 					}
 					if (errItems !== null) {
-						return <p className="text-red-500">{errItems}</p>;
+						return <TextError>{errItems}</TextError>;
 					}
 					return (
 						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-y-auto">

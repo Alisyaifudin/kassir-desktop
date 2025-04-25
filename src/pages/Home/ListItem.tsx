@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { ItemContext } from "./reducer";
 import { calcChange, calcTotal, calcTotalBeforeTax, submitPayment } from "./submit";
 import { TaxItem } from "./Tax";
+import { TextError } from "../../components/TextError";
 
 export function ListItem({
 	mode,
@@ -181,7 +182,7 @@ export function ListItem({
 					<Button onClick={handlePay} disabled={change.toNumber() < 0}>
 						Bayar {loading && <Loader2 className="animate-spin" />}
 					</Button>
-					{error === "" ? null : <p className="text-red-500">{error}</p>}
+					{error === "" ? null : <TextError>{error}</TextError>}
 				</div>
 			</div>
 		</div>

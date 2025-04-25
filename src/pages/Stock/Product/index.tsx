@@ -18,6 +18,7 @@ import { useDb } from "../../../Layout";
 import Redirect from "../../../components/Redirect";
 import { Await } from "../../../components/Await";
 import { useFetch } from "../../../hooks/useFetch";
+import { TextError } from "../../../components/TextError";
 
 export const route: RouteObject = {
 	Component: Page,
@@ -143,7 +144,7 @@ function Form({ product }: { product: DB.Product }) {
 				</Button>
 				<DeleteBtn id={product.id} name={product.name} />
 			</div>
-			{error.global === "" ? null : <p className="text-red-500">{error.global}</p>}
+			{error.global === "" ? null : <TextError>{error.global}</TextError>}
 		</form>
 	);
 }

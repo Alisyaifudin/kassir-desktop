@@ -2,7 +2,6 @@ import { Button } from "../../components/ui/button";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
@@ -11,6 +10,7 @@ import {
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useDb } from "../../Layout";
+import { TextError } from "../../components/TextError";
 
 export function DeleteBtn({ timestamp }: { timestamp: number }) {
 	const db = useDb();
@@ -44,7 +44,7 @@ export function DeleteBtn({ timestamp }: { timestamp: number }) {
 						</Button>
 					</div>
 					{error === "" ? null : (
-						<DialogDescription className="text-red-500">{error}</DialogDescription>
+						<TextError>{error}</TextError>
 					)}
 				</DialogHeader>
 			</DialogContent>

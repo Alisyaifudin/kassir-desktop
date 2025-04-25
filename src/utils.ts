@@ -20,7 +20,7 @@ export function ok<T>(value: T): [null, T] {
 }
 
 // First, define the default message type and value
-const DEFAULT_MESSAGE = "Server bermasalah" as const;
+const DEFAULT_MESSAGE = "Aplikasi bermasalah" as const;
 type DefaultMessage = typeof DEFAULT_MESSAGE;
 
 // Modified function with default type parameter

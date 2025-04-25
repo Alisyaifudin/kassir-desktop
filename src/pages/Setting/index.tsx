@@ -13,6 +13,7 @@ import { z } from "zod";
 import JSZip from "jszip";
 import { FieldText } from "./FieldText";
 import { Textarea } from "../../components/ui/Textarea";
+import { TextError } from "../../components/TextError";
 
 export const route: RouteObject = {
 	path: "setting",
@@ -156,7 +157,7 @@ function Setting({ owner, address, ig, shopee, desc }: Partial<Record<keyof Stor
 					<Textarea name="desc" defaultValue={desc}></Textarea>
 				</label>
 				<Button>Simpan {loading && <Loader2 className="animate-spin" />}</Button>
-				{error === "" ? null : <p className="text-red-500">{error}</p>}
+				{error === "" ? null : <TextError>{error}</TextError>}
 			</form>
 			<form onSubmit={handleDownload} className="text-3xl">
 				<p className="font-bold">Unduh Data</p>

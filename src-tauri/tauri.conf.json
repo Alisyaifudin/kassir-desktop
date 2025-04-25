@@ -31,7 +31,10 @@
       "windows": {
         "installMode": "passive"
       },
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ3NDM1RThDMDEzOUM5REMKUldUY3lUa0JqRjVEMTROcVp3QXhSQVJJRGJaNjdvZ0dmcjExbjUwVDM0UnFjeklHR2lMaVBqdWEK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ3NDM1RThDMDEzOUM5REMKUldUY3lUa0JqRjVEMTROcVp3QXhSQVJJRGJaNjdvZ0dmcjExbjUwVDM0UnFjeklHR2lMaVBqdWEK",
+      "endpoints": [
+        "https://github.com/Alisyaifudin/kassir-desktop/releases/latest/download/latest.json"
+      ]
     }
   },
   "bundle": {

@@ -5,6 +5,7 @@ import { useContext, useState } from "react";
 import { z } from "zod";
 import { numerish } from "../../utils";
 import { ItemContext } from "./reducer";
+import { TextError } from "../../components/TextError";
 
 const itemSchema = z.object({
 	name: z.string().min(1),
@@ -79,7 +80,7 @@ export function Manual() {
 					<option value="percent">Persen</option>
 				</select>
 			</div>
-			{error.disc === "" ? null : <p className="text-red-500">{error.disc}</p>}
+			{error.disc === "" ? null : <TextError>{error.disc}</TextError>}
 			<Button>Tambahkan</Button>
 		</form>
 	);

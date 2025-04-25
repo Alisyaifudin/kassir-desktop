@@ -3,6 +3,7 @@ import { Input } from "../../components/ui/input";
 import { useContext, useState } from "react";
 import { useDb } from "../../Layout";
 import { ItemContext } from "./reducer";
+import { TextError } from "../../components/TextError";
 
 export function Search() {
 	const [name, setName] = useState("");
@@ -45,7 +46,7 @@ export function Search() {
 			<Field label="Nama">
 				<Input type="text" value={name} onChange={handleChange} />
 			</Field>
-			{error ? <p className="text-red-500">{error}</p> : null}
+			{error ? <TextError>{error}</TextError> : null}
 			<div className="flex-1 overflow-auto">
 				<ol className="flex flex-col gap-1">
 					{products.map((product, i) => (

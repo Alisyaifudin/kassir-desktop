@@ -13,6 +13,7 @@ import { ItemList } from "./ItemList";
 import { Await } from "../../../components/Await";
 import { useFetch } from "../../../hooks/useFetch";
 import { Database } from "../../../database";
+import { TextError } from "../../../components/TextError";
 
 export const route: RouteObject = {
 	path: ":timestamp",
@@ -46,7 +47,7 @@ export default function Page() {
 				{(data) => {
 					const [errMsg, res] = data;
 					if (errMsg !== null) {
-						return <p className="text-red-500">{errMsg}</p>;
+						return <TextError>{errMsg}</TextError>;
 					}
 					return <ItemList record={res.record} items={res.items} taxes={res.taxes} />;
 				}}

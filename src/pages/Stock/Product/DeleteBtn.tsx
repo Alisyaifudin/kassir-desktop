@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useDb } from "../../../Layout";
+import { TextError } from "../../../components/TextError";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const navigate = useNavigate();
@@ -49,7 +50,7 @@ export function DeleteBtn({ id, name }: { id: number; name: string }) {
 						</Button>
 					</div>
 					{error === "" ? null : (
-						<DialogDescription className="text-red-500">{error}</DialogDescription>
+						<TextError>{error}</TextError>
 					)}
 				</DialogHeader>
 			</DialogContent>
