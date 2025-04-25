@@ -1,3 +1,5 @@
+import { TextError } from "../../../components/TextError";
+
 export function Field({
 	error,
 	children,
@@ -9,14 +11,14 @@ export function Field({
 }) {
 	return (
 		<label className="flex flex-col">
-			<div className="grid grid-cols-[80px_1fr] gap-2">
-				<span>{label}</span>
+			<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+				<span className="text-3xl">{label}</span>
 				{children}
 			</div>
 			{error === "" ? null : (
-				<div className="grid grid-cols-[80px_1fr] gap-2">
+				<div className="grid grid-cols-[120px_1fr] gap-2">
 					<div></div>
-					<p className="text-red-500">{error}</p>
+					<TextError>{error}</TextError>
 				</div>
 			)}
 		</label>

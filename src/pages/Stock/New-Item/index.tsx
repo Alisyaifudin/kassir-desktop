@@ -78,7 +78,7 @@ export default function Page() {
 				<Field error={error.barcode} label="Barcode:">
 					<Input type="number" className="outline w-[300px]" name="barcode" />
 				</Field>
-				<Button className="w-fit" type="submit">
+				<Button className="w-fit text-3xl" type="submit">
 					Simpan
 					{loading && <Loader2 className="animate-spin" />}
 				</Button>

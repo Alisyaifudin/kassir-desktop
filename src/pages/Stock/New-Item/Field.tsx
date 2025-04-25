@@ -1,3 +1,5 @@
+import { TextError } from "../../../components/TextError";
+
 export function Field({
 	error,
 	children,
@@ -9,14 +11,14 @@ export function Field({
 }) {
 	return (
 		<label className="flex flex-col">
-			<div className="flex gap-2">
-				<span className="w-[80px]">{label}</span>
+			<div className="flex gap-2 items-center">
+				<span className="w-[120px] text-3xl">{label}</span>
 				{children}
 			</div>
 			{error === "" ? null : (
 				<div className="flex gap-2">
-					<div className="w-[80px]"></div>
-					<p className="text-red-500">{error}</p>
+					<div className="w-[120px]"></div>
+					<TextError>{error}</TextError>
 				</div>
 			)}
 		</label>

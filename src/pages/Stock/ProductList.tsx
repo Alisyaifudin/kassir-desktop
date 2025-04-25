@@ -16,14 +16,14 @@ type Props = {
 
 export function ProductList({ products }: Props) {
 	return (
-		<Table>
+		<Table className="text-3xl">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[50px]">No</TableHead>
-					<TableHead className="w-[200px]">Barcode</TableHead>
+					<TableHead className="w-[250px]">Barcode</TableHead>
 					<TableHead>Nama</TableHead>
-					<TableHead className="text-right w-[100px]">Harga</TableHead>
-					<TableHead className="text-right w-[50px]">Stok</TableHead>
+					<TableHead className="text-right w-[150px]">Harga</TableHead>
+					<TableHead className="text-right w-[100px]">Stok</TableHead>
 					<TableHead className="w-[50px]"></TableHead>
 				</TableRow>
 			</TableHeader>
