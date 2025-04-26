@@ -1,18 +1,14 @@
-import { Link, RouteObject, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { z } from "zod";
-import { numeric } from "../../utils";
+import { numeric } from "../../../utils";
 import { useEffect, useRef, useState } from "react";
-import { Field } from "./Field";
-import { Button } from "../../components/ui/button";
+import { Field } from "../Field";
+import { Button } from "../../../components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
-import { Input } from "../../components/ui/input";
-import { useDb } from "../../Layout";
-import { TextError } from "../../components/TextError";
+import { Input } from "../../../components/ui/input";
+import { useDb } from "../../../Layout";
+import { TextError } from "../../../components/TextError";
 
-export const route: RouteObject = {
-	Component: Page,
-	path: "new",
-};
 
 const dataSchema = z.object({
 	name: z.string().min(1),

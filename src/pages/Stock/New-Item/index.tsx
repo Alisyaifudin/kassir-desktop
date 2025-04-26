@@ -1,11 +1,9 @@
 import { RouteObject } from "react-router";
 import { lazy } from "react";
-import { loader } from "./Product.tsx";
 
-const Page = lazy(() => import("./Product.tsx"));
+const Page = lazy(() => import("./New-Item.tsx"));
 
 export const route: RouteObject = {
 	Component: Page,
-	loader,
-	path: ":id",
+	path: "new",
 };
