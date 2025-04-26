@@ -19,12 +19,26 @@ export type Action =
 	| { action: "reset" }
 	| { action: "delete"; index: number }
 	| { action: "edit-name"; index: number; name: string }
+	| { action: "edit-barcode"; index: number; barcode: string }
 	| { action: "edit-price"; index: number; price: string }
 	| { action: "edit-qty"; index: number; qty: string; mode: "sell" | "buy" }
 	| { action: "edit-disc-val"; index: number; value: string }
 	| { action: "edit-disc-type"; index: number; type: string }
 	| { action: "add-tax"; name: string; value: number }
 	| { action: "delete-tax"; index: number }
+	| {
+			action: "add-buy";
+			data: {
+				name: string;
+				price: string;
+				qty: string;
+				barcode?: number;
+				disc: {
+					type: "number" | "percent";
+					value: string;
+				};
+			};
+	  }
 	| {
 			action: "add-manual";
 			data: {
@@ -65,6 +79,10 @@ export function itemReducer(state: State, action: Action): State {
 		case "edit-name":
 			return produce(state, (draft) => {
 				draft.items[action.index].name = action.name;
+			});
+		case "edit-barcode":
+			return produce(state, (draft) => {
+				draft.items[action.index].name = action.barcode;
 			});
 		case "edit-price": {
 			const { index, price } = action;
@@ -128,6 +146,24 @@ export function itemReducer(state: State, action: Action): State {
 		case "delete-tax": {
 			const { index } = action;
 			return { ...state, taxes: state.taxes.filter((_, i) => i != index) };
+		}
+		case "add-buy": {
+			const { disc, name, price, qty, barcode } = action.data;
+			const find = state.items.find(
+				(item) => item.barcode !== undefined && item.barcode === barcode
+			);
+			if (find !== undefined) {
+				return state;
+			}
+			return produce(state, (draft) => {
+				draft.items.push({
+					name,
+					price,
+					qty,
+					disc,
+					barcode,
+				});
+			});
 		}
 		case "add-manual": {
 			const { disc, name, price, qty } = action.data;

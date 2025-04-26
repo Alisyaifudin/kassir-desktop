@@ -15,6 +15,10 @@ const itemSchema = z.object({
 		type: z.enum(["number", "percent"]),
 		value: numerish,
 	}),
+	barcode: z
+		.string()
+		.refine((v) => !Number.isNaN(v))
+		.transform((v) => (v === "" ? null : Number(v))),
 });
 
 export function Manual() {

@@ -15,7 +15,7 @@ export default function Page() {
 		<main className="gap-2 p-2 flex min-h-0 grow shrink basis-0">
 			<ItemContextProvider value={{ state, dispatch, mode }}>
 				<ListItem mode={mode} setMode={setMode(setSearch, reset)} />
-				<InputItem />
+				<InputItem mode={mode} />
 			</ItemContextProvider>
 		</main>
 	);

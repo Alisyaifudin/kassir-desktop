@@ -12,7 +12,9 @@ export const genProduct = (db: Database) => ({
 		if (products.length === 0) return ok(null);
 		return ok(products[0]);
 	},
-	getByBarcode: async (barcode: number): Promise<Result<string, DB.Product>> => {
+	getByBarcode: async (
+		barcode: number
+	): Promise<Result<"Aplikasi bermasalah" | "Barang tidak ada", DB.Product>> => {
 		const [errMsg, item] = await tryResult({
 			run: async () => {
 				const products = await db.select<DB.Product[]>(
@@ -46,6 +48,23 @@ export const genProduct = (db: Database) => ({
 			run: () =>
 				db.execute(
 					"INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)",
+					[data.name, data.stock, data.price, data.barcode, data.capital]
+				),
+		});
+		return errMsg;
+	},
+	upsert: async (data: {
+		name: string;
+		price: number;
+		stock: number;
+		capital: number;
+		barcode: number | null;
+	}): Promise<string | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute(
+					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
+					 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, price = $3, capital = $5`,
 					[data.name, data.stock, data.price, data.barcode, data.capital]
 				),
 		});

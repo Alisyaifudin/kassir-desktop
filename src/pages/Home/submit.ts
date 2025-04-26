@@ -39,13 +39,28 @@ export async function submitPayment(
 			subtotal,
 			product_id: item.id,
 			capital,
+			barcode: item.barcode ?? null,
 		};
 	});
-	const res = await Promise.all([
+	const promises = [
 		db.record.add(mode, timestamp, record),
 		db.recordItem.add(itemsTranform, timestamp, mode),
 		db.tax.add(taxes, timestamp),
-	]);
+	];
+	if (mode === "buy") {
+		for (const product of itemsTranform) {
+			promises.push(
+				db.product.upsert({
+					name: product.name,
+					barcode: product.barcode,
+					capital: product.capital ?? 0, // shoud be exist
+					price: product.price,
+					stock: product.qty,
+				})
+			);
+		}
+	}
+	const res = await Promise.all(promises);
 	const errs = [];
 	for (const errMsg of res) {
 		if (errMsg !== null) errs.push(errMsg);
@@ -71,7 +86,7 @@ export function calcSubtotal(
 	if (disc.type === "number") {
 		return total.sub(discVal);
 	}
-	const val = total.times(discVal).div(100);
+	const val = total.times(discVal).div(100).round();
 	return total.sub(val);
 }
 
@@ -98,7 +113,7 @@ export const calcTotalBeforeTax = (
 	if (disc.type === "number") {
 		return total.sub(discVal);
 	}
-	const val = total.times(discVal).div(100);
+	const val = total.times(discVal).div(100).round();
 	return total.sub(val);
 };
 
@@ -107,6 +122,6 @@ export function calcChange(total: Decimal, pay: string): Decimal {
 }
 
 export function calcCapital(grandTotal: number, item: Item, totalItem: number): number {
-	const capital = (grandTotal * Number(item.qty)) / totalItem;
-	return capital;
+	const capital = new Decimal(grandTotal).times(item.qty).div(totalItem).round();
+	return capital.toNumber();
 }
