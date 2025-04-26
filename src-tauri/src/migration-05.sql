@@ -1,0 +1,2 @@
+ALTER TABLE products
+ADD capital INTEGER NOT NULL DEFAULT 0;

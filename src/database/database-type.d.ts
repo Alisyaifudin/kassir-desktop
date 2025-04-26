@@ -5,6 +5,7 @@ declare namespace DB {
 		price: number;
 		stock: number;
 		barcode: number | null;
+		capital: number;
 	}
 	interface Record {
 		timestamp: number; // primary key

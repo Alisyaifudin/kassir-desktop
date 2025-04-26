@@ -1,10 +1,4 @@
-import {
-	Link,
-	LoaderFunctionArgs,
-	redirect,
-	useLoaderData,
-	useNavigate,
-} from "react-router";
+import { Link, LoaderFunctionArgs, redirect, useLoaderData, useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric } from "../../../utils.ts";
 import { useState } from "react";
@@ -30,6 +24,7 @@ const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
 	stock: numeric,
+	capital: numeric,
 	barcode: z
 		.string()
 		.refine((v) => !Number.isNaN(v))
@@ -67,7 +62,14 @@ export default function Page() {
 
 function Form({ product }: { product: DB.Product }) {
 	const db = useDb();
-	const [error, setError] = useState({ name: "", price: "", stock: "", barcode: "", global: "" });
+	const [error, setError] = useState({
+		name: "",
+		price: "",
+		stock: "",
+		barcode: "",
+		global: "",
+		capital: "",
+	});
 	const [loading, setLoading] = useState(false);
 	const navigate = useNavigate();
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -78,6 +80,7 @@ function Form({ product }: { product: DB.Product }) {
 			price: formData.get("price"),
 			stock: formData.get("stock"),
 			barcode: formData.get("barcode"),
+			capital: formData.get("capital"),
 			id: product.id,
 		});
 		if (!parsed.success) {
@@ -87,6 +90,7 @@ function Form({ product }: { product: DB.Product }) {
 				price: errs.price?.join("; ") ?? "",
 				stock: errs.stock?.join("; ") ?? "",
 				barcode: errs.barcode?.join("; ") ?? "",
+				capital: errs.capital?.join("; ") ?? "",
 				global: "",
 			});
 			return;
@@ -94,7 +98,7 @@ function Form({ product }: { product: DB.Product }) {
 		setLoading(true);
 		db.product.update(parsed.data).then((err) => {
 			if (err) {
-				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
+				setError({ global: err, barcode: "", name: "", price: "", stock: "", capital: "" });
 				setLoading(false);
 				return;
 			}
@@ -104,8 +108,15 @@ function Form({ product }: { product: DB.Product }) {
 	};
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2">
-			<Field error={error.name} label="Name*:">
-				<Input type="text" className="outline" name="name" required defaultValue={product.name} />
+			<Field error={error.name} label="Nama*:">
+				<Input
+					type="text"
+					className="outline"
+					name="name"
+					required
+					defaultValue={product.name}
+					autoComplete="off"
+				/>
 			</Field>
 			<Field error={error.price} label="Harga*:">
 				<Input
@@ -114,6 +125,17 @@ function Form({ product }: { product: DB.Product }) {
 					name="price"
 					required
 					defaultValue={product.price}
+					autoComplete="off"
+				/>
+			</Field>
+			<Field error={error.capital} label="Modal*:">
+				<Input
+					type="number"
+					className="outline w-[300px]"
+					name="capital"
+					required
+					autoComplete="off"
+					defaultValue={product.capital}
 				/>
 			</Field>
 			<Field error={error.stock} label="Stok*:">

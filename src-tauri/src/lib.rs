@@ -33,6 +33,12 @@ pub fn run() {
             sql: include_str!("../src/migration-04.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "add_capital",
+            sql: include_str!("../src/migration-05.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())

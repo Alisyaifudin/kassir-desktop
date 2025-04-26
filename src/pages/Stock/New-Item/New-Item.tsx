@@ -9,11 +9,11 @@ import { Input } from "../../../components/ui/input";
 import { useDb } from "../../../Layout";
 import { TextError } from "../../../components/TextError";
 
-
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
 	stock: numeric,
+	capital: numeric,
 	barcode: z
 		.string()
 		.refine((v) => !Number.isNaN(v))
@@ -23,7 +23,14 @@ const dataSchema = z.object({
 export default function Page() {
 	const navigate = useNavigate();
 	const ref = useRef<HTMLInputElement | null>(null);
-	const [error, setError] = useState({ name: "", price: "", stock: "", barcode: "", global: "" });
+	const [error, setError] = useState({
+		name: "",
+		price: "",
+		stock: "",
+		barcode: "",
+		global: "",
+		capital: "",
+	});
 	const [loading, setLoading] = useState(false);
 	const db = useDb();
 	useEffect(() => {
@@ -40,6 +47,7 @@ export default function Page() {
 			price: formData.get("price"),
 			stock: formData.get("stock"),
 			barcode: formData.get("barcode"),
+			capital: formData.get("capital"),
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -48,6 +56,7 @@ export default function Page() {
 				price: errs.price?.join("; ") ?? "",
 				stock: errs.stock?.join("; ") ?? "",
 				barcode: errs.barcode?.join("; ") ?? "",
+				capital: errs.capital?.join("; ") ?? "",
 				global: "",
 			});
 			return;
@@ -55,7 +64,7 @@ export default function Page() {
 		setLoading(true);
 		db.product.insert(parsed.data).then((err) => {
 			if (err) {
-				setError({ global: err, barcode: "", name: "", price: "", stock: "" });
+				setError({ global: err, barcode: "", name: "", price: "", stock: "", capital: "" });
 				setLoading(false);
 				return;
 			}
@@ -88,6 +97,15 @@ export default function Page() {
 						type="number"
 						className="outline w-[300px]"
 						name="price"
+						required
+						autoComplete="off"
+					/>
+				</Field>
+				<Field error={error.capital} label="Modal*:">
+					<Input
+						type="number"
+						className="outline w-[300px]"
+						name="capital"
 						required
 						autoComplete="off"
 					/>

@@ -15,9 +15,10 @@ export const genProduct = (db: Database) => ({
 	getByBarcode: async (barcode: number): Promise<Result<string, DB.Product>> => {
 		const [errMsg, item] = await tryResult({
 			run: async () => {
-				const products = await db.select<DB.Product[]>("SELECT * FROM products WHERE barcode = ?1", [
-					barcode,
-				]);
+				const products = await db.select<DB.Product[]>(
+					"SELECT * FROM products WHERE barcode = ?1",
+					[barcode]
+				);
 				return products.length ? products[0] : null;
 			},
 		});
@@ -38,16 +39,15 @@ export const genProduct = (db: Database) => ({
 		name: string;
 		price: number;
 		stock: number;
+		capital: number;
 		barcode: number | null;
 	}): Promise<string | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute("INSERT INTO products (name, stock, price, barcode) VALUES ($1, $2, $3, $4)", [
-					data.name,
-					data.stock,
-					data.price,
-					data.barcode,
-				]),
+				db.execute(
+					"INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)",
+					[data.name, data.stock, data.price, data.barcode, data.capital]
+				),
 		});
 		return errMsg;
 	},
@@ -61,14 +61,15 @@ export const genProduct = (db: Database) => ({
 		name: string;
 		price: number;
 		stock: number;
+		capital: number;
 		barcode: number | null;
 		id: number;
 	}): Promise<string | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
-					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4 WHERE id = $5",
-					[data.name, data.stock, data.price, data.barcode, data.id]
+					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5 WHERE id = $6",
+					[data.name, data.stock, data.price, data.barcode, data.capital, data.id]
 				),
 		});
 		return errMsg;
