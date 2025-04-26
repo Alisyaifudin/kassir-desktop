@@ -4,7 +4,7 @@ import { useStore } from "../../../Layout";
 import { setProfile, useProfile } from "./setting-api";
 import { FieldText } from "./FieldText";
 import { Input } from "../../../components/ui/input";
-import { Textarea } from "../../../components/ui/Textarea";
+import { Textarea } from "../../../components/ui/textarea";
 import { Button } from "../../../components/ui/button";
 import { TextError } from "../../../components/TextError";
 import { Loader2 } from "lucide-react";

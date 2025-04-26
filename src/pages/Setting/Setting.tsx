@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router";
 import { useDb, useStore } from "../../Layout";
 import { Button } from "../../components/ui/button";
+import { Update } from "./Update";
 
 export default function Setting() {
 	const db = useDb();
@@ -8,7 +9,7 @@ export default function Setting() {
 	const { pathname } = useLocation();
 	return (
 		<main className="flex gap-2 p-2 flex-1 w-full max-w-7xl mx-auto justify-between">
-			<nav className="w-[200px]">
+			<nav className="w-[200px] h-full flex flex-col justify-between">
 				<ol className="flex flex-col gap-2 p-2 shadow-md">
 					<li className="h-14 flex items-center">
 						<Button
@@ -29,6 +30,7 @@ export default function Setting() {
 						</Button>
 					</li>
 				</ol>
+				<Update/>
 			</nav>
 			<Outlet context={{ db, store }} />
 		</main>
