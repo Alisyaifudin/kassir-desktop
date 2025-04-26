@@ -21,17 +21,11 @@ jobs:
         with:
           bun-version: latest
 
-      # # Step 3: Cache Bun dependencies
-      # - name: Cache Bun dependencies
-      #   uses: actions/cache@v3
-      #   id: bun-cache
-      #   with:
-      #     path: |
-      #       ~/.bun
-      #       node_modules
-      #     key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-bun-
+      - name: Clean install and build
+        run: |
+          rm -rf node_modules
+          rm -rf dist
+          bun clean  # Clear Bun cache
 
       # Step 4: Install Rust
       - name: Install Rust
