@@ -4,7 +4,7 @@ import { Temporal } from "temporal-polyfill";
 import { formatDate, formatTime } from "../../../utils";
 import { Item } from "./Item";
 import Decimal from "decimal.js";
-import { useSetting } from "../../Setting/setting-api";
+import { useProfile } from "../../Setting/Profile/setting-api";
 import { Await } from "../../../components/Await";
 import { TaxItem } from "./TaxItem";
 
@@ -161,5 +161,5 @@ function calcDisc(type: "number" | "percent", value: number, subtotal: number) {
 }
 
 function useInfo() {
-	return useSetting();
+	return useProfile();
 }

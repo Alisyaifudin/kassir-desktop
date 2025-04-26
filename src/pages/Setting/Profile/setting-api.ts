@@ -1,14 +1,14 @@
-import { useStore } from "../../Layout";
-import { useFetch } from "../../hooks/useFetch";
-import { Store } from "../../store";
+import { useStore } from "../../../Layout";
+import { useFetch } from "../../../hooks/useFetch";
+import { Store } from "../../../store";
 
-export const useSetting = () => {
+export const useProfile = () => {
 	const store = useStore();
-	const setting = useFetch(getSetting(store), []);
+	const setting = useFetch(getProfile(store), []);
 	return setting;
 };
 
-export async function getSetting<S extends Record<string, { get: () => Promise<any> }>>(
+export async function getProfile<S extends Record<string, { get: () => Promise<any> }>>(
 	store: S
 ): Promise<{
 	[K in keyof S]: Awaited<ReturnType<S[K]["get"]>>;
@@ -25,7 +25,7 @@ export async function getSetting<S extends Record<string, { get: () => Promise<a
 	};
 }
 
-export async function setSetting(store: Store, setting: Partial<Record<keyof Store, string>>) {
+export async function setProfile(store: Store, setting: Partial<Record<keyof Store, string>>) {
 	const promises = Object.entries(setting).map(([key, value]) => {
 		if (value !== undefined) {
 			return store[key as keyof Store].set(value);

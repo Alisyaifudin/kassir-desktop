@@ -12,7 +12,7 @@ function getTitle(path: string): string {
 		return "Toko";
 	} else if (path === "/buy") {
 		return "Beli";
-	} else if (path === "/setting") {
+	} else if (path === "/setting" || path === "/setting/data") {
 		return "Pengaturan";
 	} else if (path.includes("records")) {
 		return "Riwayat";
