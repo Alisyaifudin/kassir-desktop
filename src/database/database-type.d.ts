@@ -16,6 +16,7 @@ declare namespace DB {
 		disc_val: number;
 		disc_type: "number" | "percent";
 		change: string;
+		rounding: number | null;
 	}
 	interface Tax {
 		id: number;

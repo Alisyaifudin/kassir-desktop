@@ -64,6 +64,9 @@ export function BuyInput() {
 		ref.current.value = product.name;
 	};
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+		if (!ref.current) {
+			return;
+		}
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 		const parsed = itemSchema.safeParse({
@@ -92,6 +95,7 @@ export function BuyInput() {
 			data: { disc, name, price, qty, barcode },
 		});
 		setBarcode(undefined);
+		ref.current.focus();
 		e.currentTarget.reset();
 	};
 	return (
@@ -124,7 +128,7 @@ export function BuyInput() {
 				</Field>
 				<div className="flex gap-1 items-end">
 					<Field label="Diskon">
-						<Input type="number" defaultValue={0} name="disc-value" />
+						<Input type="number" defaultValue={0} step={0.01} name="disc-value" />
 					</Field>
 					<select
 						value={disc}

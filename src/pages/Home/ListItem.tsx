@@ -21,6 +21,7 @@ export function ListItem({
 	const { state } = useContext(ItemContext);
 	const { items, taxes } = state;
 	const [pay, setPay] = useState("");
+	const [rounding, setRounding] = useState("");
 	const [disc, setDisc] = useState<{ type: "number" | "percent"; value: string }>({
 		type: "number",
 		value: "",
@@ -30,13 +31,19 @@ export function ListItem({
 	const [error, setError] = useState("");
 	const navigate = useNavigate();
 	const totalBeforeTax = calcTotalBeforeTax(items, disc);
-	const total = calcTotal(totalBeforeTax, taxes);
+	const total = calcTotal(totalBeforeTax, taxes, rounding);
 	const change = calcChange(total, pay);
 	const editPay = (value: string) => {
 		if (Number.isNaN(value) || Number(value) < 0 || Number(value) >= 1e9) {
 			return;
 		}
 		setPay(value);
+	};
+	const editRounding = (value: string) => {
+		if (Number.isNaN(value) || Number(value) < -1e9 || Number(value) >= 1e9) {
+			return;
+		}
+		setRounding(value);
 	};
 	const editTotalDiscVal = (value: string) => {
 		if (
@@ -71,6 +78,7 @@ export function ListItem({
 			db,
 			mode,
 			{
+				rounding: Number(rounding),
 				change: change.toNumber(),
 				disc: {
 					value: Number(disc.value),
@@ -145,23 +153,24 @@ export function ListItem({
 				</div>
 			</div>
 			<div className="flex items-center pr-1 h-fit gap-2">
-				<div className="flex flex-col gap-2 flex-1  h-full items-center">
-					<p className="font-bold text-3xl">Total</p>
-					<p className="text-8xl">Rp{total.toNumber().toLocaleString("de-DE")}</p>
+				<div className="flex flex-col gap-2 flex-1 h-full items-center justify-center">
+					<p className="font-bold text-5xl">Total</p>
+					<p className="text-9xl">Rp{total.toNumber().toLocaleString("de-DE")}</p>
 				</div>
 				<div className="flex-1 flex flex-col gap-1 h-fit">
-					<label className="grid grid-cols-[140px_10px_1fr] items-center text-3xl">
+					<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 						<span className="text-3xl">Bayar</span>
 						:
 						<Input type="number" value={pay} onChange={(e) => editPay(e.currentTarget.value)} />
 					</label>
 					<div className="flex gap-2">
-						<label className="grid grid-cols-[140px_10px_1fr] items-center flex-1 text-3xl">
+						<label className="grid grid-cols-[160px_10px_1fr] items-center flex-1 text-3xl">
 							<span className="text-3xl">Diskon</span>
 							:
 							<Input
 								type="number"
 								value={disc.value}
+								step={disc.type === "number" ? 1 : 0.01}
 								onChange={(e) => editTotalDiscVal(e.currentTarget.value)}
 							/>
 						</label>
@@ -174,7 +183,12 @@ export function ListItem({
 							<option value="percent">Persen</option>
 						</select>
 					</div>
-					<div className="grid grid-cols-[140px_20px_1fr] h-[60px] text-3xl items-center">
+					<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
+						<span className="text-3xl">Pembulatan</span>
+						:
+						<Input type="number" value={rounding} onChange={(e) => editRounding(e.currentTarget.value)} />
+					</label>
+					<div className="grid grid-cols-[160px_20px_1fr] h-[60px] text-3xl items-center">
 						<p className="text-3xl">Kembalian</p>:
 						<p className={cn("text-3xl", { "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
 							{change.toNumber().toLocaleString("de-DE")}

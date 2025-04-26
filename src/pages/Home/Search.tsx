@@ -56,27 +56,6 @@ export function Search() {
 							</button>
 						</li>
 					))}
-					{products.map((product, i) => (
-						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
-							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
-								{product.name}
-							</button>
-						</li>
-					))}
-					{products.map((product, i) => (
-						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
-							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
-								{product.name}
-							</button>
-						</li>
-					))}
-					{products.map((product, i) => (
-						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
-							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
-								{product.name}
-							</button>
-						</li>
-					))}
 				</ol>
 			</div>
 		</>

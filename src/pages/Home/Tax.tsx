@@ -47,7 +47,7 @@ export function TaxField() {
 		formEl.reset();
 	};
 	return (
-		<form onSubmit={handleSubmit} className="flex flex-col gap-1">
+		<form onSubmit={handleSubmit} className="flex flex-col gap-1 px-1">
 			<h2 className="font-bold text-2xl">Pajak</h2>
 			<Field label="Nama" error={error.name}>
 				<Input type="text" name="name" />

@@ -82,7 +82,7 @@ export function ItemList({
 							</div>
 							<hr />
 							{items.map((item, i) => (
-								<Item {...item} i={i} />
+								<Item {...item} i={i} key={i} />
 							))}
 							<hr />
 							<div className="flex justify-end">
@@ -111,21 +111,26 @@ export function ItemList({
 												<TaxItem tax={tax} total={record.total} />
 											))}
 											<hr className="w-full" />
+										</>
+									) : null}
+									{record.rounding ? (
+										<>
 											<div className="grid grid-cols-[100px_100px]">
-												<p>Total</p>{" "}
-												<p className="text-end">
-													Rp{Number(record.grand_total).toLocaleString("de-DE")}
-												</p>
+												<p></p>
+												<p className="text-end">Rp{(record.grand_total-record.rounding).toLocaleString("id-ID")}</p>
+											</div>
+											<div className="grid grid-cols-[100px_100px]">
+												<p>Pembulatan</p>
+												<p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
 											</div>
 										</>
-									) : (
-										<div className="grid grid-cols-[100px_100px]">
-											<p>Total</p>{" "}
-											<p className="text-end">
-												Rp{Number(record.grand_total).toLocaleString("de-DE")}
-											</p>
-										</div>
-									)}
+									) : null}
+									<div className="grid grid-cols-[100px_100px]">
+										<p>Total</p>{" "}
+										<p className="text-end">
+											Rp{Number(record.grand_total).toLocaleString("de-DE")}
+										</p>
+									</div>
 									<div className="grid grid-cols-[100px_100px]">
 										<p>Pembayaran</p>
 										<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>

@@ -1,0 +1,2 @@
+ALTER TABLE records
+ADD COLUMN rounding INTEGER;

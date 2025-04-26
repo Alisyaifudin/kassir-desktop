@@ -70,7 +70,7 @@ export function Manual() {
 			</Field>
 			<div className="flex gap-1 items-end">
 				<Field label="Diskon">
-					<Input type="number" defaultValue={0} name="disc-value" />
+					<Input type="number" defaultValue={0} step={disc === "number" ? 1 : 0.01} name="disc-value" />
 				</Field>
 				<select
 					value={disc}

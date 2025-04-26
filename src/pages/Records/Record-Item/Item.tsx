@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { calcDisc, Discount } from "../Discount";
 
 type Props = {
 	i: number;
@@ -31,20 +31,3 @@ export function Item({ disc_type, disc_val, name, price, qty, subtotal }: Props)
 	);
 }
 
-function Discount({ type, value }: { type: "number" | "percent"; value: number }) {
-	switch (type) {
-		case "number":
-			return <p>(Disc. {value.toLocaleString("id-ID")})</p>;
-		case "percent":
-			return <p>(Disc. {value}%)</p>;
-	}
-}
-
-function calcDisc(type: "number" | "percent", value: number, subtotal: number) {
-	switch (type) {
-		case "number":
-			return value;
-		case "percent":
-			return new Decimal(subtotal).times(value).div(100).toNumber();
-	}
-}

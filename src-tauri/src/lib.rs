@@ -39,6 +39,30 @@ pub fn run() {
             sql: include_str!("../src/migration-05.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 6,
+            description: "change_disc_val_to_real",
+            sql: include_str!("../src/migration-06.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 7,
+            description: "change_disc_val_to_real_2",
+            sql: include_str!("../src/migration-07.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 8,
+            description: "add_rounding_table",
+            sql: include_str!("../src/migration-08.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 9,
+            description: "fix_taxes?",
+            sql: include_str!("../src/migration-09.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())

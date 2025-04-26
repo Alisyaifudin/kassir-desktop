@@ -9,6 +9,7 @@ export async function submitPayment(
 	db: Database,
 	mode: "buy" | "sell",
 	record: {
+		rounding: number;
 		total: number;
 		grand_total: number;
 		pay: number;
@@ -22,13 +23,11 @@ export async function submitPayment(
 	taxes: Tax[]
 ): Promise<Result<string, number>> {
 	const timestamp = Temporal.Now.instant().epochMilliseconds;
-	let totalItem = 0;
-	for (const item of items) {
-		totalItem += Number(item.qty);
-	}
+
 	const itemsTranform = items.map((item) => {
 		const subtotal = calcSubtotal(item.disc, item.price, item.qty).toNumber();
-		const capital = mode === "buy" ? calcCapital(record.total, item, totalItem) : null;
+		const capital =
+			mode === "buy" ? calcCapital(record.grand_total, record.total, subtotal, item.qty) : null;
 		return {
 			timestamp,
 			disc_type: item.disc.type,
@@ -90,9 +89,9 @@ export function calcSubtotal(
 	return total.sub(val);
 }
 
-export function calcTotal(total: Decimal, taxes: Tax[]) {
+export function calcTotal(total: Decimal, taxes: Tax[], rounding: string) {
 	const totalTax = taxes.reduce((acc, curr) => calcTax(total, curr.value).add(acc), new Decimal(0));
-	return total.add(totalTax);
+	return total.add(totalTax).add(rounding || 0);
 }
 
 export function calcTax(total: Decimal, value: number) {
@@ -121,7 +120,12 @@ export function calcChange(total: Decimal, pay: string): Decimal {
 	return new Decimal(pay === "" ? 0 : pay).sub(total);
 }
 
-export function calcCapital(grandTotal: number, item: Item, totalItem: number): number {
-	const capital = new Decimal(grandTotal).times(item.qty).div(totalItem).round();
+export function calcCapital(
+	grandTotal: number,
+	total: number,
+	subtotal: number,
+	qty: string
+): number {
+	const capital = new Decimal(grandTotal).times(subtotal).div(total).div(qty).round();
 	return capital.toNumber();
 }

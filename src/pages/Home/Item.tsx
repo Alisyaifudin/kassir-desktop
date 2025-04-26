@@ -78,6 +78,7 @@ export function ItemComponent({ id, disc, name, price, qty, index, mode, stock, 
 						type="number"
 						className="w-full px-1"
 						value={disc.value}
+						step={disc.type === "number" ? 1 : 0.01}
 						onChange={(e) =>
 							dispatch({ action: "edit-disc-val", index, value: e.currentTarget.value })
 						}
@@ -164,6 +165,7 @@ export function ItemComponent({ id, disc, name, price, qty, index, mode, stock, 
 							type="number"
 							className="w-full px-1"
 							value={disc.value}
+							step={disc.type === "number" ? 1 : 0.01}
 							onChange={(e) =>
 								dispatch({ action: "edit-disc-val", index, value: e.currentTarget.value })
 							}
