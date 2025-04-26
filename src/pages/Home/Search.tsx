@@ -47,8 +47,29 @@ export function Search() {
 				<Input type="text" value={name} onChange={handleChange} />
 			</Field>
 			{error ? <TextError>{error}</TextError> : null}
-			<div className="flex-1 overflow-auto">
-				<ol className="flex flex-col gap-1 overflow-auto">
+			<div className="h-full grow shrink basis-0 overflow-auto">
+				<ol className="flex flex-col gap-1">
+					{products.map((product, i) => (
+						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
+							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
+								{product.name}
+							</button>
+						</li>
+					))}
+					{products.map((product, i) => (
+						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
+							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
+								{product.name}
+							</button>
+						</li>
+					))}
+					{products.map((product, i) => (
+						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
+							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
+								{product.name}
+							</button>
+						</li>
+					))}
 					{products.map((product, i) => (
 						<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
 							<button onClick={handleClick(product)} className="cursor-pointer text-2xl">
