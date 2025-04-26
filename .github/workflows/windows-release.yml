@@ -23,8 +23,7 @@ jobs:
 
       - name: Clean install and build
         run: |
-          rm -rf node_modules
-          rm -rf dist
+          Remove-Item -Recurse -Force node_modules, dist
           bun clean  # Clear Bun cache
 
       # Step 4: Install Rust
