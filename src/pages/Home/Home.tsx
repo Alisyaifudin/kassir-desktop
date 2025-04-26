@@ -12,7 +12,7 @@ export default function Page() {
 	const [state, dispatch] = useReducer(itemReducer, { items: [], taxes: [] });
 	const reset = () => dispatch({ action: "reset" });
 	return (
-		<main className="flex gap-2 p-2 flex-1">
+		<main className="flex gap-2 p-2 flex-1 overflow-auto">
 			<ItemContextProvider value={{ state, dispatch, mode }}>
 				<ListItem mode={mode} setMode={setMode(setSearch, reset)} />
 				<InputItem />

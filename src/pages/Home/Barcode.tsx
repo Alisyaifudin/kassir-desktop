@@ -15,6 +15,9 @@ export function Barcode() {
 	const [loading, setLoading] = useState(false);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
+		if (loading || error !== "") {
+			return;
+		}
 		const formEl = e.currentTarget;
 		const formData = new FormData(e.currentTarget);
 		setLoading(true);
@@ -27,6 +30,7 @@ export function Barcode() {
 		const [errMsg, product] = await db.product.getByBarcode(parsed.data);
 		if (errMsg !== null) {
 			setError(errMsg);
+			setLoading(false);
 			return;
 		}
 		dispatch({

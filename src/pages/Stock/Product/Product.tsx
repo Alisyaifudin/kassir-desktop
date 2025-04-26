@@ -20,6 +20,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 	}
 	return { id: parsed.data };
 }
+
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
