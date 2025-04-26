@@ -21,17 +21,17 @@ jobs:
         with:
           bun-version: latest
 
-      # Step 3: Cache Bun dependencies
-      - name: Cache Bun dependencies
-        uses: actions/cache@v3
-        id: bun-cache
-        with:
-          path: |
-            ~/.bun
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+      # # Step 3: Cache Bun dependencies
+      # - name: Cache Bun dependencies
+      #   uses: actions/cache@v3
+      #   id: bun-cache
+      #   with:
+      #     path: |
+      #       ~/.bun
+      #       node_modules
+      #     key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-bun-
 
       # Step 4: Install Rust
       - name: Install Rust
@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies with Bun
         run: bun install
         # Only run if cache wasn't restored (optional optimization)
-        if: steps.bun-cache.outputs.cache-hit != 'true'
+        # if: steps.bun-cache.outputs.cache-hit != 'true'
 
       # Step 6: Build and publish with Tauri
       - uses: tauri-apps/tauri-action@v0.5.20
