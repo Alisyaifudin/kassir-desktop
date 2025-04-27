@@ -28,6 +28,7 @@ export default function Profile() {
 			.then(() => {
 				setError("");
 				setLoading(false);
+				location.reload();
 			})
 			.catch(() => {
 				setError("Ada yang bermasalah.");

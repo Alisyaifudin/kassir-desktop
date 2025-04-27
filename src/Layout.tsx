@@ -1,69 +1,77 @@
 import { Link, Outlet, useLocation, useOutletContext } from "react-router";
-import { Button } from "./components/ui/button";
 import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { useEffect, useState } from "react";
 import { Store as StoreTauri } from "@tauri-apps/plugin-store";
 import { Loader2, Settings } from "lucide-react";
 import { type Database, generateDB } from "./database";
 import { generateStore, Store } from "./store";
-
-function getTitle(path: string): string {
-	if (path === "/") {
-		return "Toko";
-	} else if (path === "/buy") {
-		return "Beli";
-	} else if (path === "/setting" || path === "/setting/data") {
-		return "Pengaturan";
-	} else if (path.includes("records")) {
-		return "Riwayat";
-	} else if (path.includes("stock") || path.includes("items")) {
-		return "Stok";
-	}
-	return "";
-}
+import { cn } from "./utils";
 
 function Layout() {
 	const { pathname } = useLocation();
-	// const { path } = useLoaderData<typeof loader>();
-
 	const [db, setDb] = useState<Database | null>(null);
 	const [store, setStore] = useState<Store | null>(null);
+	const [name, setName] = useState("");
 	useEffect(() => {
 		StoreTauri.load("store.json", { autoSave: false }).then((store) => {
-			setStore(generateStore(store));
+			const s = generateStore(store);
+			setStore(s);
+			s.owner.get().then((v) => {
+				if (v) {
+					setName(v);
+				}
+			});
 		});
 		DatabaseTauri.load("sqlite:data.db").then((db) => {
 			setDb(generateDB(db));
 		});
 	}, []);
+	useEffect(() => {}, []);
 
 	return (
 		<>
-			<header className="bg-sky-300 h-[78px] flex items-center">
-				<nav className="flex p-3 justify-between w-full items-center">
-					<p className="text-5xl font-bold">{getTitle(pathname)}</p>
-					<ul className="flex gap-5 justify-end items-center">
-						<li>
-							<Button variant="outline" className="text-3xl" asChild>
-								<Link to="/">Toko</Link>
-							</Button>
+			<header className="bg-sky-300 h-[78px] flex">
+				<nav className="flex px-3 pt-5 justify-between w-full items-end">
+					<div className="pb-4">
+						<p className="text-5xl italic">{name}</p>
+					</div>
+					{/* <p className="text-5xl font-bold">{getTitle(pathname)}</p> */}
+					<ul className="flex gap-5 justify-end  items-end">
+						<li
+							className={cn(
+								"text-3xl rounded-t-lg p-3 font-bold",
+								pathname === "/" ? "bg-white" : "bg-white/50"
+							)}
+						>
+							<Link to="/">Toko</Link>
 						</li>
-						<li>
-							<Button variant="outline" className="text-3xl" asChild>
-								<Link to="/stock">Stok</Link>
-							</Button>
+						<li
+							className={cn(
+								"text-3xl rounded-t-lg p-3 font-bold",
+								pathname.includes("/stock") ? "bg-white" : "bg-white/50"
+							)}
+						>
+							<Link to="/stock">Stok</Link>
 						</li>
-						<li>
-							<Button variant="outline" className="text-3xl" asChild>
-								<Link to="/records">Riwayat</Link>
-							</Button>
+						<li
+							className={cn(
+								"text-3xl rounded-t-lg p-3 font-bold",
+								pathname.includes("/records") ? "bg-white" : "bg-white/50"
+							)}
+						>
+							<Link to="/records">Riwayat</Link>
 						</li>
-						<li>
-							<Button asChild className="rounded-full h-[50px]">
-								<Link to="/setting">
-									<Settings />
-								</Link>
-							</Button>
+						<li
+							className={cn(
+								"rounded-t-full h-[60px] flex items-center p-5",
+								pathname.includes("/setting") ? "bg-white" : "bg-black text-white"
+							)}
+						>
+							{/* <Button asChild > */}
+							<Link to="/setting">
+								<Settings size={35} />
+							</Link>
+							{/* </Button> */}
 						</li>
 					</ul>
 				</nav>
