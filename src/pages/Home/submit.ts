@@ -32,7 +32,7 @@ export async function submitPayment(
 			timestamp,
 			disc_type: item.disc.type,
 			disc_val: Number(item.disc.value),
-			name: item.name,
+			name: item.name.trim(),
 			price: Number(item.price),
 			qty: Number(item.qty),
 			subtotal,
