@@ -1,6 +1,6 @@
 import { Button } from "../../../components/ui/button";
 import { Database } from "../../../database";
-import { constructCSV, err, ok, Result } from "../../../utils";
+import { constructCSV, err, log, ok, Result } from "../../../utils";
 import { useState } from "react";
 import { useDb } from "../../../Layout";
 import { TextError } from "../../../components/TextError";
@@ -45,7 +45,7 @@ export function Product() {
 async function getBlob(db: Database): Promise<Result<string, Blob>> {
 	const [errMsg, products] = await db.product.getAll();
 	if (errMsg !== null) {
-		console.error(errMsg);
+		log.error(errMsg);
 		return err(errMsg);
 	}
 	const csv = constructCSV(products);

@@ -38,7 +38,6 @@ export function Update() {
 async function update(notify: (notification: React.ReactNode) => void) {
 	const update = await check();
 	if (update) {
-		// console.log(`found update ${update.version} from ${update.date} with notes ${update.body}`);
 		update
 			.downloadAndInstall((event) => {
 				let downloaded = 0;
@@ -61,7 +60,6 @@ async function update(notify: (notification: React.ReactNode) => void) {
 						break;
 					case "Progress":
 						downloaded += event.data.chunkLength;
-						console.log(`downloaded ${downloaded} from ${contentLength}`);
 						notify(
 							<>
 								<p>

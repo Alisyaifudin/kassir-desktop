@@ -8,6 +8,7 @@ import {
 	dateToEpoch,
 	err,
 	formatDate,
+	log,
 	ok,
 	Result,
 } from "../../../utils";
@@ -43,7 +44,7 @@ export default function Record() {
 			end: formData.get("end"),
 		});
 		if (!parsed.success) {
-			console.error(parsed.error.flatten().fieldErrors);
+			log.error(JSON.stringify(parsed.error.flatten().fieldErrors));
 			setError("Ada yang error");
 			return;
 		}
@@ -100,15 +101,15 @@ async function getBlob(db: Database, start: number, end: number): Promise<Result
 		db.tax.getByRange(start, end),
 	]);
 	if (errRecords !== null) {
-		console.error(errRecords);
+		log.error(errRecords);
 		return err(errRecords);
 	}
 	if (errTax !== null) {
-		console.error(errTax);
+		log.error(errTax);
 		return err(errTax);
 	}
 	if (errItems !== null) {
-		console.error(errItems);
+		log.error(errItems);
 		return err(errItems);
 	}
 	const recordCSV = constructCSV(records);
