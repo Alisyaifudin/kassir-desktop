@@ -52,7 +52,11 @@ export default function Page() {
 					const products =
 						query === ""
 							? raw
-							: raw.filter((product) => product.name.toLowerCase().includes(query.toLowerCase()));
+							: raw.filter(
+									(product) =>
+										product.name.toLowerCase().includes(query.toLowerCase()) ||
+										(product.barcode !== null && product.barcode.toString().includes(query))
+							  );
 					return <ProductList products={products} />;
 				}}
 			</Await>
