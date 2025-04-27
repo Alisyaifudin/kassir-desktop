@@ -5,6 +5,7 @@ import { Store as StoreTauri } from "@tauri-apps/plugin-store";
 import { Loader2, Settings } from "lucide-react";
 import { type Database, generateDB } from "./database";
 import { generateStore, Store } from "./store";
+import { Notification } from "./components/Notification";
 import { cn } from "./utils";
 
 function Layout() {
@@ -77,6 +78,7 @@ function Layout() {
 				</nav>
 			</header>
 			<App db={db} store={store} />
+			<Notification />
 		</>
 	);
 }
@@ -103,3 +105,4 @@ export const useStore = () => {
 };
 
 export default Layout;
+
