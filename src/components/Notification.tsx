@@ -1,26 +1,29 @@
-import { createContext, useContext, useState } from "react";
+import { useEffect, useState } from "react";
 
-const NotifContext = createContext<{
-	notify: (notification: React.ReactNode) => void;
-}>({
-	notify: () => {},
-});
-
-export const NotifProvider = NotifContext.Provider;
+let globalNotification: React.ReactNode = null;
+const subscribers = new Set<React.Dispatch<React.SetStateAction<React.ReactNode>>>();
 
 export const useNotification = () => {
-	const { notify } = useContext(NotifContext);
-	return { notify };
+	const [notification, setNotification] = useState<React.ReactNode>(globalNotification);
+
+	useEffect(() => {
+		subscribers.add(setNotification);
+		return () => {
+			subscribers.delete(setNotification);
+		};
+	}, []);
+
+	const notify = (newNotification: React.ReactNode) => {
+		globalNotification = newNotification;
+		subscribers.forEach((setter) => setter(newNotification));
+	};
+
+	return { notification, notify };
 };
 
 export function Notification() {
-	const [notification, setNotification] = useState<React.ReactNode>(null);
-	const notify = (notification: React.ReactNode) => setNotification(notification);
-	return (
-		<NotifProvider value={{ notify }}>
-			<Content>{notification}</Content>
-		</NotifProvider>
-	);
+	const { notification } = useNotification();
+	return <Content>{notification}</Content>;
 }
 
 function Content({ children }: { children: React.ReactNode }) {
@@ -28,7 +31,7 @@ function Content({ children }: { children: React.ReactNode }) {
 		return null;
 	}
 	return (
-		<div className="absolute z-10 bg-white p-3 bottom-0 right-0 shadow-xl border-accent border-t border-l m-3 w-[200px] flex flex-col gap-2">
+		<div className="absolute z-10 text-3xl bg-white p-5 bottom-0 right-0 shadow-xl border-accent border-t border-l m-3 max-w-[500px] w-fit flex flex-col gap-2">
 			{children}
 		</div>
 	);

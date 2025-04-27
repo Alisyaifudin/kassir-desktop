@@ -77,9 +77,9 @@ async function update(notify: (notification: React.ReactNode) => void) {
 			.then(() => {
 				relaunch();
 			});
-		return true;
+		return;
 		// alternatively we could also call update.download() and update.install() separately
 	}
 	notify(<p>Tidak ada update baru</p>);
-	setTimeout(() => notify(null), 1000);
+	setTimeout(() => notify(null), 3000);
 }
