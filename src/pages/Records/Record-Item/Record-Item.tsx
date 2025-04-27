@@ -1,5 +1,5 @@
-import { LoaderFunctionArgs, redirect, useLoaderData, useNavigate } from "react-router";
-import { err, numeric, ok, Result } from "../../../utils";
+import { useLoaderData, useNavigate } from "react-router";
+import { err, ok, Result } from "../../../utils";
 import { useDb } from "../../../Layout";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft } from "lucide-react";
@@ -8,14 +8,7 @@ import { Await } from "../../../components/Await";
 import { useFetch } from "../../../hooks/useFetch";
 import { Database } from "../../../database";
 import { TextError } from "../../../components/TextError";
-
-export function loader({ params }: LoaderFunctionArgs) {
-	const parsed = numeric.safeParse(params.timestamp);
-	if (!parsed.success) {
-		return redirect("/records");
-	}
-	return { timestamp: parsed.data };
-}
+import { type loader } from ".";
 
 export default function Page() {
 	const { timestamp } = useLoaderData<typeof loader>();

@@ -1,4 +1,4 @@
-import { Link, LoaderFunctionArgs, redirect, useLoaderData, useNavigate } from "react-router";
+import { Link, useLoaderData, useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric } from "../../../utils.ts";
 import { useState } from "react";
@@ -12,14 +12,7 @@ import Redirect from "../../../components/Redirect.tsx";
 import { Await } from "../../../components/Await.tsx";
 import { useFetch } from "../../../hooks/useFetch.tsx";
 import { TextError } from "../../../components/TextError.tsx";
-
-export async function loader({ params }: LoaderFunctionArgs) {
-	const parsed = numeric.safeParse(params.id);
-	if (!parsed.success) {
-		return redirect("/stock");
-	}
-	return { id: parsed.data };
-}
+import { type loader } from "./index.tsx";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
