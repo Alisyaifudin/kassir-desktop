@@ -1,4 +1,5 @@
 import { FetchState } from "../hooks/useFetch";
+import { log } from "../utils";
 type AwaitProps<T> = {
 	state: FetchState<T>;
 	Loading?: React.ReactNode;
@@ -16,7 +17,7 @@ export function Await<T>({
 		return Loading;
 	}
 	if (data === null) {
-		console.error(error);
+		log.error(String(error));
 		return Error;
 	}
 	return children(data);

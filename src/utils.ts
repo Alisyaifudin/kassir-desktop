@@ -2,6 +2,9 @@ import { z } from "zod";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
+import * as logTauri from "@tauri-apps/plugin-log";
+
+export const log = logTauri;
 
 export const numerish = z.string().refine((val) => val !== "" && !Number.isNaN(Number(val)), {
 	message: "Harus angka",
@@ -35,7 +38,7 @@ export async function tryResult<R, const T = DefaultMessage>({
 	try {
 		return ok(await run());
 	} catch (error) {
-		console.error(error);
+		log.error(String(error));
 		return err(message);
 	}
 }
@@ -92,32 +95,32 @@ export function dateToEpoch(date: string): number {
 }
 
 export function constructCSV<T extends Record<string, any>>(data: T[]): string {
-  if (data.length === 0) return "";
+	if (data.length === 0) return "";
 
-  const headers = Object.keys(data[0]) as (keyof T)[];
-  const delimiter = ",";
-  const lineBreak = "\n";
+	const headers = Object.keys(data[0]) as (keyof T)[];
+	const delimiter = ",";
+	const lineBreak = "\n";
 
-  // Escape CSV special characters (commas, quotes, newlines)
-  const escapeCSV = (value: unknown): string => {
-    if (value === null || value === undefined) return "";
-    const str = String(value);
-    if (str.includes(delimiter) || str.includes('"') || str.includes(lineBreak)) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
+	// Escape CSV special characters (commas, quotes, newlines)
+	const escapeCSV = (value: unknown): string => {
+		if (value === null || value === undefined) return "";
+		const str = String(value);
+		if (str.includes(delimiter) || str.includes('"') || str.includes(lineBreak)) {
+			return `"${str.replace(/"/g, '""')}"`;
+		}
+		return str;
+	};
 
-  const lines: string[] = [];
-  
-  // Add header row
-  lines.push(headers.map(header => escapeCSV(header)).join(delimiter));
-  
-  // Add data rows
-  for (const item of data) {
-    const row = headers.map(header => escapeCSV(item[header]));
-    lines.push(row.join(delimiter));
-  }
+	const lines: string[] = [];
 
-  return lines.join(lineBreak);
+	// Add header row
+	lines.push(headers.map((header) => escapeCSV(header)).join(delimiter));
+
+	// Add data rows
+	for (const item of data) {
+		const row = headers.map((header) => escapeCSV(item[header]));
+		lines.push(row.join(delimiter));
+	}
+
+	return lines.join(lineBreak);
 }

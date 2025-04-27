@@ -2,7 +2,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { ItemComponent } from "./Item";
 import { useContext, useState } from "react";
-import { cn } from "../../utils";
+import { cn, log } from "../../utils";
 import { useDb } from "../../Layout";
 import { useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";
@@ -103,7 +103,7 @@ export function ListItem({
 				navigate(`/records/${timestamp}`);
 			})
 			.catch((e) => {
-				console.error(e);
+				log.error(String(e));
 				setError("Aplikasi bermasalah");
 				setLoading(false);
 			});
@@ -127,9 +127,16 @@ export function ListItem({
 						<h2 className="">Beli</h2>
 					</Button>
 				</div>
-				<div className={cn("grid gap-1 outline text-3xl", mode === "buy" ? "grid-cols-[70px_210px_1fr_150px_230px_70px_150px_50px]" : "grid-cols-[70px_1fr_150px_230px_70px_150px_50px]")}>
+				<div
+					className={cn(
+						"grid gap-1 outline text-3xl",
+						mode === "buy"
+							? "grid-cols-[70px_210px_1fr_150px_230px_70px_150px_50px]"
+							: "grid-cols-[70px_1fr_150px_230px_70px_150px_50px]"
+					)}
+				>
 					<p className="border-r">No</p>
-					{mode === "buy" ? <p className="border-r">Barcode</p>: null}
+					{mode === "buy" ? <p className="border-r">Barcode</p> : null}
 					<p className="border-r">Nama</p>
 					<p className="border-r">Harga</p>
 					<p className="border-r">Diskon</p>
@@ -186,7 +193,11 @@ export function ListItem({
 					<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 						<span className="text-3xl">Pembulatan</span>
 						:
-						<Input type="number" value={rounding} onChange={(e) => editRounding(e.currentTarget.value)} />
+						<Input
+							type="number"
+							value={rounding}
+							onChange={(e) => editRounding(e.currentTarget.value)}
+						/>
 					</label>
 					<div className="grid grid-cols-[160px_20px_1fr] h-[60px] text-3xl items-center">
 						<p className="text-3xl">Kembalian</p>:

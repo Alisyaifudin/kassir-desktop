@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -11,34 +11,20 @@ import { useNotification } from "../../components/Notification";
 export function Update() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-	const [status, setStatus] = useState<"Started" | "Progress" | "Finished" | "">("");
 	const { notify } = useNotification();
 	const handleClick = async () => {
 		setLoading(true);
-		const [errMsg, val] = await tryResult({
-			run: () => update(setStatus),
+		const [errMsg] = await tryResult({
+			run: () => update(notify),
 		});
 		if (errMsg !== null) {
 			setError(errMsg);
 			setLoading(false);
 			return;
 		}
-		if (val) {
-			notify(
-				<div className="flex items-center gap-2">
-					<p>Mengunduh update</p>
-					<Loader2 className="animate-spin" />
-				</div>
-			);
-		}
 		setError("");
 		setLoading(false);
 	};
-	useEffect(() => {
-		if (status === "Finished") {
-			notify(null);
-		}
-	}, [status]);
 	return (
 		<div className="flex flex-col gap-1">
 			<Button onClick={handleClick} variant="secondary">
@@ -49,37 +35,53 @@ export function Update() {
 	);
 }
 
-async function update(
-	setStatus: React.Dispatch<React.SetStateAction<"Started" | "Progress" | "Finished" | "">>
-): Promise<boolean> {
+async function update(notify: (notification: React.ReactNode) => void) {
 	const update = await check();
 	if (update) {
-		console.log(`found update ${update.version} from ${update.date} with notes ${update.body}`);
+		// console.log(`found update ${update.version} from ${update.date} with notes ${update.body}`);
 		update
 			.downloadAndInstall((event) => {
-				setStatus(event.event);
 				let downloaded = 0;
 				let contentLength = 0;
 				switch (event.event) {
 					case "Started":
 						contentLength = event.data?.contentLength ?? 0;
-						console.log(`started downloading ${event.data.contentLength} bytes`);
+						notify(
+							<>
+								<p>
+									Mulai mengunduh versi {update.version} {update.date}
+								</p>
+								{event.data.contentLength !== undefined ? (
+									<p>Ukuran {event.data.contentLength / 1e6} MB</p>
+								) : (
+									""
+								)}
+							</>
+						);
 						break;
 					case "Progress":
 						downloaded += event.data.chunkLength;
 						console.log(`downloaded ${downloaded} from ${contentLength}`);
+						notify(
+							<>
+								<p>
+									Mulai mengunduh versi {update.version} {update.date}
+								</p>
+								<p>Progres: {(downloaded / contentLength) * 100}%</p>
+							</>
+						);
 						break;
 					case "Finished":
-						console.log("download finished");
+						notify(null);
 						break;
 				}
 			})
 			.then(() => {
-				console.log("update installed");
 				relaunch();
 			});
 		return true;
 		// alternatively we could also call update.download() and update.install() separately
 	}
-	return false;
+	notify(<p>Tidak ada update baru</p>);
+	setTimeout(() => notify(null), 1000);
 }

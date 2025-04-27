@@ -30,7 +30,6 @@ function Content({ children }: { children: React.ReactNode }) {
 	return (
 		<div className="absolute z-10 bg-white p-3 bottom-0 right-0 shadow-xl border-accent border-t border-l m-3 w-[200px] flex flex-col gap-2">
 			{children}
-			
 		</div>
 	);
 }
