@@ -1,0 +1,2 @@
+ALTER TABLE records
+ADD COLUMN credit INTEGER NOT NULL CHECK (credit IN (0, 1)) DEFAULT 0;

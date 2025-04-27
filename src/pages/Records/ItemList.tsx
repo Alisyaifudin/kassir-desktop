@@ -41,6 +41,9 @@ export function ItemList({ allItems, timestamp, records, mode }: RecordListProps
 	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
+			{mode === "buy" && record !== null && record.credit === 1 ? (
+				<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>
+			) : null}
 			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
@@ -51,7 +54,6 @@ export function ItemList({ allItems, timestamp, records, mode }: RecordListProps
 						<TableHead className="w-[70px]">Qty</TableHead>
 						<TableHead className="w-[140px]  text-end">Diskon</TableHead>
 						<TableHead className="w-[140px]  text-end">Total</TableHead>
-
 						<TableHead className="w-[50px]">
 							{timestamp === null ? null : (
 								<Link to={`/records/${timestamp}`}>

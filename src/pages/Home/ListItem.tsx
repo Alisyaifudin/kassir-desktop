@@ -69,28 +69,41 @@ export function ListItem({
 		}
 		setDisc({ value, type });
 	};
-	const handlePay = () => {
-		if (change.toNumber() < 0 || Number.isNaN(pay) || pay === "") {
+	const handlePay = (credit: 0 | 1) => () => {
+		if (
+			total.equals(0) ||
+			(credit === 0 && (change.toNumber() < 0 || Number.isNaN(pay) || pay === ""))
+		) {
 			return;
 		}
+		const record =
+			credit === 0
+				? {
+						credit,
+						rounding: Number(rounding),
+						change: change.toNumber(),
+						disc: {
+							value: Number(disc.value),
+							type: disc.type,
+						},
+						pay: Number(pay),
+						total: totalBeforeTax.toNumber(),
+						grand_total: total.toNumber(),
+				  }
+				: {
+						credit,
+						rounding: 0,
+						change: 0,
+						disc: {
+							value: 0,
+							type: "number" as const,
+						},
+						pay: 0,
+						total: totalBeforeTax.toNumber(),
+						grand_total: total.toNumber(),
+				  };
 		setLoading(true);
-		submitPayment(
-			db,
-			mode,
-			{
-				rounding: Number(rounding),
-				change: change.toNumber(),
-				disc: {
-					value: Number(disc.value),
-					type: disc.type,
-				},
-				pay: Number(pay),
-				total: totalBeforeTax.toNumber(),
-				grand_total: total.toNumber(),
-			},
-			items,
-			taxes
-		)
+		submitPayment(db, mode, record, items, taxes)
 			.then((res) => {
 				const [errMsg, timestamp] = res;
 				if (errMsg) {
@@ -205,9 +218,20 @@ export function ListItem({
 							{change.toNumber().toLocaleString("de-DE")}
 						</p>
 					</div>
-					<Button onClick={handlePay} disabled={change.toNumber() < 0}>
-						Bayar {loading && <Loader2 className="animate-spin" />}
-					</Button>
+					<div className="flex items-center gap-1 w-full">
+						<Button
+							className="flex-1"
+							onClick={handlePay(0)}
+							disabled={change.toNumber() < 0 || pay === "" || total.equals(0)}
+						>
+							Bayar {loading && <Loader2 className="animate-spin" />}
+						</Button>
+						{mode === "buy" ? (
+							<Button disabled={total.equals(0)} className="flex-1" onClick={handlePay(1)}>
+								Kredit {loading && <Loader2 className="animate-spin" />}
+							</Button>
+						) : null}
+					</div>
 					{error === "" ? null : <TextError>{error}</TextError>}
 				</div>
 			</div>

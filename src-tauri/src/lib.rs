@@ -64,6 +64,12 @@ pub fn run() {
             sql: include_str!("../src/migration-09.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "add_credit",
+            sql: include_str!("../src/migration-10.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(

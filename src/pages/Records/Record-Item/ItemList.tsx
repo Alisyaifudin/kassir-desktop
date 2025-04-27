@@ -65,7 +65,12 @@ export function ItemList({
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
-				<h2 className="font-bold border px-2 rounded-md text-3xl">{title[record.mode]}</h2>
+				<div className="flex items-center gap-2">
+					<h2 className="font-bold  px-2 rounded-md text-3xl">{title[record.mode]}</h2>
+					{record.mode === "buy" ? (
+						record.credit === 0 ? <p className="text-2xl text-emerald-500">: Lunas</p> : <p className="text-2xl text-red-500">: Kredit</p>
+					) : null}
+				</div>
 				<Button onClick={print}>Cetak</Button>
 			</div>
 			<Await state={info}>
@@ -117,7 +122,9 @@ export function ItemList({
 										<>
 											<div className="grid grid-cols-[100px_100px]">
 												<p></p>
-												<p className="text-end">Rp{(record.grand_total-record.rounding).toLocaleString("id-ID")}</p>
+												<p className="text-end">
+													Rp{(record.grand_total - record.rounding).toLocaleString("id-ID")}
+												</p>
 											</div>
 											<div className="grid grid-cols-[100px_100px]">
 												<p>Pembulatan</p>

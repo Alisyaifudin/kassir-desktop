@@ -33,7 +33,10 @@ export function RecordList({ records, selected, selectRecord, mode }: RecordList
 						<TableRow
 							key={i}
 							onClick={selectRecord(record.timestamp)}
-							className={cn({ "bg-sky-200 hover:bg-sky-100": selected === record.timestamp })}
+							className={cn(
+								{ "bg-sky-200 hover:bg-sky-100": selected === record.timestamp },
+								{ "bg-red-300": record.credit === 1 }
+							)}
 						>
 							<TableCell>{i + 1}</TableCell>
 							<TableCell className="text-center">{formatDate(record.timestamp)}</TableCell>
