@@ -1,6 +1,7 @@
 import { produce } from "immer";
 import { Item } from "./Item";
 import { createContext } from "react";
+import { z } from "zod";
 
 export type Tax = {
 	name: string;
@@ -82,7 +83,15 @@ export function itemReducer(state: State, action: Action): State {
 			});
 		case "edit-barcode":
 			return produce(state, (draft) => {
-				draft.items[action.index].name = action.barcode;
+				const parsed = z
+					.string()
+					.refine((v) => !Number.isNaN(v))
+					.transform((v) => (v === "" ? undefined : Number(v)))
+					.safeParse(action.barcode);
+				if (!parsed.success) {
+					return state;
+				}
+				draft.items[action.index].barcode = parsed.data;
 			});
 		case "edit-price": {
 			const { index, price } = action;
