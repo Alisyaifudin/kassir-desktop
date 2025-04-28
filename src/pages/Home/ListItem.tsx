@@ -23,7 +23,7 @@ export function ListItem({
 	const [pay, setPay] = useState("");
 	const [rounding, setRounding] = useState("");
 	const [disc, setDisc] = useState<{ type: "number" | "percent"; value: string }>({
-		type: "number",
+		type: "percent",
 		value: "",
 	});
 	const db = useDb();
