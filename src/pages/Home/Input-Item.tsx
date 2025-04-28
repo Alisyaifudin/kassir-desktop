@@ -1,6 +1,5 @@
 import { Manual } from "./Manual";
 import { Search } from "./Search";
-import { Barcode } from "./Barcode";
 import { TaxField } from "./Tax";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { BuyInput } from "./BuyInput";
@@ -18,8 +17,6 @@ export function InputItem({ mode }: { mode: "buy" | "sell" }) {
 						<TabsTrigger value="man">Manual</TabsTrigger>
 					</TabsList>
 					<TabsContent value="auto" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-						<Barcode />
-						<hr />
 						<Search />
 					</TabsContent>
 					<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">

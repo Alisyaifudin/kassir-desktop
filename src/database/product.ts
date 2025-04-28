@@ -28,12 +28,23 @@ export const genProduct = (db: Database) => ({
 		if (item === null) return err("Barang tidak ada");
 		return ok(item);
 	},
-	search: async (name: string): Promise<Result<string, DB.Product[]>> => {
+	searchByName: async (name: string): Promise<Result<"Aplikasi Bermasalah", DB.Product[]>> => {
 		return tryResult({
 			run: async () =>
 				db.select<DB.Product[]>(
-					"SELECT * FROM products WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND stock > 0 LIMIT 20",
+					"SELECT * FROM products WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' LIMIT 20",
 					[name.trim()]
+				),
+		});
+	},
+	searchByBarcode: async (
+		barcode: number
+	): Promise<Result<"Aplikasi Bermasalah", DB.Product[]>> => {
+		return tryResult({
+			run: async () =>
+				db.select<DB.Product[]>(
+					"SELECT * FROM products WHERE CAST(barcode AS TEXT) LIKE $1 || '%' LIMIT 20",
+					[barcode.toString()]
 				),
 		});
 	},

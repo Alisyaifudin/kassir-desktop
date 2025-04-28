@@ -28,23 +28,23 @@ export function ItemList({
 	useEffect(() => {
 		const style = document.createElement("style");
 		style.textContent = `
-      @media print {
-        @page {
-          size: var(--paper-width)mm auto;
-          margin: 10mm;
-        }
-        body {
-          visibility: hidden;
-        }
-        #print-container {
-          visibility: visible;
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-        }
-      }
-    `;
+	    @media print {
+	      @page {
+	        size: var(--paper-width)mm auto;
+	        margin: 10mm;
+	      }
+	      body {
+	        visibility: hidden;
+	      }
+	      #print-container {
+	        visibility: visible;
+	        position: absolute;
+	        left: 0;
+	        top: 0;
+	        width: 100%;
+	      }
+	    }
+	  `;
 		document.head.appendChild(style);
 		styleRef.current = style;
 
@@ -68,7 +68,11 @@ export function ItemList({
 				<div className="flex items-center gap-2">
 					<h2 className="font-bold  px-2 rounded-md text-3xl">{title[record.mode]}</h2>
 					{record.mode === "buy" ? (
-						record.credit === 0 ? <p className="text-2xl text-emerald-500">: Lunas</p> : <p className="text-2xl text-red-500">: Kredit</p>
+						record.credit === 0 ? (
+							<p className="text-2xl text-emerald-500">: Lunas</p>
+						) : (
+							<p className="text-2xl text-red-500">: Kredit</p>
+						)
 					) : null}
 				</div>
 				<Button onClick={print}>Cetak</Button>
@@ -81,9 +85,12 @@ export function ItemList({
 								<p className="text-center text-lg font-bold">{data.owner}</p>
 								<p className="text-center">{data.desc}</p>
 								<p className="text-end">{data.address}</p>
-								<p className="text-end">
-									{formatDate(today, "short").replace(/-/g, "/")}, {formatTime(today)}
-								</p>
+								<div className="flex items-center justify-between">
+									<p>No: {record.timestamp}</p>
+									<p>
+										{formatDate(today, "short").replace(/-/g, "/")}, {formatTime(today)}
+									</p>
+								</div>
 							</div>
 							<hr />
 							{items.map((item, i) => (

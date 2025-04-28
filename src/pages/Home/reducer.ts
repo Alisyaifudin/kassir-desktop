@@ -61,18 +61,10 @@ export type Action =
 				price: string;
 				stock: number;
 				id: number;
+				barcode?: number;
 			};
 	  }
-	| {
-			action: "add-barcode";
-			data: {
-				name: string;
-				price: string;
-				stock: number;
-				id: number;
-			};
-	  };
-
+	
 export function itemReducer(state: State, action: Action): State {
 	switch (action.action) {
 		case "reset":
@@ -190,7 +182,7 @@ export function itemReducer(state: State, action: Action): State {
 			});
 		}
 		case "add-select": {
-			const { id, name, price, stock } = action.data;
+			const { id, name, price, stock, barcode } = action.data;
 			if (stock === 0) {
 				return state;
 			}
@@ -198,6 +190,7 @@ export function itemReducer(state: State, action: Action): State {
 				const itemIndex = draft.items.findIndex((item) => item.id === id);
 				if (itemIndex === -1) {
 					draft.items.push({
+						barcode,
 						name,
 						price,
 						qty: "1",
@@ -216,27 +209,6 @@ export function itemReducer(state: State, action: Action): State {
 				}
 			});
 		}
-		case "add-barcode": {
-			const { id, name, price, stock } = action.data;
-
-			return produce(state, (draft) => {
-				const itemIndex = draft.items.findIndex((item) => item.id === id);
-				if (itemIndex === -1) {
-					draft.items.push({
-						name,
-						price,
-						stock,
-						id,
-						qty: "1",
-						disc: {
-							value: "0",
-							type: "number",
-						},
-					});
-				} else {
-					draft.items[itemIndex].qty += 1;
-				}
-			});
-		}
+		
 	}
 }
