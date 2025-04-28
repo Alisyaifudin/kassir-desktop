@@ -10,7 +10,7 @@ import { DeleteBtn } from "./DeleteBtn.tsx";
 import { useDb } from "../../../Layout.tsx";
 import Redirect from "../../../components/Redirect.tsx";
 import { Await } from "../../../components/Await.tsx";
-import { useFetch } from "../../../hooks/useFetch.tsx";
+import { useAsync } from "../../../hooks/useAsync.tsx";
 import { TextError } from "../../../components/TextError.tsx";
 import { type loader } from "./index.tsx";
 
@@ -163,6 +163,6 @@ function Form({ product }: { product: DB.Product }) {
 
 const useItem = (id: number) => {
 	const db = useDb();
-	const item = useFetch(db.product.get(id), []);
+	const item = useAsync(db.product.get(id), []);
 	return item;
 };

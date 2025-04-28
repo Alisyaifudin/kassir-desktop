@@ -1,4 +1,4 @@
-import { SquareArrowOutUpRight } from "lucide-react";
+import { Loader2, SquareArrowOutUpRight } from "lucide-react";
 import {
 	Table,
 	TableBody,
@@ -13,6 +13,8 @@ import { Button } from "../../components/ui/button";
 import { calcDisc } from "./Discount";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
+import { log } from "../../utils";
+import { useDb } from "../../Layout";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
@@ -132,19 +134,42 @@ function ItemListSell({ items, record }: { items: DB.RecordItem[]; record: DB.Re
 function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Record }) {
 	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
 	const [pay, setPay] = useState("");
-	const handlePay = (e: React.FormEvent<HTMLFormElement>) => {
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<null | string>(null);
+	const db = useDb();
+	const handlePay = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		if (Number(pay) < record.grand_total) {
+		if (Number.isNaN(pay) || Number(pay) < record.grand_total) {
 			return;
 		}
+		setError(null);
+		setLoading(true);
+		try {
+			const result = await db.record.updateCreditPay(Number(pay), record.timestamp);
+			setLoading(false);
+			if (result !== null) {
+				setError(result);
+			} else {
+				setError(null);
+			}
+		} catch (err) {
+			setError("Aplikasi bermasalah");
+			log.error(String(err));
+		}
+		setLoading(false);
 	};
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
-			<form onSubmit={handlePay} className="flex items-center gap-2 w-full max-w-[400px] py-1">
-				<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>
-				<Input value={pay} onChange={(e) => setPay(e.currentTarget.value)} type="number" />
-				<Button disabled={Number(pay) < record.grand_total}>Bayar</Button>
-			</form>
+			{record.credit === 1 ? (
+				<form onSubmit={handlePay} className="flex items-center gap-2 w-full max-w-[400px] py-1">
+					<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>
+					<Input value={pay} onChange={(e) => setPay(e.currentTarget.value)} type="number" />
+					<Button disabled={Number(pay) < record.grand_total}>
+						Bayar {loading ? <Loader2 className="animate-spin" /> : null}
+					</Button>
+				</form>
+			) : null}
+			{error ? <p>{error}</p> : null}
 			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
@@ -207,12 +232,17 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 					</div>
 					<div className="grid grid-cols-[170px_200px]">
 						<p className="text-end">Pembayaran:</p>
-						<p className="text-end">Rp{Number(pay).toLocaleString("id-ID")}</p>
+						<p className="text-end">
+							Rp{(record.credit === 0 ? record.pay : Number(pay)).toLocaleString("id-ID")}
+						</p>
 					</div>
 					<div className="grid grid-cols-[170px_200px]">
 						<p className="text-end">Kembalian:</p>{" "}
 						<p className="text-end">
-							Rp{(Number(pay) - Number(record.grand_total)).toLocaleString("id-ID")}
+							Rp
+							{(
+								(record.credit === 0 ? record.pay : Number(pay)) - Number(record.grand_total)
+							).toLocaleString("id-ID")}
 						</p>
 					</div>
 				</div>

@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button.tsx";
 import { ProductList } from "./ProductList.tsx";
 import { useDb } from "../../Layout.tsx";
 import { Await } from "../../components/Await.tsx";
-import { useFetch } from "../../hooks/useFetch.tsx";
+import { useAsync } from "../../hooks/useAsync.tsx";
 import { TextError } from "../../components/TextError.tsx";
 import { z } from "zod";
 import { Sort } from "./Sort.tsx";
@@ -66,7 +66,7 @@ export default function Page() {
 
 const useItems = () => {
 	const db = useDb();
-	const items = useFetch(db.product.getAll(), []);
+	const items = useAsync(db.product.getAll(), []);
 	return items;
 };
 

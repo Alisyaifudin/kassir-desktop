@@ -3,7 +3,7 @@ import { useDb } from "../../Layout";
 import { RecordList } from "./RecordList";
 import { Temporal } from "temporal-polyfill";
 import { formatDate } from "../../utils";
-import { useFetch } from "../../hooks/useFetch";
+import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
 import { ItemList } from "./ItemList";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
@@ -104,7 +104,7 @@ function useRecords(date: Temporal.ZonedDateTime) {
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
 	]);
-	const state = useFetch(promises, [date]);
+	const state = useAsync(promises, [date]);
 	return state;
 }
 

@@ -1,7 +1,7 @@
-import { FetchState } from "../hooks/useFetch";
+import { AsyncState } from "../hooks/useAsync";
 import { log } from "../utils";
 type AwaitProps<T> = {
-	state: FetchState<T>;
+	state: AsyncState<T>;
 	Loading?: React.ReactNode;
 	Error?: React.ReactNode;
 	children: (data: T) => React.ReactNode;

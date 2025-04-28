@@ -1,10 +1,10 @@
 import { useStore } from "../../../Layout";
-import { useFetch } from "../../../hooks/useFetch";
+import { useAsync } from "../../../hooks/useAsync";
 import { Store } from "../../../store";
 
 export const useProfile = () => {
 	const store = useStore();
-	const setting = useFetch(getProfile(store), []);
+	const setting = useAsync(getProfile(store), []);
 	return setting;
 };
 

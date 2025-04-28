@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { ItemList } from "./ItemList";
 import { Await } from "../../../components/Await";
-import { useFetch } from "../../../hooks/useFetch";
+import { useAsync } from "../../../hooks/useAsync";
 import { Database } from "../../../database";
 import { TextError } from "../../../components/TextError";
 import { type loader } from ".";
@@ -39,7 +39,7 @@ export default function Page() {
 
 function useRecord(timestamp: number) {
 	const db = useDb();
-	const res = useFetch(getRecord(db, timestamp), []);
+	const res = useAsync(getRecord(db, timestamp), []);
 	return res;
 }
 
