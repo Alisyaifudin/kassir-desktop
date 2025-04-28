@@ -31,7 +31,7 @@ export function genTax(db: Database) {
 							db.execute(
 								`INSERT INTO taxes (timestamp, name, value) 
                  VALUES ($1, $2, $3)`,
-								[timestamp, tax.name, tax.value]
+								[timestamp, tax.name.trim(), tax.value]
 							)
 						);
 					}

@@ -64,7 +64,7 @@ export const genProduct = (db: Database) => ({
 				db.execute(
 					`INSERT INTO products (name, stock, price, barcode) VALUES ($1, $2, $3, $4)
 					 ON CONFLICT(barcode) DO NOTHING`,
-					[data.name, data.stock, data.price, data.barcode]
+					[data.name.trim(), data.stock, data.price, data.barcode]
 				),
 		});
 		return errMsg;
@@ -81,7 +81,7 @@ export const genProduct = (db: Database) => ({
 				db.execute(
 					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
 					 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, price = $3, capital = $5`,
-					[data.name, data.stock, data.price, data.barcode, data.capital]
+					[data.name.trim(), data.stock, data.price, data.barcode, data.capital]
 				),
 		});
 		return errMsg;
@@ -104,7 +104,7 @@ export const genProduct = (db: Database) => ({
 			run: () =>
 				db.execute(
 					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5 WHERE id = $6",
-					[data.name, data.stock, data.price, data.barcode, data.capital, data.id]
+					[data.name.trim(), data.stock, data.price, data.barcode, data.capital, data.id]
 				),
 		});
 		return errMsg;
