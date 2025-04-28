@@ -28,7 +28,7 @@ const itemSchema = z.object({
 });
 
 export function Manual() {
-	const [disc, setDisc] = useState("number");
+	const [disc, setDisc] = useState("percent");
 	const [error, setError] = useState({
 		name: "",
 		price: "",

@@ -24,7 +24,7 @@ const barcodeSchema = z
 	.transform((v) => (v === "" ? undefined : Number(v)));
 
 export function BuyInput() {
-	const [disc, setDisc] = useState("number");
+	const [disc, setDisc] = useState("percent");
 	const [error, setError] = useState({ name: "", price: "", qty: "", disc: "", barcode: "" });
 	const { dispatch } = useContext(ItemContext);
 	const ref = useRef<HTMLInputElement | null>(null);
