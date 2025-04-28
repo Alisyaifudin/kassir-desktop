@@ -140,7 +140,7 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 	};
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
-			<form onSubmit={(e) => {}} className="flex items-center gap-2 w-full max-w-[400px] py-1">
+			<form onSubmit={handlePay} className="flex items-center gap-2 w-full max-w-[400px] py-1">
 				<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>
 				<Input value={pay} onChange={(e) => setPay(e.currentTarget.value)} type="number" />
 				<Button disabled={Number(pay) < record.grand_total}>Bayar</Button>
