@@ -214,18 +214,24 @@ export function itemReducer(state: State, action: Action): State {
 		}
 		case "add-barcode": {
 			const { id, name, price, stock } = action.data;
+
 			return produce(state, (draft) => {
-				draft.items.push({
-					name,
-					price,
-					stock,
-					id,
-					qty: "1",
-					disc: {
-						value: "0",
-						type: "number",
-					},
-				});
+				const itemIndex = draft.items.findIndex((item) => item.id === id);
+				if (itemIndex === -1) {
+					draft.items.push({
+						name,
+						price,
+						stock,
+						id,
+						qty: "1",
+						disc: {
+							value: "0",
+							type: "number",
+						},
+					});
+				} else {
+					draft.items[itemIndex].qty += 1;
+				}
 			});
 		}
 	}
