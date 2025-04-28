@@ -59,9 +59,19 @@ export const genRecord = (db: Database) => ({
 		if (res.lastInsertId === undefined) return "Gagal menambahkan catatan";
 		return null;
 	},
-	delete: async (timestamp: number): Promise<string | null> => {
+	delete: async (timestamp: number): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () => db.execute("DELETE FROM records WHERE timestamp = $1", [timestamp]),
+		});
+		return errMsg;
+	},
+	updateCreditPay: async (pay: number, timestamp: number): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute("UPDATE records SET pay = $1, credit = 0 WHERE timestamp = $2", [
+					pay,
+					timestamp,
+				]),
 		});
 		return errMsg;
 	},
