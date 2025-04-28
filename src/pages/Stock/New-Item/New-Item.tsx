@@ -13,7 +13,10 @@ const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
 	stock: numeric,
-	capital: numeric,
+	capital: z
+		.string()
+		.refine((v) => !Number.isNaN(v))
+		.transform((v) => (v === "" ? 0 : Number(v))),
 	barcode: z
 		.string()
 		.refine((v) => !Number.isNaN(v))
@@ -101,14 +104,8 @@ export default function Page() {
 						autoComplete="off"
 					/>
 				</Field>
-				<Field error={error.capital} label="Modal*:">
-					<Input
-						type="number"
-						className="outline w-[300px]"
-						name="capital"
-						required
-						autoComplete="off"
-					/>
+				<Field error={error.capital} label="Modal:">
+					<Input type="number" className="outline w-[300px]" name="capital" autoComplete="off" />
 				</Field>
 				<Field error={error.stock} label="Stok*:">
 					<Input
