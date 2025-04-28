@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { tryResult } from "../../utils";
+import { formatDate, tryResult } from "../../utils";
 import { Loader2 } from "lucide-react";
 import { TextError } from "../../components/TextError";
 import { useNotification } from "../../components/Notification";
+import { Temporal } from "temporal-polyfill";
 
 // add toast later
 export function Update() {
@@ -60,12 +61,17 @@ async function update(notify: (notification: React.ReactNode) => void) {
 						break;
 					case "Progress":
 						downloaded += event.data.chunkLength;
+						const time = update.date ? Temporal.ZonedDateTime.from(update.date) : null;
 						notify(
 							<>
 								<p>
-									Mulai mengunduh versi {update.version} {update.date}
+									Mulai mengunduh versi {update.version}{" "}
+									{time ? formatDate(time.epochMilliseconds) : ""}
 								</p>
-								<p>Progres: {(downloaded / contentLength) * 100}%</p>
+								<p>
+									Progres: {downloaded / 1e3}/{contentLength > 0 ? contentLength / 1e3 : "?"}{" "}
+									{contentLength > 0 ? `(${(downloaded / contentLength) * 100}%)` : ""}
+								</p>
 							</>
 						);
 						break;
