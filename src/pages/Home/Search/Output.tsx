@@ -29,11 +29,11 @@ export function Output({
 							}
 							className={cn(
 								"cursor-pointer text-2xl w-full grid hover:bg-sky-100/50",
-								product.barcode !== null ? "grid-cols-[1fr_165px]" : ""
+								product.barcode !== null ? "grid-cols-[1fr_170px]" : ""
 							)}
 						>
 							<p className="text-start text-wrap">{product.name}</p>
-							{product.barcode !== null ? <p>{product.barcode}</p> : null}
+							{product.barcode !== null ? <p className="text-start">{product.barcode}</p> : null}
 						</button>
 					</li>
 				))}

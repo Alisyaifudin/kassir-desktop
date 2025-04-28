@@ -63,8 +63,8 @@ export type Action =
 				id: number;
 				barcode?: number;
 			};
-	  }
-	
+	  };
+
 export function itemReducer(state: State, action: Action): State {
 	switch (action.action) {
 		case "reset":
@@ -170,6 +170,14 @@ export function itemReducer(state: State, action: Action): State {
 		}
 		case "add-manual": {
 			const { disc, name, price, qty, barcode, stock } = action.data;
+			if (barcode !== null) {
+				const itemIndex = state.items.findIndex((item) => item.barcode === barcode);
+				if (itemIndex !== -1) {
+					return produce(state, (draft) => {
+						draft.items[itemIndex].qty += qty;
+					});
+				}
+			}
 			return produce(state, (draft) => {
 				draft.items.push({
 					name,
@@ -209,6 +217,5 @@ export function itemReducer(state: State, action: Action): State {
 				}
 			});
 		}
-		
 	}
 }

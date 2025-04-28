@@ -6,7 +6,7 @@ import { BuyInput } from "./BuyInput";
 
 export function InputItem({ mode }: { mode: "buy" | "sell" }) {
 	return (
-		<aside className="flex flex-col overflow-hidden  justify-between min-w-[600px] w-[30%] h-full">
+		<aside className="flex flex-col overflow-hidden  justify-between min-w-[666px] w-[35%] h-full">
 			{mode === "sell" ? (
 				<Tabs
 					defaultValue="auto"

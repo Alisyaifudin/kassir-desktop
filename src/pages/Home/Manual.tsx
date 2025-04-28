@@ -42,11 +42,12 @@ export function Manual() {
 	const { dispatch } = useContext(ItemContext);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const nameEl = e.currentTarget.querySelector<HTMLInputElement>(`[name="name"]`);
+		const formEl = e.currentTarget;
+		const nameEl = formEl.querySelector<HTMLInputElement>(`[name="name"]`);
 		if (nameEl === null) {
 			return;
 		}
-		const formData = new FormData(e.currentTarget);
+		const formData = new FormData(formEl);
 		const parsed = itemSchema.safeParse({
 			name: formData.get("name"),
 			price: formData.get("price"),
@@ -94,7 +95,7 @@ export function Manual() {
 					});
 					setLoading(false);
 					setError({ name: "", price: "", qty: "", disc: "", barcode: "", stock: "" });
-					e.currentTarget.reset();
+					formEl.reset();
 					nameEl.focus();
 					return;
 			}
@@ -106,7 +107,7 @@ export function Manual() {
 				data: { disc, name, price, qty, barcode, stock },
 			});
 			setError({ name: "", price: "", qty: "", disc: "", barcode: "", stock: "" });
-			e.currentTarget.reset();
+			formEl.reset();
 			nameEl.focus();
 		}
 	};
