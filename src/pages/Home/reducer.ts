@@ -45,11 +45,13 @@ export type Action =
 			data: {
 				name: string;
 				price: string;
-				qty: string;
+				qty: number;
 				disc: {
 					type: "number" | "percent";
 					value: string;
 				};
+				barcode: number | null;
+				stock: number;
 			};
 	  }
 	| {
@@ -175,12 +177,14 @@ export function itemReducer(state: State, action: Action): State {
 			});
 		}
 		case "add-manual": {
-			const { disc, name, price, qty } = action.data;
+			const { disc, name, price, qty, barcode, stock } = action.data;
 			return produce(state, (draft) => {
 				draft.items.push({
 					name,
+					barcode: barcode ?? undefined,
+					stock,
 					price,
-					qty,
+					qty: qty.toString(),
 					disc,
 				});
 			});

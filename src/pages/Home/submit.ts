@@ -40,6 +40,7 @@ export async function submitPayment(
 			product_id: item.id,
 			capital,
 			barcode: item.barcode ?? null,
+			stock : item.stock ?? Number(item.qty)
 		};
 	});
 	const promises = [
@@ -56,6 +57,17 @@ export async function submitPayment(
 					capital: product.capital ?? 0, // shoud be exist
 					price: product.price,
 					stock: product.qty,
+				})
+			);
+		}
+	} else {
+		for (const product of itemsTranform) {
+			promises.push(
+				db.product.insertIfNotYet({
+					name: product.name,
+					barcode: product.barcode,
+					price: product.price,
+					stock: product.stock - product.qty,
 				})
 			);
 		}

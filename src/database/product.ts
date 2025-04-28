@@ -53,6 +53,22 @@ export const genProduct = (db: Database) => ({
 		});
 		return errMsg;
 	},
+	insertIfNotYet: async (data: {
+		name: string;
+		price: number;
+		stock: number;
+		barcode: number | null;
+	}): Promise<string | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute(
+					`INSERT INTO products (name, stock, price, barcode) VALUES ($1, $2, $3, $4)
+					 ON CONFLICT(barcode) DO NOTHING`,
+					[data.name, data.stock, data.price, data.barcode]
+				),
+		});
+		return errMsg;
+	},
 	upsert: async (data: {
 		name: string;
 		price: number;

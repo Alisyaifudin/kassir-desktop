@@ -22,7 +22,7 @@ export function InputItem({ mode }: { mode: "buy" | "sell" }) {
 						<hr />
 						<Search />
 					</TabsContent>
-					<TabsContent value="man" className="w-full">
+					<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
 						<Manual />
 					</TabsContent>
 				</Tabs>
