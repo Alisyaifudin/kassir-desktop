@@ -14,10 +14,13 @@ export function CashierSelect({
 }) {
 	const store = useStore();
 	const [[errCashiers, cashiers], rawSelected] = data;
-	if (errCashiers) {
+	if (errCashiers !== null) {
 		return <TextError>{errCashiers}</TextError>;
 	}
 	useEffect(() => {
+		if (cashiers.length === 0) {
+			return;
+		}
 		if (rawSelected === undefined) {
 			setCashier(cashiers[0].name);
 			store.cashier.set(cashiers[0].name);
