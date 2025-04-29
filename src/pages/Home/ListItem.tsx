@@ -143,13 +143,10 @@ export function ListItem({
 				<div
 					className={cn(
 						"grid gap-1 outline text-3xl",
-						mode === "buy"
-							? "grid-cols-[70px_210px_1fr_150px_230px_70px_150px_50px]"
-							: "grid-cols-[70px_1fr_150px_230px_70px_150px_50px]"
+						"grid-cols-[70px_1fr_150px_230px_70px_150px_50px]"
 					)}
 				>
 					<p className="border-r">No</p>
-					{mode === "buy" ? <p className="border-r">Barcode</p> : null}
 					<p className="border-r">Nama</p>
 					<p className="border-r">Harga</p>
 					<p className="border-r">Diskon</p>

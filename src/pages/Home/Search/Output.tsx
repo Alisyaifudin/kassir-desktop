@@ -10,7 +10,7 @@ export function Output({
 		price: string;
 		stock: number;
 		id: number;
-		barcode?: number;
+		barcode?: string;
 	}) => void;
 }) {
 	return (
@@ -25,6 +25,7 @@ export function Output({
 									name: product.name,
 									price: product.price.toString(),
 									stock: product.stock,
+									barcode: product.barcode ?? undefined,
 								})
 							}
 							className={cn(

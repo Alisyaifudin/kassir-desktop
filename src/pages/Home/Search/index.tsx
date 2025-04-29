@@ -5,8 +5,8 @@ import { TextError } from "../../../components/TextError";
 import { Field } from "../Field";
 import { Input } from "../../../components/ui/input";
 import { ItemContext } from "../reducer";
-import { numeric } from "../../../lib/utils";
 import { Loader2 } from "lucide-react";
+import { z } from "zod";
 
 export function Search() {
 	const [products, setProducts] = useState<DB.Product[]>([]);
@@ -14,7 +14,7 @@ export function Search() {
 	const [loading, setLoading] = useState(false);
 	const [name, setName] = useState("");
 	const { dispatch } = useContext(ItemContext);
-	const [barcode, setBarcode] = useState<number | null>(null);
+	const [barcode, setBarcode] = useState<string|null>(null);
 	const db = useDb();
 	const handleChangeBarcode = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const n = e.currentTarget.value;
@@ -26,8 +26,8 @@ export function Search() {
 			setProducts([]);
 			return;
 		}
-		setBarcode(Number(n));
-		db.product.searchByBarcode(Number(n)).then((res) => {
+		setBarcode(n);
+		db.product.searchByBarcode(n).then((res) => {
 			const [errMsg, items] = res;
 			if (errMsg !== null) {
 				setError(errMsg);
@@ -60,7 +60,7 @@ export function Search() {
 		price: string;
 		stock: number;
 		id: number;
-		barcode?: number;
+		barcode?: string;
 	}) => {
 		dispatch({
 			action: "add-select",
@@ -78,7 +78,10 @@ export function Search() {
 		}
 		const formData = new FormData(e.currentTarget);
 		setLoading(true);
-		const parsed = numeric.safeParse(formData.get("barcode"));
+		const parsed = z
+			.string()
+			.refine((v) => !Number.isNaN(v))
+			.safeParse(formData.get("barcode"));
 		if (!parsed.success) {
 			setError(parsed.error.flatten().formErrors.join("; "));
 			setLoading(false);
@@ -96,7 +99,7 @@ export function Search() {
 			id: product.id,
 			price: product.price.toString(),
 			stock: product.stock,
-			barcode: product.barcode!,
+			barcode: product.barcode ?? undefined,
 		});
 	};
 	return (

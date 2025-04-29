@@ -9,7 +9,6 @@ export function Search({ query, setQuery }: { query: string; setQuery: (v: strin
 		(value: string) => {
 			setQuery(value);
 		},
-		// delay in ms
 		200
 	);
 	return (

@@ -38,7 +38,7 @@ export async function submitPayment(
 			qty: Number(item.qty),
 			subtotal,
 			product_id: item.id,
-			capital,
+			capital: capital ?? 0,
 			barcode: item.barcode ?? null,
 			stock: item.stock ?? Number(item.qty),
 		};
@@ -53,8 +53,8 @@ export async function submitPayment(
 			promises.push(
 				db.product.upsert({
 					name: product.name,
-					barcode: product.barcode,
-					capital: product.capital ?? 0, // shoud be exist
+					barcode: product.barcode ?? null,
+					capital: product.capital, // shoud be exist
 					price: product.price,
 					stock: product.qty,
 				})
@@ -65,7 +65,7 @@ export async function submitPayment(
 			promises.push(
 				db.product.insertIfNotYet({
 					name: product.name,
-					barcode: product.barcode,
+					barcode: product.barcode ?? null,
 					price: product.price,
 					stock: product.stock - product.qty,
 				})

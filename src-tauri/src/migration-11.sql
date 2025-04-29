@@ -1,0 +1,9 @@
+ALTER TABLE products RENAME TO products_old;
+
+CREATE TABLE products (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  stock INTEGER NOT NULL,
+  barcode TEXT NOT NULL UNIQUE DEFAULT '',
+  capital INTEGER
+) STRICT

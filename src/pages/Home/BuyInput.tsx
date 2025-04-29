@@ -21,7 +21,7 @@ const itemSchema = z.object({
 const barcodeSchema = z
 	.string()
 	.refine((v) => !Number.isNaN(v))
-	.transform((v) => (v === "" ? undefined : Number(v)));
+	.transform((v) => (v === "" ? undefined : v));
 
 export function BuyInput() {
 	const [disc, setDisc] = useState("percent");
@@ -29,7 +29,7 @@ export function BuyInput() {
 	const { dispatch } = useContext(ItemContext);
 	const ref = useRef<HTMLInputElement | null>(null);
 	const db = useDb();
-	const [barcode, setBarcode] = useState<undefined | number>(undefined);
+	const [barcode, setBarcode] = useState<string>("");
 	const handleSearchBarcode = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (!ref.current) {
@@ -94,7 +94,7 @@ export function BuyInput() {
 			action: "add-buy",
 			data: { disc, name, price, qty, barcode },
 		});
-		setBarcode(undefined);
+		setBarcode("");
 		ref.current.focus();
 		e.currentTarget.reset();
 	};
@@ -103,9 +103,9 @@ export function BuyInput() {
 			<form onSubmit={handleSearchBarcode}>
 				<Field label="Barcode" error={error.barcode}>
 					<Input
-						value={barcode ?? ""}
+						value={barcode}
 						onChange={(e) => {
-							setBarcode(e.currentTarget.value === "" ? undefined : Number(e.currentTarget.value));
+							setBarcode(e.currentTarget.value.trim());
 							setError((prev) => ({ ...prev, barcode: "" }));
 						}}
 						type="number"

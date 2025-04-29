@@ -15,6 +15,7 @@ type Props = {
 };
 
 export function ProductList({ products }: Props) {
+	console.log(products);
 	return (
 		<Table className="text-3xl">
 			<TableHeader>
@@ -35,7 +36,7 @@ export function ProductList({ products }: Props) {
 						<TableCell>{product.barcode ?? ""}</TableCell>
 						<TableCell>{product.name}</TableCell>
 						<TableCell className="text-right">{product.price.toLocaleString("id-ID")}</TableCell>
-						<TableCell className="text-right">{product.capital.toLocaleString("id-ID")}</TableCell>
+						<TableCell className="text-right">{(product.capital).toLocaleString("id-ID")}</TableCell>
 						<TableCell className="text-right">{product.stock}</TableCell>
 						<TableCell>
 							<Button variant="link" className="p-0" asChild>

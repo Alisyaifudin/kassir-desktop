@@ -4,7 +4,7 @@ declare namespace DB {
 		name: string;
 		price: number;
 		stock: number;
-		barcode: number | null;
+		barcode: string | null;
 		capital: number;
 	}
 	interface Record {
@@ -34,6 +34,6 @@ declare namespace DB {
 		subtotal: number;
 		disc_val: number;
 		disc_type: "number" | "percent";
-		capital: number | null;
+		capital: number;
 	}
 }

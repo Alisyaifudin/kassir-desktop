@@ -17,10 +17,7 @@ const dataSchema = z.object({
 		.string()
 		.refine((v) => !Number.isNaN(v))
 		.transform((v) => (v === "" ? 0 : Number(v))),
-	barcode: z
-		.string()
-		.refine((v) => !Number.isNaN(v))
-		.transform((v) => (v === "" ? null : Number(v))),
+	barcode: z.string().refine((v) => !Number.isNaN(v)).transform((v) => v === "" ? null : v),
 });
 
 export default function Page() {

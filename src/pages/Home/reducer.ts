@@ -33,7 +33,7 @@ export type Action =
 				name: string;
 				price: string;
 				qty: string;
-				barcode?: number;
+				barcode?: string;
 				disc: {
 					type: "number" | "percent";
 					value: string;
@@ -50,7 +50,7 @@ export type Action =
 					type: "number" | "percent";
 					value: string;
 				};
-				barcode: number | null;
+				barcode?: string;
 				stock: number;
 			};
 	  }
@@ -61,7 +61,7 @@ export type Action =
 				price: string;
 				stock: number;
 				id: number;
-				barcode?: number;
+				barcode?: string;
 			};
 	  };
 
@@ -80,12 +80,11 @@ export function itemReducer(state: State, action: Action): State {
 				const parsed = z
 					.string()
 					.refine((v) => !Number.isNaN(v))
-					.transform((v) => (v === "" ? undefined : Number(v)))
 					.safeParse(action.barcode);
 				if (!parsed.success) {
 					return state;
 				}
-				draft.items[action.index].barcode = parsed.data;
+				draft.items[action.index].barcode = parsed.data === "" ? undefined : parsed.data;
 			});
 		case "edit-price": {
 			const { index, price } = action;
@@ -170,7 +169,7 @@ export function itemReducer(state: State, action: Action): State {
 		}
 		case "add-manual": {
 			const { disc, name, price, qty, barcode, stock } = action.data;
-			if (barcode !== null) {
+			if (barcode !== undefined) {
 				const itemIndex = state.items.findIndex((item) => item.barcode === barcode);
 				if (itemIndex !== -1) {
 					return produce(state, (draft) => {
@@ -181,7 +180,7 @@ export function itemReducer(state: State, action: Action): State {
 			return produce(state, (draft) => {
 				draft.items.push({
 					name,
-					barcode: barcode ?? undefined,
+					barcode,
 					stock,
 					price,
 					qty: qty.toString(),

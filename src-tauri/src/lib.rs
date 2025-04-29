@@ -70,6 +70,24 @@ pub fn run() {
             sql: include_str!("../src/migration-10.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 11,
+            description: "change_barcode_to_text",
+            sql: include_str!("../src/migration-11.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 12,
+            description: "change_barcode_to_text_2",
+            sql: include_str!("../src/migration-12.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 13,
+            description: "fix_capital",
+            sql: include_str!("../src/migration-13.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(

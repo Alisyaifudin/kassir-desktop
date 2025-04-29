@@ -23,7 +23,7 @@ const itemSchema = z.object({
 	barcode: z
 		.string()
 		.refine((v) => !Number.isNaN(v))
-		.transform((v) => (v === "" ? null : Number(v))),
+		.transform((v) => v === "" ? undefined : v),
 	stock: numeric,
 });
 
@@ -80,7 +80,7 @@ export function Manual() {
 			setError((prev) => ({ ...prev, qty: "Kuantitas minimal 1" }));
 			return;
 		}
-		if (barcode !== null) {
+		if (barcode !== undefined) {
 			setLoading(true);
 			const [errMsg] = await db.product.getByBarcode(barcode);
 			switch (errMsg) {

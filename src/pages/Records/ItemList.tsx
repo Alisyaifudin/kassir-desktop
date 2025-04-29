@@ -194,7 +194,7 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 							<TableCell>{item.name}</TableCell>
 							<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
 							<TableCell className="w-[150px] text-end">
-								{item.capital?.toLocaleString("id-ID")}
+								{(item.capital).toLocaleString("id-ID")}
 							</TableCell>
 							<TableCell className="text-center">{item.qty}</TableCell>
 							<TableCell className="text-end">
