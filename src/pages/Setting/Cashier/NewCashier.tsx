@@ -1,0 +1,70 @@
+import { useState } from "react";
+import { useDb } from "../../../Layout";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "../../../components/ui/dialog";
+import { Button } from "../../../components/ui/button";
+import { Loader2, Plus } from "lucide-react";
+import { TextError } from "../../../components/TextError";
+import { z } from "zod";
+import { Input } from "../../../components/ui/input";
+
+export function NewCashier() {
+	const db = useDb();
+	const [error, setError] = useState("");
+	const [open, setOpen] = useState(false);
+	const [loading, setLoading] = useState(false);
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget);
+		const parsed = z.string().safeParse(formData.get("name"));
+		if (!parsed.success) {
+			setError(parsed.error.flatten().formErrors.join("; "));
+			return;
+		}
+		const name = parsed.data;
+		setLoading(true);
+		db.cashier.add(name).then((err) => {
+			if (err) {
+				setError(err);
+				setLoading(false);
+				return;
+			}
+			setLoading(false);
+			setOpen(false);
+		});
+	};
+	return (
+		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+			<Button asChild>
+				<DialogTrigger>
+					Tambah Kasir <Plus />
+				</DialogTrigger>
+			</Button>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle className="text-3xl">Tambah Kasir</DialogTitle>
+				</DialogHeader>
+				<form onSubmit={handleSubmit}>
+					<label className="grid grid-cols-[100px_1fr] items-center">
+						<span className="text-3xl">Nama:</span>
+						<Input type="text" name="name" />
+					</label>
+					<div className="flex justify-between mt-5">
+						<Button asChild variant={"secondary"}>
+							<DialogClose type="button">Batal</DialogClose>
+						</Button>
+						<Button>Tambahkan {loading && <Loader2 className="animate-spin" />}</Button>
+					</div>
+				</form>
+
+				{error === "" ? null : <TextError>{error}</TextError>}
+			</DialogContent>
+		</Dialog>
+	);
+}

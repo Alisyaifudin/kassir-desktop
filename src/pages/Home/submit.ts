@@ -9,6 +9,7 @@ export async function submitPayment(
 	db: Database,
 	mode: "buy" | "sell",
 	record: {
+		cashier: string | null;
 		credit: 0 | 1;
 		rounding: number;
 		total: number;

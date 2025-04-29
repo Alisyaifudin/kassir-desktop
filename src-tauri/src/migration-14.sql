@@ -1,0 +1,6 @@
+CREATE TABLE cashiers (
+  name TEXT PRIMARY KEY
+) STRICT;
+
+ALTER TABLE records 
+ADD COLUMN cashier TEXT REFERENCES cashiers(name) ON DELETE SET NULL;

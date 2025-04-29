@@ -25,7 +25,6 @@ type Props = {
 
 export function ItemComponent({ id, disc, name, price, qty, index, mode, stock, barcode }: Props) {
 	const { dispatch } = useContext(ItemContext);
-
 	return (
 		<div
 			className={cn("grid gap-1 grid-cols-[70px_1fr] items-center text-3xl", {

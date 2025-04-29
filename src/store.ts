@@ -10,7 +10,17 @@ function generate<T extends string>(
 	};
 }
 
-const profiles = ["owner", "address", "ig", "shopee", "footer", "header", "version", "newVersion"] as const;
+const profiles = [
+	"owner",
+	"address",
+	"ig",
+	"shopee",
+	"footer",
+	"header",
+	"version",
+	"newVersion",
+	"cashier",
+] as const;
 
 export function generateStore(store: StoreTauri) {
 	const obj = profiles.map((p) => [p, generate(store, p)] as const);

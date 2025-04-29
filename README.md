@@ -7,7 +7,5 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- cari riwayat dengan timestamp
-- nama penjaga kasir
 - dari halaman riwayat, salin catatan ke toko
 

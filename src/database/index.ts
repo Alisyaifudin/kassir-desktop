@@ -3,6 +3,7 @@ import { genProduct } from "./product";
 import { genRecord } from "./record";
 import { genRecordItem } from "./record-item";
 import { genTax } from "./tax";
+import { genChasier } from "./cashier";
 
 export function generateDB(db: DatabaseTauri) {
 	return {
@@ -10,6 +11,7 @@ export function generateDB(db: DatabaseTauri) {
 		record: genRecord(db),
 		recordItem: genRecordItem(db),
 		tax: genTax(db),
+		cashier: genChasier(db),
 	};
 }
 

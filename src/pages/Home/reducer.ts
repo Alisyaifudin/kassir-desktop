@@ -203,7 +203,7 @@ export function itemReducer(state: State, action: Action): State {
 						qty: "1",
 						disc: {
 							value: "0",
-							type: "number",
+							type: "percent",
 						},
 						stock,
 						id,

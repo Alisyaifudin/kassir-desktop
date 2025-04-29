@@ -32,11 +32,18 @@ export default function Setting() {
 							<Link to="/setting/data">Data</Link>
 						</Button>
 					</li>
+					<li className="h-14 flex items-center">
+						<Button
+							className="w-full"
+							asChild
+							variant={pathname === "/setting/cashier" ? "default" : "link"}
+						>
+							<Link to="/setting/cashier">Kasir</Link>
+						</Button>
+					</li>
 				</ol>
 				<div className="flex flex-col gap-1">
-					<Await state={state}>
-						{(data) => <p className="text-3xl">Versi {data ?? "?"}</p>}
-					</Await>
+					<Await state={state}>{(data) => <p className="text-3xl">Versi {data ?? "?"}</p>}</Await>
 					<Update />
 				</div>
 			</nav>

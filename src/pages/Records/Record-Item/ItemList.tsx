@@ -55,7 +55,7 @@ export function ItemList({
 			}
 		};
 	}, []);
-
+	console.log({ record });
 	const print = () => {
 		document.documentElement.style.setProperty("--paper-width", `${width}`);
 		window.print();
@@ -86,10 +86,13 @@ export function ItemList({
 							<div id="print-container" className="flex flex-col gap-2 overflow-auto px-2">
 								<div className="flex flex-col">
 									<p className="text-center text-lg font-bold">{data.owner}</p>
-									{headers.map((h) => (
-										<p className="text-center">{h}</p>
+									{headers.map((h, i) => (
+										<p key={i} className="text-center">
+											{h}
+										</p>
 									))}
-									<p className="text-end">{data.address}</p>
+									<p>{data.address}</p>
+									{record.cashier ? <p>Kasir: {data.cashier}</p> : null}
 									<div className="flex items-center justify-between">
 										<p>No: {record.timestamp}</p>
 										<p>
@@ -127,7 +130,7 @@ export function ItemList({
 													</p>
 												</div>
 												{taxes.map((tax) => (
-													<TaxItem tax={tax} total={record.total} />
+													<TaxItem key={tax.id} tax={tax} total={record.total} />
 												))}
 												<hr className="w-full" />
 											</>
@@ -164,11 +167,11 @@ export function ItemList({
 									</div>
 								</div>
 								<div className="flex items-center flex-col">
-									{footers.map((h) => (
-										<p className="text-center">{h}</p>
+									{footers.map((h, i) => (
+										<p className="text-center" key={i}>
+											{h}
+										</p>
 									))}
-									{/* <p>Terimakasih telah berbelanja di toko kami</p>
-									<p>Barang yang sudah dibeli tidak dapat ditukar lagi</p> */}
 									<p>IG: {data.ig}</p>
 									<p>Shopee: {data.shopee}</p>
 								</div>

@@ -3,13 +3,16 @@ import { Input } from "../../components/ui/input";
 import { ItemComponent } from "./Item";
 import { useContext, useState } from "react";
 import { cn, log } from "../../lib/utils";
-import { useDb } from "../../Layout";
+import { useDb, useStore } from "../../Layout";
 import { useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";
 import { ItemContext } from "./reducer";
 import { calcChange, calcTotal, calcTotalBeforeTax, submitPayment } from "./submit";
 import { TaxItem } from "./Tax";
 import { TextError } from "../../components/TextError";
+import { useAsync } from "../../hooks/useAsync";
+import { Await } from "../../components/Await";
+import { CashierSelect } from "./CashierSelect";
 
 export function ListItem({
 	mode,
@@ -21,12 +24,14 @@ export function ListItem({
 	const { state } = useContext(ItemContext);
 	const { items, taxes } = state;
 	const [pay, setPay] = useState("");
+	const [cashier, setCashier] = useState<null | string>(null);
 	const [rounding, setRounding] = useState("");
 	const [disc, setDisc] = useState<{ type: "number" | "percent"; value: string }>({
 		type: "percent",
 		value: "",
 	});
 	const db = useDb();
+	const cashierState = useCashiers();
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const navigate = useNavigate();
@@ -86,6 +91,7 @@ export function ListItem({
 							value: Number(disc.value),
 							type: disc.type,
 						},
+						cashier,
 						pay: Number(pay),
 						total: totalBeforeTax.toNumber(),
 						grand_total: total.toNumber(),
@@ -93,6 +99,7 @@ export function ListItem({
 				: {
 						credit,
 						rounding: 0,
+						cashier,
 						change: 0,
 						disc: {
 							value: 0,
@@ -124,21 +131,26 @@ export function ListItem({
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
 			<div className="outline flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
-				<div className="flex gap-2 items-center">
-					<Button
-						onClick={() => setMode("sell")}
-						className={mode === "sell" ? "text-2xl font-bold" : "text-black/50"}
-						variant={mode === "sell" ? "default" : "ghost"}
-					>
-						<h2 className="">Jual</h2>
-					</Button>
-					<Button
-						onClick={() => setMode("buy")}
-						className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
-						variant={mode === "buy" ? "default" : "ghost"}
-					>
-						<h2 className="">Beli</h2>
-					</Button>
+				<div className="flex gap-2 items-center justify-between">
+					<div className="flex items-center gap-1">
+						<Button
+							onClick={() => setMode("sell")}
+							className={mode === "sell" ? "text-2xl font-bold" : "text-black/50"}
+							variant={mode === "sell" ? "default" : "ghost"}
+						>
+							<h2 className="">Jual</h2>
+						</Button>
+						<Button
+							onClick={() => setMode("buy")}
+							className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
+							variant={mode === "buy" ? "default" : "ghost"}
+						>
+							<h2 className="">Beli</h2>
+						</Button>
+					</div>
+					<Await state={cashierState}>
+						{(data) => <CashierSelect data={data} cashier={cashier} setCashier={setCashier} />}
+					</Await>
 				</div>
 				<div
 					className={cn(
@@ -234,4 +246,11 @@ export function ListItem({
 			</div>
 		</div>
 	);
+}
+
+function useCashiers() {
+	const db = useDb();
+	const store = useStore();
+	const state = useAsync(Promise.all([db.cashier.get(), store.cashier.get()]));
+	return state;
 }

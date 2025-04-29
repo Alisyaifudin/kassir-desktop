@@ -18,6 +18,7 @@ declare namespace DB {
 		change: string;
 		rounding: number | null;
 		credit: 0 | 1;
+		cashier: string | null;
 	}
 	interface Tax {
 		id: number;
@@ -35,5 +36,8 @@ declare namespace DB {
 		disc_val: number;
 		disc_type: "number" | "percent";
 		capital: number;
+	}
+	interface Cashier {
+		name: string;
 	}
 }

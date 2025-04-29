@@ -88,6 +88,12 @@ pub fn run() {
             sql: include_str!("../src/migration-13.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 14,
+            description: "add_cashier",
+            sql: include_str!("../src/migration-14.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(

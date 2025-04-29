@@ -11,7 +11,9 @@ export const genRecord = (db: Database) => ({
 				),
 		});
 	},
-	getByTime: async (timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Record | null>> => {
+	getByTime: async (
+		timestamp: number
+	): Promise<Result<"Aplikasi bermasalah", DB.Record | null>> => {
 		const [errMsg, records] = await tryResult({
 			run: () => db.select<DB.Record[]>("SELECT * FROM records WHERE timestamp = $1", [timestamp]),
 		});
@@ -23,6 +25,7 @@ export const genRecord = (db: Database) => ({
 		mode: "sell" | "buy",
 		timestamp: number,
 		data: {
+			cashier: string | null;
 			credit: 0 | 1;
 			total: number;
 			rounding: number | null;
@@ -39,8 +42,8 @@ export const genRecord = (db: Database) => ({
 			run: () =>
 				db.execute(
 					`INSERT INTO records 
-						(mode, timestamp, grand_total, pay, disc_val, disc_type, change, total, rounding, credit)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+						(mode, timestamp, grand_total, pay, disc_val, disc_type, change, total, rounding, credit, cashier)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 					[
 						mode,
 						timestamp,
@@ -52,6 +55,7 @@ export const genRecord = (db: Database) => ({
 						data.total,
 						data.rounding,
 						data.credit,
+						data.cashier,
 					]
 				),
 		});
