@@ -3,12 +3,14 @@ import { Button } from "../../components/ui/button";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { formatDate, tryResult } from "../../lib/utils";
-import { Loader2 } from "lucide-react";
+import { BellRing, Loader2 } from "lucide-react";
 import { TextError } from "../../components/TextError";
 import { useNotification } from "../../components/Notification";
 import { Temporal } from "temporal-polyfill";
 import { Store } from "../../store";
 import { useStore } from "../../Layout";
+import { useAsync } from "../../hooks/useAsync";
+import { Await } from "../../components/Await";
 
 // add toast later
 export function Update() {
@@ -16,6 +18,7 @@ export function Update() {
 	const [error, setError] = useState("");
 	const { notify } = useNotification();
 	const store = useStore();
+	const state = useAsync(store.newVersion.get());
 	const handleClick = async () => {
 		setLoading(true);
 		const [errMsg] = await tryResult({
@@ -31,9 +34,24 @@ export function Update() {
 	};
 	return (
 		<div className="flex flex-col gap-1">
-			<Button onClick={handleClick} variant="secondary">
-				Update {loading ? <Loader2 className="animate-spin" /> : null}
-			</Button>
+			<Await
+				state={state}
+				Loading={
+					<Button onClick={handleClick} variant="secondary">
+						Update {loading ? <Loader2 className="animate-spin" /> : null}{" "}
+					</Button>
+				}
+			>
+				{(data) => (
+					<>
+						<Button onClick={handleClick} variant="secondary">
+							Update {loading ? <Loader2 className="animate-spin" /> : null}
+							{data === "true" ? <BellRing className="text-red-500 animate-ring" /> : null}
+						</Button>
+						{data === "true" ? <p className="text-2xl">Ada versi baru!</p> : null}
+					</>
+				)}
+			</Await>
 			{error ? <TextError>{error}</TextError> : null}
 		</div>
 	);
@@ -80,6 +98,7 @@ async function update(store: Store, notify: (notification: React.ReactNode) => v
 						);
 						break;
 					case "Finished":
+						store.version.set("false");
 						notify(null);
 						break;
 				}

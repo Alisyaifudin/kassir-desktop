@@ -7,8 +7,7 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- tampilkan versi aplikasi
-- notifikasi jika ada update terbaru
+- nama penjaga kasir
 - cari riwayat dengan timestamp
 - dari halaman riwayat, salin catatan ke toko
 

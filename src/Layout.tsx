@@ -2,17 +2,19 @@ import { Link, Outlet, useLocation, useOutletContext } from "react-router";
 import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { useEffect, useState } from "react";
 import { Store as StoreTauri } from "@tauri-apps/plugin-store";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Settings, BellRing } from "lucide-react";
 import { type Database, generateDB } from "./database";
 import { generateStore, Store } from "./store";
 import { Notification } from "./components/Notification";
 import { cn } from "./lib/utils";
-import { emitter } from './lib/event-emitter';
+import { emitter } from "./lib/event-emitter";
+import { check } from "@tauri-apps/plugin-updater";
 
 function Layout() {
 	const { pathname } = useLocation();
 	const [db, setDb] = useState<Database | null>(null);
 	const [store, setStore] = useState<Store | null>(null);
+	const [hasUpdate, setHasUpdate] = useState(false);
 	const [name, setName] = useState("");
 	useEffect(() => {
 		StoreTauri.load("store.json", { autoSave: false }).then((store) => {
@@ -23,21 +25,29 @@ function Layout() {
 					setName(v);
 				}
 			});
+			check().then((update) => {
+				if (update !== null) {
+					s.newVersion.set("true");
+					setHasUpdate(true);
+				} else {
+					s.newVersion.set("false");
+				}
+			});
 		});
 		DatabaseTauri.load("sqlite:data.db").then((db) => {
 			setDb(generateDB(db));
 		});
 	}, []);
 	useEffect(() => {
-    const refreshData = () => {
-      if (!store) return;
-      store.owner.get().then((ownerName) => setName(ownerName ?? ""));
-    };
-    emitter.on('refresh', refreshData);
-    return () => {
-      emitter.off('refresh', refreshData);
-    };
-  }, [store]);
+		const refreshData = () => {
+			if (!store) return;
+			store.owner.get().then((ownerName) => setName(ownerName ?? ""));
+		};
+		emitter.on("refresh", refreshData);
+		return () => {
+			emitter.off("refresh", refreshData);
+		};
+	}, [store]);
 
 	return (
 		<>
@@ -77,8 +87,11 @@ function Layout() {
 								pathname.includes("/setting") ? "bg-white" : "bg-black text-white"
 							)}
 						>
-							<Link to="/setting">
+							<Link to="/setting" className="relative">
 								<Settings size={35} />
+								{hasUpdate ? (
+									<BellRing className="text-red-500 animate-ring absolute -top-3 -right-3" />
+								) : null}
 							</Link>
 						</li>
 					</ul>
