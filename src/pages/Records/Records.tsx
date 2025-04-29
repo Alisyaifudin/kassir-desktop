@@ -10,10 +10,15 @@ import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/ta
 import { getMode } from "../Home/Home";
 import { TextError } from "../../components/TextError";
 import { Button } from "../../components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Input } from "../../components/ui/input";
+import { useState } from "react";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
+	const [error, setError] = useState("");
+	const [loading, setLoading] = useState(false);
+	const [val, setVal] = useState("");
 	const mode = getMode(search);
 	const time = getTime(search);
 	const selected = getSelected(search);
@@ -22,6 +27,7 @@ export default function Page() {
 	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
 	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
 	const state = useRecords(date);
+	const db = useDb();
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const date = e.currentTarget.value;
@@ -38,22 +44,65 @@ export default function Page() {
 	const selectRecord = (timestamp: number) => () => {
 		setSelected(setSearch, timestamp, selected);
 	};
+	const handleChangeNo = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const v = e.currentTarget.value.trim();
+		if (Number.isNaN(Number(v))) {
+			return;
+		}
+		setError("");
+		setVal(v);
+	};
+	const handleSubmitNo = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		setLoading(true);
+		const [errMsg, r] = await db.record.getByTime(Number(val));
+		if (errMsg) {
+			setError(errMsg);
+			setLoading(false);
+			return;
+		}
+		if (r === null) {
+			setError("Catatan tidak ada");
+			setLoading(false);
+			return;
+		}
+		setLoading(false);
+		setSearch({
+			mode: r.mode,
+			time: val,
+			selected: val,
+		});
+	};
 	return (
 		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto text-3xl">
-			<div className="flex gap-2 items-center">
-				<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
-					<ChevronLeft />
-				</Button>
-				<input
-					type="date"
-					className="outline rounded-md"
-					value={formatDate(time)}
-					onChange={handleChange}
-				/>
-				<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
-					<ChevronRight />
-				</Button>
-				<p>Tanggal {formatDate(time, "long")}</p>
+			<div className="flex gap-2 items-center w-full">
+				<div className="flex gap-1 items-center">
+					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
+						<ChevronLeft />
+					</Button>
+					<input
+						type="date"
+						className="outline rounded-md"
+						value={formatDate(time)}
+						onChange={handleChange}
+					/>
+					<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
+						<ChevronRight />
+					</Button>
+					<p>Tanggal {formatDate(time, "long")}</p>
+				</div>
+				<form onSubmit={handleSubmitNo} className="flex gap-2 items-center flex-1 justify-end">
+					{error === "" ? null : <TextError>{error}</TextError>}
+					{loading ? <Loader2 className="animate-spin" /> : null}
+					<p>No:</p>
+					<Input
+						type="search"
+						placeholder="Cari catatan"
+						className="w-[250px]"
+						value={val}
+						onChange={handleChangeNo}
+					/>
+				</form>
 			</div>
 			<Await state={state}>
 				{(data) => {

@@ -55,6 +55,7 @@ function ItemListSell({ items, record }: { items: DB.RecordItem[]; record: DB.Re
 	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
+			<p>No: {record.timestamp}</p>
 			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
@@ -160,6 +161,7 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 	};
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
+			<p>No: {record.timestamp}</p>
 			{record.credit === 1 ? (
 				<form onSubmit={handlePay} className="flex items-center gap-2 w-full max-w-[400px] py-1">
 					<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>
