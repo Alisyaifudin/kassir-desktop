@@ -9,6 +9,8 @@ import { ItemList } from "./ItemList";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
 import { getMode } from "../Home/Home";
 import { TextError } from "../../components/TextError";
+import { Button } from "../../components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
@@ -17,6 +19,8 @@ export default function Page() {
 	const selected = getSelected(search);
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
+	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
+	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
 	const state = useRecords(date);
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,12 +41,18 @@ export default function Page() {
 	return (
 		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto text-3xl">
 			<div className="flex gap-2 items-center">
+				<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
+					<ChevronLeft />
+				</Button>
 				<input
 					type="date"
 					className="outline rounded-md"
 					value={formatDate(time)}
 					onChange={handleChange}
 				/>
+				<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
+					<ChevronRight />
+				</Button>
 				<p>Tanggal {formatDate(time, "long")}</p>
 			</div>
 			<Await state={state}>
