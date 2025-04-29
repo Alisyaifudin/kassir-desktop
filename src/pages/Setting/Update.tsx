@@ -7,16 +7,19 @@ import { Loader2 } from "lucide-react";
 import { TextError } from "../../components/TextError";
 import { useNotification } from "../../components/Notification";
 import { Temporal } from "temporal-polyfill";
+import { Store } from "../../store";
+import { useStore } from "../../Layout";
 
 // add toast later
 export function Update() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const { notify } = useNotification();
+	const store = useStore();
 	const handleClick = async () => {
 		setLoading(true);
 		const [errMsg] = await tryResult({
-			run: () => update(notify),
+			run: () => update(store, notify),
 		});
 		if (errMsg !== null) {
 			setError(errMsg);
@@ -36,9 +39,10 @@ export function Update() {
 	);
 }
 
-async function update(notify: (notification: React.ReactNode) => void) {
+async function update(store: Store, notify: (notification: React.ReactNode) => void) {
 	const update = await check();
 	if (update) {
+		store.version.set(update.version);
 		update
 			.downloadAndInstall((event) => {
 				let downloaded = 0;
