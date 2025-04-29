@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { formatDate, tryResult } from "../../utils";
+import { formatDate, tryResult } from "../../lib/utils";
 import { Loader2 } from "lucide-react";
 import { TextError } from "../../components/TextError";
 import { useNotification } from "../../components/Notification";

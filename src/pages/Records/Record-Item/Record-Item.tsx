@@ -1,5 +1,5 @@
 import { useLoaderData, useNavigate } from "react-router";
-import { err, ok, Result } from "../../../utils";
+import { err, ok, Result } from "../../../lib/utils";
 import { useDb } from "../../../Layout";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft } from "lucide-react";

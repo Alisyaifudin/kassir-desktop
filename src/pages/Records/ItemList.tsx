@@ -13,7 +13,7 @@ import { Button } from "../../components/ui/button";
 import { calcDisc } from "./Discount";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
-import { log } from "../../utils";
+import { log } from "../../lib/utils";
 import { useDb } from "../../Layout";
 type RecordListProps = {
 	allItems: DB.RecordItem[];

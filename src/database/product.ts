@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { err, ok, Result, tryResult } from "../utils";
+import { err, ok, Result, tryResult } from "../lib/utils";
 
 export const genProduct = (db: Database) => ({
 	getAll: (): Promise<Result<string, DB.Product[]>> =>

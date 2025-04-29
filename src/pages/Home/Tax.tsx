@@ -4,7 +4,7 @@ import { Field } from "./Field";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { z } from "zod";
-import { numeric } from "../../utils";
+import { numeric } from "../../lib/utils";
 import { X } from "lucide-react";
 import Decimal from "decimal.js";
 import { calcTax } from "./submit";

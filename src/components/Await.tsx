@@ -1,5 +1,5 @@
 import { AsyncState } from "../hooks/useAsync";
-import { log } from "../utils";
+import { log } from "../lib/utils";
 type AwaitProps<T> = {
 	state: AsyncState<T>;
 	Loading?: React.ReactNode;

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router";
 import { z } from "zod";
-import { numeric } from "../../../utils";
+import { numeric } from "../../../lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { Field } from "../Field";
 import { Button } from "../../../components/ui/button";

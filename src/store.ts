@@ -1,33 +1,22 @@
 import { Store as StoreTauri } from "@tauri-apps/plugin-store";
-export const generateStore = (store: StoreTauri) => ({
-	owner: {
-		get: () => store.get<string>("owner"),
-		set: (owner: string) => store.set("owner", owner),
-	},
-	desc: {
-		get: () => store.get<string>("desc"),
-		set: (desc: string) => store.set("desc", desc),
-	},
-	address: {
-		get: () => store.get<string>("address"),
-		set: (address: string) => store.set("address", address),
-	},
-	ig: {
-		get: () => store.get<string>("ig"),
-		set: (ig: string) => store.set("ig", ig),
-	},
-	shopee: {
-		get: () => store.get<string>("shopee"),
-		set: (shopee: string) => store.set("shopee", shopee),
-	},
-	// tiktok: {
-	// 	get: () => store.get<string>("tiktok"),
-	// 	set: (tiktok: string) => store.set("tiktok", tiktok),
-	// },
-	// wa: {
-	// 	get: () => store.get<string>("wa"),
-	// 	set: (wa: string) => store.set("wa", wa),
-	// },
-});
+
+function generate<T extends string>(
+	store: StoreTauri,
+	key: T
+): { get: () => Promise<string | undefined>; set: (value: string) => Promise<void> } {
+	return {
+		get: () => store.get<string>(key),
+		set: (value: string) => store.set(key, value),
+	};
+}
+
+const profiles = ["owner", "address", "ig", "shopee", "footer", "header"] as const;
+
+export function generateStore(store: StoreTauri) {
+	const obj = profiles.map((p) => [p, generate(store, p)] as const);
+	return Object.fromEntries(obj) as {
+		[K in (typeof profiles)[number]]: ReturnType<typeof generate<K>>;
+	};
+}
 
 export type Store = ReturnType<typeof generateStore>;

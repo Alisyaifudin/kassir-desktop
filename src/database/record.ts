@@ -1,4 +1,4 @@
-import { err, ok, Result, tryResult } from "../utils";
+import { err, ok, Result, tryResult } from "../lib/utils";
 import Database from "@tauri-apps/plugin-sql";
 
 export const genRecord = (db: Database) => ({
@@ -65,7 +65,10 @@ export const genRecord = (db: Database) => ({
 		});
 		return errMsg;
 	},
-	updateCreditPay: async (pay: number, timestamp: number): Promise<"Aplikasi bermasalah" | null> => {
+	updateCreditPay: async (
+		pay: number,
+		timestamp: number
+	): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute("UPDATE records SET pay = $1, credit = 0 WHERE timestamp = $2", [

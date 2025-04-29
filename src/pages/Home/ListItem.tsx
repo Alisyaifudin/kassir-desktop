@@ -2,7 +2,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { ItemComponent } from "./Item";
 import { useContext, useState } from "react";
-import { cn, log } from "../../utils";
+import { cn, log } from "../../lib/utils";
 import { useDb } from "../../Layout";
 import { useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";

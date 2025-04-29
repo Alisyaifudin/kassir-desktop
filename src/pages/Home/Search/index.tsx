@@ -5,7 +5,7 @@ import { TextError } from "../../../components/TextError";
 import { Field } from "../Field";
 import { Input } from "../../../components/ui/input";
 import { ItemContext } from "../reducer";
-import { numeric } from "../../../utils";
+import { numeric } from "../../../lib/utils";
 import { Loader2 } from "lucide-react";
 
 export function Search() {

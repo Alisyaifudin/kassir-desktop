@@ -1,5 +1,5 @@
 import { Lock, X } from "lucide-react";
-import { cn } from "../../utils";
+import { cn } from "../../lib/utils";
 import { useContext } from "react";
 import { ItemContext } from "./reducer";
 import { calcSubtotal } from "./submit";

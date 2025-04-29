@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, redirect, type RouteObject } from "react-router";
 import { lazy } from "react";
-import { numeric } from "../../../utils";
+import { numeric } from "../../../lib/utils";
 
 const Page = lazy(() => import("./Record-Item"));
 

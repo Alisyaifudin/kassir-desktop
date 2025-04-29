@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { err, ok, Result, tryResult } from "../utils";
+import { err, ok, Result, tryResult } from "../lib/utils";
 
 export function genRecordItem(db: Database) {
 	return {

@@ -1,6 +1,6 @@
 import { LoaderFunctionArgs, redirect, RouteObject } from "react-router";
 import { lazy } from "react";
-import { numeric } from "../../../utils.ts";
+import { numeric } from "../../../lib/utils.ts";
 
 const Page = lazy(() => import("./Product.tsx"));
 

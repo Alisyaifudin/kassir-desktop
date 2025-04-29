@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { Database } from "../../database";
-import { err, ok, Result } from "../../utils";
+import { err, ok, Result } from "../../lib/utils";
 import { Item } from "./Item";
 import Decimal from "decimal.js";
 import { Tax } from "./reducer";
@@ -40,7 +40,7 @@ export async function submitPayment(
 			product_id: item.id,
 			capital,
 			barcode: item.barcode ?? null,
-			stock : item.stock ?? Number(item.qty)
+			stock: item.stock ?? Number(item.qty),
 		};
 	});
 	const promises = [

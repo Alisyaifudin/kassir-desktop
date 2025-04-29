@@ -2,7 +2,7 @@ import { SetURLSearchParams, useSearchParams } from "react-router";
 import { useDb } from "../../Layout";
 import { RecordList } from "./RecordList";
 import { Temporal } from "temporal-polyfill";
-import { formatDate } from "../../utils";
+import { formatDate } from "../../lib/utils";
 import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
 import { ItemList } from "./ItemList";

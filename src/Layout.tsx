@@ -6,7 +6,8 @@ import { Loader2, Settings } from "lucide-react";
 import { type Database, generateDB } from "./database";
 import { generateStore, Store } from "./store";
 import { Notification } from "./components/Notification";
-import { cn } from "./utils";
+import { cn } from "./lib/utils";
+import { emitter } from './lib/event-emitter';
 
 function Layout() {
 	const { pathname } = useLocation();
@@ -27,7 +28,16 @@ function Layout() {
 			setDb(generateDB(db));
 		});
 	}, []);
-	useEffect(() => {}, []);
+	useEffect(() => {
+    const refreshData = () => {
+      if (!store) return;
+      store.owner.get().then((ownerName) => setName(ownerName ?? ""));
+    };
+    emitter.on('refresh', refreshData);
+    return () => {
+      emitter.off('refresh', refreshData);
+    };
+  }, [store]);
 
 	return (
 		<>
@@ -36,7 +46,6 @@ function Layout() {
 					<div className="pb-4">
 						<p className="text-5xl italic">{name}</p>
 					</div>
-					{/* <p className="text-5xl font-bold">{getTitle(pathname)}</p> */}
 					<ul className="flex gap-5 justify-end  items-end">
 						<li
 							className={cn(
@@ -68,11 +77,9 @@ function Layout() {
 								pathname.includes("/setting") ? "bg-white" : "bg-black text-white"
 							)}
 						>
-							{/* <Button asChild > */}
 							<Link to="/setting">
 								<Settings size={35} />
 							</Link>
-							{/* </Button> */}
 						</li>
 					</ul>
 				</nav>
@@ -105,4 +112,3 @@ export const useStore = () => {
 };
 
 export default Layout;
-

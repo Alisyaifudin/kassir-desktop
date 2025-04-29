@@ -3,7 +3,7 @@ import { Field } from "./Field";
 import { Input } from "../../components/ui/input";
 import { useContext, useRef, useState } from "react";
 import { z } from "zod";
-import { numerish } from "../../utils";
+import { numerish } from "../../lib/utils";
 import { ItemContext } from "./reducer";
 import { TextError } from "../../components/TextError";
 import { useDb } from "../../Layout";
