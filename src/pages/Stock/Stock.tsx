@@ -7,29 +7,38 @@ import { Await } from "../../components/Await.tsx";
 import { useAsync } from "../../hooks/useAsync.tsx";
 import { TextError } from "../../components/TextError.tsx";
 import { z } from "zod";
-import { Sort } from "./Sort.tsx";
+import { SortDir } from "./Sort.tsx";
 import { Search } from "./Search.tsx";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
-	const { sort, query } = getOption(search);
+	const { sortDir, query, sortBy } = getOption(search);
 	const items = useItems();
-	const setSort = (v: "asc" | "desc") => {
+	const setSortDir = (v: "asc" | "desc") => {
 		setSearch({
 			query,
-			sort: v,
+			sortDir: v,
+			sortBy,
+		});
+	};
+	const setSortBy = (v: "barcode" | "name" | "price" | "capital" | "stock") => {
+		setSearch({
+			query,
+			sortDir,
+			sortBy: v,
 		});
 	};
 	const setQuery = (v: string) => {
 		setSearch({
 			query: v,
-			sort,
+			sortDir,
+			sortBy,
 		});
 	};
 	return (
 		<main className="flex flex-col gap-5 p-2 overflow-auto">
 			<div className="flex items-center gap-10">
-				<Sort sort={sort} setSort={setSort} />
+				<SortDir sortDir={sortDir} setSortDir={setSortDir} sortBy={sortBy} setSortBy={setSortBy} />
 				<Search query={query} setQuery={setQuery} />
 				<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl">
 					Tambah Produk
@@ -44,11 +53,6 @@ export default function Page() {
 					if (errMsg !== null) {
 						return <TextError>{errMsg}</TextError>;
 					}
-					if (sort === "asc") {
-						raw.sort((a, b) => a.name.localeCompare(b.name));
-					} else {
-						raw.sort((a, b) => b.name.localeCompare(a.name));
-					}
 					const products =
 						query === ""
 							? raw
@@ -57,11 +61,41 @@ export default function Page() {
 										product.name.toLowerCase().includes(query.toLowerCase()) ||
 										(product.barcode !== null && product.barcode.toString().includes(query))
 							  );
+					sorting(products, sortBy, sortDir);
 					return <ProductList products={products} />;
 				}}
 			</Await>
 		</main>
 	);
+}
+
+function sorting(
+	products: DB.Product[],
+	by: "barcode" | "name" | "price" | "capital" | "stock",
+	dir: "asc" | "desc"
+) {
+	const sign = dir === "asc" ? 1 : -1;
+	switch (by) {
+		case "barcode":
+			products.sort((a, b) => {
+				if (a.barcode === null && b.barcode === null) return 0 * sign;
+				if (a.barcode === null) return -1 * sign;
+				if (b.barcode === null) return 1 * sign;
+				return a.barcode.localeCompare(b.barcode) * sign;
+			});
+			break;
+		case "price":
+			products.sort((a, b) => (a.price - b.price) * sign);
+			break;
+		case "capital":
+			products.sort((a, b) => (a.capital - b.capital) * sign);
+			break;
+		case "stock":
+			products.sort((a, b) => (a.stock - b.stock) * sign);
+			break;
+		case "name":
+			products.sort((a, b) => a.name.localeCompare(b.name) * sign);
+	}
 }
 
 const useItems = () => {
@@ -71,11 +105,16 @@ const useItems = () => {
 };
 
 function getOption(search: URLSearchParams): {
-	sort: "asc" | "desc";
+	sortDir: "asc" | "desc";
+	sortBy: "barcode" | "name" | "price" | "capital" | "stock";
 	query: string;
 } {
-	const s = z.enum(["asc", "desc"]).safeParse(search.get("sort"));
-	const sort = s.success ? s.data : "asc";
+	const sortDirParsed = z.enum(["asc", "desc"]).safeParse(search.get("sortDir"));
+	const sortDir = sortDirParsed.success ? sortDirParsed.data : "asc";
+	const sortByParsed = z
+		.enum(["barcode", "name", "price", "capital", "stock"])
+		.safeParse(search.get("sortBy"));
+	const sortBy = sortByParsed.success ? sortByParsed.data : "name";
 	const query = search.get("query") ?? "";
-	return { sort, query };
+	return { sortDir, query, sortBy };
 }

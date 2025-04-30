@@ -4,6 +4,8 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
+export const version = "1.16.0";
+
 export const log = logTauri;
 
 export const numerish = z.string().refine((val) => val !== "" && !Number.isNaN(Number(val)), {
