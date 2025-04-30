@@ -1,5 +1,5 @@
 import { produce } from "immer";
-import { Item } from "./Item";
+import { Item } from "../Item";
 import { createContext } from "react";
 import { z } from "zod";
 

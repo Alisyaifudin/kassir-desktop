@@ -1,10 +1,10 @@
 import { Button } from "../../../components/ui/button";
-import { Field } from "./Field";
+import { Field } from "../Sell/Field";
 import { Input } from "../../../components/ui/input";
 import { useContext, useRef, useState } from "react";
 import { z } from "zod";
 import { numerish } from "../../../lib/utils";
-import { ItemContext } from "./reducer";
+import { ItemContext } from "../Sell/reducer";
 import { TextError } from "../../../components/TextError";
 import { useDb } from "../../../Layout";
 

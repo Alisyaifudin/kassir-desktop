@@ -1,10 +1,10 @@
 import React, { useContext, useState } from "react";
 import { Output } from "./Output";
-import { useDb } from "../../../../Layout";
-import { TextError } from "../../../../components/TextError";
+import { useDb } from "../../../Layout";
+import { TextError } from "../../../components/TextError";
 import { Field } from "../Field";
-import { Input } from "../../../../components/ui/input";
-import { ItemContext } from "../reducer";
+import { Input } from "../../../components/ui/input";
+import { ItemContext } from "../Sell/reducer";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 

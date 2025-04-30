@@ -1,7 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { Database } from "../../../database";
 import { err, ok, Result } from "../../../lib/utils";
-import { Item } from "./Item";
+import { Item } from "../Item";
 import Decimal from "decimal.js";
 import { Tax } from "./reducer";
 

@@ -7,7 +7,7 @@ import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
 import { ItemList } from "./ItemList";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
-import { getMode } from "../Home/Sell/Home";
+import { getMode } from "../Home/Sell";
 import { TextError } from "../../components/TextError";
 import { Button } from "../../components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";

@@ -1,13 +1,13 @@
 import React, { useContext, useState } from "react";
-import { ItemContext } from "./reducer";
-import { Field } from "./Field";
-import { Input } from "../../../components/ui/input";
-import { Button } from "../../../components/ui/button";
+import { ItemContext } from "./Sell/reducer";
+import { Field } from "./Sell/Field";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
 import { z } from "zod";
-import { numeric } from "../../../lib/utils";
+import { numeric } from "../../lib/utils";
 import { X } from "lucide-react";
 import Decimal from "decimal.js";
-import { calcTax } from "./submit";
+import { calcTax } from "./Sell/submit";
 
 const taxSchema = z.object({
 	name: z.string().min(1, "Harus ada"),

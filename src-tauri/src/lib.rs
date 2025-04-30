@@ -94,6 +94,24 @@ pub fn run() {
             sql: include_str!("../src/migration-14.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 15,
+            description: "fix_taxes_table",
+            sql: include_str!("../src/migration-15.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 16,
+            description: "redo_records_and_record_items",
+            sql: include_str!("../src/migration-16.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 17,
+            description: "add_note_to_products",
+            sql: include_str!("../src/migration-17.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(

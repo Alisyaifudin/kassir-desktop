@@ -1,22 +1,11 @@
 import { Lock, X } from "lucide-react";
-import { cn } from "../../../lib/utils";
+import { cn } from "../../lib/utils";
 import { useContext } from "react";
-import { ItemContext } from "./reducer";
-import { calcSubtotal } from "./submit";
-import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
+import { ItemContext } from "./Sell/reducer";
+import { calcSubtotal } from "./Sell/submit";
+import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 
-export type Item = {
-	id?: number;
-	stock?: number;
-	barcode?: string;
-	name: string;
-	price: string;
-	qty: string;
-	disc: {
-		value: string;
-		type: "number" | "percent";
-	};
-};
+
 
 type Props = {
 	index: number;
