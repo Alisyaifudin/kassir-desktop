@@ -1,17 +1,17 @@
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
 import { ItemComponent } from "./Item";
 import { useContext, useState } from "react";
-import { cn, log } from "../../lib/utils";
-import { useDb, useStore } from "../../Layout";
+import { cn, log } from "../../../lib/utils";
+import { useDb, useStore } from "../../../Layout";
 import { useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";
 import { ItemContext } from "./reducer";
 import { calcChange, calcTotal, calcTotalBeforeTax, submitPayment } from "./submit";
 import { TaxItem } from "./Tax";
-import { TextError } from "../../components/TextError";
-import { useAsync } from "../../hooks/useAsync";
-import { Await } from "../../components/Await";
+import { TextError } from "../../../components/TextError";
+import { useAsync } from "../../../hooks/useAsync";
+import { Await } from "../../../components/Await";
 import { CashierSelect } from "./CashierSelect";
 
 export function ListItem({

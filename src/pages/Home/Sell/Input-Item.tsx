@@ -1,7 +1,7 @@
 import { Manual } from "./Manual";
 import { Search } from "./Search";
 import { TaxField } from "./Tax";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { BuyInput } from "./BuyInput";
 
 export function InputItem({ mode }: { mode: "buy" | "sell" }) {

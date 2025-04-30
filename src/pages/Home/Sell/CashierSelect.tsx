@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
-import { Result } from "../../lib/utils";
-import { TextError } from "../../components/TextError";
-import { useStore } from "../../Layout";
+import { Result } from "../../../lib/utils";
+import { TextError } from "../../../components/TextError";
+import { useStore } from "../../../Layout";
 
 export function CashierSelect({
 	data,

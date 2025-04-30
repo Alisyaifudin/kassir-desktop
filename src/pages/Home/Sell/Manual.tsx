@@ -1,12 +1,12 @@
-import { Button } from "../../components/ui/button";
+import { Button } from "../../../components/ui/button";
 import { Field } from "./Field";
-import { Input } from "../../components/ui/input";
+import { Input } from "../../../components/ui/input";
 import { useContext, useState } from "react";
 import { z } from "zod";
-import { numeric, numerish } from "../../lib/utils";
+import { numeric, numerish } from "../../../lib/utils";
 import { ItemContext } from "./reducer";
-import { TextError } from "../../components/TextError";
-import { useDb } from "../../Layout";
+import { TextError } from "../../../components/TextError";
+import { useDb } from "../../../Layout";
 import { Loader2 } from "lucide-react";
 
 const itemSchema = z.object({
@@ -23,7 +23,7 @@ const itemSchema = z.object({
 	barcode: z
 		.string()
 		.refine((v) => !Number.isNaN(v))
-		.transform((v) => v === "" ? undefined : v),
+		.transform((v) => (v === "" ? undefined : v)),
 	stock: numeric,
 });
 

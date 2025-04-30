@@ -1,12 +1,12 @@
-import { Button } from "../../components/ui/button";
+import { Button } from "../../../components/ui/button";
 import { Field } from "./Field";
-import { Input } from "../../components/ui/input";
+import { Input } from "../../../components/ui/input";
 import { useContext, useRef, useState } from "react";
 import { z } from "zod";
-import { numerish } from "../../lib/utils";
+import { numerish } from "../../../lib/utils";
 import { ItemContext } from "./reducer";
-import { TextError } from "../../components/TextError";
-import { useDb } from "../../Layout";
+import { TextError } from "../../../components/TextError";
+import { useDb } from "../../../Layout";
 
 const itemSchema = z.object({
 	name: z.string().min(1),

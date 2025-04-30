@@ -1,5 +1,5 @@
 import React from "react";
-import { TextError } from "../../components/TextError";
+import { TextError } from "../../../components/TextError";
 
 export function Field({
 	label,

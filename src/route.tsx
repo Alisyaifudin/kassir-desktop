@@ -1,5 +1,5 @@
 import { createBrowserRouter } from "react-router";
-import { route as homeRoute } from "./pages/Home/index.tsx";
+import { route as homeRoute } from "./pages/Home/Sell/index.tsx";
 import { route as stockRoute } from "./pages/Stock";
 import Layout from "./Layout.tsx";
 import { route as itemRoute } from "./pages/Stock/Product/index.tsx";
