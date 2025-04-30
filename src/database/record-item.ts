@@ -3,7 +3,7 @@ import { err, ok, Result, tryResult } from "../lib/utils";
 
 export function genRecordItem(db: Database) {
 	return {
-		getByRange: async (start: number, end: number): Promise<Result<string, DB.RecordItem[]>> => {
+		getByRange: async (start: number, end: number): Promise<Result<"Aplikasi bermasalah", DB.RecordItem[]>> => {
 			return tryResult({
 				run: () =>
 					db.select<DB.RecordItem[]>(
@@ -12,7 +12,7 @@ export function genRecordItem(db: Database) {
 					),
 			});
 		},
-		getAllByTime: async (timestamp: number): Promise<Result<string, DB.RecordItem[]>> => {
+		getAllByTime: async (timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.RecordItem[]>> => {
 			const [errMsg, items] = await tryResult({
 				run: () =>
 					db.select<DB.RecordItem[]>("SELECT * FROM record_items WHERE timestamp = $1", [
@@ -26,7 +26,7 @@ export function genRecordItem(db: Database) {
 			items: (Omit<DB.RecordItem, "id"> & { product_id?: number })[],
 			timestamp: number,
 			mode: "sell" | "buy"
-		): Promise<string | null> => {
+		): Promise<"Aplikasi bermasalah" | null> => {
 			const [errMsg] = await tryResult({
 				run: () => {
 					const promises = [];

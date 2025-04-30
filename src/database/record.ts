@@ -2,7 +2,7 @@ import { err, ok, Result, tryResult } from "../lib/utils";
 import Database from "@tauri-apps/plugin-sql";
 
 export const genRecord = (db: Database) => ({
-	getByRange: async (start: number, end: number): Promise<Result<string, DB.Record[]>> => {
+	getByRange: async (start: number, end: number): Promise<Result<"Aplikasi bermasalah", DB.Record[]>> => {
 		return tryResult({
 			run: () =>
 				db.select<DB.Record[]>(
@@ -37,8 +37,8 @@ export const genRecord = (db: Database) => ({
 			};
 			change: number;
 		}
-	): Promise<string | null> => {
-		const [errMsg, res] = await tryResult({
+	): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
 					`INSERT INTO records 
@@ -60,7 +60,6 @@ export const genRecord = (db: Database) => ({
 				),
 		});
 		if (errMsg) return errMsg;
-		if (res.lastInsertId === undefined) return "Gagal menambahkan catatan";
 		return null;
 	},
 	delete: async (timestamp: number): Promise<"Aplikasi bermasalah" | null> => {

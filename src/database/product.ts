@@ -2,9 +2,9 @@ import Database from "@tauri-apps/plugin-sql";
 import { err, ok, Result, tryResult } from "../lib/utils";
 
 export const genProduct = (db: Database) => ({
-	getAll: (): Promise<Result<string, DB.Product[]>> =>
+	getAll: (): Promise<Result<"Aplikasi bermasalah", DB.Product[]>> =>
 		tryResult({ run: () => db.select<DB.Product[]>("SELECT * FROM products") }),
-	get: async (id: number): Promise<Result<string, DB.Product | null>> => {
+	get: async (id: number): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> => {
 		const [errMsg, products] = await tryResult({
 			run: () => db.select<DB.Product[]>("SELECT * FROM products WHERE id = $1", [id]),
 		});
@@ -14,7 +14,7 @@ export const genProduct = (db: Database) => ({
 	},
 	getByBarcode: async (
 		barcode: string
-	): Promise<Result<"Aplikasi bermasalah" | "Barang tidak ada", DB.Product>> => {
+	): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> => {
 		const [errMsg, item] = await tryResult({
 			run: async () => {
 				const products = await db.select<DB.Product[]>(
@@ -25,7 +25,7 @@ export const genProduct = (db: Database) => ({
 			},
 		});
 		if (errMsg) return err(errMsg);
-		if (item === null) return err("Barang tidak ada");
+		if (item === null) return err(null);
 		return ok(item);
 	},
 	searchByName: async (name: string): Promise<Result<"Aplikasi Bermasalah", DB.Product[]>> => {
@@ -53,7 +53,7 @@ export const genProduct = (db: Database) => ({
 		stock: number;
 		capital: number;
 		barcode: string | null;
-	}): Promise<string | null> => {
+	}): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
@@ -74,7 +74,7 @@ export const genProduct = (db: Database) => ({
 		price: number;
 		stock: number;
 		barcode: string | null;
-	}): Promise<string | null> => {
+	}): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
@@ -96,7 +96,7 @@ export const genProduct = (db: Database) => ({
 		stock: number;
 		capital: number;
 		barcode: string | null;
-	}): Promise<string | null> => {
+	}): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
@@ -113,7 +113,7 @@ export const genProduct = (db: Database) => ({
 		});
 		return errMsg;
 	},
-	delete: async (id: number): Promise<string | null> => {
+	delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () => db.execute("DELETE FROM products WHERE id = $1", [id]),
 		});
@@ -126,7 +126,7 @@ export const genProduct = (db: Database) => ({
 		capital: number;
 		barcode: string | null;
 		id: number;
-	}): Promise<string | null> => {
+	}): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(

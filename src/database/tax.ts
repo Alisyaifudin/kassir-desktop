@@ -3,7 +3,10 @@ import { err, ok, Result, tryResult } from "../lib/utils";
 
 export function genTax(db: Database) {
 	return {
-		getByRange: async (start: number, end: number): Promise<Result<string, DB.Tax[]>> => {
+		getByRange: async (
+			start: number,
+			end: number
+		): Promise<Result<"Aplikasi bermasalah", DB.Tax[]>> => {
 			return tryResult({
 				run: () =>
 					db.select<DB.Tax[]>(
@@ -12,7 +15,7 @@ export function genTax(db: Database) {
 					),
 			});
 		},
-		getAllByTime: async (timestamp: number): Promise<Result<string, DB.Tax[]>> => {
+		getAllByTime: async (timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Tax[]>> => {
 			const [errMsg, items] = await tryResult({
 				run: () => db.select<DB.Tax[]>("SELECT * FROM taxes WHERE timestamp = $1", [timestamp]),
 			});
@@ -22,7 +25,7 @@ export function genTax(db: Database) {
 		add: async (
 			taxes: { name: string; value: number }[],
 			timestamp: number
-		): Promise<string | null> => {
+		): Promise<"Aplikasi bermasalah" | null> => {
 			const [errMsg] = await tryResult({
 				run: () => {
 					const promises = [];
