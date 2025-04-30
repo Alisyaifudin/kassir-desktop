@@ -106,12 +106,15 @@ export default function Page() {
 			</div>
 			<Await state={state}>
 				{(data) => {
-					const [[errRecords, records], [errItems, items]] = data;
+					const [[errRecords, records], [errItems, items], [errTaxes, taxes]] = data;
 					if (errRecords !== null) {
 						return <TextError>{errRecords}</TextError>;
 					}
 					if (errItems !== null) {
 						return <TextError>{errItems}</TextError>;
+					}
+					if (errTaxes !== null) {
+						return <TextError>{errTaxes}</TextError>;
 					}
 					return (
 						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-y-auto">
@@ -146,7 +149,13 @@ export default function Page() {
 								</TabsContent>
 							</Tabs>
 							<div className="border-l" />
-							<ItemList allItems={items} timestamp={selected} records={records} mode={mode} />
+							<ItemList
+								allItems={items}
+								timestamp={selected}
+								records={records}
+								mode={mode}
+								allTaxes={taxes}
+							/>
 						</div>
 					);
 				}}
@@ -162,6 +171,7 @@ function useRecords(date: Temporal.ZonedDateTime) {
 	const promises = Promise.all([
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
+		db.tax.getByRange(start, end),
 	]);
 	const state = useAsync(promises, [date]);
 	return state;

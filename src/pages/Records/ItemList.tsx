@@ -15,9 +15,12 @@ import { Input } from "../../components/ui/input";
 import { useState } from "react";
 import { log } from "../../lib/utils";
 import { useDb } from "../../Layout";
+import { TaxItem } from "./TaxItem";
+import Decimal from "decimal.js";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
+	allTaxes: DB.Tax[];
 	timestamp: number | null;
 	mode: "buy" | "sell";
 };
@@ -25,34 +28,61 @@ type RecordListProps = {
 function filterData(
 	timestamp: number | null,
 	allItems: DB.RecordItem[],
+	allTaxes: DB.Tax[],
 	records: DB.Record[]
-): { items: DB.RecordItem[] } & ({ record: null } | { record: DB.Record }) {
+): { items: DB.RecordItem[]; taxes: DB.Tax[] } & ({ record: null } | { record: DB.Record }) {
 	if (timestamp === null) {
-		return { items: [], record: null };
+		return { items: [], record: null, taxes: [] };
 	}
 	const record = records.find((r) => r.timestamp === timestamp);
 	if (record === undefined) {
-		return { items: [], record: null };
+		return { items: [], record: null, taxes: [] };
 	}
 	return {
 		items: allItems.filter((item) => item.timestamp === timestamp),
 		record,
+		taxes: allTaxes.filter((item) => item.timestamp === timestamp),
 	};
 }
 
-export function ItemList({ allItems, timestamp, records, mode }: RecordListProps) {
-	const { items, record } = filterData(timestamp, allItems, records);
+export function ItemList({ allItems, timestamp, records, mode, allTaxes }: RecordListProps) {
+	const { items, record, taxes } = filterData(timestamp, allItems, allTaxes, records);
 	if (record === null) {
 		return null;
 	}
 	if (mode === "buy") {
-		return <ItemListBuy items={items} record={record} />;
+		return <ItemListBuy items={items} record={record} taxes={taxes} />;
 	}
-	return <ItemListSell items={items} record={record} />;
+	return <ItemListSell items={items} record={record} taxes={taxes} />;
 }
 
-function ItemListSell({ items, record }: { items: DB.RecordItem[]; record: DB.Record }) {
-	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
+function ItemListSell({
+	items,
+	record,
+	taxes,
+}: {
+	items: DB.RecordItem[];
+	record: DB.Record;
+	taxes: DB.Tax[];
+}) {
+	if (items.length === 0) {
+		return null;
+	}
+	const totalBeforeDisc =
+		record.disc_val > 0
+			? items.map((item) => item.subtotal).reduce((acc, curr) => acc + curr)
+			: record.total;
+
+	const disc =
+		record.disc_val > 0 ? calcDisc(record.disc_type, record.disc_val, totalBeforeDisc) : 0;
+	const totalAfterDisc = totalBeforeDisc - disc;
+	const totalTax =
+		taxes.length > 0
+			? taxes
+					.map((t) => new Decimal(totalAfterDisc).times(t.value).div(100).round().toNumber())
+					.reduce((acc, curr) => acc + curr)
+			: 0;
+	const totalAfterTax = totalAfterDisc + totalTax;
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<p>No: {record.timestamp}</p>
@@ -93,13 +123,28 @@ function ItemListSell({ items, record }: { items: DB.RecordItem[]; record: DB.Re
 						<>
 							<div className="grid grid-cols-[170px_200px]">
 								<p className="text-end">Subtotal:</p>
-								<p className="text-end">Rp{Number(record.total).toLocaleString("id-ID")}</p>
+								<p className="text-end">Rp{totalBeforeDisc.toLocaleString("id-ID")}</p>
 							</div>
 							<div className="grid grid-cols-[170px_200px]">
 								<p className="text-end">Diskon:</p>
-								<p className="text-end">Rp{totalDisc.toLocaleString("id-ID")}</p>
+								<p className="text-end">Rp{disc.toLocaleString("id-ID")}</p>
 							</div>
 							<hr />
+							<div className="grid grid-cols-[170px_200px]">
+								<div></div>{" "}
+								<p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
+							</div>
+						</>
+					) : null}
+					{taxes.length > 0 ? (
+						<>
+							{taxes.map((tax) => (
+								<TaxItem key={tax.id} tax={tax} total={record.total} />
+							))}
+							<hr className="w-full" />
+							<div className="grid grid-cols-[170px_200px]">
+								<div></div> <p className="text-end">Rp{totalAfterTax.toLocaleString("de-DE")}</p>
+							</div>
 						</>
 					) : null}
 					{record.rounding ? (
@@ -132,12 +177,23 @@ function ItemListSell({ items, record }: { items: DB.RecordItem[]; record: DB.Re
 	);
 }
 
-function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Record }) {
+function ItemListBuy({
+	items,
+	record,
+	taxes,
+}: {
+	items: DB.RecordItem[];
+	record: DB.Record;
+	taxes: DB.Tax[];
+}) {
 	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
 	const [pay, setPay] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<null | string>(null);
 	const db = useDb();
+	if (items.length === 0) {
+		return null;
+	}
 	const handlePay = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (Number.isNaN(pay) || Number(pay) < record.grand_total) {
@@ -159,6 +215,10 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 		}
 		setLoading(false);
 	};
+	const totalBeforeDisc =
+		record.disc_val > 0
+			? items.map((item) => item.subtotal).reduce((acc, curr) => acc + curr)
+			: record.total;
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<p>No: {record.timestamp}</p>
@@ -196,7 +256,7 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 							<TableCell>{item.name}</TableCell>
 							<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
 							<TableCell className="w-[150px] text-end">
-								{(item.capital).toLocaleString("id-ID")}
+								{item.capital.toLocaleString("id-ID")}
 							</TableCell>
 							<TableCell className="text-center">{item.qty}</TableCell>
 							<TableCell className="text-end">
@@ -213,13 +273,24 @@ function ItemListBuy({ items, record }: { items: DB.RecordItem[]; record: DB.Rec
 						<>
 							<div className="grid grid-cols-[170px_200px]">
 								<p className="text-end">Subtotal:</p>
-								<p className="text-end">Rp{Number(record.total).toLocaleString("id-ID")}</p>
+								<p className="text-end">Rp{totalBeforeDisc.toLocaleString("id-ID")}</p>
 							</div>
 							<div className="grid grid-cols-[170px_200px]">
 								<p className="text-end">Diskon:</p>
 								<p className="text-end">Rp{totalDisc.toLocaleString("id-ID")}</p>
 							</div>
 							<hr />
+						</>
+					) : null}
+					{taxes.length > 0 ? (
+						<>
+							<div className="grid grid-cols-[100px_100px]">
+								<p></p> <p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
+							</div>
+							{taxes.map((tax) => (
+								<TaxItem key={tax.id} tax={tax} total={record.total} />
+							))}
+							<hr className="w-full" />
 						</>
 					) : null}
 					{record.rounding ? (

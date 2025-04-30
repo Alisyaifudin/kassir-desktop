@@ -1,11 +1,12 @@
-import { calcDisc, Discount } from "../Discount";
+import Decimal from "decimal.js";
+import { Discount } from "../Discount";
 
 type Props = {
 	i: number;
 } & DB.RecordItem;
 
 export function Item({ disc_type, disc_val, name, price, qty, subtotal }: Props) {
-	const disc = calcDisc(disc_type, disc_val, subtotal);
+	const subtotalBeforeDisc = new Decimal(price).times(qty).toNumber();
 	return (
 		<div className="flex flex-col">
 			<p className="text-wrap">{name}</p>
@@ -16,7 +17,7 @@ export function Item({ disc_type, disc_val, name, price, qty, subtotal }: Props)
 					<p>{qty}</p>
 				</div>
 				{disc_val > 0 ? (
-					<p>{(subtotal + disc).toLocaleString("id-ID")}</p>
+					<p>{subtotalBeforeDisc.toLocaleString("id-ID")}</p>
 				) : (
 					<p>{subtotal.toLocaleString("id-ID")}</p>
 				)}
@@ -30,4 +31,3 @@ export function Item({ disc_type, disc_val, name, price, qty, subtotal }: Props)
 		</div>
 	);
 }
-

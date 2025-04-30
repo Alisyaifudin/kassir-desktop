@@ -55,13 +55,16 @@ export function ItemList({
 			}
 		};
 	}, []);
-	console.log({ record });
+	if (items.length === 0) {
+		return null;
+	}
 	const print = () => {
 		document.documentElement.style.setProperty("--paper-width", `${width}`);
 		window.print();
 	};
 	const today = Temporal.Now.instant().epochMilliseconds;
-	const disc = calcDisc(record.disc_type, record.disc_val, record.total);
+	const totalBeforeDisc = items.map((item) => item.subtotal).reduce((acc, curr) => acc + curr);
+	const disc = calcDisc(record.disc_type, record.disc_val, totalBeforeDisc);
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
@@ -111,9 +114,7 @@ export function ItemList({
 											<>
 												<div className="grid grid-cols-[100px_100px]">
 													<p>Subtotal</p>{" "}
-													<p className="text-end">
-														Rp{(Number(record.total) + disc).toLocaleString("de-DE")}
-													</p>
+													<p className="text-end">Rp{totalBeforeDisc.toLocaleString("de-DE")}</p>
 												</div>
 												<div className="grid grid-cols-[100px_100px]">
 													<p>Diskon</p> <p className="text-end">Rp{disc.toLocaleString("de-DE")}</p>
@@ -189,7 +190,7 @@ function calcDisc(type: "number" | "percent", value: number, subtotal: number) {
 		case "number":
 			return value;
 		case "percent":
-			return new Decimal(subtotal).times(value).div(100).toNumber();
+			return new Decimal(subtotal).times(value).div(100).round().toNumber();
 	}
 }
 
