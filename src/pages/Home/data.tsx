@@ -1,45 +1,57 @@
 import { produce } from "immer";
 import { create } from "zustand";
+import { z } from "zod";
 
-type Item = {
-	barcode: number | null;
-	name: string;
-	price: number;
-	qty: number;
-	disc: {
-		value: number;
-		type: "number" | "percent";
-	};
-} & ({ id: number; stock: number } | { id: undefined; stock: undefined });
+const itemSchemaBase = z.object({
+	barcode: z.number().nullable(),
+	name: z.string(),
+	price: z.number(),
+	qty: z.number(),
+	disc: z.object({
+		value: z.number(),
+		type: z.enum(["number", "percent"]),
+	}),
+	id: z.number(),
+});
 
-type Tax = {
-	name: string;
-	percent: number;
-};
+const itemSchema = z.discriminatedUnion("id", [
+	itemSchemaBase.extend({ id: z.number(), stock: z.number() }),
+	itemSchemaBase.extend({ id: z.undefined(), stock: z.undefined() }),
+]);
 
-type Data = {
-	mode: "sell" | "buy";
-	sell: {
-		items: Item[];
-		taxes: Tax[];
-	};
-	buy: {
-		items: Item[];
-		taxes: Tax[];
-	};
-	cashier: string | null;
-	pay: number;
-	rounding: number;
-	disc: {
-		value: number;
-		type: "number" | "percent";
-	};
-	method: "cash" | "transfer" | "emoney";
-	note: string;
-};
+export type Item = z.infer<typeof itemSchema>;
+
+const taxSchema = z.object({ name: z.string(), percent: z.number() });
+
+export type Tax = z.infer<typeof taxSchema>
+
+export const dataSchema = z.object({
+  mode: z.enum(["sell", "buy"]),
+  sell: z.object({
+    items: itemSchema.array(),
+    taxes: taxSchema.array(),
+  }),
+  buy: z.object({
+    items: itemSchema.array(),
+    taxes: taxSchema.array(),
+  }),
+  cashier: z.string().nullable(),
+  pay: z.number(),
+  rounding: z.number(),
+  disc: z.object({
+    value: z.number(),
+    type: z.enum(["number", "percent"]),
+  }),
+  method: z.enum(["cash", "transfer", "emoney"]),
+  note: z.string(),
+})
+
+export type Data = z.infer<typeof dataSchema>;
+
 
 type DataState = Data & {
 	reset: () => void;
+	setInitial: (data: Data) => void;
 	changeItem: {
 		delete: (index: number) => void;
 		editName: (mode: "sell" | "buy", index: number, name: string) => void;
@@ -90,6 +102,9 @@ export const initialValue: Data = {
 
 export const useData = create<DataState>()((set) => ({
 	...initialValue,
+	setInitial(data) {
+		set(data);
+	},
 	changeCashier: (cashier) => set({ cashier }),
 	changeDisc: {
 		type: (value) => set((state) => ({ disc: { type: value, value: state.disc.value } })),
