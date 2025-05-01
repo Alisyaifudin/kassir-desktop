@@ -12,22 +12,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # Step 1: Checkout your code
       - uses: actions/checkout@v4
 
-      # Step 2: Setup Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      # Step 3: Install Rust
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+          
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
 
-      # Step 4: Cache Bun dependencies
       - name: Cache Bun dependencies
         uses: actions/cache@v3
         id: bun-cache
@@ -39,20 +40,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      # Step 5: Install dependencies
       - name: Install dependencies with Bun
         run: bun install --frozen-lockfile
 
-      # Step 6: Verify file casing (optional but recommended)
-      - name: Verify file casing
-        run: |
-          if (!(Test-Path -Path "src/components/ui/textarea.tsx" -PathType Leaf)) {
-            Write-Output "❌ Error: src/components/ui/textarea.tsx does not exist (check casing!)"
-            Get-ChildItem "src/components/ui/"
-            exit 1
-          }
-
-      # Step 7: Build and publish with Tauri
       - uses: tauri-apps/tauri-action@v0.5.20
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
