@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
 import { z } from "zod";
+import { Search } from "./Search";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
@@ -22,13 +23,13 @@ export default function Page() {
 	const mode = getMode(search);
 	const time = getTime(search, setSearch);
 	const selected = getSelected(search);
+	const query = getQuery(search);
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
 	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
 	const state = useRecords(time);
 	const db = useDb();
-
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const date = e.currentTarget.value;
 		const [year, month, day] = date.split("-").map(Number);
@@ -76,7 +77,7 @@ export default function Page() {
 	// grow shrink basis-0
 	return (
 		<main className="flex flex-col gap-2 p-2 flex-1 text-3xl overflow-hidden">
-			<div className="flex gap-2 items-center w-full">
+			<div className="flex gap-2 items-center w-full justify-between">
 				<div className="flex gap-1 items-center">
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
 						<ChevronLeft />
@@ -92,22 +93,19 @@ export default function Page() {
 					</Button>
 					<p>Tanggal {formatDate(time, "long")}</p>
 				</div>
-				<form onSubmit={handleSubmitNo} className="flex gap-2 items-center flex-1 justify-end">
-					{error === "" ? null : <TextError>{error}</TextError>}
-					{loading ? <Loader2 className="animate-spin" /> : null}
-					<p>No:</p>
-					<Input
-						type="search"
-						placeholder="Cari catatan"
-						className="w-[250px]"
-						value={val}
-						onChange={handleChangeNo}
-					/>
-				</form>
+				<div className="flex gap-2 flex-1 pl-22">
+					<Search query={query} setSearch={setSearch} />
+					<form onSubmit={handleSubmitNo} className="flex gap-2 items-center">
+						{error === "" ? null : <TextError>{error}</TextError>}
+						{loading ? <Loader2 className="animate-spin" /> : null}
+						<p>No:</p>
+						<Input type="search" placeholder="Cari catatan" value={val} onChange={handleChangeNo} />
+					</form>
+				</div>
 			</div>
 			<Await state={state}>
 				{(data) => {
-					const [[errRecords, records], [errItems, items], [errTaxes, taxes]] = data;
+					const [[errRecords, rawRecords], [errItems, items], [errTaxes, taxes]] = data;
 					if (errRecords !== null) {
 						return <TextError>{errRecords}</TextError>;
 					}
@@ -117,6 +115,16 @@ export default function Page() {
 					if (errTaxes !== null) {
 						return <TextError>{errTaxes}</TextError>;
 					}
+					console.log(query);
+					const filtered =
+						query.trim() === ""
+							? items
+							: items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
+					const timestamps = filtered.map((f) => f.timestamp);
+					const records =
+						query.trim() === ""
+							? rawRecords
+							: rawRecords.filter((r) => timestamps.includes(r.timestamp));
 					return (
 						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
 							<Tabs
@@ -154,7 +162,7 @@ export default function Page() {
 							<ItemList
 								allItems={items}
 								timestamp={selected}
-								records={records}
+								records={rawRecords}
 								mode={mode}
 								allTaxes={taxes}
 							/>
@@ -232,4 +240,12 @@ function setMode(setSearch: SetURLSearchParams, mode: "sell" | "buy") {
 		params.delete("selected");
 		return params;
 	});
+}
+
+function getQuery(search: URLSearchParams): string {
+	const query = search.get("query");
+	if (query === null) {
+		return "";
+	}
+	return query;
 }
