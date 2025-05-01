@@ -33,14 +33,16 @@ export function genRecordItem(db: Database) {
 					for (const item of items) {
 						promises.push(
 							db.execute(
-								`INSERT INTO record_items (timestamp, name, price, qty, subtotal, disc_val, disc_type, capital) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+								`INSERT INTO record_items 
+								(timestamp, name, price, qty, total_before_disc, total, disc_val, disc_type, capital) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 								[
 									timestamp,
 									item.name.trim(),
 									item.price,
 									item.qty,
-									item.subtotal,
+									item.total_before_disc,
+									item.total,
 									item.disc_val,
 									item.disc_type,
 									item.capital,

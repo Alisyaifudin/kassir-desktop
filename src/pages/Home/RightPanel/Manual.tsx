@@ -44,7 +44,7 @@ export function Manual({ sendItem }: { sendItem: (item: Item) => void }) {
 			return;
 		}
 		e.preventDefault();
-    const formEl = e.currentTarget;
+		const formEl = e.currentTarget;
 		const formData = new FormData(e.currentTarget);
 		const parsed = itemSchema.safeParse({
 			barcode: formData.get("barcode"),
@@ -92,6 +92,7 @@ export function Manual({ sendItem }: { sendItem: (item: Item) => void }) {
 			name,
 			stock,
 		});
+		setError(emptyErr);
 		ref.current.focus();
 		formEl.reset();
 	};

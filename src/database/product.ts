@@ -72,78 +72,78 @@ export const genProduct = (db: Database) => ({
 		});
 		return errMsg;
 	},
-	// insertIfNotYet: async (data: {
-	// 	name: string;
-	// 	price: number;
-	// 	stock: number;
-	// 	barcode: string | null;
-	// }): Promise<"Aplikasi bermasalah" | null> => {
-	// 	const [errMsg] = await tryResult({
-	// 		run: () =>
-	// 			db.execute(
-	// 				`INSERT INTO products (name, stock, price, barcode) VALUES ($1, $2, $3, $4)
-	// 				 ON CONFLICT(barcode) DO NOTHING`,
-	// 				[
-	// 					data.name.trim(),
-	// 					data.stock,
-	// 					data.price,
-	// 					data.barcode === null ? null : data.barcode.trim(),
-	// 				]
-	// 			),
-	// 	});
-	// 	return errMsg;
-	// },
-	// upsert: async (data: {
-	// 	name: string;
-	// 	price: number;
-	// 	stock: number;
-	// 	capital: number;
-	// 	barcode: string | null;
-	// }): Promise<"Aplikasi bermasalah" | null> => {
-	// 	const [errMsg] = await tryResult({
-	// 		run: () =>
-	// 			db.execute(
-	// 				`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
-	// 				 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5`,
-	// 				[
-	// 					data.name.trim(),
-	// 					data.stock,
-	// 					data.price,
-	// 					data.barcode === null ? null : data.barcode.trim(),
-	// 					data.capital,
-	// 				]
-	// 			),
-	// 	});
-	// 	return errMsg;
-	// },
-	// delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
-	// 	const [errMsg] = await tryResult({
-	// 		run: () => db.execute("DELETE FROM products WHERE id = $1", [id]),
-	// 	});
-	// 	return errMsg;
-	// },
-	// update: async (data: {
-	// 	name: string;
-	// 	price: number;
-	// 	stock: number;
-	// 	capital: number;
-	// 	barcode: string | null;
-	// 	id: number;
-	// }): Promise<"Aplikasi bermasalah" | null> => {
-	// 	const [errMsg] = await tryResult({
-	// 		run: () =>
-	// 			db.execute(
-	// 				"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5 WHERE id = $6",
-	// 				[
-	// 					data.name.trim(),
-	// 					data.stock,
-	// 					data.price,
-	// 					data.barcode === null ? null : data.barcode.trim(),
-	// 					data.capital,
-	// 					data.id,
-	// 				]
-	// 			),
-	// 	});
-	// 	return errMsg;
-	// },
+	insertIfNotYet: async (data: {
+		name: string;
+		price: number;
+		stock: number;
+		barcode: string | null;
+	}): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute(
+					`INSERT INTO products (name, stock, price, barcode) VALUES ($1, $2, $3, $4)
+					 ON CONFLICT(barcode) DO NOTHING`,
+					[
+						data.name.trim(),
+						data.stock,
+						data.price,
+						data.barcode === null ? null : data.barcode.trim(),
+					]
+				),
+		});
+		return errMsg;
+	},
+	upsert: async (data: {
+		name: string;
+		price: number;
+		stock: number;
+		capital: number;
+		barcode: string | null;
+	}): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute(
+					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
+					 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5`,
+					[
+						data.name.trim(),
+						data.stock,
+						data.price,
+						data.barcode === null ? null : data.barcode.trim(),
+						data.capital,
+					]
+				),
+		});
+		return errMsg;
+	},
+	delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () => db.execute("DELETE FROM products WHERE id = $1", [id]),
+		});
+		return errMsg;
+	},
+	update: async (data: {
+		name: string;
+		price: number;
+		stock: number;
+		capital: number;
+		barcode: string | null;
+		id: number;
+	}): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute(
+					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5 WHERE id = $6",
+					[
+						data.name.trim(),
+						data.stock,
+						data.price,
+						data.barcode === null ? null : data.barcode.trim(),
+						data.capital,
+						data.id,
+					]
+				),
+		});
+		return errMsg;
+	},
 });

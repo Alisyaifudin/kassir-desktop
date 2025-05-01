@@ -1,7 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
 import { err, ok, Result, tryResult } from "../lib/utils";
 
-export function genTax(db: Database) {
+export function genOther(db: Database) {
 	return {
 		getByRange: async (
 			start: number,
@@ -10,31 +10,31 @@ export function genTax(db: Database) {
 			return tryResult({
 				run: () =>
 					db.select<DB.Other[]>(
-						"SELECT * FROM taxes WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
+						"SELECT * FROM others WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
 						[start, end]
 					),
 			});
 		},
 		getAllByTime: async (timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Other[]>> => {
 			const [errMsg, items] = await tryResult({
-				run: () => db.select<DB.Other[]>("SELECT * FROM taxes WHERE timestamp = $1", [timestamp]),
+				run: () => db.select<DB.Other[]>("SELECT * FROM others WHERE timestamp = $1", [timestamp]),
 			});
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
 		add: async (
-			taxes: { name: string; value: number }[],
+			others: { name: string; value: number; kind: "percent" | "number" }[],
 			timestamp: number
 		): Promise<"Aplikasi bermasalah" | null> => {
 			const [errMsg] = await tryResult({
 				run: () => {
 					const promises = [];
-					for (const tax of taxes) {
+					for (const other of others) {
 						promises.push(
 							db.execute(
-								`INSERT INTO taxes (timestamp, name, value) 
-                 VALUES ($1, $2, $3)`,
-								[timestamp, tax.name.trim(), tax.value]
+								`INSERT INTO others (timestamp, name, value, kind) 
+                 VALUES ($1, $2, $3, $4)`,
+								[timestamp, other.name.trim(), other.value, other.kind]
 							)
 						);
 					}

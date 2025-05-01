@@ -2,7 +2,17 @@ import React, { useState } from "react";
 import { Field } from "../Field";
 import { Input } from "../../../components/ui/input";
 import { Button } from "../../../components/ui/button";
-import { Other, otherSchema } from "../schema";
+import { Other } from "../schema";
+import { z } from "zod";
+
+const otherSchema = z.object({
+	name: z.string().min(1, { message: "Harus punya nama" }).trim(),
+	value: z
+		.string()
+		.refine((v) => !isNaN(Number(v)))
+		.transform((v) => Number(v)),
+	kind: z.enum(["percent", "number"]),
+});
 
 export function OtherComponent({ sendOther }: { sendOther: (other: Other) => void }) {
 	const [error, setError] = useState({ name: "", value: "", kind: "" });

@@ -8,7 +8,7 @@ export const version = "1.16.0";
 
 export const log = logTauri;
 
-export const numerish = z.string().refine((val) => val !== "" && !Number.isNaN(Number(val)), {
+export const numerish = z.string().refine((val) => val !== "" && !isNaN(Number(val)), {
 	message: "Harus angka",
 });
 

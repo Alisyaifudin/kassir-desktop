@@ -1,15 +1,17 @@
 import React, { useEffect } from "react";
-import { Result } from "../../lib/utils";
-import { TextError } from "../../components/TextError";
-import { useData } from "./schema";
+import { Result } from "../../../lib/utils";
+import { TextError } from "../../../components/TextError";
 
-export function CashierSelect({ data }: { data: Result<"Aplikasi bermasalah", DB.Cashier[]> }) {
+export function CashierSelect({
+	data,
+	cashier,
+	changeCashier,
+}: {
+	data: Result<"Aplikasi bermasalah", DB.Cashier[]>;
+	cashier: string | null;
+	changeCashier: (cashier: string) => void;
+}) {
 	const [errCashiers, cashiers] = data;
-	const { changeCashier, cashier } = useData();
-	// const { changeCashier, cashier } = useData((state) => ({
-	// 	changeCashier: state.changeCashier,
-	// 	cashier: state.cashier,
-	// }));
 	useEffect(() => {
 		if (cashiers === null) {
 			return;
@@ -17,6 +19,7 @@ export function CashierSelect({ data }: { data: Result<"Aplikasi bermasalah", DB
 		if (cashiers.length === 0) {
 			return;
 		}
+
 		if (cashier === null) {
 			changeCashier(cashiers[0].name);
 			return;

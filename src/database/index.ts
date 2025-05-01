@@ -2,7 +2,7 @@ import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { genProduct } from "./product";
 import { genRecord } from "./record";
 import { genRecordItem } from "./record-item";
-import { genTax } from "./tax";
+import { genOther } from "./other";
 import { genChasier } from "./cashier";
 
 export function generateDB(db: DatabaseTauri) {
@@ -10,7 +10,7 @@ export function generateDB(db: DatabaseTauri) {
 		product: genProduct(db),
 		record: genRecord(db),
 		recordItem: genRecordItem(db),
-		tax: genTax(db),
+		other: genOther(db),
 		cashier: genChasier(db),
 	};
 }

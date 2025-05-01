@@ -28,12 +28,14 @@ export function Output({
 									qty: 1,
 								})
 							}
+							disabled={product.stock === 0}
 							className={cn(
 								"cursor-pointer text-2xl w-full grid hover:bg-sky-100/50",
-								product.barcode !== null ? "grid-cols-[1fr_170px]" : ""
+								product.barcode !== null ? "grid-cols-[1fr_170px]" : "",
+								{ "bg-red-400 hover:bg-red-300": product.stock === 0 }
 							)}
 						>
-							<p className="text-start text-wrap">{product.name}</p>
+							<p className={cn("text-start text-wrap")}>{product.name}</p>
 							{product.barcode !== null ? <p className="text-start">{product.barcode}</p> : null}
 						</button>
 					</li>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RightPanel } from "./RightPanel";
 import { Item, Other } from "./schema";
+import { LeftPanel } from "./LeftPanel";
 
 export default function Page() {
 	const [item, setItem] = useState<Item | null>(null);
@@ -14,7 +15,8 @@ export default function Page() {
 
 	return (
 		<main className="gap-2 p-2 flex min-h-0 grow shrink basis-0">
-			<RightPanel />
+			<LeftPanel newItem={item} newOther={other} reset={reset} />
+			<RightPanel sendItem={sendItem} sendOther={sendOther} />
 		</main>
 	);
 }

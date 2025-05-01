@@ -17,13 +17,14 @@ declare namespace DB {
 		total_tax: number;
 		total_after_tax: number;
 		rounding: number | null;
-		grand_total: number;credit: 0 | 1;
+		grand_total: number;
+		credit: 0 | 1;
 		cashier: string | null;
 		mode: "buy" | "sell";
 		pay: number;
 		change: number;
-		method: "cash" | "transfer" | "emoney",
-  	note: string;
+		method: "cash" | "transfer" | "emoney";
+		note: string;
 	}
 	interface Other {
 		id: number;
@@ -39,6 +40,7 @@ declare namespace DB {
 		price: number;
 		qty: number;
 		total_before_disc: number;
+		total: number;
 		disc_val: number;
 		disc_type: "number" | "percent";
 		capital: number;

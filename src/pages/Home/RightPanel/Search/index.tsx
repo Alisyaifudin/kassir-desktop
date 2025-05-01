@@ -51,6 +51,10 @@ export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
 		});
 	};
 	const handleClick = (item: Item) => {
+		if (item.qty === 0) {
+			setError("Stok barang habis");
+			return;
+		}
 		sendItem(item);
 		setProducts([]);
 		setBarcode(null);

@@ -2,11 +2,15 @@ import { err, ok, Result, tryResult } from "../lib/utils";
 import Database from "@tauri-apps/plugin-sql";
 
 export const genRecord = (db: Database) => ({
-	getByRange: async (start: number, end: number): Promise<Result<"Aplikasi bermasalah", DB.Record[]>> => {
+	getByRange: async (
+		start: number,
+		end: number
+	): Promise<Result<"Aplikasi bermasalah", DB.Record[]>> => {
 		return tryResult({
 			run: () =>
 				db.select<DB.Record[]>(
-					"SELECT * FROM records WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
+					`SELECT * FROM records 
+					 WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`,
 					[start, end]
 				),
 		});
@@ -27,9 +31,14 @@ export const genRecord = (db: Database) => ({
 		data: {
 			cashier: string | null;
 			credit: 0 | 1;
-			total: number;
+			totalBeforeDisc: number;
+			totalAfterDisc: number;
+			totalAfterTax: number;
+			totalTax: number;
+			grandTotal: number;
+			note: string;
+			method: "cash" | "transfer" | "emoney";
 			rounding: number | null;
-			grand_total: number;
 			pay: number;
 			disc: {
 				value: number | null;
@@ -42,20 +51,27 @@ export const genRecord = (db: Database) => ({
 			run: () =>
 				db.execute(
 					`INSERT INTO records 
-						(mode, timestamp, grand_total, pay, disc_val, disc_type, change, total, rounding, credit, cashier)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+						(mode, timestamp, cashier, credit, total_before_disc, total_after_disc,
+						 total_after_tax, total_tax, grand_total, note, method, rounding,
+						 pay, disc_val, disc_type, change)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
 					[
 						mode,
 						timestamp,
-						data.grand_total,
+						data.cashier,
+						data.credit,
+						data.totalBeforeDisc,
+						data.totalAfterDisc,
+						data.totalAfterTax,
+						data.totalTax,
+						data.grandTotal,
+						data.note,
+						data.method,
+						data.rounding,
 						data.pay,
 						data.disc.value,
 						data.disc.type,
 						data.change,
-						data.total,
-						data.rounding,
-						data.credit,
-						data.cashier,
 					]
 				),
 		});
