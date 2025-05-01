@@ -167,7 +167,7 @@ export function ItemList({
 												Rp{Number(record.grand_total).toLocaleString("de-DE")}
 											</p>
 										</div>
-										<div className="grid grid-cols-[60px_100px_100px]">
+										<div className="grid grid-cols-[80px_100px_100px]">
 											<p>({meth[record.method]})</p>
 											<p>Pembayaran</p>
 											<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>

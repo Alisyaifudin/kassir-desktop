@@ -4,11 +4,11 @@ import { Item, itemSchema, Other, otherSchema } from "../schema";
 import { useEffect, useState } from "react";
 import { produce } from "immer";
 
-export function useLocalStorage(mode: "sell"|"buy") {
+export function useLocalStorage(mode: "sell" | "buy") {
 	const [ready, setReady] = useState(false);
 	const [note, setNote] = useState("");
 	const [method, setMethod] = useState<"cash" | "transfer" | "emoney">("cash");
-	
+
 	const [items, setItems] = useState<Item[]>([]);
 	const [others, setOthers] = useState<Other[]>([]);
 	const [cashier, setCashier] = useState<string | null>(null);
@@ -70,7 +70,12 @@ export function useLocalStorage(mode: "sell"|"buy") {
 		add: (mode: "buy" | "sell", item: Item) => {
 			setItems((state) =>
 				produce(state, (draft) => {
-					draft.push(item);
+					const index = item.id !== null ? draft.findIndex((s) => s.id === item.id) : -1;
+					if (index === -1) {
+						draft.push(item);
+					} else {
+						draft[index].qty += 1;
+					}
 					localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
 				})
 			);
@@ -212,7 +217,7 @@ export function useLocalStorage(mode: "sell"|"buy") {
 
 export type SetItem = ReturnType<typeof useLocalStorage>["set"]["items"];
 export type SetOther = ReturnType<typeof useLocalStorage>["set"]["others"];
-export type Data = ReturnType<typeof useLocalStorage>["data"]
+export type Data = ReturnType<typeof useLocalStorage>["data"];
 
 function getCashier() {
 	const parsed = z.string().safeParse(localStorage.getItem("cashier"));

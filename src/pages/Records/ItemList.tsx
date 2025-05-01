@@ -149,7 +149,7 @@ function ItemListSell({
 					<p className="text-end">Total:</p>
 					<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
 				</div>
-				<div className="grid grid-cols-[100px_170px_200px]">
+				<div className="grid grid-cols-[150px_170px_200px]">
 					<p>({meth[record.method]})</p>
 					<p className="text-end">Pembayaran:</p>
 					<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
@@ -299,7 +299,8 @@ function ItemListBuy({
 						<p className="text-end">Total:</p>
 						<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
 					</div>
-					<div className="grid grid-cols-[170px_200px]">
+					<div className="grid grid-cols-[150px_170px_200px]">
+						<p>({meth[record.method]})</p>
 						<p className="text-end">Pembayaran:</p>
 						<p className="text-end">
 							Rp{(record.credit === 0 ? record.pay : Number(pay)).toLocaleString("id-ID")}
