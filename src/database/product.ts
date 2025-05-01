@@ -75,7 +75,7 @@ export const genProduct = (db: Database) => ({
 						data.price,
 						data.barcode === null ? null : data.barcode.trim(),
 						data.capital,
-						data.note ?? null,
+						data.note ?? "",
 					]
 				),
 		});

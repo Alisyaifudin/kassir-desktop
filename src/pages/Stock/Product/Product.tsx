@@ -13,19 +13,18 @@ import { Await } from "../../../components/Await.tsx";
 import { useAsync } from "../../../hooks/useAsync.tsx";
 import { TextError } from "../../../components/TextError.tsx";
 import { type loader } from "./index.tsx";
+import { Textarea } from "../../../components/ui/textarea.tsx";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
 	stock: numeric,
 	capital: z
-			.string()
-			.refine((v) => !Number.isNaN(v))
-			.transform((v) => (v === "" ? 0 : Number(v))),
-	barcode: z
 		.string()
 		.refine((v) => !Number.isNaN(v))
-		.transform((v) => (v === "" ? null : v)),
+		.transform((v) => (v === "" ? 0 : Number(v))),
+	barcode: z.string().transform((v) => (v === "" ? null : v)),
+	note: z.string().transform((v) => (v === "" ? undefined : v)),
 	id: z.number(),
 });
 
@@ -66,6 +65,7 @@ function Form({ product }: { product: DB.Product }) {
 		barcode: "",
 		global: "",
 		capital: "",
+		note: "",
 	});
 	const [loading, setLoading] = useState(false);
 	const navigate = useNavigate();
@@ -78,6 +78,7 @@ function Form({ product }: { product: DB.Product }) {
 			stock: formData.get("stock"),
 			barcode: formData.get("barcode"),
 			capital: formData.get("capital"),
+			note: formData.get("note"),
 			id: product.id,
 		});
 		if (!parsed.success) {
@@ -88,6 +89,7 @@ function Form({ product }: { product: DB.Product }) {
 				stock: errs.stock?.join("; ") ?? "",
 				barcode: errs.barcode?.join("; ") ?? "",
 				capital: errs.capital?.join("; ") ?? "",
+				note: errs.note?.join("; ") ?? "",
 				global: "",
 			});
 			return;
@@ -95,7 +97,15 @@ function Form({ product }: { product: DB.Product }) {
 		setLoading(true);
 		db.product.update(parsed.data).then((err) => {
 			if (err) {
-				setError({ global: err, barcode: "", name: "", price: "", stock: "", capital: "" });
+				setError({
+					global: err,
+					barcode: "",
+					name: "",
+					price: "",
+					stock: "",
+					capital: "",
+					note: "",
+				});
 				setLoading(false);
 				return;
 			}
@@ -151,6 +161,18 @@ function Form({ product }: { product: DB.Product }) {
 					defaultValue={product.barcode ?? ""}
 				/>
 			</Field>
+			<label className="flex flex-col">
+				<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+					<span className="text-3xl">Catatan</span>
+					<Textarea className="min-h-[300px]" name="note" defaultValue={product.note} />
+				</div>
+				{error.note === "" ? null : (
+					<div className="flex gap-2">
+						<div className="w-[120px]"></div>
+						<TextError>{error.note}</TextError>
+					</div>
+				)}
+			</label>
 			<div className="flex items-center justify-between">
 				<Button className="w-fit" type="submit">
 					Simpan

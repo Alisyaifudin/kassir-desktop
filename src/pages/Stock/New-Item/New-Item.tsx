@@ -8,6 +8,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
 import { useDb } from "../../../Layout";
 import { TextError } from "../../../components/TextError";
+import { Textarea } from "../../../components/ui/textarea";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
@@ -17,7 +18,8 @@ const dataSchema = z.object({
 		.string()
 		.refine((v) => !Number.isNaN(v))
 		.transform((v) => (v === "" ? 0 : Number(v))),
-	barcode: z.string().refine((v) => !Number.isNaN(v)).transform((v) => v === "" ? null : v),
+	barcode: z.string().transform((v) => (v === "" ? null : v)),
+	note: z.string().transform((v) => (v === "" ? undefined : v)),
 });
 
 export default function Page() {
@@ -30,6 +32,7 @@ export default function Page() {
 		barcode: "",
 		global: "",
 		capital: "",
+		note: "",
 	});
 	const [loading, setLoading] = useState(false);
 	const db = useDb();
@@ -48,6 +51,7 @@ export default function Page() {
 			stock: formData.get("stock"),
 			barcode: formData.get("barcode"),
 			capital: formData.get("capital"),
+			note: formData.get("note"),
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -57,6 +61,7 @@ export default function Page() {
 				stock: errs.stock?.join("; ") ?? "",
 				barcode: errs.barcode?.join("; ") ?? "",
 				capital: errs.capital?.join("; ") ?? "",
+				note: errs.note?.join("; ") ?? "",
 				global: "",
 			});
 			return;
@@ -64,7 +69,15 @@ export default function Page() {
 		setLoading(true);
 		db.product.insert(parsed.data).then((err) => {
 			if (err) {
-				setError({ global: err, barcode: "", name: "", price: "", stock: "", capital: "" });
+				setError({
+					global: err,
+					barcode: "",
+					name: "",
+					price: "",
+					stock: "",
+					capital: "",
+					note: "",
+				});
 				setLoading(false);
 				return;
 			}
@@ -116,6 +129,18 @@ export default function Page() {
 				<Field error={error.barcode} label="Barcode:">
 					<Input type="number" className="outline w-[300px]" name="barcode" autoComplete="off" />
 				</Field>
+				<label className="flex flex-col">
+					<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+						<span className="text-3xl">Catatan</span>
+						<Textarea name="note" className="min-h-[300px]" />
+					</div>
+					{error.note === "" ? null : (
+						<div className="flex gap-2">
+							<div className="w-[120px]"></div>
+							<TextError>{error.note}</TextError>
+						</div>
+					)}
+				</label>
 				<Button className="w-fit text-3xl" type="submit">
 					Simpan
 					{loading && <Loader2 className="animate-spin" />}
