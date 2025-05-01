@@ -55,7 +55,16 @@ export const genProduct = (db: Database) => ({
 		capital: number;
 		barcode: string | null;
 		note?: string;
-	}): Promise<"Aplikasi bermasalah" | null> => {
+	}): Promise<"Aplikasi bermasalah" | "Barang sudah ada" | null> => {
+		if (data.barcode !== null) {
+			const [errSelect, prod] = await tryResult({
+				run: () => db.select<any[]>("SELECT name FROM products WHERE barcode = $1", [data.barcode]),
+			});
+			if (errSelect) return errSelect;
+			if (prod.length > 0) {
+				return "Barang sudah ada";
+			}
+		}
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
