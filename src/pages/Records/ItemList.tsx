@@ -75,7 +75,15 @@ function ItemListSell({
 
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
-			<p>No: {record.timestamp}</p>
+			<div className="flex items-center gap-2">
+				<p>No: {record.timestamp}</p>
+				{record.cashier ? (
+					<>
+						<div className="border-left h-full border" />
+						<p>Kasir: {record.cashier}</p>
+					</>
+				) : null}
+			</div>
 			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
@@ -215,6 +223,13 @@ function ItemListBuy({
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<p>No: {record.timestamp}</p>
+			{record.cashier ? (
+				<>
+					<div className="border-left h-full border" />
+					<p>Kasir: {record.cashier}</p>
+					<div className="border-left h-full border" />
+				</>
+			) : null}
 			{record.credit === 1 ? (
 				<form onSubmit={handlePay} className="flex items-center gap-2 w-full max-w-[400px] py-1">
 					<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>

@@ -75,7 +75,7 @@ export default function Page() {
 	};
 	// grow shrink basis-0
 	return (
-		<main className="flex flex-col gap-2 p-2 flex-1 text-3xl">
+		<main className="flex flex-col gap-2 p-2 flex-1 text-3xl overflow-hidden">
 			<div className="flex gap-2 items-center w-full">
 				<div className="flex gap-1 items-center">
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
@@ -118,7 +118,7 @@ export default function Page() {
 						return <TextError>{errTaxes}</TextError>;
 					}
 					return (
-						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full ">
+						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
 							<Tabs
 								value={mode}
 								onValueChange={(v) => {
@@ -127,7 +127,7 @@ export default function Page() {
 									}
 									setMode(setSearch, v);
 								}}
-								className="overflow-auto"
+								className="overflow-auto flex-1"
 							>
 								<TabsList>
 									<TabsTrigger value="sell">Jual</TabsTrigger>
