@@ -42,7 +42,7 @@ export function RecordList({ records, selected, selectRecord, mode }: RecordList
 							<TableCell className="text-center">{formatDate(record.timestamp)}</TableCell>
 							<TableCell className="text-center">{formatTime(record.timestamp)}</TableCell>
 							<TableCell className="text-right">
-								{Number(record.total).toLocaleString("id-ID")}
+								{Number(record.grand_total).toLocaleString("id-ID")}
 							</TableCell>
 						</TableRow>
 					))}

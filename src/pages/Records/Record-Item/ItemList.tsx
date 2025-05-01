@@ -3,7 +3,6 @@ import { Button } from "../../../components/ui/button";
 import { Temporal } from "temporal-polyfill";
 import { formatDate, formatTime } from "../../../lib/utils";
 import { Item } from "./Item";
-import Decimal from "decimal.js";
 import { useProfile } from "../../Setting/Profile/setting-api";
 import { Await } from "../../../components/Await";
 import { TaxItem } from "./TaxItem";
@@ -11,6 +10,12 @@ import { TaxItem } from "./TaxItem";
 const title = {
 	buy: "Beli",
 	sell: "Jual",
+};
+
+const meth = {
+	cash: "Tunai",
+	transfer: "Transfer",
+	emoney: "E-Money",
 };
 
 export function ItemList({
@@ -23,7 +28,7 @@ export function ItemList({
 	taxes: DB.Other[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
-	const info = useInfo();
+	const info = useProfile();
 	const [width] = useState(72);
 	useEffect(() => {
 		const style = document.createElement("style");
@@ -63,8 +68,6 @@ export function ItemList({
 		window.print();
 	};
 	const today = Temporal.Now.instant().epochMilliseconds;
-	const totalBeforeDisc = items.map((item) => item.subtotal).reduce((acc, curr) => acc + curr);
-	const disc = calcDisc(record.disc_type, record.disc_val, totalBeforeDisc);
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
@@ -95,7 +98,7 @@ export function ItemList({
 										</p>
 									))}
 									<p>{data.address}</p>
-									{record.cashier ? <p>Kasir: {data.cashier}</p> : null}
+									{record.cashier ? <p>Kasir: {record.cashier}</p> : null}
 									<div className="flex items-center justify-between">
 										<p>No: {record.timestamp}</p>
 										<p>
@@ -114,10 +117,18 @@ export function ItemList({
 											<>
 												<div className="grid grid-cols-[100px_100px]">
 													<p>Subtotal</p>{" "}
-													<p className="text-end">Rp{totalBeforeDisc.toLocaleString("de-DE")}</p>
+													<p className="text-end">
+														Rp{record.total_before_disc.toLocaleString("de-DE")}
+													</p>
 												</div>
 												<div className="grid grid-cols-[100px_100px]">
-													<p>Diskon</p> <p className="text-end">Rp{disc.toLocaleString("de-DE")}</p>
+													<p>Diskon</p>{" "}
+													<p className="text-end">
+														Rp
+														{(record.total_after_disc - record.total_before_disc).toLocaleString(
+															"de-DE"
+														)}
+													</p>
 												</div>
 												<hr className="w-full" />
 											</>
@@ -127,11 +138,11 @@ export function ItemList({
 												<div className="grid grid-cols-[100px_100px]">
 													<p></p>{" "}
 													<p className="text-end">
-														Rp{Number(record.total).toLocaleString("de-DE")}
+														Rp{record.total_after_disc.toLocaleString("de-DE")}
 													</p>
 												</div>
 												{taxes.map((tax) => (
-													<TaxItem key={tax.id} tax={tax} total={record.total} />
+													<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
 												))}
 												<hr className="w-full" />
 											</>
@@ -156,7 +167,8 @@ export function ItemList({
 												Rp{Number(record.grand_total).toLocaleString("de-DE")}
 											</p>
 										</div>
-										<div className="grid grid-cols-[100px_100px]">
+										<div className="grid grid-cols-[60px_100px_100px]">
+											<p>({meth[record.method]})</p>
 											<p>Pembayaran</p>
 											<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>
 										</div>
@@ -183,17 +195,4 @@ export function ItemList({
 			</Await>
 		</div>
 	);
-}
-
-function calcDisc(type: "number" | "percent", value: number, subtotal: number) {
-	switch (type) {
-		case "number":
-			return value;
-		case "percent":
-			return new Decimal(subtotal).times(value).div(100).round().toNumber();
-	}
-}
-
-function useInfo() {
-	return useProfile();
 }

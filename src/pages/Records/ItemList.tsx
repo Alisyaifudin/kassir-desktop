@@ -10,13 +10,11 @@ import {
 import { Link } from "react-router";
 import { DeleteBtn } from "./DeleteBtn";
 import { Button } from "../../components/ui/button";
-import { calcDisc } from "./Discount";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
 import { log } from "../../lib/utils";
 import { useDb } from "../../Layout";
 import { TaxItem } from "./TaxItem";
-import Decimal from "decimal.js";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
@@ -56,6 +54,12 @@ export function ItemList({ allItems, timestamp, records, mode, allTaxes }: Recor
 	return <ItemListSell items={items} record={record} taxes={taxes} />;
 }
 
+const meth = {
+	cash: "Tunai",
+	transfer: "Transfer",
+	emoney: "E-Money",
+};
+
 function ItemListSell({
 	items,
 	record,
@@ -68,21 +72,7 @@ function ItemListSell({
 	if (items.length === 0) {
 		return null;
 	}
-	const totalBeforeDisc =
-		record.disc_val > 0
-			? items.map((item) => item.subtotal).reduce((acc, curr) => acc + curr)
-			: record.total;
 
-	const disc =
-		record.disc_val > 0 ? calcDisc(record.disc_type, record.disc_val, totalBeforeDisc) : 0;
-	const totalAfterDisc = totalBeforeDisc - disc;
-	const totalTax =
-		taxes.length > 0
-			? taxes
-					.map((t) => new Decimal(totalAfterDisc).times(t.value).div(100).round().toNumber())
-					.reduce((acc, curr) => acc + curr)
-			: 0;
-	const totalAfterTax = totalAfterDisc + totalTax;
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<p>No: {record.timestamp}</p>
@@ -110,68 +100,76 @@ function ItemListSell({
 							<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
 							<TableCell className="text-center">{item.qty}</TableCell>
 							<TableCell className="text-end">
-								{calcDisc(item.disc_type, item.disc_val, item.subtotal).toLocaleString("id-ID")}
+								{item.total_before_disc.toLocaleString("id-ID")}
 							</TableCell>
-							<TableCell className="text-end">{item.subtotal.toLocaleString("id-ID")}</TableCell>
+							<TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
 			</Table>
 			<div className="flex flex-col items-end">
-				<div>
-					{record.disc_val > 0 ? (
-						<>
-							<div className="grid grid-cols-[170px_200px]">
-								<p className="text-end">Subtotal:</p>
-								<p className="text-end">Rp{totalBeforeDisc.toLocaleString("id-ID")}</p>
-							</div>
-							<div className="grid grid-cols-[170px_200px]">
-								<p className="text-end">Diskon:</p>
-								<p className="text-end">Rp{disc.toLocaleString("id-ID")}</p>
-							</div>
-							<hr />
-							<div className="grid grid-cols-[170px_200px]">
-								<div></div>{" "}
-								<p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
-							</div>
-						</>
-					) : null}
-					{taxes.length > 0 ? (
-						<>
-							{taxes.map((tax) => (
-								<TaxItem key={tax.id} tax={tax} total={record.total} />
-							))}
-							<hr className="w-full" />
-							<div className="grid grid-cols-[170px_200px]">
-								<div></div> <p className="text-end">Rp{totalAfterTax.toLocaleString("de-DE")}</p>
-							</div>
-						</>
-					) : null}
-					{record.rounding ? (
+				{record.disc_val > 0 ? (
+					<>
 						<div className="grid grid-cols-[170px_200px]">
-							<p className="text-end">Pembulatan:</p>
-							<p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
+							<p className="text-end">Subtotal:</p>
+							<p className="text-end">Rp{record.total_before_disc.toLocaleString("id-ID")}</p>
 						</div>
-					) : null}
+						<div className="grid grid-cols-[170px_200px]">
+							<p className="text-end">Diskon:</p>
+							<p className="text-end">
+								Rp{(record.total_after_disc - record.total_before_disc).toLocaleString("id-ID")}
+							</p>
+						</div>
+						<hr />
+						<div className="grid grid-cols-[170px_200px]">
+							<div></div>{" "}
+							<p className="text-end">Rp{record.total_after_disc.toLocaleString("de-DE")}</p>
+						</div>
+					</>
+				) : null}
+				{taxes.length > 0 ? (
+					<>
+						{taxes.map((tax) => (
+							<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
+						))}
+						<hr className="w-full" />
+						<div className="grid grid-cols-[170px_200px]">
+							<div></div>{" "}
+							<p className="text-end">Rp{record.total_after_tax.toLocaleString("de-DE")}</p>
+						</div>
+					</>
+				) : null}
+				{record.rounding ? (
 					<div className="grid grid-cols-[170px_200px]">
-						<p className="text-end">Total:</p>
-						<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
+						<p className="text-end">Pembulatan:</p>
+						<p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
 					</div>
-					<div className="grid grid-cols-[170px_200px]">
-						<p className="text-end">Pembayaran:</p>
-						<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
-					</div>
-					<div className="grid grid-cols-[170px_200px]">
-						<p className="text-end">Kembalian:</p>{" "}
-						<p className="text-end">Rp{Number(record.change).toLocaleString("id-ID")}</p>
-					</div>
+				) : null}
+				<div className="grid grid-cols-[170px_200px]">
+					<p className="text-end">Total:</p>
+					<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
 				</div>
-				<div className="pt-20 flex justify-between w-full">
-					<Button asChild>
-						<Link to={`/records/${record.timestamp}`}>Lihat</Link>
-					</Button>
-					<DeleteBtn timestamp={record.timestamp} />
+				<div className="grid grid-cols-[100px_170px_200px]">
+					<p>({meth[record.method]})</p>
+					<p className="text-end">Pembayaran:</p>
+					<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
 				</div>
+				<div className="grid grid-cols-[170px_200px]">
+					<p className="text-end">Kembalian:</p>{" "}
+					<p className="text-end">Rp{Number(record.change).toLocaleString("id-ID")}</p>
+				</div>
+			</div>
+			{record.note !== "" ? (
+				<div>
+					<p>Catatan:</p>
+					<p>{record.note}</p>
+				</div>
+			) : null}
+			<div className="pt-20 flex justify-between w-full">
+				<Button asChild>
+					<Link to={`/records/${record.timestamp}`}>Lihat</Link>
+				</Button>
+				<DeleteBtn timestamp={record.timestamp} />
 			</div>
 		</div>
 	);
@@ -186,7 +184,6 @@ function ItemListBuy({
 	record: DB.Record;
 	taxes: DB.Other[];
 }) {
-	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
 	const [pay, setPay] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<null | string>(null);
@@ -215,10 +212,6 @@ function ItemListBuy({
 		}
 		setLoading(false);
 	};
-	const totalBeforeDisc =
-		record.disc_val > 0
-			? items.map((item) => item.subtotal).reduce((acc, curr) => acc + curr)
-			: record.total;
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<p>No: {record.timestamp}</p>
@@ -260,9 +253,9 @@ function ItemListBuy({
 							</TableCell>
 							<TableCell className="text-center">{item.qty}</TableCell>
 							<TableCell className="text-end">
-								{calcDisc(item.disc_type, item.disc_val, item.subtotal).toLocaleString("id-ID")}
+								{item.total_before_disc.toLocaleString("id-ID")}
 							</TableCell>
-							<TableCell className="text-end">{item.subtotal.toLocaleString("id-ID")}</TableCell>
+							<TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
@@ -273,11 +266,13 @@ function ItemListBuy({
 						<>
 							<div className="grid grid-cols-[170px_200px]">
 								<p className="text-end">Subtotal:</p>
-								<p className="text-end">Rp{totalBeforeDisc.toLocaleString("id-ID")}</p>
+								<p className="text-end">Rp{record.total_before_disc.toLocaleString("id-ID")}</p>
 							</div>
 							<div className="grid grid-cols-[170px_200px]">
 								<p className="text-end">Diskon:</p>
-								<p className="text-end">Rp{totalDisc.toLocaleString("id-ID")}</p>
+								<p className="text-end">
+									Rp{(record.total_after_disc - record.total_before_disc).toLocaleString("id-ID")}
+								</p>
 							</div>
 							<hr />
 						</>
@@ -285,10 +280,11 @@ function ItemListBuy({
 					{taxes.length > 0 ? (
 						<>
 							<div className="grid grid-cols-[100px_100px]">
-								<p></p> <p className="text-end">Rp{Number(record.total).toLocaleString("de-DE")}</p>
+								<p></p>{" "}
+								<p className="text-end">Rp{record.total_after_disc.toLocaleString("de-DE")}</p>
 							</div>
 							{taxes.map((tax) => (
-								<TaxItem key={tax.id} tax={tax} total={record.total} />
+								<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
 							))}
 							<hr className="w-full" />
 						</>

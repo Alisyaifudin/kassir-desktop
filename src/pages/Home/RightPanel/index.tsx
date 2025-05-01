@@ -12,7 +12,7 @@ export function RightPanel({
 	sendItem: (item: Item) => void;
 }) {
 	return (
-		<aside className="flex flex-col overflow-hidden  justify-between min-w-[666px] w-[35%] h-full">
+		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
 			<Tabs
 				defaultValue="auto"
 				className="w-full grow shrink basis-0 items-start flex flex-col overflow-hidden"

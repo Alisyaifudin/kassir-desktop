@@ -50,7 +50,7 @@ async function getRecord(
 	const all = await Promise.all([
 		db.record.getByTime(timestamp),
 		db.recordItem.getAllByTime(timestamp),
-		db.tax.getAllByTime(timestamp),
+		db.other.getAllByTime(timestamp),
 	]);
 	const [errRecord, record] = all[0];
 	if (errRecord) {

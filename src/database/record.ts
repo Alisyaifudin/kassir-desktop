@@ -16,7 +16,7 @@ export const genRecord = (db: Database) => ({
 		});
 	},
 	getByTime: async (
-		timestamp: number
+		timestamp: number 
 	): Promise<Result<"Aplikasi bermasalah", DB.Record | null>> => {
 		const [errMsg, records] = await tryResult({
 			run: () => db.select<DB.Record[]>("SELECT * FROM records WHERE timestamp = $1", [timestamp]),

@@ -26,6 +26,6 @@ export default function Cashier() {
 
 function useCashier() {
 	const db = useDb();
-	const state = useAsync(db.cashier.get());
+	const state = useAsync(db.cashier.get(), []);
 	return state;
 }

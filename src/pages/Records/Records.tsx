@@ -7,12 +7,12 @@ import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
 import { ItemList } from "./ItemList";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
-import { getMode } from "../Home";
 import { TextError } from "../../components/TextError";
 import { Button } from "../../components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
+import { z } from "zod";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
@@ -20,13 +20,13 @@ export default function Page() {
 	const [loading, setLoading] = useState(false);
 	const [val, setVal] = useState("");
 	const mode = getMode(search);
-	const time = getTime(search);
+	const time = getTime(search, setSearch);
 	const selected = getSelected(search);
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
 	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
-	const state = useRecords(date);
+	const state = useRecords(time);
 	const db = useDb();
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,8 +73,9 @@ export default function Page() {
 			selected: val,
 		});
 	};
+	// grow shrink basis-0
 	return (
-		<main className="flex flex-col gap-2 p-2 flex-1 overflow-y-auto text-3xl">
+		<main className="flex flex-col gap-2 p-2 flex-1 text-3xl">
 			<div className="flex gap-2 items-center w-full">
 				<div className="flex gap-1 items-center">
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
@@ -117,7 +118,7 @@ export default function Page() {
 						return <TextError>{errTaxes}</TextError>;
 					}
 					return (
-						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-y-auto">
+						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full ">
 							<Tabs
 								value={mode}
 								onValueChange={(v) => {
@@ -126,6 +127,7 @@ export default function Page() {
 									}
 									setMode(setSearch, v);
 								}}
+								className="overflow-auto"
 							>
 								<TabsList>
 									<TabsTrigger value="sell">Jual</TabsTrigger>
@@ -164,25 +166,35 @@ export default function Page() {
 	);
 }
 
-function useRecords(date: Temporal.ZonedDateTime) {
+function useRecords(timestamp: number) {
 	const db = useDb();
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
 	const start = date.startOfDay().epochMilliseconds;
 	const end = date.startOfDay().add(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
 	const promises = Promise.all([
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
-		db.tax.getByRange(start, end),
+		db.other.getByRange(start, end),
 	]);
-	const state = useAsync(promises, [date]);
+	const state = useAsync(promises, [timestamp]);
 	return state;
 }
 
-function getTime(search: URLSearchParams): number {
+function getTime(search: URLSearchParams, setSearch: SetURLSearchParams): number {
 	const timeStr = search.get("time");
 	if (timeStr === null || Number.isNaN(timeStr)) {
-		return Temporal.Now.instant().epochMilliseconds;
+		const now = Temporal.Now.instant().epochMilliseconds;
+		setSearch((prev) => ({ ...prev, time: now.toString() }));
+		return now;
 	}
 	return Number(timeStr);
+}
+
+function getMode(search: URLSearchParams) {
+	const parsed = z.enum(["sell", "buy"]).safeParse(search.get("mode"));
+	const mode = parsed.success ? parsed.data : "sell";
+	return mode;
 }
 
 function setTime(setSearch: SetURLSearchParams, time: number) {

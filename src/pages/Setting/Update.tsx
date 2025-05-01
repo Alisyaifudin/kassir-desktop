@@ -18,7 +18,7 @@ export function Update() {
 	const [error, setError] = useState("");
 	const { notify } = useNotification();
 	const store = useStore();
-	const state = useAsync(store.newVersion.get());
+	const state = useAsync(store.newVersion.get(), []);
 	const handleClick = async () => {
 		setLoading(true);
 		const [errMsg] = await tryResult({
