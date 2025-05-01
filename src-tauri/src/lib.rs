@@ -112,6 +112,12 @@ pub fn run() {
             sql: include_str!("../src/migration-17.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 18,
+            description: "change_taxes_to_others",
+            sql: include_str!("../src/migration-18.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(

@@ -20,7 +20,7 @@ import Decimal from "decimal.js";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
-	allTaxes: DB.Tax[];
+	allTaxes: DB.Other[];
 	timestamp: number | null;
 	mode: "buy" | "sell";
 };
@@ -28,9 +28,9 @@ type RecordListProps = {
 function filterData(
 	timestamp: number | null,
 	allItems: DB.RecordItem[],
-	allTaxes: DB.Tax[],
+	allTaxes: DB.Other[],
 	records: DB.Record[]
-): { items: DB.RecordItem[]; taxes: DB.Tax[] } & ({ record: null } | { record: DB.Record }) {
+): { items: DB.RecordItem[]; taxes: DB.Other[] } & ({ record: null } | { record: DB.Record }) {
 	if (timestamp === null) {
 		return { items: [], record: null, taxes: [] };
 	}
@@ -63,7 +63,7 @@ function ItemListSell({
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
-	taxes: DB.Tax[];
+	taxes: DB.Other[];
 }) {
 	if (items.length === 0) {
 		return null;
@@ -184,7 +184,7 @@ function ItemListBuy({
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
-	taxes: DB.Tax[];
+	taxes: DB.Other[];
 }) {
 	const totalDisc = record === null ? 0 : calcDisc(record.disc_type, record.disc_val, record.total);
 	const [pay, setPay] = useState("");

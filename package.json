@@ -1,7 +1,7 @@
 {
   "name": "kassir",
   "private": true,
-  "version": "1.16.1",
+  "version": "1.16.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -37,8 +37,7 @@
     "tailwindcss": "^4.1.4",
     "temporal-polyfill": "^0.3.0",
     "use-debounce": "^10.0.4",
-    "zod": "^3.24.3",
-    "zustand": "^5.0.3"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.1",

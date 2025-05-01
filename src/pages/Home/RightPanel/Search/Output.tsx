@@ -1,17 +1,12 @@
-import { cn } from "../../../lib/utils";
+import { cn } from "../../../../lib/utils";
+import { Item } from "../../schema";
 
 export function Output({
 	products,
 	handleClick,
 }: {
 	products: DB.Product[];
-	handleClick: (data: {
-		name: string;
-		price: string;
-		stock: number;
-		id: number;
-		barcode?: string;
-	}) => void;
+	handleClick: (item: Item) => void;
 }) {
 	return (
 		<div className="h-full w-full grow shrink basis-0 overflow-y-auto">
@@ -22,10 +17,15 @@ export function Output({
 							onClick={() =>
 								handleClick({
 									id: product.id,
-									name: product.name,
-									price: product.price.toString(),
 									stock: product.stock,
-									barcode: product.barcode ?? undefined,
+									name: product.name,
+									price: product.price,
+									barcode: product.barcode,
+									disc: {
+										type: "percent",
+										value: 0,
+									},
+									qty: 1,
 								})
 							}
 							className={cn(

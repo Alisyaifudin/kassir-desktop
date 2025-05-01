@@ -19,7 +19,6 @@ const profiles = [
 	"header",
 	"version",
 	"newVersion",
-	"cashier",
 ] as const;
 
 export function generateStore(store: StoreTauri) {

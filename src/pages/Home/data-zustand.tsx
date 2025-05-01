@@ -11,43 +11,47 @@ const itemSchemaBase = z.object({
 		value: z.number(),
 		type: z.enum(["number", "percent"]),
 	}),
-	id: z.number(),
 });
 
-const itemSchema = z.discriminatedUnion("id", [
-	itemSchemaBase.extend({ id: z.number(), stock: z.number() }),
-	itemSchemaBase.extend({ id: z.undefined(), stock: z.undefined() }),
+const itemSchema = z.union([
+	itemSchemaBase.extend({
+		id: z.number(),
+		stock: z.number(),
+	}),
+	itemSchemaBase.extend({
+		id: z.undefined(),
+		stock: z.undefined(),
+	}),
 ]);
 
 export type Item = z.infer<typeof itemSchema>;
 
 const taxSchema = z.object({ name: z.string(), percent: z.number() });
 
-export type Tax = z.infer<typeof taxSchema>
+export type Tax = z.infer<typeof taxSchema>;
 
 export const dataSchema = z.object({
-  mode: z.enum(["sell", "buy"]),
-  sell: z.object({
-    items: itemSchema.array(),
-    taxes: taxSchema.array(),
-  }),
-  buy: z.object({
-    items: itemSchema.array(),
-    taxes: taxSchema.array(),
-  }),
-  cashier: z.string().nullable(),
-  pay: z.number(),
-  rounding: z.number(),
-  disc: z.object({
-    value: z.number(),
-    type: z.enum(["number", "percent"]),
-  }),
-  method: z.enum(["cash", "transfer", "emoney"]),
-  note: z.string(),
-})
+	mode: z.enum(["sell", "buy"]),
+	sell: z.object({
+		items: itemSchema.array(),
+		taxes: taxSchema.array(),
+	}),
+	buy: z.object({
+		items: itemSchema.array(),
+		taxes: taxSchema.array(),
+	}),
+	cashier: z.string().nullable(),
+	pay: z.number(),
+	rounding: z.number(),
+	disc: z.object({
+		value: z.number(),
+		type: z.enum(["number", "percent"]),
+	}),
+	method: z.enum(["cash", "transfer", "emoney"]),
+	note: z.string(),
+});
 
 export type Data = z.infer<typeof dataSchema>;
-
 
 type DataState = Data & {
 	reset: () => void;
@@ -99,6 +103,10 @@ export const initialValue: Data = {
 	pay: 0,
 	rounding: 0,
 };
+
+// type u = Data & Pick<DataState, "setInitial">;
+
+// export const useData = create<number>()((set) => 1);
 
 export const useData = create<DataState>()((set) => ({
 	...initialValue,

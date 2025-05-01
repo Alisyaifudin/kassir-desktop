@@ -1,32 +1,27 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { Output } from "./Output";
-import { useDb } from "../../../Layout";
-import { TextError } from "../../../components/TextError";
-import { Field } from "../Field";
-import { Input } from "../../../components/ui/input";
-import { ItemContext } from "../Sell/reducer";
+import { useDb } from "../../../../Layout";
+import { TextError } from "../../../../components/TextError";
+import { Field } from "../../Field";
+import { Input } from "../../../../components/ui/input";
 import { Loader2 } from "lucide-react";
-import { z } from "zod";
+import { Item } from "../../schema";
 
-export function Search() {
+export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
 	const [products, setProducts] = useState<DB.Product[]>([]);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [name, setName] = useState("");
-	const { dispatch } = useContext(ItemContext);
 	const [barcode, setBarcode] = useState<string | null>(null);
 	const db = useDb();
 	const handleChangeBarcode = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const n = e.currentTarget.value;
-		if (Number.isNaN(n)) {
-			return;
-		}
 		if (n === "") {
 			setBarcode(null);
 			setProducts([]);
 			return;
 		}
-		setBarcode(n);
+		setBarcode(n.trim());
 		db.product.searchByBarcode(n).then((res) => {
 			const [errMsg, items] = res;
 			if (errMsg !== null) {
@@ -55,17 +50,8 @@ export function Search() {
 			setProducts(items);
 		});
 	};
-	const handleClick = (data: {
-		name: string;
-		price: string;
-		stock: number;
-		id: number;
-		barcode?: string;
-	}) => {
-		dispatch({
-			action: "add-select",
-			data,
-		});
+	const handleClick = (item: Item) => {
+		sendItem(item);
 		setProducts([]);
 		setBarcode(null);
 		setName("");
@@ -76,48 +62,51 @@ export function Search() {
 		if (loading || error !== "") {
 			return;
 		}
-		const formData = new FormData(e.currentTarget);
-		setLoading(true);
-		const parsed = z
-			.string()
-			.refine((v) => !Number.isNaN(v))
-			.safeParse(formData.get("barcode"));
-		if (!parsed.success) {
-			setError(parsed.error.flatten().formErrors.join("; "));
-			setLoading(false);
+		if (barcode === null || barcode === "") {
 			return;
 		}
-		const [errMsg, product] = await db.product.getByBarcode(parsed.data);
+		setLoading(true);
+		const [errMsg, product] = await db.product.getByBarcode(barcode);
 		if (errMsg !== null) {
 			setError(errMsg);
 			setLoading(false);
 			return;
 		}
+		if (product === null) {
+			setError("Barang tidak ditemukan");
+			setLoading(false);
+			return;
+		}
+		if (product.stock === 0) {
+			setError("Stok habis");
+			setLoading(false);
+			return;
+		}
 		setLoading(false);
 		handleClick({
+			barcode: product.barcode,
+			disc: {
+				type: "percent",
+				value: 0,
+			},
 			name: product.name,
+			price: product.price,
+			qty: 1,
 			id: product.id,
-			price: product.price.toString(),
 			stock: product.stock,
-			barcode: product.barcode ?? undefined,
 		});
 	};
 	return (
 		<>
-			<form onSubmit={handleSubmitBarcode} className="flex items-end gap-1">
+			<form onSubmit={handleSubmitBarcode} className="flex items-end gap-1 px-1">
 				<Field label="Barcode">
-					<Input
-						type="number"
-						value={barcode ?? ""}
-						onChange={handleChangeBarcode}
-						name="barcode"
-					/>
+					<Input type="text" value={barcode ?? ""} onChange={handleChangeBarcode} />
 				</Field>
 				{loading ? <Loader2 size={35} className="animate-spin my-3" /> : null}
 			</form>
 			<hr />
-			<Field label="Nama">
-				<Input type="search" value={name} onChange={handleChangeName} />
+			<Field label="Cari Nama" className="px-1">
+				<Input type="search" value={name} onChange={handleChangeName}/>
 			</Field>
 			{error ? <TextError>{error}</TextError> : null}
 			<Output products={products} handleClick={handleClick} />

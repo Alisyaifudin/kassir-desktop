@@ -1,47 +1,41 @@
 import React, { useEffect } from "react";
 import { Result } from "../../lib/utils";
 import { TextError } from "../../components/TextError";
-import { useStore } from "../../Layout";
+import { useData } from "./schema";
 
-export function CashierSelect({
-	data,
-	cashier,
-	setCashier,
-}: {
-	data: [Result<"Aplikasi bermasalah", DB.Cashier[]>, string | undefined];
-	cashier: string | null;
-	setCashier: React.Dispatch<React.SetStateAction<string | null>>;
-}) {
-	const store = useStore();
-	const [[errCashiers, cashiers], rawSelected] = data;
-	if (errCashiers !== null) {
-		return <TextError>{errCashiers}</TextError>;
-	}
+export function CashierSelect({ data }: { data: Result<"Aplikasi bermasalah", DB.Cashier[]> }) {
+	const [errCashiers, cashiers] = data;
+	const { changeCashier, cashier } = useData();
+	// const { changeCashier, cashier } = useData((state) => ({
+	// 	changeCashier: state.changeCashier,
+	// 	cashier: state.cashier,
+	// }));
 	useEffect(() => {
+		if (cashiers === null) {
+			return;
+		}
 		if (cashiers.length === 0) {
 			return;
 		}
-		if (rawSelected === undefined) {
-			setCashier(cashiers[0].name);
-			store.cashier.set(cashiers[0].name);
+		if (cashier === null) {
+			changeCashier(cashiers[0].name);
 			return;
 		}
-		const found = cashiers.find((c) => c.name === rawSelected);
+		const found = cashiers.find((c) => c.name === cashier);
 		if (found === undefined) {
-			setCashier(cashiers[0].name);
-			store.cashier.set(cashiers[0].name);
+			changeCashier(cashiers[0].name);
 			return;
 		}
-		setCashier(rawSelected);
-		store.cashier.set(rawSelected);
 	}, []);
+	const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		changeCashier(e.currentTarget.value);
+	};
+	if (errCashiers !== null) {
+		return <TextError>{errCashiers}</TextError>;
+	}
 	if (cashier === null) {
 		return null;
 	}
-	const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		setCashier(e.currentTarget.value);
-		store.cashier.set(e.currentTarget.value);
-	};
 	return (
 		<div className="flex items-center gap-2">
 			<p className="text-3xl">Kasir:</p>

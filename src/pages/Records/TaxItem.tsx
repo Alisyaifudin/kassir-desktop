@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 
-export function TaxItem({ tax, total }: { tax: DB.Tax; total: number }) {
+export function TaxItem({ tax, total }: { tax: DB.Other; total: number }) {
 	const val = new Decimal(total).times(tax.value).div(100).round();
 	return (
 		<div className="grid grid-cols-[170px_200px]">

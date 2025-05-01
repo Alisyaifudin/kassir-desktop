@@ -6,18 +6,18 @@ export function genTax(db: Database) {
 		getByRange: async (
 			start: number,
 			end: number
-		): Promise<Result<"Aplikasi bermasalah", DB.Tax[]>> => {
+		): Promise<Result<"Aplikasi bermasalah", DB.Other[]>> => {
 			return tryResult({
 				run: () =>
-					db.select<DB.Tax[]>(
+					db.select<DB.Other[]>(
 						"SELECT * FROM taxes WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
 						[start, end]
 					),
 			});
 		},
-		getAllByTime: async (timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Tax[]>> => {
+		getAllByTime: async (timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Other[]>> => {
 			const [errMsg, items] = await tryResult({
-				run: () => db.select<DB.Tax[]>("SELECT * FROM taxes WHERE timestamp = $1", [timestamp]),
+				run: () => db.select<DB.Other[]>("SELECT * FROM taxes WHERE timestamp = $1", [timestamp]),
 			});
 			if (errMsg) return err(errMsg);
 			return ok(items);

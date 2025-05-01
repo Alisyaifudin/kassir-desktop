@@ -1,127 +1,76 @@
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { ItemComponent } from "./Item";
-import { useContext, useState } from "react";
-import { cn, log } from "../../lib/utils";
-import { useDb, useStore } from "../../Layout";
+import {  useState } from "react";
+import { cn } from "../../lib/utils";
+import { useDb,} from "../../Layout";
 import { Link, useNavigate } from "react-router";
-import { Loader2 } from "lucide-react";
-import { ItemContext } from "./Sell/reducer";
-import { calcChange, calcTotal, calcTotalBeforeTax, submitPayment } from "./Sell/submit";
-import { TaxItem } from "./Tax";
-import { TextError } from "../../components/TextError";
 import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
 import { CashierSelect } from "./CashierSelect";
 
-export function LeftPanel({ mode }: { mode: "sell" | "buy" }) {
-	const { state } = useContext(ItemContext);
-	const { items, taxes } = state;
-	const [pay, setPay] = useState("");
-	const [cashier, setCashier] = useState<null | string>(null);
-	const [rounding, setRounding] = useState("");
-	const [disc, setDisc] = useState<{ type: "number" | "percent"; value: string }>({
-		type: "percent",
-		value: "",
-	});
+export function LeftPanel() {
 	const db = useDb();
-	const cashierState = useCashiers();
+	// const { items, taxes } = useData((state) => ({
+	// 	items: state[mode].items,
+	// 	taxes: state[mode].taxes,
+	// }));
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const navigate = useNavigate();
-	const totalBeforeTax = calcTotalBeforeTax(items, disc);
-	const total = calcTotal(totalBeforeTax, taxes, rounding);
-	const change = calcChange(total, pay);
-	const editPay = (value: string) => {
-		if (Number.isNaN(value) || Number(value) < 0 || Number(value) >= 1e9) {
-			return;
-		}
-		setPay(value);
-	};
-	const editRounding = (value: string) => {
-		if (Number.isNaN(value) || Number(value) < -1e9 || Number(value) >= 1e9) {
-			return;
-		}
-		setRounding(value);
-	};
-	const editTotalDiscVal = (value: string) => {
-		if (
-			Number.isNaN(value) ||
-			Number(value) < 0 ||
-			(disc.type === "number" && Number(value) >= 1e9) ||
-			(disc.type === "percent" && Number(value) > 100)
-		) {
-			return;
-		}
-		setDisc((prev) => ({
-			...prev,
-			value,
-		}));
-	};
-	const editTotalDiscType = (type: string) => {
-		if (type !== "number" && type !== "percent") {
-			return;
-		}
-		let value = disc.value;
-		if (type === "percent" && Number(value) > 100) {
-			value = "100";
-		}
-		setDisc({ value, type });
-	};
-	const handlePay = (credit: 0 | 1) => () => {
-		if (
-			total.equals(0) ||
-			(credit === 0 && (change.toNumber() < 0 || Number.isNaN(pay) || pay === ""))
-		) {
-			return;
-		}
-		const record =
-			credit === 0
-				? {
-						credit,
-						rounding: Number(rounding),
-						change: change.toNumber(),
-						disc: {
-							value: Number(disc.value),
-							type: disc.type,
-						},
-						cashier,
-						pay: Number(pay),
-						total: totalBeforeTax.toNumber(),
-						grand_total: total.toNumber(),
-				  }
-				: {
-						credit,
-						rounding: 0,
-						cashier,
-						change: 0,
-						disc: {
-							value: 0,
-							type: "number" as const,
-						},
-						pay: 0,
-						total: totalBeforeTax.toNumber(),
-						grand_total: total.toNumber(),
-				  };
-		setLoading(true);
-		submitPayment(db, mode, record, items, taxes)
-			.then((res) => {
-				const [errMsg, timestamp] = res;
-				if (errMsg) {
-					setError(errMsg);
-					setLoading(false);
-					return;
-				}
-				setError("");
-				setLoading(false);
-				navigate(`/records/${timestamp}`);
-			})
-			.catch((e) => {
-				log.error(String(e));
-				setError("Aplikasi bermasalah");
-				setLoading(false);
-			});
-	};
+	const cashierState = useCashiers();
+	// const handlePay = (credit: 0 | 1) => () => {
+	// 	if (
+	// 		total.equals(0) ||
+	// 		(credit === 0 && (change.toNumber() < 0 || Number.isNaN(pay) || pay === ""))
+	// 	) {
+	// 		return;
+	// 	}
+	// 	const record =
+	// 		credit === 0
+	// 			? {
+	// 					credit,
+	// 					rounding: Number(rounding),
+	// 					change: change.toNumber(),
+	// 					disc: {
+	// 						value: Number(disc.value),
+	// 						type: disc.type,
+	// 					},
+	// 					cashier,
+	// 					pay: Number(pay),
+	// 					total: totalBeforeTax.toNumber(),
+	// 					grand_total: total.toNumber(),
+	// 			  }
+	// 			: {
+	// 					credit,
+	// 					rounding: 0,
+	// 					cashier,
+	// 					change: 0,
+	// 					disc: {
+	// 						value: 0,
+	// 						type: "number" as const,
+	// 					},
+	// 					pay: 0,
+	// 					total: totalBeforeTax.toNumber(),
+	// 					grand_total: total.toNumber(),
+	// 			  };
+	// 	setLoading(true);
+	// 	submitPayment(db, mode, record, items, taxes)
+	// 		.then((res) => {
+	// 			const [errMsg, timestamp] = res;
+	// 			if (errMsg) {
+	// 				setError(errMsg);
+	// 				setLoading(false);
+	// 				return;
+	// 			}
+	// 			setError("");
+	// 			setLoading(false);
+	// 			navigate(`/records/${timestamp}`);
+	// 		})
+	// 		.catch((e) => {
+	// 			log.error(String(e));
+	// 			setError("Aplikasi bermasalah");
+	// 			setLoading(false);
+	// 		});
+	// };
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
 			<div className="outline flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
@@ -146,9 +95,7 @@ export function LeftPanel({ mode }: { mode: "sell" | "buy" }) {
 							</Link>
 						</Button>
 					</div>
-					<Await state={cashierState}>
-						{(data) => <CashierSelect data={data} cashier={cashier} setCashier={setCashier} />}
-					</Await>
+					<Await state={cashierState}>{(data) => <CashierSelect data={data} />}</Await>
 				</div>
 				<div
 					className={cn(
@@ -164,7 +111,7 @@ export function LeftPanel({ mode }: { mode: "sell" | "buy" }) {
 					<p>Subtotal</p>
 					<div />
 				</div>
-				<div className="flex flex-col overflow-y-auto">
+				{/* <div className="flex flex-col overflow-y-auto">
 					{items.map((item, i) => (
 						<ItemComponent {...item} index={i} key={i} mode={mode} />
 					))}
@@ -177,9 +124,9 @@ export function LeftPanel({ mode }: { mode: "sell" | "buy" }) {
 							totalBeforeTax={totalBeforeTax}
 						/>
 					))}
-				</div>
+				</div> */}
 			</div>
-			<div className="flex items-center pr-1 h-fit gap-2">
+			{/* <div className="flex items-center pr-1 h-fit gap-2">
 				<div className="flex flex-col gap-2 flex-1 h-full items-center justify-center">
 					<p className="font-bold text-5xl">Total</p>
 					<p className="text-9xl">Rp{total.toNumber().toLocaleString("de-DE")}</p>
@@ -241,14 +188,13 @@ export function LeftPanel({ mode }: { mode: "sell" | "buy" }) {
 					</div>
 					{error === "" ? null : <TextError>{error}</TextError>}
 				</div>
-			</div>
+			</div> */}
 		</div>
 	);
 }
 
 function useCashiers() {
 	const db = useDb();
-	const store = useStore();
-	const state = useAsync(Promise.all([db.cashier.get(), store.cashier.get()]));
+	const state = useAsync(db.cashier.get());
 	return state;
 }

@@ -46,7 +46,7 @@ function useRecord(timestamp: number) {
 async function getRecord(
 	db: Database,
 	timestamp: number
-): Promise<Result<string, { record: DB.Record; items: DB.RecordItem[]; taxes: DB.Tax[] }>> {
+): Promise<Result<string, { record: DB.Record; items: DB.RecordItem[]; taxes: DB.Other[] }>> {
 	const all = await Promise.all([
 		db.record.getByTime(timestamp),
 		db.recordItem.getAllByTime(timestamp),

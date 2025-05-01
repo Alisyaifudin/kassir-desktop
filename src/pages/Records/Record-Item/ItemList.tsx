@@ -20,7 +20,7 @@ export function ItemList({
 }: {
 	record: DB.Record;
 	items: DB.RecordItem[];
-	taxes: DB.Tax[];
+	taxes: DB.Other[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
 	const info = useInfo();

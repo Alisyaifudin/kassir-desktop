@@ -1,29 +1,25 @@
 import React, { useContext, useState } from "react";
-import { ItemContext } from "./Sell/reducer";
-import { Field } from "./Sell/Field";
-import { Input } from "../../components/ui/input";
-import { Button } from "../../components/ui/button";
+import { ItemContext } from "../Sell/reducer";
+import { Field } from "../Field";
+import { Input } from "../../../components/ui/input";
+import { Button } from "../../../components/ui/button";
 import { z } from "zod";
-import { numeric } from "../../lib/utils";
+import { numeric } from "../../../lib/utils";
 import { X } from "lucide-react";
 import Decimal from "decimal.js";
-import { calcTax } from "./Sell/submit";
+import { calcTax } from "../Sell/submit";
+import { Other, otherSchema } from "../schema";
 
-const taxSchema = z.object({
-	name: z.string().min(1, "Harus ada"),
-	value: numeric,
-});
-
-export function TaxField() {
+export function OtherComponent({ sendOther }: { sendOther: (other: Other) => void }) {
 	const [error, setError] = useState({ name: "", value: "" });
-	const { dispatch } = useContext(ItemContext);
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		const formEl = e.currentTarget;
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		const parsed = taxSchema.safeParse({
+		const parsed = otherSchema.safeParse({
 			name: formData.get("name"),
 			value: formData.get("value"),
+			kind: formData.get("kind"),
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -52,9 +48,15 @@ export function TaxField() {
 			<Field label="Nama" error={error.name}>
 				<Input type="text" name="name" />
 			</Field>
-			<Field label="Nilai (%)" error={error.value}>
-				<Input type="number" name="value" />
-			</Field>
+			<div className="flex items-end gap-2">
+				<Field label="Nilai" error={error.value}>
+					<Input type="number" name="value" />
+				</Field>
+				<select name="kind" defaultValue="percent" className="h-[54px] w-fit  outline text-3xl">
+					<option value="number">Angka</option>
+					<option value="percent">Persen</option>
+				</select>
+			</div>
 			<Button>Tambahkan</Button>
 		</form>
 	);

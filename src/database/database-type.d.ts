@@ -6,6 +6,7 @@ declare namespace DB {
 		stock: number;
 		barcode: string | null;
 		capital: number;
+		note: string;
 	}
 	interface Record {
 		timestamp: number; // primary key
@@ -24,12 +25,12 @@ declare namespace DB {
 		method: "cash" | "transfer" | "emoney",
   	note: string;
 	}
-	interface Tax {
+	interface Other {
 		id: number;
 		name: string;
 		timestamp: number;
-		percent: number;
 		value: number;
+		kind: "number" | "percent";
 	}
 	interface RecordItem {
 		id: number;
