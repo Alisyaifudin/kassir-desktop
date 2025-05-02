@@ -12,6 +12,7 @@ export function generateDB(db: DatabaseTauri) {
 		recordItem: genRecordItem(db),
 		other: genOther(db),
 		cashier: genChasier(db),
+		exec: db.execute,
 	};
 }
 

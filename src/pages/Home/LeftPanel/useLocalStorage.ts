@@ -37,7 +37,10 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setOthers(others);
 		setReady(true);
 	}, [mode]);
-	const changeCashier = (cashier: string) => setCashier(cashier);
+	const changeCashier = (cashier: string) => {
+		setCashier(cashier);
+		localStorage.setItem(`cashier`, cashier);
+	};
 	const changePay = (mode: "buy" | "sell", pay: number) => {
 		setPay(pay);
 		localStorage.setItem(`pay-${mode}`, pay.toString());

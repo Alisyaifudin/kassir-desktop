@@ -12,6 +12,7 @@ export function CashierSelect({
 	changeCashier: (cashier: string) => void;
 }) {
 	const [errCashiers, cashiers] = data;
+	console.log({ cashiers, cashier });
 	useEffect(() => {
 		if (cashiers === null) {
 			return;
@@ -19,7 +20,6 @@ export function CashierSelect({
 		if (cashiers.length === 0) {
 			return;
 		}
-
 		if (cashier === null) {
 			changeCashier(cashiers[0].name);
 			return;
