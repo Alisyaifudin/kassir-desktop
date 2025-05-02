@@ -57,7 +57,7 @@ export function ItemList({ allItems, timestamp, records, mode, allTaxes }: Recor
 const meth = {
 	cash: "Tunai",
 	transfer: "Transfer",
-	emoney: "E-Money",
+	emoney: "Lainnya",
 };
 
 function ItemListSell({
@@ -72,7 +72,6 @@ function ItemListSell({
 	if (items.length === 0) {
 		return <DeleteBtn timestamp={record.timestamp} />;
 	}
-
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<div className="flex items-center gap-2">
@@ -222,14 +221,15 @@ function ItemListBuy({
 	};
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
-			<p>No: {record.timestamp}</p>
-			{record.cashier ? (
-				<>
-					<div className="border-left h-full border" />
-					<p>Kasir: {record.cashier}</p>
-					<div className="border-left h-full border" />
-				</>
-			) : null}
+			<div className="flex gap-2 items-center">
+				<p>No: {record.timestamp}</p>
+				{record.cashier ? (
+					<>
+						<div className="border-left h-full border" />
+						<p>Kasir: {record.cashier}</p>
+					</>
+				) : null}
+			</div>
 			{record.credit === 1 ? (
 				<form onSubmit={handlePay} className="flex items-center gap-2 w-full max-w-[400px] py-1">
 					<p className="bg-red-500 w-fit px-2 text-white">Kredit</p>
@@ -276,60 +276,58 @@ function ItemListBuy({
 				</TableBody>
 			</Table>
 			<div className="flex flex-col items-end">
-				<div>
-					{record.disc_val > 0 ? (
-						<>
-							<div className="grid grid-cols-[170px_200px]">
-								<p className="text-end">Subtotal:</p>
-								<p className="text-end">Rp{record.total_before_disc.toLocaleString("id-ID")}</p>
-							</div>
-							<div className="grid grid-cols-[170px_200px]">
-								<p className="text-end">Diskon:</p>
-								<p className="text-end">
-									Rp{(record.total_after_disc - record.total_before_disc).toLocaleString("id-ID")}
-								</p>
-							</div>
-							<hr />
-						</>
-					) : null}
-					{taxes.length > 0 ? (
-						<>
-							<div className="grid grid-cols-[100px_100px]">
-								<p></p>{" "}
-								<p className="text-end">Rp{record.total_after_disc.toLocaleString("de-DE")}</p>
-							</div>
-							{taxes.map((tax) => (
-								<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
-							))}
-							<hr className="w-full" />
-						</>
-					) : null}
-					{record.rounding ? (
+				{record.disc_val > 0 ? (
+					<>
 						<div className="grid grid-cols-[170px_200px]">
-							<p className="text-end">Pembulatan:</p>
-							<p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
+							<p className="text-end">Subtotal:</p>
+							<p className="text-end">Rp{record.total_before_disc.toLocaleString("id-ID")}</p>
 						</div>
-					) : null}
+						<div className="grid grid-cols-[170px_200px]">
+							<p className="text-end">Diskon:</p>
+							<p className="text-end">
+								Rp{(record.total_after_disc - record.total_before_disc).toLocaleString("id-ID")}
+							</p>
+						</div>
+						<hr />
+					</>
+				) : null}
+				{taxes.length > 0 ? (
+					<>
+						<div className="grid grid-cols-[100px_100px]">
+							<p></p>{" "}
+							<p className="text-end">Rp{record.total_after_disc.toLocaleString("de-DE")}</p>
+						</div>
+						{taxes.map((tax) => (
+							<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
+						))}
+						<hr className="w-full" />
+					</>
+				) : null}
+				{record.rounding ? (
 					<div className="grid grid-cols-[170px_200px]">
-						<p className="text-end">Total:</p>
-						<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
+						<p className="text-end">Pembulatan:</p>
+						<p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
 					</div>
-					<div className="grid grid-cols-[150px_170px_200px]">
-						<p>({meth[record.method]})</p>
-						<p className="text-end">Pembayaran:</p>
-						<p className="text-end">
-							Rp{(record.credit === 0 ? record.pay : Number(pay)).toLocaleString("id-ID")}
-						</p>
-					</div>
-					<div className="grid grid-cols-[170px_200px]">
-						<p className="text-end">Kembalian:</p>{" "}
-						<p className="text-end">
-							Rp
-							{(
-								(record.credit === 0 ? record.pay : Number(pay)) - Number(record.grand_total)
-							).toLocaleString("id-ID")}
-						</p>
-					</div>
+				) : null}
+				<div className="grid grid-cols-[170px_200px]">
+					<p className="text-end">Total:</p>
+					<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
+				</div>
+				<div className="grid grid-cols-[150px_170px_200px]">
+					<p>({meth[record.method]})</p>
+					<p className="text-end">Pembayaran:</p>
+					<p className="text-end">
+						Rp{(record.credit === 0 ? record.pay : Number(pay)).toLocaleString("id-ID")}
+					</p>
+				</div>
+				<div className="grid grid-cols-[170px_200px]">
+					<p className="text-end">Kembalian:</p>{" "}
+					<p className="text-end">
+						Rp
+						{(
+							(record.credit === 0 ? record.pay : Number(pay)) - Number(record.grand_total)
+						).toLocaleString("id-ID")}
+					</p>
 				</div>
 				<div className="pt-20 flex justify-between w-full">
 					<Button asChild>

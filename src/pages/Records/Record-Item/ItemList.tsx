@@ -15,7 +15,7 @@ const title = {
 const meth = {
 	cash: "Tunai",
 	transfer: "Transfer",
-	emoney: "E-Money",
+	emoney: "Lainnya",
 };
 
 export function ItemList({

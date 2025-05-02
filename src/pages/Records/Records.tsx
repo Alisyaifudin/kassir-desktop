@@ -74,7 +74,6 @@ export default function Page() {
 			selected: val,
 		});
 	};
-	// grow shrink basis-0
 	return (
 		<main className="flex flex-col gap-2 p-2 flex-1 text-3xl overflow-hidden">
 			<div className="flex gap-2 items-center w-full justify-between">
@@ -91,7 +90,7 @@ export default function Page() {
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
 						<ChevronRight />
 					</Button>
-					<p>Tanggal {formatDate(time, "long")}</p>
+					<p>{formatDate(time, "long")}</p>
 				</div>
 				<div className="flex gap-2 flex-1 pl-22">
 					<Search query={query} setSearch={setSearch} />

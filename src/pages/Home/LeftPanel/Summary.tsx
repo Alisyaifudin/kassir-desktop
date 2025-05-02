@@ -155,7 +155,7 @@ export function Summary({
 							onClick={() => set.method(mode, "emoney")}
 						>
 							<Wallet />
-							E-Money
+							Lainnya
 						</Button>
 					</div>
 					<Note note={note} changeNote={(note) => set.note(mode, note)} />
