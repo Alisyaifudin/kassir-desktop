@@ -75,7 +75,7 @@ export async function submitPayment(
 			product_id: item.id,
 			capital: capital ?? 0,
 			barcode: item.barcode ?? null,
-			stock: item.stock ?? Number(item.qty),
+			stock: mode === "buy" ? Number(item.qty) : item.stock ?? Number(item.qty),
 		};
 	});
 	const promises = [

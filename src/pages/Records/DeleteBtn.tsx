@@ -12,9 +12,10 @@ import { Loader2 } from "lucide-react";
 import { useDb } from "../../Layout";
 import { TextError } from "../../components/TextError";
 
-export function DeleteBtn({ timestamp }: { timestamp: number }) {
+export function DeleteBtn({ timestamp }: { timestamp: number,  }) {
 	const db = useDb();
 	const [error, setError] = useState("");
+	const [open, setOpen] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const handleClick = () => {
 		setLoading(true);
@@ -25,10 +26,11 @@ export function DeleteBtn({ timestamp }: { timestamp: number }) {
 				return;
 			}
 			setLoading(false);
+			setOpen(false);
 		});
 	};
 	return (
-		<Dialog>
+		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button asChild variant="destructive">
 				<DialogTrigger>Hapus</DialogTrigger>
 			</Button>
@@ -43,9 +45,7 @@ export function DeleteBtn({ timestamp }: { timestamp: number }) {
 							Hapus {loading && <Loader2 className="animate-spin" />}
 						</Button>
 					</div>
-					{error === "" ? null : (
-						<TextError>{error}</TextError>
-					)}
+					{error === "" ? null : <TextError>{error}</TextError>}
 				</DialogHeader>
 			</DialogContent>
 		</Dialog>

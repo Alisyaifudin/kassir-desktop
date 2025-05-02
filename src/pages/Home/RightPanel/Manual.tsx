@@ -34,7 +34,13 @@ const itemSchema = z.object({
 
 const emptyErr = { name: "", price: "", qty: "", disc: "", barcode: "" };
 
-export function Manual({ sendItem }: { sendItem: (item: Item) => void }) {
+export function Manual({
+	sendItem,
+	mode,
+}: {
+	sendItem: (item: Item) => void;
+	mode: "buy" | "sell";
+}) {
 	const [error, setError] = useState(emptyErr);
 	const [loading, setLoading] = useState(false);
 	const ref = useRef<HTMLInputElement | null>(null);
@@ -50,7 +56,7 @@ export function Manual({ sendItem }: { sendItem: (item: Item) => void }) {
 			barcode: formData.get("barcode"),
 			name: formData.get("name"),
 			price: formData.get("price"),
-			qty: formData.get("qty"),
+			qty: formData.get("qty") ?? formData.get("stock"), // for sell, no qty
 			stock: formData.get("stock"),
 			disc: {
 				value: formData.get("disc-value"),
@@ -114,9 +120,11 @@ export function Manual({ sendItem }: { sendItem: (item: Item) => void }) {
 				</div>
 			</Field>
 			<div className="flex gap-1 items-center">
-				<Field label="Kuantitas">
-					<Input type="number" defaultValue={1} required name="qty" />
-				</Field>
+				{mode === "sell" ? (
+					<Field label="Kuantitas">
+						<Input type="number" defaultValue={1} required name="qty" />
+					</Field>
+				) : null}
 				<Field label="Stok" error={error.qty}>
 					<Input type="number" defaultValue={1} required name="stock" />
 				</Field>

@@ -7,9 +7,11 @@ import { Other, Item } from "../schema";
 export function RightPanel({
 	sendOther,
 	sendItem,
+	mode
 }: {
 	sendOther: (other: Other) => void;
 	sendItem: (item: Item) => void;
+	mode: "buy" | "sell"
 }) {
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
@@ -25,7 +27,7 @@ export function RightPanel({
 					<Search sendItem={sendItem} />
 				</TabsContent>
 				<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Manual sendItem={sendItem} />
+					<Manual sendItem={sendItem} mode={mode} />
 				</TabsContent>
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>

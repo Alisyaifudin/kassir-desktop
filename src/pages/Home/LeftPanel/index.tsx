@@ -1,5 +1,5 @@
 import { Button } from "../../../components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { cn } from "../../../lib/utils";
 import { useDb } from "../../../Layout";
 import { useAsync } from "../../../hooks/useAsync";
@@ -17,12 +17,15 @@ export function LeftPanel({
 	newItem,
 	newOther,
 	reset,
+	mode,
+	changeMode,
 }: {
 	newItem: Item | null;
 	newOther: Other | null;
 	reset: () => void;
+	mode: "sell" | "buy";
+	changeMode: (mode: "sell" | "buy") => void;
 }) {
-	const [mode, setMode] = useState<"sell" | "buy">("sell");
 	const cashierState = useCashiers();
 	const { set, data, ready } = useLocalStorage(mode);
 	const { items, others, disc, pay, rounding, cashier, method, note } = data;
@@ -63,14 +66,14 @@ export function LeftPanel({
 						<Button
 							className={mode === "sell" ? "text-2xl font-bold" : "text-black/50"}
 							variant={mode === "sell" ? "default" : "ghost"}
-							onClick={() => setMode("sell")}
+							onClick={() => changeMode("sell")}
 						>
 							<h2 className="">Jual</h2>
 						</Button>
 						<Button
 							className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
 							variant={mode === "buy" ? "default" : "ghost"}
-							onClick={() => setMode("buy")}
+							onClick={() => changeMode("buy")}
 						>
 							<h2 className="">Beli</h2>
 						</Button>

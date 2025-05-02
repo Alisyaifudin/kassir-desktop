@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "1.17.7";
+export const version = "1.17.8";
 
 export const log = logTauri;
 
