@@ -197,7 +197,7 @@ function ItemListBuy({
 	const [error, setError] = useState<null | string>(null);
 	const db = useDb();
 	if (items.length === 0) {
-		return null;
+		return <DeleteBtn timestamp={record.timestamp} />;
 	}
 	const handlePay = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();

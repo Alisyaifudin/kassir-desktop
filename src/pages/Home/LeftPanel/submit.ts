@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { Database } from "../../../database";
-import { err, ok, Result, tryResult } from "../../../lib/utils";
+import { err, ok, Result } from "../../../lib/utils";
 import Decimal from "decimal.js";
 import { Item, Other } from "../schema";
 
