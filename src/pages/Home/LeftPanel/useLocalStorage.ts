@@ -70,7 +70,7 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		add: (mode: "buy" | "sell", item: Item) => {
 			setItems((state) =>
 				produce(state, (draft) => {
-					const index = item.id !== null ? draft.findIndex((s) => s.id === item.id) : -1;
+					const index = item.id !== undefined ? draft.findIndex((s) => s.id === item.id) : -1;
 					if (index === -1) {
 						draft.push(item);
 					} else {

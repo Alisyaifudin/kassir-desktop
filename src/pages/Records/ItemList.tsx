@@ -70,7 +70,7 @@ function ItemListSell({
 	taxes: DB.Other[];
 }) {
 	if (items.length === 0) {
-		return null;
+		return <DeleteBtn timestamp={record.timestamp} />;
 	}
 
 	return (
