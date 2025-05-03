@@ -21,6 +21,7 @@ type RecordListProps = {
 	allTaxes: DB.Other[];
 	timestamp: number | null;
 	mode: "buy" | "sell";
+	sendSignal: () => void;
 };
 
 function filterData(
@@ -43,15 +44,22 @@ function filterData(
 	};
 }
 
-export function ItemList({ allItems, timestamp, records, mode, allTaxes }: RecordListProps) {
+export function ItemList({
+	allItems,
+	timestamp,
+	records,
+	mode,
+	allTaxes,
+	sendSignal,
+}: RecordListProps) {
 	const { items, record, taxes } = filterData(timestamp, allItems, allTaxes, records);
 	if (record === null) {
 		return null;
 	}
 	if (mode === "buy") {
-		return <ItemListBuy items={items} record={record} taxes={taxes} />;
+		return <ItemListBuy items={items} record={record} taxes={taxes} sendSignal={sendSignal} />;
 	}
-	return <ItemListSell items={items} record={record} taxes={taxes} />;
+	return <ItemListSell items={items} record={record} taxes={taxes} sendSignal={sendSignal} />;
 }
 
 const meth = {
@@ -64,13 +72,15 @@ function ItemListSell({
 	items,
 	record,
 	taxes,
+	sendSignal,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	taxes: DB.Other[];
+	sendSignal: () => void;
 }) {
 	if (items.length === 0) {
-		return <DeleteBtn timestamp={record.timestamp} />;
+		return <DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />;
 	}
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
@@ -176,7 +186,7 @@ function ItemListSell({
 				<Button asChild>
 					<Link to={`/records/${record.timestamp}`}>Lihat</Link>
 				</Button>
-				<DeleteBtn timestamp={record.timestamp} />
+				<DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />
 			</div>
 		</div>
 	);
@@ -186,17 +196,19 @@ function ItemListBuy({
 	items,
 	record,
 	taxes,
+	sendSignal,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	taxes: DB.Other[];
+	sendSignal: () => void;
 }) {
 	const [pay, setPay] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<null | string>(null);
 	const db = useDb();
 	if (items.length === 0) {
-		return <DeleteBtn timestamp={record.timestamp} />;
+		return <DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />;
 	}
 	const handlePay = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -333,7 +345,7 @@ function ItemListBuy({
 					<Button asChild>
 						<Link to={`/records/${record.timestamp}`}>Lihat</Link>
 					</Button>
-					<DeleteBtn timestamp={record.timestamp} />
+					<DeleteBtn timestamp={record.timestamp} sendSignal={sendSignal} />
 				</div>
 			</div>
 		</div>

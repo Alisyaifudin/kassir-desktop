@@ -28,7 +28,8 @@ export default function Page() {
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
 	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
-	const state = useRecords(time);
+	const [signal, setSignal] = useState(false);
+	const state = useRecords(time, signal);
 	const db = useDb();
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const date = e.currentTarget.value;
@@ -164,6 +165,7 @@ export default function Page() {
 								records={rawRecords}
 								mode={mode}
 								allTaxes={taxes}
+								sendSignal={() => setSignal((prev) => !prev)}
 							/>
 						</div>
 					);
@@ -173,7 +175,7 @@ export default function Page() {
 	);
 }
 
-function useRecords(timestamp: number) {
+function useRecords(timestamp: number, signal: boolean) {
 	const db = useDb();
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
@@ -184,7 +186,7 @@ function useRecords(timestamp: number) {
 		db.recordItem.getByRange(start, end),
 		db.other.getByRange(start, end),
 	]);
-	const state = useAsync(promises, [timestamp]);
+	const state = useAsync(promises, [timestamp, signal]);
 	return state;
 }
 

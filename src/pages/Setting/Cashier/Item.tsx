@@ -16,7 +16,7 @@ import { useDb } from "../../../Layout";
 import { tryResult } from "../../../lib/utils";
 import { z } from "zod";
 
-export function Item({ cashier }: { cashier: DB.Cashier }) {
+export function Item({ cashier, sendSignal }: { cashier: DB.Cashier; sendSignal: () => void }) {
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const db = useDb();
@@ -38,6 +38,7 @@ export function Item({ cashier }: { cashier: DB.Cashier }) {
 			setLoading(false);
 			return;
 		}
+		sendSignal();
 		setError("");
 		setLoading(false);
 	};
@@ -46,12 +47,12 @@ export function Item({ cashier }: { cashier: DB.Cashier }) {
 			<Input type="text" defaultValue={cashier.name} name="name" />
 			{loading ? <Loader2 className="animate-spin" /> : null}
 			{error === "" ? null : <TextError>{error}</TextError>}
-			<DeleteBtn name={cashier.name} />
+			<DeleteBtn name={cashier.name} sendSignal={sendSignal} />
 		</form>
 	);
 }
 
-export function DeleteBtn({ name }: { name: string }) {
+export function DeleteBtn({ name, sendSignal }: { name: string; sendSignal: () => void }) {
 	const db = useDb();
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -63,6 +64,7 @@ export function DeleteBtn({ name }: { name: string }) {
 				setLoading(false);
 				return;
 			}
+			sendSignal();
 			setLoading(false);
 		});
 	};

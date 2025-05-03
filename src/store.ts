@@ -17,7 +17,6 @@ const profiles = [
 	"shopee",
 	"footer",
 	"header",
-	"version",
 	"newVersion",
 ] as const;
 

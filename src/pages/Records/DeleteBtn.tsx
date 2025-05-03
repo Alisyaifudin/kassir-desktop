@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 import { useDb } from "../../Layout";
 import { TextError } from "../../components/TextError";
 
-export function DeleteBtn({ timestamp }: { timestamp: number,  }) {
+export function DeleteBtn({ timestamp, sendSignal }: { timestamp: number, sendSignal: ()=> void }) {
 	const db = useDb();
 	const [error, setError] = useState("");
 	const [open, setOpen] = useState(false);
@@ -25,6 +25,7 @@ export function DeleteBtn({ timestamp }: { timestamp: number,  }) {
 				setLoading(false);
 				return;
 			}
+			sendSignal();
 			setLoading(false);
 			setOpen(false);
 		});

@@ -7,7 +7,6 @@ import { BellRing, Loader2 } from "lucide-react";
 import { TextError } from "../../components/TextError";
 import { useNotification } from "../../components/Notification";
 import { Temporal } from "temporal-polyfill";
-import { Store } from "../../store";
 import { useStore } from "../../Layout";
 import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
@@ -22,7 +21,7 @@ export function Update() {
 	const handleClick = async () => {
 		setLoading(true);
 		const [errMsg] = await tryResult({
-			run: () => update(store, notify),
+			run: () => update(notify),
 		});
 		if (errMsg !== null) {
 			setError(errMsg);
@@ -57,10 +56,9 @@ export function Update() {
 	);
 }
 
-async function update(store: Store, notify: (notification: React.ReactNode) => void) {
+async function update(notify: (notification: React.ReactNode) => void) {
 	const update = await check();
 	if (update) {
-		store.version.set(update.version);
 		update
 			.downloadAndInstall((event) => {
 				let downloaded = 0;
@@ -98,7 +96,6 @@ async function update(store: Store, notify: (notification: React.ReactNode) => v
 						);
 						break;
 					case "Finished":
-						store.version.set("false");
 						notify(null);
 						break;
 				}
