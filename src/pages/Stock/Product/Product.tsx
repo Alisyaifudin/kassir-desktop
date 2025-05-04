@@ -1,4 +1,4 @@
-import { Link, useLoaderData, useNavigate } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric } from "../../../lib/utils.ts";
 import { useState } from "react";
@@ -31,13 +31,14 @@ const dataSchema = z.object({
 export default function Page() {
 	const { id } = useLoaderData<typeof loader>();
 	const item = useItem(id);
+	const navigate = useNavigate();
 	return (
 		<main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
 			<Button asChild variant="link" className="self-start">
-				<Link to="/stock">
+				<Button variant="link" onClick={() => navigate(-1)}>
 					{" "}
 					<ChevronLeft /> Kembali
-				</Link>
+				</Button>
 			</Button>
 			<h1 className="font-bold text-3xl">Edit barang</h1>
 			<Await state={item} Loading={<Loader2 className="animate-spin" />}>
@@ -155,7 +156,7 @@ function Form({ product }: { product: DB.Product }) {
 			</Field>
 			<Field error={error.barcode} label="Barcode:">
 				<Input
-					type="number"
+					type="text"
 					className="outline w-[300px]"
 					name="barcode"
 					defaultValue={product.barcode ?? ""}

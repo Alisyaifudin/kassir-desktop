@@ -11,7 +11,7 @@ import { Button } from "../../components/ui/button";
 import { Link } from "react-router";
 import { useEffect } from "react";
 
-const ITEM_PER_PAGE = 100;
+const ITEM_PER_PAGE = 10;
 
 export function ProductListPromise({
 	raw,

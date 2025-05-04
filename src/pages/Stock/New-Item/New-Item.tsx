@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric } from "../../../lib/utils";
 import { useEffect, useRef, useState } from "react";
@@ -88,10 +88,10 @@ export default function Page() {
 	return (
 		<main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
 			<Button asChild variant="link" className="self-start">
-				<Link to="/stock">
+				<Button variant="link" onClick={() => navigate(-1)}>
 					{" "}
 					<ChevronLeft /> Kembali
-				</Link>
+				</Button>
 			</Button>
 			<h1 className="font-bold text-3xl">Tambah barang</h1>
 			<form onSubmit={handleSubmit} className="flex flex-col gap-2">
@@ -127,7 +127,7 @@ export default function Page() {
 					/>
 				</Field>
 				<Field error={error.barcode} label="Barcode:">
-					<Input type="number" className="outline w-[300px]" name="barcode" autoComplete="off" />
+					<Input type="text" className="outline w-[300px]" name="barcode" autoComplete="off" />
 				</Field>
 				<label className="flex flex-col">
 					<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
