@@ -29,7 +29,7 @@ export function Pagination({
 		}
 	};
 	return (
-		<Root>
+		<Root className="w-fit">
 			<PaginationContent>
 				<PaginationItem>
 					<Button

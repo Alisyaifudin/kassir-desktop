@@ -76,7 +76,7 @@ export default function Page() {
 							<option value={100}>100</option>
 						</select>
 					</div>
-					<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl">
+					<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl w-fit">
 						Tambah Produk
 						<Button className="rounded-full h-13 w-13">
 							<Plus size={35} />
