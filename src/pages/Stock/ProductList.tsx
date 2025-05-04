@@ -11,15 +11,14 @@ import { Button } from "../../components/ui/button";
 import { Link } from "react-router";
 import { useEffect } from "react";
 
-const ITEM_PER_PAGE = 10;
-
-export function ProductListPromise({
+export function ProductList({
 	raw,
 	query,
 	setPagination,
 	sortBy,
 	sortDir,
 	rawPage,
+	limit,
 }: {
 	raw: DB.Product[];
 	query: string;
@@ -27,6 +26,7 @@ export function ProductListPromise({
 	sortBy: "name" | "price" | "capital" | "barcode" | "stock";
 	sortDir: "desc" | "asc";
 	rawPage: number;
+	limit: number;
 }) {
 	const products =
 		query === ""
@@ -38,7 +38,7 @@ export function ProductListPromise({
 			  );
 	sorting(products, sortBy, sortDir);
 	const totalItem = products.length;
-	const totalPage = Math.ceil(totalItem / ITEM_PER_PAGE);
+	const totalPage = Math.ceil(totalItem / limit);
 	const page = rawPage > totalPage ? totalPage : rawPage;
 	useEffect(() => {
 		if (raw === null) {
@@ -46,9 +46,9 @@ export function ProductListPromise({
 		}
 		setPagination(page, totalPage);
 	}, [page, totalPage]);
-	const start = ITEM_PER_PAGE * (page - 1);
-	const end = ITEM_PER_PAGE * page;
-	return <ProductList products={products} start={start} end={end} />;
+	const start = limit * (page - 1);
+	const end = limit * page;
+	return <ProductTable products={products} start={start} end={end} />;
 }
 
 type Props = {
@@ -57,7 +57,7 @@ type Props = {
 	end: number;
 };
 
-function ProductList({ products, start, end }: Props) {
+function ProductTable({ products, start, end }: Props) {
 	return (
 		<Table className="text-3xl">
 			<TableHeader>
