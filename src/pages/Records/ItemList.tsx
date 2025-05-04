@@ -100,7 +100,7 @@ function ItemListSell({
 						<TableHead>Nama</TableHead>
 						<TableHead className="w-[140px] text-end">Satuan</TableHead>
 						<TableHead className="w-[70px]">Qty</TableHead>
-						<TableHead className="w-[140px]  text-end">Diskon</TableHead>
+						<TableHead className="w-[140px]  text-end">Total*</TableHead>
 						<TableHead className="w-[140px]  text-end">Total</TableHead>
 						<TableHead className="w-[50px]">
 							<Link to={`/records/${record.timestamp}`}>
@@ -260,7 +260,7 @@ function ItemListBuy({
 						<TableHead className="w-[140px] text-end">Satuan</TableHead>
 						<TableHead className="w-[140px] text-end">Modal</TableHead>
 						<TableHead className="w-[70px]">Qty</TableHead>
-						<TableHead className="w-[140px]  text-end">Diskon</TableHead>
+						<TableHead className="w-[140px]  text-end">Total*</TableHead>
 						<TableHead className="w-[140px]  text-end">Total</TableHead>
 						<TableHead className="w-[50px]">
 							<Link to={`/records/${record.timestamp}`}>

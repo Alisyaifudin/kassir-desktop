@@ -1,24 +1,31 @@
 import { Link, useSearchParams } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button.tsx";
-import { ProductList } from "./ProductList.tsx";
+import { ProductListPromise } from "./ProductList.tsx";
 import { useDb } from "../../Layout.tsx";
 import { Await } from "../../components/Await.tsx";
 import { useAsync } from "../../hooks/useAsync.tsx";
-import { TextError } from "../../components/TextError.tsx";
 import { z } from "zod";
 import { SortDir } from "./Sort.tsx";
 import { Search } from "./Search.tsx";
+import { numeric } from "../../lib/utils.ts";
+import { useState } from "react";
+import { Pagination } from "./Pagination.tsx";
+import { TextError } from "../../components/TextError.tsx";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
-	const { sortDir, query, sortBy } = getOption(search);
+	const { sortDir, query, sortBy, page: rawPage } = getOption(search);
+	const [pagination, setPagination] = useState<
+		{ page: number; total: number } | { page: null; total: null }
+	>({ page: null, total: null });
 	const items = useItems();
 	const setSortDir = (v: "asc" | "desc") => {
 		setSearch({
 			query,
 			sortDir: v,
 			sortBy,
+			page: pagination.page ? pagination.page.toString() : "1",
 		});
 	};
 	const setSortBy = (v: "barcode" | "name" | "price" | "capital" | "stock") => {
@@ -26,6 +33,7 @@ export default function Page() {
 			query,
 			sortDir,
 			sortBy: v,
+			page: pagination.page ? pagination.page.toString() : "1",
 		});
 	};
 	const setQuery = (v: string) => {
@@ -33,6 +41,7 @@ export default function Page() {
 			query: v,
 			sortDir,
 			sortBy,
+			page: pagination.page ? pagination.page.toString() : "1",
 		});
 	};
 	return (
@@ -40,6 +49,7 @@ export default function Page() {
 			<div className="flex items-center gap-10">
 				<SortDir sortDir={sortDir} setSortDir={setSortDir} sortBy={sortBy} setSortBy={setSortBy} />
 				<Search query={query} setQuery={setQuery} />
+				<Pagination {...pagination} setSearch={setSearch} />
 				<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl">
 					Tambah Produk
 					<Button className="rounded-full h-13 w-13">
@@ -53,49 +63,20 @@ export default function Page() {
 					if (errMsg !== null) {
 						return <TextError>{errMsg}</TextError>;
 					}
-					const products =
-						query === ""
-							? raw
-							: raw.filter(
-									(product) =>
-										product.name.toLowerCase().includes(query.toLowerCase()) ||
-										(product.barcode !== null && product.barcode.toString().includes(query))
-							  );
-					sorting(products, sortBy, sortDir);
-					return <ProductList products={products} />;
+					return (
+						<ProductListPromise
+							raw={raw}
+							query={query}
+							rawPage={rawPage}
+							setPagination={(page: number, total: number) => setPagination({ page, total })}
+							sortBy={sortBy}
+							sortDir={sortDir}
+						/>
+					);
 				}}
 			</Await>
 		</main>
 	);
-}
-
-function sorting(
-	products: DB.Product[],
-	by: "barcode" | "name" | "price" | "capital" | "stock",
-	dir: "asc" | "desc"
-) {
-	const sign = dir === "asc" ? 1 : -1;
-	switch (by) {
-		case "barcode":
-			products.sort((a, b) => {
-				if (a.barcode === null && b.barcode === null) return 0 * sign;
-				if (a.barcode === null) return -1 * sign;
-				if (b.barcode === null) return 1 * sign;
-				return a.barcode.localeCompare(b.barcode) * sign;
-			});
-			break;
-		case "price":
-			products.sort((a, b) => (a.price - b.price) * sign);
-			break;
-		case "capital":
-			products.sort((a, b) => (a.capital - b.capital) * sign);
-			break;
-		case "stock":
-			products.sort((a, b) => (a.stock - b.stock) * sign);
-			break;
-		case "name":
-			products.sort((a, b) => a.name.localeCompare(b.name) * sign);
-	}
 }
 
 const useItems = () => {
@@ -108,6 +89,7 @@ function getOption(search: URLSearchParams): {
 	sortDir: "asc" | "desc";
 	sortBy: "barcode" | "name" | "price" | "capital" | "stock";
 	query: string;
+	page: number;
 } {
 	const sortDirParsed = z.enum(["asc", "desc"]).safeParse(search.get("sortDir"));
 	const sortDir = sortDirParsed.success ? sortDirParsed.data : "asc";
@@ -115,6 +97,8 @@ function getOption(search: URLSearchParams): {
 		.enum(["barcode", "name", "price", "capital", "stock"])
 		.safeParse(search.get("sortBy"));
 	const sortBy = sortByParsed.success ? sortByParsed.data : "name";
+	const pageParsed = numeric.safeParse(search.get("page"));
+	const page = pageParsed.success ? pageParsed.data : 1;
 	const query = search.get("query") ?? "";
-	return { sortDir, query, sortBy };
+	return { sortDir, query, sortBy, page: page < 1 ? 1 : Math.round(page) };
 }

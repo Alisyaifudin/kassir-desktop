@@ -20,5 +20,5 @@ export function Await<T>({
 		log.error(String(error));
 		return Error;
 	}
-	return children(data);
+	return <>{children(data)}</>;
 }
