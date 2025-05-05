@@ -12,10 +12,9 @@ type RecordListProps = {
 	records: DB.Record[];
 	selectRecord: (id: number) => () => void;
 	selected: number | null;
-	mode: "sell" | "buy";
 };
 
-export function RecordList({ records, selected, selectRecord, mode }: RecordListProps) {
+export function RecordList({ records, selected, selectRecord }: RecordListProps) {
 	return (
 		<Table className="text-3xl">
 			<TableHeader>
@@ -28,7 +27,6 @@ export function RecordList({ records, selected, selectRecord, mode }: RecordList
 			</TableHeader>
 			<TableBody>
 				{records
-					.filter((record) => record.mode === mode)
 					.map((record, i) => (
 						<TableRow
 							key={i}

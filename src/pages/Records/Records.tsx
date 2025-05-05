@@ -115,49 +115,48 @@ export default function Page() {
 					if (errTaxes !== null) {
 						return <TextError>{errTaxes}</TextError>;
 					}
-					console.log(query);
 					const filtered =
 						query.trim() === ""
 							? items
 							: items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
 					const timestamps = filtered.map((f) => f.timestamp);
-					const records =
+					let records =
 						query.trim() === ""
 							? rawRecords
 							: rawRecords.filter((r) => timestamps.includes(r.timestamp));
+					records = records.filter((record) => record.mode === mode);
+					const total =
+						records.length > 0
+							? records.map((r) => r.grand_total).reduce((prev, curr) => curr + prev)
+							: null;
 					return (
 						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
-							<Tabs
-								value={mode}
-								onValueChange={(v) => {
-									if (v !== "sell" && v !== "buy") {
-										return;
-									}
-									setMode(setSearch, v);
-								}}
-								className="overflow-auto flex-1"
-							>
-								<TabsList>
-									<TabsTrigger value="sell">Jual</TabsTrigger>
-									<TabsTrigger value="buy">Beli</TabsTrigger>
-								</TabsList>
-								<TabsContent value="sell">
-									<RecordList
-										records={records}
-										selectRecord={selectRecord}
-										selected={selected}
-										mode="sell"
-									/>
-								</TabsContent>
-								<TabsContent value="buy">
-									<RecordList
-										records={records}
-										selectRecord={selectRecord}
-										selected={selected}
-										mode="buy"
-									/>
-								</TabsContent>
-							</Tabs>
+							<div className="flex flex-col gap-1 overflow-hidden">
+								<Tabs
+									value={mode}
+									onValueChange={(v) => {
+										if (v !== "sell" && v !== "buy") {
+											return;
+										}
+										setMode(setSearch, v);
+									}}
+									className="overflow-auto flex-1"
+								>
+									<TabsList>
+										<TabsTrigger value="sell">Jual</TabsTrigger>
+										<TabsTrigger value="buy">Beli</TabsTrigger>
+									</TabsList>
+									<TabsContent value="sell" className="overflow-auto">
+										<RecordList records={records} selectRecord={selectRecord} selected={selected} />
+									</TabsContent>
+									<TabsContent value="buy" className="overflow-auto flex-1">
+										<RecordList records={records} selectRecord={selectRecord} selected={selected} />
+									</TabsContent>
+								</Tabs>
+								{total === null ? null : (
+									<p className="text-end">Total: Rp{total.toLocaleString("id-ID")}</p>
+								)}
+							</div>
 							<div className="border-l" />
 							<ItemList
 								allItems={items}
