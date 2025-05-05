@@ -118,6 +118,12 @@ pub fn run() {
             sql: include_str!("../src/migration-18.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 19,
+            description: "add_discounts",
+            sql: include_str!("../src/migration-19.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(

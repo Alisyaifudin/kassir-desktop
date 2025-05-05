@@ -5,44 +5,44 @@ import { useDb } from "../../../Layout";
 import { useAsync } from "../../../hooks/useAsync";
 import { Await } from "../../../components/Await";
 import { CashierSelect } from "./CashierSelect";
-import { Item, Other } from "../schema";
+import { Additional, ItemWithoutDisc } from "../schema";
 import { useLocalStorage } from "./useLocalStorage";
 import { Loader2 } from "lucide-react";
 import { ItemComponent } from "./Item";
-import { OtherItem } from "./Other";
+import { AdditionalItem } from "./Additional";
 import { Summary } from "./Summary";
 import { calcTotalAfterDisc, calcTotalBeforeDisc, calcTotalTax } from "./submit";
 
 export function LeftPanel({
 	newItem,
-	newOther,
+	newAdditional,
 	reset,
 	mode,
 	changeMode,
 }: {
-	newItem: Item | null;
-	newOther: Other | null;
+	newItem: ItemWithoutDisc | null;
+	newAdditional: Additional | null;
 	reset: () => void;
 	mode: "sell" | "buy";
 	changeMode: (mode: "sell" | "buy") => void;
 }) {
 	const cashierState = useCashiers();
 	const { set, data, ready } = useLocalStorage(mode);
-	const { items, others, disc, pay, rounding, cashier, method, note } = data;
+	const { items, additionals, disc, pay, rounding, cashier, method, note } = data;
 	useEffect(() => {
 		if (newItem) {
 			set.items.add(mode, newItem);
 			reset();
 		}
-		if (newOther) {
-			set.others.add(mode, newOther);
+		if (newAdditional) {
+			set.additionals.add(mode, newAdditional);
 			reset();
 		}
-	}, [newItem, newOther]);
+	}, [newItem, newAdditional]);
 	const totalReset = () => {
 		reset();
 		set.items.reset(mode);
-		set.others.reset(mode);
+		set.additionals.reset(mode);
 		set.discVal(mode, 0);
 		set.discType(mode, "percent");
 		set.method(mode, "cash");
@@ -55,7 +55,7 @@ export function LeftPanel({
 	}
 	const totalBeforeDisc = calcTotalBeforeDisc(items);
 	const totalAfterDisc = calcTotalAfterDisc(totalBeforeDisc, disc);
-	const totalTax = calcTotalTax(totalAfterDisc, others);
+	const totalTax = calcTotalTax(totalAfterDisc, additionals);
 	const totalAfterTax = totalAfterDisc.add(totalTax);
 	const grandTotal = totalAfterTax.add(rounding);
 	return (
@@ -102,20 +102,20 @@ export function LeftPanel({
 					{items.map((item, i) => (
 						<ItemComponent {...item} index={i} key={i} mode={mode} item={item} set={set.items} />
 					))}
-					{others.length > 0 ? (
+					{additionals.length > 0 ? (
 						<div className="self-end w-[410px] justify-between flex gap-2">
 							<p>Subtotal:</p>
 							<p className="font-bold">Rp{totalAfterDisc.toNumber().toLocaleString("id-ID")}</p>
 							<div className="w-[50px]" />
 						</div>
 					) : null}
-					{others.map((other, i) => (
-						<OtherItem
+					{additionals.map((add, i) => (
+						<AdditionalItem
 							index={i}
 							key={i}
 							mode={mode}
-							set={set.others}
-							other={other}
+							set={set.additionals}
+							additional={add}
 							totalBeforeTax={totalAfterDisc}
 						/>
 					))}
@@ -134,7 +134,7 @@ export function LeftPanel({
 					items,
 					method,
 					note,
-					others,
+					additionals: additionals,
 					pay,
 					rounding,
 				}}

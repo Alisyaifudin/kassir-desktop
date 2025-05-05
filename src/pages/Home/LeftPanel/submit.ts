@@ -2,7 +2,7 @@ import { Temporal } from "temporal-polyfill";
 import { Database } from "../../../database";
 import { err, ok, Result } from "../../../lib/utils";
 import Decimal from "decimal.js";
-import { Item, Other } from "../schema";
+import { Item, Additional } from "../schema";
 
 export async function submitPayment(
 	db: Database,
@@ -26,16 +26,15 @@ export async function submitPayment(
 		change: number;
 	},
 	items: Item[],
-	others: Other[]
+	additionals: Additional[]
 ): Promise<
 	Result<
 		| "Tidak ada barang ._."
-		| (
-				| "Ada barang dengan barcode yang sama"
-				| "Aplikasi bermasalah"
-				| "Biaya tambahan harus punya nama"
-				| "Produk harus punya nama"
-		  ),
+		| "Ada barang dengan barcode yang sama"
+		| "Aplikasi bermasalah"
+		| "Biaya tambahan harus punya nama"
+		| "Produk harus punya nama"
+		| "Gagal menyimpan. Coba lagi.",
 		number
 	>
 > {
@@ -48,8 +47,8 @@ export async function submitPayment(
 	if (barcodes.length > uniqueBarcodes.size) {
 		return err("Ada barang dengan barcode yang sama");
 	}
-	const emptyTax = others.find((other) => other.name.trim() === "");
-	if (emptyTax !== undefined) {
+	const emptyAdd = additionals.find((add) => add.name.trim() === "");
+	if (emptyAdd !== undefined) {
 		return err("Biaya tambahan harus punya nama");
 	}
 	const emptyItem = items.find((item) => item.name.trim() === "");
@@ -58,57 +57,91 @@ export async function submitPayment(
 	}
 	const itemsTranform = items.map((item) => {
 		const totalBeforeDisc = new Decimal(item.price).times(item.qty);
-		const subtotal = calcSubtotal(item.disc, item.price, item.qty).toNumber();
+		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty);
 		const capital =
 			mode === "buy"
-				? calcCapital(record.grandTotal, record.totalBeforeDisc, subtotal, item.qty)
+				? calcCapital(record.grandTotal, record.totalBeforeDisc, subtotal.toNumber(), item.qty)
 				: null;
 		return {
-			timestamp,
-			disc_type: item.disc.type,
-			disc_val: Number(item.disc.value),
-			name: item.name.trim(),
-			price: Number(item.price),
-			qty: Number(item.qty),
-			total_before_disc: totalBeforeDisc.toNumber(),
-			total: subtotal,
-			product_id: item.id,
-			capital: capital ?? 0,
-			barcode: item.barcode ?? null,
-			stock: mode === "buy" ? Number(item.qty) : item.stock ?? Number(item.qty),
+			item: {
+				timestamp,
+				name: item.name.trim(),
+				price: Number(item.price),
+				qty: Number(item.qty),
+				total_before_disc: totalBeforeDisc.toNumber(),
+				total: subtotal.toNumber(),
+				product_id: item.id,
+				capital: capital ?? 0,
+				barcode: item.barcode ?? null,
+				stock: mode === "buy" ? Number(item.qty) : item.stock ?? Number(item.qty),
+			},
+			discs: item.discs,
 		};
 	});
-	const promises = [
-		db.record.add(mode, timestamp, record),
-		db.recordItem.add(itemsTranform, timestamp, mode),
-		db.other.add(others, timestamp),
-	];
+	const errRecord = await db.record.add(mode, timestamp, record);
+	if (errRecord) {
+		return err(errRecord);
+	}
+	const errAdds = await db.additional.addMany(additionals, timestamp);
+	if (errAdds) {
+		return err(errAdds);
+	}
+	const productPromises = [];
+	const itemPromises = [];
 	if (mode === "buy") {
-		for (const product of itemsTranform) {
-			promises.push(
+		for (const { item } of itemsTranform) {
+			productPromises.push(
 				db.product.upsert({
-					name: product.name,
-					barcode: product.barcode ?? null,
-					capital: product.capital, // shoud be exist
-					price: product.price,
-					stock: product.qty,
+					name: item.name,
+					barcode: item.barcode ?? null,
+					capital: item.capital, // shoud be exist
+					price: item.price,
+					stock: item.qty,
 				})
 			);
 		}
 	} else {
-		for (const product of itemsTranform) {
-			promises.push(
+		for (const { item } of itemsTranform) {
+			productPromises.push(
 				db.product.insertIfNotYet({
-					name: product.name,
-					barcode: product.barcode,
-					price: product.price,
-					stock: product.stock - product.qty,
+					name: item.name,
+					barcode: item.barcode,
+					price: item.price,
+					stock: item.stock - item.qty,
 				})
 			);
 		}
 	}
-	const res = await Promise.all(promises);
-	for (const errMsg of res) {
+	for (const { item } of itemsTranform) {
+		itemPromises.push(db.recordItem.add(item, timestamp, mode));
+	}
+	const [resItem, resProduct] = await Promise.all([
+		Promise.all(itemPromises),
+		Promise.all(productPromises),
+	]);
+	for (const [errMsg] of resItem) {
+		if (errMsg !== null) {
+			return err("Aplikasi bermasalah");
+		}
+	}
+	for (const errMsg of resProduct) {
+		if (errMsg !== null) {
+			return err("Aplikasi bermasalah");
+		}
+	}
+	const ids = resItem.map((r) => r[1]!);
+	const discPromises = [];
+	for (let i = 0; i < ids.length; i++) {
+		const id = ids[i];
+		const discs = itemsTranform[i].discs;
+		if (discs.length === 0) {
+			continue;
+		}
+		discPromises.push(db.discount.addMany(id, discs));
+	}
+	const resDisc = await Promise.all(discPromises);
+	console.log(8);
+	for (const errMsg of resDisc) {
 		if (errMsg !== null) {
 			return err("Aplikasi bermasalah");
 		}
@@ -117,27 +150,37 @@ export async function submitPayment(
 }
 
 export function calcSubtotal(
-	disc: {
+	discs: {
 		value: number;
 		type: "number" | "percent";
-	},
+	}[],
 	price: number,
 	qty: number
-): Decimal {
+) {
 	const total = new Decimal(price).times(qty);
-	if (disc.type === "number") {
-		return total.sub(disc.value);
+	let subtotal = total;
+	for (const d of discs) {
+		switch (d.type) {
+			case "number":
+				subtotal = subtotal.sub(d.value);
+				break;
+			case "percent":
+				const v = subtotal.times(d.value).div(100).round();
+				subtotal = subtotal.sub(v);
+		}
 	}
-	const val = total.times(disc.value).div(100).round();
-	return total.sub(val);
+	return {
+		discount: total.sub(subtotal),
+		total: subtotal,
+	};
 }
 
-export function calcOther(totalBeforeTax: Decimal, other: Other) {
-	switch (other.kind) {
+export function calcAdditional(totalBeforeTax: Decimal, add: Additional) {
+	switch (add.kind) {
 		case "number":
-			return new Decimal(other.value);
+			return new Decimal(add.value);
 		case "percent":
-			const val = totalBeforeTax.times(other.value).div(100).round();
+			const val = totalBeforeTax.times(add.value).div(100).round();
 			return val;
 	}
 }
@@ -145,7 +188,7 @@ export function calcOther(totalBeforeTax: Decimal, other: Other) {
 export const calcTotalBeforeDisc = (items: Item[]) => {
 	let total = new Decimal(0);
 	for (const item of items) {
-		const subtotal = calcSubtotal(item.disc, item.price, item.qty);
+		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty);
 		total = total.add(subtotal);
 	}
 	return total;
@@ -168,19 +211,19 @@ export const calcTotalAfterDisc = (
 	}
 };
 
-export const calcTax = (totalAfterDisc: Decimal, other: Other) => {
-	switch (other.kind) {
+export const calcTax = (totalAfterDisc: Decimal, add: Additional) => {
+	switch (add.kind) {
 		case "number":
-			return other.value;
+			return add.value;
 		case "percent":
-			return totalAfterDisc.times(other.value).div(100).round();
+			return totalAfterDisc.times(add.value).div(100).round();
 	}
 };
 
-export const calcTotalTax = (totalAfterDisc: Decimal, others: Other[]) => {
+export const calcTotalTax = (totalAfterDisc: Decimal, adds: Additional[]) => {
 	let total = new Decimal(0);
-	for (const other of others) {
-		const val = calcTax(totalAfterDisc, other);
+	for (const add of adds) {
+		const val = calcTax(totalAfterDisc, add);
 		total = total.add(val);
 	}
 	return total;

@@ -184,7 +184,7 @@ function useRecords(timestamp: number, signal: boolean) {
 	const promises = Promise.all([
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
-		db.other.getByRange(start, end),
+		db.additional.getByRange(start, end),
 	]);
 	const state = useAsync(promises, [timestamp, signal]);
 	return state;

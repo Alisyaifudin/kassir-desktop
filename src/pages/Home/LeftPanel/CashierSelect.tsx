@@ -12,7 +12,6 @@ export function CashierSelect({
 	changeCashier: (cashier: string) => void;
 }) {
 	const [errCashiers, cashiers] = data;
-	console.log({ cashiers, cashier });
 	useEffect(() => {
 		if (cashiers === null) {
 			return;

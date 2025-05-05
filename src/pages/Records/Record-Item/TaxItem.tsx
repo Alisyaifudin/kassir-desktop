@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 
-export function TaxItem({ tax, total }: { tax: DB.Other; total: number }) {
+export function TaxItem({ tax, total }: { tax: DB.Additional; total: number }) {
 	const val =
 		tax.kind === "percent"
 			? new Decimal(total).times(tax.value).div(100).round().toNumber()

@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { z } from "zod";
 import { TextError } from "../../../components/TextError";
 import { useDb } from "../../../Layout";
-import { Item } from "../schema";
+import { ItemWithoutDisc } from "../schema";
 import { Loader2 } from "lucide-react";
 
 const itemSchema = z.object({
@@ -23,22 +23,15 @@ const itemSchema = z.object({
 		.string()
 		.refine((v) => !isNaN(Number(v)))
 		.transform((v) => Number(v)),
-	disc: z.object({
-		type: z.enum(["number", "percent"]),
-		value: z
-			.string()
-			.refine((v) => !isNaN(Number(v)))
-			.transform((v) => Number(v)),
-	}),
 });
 
-const emptyErr = { name: "", price: "", qty: "", disc: "", barcode: "" };
+const emptyErr = { name: "", price: "", qty: "", barcode: "" };
 
 export function Manual({
 	sendItem,
 	mode,
 }: {
-	sendItem: (item: Item) => void;
+	sendItem: (item: ItemWithoutDisc) => void;
 	mode: "buy" | "sell";
 }) {
 	const [error, setError] = useState(emptyErr);
@@ -58,10 +51,6 @@ export function Manual({
 			price: formData.get("price"),
 			qty: formData.get("qty") ?? formData.get("stock"), // for sell, no qty
 			stock: formData.get("stock"),
-			disc: {
-				value: formData.get("disc-value"),
-				type: formData.get("disc-type"),
-			},
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -71,12 +60,11 @@ export function Manual({
 				name: errs.name?.join("; ") ?? "",
 				price: errs.price?.join("; ") ?? "",
 				qty: [errQty, errStock].join("; "),
-				disc: errs.disc?.join("; ") ?? "",
 				barcode: errs.barcode?.join("; ") ?? "",
 			});
 			return;
 		}
-		const { disc, name, price, qty, barcode, stock } = parsed.data;
+		const { name, price, qty, barcode, stock } = parsed.data;
 		if (barcode !== "") {
 			setLoading(true);
 			const [errMsg, product] = await db.product.getByBarcode(barcode);
@@ -92,7 +80,6 @@ export function Manual({
 		}
 		sendItem({
 			barcode: barcode === "" ? null : barcode,
-			disc,
 			qty,
 			price,
 			name,
@@ -130,7 +117,7 @@ export function Manual({
 				</Field>
 			</div>
 			{error.qty === "" ? null : <TextError>{error.qty}</TextError>}
-			<div className="flex gap-1 items-end">
+			{/* <div className="flex gap-1 items-end">
 				<Field label="Diskon">
 					<Input type="number" defaultValue={0} step={0.0001} name="disc-value" />
 				</Field>
@@ -143,7 +130,7 @@ export function Manual({
 					<option value="percent">Persen</option>
 				</select>
 			</div>
-			{error.disc === "" ? null : <TextError>{error.disc}</TextError>}
+			{error.disc === "" ? null : <TextError>{error.disc}</TextError>} */}
 			<Button>Tambahkan {loading ? <Loader2 className="animate-spin" /> : null}</Button>
 		</form>
 	);

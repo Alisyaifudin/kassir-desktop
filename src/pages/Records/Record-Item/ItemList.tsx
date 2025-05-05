@@ -21,11 +21,13 @@ const meth = {
 export function ItemList({
 	items,
 	record,
-	taxes,
+	additionals,
+	discs,
 }: {
 	record: DB.Record;
 	items: DB.RecordItem[];
-	taxes: DB.Other[];
+	discs: DB.Discount[];
+	additionals: DB.Additional[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
 	const info = useProfile();
@@ -108,7 +110,12 @@ export function ItemList({
 								</div>
 								<hr />
 								{items.map((item, i) => (
-									<Item {...item} i={i} key={i} />
+									<Item
+										{...item}
+										i={i}
+										key={i}
+										discs={discs.filter((disc) => disc.record_item_id === item.id)}
+									/>
 								))}
 								<hr />
 								<div className="flex justify-end">
@@ -133,7 +140,7 @@ export function ItemList({
 												<hr className="w-full" />
 											</>
 										) : null}
-										{taxes.length > 0 ? (
+										{additionals.length > 0 ? (
 											<>
 												<div className="grid grid-cols-[100px_100px]">
 													<p></p>{" "}
@@ -141,7 +148,7 @@ export function ItemList({
 														Rp{record.total_after_disc.toLocaleString("de-DE")}
 													</p>
 												</div>
-												{taxes.map((tax) => (
+												{additionals.map((tax) => (
 													<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
 												))}
 												<hr className="w-full" />

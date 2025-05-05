@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { numeric } from "../../../lib/utils";
-import { Item, itemSchema, Other, otherSchema } from "../schema";
+import { Item, itemSchema, Additional, additionalSchema, ItemWithoutDisc } from "../schema";
 import { useEffect, useState } from "react";
 import { produce } from "immer";
 
@@ -8,9 +8,8 @@ export function useLocalStorage(mode: "sell" | "buy") {
 	const [ready, setReady] = useState(false);
 	const [note, setNote] = useState("");
 	const [method, setMethod] = useState<"cash" | "transfer" | "emoney">("cash");
-
 	const [items, setItems] = useState<Item[]>([]);
-	const [others, setOthers] = useState<Other[]>([]);
+	const [additionals, setAdditionals] = useState<Additional[]>([]);
 	const [cashier, setCashier] = useState<string | null>(null);
 	const [pay, setPay] = useState(0);
 	const [rounding, setRounding] = useState(0);
@@ -33,8 +32,8 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setDisc(disc);
 		const items = getItems(mode);
 		setItems(items);
-		const others = getOthers(mode);
-		setOthers(others);
+		const additionals = getAdditionals(mode);
+		setAdditionals(additionals);
 		setReady(true);
 	}, [mode]);
 	const changeCashier = (cashier: string) => {
@@ -70,12 +69,15 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			setItems([]);
 			localStorage.setItem(`items-${mode}`, "[]");
 		},
-		add: (mode: "buy" | "sell", item: Item) => {
+		add: (mode: "buy" | "sell", item: ItemWithoutDisc) => {
 			setItems((state) =>
 				produce(state, (draft) => {
 					const index = item.id !== undefined ? draft.findIndex((s) => s.id === item.id) : -1;
 					if (index === -1) {
-						draft.push(item);
+						draft.push({
+							...item,
+							discs: [],
+						});
 					} else {
 						draft[index].qty += 1;
 					}
@@ -122,72 +124,87 @@ export function useLocalStorage(mode: "sell" | "buy") {
 				})
 			);
 		},
-		discVal: (mode: "buy" | "sell", index: number, val: number) => {
-			setItems((state) =>
-				produce(state, (draft) => {
-					draft[index].disc.value = val;
-					localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
-				})
-			);
+		disc: {
+			delete: (mode: "buy" | "sell", itemIndex: number, index: number) => {
+				setItems((state) =>
+					produce(state, (draft) => {
+						draft[itemIndex].discs = draft[itemIndex].discs.filter((_, i) => index !== i);
+						localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
+					})
+				);
+			},
+			add: (mode: "buy" | "sell", itemIndex: number) => {
+				setItems((state) =>
+					produce(state, (draft) => {
+						draft[itemIndex].discs.push({ value: 0, type: "percent" });
+						localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
+					})
+				);
+			},
+			kind: (
+				mode: "buy" | "sell",
+				itemIndex: number,
+				index: number,
+				kind: "percent" | "number"
+			) => {
+				setItems((state) =>
+					produce(state, (draft) => {
+						draft[itemIndex].discs[index].type = kind;
+						localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
+					})
+				);
+			},
+			value: (mode: "buy" | "sell", itemIndex: number, index: number, value: number) => {
+				setItems((state) =>
+					produce(state, (draft) => {
+						draft[itemIndex].discs[index].value = value;
+						localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
+					})
+				);
+			},
 		},
-		discType: (mode: "buy" | "sell", index: number, type: "number" | "percent") => {
-			setItems((state) =>
-				produce(state, (draft) => {
-					draft[index].disc.type = type;
-					localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
-				})
-			);
-		},
-		// stock: (mode: "buy" | "sell", index: number, stock: number) => {
-		// 	setItems((state) =>
-		// 		produce(state, (draft) => {
-		// 			draft[index].stock = stock;
-		// 			localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
-		// 		})
-		// 	);
-		// },
 	};
-	const changeOthers = {
+	const changeAdditional = {
 		reset: (mode: "sell" | "buy") => {
-			setOthers([]);
-			localStorage.setItem(`others-${mode}`, "[]");
+			setAdditionals([]);
+			localStorage.setItem(`additionals-${mode}`, "[]");
 		},
-		add: (mode: "sell" | "buy", other: Other) => {
-			setOthers((state) =>
+		add: (mode: "sell" | "buy", add: Additional) => {
+			setAdditionals((state) =>
 				produce(state, (draft) => {
-					draft.push(other);
-					localStorage.setItem(`others-${mode}`, JSON.stringify(draft));
+					draft.push(add);
+					localStorage.setItem(`additionals-${mode}`, JSON.stringify(draft));
 				})
 			);
 		},
 		delete: (mode: "sell" | "buy", index: number) => {
-			setOthers((state) => {
+			setAdditionals((state) => {
 				const newStuff = state.filter((_, i) => i !== index);
-				localStorage.setItem(`others-${mode}`, JSON.stringify(newStuff));
+				localStorage.setItem(`additionals-${mode}`, JSON.stringify(newStuff));
 				return newStuff;
 			});
 		},
 		name: (mode: "sell" | "buy", index: number, name: string) => {
-			setOthers((state) =>
+			setAdditionals((state) =>
 				produce(state, (draft) => {
 					draft[index].name = name;
-					localStorage.setItem(`others-${mode}`, JSON.stringify(draft));
+					localStorage.setItem(`additionals-${mode}`, JSON.stringify(draft));
 				})
 			);
 		},
 		value: (mode: "sell" | "buy", index: number, value: number) => {
-			setOthers((state) =>
+			setAdditionals((state) =>
 				produce(state, (draft) => {
 					draft[index].value = value;
-					localStorage.setItem(`others-${mode}`, JSON.stringify(draft));
+					localStorage.setItem(`additionals-${mode}`, JSON.stringify(draft));
 				})
 			);
 		},
 		kind: (mode: "sell" | "buy", index: number, kind: "percent" | "number") => {
-			setOthers((state) =>
+			setAdditionals((state) =>
 				produce(state, (draft) => {
 					draft[index].kind = kind;
-					localStorage.setItem(`others-${mode}`, JSON.stringify(draft));
+					localStorage.setItem(`additionals-${mode}`, JSON.stringify(draft));
 				})
 			);
 		},
@@ -202,11 +219,11 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			disc,
 			method,
 			items,
-			others,
+			additionals,
 		},
 		set: {
 			items: changeItems,
-			others: changeOthers,
+			additionals: changeAdditional,
 			note: changeNote,
 			pay: changePay,
 			rounding: changeRounding,
@@ -219,7 +236,8 @@ export function useLocalStorage(mode: "sell" | "buy") {
 }
 
 export type SetItem = ReturnType<typeof useLocalStorage>["set"]["items"];
-export type SetOther = ReturnType<typeof useLocalStorage>["set"]["others"];
+export type SetAdditional = ReturnType<typeof useLocalStorage>["set"]["additionals"];
+export type SetDisc = ReturnType<typeof useLocalStorage>["set"]["items"]["disc"];
 export type Data = ReturnType<typeof useLocalStorage>["data"];
 
 function getCashier() {
@@ -309,22 +327,22 @@ function getItems(mode: "sell" | "buy") {
 	localStorage.setItem(`items-${mode}`, `[]`);
 	return [];
 }
-function getOthers(mode: "sell" | "buy") {
-	const val = localStorage.getItem(`others-${mode}`);
+function getAdditionals(mode: "sell" | "buy") {
+	const val = localStorage.getItem(`additionals-${mode}`);
 	if (val === null) {
-		localStorage.setItem(`others-${mode}`, `[]`);
+		localStorage.setItem(`additionals-${mode}`, `[]`);
 		return [];
 	}
 	try {
 		var jsonObj = JSON.parse(val);
 	} catch (error) {
-		localStorage.setItem(`others-${mode}`, `[]`);
+		localStorage.setItem(`additionals-${mode}`, `[]`);
 		return [];
 	}
-	const parsed = otherSchema.array().safeParse(jsonObj);
+	const parsed = additionalSchema.array().safeParse(jsonObj);
 	if (parsed.success) {
 		return parsed.data;
 	}
-	localStorage.setItem(`others-${mode}`, `[]`);
+	localStorage.setItem(`additionals-${mode}`, `[]`);
 	return [];
 }

@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Field } from "../Field";
 import { Input } from "../../../components/ui/input";
 import { Button } from "../../../components/ui/button";
-import { Other } from "../schema";
+import { Additional } from "../schema";
 import { z } from "zod";
 
-const otherSchema = z.object({
+const additionalSchema = z.object({
 	name: z.string().min(1, { message: "Harus punya nama" }).trim(),
 	value: z
 		.string()
@@ -14,13 +14,17 @@ const otherSchema = z.object({
 	kind: z.enum(["percent", "number"]),
 });
 
-export function OtherComponent({ sendOther }: { sendOther: (other: Other) => void }) {
+export function AdditionalComponent({
+	sendAdditional,
+}: {
+	sendAdditional: (additional: Additional) => void;
+}) {
 	const [error, setError] = useState({ name: "", value: "", kind: "" });
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		const formEl = e.currentTarget;
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		const parsed = otherSchema.safeParse({
+		const parsed = additionalSchema.safeParse({
 			name: formData.get("name"),
 			value: formData.get("value"),
 			kind: formData.get("kind"),
@@ -44,7 +48,7 @@ export function OtherComponent({ sendOther }: { sendOther: (other: Other) => voi
 			return;
 		}
 		setError({ name: "", value: "", kind: "" });
-		sendOther(parsed.data);
+		sendAdditional(parsed.data);
 		formEl.reset();
 	};
 	return (

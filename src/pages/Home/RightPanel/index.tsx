@@ -1,17 +1,17 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
-import { OtherComponent } from "./Other";
+import { AdditionalComponent } from "./Additional";
 import { Search } from "./Search";
 import { Manual } from "./Manual";
-import { Other, Item } from "../schema";
+import { Additional, ItemWithoutDisc } from "../schema";
 
 export function RightPanel({
-	sendOther,
+	sendAdditional,
 	sendItem,
-	mode
+	mode,
 }: {
-	sendOther: (other: Other) => void;
-	sendItem: (item: Item) => void;
-	mode: "buy" | "sell"
+	sendAdditional: (additional: Additional) => void;
+	sendItem: (item: ItemWithoutDisc) => void;
+	mode: "buy" | "sell";
 }) {
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
@@ -32,7 +32,7 @@ export function RightPanel({
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />
-				<OtherComponent sendOther={sendOther} />
+				<AdditionalComponent sendAdditional={sendAdditional} />
 			</div>
 		</aside>
 	);

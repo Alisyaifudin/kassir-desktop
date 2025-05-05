@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { Item, Other } from "../schema";
+import { Item, Additional } from "../schema";
 import { submitPayment } from "./submit";
 import { Input } from "../../../components/ui/input";
 import { z } from "zod";
@@ -30,7 +30,7 @@ type Props = {
 		};
 		method: "cash" | "transfer" | "emoney";
 		items: Item[];
-		others: Other[];
+		additionals: Additional[];
 	};
 	reset: () => void;
 	set: {
@@ -52,7 +52,7 @@ export function Summary({
 	totalBeforeDisc,
 	totalTax,
 	grandTotal,
-	data: { items, others, pay, rounding, disc, cashier, method, note },
+	data: { items, additionals, pay, rounding, disc, cashier, method, note },
 	set,
 }: Props) {
 	const [loading, setLoading] = useState(false);
@@ -118,7 +118,7 @@ export function Summary({
 				totalTax,
 			},
 			items,
-			others
+			additionals
 		);
 		setLoading(false);
 		if (errMsg !== null) {

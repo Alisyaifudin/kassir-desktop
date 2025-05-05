@@ -95,18 +95,18 @@ export default function Record() {
 }
 
 async function getBlob(db: Database, start: number, end: number): Promise<Result<string, Blob>> {
-	const [[errRecords, records], [errItems, items], [errTax, others]] = await Promise.all([
+	const [[errRecords, records], [errItems, items], [errAdd, additionals]] = await Promise.all([
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
-		db.other.getByRange(start, end),
+		db.additional.getByRange(start, end),
 	]);
 	if (errRecords !== null) {
 		log.error(errRecords);
 		return err(errRecords);
 	}
-	if (errTax !== null) {
-		log.error(errTax);
-		return err(errTax);
+	if (errAdd !== null) {
+		log.error(errAdd);
+		return err(errAdd);
 	}
 	if (errItems !== null) {
 		log.error(errItems);
@@ -114,12 +114,12 @@ async function getBlob(db: Database, start: number, end: number): Promise<Result
 	}
 	const recordCSV = constructCSV(records);
 	const itemCSV = constructCSV(items);
-	const othersCSV = constructCSV(others);
+	const additionalsCSV = constructCSV(additionals);
 
 	const zip = new JSZip();
 	zip.file(`records_${start}_${end}.csv`, recordCSV);
 	zip.file(`record_items_${start}_${end}.csv`, itemCSV);
-	zip.file(`other_${start}_${end}.csv`, othersCSV);
+	zip.file(`additional_${start}_${end}.csv`, additionalsCSV);
 
 	const blob = await zip.generateAsync({ type: "blob" });
 	return ok(blob);

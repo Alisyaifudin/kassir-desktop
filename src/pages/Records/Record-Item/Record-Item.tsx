@@ -30,7 +30,14 @@ export default function Page() {
 					if (errMsg !== null) {
 						return <TextError>{errMsg}</TextError>;
 					}
-					return <ItemList record={res.record} items={res.items} taxes={res.taxes} />;
+					return (
+						<ItemList
+							record={res.record}
+							items={res.items}
+							additionals={res.additionals}
+							discs={res.discs}
+						/>
+					);
 				}}
 			</Await>
 		</main>
@@ -46,11 +53,22 @@ function useRecord(timestamp: number) {
 async function getRecord(
 	db: Database,
 	timestamp: number
-): Promise<Result<string, { record: DB.Record; items: DB.RecordItem[]; taxes: DB.Other[] }>> {
+): Promise<
+	Result<
+		string,
+		{
+			record: DB.Record;
+			items: DB.RecordItem[];
+			additionals: DB.Additional[];
+			discs: DB.Discount[];
+		}
+	>
+> {
 	const all = await Promise.all([
 		db.record.getByTime(timestamp),
 		db.recordItem.getAllByTime(timestamp),
-		db.other.getAllByTime(timestamp),
+		db.additional.getAllByTime(timestamp),
+		db.discount.getByTimestamp(timestamp),
 	]);
 	const [errRecord, record] = all[0];
 	if (errRecord) {
@@ -63,13 +81,18 @@ async function getRecord(
 	if (errItems !== null) {
 		return err(errItems);
 	}
-	const [errTaxes, taxes] = all[2];
-	if (errTaxes !== null) {
-		return err(errTaxes);
+	const [errAdditionals, additionals] = all[2];
+	if (errAdditionals !== null) {
+		return err(errAdditionals);
+	}
+	const [errDiscounts, discs] = all[3];
+	if (errDiscounts !== null) {
+		return err(errDiscounts);
 	}
 	return ok({
 		record,
 		items,
-		taxes,
+		additionals,
+		discs,
 	});
 }

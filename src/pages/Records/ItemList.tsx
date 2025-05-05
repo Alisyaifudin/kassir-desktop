@@ -18,7 +18,7 @@ import { TaxItem } from "./TaxItem";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
-	allTaxes: DB.Other[];
+	allTaxes: DB.Additional[];
 	timestamp: number | null;
 	mode: "buy" | "sell";
 	sendSignal: () => void;
@@ -27,9 +27,9 @@ type RecordListProps = {
 function filterData(
 	timestamp: number | null,
 	allItems: DB.RecordItem[],
-	allTaxes: DB.Other[],
+	allTaxes: DB.Additional[],
 	records: DB.Record[]
-): { items: DB.RecordItem[]; taxes: DB.Other[] } & ({ record: null } | { record: DB.Record }) {
+): { items: DB.RecordItem[]; taxes: DB.Additional[] } & ({ record: null } | { record: DB.Record }) {
 	if (timestamp === null) {
 		return { items: [], record: null, taxes: [] };
 	}
@@ -76,7 +76,7 @@ function ItemListSell({
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
-	taxes: DB.Other[];
+	taxes: DB.Additional[];
 	sendSignal: () => void;
 }) {
 	if (items.length === 0) {
@@ -200,7 +200,7 @@ function ItemListBuy({
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
-	taxes: DB.Other[];
+	taxes: DB.Additional[];
 	sendSignal: () => void;
 }) {
 	const [pay, setPay] = useState("");

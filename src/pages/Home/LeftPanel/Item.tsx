@@ -1,10 +1,10 @@
 import { Lock, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { calcSubtotal } from "./submit";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
 import { Item } from "../schema";
-import { z } from "zod";
 import { SetItem } from "./useLocalStorage";
+import { Discount } from "./Discount";
+import { calcSubtotal } from "./submit";
 
 type Props = {
 	index: number;
@@ -16,9 +16,10 @@ type Props = {
 export function ItemComponent({
 	index,
 	mode,
-	item: { id, disc, name, price, qty, stock, barcode },
+	item: { id, discs, name, price, qty, stock, barcode },
 	set,
 }: Props) {
+	const { total: subtotal } = calcSubtotal(discs, price, qty);
 	const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (id !== undefined) {
 			return;
@@ -51,28 +52,10 @@ export function ItemComponent({
 		}
 		set.qty(mode, index, val);
 	};
-	const handleChangeDiscType = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		const parsed = z.enum(["percent", "number"]).safeParse(e.currentTarget.value);
-		if (!parsed.success) {
-			return;
-		}
-		const val = parsed.data;
-		if (val === "percent" && disc.value > 100) {
-			set.discVal(mode, index, 100);
-		}
-		set.discType(mode, index, val);
-	};
-	const handleChangeDiscVal = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = Number(e.currentTarget.value);
-		if (isNaN(val) || val < 0 || (disc.type === "number" && !Number.isInteger(val))) {
-			return;
-		}
-		set.discVal(mode, index, val);
-	};
 	const handleDelete = () => set.delete(mode, index);
 	return (
 		<div
-			className={cn("grid gap-1 grid-cols-[70px_1fr] items-center text-3xl", {
+			className={cn("grid grid-cols-[70px_1fr] items-center text-3xl py-0.5", {
 				"bg-muted": index % 2 == 0,
 			})}
 		>
@@ -94,16 +77,21 @@ export function ItemComponent({
 			</div>
 			<div className="flex flex-col">
 				{id === undefined ? (
-					<input type="text" value={name} className="px-0.5" onChange={handleChangeName}></input>
+					<input
+						type="text"
+						value={name}
+						className="px-0.5 outline"
+						onChange={handleChangeName}
+					></input>
 				) : (
 					<p>{name}</p>
 				)}
-				<div className="grid grid-cols-[1fr_150px_230px_85px_150px_50px]">
+				<div className="grid gap-1 grid-cols-[1fr_150px_230px_70px_150px_50px]">
 					{id === undefined ? (
 						<input
 							type="text"
 							value={barcode ?? ""}
-							className="px-0.5"
+							className="px-0.5 border-b border-l border-r"
 							onChange={handleChangeBarcode}
 						></input>
 					) : (
@@ -112,40 +100,51 @@ export function ItemComponent({
 					{id === undefined ? (
 						<input
 							type="number"
-							className="px-0.5"
+							className="px-0.5 border-b border-l border-r"
 							value={price === 0 ? "" : price}
 							onChange={handleChangePrice}
 						></input>
 					) : (
 						<p>{price}</p>
 					)}
-					<div className="flex gap-1">
-						<input
-							type="number"
-							className="w-full px-1"
-							value={disc.value === 0 ? "" : disc.value}
-							step={disc.type === "number" ? 1 : 0.00001}
-							onChange={handleChangeDiscVal}
-						/>
-						<select value={disc.type} onChange={handleChangeDiscType} className=" w-[110px] border">
-							<option value="number">Angka</option>
-							<option value="percent">Persen</option>
-						</select>
-					</div>
+					<Discount
+						discs={discs}
+						itemIndex={index}
+						mode={mode}
+						setDisc={set.disc}
+						qty={qty}
+						price={price}
+					/>
 					<input
 						type="number"
-						className="px-0.5"
+						className={cn("px-0.5", id !== undefined ? "outline" : "border-b border-l border-r")}
 						value={qty === 0 ? "" : qty}
 						onChange={handleChangeQty}
 						pattern="[1-9][0-9]*"
 					></input>
-					<p>{calcSubtotal(disc, price, qty).toNumber().toLocaleString("id-ID")}</p>
+					<p>{subtotal.toNumber().toLocaleString("id-ID")}</p>
 					<div className="py-0.5 flex items-center">
 						<button onClick={handleDelete} className="bg-red-500 text-white">
 							<X size={35} />
 						</button>
 					</div>
 				</div>
+				{discs.length === 0
+					? null
+					: discs.map((disc) => (
+							<>
+								<div className="grid grid-cols-[1fr_80px_150px_270px] gap-1 ">
+									<div />
+									<p>Diskon</p>
+									<p className="text-end">
+										{disc.type === "percent"
+											? `${disc.value}%`
+											: disc.value.toLocaleString("id-ID")}
+									</p>
+									<div />
+								</div>
+							</>
+					  ))}
 			</div>
 		</div>
 	);

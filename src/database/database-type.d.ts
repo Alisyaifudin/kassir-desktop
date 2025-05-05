@@ -26,10 +26,16 @@ declare namespace DB {
 		method: "cash" | "transfer" | "emoney";
 		note: string;
 	}
-	interface Other {
+	interface Additional {
 		id: number;
 		name: string;
 		timestamp: number;
+		value: number;
+		kind: "number" | "percent";
+	}
+	interface Discount {
+		id: number;
+		record_item_id: number;
 		value: number;
 		kind: "number" | "percent";
 	}
@@ -41,11 +47,10 @@ declare namespace DB {
 		qty: number;
 		total_before_disc: number;
 		total: number;
-		disc_val: number;
-		disc_type: "number" | "percent";
 		capital: number;
 	}
 	interface Cashier {
 		name: string;
+		role: "user" | "admin";
 	}
 }
