@@ -70,7 +70,7 @@ export function Discount({
 		if (value < 0) {
 			return;
 		}
-		if (value > price) {
+		if (value > price && val[index].type === "number") {
 			value = price;
 		}
 		setVal((state) =>

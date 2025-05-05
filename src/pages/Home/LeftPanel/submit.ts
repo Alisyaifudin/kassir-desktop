@@ -140,7 +140,6 @@ export async function submitPayment(
 		discPromises.push(db.discount.addMany(id, discs));
 	}
 	const resDisc = await Promise.all(discPromises);
-	console.log(8);
 	for (const errMsg of resDisc) {
 		if (errMsg !== null) {
 			return err("Aplikasi bermasalah");

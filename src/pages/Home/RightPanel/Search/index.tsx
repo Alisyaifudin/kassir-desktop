@@ -5,9 +5,15 @@ import { TextError } from "../../../../components/TextError";
 import { Field } from "../../Field";
 import { Input } from "../../../../components/ui/input";
 import { Loader2 } from "lucide-react";
-import { Item } from "../../schema";
+import { ItemWithoutDisc } from "../../schema";
 
-export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
+export function Search({
+	sendItem,
+	mode,
+}: {
+	sendItem: (item: ItemWithoutDisc) => void;
+	mode: "sell" | "buy";
+}) {
 	const [products, setProducts] = useState<DB.Product[]>([]);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -50,8 +56,8 @@ export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
 			setProducts(items);
 		});
 	};
-	const handleClick = (item: Item) => {
-		if (item.qty === 0) {
+	const handleClick = (item: ItemWithoutDisc) => {
+		if (item.qty === 0 && mode === "sell") {
 			setError("Stok barang habis");
 			return;
 		}
@@ -81,7 +87,7 @@ export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
 			setLoading(false);
 			return;
 		}
-		if (product.stock === 0) {
+		if (product.stock === 0 && mode === "sell") {
 			setError("Stok habis");
 			setLoading(false);
 			return;
@@ -89,10 +95,6 @@ export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
 		setLoading(false);
 		handleClick({
 			barcode: product.barcode,
-			disc: {
-				type: "percent",
-				value: 0,
-			},
 			name: product.name,
 			price: product.price,
 			qty: 1,
@@ -110,10 +112,10 @@ export function Search({ sendItem }: { sendItem: (item: Item) => void }) {
 			</form>
 			<hr />
 			<Field label="Cari Nama" className="px-1">
-				<Input type="search" value={name} onChange={handleChangeName}/>
+				<Input type="search" value={name} onChange={handleChangeName} />
 			</Field>
 			{error ? <TextError>{error}</TextError> : null}
-			<Output products={products} handleClick={handleClick} />
+			<Output products={products} handleClick={handleClick} mode={mode} />
 		</>
 	);
 }

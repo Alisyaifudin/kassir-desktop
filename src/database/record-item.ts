@@ -50,10 +50,9 @@ export function genRecordItem(db: Database) {
 							]
 						),
 					];
-					if (item.product_id !== undefined) {
-						const operation = mode === "buy" ? "+" : "-";
+					if (item.product_id !== undefined && mode === "sell") {
 						promise.push(
-							db.execute(`UPDATE products SET stock = stock ${operation} $1 WHERE id = $2`, [
+							db.execute(`UPDATE products SET stock = stock - $1 WHERE id = $2`, [
 								item.qty,
 								item.product_id,
 							])
@@ -62,7 +61,7 @@ export function genRecordItem(db: Database) {
 					return Promise.all(promise);
 				},
 			});
-			
+
 			if (errMsg) return err(errMsg);
 			const id = res[0].lastInsertId;
 			if (id === undefined) return err("Gagal menyimpan. Coba lagi.");

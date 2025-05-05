@@ -1,12 +1,14 @@
 import { cn } from "../../../../lib/utils";
-import { Item } from "../../schema";
+import { ItemWithoutDisc } from "../../schema";
 
 export function Output({
 	products,
 	handleClick,
+	mode,
 }: {
+	mode: "buy" | "sell";
 	products: DB.Product[];
-	handleClick: (item: Item) => void;
+	handleClick: (item: ItemWithoutDisc) => void;
 }) {
 	return (
 		<div className="h-full w-full grow shrink basis-0 overflow-y-auto">
@@ -21,18 +23,14 @@ export function Output({
 									name: product.name,
 									price: product.price,
 									barcode: product.barcode,
-									disc: {
-										type: "percent",
-										value: 0,
-									},
 									qty: 1,
 								})
 							}
-							disabled={product.stock === 0}
+							disabled={product.stock === 0 && mode === "sell"}
 							className={cn(
 								"cursor-pointer text-2xl w-full grid hover:bg-sky-100/50",
 								product.barcode !== null ? "grid-cols-[1fr_170px]" : "",
-								{ "bg-red-400 hover:bg-red-300": product.stock === 0 }
+								{ "bg-red-400 hover:bg-red-300": product.stock === 0 && mode === "sell" }
 							)}
 						>
 							<p className={cn("text-start text-wrap")}>{product.name}</p>

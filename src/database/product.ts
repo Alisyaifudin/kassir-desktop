@@ -124,6 +124,7 @@ export const genProduct = (db: Database) => ({
 				),
 		});
 		return errMsg;
+		return null;
 	},
 	delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({

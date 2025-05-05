@@ -24,7 +24,7 @@ export function RightPanel({
 					<TabsTrigger value="man">Manual</TabsTrigger>
 				</TabsList>
 				<TabsContent value="auto" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Search sendItem={sendItem} />
+					<Search sendItem={sendItem} mode={mode} />
 				</TabsContent>
 				<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
 					<Manual sendItem={sendItem} mode={mode} />

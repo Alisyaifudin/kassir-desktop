@@ -97,10 +97,10 @@ export function ItemComponent({
 					) : (
 						<p>{barcode ?? ""}</p>
 					)}
-					{id === undefined ? (
+					{id === undefined || mode === "buy" ? (
 						<input
 							type="number"
-							className="px-0.5 border-b border-l border-r"
+							className={cn("px-0.5", id !== undefined ? "outline" : "border-b border-l border-r")}
 							value={price === 0 ? "" : price}
 							onChange={handleChangePrice}
 						></input>
