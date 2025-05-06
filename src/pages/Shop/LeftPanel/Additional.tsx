@@ -13,14 +13,16 @@ export function AdditionalItem({
 	totalBeforeTax,
 	additional,
 	set,
+	fix
 }: {
 	mode: "sell" | "buy";
 	index: number;
 	totalBeforeTax: Decimal;
 	additional: Additional;
 	set: SetAdditional;
+	fix: number;
 }) {
-	const additionalNumber = calcAdditional(totalBeforeTax, additional);
+	const additionalNumber = calcAdditional(totalBeforeTax, additional, fix);
 	const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = e.currentTarget.value.trim();
 		set.name(mode, index, val);

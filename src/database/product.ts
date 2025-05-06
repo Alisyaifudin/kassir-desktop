@@ -123,8 +123,8 @@ export const genProduct = (db: Database) => ({
 					]
 				),
 		});
+		console.log("ada error", errMsg);
 		return errMsg;
-		return null;
 	},
 	delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({

@@ -48,6 +48,7 @@ declare namespace DB {
 		total_before_disc: number;
 		total: number;
 		capital: number;
+		product_id: number | null;
 	}
 	interface Cashier {
 		name: string;

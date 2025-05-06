@@ -259,6 +259,8 @@ function getMethod(mode: "buy" | "sell") {
 	return "cash";
 }
 
+
+
 function getNote(mode: "buy" | "sell") {
 	const parsed = z.string().safeParse(localStorage.getItem(`note-${mode}`));
 	if (parsed.success) {

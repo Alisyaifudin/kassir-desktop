@@ -5,12 +5,14 @@ import { Item } from "../schema";
 import { SetItem } from "./useLocalStorage";
 import { Discount } from "./Discount";
 import { calcSubtotal } from "./submit";
+import { Fragment } from "react";
 
 type Props = {
 	index: number;
 	mode: "sell" | "buy";
 	item: Item;
 	set: SetItem;
+	fix: number;
 };
 
 export function ItemComponent({
@@ -18,8 +20,9 @@ export function ItemComponent({
 	mode,
 	item: { id, discs, name, price, qty, stock, barcode },
 	set,
+	fix,
 }: Props) {
-	const { total: subtotal } = calcSubtotal(discs, price, qty);
+	const { total: subtotal } = calcSubtotal(discs, price, qty, fix);
 	const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (id !== undefined) {
 			return;
@@ -35,13 +38,14 @@ export function ItemComponent({
 	};
 	const handleChangePrice = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
-		if (id !== undefined || isNaN(val)) {
+		if (id !== undefined || isNaN(val) || val < 0) {
 			return;
 		}
 		set.price(mode, index, val);
 	};
 	const handleChangeQty = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
+		console.log(val);
 		if (
 			isNaN(val) ||
 			!Number.isInteger(val) ||
@@ -103,6 +107,7 @@ export function ItemComponent({
 							className={cn("px-0.5", id !== undefined ? "outline" : "border-b border-l border-r")}
 							value={price === 0 ? "" : price}
 							onChange={handleChangePrice}
+							step={1 / Math.pow(10, fix)}
 						></input>
 					) : (
 						<p>{price}</p>
@@ -114,6 +119,7 @@ export function ItemComponent({
 						setDisc={set.disc}
 						qty={qty}
 						price={price}
+						fix={fix}
 					/>
 					<input
 						type="number"
@@ -131,8 +137,8 @@ export function ItemComponent({
 				</div>
 				{discs.length === 0
 					? null
-					: discs.map((disc) => (
-							<>
+					: discs.map((disc, i) => (
+							<Fragment key={i}>
 								<div className="grid grid-cols-[1fr_80px_150px_270px] gap-1 ">
 									<div />
 									<p>Diskon</p>
@@ -143,7 +149,7 @@ export function ItemComponent({
 									</p>
 									<div />
 								</div>
-							</>
+							</Fragment>
 					  ))}
 			</div>
 		</div>

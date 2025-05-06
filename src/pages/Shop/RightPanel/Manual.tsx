@@ -30,9 +30,11 @@ const emptyErr = { name: "", price: "", qty: "", barcode: "" };
 export function Manual({
 	sendItem,
 	mode,
+	fix
 }: {
 	sendItem: (item: ItemWithoutDisc) => void;
 	mode: "buy" | "sell";
+	fix: number;
 }) {
 	const [error, setError] = useState(emptyErr);
 	const [loading, setLoading] = useState(false);
@@ -103,7 +105,7 @@ export function Manual({
 			<Field label="Harga" error={error.price}>
 				<div className="flex items-center gap-1">
 					<p className="text-2xl">Rp</p>
-					<Input type="number" required name="price" />
+					<Input type="number" required name="price" step={1/Math.pow(10, fix)} />
 				</div>
 			</Field>
 			<div className="flex gap-1 items-center">

@@ -165,6 +165,7 @@ function Form({ product }: { product: DB.Product }) {
 					name="price"
 					required
 					defaultValue={product.price}
+					step={0.00001}
 					autoComplete="off"
 				/>
 			</Field>
@@ -174,6 +175,7 @@ function Form({ product }: { product: DB.Product }) {
 					className="outline w-[300px]"
 					name="capital"
 					autoComplete="off"
+					step={0.00001}
 					defaultValue={product.capital}
 				/>
 			</Field>

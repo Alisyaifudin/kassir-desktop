@@ -7,7 +7,7 @@ import {
 	DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { SetDisc } from "./useLocalStorage";
 import { produce } from "immer";
@@ -24,6 +24,7 @@ export function Discount({
 	mode,
 	price,
 	qty,
+	fix
 }: {
 	discs: {
 		value: number;
@@ -34,9 +35,10 @@ export function Discount({
 	mode: "sell" | "buy";
 	price: number;
 	qty: number;
+	fix: number;
 }) {
 	const [val, setVal] = useState(discs);
-	const { discount } = calcSubtotal(val, price, qty);
+	const { discount } = calcSubtotal(val, price, qty, fix);
 	const debouncedType = useDebouncedCallback((index: number, type: "percent" | "number") => {
 		setDisc.kind(mode, itemIndex, index, type);
 	}, 1000);
@@ -106,7 +108,7 @@ export function Discount({
 				</DialogHeader>
 				<div className="grid grid-cols-[1fr_110px_50px] gap-1 text-3xl items-center">
 					{val.map((v, i) => (
-						<>
+						<Fragment key={i}>
 							<Input
 								type="number"
 								value={v.value === 0 ? "" : v.value}
@@ -119,7 +121,7 @@ export function Discount({
 							<button onClick={handleDelete(i)} className="bg-red-500 w-fit h-fit text-white">
 								<X size={35} />
 							</button>
-						</>
+						</Fragment>
 					))}
 				</div>
 				<DialogFooter>

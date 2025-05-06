@@ -115,7 +115,13 @@ export default function Page() {
 					/>
 				</Field>
 				<Field error={error.capital} label="Modal:">
-					<Input type="number" className="outline w-[300px]" name="capital" autoComplete="off" />
+					<Input
+						type="number"
+						className="outline w-[300px]"
+						name="capital"
+						autoComplete="off"
+						step={0.00001}
+					/>
 				</Field>
 				<Field error={error.stock} label="Stok*:">
 					<Input

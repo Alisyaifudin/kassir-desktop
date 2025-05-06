@@ -28,7 +28,7 @@ export function genRecordItem(db: Database) {
 			return ok(items);
 		},
 		add: async (
-			item: Omit<DB.RecordItem, "id"> & { product_id?: number },
+			item: Omit<DB.RecordItem, "id"> & { product_id: number | null },
 			timestamp: number,
 			mode: "sell" | "buy"
 		): Promise<Result<"Aplikasi bermasalah" | "Gagal menyimpan. Coba lagi." | null, number>> => {
@@ -37,8 +37,8 @@ export function genRecordItem(db: Database) {
 					const promise = [
 						db.execute(
 							`INSERT INTO record_items 
-								(timestamp, name, price, qty, total_before_disc, total, capital) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+								(timestamp, name, price, qty, total_before_disc, total, capital, product_id) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 							[
 								timestamp,
 								item.name.trim(),
@@ -47,6 +47,7 @@ export function genRecordItem(db: Database) {
 								item.total_before_disc,
 								item.total,
 								item.capital,
+								item.product_id,
 							]
 						),
 					];

@@ -128,6 +128,18 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../src/migrations-sql/21-30/migration-21.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 22,
+            description: "convert_price_to_real",
+            sql: include_str!("../src/migrations-sql/21-30/migration-22.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 23,
+            description: "update_products",
+            sql: include_str!("../src/migrations-sql/21-30/migration-23.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

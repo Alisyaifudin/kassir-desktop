@@ -16,12 +16,14 @@ export function LeftPanel({
 	reset,
 	mode,
 	changeMode,
+	fix,
 }: {
 	newItem: ItemWithoutDisc | null;
 	newAdditional: Additional | null;
 	reset: () => void;
 	mode: "sell" | "buy";
 	changeMode: (mode: "sell" | "buy") => void;
+	fix: number;
 }) {
 	const user = useUser();
 	const { set, data, ready } = useLocalStorage(mode);
@@ -50,9 +52,9 @@ export function LeftPanel({
 	if (!ready) {
 		return <Loader2 className="animate-splin" />;
 	}
-	const totalBeforeDisc = calcTotalBeforeDisc(items);
-	const totalAfterDisc = calcTotalAfterDisc(totalBeforeDisc, disc);
-	const totalTax = calcTotalTax(totalAfterDisc, additionals);
+	const totalBeforeDisc = calcTotalBeforeDisc(items, fix);
+	const totalAfterDisc = calcTotalAfterDisc(totalBeforeDisc, disc, fix);
+	const totalTax = calcTotalTax(totalAfterDisc, additionals, fix);
 	const totalAfterTax = totalAfterDisc.add(totalTax);
 	const grandTotal = totalAfterTax.add(rounding);
 	return (
@@ -95,7 +97,15 @@ export function LeftPanel({
 				</div>
 				<div className="flex text-3xl flex-col overflow-y-auto">
 					{items.map((item, i) => (
-						<ItemComponent {...item} index={i} key={i} mode={mode} item={item} set={set.items} />
+						<ItemComponent
+							{...item}
+							index={i}
+							key={i}
+							mode={mode}
+							item={item}
+							set={set.items}
+							fix={fix}
+						/>
 					))}
 					{additionals.length > 0 ? (
 						<div className="self-end w-[410px] justify-between flex gap-2">
@@ -109,6 +119,7 @@ export function LeftPanel({
 							index={i}
 							key={i}
 							mode={mode}
+							fix={fix}
 							set={set.additionals}
 							additional={add}
 							totalBeforeTax={totalAfterDisc}
@@ -119,6 +130,7 @@ export function LeftPanel({
 			<Summary
 				grandTotal={grandTotal.toNumber()}
 				mode={mode}
+				fix={fix}
 				totalAfterDisc={totalAfterDisc.toNumber()}
 				totalAfterTax={totalAfterTax.toNumber()}
 				totalBeforeDisc={totalBeforeDisc.toNumber()}

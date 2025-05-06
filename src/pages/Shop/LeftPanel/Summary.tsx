@@ -19,6 +19,7 @@ type Props = {
 	totalAfterTax: number;
 	grandTotal: number;
 	totalTax: number;
+	fix: number;
 	data: {
 		note: string;
 		pay: number;
@@ -54,6 +55,7 @@ export function Summary({
 	grandTotal,
 	data: { items, additionals, pay, rounding, disc, cashier, method, note },
 	set,
+	fix,
 }: Props) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -102,6 +104,7 @@ export function Summary({
 		const [errMsg, timestamp] = await submitPayment(
 			db,
 			mode,
+			fix,
 			{
 				cashier,
 				change: change.toNumber(),

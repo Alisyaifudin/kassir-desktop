@@ -7,6 +7,7 @@ import { Item, Additional } from "../schema";
 export async function submitPayment(
 	db: Database,
 	mode: "buy" | "sell",
+	fix: number,
 	record: {
 		cashier: string | null;
 		credit: 0 | 1;
@@ -25,7 +26,7 @@ export async function submitPayment(
 		};
 		change: number;
 	},
-	items: Item[],
+	items: (Item & { id?: number })[],
 	additionals: Additional[]
 ): Promise<
 	Result<
@@ -34,6 +35,9 @@ export async function submitPayment(
 		| "Aplikasi bermasalah"
 		| "Biaya tambahan harus punya nama"
 		| "Produk harus punya nama"
+		| "Kuantitas harus lebih dari nol"
+		| "Harga tidak boleh negatif"
+		| "Biaya tambahan tidak boleh negatif"
 		| "Gagal menyimpan. Coba lagi.",
 		number
 	>
@@ -55,12 +59,31 @@ export async function submitPayment(
 	if (emptyItem !== undefined) {
 		return err("Produk harus punya nama");
 	}
+	for (const item of items) {
+		if (item.qty <= 0) {
+			return err("Kuantitas harus lebih dari nol");
+		}
+		if (item.price < 0) {
+			return err("Harga tidak boleh negatif");
+		}
+	}
+	for (const add of additionals) {
+		if (add.value < 0) {
+			return err("Biaya tambahan tidak boleh negatif");
+		}
+	}
 	const itemsTranform = items.map((item) => {
 		const totalBeforeDisc = new Decimal(item.price).times(item.qty);
-		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty);
+		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty, fix);
 		const capital =
 			mode === "buy"
-				? calcCapital(record.grandTotal, record.totalBeforeDisc, subtotal.toNumber(), item.qty)
+				? calcCapital(
+						record.grandTotal,
+						record.totalBeforeDisc,
+						subtotal.toNumber(),
+						item.qty,
+						fix
+				  )
 				: null;
 		return {
 			item: {
@@ -70,7 +93,7 @@ export async function submitPayment(
 				qty: Number(item.qty),
 				total_before_disc: totalBeforeDisc.toNumber(),
 				total: subtotal.toNumber(),
-				product_id: item.id,
+				product_id: item.id ?? null,
 				capital: capital ?? 0,
 				barcode: item.barcode ?? null,
 				stock: mode === "buy" ? Number(item.qty) : item.stock ?? Number(item.qty),
@@ -154,7 +177,8 @@ export function calcSubtotal(
 		type: "number" | "percent";
 	}[],
 	price: number,
-	qty: number
+	qty: number,
+	fix: number
 ) {
 	const total = new Decimal(price).times(qty);
 	let subtotal = total;
@@ -164,8 +188,8 @@ export function calcSubtotal(
 				subtotal = subtotal.sub(d.value);
 				break;
 			case "percent":
-				const v = subtotal.times(d.value).div(100).round();
-				subtotal = subtotal.sub(v);
+				const val = subtotal.times(d.value).div(100).toFixed(fix);
+				subtotal = subtotal.sub(val);
 		}
 	}
 	return {
@@ -174,20 +198,20 @@ export function calcSubtotal(
 	};
 }
 
-export function calcAdditional(totalBeforeTax: Decimal, add: Additional) {
+export function calcAdditional(totalBeforeTax: Decimal, add: Additional, fix: number) {
 	switch (add.kind) {
 		case "number":
 			return new Decimal(add.value);
 		case "percent":
-			const val = totalBeforeTax.times(add.value).div(100).round();
-			return val;
+			const val = totalBeforeTax.times(add.value).div(100).toFixed(fix);
+			return new Decimal(val);
 	}
 }
 
-export const calcTotalBeforeDisc = (items: Item[]) => {
+export const calcTotalBeforeDisc = (items: Item[], fix: number) => {
 	let total = new Decimal(0);
 	for (const item of items) {
-		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty);
+		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty, fix);
 		total = total.add(subtotal);
 	}
 	return total;
@@ -198,31 +222,32 @@ export const calcTotalAfterDisc = (
 	disc: {
 		type: "number" | "percent";
 		value: number;
-	}
+	},
+	fix: number
 ) => {
 	switch (disc.type) {
 		case "number":
 			return totalBeforeDisc.sub(disc.value);
 		case "percent":
-			const discNum = totalBeforeDisc.times(disc.value).div(100).round();
-
-			return totalBeforeDisc.sub(discNum);
+			const val = totalBeforeDisc.times(disc.value).div(100).toFixed(fix);
+			return totalBeforeDisc.sub(val);
 	}
 };
 
-export const calcTax = (totalAfterDisc: Decimal, add: Additional) => {
+export const calcTax = (totalAfterDisc: Decimal, add: Additional, fix: number) => {
 	switch (add.kind) {
 		case "number":
 			return add.value;
 		case "percent":
-			return totalAfterDisc.times(add.value).div(100).round();
+			const val = totalAfterDisc.times(add.value).div(100).toFixed(fix);
+			return Number(val)
 	}
 };
 
-export const calcTotalTax = (totalAfterDisc: Decimal, adds: Additional[]) => {
+export const calcTotalTax = (totalAfterDisc: Decimal, adds: Additional[], fix: number) => {
 	let total = new Decimal(0);
 	for (const add of adds) {
-		const val = calcTax(totalAfterDisc, add);
+		const val = calcTax(totalAfterDisc, add, fix);
 		total = total.add(val);
 	}
 	return total;
@@ -236,8 +261,13 @@ export function calcCapital(
 	grandTotal: number,
 	totalBeforeDisc: number,
 	subtotal: number,
-	qty: number
+	qty: number,
+	fix: number
 ): number {
-	const capital = new Decimal(grandTotal).times(subtotal).div(totalBeforeDisc).div(qty).round();
-	return capital.toNumber();
+	const capital = new Decimal(grandTotal)
+		.times(subtotal)
+		.div(totalBeforeDisc)
+		.div(qty)
+		.toFixed(fix);
+	return Number(capital)
 }
