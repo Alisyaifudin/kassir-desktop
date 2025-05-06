@@ -57,10 +57,6 @@ export function Search({
 		});
 	};
 	const handleClick = (item: ItemWithoutDisc) => {
-		if (item.qty === 0 && mode === "sell") {
-			setError("Stok barang habis");
-			return;
-		}
 		sendItem(item);
 		setProducts([]);
 		setBarcode(null);
@@ -84,11 +80,6 @@ export function Search({
 		}
 		if (product === null) {
 			setError("Barang tidak ditemukan");
-			setLoading(false);
-			return;
-		}
-		if (product.stock === 0 && mode === "sell") {
-			setError("Stok habis");
 			setLoading(false);
 			return;
 		}

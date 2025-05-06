@@ -26,7 +26,6 @@ export function Output({
 									qty: 1,
 								})
 							}
-							disabled={product.stock === 0 && mode === "sell"}
 							className={cn(
 								"cursor-pointer text-2xl w-full grid hover:bg-sky-100/50",
 								product.barcode !== null ? "grid-cols-[1fr_170px]" : "",
