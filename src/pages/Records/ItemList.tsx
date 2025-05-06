@@ -15,6 +15,7 @@ import { useState } from "react";
 import { log } from "../../lib/utils";
 import { useDb } from "../../RootLayout";
 import { TaxItem } from "./TaxItem";
+import { useUser } from "../../Layout";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
@@ -79,6 +80,7 @@ function ItemListSell({
 	taxes: DB.Additional[];
 	sendSignal: () => void;
 }) {
+	const user = useUser();
 	if (items.length === 0) {
 		return <DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />;
 	}
@@ -186,7 +188,9 @@ function ItemListSell({
 				<Button asChild>
 					<Link to={`/records/${record.timestamp}`}>Lihat</Link>
 				</Button>
-				<DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />
+				{user.role === "admin" ? (
+					<DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />
+				) : null}
 			</div>
 		</div>
 	);

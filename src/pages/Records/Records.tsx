@@ -14,6 +14,7 @@ import { Input } from "../../components/ui/input";
 import { useState } from "react";
 import { z } from "zod";
 import { Search } from "./Search";
+import { useUser } from "../../Layout";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
@@ -31,6 +32,7 @@ export default function Page() {
 	const [signal, setSignal] = useState(false);
 	const state = useRecords(time, signal);
 	const db = useDb();
+	const user = useUser();
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const date = e.currentTarget.value;
 		const [year, month, day] = date.split("-").map(Number);
@@ -144,14 +146,20 @@ export default function Page() {
 								>
 									<TabsList>
 										<TabsTrigger value="sell">Jual</TabsTrigger>
-										<TabsTrigger value="buy">Beli</TabsTrigger>
+										{user.role === "admin" ? <TabsTrigger value="buy">Beli</TabsTrigger> : null}
 									</TabsList>
 									<TabsContent value="sell" className="overflow-auto">
 										<RecordList records={records} selectRecord={selectRecord} selected={selected} />
 									</TabsContent>
-									<TabsContent value="buy" className="overflow-auto flex-1">
-										<RecordList records={records} selectRecord={selectRecord} selected={selected} />
-									</TabsContent>
+									{user.role === "admin" ? (
+										<TabsContent value="buy" className="overflow-auto flex-1">
+											<RecordList
+												records={records}
+												selectRecord={selectRecord}
+												selected={selected}
+											/>
+										</TabsContent>
+									) : null}
 								</Tabs>
 								{total === null ? null : (
 									<p className="text-end">Total: Rp{total.toLocaleString("id-ID")}</p>

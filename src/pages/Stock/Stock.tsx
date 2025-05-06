@@ -12,10 +12,12 @@ import { numeric } from "../../lib/utils.ts";
 import { useState } from "react";
 import { Pagination } from "./Pagination.tsx";
 import { TextError } from "../../components/TextError.tsx";
+import { useUser } from "../../Layout.tsx";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
 	const { sortDir, query, sortBy, page: rawPage, limit } = getOption(search);
+	const user = useUser();
 	const [pagination, setPagination] = useState<
 		{ page: number; total: number } | { page: null; total: null }
 	>({ page: null, total: null });
@@ -76,12 +78,14 @@ export default function Page() {
 							<option value={100}>100</option>
 						</select>
 					</div>
-					<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl w-fit">
-						Tambah Produk
-						<Button className="rounded-full h-13 w-13">
-							<Plus size={35} />
-						</Button>
-					</Link>
+					{user.role === "admin" ? (
+						<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl w-fit">
+							Tambah Produk
+							<Button className="rounded-full h-13 w-13">
+								<Plus size={35} />
+							</Button>
+						</Link>
+					) : null}
 				</div>
 			</div>
 			<Await state={items}>

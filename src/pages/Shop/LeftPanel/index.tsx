@@ -1,10 +1,6 @@
 import { Button } from "../../../components/ui/button";
 import { useEffect } from "react";
 import { cn } from "../../../lib/utils";
-import { useDb } from "../../../RootLayout";
-import { useAsync } from "../../../hooks/useAsync";
-import { Await } from "../../../components/Await";
-import { CashierSelect } from "./CashierSelect";
 import { Additional, ItemWithoutDisc } from "../schema";
 import { useLocalStorage } from "./useLocalStorage";
 import { Loader2 } from "lucide-react";
@@ -12,6 +8,7 @@ import { ItemComponent } from "./Item";
 import { AdditionalItem } from "./Additional";
 import { Summary } from "./Summary";
 import { calcTotalAfterDisc, calcTotalBeforeDisc, calcTotalTax } from "./submit";
+import { useUser } from "../../../Layout";
 
 export function LeftPanel({
 	newItem,
@@ -26,7 +23,7 @@ export function LeftPanel({
 	mode: "sell" | "buy";
 	changeMode: (mode: "sell" | "buy") => void;
 }) {
-	const cashierState = useCashiers();
+	const user = useUser();
 	const { set, data, ready } = useLocalStorage(mode);
 	const { items, additionals, disc, pay, rounding, cashier, method, note } = data;
 	useEffect(() => {
@@ -70,19 +67,17 @@ export function LeftPanel({
 						>
 							<h2 className="">Jual</h2>
 						</Button>
-						<Button
-							className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
-							variant={mode === "buy" ? "default" : "ghost"}
-							onClick={() => changeMode("buy")}
-						>
-							<h2 className="">Beli</h2>
-						</Button>
+						{user.role === "admin" ? (
+							<Button
+								className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
+								variant={mode === "buy" ? "default" : "ghost"}
+								onClick={() => changeMode("buy")}
+							>
+								<h2 className="">Beli</h2>
+							</Button>
+						) : null}
 					</div>
-					<Await state={cashierState}>
-						{(cashiers) => (
-							<CashierSelect data={cashiers} changeCashier={set.cashier} cashier={data.cashier} />
-						)}
-					</Await>
+					<p className="text-3xl px-2">Kasir: {user.name}</p>
 				</div>
 				<div
 					className={cn(
@@ -151,10 +146,4 @@ export function LeftPanel({
 			/>
 		</div>
 	);
-}
-
-function useCashiers() {
-	const db = useDb();
-	const state = useAsync(db.cashier.get(), []);
-	return state;
 }

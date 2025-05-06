@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { SquareArrowOutUpRight } from "lucide-react";
 import {
 	Table,
 	TableBody,
@@ -83,7 +83,7 @@ function ProductTable({ products, start, end }: Props) {
 						<TableCell>
 							<Button variant="link" className="p-0" asChild>
 								<Link to={`/stock/${product.id}`}>
-									<Pencil />
+									<SquareArrowOutUpRight size={35} />
 								</Link>
 							</Button>
 						</TableCell>

@@ -3,7 +3,7 @@ import { useDb, useStore } from "../../RootLayout";
 import { Button } from "../../components/ui/button";
 import { Update } from "./Update";
 import { version } from "../../lib/utils";
-import { useUser } from "../../Layout";
+import { useFetchUser } from "../../Layout";
 import { Await } from "../../components/Await";
 import Redirect from "../../components/Redirect";
 import { Loader2, LogOut } from "lucide-react";
@@ -14,7 +14,7 @@ import { TextError } from "../../components/TextError";
 export default function Setting() {
 	const db = useDb();
 	const store = useStore();
-	const { state: user } = useUser();
+	const { state: user } = useFetchUser();
 	return (
 		<main className="flex gap-2 p-2 flex-1 w-full max-w-7xl mx-auto justify-between">
 			<Await state={user}>
@@ -56,9 +56,7 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 			<nav className="w-[200px] h-full flex flex-col justify-between">
 				<ol className="flex flex-col gap-2 p-2 shadow-md">
 					<li className="h-14 flex items-center">
-						<Button className="w-full">
-							Profil
-						</Button>
+						<Button className="w-full">Profil</Button>
 					</li>
 				</ol>
 				<div className="flex flex-col gap-1">

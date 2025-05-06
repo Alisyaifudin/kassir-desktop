@@ -1,4 +1,4 @@
-import { useUser } from "../Layout";
+import { useFetchUser } from "../Layout";
 import { User } from "../lib/auth";
 import { Await } from "./Await";
 import Redirect from "./Redirect";
@@ -12,7 +12,7 @@ export function Auth({
 	admin?: boolean;
 	redirect?: string;
 }) {
-	const { state, update } = useUser();
+	const { state, update } = useFetchUser();
 	return (
 		<Await state={state}>
 			{(user) => {

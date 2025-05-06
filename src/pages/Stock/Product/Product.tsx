@@ -14,6 +14,7 @@ import { useAsync } from "../../../hooks/useAsync.tsx";
 import { TextError } from "../../../components/TextError.tsx";
 import { type loader } from "./index.tsx";
 import { Textarea } from "../../../components/ui/textarea.tsx";
+import { useUser } from "../../../Layout.tsx";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
@@ -31,6 +32,7 @@ const dataSchema = z.object({
 export default function Page() {
 	const { id } = useLoaderData<typeof loader>();
 	const item = useItem(id);
+	const user = useUser();
 	const navigate = useNavigate();
 	return (
 		<main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
@@ -40,7 +42,11 @@ export default function Page() {
 					<ChevronLeft /> Kembali
 				</Button>
 			</Button>
-			<h1 className="font-bold text-3xl">Edit barang</h1>
+			{user.role === "admin" ? (
+				<h1 className="font-bold text-3xl">Edit barang</h1>
+			) : (
+				<h1 className="font-bold text-3xl">Info barang</h1>
+			)}
 			<Await state={item} Loading={<Loader2 className="animate-spin" />}>
 				{(data) => {
 					const [errMsg, product] = data;
@@ -50,10 +56,36 @@ export default function Page() {
 					if (product === null) {
 						return <Redirect to="/stock" />;
 					}
+					if (user.role === "user") {
+						return <Info product={product} />;
+					}
 					return <Form product={product} />;
 				}}
 			</Await>
 		</main>
+	);
+}
+
+function Info({ product }: { product: DB.Product }) {
+	return (
+		<div className="grid grid-cols-[150px_1fr] gap-3 text-3xl">
+			<p>Nama</p>
+			<p>{product.name}</p>
+			<p>Harga</p>
+			<p>{product.price}</p>
+			<p>Modal</p>
+			<p>{product.capital}</p>
+			<p>Stok</p>
+			<p>{product.stock}</p>
+			<p>Barcode</p>
+			<p>{product.barcode}</p>
+			{product.note === "" ? null : (
+				<>
+					<p>Catatan</p>
+					<p>{product.note}</p>
+				</>
+			)}
+		</div>
 	);
 }
 

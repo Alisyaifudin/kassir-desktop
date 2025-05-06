@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useOutletContext } from "react-router";
 import { useEffect, useState } from "react";
 import { Settings, BellRing } from "lucide-react";
 import { Notification } from "./components/Notification";
@@ -6,9 +6,10 @@ import { cn } from "./lib/utils";
 import { emitter } from "./lib/event-emitter";
 import { check } from "@tauri-apps/plugin-updater";
 import { useDb, useStore } from "./RootLayout";
-import { auth } from "./lib/auth";
+import { auth, User } from "./lib/auth";
 import { useAsync } from "./hooks/useAsync";
 import Redirect from "./components/Redirect";
+import { Await } from "./components/Await";
 
 function Layout() {
 	const { pathname } = useLocation();
@@ -17,7 +18,7 @@ function Layout() {
 	const profile = store.profile;
 	const db = useDb();
 	const [name, setName] = useState("");
-	const { state } = useUser();
+	const { state } = useFetchUser();
 	useEffect(() => {
 		profile.owner.get().then((v) => {
 			if (v) {
@@ -97,7 +98,14 @@ function Layout() {
 					</ul>
 				</nav>
 			</header>
-			<Outlet context={{ db, store }} />
+			<Await state={state}>
+				{(user) => {
+					if (user === null) {
+						return <Redirect to="/" />;
+					}
+					return <Outlet context={{ db, store, user }} />;
+				}}
+			</Await>
 			<Notification />
 		</>
 	);
@@ -105,11 +113,16 @@ function Layout() {
 
 export default Layout;
 
-export const useUser = () => {
+export const useFetchUser = () => {
 	const token = localStorage.getItem("token");
 	const store = useStore();
 	const [updated, setUpdated] = useState(false);
 	const state = useAsync(auth.validate(store, token ?? ""), [updated]);
 	const update = () => setUpdated((prev) => !prev);
 	return { state, update };
+};
+
+export const useUser = () => {
+	const { user } = useOutletContext<{ user: User }>();
+	return user;
 };
