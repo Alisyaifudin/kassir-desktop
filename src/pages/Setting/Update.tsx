@@ -7,7 +7,7 @@ import { BellRing, Loader2 } from "lucide-react";
 import { TextError } from "../../components/TextError";
 import { useNotification } from "../../components/Notification";
 import { Temporal } from "temporal-polyfill";
-import { useStore } from "../../Layout";
+import { useStore } from "../../RootLayout";
 import { useAsync } from "../../hooks/useAsync";
 import { Await } from "../../components/Await";
 
@@ -16,8 +16,8 @@ export function Update() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const { notify } = useNotification();
-	const store = useStore();
-	const state = useAsync(store.newVersion.get(), []);
+	const { profile } = useStore();
+	const state = useAsync(profile.newVersion.get(), []);
 	const handleClick = async () => {
 		setLoading(true);
 		const [errMsg] = await tryResult({

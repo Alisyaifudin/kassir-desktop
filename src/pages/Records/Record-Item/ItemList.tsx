@@ -3,7 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Temporal } from "temporal-polyfill";
 import { formatDate, formatTime } from "../../../lib/utils";
 import { Item } from "./Item";
-import { useProfile } from "../../Setting/Profile/setting-api";
+import { useProfile } from "../../Setting/Shop/setting-api";
 import { Await } from "../../../components/Await";
 import { TaxItem } from "./TaxItem";
 
@@ -15,7 +15,7 @@ const title = {
 const meth = {
 	cash: "Tunai",
 	transfer: "Transfer",
-	emoney: "Lainnya",
+	other: "Lainnya",
 };
 
 export function ItemList({

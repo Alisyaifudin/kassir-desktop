@@ -16,7 +16,7 @@ export async function submitPayment(
 		totalTax: number;
 		grandTotal: number;
 		note: string;
-		method: "cash" | "transfer" | "emoney";
+		method: "cash" | "transfer" | "other";
 		rounding: number | null;
 		pay: number;
 		disc: {

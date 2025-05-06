@@ -68,7 +68,7 @@ export const dataSchema = z.object({
 		value: z.number(),
 		type: z.enum(["number", "percent"]),
 	}),
-	method: z.enum(["cash", "transfer", "emoney"]),
+	method: z.enum(["cash", "transfer", "other"]),
 	note: z.string(),
 });
 

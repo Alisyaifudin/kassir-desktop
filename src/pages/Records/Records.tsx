@@ -1,5 +1,5 @@
 import { SetURLSearchParams, useSearchParams } from "react-router";
-import { useDb } from "../../Layout";
+import { useDb } from "../../RootLayout";
 import { RecordList } from "./RecordList";
 import { Temporal } from "temporal-polyfill";
 import { formatDate } from "../../lib/utils";

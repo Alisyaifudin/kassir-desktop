@@ -10,21 +10,14 @@ function generate<T extends string>(
 	};
 }
 
-const profiles = [
-	"owner",
-	"address",
-	"ig",
-	"shopee",
-	"footer",
-	"header",
-	"newVersion",
-] as const;
+const profiles = ["owner", "address", "ig", "shopee", "footer", "header", "newVersion"] as const;
 
 export function generateStore(store: StoreTauri) {
 	const obj = profiles.map((p) => [p, generate(store, p)] as const);
-	return Object.fromEntries(obj) as {
+	const profile = Object.fromEntries(obj) as {
 		[K in (typeof profiles)[number]]: ReturnType<typeof generate<K>>;
 	};
+	return { profile, core: store };
 }
 
 export type Store = ReturnType<typeof generateStore>;

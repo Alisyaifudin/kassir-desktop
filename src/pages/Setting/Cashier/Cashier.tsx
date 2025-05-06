@@ -1,12 +1,13 @@
 import { Await } from "../../../components/Await";
-import { useDb } from "../../../Layout";
+import { useDb } from "../../../RootLayout";
 import { useAsync } from "../../../hooks/useAsync";
 import { TextError } from "../../../components/TextError";
 import { Item } from "./Item";
 import { NewCashier } from "./NewCashier";
 import { useState } from "react";
+import { User } from "../../../lib/auth";
 
-export default function Cashier() {
+export default function Cashier({ user }: { user: User }) {
 	const [signal, setSignal] = useState(false);
 	const state = useCashier(signal);
 	return (
@@ -22,6 +23,7 @@ export default function Cashier() {
 						<Item
 							key={cashier.name}
 							cashier={cashier}
+							username={user.name}
 							sendSignal={() => setSignal((prev) => !prev)}
 						/>
 					));

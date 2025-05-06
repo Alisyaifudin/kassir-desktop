@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDb } from "../../../Layout";
+import { useDb } from "../../../RootLayout";
 import {
 	Dialog,
 	DialogClose,
@@ -29,7 +29,7 @@ export function NewCashier({ sendSignal }: { sendSignal: () => void }) {
 		}
 		const name = parsed.data;
 		setLoading(true);
-		db.cashier.add(name).then((err) => {
+		db.cashier.add(name, "user").then((err) => {
 			if (err) {
 				setError(err);
 				setLoading(false);
@@ -63,7 +63,6 @@ export function NewCashier({ sendSignal }: { sendSignal: () => void }) {
 						<Button>Tambahkan {loading && <Loader2 className="animate-spin" />}</Button>
 					</div>
 				</form>
-
 				{error === "" ? null : <TextError>{error}</TextError>}
 			</DialogContent>
 		</Dialog>

@@ -1,10 +1,10 @@
-import { useStore } from "../../../Layout";
+import { useStore } from "../../../RootLayout";
 import { useAsync } from "../../../hooks/useAsync";
 import { Store } from "../../../store";
 
 export const useProfile = () => {
-	const store = useStore();
-	const setting = useAsync(getProfile(store), []);
+	const { profile } = useStore();
+	const setting = useAsync(getProfile(profile), []);
 	return setting;
 };
 
@@ -25,10 +25,13 @@ export async function getProfile<S extends Record<string, { get: () => Promise<a
 	};
 }
 
-export async function setProfile(store: Store, setting: Partial<Record<keyof Store, string>>) {
+export async function setProfile(
+	profile: Store["profile"],
+	setting: Partial<Record<keyof Store["profile"], string>>
+) {
 	const promises = Object.entries(setting).map(([key, value]) => {
 		if (value !== undefined) {
-			return store[key as keyof Store].set(value);
+			return profile[key as keyof Store["profile"]].set(value);
 		}
 	});
 	await Promise.all(promises);

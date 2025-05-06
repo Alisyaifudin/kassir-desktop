@@ -1,54 +1,54 @@
-import { Link, Outlet, useLocation, useOutletContext } from "react-router";
-import DatabaseTauri from "@tauri-apps/plugin-sql";
+import { Link, Outlet, useLocation } from "react-router";
 import { useEffect, useState } from "react";
-import { Store as StoreTauri } from "@tauri-apps/plugin-store";
-import { Loader2, Settings, BellRing } from "lucide-react";
-import { type Database, generateDB } from "./database";
-import { generateStore, Store } from "./store";
+import { Settings, BellRing } from "lucide-react";
 import { Notification } from "./components/Notification";
 import { cn } from "./lib/utils";
 import { emitter } from "./lib/event-emitter";
 import { check } from "@tauri-apps/plugin-updater";
+import { useDb, useStore } from "./RootLayout";
+import { auth } from "./lib/auth";
+import { useAsync } from "./hooks/useAsync";
+import Redirect from "./components/Redirect";
 
 function Layout() {
 	const { pathname } = useLocation();
-	const [db, setDb] = useState<Database | null>(null);
-	const [store, setStore] = useState<Store | null>(null);
 	const [hasUpdate, setHasUpdate] = useState(false);
+	const store = useStore();
+	const profile = store.profile;
+	const db = useDb();
 	const [name, setName] = useState("");
+	const { state } = useUser();
 	useEffect(() => {
-		StoreTauri.load("store.json", { autoSave: false }).then((store) => {
-			const s = generateStore(store);
-			setStore(s);
-			s.owner.get().then((v) => {
-				if (v) {
-					setName(v);
-				}
-			});
-			check().then((update) => {
-				if (update !== null) {
-					s.newVersion.set("true");
-					setHasUpdate(true);
-				} else {
-					s.newVersion.set("false");
-				}
-			});
+		profile.owner.get().then((v) => {
+			if (v) {
+				setName(v);
+			}
 		});
-		DatabaseTauri.load("sqlite:data.db").then((db) => {
-			setDb(generateDB(db));
+		check().then((update) => {
+			if (update !== null) {
+				profile.newVersion.set("true");
+				setHasUpdate(true);
+			} else {
+				profile.newVersion.set("false");
+			}
 		});
 	}, []);
 	useEffect(() => {
 		const refreshData = () => {
-			if (!store) return;
-			store.owner.get().then((ownerName) => setName(ownerName ?? ""));
+			if (!profile) return;
+			profile.owner.get().then((ownerName) => setName(ownerName ?? ""));
 		};
 		emitter.on("refresh", refreshData);
 		return () => {
 			emitter.off("refresh", refreshData);
 		};
 	}, [store]);
-
+	if (state.loading) {
+		return null;
+	}
+	if (state.error) {
+		return <Redirect to="/" />;
+	}
 	return (
 		<>
 			<header className="bg-sky-300 h-[78px] flex">
@@ -60,10 +60,10 @@ function Layout() {
 						<li
 							className={cn(
 								"text-3xl rounded-t-lg p-3 font-bold",
-								pathname === "/" ? "bg-white" : "bg-white/50"
+								pathname === "/shop" ? "bg-white" : "bg-white/50"
 							)}
 						>
-							<Link to="/">Toko</Link>
+							<Link to="/shop">Toko</Link>
 						</li>
 						<li
 							className={cn(
@@ -97,31 +97,19 @@ function Layout() {
 					</ul>
 				</nav>
 			</header>
-			<App db={db} store={store} />
+			<Outlet context={{ db, store }} />
 			<Notification />
 		</>
 	);
 }
 
-function App({ db, store }: { store: Store | null; db: Database | null }) {
-	if (db === null || store === null) {
-		return (
-			<main className="flex justify-center items-center flex-1">
-				<Loader2 className="animate-spin" />
-			</main>
-		);
-	}
-	return <Outlet context={{ db, store }} />;
-}
-
-export const useDb = () => {
-	const { db } = useOutletContext<{ db: Database }>();
-	return db;
-};
-
-export const useStore = () => {
-	const { store } = useOutletContext<{ store: Store }>();
-	return store;
-};
-
 export default Layout;
+
+export const useUser = () => {
+	const token = localStorage.getItem("token");
+	const store = useStore();
+	const [updated, setUpdated] = useState(false);
+	const state = useAsync(auth.validate(store, token ?? ""), [updated]);
+	const update = () => setUpdated((prev) => !prev);
+	return { state, update };
+};

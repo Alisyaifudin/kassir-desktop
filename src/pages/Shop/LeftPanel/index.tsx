@@ -1,7 +1,7 @@
 import { Button } from "../../../components/ui/button";
 import { useEffect } from "react";
 import { cn } from "../../../lib/utils";
-import { useDb } from "../../../Layout";
+import { useDb } from "../../../RootLayout";
 import { useAsync } from "../../../hooks/useAsync";
 import { Await } from "../../../components/Await";
 import { CashierSelect } from "./CashierSelect";

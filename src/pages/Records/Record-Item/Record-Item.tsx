@@ -1,6 +1,6 @@
 import { useLoaderData, useNavigate } from "react-router";
 import { err, ok, Result } from "../../../lib/utils";
-import { useDb } from "../../../Layout";
+import { useDb } from "../../../RootLayout";
 import { Button } from "../../../components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { ItemList } from "./ItemList";

@@ -23,7 +23,7 @@ declare namespace DB {
 		mode: "buy" | "sell";
 		pay: number;
 		change: number;
-		method: "cash" | "transfer" | "emoney";
+		method: "cash" | "transfer" | "other";
 		note: string;
 	}
 	interface Additional {
@@ -52,5 +52,6 @@ declare namespace DB {
 	interface Cashier {
 		name: string;
 		role: "user" | "admin";
+		password: string;
 	}
 }

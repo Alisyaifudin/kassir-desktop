@@ -1,0 +1,2 @@
+ALTER TABLE cashiers
+ADD COLUMN password TEXT NOT NULL DEFAULT '';

@@ -1,79 +1,114 @@
 import { useState } from "react";
-import { Await } from "../../../components/Await";
-import { useStore } from "../../../Layout";
-import { setProfile, useProfile } from "./setting-api";
-import { FieldText } from "./FieldText";
-import { Input } from "../../../components/ui/input";
-import { Textarea } from "../../../components/ui/textarea";
+import { Auth } from "../../../components/Auth";
 import { Button } from "../../../components/ui/button";
-import { TextError } from "../../../components/TextError";
+import { Input } from "../../../components/ui/input";
+import { User } from "../../../lib/auth";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "../../../components/ui/accordion";
+import { useDb, useStore } from "../../../RootLayout";
+import { z } from "zod";
 import { Loader2 } from "lucide-react";
-import { useRevalidator } from "react-router";
-import { emitter } from "../../../lib/event-emitter";
+import { TextError } from "../../../components/TextError";
 
-export default function Profile() {
-	const state = useProfile();
+export default function Page() {
+	return <Auth>{(user, update) => <Profile user={user} update={update} />}</Auth>;
+}
+
+function Profile({ user, update }: { user: User; update: () => void }) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const db = useDb();
 	const store = useStore();
-	let revalidator = useRevalidator();
-	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+	const handleChangeName = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const formData = new FormData(e.currentTarget);
 		setLoading(true);
-		setProfile(store, {
-			owner: (formData.get("owner") as string) ?? undefined,
-			header: (formData.get("header") as string) ?? undefined,
-			footer: (formData.get("footer") as string) ?? undefined,
-			address: (formData.get("address") as string) ?? undefined,
-			ig: (formData.get("ig") as string) ?? undefined,
-			shopee: (formData.get("shopee") as string) ?? undefined,
-		})
-			.then(() => {
-				setError("");
-				setLoading(false);
-				emitter.emit("refresh");
-				revalidator.revalidate();
-			})
-			.catch(() => {
-				setError("Ada yang bermasalah.");
-				setLoading(false);
-			});
+		const formData = new FormData(e.currentTarget);
+		const parsed = z.string().safeParse(formData.get("name"));
+		if (!parsed.success) {
+			setLoading(false);
+			setError(parsed.error.flatten().formErrors.join("; "));
+			return;
+		}
+		const newName = parsed.data;
+		if (newName === "") {
+			setError("Tidak boleh kosong");
+			setLoading(false);
+			return;
+		}
+		const [errMsg] = await Promise.all([
+			db.cashier.updateName(user.name, newName),
+			store.core.set("token", {
+				name: newName,
+				expires: user.expires,
+				role: user.role,
+				token: user.token,
+			}),
+		]);
+		if (errMsg) {
+			setLoading(false);
+			setError(errMsg);
+			return;
+		}
+		setLoading(false);
+		update();
+	};
+	const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formEl = e.currentTarget;
+		setLoading(true);
+		const formData = new FormData(e.currentTarget);
+		const parsed = z.string().safeParse(formData.get("password"));
+		if (!parsed.success) {
+			setLoading(false);
+			setError(parsed.error.flatten().formErrors.join("; "));
+			return;
+		}
+		const password = parsed.data;
+		const errMsg = await db.cashier.updatePassword(user.name, password);
+		if (errMsg) {
+			setLoading(false);
+			setError(errMsg);
+			return;
+		}
+		setLoading(false);
+		formEl.reset();
 	};
 	return (
-		<Await state={state}>
-			{({ address, header, ig, owner, shopee, footer }) => (
-				<div className="flex flex-col gap-2 flex-1 w-full">
-					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
-						<FieldText label="Nama Toko">
-							<Input type="text" defaultValue={owner} name="owner" />
-						</FieldText>
-						<FieldText label="Alamat">
-							<Input type="text" defaultValue={address} name="address" />
-						</FieldText>
-						<FieldText label="Shopee">
-							<Input type="text" defaultValue={shopee} name="shopee" />
-						</FieldText>
-						<FieldText label="Instagram">
-							<Input type="text" defaultValue={ig} name="ig" />
-						</FieldText>
-						<label className="flex flex-col gap-1 text-3xl">
-							<div>
-								<span>Deskripsi Atas:</span>
-							</div>
-							<Textarea className="h-[120px]" name="header" defaultValue={header}></Textarea>
-						</label>
-						<label className="flex flex-col gap-1 text-3xl">
-							<div>
-								<span>Deskripsi Bawah:</span>
-							</div>
-							<Textarea className="h-[120px]" name="footer" defaultValue={footer}></Textarea>
-						</label>
-						<Button>Simpan {loading && <Loader2 className="animate-spin" />}</Button>
-						{error === "" ? null : <TextError>{error}</TextError>}
-					</form>
-				</div>
-			)}
-		</Await>
+		<div className="flex flex-col gap-2 p-5 flex-1 text-3xl justify-between">
+			<form onSubmit={handleChangeName} className="flex-col gap-2 flex">
+				<label className="grid grid-cols-[150px_1fr] gap-2 items-center">
+					<span>Nama</span>
+					<Input defaultValue={user.name} name="name" required />
+				</label>
+				<Button className="w-fit self-end">
+					Simpan {loading ? <Loader2 className="animate-spin" /> : null}
+				</Button>
+				{error ? <TextError>{error}</TextError> : null}
+			</form>
+			{user.role === "admin" ? (
+				<Accordion type="single" collapsible className="bg-red-400 text-white">
+					<AccordionItem value="item-1">
+						<AccordionTrigger className="font-bold text-3xl px-2">
+							Ganti kata sandi
+						</AccordionTrigger>
+						<AccordionContent>
+							<form onSubmit={handleChangePassword} className="flex-col gap-2 flex px-2 text-3xl">
+								<label className="grid grid-cols-[250px_1fr] gap-2 items-center">
+									<span>Kata Sandi Baru</span>
+									<Input type="password" name="password" />
+								</label>
+								<Button className="w-fit self-end">
+									Simpan {loading ? <Loader2 className="animate-spin" /> : null}
+								</Button>
+							</form>
+						</AccordionContent>
+					</AccordionItem>
+				</Accordion>
+			) : null}
+		</div>
 	);
 }

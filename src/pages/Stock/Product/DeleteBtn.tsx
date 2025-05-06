@@ -11,7 +11,7 @@ import {
 } from "../../../components/ui/dialog";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useDb } from "../../../Layout";
+import { useDb } from "../../../RootLayout";
 import { TextError } from "../../../components/TextError";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {

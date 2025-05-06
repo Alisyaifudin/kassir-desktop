@@ -8,7 +8,7 @@ import { Button } from "../../../components/ui/button";
 import { Banknote, Landmark, Loader2, RefreshCcw, Wallet } from "lucide-react";
 import { TextError } from "../../../components/TextError";
 import { useState } from "react";
-import { useDb } from "../../../Layout";
+import { useDb } from "../../../RootLayout";
 import { useNavigate } from "react-router";
 import { Note } from "./Note";
 
@@ -28,7 +28,7 @@ type Props = {
 			type: "percent" | "number";
 			value: number;
 		};
-		method: "cash" | "transfer" | "emoney";
+		method: "cash" | "transfer" | "other";
 		items: Item[];
 		additionals: Additional[];
 	};
@@ -39,7 +39,7 @@ type Props = {
 		discType: (mode: "sell" | "buy", type: "percent" | "number") => void;
 		pay: (mode: "sell" | "buy", pay: number) => void;
 		rounding: (mode: "sell" | "buy", rounding: number) => void;
-		method: (mode: "sell" | "buy", method: "cash" | "transfer" | "emoney") => void;
+		method: (mode: "sell" | "buy", method: "cash" | "transfer" | "other") => void;
 		note: (mode: "sell" | "buy", note: string) => void;
 	};
 };
@@ -151,8 +151,8 @@ export function Summary({
 							Transfer
 						</Button>
 						<Button
-							variant={method === "emoney" ? "default" : "outline"}
-							onClick={() => set.method(mode, "emoney")}
+							variant={method === "other" ? "default" : "outline"}
+							onClick={() => set.method(mode, "other")}
 						>
 							<Wallet />
 							Lainnya

@@ -7,7 +7,7 @@ import { Button } from "../../../components/ui/button.tsx";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Input } from "../../../components/ui/input.tsx";
 import { DeleteBtn } from "./DeleteBtn.tsx";
-import { useDb } from "../../../Layout.tsx";
+import { useDb } from "../../../RootLayout";
 import Redirect from "../../../components/Redirect.tsx";
 import { Await } from "../../../components/Await.tsx";
 import { useAsync } from "../../../hooks/useAsync.tsx";

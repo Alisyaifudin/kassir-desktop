@@ -2,7 +2,7 @@ import { Link, useSearchParams } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button.tsx";
 import { ProductList } from "./ProductList.tsx";
-import { useDb } from "../../Layout.tsx";
+import { useDb } from "../../RootLayout";
 import { Await } from "../../components/Await.tsx";
 import { useAsync } from "../../hooks/useAsync.tsx";
 import { z } from "zod";

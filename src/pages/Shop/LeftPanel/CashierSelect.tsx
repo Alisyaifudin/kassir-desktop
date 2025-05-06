@@ -1,13 +1,14 @@
 import React, { useEffect } from "react";
 import { Result } from "../../../lib/utils";
 import { TextError } from "../../../components/TextError";
+import { CashierWithoutPassword } from "../../../database/cashier";
 
 export function CashierSelect({
 	data,
 	cashier,
 	changeCashier,
 }: {
-	data: Result<"Aplikasi bermasalah", DB.Cashier[]>;
+	data: Result<"Aplikasi bermasalah", CashierWithoutPassword[]>;
 	cashier: string | null;
 	changeCashier: (cashier: string) => void;
 }) {

@@ -7,7 +7,7 @@ import { produce } from "immer";
 export function useLocalStorage(mode: "sell" | "buy") {
 	const [ready, setReady] = useState(false);
 	const [note, setNote] = useState("");
-	const [method, setMethod] = useState<"cash" | "transfer" | "emoney">("cash");
+	const [method, setMethod] = useState<"cash" | "transfer" | "other">("cash");
 	const [items, setItems] = useState<Item[]>([]);
 	const [additionals, setAdditionals] = useState<Additional[]>([]);
 	const [cashier, setCashier] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setNote(note);
 		localStorage.setItem(`note-${mode}`, note.toString());
 	};
-	const changeMethod = (mode: "buy" | "sell", method: "cash" | "transfer" | "emoney") => {
+	const changeMethod = (mode: "buy" | "sell", method: "cash" | "transfer" | "other") => {
 		setMethod(method);
 		localStorage.setItem(`method-${mode}`, note.toString());
 	};
@@ -250,7 +250,7 @@ function getCashier() {
 
 function getMethod(mode: "buy" | "sell") {
 	const parsed = z
-		.enum(["cash", "emoney", "transfer"])
+		.enum(["cash", "other", "transfer"])
 		.safeParse(localStorage.getItem(`method-${mode}`));
 	if (parsed.success) {
 		return parsed.data;
