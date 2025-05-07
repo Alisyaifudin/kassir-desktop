@@ -90,10 +90,11 @@ export function Detail({
 					<TableRow>
 						<TableHead className="w-[50px]">No</TableHead>
 						<TableHead>Nama</TableHead>
-						<TableHead className="w-[140px] text-end">Satuan</TableHead>
+						<TableHead className="w-[170px] text-end">Satuan</TableHead>
+						<TableHead className="w-[170px] text-end">Modal</TableHead>
 						<TableHead className="w-[70px]">Qty</TableHead>
-						<TableHead className="w-[140px]  text-end">Total*</TableHead>
-						<TableHead className="w-[140px]  text-end">Total</TableHead>
+						<TableHead className="w-[170px]  text-end">Total*</TableHead>
+						<TableHead className="w-[170px]  text-end">Total</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody className="border-b">
@@ -124,6 +125,7 @@ export function Detail({
 									<TableCell>{i + 1}</TableCell>
 									<TableCell>{item.name}</TableCell>
 									<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
+									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
 									<TableCell className="text-center">{item.qty}</TableCell>
 									<TableCell className="text-end">
 										{item.total_before_disc.toLocaleString("id-ID")}
@@ -133,8 +135,7 @@ export function Detail({
 								{ds.map((d, i) => (
 									<Fragment key={d.id}>
 										<TableRow>
-											<TableCell></TableCell>
-											<TableCell className="text-end">
+											<TableCell colSpan={5} className="text-end">
 												Diskon {d.kind === "percent" ? `${d.value}%` : null}
 											</TableCell>
 											<TableCell className="text-end">{vals[i].toLocaleString("id-ID")}</TableCell>

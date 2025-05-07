@@ -4,13 +4,14 @@ import Database from "@tauri-apps/plugin-sql";
 export const genRecord = (db: Database) => ({
 	getByRange: async (
 		start: number,
-		end: number
+		end: number,
+		orderBy: "DESC" | "ASC" = "DESC"
 	): Promise<Result<"Aplikasi bermasalah", DB.Record[]>> => {
 		return tryResult({
 			run: () =>
 				db.select<DB.Record[]>(
 					`SELECT * FROM records 
-					 WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`,
+					 WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp ${orderBy}`,
 					[start, end]
 				),
 		});
