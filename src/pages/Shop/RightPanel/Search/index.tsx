@@ -91,6 +91,7 @@ export function Search({
 			qty: 1,
 			id: product.id,
 			stock: product.stock,
+			capital: product.capital
 		});
 	};
 	return (

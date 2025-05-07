@@ -24,6 +24,7 @@ export function Output({
 									price: product.price,
 									barcode: product.barcode,
 									qty: 1,
+									capital: product.capital
 								})
 							}
 							className={cn(

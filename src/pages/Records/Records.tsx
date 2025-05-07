@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Search } from "./Search";
 import { useUser } from "../../Layout";
+import Decimal from "decimal.js";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
@@ -136,10 +137,19 @@ export default function Page() {
 							? rawRecords
 							: rawRecords.filter((r) => timestamps.includes(r.timestamp));
 					records = records.filter((record) => record.mode === mode);
-					const total =
-						records.length > 0
-							? records.map((r) => r.grand_total).reduce((prev, curr) => curr + prev)
-							: null;
+					let total = new Decimal(0);
+					let capital = new Decimal(0);
+					for (const r of records) {
+						total = total.add(r.grand_total);
+					}
+					const sellTime = records.filter((r) => r.mode === "sell").map((r) => r.timestamp);
+					for (const item of items) {
+						if (!sellTime.includes(item.timestamp)) {
+							continue;
+						}
+						const t = new Decimal(item.capital).times(item.qty);
+						capital = capital.add(t);
+					}
 					return (
 						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
 							<div className="flex flex-col gap-1 overflow-hidden">
@@ -171,7 +181,16 @@ export default function Page() {
 									) : null}
 								</Tabs>
 								{total === null ? null : (
-									<p className="text-end">Total: Rp{total.toLocaleString("id-ID")}</p>
+									<div className="grid grid-cols-[90px_1fr]">
+										{mode === "sell" ? (
+											<>
+												<p>Modal</p>
+												<p>: Rp{capital.toNumber().toLocaleString("id-ID")}</p>
+											</>
+										) : null}
+										<p>Total</p>
+										<p>: Rp{total.toNumber().toLocaleString("id-ID")}</p>
+									</div>
 								)}
 							</div>
 							<div className="border-l" />

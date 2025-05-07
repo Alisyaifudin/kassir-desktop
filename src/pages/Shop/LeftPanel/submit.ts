@@ -84,7 +84,7 @@ export async function submitPayment(
 						item.qty,
 						fix
 				  )
-				: null;
+				: item.capital;
 		return {
 			item: {
 				timestamp,

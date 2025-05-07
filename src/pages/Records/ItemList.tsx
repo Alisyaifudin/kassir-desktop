@@ -51,7 +51,7 @@ export function ItemList({
 	if (record === null) {
 		return null;
 	}
-	return <ItemListSell items={items} record={record} taxes={taxes} sendSignal={sendSignal} />;
+	return <List items={items} record={record} taxes={taxes} sendSignal={sendSignal} />;
 }
 
 const meth = {
@@ -60,7 +60,7 @@ const meth = {
 	other: "Lainnya",
 };
 
-function ItemListSell({
+function List({
 	items,
 	record,
 	taxes,
@@ -91,10 +91,11 @@ function ItemListSell({
 					<TableRow>
 						<TableHead className="w-[50px]">No</TableHead>
 						<TableHead>Nama</TableHead>
-						<TableHead className="w-[140px] text-end">Satuan</TableHead>
+						<TableHead className="w-[160px] text-end">Satuan</TableHead>
+						<TableHead className="w-[160px] text-end">Modal</TableHead>
 						<TableHead className="w-[70px]">Qty</TableHead>
-						<TableHead className="w-[140px]  text-end">Total*</TableHead>
-						<TableHead className="w-[140px]  text-end">Total</TableHead>
+						<TableHead className="w-[160px]  text-end">Total*</TableHead>
+						<TableHead className="w-[160px]  text-end">Total</TableHead>
 						<TableHead className="w-[50px]">
 							<Link to={`/records/${record.timestamp}`}>
 								<SquareArrowOutUpRight size={35} />
@@ -108,6 +109,7 @@ function ItemListSell({
 							<TableCell>{i + 1}</TableCell>
 							<TableCell>{item.name}</TableCell>
 							<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
+							<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
 							<TableCell className="text-center">{item.qty}</TableCell>
 							<TableCell className="text-end">
 								{item.total_before_disc.toLocaleString("id-ID")}

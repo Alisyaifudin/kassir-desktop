@@ -5,6 +5,7 @@ const itemSchemaBase = z.object({
 	name: z.string(),
 	price: z.number(),
 	qty: z.number(),
+	capital: z.number().optional(),
 });
 
 export const itemWithoutDiscSchema = z.union([
