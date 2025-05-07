@@ -179,7 +179,6 @@ export default function Page() {
 								allItems={items}
 								timestamp={selected}
 								records={rawRecords}
-								mode={mode}
 								allTaxes={taxes}
 								sendSignal={() => setSignal((prev) => !prev)}
 							/>

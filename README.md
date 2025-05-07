@@ -7,5 +7,6 @@ Aplikasi untuk kasir.
 
 # TODO
 
+- link item baru dibuat (sell) dengan catatannya
 - dari halaman riwayat, salin catatan ke toko
 

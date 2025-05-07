@@ -9,11 +9,14 @@ import { useAsync } from "../../../hooks/useAsync";
 import { Database } from "../../../database";
 import { TextError } from "../../../components/TextError";
 import { type loader } from ".";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Detail } from "./Detail";
+import { useState } from "react";
 
 export default function Page() {
 	const { timestamp } = useLoaderData<typeof loader>();
 	const navigate = useNavigate();
-	const state = useRecord(timestamp);
+	const {state, update} = useRecord(timestamp);
 	return (
 		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
 			<div className="flex items-center gap-2">
@@ -31,12 +34,23 @@ export default function Page() {
 						return <TextError>{errMsg}</TextError>;
 					}
 					return (
-						<ItemList
-							record={res.record}
-							items={res.items}
-							additionals={res.additionals}
-							discs={res.discs}
-						/>
+						<Tabs defaultValue="receipt">
+							<TabsList>
+								<TabsTrigger value="receipt">Struk</TabsTrigger>
+								<TabsTrigger value="detail">Detail</TabsTrigger>
+							</TabsList>
+							<TabsContent value="receipt">
+								<ItemList
+									record={res.record}
+									items={res.items}
+									additionals={res.additionals}
+									discs={res.discs}
+								/>
+							</TabsContent>
+							<TabsContent value="detail">
+								<Detail update={update} record={res.record} items={res.items} additionals={res.additionals} discs={res.discs} />
+							</TabsContent>
+						</Tabs>
 					);
 				}}
 			</Await>
@@ -46,8 +60,10 @@ export default function Page() {
 
 function useRecord(timestamp: number) {
 	const db = useDb();
-	const res = useAsync(getRecord(db, timestamp), []);
-	return res;
+	const [updated, setUpdated] = useState(false);
+	const update = () =>setUpdated(prev=>!prev);
+	const state = useAsync(getRecord(db, timestamp), [updated]);
+	return {state, update};
 }
 
 async function getRecord(

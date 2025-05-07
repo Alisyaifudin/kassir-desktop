@@ -132,7 +132,7 @@ export function ItemList({
 													<p>Diskon</p>{" "}
 													<p className="text-end">
 														Rp
-														{(record.total_after_disc - record.total_before_disc).toLocaleString(
+														{(record.total_before_disc-record.total_after_disc).toLocaleString(
 															"de-DE"
 														)}
 													</p>

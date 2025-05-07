@@ -86,12 +86,14 @@ export const genRecord = (db: Database) => ({
 	},
 	updateCreditPay: async (
 		pay: number,
+		change: number,
 		timestamp: number
 	): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute("UPDATE records SET pay = $1, credit = 0 WHERE timestamp = $2", [
+				db.execute("UPDATE records SET pay = $1, change = $2, credit = 0 WHERE timestamp = $3", [
 					pay,
+					change,
 					timestamp,
 				]),
 		});
