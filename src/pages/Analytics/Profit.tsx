@@ -9,11 +9,16 @@ type Props = {
 	end: number;
 };
 
-export function Cashflow({ records, interval, start, end }: Props) {
+export function Profit({ records, interval, start, end }: Props) {
 	const { revenues, spendings, labels } = getFlow({ records, interval, start, end });
+	const profits: number[] = [];
+	revenues.forEach((rev, i) => {
+		const profit = rev - spendings[i];
+		profits.push(profit);
+	});
 	return (
 		<div className="flex flex-col flex-1 py-5">
-			<Graph orientation="up" vals={revenues} />
+			<Graph orientation="up" vals={profits} />
 			<div className="flex gap-1 w-full">
 				<div className="w-[100px]"></div>
 				<div className="flex gap-1 w-full">
@@ -28,13 +33,13 @@ export function Cashflow({ records, interval, start, end }: Props) {
 					))}
 				</div>
 			</div>
-			<Graph orientation="down" vals={spendings} />
+			<Graph orientation="down" vals={profits} />
 		</div>
 	);
 }
 
 function Graph({ vals, orientation }: { vals: number[]; orientation: "up" | "down" }) {
-	const maxVal = Math.max(...vals);
+	let maxVal = Math.max(Math.max(...vals), -1 * Math.min(...vals));
 	const ticks = getTicks(maxVal);
 	return (
 		<div className="flex gap-1 w-full h-full">
@@ -49,14 +54,27 @@ function Graph({ vals, orientation }: { vals: number[]; orientation: "up" | "dow
 					</p>
 				))}
 			</div>
-			<div
-				className={cn("w-full h-full flex-1 flex gap-1", orientation === "up" ? "items-end" : "")}
-			>
-				{vals.map((v, i) => (
-					<Bar orientation={orientation} v={v} key={i} maxVal={maxVal} length={vals.length} />
-				))}
-			</div>
+			{orientation === "up" ? (
+				<div className={cn("w-full h-full flex-1 flex gap-1", "items-end")}>
+					{vals.map((v, i) =>
+						v < 0.0001 ? (
+							<div style={{ width: `${100 / vals.length}%` }} />
+						) : (
+							<Bar orientation={orientation} v={v} key={i} maxVal={maxVal} length={vals.length} />
+						)
+					)}
+				</div>
+			) : (
+				<div className={cn("w-full h-full flex-1 flex gap-1")}>
+					{vals.map((v, i) =>
+						v > -0.0001 ? (
+							<div style={{ width: `${100 / vals.length}%` }} />
+						) : (
+							<Bar orientation={orientation} v={-v} key={i} maxVal={maxVal} length={vals.length} />
+						)
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
-

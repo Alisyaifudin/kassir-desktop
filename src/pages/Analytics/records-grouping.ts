@@ -74,7 +74,6 @@ export function getFlow({
 		const intervalStart = edges[currentInterval];
 		const intervalEnd = edges[currentInterval + 1];
 		const record = records[recordIndex];
-
 		if (record.timestamp < intervalStart) {
 			// Record is before current interval, skip it
 			recordIndex++;

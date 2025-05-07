@@ -4,12 +4,22 @@ import { z } from "zod";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { Label } from "~/components/ui/label";
 import { useFetchData } from "./fetch";
-import { numeric } from "~/lib/utils";
+import { formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Await } from "~/components/Await";
 import { TextError } from "~/components/TextError";
 import { Cashflow } from "./Cashflow";
 import { useEffect } from "react";
+import { Calendar } from "~/components/Calendar";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Profit } from "./Profit";
+import { Summary } from "./Summary";
+
+const mode = {
+	weekly: "day",
+	monthly: "month",
+	yearly: "year",
+} as const;
 
 export default function Analytics() {
 	const [search, setSearch] = useSearchParams();
@@ -20,16 +30,20 @@ export default function Analytics() {
 	} = getOption(search);
 	const { state, start, end } = useFetchData(interval, time);
 	useEffect(() => {
-		setSearch((prev) => {
-			const search = new URLSearchParams(prev);
-			search.set("time", time.toString());
-			return search;
-		});
+		handleTime(time);
 	}, [updateTime]);
 	const handleClickOption = (option: "cashflow" | "profit") => () => {
 		setSearch((prev) => {
 			const search = new URLSearchParams(prev);
 			search.set("option", option);
+			return search;
+		});
+	};
+	const handleTime = (time: number) => {
+		console.log(time);
+		setSearch((prev) => {
+			const search = new URLSearchParams(prev);
+			search.set("time", time.toString());
 			return search;
 		});
 	};
@@ -44,6 +58,34 @@ export default function Analytics() {
 			search.set("interval", interval);
 			return search;
 		});
+	};
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz).startOfDay();
+	const handlePrev = () => {
+		switch (interval) {
+			case "weekly":
+				handleTime(date.subtract(Temporal.Duration.from({ weeks: 1 })).epochMilliseconds);
+				break;
+			case "monthly":
+				handleTime(date.subtract(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
+				break;
+			case "yearly":
+				handleTime(date.subtract(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
+				break;
+		}
+	};
+	const handleNext = () => {
+		switch (interval) {
+			case "weekly":
+				handleTime(date.add(Temporal.Duration.from({ weeks: 1 })).epochMilliseconds);
+				break;
+			case "monthly":
+				handleTime(date.add(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
+				break;
+			case "yearly":
+				handleTime(date.add(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
+				break;
+		}
 	};
 	return (
 		<main className="grid grid-cols-[300px_1fr] p-2 gap-2 flex-1">
@@ -60,39 +102,72 @@ export default function Analytics() {
 				>
 					Keuntungan
 				</Button>
-			</aside>
-			<div className="flex flex-col gap-2 w-full h-full">
-				<RadioGroup
-					value={interval}
-					className="flex items-center gap-5"
-					onValueChange={handleClickInterval}
-				>
-					<div className="flex items-center space-x-2">
-						<RadioGroupItem value="weekly" id="weekly" />
-						<Label htmlFor="weekly" className="text-3xl">
-							Minggu
-						</Label>
-					</div>
-					<div className="flex items-center space-x-2">
-						<RadioGroupItem value="monthly" id="monthly" />
-						<Label htmlFor="monthly" className="text-3xl">
-							Bulan
-						</Label>
-					</div>
-					<div className="flex items-center space-x-2">
-						<RadioGroupItem value="yearly" id="yearly" />
-						<Label htmlFor="yearly" className="text-3xl">
-							Tahun
-						</Label>
-					</div>
-				</RadioGroup>
+				<hr />
 				<Await state={state}>
 					{(data) => {
 						const [errMsg, records] = data;
 						if (errMsg) {
 							return <TextError>{errMsg}</TextError>;
 						}
-						return <Cashflow records={records} interval={interval} start={start} end={end} />;
+						return (
+							<Summary
+								start={start}
+								end={end}
+								interval={interval}
+								records={records}
+								option={option}
+							/>
+						);
+					}}
+				</Await>
+			</aside>
+			<div className="flex flex-col gap-2 w-full h-full">
+				<div className="flex items-center gap-7">
+					<RadioGroup
+						value={interval}
+						className="flex items-center gap-5"
+						onValueChange={handleClickInterval}
+					>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="weekly" id="weekly" />
+							<Label htmlFor="weekly" className="text-3xl">
+								Minggu
+							</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="monthly" id="monthly" />
+							<Label htmlFor="monthly" className="text-3xl">
+								Bulan
+							</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="yearly" id="yearly" />
+							<Label htmlFor="yearly" className="text-3xl">
+								Tahun
+							</Label>
+						</div>
+					</RadioGroup>
+					<div className="flex items-center gap-2">
+						<Button onClick={handlePrev}>
+							<ChevronLeft />
+						</Button>
+						<Calendar time={time} setTime={handleTime} mode={mode[interval]}>
+							<CalendarLabel time={time} interval={interval} />
+						</Calendar>
+						<Button onClick={handleNext}>
+							<ChevronRight />
+						</Button>
+					</div>
+				</div>
+				<Await state={state}>
+					{(data) => {
+						const [errMsg, records] = data;
+						if (errMsg) {
+							return <TextError>{errMsg}</TextError>;
+						}
+						if (option === "cashflow")
+							return <Cashflow records={records} interval={interval} start={start} end={end} />;
+						return <Profit records={records} interval={interval} start={start} end={end} />;
 					}}
 				</Await>
 			</div>
@@ -110,4 +185,34 @@ function getOption(search: URLSearchParams) {
 		? [time_p.data, false]
 		: [Temporal.Now.instant().epochMilliseconds, true];
 	return { option, interval, time };
+}
+
+function CalendarLabel({
+	time,
+	interval,
+}: {
+	time: number;
+	interval: "weekly" | "monthly" | "yearly";
+}) {
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
+	switch (interval) {
+		case "weekly":
+			const start = date.subtract(Temporal.Duration.from({ days: date.dayOfWeek - 1 }));
+			const end = date.add(Temporal.Duration.from({ days: 7 - date.dayOfWeek }));
+			return (
+				<p className="font-normal">
+					{formatDate(start.epochMilliseconds).replace(/-/g, "/")} &ndash;{" "}
+					{formatDate(end.epochMilliseconds).replace(/-/g, "/")}
+				</p>
+			);
+		case "monthly":
+			return (
+				<p className="font-normal">
+					{monthNames[date.month]} {date.year}
+				</p>
+			);
+		case "yearly":
+			return <p className="font-normal">{date.year}</p>;
+	}
 }

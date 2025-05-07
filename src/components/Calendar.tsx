@@ -1,0 +1,290 @@
+import { Button } from "./ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTrigger,
+	DialogFooter,
+	DialogTitle,
+} from "./ui/dialog";
+import { useState } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { formatDate, monthNames, numeric } from "~/lib/utils";
+import { Temporal } from "temporal-polyfill";
+import { Input } from "./ui/input";
+
+export function Calendar({
+	time,
+	setTime,
+	mode: modeInit = "day",
+	children,
+}: {
+	time: number;
+	setTime: (time: number) => void;
+	mode?: "day" | "month" | "year";
+	children?: React.ReactNode;
+}) {
+	const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
+	const changeMode = (mode: "day" | "month" | "year") => setMode(mode);
+	return (
+		<Dialog
+			onOpenChange={() => {
+				setMode(modeInit);
+			}}
+		>
+			<Button asChild variant="ghost" className="flex items-center gap-2 outline">
+				<DialogTrigger>
+					{children === undefined ? <CalendarLabel mode={modeInit} time={time} /> : children}
+					<CalendarDays />
+				</DialogTrigger>
+			</Button>
+			<Content mode={mode} time={time} setTime={setTime} changeMode={changeMode} />
+		</Dialog>
+	);
+}
+
+function CalendarLabel({ time, mode }: { time: number; mode?: "day" | "month" | "year" }) {
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
+	switch (mode) {
+		case "day":
+			return <p className="font-normal">{formatDate(time).replace(/-/g, "/")}</p>;
+		case "month":
+			return (
+				<p className="font-normal">
+					{monthNames[date.month]} {date.year}
+				</p>
+			);
+		case "year":
+			return <p className="font-normal">{date.year}</p>;
+	}
+}
+
+function Content({
+	mode,
+	time,
+	setTime,
+	changeMode,
+}: {
+	mode: "day" | "month" | "year";
+	time: number;
+	setTime: (time: number) => void;
+	changeMode: (mode: "day" | "month" | "year") => void;
+}) {
+	const tz = Temporal.Now.timeZoneId();
+	const timeStartOfDay = Temporal.Instant.fromEpochMilliseconds(time)
+		.toZonedDateTimeISO(tz)
+		.startOfDay();
+	const [showTime, setShowTime] = useState(time);
+	const date = Temporal.Instant.fromEpochMilliseconds(showTime).toZonedDateTimeISO(tz).startOfDay();
+	const today = Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay();
+	switch (mode) {
+		case "day": {
+			const startOfMonth = Temporal.ZonedDateTime.from({
+				timeZone: tz,
+				year: date.year,
+				month: date.month,
+				day: 1,
+			});
+			const deltaStart = startOfMonth.dayOfWeek - 1;
+			const start = startOfMonth.subtract(Temporal.Duration.from({ days: deltaStart }));
+			const endOfMonth = startOfMonth.add(
+				Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 })
+			);
+			const deltaEnd = 7 - endOfMonth.dayOfWeek;
+			const end = endOfMonth.add(Temporal.Duration.from({ days: deltaEnd + 1 }));
+			const days: [number, number, boolean][] = [];
+			for (
+				let curr = start;
+				curr.epochMilliseconds < end.epochMilliseconds;
+				curr = curr.add(Temporal.Duration.from({ days: 1 }))
+			) {
+				const inside =
+					curr.epochMilliseconds >= startOfMonth.epochMilliseconds &&
+					curr.epochMilliseconds < endOfMonth.epochMilliseconds;
+				days.push([curr.day, curr.epochMilliseconds, inside]);
+			}
+			const handlePrev = () => {
+				setShowTime(startOfMonth.subtract(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
+			};
+			const handleNext = () => {
+				setShowTime(startOfMonth.add(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
+			};
+			return (
+				<DialogContent>
+					<DialogHeader>
+						<div className="flex flex-row items-center gap-2">
+							<Button onClick={handlePrev}>
+								<ChevronLeft size={35} />
+							</Button>
+							<Button variant="secondary" onClick={() => changeMode("month")}>
+								<DialogTitle className="text-3xl">
+									{monthNames[date.month]} {date.year}
+								</DialogTitle>
+							</Button>
+							<Button onClick={handleNext}>
+								<ChevronRight size={35} />
+							</Button>
+						</div>
+					</DialogHeader>
+					<div className="grid grid-cols-7 gap-2">
+						<p className="text-3xl text-center">Sen</p>
+						<p className="text-3xl text-center">Sel</p>
+						<p className="text-3xl text-center">Rab</p>
+						<p className="text-3xl text-center">Kam</p>
+						<p className="text-3xl text-center">Jum</p>
+						<p className="text-3xl text-center">Sab</p>
+						<p className="text-3xl text-center">Min</p>
+						{days.map(([day, epoch, inside]) => (
+							<Button
+								key={epoch}
+								variant={
+									epoch === timeStartOfDay.epochMilliseconds
+										? "default"
+										: epoch === today.epochMilliseconds
+										? "outline"
+										: "ghost"
+								}
+								className={
+									inside
+										? ""
+										: epoch === timeStartOfDay.epochMilliseconds
+										? "text-zinc-100"
+										: "text-zinc-500"
+								}
+								onClick={() => {
+									setShowTime(epoch);
+									setTime(epoch);
+								}}
+							>
+								{day}
+							</Button>
+						))}
+					</div>
+					<DialogFooter className="flex items-center justify-between">
+						<Button variant="outline" onClick={() => setTime(today.epochMilliseconds)}>
+							Hari Ini
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			);
+		}
+		case "month": {
+			const handleClick = (month: number) => {
+				const t = Temporal.ZonedDateTime.from({ timeZone: tz, year: date.year, month, day: 1 });
+				setTime(t.epochMilliseconds);
+			};
+			const months = [
+				"Jan",
+				"Feb",
+				"Mar",
+				"Apr",
+				"Mei",
+				"Jun",
+				"Jul",
+				"Agu",
+				"Sep",
+				"Okt",
+				"Nov",
+				"Des",
+			];
+			const handlePrev = () => {
+				setShowTime(date.subtract(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
+			};
+			const handleNext = () => {
+				setShowTime(date.add(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
+			};
+			return (
+				<DialogContent>
+					<DialogHeader>
+						<div className="flex flex-row items-center gap-2">
+							<Button onClick={handlePrev}>
+								<ChevronLeft size={35} />
+							</Button>
+							<Button className="w-fit" variant="secondary" onClick={() => changeMode("year")}>
+								<DialogTitle className="text-3xl">{date.year}</DialogTitle>
+							</Button>
+							<Button onClick={handleNext}>
+								<ChevronRight size={35} />
+							</Button>
+						</div>
+					</DialogHeader>
+					<div className="grid grid-cols-4 gap-2">
+						{Array.from({ length: 12 }).map((_, i) => (
+							<Button
+								key={i}
+								variant={
+									timeStartOfDay.month === i + 1 && timeStartOfDay.year === date.year
+										? "default"
+										: "ghost"
+								}
+								onClick={() => handleClick(i + 1)}
+							>
+								{months[i]}
+							</Button>
+						))}
+					</div>
+					<DialogFooter className="flex items-center justify-between">
+						<Button variant="outline" onClick={() => setTime(today.epochMilliseconds)}>
+							Bulan Ini
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			);
+		}
+	}
+	const handleSubmitYear = (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget);
+		const parsed = numeric.safeParse(formData.get("year"));
+		if (!parsed.success) {
+			return;
+		}
+		const year = parsed.data;
+		if (!Number.isInteger(year)) {
+			return;
+		}
+		if (year < 1900) {
+			setTime(
+				Temporal.ZonedDateTime.from({ timeZone: tz, year: 1900, month: 1, day: 1 })
+					.epochMilliseconds
+			);
+			return;
+		}
+		if (year > 2100) {
+			setTime(
+				Temporal.ZonedDateTime.from({ timeZone: tz, year: 2100, month: 1, day: 1 })
+					.epochMilliseconds
+			);
+			console.log("uwu");
+			return;
+		}
+		setTime(
+			Temporal.ZonedDateTime.from({ timeZone: tz, year, month: 1, day: 1 }).epochMilliseconds
+		);
+	};
+	return (
+		<DialogContent>
+			<DialogHeader>
+				<Button className="w-fit" variant="secondary" onClick={() => changeMode("day")}>
+					<DialogTitle className="text-3xl">Tahun</DialogTitle>
+				</Button>
+			</DialogHeader>
+			<form onSubmit={handleSubmitYear}>
+				<Input type="number" defaultValue={date.year} name="year" id="year-input" />
+			</form>
+			<DialogFooter className="flex items-center justify-between">
+				<Button
+					variant="outline"
+					onClick={() => {
+						const inputEl = document.getElementById("year-input") as HTMLInputElement;
+						inputEl.value = today.year.toString();
+						setTime(today.epochMilliseconds);
+					}}
+				>
+					Tahun Ini
+				</Button>
+			</DialogFooter>
+		</DialogContent>
+	);
+}
