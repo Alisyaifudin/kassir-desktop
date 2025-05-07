@@ -38,7 +38,7 @@ export function ItemComponent({
 	};
 	const handleChangePrice = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
-		if (id !== undefined || isNaN(val) || val < 0) {
+		if ((mode === "sell" && id !== undefined) || isNaN(val) || val < 0) {
 			return;
 		}
 		set.price(mode, index, val);

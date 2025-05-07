@@ -108,20 +108,29 @@ export const genProduct = (db: Database) => ({
 		stock: number;
 		capital: number;
 		barcode: string | null;
+		id: number | null;
 	}): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
-			run: () =>
-				db.execute(
-					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
-					 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5`,
-					[
-						data.name.trim(),
-						data.stock,
-						data.price,
-						data.barcode === null ? null : data.barcode.trim(),
-						data.capital,
-					]
-				),
+			run: async () => {
+				if (data.id) {
+					db.execute(
+						`UPDATE products SET name = $1, stock = stock + $2, capital = $3 WHERE id = $4`,
+						[data.name.trim(), data.stock, data.capital, data.id]
+					);
+				} else {
+					db.execute(
+						`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
+						 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5`,
+						[
+							data.name.trim(),
+							data.stock,
+							data.price,
+							data.barcode === null ? null : data.barcode.trim(),
+							data.capital,
+						]
+					);
+				}
+			},
 		});
 		console.log("ada error", errMsg);
 		return errMsg;

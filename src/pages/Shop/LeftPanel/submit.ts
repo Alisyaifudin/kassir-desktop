@@ -120,6 +120,7 @@ export async function submitPayment(
 					capital: item.capital, // shoud be exist
 					price: item.price,
 					stock: item.qty,
+					id: item.product_id
 				})
 			);
 		}
