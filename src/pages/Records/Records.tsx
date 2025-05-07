@@ -16,6 +16,7 @@ import { z } from "zod";
 import { Search } from "./Search";
 import { useUser } from "../../Layout";
 import Decimal from "decimal.js";
+import { Calendar } from "~/components/Calendar";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
@@ -43,18 +44,6 @@ export default function Page() {
 	const state = useRecords(time, signal);
 	const db = useDb();
 	const user = useUser();
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const date = e.currentTarget.value;
-		const [year, month, day] = date.split("-").map(Number);
-		const epoch = Temporal.ZonedDateTime.from({
-			timeZone: tz,
-			year,
-			month,
-			day,
-			hour: 12,
-		}).epochMilliseconds;
-		setTime(setSearch, epoch);
-	};
 	const selectRecord = (timestamp: number) => () => {
 		setSelected(setSearch, timestamp, selected);
 	};
@@ -94,12 +83,7 @@ export default function Page() {
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
 						<ChevronLeft />
 					</Button>
-					<input
-						type="date"
-						className="outline rounded-md"
-						value={formatDate(time)}
-						onChange={handleChange}
-					/>
+					<Calendar time={time} setTime={(time) => setTime(setSearch, time)} />
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
 						<ChevronRight />
 					</Button>
