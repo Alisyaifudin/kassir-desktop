@@ -90,7 +90,7 @@ export const genProduct = (db: Database) => ({
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
-					`INSERT INTO products (name, stock, price, barcode) VALUES ($1, $2, $3, $4)
+					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, 0)
 					 ON CONFLICT(barcode) DO NOTHING`,
 					[
 						data.name.trim(),
