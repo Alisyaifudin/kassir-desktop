@@ -11,7 +11,7 @@ import { TextError } from "../../components/TextError";
 import { Button } from "../../components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "../../components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Search } from "./Search";
 import { useUser } from "../../Layout";
@@ -22,7 +22,16 @@ export default function Page() {
 	const [loading, setLoading] = useState(false);
 	const [val, setVal] = useState("");
 	const mode = getMode(search);
-	const time = getTime(search, setSearch);
+	const [time, isNow] = getTime(search);
+	useEffect(() => {
+		if (isNow) {
+			setSearch((prev) => {
+				const newSearch = new URLSearchParams(prev);
+				newSearch.set("time", time.toString());
+				return newSearch;
+			});
+		}
+	}, []);
 	const selected = getSelected(search);
 	const query = getQuery(search);
 	const tz = Temporal.Now.timeZoneId();
@@ -197,14 +206,13 @@ function useRecords(timestamp: number, signal: boolean) {
 	return state;
 }
 
-function getTime(search: URLSearchParams, setSearch: SetURLSearchParams): number {
+function getTime(search: URLSearchParams): [number, boolean] {
 	const timeStr = search.get("time");
 	if (timeStr === null || Number.isNaN(timeStr)) {
 		const now = Temporal.Now.instant().epochMilliseconds;
-		setSearch((prev) => ({ ...prev, time: now.toString() }));
-		return now;
+		return [now, true];
 	}
-	return Number(timeStr);
+	return [Number(timeStr), false];
 }
 
 function getMode(search: URLSearchParams) {
