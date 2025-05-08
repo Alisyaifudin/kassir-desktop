@@ -13,15 +13,36 @@ import { useState } from "react";
 import { Pagination } from "./Pagination.tsx";
 import { TextError } from "../../components/TextError.tsx";
 import { useUser } from "../../Layout.tsx";
+import { ProductResult, useProductSearch } from "~/hooks/useProductSearch.tsx";
 
 export default function Page() {
-	const [search, setSearch] = useSearchParams();
-	const { sortDir, query, sortBy, page: rawPage, limit } = getOption(search);
+	const items = useItems();
+
+	return (
+		<main className="flex flex-col gap-5 p-2 overflow-auto">
+			<Await state={items}>
+				{(data) => {
+					const [errMsg, products] = data;
+					if (errMsg !== null) {
+						return <TextError>{errMsg}</TextError>;
+					}
+					return <Stock products={products} />;
+				}}
+			</Await>
+		</main>
+	);
+}
+
+function Stock({ products: all }: { products: DB.Product[] }) {
+	const [searchParams, setSearch] = useSearchParams();
+	const [products, setProducts] = useState<ProductResult[]>(all)
+	const { sortDir, query, sortBy, page: rawPage, limit } = getOption(searchParams);
+	const {search} = useProductSearch(all);
 	const user = useUser();
 	const [pagination, setPagination] = useState<
 		{ page: number; total: number } | { page: null; total: null }
 	>({ page: null, total: null });
-	const items = useItems();
+
 	const setSortDir = (v: "asc" | "desc") => {
 		setSearch({
 			query,
@@ -41,6 +62,12 @@ export default function Page() {
 		});
 	};
 	const setQuery = (v: string) => {
+		if (v.trim() === "") {
+			setProducts(all)
+		} else {
+			const res = search(v.trim(), {fuzzy: 0.2, prefix: true});
+			setProducts(res);
+		}
 		setSearch({
 			query: v,
 			sortDir,
@@ -59,7 +86,7 @@ export default function Page() {
 		});
 	};
 	return (
-		<main className="flex flex-col gap-5 p-2 overflow-auto">
+		<>
 			<div className="flex items-center gap-10">
 				<SortDir sortDir={sortDir} setSortDir={setSortDir} sortBy={sortBy} setSortBy={setSortBy} />
 				<Search query={query} setQuery={setQuery} />
@@ -88,26 +115,15 @@ export default function Page() {
 					) : null}
 				</div>
 			</div>
-			<Await state={items}>
-				{(data) => {
-					const [errMsg, raw] = data;
-					if (errMsg !== null) {
-						return <TextError>{errMsg}</TextError>;
-					}
-					return (
-						<ProductList
-							raw={raw}
-							query={query}
-							limit={limit}
-							rawPage={rawPage}
-							setPagination={(page: number, total: number) => setPagination({ page, total })}
-							sortBy={sortBy}
-							sortDir={sortDir}
-						/>
-					);
-				}}
-			</Await>
-		</main>
+			<ProductList
+				products={products}
+				limit={limit}
+				rawPage={rawPage}
+				setPagination={(page: number, total: number) => setPagination({ page, total })}
+				sortBy={sortBy}
+				sortDir={sortDir}
+			/>
+		</>
 	);
 }
 

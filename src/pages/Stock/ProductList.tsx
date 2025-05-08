@@ -10,40 +10,29 @@ import {
 import { Button } from "../../components/ui/button";
 import { Link } from "react-router";
 import { useEffect } from "react";
+import { ProductResult } from "~/hooks/useProductSearch";
 
 export function ProductList({
-	raw,
-	query,
+	products,
 	setPagination,
 	sortBy,
 	sortDir,
 	rawPage,
 	limit,
 }: {
-	raw: DB.Product[];
-	query: string;
+	products: ProductResult[];
 	setPagination: (page: number, total: number) => void;
 	sortBy: "name" | "price" | "capital" | "barcode" | "stock";
 	sortDir: "desc" | "asc";
 	rawPage: number;
 	limit: number;
 }) {
-	const products =
-		query === ""
-			? raw
-			: raw.filter(
-					(product) =>
-						product.name.toLowerCase().includes(query.toLowerCase()) ||
-						(product.barcode !== null && product.barcode.toString().includes(query))
-			  );
+	console.log({ products });
 	sorting(products, sortBy, sortDir);
 	const totalItem = products.length;
 	const totalPage = Math.ceil(totalItem / limit);
 	const page = rawPage > totalPage ? totalPage : rawPage;
 	useEffect(() => {
-		if (raw === null) {
-			return;
-		}
 		setPagination(page, totalPage);
 	}, [page, totalPage]);
 	const start = limit * (page - 1);
@@ -52,7 +41,7 @@ export function ProductList({
 }
 
 type Props = {
-	products: DB.Product[];
+	products: ProductResult[];
 	start: number;
 	end: number;
 };
@@ -95,7 +84,7 @@ function ProductTable({ products, start, end }: Props) {
 }
 
 function sorting(
-	products: DB.Product[],
+	products: ProductResult[],
 	by: "barcode" | "name" | "price" | "capital" | "stock",
 	dir: "asc" | "desc"
 ) {
