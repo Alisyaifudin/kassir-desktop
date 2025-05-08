@@ -27,6 +27,16 @@ export function genRecordItem(db: Database) {
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
+		updateProductId: async (
+			itemId: number,
+			productId: number | null
+		): Promise<"Aplikasi bermasalah" | null> => {
+			const [errMsg] = await tryResult({
+				run: () =>
+					db.execute("UPDATE record_items SET product_id = $1 WHERE id = $2", [productId, itemId]),
+			});
+			return errMsg;
+		},
 		add: async (
 			item: Omit<DB.RecordItem, "id"> & { product_id: number | null },
 			timestamp: number,

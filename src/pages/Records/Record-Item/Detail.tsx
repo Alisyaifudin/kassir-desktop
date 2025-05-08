@@ -18,6 +18,9 @@ import { useDb } from "~/RootLayout";
 import { numeric } from "~/lib/utils";
 import { useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
+import { LinkProduct } from "./LinkProduct";
+import { useAsync } from "~/hooks/useAsync";
+import { Await } from "~/components/Await";
 
 const meth = {
 	cash: "Tunai",
@@ -44,6 +47,7 @@ export function Detail({
 	const [error, setError] = useState({ pay: "", calendar: "" });
 	const db = useDb();
 	const navigate = useNavigate();
+	const state = useAsync(db.product.getAll(), []);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -118,7 +122,7 @@ export function Detail({
 			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[50px]">No</TableHead>
+						<TableHead className="w-[70px]">No</TableHead>
 						<TableHead>Nama</TableHead>
 						<TableHead className="w-[170px] text-end">Satuan</TableHead>
 						<TableHead className="w-[170px] text-end">Modal</TableHead>
@@ -152,7 +156,18 @@ export function Detail({
 						return (
 							<Fragment key={i}>
 								<TableRow>
-									<TableCell>{i + 1}</TableCell>
+									<TableCell className="flex items-center">
+										{i + 1}
+										<Await state={state}>
+											{(data) => {
+												const [errMsg, products] = data;
+												if (errMsg) {
+													return <TextError>{errMsg}</TextError>;
+												}
+												return <LinkProduct item={item} products={products} update={update} />;
+											}}
+										</Await>
+									</TableCell>
 									<TableCell>{item.name}</TableCell>
 									<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
 									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
