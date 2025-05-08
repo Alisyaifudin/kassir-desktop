@@ -10,10 +10,10 @@ type Props = {
 };
 
 export function Profit({ records, interval, start, end }: Props) {
-	const { revenues, spendings, labels } = getFlow({ records, interval, start, end });
+	const { revenues, spendings, labels, debts } = getFlow({ records, interval, start, end });
 	const profits: number[] = [];
 	revenues.forEach((rev, i) => {
-		const profit = rev - spendings[i];
+		const profit = rev - spendings[i] + debts[i];
 		profits.push(profit);
 	});
 	return (
@@ -58,7 +58,7 @@ function Graph({ vals, orientation }: { vals: number[]; orientation: "up" | "dow
 				<div className={cn("w-full h-full flex-1 flex gap-1", "items-end")}>
 					{vals.map((v, i) =>
 						v < 0.0001 ? (
-							<div style={{ width: `${100 / vals.length}%` }} />
+							<div key={i} style={{ width: `${100 / vals.length}%` }} />
 						) : (
 							<Bar orientation={orientation} v={v} key={i} maxVal={maxVal} length={vals.length} />
 						)
@@ -68,7 +68,7 @@ function Graph({ vals, orientation }: { vals: number[]; orientation: "up" | "dow
 				<div className={cn("w-full h-full flex-1 flex gap-1")}>
 					{vals.map((v, i) =>
 						v > -0.0001 ? (
-							<div style={{ width: `${100 / vals.length}%` }} />
+							<div key={i} style={{ width: `${100 / vals.length}%` }} />
 						) : (
 							<Bar orientation={orientation} v={-v} key={i} maxVal={maxVal} length={vals.length} />
 						)

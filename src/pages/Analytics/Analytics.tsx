@@ -180,10 +180,11 @@ function getOption(search: URLSearchParams) {
 	const option = option_p.success ? option_p.data : "cashflow";
 	const interval_p = z.enum(["weekly", "monthly", "yearly"]).safeParse(search.get("interval"));
 	const interval = interval_p.success ? interval_p.data : "weekly";
+	const tz = Temporal.Now.timeZoneId();
 	const time_p = numeric.safeParse(search.get("time"));
 	const time: [number, boolean] = time_p.success
 		? [time_p.data, false]
-		: [Temporal.Now.instant().epochMilliseconds, true];
+		: [Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay().epochMilliseconds, true];
 	return { option, interval, time };
 }
 

@@ -3,7 +3,7 @@ export const Tooltip = ({
 	position,
 	visible,
 }: {
-	children: string;
+	children: React.ReactNode;
 	position: { x: number; y: number };
 	visible: boolean;
 }) => {
@@ -24,7 +24,7 @@ export const Tooltip = ({
 				transform: "translate(-100%, -100%)",
 			}}
 		>
-			<p className="text-3xl">{children}</p>
+			{children}
 		</div>
 	);
 };

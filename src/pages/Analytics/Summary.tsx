@@ -10,13 +10,13 @@ type Props = {
 };
 
 export function Summary({ records, interval, start, end, option }: Props) {
-	const { revenues, spendings } = getFlow({ records, interval, start, end });
+	const { revenues, spendings, debts } = getFlow({ records, interval, start, end });
 	const profits: number[] = [];
 	revenues.forEach((rev, i) => {
-		const profit = rev - spendings[i];
+		const profit = rev - (spendings[i] - debts[i]);
 		profits.push(profit);
 	});
-
+	const debtSum = calcSum(debts);
 	switch (option) {
 		case "profit":
 			return (
@@ -31,7 +31,9 @@ export function Summary({ records, interval, start, end, option }: Props) {
 					<p>Pemasukan Total:</p>
 					<p className="text-end">Rp{calcSum(revenues).toLocaleString("id-ID")}</p>
 					<p>Pengeluaran Total:</p>
-					<p className="text-end">Rp{calcSum(spendings).toLocaleString("id-ID")}</p>
+					<p className="text-end">Rp{(calcSum(spendings) - debtSum).toLocaleString("id-ID")}</p>
+					<p>Utang Total:</p>
+					<p className="text-end">Rp{debtSum.toLocaleString("id-ID")}</p>
 				</div>
 			);
 	}

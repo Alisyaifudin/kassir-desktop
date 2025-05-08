@@ -39,7 +39,7 @@ export function Bar({
 				style={{ height: `${(100 * v) / (maxVal === 0 ? 1 : maxVal)}%` }}
 			/>
 			<Tooltip position={position} visible={isVisible}>
-				{v.toLocaleString("id-ID")}
+				<p className="text-3xl">{v.toLocaleString("id-ID")}</p>
 			</Tooltip>
 		</div>
 	);

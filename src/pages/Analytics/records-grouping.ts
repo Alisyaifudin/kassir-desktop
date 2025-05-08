@@ -68,6 +68,7 @@ export function getFlow({
 	const { edges, labels } = getEdges(interval, start, end);
 	const revenues: number[] = new Array(edges.length - 1).fill(0);
 	const spendings: number[] = new Array(edges.length - 1).fill(0);
+	const debts: number[] = new Array(edges.length - 1).fill(0);
 	let currentInterval = 0;
 	let recordIndex = 0;
 	while (currentInterval < edges.length - 1 && recordIndex < records.length) {
@@ -86,11 +87,14 @@ export function getFlow({
 				revenues[currentInterval] += record.grand_total;
 			} else {
 				spendings[currentInterval] += record.grand_total;
+				if (record.credit) {
+					debts[currentInterval] += record.grand_total;
+				}
 			}
 			recordIndex++;
 		}
 	}
-	return { revenues, spendings, labels };
+	return { revenues, spendings, labels, debts };
 }
 
 export function getTicks(max: number): number[] {
