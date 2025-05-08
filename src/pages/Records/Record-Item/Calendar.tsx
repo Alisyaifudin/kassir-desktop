@@ -182,7 +182,13 @@ function Content({
 						))}
 					</div>
 					<div className="flex items-center justify-end">
-						<Button variant="outline" onClick={() => setDate(today)}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setDate(today);
+								setShowTime(today);
+							}}
+						>
 							Hari Ini
 						</Button>
 					</div>
@@ -205,7 +211,6 @@ function Content({
 					second: date.second,
 					millisecond: date.millisecond,
 				});
-				setDate(t);
 				setShowTime(t);
 				changeMode("day");
 			};
@@ -263,12 +268,11 @@ function Content({
 						<Button
 							variant="outline"
 							onClick={() => {
-								setDate(today);
 								setShowTime(today);
 								changeMode("day");
 							}}
 						>
-							Hari Ini
+							Bulan ini
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -297,7 +301,6 @@ function Content({
 				second: date.second,
 				millisecond: date.millisecond,
 			});
-			setDate(t);
 			setShowTime(t);
 			changeMode("month");
 			return;
@@ -313,7 +316,6 @@ function Content({
 				second: date.second,
 				millisecond: date.millisecond,
 			});
-			setDate(t);
 			setShowTime(t);
 			changeMode("month");
 			return;
@@ -328,7 +330,6 @@ function Content({
 			second: date.second,
 			millisecond: date.millisecond,
 		});
-		setDate(t);
 		setShowTime(t);
 		changeMode("month");
 	};
@@ -346,11 +347,11 @@ function Content({
 				<Button
 					variant="outline"
 					onClick={() => {
-						setDate(today);
-						changeMode("day");
+						setShowTime(today);
+						changeMode("month");
 					}}
 				>
-					Hari Ini
+					Tahun ini
 				</Button>
 			</DialogFooter>
 		</DialogContent>

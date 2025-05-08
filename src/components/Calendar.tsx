@@ -26,10 +26,13 @@ export function Calendar({
 }) {
 	const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
 	const changeMode = (mode: "day" | "month" | "year") => setMode(mode);
+	const [open, setOpen] = useState(false);
 	return (
 		<Dialog
-			onOpenChange={() => {
+			open={open}
+			onOpenChange={(open) => {
 				setMode(modeInit);
+				setOpen(open);
 			}}
 		>
 			<Button asChild variant="ghost" className="flex items-center gap-2 outline">
@@ -40,8 +43,12 @@ export function Calendar({
 			</Button>
 			<Content
 				mode={mode}
+				depth={modeInit}
 				time={time}
-				setTime={setTime}
+				setTime={(time) => {
+					setTime(time);
+					setOpen(false);
+				}}
 				changeMode={changeMode}
 			/>
 		</Dialog>
@@ -68,10 +75,12 @@ function CalendarLabel({ time, mode }: { time: number; mode?: "day" | "month" | 
 function Content({
 	mode,
 	time,
+	depth,
 	setTime,
 	changeMode,
 }: {
 	mode: "day" | "month" | "year";
+	depth: "day" | "month" | "year";
 	time: number;
 	setTime: (time: number) => void;
 	changeMode: (mode: "day" | "month" | "year") => void;
@@ -177,7 +186,12 @@ function Content({
 		case "month": {
 			const handleClick = (month: number) => {
 				const t = Temporal.ZonedDateTime.from({ timeZone: tz, year: date.year, month, day: 1 });
-				setTime(t.epochMilliseconds);
+				if (depth === "month") {
+					setTime(t.epochMilliseconds);
+				} else {
+					setShowTime(t.epochMilliseconds);
+					changeMode("day");
+				}
 			};
 			const months = [
 				"Jan",
@@ -230,7 +244,17 @@ function Content({
 						))}
 					</div>
 					<DialogFooter className="flex items-center justify-between">
-						<Button variant="outline" onClick={() => setTime(today.epochMilliseconds)}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								if (depth === "month") {
+									setTime(today.epochMilliseconds);
+								} else {
+									setShowTime(today.epochMilliseconds);
+									changeMode("day");
+								}
+							}}
+						>
 							Bulan Ini
 						</Button>
 					</DialogFooter>
@@ -249,24 +273,30 @@ function Content({
 		if (!Number.isInteger(year)) {
 			return;
 		}
+		let t = 0;
 		if (year < 1900) {
-			setTime(
-				Temporal.ZonedDateTime.from({ timeZone: tz, year: 1900, month: 1, day: 1 })
-					.epochMilliseconds
-			);
-			return;
+			t = Temporal.ZonedDateTime.from({
+				timeZone: tz,
+				year: 1900,
+				month: 1,
+				day: 1,
+			}).epochMilliseconds;
+		} else if (year > 2100) {
+			t = Temporal.ZonedDateTime.from({
+				timeZone: tz,
+				year: 2100,
+				month: 1,
+				day: 1,
+			}).epochMilliseconds;
+		} else {
+			t = Temporal.ZonedDateTime.from({ timeZone: tz, year, month: 1, day: 1 }).epochMilliseconds;
 		}
-		if (year > 2100) {
-			setTime(
-				Temporal.ZonedDateTime.from({ timeZone: tz, year: 2100, month: 1, day: 1 })
-					.epochMilliseconds
-			);
-			console.log("uwu");
-			return;
+		if (depth === "year") {
+			setTime(t);
+		} else {
+			setShowTime(t);
+			changeMode("month");
 		}
-		setTime(
-			Temporal.ZonedDateTime.from({ timeZone: tz, year, month: 1, day: 1 }).epochMilliseconds
-		);
 	};
 	return (
 		<DialogContent>
@@ -284,7 +314,12 @@ function Content({
 					onClick={() => {
 						const inputEl = document.getElementById("year-input") as HTMLInputElement;
 						inputEl.value = today.year.toString();
-						setTime(today.epochMilliseconds);
+						if (depth === "year") {
+							setTime(today.epochMilliseconds);
+						} else {
+							setShowTime(today.epochMilliseconds);
+							changeMode("month");
+						}
 					}}
 				>
 					Tahun Ini
