@@ -9,7 +9,7 @@ import { z } from "zod";
 import { SortDir } from "./Sort.tsx";
 import { Search } from "./Search.tsx";
 import { numeric } from "../../lib/utils.ts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pagination } from "./Pagination.tsx";
 import { TextError } from "../../components/TextError.tsx";
 import { useUser } from "../../Layout.tsx";
@@ -35,14 +35,21 @@ export default function Page() {
 
 function Stock({ products: all }: { products: DB.Product[] }) {
 	const [searchParams, setSearch] = useSearchParams();
-	const [products, setProducts] = useState<ProductResult[]>(all)
+	const [products, setProducts] = useState<ProductResult[]>(all);
 	const { sortDir, query, sortBy, page: rawPage, limit } = getOption(searchParams);
-	const {search} = useProductSearch(all);
+	const { search } = useProductSearch(all);
 	const user = useUser();
 	const [pagination, setPagination] = useState<
 		{ page: number; total: number } | { page: null; total: null }
 	>({ page: null, total: null });
-
+	useEffect(() => {
+		if (query.trim() === "") {
+			setProducts(all);
+		} else {
+			const res = search(query.trim(), { fuzzy: 0.2, prefix: true });
+			setProducts(res);
+		}
+	}, [])
 	const setSortDir = (v: "asc" | "desc") => {
 		setSearch({
 			query,
@@ -63,9 +70,9 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 	};
 	const setQuery = (v: string) => {
 		if (v.trim() === "") {
-			setProducts(all)
+			setProducts(all);
 		} else {
-			const res = search(v.trim(), {fuzzy: 0.2, prefix: true});
+			const res = search(v.trim(), { fuzzy: 0.2, prefix: true });
 			setProducts(res);
 		}
 		setSearch({
@@ -116,6 +123,7 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 				</div>
 			</div>
 			<ProductList
+				query={query}
 				products={products}
 				limit={limit}
 				rawPage={rawPage}

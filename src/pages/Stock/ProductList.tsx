@@ -19,6 +19,7 @@ export function ProductList({
 	sortDir,
 	rawPage,
 	limit,
+	query,
 }: {
 	products: ProductResult[];
 	setPagination: (page: number, total: number) => void;
@@ -26,9 +27,11 @@ export function ProductList({
 	sortDir: "desc" | "asc";
 	rawPage: number;
 	limit: number;
+	query: string;
 }) {
-	console.log({ products });
-	sorting(products, sortBy, sortDir);
+	if (query.trim() === "") {
+		sorting(products, sortBy, sortDir);
+	}
 	const totalItem = products.length;
 	const totalPage = Math.ceil(totalItem / limit);
 	const page = rawPage > totalPage ? totalPage : rawPage;
