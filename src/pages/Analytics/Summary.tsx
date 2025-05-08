@@ -1,15 +1,17 @@
 import Decimal from "decimal.js";
-import { getFlow } from "./records-grouping";
+import { getFlow, getVisitors } from "./records-grouping";
+import { Temporal } from "temporal-polyfill";
 
 type Props = {
 	records: DB.Record[];
 	interval: "weekly" | "monthly" | "yearly";
 	start: number;
 	end: number;
-	option: "profit" | "cashflow";
+	time: number;
+	option: "profit" | "cashflow" | "crowd";
 };
 
-export function Summary({ records, interval, start, end, option }: Props) {
+export function Summary({ records, interval, start, end, option, time }: Props) {
 	const { revenues, spendings, debts } = getFlow({ records, interval, start, end });
 	const profits: number[] = [];
 	revenues.forEach((rev, i) => {
@@ -34,6 +36,30 @@ export function Summary({ records, interval, start, end, option }: Props) {
 					<p className="text-end">Rp{(calcSum(spendings) - debtSum).toLocaleString("id-ID")}</p>
 					<p>Utang Total:</p>
 					<p className="text-end">Rp{debtSum.toLocaleString("id-ID")}</p>
+				</div>
+			);
+		case "crowd":
+			const tz = Temporal.Now.timeZoneId();
+			const startOfDay = Temporal.Instant.fromEpochMilliseconds(time)
+				.toZonedDateTimeISO(tz)
+				.startOfDay();
+			const endOfDay = startOfDay.add(Temporal.Duration.from({ days: 1 }));
+			const { visitors: visitorsDaily } = getVisitors({
+				records,
+				interval: "daily",
+				start: startOfDay.epochMilliseconds,
+				end: endOfDay.epochMilliseconds,
+			});
+			const { visitors: visitorsWeekly } = getVisitors({
+				records,
+				interval: "weekly",
+				start,
+				end,
+			});
+			return (
+				<div className="flex flex-col gap-2 text-3xl">
+					<p>Harian: {calcSum(visitorsDaily)}</p>
+					<p>Mingguan: {calcSum(visitorsWeekly)}</p>
 				</div>
 			);
 	}

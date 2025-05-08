@@ -115,7 +115,7 @@ function Content({
 			) {
 				const inside =
 					curr.epochMilliseconds >= startOfMonth.epochMilliseconds &&
-					curr.epochMilliseconds < endOfMonth.epochMilliseconds;
+					curr.epochMilliseconds <= endOfMonth.epochMilliseconds;
 				days.push([curr.day, curr.epochMilliseconds, inside]);
 			}
 			const handlePrev = () => {
