@@ -6,16 +6,18 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "../../../components/ui/table";
+} from "~/components/ui/table";
 import { TaxItem } from "../TaxItem";
 import Decimal from "decimal.js";
-import { Input } from "../../../components/ui/input";
-import { Button } from "../../../components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { useState } from "react";
-import { TextError } from "../../../components/TextError";
+import { TextError } from "~/components/TextError";
 import { Loader2 } from "lucide-react";
-import { useDb } from "../../../RootLayout";
-import { numeric } from "../../../lib/utils";
+import { useDb } from "~/RootLayout";
+import { numeric } from "~/lib/utils";
+import { useNavigate } from "react-router";
+import { Calendar } from "./Calendar";
 
 const meth = {
 	cash: "Tunai",
@@ -29,59 +31,87 @@ export function Detail({
 	additionals,
 	discs,
 	update,
+	role,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	additionals: DB.Additional[];
 	discs: DB.Discount[];
 	update: () => void;
+	role: "admin" | "user";
 }) {
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState("");
+	const [error, setError] = useState({ pay: "", calendar: "" });
 	const db = useDb();
+	const navigate = useNavigate();
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-
 		const formData = new FormData(e.currentTarget);
 		const parsed = numeric.safeParse(formData.get("pay"));
 		if (!parsed.success) {
-			setError(parsed.error.flatten().formErrors.join("; "));
+			setError({ pay: parsed.error.flatten().formErrors.join("; "), calendar: "" });
 			return;
 		}
 		const pay = parsed.data;
 		const change = new Decimal(pay).sub(record.grand_total).toNumber();
 		if (change < 0) {
-			setError("Bayaran tidak cukup");
+			setError({ pay: "Bayaran tidak cukup", calendar: "" });
 			return;
 		}
 		setLoading(true);
-		const errMsg = await db.record.updateCreditPay(pay, change, record.timestamp);
-		setLoading(false);
+		const [errMsg, now] = await db.record.updateCreditPay(pay, change, record.timestamp);
 		if (errMsg) {
-			setError(errMsg);
+			setError({ pay: errMsg, calendar: "" });
+			setLoading(false);
 			return;
 		}
-		setError("");
+		setError({ pay: "", calendar: "" });
+		await navigate(`/records/${now}`);
+		await new Promise((res) => setTimeout(res, 1000));
 		update();
+		setLoading(false);
+	};
+	const handleChangeTime = async (time: number) => {
+		setLoading(true);
+		const [errMsg, now] = await db.record.updateTimestamp(record.timestamp, time);
+		if (errMsg) {
+			setError({ pay: "", calendar: errMsg });
+			setLoading(false);
+			return;
+		}
+		setError({ pay: "", calendar: "" });
+		await navigate(`/records/${now}`);
+		await new Promise((res) => setTimeout(res, 1000));
+		update();
+		setLoading(false);
 	};
 	return (
 		<div className="flex flex-col gap-2 text-3xl">
-			<div className="flex items-center gap-2">
-				<p>No: {record.timestamp}</p>
-				{record.cashier ? (
-					<>
-						<div className="border-left h-full border" />
-						<p>Kasir: {record.cashier}</p>
-					</>
+			<div className="flex items-center justify-between">
+				<div className="flex items-center gap-2">
+					<p>No: {record.timestamp}</p>
+					{record.cashier ? (
+						<>
+							<div className="border-left h-full border" />
+							<p>Kasir: {record.cashier}</p>
+						</>
+					) : null}
+				</div>
+				{role === "admin" ? (
+					<div className="flex gap-2 items-center">
+						<TextError>{error.calendar}</TextError>
+						<Calendar time={record.timestamp} setTime={handleChangeTime} />
+						{loading ? <Loader2 className="animate-spin" /> : null}
+					</div>
 				) : null}
 			</div>
-			{record.credit ? (
+			{record.credit && role === "admin" ? (
 				<form onSubmit={handleSubmit}>
 					<label className="flex items-center gap-5">
 						<span className="text-red-500">Kredit</span>
 						<Input placeholder="Bayaran..." type="number" name="pay" className="w-[200px]" />
 						<Button>Bayar {loading ? <Loader2 className="animate-spin" /> : null}</Button>
-						<TextError>{error}</TextError>
+						<TextError>{error.pay}</TextError>
 					</label>
 				</form>
 			) : null}

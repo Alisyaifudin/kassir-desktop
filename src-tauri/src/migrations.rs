@@ -140,6 +140,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../src/migrations-sql/21-30/migration-23.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 24,
+            description: "ON_UPDATE_CASCADE",
+            sql: include_str!("../src/migrations-sql/21-30/migration-24.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

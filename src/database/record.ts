@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { err, ok, Result, tryResult } from "../lib/utils";
 import Database from "@tauri-apps/plugin-sql";
 
@@ -89,15 +90,30 @@ export const genRecord = (db: Database) => ({
 		pay: number,
 		change: number,
 		timestamp: number
-	): Promise<"Aplikasi bermasalah" | null> => {
+	): Promise<Result<"Aplikasi bermasalah", number>> => {
+		const now = Temporal.Now.instant().epochMilliseconds;
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute("UPDATE records SET pay = $1, change = $2, credit = 0 WHERE timestamp = $3", [
-					pay,
-					change,
-					timestamp,
-				]),
+				db.execute(
+					"UPDATE records SET pay = $1, change = $2, credit = 0, timestamp = $3 WHERE timestamp = $4",
+					[pay, change, now, timestamp]
+				),
 		});
-		return errMsg;
+		if (errMsg) return err(errMsg);
+		return ok(now);
+	},
+	updateTimestamp: async (
+		timestamp: number,
+		newTime: number,
+	): Promise<Result<"Aplikasi bermasalah", number>> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute(
+					"UPDATE records SET timestamp = $2 WHERE timestamp = $1",
+					[timestamp, newTime]
+				),
+		});
+		if (errMsg) return err(errMsg);
+		return ok(newTime);
 	},
 });

@@ -38,7 +38,12 @@ export function Calendar({
 					<CalendarDays />
 				</DialogTrigger>
 			</Button>
-			<Content mode={mode} time={time} setTime={setTime} changeMode={changeMode} />
+			<Content
+				mode={mode}
+				time={time}
+				setTime={setTime}
+				changeMode={changeMode}
+			/>
 		</Dialog>
 	);
 }
@@ -161,7 +166,7 @@ function Content({
 							</Button>
 						))}
 					</div>
-					<DialogFooter className="flex items-center justify-between">
+					<DialogFooter className="flex items-center justify-end">
 						<Button variant="outline" onClick={() => setTime(today.epochMilliseconds)}>
 							Hari Ini
 						</Button>

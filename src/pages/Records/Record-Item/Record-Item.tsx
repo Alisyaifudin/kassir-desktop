@@ -12,11 +12,12 @@ import { type loader } from ".";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { Detail } from "./Detail";
 import { useState } from "react";
+import { User } from "~/lib/auth";
 
-export default function Page() {
+export default function Page({ user }: { user: User }) {
 	const { timestamp } = useLoaderData<typeof loader>();
 	const navigate = useNavigate();
-	const {state, update} = useRecord(timestamp);
+	const { state, update } = useRecord(timestamp);
 	return (
 		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
 			<div className="flex items-center gap-2">
@@ -48,7 +49,14 @@ export default function Page() {
 								/>
 							</TabsContent>
 							<TabsContent value="detail">
-								<Detail update={update} record={res.record} items={res.items} additionals={res.additionals} discs={res.discs} />
+								<Detail
+									role={user.role}
+									update={update}
+									record={res.record}
+									items={res.items}
+									additionals={res.additionals}
+									discs={res.discs}
+								/>
 							</TabsContent>
 						</Tabs>
 					);
@@ -61,9 +69,9 @@ export default function Page() {
 function useRecord(timestamp: number) {
 	const db = useDb();
 	const [updated, setUpdated] = useState(false);
-	const update = () =>setUpdated(prev=>!prev);
+	const update = () => setUpdated((prev) => !prev);
 	const state = useAsync(getRecord(db, timestamp), [updated]);
-	return {state, update};
+	return { state, update };
 }
 
 async function getRecord(
