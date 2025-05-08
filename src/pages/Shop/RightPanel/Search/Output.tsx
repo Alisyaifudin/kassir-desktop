@@ -1,3 +1,4 @@
+import { ProductResult } from "~/hooks/useProductSearch";
 import { cn } from "../../../../lib/utils";
 import { ItemWithoutDisc } from "../../schema";
 
@@ -7,7 +8,7 @@ export function Output({
 	mode,
 }: {
 	mode: "buy" | "sell";
-	products: DB.Product[];
+	products: ProductResult[];
 	handleClick: (item: ItemWithoutDisc) => void;
 }) {
 	return (

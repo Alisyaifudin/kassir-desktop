@@ -6,15 +6,28 @@ import { Field } from "../../Field";
 import { Input } from "../../../../components/ui/input";
 import { Loader2 } from "lucide-react";
 import { ItemWithoutDisc } from "../../schema";
+import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
+import { useDebouncedCallback } from "use-debounce";
 
 export function Search({
 	sendItem,
 	mode,
+	products: all,
 }: {
 	sendItem: (item: ItemWithoutDisc) => void;
 	mode: "sell" | "buy";
+	products: DB.Product[];
 }) {
-	const [products, setProducts] = useState<DB.Product[]>([]);
+	const [products, setProducts] = useState<ProductResult[]>([]);
+	const { search } = useProductSearch(all);
+	const debounced = useDebouncedCallback((value: string) => {
+		if (value.trim() === "") {
+			setProducts([]);
+		} else {
+			const results = search(value.trim(), { fuzzy: 0.2, prefix: true });
+			setProducts(results);
+		}
+	}, 500);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [name, setName] = useState("");
@@ -24,37 +37,16 @@ export function Search({
 		const n = e.currentTarget.value;
 		if (n === "") {
 			setBarcode(null);
-			setProducts([]);
 			return;
 		}
 		setBarcode(n.trim());
-		db.product.searchByBarcode(n).then((res) => {
-			const [errMsg, items] = res;
-			if (errMsg !== null) {
-				setError(errMsg);
-				return;
-			}
-			setError("");
-			setProducts(items);
-		});
+		debounced(n);
 	};
 	const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const n = e.currentTarget.value;
 		setName(n);
 		setBarcode(null);
-		if (n === "") {
-			setProducts([]);
-			return;
-		}
-		db.product.searchByName(n).then((res) => {
-			const [errMsg, items] = res;
-			if (errMsg !== null) {
-				setError(errMsg);
-				return;
-			}
-			setError("");
-			setProducts(items);
-		});
+		debounced(n);
 	};
 	const handleClick = (item: ItemWithoutDisc) => {
 		sendItem(item);
@@ -91,7 +83,7 @@ export function Search({
 			qty: 1,
 			id: product.id,
 			stock: product.stock,
-			capital: product.capital
+			capital: product.capital,
 		});
 	};
 	return (

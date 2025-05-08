@@ -3,6 +3,10 @@ import { AdditionalComponent } from "./Additional";
 import { Search } from "./Search";
 import { Manual } from "./Manual";
 import { Additional, ItemWithoutDisc } from "../schema";
+import { useDb } from "~/RootLayout";
+import { useAsync } from "~/hooks/useAsync";
+import { Await } from "~/components/Await";
+import { TextError } from "~/components/TextError";
 
 export function RightPanel({
 	sendAdditional,
@@ -17,6 +21,7 @@ export function RightPanel({
 	fix: number;
 	changeFix: (fix: number) => void;
 }) {
+	const state = useProducts();
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
 			<Tabs
@@ -43,7 +48,15 @@ export function RightPanel({
 					</div>
 				</div>
 				<TabsContent value="auto" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Search sendItem={sendItem} mode={mode} />
+					<Await state={state}>
+						{(data) => {
+							const [errMsg, products] = data;
+							if (errMsg) {
+								return <TextError>{errMsg}</TextError>
+							}
+							return <Search sendItem={sendItem} mode={mode} products={products} />
+						}}
+					</Await>
 				</TabsContent>
 				<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
 					<Manual sendItem={sendItem} mode={mode} fix={fix} />
@@ -55,4 +68,10 @@ export function RightPanel({
 			</div>
 		</aside>
 	);
+}
+
+function useProducts(){
+	const db = useDb();
+	const state = useAsync(db.product.getAll(), []);
+	return state;
 }
