@@ -71,8 +71,13 @@ export function LinkProduct({
 					<DialogTitle className="text-5xl">Hubungkan dengan produk</DialogTitle>
 				</DialogHeader>
 				<div className="flex flex-col p-2 gap-2">
+					<div className="flex items-center gap-5">
+						<p className="">Barang:</p>
+						<p>{item.name}</p>
+						<p>Rp{item.price.toLocaleString("id-ID")}</p>
+					</div>
 					<div className="flex items-center gap-2">
-						<p className="">Produk terpilih:</p>
+						<p className="">Produk terhubung:</p>
 						{loading ? <Loader2 className="animate-spin" /> : null}
 						<TextError>{error}</TextError>
 						{selected === undefined ? (
