@@ -37,6 +37,7 @@ export function Search({
 		const n = e.currentTarget.value;
 		if (n === "") {
 			setBarcode(null);
+			setProducts([]);
 			return;
 		}
 		setBarcode(n.trim());
