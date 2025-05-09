@@ -17,6 +17,7 @@ export function LeftPanel({
 	mode,
 	changeMode,
 	fix,
+	cashier
 }: {
 	newItem: ItemWithoutDisc | null;
 	newAdditional: Additional | null;
@@ -24,10 +25,11 @@ export function LeftPanel({
 	mode: "sell" | "buy";
 	changeMode: (mode: "sell" | "buy") => void;
 	fix: number;
+	cashier: string;
 }) {
 	const user = useUser();
 	const { set, data, ready } = useLocalStorage(mode);
-	const { items, additionals, disc, pay, rounding, cashier, method, note } = data;
+	const { items, additionals, disc, pay, rounding, method, note } = data;
 	useEffect(() => {
 		if (newItem) {
 			set.items.add(mode, newItem);

@@ -12,6 +12,7 @@ import { DeleteBtn } from "./DeleteBtn";
 import { Button } from "../../components/ui/button";
 import { TaxItem } from "./TaxItem";
 import { useUser } from "../../Layout";
+import { formatDate, formatTime } from "~/lib/utils";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
@@ -40,13 +41,7 @@ function filterData(
 	};
 }
 
-export function ItemList({
-	allItems,
-	timestamp,
-	records,
-	allTaxes,
-	sendSignal,
-}: RecordListProps) {
+export function ItemList({ allItems, timestamp, records, allTaxes, sendSignal }: RecordListProps) {
 	const { items, record, taxes } = filterData(timestamp, allItems, allTaxes, records);
 	if (record === null) {
 		return null;
@@ -77,14 +72,15 @@ function List({
 	}
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center gap-2 justify-between">
 				<p>No: {record.timestamp}</p>
-				{record.cashier ? (
-					<>
-						<div className="border-left h-full border" />
+				<div className="flex items-center gap-5">
+				<p>{formatTime(record.timestamp, "long")}, {formatDate(record.timestamp, "long")}</p>
+					{record.cashier ? (
 						<p>Kasir: {record.cashier}</p>
-					</>
-				) : null}
+					) : null}
+					
+				</div>
 			</div>
 			<Table className="text-3xl">
 				<TableHeader>

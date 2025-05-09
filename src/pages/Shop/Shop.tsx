@@ -3,8 +3,9 @@ import { RightPanel } from "./RightPanel";
 import { Additional, ItemWithoutDisc } from "./schema";
 import { LeftPanel } from "./LeftPanel";
 import { numeric } from "../../lib/utils";
+import { User } from "~/lib/auth";
 
-export default function Page() {
+export default function Page({user}: {user: User}) {
 	const [item, setItem] = useState<ItemWithoutDisc | null>(null);
 	const [mode, setMode] = useState<"sell" | "buy">("sell");
 	const [additional, setAdditional] = useState<Additional | null>(null);
@@ -25,6 +26,7 @@ export default function Page() {
 				mode={mode}
 				changeMode={changeMode}
 				fix={fix}
+				cashier={user.name}
 			/>
 			<RightPanel
 				sendItem={sendItem}

@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "1.28.0";
+export const version = "1.28.2";
 
 export const log = logTauri;
 
@@ -97,11 +97,16 @@ export const dateStringSchema = z.string().regex(
 	"Tanggal tidak valid"
 );
 
-export function formatTime(epochMilli: number): string {
+export function formatTime(epochMilli: number, format: "long" | "short" = "short"): string {
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
-	const { hour, minute } = date;
-	return `${hour}:${minute.toString().padStart(2, "0")}`;
+	const { hour, minute, second } = date;
+	switch (format) {
+		case "long":
+			return `${hour}:${minute.toString().padStart(2, "0")}:${second.toString().padStart(2, "0")}`;
+		case "short":
+			return `${hour}:${minute.toString().padStart(2, "0")}`;
+	}
 }
 
 export function dateToEpoch(date: string): number {

@@ -10,7 +10,6 @@ export function useLocalStorage(mode: "sell" | "buy") {
 	const [method, setMethod] = useState<"cash" | "transfer" | "other">("cash");
 	const [items, setItems] = useState<Item[]>([]);
 	const [additionals, setAdditionals] = useState<Additional[]>([]);
-	const [cashier, setCashier] = useState<string | null>(null);
 	const [pay, setPay] = useState(0);
 	const [rounding, setRounding] = useState(0);
 	const [disc, setDisc] = useState<{ value: number; type: "number" | "percent" }>({
@@ -26,8 +25,6 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setMethod(method);
 		const rounding = getRounding(mode);
 		setRounding(rounding);
-		const cashier = getCashier();
-		setCashier(cashier);
 		const disc = getDisc(mode);
 		setDisc(disc);
 		const items = getItems(mode);
@@ -36,10 +33,6 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setAdditionals(additionals);
 		setReady(true);
 	}, [mode]);
-	const changeCashier = (cashier: string) => {
-		setCashier(cashier);
-		localStorage.setItem(`cashier`, cashier);
-	};
 	const changePay = (mode: "buy" | "sell", pay: number) => {
 		setPay(pay);
 		localStorage.setItem(`pay-${mode}`, pay.toString());
@@ -215,7 +208,6 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			note,
 			pay,
 			rounding,
-			cashier,
 			disc,
 			method,
 			items,
@@ -227,7 +219,6 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			note: changeNote,
 			pay: changePay,
 			rounding: changeRounding,
-			cashier: changeCashier,
 			discVal: changeDiscVal,
 			discType: changeDiscType,
 			method: changeMethod,
@@ -240,13 +231,6 @@ export type SetAdditional = ReturnType<typeof useLocalStorage>["set"]["additiona
 export type SetDisc = ReturnType<typeof useLocalStorage>["set"]["items"]["disc"];
 export type Data = ReturnType<typeof useLocalStorage>["data"];
 
-function getCashier() {
-	const parsed = z.string().safeParse(localStorage.getItem("cashier"));
-	if (parsed.success) {
-		return parsed.data;
-	}
-	return null;
-}
 
 function getMethod(mode: "buy" | "sell") {
 	const parsed = z

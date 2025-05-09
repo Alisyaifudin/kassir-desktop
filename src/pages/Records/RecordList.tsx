@@ -6,7 +6,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "../../components/ui/table";
-import { cn, formatDate, formatTime } from "../../lib/utils";
+import { cn, formatTime } from "../../lib/utils";
 
 type RecordListProps = {
 	records: DB.Record[];
@@ -16,13 +16,11 @@ type RecordListProps = {
 
 export function RecordList({ records, selected, selectRecord }: RecordListProps) {
 	return (
-		<Table
-			className="text-3xl"
-		>
+		<Table className="text-3xl">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[30px]">No</TableHead>
-					<TableHead className="w-[200px] text-center">Tanggal</TableHead>
+					<TableHead className="w-[200px] text-center">Kasir</TableHead>
 					<TableHead className="w-[70px] text-center">Waktu</TableHead>
 					<TableHead className="text-right">Total</TableHead>
 				</TableRow>
@@ -38,7 +36,7 @@ export function RecordList({ records, selected, selectRecord }: RecordListProps)
 						)}
 					>
 						<TableCell>{i + 1}</TableCell>
-						<TableCell className="text-center">{formatDate(record.timestamp)}</TableCell>
+						<TableCell className="text-center">{record.cashier ?? "Admin"}</TableCell>
 						<TableCell className="text-center">{formatTime(record.timestamp)}</TableCell>
 						<TableCell className="text-right">
 							{Number(record.grand_total).toLocaleString("id-ID")}
