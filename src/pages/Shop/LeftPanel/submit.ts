@@ -38,7 +38,8 @@ export async function submitPayment(
 		| "Kuantitas harus lebih dari nol"
 		| "Harga tidak boleh negatif"
 		| "Biaya tambahan tidak boleh negatif"
-		| "Gagal menyimpan. Coba lagi.",
+		| "Gagal menyimpan. Coba lagi."
+		| `Ada barang dengan barcode yang sama: ${string}`,
 		number
 	>
 > {
@@ -77,13 +78,7 @@ export async function submitPayment(
 		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty, fix);
 		const capital =
 			mode === "buy"
-				? calcCapital(
-						record.grandTotal,
-						record.totalBeforeDisc,
-						subtotal.toNumber(),
-						item.qty,
-						fix
-				  )
+				? calcCapital(record.grandTotal, record.totalBeforeDisc, subtotal.toNumber(), item.qty, fix)
 				: item.capital;
 		return {
 			item: {
@@ -110,7 +105,6 @@ export async function submitPayment(
 		return err(errAdds);
 	}
 	const productPromises = [];
-	const itemPromises = [];
 	if (mode === "buy") {
 		for (const { item } of itemsTranform) {
 			productPromises.push(
@@ -120,7 +114,7 @@ export async function submitPayment(
 					capital: item.capital, // shoud be exist
 					price: item.price,
 					stock: item.qty,
-					id: item.product_id
+					id: item.product_id,
 				})
 			);
 		}
@@ -136,27 +130,34 @@ export async function submitPayment(
 			);
 		}
 	}
-	for (const { item } of itemsTranform) {
-		itemPromises.push(db.recordItem.add(item, timestamp, mode));
+	const resProduct = await Promise.all(productPromises);
+	for (const [errMsg] of resProduct) {
+		if (errMsg !== null) {
+			return err(errMsg);
+		}
 	}
-	const [resItem, resProduct] = await Promise.all([
-		Promise.all(itemPromises),
-		Promise.all(productPromises),
-	]);
+	const itemPromises: Promise<
+		Result<"Aplikasi bermasalah" | "Gagal menyimpan. Coba lagi." | null, number>
+	>[] = [];
+	itemsTranform.forEach(({ item }, i) => {
+		if (item.product_id === null) {
+			const productId = resProduct[i][1];
+			itemPromises.push(db.recordItem.add({ ...item, product_id: productId }, timestamp, mode));
+		} else {
+			itemPromises.push(db.recordItem.add(item, timestamp, mode));
+		}
+	});
+	const resItem = await Promise.all(itemPromises);
 	for (const [errMsg] of resItem) {
 		if (errMsg !== null) {
 			return err("Aplikasi bermasalah");
 		}
 	}
-	for (const errMsg of resProduct) {
-		if (errMsg !== null) {
-			return err("Aplikasi bermasalah");
-		}
-	}
-	const ids = resItem.map((r) => r[1]!);
+
+	const itemIds = resItem.map((r) => r[1]!);
 	const discPromises = [];
-	for (let i = 0; i < ids.length; i++) {
-		const id = ids[i];
+	for (let i = 0; i < itemIds.length; i++) {
+		const id = itemIds[i];
 		const discs = itemsTranform[i].discs;
 		if (discs.length === 0) {
 			continue;
@@ -241,7 +242,7 @@ export const calcTax = (totalAfterDisc: Decimal, add: Additional, fix: number) =
 			return add.value;
 		case "percent":
 			const val = totalAfterDisc.times(add.value).div(100).toFixed(fix);
-			return Number(val)
+			return Number(val);
 	}
 };
 
@@ -270,5 +271,5 @@ export function calcCapital(
 		.div(totalBeforeDisc)
 		.div(qty)
 		.toFixed(fix);
-	return Number(capital)
+	return Number(capital);
 }

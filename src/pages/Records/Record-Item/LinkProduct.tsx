@@ -136,7 +136,9 @@ export function LinkProduct({
 								</TableCell>
 								<TableCell>{product.barcode ?? ""}</TableCell>
 								<TableCell>{product.name}</TableCell>
-								<TableCell className="text-right">{product.price}</TableCell>
+								<TableCell className="text-right">
+									{product.price.toLocaleString("id-ID")}
+								</TableCell>
 							</TableRow>
 						))}
 					</TableBody>

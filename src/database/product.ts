@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { err, ok, Result, tryResult } from "../lib/utils";
+import { err, log, ok, Result, tryResult } from "../lib/utils";
 
 export const genProduct = (db: Database) => ({
 	getAll: (): Promise<Result<"Aplikasi bermasalah", DB.Product[]>> =>
@@ -86,8 +86,13 @@ export const genProduct = (db: Database) => ({
 		price: number;
 		stock: number;
 		barcode: string | null;
-	}): Promise<"Aplikasi bermasalah" | null> => {
-		const [errMsg] = await tryResult({
+	}): Promise<
+		Result<
+			"Aplikasi bermasalah" | `Ada barang dengan barcode yang sama: ${string}` | null,
+			number | null
+		>
+	> => {
+		const [errMsg, res] = await tryResult({
 			run: () =>
 				db.execute(
 					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, 0)
@@ -100,7 +105,16 @@ export const genProduct = (db: Database) => ({
 					]
 				),
 		});
-		return errMsg;
+		if (errMsg) return err(errMsg);
+		const id = res.lastInsertId;
+		if (id === undefined) {
+			if (data.barcode !== null) {
+				return ok(null);
+			}
+			log.error("Failed to insert new product: insertIfNotYet");
+			return err("Aplikasi bermasalah");
+		}
+		return ok(id);
 	},
 	upsert: async (data: {
 		name: string;
@@ -109,18 +123,18 @@ export const genProduct = (db: Database) => ({
 		capital: number;
 		barcode: string | null;
 		id: number | null;
-	}): Promise<"Aplikasi bermasalah" | null> => {
-		const [errMsg] = await tryResult({
+	}): Promise<Result<"Aplikasi bermasalah" | null, number | null>> => {
+		const [errMsg, res] = await tryResult({
 			run: async () => {
 				if (data.id) {
-					db.execute(
+					return db.execute(
 						`UPDATE products SET name = $1, stock = stock + $2, capital = $3 WHERE id = $4`,
 						[data.name.trim(), data.stock, data.capital, data.id]
 					);
 				} else {
-					db.execute(
-						`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)
-						 ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5`,
+					return db.execute(
+						`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)`,
+						//  ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5
 						[
 							data.name.trim(),
 							data.stock,
@@ -132,8 +146,16 @@ export const genProduct = (db: Database) => ({
 				}
 			},
 		});
-		console.log("ada error", errMsg);
-		return errMsg;
+		if (errMsg) return err(errMsg);
+		if (data.id) {
+			return ok(null);
+		}
+		const id = res.lastInsertId;
+		if (id === undefined) {
+			log.error("Failed to insert new product: insertIfNotYet");
+			return err("Aplikasi bermasalah");
+		}
+		return ok(id);
 	},
 	delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
