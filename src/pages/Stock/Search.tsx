@@ -21,7 +21,7 @@ export function Search({ query, setQuery }: { query: string; setQuery: (v: strin
 				value={value}
 				onChange={(e) => {
 					const val = e.currentTarget.value;
-					setValue(val);
+					setValue(val.trimStart());
 					debounced(val);
 				}}
 			/>

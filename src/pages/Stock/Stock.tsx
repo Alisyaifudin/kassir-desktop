@@ -46,10 +46,20 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 		if (query.trim() === "") {
 			setProducts(all);
 		} else {
-			const res = search(query.trim(), { fuzzy: 0.2, prefix: true });
+			const res = search(query.trim(), {
+				fuzzy: (term) => {
+					if (term.split(" ").length === 1) {
+						return 0.1;
+					} else {
+						return 0.2;
+					}
+				},
+				prefix: true,
+				combineWith: "AND",
+			});
 			setProducts(res);
 		}
-	}, [])
+	}, [query]);
 	const setSortDir = (v: "asc" | "desc") => {
 		setSearch({
 			query,
@@ -69,12 +79,14 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 		});
 	};
 	const setQuery = (v: string) => {
-		if (v.trim() === "") {
-			setProducts(all);
-		} else {
-			const res = search(v.trim(), { fuzzy: 0.2, prefix: true });
-			setProducts(res);
-		}
+		// if (v.trim() === "") {
+		// 	setProducts(all);
+		// } else {
+		// 	let res = search(v, { fuzzy: 0.2, prefix: true });
+		// 	res.sort((a, b) => a.price - b.price);
+		// 	console.log(v.trim(), res);
+		// 	setProducts(res);
+		// }
 		setSearch({
 			query: v,
 			sortDir,

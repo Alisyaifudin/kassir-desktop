@@ -20,7 +20,7 @@ export const useProductSearch = (products: DB.Product[]) => {
 			storeFields: ["id", "name", "barcode", "price", "capital", "stock"],
 			idField: "id",
 			searchOptions: {
-				tokenize: (query: string) => query.split(/\s+/),
+				tokenize: (query: string) => query.split(/[\s-&%#*]+/),
 				processTerm: (term: string) => term.toLowerCase(),
 			},
 		});

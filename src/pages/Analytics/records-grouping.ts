@@ -10,7 +10,7 @@ function getEdges(
 	switch (interval) {
 		case "daily": {
 			const edges = genEdges(start, end, 24);
-			const labels = Array.from({ length: 24 }).map((_, i) => String(i + 1));
+			const labels = Array.from({ length: 24 }).map((_, i) => String(i));
 			return { edges, labels };
 		}
 		case "weekly": {

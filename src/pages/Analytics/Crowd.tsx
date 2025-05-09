@@ -23,19 +23,21 @@ export function Crowd({ records, daily, weekly }: Props) {
 	});
 	return (
 		<div className="flex flex-col flex-1 py-5">
-			<Graph vals={visitorsDaily} />
+			<Graph vals={visitorsDaily.filter((_, i) => i >= 6)} />
 			<div className="flex gap-1 w-full">
 				<div className="w-[100px]"></div>
 				<div className="flex gap-1 w-full">
-					{labelsDaily.map((label) => (
-						<div
-							key={label}
-							className="h-[50px] flex justify-center items-center text-2xl"
-							style={{ width: `${100 / labelsDaily.length}%` }}
-						>
-							<p>{label}</p>
-						</div>
-					))}
+					{labelsDaily
+						.filter((_, i) => i >= 6)
+						.map((label) => (
+							<div
+								key={label}
+								className="h-[50px] flex justify-center items-center text-2xl"
+								style={{ width: `${100 / labelsDaily.filter((_, i) => i>=6).length}%` }}
+							>
+								<p>{label}</p>
+							</div>
+						))}
 				</div>
 			</div>
 			<Graph vals={visitorsWeekly} />

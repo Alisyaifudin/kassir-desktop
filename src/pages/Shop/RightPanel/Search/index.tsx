@@ -24,7 +24,17 @@ export function Search({
 		if (value.trim() === "") {
 			setProducts([]);
 		} else {
-			const results = search(value.trim(), { fuzzy: 0.2, prefix: true });
+			const results = search(value.trim(), {
+				fuzzy: (term) => {
+					if (term.split(" ").length === 1) {
+						return 0.1;
+					} else {
+						return 0.2;
+					}
+				},
+				prefix: true,
+				combineWith: "AND",
+			});
 			setProducts(results);
 		}
 	}, 500);
