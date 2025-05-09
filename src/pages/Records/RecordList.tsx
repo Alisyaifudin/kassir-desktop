@@ -16,7 +16,9 @@ type RecordListProps = {
 
 export function RecordList({ records, selected, selectRecord }: RecordListProps) {
 	return (
-		<Table className="text-3xl">
+		<Table
+			className="text-3xl"
+		>
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[30px]">No</TableHead>
@@ -26,24 +28,23 @@ export function RecordList({ records, selected, selectRecord }: RecordListProps)
 				</TableRow>
 			</TableHeader>
 			<TableBody>
-				{records
-					.map((record, i) => (
-						<TableRow
-							key={i}
-							onClick={selectRecord(record.timestamp)}
-							className={cn(
-								{ "bg-sky-200 hover:bg-sky-100": selected === record.timestamp },
-								{ "bg-red-300": record.credit === 1 }
-							)}
-						>
-							<TableCell>{i + 1}</TableCell>
-							<TableCell className="text-center">{formatDate(record.timestamp)}</TableCell>
-							<TableCell className="text-center">{formatTime(record.timestamp)}</TableCell>
-							<TableCell className="text-right">
-								{Number(record.grand_total).toLocaleString("id-ID")}
-							</TableCell>
-						</TableRow>
-					))}
+				{records.map((record, i) => (
+					<TableRow
+						key={i}
+						onClick={selectRecord(record.timestamp)}
+						className={cn(
+							{ "bg-sky-200 hover:bg-sky-100": selected === record.timestamp },
+							{ "bg-red-300": record.credit === 1 }
+						)}
+					>
+						<TableCell>{i + 1}</TableCell>
+						<TableCell className="text-center">{formatDate(record.timestamp)}</TableCell>
+						<TableCell className="text-center">{formatTime(record.timestamp)}</TableCell>
+						<TableCell className="text-right">
+							{Number(record.grand_total).toLocaleString("id-ID")}
+						</TableCell>
+					</TableRow>
+				))}
 			</TableBody>
 		</Table>
 	);

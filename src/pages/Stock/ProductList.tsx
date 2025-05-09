@@ -1,13 +1,13 @@
 import { SquareArrowOutUpRight } from "lucide-react";
 import {
-	Table,
 	TableBody,
 	TableCell,
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "../../components/ui/table";
-import { Button } from "../../components/ui/button";
+	TableScrollable,
+} from "~/components/ui/table";
+import { Button } from "~/components/ui/button";
 import { Link } from "react-router";
 import { useEffect } from "react";
 import { ProductResult } from "~/hooks/useProductSearch";
@@ -51,7 +51,7 @@ type Props = {
 
 function ProductTable({ products, start, end }: Props) {
 	return (
-		<Table className="text-3xl">
+		<TableScrollable className="text-3xl">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[50px]">No</TableHead>
@@ -82,7 +82,7 @@ function ProductTable({ products, start, end }: Props) {
 					</TableRow>
 				))}
 			</TableBody>
-		</Table>
+		</TableScrollable>
 	);
 }
 

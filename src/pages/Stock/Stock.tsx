@@ -17,7 +17,6 @@ import { ProductResult, useProductSearch } from "~/hooks/useProductSearch.tsx";
 
 export default function Page() {
 	const items = useItems();
-
 	return (
 		<main className="flex flex-col gap-5 p-2 overflow-auto">
 			<Await state={items}>
@@ -79,14 +78,6 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 		});
 	};
 	const setQuery = (v: string) => {
-		// if (v.trim() === "") {
-		// 	setProducts(all);
-		// } else {
-		// 	let res = search(v, { fuzzy: 0.2, prefix: true });
-		// 	res.sort((a, b) => a.price - b.price);
-		// 	console.log(v.trim(), res);
-		// 	setProducts(res);
-		// }
 		setSearch({
 			query: v,
 			sortDir,
