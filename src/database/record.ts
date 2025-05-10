@@ -104,16 +104,28 @@ export const genRecord = (db: Database) => ({
 	},
 	updateTimestamp: async (
 		timestamp: number,
-		newTime: number,
+		newTime: number
 	): Promise<Result<"Aplikasi bermasalah", number>> => {
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute(
-					"UPDATE records SET timestamp = $2 WHERE timestamp = $1",
-					[timestamp, newTime]
-				),
+				db.execute("UPDATE records SET timestamp = $2 WHERE timestamp = $1", [timestamp, newTime]),
 		});
 		if (errMsg) return err(errMsg);
 		return ok(newTime);
+	},
+	updateNoteAndMethod: async (
+		timestamp: number,
+		note: string,
+		method: "cash" | "transfer" | "other"
+	): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute("UPDATE records SET note = $1, method = $2 WHERE timestamp = $3", [
+					note,
+					method,
+					timestamp,
+				]),
+		});
+		return errMsg;
 	},
 });

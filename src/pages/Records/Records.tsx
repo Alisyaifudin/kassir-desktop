@@ -116,11 +116,11 @@ export default function Page() {
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
 						<ChevronLeft />
 					</Button>
-					<Calendar time={time} setTime={(time) => setTime(setSearch, time)} />
+					<Calendar time={time} setTime={(time) => setTime(setSearch, time)}><p>{formatDate(time, "long")}</p></Calendar>
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
 						<ChevronRight />
 					</Button>
-					<p>{formatDate(time, "long")}</p>
+					
 				</div>
 				<div className="flex gap-2 flex-1 pl-22">
 					<Search query={query} setSearch={setSearch} />

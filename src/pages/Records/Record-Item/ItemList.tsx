@@ -125,7 +125,7 @@ export function ItemList({
 												<div className="grid grid-cols-[100px_100px]">
 													<p>Subtotal</p>{" "}
 													<p className="text-end">
-														Rp{record.total_before_disc.toLocaleString("de-DE")}
+														Rp{record.total_before_disc.toLocaleString("id-ID")}
 													</p>
 												</div>
 												<div className="grid grid-cols-[100px_100px]">
@@ -133,7 +133,7 @@ export function ItemList({
 													<p className="text-end">
 														Rp
 														{(record.total_before_disc-record.total_after_disc).toLocaleString(
-															"de-DE"
+															"id-ID"
 														)}
 													</p>
 												</div>
@@ -145,7 +145,7 @@ export function ItemList({
 												<div className="grid grid-cols-[100px_100px]">
 													<p></p>{" "}
 													<p className="text-end">
-														Rp{record.total_after_disc.toLocaleString("de-DE")}
+														Rp{record.total_after_disc.toLocaleString("id-ID")}
 													</p>
 												</div>
 												{additionals.map((tax) => (
@@ -171,18 +171,18 @@ export function ItemList({
 										<div className="grid grid-cols-[100px_100px]">
 											<p>Total</p>{" "}
 											<p className="text-end">
-												Rp{Number(record.grand_total).toLocaleString("de-DE")}
+												Rp{Number(record.grand_total).toLocaleString("id-ID")}
 											</p>
 										</div>
 										<div className="grid grid-cols-[80px_100px_100px]">
 											<p>({meth[record.method]})</p>
 											<p>Pembayaran</p>
-											<p className="text-end">Rp{Number(record.pay).toLocaleString("de-DE")}</p>
+											<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
 										</div>
 										<hr className="w-full" />
 										<div className="grid grid-cols-[100px_100px]">
 											<p>Kembalian</p>{" "}
-											<p className="text-end">Rp{Number(record.change).toLocaleString("de-DE")}</p>
+											<p className="text-end">Rp{Number(record.change).toLocaleString("id-ID")}</p>
 										</div>
 									</div>
 								</div>

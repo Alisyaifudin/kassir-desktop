@@ -21,6 +21,8 @@ import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
 import { useAsync } from "~/hooks/useAsync";
 import { Await } from "~/components/Await";
+import { Textarea } from "~/components/ui/textarea";
+import { z } from "zod";
 
 const meth = {
 	cash: "Tunai",
@@ -44,8 +46,9 @@ export function Detail({
 	role: "admin" | "user";
 }) {
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState({ pay: "", calendar: "" });
+	const [error, setError] = useState({ pay: "", calendar: "", edit: "" });
 	const db = useDb();
+	const [edit, setEdit] = useState(false);
 	const navigate = useNavigate();
 	const state = useAsync(db.product.getAll(), []);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -53,23 +56,23 @@ export function Detail({
 		const formData = new FormData(e.currentTarget);
 		const parsed = numeric.safeParse(formData.get("pay"));
 		if (!parsed.success) {
-			setError({ pay: parsed.error.flatten().formErrors.join("; "), calendar: "" });
+			setError({ pay: parsed.error.flatten().formErrors.join("; "), calendar: "", edit: "" });
 			return;
 		}
 		const pay = parsed.data;
 		const change = new Decimal(pay).sub(record.grand_total).toNumber();
 		if (change < 0) {
-			setError({ pay: "Bayaran tidak cukup", calendar: "" });
+			setError({ pay: "Bayaran tidak cukup", calendar: "", edit: "" });
 			return;
 		}
 		setLoading(true);
 		const [errMsg, now] = await db.record.updateCreditPay(pay, change, record.timestamp);
 		if (errMsg) {
-			setError({ pay: errMsg, calendar: "" });
+			setError({ pay: errMsg, calendar: "", edit: "" });
 			setLoading(false);
 			return;
 		}
-		setError({ pay: "", calendar: "" });
+		setError({ pay: "", calendar: "", edit: "" });
 		await navigate(`/records/${now}`);
 		await new Promise((res) => setTimeout(res, 1000));
 		update();
@@ -79,15 +82,46 @@ export function Detail({
 		setLoading(true);
 		const [errMsg, now] = await db.record.updateTimestamp(record.timestamp, time);
 		if (errMsg) {
-			setError({ pay: "", calendar: errMsg });
+			setError({ pay: "", calendar: errMsg, edit: "" });
 			setLoading(false);
 			return;
 		}
-		setError({ pay: "", calendar: "" });
+		setError({ pay: "", calendar: "", edit: "" });
 		await navigate(`/records/${now}`);
 		await new Promise((res) => setTimeout(res, 1000));
 		update();
 		setLoading(false);
+	};
+	const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget);
+		const parsed = z
+			.object({ note: z.string(), method: z.enum(["cash", "transfer", "other"]) })
+			.safeParse({ note: formData.get("note"), method: formData.get("method") });
+		if (!parsed.success) {
+			const errs = parsed.error.flatten().fieldErrors;
+			setError({
+				edit: (errs.method?.join("; ") ?? "") + "; " + (errs.note?.join("; ") ?? ""),
+				calendar: "",
+				pay: "",
+			});
+			return;
+		}
+		setError({ calendar: "", edit: "", pay: "" });
+		const { method, note } = parsed.data;
+		setLoading(true);
+		const errMsg = await db.record.updateNoteAndMethod(record.timestamp, note, method);
+		setLoading(false);
+		if (errMsg) {
+			setError({
+				edit: errMsg,
+				calendar: "",
+				pay: "",
+			});
+			return;
+		}
+		update();
+		setEdit(false);
 	};
 	return (
 		<div className="flex flex-col gap-2 text-3xl">
@@ -158,15 +192,17 @@ export function Detail({
 								<TableRow>
 									<TableCell className="flex items-center">
 										{i + 1}
-										<Await state={state}>
-											{(data) => {
-												const [errMsg, products] = data;
-												if (errMsg) {
-													return <TextError>{errMsg}</TextError>;
-												}
-												return <LinkProduct item={item} products={products} update={update} />;
-											}}
-										</Await>
+										{role === "admin" ? (
+											<Await state={state}>
+												{(data) => {
+													const [errMsg, products] = data;
+													if (errMsg) {
+														return <TextError>{errMsg}</TextError>;
+													}
+													return <LinkProduct item={item} products={products} update={update} />;
+												}}
+											</Await>
+										) : null}
 									</TableCell>
 									<TableCell>{item.name}</TableCell>
 									<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
@@ -234,8 +270,7 @@ export function Detail({
 					<p className="text-end">Total:</p>
 					<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
 				</div>
-				<div className="grid grid-cols-[150px_170px_200px]">
-					<p>({meth[record.method]})</p>
+				<div className="grid grid-cols-[170px_200px]">
 					<p className="text-end">Pembayaran:</p>
 					<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
 				</div>
@@ -244,12 +279,39 @@ export function Detail({
 					<p className="text-end">Rp{Number(record.change).toLocaleString("id-ID")}</p>
 				</div>
 			</div>
-			{record.note !== "" ? (
-				<div>
-					<p>Catatan:</p>
-					<p>{record.note}</p>
-				</div>
-			) : null}
+			<div className="flex flex-col gap-2">
+				{edit ? null : (
+					<Button className="w-fit" onClick={() => setEdit(true)} variant="secondary">
+						Edit
+					</Button>
+				)}
+				{edit ? (
+					<form onSubmit={handleSubmitEdit} className="flex flex-col gap-2">
+						{error.edit ? <TextError>{error.edit}</TextError> : null}
+						<Button className="w-fit" variant="secondary">
+							Simpan
+						</Button>
+						<label className="flex items-center gap-2">
+							<span>Metode:</span>
+							<select className="w-fit outline" defaultValue={record.method} name="method">
+								<option value="cash">Tunai</option>
+								<option value="transfer">Transfer</option>
+								<option value="other">Lainnya</option>
+							</select>
+						</label>
+						<label className="flex flex-col gap-1">
+							<span>Catatan:</span>
+							<Textarea defaultValue={record.note} name="note" />
+						</label>
+					</form>
+				) : (
+					<div className="flex flex-col gap-2">
+						<p>Metode: {meth[record.method]}</p>
+						<p>Catatan:</p>
+						<p>{record.note}</p>
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

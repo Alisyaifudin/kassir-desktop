@@ -1,4 +1,4 @@
-import { SquareArrowOutUpRight } from "lucide-react";
+import { Lock, SquareArrowOutUpRight } from "lucide-react";
 import {
 	Table,
 	TableBody,
@@ -75,17 +75,16 @@ function List({
 			<div className="flex items-center gap-2 justify-between">
 				<p>No: {record.timestamp}</p>
 				<div className="flex items-center gap-5">
-				<p>{formatTime(record.timestamp, "long")}, {formatDate(record.timestamp, "long")}</p>
-					{record.cashier ? (
-						<p>Kasir: {record.cashier}</p>
-					) : null}
-					
+					<p>
+						{formatTime(record.timestamp, "long")}, {formatDate(record.timestamp, "long")}
+					</p>
+					{record.cashier ? <p>Kasir: {record.cashier}</p> : null}
 				</div>
 			</div>
 			<Table className="text-3xl">
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[50px]">No</TableHead>
+						<TableHead className="w-[70px]">No</TableHead>
 						<TableHead>Nama</TableHead>
 						<TableHead className="w-[160px] text-end">Satuan</TableHead>
 						<TableHead className="w-[160px] text-end">Modal</TableHead>
@@ -102,8 +101,10 @@ function List({
 				<TableBody className="border-b">
 					{items.map((item, i) => (
 						<TableRow key={i}>
-							<TableCell>{i + 1}</TableCell>
-							<TableCell>{item.name}</TableCell>
+							<TableCell className="flex items-center">{i + 1}{item.product_id === null ? "" : <Lock />}</TableCell>
+							<TableCell>
+								{item.name}
+							</TableCell>
 							<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
 							<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
 							<TableCell className="text-center">{item.qty}</TableCell>
