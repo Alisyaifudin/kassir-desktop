@@ -1,4 +1,4 @@
-import { useLoaderData, useNavigate } from "react-router";
+import { Link, SetURLSearchParams, useLoaderData, useSearchParams } from "react-router";
 import { err, ok, Result } from "../../../lib/utils";
 import { useDb } from "../../../RootLayout";
 import { Button } from "../../../components/ui/button";
@@ -13,57 +13,79 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui
 import { Detail } from "./Detail";
 import { useState } from "react";
 import { User } from "~/lib/auth";
+import { z } from "zod";
 
 export default function Page({ user }: { user: User }) {
 	const { timestamp } = useLoaderData<typeof loader>();
-	const navigate = useNavigate();
 	const { state, update } = useRecord(timestamp);
+	const [search, setSearch] = useSearchParams();
+	const tab = getTab(search);
 	return (
 		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
-			<div className="flex items-center gap-2">
-				<Button asChild variant="link" className="self-start">
-					<Button variant="link" onClick={() => navigate(-1)}>
-						{" "}
-						<ChevronLeft /> Kembali
-					</Button>
-				</Button>
-			</div>
 			<Await state={state}>
 				{(data) => {
 					const [errMsg, res] = data;
 					if (errMsg !== null) {
 						return <TextError>{errMsg}</TextError>;
 					}
+					const urlBack = getURLBack(res.record, search);
 					return (
-						<Tabs defaultValue="receipt">
-							<TabsList>
-								<TabsTrigger value="receipt">Struk</TabsTrigger>
-								<TabsTrigger value="detail">Detail</TabsTrigger>
-							</TabsList>
-							<TabsContent value="receipt">
-								<ItemList
-									record={res.record}
-									items={res.items}
-									additionals={res.additionals}
-									discs={res.discs}
-								/>
-							</TabsContent>
-							<TabsContent value="detail">
-								<Detail
-									role={user.role}
-									update={update}
-									record={res.record}
-									items={res.items}
-									additionals={res.additionals}
-									discs={res.discs}
-								/>
-							</TabsContent>
-						</Tabs>
+						<>
+							<div className="flex items-center gap-2">
+								<Button asChild variant="link" className="self-start">
+									<Link to={urlBack}>
+										{" "}
+										<ChevronLeft /> Kembali
+									</Link>
+								</Button>
+							</div>
+							<Tabs value={tab} onValueChange={(val) => setTab(val, setSearch)}>
+								<TabsList>
+									<TabsTrigger value="receipt">Struk</TabsTrigger>
+									<TabsTrigger value="detail">Detail</TabsTrigger>
+								</TabsList>
+								<TabsContent value="receipt">
+									<ItemList
+										record={res.record}
+										items={res.items}
+										additionals={res.additionals}
+										discs={res.discs}
+									/>
+								</TabsContent>
+								<TabsContent value="detail">
+									<Detail
+										role={user.role}
+										update={update}
+										record={res.record}
+										items={res.items}
+										additionals={res.additionals}
+										discs={res.discs}
+									/>
+								</TabsContent>
+							</Tabs>
+						</>
 					);
 				}}
 			</Await>
 		</main>
 	);
+}
+
+function getTab(search: URLSearchParams) {
+	const parsed = z.enum(["receipt", "detail"]).safeParse(search.get("tab"));
+	const tab = parsed.success ? parsed.data : "receipt";
+	return tab;
+}
+
+function getURLBack(record: DB.Record, search: URLSearchParams) {
+	const parsed = z.string().safeParse(search.get("url_back"));
+	const defaultURL = `/records?timestamp=${record.timestamp}&selected=${record.timestamp}&mode=${record.mode}`;
+	const urlBack = parsed.success ? parsed.data : defaultURL;
+	return urlBack;
+}
+
+function setTab(tab: string, setSearch: SetURLSearchParams) {
+	setSearch({ tab });
 }
 
 function useRecord(timestamp: number) {

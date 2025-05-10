@@ -13,10 +13,10 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 import { useDb } from "~/RootLayout";
 import { numeric } from "~/lib/utils";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
 import { useAsync } from "~/hooks/useAsync";
@@ -205,7 +205,17 @@ export function Detail({
 										) : null}
 									</TableCell>
 									<TableCell>{item.name}</TableCell>
-									<TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
+									<TableCell className="text-end flex items-center gap-1 justify-end">
+										{record.mode === "buy" && item.product_id !== null ? (
+											<>
+												<Link to={`/stock/${item.product_id}`}>
+													<Pencil />
+												</Link>
+												<div className="flex-1" />
+											</>
+										) : null}
+										{item.price.toLocaleString("id-ID")}{" "}
+									</TableCell>
 									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
 									<TableCell className="text-center">{item.qty}</TableCell>
 									<TableCell className="text-end">
@@ -280,7 +290,7 @@ export function Detail({
 				</div>
 			</div>
 			<div className="flex flex-col gap-2">
-				{edit ? null : (
+				{edit || role === "user" ? null : (
 					<Button className="w-fit" onClick={() => setEdit(true)} variant="secondary">
 						Edit
 					</Button>

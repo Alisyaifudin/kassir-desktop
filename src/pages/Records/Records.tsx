@@ -53,8 +53,6 @@ export default function Page() {
 		if (scrollTop && ref.current) {
 			isProgrammaticScroll.current = true;
 			ref.current.scrollTop = scrollTop;
-			console.log(ref.current.scrollTop);
-
 			// Reset the flag after scroll completes
 			setTimeout(() => {
 				isProgrammaticScroll.current = false;
@@ -69,13 +67,10 @@ export default function Page() {
 
 		const scrollTop = ref.current.scrollTop;
 		const params = new URLSearchParams(window.location.search);
-		const parsed = numeric.safeParse(params.get("scroll"));
-		const currentScroll = parsed.success ? parsed.data : 0;
-		// Only update if scroll position changed significantly
-		if (Math.abs(currentScroll - scrollTop) > 10) {
-			params.set("scroll", scrollTop.toString());
-			window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-		}
+		params.set("scroll", scrollTop.toString());
+		const url = `${window.location.pathname}?${params.toString()}`;
+		console.log(url);
+		window.history.replaceState({}, "", url);
 	};
 	const selectRecord = (timestamp: number) => () => {
 		setSelected(setSearch, timestamp, selected);
@@ -116,11 +111,12 @@ export default function Page() {
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, yesterday.epochMilliseconds)}>
 						<ChevronLeft />
 					</Button>
-					<Calendar time={time} setTime={(time) => setTime(setSearch, time)}><p>{formatDate(time, "long")}</p></Calendar>
+					<Calendar time={time} setTime={(time) => setTime(setSearch, time)}>
+						<p>{formatDate(time, "long")}</p>
+					</Calendar>
 					<Button variant={"ghost"} onClick={() => setTime(setSearch, tomorrow.epochMilliseconds)}>
 						<ChevronRight />
 					</Button>
-					
 				</div>
 				<div className="flex gap-2 flex-1 pl-22">
 					<Search query={query} setSearch={setSearch} />
@@ -259,11 +255,9 @@ function getMode(search: URLSearchParams) {
 }
 
 function setTime(setSearch: SetURLSearchParams, time: number) {
-	setSearch((search) => {
-		const params = new URLSearchParams(search);
-		params.set("time", time.toString());
-		return params;
-	});
+	const search = new URLSearchParams(window.location.search);
+	search.set("time", time.toString());
+	setSearch(search);
 }
 
 function getSelected(search: URLSearchParams): number | null {
@@ -275,24 +269,20 @@ function getSelected(search: URLSearchParams): number | null {
 }
 
 function setSelected(setSearch: SetURLSearchParams, timestamp: number, selected: number | null) {
-	setSearch((prev) => {
-		const params = new URLSearchParams(prev);
-		if (timestamp === selected) {
-			params.delete("selected");
-		} else {
-			params.set("selected", timestamp.toString());
-		}
-		return params;
-	});
+	const search = new URLSearchParams(window.location.search);
+	if (timestamp === selected) {
+		search.delete("selected");
+	} else {
+		search.set("selected", timestamp.toString());
+	}
+	setSearch(search);
 }
 
 function setMode(setSearch: SetURLSearchParams, mode: "sell" | "buy") {
-	setSearch((prev) => {
-		const params = new URLSearchParams(prev);
-		params.set("mode", mode);
-		params.delete("selected");
-		return params;
-	});
+	const search = new URLSearchParams(window.location.search);
+	search.set("mode", mode);
+	search.delete("selected");
+	setSearch(search);
 }
 
 function getQuery(search: URLSearchParams): string {
