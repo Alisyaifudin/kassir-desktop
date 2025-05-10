@@ -16,7 +16,6 @@ const TableScrollable = React.forwardRef<HTMLTableElement, React.HTMLAttributes<
 			if (scrollTop && parentRef.current) {
 				isProgrammaticScroll.current = true;
 				parentRef.current.scrollTop = scrollTop;
-				console.log(parentRef.current.scrollTop);
 
 				// Reset the flag after scroll completes
 				setTimeout(() => {
@@ -47,13 +46,14 @@ const TableScrollable = React.forwardRef<HTMLTableElement, React.HTMLAttributes<
 );
 TableScrollable.displayName = "TableScrollable";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-	({ className, onScroll, ...props }, ref) => (
-		<div className="relative w-full overflow-auto" onScroll={onScroll}>
-			<table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-		</div>
-	)
-);
+const Table = React.forwardRef<
+	HTMLTableElement,
+	React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
+>(({ className, parentClass, ...props }, ref) => (
+	<div className={cn("relative w-full overflow-auto", parentClass)}>
+		<table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+	</div>
+));
 Table.displayName = "Table";
 
 const TableHeader = React.forwardRef<
@@ -136,4 +136,14 @@ const TableCaption = React.forwardRef<
 ));
 TableCaption.displayName = "TableCaption";
 
-export { Table, TableScrollable, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption };
+export {
+	Table,
+	TableScrollable,
+	TableHeader,
+	TableBody,
+	TableFooter,
+	TableHead,
+	TableRow,
+	TableCell,
+	TableCaption,
+};

@@ -69,7 +69,6 @@ export default function Page() {
 		const params = new URLSearchParams(window.location.search);
 		params.set("scroll", scrollTop.toString());
 		const url = `${window.location.pathname}?${params.toString()}`;
-		console.log(url);
 		window.history.replaceState({}, "", url);
 	};
 	const selectRecord = (timestamp: number) => () => {

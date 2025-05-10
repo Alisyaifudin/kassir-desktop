@@ -98,7 +98,6 @@ function BarWithDebt({
 	const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
 		setPosition({ x: e.clientX, y: e.clientY });
 	};
-	console.log({ maxVal });
 	return (
 		<div
 			onMouseEnter={() => setIsVisible(true)}

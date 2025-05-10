@@ -85,7 +85,11 @@ function getURLBack(record: DB.Record, search: URLSearchParams) {
 }
 
 function setTab(tab: string, setSearch: SetURLSearchParams) {
-	setSearch({ tab });
+	setSearch((prev) => {
+		const search = new URLSearchParams(prev);
+		search.set("tab", tab);
+		return search;
+	});
 }
 
 function useRecord(timestamp: number) {

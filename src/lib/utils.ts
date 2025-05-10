@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "1.29.2";
+export const version = "1.30.0";
 
 export const log = logTauri;
 
@@ -79,6 +79,8 @@ export function getDayName(epochMilli: number) {
 	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
 	return dayNames[date.dayOfWeek];
 }
+
+
 
 export function formatDate(epochMilli: number, type: "short" | "long" = "short"): string {
 	const tz = Temporal.Now.timeZoneId();

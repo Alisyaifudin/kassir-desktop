@@ -9,7 +9,7 @@ import {
 } from "./ui/dialog";
 import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatDate, monthNames, numeric } from "~/lib/utils";
+import { cn, formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "./ui/input";
 
@@ -18,11 +18,13 @@ export function Calendar({
 	setTime,
 	mode: modeInit = "day",
 	children,
+	className
 }: {
 	time: number;
 	setTime: (time: number) => void;
 	mode?: "day" | "month" | "year";
 	children?: React.ReactNode;
+	className?: string;
 }) {
 	const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
 	const changeMode = (mode: "day" | "month" | "year") => setMode(mode);
@@ -35,7 +37,7 @@ export function Calendar({
 				setOpen(open);
 			}}
 		>
-			<Button asChild variant="ghost" className="flex items-center gap-2 outline">
+			<Button asChild variant="ghost" className={cn("flex items-center gap-2 outline", className)}>
 				<DialogTrigger>
 					{children === undefined ? <CalendarLabel mode={modeInit} time={time} /> : children}
 					<CalendarDays />

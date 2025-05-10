@@ -45,7 +45,6 @@ export function ItemComponent({
 	};
 	const handleChangeQty = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
-		console.log(val);
 		if (
 			isNaN(val) ||
 			!Number.isInteger(val) ||

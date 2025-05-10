@@ -206,6 +206,6 @@ function getOption(search: URLSearchParams) {
 		? [time_p.data, false]
 		: [Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay().epochMilliseconds, true];
 	const mode_p = z.enum(["buy", "sell"]).safeParse(search.get("mode"));
-	const mode = mode_p.success ? mode_p.data : "buy";
+	const mode = mode_p.success ? mode_p.data : "sell";
 	return { option, interval, time, mode };
 }

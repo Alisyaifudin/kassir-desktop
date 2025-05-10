@@ -5,6 +5,8 @@ export type ProductRecord = Pick<DB.Product, "id" | "name" | "price" | "capital"
 	Pick<DB.RecordItem, "timestamp" | "qty"> &
 	Pick<DB.Record, "mode">;
 
+export type ProductHistory = { timestamp: number; qty: number; mode: "sell" | "buy" };
+
 export const genProduct = (db: Database) => ({
 	getAll: (): Promise<Result<"Aplikasi bermasalah", DB.Product[]>> =>
 		tryResult({ run: () => db.select<DB.Product[]>("SELECT * FROM products") }),
@@ -15,6 +17,24 @@ export const genProduct = (db: Database) => ({
 		if (errMsg !== null) return err(errMsg);
 		if (products.length === 0) return ok(null);
 		return ok(products[0]);
+	},
+	getHistory: async (
+		id: number,
+		start: number,
+		end: number
+	): Promise<Result<"Aplikasi bermasalah", ProductHistory[] >> => {
+		const [errMsg, products] = await tryResult({
+			run: () =>
+				db.select<ProductHistory[]>(
+					`SELECT record_items.timestamp, record_items.qty, records.mode
+					FROM record_items INNER JOIN records ON records.timestamp = record_items.timestamp
+					WHERE record_items.product_id = $1 AND record_items.timestamp BETWEEN $2 AND $3
+					ORDER BY record_items.timestamp DESC`,
+					[id, start, end]
+				),
+		});
+		if (errMsg !== null) return err(errMsg);
+		return ok(products);
 	},
 	getByRange: async (
 		start: number,
