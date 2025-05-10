@@ -21,7 +21,7 @@ export function Search({
 	const [products, setProducts] = useState<ProductResult[]>([]);
 	const { search } = useProductSearch(all);
 	const debounced = useDebouncedCallback((value: string) => {
-		if (value.trim() === "") {
+		if (value.trim() === "" || (name === "" && barcode === null)) {
 			setProducts([]);
 		} else {
 			const results = search(value.trim(), {
@@ -37,7 +37,7 @@ export function Search({
 			});
 			setProducts(results);
 		}
-	}, 500);
+	}, 300);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [name, setName] = useState("");
