@@ -1,26 +1,20 @@
 import { useSearchParams } from "react-router";
 import { Button } from "~/components/ui/button";
 import { z } from "zod";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { Label } from "~/components/ui/label";
 import { useFetchData } from "./fetch";
-import { formatDate, getDayName, monthNames, numeric } from "~/lib/utils";
+import { numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Await } from "~/components/Await";
 import { TextError } from "~/components/TextError";
 import { Cashflow } from "./Cashflow";
 import { useEffect } from "react";
-import { Calendar } from "~/components/Calendar";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Profit } from "./Profit";
 import { Summary } from "./Summary";
 import { Crowd } from "./Crowd";
-
-const mode = {
-	weekly: "day",
-	monthly: "month",
-	yearly: "year",
-} as const;
+import { SummaryProduct } from "./SummaryProducts";
+import { Product } from "./Product";
+import { DatePicker, DatePickerCrowd } from "./DatePicker";
+import { Mode } from "./Mode";
 
 export default function Analytics() {
 	const [search, setSearch] = useSearchParams();
@@ -28,17 +22,38 @@ export default function Analytics() {
 		option,
 		interval,
 		time: [time, updateTime],
+		mode,
 	} = getOption(search);
 	const { state, start, end } = useFetchData(interval, time);
 	useEffect(() => {
 		handleTime(time);
 	}, [updateTime]);
-	const handleClickOption = (option: "cashflow" | "profit" | "crowd") => () => {
+	const handleMode = (mode: "buy" | "sell") => {
+		setSearch((prev) => {
+			const search = new URLSearchParams(prev);
+			search.set("mode", mode);
+			return search;
+		});
+	};
+	const handleClickOption = (option: "cashflow" | "profit" | "crowd" | "products") => () => {
 		setSearch((prev) => {
 			const search = new URLSearchParams(prev);
 			search.set("option", option);
-			if (option === "crowd") {
-				search.set("interval", "weekly");
+			switch (option) {
+				case "crowd":
+					search.set("interval", "weekly");
+					break;
+				case "products":
+					if (interval === "yearly") {
+						search.set("interval", "monthly");
+					}
+					break;
+				case "profit":
+				case "cashflow":
+					if (interval === "daily") {
+						search.set("interval", "weekly");
+					}
+					break;
 			}
 			return search;
 		});
@@ -51,7 +66,7 @@ export default function Analytics() {
 		});
 	};
 	const handleClickInterval = (val: string) => {
-		const parsed = z.enum(["weekly", "monthly", "yearly"]).safeParse(val);
+		const parsed = z.enum(["daily", "weekly", "monthly", "yearly"]).safeParse(val);
 		if (!parsed.success) {
 			return;
 		}
@@ -64,7 +79,7 @@ export default function Analytics() {
 	};
 
 	return (
-		<main className="grid grid-cols-[300px_1fr] p-2 gap-2 flex-1">
+		<main className="grid grid-cols-[300px_1fr] p-2 gap-2 flex-1 overflow-auto">
 			<aside className="flex flex-col gap-2">
 				<Button
 					onClick={handleClickOption("cashflow")}
@@ -84,19 +99,28 @@ export default function Analytics() {
 				>
 					Keramaian
 				</Button>
+				<Button
+					onClick={handleClickOption("products")}
+					variant={option === "products" ? "default" : "link"}
+				>
+					Produk
+				</Button>
 				<hr />
 				<Await state={state}>
 					{(data) => {
-						const [errMsg, records] = data;
-						if (errMsg) {
-							return <TextError>{errMsg}</TextError>;
+						const [[errRecord, records], [errProduct, products]] = data;
+						if (errRecord || errProduct) {
+							return <TextError>{(errRecord || errProduct)!}</TextError>;
+						}
+						if (option === "products") {
+							return <SummaryProduct start={start} end={end} mode={mode} products={products} />;
 						}
 						return (
 							<Summary
 								start={start}
 								end={end}
 								time={time}
-								interval={interval}
+								interval={interval === "daily" ? "weekly" : interval}
 								records={records}
 								option={option}
 							/>
@@ -104,28 +128,48 @@ export default function Analytics() {
 					}}
 				</Await>
 			</aside>
-			<div className="flex flex-col gap-2 w-full h-full">
+			<div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
 				{option === "crowd" ? (
 					<DatePickerCrowd setTime={handleTime} time={time} />
 				) : (
-					<DatePicker
-						handleClickInterval={handleClickInterval}
-						setTime={handleTime}
-						time={time}
-						interval={interval}
-					/>
+					<div className="flex items-center gap-5">
+						<DatePicker
+							handleClickInterval={handleClickInterval}
+							setTime={handleTime}
+							time={time}
+							option={option}
+							interval={interval}
+						/>
+						{option === "products" ? <Mode mode={mode} setMode={handleMode} /> : null}
+					</div>
 				)}
 				<Await state={state}>
 					{(data) => {
-						const [errMsg, records] = data;
-						if (errMsg) {
-							return <TextError>{errMsg}</TextError>;
+						const [[errRecord, records], [errProduct, products]] = data;
+						if (errRecord || errProduct) {
+							return <TextError>{(errRecord || errProduct)!}</TextError>;
 						}
 						switch (option) {
+							case "products":
+								return <Product products={products} mode={mode} start={start} end={end} />;
 							case "cashflow":
-								return <Cashflow records={records} interval={interval} start={start} end={end} />;
+								return (
+									<Cashflow
+										records={records}
+										interval={interval === "daily" ? "weekly" : interval}
+										start={start}
+										end={end}
+									/>
+								);
 							case "profit":
-								return <Profit records={records} interval={interval} start={start} end={end} />;
+								return (
+									<Profit
+										records={records}
+										interval={interval === "daily" ? "weekly" : interval}
+										start={start}
+										end={end}
+									/>
+								);
 							case "crowd":
 								const tz = Temporal.Now.timeZoneId();
 								const startOfDay = Temporal.Instant.fromEpochMilliseconds(time)
@@ -147,153 +191,21 @@ export default function Analytics() {
 	);
 }
 
-function DatePicker({
-	interval,
-	setTime,
-	time,
-	handleClickInterval,
-}: {
-	interval: "weekly" | "monthly" | "yearly";
-	time: number;
-	setTime: (time: number) => void;
-	handleClickInterval: (val: string) => void;
-}) {
-	const tz = Temporal.Now.timeZoneId();
-	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz).startOfDay();
-	const handlePrev = () => {
-		switch (interval) {
-			case "weekly":
-				setTime(date.subtract(Temporal.Duration.from({ weeks: 1 })).epochMilliseconds);
-				break;
-			case "monthly":
-				setTime(date.subtract(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
-				break;
-			case "yearly":
-				setTime(date.subtract(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
-				break;
-		}
-	};
-	const handleNext = () => {
-		switch (interval) {
-			case "weekly":
-				setTime(date.add(Temporal.Duration.from({ weeks: 1 })).epochMilliseconds);
-				break;
-			case "monthly":
-				setTime(date.add(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
-				break;
-			case "yearly":
-				setTime(date.add(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
-				break;
-		}
-	};
-	return (
-		<div className="flex items-center gap-7">
-			<RadioGroup
-				value={interval}
-				className="flex items-center gap-5"
-				onValueChange={handleClickInterval}
-			>
-				<div className="flex items-center space-x-2">
-					<RadioGroupItem value="weekly" id="weekly" />
-					<Label htmlFor="weekly" className="text-3xl">
-						Minggu
-					</Label>
-				</div>
-				<div className="flex items-center space-x-2">
-					<RadioGroupItem value="monthly" id="monthly" />
-					<Label htmlFor="monthly" className="text-3xl">
-						Bulan
-					</Label>
-				</div>
-				<div className="flex items-center space-x-2">
-					<RadioGroupItem value="yearly" id="yearly" />
-					<Label htmlFor="yearly" className="text-3xl">
-						Tahun
-					</Label>
-				</div>
-			</RadioGroup>
-			<div className="flex items-center gap-2">
-				<Button onClick={handlePrev}>
-					<ChevronLeft />
-				</Button>
-				<Calendar time={time} setTime={setTime} mode={mode[interval]}>
-					<CalendarLabel time={time} interval={interval} />
-				</Calendar>
-				<Button onClick={handleNext}>
-					<ChevronRight />
-				</Button>
-			</div>
-		</div>
-	);
-}
-
-function DatePickerCrowd({ setTime, time }: { time: number; setTime: (time: number) => void }) {
-	const tz = Temporal.Now.timeZoneId();
-	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz).startOfDay();
-	const handlePrev = () => {
-		setTime(date.subtract(Temporal.Duration.from({ days: 1 })).epochMilliseconds);
-	};
-	const handleNext = () => {
-		setTime(date.add(Temporal.Duration.from({ days: 1 })).epochMilliseconds);
-	};
-	return (
-		<div className="flex items-center gap-7">
-			<div className="flex items-center gap-2">
-				<Button onClick={handlePrev}>
-					<ChevronLeft />
-				</Button>
-				<Calendar time={time} setTime={setTime} mode={"day"}>
-					<p className="text-2xl px-5 font-normal">
-						{getDayName(time)}, {formatDate(time, "long")}
-					</p>
-				</Calendar>
-				<Button onClick={handleNext}>
-					<ChevronRight />
-				</Button>
-			</div>
-		</div>
-	);
-}
-
 function getOption(search: URLSearchParams) {
-	const option_p = z.enum(["cashflow", "profit", "crowd"]).safeParse(search.get("option"));
+	const option_p = z
+		.enum(["cashflow", "profit", "crowd", "products"])
+		.safeParse(search.get("option"));
 	const option = option_p.success ? option_p.data : "cashflow";
-	const interval_p = z.enum(["weekly", "monthly", "yearly"]).safeParse(search.get("interval"));
+	const interval_p = z
+		.enum(["daily", "weekly", "monthly", "yearly"])
+		.safeParse(search.get("interval"));
 	const interval = interval_p.success ? interval_p.data : "weekly";
 	const tz = Temporal.Now.timeZoneId();
 	const time_p = numeric.safeParse(search.get("time"));
 	const time: [number, boolean] = time_p.success
 		? [time_p.data, false]
 		: [Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay().epochMilliseconds, true];
-	return { option, interval, time };
-}
-
-function CalendarLabel({
-	time,
-	interval,
-}: {
-	time: number;
-	interval: "weekly" | "monthly" | "yearly";
-}) {
-	const tz = Temporal.Now.timeZoneId();
-	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
-	switch (interval) {
-		case "weekly":
-			const start = date.subtract(Temporal.Duration.from({ days: date.dayOfWeek - 1 }));
-			const end = date.add(Temporal.Duration.from({ days: 7 - date.dayOfWeek }));
-			return (
-				<p className="font-normal">
-					{formatDate(start.epochMilliseconds).replace(/-/g, "/")} &ndash;{" "}
-					{formatDate(end.epochMilliseconds).replace(/-/g, "/")}
-				</p>
-			);
-		case "monthly":
-			return (
-				<p className="font-normal">
-					{monthNames[date.month]} {date.year}
-				</p>
-			);
-		case "yearly":
-			return <p className="font-normal">{date.year}</p>;
-	}
+	const mode_p = z.enum(["buy", "sell"]).safeParse(search.get("mode"));
+	const mode = mode_p.success ? mode_p.data : "buy";
+	return { option, interval, time, mode };
 }

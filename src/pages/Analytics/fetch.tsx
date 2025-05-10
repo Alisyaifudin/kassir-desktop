@@ -3,20 +3,20 @@ import { useAsync } from "~/hooks/useAsync";
 import { useDb } from "~/RootLayout";
 
 export function useFetchData(
-	interval: "weekly" | "monthly" | "yearly",
+	interval: "daily"| "weekly" | "monthly" | "yearly",
 	time: number
 ) {
 	const db = useDb();
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const [start, end] = getRange(date, interval, tz);
-	const state = useAsync(db.record.getByRange(start, end, "ASC"), [interval, time]);
+	const state = useAsync(Promise.all([db.record.getByRange(start, end, "ASC"), db.product.getByRange(start, end)]), [interval, time]);
 	return {state, start, end};
 }
 
 function getRange(
 	date: Temporal.ZonedDateTime,
-	interval: "weekly" | "monthly" | "yearly",
+	interval: "daily"| "weekly" | "monthly" | "yearly",
 	tz: string
 ): [number, number] {
 	switch (interval) {
@@ -43,6 +43,11 @@ function getRange(
 		case "weekly": {
 			const start = date.subtract(Temporal.Duration.from({ days: date.dayOfWeek - 1 }));
 			const end = start.add(Temporal.Duration.from({ days: date.daysInWeek }));
+			return [start.epochMilliseconds, end.epochMilliseconds];
+		}
+		case "daily": {
+			const start = date.startOfDay();
+			const end = start.add(Temporal.Duration.from({ days: 1 }));
 			return [start.epochMilliseconds, end.epochMilliseconds];
 		}
 	}

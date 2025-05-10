@@ -1,6 +1,10 @@
 import Database from "@tauri-apps/plugin-sql";
 import { err, log, ok, Result, tryResult } from "../lib/utils";
 
+export type ProductRecord = Pick<DB.Product, "id" | "name" | "price" | "capital" | "barcode"> &
+	Pick<DB.RecordItem, "timestamp" | "qty"> &
+	Pick<DB.Record, "mode">;
+
 export const genProduct = (db: Database) => ({
 	getAll: (): Promise<Result<"Aplikasi bermasalah", DB.Product[]>> =>
 		tryResult({ run: () => db.select<DB.Product[]>("SELECT * FROM products") }),
@@ -12,6 +16,22 @@ export const genProduct = (db: Database) => ({
 		if (products.length === 0) return ok(null);
 		return ok(products[0]);
 	},
+	getByRange: async (
+		start: number,
+		end: number
+	): Promise<Result<"Aplikasi bermasalah", ProductRecord[]>> =>
+		tryResult({
+			run: () =>
+				db.select<ProductRecord[]>(
+					`SELECT products.id, products.name, products.price, products.capital, products.barcode, 
+					 record_items.timestamp, record_items.qty, records.mode
+			 FROM products 
+			 INNER JOIN record_items ON record_items.product_id = products.id
+			 INNER JOIN records ON records.timestamp = record_items.timestamp
+			 WHERE record_items.timestamp BETWEEN $1 AND $2 ORDER BY products.name`,
+					[start, end]
+				),
+		}),
 	getByBarcode: async (
 		barcode: string
 	): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> => {

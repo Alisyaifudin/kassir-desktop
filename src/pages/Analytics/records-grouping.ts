@@ -129,7 +129,9 @@ export function getVisitors({
 			currentInterval++;
 		} else {
 			// Record belongs to current interval
-			visitors[currentInterval] += 1;
+			if (record.mode === "sell") {
+				visitors[currentInterval] += 1;
+			}
 			recordIndex++;
 		}
 	}
