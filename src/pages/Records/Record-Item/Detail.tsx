@@ -19,11 +19,10 @@ import { numeric } from "~/lib/utils";
 import { Link, useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
-import { useAsync } from "~/hooks/useAsync";
-import { Await } from "~/components/Await";
 import { Textarea } from "~/components/ui/textarea";
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
+import { useProducts } from "~/Layout";
 
 const meth = {
 	cash: "Tunai",
@@ -46,10 +45,9 @@ export function Detail({
 	revalidate: () => void;
 	role: "admin" | "user";
 }) {
-	const db = useDB();
 	const [isEdit, setIsEdit] = useState(false);
 	const navigate = useNavigate();
-	const state = useAsync(() => db.product.getAll());
+	const { products } = useProducts();
 	const { edit, credit, time } = useActions(record.timestamp);
 	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -179,11 +177,7 @@ export function Detail({
 									<TableCell className="flex items-center">
 										{i + 1}
 										{role === "admin" ? (
-											<Await state={state}>
-												{(products) => (
-													<LinkProduct item={item} products={products} update={revalidate} />
-												)}
-											</Await>
+											<LinkProduct item={item} products={products} update={revalidate} />
 										) : null}
 									</TableCell>
 									<TableCell>{item.name}</TableCell>

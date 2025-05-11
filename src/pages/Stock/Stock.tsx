@@ -2,26 +2,20 @@ import { Link, useSearchParams } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button.tsx";
 import { ProductList } from "./ProductList.tsx";
-import { useDB } from "~/RootLayout";
-import { Await } from "~/components/Await.tsx";
-import { useAsync } from "~/hooks/useAsync.tsx";
 import { z } from "zod";
 import { SortDir } from "./Sort.tsx";
 import { Search } from "./Search.tsx";
 import { numeric } from "~/lib/utils.ts";
 import { useEffect, useState } from "react";
 import { Pagination } from "./Pagination.tsx";
-import { useUser } from "~/Layout.tsx";
+import { useProducts, useUser } from "~/Layout.tsx";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch.tsx";
 
 export default function Page() {
-	const items = useItems();
+	const { products } = useProducts();
 	return (
-		<main className="flex flex-col gap-5 p-2 overflow-auto">
-			<Await state={items}>
-				{(products) => <Stock products={products} />
-				}
-			</Await>
+		<main className="flex flex-col gap-5 p-2 flex-1 overflow-auto">
+			<Stock products={products} />
 		</main>
 	);
 }
@@ -131,12 +125,6 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 		</>
 	);
 }
-
-const useItems = () => {
-	const db = useDB();
-	const items = useAsync(() =>  db.product.getAll());
-	return items;
-};
 
 function getOption(search: URLSearchParams): {
 	sortDir: "asc" | "desc";

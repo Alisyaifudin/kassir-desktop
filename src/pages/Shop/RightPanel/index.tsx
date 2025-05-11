@@ -2,13 +2,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { AdditionalComponent } from "./Additional";
 import { Search } from "./Search";
 import { Manual } from "./Manual";
-import { useDB } from "~/RootLayout";
-import { useAsync } from "~/hooks/useAsync";
-import { Await, } from "~/components/Await";
 import { useFix } from "../context";
+import { useProducts } from "~/Layout";
 
 export function RightPanel({ mode }: { mode: "buy" | "sell" }) {
-	const state = useProducts();
+	const { products } = useProducts();
 	const { fix, setFix } = useFix();
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
@@ -35,35 +33,18 @@ export function RightPanel({ mode }: { mode: "buy" | "sell" }) {
 						</label>
 					</div>
 				</div>
-				<Await state={state}>
-					{(products) => (
-						<>
-							<TabsContent
-								value="auto"
-								className="flex w-full flex-col px-1 gap-2 grow shrink basis-0"
-							>
-								<Search mode={mode} products={products} />
-							</TabsContent>
-							<TabsContent
-								value="man"
-								className="flex w-full flex-col px-1 gap-2 grow shrink basis-0"
-							>
-								<Manual mode={mode} fix={fix} products={products} />
-							</TabsContent>
-						</>
-					)}
-				</Await>
+
+				<TabsContent value="auto" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
+					<Search mode={mode} products={products} />
+				</TabsContent>
+				<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
+					<Manual mode={mode} fix={fix} products={products} />
+				</TabsContent>
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />
-				<AdditionalComponent  />
+				<AdditionalComponent />
 			</div>
 		</aside>
 	);
-}
-
-function useProducts() {
-	const db = useDB();
-	const state = useAsync(() => db.product.getAll());
-	return state;
 }

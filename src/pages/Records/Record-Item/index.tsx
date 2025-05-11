@@ -1,17 +1,12 @@
 import { type LoaderFunctionArgs, redirect, type RouteObject } from "react-router";
-import { lazy, Suspense } from "react";
-import { numeric } from "../../../lib/utils";
-import { Loading } from "~/components/Loading";
+import { lazy } from "react";
+import { numeric } from "~/lib/utils";
 
 const Page = lazy(() => import("./Record-Item"));
 
 export const route: RouteObject = {
 	path: ":timestamp",
-	Component: () => (
-			<Suspense fallback={<Loading />}>
-				<Page />
-			</Suspense>
-		),
+	Component: Page,
 	loader,
 };
 

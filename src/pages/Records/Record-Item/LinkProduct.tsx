@@ -21,6 +21,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
+import { useAction } from "~/hooks/useAction";
 
 export function LinkProduct({
 	item,
@@ -33,10 +34,16 @@ export function LinkProduct({
 }) {
 	const [query, setQuery] = useState("");
 	const [shown, setShown] = useState<ProductResult[]>([]);
-	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
 	const selected =
 		item.product_id === null ? undefined : products.find((p) => p.id === item.product_id);
+	const { loading, action, error, setError } = useAction(
+		"",
+		(data: { itemId: number; productId: number }) =>
+			db.recordItem.updateProductId(
+				data.itemId,
+				selected !== undefined && selected.id === data.productId ? null : data.productId
+			)
+	);
 	const { search } = useProductSearch(products);
 	const db = useDB();
 	const debounced = useDebouncedCallback((value: string) => {
@@ -58,12 +65,7 @@ export function LinkProduct({
 		}
 	}, 500);
 	const handleClick = (itemId: number, productId: number) => async () => {
-		setLoading(true);
-		const errMsg = await db.recordItem.updateProductId(
-			itemId,
-			selected !== undefined && selected.id === productId ? null : productId
-		);
-		setLoading(false);
+		const errMsg = await action({ itemId, productId });
 		if (errMsg) {
 			setError(errMsg);
 			return;
@@ -88,8 +90,7 @@ export function LinkProduct({
 					</div>
 					<div className="flex items-center gap-2">
 						<p className="">Produk terhubung:</p>
-						{loading ? <Loader2 className="animate-spin" /> : null}
-						<TextError>{error}</TextError>
+						<TextError>{error ?? ""}</TextError>
 						{selected === undefined ? (
 							<p>--Kosong--</p>
 						) : (
@@ -99,6 +100,7 @@ export function LinkProduct({
 								<p>Rp{selected.price.toLocaleString("id-ID")}</p>
 							</div>
 						)}
+						{loading ? <Loader2 className="animate-spin" /> : null}
 					</div>
 				</div>
 				<Input

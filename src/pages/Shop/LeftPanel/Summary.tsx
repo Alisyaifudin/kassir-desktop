@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useDB } from "../../../RootLayout";
 import { useNavigate } from "react-router";
 import { Note } from "./Note";
+import { useProducts } from "~/Layout";
 
 type Props = {
 	mode: "sell" | "buy";
@@ -59,6 +60,7 @@ export function Summary({
 }: Props) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const { revalidate } = useProducts();
 	const db = useDB();
 	const change = new Decimal(pay).sub(grandTotal);
 	const navigate = useNavigate();
@@ -130,6 +132,7 @@ export function Summary({
 		}
 		reset();
 		navigate(`/records/${timestamp}`);
+		revalidate();
 	};
 	return (
 		<div className="flex items-center pr-1 h-fit gap-2">
