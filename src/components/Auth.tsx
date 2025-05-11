@@ -1,29 +1,26 @@
-import { useFetchUser } from "../Layout";
-import { User } from "../lib/auth";
+import { useStore } from "~/RootLayout";
+import { auth, User } from "~/lib/auth";
 import { Await } from "./Await";
 import Redirect from "./Redirect";
+import { useAsync } from "~/hooks/useAsync";
 
-export function Auth({
-	children,
-	admin = false,
-	redirect = "/setting/profile",
-}: {
-	children: (user: User, update: () => void) => React.ReactNode;
-	admin?: boolean;
-	redirect?: string;
-}) {
-	const { state, update } = useFetchUser();
+export function Auth({ children }: { children: (user: User) => React.ReactNode }) {
+	const state = useFetchUser();
 	return (
 		<Await state={state}>
 			{(user) => {
 				if (user === null) {
-					return <Redirect to="/" />;
+					return <Redirect to="/login" />;
 				}
-				if (admin && user.role !== "admin") {
-					return <Redirect to={redirect} />;
-				}
-				return children(user, update);
+				return children(user);
 			}}
 		</Await>
 	);
 }
+
+const useFetchUser = () => {
+	const token = localStorage.getItem("token");
+	const store = useStore();
+	const state = useAsync(() => auth.validate(store, token ?? ""), ["fetch-user"]);
+	return state;
+};

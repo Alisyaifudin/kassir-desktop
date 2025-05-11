@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils";
-import { getFlow, getTicks } from "./records-grouping";
-import { Bar } from "./Bar";
+import { getFlow, getTicks } from "../records-grouping";
+import { Bar } from "../Bar";
 
 type Props = {
 	records: DB.Record[];

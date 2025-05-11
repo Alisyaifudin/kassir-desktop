@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+// import { useNavigate } from "react-router";
 import { z } from "zod";
 import { numeric } from "~/lib/utils";
-import { useDb } from "~/RootLayout";
+import { useDB } from "~/RootLayout";
 import { Field } from "../Field";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
@@ -10,6 +9,7 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { DeleteBtn } from "./DeleteBtn";
+import { useAction } from "~/hooks/useAction";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
@@ -20,25 +20,28 @@ const dataSchema = z.object({
 		.refine((v) => !Number.isNaN(v))
 		.transform((v) => (v === "" ? 0 : Number(v))),
 	barcode: z.string().transform((v) => (v === "" ? null : v)),
-	note: z.string().transform((v) => (v === "" ? undefined : v)),
+	note: z.string(),
 	id: z.number(),
 });
 
+const emptyErrs = {
+	name: "",
+	price: "",
+	stock: "",
+	barcode: "",
+	global: "",
+	capital: "",
+	note: "",
+};
 
 export function Form({ product }: { product: DB.Product }) {
-	const db = useDb();
-	const [error, setError] = useState({
-		name: "",
-		price: "",
-		stock: "",
-		barcode: "",
-		global: "",
-		capital: "",
-		note: "",
-	});
-	const [loading, setLoading] = useState(false);
-	const navigate = useNavigate();
-	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+	const db = useDB();
+	const { action, error, loading, setError } = useAction(
+		emptyErrs,
+		(data: z.infer<typeof dataSchema>) => db.product.update(data)
+	);
+	// const navigate = useNavigate();
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 		const parsed = dataSchema.safeParse({
@@ -63,29 +66,16 @@ export function Form({ product }: { product: DB.Product }) {
 			});
 			return;
 		}
-		setLoading(true);
-		db.product.update(parsed.data).then((err) => {
-			if (err) {
-				setError({
-					global: err,
-					barcode: "",
-					name: "",
-					price: "",
-					stock: "",
-					capital: "",
-					note: "",
-				});
-				setLoading(false);
-				return;
-			}
-			setLoading(false);
-			navigate(-1);
-		});
+		const errMsg = await action(parsed.data);
+		if (errMsg) {
+			setError({ ...emptyErrs, global: errMsg });
+			return;
+		}
 	};
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full">
 			<h1 className="font-bold text-3xl">Edit barang</h1>
-			<Field error={error.name} label="Nama*:">
+			<Field error={error?.name ?? ""} label="Nama*:">
 				<Input
 					type="text"
 					className="outline"
@@ -95,7 +85,7 @@ export function Form({ product }: { product: DB.Product }) {
 					autoComplete="off"
 				/>
 			</Field>
-			<Field error={error.price} label="Harga*:">
+			<Field error={error?.price ?? ""} label="Harga*:">
 				<Input
 					type="number"
 					className="outline w-[300px]"
@@ -106,7 +96,7 @@ export function Form({ product }: { product: DB.Product }) {
 					autoComplete="off"
 				/>
 			</Field>
-			<Field error={error.capital} label="Modal:">
+			<Field error={error?.capital ?? ""} label="Modal:">
 				<Input
 					type="number"
 					className="outline w-[300px]"
@@ -116,7 +106,7 @@ export function Form({ product }: { product: DB.Product }) {
 					defaultValue={product.capital}
 				/>
 			</Field>
-			<Field error={error.stock} label="Stok*:">
+			<Field error={error?.stock ?? ""} label="Stok*:">
 				<Input
 					type="number"
 					className="outline w-[100px]"
@@ -125,7 +115,7 @@ export function Form({ product }: { product: DB.Product }) {
 					defaultValue={product.stock}
 				/>
 			</Field>
-			<Field error={error.barcode} label="Barcode:">
+			<Field error={error?.barcode ?? ""} label="Barcode:">
 				<Input
 					type="text"
 					className="outline w-[300px]"
@@ -138,10 +128,10 @@ export function Form({ product }: { product: DB.Product }) {
 					<span className="text-3xl">Catatan</span>
 					<Textarea className="min-h-[300px]" name="note" defaultValue={product.note} />
 				</div>
-				{error.note === "" ? null : (
+				{error?.note === "" ? null : (
 					<div className="flex gap-2">
 						<div className="w-[120px]"></div>
-						<TextError>{error.note}</TextError>
+						<TextError>{error?.note ?? ""}</TextError>
 					</div>
 				)}
 			</label>
@@ -152,7 +142,7 @@ export function Form({ product }: { product: DB.Product }) {
 				</Button>
 				<DeleteBtn id={product.id} name={product.name} />
 			</div>
-			{error.global === "" ? null : <TextError>{error.global}</TextError>}
+			{error?.global === "" ? null : <TextError>{error?.global ?? ""}</TextError>}
 		</form>
 	);
 }

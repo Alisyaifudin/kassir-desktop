@@ -1,4 +1,4 @@
-import { Button } from "../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,29 +6,32 @@ import {
 	DialogTitle,
 	DialogTrigger,
 	DialogClose,
-} from "../../components/ui/dialog";
+} from "~/components/ui/dialog";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useDb } from "../../RootLayout";
-import { TextError } from "../../components/TextError";
+import { useDB } from "~/RootLayout";
+import { TextError } from "~/components/TextError";
+import { useAction } from "~/hooks/useAction";
 
-export function DeleteBtn({ timestamp, sendSignal }: { timestamp: number, sendSignal: ()=> void }) {
-	const db = useDb();
-	const [error, setError] = useState("");
+export function DeleteBtn({
+	timestamp,
+	revalidate,
+}: {
+	timestamp: number;
+	revalidate: () => void;
+}) {
+	const db = useDB();
 	const [open, setOpen] = useState(false);
-	const [loading, setLoading] = useState(false);
-	const handleClick = () => {
-		setLoading(true);
-		db.record.delete(timestamp).then((err) => {
-			if (err) {
-				setError(err);
-				setLoading(false);
-				return;
-			}
-			sendSignal();
-			setLoading(false);
+	const { loading, error, setError, action } = useAction("", (timestamp: number) =>
+		db.record.delete(timestamp)
+	);
+	const handleClick = async () => {
+		const errMsg = await action(timestamp);
+		setError(errMsg);
+		if (errMsg === null) {
+			revalidate();
 			setOpen(false);
-		});
+		}
 	};
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
@@ -46,7 +49,7 @@ export function DeleteBtn({ timestamp, sendSignal }: { timestamp: number, sendSi
 							Hapus {loading && <Loader2 className="animate-spin" />}
 						</Button>
 					</div>
-					{error === "" ? null : <TextError>{error}</TextError>}
+					{error ? <TextError>{error}</TextError> : null}
 				</DialogHeader>
 			</DialogContent>
 		</Dialog>

@@ -1,22 +1,22 @@
 import { Temporal } from "temporal-polyfill";
-import { useAsync } from "~/hooks/useAsync";
-import { useDb } from "~/RootLayout";
+import { useAsyncDep } from "~/hooks/useAsyncDep";
+import { useDB } from "~/RootLayout";
 
-export function useFetchData(
-	interval: "daily"| "weekly" | "monthly" | "yearly",
-	time: number
-) {
-	const db = useDb();
+export function useFetchData(interval: "daily" | "weekly" | "monthly" | "yearly", time: number) {
+	const db = useDB();
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const [start, end] = getRange(date, interval, tz);
-	const state = useAsync(Promise.all([db.record.getByRange(start, end, "ASC"), db.product.getByRange(start, end)]), [interval, time]);
-	return {state, start, end};
+	const state = useAsyncDep(() =>
+		Promise.all([db.record.getByRange(start, end, "ASC"), db.product.getByRange(start, end)]),
+		[interval, time]
+	);
+	return { state, start, end };
 }
 
 function getRange(
 	date: Temporal.ZonedDateTime,
-	interval: "daily"| "weekly" | "monthly" | "yearly",
+	interval: "daily" | "weekly" | "monthly" | "yearly",
 	tz: string
 ): [number, number] {
 	switch (interval) {

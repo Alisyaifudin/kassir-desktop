@@ -5,8 +5,8 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "../../components/ui/table";
-import { cn, formatTime } from "../../lib/utils";
+} from "~/components/ui/table";
+import { cn, formatTime } from "~/lib/utils";
 
 type RecordListProps = {
 	records: DB.Record[];

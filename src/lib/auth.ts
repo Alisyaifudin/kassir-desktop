@@ -75,13 +75,22 @@ export namespace auth {
 		}
 		return null;
 	}
-	export async function validate(store: Store, token: string): Promise<null | User> {
-		const user = await store.core.get<User>("token");
+	export async function validate(
+		store: Store,
+		token: string
+	): Promise<Result<string, null | User>> {
+		try {
+			var user = await store.core.get<User>("token");
+		} catch (error) {
+			console.error(error);
+			log.error(JSON.stringify(error));
+			return err("Gagal menghubungi store");
+		}
 		const today = Temporal.Now.instant();
 		if (!user || user.token !== token || user.expires < today.epochMilliseconds) {
 			localStorage.removeItem("token");
 			store.core.delete("token");
-			return null;
+			return ok(null);
 		}
 		if (user.expires - today.epochMilliseconds < 1 * DAYS_IN_MS) {
 			const newToken = await generateRandomToken();
@@ -93,9 +102,9 @@ export namespace auth {
 				token: newToken,
 			};
 			await store.core.set("token", newUser);
-			return newUser;
+			return ok(newUser);
 		}
-		return user;
+		return ok(user);
 	}
 	export async function logout(store: Store): Promise<"Aplikasi bermasalah" | null> {
 		localStorage.removeItem("token");

@@ -4,14 +4,14 @@ import { z } from "zod";
 import { useFetchData } from "./fetch";
 import { numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
-import { Await } from "~/components/Await";
+import { AwaitDangerous } from "~/components/Await";
 import { TextError } from "~/components/TextError";
 import { Cashflow } from "./Cashflow";
 import { useEffect } from "react";
 import { Profit } from "./Profit";
-import { Summary } from "./Summary";
+import { Summary } from "./Cashflow/Summary";
 import { Crowd } from "./Crowd";
-import { SummaryProduct } from "./SummaryProducts";
+import { SummaryProduct } from "./Product/SummaryProducts";
 import { Product } from "./Product";
 import { DatePicker, DatePickerCrowd } from "./DatePicker";
 import { Mode } from "./Mode";
@@ -106,7 +106,7 @@ export default function Analytics() {
 					Produk
 				</Button>
 				<hr />
-				<Await state={state}>
+				<AwaitDangerous state={state}>
 					{(data) => {
 						const [[errRecord, records], [errProduct, products]] = data;
 						if (errRecord || errProduct) {
@@ -126,7 +126,7 @@ export default function Analytics() {
 							/>
 						);
 					}}
-				</Await>
+				</AwaitDangerous>
 			</aside>
 			<div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
 				{option === "crowd" ? (
@@ -143,7 +143,7 @@ export default function Analytics() {
 						{option === "products" ? <Mode mode={mode} setMode={handleMode} /> : null}
 					</div>
 				)}
-				<Await state={state}>
+				<AwaitDangerous state={state}>
 					{(data) => {
 						const [[errRecord, records], [errProduct, products]] = data;
 						if (errRecord || errProduct) {
@@ -185,7 +185,7 @@ export default function Analytics() {
 								);
 						}
 					}}
-				</Await>
+				</AwaitDangerous>
 			</div>
 		</main>
 	);

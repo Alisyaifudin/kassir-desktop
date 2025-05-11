@@ -9,7 +9,7 @@ import { useNotification } from "../../components/Notification";
 import { Temporal } from "temporal-polyfill";
 import { useStore } from "../../RootLayout";
 import { useAsync } from "../../hooks/useAsync";
-import { Await } from "../../components/Await";
+import { AwaitDangerous } from "../../components/Await";
 
 // add toast later
 export function Update() {
@@ -17,7 +17,7 @@ export function Update() {
 	const [error, setError] = useState("");
 	const { notify } = useNotification();
 	const { profile } = useStore();
-	const state = useAsync(profile.newVersion.get(), []);
+	const state = useAsync(() => profile.newVersion.get());
 	const handleClick = async () => {
 		setLoading(true);
 		const [errMsg] = await tryResult({
@@ -33,7 +33,7 @@ export function Update() {
 	};
 	return (
 		<div className="flex flex-col gap-1">
-			<Await
+			<AwaitDangerous
 				state={state}
 				Loading={
 					<Button onClick={handleClick} variant="secondary">
@@ -50,7 +50,7 @@ export function Update() {
 						{data === "true" ? <p className="text-2xl">Ada versi baru!</p> : null}
 					</>
 				)}
-			</Await>
+			</AwaitDangerous>
 			{error ? <TextError>{error}</TextError> : null}
 		</div>
 	);

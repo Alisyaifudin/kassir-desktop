@@ -1,5 +1,5 @@
 import { ProductResult } from "~/hooks/useProductSearch";
-import { cn } from "../../../../lib/utils";
+import { cn } from "~/lib/utils";
 import { ItemWithoutDisc } from "../../schema";
 
 export function Output({

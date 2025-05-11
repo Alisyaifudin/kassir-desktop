@@ -1,27 +1,26 @@
 import { SetURLSearchParams, useSearchParams } from "react-router";
-import { useDb } from "../../RootLayout";
+import { useDB } from "~/RootLayout";
 import { RecordList } from "./RecordList";
 import { Temporal } from "temporal-polyfill";
-import { formatDate, numeric } from "../../lib/utils";
-import { useAsync } from "../../hooks/useAsync";
-import { Await } from "../../components/Await";
+import { formatDate, numeric } from "~/lib/utils";
+import { AwaitDangerous } from "~/components/Await";
 import { ItemList } from "./ItemList";
-import { Tabs, TabsList, TabsContent, TabsTrigger } from "../../components/ui/tabs";
-import { TextError } from "../../components/TextError";
-import { Button } from "../../components/ui/button";
+import { Tabs, TabsList, TabsContent, TabsTrigger } from "~/components/ui/tabs";
+import { TextError } from "~/components/TextError";
+import { Button } from "~/components/ui/button";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { Input } from "../../components/ui/input";
+import { Input } from "~/components/ui/input";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Search } from "./Search";
-import { useUser } from "../../Layout";
+import { useUser } from "~/Layout";
 import Decimal from "decimal.js";
 import { Calendar } from "~/components/Calendar";
+import { useAsyncDep } from "~/hooks/useAsyncDep";
+import { useAction } from "~/hooks/useAction";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
-	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
 	const [val, setVal] = useState("");
 	const mode = getMode(search);
 	const ref = useRef<HTMLDivElement>(null);
@@ -42,8 +41,8 @@ export default function Page() {
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
 	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
-	const [signal, setSignal] = useState(false);
-	const state = useRecords(time, signal);
+	// const [signal, setSignal] = useState(false);
+	const { state, revalidate } = useRecords(time);
 	// Restore scroll position on component mount
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
@@ -59,8 +58,11 @@ export default function Page() {
 			}, 100);
 		}
 	}, [state]);
-	const db = useDb();
+	const db = useDB();
 	const user = useUser();
+	const { action, loading, error, setError } = useAction("", (val: number) =>
+		db.record.getByTime(val)
+	);
 	// Throttled scroll handler
 	const handleScroll = () => {
 		if (isProgrammaticScroll.current || !ref.current) return;
@@ -84,19 +86,15 @@ export default function Page() {
 	};
 	const handleSubmitNo = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setLoading(true);
-		const [errMsg, r] = await db.record.getByTime(Number(val));
+		const [errMsg, r] = await action(Number(val));
 		if (errMsg) {
 			setError(errMsg);
-			setLoading(false);
 			return;
 		}
 		if (r === null) {
 			setError("Catatan tidak ada");
-			setLoading(false);
 			return;
 		}
-		setLoading(false);
 		setSearch({
 			mode: r.mode,
 			time: val,
@@ -120,14 +118,14 @@ export default function Page() {
 				<div className="flex gap-2 flex-1 pl-22">
 					<Search query={query} setSearch={setSearch} />
 					<form onSubmit={handleSubmitNo} className="flex gap-2 items-center">
-						{error === "" ? null : <TextError>{error}</TextError>}
+						{error === "" ? null : <TextError>{error ?? ""}</TextError>}
 						{loading ? <Loader2 className="animate-spin" /> : null}
 						<p>No:</p>
 						<Input type="search" placeholder="Cari catatan" value={val} onChange={handleChangeNo} />
 					</form>
 				</div>
 			</div>
-			<Await state={state}>
+			<AwaitDangerous state={state}>
 				{(data) => {
 					const [[errRecords, rawRecords], [errItems, items], [errTaxes, taxes]] = data;
 					if (errRecords !== null) {
@@ -213,18 +211,18 @@ export default function Page() {
 								timestamp={selected}
 								records={rawRecords}
 								allTaxes={taxes}
-								sendSignal={() => setSignal((prev) => !prev)}
+								revalidate={revalidate}
 							/>
 						</div>
 					);
 				}}
-			</Await>
+			</AwaitDangerous>
 		</main>
 	);
 }
 
-function useRecords(timestamp: number, signal: boolean) {
-	const db = useDb();
+function useRecords(timestamp: number) {
+	const db = useDB();
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
 	const start = date.startOfDay().epochMilliseconds;
@@ -234,8 +232,10 @@ function useRecords(timestamp: number, signal: boolean) {
 		db.recordItem.getByRange(start, end),
 		db.additional.getByRange(start, end),
 	]);
-	const state = useAsync(promises, [timestamp, signal]);
-	return state;
+	const [updated, setUpdated] = useState(false);
+	const revalidate = () => setUpdated((prev) => !prev);
+	const state = useAsyncDep(() => promises, [timestamp, updated]);
+	return { state, revalidate };
 }
 
 function getTime(search: URLSearchParams): [number, boolean] {

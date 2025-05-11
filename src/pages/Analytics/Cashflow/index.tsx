@@ -1,8 +1,8 @@
 import { cn } from "~/lib/utils";
-import { getFlow, getTicks } from "./records-grouping";
-import { Bar } from "./Bar";
+import { getFlow, getTicks } from "../records-grouping";
+import { Bar } from "../Bar";
 import { useState } from "react";
-import { Tooltip } from "./Tooltip";
+import { Tooltip } from "../../../components/Tooltip";
 
 type Props = {
 	records: DB.Record[];

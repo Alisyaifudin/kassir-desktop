@@ -1,5 +1,5 @@
 import { Temporal } from "temporal-polyfill";
-import { useDb } from "../../../RootLayout";
+import { useDB } from "../../../RootLayout";
 import { useState } from "react";
 import { z } from "zod";
 import {
@@ -27,7 +27,7 @@ const dateRangeSchema = z.object({
 export default function Record() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-	const db = useDb();
+	const db = useDB();
 	const today = Temporal.Now.zonedDateTimeISO();
 	const startOfMonth = Temporal.ZonedDateTime.from({
 		timeZone: today.timeZoneId,

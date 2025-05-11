@@ -9,7 +9,7 @@ export function Search({ query, setQuery }: { query: string; setQuery: (v: strin
 		(value: string) => {
 			setQuery(value);
 		},
-		200
+		500
 	);
 	return (
 		<label className="flex gap-2 items-center flex-1">

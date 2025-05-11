@@ -14,7 +14,7 @@ import { Button } from "~/components/ui/button";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Loader2, Pencil } from "lucide-react";
-import { useDb } from "~/RootLayout";
+import { useDB } from "~/RootLayout";
 import { numeric } from "~/lib/utils";
 import { Link, useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
@@ -23,6 +23,7 @@ import { useAsync } from "~/hooks/useAsync";
 import { Await } from "~/components/Await";
 import { Textarea } from "~/components/ui/textarea";
 import { z } from "zod";
+import { useAction } from "~/hooks/useAction";
 
 const meth = {
 	cash: "Tunai",
@@ -35,62 +36,55 @@ export function Detail({
 	record,
 	additionals,
 	discs,
-	update,
+	revalidate,
 	role,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	additionals: DB.Additional[];
 	discs: DB.Discount[];
-	update: () => void;
+	revalidate: () => void;
 	role: "admin" | "user";
 }) {
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState({ pay: "", calendar: "", edit: "" });
-	const db = useDb();
-	const [edit, setEdit] = useState(false);
+	const db = useDB();
+	const [isEdit, setIsEdit] = useState(false);
 	const navigate = useNavigate();
-	const state = useAsync(db.product.getAll(), []);
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+	const state = useAsync(() => db.product.getAll());
+	const { edit, credit, time } = useActions(record.timestamp);
+	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 		const parsed = numeric.safeParse(formData.get("pay"));
 		if (!parsed.success) {
-			setError({ pay: parsed.error.flatten().formErrors.join("; "), calendar: "", edit: "" });
+			credit.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}
 		const pay = parsed.data;
 		const change = new Decimal(pay).sub(record.grand_total).toNumber();
 		if (change < 0) {
-			setError({ pay: "Bayaran tidak cukup", calendar: "", edit: "" });
+			credit.setError("Bayaran tidak cukup");
 			return;
 		}
-		setLoading(true);
-		const [errMsg, now] = await db.record.updateCreditPay(pay, change, record.timestamp);
+		const [errMsg, now] = await credit.action({ pay, change });
 		if (errMsg) {
-			setError({ pay: errMsg, calendar: "", edit: "" });
-			setLoading(false);
+			credit.setError(errMsg);
 			return;
 		}
-		setError({ pay: "", calendar: "", edit: "" });
-		await navigate(`/records/${now}`);
-		await new Promise((res) => setTimeout(res, 1000));
-		update();
-		setLoading(false);
+		credit.setError("");
+		await navigate(`/records/${now}?tab=detail`);
+		await new Promise((res) => setTimeout(res, 100));
+		revalidate();
 	};
-	const handleChangeTime = async (time: number) => {
-		setLoading(true);
-		const [errMsg, now] = await db.record.updateTimestamp(record.timestamp, time);
+	const handleChangeTime = async (newTime: number) => {
+		const [errMsg, now] = await time.action(newTime);
 		if (errMsg) {
-			setError({ pay: "", calendar: errMsg, edit: "" });
-			setLoading(false);
+			time.setError(errMsg);
 			return;
 		}
-		setError({ pay: "", calendar: "", edit: "" });
-		await navigate(`/records/${now}`);
-		await new Promise((res) => setTimeout(res, 1000));
-		update();
-		setLoading(false);
+		time.setError("");
+		await navigate(`/records/${now}?tab=detail`);
+		await new Promise((res) => setTimeout(res, 100));
+		revalidate();
 	};
 	const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -100,28 +94,20 @@ export function Detail({
 			.safeParse({ note: formData.get("note"), method: formData.get("method") });
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
-			setError({
-				edit: (errs.method?.join("; ") ?? "") + "; " + (errs.note?.join("; ") ?? ""),
-				calendar: "",
-				pay: "",
+			edit.setError({
+				method: errs.method?.join("; ") ?? "",
+				note: errs.note?.join("; ") ?? "",
 			});
 			return;
 		}
-		setError({ calendar: "", edit: "", pay: "" });
-		const { method, note } = parsed.data;
-		setLoading(true);
-		const errMsg = await db.record.updateNoteAndMethod(record.timestamp, note, method);
-		setLoading(false);
+		edit.setError({ method: "", note: "" });
+		const errMsg = await edit.action(parsed.data);
 		if (errMsg) {
-			setError({
-				edit: errMsg,
-				calendar: "",
-				pay: "",
-			});
-			return;
+			edit.setError({ method: "", note: errMsg });
+		} else {
+			revalidate();
+			setIsEdit(false);
 		}
-		update();
-		setEdit(false);
 	};
 	return (
 		<div className="flex flex-col gap-2 text-3xl">
@@ -137,19 +123,19 @@ export function Detail({
 				</div>
 				{role === "admin" ? (
 					<div className="flex gap-2 items-center">
-						<TextError>{error.calendar}</TextError>
+						{time.error ? <TextError>{time.error}</TextError> : null}
 						<Calendar time={record.timestamp} setTime={handleChangeTime} />
-						{loading ? <Loader2 className="animate-spin" /> : null}
+						{time.loading ? <Loader2 className="animate-spin" /> : null}
 					</div>
 				) : null}
 			</div>
 			{record.credit && role === "admin" ? (
-				<form onSubmit={handleSubmit}>
+				<form onSubmit={handleSubmitPayCredit}>
 					<label className="flex items-center gap-5">
 						<span className="text-red-500">Kredit</span>
 						<Input placeholder="Bayaran..." type="number" name="pay" className="w-[200px]" />
-						<Button>Bayar {loading ? <Loader2 className="animate-spin" /> : null}</Button>
-						<TextError>{error.pay}</TextError>
+						<Button>Bayar {credit.loading ? <Loader2 className="animate-spin" /> : null}</Button>
+						{credit.error ? <TextError>{credit.error}</TextError> : null}
 					</label>
 				</form>
 			) : null}
@@ -194,13 +180,9 @@ export function Detail({
 										{i + 1}
 										{role === "admin" ? (
 											<Await state={state}>
-												{(data) => {
-													const [errMsg, products] = data;
-													if (errMsg) {
-														return <TextError>{errMsg}</TextError>;
-													}
-													return <LinkProduct item={item} products={products} update={update} />;
-												}}
+												{(products) => (
+													<LinkProduct item={item} products={products} update={revalidate} />
+												)}
 											</Await>
 										) : null}
 									</TableCell>
@@ -290,14 +272,13 @@ export function Detail({
 				</div>
 			</div>
 			<div className="flex flex-col gap-2">
-				{edit || role === "user" ? null : (
-					<Button className="w-fit" onClick={() => setEdit(true)} variant="secondary">
+				{isEdit || role === "user" ? null : (
+					<Button className="w-fit" onClick={() => setIsEdit(true)} variant="secondary">
 						Edit
 					</Button>
 				)}
-				{edit ? (
+				{isEdit ? (
 					<form onSubmit={handleSubmitEdit} className="flex flex-col gap-2">
-						{error.edit ? <TextError>{error.edit}</TextError> : null}
 						<Button className="w-fit" variant="secondary">
 							Simpan
 						</Button>
@@ -309,10 +290,12 @@ export function Detail({
 								<option value="other">Lainnya</option>
 							</select>
 						</label>
+						{edit.error?.method ? <TextError>{edit.error.method}</TextError> : null}
 						<label className="flex flex-col gap-1">
 							<span>Catatan:</span>
 							<Textarea defaultValue={record.note} name="note" />
 						</label>
+						{edit.error?.note ? <TextError>{edit.error.note}</TextError> : null}
 					</form>
 				) : (
 					<div className="flex flex-col gap-2">
@@ -333,4 +316,18 @@ function findFixed(val: number): number {
 		val *= 10;
 	}
 	return fix;
+}
+
+function useActions(timestamp: number) {
+	const db = useDB();
+	const edit = useAction(
+		{ method: "", note: "" },
+		(data: { note: string; method: "cash" | "transfer" | "other" }) =>
+			db.record.updateNoteAndMethod(timestamp, data.note, data.method)
+	);
+	const credit = useAction("", (data: { pay: number; change: number }) =>
+		db.record.updateCreditPay(data.pay, data.change, timestamp)
+	);
+	const time = useAction("", (newTime: number) => db.record.updateTimestamp(timestamp, newTime));
+	return { edit, credit, time };
 }

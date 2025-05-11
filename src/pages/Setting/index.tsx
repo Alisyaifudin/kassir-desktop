@@ -1,9 +1,10 @@
 import { RouteObject } from "react-router";
-import { route as shopRoute } from "./Shop/index";
-import { route as dataRoute } from "./Data/index";
-import { route as cashierRoute } from "./Cashier/index";
-import { route as profileRoute } from "./Profile/index";
+import { route as shopRoute } from "./Shop";
+import { route as dataRoute } from "./Data";
+import { route as cashierRoute } from "./Cashier";
+import { route as profileRoute } from "./Profile";
 import { lazy, Suspense } from "react";
+import { Loading } from "~/components/Loading";
 
 const Page = lazy(() => import("./Setting"));
 
@@ -11,7 +12,7 @@ export const route: RouteObject = {
 	path: "setting",
 	children: [profileRoute, shopRoute, dataRoute, cashierRoute],
 	Component: () => (
-		<Suspense>
+		<Suspense fallback={<Loading />}>
 			<Page />
 		</Suspense>
 	),

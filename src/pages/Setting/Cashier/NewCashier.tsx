@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useDb } from "../../../RootLayout";
 import {
 	Dialog,
 	DialogClose,
@@ -7,19 +6,23 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "../../../components/ui/dialog";
-import { Button } from "../../../components/ui/button";
+} from "~/components/ui/dialog";
+import { Button } from "~/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
-import { TextError } from "../../../components/TextError";
+import { TextError } from "~/components/TextError";
 import { z } from "zod";
-import { Input } from "../../../components/ui/input";
+import { Input } from "~/components/ui/input";
+import { useDB } from "~/RootLayout";
+import { useAction } from "~/hooks/useAction";
+import { emitter } from "~/lib/event-emitter";
 
-export function NewCashier({ sendSignal }: { sendSignal: () => void }) {
-	const db = useDb();
-	const [error, setError] = useState("");
+export function NewCashier() {
+	const db = useDB();
 	const [open, setOpen] = useState(false);
-	const [loading, setLoading] = useState(false);
-	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+	const { action, loading, error, setError } = useAction("", (name: string) =>
+		db.cashier.add(name, "user")
+	);
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 		const parsed = z.string().safeParse(formData.get("name"));
@@ -28,17 +31,12 @@ export function NewCashier({ sendSignal }: { sendSignal: () => void }) {
 			return;
 		}
 		const name = parsed.data;
-		setLoading(true);
-		db.cashier.add(name, "user").then((err) => {
-			if (err) {
-				setError(err);
-				setLoading(false);
-				return;
-			}
-			sendSignal();
-			setLoading(false);
+		const errMsg = await action(name);
+		setError(errMsg);
+		if (errMsg === null) {
 			setOpen(false);
-		});
+			emitter.emit("fetch-cashiers");
+		}
 	};
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
@@ -63,7 +61,7 @@ export function NewCashier({ sendSignal }: { sendSignal: () => void }) {
 						<Button>Tambahkan {loading && <Loader2 className="animate-spin" />}</Button>
 					</div>
 				</form>
-				{error === "" ? null : <TextError>{error}</TextError>}
+				{error ? <TextError>{error}</TextError> : null}
 			</DialogContent>
 		</Dialog>
 	);

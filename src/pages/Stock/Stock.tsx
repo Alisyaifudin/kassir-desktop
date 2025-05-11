@@ -1,18 +1,17 @@
 import { Link, useSearchParams } from "react-router";
 import { Plus } from "lucide-react";
-import { Button } from "../../components/ui/button.tsx";
+import { Button } from "~/components/ui/button.tsx";
 import { ProductList } from "./ProductList.tsx";
-import { useDb } from "../../RootLayout";
-import { Await } from "../../components/Await.tsx";
-import { useAsync } from "../../hooks/useAsync.tsx";
+import { useDB } from "~/RootLayout";
+import { Await } from "~/components/Await.tsx";
+import { useAsync } from "~/hooks/useAsync.tsx";
 import { z } from "zod";
 import { SortDir } from "./Sort.tsx";
 import { Search } from "./Search.tsx";
-import { numeric } from "../../lib/utils.ts";
+import { numeric } from "~/lib/utils.ts";
 import { useEffect, useState } from "react";
 import { Pagination } from "./Pagination.tsx";
-import { TextError } from "../../components/TextError.tsx";
-import { useUser } from "../../Layout.tsx";
+import { useUser } from "~/Layout.tsx";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch.tsx";
 
 export default function Page() {
@@ -20,13 +19,8 @@ export default function Page() {
 	return (
 		<main className="flex flex-col gap-5 p-2 overflow-auto">
 			<Await state={items}>
-				{(data) => {
-					const [errMsg, products] = data;
-					if (errMsg !== null) {
-						return <TextError>{errMsg}</TextError>;
-					}
-					return <Stock products={products} />;
-				}}
+				{(products) => <Stock products={products} />
+				}
 			</Await>
 		</main>
 	);
@@ -139,8 +133,8 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 }
 
 const useItems = () => {
-	const db = useDb();
-	const items = useAsync(db.product.getAll(), []);
+	const db = useDB();
+	const items = useAsync(() =>  db.product.getAll());
 	return items;
 };
 

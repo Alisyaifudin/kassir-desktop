@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils";
-import { getTicks, getVisitors } from "./records-grouping";
-import { Bar } from "./Bar";
+import { getTicks, getVisitors } from "../records-grouping";
+import { Bar } from "../Bar";
 
 type Props = {
 	records: DB.Record[];
@@ -33,7 +33,7 @@ export function Crowd({ records, daily, weekly }: Props) {
 							<div
 								key={label}
 								className="h-[50px] flex justify-center items-center text-2xl"
-								style={{ width: `${100 / labelsDaily.filter((_, i) => i>=6).length}%` }}
+								style={{ width: `${100 / labelsDaily.filter((_, i) => i >= 6).length}%` }}
 							>
 								<p>{label}</p>
 							</div>

@@ -1,34 +1,30 @@
 import { Link, SetURLSearchParams, useLoaderData, useSearchParams } from "react-router";
-import { err, ok, Result } from "../../../lib/utils";
-import { useDb } from "../../../RootLayout";
-import { Button } from "../../../components/ui/button";
+import { err, ok, Result } from "~/lib/utils";
+import { useDB } from "~/RootLayout";
+import { Button } from "~/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { ItemList } from "./ItemList";
-import { Await } from "../../../components/Await";
-import { useAsync } from "../../../hooks/useAsync";
-import { Database } from "../../../database";
-import { TextError } from "../../../components/TextError";
+import { Await, } from "~/components/Await";
+import { Database } from "~/database";
 import { type loader } from ".";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Detail } from "./Detail";
 import { useState } from "react";
-import { User } from "~/lib/auth";
 import { z } from "zod";
+import { useUser } from "~/Layout";
+import { useAsyncDep } from "~/hooks/useAsyncDep";
 
-export default function Page({ user }: { user: User }) {
+export default function Page() {
+	const user = useUser();
 	const { timestamp } = useLoaderData<typeof loader>();
-	const { state, update } = useRecord(timestamp);
+	const { state, revalidate } = useRecord(timestamp);
 	const [search, setSearch] = useSearchParams();
 	const tab = getTab(search);
 	return (
 		<main className="flex flex-col gap-2 p-2 overflow-y-auto">
 			<Await state={state}>
 				{(data) => {
-					const [errMsg, res] = data;
-					if (errMsg !== null) {
-						return <TextError>{errMsg}</TextError>;
-					}
-					const urlBack = getURLBack(res.record, search);
+					const urlBack = getURLBack(data.record, search);
 					return (
 						<>
 							<div className="flex items-center gap-2">
@@ -46,20 +42,20 @@ export default function Page({ user }: { user: User }) {
 								</TabsList>
 								<TabsContent value="receipt">
 									<ItemList
-										record={res.record}
-										items={res.items}
-										additionals={res.additionals}
-										discs={res.discs}
+										record={data.record}
+										items={data.items}
+										additionals={data.additionals}
+										discs={data.discs}
 									/>
 								</TabsContent>
 								<TabsContent value="detail">
 									<Detail
 										role={user.role}
-										update={update}
-										record={res.record}
-										items={res.items}
-										additionals={res.additionals}
-										discs={res.discs}
+										revalidate={revalidate}
+										record={data.record}
+										items={data.items}
+										additionals={data.additionals}
+										discs={data.discs}
 									/>
 								</TabsContent>
 							</Tabs>
@@ -93,11 +89,11 @@ function setTab(tab: string, setSearch: SetURLSearchParams) {
 }
 
 function useRecord(timestamp: number) {
-	const db = useDb();
+	const db = useDB();
 	const [updated, setUpdated] = useState(false);
-	const update = () => setUpdated((prev) => !prev);
-	const state = useAsync(getRecord(db, timestamp), [updated]);
-	return { state, update };
+	const revalidate = () => setUpdated((prev) => !prev);
+	const state = useAsyncDep(() => getRecord(db, timestamp), [updated]);
+	return { state, revalidate };
 }
 
 async function getRecord(
@@ -105,7 +101,7 @@ async function getRecord(
 	timestamp: number
 ): Promise<
 	Result<
-		string,
+		"Aplikasi bermasalah" | "Catatan tidak ada",
 		{
 			record: DB.Record;
 			items: DB.RecordItem[];

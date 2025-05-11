@@ -1,10 +1,14 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { Auth } from "~/components/Auth";
+import { Loading } from "~/components/Loading";
 
 const Page = lazy(() => import("./Shop"));
 
 export const route: RouteObject = {
-	path: "shop",
-	Component: () => <Auth redirect="/shop">{(user) => <Page user={user} />}</Auth>,
+	index: true,
+	Component: () => (
+		<Suspense fallback={<Loading />}>
+			<Page />
+		</Suspense>
+	),
 };

@@ -1,14 +1,17 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { Auth } from "../../../components/Auth";
+import { Loading } from "~/components/Loading";
+import { Protect } from "~/components/Protect";
 
-const Page = lazy(() => import("./Profile"));
+const Page = lazy(() => import("./Shop"));
 
 export const route: RouteObject = {
 	Component: () => (
-		<Auth admin redirect="/setting/profile">
-			{() => <Page />}
-		</Auth>
+		<Suspense fallback={<Loading />}>
+			<Protect redirect="/setting/profile">
+				<Page />
+			</Protect>
+		</Suspense>
 	),
 	index: true,
 };

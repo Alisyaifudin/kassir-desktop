@@ -5,20 +5,17 @@ import { Notification } from "./components/Notification";
 import { cn } from "./lib/utils";
 import { emitter } from "./lib/event-emitter";
 import { check } from "@tauri-apps/plugin-updater";
-import { useDb, useStore } from "./RootLayout";
-import { auth, User } from "./lib/auth";
-import { useAsync } from "./hooks/useAsync";
-import Redirect from "./components/Redirect";
-import { Await } from "./components/Await";
+import { useDB, useStore } from "./RootLayout";
+import { User } from "./lib/auth";
 
-function Layout() {
+function Layout({ user }: { user: User }) {
 	const { pathname } = useLocation();
 	const [hasUpdate, setHasUpdate] = useState(false);
 	const store = useStore();
 	const profile = store.profile;
-	const db = useDb();
+	const db = useDB();
 	const [name, setName] = useState("");
-	const { state } = useFetchUser();
+	// check for update on mount
 	useEffect(() => {
 		profile.owner.get().then((v) => {
 			if (v) {
@@ -34,6 +31,7 @@ function Layout() {
 			}
 		});
 	}, []);
+	// listener to store name update
 	useEffect(() => {
 		const refreshData = () => {
 			if (!profile) return;
@@ -44,12 +42,6 @@ function Layout() {
 			emitter.off("refresh", refreshData);
 		};
 	}, [store]);
-	if (state.loading) {
-		return null;
-	}
-	if (state.error) {
-		return <Redirect to="/" />;
-	}
 	return (
 		<>
 			<header className="bg-sky-300 h-[78px] flex">
@@ -61,10 +53,10 @@ function Layout() {
 						<li
 							className={cn(
 								"text-3xl rounded-t-lg p-3 font-bold",
-								pathname === "/shop" ? "bg-white" : "bg-white/50"
+								pathname === "/" ? "bg-white" : "bg-white/50"
 							)}
 						>
-							<Link to="/shop">Toko</Link>
+							<Link to="/">Toko</Link>
 						</li>
 						<li
 							className={cn(
@@ -108,29 +100,13 @@ function Layout() {
 					</ul>
 				</nav>
 			</header>
-			<Await state={state}>
-				{(user) => {
-					if (user === null) {
-						return <Redirect to="/" />;
-					}
-					return <Outlet context={{ db, store, user }} />;
-				}}
-			</Await>
+			<Outlet context={{ db, store, user }} />
 			<Notification />
 		</>
 	);
 }
 
 export default Layout;
-
-export const useFetchUser = () => {
-	const token = localStorage.getItem("token");
-	const store = useStore();
-	const [updated, setUpdated] = useState(false);
-	const state = useAsync(auth.validate(store, token ?? ""), [updated]);
-	const update = () => setUpdated((prev) => !prev);
-	return { state, update };
-};
 
 export const useUser = () => {
 	const { user } = useOutletContext<{ user: User }>();

@@ -4,7 +4,7 @@ import { Store } from "../../../store";
 
 export const useProfile = () => {
 	const { profile } = useStore();
-	const setting = useAsync(getProfile(profile), []);
+	const setting = useAsync(() => getProfile(profile));
 	return setting;
 };
 

@@ -1,7 +1,7 @@
 import Record from "./Download-Record";
 import { Product } from "./Download-Product";
 
-export default function Download() {
+export default function Page() {
 	return (
 		<div className="flex flex-col flex-1 gap-2 text-2xl">
 			<section aria-labelledby="download-title" className="flex flex-col gap-2">

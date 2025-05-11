@@ -11,12 +11,12 @@ import {
 } from "../../../components/ui/dialog";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useDb } from "../../../RootLayout";
+import { useDB } from "../../../RootLayout";
 import { TextError } from "../../../components/TextError";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const navigate = useNavigate();
-	const db = useDb();
+	const db = useDB();
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const handleClick = () => {
@@ -40,7 +40,10 @@ export function DeleteBtn({ id, name }: { id: number; name: string }) {
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Yakin?</DialogTitle>
 					<DialogDescription className="text-2xl">Kamu akan menghapus:</DialogDescription>
-					<DialogDescription className="text-2xl">{">"}{name}</DialogDescription>
+					<DialogDescription className="text-2xl">
+						{">"}
+						{name}
+					</DialogDescription>
 					<div className="flex justify-between mt-5">
 						<Button asChild>
 							<DialogClose>Batal</DialogClose>
@@ -49,9 +52,7 @@ export function DeleteBtn({ id, name }: { id: number; name: string }) {
 							Hapus {loading && <Loader2 className="animate-spin" />}
 						</Button>
 					</div>
-					{error === "" ? null : (
-						<TextError>{error}</TextError>
-					)}
+					{error === "" ? null : <TextError>{error}</TextError>}
 				</DialogHeader>
 			</DialogContent>
 		</Dialog>

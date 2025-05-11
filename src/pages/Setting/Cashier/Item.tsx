@@ -1,69 +1,39 @@
-import { useState } from "react";
-import { Input } from "../../../components/ui/input";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "../../../components/ui/dialog";
-import { Button } from "../../../components/ui/button";
-import { Loader2, X } from "lucide-react";
-import { TextError } from "../../../components/TextError";
-import { useDb } from "../../../RootLayout";
-import { tryResult } from "../../../lib/utils";
+import { Input } from "~/components/ui/input";
+import { Loader2 } from "lucide-react";
+import { TextError } from "~/components/TextError";
+import { useDB } from "~/RootLayout";
 import { z } from "zod";
-import { CashierWithoutPassword } from "../../../database/cashier";
+import { CashierWithoutPassword } from "~/database/cashier";
+import { useAction } from "~/hooks/useAction";
+import { DeleteBtn } from "./DeleteBtn";
+import { emitter } from "~/lib/event-emitter";
 
-export function Item({
-	cashier,
-	sendSignal,
-	username,
-}: {
-	cashier: CashierWithoutPassword;
-	sendSignal: () => void;
-	username: string;
-}) {
-	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
-	const db = useDb();
+export function Item({ cashier, username }: { cashier: CashierWithoutPassword; username: string }) {
+	const { name, role } = useActions();
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		const parsed = z.object({ name: z.string() }).safeParse({ name: formData.get("name") });
+		const parsed = z.object({ newName: z.string() }).safeParse({ newName: formData.get("name") });
 		if (!parsed.success) {
-			setError(parsed.error.flatten().fieldErrors.name?.join("; ") ?? "Ada yang salah");
+			name.setError(parsed.error.flatten().fieldErrors.newName?.join("; ") ?? "Ada yang salah");
 			return;
 		}
-		const { name } = parsed.data;
-		setLoading(true);
-		const [errMsg] = await tryResult({
-			run: () => db.cashier.updateName(cashier.name, name),
-		});
-		if (errMsg !== null) {
-			setError(errMsg);
-			setLoading(false);
-			return;
-		}
-		sendSignal();
-		setError("");
-		setLoading(false);
+		const { newName } = parsed.data;
+		const errMsg = await name.action({ old: cashier.name, new: newName });
+		name.setError(errMsg);
 	};
 	const handleChangeRole = async (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const parsed = z.enum(["admin", "user"]).safeParse(e.currentTarget.value);
 		if (!parsed.success) {
-			setError(parsed.error.flatten().formErrors.join("; "));
+			role.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}
-		const role = parsed.data;
-		const errMsg = await db.cashier.updateRole(cashier.name, role);
-		if (errMsg) {
-			setError(errMsg);
-			return;
+		const newRole = parsed.data;
+		const errMsg = await role.action({ name: cashier.name, role: newRole });
+		role.setError(errMsg);
+		if (errMsg === null) {
+			emitter.emit("fetch-cashiers");
 		}
-		sendSignal();
 	};
 	if (username === cashier.name) {
 		return (
@@ -76,64 +46,29 @@ export function Item({
 	return (
 		<form onSubmit={handleSubmit} className="flex items-center gap-3">
 			<Input type="text" defaultValue={cashier.name} name="name" />
-			{loading ? <Loader2 className="animate-spin" /> : null}
-			{error === "" ? null : <TextError>{error}</TextError>}
+			{name.loading ? <Loader2 className="animate-spin" /> : null}
+			{name.error ? <TextError>{name.error}</TextError> : null}
 			<select value={cashier.role} onChange={handleChangeRole} className="text-3xl">
 				<option value="admin">Admin</option>
 				<option value="user">User</option>
 			</select>
-			<DeleteBtn name={cashier.name} sendSignal={sendSignal} />
+			<DeleteBtn name={cashier.name} />
 		</form>
 	);
 }
 
 const title = {
 	admin: "Admin",
-	user: "User"
-}
+	user: "User",
+};
 
-export function DeleteBtn({ name, sendSignal }: { name: string; sendSignal: () => void }) {
-	const db = useDb();
-	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
-	const handleClick = () => {
-		setLoading(true);
-		db.cashier.delete(name).then((err) => {
-			if (err) {
-				setError(err);
-				setLoading(false);
-				return;
-			}
-			sendSignal();
-			setLoading(false);
-		});
-	};
-	return (
-		<Dialog>
-			<Button type="button" asChild variant="destructive">
-				<DialogTrigger>
-					<X />
-				</DialogTrigger>
-			</Button>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle className="text-3xl">Yakin?</DialogTitle>
-					<DialogDescription className="text-2xl">Kamu akan menghapus:</DialogDescription>
-					<DialogDescription className="text-2xl">
-						{">"}
-						{name}
-					</DialogDescription>
-					<div className="flex justify-between mt-5">
-						<Button asChild>
-							<DialogClose>Batal</DialogClose>
-						</Button>
-						<Button onClick={handleClick} variant="destructive">
-							Hapus {loading && <Loader2 className="animate-spin" />}
-						</Button>
-					</div>
-					{error === "" ? null : <TextError>{error}</TextError>}
-				</DialogHeader>
-			</DialogContent>
-		</Dialog>
-	);
+function useActions() {
+	const db = useDB();
+	const name = useAction("", (name: { old: string; new: string }) => {
+		return db.cashier.updateName(name.old, name.new);
+	});
+	const role = useAction("", (cashier: { name: string; role: "admin" | "user" }) => {
+		return db.cashier.updateRole(cashier.name, cashier.role);
+	});
+	return { name, role };
 }

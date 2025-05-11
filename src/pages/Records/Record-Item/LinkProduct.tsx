@@ -18,7 +18,7 @@ import {
 	TableRow,
 } from "~/components/ui/table";
 import { useDebouncedCallback } from "use-debounce";
-import { useDb } from "~/RootLayout";
+import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
 
@@ -38,7 +38,7 @@ export function LinkProduct({
 	const selected =
 		item.product_id === null ? undefined : products.find((p) => p.id === item.product_id);
 	const { search } = useProductSearch(products);
-	const db = useDb();
+	const db = useDB();
 	const debounced = useDebouncedCallback((value: string) => {
 		if (value.trim() === "") {
 			setShown([]);

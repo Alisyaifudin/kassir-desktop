@@ -1,55 +1,42 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
-import { useDb, useStore } from "../../RootLayout";
-import { Button } from "../../components/ui/button";
+import { useDB, useStore } from "~/RootLayout";
+import { Button } from "~/components/ui/button";
 import { Update } from "./Update";
-import { version } from "../../lib/utils";
-import { useFetchUser } from "../../Layout";
-import { Await } from "../../components/Await";
-import Redirect from "../../components/Redirect";
+import { version } from "~/lib/utils";
 import { Loader2, LogOut } from "lucide-react";
-import { auth } from "../../lib/auth";
-import { useState } from "react";
-import { TextError } from "../../components/TextError";
+import { auth } from "~/lib/auth";
+import { TextError } from "~/components/TextError";
+import { useUser } from "~/Layout";
+import { useAction } from "~/hooks/useAction";
 
 export default function Setting() {
-	const db = useDb();
+	const db = useDB();
 	const store = useStore();
-	const { state: user } = useFetchUser();
+	const user = useUser();
 	return (
 		<main className="flex gap-2 p-2 flex-1 w-full max-w-7xl mx-auto justify-between">
-			<Await state={user}>
-				{(user) => {
-					if (user === null) {
-						return <Redirect to="/" />;
-					}
-					return (
-						<>
-							<Navigation role={user.role} />
-							<Outlet context={{ db, store }} />
-						</>
-					);
-				}}
-			</Await>
+			<Navigation role={user.role} />
+			<Outlet context={{ db, store, user }} />
 		</main>
 	);
 }
 
 function Navigation({ role }: { role: "admin" | "user" }) {
 	const { pathname } = useLocation();
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState("");
-	const navigate = useNavigate();
 	const store = useStore();
+	const { action, loading, error, setError } = useAction("", async () => {
+		return await auth.logout(store);
+	});
+	const navigate = useNavigate();
+
 	const handleLogout = async () => {
-		setLoading(true);
-		const errMsg = await auth.logout(store);
-		setLoading(false);
+		const errMsg = await action();
 		if (errMsg) {
 			setError(errMsg);
 			return;
 		}
 		setError("");
-		navigate("/");
+		navigate("/login");
 	};
 	if (role === "user") {
 		return (

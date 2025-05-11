@@ -8,7 +8,7 @@ import { Button } from "../../../components/ui/button";
 import { Banknote, Landmark, Loader2, RefreshCcw, Wallet } from "lucide-react";
 import { TextError } from "../../../components/TextError";
 import { useState } from "react";
-import { useDb } from "../../../RootLayout";
+import { useDB } from "../../../RootLayout";
 import { useNavigate } from "react-router";
 import { Note } from "./Note";
 
@@ -59,7 +59,7 @@ export function Summary({
 }: Props) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-	const db = useDb();
+	const db = useDB();
 	const change = new Decimal(pay).sub(grandTotal);
 	const navigate = useNavigate();
 	const handlePay = (e: React.ChangeEvent<HTMLInputElement>) => {

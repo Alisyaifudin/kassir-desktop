@@ -1,27 +1,15 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { AdditionalComponent } from "./Additional";
 import { Search } from "./Search";
 import { Manual } from "./Manual";
-import { Additional, ItemWithoutDisc } from "../schema";
-import { useDb } from "~/RootLayout";
+import { useDB } from "~/RootLayout";
 import { useAsync } from "~/hooks/useAsync";
-import { Await } from "~/components/Await";
-import { TextError } from "~/components/TextError";
+import { Await, } from "~/components/Await";
+import { useFix } from "../context";
 
-export function RightPanel({
-	sendAdditional,
-	sendItem,
-	mode,
-	fix,
-	changeFix,
-}: {
-	sendAdditional: (additional: Additional) => void;
-	sendItem: (item: ItemWithoutDisc) => void;
-	mode: "buy" | "sell";
-	fix: number;
-	changeFix: (fix: number) => void;
-}) {
+export function RightPanel({ mode }: { mode: "buy" | "sell" }) {
 	const state = useProducts();
+	const { fix, setFix } = useFix();
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
 			<Tabs
@@ -36,7 +24,7 @@ export function RightPanel({
 					<div>
 						<label className="text-2xl flex items-center gap-3 pr-5">
 							Bulatkan?
-							<select value={fix} onChange={(e) => changeFix(Number(e.currentTarget.value))}>
+							<select value={fix} onChange={(e) => setFix(mode, Number(e.currentTarget.value))}>
 								<option value={0}>0</option>
 								<option value={1}>1</option>
 								<option value={2}>2</option>
@@ -47,31 +35,35 @@ export function RightPanel({
 						</label>
 					</div>
 				</div>
-				<TabsContent value="auto" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Await state={state}>
-						{(data) => {
-							const [errMsg, products] = data;
-							if (errMsg) {
-								return <TextError>{errMsg}</TextError>
-							}
-							return <Search sendItem={sendItem} mode={mode} products={products} />
-						}}
-					</Await>
-				</TabsContent>
-				<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Manual sendItem={sendItem} mode={mode} fix={fix} />
-				</TabsContent>
+				<Await state={state}>
+					{(products) => (
+						<>
+							<TabsContent
+								value="auto"
+								className="flex w-full flex-col px-1 gap-2 grow shrink basis-0"
+							>
+								<Search mode={mode} products={products} />
+							</TabsContent>
+							<TabsContent
+								value="man"
+								className="flex w-full flex-col px-1 gap-2 grow shrink basis-0"
+							>
+								<Manual mode={mode} fix={fix} products={products} />
+							</TabsContent>
+						</>
+					)}
+				</Await>
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />
-				<AdditionalComponent sendAdditional={sendAdditional} />
+				<AdditionalComponent  />
 			</div>
 		</aside>
 	);
 }
 
-function useProducts(){
-	const db = useDb();
-	const state = useAsync(db.product.getAll(), []);
+function useProducts() {
+	const db = useDB();
+	const state = useAsync(() => db.product.getAll());
 	return state;
 }

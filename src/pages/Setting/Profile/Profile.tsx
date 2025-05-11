@@ -1,81 +1,56 @@
-import { useState } from "react";
-import { Auth } from "../../../components/Auth";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { User } from "../../../lib/auth";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
-} from "../../../components/ui/accordion";
-import { useDb, useStore } from "../../../RootLayout";
+} from "~/components/ui/accordion";
+import { useDB, useStore } from "~/RootLayout";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
-import { TextError } from "../../../components/TextError";
+import { TextError } from "~/components/TextError";
+import { useUser } from "~/Layout";
+import { useAction } from "~/hooks/useAction";
+import { emitter } from "~/lib/event-emitter";
 
-export default function Page() {
-	return <Auth>{(user, update) => <Profile user={user} update={update} />}</Auth>;
-}
-
-function Profile({ user, update }: { user: User; update: () => void }) {
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState("");
-	const db = useDb();
-	const store = useStore();
+export default function Profile() {
+	const user = useUser();
+	const {name, password} = useActions()
 	const handleChangeName = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setLoading(true);
 		const formData = new FormData(e.currentTarget);
 		const parsed = z.string().safeParse(formData.get("name"));
 		if (!parsed.success) {
-			setLoading(false);
-			setError(parsed.error.flatten().formErrors.join("; "));
+			name.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}
 		const newName = parsed.data;
 		if (newName === "") {
-			setError("Tidak boleh kosong");
-			setLoading(false);
+			name.setError("Tidak boleh kosong");
 			return;
 		}
-		const [errMsg] = await Promise.all([
-			db.cashier.updateName(user.name, newName),
-			store.core.set("token", {
-				name: newName,
-				expires: user.expires,
-				role: user.role,
-				token: user.token,
-			}),
-		]);
+		const errMsg = await name.action(parsed.data);
 		if (errMsg) {
-			setLoading(false);
-			setError(errMsg);
+			name.setError(errMsg);
 			return;
 		}
-		setLoading(false);
-		update();
+		emitter.emit("fetch-user");
 	};
 	const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const formEl = e.currentTarget;
-		setLoading(true);
 		const formData = new FormData(e.currentTarget);
 		const parsed = z.string().safeParse(formData.get("password"));
 		if (!parsed.success) {
-			setLoading(false);
-			setError(parsed.error.flatten().formErrors.join("; "));
+			password.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}
-		const password = parsed.data;
-		const errMsg = await db.cashier.updatePassword(user.name, password);
+		const newPassword = parsed.data;
+		const errMsg = await password.action(newPassword);
 		if (errMsg) {
-			setLoading(false);
-			setError(errMsg);
+			password.setError(errMsg);
 			return;
 		}
-		setLoading(false);
-		formEl.reset();
 	};
 	return (
 		<div className="flex flex-col gap-2 p-5 flex-1 text-3xl justify-between">
@@ -85,9 +60,9 @@ function Profile({ user, update }: { user: User; update: () => void }) {
 					<Input defaultValue={user.name} name="name" required />
 				</label>
 				<Button className="w-fit self-end">
-					Simpan {loading ? <Loader2 className="animate-spin" /> : null}
+					Simpan {name.loading ? <Loader2 className="animate-spin" /> : null}
 				</Button>
-				{error ? <TextError>{error}</TextError> : null}
+				{name.error ? <TextError>{name.error}</TextError> : null}
 			</form>
 			{user.role === "admin" ? (
 				<Accordion type="single" collapsible className="bg-red-400 text-white">
@@ -102,8 +77,9 @@ function Profile({ user, update }: { user: User; update: () => void }) {
 									<Input type="password" name="password" />
 								</label>
 								<Button className="w-fit self-end">
-									Simpan {loading ? <Loader2 className="animate-spin" /> : null}
+									Simpan {password.loading ? <Loader2 className="animate-spin" /> : null}
 								</Button>
+								{password.error ? <TextError>{password.error}</TextError> : null}
 							</form>
 						</AccordionContent>
 					</AccordionItem>
@@ -111,4 +87,26 @@ function Profile({ user, update }: { user: User; update: () => void }) {
 			) : null}
 		</div>
 	);
+}
+
+function useActions() {
+	const db = useDB();
+	const store = useStore();
+	const user = useUser();
+	const name = useAction("", async (name: string) => {
+		const [errMsg] = await Promise.all([
+			db.cashier.updateName(user.name, name),
+			store.core.set("token", {
+				name,
+				expires: user.expires,
+				role: user.role,
+				token: user.token,
+			}),
+		]);
+		return errMsg;
+	});
+	const password = useAction("", async (password: string) => {
+		return await db.cashier.updatePassword(user.name, password);
+	});
+	return {name, password}
 }

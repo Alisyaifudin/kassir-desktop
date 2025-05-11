@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Await } from "../../../components/Await";
+import { AwaitDangerous } from "../../../components/Await";
 import { useStore } from "../../../RootLayout";
 import { setProfile, useProfile } from "./setting-api";
 import { FieldText } from "./FieldText";
@@ -8,40 +7,52 @@ import { Textarea } from "../../../components/ui/textarea";
 import { Button } from "../../../components/ui/button";
 import { TextError } from "../../../components/TextError";
 import { Loader2 } from "lucide-react";
-import { useRevalidator } from "react-router";
 import { emitter } from "../../../lib/event-emitter";
+import { useAction } from "~/hooks/useAction";
+import { z } from "zod";
+import { log } from "~/lib/utils";
 
-export default function Profile() {
+const schema = z.object({
+	owner: z.string(),
+	header: z.string(),
+	footer: z.string(),
+	address: z.string(),
+	ig: z.string(),
+	shopee: z.string(),
+});
+
+export default function Shop() {
 	const state = useProfile();
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState("");
 	const { profile } = useStore();
-	let revalidator = useRevalidator();
-	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+	const { action, loading, error, setError } = useAction(
+		"",
+		async (data: z.infer<typeof schema>) => {
+			await setProfile(profile, data);
+			return null;
+		}
+	);
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		setLoading(true);
-		setProfile(profile, {
-			owner: (formData.get("owner") as string) ?? undefined,
-			header: (formData.get("header") as string) ?? undefined,
-			footer: (formData.get("footer") as string) ?? undefined,
-			address: (formData.get("address") as string) ?? undefined,
-			ig: (formData.get("ig") as string) ?? undefined,
-			shopee: (formData.get("shopee") as string) ?? undefined,
-		})
-			.then(() => {
-				setError("");
-				setLoading(false);
-				emitter.emit("refresh");
-				revalidator.revalidate();
-			})
-			.catch(() => {
-				setError("Ada yang bermasalah.");
-				setLoading(false);
-			});
+		const parsed = schema.safeParse({
+			owner: formData.get("owner"),
+			header: formData.get("header"),
+			footer: formData.get("footer"),
+			address: formData.get("address"),
+			ig: formData.get("ig"),
+			shopee: formData.get("shopee"),
+		});
+		if (!parsed.success) {
+			const errs = parsed.error.flatten().fieldErrors;
+			log.error(JSON.stringify(errs));
+			setError("Ada yang invalid. Cek lagi.");
+			return;
+		}
+		await action(parsed.data);
+		emitter.emit("refresh");
 	};
 	return (
-		<Await state={state}>
+		<AwaitDangerous state={state}>
 			{({ address, header, ig, owner, shopee, footer }) => (
 				<div className="flex flex-col gap-2 flex-1 w-full">
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
@@ -70,10 +81,10 @@ export default function Profile() {
 							<Textarea className="h-[120px]" name="footer" defaultValue={footer}></Textarea>
 						</label>
 						<Button>Simpan {loading && <Loader2 className="animate-spin" />}</Button>
-						{error === "" ? null : <TextError>{error}</TextError>}
+						{error ? <TextError>{error}</TextError> : null}
 					</form>
 				</div>
 			)}
-		</Await>
+		</AwaitDangerous>
 	);
 }

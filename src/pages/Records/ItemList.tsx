@@ -6,19 +6,19 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "../../components/ui/table";
+} from "~/components/ui/table";
 import { Link, useLocation } from "react-router";
 import { DeleteBtn } from "./DeleteBtn";
-import { Button } from "../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import { TaxItem } from "./TaxItem";
-import { useUser } from "../../Layout";
+import { useUser } from "~/Layout";
 import { formatDate, formatTime } from "~/lib/utils";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
 	allTaxes: DB.Additional[];
 	timestamp: number | null;
-	sendSignal: () => void;
+	revalidate: () => void;
 };
 
 function filterData(
@@ -41,12 +41,12 @@ function filterData(
 	};
 }
 
-export function ItemList({ allItems, timestamp, records, allTaxes, sendSignal }: RecordListProps) {
+export function ItemList({ allItems, timestamp, records, allTaxes, revalidate }: RecordListProps) {
 	const { items, record, taxes } = filterData(timestamp, allItems, allTaxes, records);
 	if (record === null) {
 		return null;
 	}
-	return <List items={items} record={record} taxes={taxes} sendSignal={sendSignal} />;
+	return <List items={items} record={record} taxes={taxes} revalidate={revalidate} />;
 }
 
 const meth = {
@@ -59,18 +59,18 @@ function List({
 	items,
 	record,
 	taxes,
-	sendSignal,
+	revalidate,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	taxes: DB.Additional[];
-	sendSignal: () => void;
+	revalidate: () => void;
 }) {
 	const { pathname, search } = useLocation();
 	const path = encodeURIComponent(`${pathname}${search}`);
 	const user = useUser();
 	if (items.length === 0) {
-		return <DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />;
+		return <DeleteBtn revalidate={revalidate} timestamp={record.timestamp} />;
 	}
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
@@ -189,7 +189,7 @@ function List({
 					</Link>
 				</Button>
 				{user.role === "admin" ? (
-					<DeleteBtn sendSignal={sendSignal} timestamp={record.timestamp} />
+					<DeleteBtn revalidate={revalidate} timestamp={record.timestamp} />
 				) : null}
 			</div>
 		</div>

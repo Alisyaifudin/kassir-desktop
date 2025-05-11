@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { getFlow, getVisitors } from "./records-grouping";
+import { getFlow, getVisitors } from "../records-grouping";
 import { Temporal } from "temporal-polyfill";
 
 type Props = {

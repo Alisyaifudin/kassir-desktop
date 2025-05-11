@@ -22,7 +22,7 @@ export const genProduct = (db: Database) => ({
 		id: number,
 		start: number,
 		end: number
-	): Promise<Result<"Aplikasi bermasalah", ProductHistory[] >> => {
+	): Promise<Result<"Aplikasi bermasalah", ProductHistory[]>> => {
 		const [errMsg, products] = await tryResult({
 			run: () =>
 				db.select<ProductHistory[]>(
@@ -210,17 +210,19 @@ export const genProduct = (db: Database) => ({
 		capital: number;
 		barcode: string | null;
 		id: number;
+		note: string;
 	}): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
-					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5 WHERE id = $6",
+					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5, note = $6 WHERE id = $7",
 					[
 						data.name.trim(),
 						data.stock,
 						data.price,
 						data.barcode === null ? null : data.barcode.trim(),
 						data.capital,
+						data.note,
 						data.id,
 					]
 				),

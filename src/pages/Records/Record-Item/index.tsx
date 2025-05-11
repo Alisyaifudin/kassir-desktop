@@ -1,13 +1,17 @@
 import { type LoaderFunctionArgs, redirect, type RouteObject } from "react-router";
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { numeric } from "../../../lib/utils";
-import { Auth } from "~/components/Auth";
+import { Loading } from "~/components/Loading";
 
 const Page = lazy(() => import("./Record-Item"));
 
 export const route: RouteObject = {
 	path: ":timestamp",
-	Component: () => <Auth redirect="/setting/profile">{(user) => <Page user={user} />}</Auth>,
+	Component: () => (
+			<Suspense fallback={<Loading />}>
+				<Page />
+			</Suspense>
+		),
 	loader,
 };
 

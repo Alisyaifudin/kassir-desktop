@@ -2,7 +2,7 @@ import { SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { SetURLSearchParams } from "react-router";
 import { useDebouncedCallback } from "use-debounce";
-import { Input } from "../../components/ui/input";
+import { Input } from "~/components/ui/input";
 
 export function Search({
 	query,

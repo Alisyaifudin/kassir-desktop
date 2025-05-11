@@ -1,18 +1,18 @@
 import { useLoaderData, useNavigate, useSearchParams } from "react-router";
-import { numeric } from "../../../lib/utils.ts";
+import { numeric } from "~/lib/utils.ts";
 import { useMemo } from "react";
-import { Button } from "../../../components/ui/button.tsx";
+import { Button } from "~/components/ui/button.tsx";
 import { ChevronLeft, Loader2 } from "lucide-react";
-import { useDb } from "../../../RootLayout";
-import Redirect from "../../../components/Redirect.tsx";
-import { Await } from "../../../components/Await.tsx";
-import { useAsync } from "../../../hooks/useAsync.tsx";
+import { useDB } from "~/RootLayout";
+import Redirect from "~/components/Redirect.tsx";
+import { Await } from "~/components/Await.tsx";
+import { useAsync } from "~/hooks/useAsync.tsx";
 import { type loader } from "./index.tsx";
-import { useUser } from "../../../Layout.tsx";
+import { useUser } from "~/Layout.tsx";
 import { History as HistoryComp } from "./History.tsx";
 import { Temporal } from "temporal-polyfill";
 import { Form } from "./Form.tsx";
-import { TextError } from "~/components/TextError.tsx";
+import { useAsyncDep } from "~/hooks/useAsyncDep.tsx";
 
 export default function Page() {
 	const { id } = useLoaderData<typeof loader>();
@@ -30,12 +30,11 @@ export default function Page() {
 	};
 	const History = useMemo(
 		() => (
-			<Await state={history}>
-				{(data) => {
-					const [errMsg, history] = data;
-					if (errMsg !== null) {
-						return <TextError>{errMsg}</TextError>;
-					}
+			<Await
+				state={history}
+				Loading={<HistoryComp id={id} history={[]} time={time} setTime={setTime} />}
+			>
+				{(history) => {
 					return <HistoryComp id={id} history={history} time={time} setTime={setTime} />;
 				}}
 			</Await>
@@ -52,15 +51,10 @@ export default function Page() {
 			</Button>
 			<div className="flex gap-2 overflow-hidden">
 				<Await state={item} Loading={<Loader2 className="animate-spin" />}>
-					{(data) => {
-						const [errMsg, product] = data;
-						if (errMsg !== null) {
-							return <TextError>{errMsg}</TextError>;
-						}
+					{(product) => {
 						if (product === null) {
 							return <Redirect to="/stock" />;
 						}
-
 						if (user.role === "user") {
 							return (
 								<>
@@ -107,7 +101,7 @@ function Info({ product }: { product: DB.Product }) {
 }
 
 const useItem = (id: number, time: number) => {
-	const db = useDb();
+	const db = useDB();
 	const { start, end } = useMemo(() => {
 		const tz = Temporal.Now.timeZoneId();
 		const { year, month } = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
@@ -115,10 +109,10 @@ const useItem = (id: number, time: number) => {
 		const end = start.add(Temporal.Duration.from({ months: 1 }));
 		return { start, end };
 	}, [time]);
-	const item = useAsync(db.product.get(id), []);
+	const item = useAsync(() => db.product.get(id));
 
-	const history = useAsync(
-		db.product.getHistory(id, start.epochMilliseconds, end.epochMilliseconds),
+	const history = useAsyncDep(
+		() => db.product.getHistory(id, start.epochMilliseconds, end.epochMilliseconds),
 		[start]
 	);
 	return { item, history };

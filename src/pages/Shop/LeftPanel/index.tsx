@@ -1,47 +1,39 @@
-import { Button } from "../../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import { useEffect } from "react";
-import { cn } from "../../../lib/utils";
-import { Additional, ItemWithoutDisc } from "../schema";
+import { cn } from "~/lib/utils";
 import { useLocalStorage } from "./useLocalStorage";
 import { Loader2 } from "lucide-react";
 import { ItemComponent } from "./Item";
 import { AdditionalItem } from "./Additional";
 import { Summary } from "./Summary";
 import { calcTotalAfterDisc, calcTotalBeforeDisc, calcTotalTax } from "./submit";
-import { useUser } from "../../../Layout";
+import { useUser } from "~/Layout";
+import { useAdditional, useFix, useItem } from "../context";
 
 export function LeftPanel({
-	newItem,
-	newAdditional,
-	reset,
 	mode,
 	changeMode,
-	fix,
-	cashier
 }: {
-	newItem: ItemWithoutDisc | null;
-	newAdditional: Additional | null;
-	reset: () => void;
 	mode: "sell" | "buy";
 	changeMode: (mode: "sell" | "buy") => void;
-	fix: number;
-	cashier: string;
 }) {
 	const user = useUser();
 	const { set, data, ready } = useLocalStorage(mode);
+	const { item } = useItem();
+	const { additional } = useAdditional();
+	const { fix } = useFix();
 	const { items, additionals, disc, pay, rounding, method, note } = data;
 	useEffect(() => {
-		if (newItem) {
-			set.items.add(mode, newItem);
-			reset();
+		if (item) {
+			set.items.add(mode, item);
 		}
-		if (newAdditional) {
-			set.additionals.add(mode, newAdditional);
-			reset();
+	}, [item]);
+	useEffect(() => {
+		if (additional) {
+			set.additionals.add(mode, additional);
 		}
-	}, [newItem, newAdditional]);
+	}, [additional]);
 	const totalReset = () => {
-		reset();
 		set.items.reset(mode);
 		set.additionals.reset(mode);
 		set.discVal(mode, 0);
@@ -138,7 +130,7 @@ export function LeftPanel({
 				totalBeforeDisc={totalBeforeDisc.toNumber()}
 				totalTax={totalTax.toNumber()}
 				data={{
-					cashier,
+					cashier: user.name,
 					disc,
 					items,
 					method,

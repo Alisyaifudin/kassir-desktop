@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cn } from "~/lib/utils";
-import { Tooltip } from "./Tooltip";
+import { Tooltip } from "../../components/Tooltip";
 
 export function Bar({
 	orientation,

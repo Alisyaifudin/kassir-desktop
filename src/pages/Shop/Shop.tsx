@@ -1,40 +1,22 @@
 import { useEffect, useState } from "react";
 import { RightPanel } from "./RightPanel";
-import { Additional, ItemWithoutDisc } from "./schema";
 import { LeftPanel } from "./LeftPanel";
-import { numeric } from "../../lib/utils";
-import { User } from "~/lib/auth";
+import { numeric } from "~/lib/utils";
+import { Additional, ItemWithoutDisc } from "./schema";
+import { Provider } from "./context";
 
-export default function Page({user}: {user: User}) {
-	const [item, setItem] = useState<ItemWithoutDisc | null>(null);
+export default function Page() {
 	const [mode, setMode] = useState<"sell" | "buy">("sell");
+	const [item, setItem] = useState<ItemWithoutDisc | null>(null);
 	const [additional, setAdditional] = useState<Additional | null>(null);
-	const { fix, changeFix } = useFix(mode);
-	const sendItem = (item: ItemWithoutDisc) => setItem(item);
-	const sendAdditional = (add: Additional) => setAdditional(add);
-	const reset = () => {
-		setAdditional(null);
-		setItem(null);
-	};
+	const { fix, setFix } = useFix(mode);
 	const changeMode = (mode: "sell" | "buy") => setMode(mode);
 	return (
 		<main className="gap-2 p-2 flex min-h-0 grow shrink basis-0">
-			<LeftPanel
-				newItem={item}
-				newAdditional={additional}
-				reset={reset}
-				mode={mode}
-				changeMode={changeMode}
-				fix={fix}
-				cashier={user.name}
-			/>
-			<RightPanel
-				sendItem={sendItem}
-				sendAdditional={sendAdditional}
-				mode={mode}
-				fix={fix}
-				changeFix={(fix: number) => changeFix(mode, fix)}
-			/>
+			<Provider value={{ item, additional, setItem, setAdditional, fix, setFix }}>
+				<LeftPanel mode={mode} changeMode={changeMode} />
+				<RightPanel mode={mode} />
+			</Provider>
 		</main>
 	);
 }
@@ -49,7 +31,7 @@ function useFix(mode: "buy" | "sell") {
 		const round = getRound(mode);
 		setFix(round);
 	}, [mode]);
-	return { fix, changeFix };
+	return { fix, setFix: changeFix };
 }
 
 function getRound(mode: "buy" | "sell") {

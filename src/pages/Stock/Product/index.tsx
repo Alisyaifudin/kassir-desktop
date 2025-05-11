@@ -1,11 +1,16 @@
 import { LoaderFunctionArgs, redirect, RouteObject } from "react-router";
-import { lazy } from "react";
-import { numeric } from "../../../lib/utils.ts";
+import { lazy, Suspense } from "react";
+import { numeric } from "~/lib/utils.ts";
+import { Loading } from "~/components/Loading.tsx";
 
 const Page = lazy(() => import("./Product.tsx"));
 
 export const route: RouteObject = {
-	Component: Page,
+	Component: () => (
+		<Suspense fallback={<Loading />}>
+			<Page />
+		</Suspense>
+	),
 	loader,
 	path: ":id",
 };

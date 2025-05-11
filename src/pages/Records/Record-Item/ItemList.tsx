@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import { Temporal } from "temporal-polyfill";
-import { formatDate, formatTime } from "../../../lib/utils";
+import { formatDate, formatTime } from "~/lib/utils";
 import { Item } from "./Item";
-import { useProfile } from "../../Setting/Shop/setting-api";
-import { Await } from "../../../components/Await";
+import { useProfile } from "~/pages/Setting/Shop/setting-api";
+import { AwaitDangerous } from "~/components/Await";
 import { TaxItem } from "./TaxItem";
 
 const title = {
@@ -85,7 +85,7 @@ export function ItemList({
 				</div>
 				<Button onClick={print}>Cetak</Button>
 			</div>
-			<Await state={info}>
+			<AwaitDangerous state={info}>
 				{(data) => {
 					const headers = data.header === undefined ? [] : data.header.split("\n");
 					const footers = data.footer === undefined ? [] : data.footer.split("\n");
@@ -132,7 +132,7 @@ export function ItemList({
 													<p>Diskon</p>{" "}
 													<p className="text-end">
 														Rp
-														{(record.total_before_disc-record.total_after_disc).toLocaleString(
+														{(record.total_before_disc - record.total_after_disc).toLocaleString(
 															"id-ID"
 														)}
 													</p>
@@ -199,7 +199,7 @@ export function ItemList({
 						</div>
 					);
 				}}
-			</Await>
+			</AwaitDangerous>
 		</div>
 	);
 }

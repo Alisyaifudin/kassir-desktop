@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Field } from "../Field";
-import { Input } from "../../../components/ui/input";
-import { Button } from "../../../components/ui/button";
-import { Additional } from "../schema";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { z } from "zod";
+import { useAdditional } from "../context";
 
 const additionalSchema = z.object({
 	name: z.string().min(1, { message: "Harus punya nama" }).trim(),
@@ -14,11 +14,8 @@ const additionalSchema = z.object({
 	kind: z.enum(["percent", "number"]),
 });
 
-export function AdditionalComponent({
-	sendAdditional,
-}: {
-	sendAdditional: (additional: Additional) => void;
-}) {
+export function AdditionalComponent() {
+	const { setAdditional } = useAdditional();
 	const [error, setError] = useState({ name: "", value: "", kind: "" });
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		const formEl = e.currentTarget;
@@ -48,7 +45,7 @@ export function AdditionalComponent({
 			return;
 		}
 		setError({ name: "", value: "", kind: "" });
-		sendAdditional(parsed.data);
+		setAdditional(parsed.data);
 		formEl.reset();
 	};
 	return (

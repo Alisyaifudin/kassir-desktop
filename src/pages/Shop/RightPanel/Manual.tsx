@@ -1,12 +1,10 @@
-import { Button } from "../../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import { Field } from "../Field";
-import { Input } from "../../../components/ui/input";
+import { Input } from "~/components/ui/input";
 import { useRef, useState } from "react";
 import { z } from "zod";
-import { TextError } from "../../../components/TextError";
-import { useDb } from "../../../RootLayout";
-import { ItemWithoutDisc } from "../schema";
-import { Loader2 } from "lucide-react";
+import { TextError } from "~/components/TextError";
+import { useItem } from "../context";
 
 const itemSchema = z.object({
 	barcode: z.string().trim(),
@@ -28,18 +26,17 @@ const itemSchema = z.object({
 const emptyErr = { name: "", price: "", qty: "", barcode: "" };
 
 export function Manual({
-	sendItem,
 	mode,
-	fix
+	fix,
+	products
 }: {
-	sendItem: (item: ItemWithoutDisc) => void;
 	mode: "buy" | "sell";
 	fix: number;
+	products: DB.Product[]
 }) {
 	const [error, setError] = useState(emptyErr);
-	const [loading, setLoading] = useState(false);
 	const ref = useRef<HTMLInputElement | null>(null);
-	const db = useDb();
+	const {setItem}= useItem()
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		if (!ref.current) {
 			return;
@@ -68,19 +65,13 @@ export function Manual({
 		}
 		const { name, price, qty, barcode, stock } = parsed.data;
 		if (barcode !== "") {
-			setLoading(true);
-			const [errMsg, product] = await db.product.getByBarcode(barcode);
-			setLoading(false);
-			if (errMsg) {
-				setError({ ...emptyErr, barcode: errMsg });
-				return;
-			}
-			if (product !== null) {
+			const product = products.find(p=>p.barcode === barcode);
+			if (product !== undefined) {
 				setError({ ...emptyErr, barcode: "Barang sudah ada. Gunakan otomatis." });
 				return;
 			}
 		}
-		sendItem({
+		setItem({
 			barcode: barcode === "" ? null : barcode,
 			qty,
 			price,
@@ -105,7 +96,7 @@ export function Manual({
 			<Field label="Harga" error={error.price}>
 				<div className="flex items-center gap-1">
 					<p className="text-2xl">Rp</p>
-					<Input type="number" required name="price" step={1/Math.pow(10, fix)} />
+					<Input type="number" required name="price" step={1 / Math.pow(10, fix)} />
 				</div>
 			</Field>
 			<div className="flex gap-1 items-center">
@@ -119,21 +110,7 @@ export function Manual({
 				</Field>
 			</div>
 			{error.qty === "" ? null : <TextError>{error.qty}</TextError>}
-			{/* <div className="flex gap-1 items-end">
-				<Field label="Diskon">
-					<Input type="number" defaultValue={0} step={0.0001} name="disc-value" />
-				</Field>
-				<select
-					name="disc-type"
-					defaultValue="percent"
-					className="h-[54px] w-fit  outline text-3xl"
-				>
-					<option value="number">Angka</option>
-					<option value="percent">Persen</option>
-				</select>
-			</div>
-			{error.disc === "" ? null : <TextError>{error.disc}</TextError>} */}
-			<Button>Tambahkan {loading ? <Loader2 className="animate-spin" /> : null}</Button>
+			<Button>Tambahkan </Button>
 		</form>
 	);
 }
