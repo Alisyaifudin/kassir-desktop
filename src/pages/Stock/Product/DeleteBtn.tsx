@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Button } from "../../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -8,28 +8,27 @@ import {
 	DialogTitle,
 	DialogTrigger,
 	DialogClose,
-} from "../../../components/ui/dialog";
-import { useState } from "react";
+} from "~/components/ui/dialog";
 import { Loader2 } from "lucide-react";
-import { useDB } from "../../../RootLayout";
-import { TextError } from "../../../components/TextError";
+import { useDB } from "~/RootLayout";
+import { TextError } from "~/components/TextError";
+import { getBackURL } from "~/lib/utils";
+import { useAction } from "~/hooks/useAction";
+import { useProducts } from "~/Layout";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const navigate = useNavigate();
 	const db = useDB();
-	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
-	const handleClick = () => {
-		setLoading(true);
-		db.product.delete(id).then((err) => {
-			if (err) {
-				setError(err);
-				setLoading(false);
-				return;
-			}
-			setLoading(false);
-			navigate(-1);
-		});
+	const { action, loading, error, setError } = useAction("", (id: number) => db.product.delete(id));
+	const { revalidate } = useProducts();
+	const backURL = getBackURL("/stock", new URLSearchParams(window.location.search));
+	const handleClick = async () => {
+		const errMsg = await action(id);
+		setError(errMsg);
+		if (errMsg === null) {
+			revalidate();
+			navigate(backURL);
+		}
 	};
 	return (
 		<Dialog>
@@ -52,7 +51,7 @@ export function DeleteBtn({ id, name }: { id: number; name: string }) {
 							Hapus {loading && <Loader2 className="animate-spin" />}
 						</Button>
 					</div>
-					{error === "" ? null : <TextError>{error}</TextError>}
+					{error ? <TextError>{error}</TextError> : null}
 				</DialogHeader>
 			</DialogContent>
 		</Dialog>

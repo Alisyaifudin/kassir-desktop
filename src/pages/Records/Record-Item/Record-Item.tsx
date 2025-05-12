@@ -4,7 +4,7 @@ import { useDB } from "~/RootLayout";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { ItemList } from "./ItemList";
-import { Await, } from "~/components/Await";
+import { Await } from "~/components/Await";
 import { Database } from "~/database";
 import { type loader } from ".";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -30,7 +30,6 @@ export default function Page() {
 							<div className="flex items-center gap-2">
 								<Button asChild variant="link" className="self-start">
 									<Link to={urlBack}>
-										{" "}
 										<ChevronLeft /> Kembali
 									</Link>
 								</Button>

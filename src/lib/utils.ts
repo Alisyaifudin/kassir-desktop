@@ -149,3 +149,9 @@ export function constructCSV<T extends Record<string, any>>(data: T[]): string {
 
 	return lines.join(lineBreak);
 }
+
+export function getBackURL(defaultURL: string, search: URLSearchParams) {
+	const parsed = z.string().safeParse(search.get("url_back"));
+	const urlBack = parsed.success ? parsed.data : defaultURL;
+	return urlBack;
+}

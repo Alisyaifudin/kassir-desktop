@@ -8,9 +8,8 @@ import {
 	TableScrollable,
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { ProductResult } from "~/hooks/useProductSearch";
-
 
 type Props = {
 	products: ProductResult[];
@@ -19,6 +18,11 @@ type Props = {
 };
 
 export function ProductList({ products, start, end }: Props) {
+	const navigate = useNavigate();
+	const handleClick = (id: number) => () => {
+		const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+		navigate({ pathname: `${id}`, search: `?url_back=${backURL}` });
+	};
 	return (
 		<TableScrollable className="text-3xl">
 			<TableHeader>
@@ -42,10 +46,10 @@ export function ProductList({ products, start, end }: Props) {
 						<TableCell className="text-right">{product.capital.toLocaleString("id-ID")}</TableCell>
 						<TableCell className="text-right">{product.stock}</TableCell>
 						<TableCell>
-							<Button variant="link" className="p-0" asChild>
-								<Link to={`/stock/${product.id}`}>
-									<SquareArrowOutUpRight size={35} />
-								</Link>
+							<Button variant="link" className="p-0 cursor-pointer" onClick={handleClick(product.id)}>
+								{/* <Link to={`/stock/${product.id}`}> */}
+								<SquareArrowOutUpRight size={35} />
+								{/* </Link> */}
 							</Button>
 						</TableCell>
 					</TableRow>
@@ -54,4 +58,3 @@ export function ProductList({ products, start, end }: Props) {
 		</TableScrollable>
 	);
 }
-

@@ -13,16 +13,17 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useDB } from "~/RootLayout";
 import { numeric } from "~/lib/utils";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
 import { Textarea } from "~/components/ui/textarea";
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
 import { useProducts } from "~/Layout";
+import { EditBtn } from "./EditBtn";
 
 const meth = {
 	cash: "Tunai",
@@ -182,14 +183,7 @@ export function Detail({
 									</TableCell>
 									<TableCell>{item.name}</TableCell>
 									<TableCell className="text-end flex items-center gap-1 justify-end">
-										{record.mode === "buy" && item.product_id !== null ? (
-											<>
-												<Link to={`/stock/${item.product_id}`}>
-													<Pencil />
-												</Link>
-												<div className="flex-1" />
-											</>
-										) : null}
+										<EditBtn mode={record.mode} productId={item.product_id} />
 										{item.price.toLocaleString("id-ID")}{" "}
 									</TableCell>
 									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>

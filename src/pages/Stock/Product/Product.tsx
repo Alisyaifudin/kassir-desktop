@@ -1,5 +1,5 @@
 import { useLoaderData, useNavigate, useSearchParams } from "react-router";
-import { numeric } from "~/lib/utils.ts";
+import { getBackURL, numeric } from "~/lib/utils.ts";
 import { useMemo } from "react";
 import { Button } from "~/components/ui/button.tsx";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -41,13 +41,14 @@ export default function Page() {
 		),
 		[history]
 	);
+	const handleBack = () => {
+		const backURL = getBackURL("/stock", search);
+		navigate(backURL);
+	};
 	return (
 		<main className="py-2 px-5 mx-auto w-full flex flex-col gap-2 flex-1 overflow-auto">
-			<Button asChild variant="link" className="self-start">
-				<Button variant="link" onClick={() => navigate(-1)}>
-					{" "}
-					<ChevronLeft /> Kembali
-				</Button>
+			<Button variant="link" className="self-start" onClick={handleBack}>
+				<ChevronLeft /> Kembali
 			</Button>
 			<div className="flex gap-2 overflow-hidden">
 				<Await state={item} Loading={<Loader2 className="animate-spin" />}>

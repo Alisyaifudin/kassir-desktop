@@ -211,22 +211,28 @@ export const genProduct = (db: Database) => ({
 		barcode: string | null;
 		id: number;
 		note: string;
-	}): Promise<"Aplikasi bermasalah" | null> => {
-		const [errMsg] = await tryResult({
-			run: () =>
-				db.execute(
-					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5, note = $6 WHERE id = $7",
-					[
-						data.name.trim(),
-						data.stock,
-						data.price,
-						data.barcode === null ? null : data.barcode.trim(),
-						data.capital,
-						data.note,
-						data.id,
-					]
-				),
-		});
-		return errMsg;
+	}): Promise<"Aplikasi bermasalah" | "Barang dengan barcode tersebut sudah ada" | null> => {
+		try {
+			await db.execute(
+				"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5, note = $6 WHERE id = $7",
+				[
+					data.name.trim(),
+					data.stock,
+					data.price,
+					data.barcode === null ? null : data.barcode.trim(),
+					data.capital,
+					data.note,
+					data.id,
+				]
+			);
+			return null;
+		} catch (error) {
+			if (typeof error === "string") {
+				if (error.includes("UNIQUE constraint failed: products.barcode")) {
+					return "Barang dengan barcode tersebut sudah ada";
+				}
+			}
+			return "Aplikasi bermasalah";
+		}
 	},
 });
