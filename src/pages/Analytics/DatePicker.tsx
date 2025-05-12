@@ -4,7 +4,7 @@ import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { dayNames, formatDate, getDayName, monthNames } from "~/lib/utils";
+import { dayNames, formatDate,  monthNames } from "~/lib/utils";
 
 
 const mode = {
@@ -104,34 +104,6 @@ export function DatePicker({
 				</Button>
 				<Calendar time={time} setTime={setTime} mode={mode[interval]}>
 					<CalendarLabel time={time} interval={interval} />
-				</Calendar>
-				<Button onClick={handleNext}>
-					<ChevronRight />
-				</Button>
-			</div>
-		</div>
-	);
-}
-
-export function DatePickerCrowd({ setTime, time }: { time: number; setTime: (time: number) => void }) {
-	const tz = Temporal.Now.timeZoneId();
-	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz).startOfDay();
-	const handlePrev = () => {
-		setTime(date.subtract(Temporal.Duration.from({ days: 1 })).epochMilliseconds);
-	};
-	const handleNext = () => {
-		setTime(date.add(Temporal.Duration.from({ days: 1 })).epochMilliseconds);
-	};
-	return (
-		<div className="flex items-center gap-7">
-			<div className="flex items-center gap-2">
-				<Button onClick={handlePrev}>
-					<ChevronLeft />
-				</Button>
-				<Calendar time={time} setTime={setTime} mode={"day"}>
-					<p className="text-2xl px-5 font-normal">
-						{getDayName(time)}, {formatDate(time, "long")}
-					</p>
 				</Calendar>
 				<Button onClick={handleNext}>
 					<ChevronRight />

@@ -9,39 +9,8 @@ import {
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
 import { Link } from "react-router";
-import { useEffect } from "react";
 import { ProductResult } from "~/hooks/useProductSearch";
 
-export function ProductList({
-	products,
-	setPagination,
-	sortBy,
-	sortDir,
-	rawPage,
-	limit,
-	query,
-}: {
-	products: ProductResult[];
-	setPagination: (page: number, total: number) => void;
-	sortBy: "name" | "price" | "capital" | "barcode" | "stock";
-	sortDir: "desc" | "asc";
-	rawPage: number;
-	limit: number;
-	query: string;
-}) {
-	if (query.trim() === "") {
-		sorting(products, sortBy, sortDir);
-	}
-	const totalItem = products.length;
-	const totalPage = Math.ceil(totalItem / limit);
-	const page = rawPage > totalPage ? totalPage : rawPage;
-	useEffect(() => {
-		setPagination(page, totalPage);
-	}, [page, totalPage]);
-	const start = limit * (page - 1);
-	const end = limit * page;
-	return <ProductTable products={products} start={start} end={end} />;
-}
 
 type Props = {
 	products: ProductResult[];
@@ -49,7 +18,7 @@ type Props = {
 	end: number;
 };
 
-function ProductTable({ products, start, end }: Props) {
+export function ProductList({ products, start, end }: Props) {
 	return (
 		<TableScrollable className="text-3xl">
 			<TableHeader>
@@ -86,31 +55,3 @@ function ProductTable({ products, start, end }: Props) {
 	);
 }
 
-function sorting(
-	products: ProductResult[],
-	by: "barcode" | "name" | "price" | "capital" | "stock",
-	dir: "asc" | "desc"
-) {
-	const sign = dir === "asc" ? 1 : -1;
-	switch (by) {
-		case "barcode":
-			products.sort((a, b) => {
-				if (a.barcode === null && b.barcode === null) return 0 * sign;
-				if (a.barcode === null) return -1 * sign;
-				if (b.barcode === null) return 1 * sign;
-				return a.barcode.localeCompare(b.barcode) * sign;
-			});
-			break;
-		case "price":
-			products.sort((a, b) => (a.price - b.price) * sign);
-			break;
-		case "capital":
-			products.sort((a, b) => (a.capital - b.capital) * sign);
-			break;
-		case "stock":
-			products.sort((a, b) => (a.stock - b.stock) * sign);
-			break;
-		case "name":
-			products.sort((a, b) => a.name.localeCompare(b.name) * sign);
-	}
-}

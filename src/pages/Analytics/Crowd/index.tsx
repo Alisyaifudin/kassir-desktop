@@ -1,19 +1,27 @@
 import { cn } from "~/lib/utils";
 import { getTicks, getVisitors } from "../records-grouping";
 import { Bar } from "../Bar";
+import { DatePickerCrowd } from "./DatePicker";
+import { Temporal } from "temporal-polyfill";
 
 type Props = {
 	records: DB.Record[];
-	daily: [number, number];
 	weekly: [number, number];
+	handleTime: (time: number) => void;
+	time: number;
 };
 
-export function Crowd({ records, daily, weekly }: Props) {
+export function Crowd({ records, weekly, handleTime, time }: Props) {
+	const tz = Temporal.Now.timeZoneId();
+	const startOfDay = Temporal.Instant.fromEpochMilliseconds(time)
+		.toZonedDateTimeISO(tz)
+		.startOfDay();
+	const endOfDay = startOfDay.add(Temporal.Duration.from({ days: 1 }));
 	const { visitors: visitorsDaily, labels: labelsDaily } = getVisitors({
 		records,
 		interval: "daily",
-		start: daily[0],
-		end: daily[1],
+		start: startOfDay.epochMilliseconds,
+		end: endOfDay.epochMilliseconds,
 	});
 	const { visitors: visitorsWeekly, labels: labelsWeekly } = getVisitors({
 		records,
@@ -22,37 +30,40 @@ export function Crowd({ records, daily, weekly }: Props) {
 		end: weekly[1],
 	});
 	return (
-		<div className="flex flex-col flex-1 py-5">
-			<Graph vals={visitorsDaily.filter((_, i) => i >= 6)} />
-			<div className="flex gap-1 w-full">
-				<div className="w-[100px]"></div>
+		<div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
+			<DatePickerCrowd setTime={handleTime} time={time} />
+			<div className="flex flex-col flex-1 py-5">
+				<Graph vals={visitorsDaily.filter((_, i) => i >= 6)} />
 				<div className="flex gap-1 w-full">
-					{labelsDaily
-						.filter((_, i) => i >= 6)
-						.map((label) => (
+					<div className="w-[100px]"></div>
+					<div className="flex gap-1 w-full">
+						{labelsDaily
+							.filter((_, i) => i >= 6)
+							.map((label) => (
+								<div
+									key={label}
+									className="h-[50px] flex justify-center items-center text-2xl"
+									style={{ width: `${100 / labelsDaily.filter((_, i) => i >= 6).length}%` }}
+								>
+									<p>{label}</p>
+								</div>
+							))}
+					</div>
+				</div>
+				<Graph vals={visitorsWeekly} />
+				<div className="flex gap-1 w-full">
+					<div className="w-[100px]"></div>
+					<div className="flex gap-1 w-full">
+						{labelsWeekly.map((label) => (
 							<div
 								key={label}
 								className="h-[50px] flex justify-center items-center text-2xl"
-								style={{ width: `${100 / labelsDaily.filter((_, i) => i >= 6).length}%` }}
+								style={{ width: `${100 / labelsWeekly.length}%` }}
 							>
 								<p>{label}</p>
 							</div>
 						))}
-				</div>
-			</div>
-			<Graph vals={visitorsWeekly} />
-			<div className="flex gap-1 w-full">
-				<div className="w-[100px]"></div>
-				<div className="flex gap-1 w-full">
-					{labelsWeekly.map((label) => (
-						<div
-							key={label}
-							className="h-[50px] flex justify-center items-center text-2xl"
-							style={{ width: `${100 / labelsWeekly.length}%` }}
-						>
-							<p>{label}</p>
-						</div>
-					))}
+					</div>
 				</div>
 			</div>
 		</div>

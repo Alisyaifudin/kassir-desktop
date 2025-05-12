@@ -3,34 +3,55 @@ import { getFlow, getTicks } from "../records-grouping";
 import { Bar } from "../Bar";
 import { useState } from "react";
 import { Tooltip } from "../../../components/Tooltip";
+import { DatePicker } from "../DatePicker";
 
 type Props = {
 	records: DB.Record[];
 	interval: "weekly" | "monthly" | "yearly";
 	start: number;
 	end: number;
+	handleClickInterval: (val: string) => void;
+	handleTime: (time: number) => void;
+	time: number;
 };
 
-export function Cashflow({ records, interval, start, end }: Props) {
+export function Cashflow({
+	records,
+	interval,
+	start,
+	end,
+	handleClickInterval,
+	time,
+	handleTime,
+}: Props) {
 	const { revenues, spendings, labels, debts } = getFlow({ records, interval, start, end });
 	return (
-		<div className="flex flex-col flex-1 py-5">
-			<GraphUp vals={revenues} />
-			<div className="flex gap-1 w-full">
-				<div className="w-[100px]"></div>
+		<div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
+			<DatePicker
+				handleClickInterval={handleClickInterval}
+				setTime={handleTime}
+				time={time}
+				option={"cashflow"}
+				interval={interval}
+			/>
+			<div className="flex flex-col flex-1 py-5">
+				<GraphUp vals={revenues} />
 				<div className="flex gap-1 w-full">
-					{labels.map((label) => (
-						<div
-							key={label}
-							className="h-[50px] flex justify-center items-center text-2xl"
-							style={{ width: `${100 / labels.length}%` }}
-						>
-							<p>{label}</p>
-						</div>
-					))}
+					<div className="w-[100px]"></div>
+					<div className="flex gap-1 w-full">
+						{labels.map((label) => (
+							<div
+								key={label}
+								className="h-[50px] flex justify-center items-center text-2xl"
+								style={{ width: `${100 / labels.length}%` }}
+							>
+								<p>{label}</p>
+							</div>
+						))}
+					</div>
 				</div>
+				<GraphDown debts={debts} vals={spendings} />
 			</div>
-			<GraphDown debts={debts} vals={spendings} />
 		</div>
 	);
 }

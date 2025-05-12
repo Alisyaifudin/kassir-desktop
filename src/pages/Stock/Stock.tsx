@@ -26,9 +26,20 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 	const { sortDir, query, sortBy, page: rawPage, limit } = getOption(searchParams);
 	const { search } = useProductSearch(all);
 	const user = useUser();
+	if (query.trim() === "") {
+		sorting(products, sortBy, sortDir);
+	}
+	const totalItem = products.length;
+	const totalPage = Math.ceil(totalItem / limit);
+	const page = rawPage > totalPage ? totalPage : rawPage;
+	const start = limit * (page - 1);
+	const end = limit * page;
 	const [pagination, setPagination] = useState<
 		{ page: number; total: number } | { page: null; total: null }
-	>({ page: null, total: null });
+	>({ page, total: totalPage });
+	useEffect(() => {
+		setPagination({page, total:totalPage});
+	}, [page, totalPage]);
 	useEffect(() => {
 		if (query.trim() === "") {
 			setProducts(all);
@@ -114,13 +125,9 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 				</div>
 			</div>
 			<ProductList
-				query={query}
 				products={products}
-				limit={limit}
-				rawPage={rawPage}
-				setPagination={(page: number, total: number) => setPagination({ page, total })}
-				sortBy={sortBy}
-				sortDir={sortDir}
+				start={start}
+				end={end}
 			/>
 		</>
 	);
@@ -145,4 +152,34 @@ function getOption(search: URLSearchParams): {
 	const limit = limitParsed.success ? Number(limitParsed.data) : 100;
 	const query = search.get("query") ?? "";
 	return { sortDir, query, sortBy, limit, page: page < 1 ? 1 : Math.round(page) };
+}
+
+
+function sorting(
+	products: ProductResult[],
+	by: "barcode" | "name" | "price" | "capital" | "stock",
+	dir: "asc" | "desc"
+) {
+	const sign = dir === "asc" ? 1 : -1;
+	switch (by) {
+		case "barcode":
+			products.sort((a, b) => {
+				if (a.barcode === null && b.barcode === null) return 0 * sign;
+				if (a.barcode === null) return -1 * sign;
+				if (b.barcode === null) return 1 * sign;
+				return a.barcode.localeCompare(b.barcode) * sign;
+			});
+			break;
+		case "price":
+			products.sort((a, b) => (a.price - b.price) * sign);
+			break;
+		case "capital":
+			products.sort((a, b) => (a.capital - b.capital) * sign);
+			break;
+		case "stock":
+			products.sort((a, b) => (a.stock - b.stock) * sign);
+			break;
+		case "name":
+			products.sort((a, b) => a.name.localeCompare(b.name) * sign);
+	}
 }

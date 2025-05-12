@@ -3,10 +3,10 @@ import {
 	PaginationContent,
 	PaginationItem,
 	Pagination as Root,
-} from "../../components/ui/pagination";
+} from "~/components/ui/pagination";
 import { SetURLSearchParams } from "react-router";
-import { Button } from "../../components/ui/button";
-import { cn } from "../../lib/utils";
+import { Button } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
 
 export function Pagination({
 	page,
