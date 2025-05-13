@@ -22,15 +22,14 @@ import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
 import { useAction } from "~/hooks/useAction";
+import { emitter } from "~/lib/event-emitter";
 
 export function LinkProduct({
 	item,
 	products,
-	update,
 }: {
 	item: DB.RecordItem;
 	products: DB.Product[];
-	update: () => void;
 }) {
 	const [query, setQuery] = useState("");
 	const [shown, setShown] = useState<ProductResult[]>([]);
@@ -71,7 +70,7 @@ export function LinkProduct({
 			return;
 		}
 		setError("");
-		update();
+		emitter.emit("fetch-record-item");
 	};
 	return (
 		<Dialog>

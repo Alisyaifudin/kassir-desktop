@@ -34,7 +34,7 @@ export function genRecordItem(db: Database) {
 			const [errMsg] = await tryResult({
 				run: () =>
 					db.execute("UPDATE record_items SET product_id = $1 WHERE id = $2", [productId, itemId]),
-			});
+			})
 			return errMsg;
 		},
 		add: async (

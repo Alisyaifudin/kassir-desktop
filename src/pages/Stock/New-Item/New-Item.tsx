@@ -10,7 +10,6 @@ import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
 import { Textarea } from "~/components/ui/textarea";
 import { useAction } from "~/hooks/useAction";
-import { useProducts } from "~/Layout";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
@@ -38,7 +37,6 @@ export default function Page() {
 	const navigate = useNavigate();
 	const ref = useRef<HTMLInputElement | null>(null);
 	const db = useDB();
-	const {revalidate} = useProducts();
 	const { action, error, loading, setError } = useAction(
 		emptyErrs,
 		(data: z.infer<typeof dataSchema>) => db.product.insert(data)
@@ -81,7 +79,7 @@ export default function Page() {
 			});
 			return;
 		}
-		revalidate();
+		db.product.revalidate("all");
 		navigate(-1);
 	};
 	return (

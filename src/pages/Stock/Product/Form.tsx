@@ -9,7 +9,6 @@ import { Button } from "~/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { DeleteBtn } from "./DeleteBtn";
 import { useAction } from "~/hooks/useAction";
-import { useProducts } from "~/Layout";
 
 const dataSchema = z.object({
 	name: z.string().min(1),
@@ -36,7 +35,6 @@ const emptyErrs = {
 
 export function Form({ product }: { product: DB.Product }) {
 	const db = useDB();
-	const { revalidate } = useProducts();
 	const { action, error, loading, setError } = useAction(
 		emptyErrs,
 		(data: z.infer<typeof dataSchema>) => db.product.update(data)
@@ -71,7 +69,6 @@ export function Form({ product }: { product: DB.Product }) {
 			setError({ ...emptyErrs, global: errMsg });
 			return;
 		}
-		revalidate();
 	};
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full">

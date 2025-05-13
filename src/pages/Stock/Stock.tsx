@@ -8,15 +8,22 @@ import { Search } from "./Search.tsx";
 import { numeric } from "~/lib/utils.ts";
 import { useEffect, useState } from "react";
 import { Pagination } from "./Pagination.tsx";
-import { useProducts, useUser } from "~/Layout.tsx";
+import { useUser } from "~/Layout.tsx";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch.tsx";
+import { useProducts } from "~/hooks/useProducts.tsx";
+import { Await } from "~/components/Await.tsx";
+import { Loading } from "~/components/Loading.tsx";
 
 export default function Page() {
-	const { products } = useProducts();
+	const state = useProducts();
 	return (
-		<main className="flex flex-col gap-5 p-2 flex-1 overflow-auto">
-			<Stock products={products} />
-		</main>
+		<Await state={state} Loading={<Loading />}>
+			{(products) => (
+				<main className="flex flex-col gap-5 p-2 flex-1 overflow-auto">
+					<Stock products={products} />
+				</main>
+			)}
+		</Await>
 	);
 }
 
@@ -38,7 +45,7 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 		{ page: number; total: number } | { page: null; total: null }
 	>({ page, total: totalPage });
 	useEffect(() => {
-		setPagination({page, total:totalPage});
+		setPagination({ page, total: totalPage });
 	}, [page, totalPage]);
 	useEffect(() => {
 		if (query.trim() === "") {
@@ -124,11 +131,7 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 					) : null}
 				</div>
 			</div>
-			<ProductList
-				products={products}
-				start={start}
-				end={end}
-			/>
+			<ProductList products={products} start={start} end={end} />
 		</>
 	);
 }
@@ -153,7 +156,6 @@ function getOption(search: URLSearchParams): {
 	const query = search.get("query") ?? "";
 	return { sortDir, query, sortBy, limit, page: page < 1 ? 1 : Math.round(page) };
 }
-
 
 function sorting(
 	products: ProductResult[],

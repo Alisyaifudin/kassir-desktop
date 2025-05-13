@@ -14,19 +14,16 @@ import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
 import { getBackURL } from "~/lib/utils";
 import { useAction } from "~/hooks/useAction";
-import { useProducts } from "~/Layout";
 
 export function DeleteBtn({ id, name }: { id: number; name: string }) {
 	const navigate = useNavigate();
 	const db = useDB();
 	const { action, loading, error, setError } = useAction("", (id: number) => db.product.delete(id));
-	const { revalidate } = useProducts();
 	const backURL = getBackURL("/stock", new URLSearchParams(window.location.search));
 	const handleClick = async () => {
 		const errMsg = await action(id);
 		setError(errMsg);
 		if (errMsg === null) {
-			revalidate();
 			navigate(backURL);
 		}
 	};

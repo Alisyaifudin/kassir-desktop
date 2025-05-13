@@ -3,10 +3,12 @@ import { AdditionalComponent } from "./Additional";
 import { Search } from "./Search";
 import { Manual } from "./Manual";
 import { useFix } from "../context";
-import { useProducts } from "~/Layout";
+import { useProducts } from "~/hooks/useProducts";
+import { Await } from "~/components/Await";
+import { Loading } from "~/components/Loading";
 
 export function RightPanel({ mode }: { mode: "buy" | "sell" }) {
-	const { products } = useProducts();
+	const state = useProducts();
 	const { fix, setFix } = useFix();
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
@@ -33,13 +35,24 @@ export function RightPanel({ mode }: { mode: "buy" | "sell" }) {
 						</label>
 					</div>
 				</div>
-
-				<TabsContent value="auto" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Search mode={mode} products={products} />
-				</TabsContent>
-				<TabsContent value="man" className="flex w-full flex-col px-1 gap-2 grow shrink basis-0">
-					<Manual mode={mode} fix={fix} products={products} />
-				</TabsContent>
+				<Await state={state} Loading={<Loading />}>
+					{(products) => (
+						<>
+							<TabsContent
+								value="auto"
+								className="flex w-full flex-col px-1 gap-2 grow shrink basis-0"
+							>
+								<Search mode={mode} products={products} />
+							</TabsContent>
+							<TabsContent
+								value="man"
+								className="flex w-full flex-col px-1 gap-2 grow shrink basis-0"
+							>
+								<Manual mode={mode} fix={fix} products={products} />
+							</TabsContent>
+						</>
+					)}
+				</Await>
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />

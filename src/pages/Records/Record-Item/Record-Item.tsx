@@ -9,15 +9,16 @@ import { Database } from "~/database";
 import { type loader } from ".";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Detail } from "./Detail";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useUser } from "~/Layout";
 import { useAsyncDep } from "~/hooks/useAsyncDep";
+import { emitter } from "~/lib/event-emitter";
 
 export default function Page() {
 	const user = useUser();
 	const { timestamp } = useLoaderData<typeof loader>();
-	const { state, revalidate } = useRecord(timestamp);
+	const state = useRecord(timestamp);
 	const [search, setSearch] = useSearchParams();
 	const tab = getTab(search);
 	return (
@@ -50,7 +51,6 @@ export default function Page() {
 								<TabsContent value="detail">
 									<Detail
 										role={user.role}
-										revalidate={revalidate}
 										record={data.record}
 										items={data.items}
 										additionals={data.additionals}
@@ -90,9 +90,19 @@ function setTab(tab: string, setSearch: SetURLSearchParams) {
 function useRecord(timestamp: number) {
 	const db = useDB();
 	const [updated, setUpdated] = useState(false);
-	const revalidate = () => setUpdated((prev) => !prev);
-	const state = useAsyncDep(() => getRecord(db, timestamp), [updated]);
-	return { state, revalidate };
+	useEffect(() => {
+		const update = () => {
+			console.log("hellooo");
+			setUpdated((prev) => !prev);
+		};
+		emitter.on("fetch-record-item", update);
+		return () => {
+			emitter.off("fetch-record-item", update);
+		};
+	}, [timestamp]);
+	const promise = () => getRecord(db, timestamp);
+	const state = useAsyncDep(promise, [timestamp, updated]);
+	return state;
 }
 
 async function getRecord(

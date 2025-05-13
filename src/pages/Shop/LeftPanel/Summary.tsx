@@ -1,17 +1,16 @@
 import Decimal from "decimal.js";
 import { Item, Additional } from "../schema";
 import { submitPayment } from "./submit";
-import { Input } from "../../../components/ui/input";
+import { Input } from "~/components/ui/input";
 import { z } from "zod";
-import { cn } from "../../../lib/utils";
-import { Button } from "../../../components/ui/button";
+import { cn } from "~/lib/utils";
+import { Button } from "~/components/ui/button";
 import { Banknote, Landmark, Loader2, RefreshCcw, Wallet } from "lucide-react";
-import { TextError } from "../../../components/TextError";
+import { TextError } from "~/components/TextError";
 import { useState } from "react";
-import { useDB } from "../../../RootLayout";
+import { useDB } from "~/RootLayout";
 import { useNavigate } from "react-router";
 import { Note } from "./Note";
-import { useProducts } from "~/Layout";
 
 type Props = {
 	mode: "sell" | "buy";
@@ -60,7 +59,6 @@ export function Summary({
 }: Props) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-	const { revalidate } = useProducts();
 	const db = useDB();
 	const change = new Decimal(pay).sub(grandTotal);
 	const navigate = useNavigate();
@@ -132,7 +130,7 @@ export function Summary({
 		}
 		reset();
 		navigate(`/records/${timestamp}`);
-		revalidate();
+		db.product.revalidate("all");
 	};
 	return (
 		<div className="flex items-center pr-1 h-fit gap-2">

@@ -7,9 +7,6 @@ import { emitter } from "./lib/event-emitter";
 import { check } from "@tauri-apps/plugin-updater";
 import { useDB, useStore } from "./RootLayout";
 import { User } from "./lib/auth";
-import { Database } from "./database";
-import { useAsync } from "./hooks/useAsync";
-import { Await } from "./components/Await";
 
 function Layout({ user }: { user: User }) {
 	const { pathname } = useLocation();
@@ -17,7 +14,6 @@ function Layout({ user }: { user: User }) {
 	const store = useStore();
 	const profile = store.profile;
 	const db = useDB();
-	const state = useFetchProducts(db);
 	const [name, setName] = useState("");
 	// check for update on mount
 	useEffect(() => {
@@ -104,9 +100,7 @@ function Layout({ user }: { user: User }) {
 					</ul>
 				</nav>
 			</header>
-			<Await state={state}>
-				{(products) => <Outlet context={{ db, store, user, products }} />}
-			</Await>
+			<Outlet context={{ db, store, user}} />
 			<Notification />
 		</>
 	);
@@ -117,17 +111,4 @@ export default Layout;
 export const useUser = () => {
 	const { user } = useOutletContext<{ user: User }>();
 	return user;
-};
-
-function useFetchProducts(db: Database) {
-	const state = useAsync(() => db.product.getAll(), ["fetch-products"]);
-	return state;
-}
-
-export const useProducts = () => {
-	const { products } = useOutletContext<{ products: DB.Product[] }>();
-	const revalidate = () => {
-		emitter.emit("fetch-products");
-	};
-	return { products, revalidate };
 };

@@ -7,25 +7,44 @@ export type ProductRecord = Pick<DB.Product, "id" | "name" | "price" | "capital"
 
 export type ProductHistory = { timestamp: number; qty: number; mode: "sell" | "buy" };
 
-export const genProduct = (db: Database) => ({
-	getAll: (): Promise<Result<"Aplikasi bermasalah", DB.Product[]>> =>
-		tryResult({ run: () => db.select<DB.Product[]>("SELECT * FROM products") }),
-	get: async (id: number): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> => {
+export class ProductTable {
+	db: Database;
+	constructor(db: Database) {
+		this.db = db;
+	}
+	caches = {
+		all: null as DB.Product[] | null,
+	};
+	revalidate(key: "all") {
+		this.caches[key] = null;
+	}
+	async getAll(): Promise<Result<"Aplikasi bermasalah", DB.Product[]>> {
+		if (this.caches.all !== null) {
+			return ok(this.caches.all);
+		}
 		const [errMsg, products] = await tryResult({
-			run: () => db.select<DB.Product[]>("SELECT * FROM products WHERE id = $1", [id]),
+			run: () => this.db.select<DB.Product[]>("SELECT * FROM products"),
+		});
+		this.caches.all = products;
+		if (errMsg) return err(errMsg);
+		return ok(products);
+	}
+	async get(id: number): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> {
+		const [errMsg, products] = await tryResult({
+			run: () => this.db.select<DB.Product[]>("SELECT * FROM products WHERE id = $1", [id]),
 		});
 		if (errMsg !== null) return err(errMsg);
 		if (products.length === 0) return ok(null);
 		return ok(products[0]);
-	},
-	getHistory: async (
+	}
+	async getHistory(
 		id: number,
 		start: number,
 		end: number
-	): Promise<Result<"Aplikasi bermasalah", ProductHistory[]>> => {
+	): Promise<Result<"Aplikasi bermasalah", ProductHistory[]>> {
 		const [errMsg, products] = await tryResult({
 			run: () =>
-				db.select<ProductHistory[]>(
+				this.db.select<ProductHistory[]>(
 					`SELECT record_items.timestamp, record_items.qty, records.mode
 					FROM record_items INNER JOIN records ON records.timestamp = record_items.timestamp
 					WHERE record_items.product_id = $1 AND record_items.timestamp BETWEEN $2 AND $3
@@ -35,29 +54,28 @@ export const genProduct = (db: Database) => ({
 		});
 		if (errMsg !== null) return err(errMsg);
 		return ok(products);
-	},
-	getByRange: async (
+	}
+	async getByRange(
 		start: number,
 		end: number
-	): Promise<Result<"Aplikasi bermasalah", ProductRecord[]>> =>
-		tryResult({
+	): Promise<Result<"Aplikasi bermasalah", ProductRecord[]>> {
+		return tryResult({
 			run: () =>
-				db.select<ProductRecord[]>(
+				this.db.select<ProductRecord[]>(
 					`SELECT products.id, products.name, products.price, products.capital, products.barcode, 
 					 record_items.timestamp, record_items.qty, records.mode
-			 FROM products 
-			 INNER JOIN record_items ON record_items.product_id = products.id
-			 INNER JOIN records ON records.timestamp = record_items.timestamp
-			 WHERE record_items.timestamp BETWEEN $1 AND $2 ORDER BY products.name`,
+					FROM products 
+					INNER JOIN record_items ON record_items.product_id = products.id
+					INNER JOIN records ON records.timestamp = record_items.timestamp
+					WHERE record_items.timestamp BETWEEN $1 AND $2 ORDER BY products.name`,
 					[start, end]
 				),
-		}),
-	getByBarcode: async (
-		barcode: string
-	): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> => {
+		});
+	}
+	async getByBarcode(barcode: string): Promise<Result<"Aplikasi bermasalah", DB.Product | null>> {
 		const [errMsg, item] = await tryResult({
 			run: async () => {
-				const products = await db.select<DB.Product[]>(
+				const products = await this.db.select<DB.Product[]>(
 					"SELECT * FROM products WHERE barcode = ?1",
 					[barcode.trim()]
 				);
@@ -67,38 +85,19 @@ export const genProduct = (db: Database) => ({
 		if (errMsg) return err(errMsg);
 		if (item === null) return err(null);
 		return ok(item);
-	},
-	searchByName: async (name: string): Promise<Result<"Aplikasi Bermasalah", DB.Product[]>> => {
-		return tryResult({
-			run: async () =>
-				db.select<DB.Product[]>(
-					"SELECT * FROM products WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' ORDER BY name LIMIT 20",
-					[name.trim()]
-				),
-		});
-	},
-	searchByBarcode: async (
-		barcode: string
-	): Promise<Result<"Aplikasi Bermasalah", DB.Product[]>> => {
-		return tryResult({
-			run: async () =>
-				db.select<DB.Product[]>(
-					"SELECT * FROM products WHERE barcode LIKE $1 || '%' ORDER BY barcode LIMIT 20",
-					[barcode.trim()]
-				),
-		});
-	},
-	insert: async (data: {
+	}
+	async insert(data: {
 		name: string;
 		price: number;
 		stock: number;
 		capital: number;
 		barcode: string | null;
 		note?: string;
-	}): Promise<"Aplikasi bermasalah" | "Barang sudah ada" | null> => {
+	}): Promise<"Aplikasi bermasalah" | "Barang sudah ada" | null> {
 		if (data.barcode !== null) {
 			const [errSelect, prod] = await tryResult({
-				run: () => db.select<any[]>("SELECT name FROM products WHERE barcode = $1", [data.barcode]),
+				run: () =>
+					this.db.select<any[]>("SELECT name FROM products WHERE barcode = $1", [data.barcode]),
 			});
 			if (errSelect) return errSelect;
 			if (prod.length > 0) {
@@ -107,7 +106,7 @@ export const genProduct = (db: Database) => ({
 		}
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute(
+				this.db.execute(
 					"INSERT INTO products (name, stock, price, barcode, capital, note) VALUES ($1, $2, $3, $4, $5, $6)",
 					[
 						data.name.trim(),
@@ -120,8 +119,8 @@ export const genProduct = (db: Database) => ({
 				),
 		});
 		return errMsg;
-	},
-	insertIfNotYet: async (data: {
+	}
+	async insertIfNotYet(data: {
 		name: string;
 		price: number;
 		stock: number;
@@ -131,10 +130,10 @@ export const genProduct = (db: Database) => ({
 			"Aplikasi bermasalah" | `Ada barang dengan barcode yang sama: ${string}` | null,
 			number | null
 		>
-	> => {
+	> {
 		const [errMsg, res] = await tryResult({
 			run: () =>
-				db.execute(
+				this.db.execute(
 					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, 0)
 					 ON CONFLICT(barcode) DO NOTHING`,
 					[
@@ -155,26 +154,25 @@ export const genProduct = (db: Database) => ({
 			return err("Aplikasi bermasalah");
 		}
 		return ok(id);
-	},
-	upsert: async (data: {
+	}
+	async upsert(data: {
 		name: string;
 		price: number;
 		stock: number;
 		capital: number;
 		barcode: string | null;
 		id: number | null;
-	}): Promise<Result<"Aplikasi bermasalah" | null, number | null>> => {
+	}): Promise<Result<"Aplikasi bermasalah" | null, number | null>> {
 		const [errMsg, res] = await tryResult({
 			run: async () => {
 				if (data.id) {
-					return db.execute(
+					return this.db.execute(
 						`UPDATE products SET name = $1, stock = stock + $2, capital = $3 WHERE id = $4`,
 						[data.name.trim(), data.stock, data.capital, data.id]
 					);
 				} else {
-					return db.execute(
+					return this.db.execute(
 						`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)`,
-						//  ON CONFLICT(barcode) DO UPDATE SET name = $1, stock = stock + $2, capital = $5
 						[
 							data.name.trim(),
 							data.stock,
@@ -196,14 +194,17 @@ export const genProduct = (db: Database) => ({
 			return err("Aplikasi bermasalah");
 		}
 		return ok(id);
-	},
-	delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
+	}
+	async delete(id: number): Promise<"Aplikasi bermasalah" | null> {
 		const [errMsg] = await tryResult({
-			run: () => db.execute("DELETE FROM products WHERE id = $1", [id]),
+			run: () => this.db.execute("DELETE FROM products WHERE id = $1", [id]),
 		});
+		if (this.caches.all) {
+			this.caches.all = this.caches.all.filter((p) => p.id !== id);
+		}
 		return errMsg;
-	},
-	update: async (data: {
+	}
+	async update(data: {
 		name: string;
 		price: number;
 		stock: number;
@@ -211,9 +212,9 @@ export const genProduct = (db: Database) => ({
 		barcode: string | null;
 		id: number;
 		note: string;
-	}): Promise<"Aplikasi bermasalah" | "Barang dengan barcode tersebut sudah ada" | null> => {
+	}): Promise<"Aplikasi bermasalah" | "Barang dengan barcode tersebut sudah ada" | null> {
 		try {
-			await db.execute(
+			await this.db.execute(
 				"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5, note = $6 WHERE id = $7",
 				[
 					data.name.trim(),
@@ -225,6 +226,19 @@ export const genProduct = (db: Database) => ({
 					data.id,
 				]
 			);
+			// update caches
+			if (this.caches.all) {
+				const productIndex = this.caches.all.findIndex((p) => p.id === data.id);
+				this.caches.all[productIndex] = {
+					id: this.caches.all[productIndex].id,
+					name: data.name.trim(),
+					stock: data.stock,
+					price: data.price,
+					barcode: data.barcode === null ? null : data.barcode.trim(),
+					capital: data.capital,
+					note: data.note,
+				};
+			}
 			return null;
 		} catch (error) {
 			if (typeof error === "string") {
@@ -234,5 +248,5 @@ export const genProduct = (db: Database) => ({
 			}
 			return "Aplikasi bermasalah";
 		}
-	},
-});
+	}
+}

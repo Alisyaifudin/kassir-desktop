@@ -15,15 +15,18 @@ import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Loader2 } from "lucide-react";
 import { useDB } from "~/RootLayout";
-import { numeric } from "~/lib/utils";
+import { formatDate, formatTime, numeric } from "~/lib/utils";
 import { useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
 import { Textarea } from "~/components/ui/textarea";
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
-import { useProducts } from "~/Layout";
 import { EditBtn } from "./EditBtn";
+import { useProducts } from "~/hooks/useProducts";
+import { Await } from "~/components/Await";
+import { emitter } from "~/lib/event-emitter";
+import { getDay } from "~/pages/Stock/Product/History";
 
 const meth = {
 	cash: "Tunai",
@@ -36,19 +39,16 @@ export function Detail({
 	record,
 	additionals,
 	discs,
-	revalidate,
 	role,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	additionals: DB.Additional[];
 	discs: DB.Discount[];
-	revalidate: () => void;
 	role: "admin" | "user";
 }) {
 	const [isEdit, setIsEdit] = useState(false);
 	const navigate = useNavigate();
-	const { products } = useProducts();
 	const { edit, credit, time } = useActions(record.timestamp);
 	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -71,8 +71,6 @@ export function Detail({
 		}
 		credit.setError("");
 		await navigate(`/records/${now}?tab=detail`);
-		await new Promise((res) => setTimeout(res, 100));
-		revalidate();
 	};
 	const handleChangeTime = async (newTime: number) => {
 		const [errMsg, now] = await time.action(newTime);
@@ -82,8 +80,6 @@ export function Detail({
 		}
 		time.setError("");
 		await navigate(`/records/${now}?tab=detail`);
-		await new Promise((res) => setTimeout(res, 100));
-		revalidate();
 	};
 	const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -104,10 +100,11 @@ export function Detail({
 		if (errMsg) {
 			edit.setError({ method: "", note: errMsg });
 		} else {
-			revalidate();
+			emitter.emit("fetch-record-item");
 			setIsEdit(false);
 		}
 	};
+	const date = getDay(record.timestamp);
 	return (
 		<div className="flex flex-col gap-2 text-3xl">
 			<div className="flex items-center justify-between">
@@ -123,7 +120,9 @@ export function Detail({
 				{role === "admin" ? (
 					<div className="flex gap-2 items-center">
 						{time.error ? <TextError>{time.error}</TextError> : null}
-						<Calendar time={record.timestamp} setTime={handleChangeTime} />
+						<Calendar time={record.timestamp} setTime={handleChangeTime}>
+							<p>{formatTime(record.timestamp, "long")} {date.name}, {formatDate(record.timestamp, "long")}</p>
+						</Calendar>
 						{time.loading ? <Loader2 className="animate-spin" /> : null}
 					</div>
 				) : null}
@@ -177,9 +176,7 @@ export function Detail({
 								<TableRow>
 									<TableCell className="flex items-center">
 										{i + 1}
-										{role === "admin" ? (
-											<LinkProduct item={item} products={products} update={revalidate} />
-										) : null}
+										{role === "admin" ? <LinkProductList item={item} /> : null}
 									</TableCell>
 									<TableCell>{item.name}</TableCell>
 									<TableCell className="text-end flex items-center gap-1 justify-end">
@@ -318,4 +315,11 @@ function useActions(timestamp: number) {
 	);
 	const time = useAction("", (newTime: number) => db.record.updateTimestamp(timestamp, newTime));
 	return { edit, credit, time };
+}
+
+function LinkProductList({ item }: { item: DB.RecordItem }) {
+	const state = useProducts();
+	return (
+		<Await state={state}>{(products) => <LinkProduct item={item} products={products} />}</Await>
+	);
 }
