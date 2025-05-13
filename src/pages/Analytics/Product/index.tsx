@@ -63,7 +63,7 @@ export function Product({
 					interval={interval}
 				/>
 				<Mode mode={mode} setMode={handleMode} />
-				<Input placeholder="Cari..." value={query} onChange={handleChange} />
+				<Input type="search" placeholder="Cari..." value={query} onChange={handleChange} />
 			</div>
 			<Table className="overflow-auto text-3xl">
 				<TableHeader>

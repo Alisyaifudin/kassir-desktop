@@ -15,7 +15,19 @@ export type Result = {
 } & ProductResult;
 
 export const useProductSearch = (all: ProductRecord[], mode: "buy" | "sell", query: string) => {
-	const { miniSearch, raw } = useMemo(() => {
+	const raw: ProductRecord[] = [];
+	for (const p of all) {
+		if (p.mode !== mode) {
+			continue;
+		}
+		const findIndex = raw.findIndex((product) => product.id === p.id);
+		if (findIndex === -1) {
+			raw.push(p);
+		} else {
+			raw[findIndex].qty += p.qty;
+		}
+	}
+	const miniSearch = useMemo(() => {
 		const miniSearch = new MiniSearch<ProductRecord>({
 			fields: ["name", "barcode"],
 			storeFields: ["id", "name", "barcode", "price", "capital", "qty", "timestamp", "mode"],
@@ -25,27 +37,16 @@ export const useProductSearch = (all: ProductRecord[], mode: "buy" | "sell", que
 				processTerm: (term: string) => term.toLowerCase(),
 			},
 		});
-		const products: ProductRecord[] = [];
-		for (const p of all) {
-			if (p.mode !== mode) {
-				continue;
-			}
-			const findIndex = products.findIndex((product) => product.id === p.id);
-			if (findIndex === -1) {
-				products.push(p);
-			} else {
-				products[findIndex].qty += p.qty;
-			}
-		}
-		miniSearch.addAll(products);
-		return { miniSearch, raw: products };
-	}, [all]);
+
+		miniSearch.addAll(raw);
+		return miniSearch;
+	}, [raw]);
 
 	// Typed search function
 	const search = (query: string, options?: SearchOptions) => {
 		return miniSearch.search(query, options) as Result[];
 	};
-	const products = useMemo(() => {
+	const productss = useMemo(() => {
 		if (query.trim() === "") {
 			return raw;
 		}
@@ -61,6 +62,6 @@ export const useProductSearch = (all: ProductRecord[], mode: "buy" | "sell", que
 			combineWith: "AND",
 		});
 		return res;
-	}, [query, all]);
-	return products;
+	}, [query, raw]);
+	return productss;
 };
