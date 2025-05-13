@@ -91,7 +91,7 @@ export async function submitPayment(
 				product_id: item.id ?? null,
 				capital: capital ?? 0,
 				barcode: item.barcode ?? null,
-				stock: mode === "buy" ? Number(item.qty) : item.stock ?? Number(item.qty),
+				stock: mode === "buy" ? Number(item.qty) : (item.stock ?? Number(item.qty)),
 			},
 			discs: item.discs,
 		};
@@ -100,8 +100,9 @@ export async function submitPayment(
 	if (errRecord) {
 		return err(errRecord);
 	}
-	const errAdds = await db.additional.addMany(additionals, timestamp);
+	const [errAdds, addIds] = await db.additional.addMany(additionals, timestamp);
 	if (errAdds) {
+		await db.record.delete(timestamp);
 		return err(errAdds);
 	}
 	const productPromises = [];
@@ -125,7 +126,9 @@ export async function submitPayment(
 					name: item.name,
 					barcode: item.barcode,
 					price: item.price,
-					stock: item.stock - item.qty,
+					productId: item.product_id,
+					stock: item.stock,
+					qty: item.qty,
 				})
 			);
 		}
@@ -133,6 +136,7 @@ export async function submitPayment(
 	const resProduct = await Promise.all(productPromises);
 	for (const [errMsg] of resProduct) {
 		if (errMsg !== null) {
+			await Promise.all([[db.record.delete(timestamp), db.additional.deleteMany(addIds)]]);
 			return err(errMsg);
 		}
 	}
@@ -142,9 +146,9 @@ export async function submitPayment(
 	itemsTranform.forEach(({ item }, i) => {
 		if (item.product_id === null) {
 			const productId = resProduct[i][1];
-			itemPromises.push(db.recordItem.add({ ...item, product_id: productId }, timestamp, mode));
+			itemPromises.push(db.recordItem.add({ ...item, product_id: productId }, timestamp));
 		} else {
-			itemPromises.push(db.recordItem.add(item, timestamp, mode));
+			itemPromises.push(db.recordItem.add(item, timestamp));
 		}
 	});
 	const resItem = await Promise.all(itemPromises);

@@ -48,8 +48,7 @@ export function ItemComponent({
 		if (
 			isNaN(val) ||
 			!Number.isInteger(val) ||
-			val < 0 ||
-			(mode === "sell" && stock && val > stock)
+			val < 0
 		) {
 			return;
 		}

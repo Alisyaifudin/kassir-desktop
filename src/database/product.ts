@@ -124,7 +124,9 @@ export class ProductTable {
 		name: string;
 		price: number;
 		stock: number;
+		qty: number;
 		barcode: string | null;
+		productId: number | null;
 	}): Promise<
 		Result<
 			"Aplikasi bermasalah" | `Ada barang dengan barcode yang sama: ${string}` | null,
@@ -132,20 +134,28 @@ export class ProductTable {
 		>
 	> {
 		const [errMsg, res] = await tryResult({
-			run: () =>
-				this.db.execute(
-					`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, 0)
+			run: () => {
+				if (data.productId) {
+					return this.db.execute("UPDATE products SET stock = stock - $1 WHERE id = $2", [
+						data.qty,
+						data.productId,
+					]);
+				} else {
+					return this.db.execute(
+						`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, 0)
 					 ON CONFLICT(barcode) DO NOTHING`,
-					[
-						data.name.trim(),
-						data.stock,
-						data.price,
-						data.barcode === null ? null : data.barcode.trim(),
-					]
-				),
+						[
+							data.name.trim(),
+							data.stock,
+							data.price,
+							data.barcode === null ? null : data.barcode.trim(),
+						]
+					);
+				}
+			},
 		});
 		if (errMsg) return err(errMsg);
-		const id = res.lastInsertId;
+		const id = data.productId ?? res.lastInsertId;
 		if (id === undefined) {
 			if (data.barcode !== null) {
 				return ok(null);

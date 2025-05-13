@@ -28,8 +28,8 @@ export function genAdditional(db: Database) {
 		addMany: async (
 			additionals: { name: string; value: number; kind: "percent" | "number" }[],
 			timestamp: number
-		): Promise<"Aplikasi bermasalah" | null> => {
-			const [errMsg] = await tryResult({
+		): Promise<Result<"Aplikasi bermasalah", number[]>> => {
+			const [errMsg, res] = await tryResult({
 				run: () => {
 					const promises = [];
 					for (const additional of additionals) {
@@ -44,8 +44,21 @@ export function genAdditional(db: Database) {
 					return Promise.all(promises);
 				},
 			});
-			if (errMsg) return errMsg;
-			return null;
+			if (errMsg) return err(errMsg);
+			const ids = res.map((r) => r.lastInsertId!);
+			return ok(ids);
+		},
+		deleteMany: async (ids: number[]): Promise<"Aplikasi bermasalah" | null> => {
+			const [errMsg] = await tryResult({
+				run: () => {
+					const promises = [];
+					for (const id of ids) {
+						promises.push(db.execute(`DELETE FROM additionals WHERE id = $1`, [id]));
+					}
+					return Promise.all(promises);
+				},
+			});
+			return errMsg;
 		},
 	};
 }

@@ -34,14 +34,14 @@ export function genRecordItem(db: Database) {
 			const [errMsg] = await tryResult({
 				run: () =>
 					db.execute("UPDATE record_items SET product_id = $1 WHERE id = $2", [productId, itemId]),
-			})
+			});
 			return errMsg;
 		},
 		add: async (
 			item: Omit<DB.RecordItem, "id"> & { product_id: number | null },
-			timestamp: number,
-			mode: "sell" | "buy"
+			timestamp: number
 		): Promise<Result<"Aplikasi bermasalah" | "Gagal menyimpan. Coba lagi." | null, number>> => {
+			console.log({ item });
 			const [errMsg, res] = await tryResult({
 				run: async () => {
 					const promise = [
@@ -61,18 +61,10 @@ export function genRecordItem(db: Database) {
 							]
 						),
 					];
-					if (item.product_id !== undefined && mode === "sell") {
-						promise.push(
-							db.execute(`UPDATE products SET stock = stock - $1 WHERE id = $2`, [
-								item.qty,
-								item.product_id,
-							])
-						);
-					}
 					return Promise.all(promise);
 				},
 			});
-
+			console.log(errMsg);
 			if (errMsg) return err(errMsg);
 			const id = res[0].lastInsertId;
 			if (id === undefined) return err("Gagal menyimpan. Coba lagi.");
