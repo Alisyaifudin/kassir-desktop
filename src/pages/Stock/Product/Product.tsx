@@ -83,7 +83,7 @@ export default function Page() {
 						}
 						return (
 							<>
-								<Form product={product} />
+								<Form product={product} handleBack={handleBack} />
 								{History}
 							</>
 						);

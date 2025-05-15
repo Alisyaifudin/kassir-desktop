@@ -15,7 +15,7 @@ import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Loader2 } from "lucide-react";
 import { useDB } from "~/RootLayout";
-import { formatDate, formatTime, numeric } from "~/lib/utils";
+import { dayNames, formatDate, formatTime, numeric } from "~/lib/utils";
 import { useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
@@ -26,7 +26,7 @@ import { EditBtn } from "./EditBtn";
 import { useProducts } from "~/hooks/useProducts";
 import { Await } from "~/components/Await";
 import { emitter } from "~/lib/event-emitter";
-import { getDay } from "~/pages/Stock/Product/History";
+import { Temporal } from "temporal-polyfill";
 
 const meth = {
 	cash: "Tunai",
@@ -322,4 +322,10 @@ function LinkProductList({ item }: { item: DB.RecordItem }) {
 	return (
 		<Await state={state}>{(products) => <LinkProduct item={item} products={products} />}</Await>
 	);
+}
+
+export function getDay(epochMilli: number) {
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
+	return { day: date.day, name: dayNames[date.dayOfWeek] };
 }

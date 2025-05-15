@@ -33,7 +33,7 @@ const emptyErrs = {
 	note: "",
 };
 
-export function Form({ product }: { product: DB.Product }) {
+export function Form({ product, handleBack }: { product: DB.Product; handleBack: ()=>void }) {
 	const db = useDB();
 	const { action, error, loading, setError } = useAction(
 		emptyErrs,
@@ -69,6 +69,7 @@ export function Form({ product }: { product: DB.Product }) {
 			setError({ ...emptyErrs, global: errMsg });
 			return;
 		}
+		handleBack();
 	};
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full">
