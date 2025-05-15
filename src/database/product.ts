@@ -39,21 +39,32 @@ export class ProductTable {
 	}
 	async getHistory(
 		id: number,
-		start: number,
-		end: number
-	): Promise<Result<"Aplikasi bermasalah", ProductHistory[]>> {
-		const [errMsg, products] = await tryResult({
+		offset: number,
+		limit: number
+	): Promise<Result<"Aplikasi bermasalah", { products: ProductHistory[]; total: number }>> {
+		const [errMsg, res] = await tryResult({
 			run: () =>
-				this.db.select<ProductHistory[]>(
-					`SELECT record_items.timestamp, record_items.qty, records.mode
+				Promise.all([
+					this.db.select<ProductHistory[]>(
+						`SELECT record_items.timestamp, record_items.qty, records.mode
 					FROM record_items INNER JOIN records ON records.timestamp = record_items.timestamp
-					WHERE record_items.product_id = $1 AND record_items.timestamp BETWEEN $2 AND $3
-					ORDER BY record_items.timestamp DESC`,
-					[id, start, end]
-				),
+					WHERE record_items.product_id = $1
+					ORDER BY record_items.timestamp DESC
+					LIMIT $3
+					OFFSET $2
+					`,
+						[id, offset, limit]
+					),
+					this.db.select<{ count: number }[]>(
+						`SELECT COUNT(*) as count FROM record_items WHERE record_items.product_id = $1`,
+						[id]
+					),
+				]),
 		});
 		if (errMsg !== null) return err(errMsg);
-		return ok(products);
+		const products = res[0];
+		const total = res[1][0].count;
+		return ok({ products, total });
 	}
 	async getByRange(
 		start: number,

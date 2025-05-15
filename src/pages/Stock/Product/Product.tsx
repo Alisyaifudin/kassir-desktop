@@ -10,36 +10,53 @@ import { useAsync } from "~/hooks/useAsync.tsx";
 import { type loader } from "./index.tsx";
 import { useUser } from "~/Layout.tsx";
 import { History as HistoryComp } from "./History.tsx";
-import { Temporal } from "temporal-polyfill";
 import { Form } from "./Form.tsx";
 import { useAsyncDep } from "~/hooks/useAsyncDep.tsx";
+
+export const LIMIT = 20;
 
 export default function Page() {
 	const { id } = useLoaderData<typeof loader>();
 	const user = useUser();
 	const navigate = useNavigate();
 	const [search, setSearch] = useSearchParams();
-	const time = useMemo(() => {
-		const parsed = numeric.safeParse(search.get("time"));
-		const time = parsed.success ? parsed.data : Temporal.Now.instant().epochMilliseconds;
-		return time;
+	const page = useMemo(() => {
+		const parsed = numeric.safeParse(search.get("page"));
+		let page = 1;
+		if (parsed.data && parsed.data > 0) {
+			page = parsed.data;
+		}
+		return page;
 	}, [search]);
-	const { item, history } = useItem(id, time);
-	const setTime = (time: number) => {
-		setSearch({ time: time.toString() });
-	};
+	const { item, history } = useItem(id, page);
 	const History = useMemo(
 		() => (
 			<Await
 				state={history}
-				Loading={<HistoryComp id={id} history={[]} time={time} setTime={setTime} />}
+				Loading={
+					<HistoryComp
+						id={id}
+						products={[]}
+						page={0}
+						total={0}
+						setSearch={setSearch}
+						search={search}
+					/>
+				}
 			>
-				{(history) => {
-					return <HistoryComp id={id} history={history} time={time} setTime={setTime} />;
-				}}
+				{({ products, total }) => (
+					<HistoryComp
+						search={search}
+						id={id}
+						products={products}
+						total={total}
+						page={page}
+						setSearch={setSearch}
+					/>
+				)}
 			</Await>
 		),
-		[history]
+		[history, search]
 	);
 	const handleBack = () => {
 		const backURL = getBackURL("/stock", search);
@@ -101,20 +118,10 @@ function Info({ product }: { product: DB.Product }) {
 	);
 }
 
-const useItem = (id: number, time: number) => {
+const useItem = (id: number, page: number) => {
 	const db = useDB();
-	const { start, end } = useMemo(() => {
-		const tz = Temporal.Now.timeZoneId();
-		const { year, month } = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
-		const start = Temporal.ZonedDateTime.from({ timeZone: tz, year, month, day: 1 }).startOfDay();
-		const end = start.add(Temporal.Duration.from({ months: 1 }));
-		return { start, end };
-	}, [time]);
 	const item = useAsync(() => db.product.get(id));
 
-	const history = useAsyncDep(
-		() => db.product.getHistory(id, start.epochMilliseconds, end.epochMilliseconds),
-		[start]
-	);
+	const history = useAsyncDep(() => db.product.getHistory(id, (page - 1) * LIMIT, LIMIT), [page]);
 	return { item, history };
 };

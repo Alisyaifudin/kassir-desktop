@@ -6,6 +6,7 @@ mod auth;
 pub fn run() {
     let migs = migrations::generate_migration();
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(LevelFilter::Info)
