@@ -59,7 +59,7 @@ export function Product({
 					handleClickInterval={handleClickInterval}
 					setTime={handleTime}
 					time={time}
-					option={"profit"}
+					option={"products"}
 					interval={interval}
 				/>
 				<Mode mode={mode} setMode={handleMode} />
