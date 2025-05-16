@@ -14,7 +14,7 @@ export default function Setting() {
 	const store = useStore();
 	const user = useUser();
 	return (
-		<main className="flex gap-2 p-2 flex-1 w-full max-w-7xl mx-auto justify-between">
+		<main className="flex gap-2 p-2 flex-1 w-full max-w-7xl mx-auto justify-between overflow-hidden">
 			<Navigation role={user.role} />
 			<Outlet context={{ db, store, user }} />
 		</main>
@@ -69,7 +69,11 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 					</Button>
 				</li>
 				<li className="h-14 flex items-center">
-					<Button className="w-full" asChild variant={pathname === "/setting/social" ? "default" : "link"}>
+					<Button
+						className="w-full"
+						asChild
+						variant={pathname === "/setting/social" ? "default" : "link"}
+					>
 						<Link to="/setting/social">Kontak</Link>
 					</Button>
 				</li>
@@ -98,6 +102,15 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 						variant={pathname === "/setting/profile" ? "default" : "link"}
 					>
 						<Link to="/setting/profile">Profil</Link>
+					</Button>
+				</li>
+				<li className="h-14 flex items-center">
+					<Button
+						className="w-full"
+						asChild
+						variant={pathname === "/setting/money" ? "default" : "link"}
+					>
+						<Link to="/setting/money">Uang</Link>
 					</Button>
 				</li>
 			</ol>

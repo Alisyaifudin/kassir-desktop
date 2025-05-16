@@ -1,0 +1,4 @@
+CREATE TABLE money (
+  timestamp INTEGER PRIMARY KEY,
+  value REAL NOT NULL
+) STRICT;

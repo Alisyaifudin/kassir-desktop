@@ -7,6 +7,7 @@ import { genChasier } from "./cashier";
 import { genDiscount } from "./discount";
 import { genImage } from "./image";
 import { genSocial } from "./social";
+import { genMoney } from "./money";
 
 export function generateDB(db: DatabaseTauri) {
 	return {
@@ -18,6 +19,7 @@ export function generateDB(db: DatabaseTauri) {
 		discount: genDiscount(db),
 		image: genImage(db),
 		social: genSocial(db),
+		money: genMoney(db),
 		exec: db.execute,
 	};
 }

@@ -66,4 +66,8 @@ declare namespace DB {
 		id: number;
 		value: string;
 	}
+	interface Money {
+		timestamp: number;
+		value: number;
+	}
 }
