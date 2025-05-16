@@ -3,7 +3,7 @@ import { err, ok, Result } from "~/lib/utils";
 import { useDB } from "~/RootLayout";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft } from "lucide-react";
-import { ItemList } from "./ItemList";
+import { Receipt } from "./Receipt";
 import { Await } from "~/components/Await";
 import { Database } from "~/database";
 import { type loader } from ".";
@@ -41,7 +41,7 @@ export default function Page() {
 									<TabsTrigger value="detail">Detail</TabsTrigger>
 								</TabsList>
 								<TabsContent value="receipt">
-									<ItemList
+									<Receipt
 										record={data.record}
 										items={data.items}
 										additionals={data.additionals}

@@ -6,7 +6,7 @@ type Props = {
 	discs: { kind: "number" | "percent"; value: number }[];
 } & DB.RecordItem;
 
-export function Item({ name, price, qty, discs, total_before_disc }: Props) {
+export function ReceiptItem({ name, price, qty, discs, total_before_disc }: Props) {
 	const discsVal = calcDiscs(discs, total_before_disc);
 	return (
 		<div className="flex flex-col">

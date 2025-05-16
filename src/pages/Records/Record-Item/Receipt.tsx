@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Temporal } from "temporal-polyfill";
-import { formatDate, formatTime } from "~/lib/utils";
-import { Item } from "./Item";
-import { useProfile } from "~/pages/Setting/Shop/setting-api";
-import { AwaitDangerous } from "~/components/Await";
+import { err, formatDate, formatTime, ok, Result } from "~/lib/utils";
+import { ReceiptItem } from "./ReceiptItem";
+import { getProfile } from "~/pages/Setting/Shop/setting-api";
+import { Await } from "~/components/Await";
 import { TaxItem } from "./TaxItem";
+import { useDB, useStore } from "~/RootLayout";
+import { useAsync } from "~/hooks/useAsync";
 
 const title = {
 	buy: "Beli",
@@ -18,7 +20,7 @@ const meth = {
 	other: "Lainnya",
 };
 
-export function ItemList({
+export function Receipt({
 	items,
 	record,
 	additionals,
@@ -30,7 +32,7 @@ export function ItemList({
 	additionals: DB.Additional[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
-	const info = useProfile();
+	const info = useInfo();
 	const [width] = useState(72);
 	useEffect(() => {
 		const style = document.createElement("style");
@@ -85,21 +87,21 @@ export function ItemList({
 				</div>
 				<Button onClick={print}>Cetak</Button>
 			</div>
-			<AwaitDangerous state={info}>
-				{(data) => {
-					const headers = data.header === undefined ? [] : data.header.split("\n");
-					const footers = data.footer === undefined ? [] : data.footer.split("\n");
+			<Await state={info}>
+				{({ profile, socials }) => {
+					const headers = profile.header === undefined ? [] : profile.header.split("\n");
+					const footers = profile.footer === undefined ? [] : profile.footer.split("\n");
 					return (
 						<div className="border pt-5">
 							<div id="print-container" className="flex flex-col gap-2 overflow-auto px-2">
 								<div className="flex flex-col">
-									<p className="text-center text-lg font-bold">{data.owner}</p>
+									<p className="text-center text-lg font-bold">{profile.owner}</p>
 									{headers.map((h, i) => (
 										<p key={i} className="text-center">
 											{h}
 										</p>
 									))}
-									<p>{data.address}</p>
+									<p>{profile.address}</p>
 									{record.cashier ? <p>Kasir: {record.cashier}</p> : null}
 									<div className="flex items-center justify-between">
 										<p>No: {record.timestamp}</p>
@@ -110,7 +112,7 @@ export function ItemList({
 								</div>
 								<hr />
 								{items.map((item, i) => (
-									<Item
+									<ReceiptItem
 										{...item}
 										i={i}
 										key={i}
@@ -192,14 +194,49 @@ export function ItemList({
 											{h}
 										</p>
 									))}
-									<p>IG: {data.ig}</p>
-									<p>Shopee: {data.shopee}</p>
+									{socials.map((s) => (
+										<p key={s.id}>
+											{s.name}: {s.value}
+										</p>
+									))}
 								</div>
 							</div>
 						</div>
 					);
 				}}
-			</AwaitDangerous>
+			</Await>
 		</div>
 	);
 }
+
+const useInfo = () => {
+	const store = useStore();
+	const db = useDB();
+	const info = useAsync(
+		async (): Promise<
+			Result<
+				"Aplikasi bermasalah",
+				{
+					profile: {
+						footer: string | undefined;
+						owner: string | undefined;
+						address: string | undefined;
+						header: string | undefined;
+						newVersion: string | undefined;
+					};
+					socials: DB.Social[];
+				}
+			>
+		> => {
+			const [profile, [errSocial, socials]] = await Promise.all([
+				getProfile(store.profile),
+				db.social.get(),
+			]);
+			if (errSocial) {
+				return err(errSocial);
+			}
+			return ok({ profile, socials });
+		}
+	);
+	return info;
+};

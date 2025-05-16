@@ -1,6 +1,6 @@
-import { useStore } from "../../../RootLayout";
-import { useAsync } from "../../../hooks/useAsync";
-import { Store } from "../../../store";
+import { useStore } from "~/RootLayout";
+import { useAsync } from "~/hooks/useAsync";
+import { Store } from "~/store";
 
 export const useProfile = () => {
 	const { profile } = useStore();
