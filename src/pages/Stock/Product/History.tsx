@@ -79,7 +79,7 @@ export function History({
 					<p className="text-3xl">
 						{page}/{totalPage}
 					</p>
-					<Button onClick={handleNext} disabled={page === totalPage}>
+					<Button onClick={handleNext} disabled={page === totalPage || totalPage === 0}>
 						<ChevronRight size={35} />
 					</Button>
 				</div>

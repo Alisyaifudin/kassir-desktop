@@ -1,11 +1,11 @@
-import { Lock, X } from "lucide-react";
-import { cn } from "../../../lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
+import { X } from "lucide-react";
+import { cn } from "~/lib/utils";
 import { Item } from "../schema";
 import { SetItem } from "./useLocalStorage";
 import { Discount } from "./Discount";
 import { calcSubtotal } from "./submit";
 import { Fragment } from "react";
+import { DetailDialog } from "./DetailDialog";
 
 type Props = {
 	index: number;
@@ -45,11 +45,7 @@ export function ItemComponent({
 	};
 	const handleChangeQty = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
-		if (
-			isNaN(val) ||
-			!Number.isInteger(val) ||
-			val < 0
-		) {
+		if (isNaN(val) || !Number.isInteger(val) || val < 0) {
 			return;
 		}
 		set.qty(mode, index, val);
@@ -65,16 +61,7 @@ export function ItemComponent({
 				{id === undefined ? (
 					<p className="text-center">{index + 1}</p>
 				) : (
-					<Popover>
-						<PopoverTrigger className="flex items-center">
-							<p className="text-center">{index + 1}</p>
-							<Lock />
-						</PopoverTrigger>
-						<PopoverContent className="flex flex-col text-2xl w-fit">
-							<p>Id: {id}</p>
-							<p>Stok: {stock}</p>
-						</PopoverContent>
-					</Popover>
+					<DetailDialog index={index} productId={id} stock={stock} name={name} />
 				)}
 			</div>
 			<div className="flex flex-col">
@@ -148,7 +135,7 @@ export function ItemComponent({
 									<div />
 								</div>
 							</Fragment>
-					  ))}
+						))}
 			</div>
 		</div>
 	);

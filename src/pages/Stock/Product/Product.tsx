@@ -122,7 +122,7 @@ export default function Page() {
 									</TabsContent>
 									<TabsContent value="image" className="h-full">
 										<Await state={images} Error={(error) => <TextError>{error}</TextError>}>
-											{(images) => <Images images={images} productId={id} />}
+											{(images) => <Images images={images} productId={id} role={user.role}/>}
 										</Await>
 									</TabsContent>
 								</Tabs>
@@ -137,8 +137,8 @@ export default function Page() {
 
 function Info({ product }: { product: DB.Product }) {
 	return (
-		<div className="grid grid-cols-[150px_1fr] gap-3 text-3xl w-full">
-			<h1 className="font-bold text-3xl">Info barang</h1>
+		<div className="grid grid-cols-[150px_1fr] h-fit gap-3 text-3xl w-full">
+			<h1 className="font-bold text-3xl col-span-2">Info barang</h1>
 			<p>Nama</p>
 			<p>{product.name}</p>
 			<p>Harga</p>

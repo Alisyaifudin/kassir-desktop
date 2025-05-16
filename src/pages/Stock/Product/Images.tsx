@@ -13,7 +13,15 @@ import { useDB } from "~/RootLayout";
 import { emitter } from "~/lib/event-emitter";
 import { SetURLSearchParams, useSearchParams } from "react-router";
 
-export function Images({ images, productId }: { images: DB.Image[]; productId: number }) {
+export function Images({
+	images,
+	productId,
+	role,
+}: {
+	images: DB.Image[];
+	productId: number;
+	role: "user" | "admin";
+}) {
 	const state = useGetImages(images);
 	return (
 		<AwaitDangerous state={state}>
@@ -27,7 +35,7 @@ export function Images({ images, productId }: { images: DB.Image[]; productId: n
 					imgs.push({ ...images[i], src: img });
 					i += 1;
 				}
-				return <ImageList images={imgs} productId={productId} />;
+				return <ImageList images={imgs} productId={productId} role={role} />;
 			}}
 		</AwaitDangerous>
 	);
@@ -36,9 +44,11 @@ export function Images({ images, productId }: { images: DB.Image[]; productId: n
 function ImageList({
 	images,
 	productId,
+	role,
 }: {
 	images: (DB.Image & { src: string })[];
 	productId: number;
+	role: "user" | "admin";
 }) {
 	const [search, setSearch] = useSearchParams();
 	const selectedId = getSelectedId(search);
@@ -53,6 +63,7 @@ function ImageList({
 	const { action, loading, error, setError } = useAction(
 		"",
 		async (input: { a: number; b: number }) => {
+			if (role !== "admin") return "Tindakan dilarang!";
 			const errMsg = db.image.swap(input.a, input.b);
 			return errMsg;
 		}
@@ -113,7 +124,7 @@ function ImageList({
 				</Button>
 				<div className="relative h-[600px] flex-1 flex justify-center items-center">
 					<img className="object-contain h-full" src={selected?.src} />
-					{selected ? (
+					{selected && role === "admin" ? (
 						<DeleteImg
 							selected={selected}
 							images={images}
@@ -143,29 +154,31 @@ function ImageList({
 					))}
 				</div>
 				{error ? <TextError>{error}</TextError> : null}
-				<div className="flex gap-2 w-full justify-between">
-					<Button
-						variant="ghost"
-						className="flex items-center"
-						disabled={index <= 0}
-						onClick={handleShiftPrev}
-					>
-						<ChevronLeft />
-						Pindahkan Kiri
-						{loading ? <Loader2 className="animate-spin" /> : null}
-					</Button>
-					<ImageDialog productId={productId} />
-					<Button
-						variant="ghost"
-						className="flex items-center"
-						disabled={index === images.length - 1}
-						onClick={handleShiftNext}
-					>
-						{loading ? <Loader2 className="animate-spin" /> : null}
-						Pindahkan Kanan
-						<ChevronRight />
-					</Button>
-				</div>
+				{role === "admin" ? (
+					<div className="flex gap-2 w-full justify-between">
+						<Button
+							variant="ghost"
+							className="flex items-center"
+							disabled={index <= 0}
+							onClick={handleShiftPrev}
+						>
+							<ChevronLeft />
+							Pindahkan Kiri
+							{loading ? <Loader2 className="animate-spin" /> : null}
+						</Button>
+						<ImageDialog productId={productId} />
+						<Button
+							variant="ghost"
+							className="flex items-center"
+							disabled={index === images.length - 1}
+							onClick={handleShiftNext}
+						>
+							{loading ? <Loader2 className="animate-spin" /> : null}
+							Pindahkan Kanan
+							<ChevronRight />
+						</Button>
+					</div>
+				) : null}
 			</div>
 		</div>
 	);
