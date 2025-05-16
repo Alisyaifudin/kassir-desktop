@@ -14,11 +14,22 @@ import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
 import { getBackURL } from "~/lib/utils";
 import { useAction } from "~/hooks/useAction";
+import { image } from "~/lib/image";
 
-export function DeleteBtn({ id, name }: { id: number; name: string }) {
+export function DeleteBtn({ id, name, images }: { id: number; name: string; images: DB.Image[] }) {
 	const navigate = useNavigate();
 	const db = useDB();
-	const { action, loading, error, setError } = useAction("", (id: number) => db.product.delete(id));
+	const { action, loading, error, setError } = useAction("", async (id: number) => {
+		const promises = [db.product.delete(id)];
+		for (const img of images) {
+			promises.push(image.del(img.name));
+		}
+		const errMsgs = await Promise.all(promises);
+		for (const errMsg of errMsgs) {
+			if (errMsg) return errMsg;
+		}
+		return null;
+	});
 	const backURL = getBackURL("/stock", new URLSearchParams(window.location.search));
 	const handleClick = async () => {
 		const errMsg = await action(id);

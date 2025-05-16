@@ -146,6 +146,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../src/migrations-sql/21-30/migration-24.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 25,
+            description: "add_images",
+            sql: include_str!("../src/migrations-sql/21-30/migration-25.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

@@ -5,6 +5,7 @@ import { genRecordItem } from "./record-item";
 import { genAdditional } from "./additional";
 import { genChasier } from "./cashier";
 import { genDiscount } from "./discount";
+import { genImage } from "./image";
 
 export function generateDB(db: DatabaseTauri) {
 	return {
@@ -14,6 +15,7 @@ export function generateDB(db: DatabaseTauri) {
 		additional: genAdditional(db),
 		cashier: genChasier(db),
 		discount: genDiscount(db),
+		image: genImage(db),
 		exec: db.execute,
 	};
 }

@@ -5,7 +5,8 @@ export type ProductRecord = Pick<DB.Product, "id" | "name" | "price" | "capital"
 	Pick<DB.RecordItem, "timestamp" | "qty"> &
 	Pick<DB.Record, "mode">;
 
-export type ProductHistory = { timestamp: number; qty: number; mode: "sell" | "buy" };
+export type ProductHistory = Pick<DB.RecordItem, "qty" | "timestamp" | "capital"> &
+	Pick<DB.Record, "mode">;
 
 export class ProductTable {
 	db: Database;
@@ -40,24 +41,27 @@ export class ProductTable {
 	async getHistory(
 		id: number,
 		offset: number,
-		limit: number
+		limit: number,
+		mode: "buy" | "sell"
 	): Promise<Result<"Aplikasi bermasalah", { products: ProductHistory[]; total: number }>> {
 		const [errMsg, res] = await tryResult({
 			run: () =>
 				Promise.all([
 					this.db.select<ProductHistory[]>(
-						`SELECT record_items.timestamp, record_items.qty, records.mode
+						`SELECT record_items.timestamp, record_items.qty, records.mode, record_items.capital
 					FROM record_items INNER JOIN records ON records.timestamp = record_items.timestamp
-					WHERE record_items.product_id = $1
+					WHERE record_items.product_id = $1 AND records.mode = $2
 					ORDER BY record_items.timestamp DESC
 					LIMIT $3
-					OFFSET $2
+					OFFSET $4
 					`,
-						[id, offset, limit]
+						[id, mode, limit, offset]
 					),
 					this.db.select<{ count: number }[]>(
-						`SELECT COUNT(*) as count FROM record_items WHERE record_items.product_id = $1`,
-						[id]
+						`SELECT COUNT(*) as count
+						 FROM record_items INNER JOIN records ON records.timestamp = record_items.timestamp
+						 WHERE record_items.product_id = $1 AND records.mode = $2`,
+						[id, mode]
 					),
 				]),
 		});

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { numeric } from "~/lib/utils";
+import { numeric, Result } from "~/lib/utils";
 import { useDB } from "~/RootLayout";
 import { Field } from "../Field";
 import { Input } from "~/components/ui/input";
@@ -9,7 +9,8 @@ import { Button } from "~/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { DeleteBtn } from "./DeleteBtn";
 import { useAction } from "~/hooks/useAction";
-
+import { AsyncState } from "~/hooks/useAsync";
+import { Await } from "~/components/Await";
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
@@ -33,7 +34,15 @@ const emptyErrs = {
 	note: "",
 };
 
-export function Form({ product, handleBack }: { product: DB.Product; handleBack: ()=>void }) {
+export function Form({
+	product,
+	handleBack,
+	images,
+}: {
+	product: DB.Product;
+	handleBack: () => void;
+	images: AsyncState<Result<"Aplikasi bermasalah", DB.Image[]>>;
+}) {
 	const db = useDB();
 	const { action, error, loading, setError } = useAction(
 		emptyErrs,
@@ -139,7 +148,9 @@ export function Form({ product, handleBack }: { product: DB.Product; handleBack:
 					Simpan
 					{loading && <Loader2 className="animate-spin" />}
 				</Button>
-				<DeleteBtn id={product.id} name={product.name} />
+				<Await state={images}>
+					{(images) => <DeleteBtn id={product.id} name={product.name} images={images} />}
+				</Await>
 			</div>
 			{error?.global === "" ? null : <TextError>{error?.global ?? ""}</TextError>}
 		</form>

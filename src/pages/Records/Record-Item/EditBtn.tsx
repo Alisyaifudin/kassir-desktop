@@ -2,15 +2,9 @@ import { Pencil } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 
-export function EditBtn({
-	mode,
-	productId,
-}: {
-	mode: "buy" | "sell";
-	productId: number | null;
-}) {
+export function EditBtn({ mode, productId }: { mode: "buy" | "sell"; productId: number | null }) {
 	const navigate = useNavigate();
-	if (mode === "sell") {
+	if (mode === "sell" || productId === null) {
 		return null;
 	}
 	const handleClick = () => {

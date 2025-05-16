@@ -55,4 +55,10 @@ declare namespace DB {
 		role: "user" | "admin";
 		password: string;
 	}
+	interface Image {
+		id: number;
+		name: string;
+		mime: "image/png" | "image/jpeg";
+		product_id: number;
+	}
 }

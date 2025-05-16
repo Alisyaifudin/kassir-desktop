@@ -1,0 +1,6 @@
+CREATE TABLE images (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  product_id INTEGER REFERENCES products(id) ON DELETE CASCADE
+) STRICT;

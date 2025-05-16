@@ -72,7 +72,7 @@ export function Search({ mode, products: all }: { mode: "sell" | "buy"; products
 		<>
 			<form onSubmit={handleSubmit} className="flex items-end gap-1 px-1">
 				<Field label="Cari">
-					<Input type="text" value={query} onChange={handleChange} />
+					<Input type="search" value={query} onChange={handleChange} />
 				</Field>
 			</form>
 			{error ? <TextError>{error}</TextError> : null}
