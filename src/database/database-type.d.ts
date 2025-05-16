@@ -61,4 +61,9 @@ declare namespace DB {
 		mime: "image/png" | "image/jpeg";
 		product_id: number;
 	}
+	interface Social {
+		name: string;
+		id: number;
+		value: string;
+	}
 }

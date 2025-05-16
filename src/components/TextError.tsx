@@ -1,3 +1,5 @@
-export function TextError({ children }: { children: string }) {
-	return <p className="text-2xl text-red-500">{children}</p>;
+import { cn } from "~/lib/utils";
+
+export function TextError({ children, className }: { children: string; className?: string }) {
+	return <p className={cn("text-2xl text-red-500", className)}>{children}</p>;
 }

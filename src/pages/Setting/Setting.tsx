@@ -69,6 +69,11 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 					</Button>
 				</li>
 				<li className="h-14 flex items-center">
+					<Button className="w-full" asChild variant={pathname === "/setting/social" ? "default" : "link"}>
+						<Link to="/setting/social">Kontak</Link>
+					</Button>
+				</li>
+				<li className="h-14 flex items-center">
 					<Button
 						className="w-full"
 						asChild

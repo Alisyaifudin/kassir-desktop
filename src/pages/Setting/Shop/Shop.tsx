@@ -53,7 +53,7 @@ export default function Shop() {
 	};
 	return (
 		<AwaitDangerous state={state}>
-			{({ address, header, ig, owner, shopee, footer }) => (
+			{({ address, header, owner, footer }) => (
 				<div className="flex flex-col gap-2 flex-1 w-full">
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 						<FieldText label="Nama Toko">
@@ -61,12 +61,6 @@ export default function Shop() {
 						</FieldText>
 						<FieldText label="Alamat">
 							<Input type="text" defaultValue={address} name="address" />
-						</FieldText>
-						<FieldText label="Shopee">
-							<Input type="text" defaultValue={shopee} name="shopee" />
-						</FieldText>
-						<FieldText label="Instagram">
-							<Input type="text" defaultValue={ig} name="ig" />
 						</FieldText>
 						<label className="flex flex-col gap-1 text-3xl">
 							<div>
@@ -88,3 +82,10 @@ export default function Shop() {
 		</AwaitDangerous>
 	);
 }
+
+{/* <FieldText label="Shopee">
+							<Input type="text" defaultValue={shopee} name="shopee" />
+						</FieldText>
+						<FieldText label="Instagram">
+							<Input type="text" defaultValue={ig} name="ig" />
+						</FieldText> */}
