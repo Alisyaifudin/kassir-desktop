@@ -8,6 +8,7 @@ import { Await } from "~/components/Await";
 import { TaxItem } from "./TaxItem";
 import { useDB, useStore } from "~/RootLayout";
 import { useAsync } from "~/hooks/useAsync";
+import { Profile } from "~/store";
 
 const title = {
 	buy: "Beli",
@@ -102,7 +103,9 @@ export function Receipt({
 										</p>
 									))}
 									<p>{profile.address}</p>
-									{record.cashier ? <p>Kasir: {record.cashier}</p> : null}
+									{record.cashier && profile.showCashier === "true" ? (
+										<p>Kasir: {record.cashier}</p>
+									) : null}
 									<div className="flex items-center justify-between">
 										<p>No: {record.timestamp}</p>
 										<p>
@@ -217,13 +220,7 @@ const useInfo = () => {
 			Result<
 				"Aplikasi bermasalah",
 				{
-					profile: {
-						footer: string | undefined;
-						owner: string | undefined;
-						address: string | undefined;
-						header: string | undefined;
-						newVersion: string | undefined;
-					};
+					profile: Profile;
 					socials: DB.Social[];
 				}
 			>

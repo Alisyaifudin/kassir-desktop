@@ -21,3 +21,7 @@ export function generateStore(store: StoreTauri) {
 }
 
 export type Store = ReturnType<typeof generateStore>;
+
+export type Profile = {
+		[K in keyof Store['profile']]: Awaited<ReturnType<Store['profile'][K]["get"]>>;
+	}
