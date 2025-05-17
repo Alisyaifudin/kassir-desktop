@@ -14,7 +14,7 @@ export default function Setting() {
 	const store = useStore();
 	const user = useUser();
 	return (
-		<main className="flex gap-2 p-2 flex-1 w-full justify-between overflow-hidden">
+		<main className="grid grid-cols-[300px_1fr] gap-2 p-2 flex-1 w-full justify-between overflow-hidden">
 			<Navigation role={user.role} />
 			<Outlet context={{ db, store, user }} />
 		</main>
@@ -40,9 +40,9 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 	};
 	if (role === "user") {
 		return (
-			<nav className="w-[200px] h-full flex flex-col justify-between">
-				<ol className="flex flex-col gap-2 p-2 shadow-md">
-					<li className="h-14 flex items-center">
+			<nav className="w-full h-full flex flex-col justify-between">
+				<ol className="flex flex-col gap-2 shadow-md">
+					<li className="flex items-center">
 						<Button className="w-full">Profil</Button>
 					</li>
 				</ol>
@@ -61,14 +61,14 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 	}
 
 	return (
-		<nav className="w-[200px] h-full flex flex-col justify-between">
-			<ol className="flex flex-col gap-2 p-2 shadow-md">
-				<li className="h-14 flex items-center">
+		<nav className="w-full h-full flex flex-col justify-between">
+			<ol className="flex flex-col gap-2 shadow-md">
+				<li className="flex items-center">
 					<Button className="w-full" asChild variant={pathname === "/setting" ? "default" : "link"}>
 						<Link to="/setting">Toko</Link>
 					</Button>
 				</li>
-				<li className="h-14 flex items-center">
+				<li className="flex items-center">
 					<Button
 						className="w-full"
 						asChild
@@ -77,7 +77,7 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 						<Link to="/setting/social">Kontak</Link>
 					</Button>
 				</li>
-				<li className="h-14 flex items-center">
+				<li className="flex items-center">
 					<Button
 						className="w-full"
 						asChild
@@ -86,7 +86,7 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 						<Link to="/setting/data">Data</Link>
 					</Button>
 				</li>
-				<li className="h-14 flex items-center">
+				<li className="flex items-center">
 					<Button
 						className="w-full"
 						asChild
@@ -95,7 +95,7 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 						<Link to="/setting/cashier">Kasir</Link>
 					</Button>
 				</li>
-				<li className="h-14 flex items-center">
+				<li className="flex items-center">
 					<Button
 						className="w-full"
 						asChild
@@ -104,7 +104,7 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 						<Link to="/setting/profile">Profil</Link>
 					</Button>
 				</li>
-				<li className="h-14 flex items-center">
+				<li className="flex items-center">
 					<Button
 						className="w-full"
 						asChild
