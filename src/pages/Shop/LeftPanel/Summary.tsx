@@ -31,7 +31,7 @@ type Props = {
 			value: number;
 		};
 		method: MethodEnum;
-		methodType: string | null;
+		methodType: number | null;
 		items: Item[];
 		additionals: Additional[];
 	};
@@ -43,7 +43,7 @@ type Props = {
 		pay: (mode: "sell" | "buy", pay: number) => void;
 		rounding: (mode: "sell" | "buy", rounding: number) => void;
 		method: (mode: "sell" | "buy", method: MethodEnum) => void;
-		methodType: (mode: "sell" | "buy", methodType: string | null) => void;
+		methodType: (mode: "sell" | "buy", methodType: number | null) => void;
 		note: (mode: "sell" | "buy", note: string) => void;
 	};
 };
@@ -150,29 +150,6 @@ export function Summary({
 						setMethod={set.method}
 						setMethodType={set.methodType}
 					/>
-					{/* <div className="flex gap-1 items-center">
-						<Button
-							variant={method === "cash" ? "default" : "outline"}
-							onClick={() => set.method(mode, "cash")}
-						>
-							<Banknote />
-							Tunai
-						</Button>
-						<Button
-							variant={method === "transfer" ? "default" : "outline"}
-							onClick={() => set.method(mode, "transfer")}
-						>
-							<Landmark />
-							Transfer
-						</Button>
-						<Button
-							variant={method === "other" ? "default" : "outline"}
-							onClick={() => set.method(mode, "other")}
-						>
-							<Wallet />
-							Lainnya
-						</Button>
-					</div> */}
 					<Note note={note} changeNote={(note) => set.note(mode, note)} />
 				</div>
 				<div className="flex flex-col gap-2 pb-6">

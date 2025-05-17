@@ -134,7 +134,7 @@ export function LeftPanel({
 					disc,
 					items,
 					method,
-					methodType,
+					methodType, 
 					note,
 					additionals: additionals,
 					pay,

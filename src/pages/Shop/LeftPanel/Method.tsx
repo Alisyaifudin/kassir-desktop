@@ -14,8 +14,8 @@ export function Method({
 	mode: "sell" | "buy";
 	method: MethodEnum;
 	setMethod: (mode: "sell" | "buy", method: MethodEnum) => void;
-	methodType: string | null;
-	setMethodType: (mode: "sell" | "buy", methodType: string | null) => void;
+	methodType: number | null;
+	setMethodType: (mode: "sell" | "buy", methodType: number | null) => void;
 }) {
 	const state = useMethods();
 	const handleChangeMethod = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -25,11 +25,15 @@ export function Method({
 		setMethod(mode, method);
 	};
 	const handleChangeMethodType = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		let val: string | null = e.currentTarget.value;
-		if (val === "null") {
-			val = null;
-		}
-		setMethodType(mode, val);
+		const val = e.currentTarget.value;
+		const parsed = z.string().refine(v=> v === "null" || (v !== "" && !isNaN(Number(v)))).transform(v=>{
+			if (v === "null") {
+				return null;
+			}
+			return Number(v);
+		}).safeParse(val);
+		const methodType = parsed.success ? parsed.data : null;
+		setMethodType(mode, methodType);
 	};
 	return (
 		<Await state={state}>
