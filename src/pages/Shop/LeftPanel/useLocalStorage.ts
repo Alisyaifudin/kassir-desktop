@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { numeric } from "../../../lib/utils";
+import { Method, METHODS, numeric } from "~/lib/utils";
 import { Item, itemSchema, Additional, additionalSchema, ItemWithoutDisc } from "../schema";
 import { useEffect, useState } from "react";
 import { produce } from "immer";
@@ -7,7 +7,8 @@ import { produce } from "immer";
 export function useLocalStorage(mode: "sell" | "buy") {
 	const [ready, setReady] = useState(false);
 	const [note, setNote] = useState("");
-	const [method, setMethod] = useState<"cash" | "transfer" | "other">("cash");
+	const [method, setMethod] = useState<Method>("cash");
+	const [methodType, setMethodType] = useState<null | number>(null);
 	const [items, setItems] = useState<Item[]>([]);
 	const [additionals, setAdditionals] = useState<Additional[]>([]);
 	const [pay, setPay] = useState(0);
@@ -19,6 +20,8 @@ export function useLocalStorage(mode: "sell" | "buy") {
 	useEffect(() => {
 		const pay = getPay(mode);
 		setPay(pay);
+		const methodType = getMethodType(mode);
+		setMethodType(methodType);
 		const note = getNote(mode);
 		setNote(note);
 		const method = getMethod(mode);
@@ -37,6 +40,15 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setPay(pay);
 		localStorage.setItem(`pay-${mode}`, pay.toString());
 	};
+	const changeMethodType = (mode: "buy" | "sell", methodType: number | null) => {
+		console.log({ methodType });
+		setMethodType(methodType);
+		if (methodType === null) {
+			localStorage.removeItem(`method-type-${mode}`);
+		} else {
+			localStorage.setItem(`method-type-${mode}`, methodType.toString());
+		}
+	};
 	const changeRounding = (mode: "buy" | "sell", rounding: number) => {
 		setRounding(rounding);
 		localStorage.setItem(`rounding-${mode}`, rounding.toString());
@@ -53,9 +65,14 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		setNote(note);
 		localStorage.setItem(`note-${mode}`, note.toString());
 	};
-	const changeMethod = (mode: "buy" | "sell", method: "cash" | "transfer" | "other") => {
-		setMethod(method);
-		localStorage.setItem(`method-${mode}`, note.toString());
+	const changeMethod = (mode: "buy" | "sell", newMethod: Method) => {
+		if (method === newMethod) {
+			return;
+		}
+		setMethod(newMethod);
+		setMethodType(null);
+		localStorage.removeItem(`method-type-${mode}`);
+		localStorage.setItem(`method-${mode}`, newMethod.toString());
 	};
 	const changeItems = {
 		reset: (mode: "buy" | "sell") => {
@@ -210,6 +227,7 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			rounding,
 			disc,
 			method,
+			methodType,
 			items,
 			additionals,
 		},
@@ -222,6 +240,7 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			discVal: changeDiscVal,
 			discType: changeDiscType,
 			method: changeMethod,
+			methodType: changeMethodType,
 		},
 	};
 }
@@ -231,10 +250,9 @@ export type SetAdditional = ReturnType<typeof useLocalStorage>["set"]["additiona
 export type SetDisc = ReturnType<typeof useLocalStorage>["set"]["items"]["disc"];
 export type Data = ReturnType<typeof useLocalStorage>["data"];
 
-
 function getMethod(mode: "buy" | "sell") {
 	const parsed = z
-		.enum(["cash", "other", "transfer"])
+		.enum(METHODS)
 		.safeParse(localStorage.getItem(`method-${mode}`));
 	if (parsed.success) {
 		return parsed.data;
@@ -242,8 +260,6 @@ function getMethod(mode: "buy" | "sell") {
 	localStorage.setItem(`method-${mode}`, "cash");
 	return "cash";
 }
-
-
 
 function getNote(mode: "buy" | "sell") {
 	const parsed = z.string().safeParse(localStorage.getItem(`note-${mode}`));
@@ -261,6 +277,14 @@ function getPay(mode: "buy" | "sell") {
 	}
 	localStorage.setItem(`pay-${mode}`, "0");
 	return 0;
+}
+
+function getMethodType(mode: "buy" | "sell") {
+	const parsed = numeric.safeParse(localStorage.getItem(`method-type-${mode}`));
+	if (parsed.success) {
+		return parsed.data;
+	}
+	return null;
 }
 
 function getRounding(mode: "buy" | "sell") {

@@ -23,7 +23,8 @@ declare namespace DB {
 		mode: "buy" | "sell";
 		pay: number;
 		change: number;
-		method: "cash" | "transfer" | "other";
+		method: "cash" | "transfer" | "debit" | "qris" | "other";
+		method_type: number | null;
 		note: string;
 	}
 	interface Additional {
@@ -70,5 +71,13 @@ declare namespace DB {
 		timestamp: number;
 		value: number;
 		kind: "saving" | "debt";
+	}
+	interface Method {
+		name: "cash" | "transfer" | "debit" | "qris" | "other";
+	}
+	interface MethodType {
+		id: number;
+		name: string;
+		method: "cash" | "transfer" | "debit" | "qris" | "other";
 	}
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { METHODS } from "~/lib/utils";
 
 const itemSchemaBase = z.object({
 	barcode: z.string().nullable(),
@@ -69,7 +70,8 @@ export const dataSchema = z.object({
 		value: z.number(),
 		type: z.enum(["number", "percent"]),
 	}),
-	method: z.enum(["cash", "transfer", "other"]),
+	method: z.enum(METHODS),
+	methodType: z.number().nullable(),
 	note: z.string(),
 });
 
@@ -90,6 +92,7 @@ export const initialValue: Data = {
 		type: "percent",
 	},
 	method: "cash",
+	methodType: null,
 	mode: "sell",
 	note: "",
 	pay: 0,

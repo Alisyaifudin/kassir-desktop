@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
-import { Database } from "../../../database";
-import { err, ok, Result } from "../../../lib/utils";
+import { Database } from "~/database";
+import { err, Method, ok, Result } from "~/lib/utils";
 import Decimal from "decimal.js";
 import { Item, Additional } from "../schema";
 
@@ -17,7 +17,8 @@ export async function submitPayment(
 		totalTax: number;
 		grandTotal: number;
 		note: string;
-		method: "cash" | "transfer" | "other";
+		method: Method;
+		methodType: number | null;
 		rounding: number | null;
 		pay: number;
 		disc: {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
-import { err, formatDate, formatTime, ok, Result } from "~/lib/utils";
+import { err, formatDate, formatTime, METHOD_NAMES, ok, Result } from "~/lib/utils";
 import { ReceiptItem } from "./ReceiptItem";
 import { getProfile } from "~/pages/Setting/Shop/setting-api";
 import { Await } from "~/components/Await";
@@ -14,22 +14,18 @@ const title = {
 	sell: "Jual",
 };
 
-const meth = {
-	cash: "Tunai",
-	transfer: "Transfer",
-	other: "Lainnya",
-};
-
 export function Receipt({
 	items,
 	record,
 	additionals,
 	discs,
+	methods,
 }: {
 	record: DB.Record;
 	items: DB.RecordItem[];
 	discs: DB.Discount[];
 	additionals: DB.Additional[];
+	methods: DB.MethodType[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
 	const info = useInfo();
@@ -71,6 +67,8 @@ export function Receipt({
 		document.documentElement.style.setProperty("--paper-width", `${width}`);
 		window.print();
 	};
+	const methodType = methods.find((m) => m.id === record.method_type);
+	const methodTypeName = methodType === undefined ? "" : " " + methodType.name;
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
@@ -107,7 +105,8 @@ export function Receipt({
 									<div className="flex items-center justify-between">
 										<p>No: {record.timestamp}</p>
 										<p>
-											{formatDate(record.timestamp, "short").replace(/-/g, "/")}, {formatTime(record.timestamp)}
+											{formatDate(record.timestamp, "short").replace(/-/g, "/")},{" "}
+											{formatTime(record.timestamp)}
 										</p>
 									</div>
 								</div>
@@ -177,8 +176,11 @@ export function Receipt({
 												Rp{Number(record.grand_total).toLocaleString("id-ID")}
 											</p>
 										</div>
-										<div className="grid grid-cols-[80px_100px_100px]">
-											<p>({meth[record.method]})</p>
+										<div className="grid grid-cols-[1fr_100px_100px]">
+											<p className="pr-5">
+												({METHOD_NAMES[record.method]}
+												{methodTypeName})
+											</p>
 											<p>Pembayaran</p>
 											<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
 										</div>

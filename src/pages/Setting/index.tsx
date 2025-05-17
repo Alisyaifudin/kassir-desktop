@@ -5,12 +5,21 @@ import { route as cashierRoute } from "./Cashier";
 import { route as profileRoute } from "./Profile";
 import { route as socialRoute } from "./Social";
 import { route as moneyRoute } from "./Money";
+import { route as methodRoute } from "./Method";
 import { lazy } from "react";
 
 const Page = lazy(() => import("./Setting"));
 
 export const route: RouteObject = {
 	path: "setting",
-	children: [profileRoute, shopRoute, dataRoute, socialRoute, cashierRoute, moneyRoute],
+	children: [
+		profileRoute,
+		shopRoute,
+		dataRoute,
+		socialRoute,
+		cashierRoute,
+		moneyRoute,
+		methodRoute,
+	],
 	Component: Page,
 };

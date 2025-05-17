@@ -12,12 +12,13 @@ import { DeleteBtn } from "./DeleteBtn";
 import { Button } from "~/components/ui/button";
 import { TaxItem } from "./TaxItem";
 import { useUser } from "~/Layout";
-import { formatDate, formatTime } from "~/lib/utils";
+import { formatDate, formatTime, METHOD_NAMES } from "~/lib/utils";
 type RecordListProps = {
 	allItems: DB.RecordItem[];
 	records: DB.Record[];
 	allTaxes: DB.Additional[];
 	timestamp: number | null;
+	methods: DB.MethodType[];
 	revalidate: () => void;
 };
 
@@ -41,29 +42,34 @@ function filterData(
 	};
 }
 
-export function ItemList({ allItems, timestamp, records, allTaxes, revalidate }: RecordListProps) {
+export function ItemList({
+	allItems,
+	timestamp,
+	records,
+	allTaxes,
+	revalidate,
+	methods,
+}: RecordListProps) {
 	const { items, record, taxes } = filterData(timestamp, allItems, allTaxes, records);
 	if (record === null) {
 		return null;
 	}
-	return <List items={items} record={record} taxes={taxes} revalidate={revalidate} />;
+	return (
+		<List items={items} record={record} taxes={taxes} revalidate={revalidate} methods={methods} />
+	);
 }
-
-const meth = {
-	cash: "Tunai",
-	transfer: "Transfer",
-	other: "Lainnya",
-};
 
 function List({
 	items,
 	record,
 	taxes,
 	revalidate,
+	methods,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	taxes: DB.Additional[];
+	methods: DB.MethodType[];
 	revalidate: () => void;
 }) {
 	const { pathname, search } = useLocation();
@@ -72,6 +78,8 @@ function List({
 	if (items.length === 0) {
 		return <DeleteBtn revalidate={revalidate} timestamp={record.timestamp} />;
 	}
+	const methodType = methods.find((m) => m.id === record.method_type);
+	const methodTypeName = methodType === undefined ? "" : " " + methodType.name;
 	return (
 		<div className="flex flex-col gap-2 overflow-auto">
 			<div className="flex items-center gap-2 justify-between">
@@ -161,8 +169,11 @@ function List({
 					<p className="text-end">Total:</p>
 					<p className="text-end">Rp{Number(record.grand_total).toLocaleString("id-ID")}</p>
 				</div>
-				<div className="grid grid-cols-[150px_170px_200px]">
-					<p>({meth[record.method]})</p>
+				<div className="grid grid-cols-[1fr_170px_200px]">
+					<p className="pr-5">
+						({METHOD_NAMES[record.method]}
+						{methodTypeName})
+					</p>
 					<p className="text-end">Pembayaran:</p>
 					<p className="text-end">Rp{Number(record.pay).toLocaleString("id-ID")}</p>
 				</div>

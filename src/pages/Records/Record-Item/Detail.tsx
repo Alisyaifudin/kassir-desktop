@@ -15,7 +15,15 @@ import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Loader2 } from "lucide-react";
 import { useDB } from "~/RootLayout";
-import { dayNames, formatDate, formatTime, numeric } from "~/lib/utils";
+import {
+	dayNames,
+	formatDate,
+	formatTime,
+	Method,
+	METHOD_NAMES,
+	METHODS,
+	numeric,
+} from "~/lib/utils";
 import { useNavigate } from "react-router";
 import { Calendar } from "./Calendar";
 import { LinkProduct } from "./LinkProduct";
@@ -28,28 +36,26 @@ import { Await } from "~/components/Await";
 import { emitter } from "~/lib/event-emitter";
 import { Temporal } from "temporal-polyfill";
 
-const meth = {
-	cash: "Tunai",
-	transfer: "Transfer",
-	other: "Lainnya",
-};
-
 export function Detail({
 	items,
 	record,
 	additionals,
 	discs,
 	role,
+	methods,
 }: {
 	items: DB.RecordItem[];
 	record: DB.Record;
 	additionals: DB.Additional[];
 	discs: DB.Discount[];
 	role: "admin" | "user";
+	methods: DB.MethodType[];
 }) {
+	const methodType = methods.find((m) => m.id === record.method_type);
+	const methodTypeName = methodType === undefined ? "" : " " + methodType.name;
 	const [isEdit, setIsEdit] = useState(false);
 	const navigate = useNavigate();
-	const { edit, credit, time } = useActions(record.timestamp);
+	const { credit, time } = useActions(record.timestamp);
 	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
@@ -81,29 +87,7 @@ export function Detail({
 		time.setError("");
 		await navigate(`/records/${now}?tab=detail`);
 	};
-	const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		const formData = new FormData(e.currentTarget);
-		const parsed = z
-			.object({ note: z.string(), method: z.enum(["cash", "transfer", "other"]) })
-			.safeParse({ note: formData.get("note"), method: formData.get("method") });
-		if (!parsed.success) {
-			const errs = parsed.error.flatten().fieldErrors;
-			edit.setError({
-				method: errs.method?.join("; ") ?? "",
-				note: errs.note?.join("; ") ?? "",
-			});
-			return;
-		}
-		edit.setError({ method: "", note: "" });
-		const errMsg = await edit.action(parsed.data);
-		if (errMsg) {
-			edit.setError({ method: "", note: errMsg });
-		} else {
-			emitter.emit("fetch-record-item");
-			setIsEdit(false);
-		}
-	};
+
 	const date = getDay(record.timestamp);
 	return (
 		<div className="flex flex-col gap-2 text-3xl">
@@ -121,7 +105,10 @@ export function Detail({
 					<div className="flex gap-2 items-center">
 						{time.error ? <TextError>{time.error}</TextError> : null}
 						<Calendar time={record.timestamp} setTime={handleChangeTime}>
-							<p>{formatTime(record.timestamp, "long")} {date.name}, {formatDate(record.timestamp, "long")}</p>
+							<p>
+								{formatTime(record.timestamp, "long")} {date.name},{" "}
+								{formatDate(record.timestamp, "long")}
+							</p>
 						</Calendar>
 						{time.loading ? <Loader2 className="animate-spin" /> : null}
 					</div>
@@ -263,28 +250,13 @@ export function Detail({
 					</Button>
 				)}
 				{isEdit ? (
-					<form onSubmit={handleSubmitEdit} className="flex flex-col gap-2">
-						<Button className="w-fit" variant="secondary">
-							Simpan
-						</Button>
-						<label className="flex items-center gap-2">
-							<span>Metode:</span>
-							<select className="w-fit outline" defaultValue={record.method} name="method">
-								<option value="cash">Tunai</option>
-								<option value="transfer">Transfer</option>
-								<option value="other">Lainnya</option>
-							</select>
-						</label>
-						{edit.error?.method ? <TextError>{edit.error.method}</TextError> : null}
-						<label className="flex flex-col gap-1">
-							<span>Catatan:</span>
-							<Textarea defaultValue={record.note} name="note" />
-						</label>
-						{edit.error?.note ? <TextError>{edit.error.note}</TextError> : null}
-					</form>
+					<Edit methods={methods} record={record} setIsEdit={setIsEdit} />
 				) : (
 					<div className="flex flex-col gap-2">
-						<p>Metode: {meth[record.method]}</p>
+						<p>
+							Metode: {METHOD_NAMES[record.method]}
+							{methodTypeName}
+						</p>
 						<p>Catatan:</p>
 						<p>{record.note}</p>
 					</div>
@@ -305,16 +277,11 @@ function findFixed(val: number): number {
 
 function useActions(timestamp: number) {
 	const db = useDB();
-	const edit = useAction(
-		{ method: "", note: "" },
-		(data: { note: string; method: "cash" | "transfer" | "other" }) =>
-			db.record.updateNoteAndMethod(timestamp, data.note, data.method)
-	);
 	const credit = useAction("", (data: { pay: number; change: number }) =>
 		db.record.updateCreditPay(data.pay, data.change, timestamp)
 	);
 	const time = useAction("", (newTime: number) => db.record.updateTimestamp(timestamp, newTime));
-	return { edit, credit, time };
+	return { credit, time };
 }
 
 function LinkProductList({ item }: { item: DB.RecordItem }) {
@@ -328,4 +295,117 @@ export function getDay(epochMilli: number) {
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
 	return { day: date.day, name: dayNames[date.dayOfWeek] };
+}
+
+function Edit({
+	record,
+	setIsEdit,
+	methods,
+}: {
+	record: DB.Record;
+	setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
+	methods: DB.MethodType[];
+}) {
+	const [meth, setMeth] = useState<{
+		method: Method;
+		type: number | null;
+	}>({
+		method: record.method,
+		type: record.method_type,
+	});
+	const db = useDB();
+	const { action, error, loading, setError } = useAction(
+		"",
+		(data: { note: string; method: Method; methodType: number | null }) =>
+			db.record.updateNoteAndMethod(record.timestamp, data.note, data.method, data.methodType)
+	);
+	const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const formData = new FormData(e.currentTarget);
+		const parsed = z.string().safeParse(formData.get("note"));
+		if (!parsed.success) {
+			const errs = parsed.error.flatten().formErrors;
+			setError(errs.join("; "));
+			return;
+		}
+		setError(null);
+		const errMsg = await action({ note: parsed.data, method: meth.method, methodType: meth.type });
+		setError(errMsg);
+		if (errMsg === null) {
+			emitter.emit("fetch-record-item");
+			setIsEdit(false);
+		}
+	};
+	const handleChangeMethod = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		const parsed = z.enum(METHODS).safeParse(e.currentTarget.value);
+		const method = parsed.success ? parsed.data : "cash";
+		if (method === meth.method) {
+			return;
+		}
+		setMeth({
+			type: null,
+			method,
+		});
+	};
+	const handleChangeMethodType = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		const parsed = z
+			.string()
+			.refine((val) => val === "null" || (val !== "" && !isNaN(Number(val))), {
+				message: "Harus angka",
+			})
+			.transform((v) => {
+				if (v === "null") {
+					return null;
+				}
+				return Number(v);
+			})
+			.safeParse(e.currentTarget.value);
+		const methodType = parsed.success ? parsed.data : null;
+		setMeth({
+			type: methodType,
+			method: meth.method,
+		});
+	};
+	const methodTypes = methods.filter((r) => r.method === meth.method);
+	return (
+		<form onSubmit={handleSubmitEdit} className="flex flex-col gap-2">
+			<Button className="w-fit" variant="secondary">
+				Simpan
+				{loading ? <Loader2 className="animate-spin" /> : null}
+			</Button>
+			<label className="flex items-center gap-2">
+				<span>Metode:</span>
+				<div className="flex items-center gap-3 text-3xl">
+					<select value={meth.method} className=" w-fit outline" onChange={handleChangeMethod}>
+						{METHODS.map((m) => (
+							<option key={m} value={m}>
+								{METHOD_NAMES[m]}
+							</option>
+						))}
+					</select>
+					{methodTypes.length > 0 ? (
+						<select
+							value={meth.type ?? "null"}
+							className=" w-fit outline"
+							onChange={handleChangeMethodType}
+						>
+							<option value="null">--Pilih--</option>
+							{methodTypes.map((m) => (
+								<option key={m.id} value={m.id}>
+									{m.name}
+								</option>
+							))}
+						</select>
+					) : (
+						<div className="w-[200px]" />
+					)}
+				</div>
+			</label>
+			<label className="flex flex-col gap-1">
+				<span>Catatan:</span>
+				<Textarea defaultValue={record.note} name="note" />
+			</label>
+			{error ? <TextError>{error}</TextError> : null}
+		</form>
+	);
 }

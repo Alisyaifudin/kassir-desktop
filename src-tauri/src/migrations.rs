@@ -170,6 +170,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../src/migrations-sql/21-30/migration-28.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 29,
+            description: "add_payment_method",
+            sql: include_str!("../src/migrations-sql/21-30/migration-29.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

@@ -1,5 +1,5 @@
 import { Temporal } from "temporal-polyfill";
-import { err, ok, Result, tryResult } from "../lib/utils";
+import { err, Method, ok, Result, tryResult } from "../lib/utils";
 import Database from "@tauri-apps/plugin-sql";
 
 export const genRecord = (db: Database) => ({
@@ -39,7 +39,8 @@ export const genRecord = (db: Database) => ({
 			totalTax: number;
 			grandTotal: number;
 			note: string;
-			method: "cash" | "transfer" | "other";
+			method: Method;
+			methodType: number | null;
 			rounding: number | null;
 			pay: number;
 			disc: {
@@ -55,8 +56,8 @@ export const genRecord = (db: Database) => ({
 					`INSERT INTO records 
 						(mode, timestamp, cashier, credit, total_before_disc, total_after_disc,
 						 total_after_tax, total_tax, grand_total, note, method, rounding,
-						 pay, disc_val, disc_type, change)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+						 pay, disc_val, disc_type, change, method_type)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 					[
 						mode,
 						timestamp,
@@ -74,6 +75,7 @@ export const genRecord = (db: Database) => ({
 						data.disc.value,
 						data.disc.type,
 						data.change,
+						data.methodType
 					]
 				),
 		});
@@ -116,13 +118,15 @@ export const genRecord = (db: Database) => ({
 	updateNoteAndMethod: async (
 		timestamp: number,
 		note: string,
-		method: "cash" | "transfer" | "other"
+		method: Method,
+		methodType: number | null,
 	): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute("UPDATE records SET note = $1, method = $2 WHERE timestamp = $3", [
+				db.execute("UPDATE records SET note = $1, method = $2, method_type = $3 WHERE timestamp = $4", [
 					note,
 					method,
+					methodType,
 					timestamp,
 				]),
 		});

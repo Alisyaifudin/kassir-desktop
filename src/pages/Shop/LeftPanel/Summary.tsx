@@ -3,14 +3,15 @@ import { Item, Additional } from "../schema";
 import { submitPayment } from "./submit";
 import { Input } from "~/components/ui/input";
 import { z } from "zod";
-import { cn } from "~/lib/utils";
+import { cn, Method as MethodEnum } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
-import { Banknote, Landmark, Loader2, RefreshCcw, Wallet } from "lucide-react";
+import { Loader2, RefreshCcw } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { useState } from "react";
 import { useDB } from "~/RootLayout";
 import { useNavigate } from "react-router";
 import { Note } from "./Note";
+import { Method } from "./Method";
 
 type Props = {
 	mode: "sell" | "buy";
@@ -29,7 +30,8 @@ type Props = {
 			type: "percent" | "number";
 			value: number;
 		};
-		method: "cash" | "transfer" | "other";
+		method: MethodEnum;
+		methodType: string | null;
 		items: Item[];
 		additionals: Additional[];
 	};
@@ -40,7 +42,8 @@ type Props = {
 		discType: (mode: "sell" | "buy", type: "percent" | "number") => void;
 		pay: (mode: "sell" | "buy", pay: number) => void;
 		rounding: (mode: "sell" | "buy", rounding: number) => void;
-		method: (mode: "sell" | "buy", method: "cash" | "transfer" | "other") => void;
+		method: (mode: "sell" | "buy", method: MethodEnum) => void;
+		methodType: (mode: "sell" | "buy", methodType: string | null) => void;
 		note: (mode: "sell" | "buy", note: string) => void;
 	};
 };
@@ -53,7 +56,7 @@ export function Summary({
 	totalBeforeDisc,
 	totalTax,
 	grandTotal,
-	data: { items, additionals, pay, rounding, disc, cashier, method, note },
+	data: { items, additionals, pay, rounding, disc, cashier, method, note, methodType },
 	set,
 	fix,
 }: Props) {
@@ -111,6 +114,7 @@ export function Summary({
 				credit,
 				disc,
 				method,
+				methodType,
 				note,
 				pay,
 				rounding,
@@ -139,7 +143,14 @@ export function Summary({
 					<Button variant="destructive" onClick={() => set.reset()}>
 						<RefreshCcw />
 					</Button>
-					<div className="flex gap-1 items-center">
+					<Method
+						method={method}
+						methodType={methodType}
+						mode={mode}
+						setMethod={set.method}
+						setMethodType={set.methodType}
+					/>
+					{/* <div className="flex gap-1 items-center">
 						<Button
 							variant={method === "cash" ? "default" : "outline"}
 							onClick={() => set.method(mode, "cash")}
@@ -161,7 +172,7 @@ export function Summary({
 							<Wallet />
 							Lainnya
 						</Button>
-					</div>
+					</div> */}
 					<Note note={note} changeNote={(note) => set.note(mode, note)} />
 				</div>
 				<div className="flex flex-col gap-2 pb-6">

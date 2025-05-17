@@ -127,7 +127,10 @@ export default function Page() {
 			</div>
 			<AwaitDangerous state={state}>
 				{(data) => {
-					const [[errRecords, rawRecords], [errItems, items], [errTaxes, taxes]] = data;
+					const [[errRecords, rawRecords], [errItems, items], [errTaxes, taxes], [errMethod, methods]] = data;
+					if (errMethod !== null) {
+						return <TextError>{errMethod}</TextError>;
+					}
 					if (errRecords !== null) {
 						return <TextError>{errRecords}</TextError>;
 					}
@@ -211,6 +214,7 @@ export default function Page() {
 								timestamp={selected}
 								records={rawRecords}
 								allTaxes={taxes}
+								methods={methods}
 								revalidate={revalidate}
 							/>
 						</div>
@@ -231,6 +235,7 @@ function useRecords(timestamp: number) {
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
 		db.additional.getByRange(start, end),
+		db.method.get()
 	]);
 	const [updated, setUpdated] = useState(false);
 	const revalidate = () => setUpdated((prev) => !prev);

@@ -46,6 +46,7 @@ export default function Page() {
 										items={data.items}
 										additionals={data.additionals}
 										discs={data.discs}
+										methods={data.methods}
 									/>
 								</TabsContent>
 								<TabsContent value="detail">
@@ -55,6 +56,7 @@ export default function Page() {
 										items={data.items}
 										additionals={data.additionals}
 										discs={data.discs}
+										methods={data.methods}
 									/>
 								</TabsContent>
 							</Tabs>
@@ -116,6 +118,7 @@ async function getRecord(
 			items: DB.RecordItem[];
 			additionals: DB.Additional[];
 			discs: DB.Discount[];
+			methods: DB.MethodType[];
 		}
 	>
 > {
@@ -124,6 +127,7 @@ async function getRecord(
 		db.recordItem.getAllByTime(timestamp),
 		db.additional.getAllByTime(timestamp),
 		db.discount.getByTimestamp(timestamp),
+		db.method.get(),
 	]);
 	const [errRecord, record] = all[0];
 	if (errRecord) {
@@ -144,10 +148,15 @@ async function getRecord(
 	if (errDiscounts !== null) {
 		return err(errDiscounts);
 	}
+	const [errMethod, methods] = all[4];
+	if (errMethod !== null) {
+		return err(errMethod);
+	}
 	return ok({
 		record,
 		items,
 		additionals,
 		discs,
+		methods,
 	});
 }

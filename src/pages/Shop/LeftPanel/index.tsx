@@ -22,7 +22,7 @@ export function LeftPanel({
 	const { item } = useItem();
 	const { additional } = useAdditional();
 	const { fix } = useFix();
-	const { items, additionals, disc, pay, rounding, method, note } = data;
+	const { items, additionals, disc, pay, rounding, method, note, methodType } = data;
 	useEffect(() => {
 		if (item) {
 			set.items.add(mode, item);
@@ -134,6 +134,7 @@ export function LeftPanel({
 					disc,
 					items,
 					method,
+					methodType,
 					note,
 					additionals: additionals,
 					pay,
@@ -148,6 +149,7 @@ export function LeftPanel({
 					pay: set.pay,
 					rounding: set.rounding,
 					method: set.method,
+					methodType: set.methodType,
 				}}
 			/>
 		</div>
