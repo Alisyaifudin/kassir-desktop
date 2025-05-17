@@ -16,11 +16,17 @@ import { numeric } from "~/lib/utils";
 import { SetURLSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
 
-export function NewBtn({ setSearch }: { setSearch: SetURLSearchParams }) {
+export function NewBtn({
+	setSearch,
+	kind,
+}: {
+	setSearch: SetURLSearchParams;
+	kind: "saving" | "debt";
+}) {
 	const db = useDB();
 	const [open, setOpen] = useState(false);
 	const { loading, error, setError, action } = useAction("", (value: number) =>
-		db.money.insert(value)
+		db.money.insert(value, kind)
 	);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -43,7 +49,7 @@ export function NewBtn({ setSearch }: { setSearch: SetURLSearchParams }) {
 		setError(errMsg);
 		if (errMsg === null) {
 			const now = Temporal.Now.instant().epochMilliseconds;
-			setSearch({ time: now.toString() });
+			setSearch({ time: now.toString(), kind });
 			setOpen(false);
 		}
 	};
@@ -55,10 +61,7 @@ export function NewBtn({ setSearch }: { setSearch: SetURLSearchParams }) {
 			<DialogContent className="max-w-xl">
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Tambah Catatan Keuangan</DialogTitle>
-					<form
-						onSubmit={handleSubmit}
-						className="flex flex-col gap-2"
-					>
+					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 						<Input name="value" placeholder="Nilai" />
 						{error ? <TextError>{error}</TextError> : null}
 						<div className="col-span-2 flex flex-col items-end">

@@ -18,7 +18,7 @@ export function Calendar({
 	setTime,
 	mode: modeInit = "day",
 	children,
-	className
+	className,
 }: {
 	time: number;
 	setTime: (time: number) => void;
@@ -27,7 +27,18 @@ export function Calendar({
 	className?: string;
 }) {
 	const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
-	const changeMode = (mode: "day" | "month" | "year") => setMode(mode);
+	const changeMode = (mode: "day" | "month" | "year") => {
+		switch (modeInit) {
+			case "year":
+				break;
+			case "month":
+				if (mode === "day") setMode("month");
+				else setMode(mode);
+				break;
+			case "day":
+				setMode(mode);
+		}
+	};
 	const [open, setOpen] = useState(false);
 	return (
 		<Dialog
@@ -158,15 +169,15 @@ function Content({
 									epoch === timeStartOfDay.epochMilliseconds
 										? "default"
 										: epoch === today.epochMilliseconds
-										? "outline"
-										: "ghost"
+											? "outline"
+											: "ghost"
 								}
 								className={
 									inside
 										? ""
 										: epoch === timeStartOfDay.epochMilliseconds
-										? "text-zinc-100"
-										: "text-zinc-500"
+											? "text-zinc-100"
+											: "text-zinc-500"
 								}
 								onClick={() => {
 									setShowTime(epoch);

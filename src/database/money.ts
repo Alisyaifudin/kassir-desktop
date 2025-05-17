@@ -13,10 +13,10 @@ export function genMoney(db: Database) {
 					),
 			});
 		},
-		insert: async (value: number): Promise<"Aplikasi bermasalah" | null> => {
+		insert: async (value: number, kind: "saving"|"debt"): Promise<"Aplikasi bermasalah" | null> => {
 			const now = Temporal.Now.instant().epochMilliseconds;
 			const [errMsg] = await tryResult({
-				run: () => db.execute("INSERT INTO money (timestamp, value) VALUES ($1, $2)", [now, value]),
+				run: () => db.execute("INSERT INTO money (timestamp, value, kind) VALUES ($1, $2, $3)", [now, value, kind]),
 			});
 			return errMsg;
 		},

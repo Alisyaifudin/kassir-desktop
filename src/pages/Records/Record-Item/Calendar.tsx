@@ -24,12 +24,15 @@ export function Calendar({
 	mode?: "day" | "month" | "year";
 	children?: React.ReactNode;
 }) {
+	console.log(modeInit);
 	const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
 	const tz = Temporal.Now.timeZoneId();
 	const timeDate = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const [date, setDate] = useState(timeDate);
 	const [open, setOpen] = useState(false);
-	const changeMode = (mode: "day" | "month" | "year") => setMode(mode);
+	const changeMode = (mode: "day" | "month" | "year") => {
+		setMode(mode);
+	};
 	const handleTime = (time: number) => {
 		setOpen(false);
 		setTime(time);
@@ -158,8 +161,8 @@ function Content({
 									d.year === date.year && d.month === date.month && d.day === date.day
 										? "default"
 										: d.year === today.year && d.month === today.month && d.day === today.day
-										? "outline"
-										: "ghost"
+											? "outline"
+											: "ghost"
 								}
 								className={inside ? "" : d.equals(date) ? "text-zinc-100" : "text-zinc-500"}
 								onClick={() => {

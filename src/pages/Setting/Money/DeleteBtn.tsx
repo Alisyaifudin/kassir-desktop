@@ -34,7 +34,10 @@ export function DeleteBtn({
 		setError(errMsg);
 		if (errMsg === null) {
 			const now = Temporal.Now.instant().epochMilliseconds;
-			setSearch({ time: now.toString() });
+			setSearch((prev) => ({
+				time: now.toString(),
+				kind: prev.get("kind") ?? "saving",
+			}));
 			setOpen(false);
 		}
 	};

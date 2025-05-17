@@ -69,5 +69,6 @@ declare namespace DB {
 	interface Money {
 		timestamp: number;
 		value: number;
+		kind: "saving" | "debt";
 	}
 }
