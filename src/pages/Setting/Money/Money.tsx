@@ -21,6 +21,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DeleteBtn } from "./DeleteBtn";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import Decimal from "decimal.js";
 
 export default function Shop() {
 	const [search, setSearch] = useSearchParams();
@@ -119,6 +120,7 @@ function TableList({
 	kind: "saving" | "debt";
 	setSearch: SetURLSearchParams;
 }) {
+	const vals = money.filter((m) => m.kind === kind);
 	return (
 		<Table className="text-3xl">
 			<TableHeader>
@@ -127,25 +129,32 @@ function TableList({
 					<TableHead>Hari</TableHead>
 					<TableHead>Tanggal</TableHead>
 					<TableHead>Waktu</TableHead>
+					<TableHead className="text-right">Selisih</TableHead>
 					<TableHead className="text-right">Nilai</TableHead>
 					<TableHead className="text-right"></TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
-				{money
-					.filter((m) => m.kind === kind)
-					.map((m, i) => (
-						<TableRow key={m.timestamp}>
-							<TableCell className="font-medium">{i + 1}</TableCell>
-							<TableCell>{getDay(m.timestamp).name}</TableCell>
-							<TableCell>{formatDate(m.timestamp, "long")}</TableCell>
-							<TableCell>{formatTime(m.timestamp, "long")}</TableCell>
-							<TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
-							<TableCell>
-								<DeleteBtn money={m} setSearch={setSearch} />
-							</TableCell>
-						</TableRow>
-					))}
+				{vals.map((m, i) => (
+					<TableRow key={m.timestamp}>
+						<TableCell className="font-medium">{i + 1}</TableCell>
+						<TableCell>{getDay(m.timestamp).name}</TableCell>
+						<TableCell>{formatDate(m.timestamp, "long")}</TableCell>
+						<TableCell>{formatTime(m.timestamp, "long")}</TableCell>
+						<TableCell className="text-right">
+							{i + 1 < vals.length
+								? `Rp${new Decimal(m.value)
+										.sub(vals[i + 1].value)
+										.toNumber()
+										.toLocaleString("id-ID")}`
+								: "-"}
+						</TableCell>
+						<TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
+						<TableCell>
+							<DeleteBtn money={m} setSearch={setSearch} />
+						</TableCell>
+					</TableRow>
+				))}
 			</TableBody>
 		</Table>
 	);
