@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
-import { Temporal } from "temporal-polyfill";
 import { err, formatDate, formatTime, ok, Result } from "~/lib/utils";
 import { ReceiptItem } from "./ReceiptItem";
 import { getProfile } from "~/pages/Setting/Shop/setting-api";
@@ -72,7 +71,6 @@ export function Receipt({
 		document.documentElement.style.setProperty("--paper-width", `${width}`);
 		window.print();
 	};
-	const today = Temporal.Now.instant().epochMilliseconds;
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
@@ -109,7 +107,7 @@ export function Receipt({
 									<div className="flex items-center justify-between">
 										<p>No: {record.timestamp}</p>
 										<p>
-											{formatDate(today, "short").replace(/-/g, "/")}, {formatTime(today)}
+											{formatDate(record.timestamp, "short").replace(/-/g, "/")}, {formatTime(record.timestamp)}
 										</p>
 									</div>
 								</div>
