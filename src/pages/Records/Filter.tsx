@@ -68,7 +68,7 @@ export function Filter({
 									>
 										{METHOD_NAMES[n]}
 									</Button>
-									<div className="flex items-center gap-3">
+									<div className="flex items-center gap-3 flex-wrap">
 										{methodTypes.map((m) => (
 											<div key={m.id} className="flex gap-2 items-center pl-3">
 												<Button
