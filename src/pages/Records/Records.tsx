@@ -2,7 +2,7 @@ import { SetURLSearchParams, useSearchParams } from "react-router";
 import { useDB } from "~/RootLayout";
 import { RecordList } from "./RecordList";
 import { Temporal } from "temporal-polyfill";
-import { formatDate, numeric } from "~/lib/utils";
+import { formatDate, Method, numeric } from "~/lib/utils";
 import { AwaitDangerous } from "~/components/Await";
 import { ItemList } from "./ItemList";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "~/components/ui/tabs";
@@ -18,13 +18,16 @@ import Decimal from "decimal.js";
 import { Calendar } from "~/components/Calendar";
 import { useAsyncDep } from "~/hooks/useAsyncDep";
 import { useAction } from "~/hooks/useAction";
+import { Filter } from "./Filter";
 
 export default function Page() {
 	const [search, setSearch] = useSearchParams();
+	const [method, setMethod] = useState<null | {
+		method: Method;
+		type: number | null;
+	}>(null);
+	const [methods, setMethods] = useState<DB.MethodType[]>([]);
 	const [val, setVal] = useState("");
-	const mode = getMode(search);
-	const ref = useRef<HTMLDivElement>(null);
-	const isProgrammaticScroll = useRef(false);
 	const [time, isNow] = getTime(search);
 	useEffect(() => {
 		if (isNow) {
@@ -35,47 +38,16 @@ export default function Page() {
 			});
 		}
 	}, []);
-	const selected = getSelected(search);
 	const query = getQuery(search);
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const tomorrow = date.add(Temporal.Duration.from({ days: 1 }));
 	const yesterday = date.subtract(Temporal.Duration.from({ days: 1 }));
-	// const [signal, setSignal] = useState(false);
 	const { state, revalidate } = useRecords(time);
-	// Restore scroll position on component mount
-	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const parsed = numeric.safeParse(params.get("scroll"));
-		const scrollTop = parsed.success ? parsed.data : 0;
-
-		if (scrollTop && ref.current) {
-			isProgrammaticScroll.current = true;
-			ref.current.scrollTop = scrollTop;
-			// Reset the flag after scroll completes
-			setTimeout(() => {
-				isProgrammaticScroll.current = false;
-			}, 100);
-		}
-	}, [state]);
 	const db = useDB();
-	const user = useUser();
 	const { action, loading, error, setError } = useAction("", (val: number) =>
 		db.record.getByTime(val)
 	);
-	// Throttled scroll handler
-	const handleScroll = () => {
-		if (isProgrammaticScroll.current || !ref.current) return;
-
-		const scrollTop = ref.current.scrollTop;
-		const params = new URLSearchParams(window.location.search);
-		params.set("scroll", scrollTop.toString());
-		const url = `${window.location.pathname}?${params.toString()}`;
-		window.history.replaceState({}, "", url);
-	};
-	const selectRecord = (timestamp: number) => () => {
-		setSelected(setSearch, timestamp, selected);
-	};
 	const handleChangeNo = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const v = e.currentTarget.value.trim();
 		if (Number.isNaN(Number(v))) {
@@ -115,6 +87,7 @@ export default function Page() {
 						<ChevronRight />
 					</Button>
 				</div>
+				<Filter method={method} setMethod={setMethod} methods={methods} />
 				<div className="flex gap-2 flex-1 pl-22">
 					<Search query={query} setSearch={setSearch} />
 					<form onSubmit={handleSubmitNo} className="flex gap-2 items-center">
@@ -127,7 +100,12 @@ export default function Page() {
 			</div>
 			<AwaitDangerous state={state}>
 				{(data) => {
-					const [[errRecords, rawRecords], [errItems, items], [errTaxes, taxes], [errMethod, methods]] = data;
+					const [
+						[errRecords, rawRecords],
+						[errItems, items],
+						[errTaxes, taxes],
+						[errMethod, methods],
+					] = data;
 					if (errMethod !== null) {
 						return <TextError>{errMethod}</TextError>;
 					}
@@ -140,84 +118,19 @@ export default function Page() {
 					if (errTaxes !== null) {
 						return <TextError>{errTaxes}</TextError>;
 					}
-					const filtered =
-						query.trim() === ""
-							? items
-							: items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
-					const timestamps = filtered.map((f) => f.timestamp);
-					let records =
-						query.trim() === ""
-							? rawRecords
-							: rawRecords.filter((r) => timestamps.includes(r.timestamp));
-					records = records.filter((record) => record.mode === mode);
-					let total = new Decimal(0);
-					let capital = new Decimal(0);
-					for (const r of records) {
-						total = total.add(r.grand_total);
-					}
-					const sellTime = records.filter((r) => r.mode === "sell").map((r) => r.timestamp);
-					for (const item of items) {
-						if (!sellTime.includes(item.timestamp)) {
-							continue;
-						}
-						const t = new Decimal(item.capital).times(item.qty);
-						capital = capital.add(t);
-					}
 					return (
-						<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
-							<div className="flex flex-col gap-1 overflow-hidden">
-								<Tabs
-									value={mode}
-									onValueChange={(v) => {
-										if (v !== "sell" && v !== "buy") {
-											return;
-										}
-										setMode(setSearch, v);
-									}}
-									className="overflow-auto flex-1"
-									ref={ref}
-									onScroll={handleScroll}
-								>
-									<TabsList>
-										<TabsTrigger value="sell">Jual</TabsTrigger>
-										{user.role === "admin" ? <TabsTrigger value="buy">Beli</TabsTrigger> : null}
-									</TabsList>
-									<TabsContent value="sell">
-										<RecordList records={records} selectRecord={selectRecord} selected={selected} />
-									</TabsContent>
-									{user.role === "admin" ? (
-										<TabsContent value="buy">
-											<RecordList
-												records={records}
-												selectRecord={selectRecord}
-												selected={selected}
-											/>
-										</TabsContent>
-									) : null}
-								</Tabs>
-								{total === null ? null : (
-									<div className="grid grid-cols-[90px_1fr]">
-										{mode === "sell" ? (
-											<>
-												<p>Modal</p>
-												<p>: Rp{capital.toNumber().toLocaleString("id-ID")}</p>
-											</>
-										) : null}
-										<p>Total</p>
-										<p>: Rp{total.toNumber().toLocaleString("id-ID")}</p>
-									</div>
-								)}
-							</div>
-							<div className="border-l" />
-							<ItemList
-								allItems={items}
-								timestamp={selected}
-								records={rawRecords}
-								allTaxes={taxes}
-								methods={methods}
-								revalidate={revalidate}
-							/>
-						</div>
+						<Record
+							items={items}
+							methods={methods}
+							rawRecords={rawRecords}
+							taxes={taxes}
+							method={method}
+							setMethods={setMethods}
+							query={query}
+							revalidate={revalidate}
+							search={search}
+							setSearch={setSearch}
+						/>
 					);
 				}}
 			</AwaitDangerous>
@@ -235,7 +148,7 @@ function useRecords(timestamp: number) {
 		db.record.getByRange(start, end),
 		db.recordItem.getByRange(start, end),
 		db.additional.getByRange(start, end),
-		db.method.get()
+		db.method.get(),
 	]);
 	const [updated, setUpdated] = useState(false);
 	const revalidate = () => setUpdated((prev) => !prev);
@@ -295,4 +208,147 @@ function getQuery(search: URLSearchParams): string {
 		return "";
 	}
 	return query;
+}
+
+function Record({
+	query,
+	search,
+	setSearch,
+	revalidate,
+	method,
+	setMethods,
+	rawRecords,
+	items,
+	taxes,
+	methods,
+}: {
+	revalidate: () => void;
+	search: URLSearchParams;
+	setSearch: SetURLSearchParams;
+	method: {
+		method: Method;
+		type: number | null;
+	} | null;
+	setMethods: React.Dispatch<React.SetStateAction<DB.MethodType[]>>;
+	query: string;
+	rawRecords: DB.Record[];
+	items: DB.RecordItem[];
+	taxes: DB.Additional[];
+	methods: DB.MethodType[];
+}) {
+	const mode = getMode(search);
+	const user = useUser();
+	const ref = useRef<HTMLDivElement>(null);
+	const isProgrammaticScroll = useRef(false);
+	// Restore scroll position on component mount
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		const parsed = numeric.safeParse(params.get("scroll"));
+		const scrollTop = parsed.success ? parsed.data : 0;
+
+		if (scrollTop && ref.current) {
+			isProgrammaticScroll.current = true;
+			ref.current.scrollTop = scrollTop;
+			// Reset the flag after scroll completes
+			setTimeout(() => {
+				isProgrammaticScroll.current = false;
+			}, 100);
+		}
+	}, []);
+	// Throttled scroll handler
+	const handleScroll = () => {
+		if (isProgrammaticScroll.current || !ref.current) return;
+		const scrollTop = ref.current.scrollTop;
+		const params = new URLSearchParams(window.location.search);
+		params.set("scroll", scrollTop.toString());
+		const url = `${window.location.pathname}?${params.toString()}`;
+		window.history.replaceState({}, "", url);
+	};
+	const selected = getSelected(search);
+	const selectRecord = (timestamp: number) => () => {
+		setSelected(setSearch, timestamp, selected);
+	};
+	const filtered =
+		query.trim() === ""
+			? items
+			: items.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
+	const timestamps = filtered.map((f) => f.timestamp);
+	let records =
+		query.trim() === "" ? rawRecords : rawRecords.filter((r) => timestamps.includes(r.timestamp));
+	records = records.filter((record) => record.mode === mode);
+	useEffect(() => {
+		setMethods(methods);
+	}, []);
+	// filter by method
+	if (method !== null) {
+		console.log(method);
+		records = records.filter((r) =>
+			method.type === null ? method.method === r.method : method.type === r.method_type
+		);
+	}
+	let total = new Decimal(0);
+	let capital = new Decimal(0);
+	for (const r of records) {
+		total = total.add(r.grand_total);
+	}
+	const sellTime = records.filter((r) => r.mode === "sell").map((r) => r.timestamp);
+	for (const item of items) {
+		if (!sellTime.includes(item.timestamp)) {
+			continue;
+		}
+		const t = new Decimal(item.capital).times(item.qty);
+		capital = capital.add(t);
+	}
+	return (
+		<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
+			<div className="flex flex-col gap-1 overflow-hidden">
+				<Tabs
+					value={mode}
+					onValueChange={(v) => {
+						if (v !== "sell" && v !== "buy") {
+							return;
+						}
+						setMode(setSearch, v);
+					}}
+					className="overflow-auto flex-1"
+					ref={ref}
+					onScroll={handleScroll}
+				>
+					<TabsList>
+						<TabsTrigger value="sell">Jual</TabsTrigger>
+						{user.role === "admin" ? <TabsTrigger value="buy">Beli</TabsTrigger> : null}
+					</TabsList>
+					<TabsContent value="sell">
+						<RecordList records={records} selectRecord={selectRecord} selected={selected} />
+					</TabsContent>
+					{user.role === "admin" ? (
+						<TabsContent value="buy">
+							<RecordList records={records} selectRecord={selectRecord} selected={selected} />
+						</TabsContent>
+					) : null}
+				</Tabs>
+				{total === null ? null : (
+					<div className="grid grid-cols-[90px_1fr]">
+						{mode === "sell" ? (
+							<>
+								<p>Modal</p>
+								<p>: Rp{capital.toNumber().toLocaleString("id-ID")}</p>
+							</>
+						) : null}
+						<p>Total</p>
+						<p>: Rp{total.toNumber().toLocaleString("id-ID")}</p>
+					</div>
+				)}
+			</div>
+			<div className="border-l" />
+			<ItemList
+				allItems={items}
+				timestamp={selected}
+				records={rawRecords}
+				allTaxes={taxes}
+				methods={methods}
+				revalidate={revalidate}
+			/>
+		</div>
+	);
 }
