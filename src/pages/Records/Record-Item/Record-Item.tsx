@@ -94,7 +94,6 @@ function useRecord(timestamp: number) {
 	const [updated, setUpdated] = useState(false);
 	useEffect(() => {
 		const update = () => {
-			console.log("hellooo");
 			setUpdated((prev) => !prev);
 		};
 		emitter.on("fetch-record-item", update);

@@ -24,7 +24,6 @@ export function Calendar({
 	mode?: "day" | "month" | "year";
 	children?: React.ReactNode;
 }) {
-	console.log(modeInit);
 	const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
 	const tz = Temporal.Now.timeZoneId();
 	const timeDate = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);

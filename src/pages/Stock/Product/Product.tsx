@@ -161,7 +161,7 @@ function Info({ product }: { product: DB.Product }) {
 
 const useItem = (id: number, page: number, mode: "buy" | "sell") => {
 	const db = useDB();
-	const item = useAsync(() => db.product.get(id));
+	const item = useAsync(() => db.product.get(id), ["fetch-product"]);
 	const images = useAsync(() => db.image.getImages(id), ["fetch-images"]);
 	const history = useAsyncDep(
 		() => db.product.getHistory(id, (page - 1) * LIMIT, LIMIT, mode),

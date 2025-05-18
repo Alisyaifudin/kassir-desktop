@@ -41,7 +41,6 @@ export function genRecordItem(db: Database) {
 			item: Omit<DB.RecordItem, "id"> & { product_id: number | null },
 			timestamp: number
 		): Promise<Result<"Aplikasi bermasalah" | "Gagal menyimpan. Coba lagi." | null, number>> => {
-			console.log({ item });
 			const [errMsg, res] = await tryResult({
 				run: async () => {
 					const promise = [
@@ -64,7 +63,6 @@ export function genRecordItem(db: Database) {
 					return Promise.all(promise);
 				},
 			});
-			console.log(errMsg);
 			if (errMsg) return err(errMsg);
 			const id = res[0].lastInsertId;
 			if (id === undefined) return err("Gagal menyimpan. Coba lagi.");

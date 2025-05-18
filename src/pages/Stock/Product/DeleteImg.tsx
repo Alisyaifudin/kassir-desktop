@@ -28,7 +28,6 @@ export function DeleteImg({
 	const db = useDB();
 	const [open, setOpen] = useState(false);
 	const { action, loading, error, setError } = useAction("", async () => {
-		console.log(selected);
 		const errMsgs = await Promise.all([db.image.delete(selected.id), image.del(selected.name)]);
 		for (const errMsg of errMsgs) {
 			if (errMsg) return errMsg;

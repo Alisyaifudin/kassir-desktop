@@ -41,7 +41,6 @@ export function useLocalStorage(mode: "sell" | "buy") {
 		localStorage.setItem(`pay-${mode}`, pay.toString());
 	};
 	const changeMethodType = (mode: "buy" | "sell", methodType: number | null) => {
-		console.log({ methodType });
 		setMethodType(methodType);
 		if (methodType === null) {
 			localStorage.removeItem(`method-type-${mode}`);

@@ -6,11 +6,12 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { DeleteBtn } from "./DeleteBtn";
 import { useAction } from "~/hooks/useAction";
 import { AsyncState } from "~/hooks/useAsync";
 import { Await } from "~/components/Await";
+import { emitter } from "~/lib/event-emitter";
 const dataSchema = z.object({
 	name: z.string().min(1),
 	price: numeric,
@@ -123,14 +124,17 @@ export function Form({
 					defaultValue={product.stock}
 				/>
 			</Field>
-			<Field error={error?.barcode ?? ""} label="Barcode:">
-				<Input
-					type="text"
-					className="outline w-[300px]"
-					name="barcode"
-					defaultValue={product.barcode ?? ""}
-				/>
-			</Field>
+			<div className="flex items-center gap-2">
+				<Field error={error?.barcode ?? ""} label="Barcode:">
+					<Input
+						type="text"
+						className="outline w-[300px]"
+						name="barcode"
+						defaultValue={product.barcode ?? ""}
+					/>
+				</Field>
+				<GenerateBarcode id={product.id} barcode={product.barcode} />
+			</div>
 			<label className="flex flex-col">
 				<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
 					<span className="text-3xl">Catatan</span>
@@ -154,5 +158,27 @@ export function Form({
 			</div>
 			{error?.global === "" ? null : <TextError>{error?.global ?? ""}</TextError>}
 		</form>
+	);
+}
+
+function GenerateBarcode({ id, barcode }: { id: number; barcode: string | null }) {
+	const db = useDB();
+	const { error, loading, setError, action } = useAction("", () => db.product.generateBarcode(id));
+	if (barcode !== null) {
+		return null;
+	}
+	const handleClick = async () => {
+		if (loading) return;
+		const [errMsg] = await action();
+		setError(errMsg);
+		if (errMsg === null) {
+			emitter.emit("fetch-product");
+		}
+	};
+	return (
+		<Button type="button" variant="ghost" onClick={handleClick}>
+			{loading ? <Loader2 className="animate-spin" /> : <RefreshCw size={35} />}
+			{error ? <TextError>{error}</TextError> : null}
+		</Button>
 	);
 }

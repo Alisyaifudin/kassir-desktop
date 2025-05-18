@@ -1,5 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { err, log, ok, Result, tryResult } from "../lib/utils";
+import { findNextBarcode, genBarcode } from "~/lib/barcode";
 
 export type ProductRecord = Pick<DB.Product, "id" | "name" | "price" | "capital" | "barcode"> &
 	Pick<DB.RecordItem, "timestamp" | "qty"> &
@@ -273,5 +274,27 @@ export class ProductTable {
 			}
 			return "Aplikasi bermasalah";
 		}
+	}
+	async generateBarcode(id: number): Promise<Result<"Aplikasi bermasalah", string>> {
+		const [errMsg, res] = await tryResult({
+			run: () =>
+				this.db.select<{ barcode: string }[]>(
+					`SELECT barcode FROM products WHERE barcode LIKE '2123456%'
+					 ORDER BY barcode ASC`
+				),
+		});
+		if (errMsg) return err(errMsg);
+		let num = 0;
+		if (res.length > 0) {
+			num = findNextBarcode(res.map((r) => Number(r.barcode.slice(7, -1))));
+		}
+
+		const barcode = genBarcode(num);
+		const [errUpdate] = await tryResult({
+			run: () =>
+				this.db.execute("UPDATE products SET barcode = $1 WHERE id = $2", [barcode.toString(), id]),
+		});
+		if (errUpdate) return err(errUpdate);
+		return ok(barcode.toString());
 	}
 }

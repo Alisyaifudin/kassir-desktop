@@ -15,7 +15,6 @@ export function Item({ id, name, value }: { id: number; name: string; value: str
 			db.social.update(id, name, value)
 	);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		console.log("uwu");
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 		const parsed = z
