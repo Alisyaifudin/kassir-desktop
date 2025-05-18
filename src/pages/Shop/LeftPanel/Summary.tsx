@@ -102,7 +102,11 @@ export function Summary({
 		}
 		set.discVal(mode, val);
 	};
-	const handleSubmit = (credit: 0 | 1) => async () => {
+	const handleSubmit = (credit: 0 | 1) => async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		if (items.length === 0 || (credit === 0 && change.toNumber() < 0)) {
+			return;
+		}
 		setLoading(true);
 		const [errMsg, timestamp] = await submitPayment(
 			db,
@@ -157,7 +161,7 @@ export function Summary({
 					<p className="text-9xl">Rp{grandTotal.toLocaleString("de-DE")}</p>
 				</div>
 			</div>
-			<div className="flex-1 flex flex-col gap-1 h-fit">
+			<form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit">
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Bayar</span>
 					:
@@ -197,19 +201,24 @@ export function Summary({
 				<div className="flex items-center gap-1 w-full">
 					<Button
 						className="flex-1"
-						onClick={handleSubmit(0)}
+						type="submit"
 						disabled={change.toNumber() < 0 || pay === 0 || grandTotal === 0 || items.length === 0}
 					>
 						Bayar {loading && <Loader2 className="animate-spin" />}
 					</Button>
 					{mode === "buy" ? (
-						<Button disabled={grandTotal === 0} className="flex-1" onClick={handleSubmit(1)}>
+						<Button
+							disabled={grandTotal === 0}
+							className="flex-1"
+							onClick={handleSubmit(1) as any}
+							type="button"
+						>
 							Kredit {loading && <Loader2 className="animate-spin" />}
 						</Button>
 					) : null}
 				</div>
 				{error === "" ? null : <TextError>{error}</TextError>}
-			</div>
+			</form>
 		</div>
 	);
 }
