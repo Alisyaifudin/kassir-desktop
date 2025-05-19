@@ -24,7 +24,7 @@ export function Discount({
 	mode,
 	price,
 	qty,
-	fix
+	fix,
 }: {
 	discs: {
 		value: number;
@@ -55,8 +55,8 @@ export function Discount({
 						}
 						break;
 					case "number":
-						if (draft[index].value > price) {
-							draft[index].value = price;
+						if (draft[index].value > price * qty) {
+							draft[index].value = price * qty;
 						}
 				}
 			})
@@ -72,8 +72,8 @@ export function Discount({
 		if (value < 0) {
 			return;
 		}
-		if (value > price && val[index].type === "number") {
-			value = price;
+		if (value > price * qty && val[index].type === "number") {
+			value = price * qty;
 		}
 		setVal((state) =>
 			produce(state, (draft) => {

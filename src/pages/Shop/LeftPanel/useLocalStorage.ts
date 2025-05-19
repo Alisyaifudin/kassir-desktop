@@ -158,6 +158,17 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			) => {
 				setItems((state) =>
 					produce(state, (draft) => {
+						switch (draft[itemIndex].discs[index].type) {
+							case "percent":
+								if (draft[itemIndex].discs[index].value > 100) {
+									draft[itemIndex].discs[index].value = 100;
+								}
+								break;
+							case "number":
+								if (draft[itemIndex].discs[index].value > draft[itemIndex].price * draft[itemIndex].qty) {
+									draft[itemIndex].discs[index].value = draft[itemIndex].price * draft[itemIndex].qty;
+								}
+						}
 						draft[itemIndex].discs[index].type = kind;
 						localStorage.setItem(`items-${mode}`, JSON.stringify(draft));
 					})
@@ -250,9 +261,7 @@ export type SetDisc = ReturnType<typeof useLocalStorage>["set"]["items"]["disc"]
 export type Data = ReturnType<typeof useLocalStorage>["data"];
 
 function getMethod(mode: "buy" | "sell") {
-	const parsed = z
-		.enum(METHODS)
-		.safeParse(localStorage.getItem(`method-${mode}`));
+	const parsed = z.enum(METHODS).safeParse(localStorage.getItem(`method-${mode}`));
 	if (parsed.success) {
 		return parsed.data;
 	}
