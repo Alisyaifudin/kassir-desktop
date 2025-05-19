@@ -88,15 +88,15 @@ export function Manual({
 			className="flex flex-col gap-2 grow shrink px-1 basis-0 overflow-y-auto"
 		>
 			<Field label="Barcode" error={error.barcode}>
-				<Input ref={ref} type="text" name="barcode" />
+				<Input ref={ref} type="text" name="barcode" aria-autocomplete="list" />
 			</Field>
 			<Field label="Nama" error={error.name}>
-				<Input type="text" required name="name" />
+				<Input type="text" required name="name" aria-autocomplete="list" />
 			</Field>
 			<Field label="Harga" error={error.price}>
 				<div className="flex items-center gap-1">
 					<p className="text-2xl">Rp</p>
-					<Input type="number" required name="price" step={1 / Math.pow(10, fix)} />
+					<Input type="number" required name="price" step={1 / Math.pow(10, fix)} aria-autocomplete="list" />
 				</div>
 			</Field>
 			<div className="flex gap-1 items-center">

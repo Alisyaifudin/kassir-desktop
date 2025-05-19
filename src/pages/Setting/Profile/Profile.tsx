@@ -57,7 +57,7 @@ export default function Profile() {
 			<form onSubmit={handleChangeName} className="flex-col gap-2 flex">
 				<label className="grid grid-cols-[150px_1fr] gap-2 items-center">
 					<span>Nama</span>
-					<Input defaultValue={user.name} name="name" required />
+					<Input defaultValue={user.name} name="name" required aria-autocomplete="list" />
 				</label>
 				<Button className="w-fit self-end">
 					Simpan {name.loading ? <Loader2 className="animate-spin" /> : null}

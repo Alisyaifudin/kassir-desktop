@@ -56,10 +56,10 @@ export default function Shop() {
 				<div className="flex flex-col gap-2 flex-1 w-full">
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 						<FieldText label="Nama Toko">
-							<Input type="text" defaultValue={owner} name="owner" />
+							<Input type="text" defaultValue={owner} name="owner" aria-autocomplete="list" />
 						</FieldText>
 						<FieldText label="Alamat">
-							<Input type="text" defaultValue={address} name="address" />
+							<Input type="text" defaultValue={address} name="address" aria-autocomplete="list" />
 						</FieldText>
 						<label className="flex flex-col gap-1 text-3xl">
 							<div>

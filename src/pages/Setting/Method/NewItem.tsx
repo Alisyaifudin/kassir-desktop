@@ -47,7 +47,7 @@ export function NewBtn({ method }: { method: Method }) {
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Tambahkan Jenis Pembayaran</DialogTitle>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
-						<Input name="name" placeholder="Nama" />
+						<Input name="name" placeholder="Nama" aria-autocomplete="list" />
 						{error ? <TextError>{error}</TextError> : null}
 						<div className="col-span-2 flex flex-col items-end">
 							<Button>

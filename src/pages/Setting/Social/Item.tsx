@@ -47,8 +47,8 @@ export function Item({ id, name, value }: { id: number; name: string; value: str
 	};
 	return (
 		<form onSubmit={handleSubmit} className="grid grid-cols-[250px_1fr_60px] gap-2 items-center">
-			<Input name="name" defaultValue={name} placeholder="Nama Kontak" />
-			<Input name="value" defaultValue={value} placeholder="Isian Kontak" />
+			<Input name="name" defaultValue={name} placeholder="Nama Kontak" aria-autocomplete="list" />
+			<Input name="value" defaultValue={value} placeholder="Isian Kontak" aria-autocomplete="list" />
 			<button type="submit" className="hidden">
 				Submit
 			</button>

@@ -45,7 +45,7 @@ export function Item({ cashier, username }: { cashier: CashierWithoutPassword; u
 	}
 	return (
 		<form onSubmit={handleSubmit} className="flex items-center gap-3">
-			<Input type="text" defaultValue={cashier.name} name="name" />
+			<Input type="text" defaultValue={cashier.name} name="name" aria-autocomplete="list" />
 			{name.loading ? <Loader2 className="animate-spin" /> : null}
 			{name.error ? <TextError>{name.error}</TextError> : null}
 			<select value={cashier.role} onChange={handleChangeRole} className="text-3xl">

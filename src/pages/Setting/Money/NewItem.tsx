@@ -96,7 +96,7 @@ export function NewBtn({
 						</TabsList>
 						<TabsContent value="change">
 							<form onSubmit={handleSubmitChange} className="flex flex-col gap-2">
-								<Input name="value" placeholder="Nilai" />
+								<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
 								{error ? <TextError>{error}</TextError> : null}
 								<div className="col-span-2 flex flex-col items-end">
 									<Button>
@@ -108,7 +108,7 @@ export function NewBtn({
 						</TabsContent>
 						<TabsContent value="absolute">
 							<form onSubmit={handleSubmitAbs} className="flex flex-col gap-2">
-								<Input name="value" placeholder="Nilai" />
+								<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
 								{error ? <TextError>{error}</TextError> : null}
 								<div className="col-span-2 flex flex-col items-end">
 									<Button>

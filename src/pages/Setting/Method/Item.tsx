@@ -28,7 +28,7 @@ export function Item({ method }: { method: DB.MethodType }) {
 		<>
 			<div className="flex items-center gap-1 w-full">
 				<form onSubmit={handleSubmit} className="flex item-center gap-1 w-full">
-					<Input className="w-full" name="name" defaultValue={method.name} />
+					<Input className="w-full" name="name" defaultValue={method.name} aria-autocomplete="list" />
           {loading ? <Loader2 className="animate-spin" /> : null}
 				</form>
         <DeleteBtn method={method} />
