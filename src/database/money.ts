@@ -35,7 +35,7 @@ export function genMoney(db: Database) {
 		): Promise<"Aplikasi bermasalah" | null> => {
 			const now = Temporal.Now.instant().epochMilliseconds;
 			const [errSelect, items] = await tryResult({
-				run: () => db.select<DB.Money[]>("SELECT * FROM money ORDER BY timestamp DESC LIMIT 1"),
+				run: () => db.select<DB.Money[]>("SELECT * FROM money WHERE kind = $1 ORDER BY timestamp DESC LIMIT 1", [kind]),
 			});
 			if (errSelect) return errSelect;
 			let curr = 0;
