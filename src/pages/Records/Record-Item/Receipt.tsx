@@ -28,6 +28,7 @@ export function Receipt({
 	methods: DB.MethodType[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
+	const printRef = useRef<HTMLButtonElement|null>(null)
 	const info = useInfo();
 	const [width] = useState(72);
 	useEffect(() => {
@@ -60,6 +61,12 @@ export function Receipt({
 			}
 		};
 	}, []);
+	useEffect(()=> {
+		if(printRef.current === null) {
+			return;
+		}
+		printRef.current.focus();
+	}, [printRef])
 	if (items.length === 0) {
 		return null;
 	}
@@ -82,7 +89,7 @@ export function Receipt({
 						)
 					) : null}
 				</div>
-				<Button onClick={print}>Cetak</Button>
+				<Button ref={printRef} onClick={print}>Cetak</Button>
 			</div>
 			<Await state={info}>
 				{({ profile, socials }) => {
