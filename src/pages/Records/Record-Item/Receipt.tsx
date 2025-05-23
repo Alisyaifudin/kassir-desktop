@@ -76,6 +76,8 @@ export function Receipt({
 	};
 	const methodType = methods.find((m) => m.id === record.method_type);
 	const methodTypeName = methodType === undefined ? "" : " " + methodType.name;
+	const totalProductTypes = items.length;
+	const totalQty = items.map(i=>i.qty).reduce((prev, curr) => prev + curr);
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
@@ -197,6 +199,9 @@ export function Receipt({
 											<p className="text-end">Rp{Number(record.change).toLocaleString("id-ID")}</p>
 										</div>
 									</div>
+								</div>
+								<div>
+									<p>{totalProductTypes} Jenis/{totalQty} pcs</p>
 								</div>
 								<div className="flex items-center flex-col">
 									{footers.map((h, i) => (
