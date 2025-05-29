@@ -104,6 +104,7 @@ export function Summary({
 	};
 	const handleSubmit = (credit: 0 | 1) => async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
+		if (loading) return;
 		if (items.length === 0 || (credit === 0 && change.toNumber() < 0)) {
 			return;
 		}
