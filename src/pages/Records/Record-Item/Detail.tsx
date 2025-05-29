@@ -35,6 +35,14 @@ import { useProducts } from "~/hooks/useProducts";
 import { Await } from "~/components/Await";
 import { emitter } from "~/lib/event-emitter";
 import { Temporal } from "temporal-polyfill";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "~/components/ui/dialog";
 
 export function Detail({
 	items,
@@ -406,6 +414,47 @@ function Edit({
 				<Textarea defaultValue={record.note} name="note" />
 			</label>
 			{error ? <TextError>{error}</TextError> : null}
+			<div>
+				<ToCreditBtn timestamp={record.timestamp} closeEdit={() => setIsEdit(false)} />
+			</div>
 		</form>
+	);
+}
+
+function ToCreditBtn({ timestamp, closeEdit }: { timestamp: number; closeEdit: () => void }) {
+	const db = useDB();
+	const [open, setOpen] = useState(false);
+	const { loading, error, setError, action } = useAction("", (timestamp: number) =>
+		db.record.toCredit(timestamp)
+	);
+	const handleClick = async () => {
+		const errMsg = await action(timestamp);
+		setError(errMsg);
+		if (errMsg === null) {
+			setOpen(false);
+			closeEdit();
+			emitter.emit("fetch-record-item");
+		}
+	};
+	return (
+		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+			<Button type="button" variant="destructive" asChild>
+				<DialogTrigger>Ubah jadi kredit</DialogTrigger>
+			</Button>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle className="text-3xl">Ubah jadi kredit</DialogTitle>
+					<div className="flex justify-between mt-5">
+						<Button asChild>
+							<DialogClose>Batal</DialogClose>
+						</Button>
+						<Button onClick={handleClick} variant="destructive">
+							Ubah {loading && <Loader2 className="animate-spin" />}
+						</Button>
+					</div>
+					{error ? <TextError>{error}</TextError> : null}
+				</DialogHeader>
+			</DialogContent>
+		</Dialog>
 	);
 }

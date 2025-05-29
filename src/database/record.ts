@@ -75,7 +75,7 @@ export const genRecord = (db: Database) => ({
 						data.disc.value,
 						data.disc.type,
 						data.change,
-						data.methodType
+						data.methodType,
 					]
 				),
 		});
@@ -85,6 +85,15 @@ export const genRecord = (db: Database) => ({
 	delete: async (timestamp: number): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () => db.execute("DELETE FROM records WHERE timestamp = $1", [timestamp]),
+		});
+		return errMsg;
+	},
+	toCredit: async (timestamp: number): Promise<"Aplikasi bermasalah" | null> => {
+		const [errMsg] = await tryResult({
+			run: () =>
+				db.execute("UPDATE records SET credit = 1, pay = 0, change = 0 WHERE timestamp = $1", [
+					timestamp,
+				]),
 		});
 		return errMsg;
 	},
@@ -119,16 +128,14 @@ export const genRecord = (db: Database) => ({
 		timestamp: number,
 		note: string,
 		method: Method,
-		methodType: number | null,
+		methodType: number | null
 	): Promise<"Aplikasi bermasalah" | null> => {
 		const [errMsg] = await tryResult({
 			run: () =>
-				db.execute("UPDATE records SET note = $1, method = $2, method_type = $3 WHERE timestamp = $4", [
-					note,
-					method,
-					methodType,
-					timestamp,
-				]),
+				db.execute(
+					"UPDATE records SET note = $1, method = $2, method_type = $3 WHERE timestamp = $4",
+					[note, method, methodType, timestamp]
+				),
 		});
 		return errMsg;
 	},
