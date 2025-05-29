@@ -68,7 +68,7 @@ export default function Shop() {
 		});
 	};
 	return (
-		<div className="flex flex-col gap-2 w-full flex-1 ">
+		<div className="flex flex-col gap-2 w-full flex-1 overflow-auto">
 			<h1 className="text-4xl font-bold">Catatan Keuangan</h1>
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
