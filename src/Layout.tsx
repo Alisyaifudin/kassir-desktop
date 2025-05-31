@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useOutletContext } from "react-router";
 import { useEffect, useState } from "react";
-import { Settings, BellRing, ChartNoAxesColumnIncreasing } from "lucide-react";
+import { Settings, BellRing } from "lucide-react";
 import { Notification } from "./components/Notification";
 import { cn } from "./lib/utils";
 import { emitter } from "./lib/event-emitter";
@@ -76,13 +76,19 @@ function Layout({ user }: { user: User }) {
 						</li>
 						<li
 							className={cn(
-								"rounded-t-full h-[60px] flex items-center p-5",
-								pathname.includes("/analytics") ? "bg-white" : "bg-black text-white"
+								"text-3xl rounded-t-lg p-3 font-bold",
+								pathname.includes("/analytics") ? "bg-white" : "bg-white/50"
 							)}
 						>
-							<Link to="/analytics" className="relative">
-								<ChartNoAxesColumnIncreasing size={35} />
-							</Link>
+							<Link to="/analytics">Analisis</Link>
+						</li>
+						<li
+							className={cn(
+								"text-3xl rounded-t-lg p-3 font-bold",
+								pathname.includes("/money") ? "bg-white" : "bg-white/50"
+							)}
+						>
+							<Link to="/money">Uang</Link>
 						</li>
 						<li
 							className={cn(
@@ -100,7 +106,7 @@ function Layout({ user }: { user: User }) {
 					</ul>
 				</nav>
 			</header>
-			<Outlet context={{ db, store, user}} />
+			<Outlet context={{ db, store, user }} />
 			<Notification />
 		</>
 	);

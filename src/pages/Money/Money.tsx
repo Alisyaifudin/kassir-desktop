@@ -23,10 +23,10 @@ import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import Decimal from "decimal.js";
 
-export default function Shop() {
+export default function Page() {
 	const [search, setSearch] = useSearchParams();
 	const { start, end, time, date, kind } = useMemo(() => {
-		const kind = z.enum(["saving", "debt"]).catch("saving").parse(search.get("kind"));
+		const kind = z.enum(["saving", "debt", "diff"]).catch("saving").parse(search.get("kind"));
 		const now = Temporal.Now.instant().epochMilliseconds;
 		const timestamp = numeric.catch(now).parse(search.get("time"));
 		const tz = Temporal.Now.timeZoneId();
@@ -61,14 +61,14 @@ export default function Shop() {
 		setSearch({ time: time.toString(), kind });
 	};
 	const setChangeMode = (mode: string) => {
-		const kind = z.enum(["saving", "debt"]).catch("saving").parse(mode);
+		const kind = z.enum(["saving", "debt", "diff"]).catch("saving").parse(mode);
 		setSearch({
 			kind,
 			time: time.toString(),
 		});
 	};
 	return (
-		<div className="flex flex-col gap-2 w-full flex-1 overflow-auto">
+		<main className="flex flex-col gap-2 w-full max-w-5xl mx-auto flex-1 overflow-auto">
 			<h1 className="text-4xl font-bold">Catatan Keuangan</h1>
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
@@ -89,6 +89,7 @@ export default function Shop() {
 							<TabsList>
 								<TabsTrigger value="saving">Simpanan</TabsTrigger>
 								<TabsTrigger value="debt">Utang</TabsTrigger>
+								<TabsTrigger value="diff">Selisih</TabsTrigger>
 							</TabsList>
 							<TabsContent value="saving">
 								<TableList money={money} kind="saving" setSearch={setSearch} />
@@ -96,12 +97,15 @@ export default function Shop() {
 							<TabsContent value="debt">
 								<TableList money={money} kind="debt" setSearch={setSearch} />
 							</TabsContent>
+							<TabsContent value="diff">
+								<TableList money={money} kind="diff" setSearch={setSearch} />
+							</TabsContent>
 						</Tabs>
 					);
 					return;
 				}}
 			</Await>
-		</div>
+		</main>
 	);
 }
 
@@ -117,7 +121,7 @@ function TableList({
 	setSearch,
 }: {
 	money: DB.Money[];
-	kind: "saving" | "debt";
+	kind: "saving" | "debt" | "diff";
 	setSearch: SetURLSearchParams;
 }) {
 	const vals = money.filter((m) => m.kind === kind);
@@ -129,7 +133,7 @@ function TableList({
 					<TableHead>Hari</TableHead>
 					<TableHead>Tanggal</TableHead>
 					<TableHead>Waktu</TableHead>
-					<TableHead className="text-right">Selisih</TableHead>
+					{kind !== "diff" ? <TableHead className="text-right">Selisih</TableHead> : null}
 					<TableHead className="text-right">Nilai</TableHead>
 					<TableHead className="text-right"></TableHead>
 				</TableRow>
@@ -141,14 +145,16 @@ function TableList({
 						<TableCell>{getDay(m.timestamp).name}</TableCell>
 						<TableCell>{formatDate(m.timestamp, "long")}</TableCell>
 						<TableCell>{formatTime(m.timestamp, "long")}</TableCell>
-						<TableCell className="text-right">
-							{i + 1 < vals.length
-								? `Rp${new Decimal(m.value)
-										.sub(vals[i + 1].value)
-										.toNumber()
-										.toLocaleString("id-ID")}`
-								: "-"}
-						</TableCell>
+						{kind !== "diff" ? (
+							<TableCell className="text-right">
+								{i + 1 < vals.length
+									? `Rp${new Decimal(m.value)
+											.sub(vals[i + 1].value)
+											.toNumber()
+											.toLocaleString("id-ID")}`
+									: "-"}
+							</TableCell>
+						) : null}
 						<TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
 						<TableCell>
 							<DeleteBtn money={m} setSearch={setSearch} />

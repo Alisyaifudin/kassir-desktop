@@ -70,7 +70,7 @@ declare namespace DB {
 	interface Money {
 		timestamp: number;
 		value: number;
-		kind: "saving" | "debt";
+		kind: "saving" | "debt" | "diff";
 	}
 	interface Method {
 		name: "cash" | "transfer" | "debit" | "qris" | "other";

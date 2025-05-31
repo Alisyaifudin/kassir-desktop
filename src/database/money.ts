@@ -16,7 +16,7 @@ export function genMoney(db: Database) {
 		},
 		insertAbs: async (
 			value: number,
-			kind: "saving" | "debt"
+			kind: "saving" | "debt" | "diff"
 		): Promise<"Aplikasi bermasalah" | null> => {
 			const now = Temporal.Now.instant().epochMilliseconds;
 			const [errMsg] = await tryResult({
@@ -31,7 +31,7 @@ export function genMoney(db: Database) {
 		},
 		insertChange: async (
 			value: number,
-			kind: "saving" | "debt"
+			kind: "saving" | "debt" | "diff"
 		): Promise<"Aplikasi bermasalah" | null> => {
 			const now = Temporal.Now.instant().epochMilliseconds;
 			const [errSelect, items] = await tryResult({

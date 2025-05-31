@@ -22,7 +22,7 @@ export function NewBtn({
 	kind,
 }: {
 	setSearch: SetURLSearchParams;
-	kind: "saving" | "debt";
+	kind: "saving" | "debt" | "diff";
 }) {
 	const db = useDB();
 	const [open, setOpen] = useState(false);
@@ -40,7 +40,7 @@ export function NewBtn({
 			setError(errs.join(";"));
 			return;
 		}
-		if (parsed.data < 0) {
+		if (parsed.data < 0 && kind !== "diff") {
 			setError("Nilai tidak boleh kurang dari nol");
 			return;
 		}
@@ -89,36 +89,49 @@ export function NewBtn({
 			<DialogContent className="max-w-xl">
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Tambah Catatan Keuangan</DialogTitle>
-					<Tabs defaultValue="change" className="w-full">
-						<TabsList>
-							<TabsTrigger value="change">Perubahan</TabsTrigger>
-							<TabsTrigger value="absolute">Mutlak</TabsTrigger>
-						</TabsList>
-						<TabsContent value="change">
-							<form onSubmit={handleSubmitChange} className="flex flex-col gap-2">
-								<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
-								{error ? <TextError>{error}</TextError> : null}
-								<div className="col-span-2 flex flex-col items-end">
-									<Button>
-										Tambah
-										{loading && <Loader2 className="animate-spin" />}
-									</Button>
-								</div>
-							</form>
-						</TabsContent>
-						<TabsContent value="absolute">
-							<form onSubmit={handleSubmitAbs} className="flex flex-col gap-2">
-								<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
-								{error ? <TextError>{error}</TextError> : null}
-								<div className="col-span-2 flex flex-col items-end">
-									<Button>
-										Tambah
-										{loading && <Loader2 className="animate-spin" />}
-									</Button>
-								</div>
-							</form>
-						</TabsContent>
-					</Tabs>
+					{kind === "diff" ? (
+						<form onSubmit={handleSubmitAbs} className="flex flex-col gap-2">
+							<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
+							{error ? <TextError>{error}</TextError> : null}
+							<div className="col-span-2 flex flex-col items-end">
+								<Button>
+									Tambah
+									{loading && <Loader2 className="animate-spin" />}
+								</Button>
+							</div>
+						</form>
+					) : (
+						<Tabs defaultValue="change" className="w-full">
+							<TabsList>
+								<TabsTrigger value="change">Perubahan</TabsTrigger>
+								<TabsTrigger value="absolute">Mutlak</TabsTrigger>
+							</TabsList>
+							<TabsContent value="change">
+								<form onSubmit={handleSubmitChange} className="flex flex-col gap-2">
+									<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
+									{error ? <TextError>{error}</TextError> : null}
+									<div className="col-span-2 flex flex-col items-end">
+										<Button>
+											Tambah
+											{loading && <Loader2 className="animate-spin" />}
+										</Button>
+									</div>
+								</form>
+							</TabsContent>
+							<TabsContent value="absolute">
+								<form onSubmit={handleSubmitAbs} className="flex flex-col gap-2">
+									<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
+									{error ? <TextError>{error}</TextError> : null}
+									<div className="col-span-2 flex flex-col items-end">
+										<Button>
+											Tambah
+											{loading && <Loader2 className="animate-spin" />}
+										</Button>
+									</div>
+								</form>
+							</TabsContent>
+						</Tabs>
+					)}
 				</DialogHeader>
 			</DialogContent>
 		</Dialog>

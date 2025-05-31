@@ -108,15 +108,6 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 					<Button
 						className="w-full"
 						asChild
-						variant={pathname === "/setting/money" ? "default" : "link"}
-					>
-						<Link to="/setting/money">Uang</Link>
-					</Button>
-				</li>
-				<li className="flex items-center">
-					<Button
-						className="w-full"
-						asChild
 						variant={pathname === "/setting/method" ? "default" : "link"}
 					>
 						<Link to="/setting/method">Metode</Link>
