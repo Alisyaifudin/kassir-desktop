@@ -78,7 +78,6 @@ export function LeftPanel({
 				</div>
 			</div>
 			<div className="flex flex-col gap-2 pb-6">
-				<p className="font-bold text-5xl">Total:</p>
 				<p className="text-9xl text-center">Rp{grandTotal.toLocaleString("id-ID")}</p>
 			</div>
 		</div>
