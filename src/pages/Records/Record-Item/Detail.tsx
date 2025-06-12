@@ -67,18 +67,31 @@ export function Detail({
 	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		const parsed = numeric.safeParse(formData.get("pay"));
+		const parsed = z
+			.object({
+				pay: numeric,
+				round: numeric,
+			})
+			.safeParse({
+				pay: formData.get("pay"),
+				round: formData.get("round"),
+			});
 		if (!parsed.success) {
 			credit.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}
-		const pay = parsed.data;
-		const change = new Decimal(pay).sub(record.grand_total).toNumber();
+		const { pay, round } = parsed.data;
+		const change = new Decimal(pay).sub(round).sub(record.grand_total).toNumber();
 		if (change < 0) {
 			credit.setError("Bayaran tidak cukup");
 			return;
 		}
-		const [errMsg, now] = await credit.action({ pay, change });
+		const [errMsg, now] = await credit.action({
+			pay,
+			change,
+			round,
+			grandTotal: record.grand_total,
+		});
 		if (errMsg) {
 			credit.setError(errMsg);
 			return;
@@ -127,6 +140,7 @@ export function Detail({
 					<label className="flex items-center gap-5">
 						<span className="text-red-500">Kredit</span>
 						<Input placeholder="Bayaran..." type="number" name="pay" className="w-[200px]" />
+						<Input placeholder="Pembulatan" type="number" name="round" className="w-[200px]" />
 						<Button>Bayar {credit.loading ? <Loader2 className="animate-spin" /> : null}</Button>
 						{credit.error ? <TextError>{credit.error}</TextError> : null}
 					</label>
@@ -285,8 +299,10 @@ function findFixed(val: number): number {
 
 function useActions(timestamp: number) {
 	const db = useDB();
-	const credit = useAction("", (data: { pay: number; change: number }) =>
-		db.record.updateCreditPay(data.pay, data.change, timestamp)
+	const credit = useAction(
+		"",
+		(data: { pay: number; change: number; round: number; grandTotal: number }) =>
+			db.record.updateCreditPay(data, timestamp)
 	);
 	const time = useAction("", (newTime: number) => db.record.updateTimestamp(timestamp, newTime));
 	return { credit, time };

@@ -10,6 +10,7 @@ declare namespace DB {
 	}
 	interface Record {
 		timestamp: number; // primary key
+		// paid_at: number;
 		total_before_disc: number;
 		disc_val: number;
 		disc_type: "number" | "percent";

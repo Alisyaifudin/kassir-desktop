@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { err, Method, ok, Result, tryResult } from "../lib/utils";
 import Database from "@tauri-apps/plugin-sql";
+import Decimal from "decimal.js";
 
 export const genRecord = (db: Database) => ({
 	getByRange: async (
@@ -98,16 +99,28 @@ export const genRecord = (db: Database) => ({
 		return errMsg;
 	},
 	updateCreditPay: async (
-		pay: number,
-		change: number,
+		data: {
+			pay: number;
+			change: number;
+			round: number;
+			grandTotal: number;
+		},
 		timestamp: number
 	): Promise<Result<"Aplikasi bermasalah", number>> => {
 		const now = Temporal.Now.instant().epochMilliseconds;
 		const [errMsg] = await tryResult({
 			run: () =>
 				db.execute(
-					"UPDATE records SET pay = $1, change = $2, credit = 0, timestamp = $3 WHERE timestamp = $4",
-					[pay, change, now, timestamp]
+					`UPDATE records SET pay = $1, change = $2, rounding = $3, grand_total = $4, 
+					 credit = 0, timestamp = $5 WHERE timestamp = $6`,
+					[
+						data.pay,
+						data.change,
+						data.round,
+						new Decimal(data.grandTotal).add(data.round).toNumber(),
+						now,
+						timestamp,
+					]
 				),
 		});
 		if (errMsg) return err(errMsg);
