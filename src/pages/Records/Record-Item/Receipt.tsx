@@ -28,7 +28,7 @@ export function Receipt({
 	methods: DB.MethodType[];
 }) {
 	const styleRef = useRef<HTMLStyleElement | null>(null);
-	const printRef = useRef<HTMLButtonElement|null>(null)
+	const printRef = useRef<HTMLButtonElement | null>(null);
 	const info = useInfo();
 	const [width] = useState(72);
 	useEffect(() => {
@@ -61,13 +61,13 @@ export function Receipt({
 			}
 		};
 	}, []);
-	useEffect(()=> {
-		if(printRef.current === null) {
+	useEffect(() => {
+		if (printRef.current === null) {
 			return;
 		}
 		printRef.current.focus();
-	}, [printRef])
-	if (items.length === 0) {
+	}, [printRef]);
+	if (items.length === 0 && additionals.length === 0) {
 		return null;
 	}
 	const print = () => {
@@ -77,7 +77,8 @@ export function Receipt({
 	const methodType = methods.find((m) => m.id === record.method_type);
 	const methodTypeName = methodType === undefined ? "" : " " + methodType.name;
 	const totalProductTypes = items.length;
-	const totalQty = items.map(i=>i.qty).reduce((prev, curr) => prev + curr);
+	const totalQty =
+		items.length > 0 ? items.map((i) => i.qty).reduce((prev, curr) => prev + curr) : 0;
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
 			<div className="flex justify-between items-center">
@@ -91,7 +92,9 @@ export function Receipt({
 						)
 					) : null}
 				</div>
-				<Button ref={printRef} onClick={print}>Cetak</Button>
+				<Button ref={printRef} onClick={print}>
+					Cetak
+				</Button>
 			</div>
 			<Await state={info}>
 				{({ profile, socials }) => {
@@ -120,18 +123,22 @@ export function Receipt({
 									</div>
 								</div>
 								<hr />
-								{items.map((item, i) => (
-									<ReceiptItem
-										{...item}
-										i={i}
-										key={i}
-										discs={discs.filter((disc) => disc.record_item_id === item.id)}
-									/>
-								))}
-								<hr />
+								{items.length > 0 ? (
+									<>
+										{items.map((item, i) => (
+											<ReceiptItem
+												{...item}
+												i={i}
+												key={i}
+												discs={discs.filter((disc) => disc.record_item_id === item.id)}
+											/>
+										))}
+										<hr />
+									</>
+								) : null}
 								<div className="flex justify-end">
 									<div className="flex flex-col items-end">
-										{record.disc_val > 0 ? (
+										{record.disc_val > 0 && items.length > 0 ? (
 											<>
 												<div className="grid grid-cols-[100px_100px]">
 													<p>Subtotal</p>{" "}
@@ -153,12 +160,16 @@ export function Receipt({
 										) : null}
 										{additionals.length > 0 ? (
 											<>
-												<div className="grid grid-cols-[100px_100px]">
-													<p></p>{" "}
-													<p className="text-end">
-														Rp{record.total_after_disc.toLocaleString("id-ID")}
-													</p>
-												</div>
+												{items.length === 0 ? null : (
+													<>
+														<div className="grid grid-cols-[100px_100px]">
+															<p></p>{" "}
+															<p className="text-end">
+																Rp{record.total_after_disc.toLocaleString("id-ID")}
+															</p>
+														</div>
+													</>
+												)}
 												{additionals.map((tax) => (
 													<TaxItem key={tax.id} tax={tax} total={record.total_after_disc} />
 												))}
@@ -201,7 +212,9 @@ export function Receipt({
 									</div>
 								</div>
 								<div>
-									<p>{totalProductTypes} Jenis/{totalQty} pcs</p>
+									<p>
+										{totalProductTypes} Jenis/{totalQty} pcs
+									</p>
 								</div>
 								<div className="flex items-center flex-col">
 									{footers.map((h, i) => (

@@ -4,7 +4,8 @@ import { Input } from "~/components/ui/input";
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { TextError } from "~/components/TextError";
-import { useItem } from "../context";
+import { useSetData } from "../context";
+// import { useItem } from "../context";
 
 const itemSchema = z.object({
 	barcode: z.string().trim(),
@@ -28,15 +29,15 @@ const emptyErr = { name: "", price: "", qty: "", barcode: "" };
 export function Manual({
 	mode,
 	fix,
-	products
+	products,
 }: {
 	mode: "buy" | "sell";
 	fix: number;
-	products: DB.Product[]
+	products: DB.Product[];
 }) {
 	const [error, setError] = useState(emptyErr);
 	const ref = useRef<HTMLInputElement | null>(null);
-	const {setItem}= useItem()
+	const { items: set } = useSetData();
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		if (!ref.current) {
 			return;
@@ -65,13 +66,13 @@ export function Manual({
 		}
 		const { name, price, qty, barcode, stock } = parsed.data;
 		if (barcode !== "") {
-			const product = products.find(p=>p.barcode === barcode);
+			const product = products.find((p) => p.barcode === barcode);
 			if (product !== undefined) {
 				setError({ ...emptyErr, barcode: "Barang sudah ada. Gunakan otomatis." });
 				return;
 			}
 		}
-		setItem({
+		set.add(mode, {
 			barcode: barcode === "" ? null : barcode,
 			qty,
 			price,
@@ -96,7 +97,13 @@ export function Manual({
 			<Field label="Harga" error={error.price}>
 				<div className="flex items-center gap-1">
 					<p className="text-2xl">Rp</p>
-					<Input type="number" required name="price" step={1 / Math.pow(10, fix)} aria-autocomplete="list" />
+					<Input
+						type="number"
+						required
+						name="price"
+						step={1 / Math.pow(10, fix)}
+						aria-autocomplete="list"
+					/>
 				</div>
 			</Field>
 			<div className="flex gap-1 items-center">

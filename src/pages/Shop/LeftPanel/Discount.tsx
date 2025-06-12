@@ -5,21 +5,20 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "../../../components/ui/dialog";
+} from "~/components/ui/dialog";
 import { Plus, X } from "lucide-react";
 import { Fragment, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { SetDisc } from "./useLocalStorage";
 import { produce } from "immer";
 import { z } from "zod";
-import { numeric } from "../../../lib/utils";
-import { Input } from "../../../components/ui/input";
-import { calcSubtotal } from "./submit";
-import { Button } from "../../../components/ui/button";
+import { numeric } from "~/lib/utils";
+import { Input } from "~/components/ui/input";
+import { calcSubtotal } from "../submit";
+import { Button } from "~/components/ui/button";
+import { useSetData } from "../context";
 
 export function Discount({
 	discs,
-	setDisc,
 	itemIndex,
 	mode,
 	price,
@@ -30,17 +29,17 @@ export function Discount({
 		value: number;
 		type: "number" | "percent";
 	}[];
-	setDisc: SetDisc;
 	itemIndex: number;
 	mode: "sell" | "buy";
 	price: number;
 	qty: number;
 	fix: number;
 }) {
+	const { items: set } = useSetData();
 	const [val, setVal] = useState(discs);
 	const { discount } = calcSubtotal(val, price, qty, fix);
 	const debouncedType = useDebouncedCallback((index: number, type: "percent" | "number") => {
-		setDisc.kind(mode, itemIndex, index, type);
+		set.disc.kind(mode, itemIndex, index, type);
 	}, 1000);
 	const handleChangeType = (index: number) => (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const parsed = z.enum(["percent", "number"]).safeParse(e.currentTarget.value);
@@ -64,7 +63,7 @@ export function Discount({
 		debouncedType(index, type);
 	};
 	const debouncedVal = useDebouncedCallback((index: number, value: number) => {
-		setDisc.value(mode, itemIndex, index, value);
+		set.disc.value(mode, itemIndex, index, value);
 	}, 1000);
 	const handleChangeValue = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
 		const parsed = numeric.safeParse(e.currentTarget.value);
@@ -88,11 +87,11 @@ export function Discount({
 	};
 	const handleDelete = (index: number) => () => {
 		setVal((state) => state.filter((_, i) => i !== index));
-		setDisc.delete(mode, itemIndex, index);
+		set.disc.delete(mode, itemIndex, index);
 	};
 	const handleAdd = () => {
 		setVal([...val, { type: "percent", value: 0 }]);
-		setDisc.add(mode, itemIndex);
+		set.disc.add(mode, itemIndex);
 	};
 	return (
 		<Dialog>

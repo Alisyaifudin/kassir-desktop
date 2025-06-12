@@ -2,27 +2,26 @@ import React from "react";
 import { z } from "zod";
 import { X } from "lucide-react";
 import Decimal from "decimal.js";
-import { calcAdditional } from "./submit";
+import { calcAdditional } from "../submit";
 import { Additional } from "../schema";
-import { SetAdditional } from "./useLocalStorage";
-import { cn } from "../../../lib/utils";
+import { cn } from "~/lib/utils";
+import { useSetData } from "../context";
 
 export function AdditionalItem({
 	mode,
 	index,
 	totalBeforeTax,
 	additional,
-	set,
-	fix
+	fix,
 }: {
 	mode: "sell" | "buy";
 	index: number;
-	totalBeforeTax: Decimal;
+	totalBeforeTax: number;
 	additional: Additional;
-	set: SetAdditional;
 	fix: number;
 }) {
-	const additionalNumber = calcAdditional(totalBeforeTax, additional, fix);
+	const { additionals: set } = useSetData();
+	const additionalNumber = calcAdditional(new Decimal(totalBeforeTax), additional, fix);
 	const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = e.currentTarget.value.trim();
 		set.name(mode, index, val);

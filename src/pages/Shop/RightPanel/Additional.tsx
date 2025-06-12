@@ -3,7 +3,7 @@ import { Field } from "../Field";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { z } from "zod";
-import { useAdditional } from "../context";
+import { useSetData } from "../context";
 
 const additionalSchema = z.object({
 	name: z.string().min(1, { message: "Harus punya nama" }).trim(),
@@ -14,8 +14,8 @@ const additionalSchema = z.object({
 	kind: z.enum(["percent", "number"]),
 });
 
-export function AdditionalComponent() {
-	const { setAdditional } = useAdditional();
+export function AdditionalComponent({ mode }: { mode: "sell" | "buy" }) {
+	const { additionals: set } = useSetData();
 	const [error, setError] = useState({ name: "", value: "", kind: "" });
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		const formEl = e.currentTarget;
@@ -45,12 +45,11 @@ export function AdditionalComponent() {
 			return;
 		}
 		setError({ name: "", value: "", kind: "" });
-		setAdditional(parsed.data);
+		set.add(mode, parsed.data);
 		formEl.reset();
 	};
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-1 px-1">
-			<h2 className="font-bold text-2xl">Biaya Tambahan</h2>
 			<Field label="Nama" error={error.name}>
 				<Input type="text" name="name" aria-autocomplete="list" />
 			</Field>

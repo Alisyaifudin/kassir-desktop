@@ -6,10 +6,10 @@ import { Input } from "~/components/ui/input";
 import { ItemWithoutDisc } from "../../schema";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
 import { useDebouncedCallback } from "use-debounce";
-import { useItem } from "../../context";
+import { useSetData } from "../../context";
 
 export function Search({ mode, products: all }: { mode: "sell" | "buy"; products: DB.Product[] }) {
-	const { setItem } = useItem();
+	const { items: set } = useSetData();
 	const [query, setQuery] = useState("");
 	const [products, setProducts] = useState<ProductResult[]>([]);
 	const { search } = useProductSearch(all);
@@ -43,7 +43,7 @@ export function Search({ mode, products: all }: { mode: "sell" | "buy"; products
 		debounced(val);
 	};
 	const handleClick = (item: ItemWithoutDisc) => {
-		setItem(item);
+		set.add(mode, item);
 		setProducts([]);
 		setQuery("");
 		setError("");

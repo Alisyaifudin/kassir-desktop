@@ -1,17 +1,16 @@
 import { X } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Item } from "../schema";
-import { SetItem } from "./useLocalStorage";
 import { Discount } from "./Discount";
-import { calcSubtotal } from "./submit";
+import { calcSubtotal } from "../submit";
 import { Fragment } from "react";
 import { DetailDialog } from "./DetailDialog";
+import { useSetData } from "../context";
 
 type Props = {
 	index: number;
 	mode: "sell" | "buy";
 	item: Item;
-	set: SetItem;
 	fix: number;
 };
 
@@ -19,38 +18,38 @@ export function ItemComponent({
 	index,
 	mode,
 	item: { id, discs, name, price, qty, stock, barcode },
-	set,
 	fix,
 }: Props) {
 	const { total: subtotal } = calcSubtotal(discs, price, qty, fix);
+	const set = useSetData();
 	const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (id !== undefined) {
 			return;
 		}
-		set.name(mode, index, e.currentTarget.value);
+		set.items.name(mode, index, e.currentTarget.value);
 	};
 	const handleChangeBarcode = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (id !== undefined) {
 			return;
 		}
 		const val = e.currentTarget.value === "" ? null : e.currentTarget.value.trim();
-		set.barcode(mode, index, val);
+		set.items.barcode(mode, index, val);
 	};
 	const handleChangePrice = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
 		if ((mode === "sell" && id !== undefined) || isNaN(val) || val < 0) {
 			return;
 		}
-		set.price(mode, index, val);
+		set.items.price(mode, index, val);
 	};
 	const handleChangeQty = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.currentTarget.value);
 		if (isNaN(val) || !Number.isInteger(val) || val < 0) {
 			return;
 		}
-		set.qty(mode, index, val);
+		set.items.qty(mode, index, val);
 	};
-	const handleDelete = () => set.delete(mode, index);
+	const handleDelete = () => set.items.delete(mode, index);
 	return (
 		<div
 			className={cn("grid grid-cols-[70px_1fr] items-center text-3xl py-0.5", {
@@ -97,15 +96,7 @@ export function ItemComponent({
 					) : (
 						<p>{price}</p>
 					)}
-					<Discount
-						discs={discs}
-						itemIndex={index}
-						mode={mode}
-						setDisc={set.disc}
-						qty={qty}
-						price={price}
-						fix={fix}
-					/>
+					<Discount discs={discs} itemIndex={index} mode={mode} qty={qty} price={price} fix={fix} />
 					<input
 						type="number"
 						className={cn("px-0.5", id !== undefined ? "outline" : "border-b border-l border-r")}
@@ -135,7 +126,7 @@ export function ItemComponent({
 									<div />
 								</div>
 							</Fragment>
-						))}
+					  ))}
 			</div>
 		</div>
 	);

@@ -1,9 +1,8 @@
 import Decimal from "decimal.js";
-import { Item, Additional } from "../schema";
-import { submitPayment } from "./submit";
+import { submitPayment } from "../submit";
 import { Input } from "~/components/ui/input";
 import { z } from "zod";
-import { cn, Method as MethodEnum } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { TextError } from "~/components/TextError";
@@ -12,68 +11,35 @@ import { useDB } from "~/RootLayout";
 import { useNavigate } from "react-router";
 import { Note } from "./Note";
 import { Method } from "./Method";
+import { useFix, useLocalData, useSetData, useSummary } from "../context";
+import { useUser } from "~/Layout";
 
 type Props = {
 	mode: "sell" | "buy";
-	totalBeforeDisc: number;
-	totalAfterDisc: number;
-	totalAfterTax: number;
-	grandTotal: number;
-	totalTax: number;
-	fix: number;
-	data: {
-		note: string;
-		pay: number;
-		rounding: number;
-		cashier: string | null;
-		disc: {
-			type: "percent" | "number";
-			value: number;
-		};
-		method: MethodEnum;
-		methodType: number | null;
-		items: Item[];
-		additionals: Additional[];
-	};
 	reset: () => void;
-	set: {
-		reset: () => void;
-		discVal: (mode: "sell" | "buy", value: number) => void;
-		discType: (mode: "sell" | "buy", type: "percent" | "number") => void;
-		pay: (mode: "sell" | "buy", pay: number) => void;
-		rounding: (mode: "sell" | "buy", rounding: number) => void;
-		method: (mode: "sell" | "buy", method: MethodEnum) => void;
-		methodType: (mode: "sell" | "buy", methodType: number | null) => void;
-		note: (mode: "sell" | "buy", note: string) => void;
-	};
 };
 
-export function Summary({
-	reset,
-	mode,
-	totalAfterDisc,
-	totalAfterTax,
-	totalBeforeDisc,
-	totalTax,
-	grandTotal,
-	data: { items, additionals, pay, rounding, disc, cashier, method, note, methodType },
-	set,
-	fix,
-}: Props) {
+export function Summary({ reset, mode }: Props) {
+	const [pay, setPay] = useState(0);
 	const [loading, setLoading] = useState(false);
+	const { name: cashier } = useUser();
 	const [error, setError] = useState("");
+	const { fix } = useFix();
+	const set = useSetData();
+	const { rounding, disc, items, additionals, method, methodType, note } = useLocalData();
+	const { grandTotal, totalAfterDisc, totalAfterTax, totalBeforeDisc, totalTax } = useSummary();
 	const db = useDB();
 	const change = new Decimal(pay).sub(grandTotal);
 	const navigate = useNavigate();
 	const handlePay = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = Number(e.currentTarget.value);
+		const val = Number(Number(e.currentTarget.value).toFixed(fix));
 		if (isNaN(val)) {
 			return;
 		}
-		set.pay(mode, val);
+		setPay(val);
 	};
 	const handleRounding = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = Number(e.currentTarget.value);
+		const val = Number(Number(e.currentTarget.value).toFixed(fix));
 		if (isNaN(val)) {
 			return;
 		}
@@ -87,25 +53,28 @@ export function Summary({
 		const val = parsed.data;
 		if (val === "percent" && disc.value > 100) {
 			set.discVal(mode, 100);
+		} else if (val === "number") {
+			set.discVal(mode, Number(disc.value.toFixed(fix)));
 		}
 		set.discType(mode, val);
 	};
 	const handleDiscVal = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = Number(e.currentTarget.value);
-		if (
-			isNaN(val) ||
-			val < 0 ||
-			(disc.type === "number" && !Number.isInteger(val)) ||
-			(disc.type === "percent" && val > 100)
-		) {
+		let val = Number(e.currentTarget.value);
+		if (isNaN(val) || val < 0 || (disc.type === "percent" && val > 100)) {
 			return;
+		}
+		if (disc.type === "number") {
+			val = Number(val.toFixed(fix));
 		}
 		set.discVal(mode, val);
 	};
 	const handleSubmit = (credit: 0 | 1) => async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (loading) return;
-		if (items.length === 0 || (credit === 0 && change.toNumber() < 0)) {
+		if (
+			(items.length === 0 && additionals.length === 0) ||
+			(credit === 0 && change.toNumber() < 0)
+		) {
 			return;
 		}
 		setLoading(true);
@@ -142,10 +111,10 @@ export function Summary({
 		db.product.revalidate("all");
 	};
 	return (
-		<div className="flex items-center pr-1 h-fit gap-2">
+		<div className="flex flex-col p-2 h-fit gap-2">
 			<div className="flex flex-col gap-2  flex-1 h-full items-center justify-between">
 				<div className="flex items-center justify-between w-full">
-					<Button variant="destructive" onClick={() => set.reset()}>
+					<Button variant="destructive" onClick={reset}>
 						<RefreshCcw />
 					</Button>
 					<Method
@@ -156,10 +125,6 @@ export function Summary({
 						setMethodType={set.methodType}
 					/>
 					<Note note={note} changeNote={(note) => set.note(mode, note)} />
-				</div>
-				<div className="flex flex-col gap-2 pb-6">
-					<p className="font-bold text-5xl">Total</p>
-					<p className="text-9xl">Rp{grandTotal.toLocaleString("de-DE")}</p>
 				</div>
 			</div>
 			<form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit">
@@ -175,7 +140,7 @@ export function Summary({
 						<Input
 							type="number"
 							value={disc.value === 0 ? "" : disc.value}
-							step={disc.type === "number" ? 1 : 0.00001}
+							step={disc.type === "number" ? Math.pow(10, -1 * fix) : 0.00001}
 							onChange={handleDiscVal}
 						/>
 					</label>
@@ -191,19 +156,29 @@ export function Summary({
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Pembulatan</span>
 					:
-					<Input type="number" value={rounding === 0 ? "" : rounding} onChange={handleRounding} />
+					<Input
+						type="number"
+						value={rounding === 0 ? "" : rounding}
+						step={Math.pow(10, -1 * fix)}
+						onChange={handleRounding}
+					/>
 				</label>
 				<div className="grid grid-cols-[160px_20px_1fr] h-[60px] text-3xl items-center">
 					<p className="text-3xl">Kembalian</p>:
 					<p className={cn("text-3xl", { "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
-						{change.toNumber().toLocaleString("de-DE")}
+						{Number(change.toFixed(fix)).toLocaleString("id-ID")}
 					</p>
 				</div>
 				<div className="flex items-center gap-1 w-full">
 					<Button
 						className="flex-1"
 						type="submit"
-						disabled={change.toNumber() < 0 || pay === 0 || grandTotal === 0 || items.length === 0}
+						disabled={
+							change.toNumber() < 0 ||
+							pay === 0 ||
+							grandTotal === 0 ||
+							(items.length === 0 && additionals.length === 0)
+						}
 					>
 						Bayar {loading && <Loader2 className="animate-spin" />}
 					</Button>

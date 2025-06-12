@@ -2,7 +2,7 @@ import { Temporal } from "temporal-polyfill";
 import { Database } from "~/database";
 import { err, Method, ok, Result } from "~/lib/utils";
 import Decimal from "decimal.js";
-import { Item, Additional } from "../schema";
+import { Item, Additional } from "./schema";
 
 export async function submitPayment(
 	db: Database,
@@ -31,7 +31,7 @@ export async function submitPayment(
 	additionals: Additional[]
 ): Promise<
 	Result<
-		| "Tidak ada barang ._."
+		| "Tidak ada barang/biaya tambahan ._."
 		| "Ada barang dengan barcode yang sama"
 		| "Aplikasi bermasalah"
 		| "Biaya tambahan harus punya nama"
@@ -44,8 +44,8 @@ export async function submitPayment(
 		number
 	>
 > {
-	if (items.length === 0) {
-		return err("Tidak ada barang ._.");
+	if (items.length === 0 && additionals.length === 0) {
+		return err("Tidak ada barang/biaya tambahan ._.");
 	}
 	const timestamp = Temporal.Now.instant().epochMilliseconds;
 	const barcodes = items.filter((item) => item.barcode !== null).map((i) => i.barcode);
@@ -92,7 +92,7 @@ export async function submitPayment(
 				product_id: item.id ?? null,
 				capital: capital ?? 0,
 				barcode: item.barcode ?? null,
-				stock: mode === "buy" ? Number(item.qty) : (item.stock ?? Number(item.qty)),
+				stock: mode === "buy" ? Number(item.qty) : item.stock ?? Number(item.qty),
 			},
 			discs: item.discs,
 		};

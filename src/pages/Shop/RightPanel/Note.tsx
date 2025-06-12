@@ -1,13 +1,13 @@
-import { Button } from "../../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "../../../components/ui/dialog";
+} from "~/components/ui/dialog";
 import { NotepadText } from "lucide-react";
-import { Textarea } from "../../../components/ui/textarea";
+import { Textarea } from "~/components/ui/textarea";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 

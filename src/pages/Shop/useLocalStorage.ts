@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Method, METHODS, numeric } from "~/lib/utils";
-import { Item, itemSchema, Additional, additionalSchema, ItemWithoutDisc } from "../schema";
+import { Item, itemSchema, Additional, additionalSchema, ItemWithoutDisc } from "./schema";
 import { useEffect, useState } from "react";
 import { produce } from "immer";
 
@@ -165,8 +165,12 @@ export function useLocalStorage(mode: "sell" | "buy") {
 								}
 								break;
 							case "number":
-								if (draft[itemIndex].discs[index].value > draft[itemIndex].price * draft[itemIndex].qty) {
-									draft[itemIndex].discs[index].value = draft[itemIndex].price * draft[itemIndex].qty;
+								if (
+									draft[itemIndex].discs[index].value >
+									draft[itemIndex].price * draft[itemIndex].qty
+								) {
+									draft[itemIndex].discs[index].value =
+										draft[itemIndex].price * draft[itemIndex].qty;
 								}
 						}
 						draft[itemIndex].discs[index].type = kind;
@@ -229,29 +233,31 @@ export function useLocalStorage(mode: "sell" | "buy") {
 			);
 		},
 	};
+	const data = {
+		note,
+		pay,
+		rounding,
+		disc,
+		method,
+		methodType,
+		items,
+		additionals,
+	};
+	const set = {
+		note: changeNote,
+		pay: changePay,
+		rounding: changeRounding,
+		discVal: changeDiscVal,
+		discType: changeDiscType,
+		method: changeMethod,
+		methodType: changeMethodType,
+		items: changeItems,
+		additionals: changeAdditional,
+	};
 	return {
 		ready,
-		data: {
-			note,
-			pay,
-			rounding,
-			disc,
-			method,
-			methodType,
-			items,
-			additionals,
-		},
-		set: {
-			items: changeItems,
-			additionals: changeAdditional,
-			note: changeNote,
-			pay: changePay,
-			rounding: changeRounding,
-			discVal: changeDiscVal,
-			discType: changeDiscType,
-			method: changeMethod,
-			methodType: changeMethodType,
-		},
+		data,
+		set,
 	};
 }
 

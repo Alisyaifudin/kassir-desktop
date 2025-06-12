@@ -75,7 +75,7 @@ function List({
 	const { pathname, search } = useLocation();
 	const path = encodeURIComponent(`${pathname}${search}`);
 	const user = useUser();
-	if (items.length === 0) {
+	if (items.length === 0 && taxes.length === 0) {
 		return <DeleteBtn revalidate={revalidate} timestamp={record.timestamp} />;
 	}
 	const methodType = methods.find((m) => m.id === record.method_type);
