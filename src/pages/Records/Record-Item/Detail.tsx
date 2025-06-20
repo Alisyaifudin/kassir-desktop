@@ -30,7 +30,7 @@ import { LinkProduct } from "./LinkProduct";
 import { Textarea } from "~/components/ui/textarea";
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
-import { EditBtn } from "./EditBtn";
+import { GotoProductBtn } from "./GotoProductBtn";
 import { useProducts } from "~/hooks/useProducts";
 import { Await } from "~/components/Await";
 import { emitter } from "~/lib/event-emitter";
@@ -43,6 +43,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "~/components/ui/dialog";
+import { SelectMode } from "./SelectMode";
 
 export function Detail({
 	items,
@@ -124,6 +125,11 @@ export function Detail({
 				</div>
 				{role === "admin" ? (
 					<div className="flex gap-2 items-center">
+						{record.mode === "buy" ? (
+							<p className="text-3xl font-bold pr-5">Beli</p>
+						) : (
+							<p className="text-3xl font-bold pr-5">Jual</p>
+						)}
 						{time.error ? <TextError>{time.error}</TextError> : null}
 						<Calendar time={record.timestamp} setTime={handleChangeTime}>
 							<p>
@@ -189,7 +195,7 @@ export function Detail({
 									</TableCell>
 									<TableCell>{item.name}</TableCell>
 									<TableCell className="text-end flex items-center gap-1 justify-end">
-										<EditBtn mode={record.mode} productId={item.product_id} />
+										<GotoProductBtn mode={record.mode} productId={item.product_id} />
 										{item.price.toLocaleString("id-ID")}{" "}
 									</TableCell>
 									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
@@ -272,7 +278,7 @@ export function Detail({
 					</Button>
 				)}
 				{isEdit ? (
-					<Edit methods={methods} record={record} setIsEdit={setIsEdit} />
+					<Edit methods={methods} record={record} setIsEdit={setIsEdit} items={items} />
 				) : (
 					<div className="flex flex-col gap-2">
 						<p>
@@ -325,8 +331,10 @@ function Edit({
 	record,
 	setIsEdit,
 	methods,
+	items,
 }: {
 	record: DB.Record;
+	items: DB.RecordItem[];
 	setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
 	methods: DB.MethodType[];
 }) {
@@ -397,9 +405,13 @@ function Edit({
 				Simpan
 				{loading ? <Loader2 className="animate-spin" /> : null}
 			</Button>
-			<label className="flex items-center gap-2">
+			{record.credit === 0 ? (
+				<SelectMode record={record} items={items} setIsEdit={setIsEdit} />
+			) : null}
+			<label className="grid grid-cols-[120px_1fr] items-center gap-2">
 				<span>Metode:</span>
-				<div className="flex items-center gap-3 text-3xl">
+				<div className="flex items-center gap-2 text-3xl">
+					<p>:</p>
 					<select value={meth.method} className=" w-fit outline" onChange={handleChangeMethod}>
 						{METHODS.map((m) => (
 							<option key={m} value={m}>

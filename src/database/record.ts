@@ -152,4 +152,30 @@ export const genRecord = (db: Database) => ({
 		});
 		return errMsg;
 	},
+	updateMode: async (
+		record: DB.Record,
+		items: DB.RecordItem[],
+		mode: "buy" | "sell"
+	): Promise<"Aplikasi bermasalah" | null> => {
+		if (mode === record.mode || record.credit === 1) return null;
+		const [errMsg] = await tryResult({
+			run: async () => {
+				await db.execute("UPDATE records SET mode = $1 WHERE timestamp = $2", [
+					mode,
+					record.timestamp,
+				]);
+				const sign = mode === "sell" ? "-" : "+";
+				for (const item of items) {
+					// TODO: SHOULD HAVE UPDATE THE CAPITALS
+					if (item.product_id !== null) {
+						await db.execute(`UPDATE products SET stock = stock ${sign} $1 WHERE id = $2`, [
+							2 * item.qty,
+							item.product_id,
+						]);
+					}
+				}
+			},
+		});
+		return errMsg;
+	},
 });
