@@ -68,6 +68,7 @@ export function Detail({
 	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
+		console.log("round", formData.get("round"));
 		const parsed = z
 			.object({
 				pay: numeric,
@@ -75,9 +76,10 @@ export function Detail({
 			})
 			.safeParse({
 				pay: formData.get("pay"),
-				round: formData.get("round"),
+				round: formData.get("round") || "0",
 			});
 		if (!parsed.success) {
+			console.error(parsed.error);
 			credit.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}
@@ -442,9 +444,11 @@ function Edit({
 				<Textarea defaultValue={record.note} name="note" />
 			</label>
 			{error ? <TextError>{error}</TextError> : null}
-			<div>
-				<ToCreditBtn timestamp={record.timestamp} closeEdit={() => setIsEdit(false)} />
-			</div>
+			{record.mode === "buy" ? (
+				<div>
+					<ToCreditBtn timestamp={record.timestamp} closeEdit={() => setIsEdit(false)} />
+				</div>
+			) : null}
 		</form>
 	);
 }
