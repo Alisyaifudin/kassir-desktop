@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 const Password = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
 	({ className, ...props }, ref) => {
 		return (
-			<div className="relative">
+			<div className="relative flex items-center gap-2">
 				<Input type={"password"} className={cn("pr-5", className)} ref={ref} {...props} />
 			</div>
 		);

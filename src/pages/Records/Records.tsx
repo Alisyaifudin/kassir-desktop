@@ -281,7 +281,6 @@ function Record({
 	}, []);
 	// filter by method
 	if (method !== null) {
-		console.log(method);
 		records = records.filter((r) =>
 			method.type === null ? method.method === r.method : method.type === r.method_type
 		);

@@ -15,6 +15,10 @@
     "fs:default",
     "fs:allow-appdata-read-recursive",
     "fs:allow-appdata-write-recursive",
-    "fs:read-dirs"
+    "fs:read-dirs",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "http://*:*" }]
+    }
   ]
 }

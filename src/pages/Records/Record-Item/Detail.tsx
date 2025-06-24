@@ -68,7 +68,6 @@ export function Detail({
 	const handleSubmitPayCredit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		console.log("round", formData.get("round"));
 		const parsed = z
 			.object({
 				pay: numeric,

@@ -221,6 +221,37 @@ export class ProductTable {
 		}
 		return ok(id);
 	}
+	async upsertServer(data: {
+		id: number;
+		name: string;
+		price: number;
+		stock: number;
+		capital: number;
+		barcode: string | null;
+		note: string;
+	}): Promise<"Aplikasi bermasalah" | null> {
+		const [errMsg] = await tryResult({
+			run: async () => {
+				return this.db.execute(
+					`INSERT INTO products (id, name, price, stock, barcode, capital, note) 
+					 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(id) DO UPDATE SET
+					 name = $2, price = $3, stock = $4, barcode = $5, capital = $6, note = $7`,
+					[
+						data.id,
+						data.name.trim(),
+						data.price,
+						data.stock,
+						data.barcode === null ? null : data.barcode.trim(),
+						data.capital,
+						data.note,
+					]
+				);
+			},
+		});
+		if (errMsg) return errMsg;
+		this.revalidate("all");
+		return null;
+	}
 	async delete(id: number): Promise<"Aplikasi bermasalah" | null> {
 		const [errMsg] = await tryResult({
 			run: () => this.db.execute("DELETE FROM products WHERE id = $1", [id]),

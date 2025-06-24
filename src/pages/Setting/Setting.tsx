@@ -113,6 +113,15 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 						<Link to="/setting/method">Metode</Link>
 					</Button>
 				</li>
+				<li className="flex items-center">
+					<Button
+						className="w-full"
+						asChild
+						variant={pathname === "/setting/network" ? "default" : "link"}
+					>
+						<Link to="/setting/network">Jaringan</Link>
+					</Button>
+				</li>
 			</ol>
 			<div className="flex flex-col gap-1">
 				<Button onClick={handleLogout}>
