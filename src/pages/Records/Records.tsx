@@ -88,7 +88,7 @@ export default function Page() {
 					</Button>
 				</div>
 				<Filter method={method} setMethod={setMethod} methods={methods} />
-				<div className="flex gap-2 flex-1 pl-22">
+				<div className="flex gap-2 flex-1 pl-4">
 					<Search query={query} setSearch={setSearch} />
 					<form onSubmit={handleSubmitNo} className="flex gap-2 items-center">
 						{error === "" ? null : <TextError>{error ?? ""}</TextError>}

@@ -7,7 +7,7 @@ import {
 	DialogTrigger,
 } from "~/components/ui/dialog";
 import { Method, METHOD_NAMES, METHODS } from "~/lib/utils";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 
 export function Filter({
 	method,
@@ -46,13 +46,23 @@ export function Filter({
 			type: id,
 		});
 	};
+	const handleClear = () => {
+		setMethod(null);
+	};
+	const name = getName(methods, method);
 	return (
 		<Dialog>
 			<Button asChild variant="outline">
 				<DialogTrigger>
 					<SlidersHorizontal />
+					<p>{name}</p>
 				</DialogTrigger>
 			</Button>
+			{method === null ? null : (
+				<Button size="icon" variant="ghost" onClick={handleClear}>
+					<X />
+				</Button>
+			)}
 			<DialogContent className="text-3xl">
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Filter Metode Pembayaran</DialogTitle>
@@ -91,4 +101,22 @@ export function Filter({
 			</DialogContent>
 		</Dialog>
 	);
+}
+
+function getName(
+	methods: DB.MethodType[],
+	method: {
+		method: Method;
+		type: number | null;
+	} | null
+) {
+	if (method === null) {
+		return "Filter";
+	}
+	if (method.type === null) {
+		return METHOD_NAMES[method.method];
+	}
+	const find = methods.find((m) => m.id === method.type);
+	if (find === undefined) return METHOD_NAMES[method.method];
+	return `${METHOD_NAMES[method.method]} ${find.name}`;
 }
