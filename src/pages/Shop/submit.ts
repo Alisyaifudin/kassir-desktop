@@ -77,13 +77,13 @@ export async function submitPayment(
 	const itemsTranform = items.map((item) => {
 		const totalBeforeDisc = new Decimal(item.price).times(item.qty);
 		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty, fix);
-		const capital = calcCapital(
+		const capital = mode === "buy" ? calcCapital(
 			record.grandTotal,
 			record.totalBeforeDisc,
 			subtotal.toNumber(),
 			item.qty,
 			fix
-		);
+		) : item.capital;
 		return {
 			item: {
 				timestamp,
