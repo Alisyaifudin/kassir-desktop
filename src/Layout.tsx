@@ -11,6 +11,7 @@ import { useConnect } from "./hooks/use-connect";
 import { Await } from "./components/Await";
 import { DownloadBtn } from "./components/DownloadBtn";
 import { Button } from "./components/ui/button";
+import { Toaster } from "./components/ui/sonner";
 
 function Layout({ user }: { user: User }) {
 	const { pathname } = useLocation();
@@ -125,6 +126,7 @@ function Layout({ user }: { user: User }) {
 			</header>
 			<Outlet context={{ db, store, user }} />
 			<Notification />
+			<Toaster />
 		</>
 	);
 }

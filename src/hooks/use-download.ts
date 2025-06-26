@@ -2,6 +2,7 @@ import { downloadAllProduct } from "~/dal/pull-products";
 import { useAction } from "~/hooks/useAction";
 import { tryResult } from "~/lib/utils";
 import { useDB, useStore } from "~/RootLayout";
+import { toast } from "sonner";
 
 export function useDownload() {
 	const db = useDB();
@@ -36,6 +37,9 @@ export function useDownload() {
 	const handleClick = async () => {
 		const errMsg = await action();
 		setError(errMsg);
+		if (errMsg !== null) {
+			toast.error(errMsg);
+		}
 	};
 	return { error, loading, handleClick };
 }
