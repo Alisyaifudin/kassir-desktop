@@ -81,4 +81,5 @@ declare namespace DB {
 		name: string;
 		method: "cash" | "transfer" | "debit" | "qris" | "other";
 	}
+	type Role = "admin" | "user";
 }

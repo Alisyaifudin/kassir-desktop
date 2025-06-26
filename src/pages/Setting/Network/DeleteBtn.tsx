@@ -12,9 +12,9 @@ import { TextError } from "~/components/TextError";
 import { DialogDescription } from "@radix-ui/react-dialog";
 import { useDelete } from "./use-delete";
 
-export function DeleteBtn({ token, url }: { token: string; url: string }) {
+export function DeleteBtn() {
 	const [open, setOpen] = useState(false);
-	const { loading, error, handleClick } = useDelete(token, url);
+	const { loading, error, handleClick } = useDelete();
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button type="button" asChild variant="destructive">
@@ -24,9 +24,10 @@ export function DeleteBtn({ token, url }: { token: string; url: string }) {
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Hapus Hapus semua produk pada server?</DialogTitle>
 					<form
-						onSubmit={(e) => {
+						onSubmit={async (e) => {
 							e.preventDefault();
-							handleClick().then(() => setOpen(false));
+							const errMsg = await handleClick();
+							if (errMsg === null) setOpen(false);
 						}}
 						className="flex flex-col gap-2 text-3xl"
 					>

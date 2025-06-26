@@ -1,12 +1,16 @@
 import { Link, Outlet, useLocation, useOutletContext } from "react-router";
 import { useEffect, useState } from "react";
-import { Settings, BellRing } from "lucide-react";
+import { Settings, BellRing, Loader } from "lucide-react";
 import { Notification } from "./components/Notification";
 import { cn } from "./lib/utils";
 import { emitter } from "./lib/event-emitter";
 import { check } from "@tauri-apps/plugin-updater";
 import { useDB, useStore } from "./RootLayout";
 import { User } from "./lib/auth";
+import { useConnect } from "./hooks/use-connect";
+import { Await } from "./components/Await";
+import { DownloadBtn } from "./components/DownloadBtn";
+import { Button } from "./components/ui/button";
 
 function Layout({ user }: { user: User }) {
 	const { pathname } = useLocation();
@@ -42,6 +46,7 @@ function Layout({ user }: { user: User }) {
 			emitter.off("refresh", refreshData);
 		};
 	}, [store]);
+	const connection = useConnect(store);
 	return (
 		<>
 			<header className="bg-sky-300 h-[78px] flex">
@@ -102,6 +107,18 @@ function Layout({ user }: { user: User }) {
 									<BellRing className="text-red-500 animate-ring absolute -top-3 -right-3" />
 								) : null}
 							</Link>
+						</li>
+						<li className="h-[60px] flex items-center">
+							<Await
+								state={connection}
+								Loading={
+									<Button size="icon" variant="outline" className="rounded-full">
+										<Loader className="animate-ping" />
+									</Button>
+								}
+							>
+								{(connected) => <DownloadBtn connected={connected} />}
+							</Await>
 						</li>
 					</ul>
 				</nav>

@@ -1,96 +1,61 @@
 import { useStore } from "~/RootLayout";
-import { useNetwork } from "~/hooks/useNetwork";
+import { useNetwork } from "~/pages/Setting/Network/use-network";
 import { Await } from "~/components/Await";
 import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Password } from "~/components/Password";
-import { useAccount } from "./use-account";
-import { useEffect, useState } from "react";
 import { Panel } from "./Panel";
+import { Loader2 } from "lucide-react";
+import { TextError } from "~/components/TextError";
+import { useConnect } from "../../../hooks/use-connect";
 
 export default function Page() {
-	const [option, setOption] = useState({
-		name: "",
-		password: "",
-		url: "",
-	});
 	const store = useStore();
-	const network = useNetwork(store);
-	const account = useAccount(store);
+	const { state, handleSubmit, loading, error } = useNetwork(store);
+	const connection = useConnect(store);
 	return (
 		<div className="flex flex-col gap-2 w-full flex-1">
 			<h2 className="text-4xl font-bold">Jaringan</h2>
-			<form onSubmit={network.handleSubmit} className="flex flex-col gap-2">
-				<Await state={network.state}>
-					{(network) => <NetworkForm network={network} setOption={setOption} />}
-				</Await>
-			</form>
-			<hr />
-			<form onSubmit={account.handleSubmit} className="flex flex-col gap-2">
-				<Await state={account.state}>
-					{(account) => <AccountForm account={account} setOption={setOption} />}
-				</Await>
-				<Button className="self-end">Simpan</Button>
-			</form>
-			<hr />
-			<Panel option={option} />
-		</div>
-	);
-}
-
-function AccountForm({
-	account,
-	setOption,
-}: {
-	account: { name: string; password: string };
-	setOption: React.Dispatch<
-		React.SetStateAction<{
-			name: string;
-			password: string;
-			url: string;
-		}>
-	>;
-}) {
-	useEffect(() => {
-		setOption((o) => ({ ...o, name: account.name, password: account.password }));
-	}, []);
-	return (
-		<div className="grid grid-cols-[200px_1fr] items-center gap-2">
-			<Label>Nama</Label>
-			<Input className="flex-1" name="name" defaultValue={account.name} aria-autocomplete="list" />
-			<Label>Kata Sandi</Label>
-			<Password
-				className="flex-1"
-				name="password"
-				defaultValue={account.password}
-				aria-autocomplete="list"
-			/>
+			<Await state={state}>
+				{(network) => (
+					<>
+						<form onSubmit={handleSubmit} className="flex p-2 flex-col gap-2">
+							<NetworkForm network={network} />
+							<div className="justify-between flex">
+								<Await state={connection}>{(connected) => <Panel connected={connected} />}</Await>
+								<div></div>
+								<Button>
+									{loading ? <Loader2 className="aniamte-spin" /> : null}
+									Sambung
+								</Button>
+							</div>
+							<TextError>{error ?? ""}</TextError>
+						</form>
+					</>
+				)}
+			</Await>
 		</div>
 	);
 }
 
 function NetworkForm({
 	network,
-	setOption,
 }: {
-	network: string;
-	setOption: React.Dispatch<
-		React.SetStateAction<{
-			name: string;
-			password: string;
-			url: string;
-		}>
-	>;
+	network: {
+		url: string;
+		name: string;
+		password: string;
+	};
 }) {
-	useEffect(() => {
-		setOption((o) => ({ ...o, url: network }));
-	}, []);
 	return (
-		<div className="flex items-center gap-2">
-			<Label className="w-[200px]">URL</Label>
-			<Input className="flex-1" name="network" defaultValue={network} aria-autocomplete="list" />
-			<Button>Simpan</Button>
+		<div className="grid grid-cols-[200px_1fr] items-center gap-2">
+			<Label>URL</Label>
+			<Input name="url" defaultValue={network.url} aria-autocomplete="list" />
+			<Label>Nama</Label>
+			<Input name="name" defaultValue={network.name} aria-autocomplete="list" />
+			<Label>Kata Sandi</Label>
+			<Password name="password" defaultValue={network.password} aria-autocomplete="list" />
 		</div>
 	);
 }
