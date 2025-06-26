@@ -68,7 +68,7 @@ export default function Page() {
 		});
 	};
 	return (
-		<main className="flex flex-col gap-2 w-full max-w-5xl mx-auto flex-1 overflow-auto">
+		<main className="flex flex-col gap-2 w-full max-w-6xl mx-auto flex-1 overflow-auto">
 			<h1 className="text-4xl font-bold">Catatan Keuangan</h1>
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
@@ -80,16 +80,22 @@ export default function Page() {
 						<ChevronRight />
 					</Button>
 				</div>
-				<NewBtn setSearch={setSearch} kind={kind} />
+				<NewBtn key={kind} setSearch={setSearch} kind={kind} />
 			</div>
 			<Await state={state}>
 				{(money) => {
 					return (
 						<Tabs value={kind} onValueChange={setChangeMode} className="overflow-auto flex-1">
 							<TabsList>
-								<TabsTrigger value="saving">Simpanan</TabsTrigger>
-								<TabsTrigger value="debt">Utang</TabsTrigger>
-								<TabsTrigger value="diff">Selisih</TabsTrigger>
+								<TabsTrigger className="text-3xl" value="saving">
+									Simpanan
+								</TabsTrigger>
+								<TabsTrigger className="text-3xl" value="debt">
+									Utang
+								</TabsTrigger>
+								<TabsTrigger className="text-3xl" value="diff">
+									Selisih
+								</TabsTrigger>
 							</TabsList>
 							<TabsContent value="saving">
 								<TableList money={money} kind="saving" setSearch={setSearch} />
@@ -130,21 +136,21 @@ function TableList({
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[100px]">No</TableHead>
-					<TableHead>Hari</TableHead>
-					<TableHead>Tanggal</TableHead>
-					<TableHead>Waktu</TableHead>
+					<TableHead className="w-[120px] text-center">Hari</TableHead>
+					<TableHead className="w-[200px] text-center">Tanggal</TableHead>
+					<TableHead className="w-[130px] text-center">Waktu</TableHead>
 					{kind !== "diff" ? <TableHead className="text-right">Selisih</TableHead> : null}
 					<TableHead className="text-right">Nilai</TableHead>
-					<TableHead className="text-right"></TableHead>
+					<TableHead className="text-right w-[100px]"></TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
 				{vals.map((m, i) => (
 					<TableRow key={m.timestamp}>
 						<TableCell className="font-medium">{i + 1}</TableCell>
-						<TableCell>{getDay(m.timestamp).name}</TableCell>
-						<TableCell>{formatDate(m.timestamp, "long")}</TableCell>
-						<TableCell>{formatTime(m.timestamp, "long")}</TableCell>
+						<TableCell className="text-center">{getDay(m.timestamp).name}</TableCell>
+						<TableCell className="text-center">{formatDate(m.timestamp, "long")}</TableCell>
+						<TableCell className="text-center">{formatTime(m.timestamp, "long")}</TableCell>
 						{kind !== "diff" ? (
 							<TableCell className="text-right">
 								{i + 1 < vals.length

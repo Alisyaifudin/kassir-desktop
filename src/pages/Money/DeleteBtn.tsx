@@ -43,7 +43,7 @@ export function DeleteBtn({
 	};
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-			<Button type="button" asChild className="rounded-full" variant="destructive">
+			<Button type="button" asChild className="rounded-full aspect-square p-2" variant="destructive">
 				<DialogTrigger>
 					<X size={30} />
 				</DialogTrigger>
