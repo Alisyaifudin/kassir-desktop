@@ -6,6 +6,7 @@ import { route as profileRoute } from "./Profile";
 import { route as socialRoute } from "./Social";
 import { route as methodRoute } from "./Method";
 import { route as networkRoute } from "./Network";
+import { route as logRoute } from "./Log";
 import { lazy } from "react";
 
 const Page = lazy(() => import("./Setting"));
@@ -20,6 +21,7 @@ export const route: RouteObject = {
 		cashierRoute,
 		methodRoute,
 		networkRoute,
+		logRoute,
 	],
 	Component: Page,
 };

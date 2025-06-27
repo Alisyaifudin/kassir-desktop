@@ -19,6 +19,7 @@ import {
 	dayNames,
 	formatDate,
 	formatTime,
+	log,
 	Method,
 	METHOD_NAMES,
 	METHODS,
@@ -78,7 +79,7 @@ export function Detail({
 				round: formData.get("round") || "0",
 			});
 		if (!parsed.success) {
-			console.error(parsed.error);
+			log.error(JSON.stringify(parsed.error));
 			credit.setError(parsed.error.flatten().formErrors.join("; "));
 			return;
 		}

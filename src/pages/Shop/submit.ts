@@ -77,13 +77,10 @@ export async function submitPayment(
 	const itemsTranform = items.map((item) => {
 		const totalBeforeDisc = new Decimal(item.price).times(item.qty);
 		const { total: subtotal } = calcSubtotal(item.discs, item.price, item.qty, fix);
-		const capital = mode === "buy" ? calcCapital(
-			record.grandTotal,
-			record.totalBeforeDisc,
-			subtotal.toNumber(),
-			item.qty,
-			fix
-		) : item.capital;
+		const capital =
+			mode === "buy"
+				? calcCapital(record.grandTotal, record.totalBeforeDisc, subtotal.toNumber(), item.qty, fix)
+				: item.capital;
 		return {
 			item: {
 				timestamp,
@@ -100,6 +97,15 @@ export async function submitPayment(
 			discs: item.discs,
 		};
 	});
+	const [errBarcode, check] = await db.product.checkBarcodes(
+		items.filter((i) => i.barcode !== null && i.id === undefined).map((i) => i.barcode as string)
+	);
+	if (errBarcode) {
+		return err(errBarcode);
+	}
+	if (check) {
+		return err("Ada barang dengan barcode yang sama");
+	}
 	const errRecord = await db.record.add(mode, timestamp, record);
 	if (errRecord) {
 		return err(errRecord);

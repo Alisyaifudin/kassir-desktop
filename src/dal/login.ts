@@ -1,13 +1,17 @@
 import { z } from "zod";
-import { err, ok, Result } from "~/lib/utils";
-import { fetch } from '@tauri-apps/plugin-http';
+import { err, log, ok, Result } from "~/lib/utils";
+import { fetch } from "@tauri-apps/plugin-http";
 
 export async function login(
 	url: string,
 	name: string,
 	password: string
-): Promise<Result<"Aplikasi bermasalah" | "Nama dan/atau kata sandi salah", string>> {
-	console.log(1);
+): Promise<
+	Result<
+		"Aplikasi bermasalah" | "Nama dan/atau kata sandi salah" | "Gagal meghubungi server",
+		string
+	>
+> {
 	try {
 		const res = await fetch(url + "/api/session", {
 			method: "POST",
@@ -15,10 +19,9 @@ export async function login(
 		});
 		var obj = await res.json();
 	} catch (error) {
-		console.error(error);
-		return err("Aplikasi bermasalah");
+		log.error(JSON.stringify(error));
+		return err("Gagal meghubungi server");
 	}
-	console.log(2);
 	const parsed = z
 		.union([
 			z.object({
@@ -30,10 +33,9 @@ export async function login(
 		])
 		.safeParse(obj);
 	if (!parsed.success) {
-		console.error(parsed.error);
+		log.error(JSON.stringify(parsed.error));
 		return err("Aplikasi bermasalah");
 	}
-	console.log(3);
 	if ("token" in parsed.data) {
 		return ok(parsed.data.token);
 	}

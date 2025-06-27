@@ -5,7 +5,6 @@ import { z } from "zod";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Loader2, RefreshCcw } from "lucide-react";
-import { TextError } from "~/components/TextError";
 import { useState } from "react";
 import { useDB } from "~/RootLayout";
 import { useNavigate } from "react-router";
@@ -13,6 +12,7 @@ import { Note } from "./Note";
 import { Method } from "./Method";
 import { useFix, useLocalData, useSetData, useSummary } from "../context";
 import { useUser } from "~/Layout";
+import { toast } from "sonner";
 
 type Props = {
 	mode: "sell" | "buy";
@@ -23,7 +23,6 @@ export function Summary({ reset, mode }: Props) {
 	const [pay, setPay] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const { name: cashier } = useUser();
-	const [error, setError] = useState("");
 	const { fix } = useFix();
 	const set = useSetData();
 	const { rounding, disc, items, additionals, method, methodType, note } = useLocalData();
@@ -103,7 +102,7 @@ export function Summary({ reset, mode }: Props) {
 		);
 		setLoading(false);
 		if (errMsg !== null) {
-			setError(errMsg);
+			toast.error(errMsg);
 			return;
 		}
 		reset();
@@ -193,7 +192,6 @@ export function Summary({ reset, mode }: Props) {
 						</Button>
 					) : null}
 				</div>
-				{error === "" ? null : <TextError>{error}</TextError>}
 			</form>
 		</div>
 	);

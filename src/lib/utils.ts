@@ -50,7 +50,7 @@ export async function tryResult<R, const T = DefaultMessage>({
 	try {
 		return ok(await run());
 	} catch (error) {
-		log.error(String(error));
+		log.error(JSON.stringify(error));
 		return err(message);
 	}
 }
@@ -60,7 +60,7 @@ export function safeJSON(v: string): Result<"Gagal parse json", any> {
 		const parsed = JSON.parse(v);
 		return ok(parsed);
 	} catch (error) {
-		console.error(error);
+		log.error(JSON.stringify(error));
 		return err("Gagal parse json");
 	}
 }

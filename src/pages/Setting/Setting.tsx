@@ -117,6 +117,15 @@ function Navigation({ role }: { role: "admin" | "user" }) {
 					<Button
 						className="w-full"
 						asChild
+						variant={pathname === "/setting/log" ? "default" : "link"}
+					>
+						<Link to="/setting/log">Log</Link>
+					</Button>
+				</li>
+				<li className="flex items-center">
+					<Button
+						className="w-full"
+						asChild
 						variant={pathname === "/setting/network" ? "default" : "link"}
 					>
 						<Link to="/setting/network">Jaringan</Link>

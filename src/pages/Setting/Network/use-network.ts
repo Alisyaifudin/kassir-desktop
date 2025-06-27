@@ -1,7 +1,7 @@
 import { Store } from "~/store";
 import { useAsync } from "~/hooks/useAsync";
 import { useAction } from "~/hooks/useAction";
-import { err, ok, Result, tryResult } from "~/lib/utils";
+import { err, log, ok, Result, tryResult } from "~/lib/utils";
 import { z } from "zod";
 import { emitter } from "~/lib/event-emitter";
 import { login } from "~/dal/login";
@@ -54,7 +54,7 @@ export function useNetwork(store: Store) {
 				password: formData.get("password"),
 			});
 		if (!parsed.success) {
-			console.error(parsed.error);
+			log.error(JSON.stringify(parsed.error));
 			setError("Input bermasalah");
 			return;
 		}

@@ -102,6 +102,24 @@ export class ProductTable {
 		if (item === null) return err(null);
 		return ok(item);
 	}
+	async checkBarcodes(barcodes: string[]): Promise<Result<"Aplikasi bermasalah", boolean>> {
+		const promises: Promise<DB.Product[]>[] = [];
+		for (const barcode of barcodes) {
+			promises.push(
+				this.db.select<DB.Product[]>("SELECT * FROM products WHERE barcode = ?", [barcode])
+			);
+		}
+		const [errMsg, items] = await tryResult({
+			run: () => Promise.all(promises),
+		});
+		if (errMsg) return err(errMsg);
+		for (const item of items) {
+			if (item.length > 0) {
+				return ok(true);
+			}
+		}
+		return ok(false);
+	}
 	async insert(data: {
 		name: string;
 		price: number;

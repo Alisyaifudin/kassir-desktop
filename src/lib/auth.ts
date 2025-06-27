@@ -37,7 +37,7 @@ export namespace auth {
 				return "Kata sandi salah";
 			}
 		} catch (error) {
-			console.error(error);
+			log.error(JSON.stringify(error));
 			log.error("Hashing failed: " + String(error));
 			return "Aplikasi bermasalah";
 		}
@@ -82,7 +82,6 @@ export namespace auth {
 		try {
 			var user = await store.core.get<User>("token");
 		} catch (error) {
-			console.error(error);
 			log.error(JSON.stringify(error));
 			return err("Gagal menghubungi store");
 		}
