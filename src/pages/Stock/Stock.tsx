@@ -51,7 +51,7 @@ function Stock({ products: all }: { products: DB.Product[] }) {
 		if (query.trim() === "") {
 			setProducts(all);
 		} else {
-			const res = search(query.trim(), {
+			const res = search(query.trim().replace(/(\(|\))/g, ""), {
 				fuzzy: (term) => {
 					if (term.split(" ").length === 1) {
 						return 0.1;

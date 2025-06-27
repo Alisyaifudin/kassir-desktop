@@ -17,7 +17,7 @@ export function Search({ mode, products: all }: { mode: "sell" | "buy"; products
 		if (value.trim() === "" || query === "") {
 			setProducts([]);
 		} else {
-			const results = search(value.trim(), {
+			const results = search(value.trim().replace(/(\(|\))/g, ""), {
 				fuzzy: (term) => {
 					if (term.split(" ").length === 1) {
 						return 0.1;
