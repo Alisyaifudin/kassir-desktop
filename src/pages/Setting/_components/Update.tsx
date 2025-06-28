@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "~/components/ui/button";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { formatDate, tryResult } from "../../lib/utils";
+import { formatDate, tryResult } from "~/lib/utils";
 import { BellRing, Loader2 } from "lucide-react";
-import { TextError } from "../../components/TextError";
-import { useNotification } from "../../components/Notification";
+import { TextError } from "~/components/TextError";
+import { useNotification } from "~/components/Notification";
 import { Temporal } from "temporal-polyfill";
-import { useStore } from "../../RootLayout";
-import { useAsync } from "../../hooks/useAsync";
-import { AwaitDangerous } from "../../components/Await";
+import { useStore } from "~/RootLayout";
+import { useAsync } from "~/hooks/useAsync";
+import { AwaitDangerous } from "~/components/Await";
 
-// add toast later
 export function Update() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");

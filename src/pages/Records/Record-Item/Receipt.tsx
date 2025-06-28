@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { err, formatDate, formatTime, METHOD_NAMES, ok, Result } from "~/lib/utils";
 import { ReceiptItem } from "./ReceiptItem";
-import { getProfile } from "~/pages/Setting/Shop/setting-api";
+import { getProfile } from "~/pages/setting/Shop/setting-api";
 import { Await } from "~/components/Await";
 import { TaxItem } from "./TaxItem";
 import { useDB, useStore } from "~/RootLayout";

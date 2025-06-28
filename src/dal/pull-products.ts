@@ -38,9 +38,11 @@ export async function downloadAllProduct(
 					name: z.string().min(1),
 					price: z.number().min(0),
 					stock: z.number().int(),
+					stock_back: z.number().int(),
 					barcode: z.string().nullable(),
 					capital: z.number().min(0),
 					note: z.string(),
+					updated_at: z.number().int(),
 				})
 				.array(),
 		})

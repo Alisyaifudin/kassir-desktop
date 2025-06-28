@@ -1,5 +1,5 @@
 import { useStore } from "~/RootLayout";
-import { useNetwork } from "~/pages/Setting/Network/use-network";
+import { useNetwork } from "~/pages/setting/Network/use-network";
 import { Await } from "~/components/Await";
 import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";

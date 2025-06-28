@@ -3,7 +3,7 @@ import { route as loginRoute } from "./pages/Login";
 import { route as shopRoute } from "./pages/Shop";
 import { route as stockRoute } from "./pages/Stock";
 import Layout from "./Layout.tsx";
-import { route as settingRoute } from "./pages/Setting";
+import { route as settingRoute } from "./pages/setting/index.tsx";
 import { route as recordsRoute } from "./pages/Records";
 import { route as moneyRoute } from "./pages/Money";
 import { route as analRoute } from "./pages/Analytics";

@@ -182,6 +182,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../src/migrations-sql/21-30/migration-30.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 31,
+            description: "refactor_product_table",
+            sql: include_str!("../src/migrations-sql/31-40/migration-31.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

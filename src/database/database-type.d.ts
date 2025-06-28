@@ -1,60 +1,64 @@
 declare namespace DB {
+	type Role = "admin" | "user";
+	type ValueKind = "number" | "percent";
+	type Mode = "sell" | "buy";
+	type MethodEnum = "cash" | "transfer" | "debit" | "qris";
+
+	interface Method {
+		id: number;
+		name: string | null;
+		method: MethodEnum;
+	}
 	interface Product {
 		id: number;
 		name: string;
 		price: number;
 		stock: number;
+		stock_back: number;
 		barcode: string | null;
 		capital: number;
 		note: string;
+		updated_at: number;
 	}
 	interface Record {
 		timestamp: number; // primary key
-		// paid_at: number;
-		total_before_disc: number;
+		paid_at: number;
 		disc_val: number;
-		disc_type: "number" | "percent";
-		total_after_disc: number;
-		total_tax: number;
-		total_after_tax: number;
+		disc_kind: ValueKind;
 		rounding: number | null;
-		grand_total: number;
 		credit: 0 | 1;
-		cashier: string | null;
-		mode: "buy" | "sell";
+		cashier: string;
+		mode: Mode;
 		pay: number;
-		change: number;
-		method: "cash" | "transfer" | "debit" | "qris" | "other";
-		method_type: number | null;
 		note: string;
+		method_id: number;
+	}
+	interface RecordItem {
+		id: number;
+		product_id: number | null;
+		timestamp: number;
+		name: string;
+		price: number;
+		qty: number;
+		capital: number;
 	}
 	interface Additional {
 		id: number;
 		name: string;
 		timestamp: number;
 		value: number;
-		kind: "number" | "percent";
+		kind: ValueKind;
 	}
 	interface Discount {
 		id: number;
 		record_item_id: number;
 		value: number;
-		kind: "number" | "percent";
+		kind: ValueKind;
 	}
-	interface RecordItem {
-		id: number;
-		timestamp: number;
-		name: string;
-		price: number;
-		qty: number;
-		total_before_disc: number;
-		total: number;
-		capital: number;
-		product_id: number | null;
-	}
+	
 	interface Cashier {
 		name: string;
-		role: "user" | "admin";
+		role: Role;
 		password: string;
 	}
 	interface Image {
@@ -73,13 +77,4 @@ declare namespace DB {
 		value: number;
 		kind: "saving" | "debt" | "diff";
 	}
-	interface Method {
-		name: "cash" | "transfer" | "debit" | "qris" | "other";
-	}
-	interface MethodType {
-		id: number;
-		name: string;
-		method: "cash" | "transfer" | "debit" | "qris" | "other";
-	}
-	type Role = "admin" | "user";
 }
