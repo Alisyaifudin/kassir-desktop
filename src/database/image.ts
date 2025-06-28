@@ -3,7 +3,16 @@ import { Result, tryResult } from "../lib/utils";
 
 export function genImage(db: Database) {
 	return {
-		getImages: async (productId: number): Promise<Result<"Aplikasi bermasalah", DB.Image[]>> => {
+		get: get(db),
+		update: update(db),
+		add: add(db),
+		del: del(db),
+	};
+}
+
+function get(db: Database) {
+	return {
+		async byProductId(productId: number): Promise<Result<"Aplikasi bermasalah", DB.Image[]>> {
 			return tryResult({
 				run: () =>
 					db.select<DB.Image[]>("SELECT * FROM images WHERE product_id = $1 ORDER BY id", [
@@ -11,7 +20,12 @@ export function genImage(db: Database) {
 					]),
 			});
 		},
-		swap: async (a: number, b: number): Promise<"Aplikasi bermasalah" | null> => {
+	};
+}
+
+function update(db: Database) {
+	return {
+		async swap(a: number, b: number): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () =>
 					db.execute(
@@ -23,11 +37,16 @@ export function genImage(db: Database) {
 			});
 			return errMsg;
 		},
-		insert: async (
+	};
+}
+
+function add(db: Database) {
+	return {
+		async one(
 			name: string,
 			mime: DB.Image["mime"],
 			productId: number
-		): Promise<"Aplikasi bermasalah" | null> => {
+		): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () =>
 					db.execute("INSERT INTO images (name, mime, product_id) VALUES ($1, $2, $3)", [
@@ -38,7 +57,12 @@ export function genImage(db: Database) {
 			});
 			return errMsg;
 		},
-		delete: async (id: number): Promise<"Aplikasi bermasalah" | null> => {
+	};
+}
+
+function del(db: Database) {
+	return {
+		async byId(id: number): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => db.execute("DELETE FROM images WHERE id = $1", [id]),
 			});

@@ -117,7 +117,7 @@ export default function Page() {
 
 function useMoney(time: number, start: number, end: number) {
 	const db = useDB();
-	const state = useAsyncDep(() => db.money.get(start, end), [start, end, time]);
+	const state = useAsyncDep(() => db.money.getByRange(start, end), [start, end, time]);
 	return state;
 }
 

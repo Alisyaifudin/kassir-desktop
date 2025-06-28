@@ -124,7 +124,7 @@ async function getRecord(
 	const all = await Promise.all([
 		db.record.getByTime(timestamp),
 		db.recordItem.getAllByTime(timestamp),
-		db.additional.getAllByTime(timestamp),
+		db.additional.getByTimestamp(timestamp),
 		db.discount.getByTimestamp(timestamp),
 		db.method.get(),
 	]);

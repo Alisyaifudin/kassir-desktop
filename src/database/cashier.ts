@@ -6,14 +6,23 @@ export type CashierWithoutPassword = Pick<DB.Cashier, "name" | "role">;
 
 export function genChasier(db: Database) {
 	return {
-		get: async () => {
+		get: get(db),
+		add: add(db),
+		update: update(db),
+		del: del(db),
+	};
+}
+
+function get(db: Database) {
+	return {
+		async all(): Promise<Result<"Aplikasi bermasalah", CashierWithoutPassword[]>> {
 			return tryResult({
 				run: () => db.select<CashierWithoutPassword[]>("SELECT name, role FROM cashiers"),
 			});
 		},
-		getHash: async (
+		async hash(
 			name: string
-		): Promise<Result<"Aplikasi bermasalah" | "Kasir tidak ditemukan", string>> => {
+		): Promise<Result<"Aplikasi bermasalah" | "Kasir tidak ditemukan", string>> {
 			const [errMsg, res] = await tryResult({
 				run: () =>
 					db.select<{ password: string }[]>("SELECT password FROM cashiers WHERE name = $1", [
@@ -24,11 +33,16 @@ export function genChasier(db: Database) {
 			if (res.length === 0) return err("Kasir tidak ditemukan");
 			return ok(res[0].password);
 		},
-		add: async (
+	};
+}
+
+function add(db: Database) {
+	return {
+		async one(
 			name: string,
-			role: "user" | "admin",
+			role: DB.Role,
 			password?: string
-		): Promise<"Aplikasi bermasalah" | null> => {
+		): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: async () => {
 					if (role === "admin") {
@@ -44,27 +58,26 @@ export function genChasier(db: Database) {
 			if (errMsg) return errMsg;
 			return null;
 		},
-		updateName: async (oldName: string, newName: string): Promise<"Aplikasi bermasalah" | null> => {
+	};
+}
+
+function update(db: Database) {
+	return {
+		async name(oldName: string, newName: string): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => db.execute("UPDATE cashiers SET name = $1 WHERE name = $2", [newName, oldName]),
 			});
 			if (errMsg) return errMsg;
 			return null;
 		},
-		updateRole: async (
-			name: string,
-			role: "user" | "admin"
-		): Promise<"Aplikasi bermasalah" | null> => {
+		async role(name: string, role: "user" | "admin"): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => db.execute("UPDATE cashiers SET role = $1 WHERE name = $2", [role, name]),
 			});
 			if (errMsg) return errMsg;
 			return null;
 		},
-		updatePassword: async (
-			name: string,
-			password: string
-		): Promise<"Aplikasi bermasalah" | null> => {
+		async password(name: string, password: string): Promise<"Aplikasi bermasalah" | null> {
 			const [errHash, hash] = await auth.hash(password);
 			if (errHash) return errHash;
 			const [errMsg] = await tryResult({
@@ -73,7 +86,12 @@ export function genChasier(db: Database) {
 			if (errMsg) return errMsg;
 			return null;
 		},
-		delete: async (name: string): Promise<"Aplikasi bermasalah" | null> => {
+	};
+}
+
+function del(db: Database) {
+	return {
+		async byName(name: string): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => db.execute("DELETE FROM cashiers WHERE name = $1", [name]),
 			});

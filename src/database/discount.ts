@@ -3,7 +3,14 @@ import { err, ok, Result, tryResult } from "../lib/utils";
 
 export function genDiscount(db: Database) {
 	return {
-		getByRecordId: async (id: number): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> => {
+		get: get(db),
+		add: add(db),
+	};
+}
+
+function get(db: Database) {
+	return {
+		async byRecordItemId(id: number): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> {
 			const [errMsg, items] = await tryResult({
 				run: () =>
 					db.select<DB.Discount[]>("SELECT * FROM discounts WHERE record_item_id = $1", [id]),
@@ -11,9 +18,7 @@ export function genDiscount(db: Database) {
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
-		getByTimestamp: async (
-			timestamp: number
-		): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> => {
+		async byTimestamp(timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> {
 			const [errMsg, items] = await tryResult({
 				run: () =>
 					db.select<DB.Discount[]>(
@@ -26,10 +31,10 @@ export function genDiscount(db: Database) {
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
-		getByRange: async (
+		async byRange(
 			start: number,
 			end: number
-		): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> => {
+		): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> {
 			const [errMsg, items] = await tryResult({
 				run: () =>
 					db.select<DB.Discount[]>(
@@ -42,10 +47,15 @@ export function genDiscount(db: Database) {
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
-		addMany: async (
+	};
+}
+
+function add(db: Database) {
+	return {
+		async many(
 			recordId: number,
-			discounts: { value: number; type: "percent" | "number" }[]
-		): Promise<"Aplikasi bermasalah" | null> => {
+			discounts: { value: number; type: DB.ValueKind }[]
+		): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => {
 					const promises = [];

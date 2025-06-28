@@ -25,7 +25,7 @@ declare namespace DB {
 		paid_at: number;
 		disc_val: number;
 		disc_kind: ValueKind;
-		rounding: number | null;
+		rounding: number;
 		credit: 0 | 1;
 		cashier: string;
 		mode: Mode;

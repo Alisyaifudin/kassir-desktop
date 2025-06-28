@@ -20,7 +20,7 @@ export function NewBtn({ method }: { method: Method }) {
 	const db = useDB();
 	const [open, setOpen] = useState(false);
 	const { loading, error, setError, action } = useAction("", (name: string) =>
-		db.method.insert(name, method)
+		db.method.add(name, method)
 	);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();

@@ -17,7 +17,7 @@ import { emitter } from "~/lib/event-emitter";
 export function DeleteBtn({ method }: { method: DB.MethodType }) {
 	const db = useDB();
 	const [open, setOpen] = useState(false);
-	const { loading, error, setError, action } = useAction("", () => db.method.delete(method.id));
+	const { loading, error, setError, action } = useAction("", () => db.method.del(method.id));
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const errMsg = await action();

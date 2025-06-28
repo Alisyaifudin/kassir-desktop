@@ -3,10 +3,18 @@ import { err, ok, Result, tryResult } from "../lib/utils";
 
 export function genAdditional(db: Database) {
 	return {
-		getByRange: async (
+		get: get(db),
+		add: add(db),
+		del: del(db),
+	};
+}
+
+function get(db: Database) {
+	return {
+		async byRange(
 			start: number,
 			end: number
-		): Promise<Result<"Aplikasi bermasalah", DB.Additional[]>> => {
+		): Promise<Result<"Aplikasi bermasalah", DB.Additional[]>> {
 			return tryResult({
 				run: () =>
 					db.select<DB.Additional[]>(
@@ -15,9 +23,7 @@ export function genAdditional(db: Database) {
 					),
 			});
 		},
-		getAllByTime: async (
-			timestamp: number
-		): Promise<Result<"Aplikasi bermasalah", DB.Additional[]>> => {
+		async byTimestamp(timestamp: number): Promise<Result<"Aplikasi bermasalah", DB.Additional[]>> {
 			const [errMsg, items] = await tryResult({
 				run: () =>
 					db.select<DB.Additional[]>("SELECT * FROM additionals WHERE timestamp = $1", [timestamp]),
@@ -25,10 +31,15 @@ export function genAdditional(db: Database) {
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
-		addMany: async (
-			additionals: { name: string; value: number; kind: "percent" | "number" }[],
+	};
+}
+
+function add(db: Database) {
+	return {
+		async many(
+			additionals: { name: string; value: number; kind: DB.ValueKind }[],
 			timestamp: number
-		): Promise<Result<"Aplikasi bermasalah", number[]>> => {
+		): Promise<Result<"Aplikasi bermasalah", number[]>> {
 			const [errMsg, res] = await tryResult({
 				run: () => {
 					const promises = [];
@@ -48,7 +59,12 @@ export function genAdditional(db: Database) {
 			const ids = res.map((r) => r.lastInsertId!);
 			return ok(ids);
 		},
-		deleteMany: async (ids: number[]): Promise<"Aplikasi bermasalah" | null> => {
+	};
+}
+
+function del(db: Database) {
+	return {
+		async many(ids: number[]): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => {
 					const promises = [];
