@@ -1,5 +1,5 @@
-import Record from "./Download-Record";
-import { Product } from "./Download-Product";
+import Record from "./_components/Download-Record";
+import { Product } from "./_components/Download-Product";
 
 export default function Page() {
 	return (

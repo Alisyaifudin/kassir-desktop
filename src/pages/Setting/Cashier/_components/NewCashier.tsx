@@ -8,36 +8,15 @@ import {
 	DialogTrigger,
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { TextError } from "~/components/TextError";
-import { z } from "zod";
 import { Input } from "~/components/ui/input";
-import { useDB } from "~/RootLayout";
-import { useAction } from "~/hooks/useAction";
-import { emitter } from "~/lib/event-emitter";
+import { useNewCashier } from "../_hooks/use-new-cashier";
+import { Spinner } from "~/components/Spinner";
 
 export function NewCashier() {
-	const db = useDB();
 	const [open, setOpen] = useState(false);
-	const { action, loading, error, setError } = useAction("", (name: string) =>
-		db.cashier.add(name, "user")
-	);
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		const formData = new FormData(e.currentTarget);
-		const parsed = z.string().safeParse(formData.get("name"));
-		if (!parsed.success) {
-			setError(parsed.error.flatten().formErrors.join("; "));
-			return;
-		}
-		const name = parsed.data;
-		const errMsg = await action(name);
-		setError(errMsg);
-		if (errMsg === null) {
-			setOpen(false);
-			emitter.emit("fetch-cashiers");
-		}
-	};
+	const { handleSubmit, loading, error } = useNewCashier(setOpen);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button asChild>
@@ -58,10 +37,12 @@ export function NewCashier() {
 						<Button asChild variant={"secondary"}>
 							<DialogClose type="button">Batal</DialogClose>
 						</Button>
-						<Button>Tambahkan {loading && <Loader2 className="animate-spin" />}</Button>
+						<Button>
+							Tambahkan <Spinner when={loading} />
+						</Button>
 					</div>
 				</form>
-				{error ? <TextError>{error}</TextError> : null}
+				<TextError>{error}</TextError>
 			</DialogContent>
 		</Dialog>
 	);

@@ -1,4 +1,4 @@
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
@@ -11,24 +11,12 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "~/components/ui/dialog";
-import { useAction } from "~/hooks/useAction";
-import { emitter } from "~/lib/event-emitter";
-import { useDB } from "~/RootLayout";
+import { useDeleteCashier } from "../_hooks/use-delete-cashier";
+import { Spinner } from "~/components/Spinner";
 
 export function DeleteBtn({ name }: { name: string }) {
-	const db = useDB();
 	const [open, setOpen] = useState(false);
-	const { action, loading, error, setError } = useAction("", (name: string) => {
-		return db.cashier.delete(name);
-	});
-	const handleClick = async () => {
-		const errMsg = await action(name);
-		setError(errMsg);
-		if (errMsg === null) {
-			emitter.emit("fetch-cashiers");
-			setOpen(false);
-		}
-	};
+	const { loading, error, handleClick } = useDeleteCashier(name, setOpen);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button type="button" asChild variant="destructive">
@@ -49,10 +37,11 @@ export function DeleteBtn({ name }: { name: string }) {
 							<DialogClose>Batal</DialogClose>
 						</Button>
 						<Button onClick={handleClick} variant="destructive">
-							Hapus {loading && <Loader2 className="animate-spin" />}
+							Hapus
+							<Spinner when={loading} />
 						</Button>
 					</div>
-					{error ? <TextError>{error}</TextError> : null}
+					<TextError>{error}</TextError>
 				</DialogHeader>
 			</DialogContent>
 		</Dialog>

@@ -26,6 +26,22 @@ export function genDiscount(db: Database) {
 			if (errMsg) return err(errMsg);
 			return ok(items);
 		},
+		getByRange: async (
+			start: number,
+			end: number
+		): Promise<Result<"Aplikasi bermasalah", DB.Discount[]>> => {
+			const [errMsg, items] = await tryResult({
+				run: () =>
+					db.select<DB.Discount[]>(
+						`SELECT discounts.id, discounts.record_item_id, discounts.value, discounts.kind
+						 FROM discounts INNER JOIN record_items ON discounts.record_item_id = record_items.id
+						 WHERE record_items.timestamp BETWEEN $1 AND $2 ORDER BY record_items.timestamp DESC`,
+						[start, end]
+					),
+			});
+			if (errMsg) return err(errMsg);
+			return ok(items);
+		},
 		addMany: async (
 			recordId: number,
 			discounts: { value: number; type: "percent" | "number" }[]

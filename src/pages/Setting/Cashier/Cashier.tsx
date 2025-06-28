@@ -1,10 +1,9 @@
 import { Await } from "~/components/Await";
-import { useDB } from "~/RootLayout";
-import { useAsync } from "~/hooks/useAsync";
 import { TextError } from "~/components/TextError";
-import { Item } from "./Item";
-import { NewCashier } from "./NewCashier";
+import { Item } from "./_components/Item";
+import { NewCashier } from "./_components/NewCashier";
 import { useUser } from "~/Layout";
+import { useCashier } from "./_hooks/use-cashier";
 
 export default function Cashier() {
 	const user = useUser();
@@ -22,10 +21,4 @@ export default function Cashier() {
 			<NewCashier />
 		</div>
 	);
-}
-
-function useCashier() {
-	const db = useDB();
-	const state = useAsync(() => db.cashier.get(), ["fetch-cashiers"]);
-	return state;
 }
