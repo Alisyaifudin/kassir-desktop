@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT password, role FROM cashiers WHERE name = ? LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "password",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "role",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2e46b9a1b55662698a44a901a50b2546e60e13f55612ff3cd00a8f7594fae837"
+}

@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM products WHERE updated_at > ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "price",
+        "ordinal": 2,
+        "type_info": "Float"
+      },
+      {
+        "name": "stock",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "stock_back",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "barcode",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "capital",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "note",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 8,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d9ef25f31deea5d4a9c5657976932ae6224df2905e2a963f9a46413c98a4fd7a"
+}

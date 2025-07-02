@@ -8,7 +8,7 @@ export async function getSession(
 ): Promise<
 	Result<
 		"Aplikasi bermasalah",
-		| { session: { id: number; name: string; role: DB.Role }; token: string }
+		| { session: { name: string; role: DB.Role }; token: string }
 		| { session: null; token: null }
 	>
 > {

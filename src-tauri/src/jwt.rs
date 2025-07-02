@@ -1,12 +1,33 @@
+use core::panic;
+
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     Admin,
     User,
+}
+
+impl From<String> for Role {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "user" => Role::User,
+            "admin" => Role::Admin,
+            _ => panic!("invalid value"),
+        }
+    }
+}
+
+impl Into<String> for Role {
+    fn into(self) -> String {
+        match self {
+            Role::Admin => "admin".into(),
+            Role::User => "user".into(),
+        }
+    }
 }
 
 #[derive(Serialize, Debug)]
@@ -24,7 +45,7 @@ impl Role {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserClaims {
     pub name: String,
     pub role: Role,
