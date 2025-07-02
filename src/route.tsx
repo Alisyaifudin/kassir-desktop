@@ -1,25 +1,42 @@
 import { createBrowserRouter } from "react-router";
-import { route as loginRoute } from "./pages/Login";
-import { route as shopRoute } from "./pages/Shop";
-import { route as stockRoute } from "./pages/Stock";
-import Layout from "./Layout.tsx";
-import { route as settingRoute } from "./pages/setting/index.tsx";
-import { route as recordsRoute } from "./pages/Records";
-import { route as moneyRoute } from "./pages/Money";
-import { route as analRoute } from "./pages/Analytics";
-import RootLayout from "./RootLayout.tsx";
+import { route as loginRoute } from "./pages/login";
+import { route as shopRoute } from "./pages/shop";
+import { route as stockRoute } from "./pages/stock";
+import Layout from "./layouts/Layout.tsx";
+import { route as settingRoute } from "./pages/setting";
+import { route as recordsRoute } from "./pages/record";
+import { route as moneyRoute } from "./pages/money";
+import { route as analRoute } from "./pages/analytics";
+import RootLayout from "./layouts/RootLayout.tsx";
 import { Auth } from "./components/Auth.tsx";
+import { useStore } from "./hooks/use-store.ts";
+import { useDB } from "./hooks/use-db.ts";
 
 export const router = createBrowserRouter([
 	{
 		path: "/",
-		Component: RootLayout,
+		Component: () => {
+			return <RootLayout storePath="store.json" dbPath="sqlite:data.db" />;
+		},
 		children: [
 			loginRoute,
 			{
 				path: "/",
-				Component: () => <Auth>{(user) => <Layout user={user} />}</Auth>,
-				children: [shopRoute, settingRoute, stockRoute, recordsRoute, analRoute, moneyRoute],
+				Component: () => {
+					const store = useStore();
+					const db = useDB();
+					return (
+						<Auth store={store}>{(user) => <Layout user={user} db={db} store={store} />}</Auth>
+					);
+				},
+				children: [
+					shopRoute,
+					settingRoute,
+					stockRoute,
+					recordsRoute,
+					analRoute,
+					moneyRoute,
+				],
 			},
 		],
 	},

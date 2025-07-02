@@ -1,7 +1,8 @@
+import { memo } from "react";
 import { Button } from "~/components/ui/button";
 import { METHOD_NAMES, METHODS } from "~/lib/utils";
 
-export function TabLink({
+export const TabLink = memo(function ({
 	method,
 	setMethod,
 }: {
@@ -19,4 +20,4 @@ export function TabLink({
 			))}
 		</ol>
 	);
-}
+});

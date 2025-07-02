@@ -88,7 +88,7 @@ CREATE TABLE records(
   mode TEXT NOT NULL REFERENCES mode_enum(v),
   pay REAL NOT NULL,
   note TEXT NOT NULL DEFAULT '',
-  method_id INTEGER NOT NULL REFERENCES methods(id)
+  method_id INTEGER NOT NULL DEFAULT 1000 REFERENCES methods(id) ON DELETE SET DEFAULT
 ) STRICT;
 
 INSERT INTO records (

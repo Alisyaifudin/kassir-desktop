@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
 	Dialog,
 	DialogClose,
@@ -13,10 +13,17 @@ import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { useNewCashier } from "../_hooks/use-new-cashier";
 import { Spinner } from "~/components/Spinner";
+import { Database } from "~/database";
 
-export function NewCashier() {
+export const NewCashier = memo(function ({
+	revalidate,
+	db,
+}: {
+	revalidate: () => void;
+	db: Database;
+}) {
 	const [open, setOpen] = useState(false);
-	const { handleSubmit, loading, error } = useNewCashier(setOpen);
+	const { handleSubmit, loading, error } = useNewCashier(setOpen, revalidate, db);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button asChild>
@@ -46,4 +53,4 @@ export function NewCashier() {
 			</DialogContent>
 		</Dialog>
 	);
-}
+});

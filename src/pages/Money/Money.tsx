@@ -1,54 +1,21 @@
-import { useDB } from "~/RootLayout";
-import { Await } from "~/components/Await";
-import { NewBtn } from "./NewItem";
-import { SetURLSearchParams, useSearchParams } from "react-router";
-import { useMemo } from "react";
-import { formatDate, formatTime, numeric } from "~/lib/utils";
+import { NewBtn } from "./_components/NewItem";
+import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
-import { useAsyncDep } from "~/hooks/useAsyncDep";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "~/components/ui/table";
-import { getDay } from "~/pages/Records/Record-Item/Detail";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DeleteBtn } from "./DeleteBtn";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import Decimal from "decimal.js";
+import { useInterval } from "./_hooks/use-interval";
+import { useMoney } from "./_hooks/use-money";
+import { TableList } from "./_components/TableList";
+import { Database } from "~/database";
+import { Async } from "~/components/Async";
 
-export default function Page() {
+export default function Page({ db }: { db: Database }) {
 	const [search, setSearch] = useSearchParams();
-	const { start, end, time, date, kind } = useMemo(() => {
-		const kind = z.enum(["saving", "debt", "diff"]).catch("saving").parse(search.get("kind"));
-		const now = Temporal.Now.instant().epochMilliseconds;
-		const timestamp = numeric.catch(now).parse(search.get("time"));
-		const tz = Temporal.Now.timeZoneId();
-		const date = Temporal.Instant.fromEpochMilliseconds(timestamp)
-			.toZonedDateTimeISO(tz)
-			.startOfDay();
-		const start = Temporal.ZonedDateTime.from({
-			timeZone: tz,
-			year: date.year,
-			month: date.month,
-			day: 1,
-		});
-		const end = start.add(Temporal.Duration.from({ months: 1 }));
-		return {
-			kind,
-			time: timestamp,
-			date,
-			start: start.epochMilliseconds,
-			end: end.epochMilliseconds,
-		};
-	}, [search]);
-	const state = useMoney(time, start, end);
+	const { time, start, end, kind, date } = useInterval(search);
+	const [state, revalidate] = useMoney(time, start, end, db);
 	const setTime = (time: number) => {
 		setSearch({ time: time.toString(), kind });
 	};
@@ -80,9 +47,9 @@ export default function Page() {
 						<ChevronRight />
 					</Button>
 				</div>
-				<NewBtn key={kind} setSearch={setSearch} kind={kind} />
+				<NewBtn key={kind} setSearch={setSearch} kind={kind} db={db} revalidate={revalidate} />
 			</div>
-			<Await state={state}>
+			<Async state={state}>
 				{(money) => {
 					return (
 						<Tabs value={kind} onValueChange={setChangeMode} className="overflow-auto flex-1">
@@ -98,76 +65,37 @@ export default function Page() {
 								</TabsTrigger>
 							</TabsList>
 							<TabsContent value="saving">
-								<TableList money={money} kind="saving" setSearch={setSearch} />
+								<TableList
+									money={money}
+									kind="saving"
+									setSearch={setSearch}
+									db={db}
+									revalidate={revalidate}
+								/>
 							</TabsContent>
 							<TabsContent value="debt">
-								<TableList money={money} kind="debt" setSearch={setSearch} />
+								<TableList
+									money={money}
+									kind="debt"
+									setSearch={setSearch}
+									db={db}
+									revalidate={revalidate}
+								/>
 							</TabsContent>
 							<TabsContent value="diff">
-								<TableList money={money} kind="diff" setSearch={setSearch} />
+								<TableList
+									money={money}
+									kind="diff"
+									setSearch={setSearch}
+									db={db}
+									revalidate={revalidate}
+								/>
 							</TabsContent>
 						</Tabs>
 					);
 					return;
 				}}
-			</Await>
+			</Async>
 		</main>
-	);
-}
-
-function useMoney(time: number, start: number, end: number) {
-	const db = useDB();
-	const state = useAsyncDep(() => db.money.getByRange(start, end), [start, end, time]);
-	return state;
-}
-
-function TableList({
-	money,
-	kind,
-	setSearch,
-}: {
-	money: DB.Money[];
-	kind: "saving" | "debt" | "diff";
-	setSearch: SetURLSearchParams;
-}) {
-	const vals = money.filter((m) => m.kind === kind);
-	return (
-		<Table className="text-3xl">
-			<TableHeader>
-				<TableRow>
-					<TableHead className="w-[100px]">No</TableHead>
-					<TableHead className="w-[120px] text-center">Hari</TableHead>
-					<TableHead className="w-[200px] text-center">Tanggal</TableHead>
-					<TableHead className="w-[130px] text-center">Waktu</TableHead>
-					{kind !== "diff" ? <TableHead className="text-right">Selisih</TableHead> : null}
-					<TableHead className="text-right">Nilai</TableHead>
-					<TableHead className="text-right w-[100px]"></TableHead>
-				</TableRow>
-			</TableHeader>
-			<TableBody>
-				{vals.map((m, i) => (
-					<TableRow key={m.timestamp}>
-						<TableCell className="font-medium">{i + 1}</TableCell>
-						<TableCell className="text-center">{getDay(m.timestamp).name}</TableCell>
-						<TableCell className="text-center">{formatDate(m.timestamp, "long")}</TableCell>
-						<TableCell className="text-center">{formatTime(m.timestamp, "long")}</TableCell>
-						{kind !== "diff" ? (
-							<TableCell className="text-right">
-								{i + 1 < vals.length
-									? `Rp${new Decimal(m.value)
-											.sub(vals[i + 1].value)
-											.toNumber()
-											.toLocaleString("id-ID")}`
-									: "-"}
-							</TableCell>
-						) : null}
-						<TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
-						<TableCell>
-							<DeleteBtn money={m} setSearch={setSearch} />
-						</TableCell>
-					</TableRow>
-				))}
-			</TableBody>
-		</Table>
 	);
 }

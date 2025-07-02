@@ -1,6 +1,7 @@
 mod migrations;
 use log::LevelFilter;
 mod auth;
+mod jwt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,7 +25,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             auth::hash_password,
-            auth::verify_password
+            auth::verify_password,
+            jwt::decode_jwt,
+            jwt::encode_jwt
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

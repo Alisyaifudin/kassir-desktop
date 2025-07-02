@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 export type ProductResult = Pick<
 	DB.Product,
-	"barcode" | "name" | "price" | "capital" | "stock" | "id"
+	"barcode" | "name" | "price" | "capital" | "stock" | "id" | "stock_back"
 >;
 
 export type Result = {
@@ -17,7 +17,7 @@ export const useProductSearch = (products: DB.Product[]) => {
 	const miniSearch = useMemo(() => {
 		const instance = new MiniSearch<DB.Product>({
 			fields: ["name", "barcode"],
-			storeFields: ["id", "name", "barcode", "price", "capital", "stock"],
+			storeFields: ["id", "name", "barcode", "price", "capital", "stock", "stock_back"],
 			idField: "id",
 			searchOptions: {
 				tokenize: (query: string) => query.split(/[\s-&%#*]+/),

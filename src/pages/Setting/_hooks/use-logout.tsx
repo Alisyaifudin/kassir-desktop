@@ -1,20 +1,16 @@
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
+import type { NavigateFunction } from "react-router";
 import { useAction } from "~/hooks/useAction";
 import { auth } from "~/lib/auth";
-import { useStore } from "~/RootLayout";
+import type { Store } from "~/lib/store";
 
-export function useLogout() {
-	const store = useStore();
+export function useLogout(store: Store, navigate: NavigateFunction, toast: (text: string) => void) {
 	const { action, loading } = useAction("", async () => {
 		return await auth.logout(store);
 	});
-	const navigate = useNavigate();
-
 	const handleLogout = async () => {
 		const errMsg = await action();
 		if (errMsg) {
-			toast.error(errMsg);
+			toast(errMsg);
 			return;
 		}
 		navigate("/login");

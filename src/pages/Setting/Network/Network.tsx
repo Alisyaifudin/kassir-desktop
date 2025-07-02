@@ -1,4 +1,4 @@
-import { useStore } from "~/RootLayout";
+import { useStore } from "~/layouts/RootLayout";
 import { useNetwork } from "~/pages/setting/Network/use-network";
 import { Await } from "~/components/Await";
 import { Label } from "~/components/ui/label";

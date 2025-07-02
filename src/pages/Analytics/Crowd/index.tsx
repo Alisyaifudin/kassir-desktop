@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils";
-import { getTicks, getVisitors } from "../records-grouping";
-import { Bar } from "../Bar";
+import { getTicks, getVisitors } from "../_utils/group-items";
+import { Bar } from "../_components/Bar";
 import { DatePickerCrowd } from "./DatePicker";
 import { Temporal } from "temporal-polyfill";
 

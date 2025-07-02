@@ -7,13 +7,13 @@ import {
 	DialogFooter,
 	DialogTitle,
 } from "./ui/dialog";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn, formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "./ui/input";
 
-export function Calendar({
+export const Calendar = memo(function ({
 	time,
 	setTime,
 	mode: modeInit = "day",
@@ -66,7 +66,7 @@ export function Calendar({
 			/>
 		</Dialog>
 	);
-}
+});
 
 function CalendarLabel({ time, mode }: { time: number; mode?: "day" | "month" | "year" }) {
 	const tz = Temporal.Now.timeZoneId();
@@ -169,15 +169,15 @@ function Content({
 									epoch === timeStartOfDay.epochMilliseconds
 										? "default"
 										: epoch === today.epochMilliseconds
-											? "outline"
-											: "ghost"
+										? "outline"
+										: "ghost"
 								}
 								className={
 									inside
 										? ""
 										: epoch === timeStartOfDay.epochMilliseconds
-											? "text-zinc-100"
-											: "text-zinc-500"
+										? "text-zinc-100"
+										: "text-zinc-500"
 								}
 								onClick={() => {
 									setShowTime(epoch);

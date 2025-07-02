@@ -1,13 +1,12 @@
 import { z } from "zod";
+import { Database } from "~/database";
 import { useAction } from "~/hooks/useAction";
-import { useDB } from "~/RootLayout";
 
-export function useUpdateName(name: string) {
-	const db = useDB();
+export function useUpdateName(name: string, db: Database) {
 	const { loading, action, error, setError } = useAction(
 		"",
 		(name: { old: string; new: string }) => {
-			return db.cashier.updateName(name.old, name.new);
+			return db.cashier.update.name(name.old, name.new);
 		}
 	);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -22,5 +21,5 @@ export function useUpdateName(name: string) {
 		const errMsg = await action({ old: name, new: newName });
 		setError(errMsg);
 	};
-  return {loading, error, handleSubmit}
+	return { loading, error, handleSubmit };
 }

@@ -1,7 +1,8 @@
 import { RouteObject } from "react-router";
-import { route as newItemRoute } from "./New-Item";
-import { route as productRoute } from "./Product";
+import { route as newItemRoute } from "./new-item";
+import { route as productRoute } from "./product";
 import { lazy } from "react";
+import { useDB } from "~/hooks/use-db";
 
 const Page = lazy(() => import("./Stock.tsx"));
 
@@ -10,7 +11,10 @@ export const route: RouteObject = {
 	children: [
 		{
 			index: true,
-			Component: Page,
+			Component: () => {
+				const db = useDB();
+				return <Page db={db} />;
+			},
 		},
 		newItemRoute,
 		productRoute,

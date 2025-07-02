@@ -1,6 +1,6 @@
 import { useAction } from "~/hooks/useAction";
 import { emitter } from "~/lib/event-emitter";
-import { Store } from "~/store";
+import { Store } from "~/lib/store";
 
 export function useDisconnect(store: Store) {
 	const { action, loading, error, setError } = useAction("", async () => {

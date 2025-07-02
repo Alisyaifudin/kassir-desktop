@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 
-type ItemTransform = {
+export type ItemTransform = {
 	discs: {
 		value: number;
 		effVal: number;
@@ -11,7 +11,7 @@ type ItemTransform = {
 	total: number;
 } & DB.RecordItem;
 
-type RecordTransform = {
+export type RecordTransform = {
 	totalFromItems: number;
 	totalDiscount: number; // eff
 	totalAfterDiscount: number;
@@ -21,15 +21,15 @@ type RecordTransform = {
 	change: number;
 } & DB.Record;
 
-type AddTransfrom = {
+export type AdditionalTransfrom = {
 	effVal: number;
 	subtotal: number;
 } & DB.Additional;
 
-type Summary = {
+export type Summary = {
 	record: RecordTransform;
 	items: ItemTransform[];
-	additionals: AddTransfrom[];
+	additionals: AdditionalTransfrom[];
 };
 
 export function generateRecordSummary({
@@ -43,13 +43,19 @@ export function generateRecordSummary({
 	additionals: DB.Additional[];
 	discounts: DB.Discount[];
 }): Summary {
-	const itemTransforms = transformItems(items, discounts);
+	const itemTransforms = transformItems(
+		items.filter((item) => item.timestamp === record.timestamp),
+		discounts
+	);
 	const { totalDiscount, totalFromItems, totalAfterDiscount } = calcTotalDiscounts(
 		itemTransforms,
 		record.disc_val,
 		record.disc_kind
 	);
-	const addTransfroms = transformAdditionals(additionals, totalAfterDiscount);
+	const addTransfroms = transformAdditionals(
+		additionals.filter((add) => add.timestamp === record.timestamp),
+		totalAfterDiscount
+	);
 	const { totalAdditional, totalAfterAdditional } = calcTotalAdditional(
 		addTransfroms,
 		totalAfterDiscount
@@ -124,7 +130,8 @@ function calcTotalDiscounts(
 	totalDiscount: number;
 	totalAfterDiscount: Decimal;
 } {
-	const totalFromItems = Decimal.sum(...items.map((item) => item.grandTotal));
+	const totalFromItems =
+		items.length === 0 ? new Decimal(0) : Decimal.sum(...items.map((item) => item.grandTotal));
 	const { effVal, subtotal } = calcEffVal({ value: discVal, kind: discKind }, totalFromItems);
 	const totalDiscount = effVal;
 	const totalAfterDiscount = subtotal;
@@ -135,7 +142,7 @@ function calcTotalDiscounts(
 	};
 }
 
-function transformAdditional(additional: DB.Additional, base: Decimal): AddTransfrom {
+function transformAdditional(additional: DB.Additional, base: Decimal): AdditionalTransfrom {
 	const { effVal, subtotal } = calcEffVal(additional, base);
 	return {
 		...additional,
@@ -147,9 +154,9 @@ function transformAdditional(additional: DB.Additional, base: Decimal): AddTrans
 function transformAdditionals(
 	additionals: DB.Additional[],
 	totalAfterDiscount: Decimal
-): AddTransfrom[] {
+): AdditionalTransfrom[] {
 	let base = totalAfterDiscount;
-	const addTransfroms: AddTransfrom[] = [];
+	const addTransfroms: AdditionalTransfrom[] = [];
 	for (const additional of additionals) {
 		const t = transformAdditional(additional, base);
 		base = base.plus(t.effVal);
@@ -159,13 +166,16 @@ function transformAdditionals(
 }
 
 function calcTotalAdditional(
-	addTransforms: AddTransfrom[],
+	addTransforms: AdditionalTransfrom[],
 	totalAfterDiscount: Decimal
 ): {
 	totalAdditional: number;
 	totalAfterAdditional: Decimal;
 } {
-	const totalAdditional = Decimal.sum(...addTransforms.map((a) => a.effVal));
+	const totalAdditional =
+		addTransforms.length === 0
+			? new Decimal(0)
+			: Decimal.sum(...addTransforms.map((a) => a.effVal));
 	const totalAfterAdditional = totalAfterDiscount.plus(totalAdditional);
 	return {
 		totalAdditional: totalAdditional.toNumber(),
@@ -180,8 +190,8 @@ export function calcCapital(
 	totalQty: number
 ): number {
 	let delta = new Decimal(grandTotal).minus(totalFromItems);
-  delta = delta.div(totalQty);
+	delta = delta.div(totalQty);
 	let capital = new Decimal(item.grandTotal).div(item.qty);
-  capital = capital.plus(delta);
+	capital = capital.plus(delta);
 	return capital.toNumber();
 }

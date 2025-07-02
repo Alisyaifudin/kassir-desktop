@@ -1,7 +1,7 @@
 import { uploadAllProduct } from "~/dal/push-products";
 import { useAction } from "~/hooks/useAction";
 import { tryResult } from "~/lib/utils";
-import { useDB, useStore } from "~/RootLayout";
+import { useDB, useStore } from "~/layouts/RootLayout";
 
 export function useUpload() {
 	const db = useDB();

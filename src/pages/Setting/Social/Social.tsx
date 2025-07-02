@@ -1,11 +1,12 @@
-import { useDB } from "~/RootLayout";
-import { useAsync } from "~/hooks/useAsync";
-import { Await } from "~/components/Await";
-import { Item } from "./Item";
-import { NewBtn } from "./NewItem";
+import { Item } from "./_components/Item";
+import { NewBtn } from "./_components/NewItem";
+import { useSocials } from "./_hooks/use-socials";
+import { Database } from "~/database";
+import { Async } from "~/components/Async";
+import { ForEach } from "~/components/ForEach";
 
-export default function Shop() {
-	const state = useSocials();
+export default function Shop({ db }: { db: Database }) {
+	const [state, revalidate] = useSocials(db);
 	return (
 		<div className="flex flex-col gap-2 w-full flex-1">
 			<h1 className="text-4xl font-bold">Daftar Kontak</h1>
@@ -13,27 +14,21 @@ export default function Shop() {
 				<p>Kontak</p>
 				<p>Isian</p>
 			</div>
-			<Await state={state}>
+			<Async state={state}>
 				{(socials) => {
 					if (socials.length === 0) {
 						return <p className="text-3xl">---Belum Ada---</p>;
 					}
 					return (
-						<>
-							{socials.map((s) => (
-								<Item key={s.id} id={s.id} name={s.name} value={s.value} />
-							))}
-						</>
+						<ForEach items={socials}>
+							{(s) => (
+								<Item id={s.id} name={s.name} value={s.value} revalidate={revalidate} db={db} />
+							)}
+						</ForEach>
 					);
 				}}
-			</Await>
-			<NewBtn />
+			</Async>
+			<NewBtn revalidate={revalidate} db={db} />
 		</div>
 	);
-}
-
-function useSocials() {
-	const db = useDB();
-	const state = useAsync(() => db.social.get(), ["fetch-social"]);
-	return state;
 }

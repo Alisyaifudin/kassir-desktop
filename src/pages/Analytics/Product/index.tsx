@@ -8,9 +8,9 @@ import {
 } from "~/components/ui/table";
 import { ProductRecord } from "~/database/product";
 import { useProductSearch } from "./useProductSearch";
-import { DatePicker } from "../DatePicker";
+import { DatePicker } from "../_components/DatePicker";
 import { SetURLSearchParams } from "react-router";
-import { Mode } from "../Mode";
+import { Mode } from "../_components/Mode";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";

@@ -1,13 +1,18 @@
 import Database from "@tauri-apps/plugin-sql";
-import { Result, tryResult } from "../lib/utils";
+import { err, ok, Result, tryResult } from "../lib/utils";
 
 export function genMethod(db: Database) {
+	let cache: DB.Method[] = [];
 	return {
 		get: {
 			async all(): Promise<Result<"Aplikasi bermasalah", DB.Method[]>> {
-				return tryResult({
-					run: () => db.select<DB.Method[]>("SELECT * FROM methods"),
+				if (cache.length > 0) return ok(cache);
+				const [errMsg, res] = await tryResult({
+					run: () => db.select<DB.Method[]>("SELECT * FROM methods ORDER BY id"),
 				});
+				if (errMsg) return err(errMsg);
+				cache = res;
+				return ok(res);
 			},
 		},
 		add: {
@@ -16,6 +21,9 @@ export function genMethod(db: Database) {
 					run: () =>
 						db.execute("INSERT INTO methods (name, method) VALUES ($1, $2)", [name, method]),
 				});
+				if (errMsg === null) {
+					cache = [];
+				}
 				return errMsg;
 			},
 		},
@@ -24,6 +32,9 @@ export function genMethod(db: Database) {
 				const [errMsg] = await tryResult({
 					run: () => db.execute("UPDATE methods SET name = $1 WHERE id = $2", [name, id]),
 				});
+				if (errMsg === null) {
+					cache = [];
+				}
 				return errMsg;
 			},
 		},
@@ -32,6 +43,9 @@ export function genMethod(db: Database) {
 				const [errMsg] = await tryResult({
 					run: () => db.execute("DELETE FROM methods WHERE id = $1", [id]),
 				});
+				if (errMsg === null) {
+					cache = [];
+				}
 				return errMsg;
 			},
 		},

@@ -2,9 +2,10 @@ import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
 import { useDownloadProduct } from "../_hooks/use-download-product";
 import { Spinner } from "~/components/Spinner";
+import { Database } from "~/database";
 
-export function Product() {
-	const { handleDownload, loading, error } = useDownloadProduct();
+export function Product({ db }: { db: Database }) {
+	const { handleDownload, loading, error } = useDownloadProduct(db);
 	return (
 		<form
 			onSubmit={handleDownload}

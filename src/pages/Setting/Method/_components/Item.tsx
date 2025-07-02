@@ -1,39 +1,39 @@
-import { Loader2 } from "lucide-react";
-import React from "react";
-import { z } from "zod";
 import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
-import { useAction } from "~/hooks/useAction";
-import { useDB } from "~/RootLayout";
 import { DeleteBtn } from "./DeleteBtn";
+import { useUpdateName } from "../_hooks/use-update-name";
+import { Spinner } from "~/components/Spinner";
+import { Database } from "~/database";
+import { memo } from "react";
 
-export function Item({ method }: { method: DB.MethodType }) {
-	const db = useDB();
-	const { action, error, loading, setError } = useAction("", (name: string) =>
-		db.method.update(method.id, name)
-	);
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		const formData = new FormData(e.currentTarget);
-		const parsed = z.string().min(1, { message: "Harus ada" }).safeParse(formData.get("name"));
-		if (!parsed.success) {
-			setError(parsed.error.flatten().formErrors.join("; "));
-			return;
-		}
-		const name = parsed.data;
-		const errMsg = await action(name);
-		setError(errMsg);
-	};
+export const Item = memo(function ({
+	method,
+	db,
+	revalidate,
+}: {
+	method: DB.Method;
+	revalidate: () => void;
+	db: Database;
+}) {
+	const { loading, error, handleSubmit } = useUpdateName(method, revalidate, db);
+	if (method.name === null) {
+		throw new Error("Nama metode harus ada");
+	}
 	return (
 		<>
 			<div className="flex items-center gap-1 w-full">
 				<form onSubmit={handleSubmit} className="flex item-center gap-1 w-full">
-					<Input className="w-full" name="name" defaultValue={method.name} aria-autocomplete="list" />
-          {loading ? <Loader2 className="animate-spin" /> : null}
+					<Input
+						className="w-full"
+						name="name"
+						defaultValue={method.name}
+						aria-autocomplete="list"
+					/>
+					<Spinner when={loading} />
 				</form>
-        <DeleteBtn method={method} />
+				<DeleteBtn method={method} db={db} revalidate={revalidate} />
 			</div>
-			{error ? <TextError>{error}</TextError> : null}
+			<TextError>{error}</TextError>
 		</>
 	);
-}
+});

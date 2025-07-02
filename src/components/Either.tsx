@@ -8,5 +8,5 @@ export function Either({
 	else: React.ReactNode;
 }) {
 	if (i) return then;
-	else els;
+	else return els;
 }

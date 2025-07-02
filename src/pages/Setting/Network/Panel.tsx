@@ -1,4 +1,4 @@
-import { useStore } from "~/RootLayout";
+import { useStore } from "~/layouts/RootLayout";
 import { useDisconnect } from "./use-disconnect";
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";

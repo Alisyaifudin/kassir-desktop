@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import {
@@ -13,10 +13,19 @@ import {
 } from "~/components/ui/dialog";
 import { useDeleteCashier } from "../_hooks/use-delete-cashier";
 import { Spinner } from "~/components/Spinner";
+import { Database } from "~/database";
 
-export function DeleteBtn({ name }: { name: string }) {
+export const DeleteBtn = memo(function ({
+	name,
+	revalidate,
+	db,
+}: {
+	name: string;
+	revalidate: () => void;
+	db: Database;
+}) {
 	const [open, setOpen] = useState(false);
-	const { loading, error, handleClick } = useDeleteCashier(name, setOpen);
+	const { loading, error, handleClick } = useDeleteCashier(name, setOpen, revalidate, db);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button type="button" asChild variant="destructive">
@@ -46,4 +55,4 @@ export function DeleteBtn({ name }: { name: string }) {
 			</DialogContent>
 		</Dialog>
 	);
-}
+});

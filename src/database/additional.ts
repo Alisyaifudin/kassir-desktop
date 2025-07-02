@@ -37,8 +37,8 @@ function get(db: Database) {
 function add(db: Database) {
 	return {
 		async many(
-			additionals: { name: string; value: number; kind: DB.ValueKind }[],
-			timestamp: number
+			timestamp: number,
+			additionals: { name: string; value: number; kind: DB.ValueKind }[]
 		): Promise<Result<"Aplikasi bermasalah", number[]>> {
 			const [errMsg, res] = await tryResult({
 				run: () => {

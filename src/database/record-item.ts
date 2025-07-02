@@ -21,8 +21,10 @@ export function genRecordItem(db: Database) {
 		},
 		add: {
 			async one(
-				item: Omit<DB.RecordItem, "id"> & { product_id: number | null },
-				timestamp: number
+				timestamp: number,
+				item: Omit<DB.RecordItem, "id" | "product_id" | "timestamp"> & {
+					productId: number | null;
+				}
 			): Promise<Result<"Aplikasi bermasalah" | "Gagal menyimpan. Coba lagi." | null, number>> {
 				const [errMsg, res] = await tryResult({
 					run: async () => {
@@ -31,7 +33,7 @@ export function genRecordItem(db: Database) {
 								`INSERT INTO record_items 
 								(timestamp, name, price, qty, capital, product_id) 
                  VALUES ($1, $2, $3, $4, $5, $6)`,
-								[timestamp, item.name.trim(), item.price, item.qty, item.capital, item.product_id]
+								[timestamp, item.name.trim(), item.price, item.qty, item.capital, item.productId]
 							),
 						];
 						return Promise.all(promise);

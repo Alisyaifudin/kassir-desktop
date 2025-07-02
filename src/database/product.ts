@@ -35,14 +35,22 @@ export class ProductTable {
 	get del() {
 		const self = this;
 		return {
-			async byId(id: number): Promise<"Aplikasi bermasalah" | null> {
+			async byId(id: number): Promise<Result<"Aplikasi bermasalah", string[]>> {
+				const [errImg, images] = await tryResult({
+					run: () =>
+						self.db.select<{ name: string }[]>("SELECT name FROM images WHERE product_id = $1", [
+							id,
+						]),
+				});
+				if (errImg) return err(errImg);
 				const [errMsg] = await tryResult({
 					run: () => self.db.execute("DELETE FROM products WHERE id = $1", [id]),
 				});
 				if (self.caches.all) {
 					self.caches.all = self.caches.all.filter((p) => p.id !== id);
 				}
-				return errMsg;
+				if (errMsg) return err(errMsg);
+				return ok(images.map((m) => m.name));
 			},
 		};
 	}
@@ -141,6 +149,7 @@ function add(self: ProductTable) {
 			name: string;
 			price: number;
 			stock: number;
+			stockBack: number;
 			capital: number;
 			barcode: string | null;
 			note?: string;
@@ -158,7 +167,7 @@ function add(self: ProductTable) {
 			const [errMsg] = await tryResult({
 				run: () =>
 					self.db.execute(
-						"INSERT INTO products (name, stock, price, barcode, capital, note) VALUES ($1, $2, $3, $4, $5, $6)",
+						"INSERT INTO products (name, stock, price, barcode, capital, note, stock_back) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 						[
 							data.name.trim(),
 							data.stock,
@@ -166,6 +175,7 @@ function add(self: ProductTable) {
 							data.barcode === null ? null : data.barcode.trim(),
 							data.capital,
 							data.note ?? "",
+							data.stockBack,
 						]
 					),
 			});
@@ -193,7 +203,7 @@ function add(self: ProductTable) {
 						]);
 					} else {
 						return self.db.execute(
-							`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, 0)
+							`INSERT INTO products (name, stock, price, barcode, capital, stock_back) VALUES ($1, $2, $3, $4, 0, 0)
 					 ON CONFLICT(barcode) DO NOTHING`,
 							[
 								data.name.trim(),
@@ -233,7 +243,7 @@ function add(self: ProductTable) {
 						);
 					} else {
 						return self.db.execute(
-							`INSERT INTO products (name, stock, price, barcode, capital) VALUES ($1, $2, $3, $4, $5)`,
+							`INSERT INTO products (name, stock, price, barcode, capital, stock_back) VALUES ($1, $2, $3, $4, $5, 0)`,
 							[
 								data.name.trim(),
 								data.stock,
@@ -305,10 +315,12 @@ function update(self: ProductTable) {
 		}): Promise<"Aplikasi bermasalah" | "Barang dengan barcode tersebut sudah ada" | null> {
 			try {
 				await self.db.execute(
-					"UPDATE products SET name = $1, stock = $2, price = $3, barcode = $4, capital = $5, note = $6 WHERE id = $7",
+					`UPDATE products SET name = $1, stock = $2, stock_back = $3, price = $4, 
+					 barcode = $5, capital = $6, note = $7 WHERE id = $8`,
 					[
 						data.name.trim(),
 						data.stock,
+						data.stockBack,
 						data.price,
 						data.barcode === null ? null : data.barcode.trim(),
 						data.capital,

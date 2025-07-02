@@ -1,7 +1,7 @@
 import { deleteAllProduct } from "~/dal/delete-products";
 import { useAction } from "~/hooks/useAction";
 import { tryResult } from "~/lib/utils";
-import { useStore } from "~/RootLayout";
+import { useStore } from "~/layouts/RootLayout";
 
 export function useDelete() {
 	const store = useStore();

@@ -1,9 +1,10 @@
 import Decimal from "decimal.js";
-import { getFlow, getVisitors } from "../records-grouping";
+import { getFlow, getVisitors } from "../_utils/group-items";
 import { Temporal } from "temporal-polyfill";
+import { RecordTransform } from "~/lib/record";
 
 type Props = {
-	records: DB.Record[];
+	records: RecordTransform[];
 	interval: "weekly" | "monthly" | "yearly";
 	start: number;
 	end: number;

@@ -1,4 +1,4 @@
-import { Store } from "~/store";
+import { Store } from "~/lib/store";
 import { useAsync } from "~/hooks/useAsync";
 import { useAction } from "~/hooks/useAction";
 import { err, log, ok, Result, tryResult } from "~/lib/utils";

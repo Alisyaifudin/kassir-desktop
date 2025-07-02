@@ -1,12 +1,13 @@
 import { cn } from "~/lib/utils";
-import { getFlow, getTicks } from "../records-grouping";
-import { Bar } from "../Bar";
+import { getFlow, getTicks } from "../_utils/group-items";
+import { Bar } from "../_components/Bar";
 import { useState } from "react";
-import { Tooltip } from "../../../components/Tooltip";
-import { DatePicker } from "../DatePicker";
+import { Tooltip } from "~/components/Tooltip";
+import { DatePicker } from "../_components/DatePicker";
+import { RecordTransform } from "~/lib/record";
 
 type Props = {
-	records: DB.Record[];
+	records: RecordTransform[];
 	interval: "weekly" | "monthly" | "yearly";
 	start: number;
 	end: number;

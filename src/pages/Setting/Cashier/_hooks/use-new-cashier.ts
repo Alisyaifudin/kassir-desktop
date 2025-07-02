@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
-import { emitter } from "~/lib/event-emitter";
-import { useDB } from "~/RootLayout";
-import { FETCH_CASHIER } from "./use-cashier";
+import { Database } from "~/database";
 
-export function useNewCashier(setOpen: (open: boolean) => void) {
-	const db = useDB();
+export function useNewCashier(
+	setOpen: (open: boolean) => void,
+	revalidate: () => void,
+	db: Database
+) {
 	const { action, loading, error, setError } = useAction("", (name: string) =>
-		db.cashier.add(name, "user")
+		db.cashier.add.one(name, "user")
 	);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -22,7 +23,7 @@ export function useNewCashier(setOpen: (open: boolean) => void) {
 		setError(errMsg);
 		if (errMsg === null) {
 			setOpen(false);
-			emitter.emit(FETCH_CASHIER);
+			revalidate();
 		}
 	};
 	return { loading, error, handleSubmit };

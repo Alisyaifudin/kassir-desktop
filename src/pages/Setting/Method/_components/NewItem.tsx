@@ -6,38 +6,24 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "~/components/ui/dialog";
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
-import { useDB } from "~/RootLayout";
+import { memo, useState } from "react";
 import { TextError } from "~/components/TextError";
-import { useAction } from "~/hooks/useAction";
 import { Input } from "~/components/ui/input";
-import { Method } from "~/lib/utils";
-import { z } from "zod";
-import { emitter } from "~/lib/event-emitter";
+import { useAdd } from "../_hooks/use-add";
+import { Spinner } from "~/components/Spinner";
+import { Database } from "~/database";
 
-export function NewBtn({ method }: { method: Method }) {
-	const db = useDB();
+export const NewBtn = memo(function ({
+	method,
+	db,
+	revalidate,
+}: {
+	method: DB.MethodEnum;
+	db: Database;
+	revalidate: () => void;
+}) {
 	const [open, setOpen] = useState(false);
-	const { loading, error, setError, action } = useAction("", (name: string) =>
-		db.method.add(name, method)
-	);
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		const formData = new FormData(e.currentTarget);
-		const parsed = z.string().min(1, { message: "Harus ada" }).safeParse(formData.get("name"));
-		if (!parsed.success) {
-			const errs = parsed.error.flatten().formErrors;
-			setError(errs.join(";"));
-			return;
-		}
-		const errMsg = await action(parsed.data);
-		setError(errMsg);
-		if (errMsg === null) {
-			setOpen(false);
-			emitter.emit("fetch-method");
-		}
-	};
+	const { error, handleSubmit, loading } = useAdd(method, setOpen, revalidate, db);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button className="w-fit self-end" asChild>
@@ -48,11 +34,11 @@ export function NewBtn({ method }: { method: Method }) {
 					<DialogTitle className="text-3xl">Tambahkan Jenis Pembayaran</DialogTitle>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 						<Input name="name" placeholder="Nama" aria-autocomplete="list" />
-						{error ? <TextError>{error}</TextError> : null}
+						<TextError>{error}</TextError>
 						<div className="col-span-2 flex flex-col items-end">
 							<Button>
 								Tambah
-								{loading && <Loader2 className="animate-spin" />}
+								<Spinner when={loading} />
 							</Button>
 						</div>
 					</form>
@@ -60,4 +46,4 @@ export function NewBtn({ method }: { method: Method }) {
 			</DialogContent>
 		</Dialog>
 	);
-}
+});

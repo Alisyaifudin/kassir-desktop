@@ -54,7 +54,7 @@ function add(db: Database) {
 	return {
 		async many(
 			recordId: number,
-			discounts: { value: number; type: DB.ValueKind }[]
+			discounts: { value: number; kind: DB.ValueKind }[]
 		): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: () => {
@@ -63,7 +63,7 @@ function add(db: Database) {
 						promises.push(
 							db.execute(
 								`INSERT INTO discounts (record_item_id, kind, value) VALUES ($1, $2, $3)`,
-								[recordId, disc.type, disc.value]
+								[recordId, disc.kind, disc.value]
 							)
 						);
 					}

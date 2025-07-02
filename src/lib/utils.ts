@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "2.18.4";
+export const version = "3.0.0";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export const METHOD_NAMES = {
@@ -16,11 +16,18 @@ export const METHOD_NAMES = {
 
 export const log = logTauri;
 
-export const numerish = z.string().refine((val) => val !== "" && !isNaN(Number(val)), {
+export const numerish = z.string().refine((val) => val !== "" || !isNaN(Number(val)), {
 	message: "Harus angka",
 });
 
 export const numeric = numerish.transform((val) => Number(val));
+
+export const integer = z
+	.string()
+	.refine((val) => val !== "" || !isNaN(Number(val)) || !Number.isInteger(Number(val)), {
+		message: "Harus angka bulat",
+	})
+	.transform((v) => Number(v));
 
 export type Result<E, T> = [E, null] | [null, T];
 
@@ -133,6 +140,12 @@ export function dateToEpoch(date: string): number {
 	const t = Temporal.ZonedDateTime.from({ timeZone: tz, year, month, day }).startOfDay()
 		.epochMilliseconds;
 	return t;
+}
+
+export function getDayOrder(epochMilli: number) {
+	const tz = Temporal.Now.timeZoneId();
+	const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
+	return date.day;
 }
 
 export function constructCSV<T extends Record<string, any>>(data: T[]): string {

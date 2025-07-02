@@ -1,26 +1,32 @@
-import { useStore } from "~/RootLayout";
 import { auth, User } from "~/lib/auth";
-import { Await } from "./Await";
 import Redirect from "./Redirect";
-import { useAsync } from "~/hooks/useAsync";
+import { Store } from "~/lib/store";
+import { useFetch } from "~/hooks/useFetch";
+import { Async } from "./Async";
+import { useCallback } from "react";
+import { TextError } from "./TextError";
 
-export function Auth({ children }: { children: (user: User) => React.ReactNode }) {
-	const state = useFetchUser();
+export function Auth({
+	children,
+	store,
+}: {
+	children: (user: User, revalidate: () => void) => React.ReactNode;
+	store: Store;
+}) {
+	const [state, revalidate] = useAuth(store);
 	return (
-		<Await state={state}>
+		<Async state={state} Error={(msg) => <TextError>{msg}</TextError>}>
 			{(user) => {
 				if (user === null) {
 					return <Redirect to="/login" />;
 				}
-				return children(user);
+				return children(user, revalidate);
 			}}
-		</Await>
+		</Async>
 	);
 }
 
-const useFetchUser = () => {
-	const token = localStorage.getItem("token");
-	const store = useStore();
-	const state = useAsync(() => auth.validate(store, token ?? ""), ["fetch-user"]);
-	return state;
-};
+function useAuth(store: Store) {
+	const fetch = useCallback(() => auth.decode(store), []);
+	return useFetch(fetch);
+}

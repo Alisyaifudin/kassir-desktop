@@ -2,7 +2,6 @@ import { Temporal } from "temporal-polyfill";
 import { Database } from "~/database";
 import { useAction } from "~/hooks/useAction";
 import { constructCSV, dateStringSchema, dateToEpoch, err, log, ok, Result } from "~/lib/utils";
-import { useDB } from "~/RootLayout";
 import JSZip from "jszip";
 import { z } from "zod";
 
@@ -11,8 +10,7 @@ const dateRangeSchema = z.object({
 	end: dateStringSchema,
 });
 
-export function useDownloadRecord() {
-	const db = useDB();
+export function useDownloadRecord(db: Database) {
 	const { action, loading, error, setError } = useAction(
 		"",
 		(time: { start: number; end: number }) => getBlob(db, time.start, time.end)
@@ -64,10 +62,10 @@ export function useDownloadRecord() {
 async function getBlob(db: Database, start: number, end: number): Promise<Result<string, Blob>> {
 	const [[errRecords, records], [errItems, items], [errAdd, additionals], [errDisc, discounts]] =
 		await Promise.all([
-			db.record.getByRange(start, end),
-			db.recordItem.getByRange(start, end),
-			db.additional.getByRange(start, end),
-			db.discount.getByRange(start, end),
+			db.record.get.byRange(start, end),
+			db.recordItem.get.byRange(start, end),
+			db.additional.get.byRange(start, end),
+			db.discount.get.byRange(start, end),
 		]);
 	if (errRecords !== null) {
 		log.error(errRecords);

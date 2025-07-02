@@ -6,6 +6,8 @@
 		"module": "ESNext",
 		"skipLibCheck": true,
 
+		"types": ["bun-types", "@testing-library/jest-dom"],
+
 		/* Bundler mode */
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
@@ -25,6 +27,6 @@
 			"~/*": ["./src/*"]
 		}
 	},
-	"include": ["src"],
+	"include": ["src", "test"],
 	"references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { err, log, ok, Result } from "./utils";
-import { Temporal } from "temporal-polyfill";
-import { Store } from "../store";
+import { Store } from "./store";
+import { jwt } from "./jwt";
+import { z } from "zod";
 
 export namespace auth {
 	export async function hash(password: string): Promise<Result<"Aplikasi bermasalah", string>> {
@@ -42,71 +43,45 @@ export namespace auth {
 			return "Aplikasi bermasalah";
 		}
 	}
-	// Helper function to generate random tokens
-	async function generateRandomToken() {
-		const array = new Uint8Array(32);
-		window.crypto.getRandomValues(array);
-		return btoa(String.fromCharCode(...Array.from(array)));
-	}
-	export async function store(
-		store: Store,
-		name: string,
-		role: "admin" | "user"
-	): Promise<"Aplikasi bermasalah" | null> {
-		const today = Temporal.Now.instant().epochMilliseconds;
-		const expires = today + 5 * DAYS_IN_MS;
-		try {
-			var token = await generateRandomToken();
-		} catch (error) {
-			log.error(String(error));
-			return "Aplikasi bermasalah";
+	export async function store(store: Store, user: User): Promise<"Aplikasi bermasalah" | null> {
+		const [errMsg, token] = await jwt.encode(user);
+		if (errMsg) {
+			log.error("Failed to encode");
+			return errMsg;
 		}
-		localStorage.setItem("token", token);
-		try {
-			await store.core.set(`token`, {
-				token,
-				name,
-				role,
-				expires,
-			});
-		} catch (error) {
-			log.error(String(error));
-			return "Aplikasi bermasalah";
-		}
+		store.core.set("token", token);
 		return null;
 	}
-	export async function validate(
-		store: Store,
-		token: string
-	): Promise<Result<string, null | User>> {
+
+	export async function decode(store: Store): Promise<Result<"Aplikasi bermasalah", null | User>> {
+		const now = Date.now() / 1000;
 		try {
-			var user = await store.core.get<User>("token");
+			var tokenRaw = await store.core.get("token");
 		} catch (error) {
 			log.error(JSON.stringify(error));
-			return err("Gagal menghubungi store");
+			log.error("Failed to get token");
+			return err("Aplikasi bermasalah");
 		}
-		const today = Temporal.Now.instant();
-		if (!user || user.token !== token || user.expires < today.epochMilliseconds) {
-			localStorage.removeItem("token");
+		const token = z.string().nullish().catch(null).parse(tokenRaw);
+		if (token === undefined || token === null) return ok(null);
+		const [errMsg, claims] = await jwt.decode(token);
+		if (errMsg) {
+			log.error("Failed to decode token");
 			store.core.delete("token");
 			return ok(null);
 		}
-		if (user.expires - today.epochMilliseconds < 1 * DAYS_IN_MS) {
-			const newToken = await generateRandomToken();
-			localStorage.setItem("token", newToken);
-			const newUser = {
-				name: user.name,
-				expires: today.add(Temporal.Duration.from({ days: 5 })).epochMilliseconds,
-				role: user.role,
-				token: newToken,
-			};
-			await store.core.set("token", newUser);
-			return ok(newUser);
+		if (claims.exp < now) return ok(null);
+		if (claims.exp - now < 1 * 24 * 3600) {
+			const [errToken, token] = await jwt.encode(claims);
+			if (errToken) {
+				log.error("Failed encode token");
+				return err(errToken);
+			}
+			store.core.set("token", token);
 		}
-		return ok(user);
+		return ok(claims);
 	}
 	export async function logout(store: Store): Promise<"Aplikasi bermasalah" | null> {
-		localStorage.removeItem("token");
 		try {
 			await store.core.delete("token");
 		} catch (error) {
@@ -117,11 +92,13 @@ export namespace auth {
 	}
 }
 
-const DAYS_IN_MS = 24 * 3600 * 1000;
+export type UserClaim = {
+	name: string;
+	role: "admin" | "user";
+	exp: number;
+};
 
 export type User = {
 	name: string;
-	expires: number;
 	role: "admin" | "user";
-	token: string;
 };

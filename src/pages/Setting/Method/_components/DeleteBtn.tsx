@@ -6,27 +6,25 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "~/components/ui/dialog";
-import { useState } from "react";
-import { Loader2, X } from "lucide-react";
-import { useDB } from "~/RootLayout";
+import { memo, useState } from "react";
+import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
-import { useAction } from "~/hooks/useAction";
 import { DialogDescription } from "@radix-ui/react-dialog";
-import { emitter } from "~/lib/event-emitter";
+import { useDel } from "../_hooks/use-del";
+import { Spinner } from "~/components/Spinner";
+import { Database } from "~/database";
 
-export function DeleteBtn({ method }: { method: DB.MethodType }) {
-	const db = useDB();
+export const DeleteBtn = memo(function ({
+	method,
+	db,
+	revalidate,
+}: {
+	method: DB.Method;
+	revalidate: () => void;
+	db: Database;
+}) {
 	const [open, setOpen] = useState(false);
-	const { loading, error, setError, action } = useAction("", () => db.method.del(method.id));
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		const errMsg = await action();
-		setError(errMsg);
-		if (errMsg === null) {
-			setOpen(false);
-			emitter.emit("fetch-method");
-		}
-	};
+	const { error, loading, handleSubmit } = useDel(method, setOpen, revalidate, db);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button type="button" asChild className="rounded-full" variant="destructive">
@@ -39,11 +37,11 @@ export function DeleteBtn({ method }: { method: DB.MethodType }) {
 					<DialogTitle className="text-3xl">Hapus Catatan</DialogTitle>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2 text-3xl">
 						<DialogDescription>Hapus metode: {method.name}?</DialogDescription>
-						{error ? <TextError>{error}</TextError> : null}
+						<TextError>{error}</TextError>
 						<div className="col-span-2 flex flex-col items-end">
 							<Button variant="destructive">
 								Hapus
-								{loading && <Loader2 className="animate-spin" />}
+								<Spinner when={loading} />
 							</Button>
 						</div>
 					</form>
@@ -51,4 +49,4 @@ export function DeleteBtn({ method }: { method: DB.MethodType }) {
 			</DialogContent>
 		</Dialog>
 	);
-}
+});

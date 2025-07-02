@@ -1,10 +1,8 @@
-import { useAsync } from "~/hooks/useAsync";
-import { useDB } from "~/RootLayout";
+import { useCallback } from "react";
+import { Database } from "~/database";
+import { useFetch } from "~/hooks/useFetch";
 
-export const FETCH_CASHIER = "fetch-cashiers";
-
-export function useCashier() {
-  const db = useDB();
-	const state = useAsync(() => db.cashier.get(), [FETCH_CASHIER]);
-  return state;
+export function useCashier(db: Database) {
+	const fetch = useCallback(() => db.cashier.get.all(), []);
+	return useFetch(fetch);
 }

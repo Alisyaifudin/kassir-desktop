@@ -1,28 +1,23 @@
-import { useAsync } from "~/hooks/useAsync";
-import { Await } from "~/components/Await";
-import { useDB } from "~/RootLayout";
 import { TextError } from "~/components/TextError";
-import { LoginForm } from "./LoginForm";
-import { FreshForm } from "./FreshForm";
+import { LoginForm } from "./_components/LoginForm";
+import { FreshForm } from "./_components/FreshForm";
+import { useFetchCashiers } from "./_hooks/use-fetch-cashier";
+import { Database } from "~/database";
+import { Async } from "~/components/Async";
+import { Store } from "~/lib/store";
 
-export default function Page() {
-	const state = useFetchCashiers();
+export default function Page({ context }: { context: { db: Database; store: Store } }) {
+	const state = useFetchCashiers({ db: context.db });
 	return (
 		<main className="flex flex-1 flex-col justify-center bg-zinc-950">
-			<Await state={state} Error={(error) => <TextError>{error}</TextError>}>
+			<Async state={state} Error={(error) => <TextError>{error}</TextError>}>
 				{(cashiers) => {
 					if (cashiers.length === 0) {
-						return <FreshForm />;
+						return <FreshForm context={context} />;
 					}
-					return <LoginForm cashiers={cashiers} />;
+					return <LoginForm cashiers={cashiers} context={context} />;
 				}}
-			</Await>
+			</Async>
 		</main>
 	);
-}
-
-function useFetchCashiers() {
-	const db = useDB();
-	const state = useAsync(() => db.cashier.get());
-	return state;
 }

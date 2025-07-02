@@ -1,11 +1,18 @@
-import { LoaderFunctionArgs, redirect, RouteObject } from "react-router";
+import { LoaderFunctionArgs, redirect, RouteObject, useLoaderData } from "react-router";
 import { lazy } from "react";
 import { numeric } from "~/lib/utils.ts";
+import { useDB } from "~/hooks/use-db.ts";
+import { useUser } from "~/hooks/use-user.ts";
 
 const Page = lazy(() => import("./Product.tsx"));
 
 export const route: RouteObject = {
-	Component: Page,
+	Component: () => {
+		const { id } = useLoaderData<typeof loader>();
+		const db = useDB();
+		const user = useUser();
+		return <Page user={user} db={db} id={id} />;
+	},
 	loader,
 	path: ":id",
 };

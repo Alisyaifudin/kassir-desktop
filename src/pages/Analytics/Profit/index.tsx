@@ -1,10 +1,11 @@
 import { cn } from "~/lib/utils";
-import { getFlow, getTicks } from "../records-grouping";
-import { Bar } from "../Bar";
-import { DatePicker } from "../DatePicker";
+import { getFlow, getTicks } from "../_utils/group-items";
+import { Bar } from "../_components/Bar";
+import { DatePicker } from "../_components/DatePicker";
+import { RecordTransform } from "~/lib/record";
 
 type Props = {
-	records: DB.Record[];
+	records: RecordTransform[];
 	interval: "weekly" | "monthly" | "yearly";
 	start: number;
 	end: number;
@@ -13,7 +14,15 @@ type Props = {
 	time: number;
 };
 
-export function Profit({ records, interval, start, end, time, handleClickInterval, handleTime }: Props) {
+export function Profit({
+	records,
+	interval,
+	start,
+	end,
+	time,
+	handleClickInterval,
+	handleTime,
+}: Props) {
 	const { revenues, spendings, labels, debts } = getFlow({ records, interval, start, end });
 	const profits: number[] = [];
 	revenues.forEach((rev, i) => {
