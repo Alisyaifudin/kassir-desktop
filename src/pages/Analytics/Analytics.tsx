@@ -1,6 +1,5 @@
 import { SetURLSearchParams, useSearchParams } from "react-router";
 import { useFetchData } from "./_hooks/use-fetch-data";
-import { Await } from "~/components/Await";
 import { useCallback, useEffect } from "react";
 import { Summary } from "./cashflow/Summary";
 import { SummaryProduct } from "./product/SummaryProducts";
@@ -9,6 +8,7 @@ import { getOption } from "./_utils/get-option";
 import { NavLink } from "./_components/NavLink";
 import { Either } from "~/components/Either";
 import { Database } from "~/database";
+import { Async } from "~/components/Async";
 
 export default function Analytics({ db }: { db: Database }) {
 	const [search, setSearch] = useSearchParams();
@@ -29,7 +29,7 @@ export default function Analytics({ db }: { db: Database }) {
 	);
 	return (
 		<main className="grid grid-cols-[300px_1fr] p-2 gap-2 flex-1 overflow-auto">
-			<Await state={state}>
+			<Async state={state}>
 				{(data) => {
 					const { records, products } = data;
 					return (
@@ -78,7 +78,7 @@ export default function Analytics({ db }: { db: Database }) {
 						</>
 					);
 				}}
-			</Await>
+			</Async>
 		</main>
 	);
 }

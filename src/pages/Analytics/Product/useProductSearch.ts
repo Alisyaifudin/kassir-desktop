@@ -15,18 +15,21 @@ export type Result = {
 } & ProductResult;
 
 export const useProductSearch = (all: ProductRecord[], mode: "buy" | "sell", query: string) => {
-	const raw: ProductRecord[] = [];
-	for (const p of all) {
-		if (p.mode !== mode) {
-			continue;
+	const raw = useMemo(() => {
+		const raw: ProductRecord[] = [];
+		for (const p of all) {
+			if (p.mode !== mode) {
+				continue;
+			}
+			const findIndex = raw.findIndex((product) => product.id === p.id);
+			if (findIndex === -1) {
+				raw.push({ ...p });
+			} else {
+				raw[findIndex].qty += p.qty;
+			}
 		}
-		const findIndex = raw.findIndex((product) => product.id === p.id);
-		if (findIndex === -1) {
-			raw.push(p);
-		} else {
-			raw[findIndex].qty += p.qty;
-		}
-	}
+		return raw;
+	}, [query, mode]);
 	const miniSearch = useMemo(() => {
 		const miniSearch = new MiniSearch<ProductRecord>({
 			fields: ["name", "barcode"],

@@ -1,15 +1,20 @@
+import { useCallback } from "react";
 import { Temporal } from "temporal-polyfill";
 import { Database } from "~/database";
 import { ProductRecord } from "~/database/product";
-import { useAsyncDep } from "~/hooks/useAsyncDep";
+import { useFetch } from "~/hooks/useFetch";
 import { generateRecordSummary, RecordTransform } from "~/lib/record";
 import { err, ok, Result } from "~/lib/utils";
 
-export function useFetchData(interval: "daily" | "weekly" | "monthly" | "yearly", time: number, db: Database) {
+export function useFetchData(
+	interval: "daily" | "weekly" | "monthly" | "yearly",
+	time: number,
+	db: Database
+) {
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
 	const [start, end] = getRange(date, interval, tz);
-	const state = useAsyncDep(async (): Promise<
+	const fetch = useCallback(async (): Promise<
 		Result<"Aplikasi bermasalah", { products: ProductRecord[]; records: RecordTransform[] }>
 	> => {
 		const data = await Promise.all([
@@ -17,7 +22,8 @@ export function useFetchData(interval: "daily" | "weekly" | "monthly" | "yearly"
 			db.recordItem.get.byRange(start, end),
 			db.additional.get.byRange(start, end),
 			db.discount.get.byRange(start, end),
-			db.product.get.byRange(start, end),
+			// db.product.get.byRange(start, end),
+			db.product.get.byRange(1746374400000, 1746979200000),
 		]);
 		for (const [errMsg] of data) {
 			if (errMsg) return err(errMsg);
@@ -30,8 +36,10 @@ export function useFetchData(interval: "daily" | "weekly" | "monthly" | "yearly"
 		const summaries = records.map((record) =>
 			generateRecordSummary({ record, items, additionals, discounts })
 		);
+		console.log("rerun");
 		return ok({ products, records: summaries.map((s) => s.record) });
 	}, [interval, time]);
+	const [state] = useFetch(fetch);
 	return { state, start, end };
 }
 
