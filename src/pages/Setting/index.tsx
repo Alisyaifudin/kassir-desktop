@@ -5,7 +5,6 @@ import { route as cashierRoute } from "./cashier";
 import { route as profileRoute } from "./profile";
 import { route as socialRoute } from "./social";
 import { route as methodRoute } from "./method";
-import { route as networkRoute } from "./Network";
 import { route as logRoute } from "./log";
 import { lazy } from "react";
 import { useDB } from "~/hooks/use-db";
@@ -19,16 +18,7 @@ const Page = lazy(() => import("./Setting"));
 
 export const route: RouteObject = {
 	path: "setting",
-	children: [
-		profileRoute,
-		shopRoute,
-		dataRoute,
-		socialRoute,
-		cashierRoute,
-		methodRoute,
-		networkRoute,
-		logRoute,
-	],
+	children: [profileRoute, shopRoute, dataRoute, socialRoute, cashierRoute, methodRoute, logRoute],
 	Component: () => {
 		const db = useDB();
 		const store = useStore();
