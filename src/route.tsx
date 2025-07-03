@@ -4,7 +4,7 @@ import { route as shopRoute } from "./pages/shop";
 import { route as stockRoute } from "./pages/stock";
 import Layout from "./layouts/Layout.tsx";
 import { route as settingRoute } from "./pages/setting";
-import { route as recordsRoute } from "./pages/record";
+import { route as recordsRoute } from "./pages/Record/index.tsx";
 import { route as moneyRoute } from "./pages/money";
 import { route as analRoute } from "./pages/analytics";
 import RootLayout from "./layouts/RootLayout.tsx";
