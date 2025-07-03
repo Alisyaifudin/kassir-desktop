@@ -3,7 +3,7 @@ name: "Publish Windows App with Bun"
 on:
   push:
     branches:
-      - release
+      - master
 
 jobs:
   build-and-publish:
