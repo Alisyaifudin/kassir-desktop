@@ -30,7 +30,14 @@ type Context = {
 function add(context: Context) {
 	return (item: ItemWithoutDisc) => {
 		const state = produce(context.state, (state) => {
-			state.items.push({ ...item, discs: [] });
+			const index = state.items.findIndex(
+				(prev) => prev.productId !== undefined && prev.productId === item.productId
+			);
+			if (index === -1) {
+				state.items.push({ ...item, discs: [] });
+			} else {
+				state.items[index].qty += item.qty;
+			}
 		});
 		context.setState(state);
 	};

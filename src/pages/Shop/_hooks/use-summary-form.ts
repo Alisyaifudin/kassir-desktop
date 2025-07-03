@@ -13,6 +13,7 @@ import { Summary } from "../_utils/generate-record";
 import { useFix } from "./use-fix";
 import { Context } from "../Shop";
 import { log } from "~/lib/utils";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function useSummaryForm(
 	mode: DB.Mode,
@@ -31,43 +32,48 @@ export function useSummaryForm(
 		discKind: disc.kind,
 		discVal: disc.value === 0 ? "" : disc.value.toString(),
 	});
-	const debouncePay = useDebouncedCallback((val: number) => setPay(val), 500);
-	const debounceRounding = useDebouncedCallback((val: number) => setRounding(val), 500);
-	const debounceDiscVal = useDebouncedCallback((val: number) => setDisc.value(val), 500);
-	const debounceDiscKind = useDebouncedCallback((val: DB.ValueKind) => setDisc.kind(val), 500);
+	const debouncePay = useDebouncedCallback((val: number) => setPay(val), DEBOUNCE_DELAY);
+	const debounceRounding = useDebouncedCallback((val: number) => setRounding(val), DEBOUNCE_DELAY);
+	const debounceDiscVal = useDebouncedCallback((val: number) => setDisc.value(val), DEBOUNCE_DELAY);
+	const debounceDiscKind = useDebouncedCallback((val: DB.ValueKind) => setDisc.kind(val), DEBOUNCE_DELAY);
 	const handleChange = {
 		pay: (e: React.ChangeEvent<HTMLInputElement>) => {
-			let val = Number(e.currentTarget.value);
+			let str = e.currentTarget.value;
+			let val = Number(str);
 			if (isNaN(val)) {
 				return;
 			}
 			if (val < 0) {
 				val = 0;
+				str = "";
 			}
 			debouncePay(val);
-			setData({ ...data, pay: val.toString() });
+			setData({ ...data, pay: str });
 		},
 		rounding: (e: React.ChangeEvent<HTMLInputElement>) => {
-			let val = Number(e.currentTarget.value);
+			let str = e.currentTarget.value;
+			let val = Number(str);
 			if (isNaN(val)) {
 				return;
 			}
 			debounceRounding(val);
-			setData({ ...data, rounding: val.toString() });
+			setData({ ...data, rounding: str });
 		},
 		discVal: (e: React.ChangeEvent<HTMLInputElement>) => {
-			let val = Number(e.currentTarget.value);
+			let str = e.currentTarget.value;
+			let val = Number(str);
 			if (isNaN(val)) {
 				return;
 			}
 			if (val < 0) {
 				val = 0;
+				str = "";
 			}
 			if (disc.kind === "percent" && val > 100) {
 				val = 100;
 			}
 			debounceDiscVal(val);
-			setData({ ...data, discVal: val.toString() });
+			setData({ ...data, discVal: str });
 		},
 		discKind: (e: React.ChangeEvent<HTMLSelectElement>) => {
 			const kind = z.enum(["percent", "number"]).catch("percent").parse(e.currentTarget.value);
@@ -82,9 +88,10 @@ export function useSummaryForm(
 	);
 	const handleSubmit = (credit: 0 | 1) => async (e: React.FormEvent<HTMLFormElement>) => {
 		if (
-			record.pay === 0 ||
-			record.grandTotal === 0 ||
-			(items.length === 0 && additionals.length === 0)
+			credit === 0 &&
+			(record.pay === 0 ||
+				record.grandTotal === 0 ||
+				(items.length === 0 && additionals.length === 0))
 		) {
 			return;
 		}

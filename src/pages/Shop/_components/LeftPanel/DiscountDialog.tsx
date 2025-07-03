@@ -45,7 +45,12 @@ export function Discount({
 					<ForEach items={discs}>
 						{(disc, i) => (
 							<>
-								<Input type="number" value={disc.value} onChange={handle.changeValue(i)}></Input>
+								<Input
+									type="number"
+									value={disc.value}
+									onChange={handle.changeValue(i)}
+									aria-autocomplete="list"
+								></Input>
 								<select
 									value={disc.kind}
 									onChange={handle.changeKind(i)}
@@ -60,10 +65,14 @@ export function Discount({
 							</>
 						)}
 					</ForEach>
+					<Button  onClick={handle.add}>
+							Tambah Diskon<Plus />
+						</Button>
 				</div>
-				<DialogFooter className="flex justify-between">
-					<Button onClick={handle.add}>Tambahkan Diskon</Button>
-					<DialogClose asChild>Tutup</DialogClose>
+				<DialogFooter className="flex justify-between w-full ">
+					<DialogClose asChild>
+						<Button variant="outline">Tutup</Button>
+					</DialogClose>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

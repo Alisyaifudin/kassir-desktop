@@ -38,7 +38,7 @@ export const NewCashier = memo(function ({
 				<form onSubmit={handleSubmit}>
 					<label className="grid grid-cols-[100px_1fr] items-center">
 						<span className="text-3xl">Nama:</span>
-						<Input type="text" name="name" />
+						<Input type="text" name="name" aria-autocomplete="list" />
 					</label>
 					<div className="flex justify-between mt-5">
 						<Button asChild variant={"secondary"}>

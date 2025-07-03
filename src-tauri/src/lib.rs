@@ -1,9 +1,10 @@
-mod migrations;
 use log::LevelFilter;
+use tauri::Manager;
+
 mod api;
 mod auth;
 mod jwt;
-use tauri::Manager;
+mod migrations;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

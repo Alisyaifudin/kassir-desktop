@@ -12,11 +12,12 @@ import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { useNote } from "../../../_hooks/use-note";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function Note({ context }: { context: LocalContext }) {
 	const [note, setNote] = useNote(context);
 	const [val, setVal] = useState(note);
-	const debounced = useDebouncedCallback((value: string) => setNote(value), 1000);
+	const debounced = useDebouncedCallback((value: string) => setNote(value), DEBOUNCE_DELAY);
 	const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		setVal(e.currentTarget.value);
 		debounced(e.currentTarget.value);

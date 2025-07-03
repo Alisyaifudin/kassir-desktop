@@ -25,34 +25,25 @@ function get(db: Database) {
 		): Promise<Result<"Aplikasi bermasalah" | "Kasir tidak ditemukan", string>> {
 			const [errMsg, res] = await tryResult({
 				run: () =>
-					db.select<{ password: string }[]>("SELECT password FROM cashiers WHERE name = $1", [
-						name,
-					]),
+					db.select<{ hash: string }[]>("SELECT hash FROM cashiers WHERE name = $1", [name]),
 			});
 			if (errMsg) return err(errMsg);
 			if (res.length === 0) return err("Kasir tidak ditemukan");
-			return ok(res[0].password);
+			return ok(res[0].hash);
 		},
 	};
 }
 
 function add(db: Database) {
 	return {
-		async one(
-			name: string,
-			role: DB.Role,
-			password?: string
-		): Promise<"Aplikasi bermasalah" | null> {
+		async one(name: string, role: DB.Role, hash: string): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
 				run: async () => {
-					if (role === "admin") {
-						db.execute("INSERT INTO cashiers (name, role, password) VALUES ($1, 'admin', $2)", [
-							name.trim(),
-							password ?? "",
-						]);
-					} else {
-						db.execute("INSERT INTO cashiers (name, role) VALUES ($1, 'user')", [name.trim()]);
-					}
+					db.execute("INSERT INTO cashiers (name, role, hash) VALUES ($1, $2, $3)", [
+						name.toLowerCase().trim(),
+						role,
+						hash,
+					]);
 				},
 			});
 			if (errMsg) return errMsg;
@@ -81,7 +72,7 @@ function update(db: Database) {
 			const [errHash, hash] = await auth.hash(password);
 			if (errHash) return errHash;
 			const [errMsg] = await tryResult({
-				run: () => db.execute("UPDATE cashiers SET password = $1 WHERE name = $2", [hash, name]),
+				run: () => db.execute("UPDATE cashiers SET hash = $1 WHERE name = $2", [hash, name]),
 			});
 			if (errMsg) return errMsg;
 			return null;

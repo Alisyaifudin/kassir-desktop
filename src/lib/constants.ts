@@ -3,3 +3,5 @@ export const DEFAULT_METHOD: DB.Method = {
 	method: "cash",
 	name: null,
 };
+
+export const DEBOUNCE_DELAY = 500;

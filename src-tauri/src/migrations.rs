@@ -188,6 +188,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../src/migrations-sql/31-40/migration-31.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 32,
+            description: "create_new_cashiers_table",
+            sql: include_str!("../src/migrations-sql/31-40/migration-32.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

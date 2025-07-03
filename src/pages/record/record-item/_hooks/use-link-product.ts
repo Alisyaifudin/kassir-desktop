@@ -3,6 +3,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { Database } from "~/database";
 import { useAction } from "~/hooks/useAction";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function useLinkProduct(
 	item: DB.RecordItem,
@@ -41,7 +42,7 @@ export function useLinkProduct(
 			});
 			setShown(results);
 		}
-	}, 500);
+	}, DEBOUNCE_DELAY);
 	const handleClick = (itemId: number, productId: number) => async () => {
 		const errMsg = await action({ itemId, productId });
 		if (errMsg) {

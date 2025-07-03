@@ -6,6 +6,7 @@ import { produce } from "immer";
 import { integer } from "~/lib/utils";
 import { Item } from "../_utils/schema";
 import { LocalContext } from "./use-local-state";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function useDiscountForm(itemIndex: number, initDiscs: Item["discs"], context: LocalContext) {
 	const [discs, setDiscs] = useState(
@@ -17,10 +18,10 @@ export function useDiscountForm(itemIndex: number, initDiscs: Item["discs"], con
 	const [_, setItems] = useItems(context);
 	const debouncedKind = useDebouncedCallback((index: number, kind: "percent" | "number") => {
 		setItems.discs.kind(itemIndex, index, kind);
-	}, 1000);
+	}, DEBOUNCE_DELAY);
 	const debouncedVal = useDebouncedCallback((index: number, value: number) => {
 		setItems.discs.value(itemIndex, index, value);
-	}, 1000);
+	}, DEBOUNCE_DELAY);
 	const handle = {
 		changeKind: (index: number) => (e: React.ChangeEvent<HTMLSelectElement>) => {
 			const kind = z.enum(["percent", "number"]).catch("percent").parse(e.currentTarget.value);

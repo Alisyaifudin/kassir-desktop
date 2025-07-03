@@ -92,7 +92,7 @@ export function LinkProduct({
 						<Spinner when={loading} />
 					</div>
 				</div>
-				<Input type="search" placeholder="Cari.." value={query} onChange={handleChange} />
+				<Input type="search" placeholder="Cari.." value={query} onChange={handleChange} aria-autocomplete="list" />
 				<Table>
 					<TableHeader className="text-3xl">
 						<TableRow>

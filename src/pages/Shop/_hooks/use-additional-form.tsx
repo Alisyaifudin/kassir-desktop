@@ -4,6 +4,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { z } from "zod";
 import { LocalContext } from "./use-local-state";
 import { AdditionalTransfrom } from "../_utils/generate-record";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function useAdditionalForm(index: number, initAdd: AdditionalTransfrom, context: LocalContext) {
 	const [additional, setAdditional] = useState({
@@ -12,11 +13,11 @@ export function useAdditionalForm(index: number, initAdd: AdditionalTransfrom, c
 		name: initAdd.name,
 	});
 	const [_, setAdditionals] = useAdditional(context);
-	const debounceName = useDebouncedCallback((v: string) => setAdditionals.name(index, v), 1000);
-	const debounceValue = useDebouncedCallback((v: number) => setAdditionals.value(index, v), 1000);
+	const debounceName = useDebouncedCallback((v: string) => setAdditionals.name(index, v), DEBOUNCE_DELAY);
+	const debounceValue = useDebouncedCallback((v: number) => setAdditionals.value(index, v), DEBOUNCE_DELAY);
 	const debounceKind = useDebouncedCallback(
 		(v: DB.ValueKind) => setAdditionals.kind(index, v),
-		1000
+		DEBOUNCE_DELAY
 	);
 
 	const handle = {

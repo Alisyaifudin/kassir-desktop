@@ -4,10 +4,10 @@ import { Button } from "~/components/ui/button";
 import { CashierWithoutPassword } from "~/database/cashier";
 import { useLogin } from "../_hooks/use-login";
 import { Spinner } from "~/components/Spinner";
-import { Show } from "~/components/Show";
 import { Database } from "~/database";
 import { Store } from "~/lib/store";
 import { useNavigate } from "react-router";
+import { capitalize } from "~/lib/utils";
 
 export function LoginForm({
 	cashiers,
@@ -36,17 +36,15 @@ export function LoginForm({
 						<option value="">--PILIH AKUN--</option>
 						{cashiers.map((c) => (
 							<option key={c.name} value={c.name}>
-								{c.name}
+								{capitalize(c.name)}
 							</option>
 						))}
 					</select>
 				</label>
-				<Show when={selected?.role === "admin"}>
-					<label className="grid items-center grid-cols-[150px_1fr]">
-						<span>Kata Sandi</span>
-						<Password name="password" />
-					</label>
-				</Show>
+				<label className="grid items-center grid-cols-[150px_1fr]">
+					<span>Kata Sandi</span>
+					<Password name="password" />
+				</label>
 				<TextError>{error}</TextError>
 				<Button className="w-fit self-end" disabled={loading || selected === null}>
 					Masuk

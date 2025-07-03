@@ -162,7 +162,12 @@ function update(db: Database) {
 						db.select<DB.Additional[]>("SELECT * FROM additionals WHERE timestamp = $1", [
 							timestamp,
 						]),
-						db.select<DB.Discount[]>("SELECT * FROM discounts WHERE timestamp = $1", [timestamp]),
+						db.select<DB.Discount[]>(
+							`SELECT discounts.id, discounts.record_item_id, discounts.value, discounts.kind
+						 FROM discounts INNER JOIN record_items ON discounts.record_item_id = record_items.id
+						 WHERE record_items.timestamp = $1`,
+							[timestamp]
+						),
 					]),
 			});
 			if (errFetch) return errFetch;

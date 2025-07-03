@@ -23,7 +23,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 					name="name"
 					required
 					defaultValue={product.name}
-					autoComplete="off"
+					aria-autocomplete="list"
 				/>
 			</Field>
 			<Field error={error?.price ?? ""} label="Harga*:">
@@ -34,7 +34,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 					required
 					defaultValue={product.price}
 					step={0.00001}
-					autoComplete="off"
+					aria-autocomplete="list"
 				/>
 			</Field>
 			<Field error={error?.capital ?? ""} label="Modal:">
@@ -42,7 +42,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 					type="number"
 					className="outline w-[300px]"
 					name="capital"
-					autoComplete="off"
+					aria-autocomplete="list"
 					step={0.00001}
 					defaultValue={product.capital}
 				/>
@@ -53,6 +53,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 					className="outline w-[100px]"
 					name="stock"
 					required
+					aria-autocomplete="list"
 					defaultValue={product.stock}
 				/>
 			</Field>
@@ -61,6 +62,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 					type="number"
 					className="outline w-[100px]"
 					name="stock-back"
+					aria-autocomplete="list"
 					defaultValue={product.stock_back}
 				/>
 			</Field>
@@ -70,6 +72,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 						type="text"
 						className="outline w-[300px]"
 						name="barcode"
+						aria-autocomplete="list"
 						defaultValue={product.barcode ?? ""}
 					/>
 				</Field>

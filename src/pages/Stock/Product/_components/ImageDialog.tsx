@@ -89,7 +89,12 @@ export function ImageDialog({ productId, db }: { productId: number; db: Database
 							<img src={img} className="object-contain h-full" />
 						</div>
 					) : null}
-					<Input type="file" onInput={handleInput} accept="image/png, image/jpeg" />
+					<Input
+						type="file"
+						onInput={handleInput}
+						accept="image/png, image/jpeg"
+						aria-autocomplete="list"
+					/>
 					<div className="flex justify-between mt-5">
 						<Button asChild variant="secondary">
 							<DialogClose>Batal</DialogClose>

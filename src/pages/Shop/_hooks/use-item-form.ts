@@ -1,21 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useItems } from "./use-items";
 import { useDebouncedCallback } from "use-debounce";
 import { ItemTransform } from "../_utils/generate-record";
 import { LocalContext } from "./use-local-state";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
-export function useItemForm(mode: DB.Mode, index: number, item: ItemTransform, context: LocalContext) {
+export function useItemForm(
+	mode: DB.Mode,
+	index: number,
+	item: ItemTransform,
+	context: LocalContext
+) {
 	const [formItem, setFormItem] = useState({
 		name: item.name,
 		price: item.price.toString(),
 		barcode: item.barcode ?? "",
 		qty: item.qty.toString(),
 	});
+	useEffect(() => {
+		if (item.qty !== Number(formItem.qty)) {
+			setFormItem({ ...formItem, qty: item.qty.toString() });
+		}
+	}, [item.qty]);
 	const productId = item.productId;
-	const debounceName = useDebouncedCallback((v: string) => setItems.name(index, v), 1000);
-	const debounceBarcode = useDebouncedCallback((v: string) => setItems.barcode(index, v), 1000);
-	const debouncePrice = useDebouncedCallback((v: number) => setItems.price(index, v), 1000);
-	const debounceQty = useDebouncedCallback((v: number) => setItems.price(index, v), 1000);
+	const debounceName = useDebouncedCallback((v: string) => setItems.name(index, v), DEBOUNCE_DELAY);
+	const debounceBarcode = useDebouncedCallback((v: string) => setItems.barcode(index, v), DEBOUNCE_DELAY);
+	const debouncePrice = useDebouncedCallback((v: number) => setItems.price(index, v), DEBOUNCE_DELAY);
+	const debounceQty = useDebouncedCallback((v: number) => setItems.qty(index, v), DEBOUNCE_DELAY);
 	const [_, setItems] = useItems(context);
 	const handleChange = {
 		name: (e: React.ChangeEvent<HTMLInputElement>) => {

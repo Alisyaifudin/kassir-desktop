@@ -29,25 +29,23 @@ export function useLogin(
 		}
 	);
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		if (!localStorage || selected === null) {
+		if (selected === null) {
 			return;
 		}
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 		setError(null);
-		if (selected.role === "admin") {
-			const parsed = z.string().safeParse(formData.get("password"));
-			if (!parsed.success) {
-				const errs = parsed.error.flatten().formErrors;
-				setError(errs.join("; ") ?? "");
-				return;
-			}
-			const password = parsed.data;
-			const errMsg = await action({ password, name: selected.name });
-			if (errMsg !== null) {
-				setError(errMsg);
-				return;
-			}
+		const parsed = z.string().safeParse(formData.get("password"));
+		if (!parsed.success) {
+			const errs = parsed.error.flatten().formErrors;
+			setError(errs.join("; ") ?? "");
+			return;
+		}
+		const password = parsed.data;
+		const errMsg = await action({ password, name: selected.name });
+		if (errMsg !== null) {
+			setError(errMsg);
+			return;
 		}
 		const errStore = await auth.store(store, selected);
 		if (errStore) {

@@ -14,6 +14,7 @@ import { Mode } from "../_components/Mode";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function Product({
 	products: all,
@@ -43,7 +44,7 @@ export function Product({
 	};
 	const debounced = useDebouncedCallback((value: string) => {
 		setQ(value);
-	}, 500);
+	}, DEBOUNCE_DELAY);
 	const handleMode = (mode: "buy" | "sell") => {
 		setSearch((prev) => {
 			const search = new URLSearchParams(prev);
@@ -51,7 +52,6 @@ export function Product({
 			return search;
 		});
 	};
-
 	return (
 		<div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
 			<div className="flex items-center gap-5">
@@ -63,7 +63,13 @@ export function Product({
 					interval={interval}
 				/>
 				<Mode mode={mode} setMode={handleMode} />
-				<Input type="search" placeholder="Cari..." value={query} onChange={handleChange} />
+				<Input
+					type="search"
+					placeholder="Cari..."
+					value={query}
+					onChange={handleChange}
+					aria-autocomplete="list"
+				/>
 			</div>
 			<Table className="overflow-auto text-3xl">
 				<TableHeader>

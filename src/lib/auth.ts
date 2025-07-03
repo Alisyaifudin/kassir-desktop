@@ -6,9 +6,6 @@ import { z } from "zod";
 
 export namespace auth {
 	export async function hash(password: string): Promise<Result<"Aplikasi bermasalah", string>> {
-		if (password === "") {
-			return ok("");
-		}
 		try {
 			const hashedPassword = await invoke<string>("hash_password", { password });
 			return ok(hashedPassword);

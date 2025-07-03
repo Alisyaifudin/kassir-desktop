@@ -28,8 +28,8 @@ export const NewBtn = memo(function ({ db, revalidate }: { db: Database; revalid
 						onSubmit={handleSubmit}
 						className="grid grid-cols-[250px_1fr] gap-2 items-center justify-end"
 					>
-						<Input name="name" placeholder="Nama Kontak" />
-						<Input name="value" placeholder="Isian Kontak" />
+						<Input name="name" placeholder="Nama Kontak" aria-autocomplete="list" />
+						<Input name="value" placeholder="Isian Kontak" aria-autocomplete="list" />
 						{error ? (
 							<>
 								<TextError>{error.name}</TextError>

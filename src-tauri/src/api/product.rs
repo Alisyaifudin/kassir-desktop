@@ -1,9 +1,6 @@
-use crate::{
-    api::{
-        session::{check_headers_token, gen_new_token, ErrorResponse, TokenResponse},
-        sql::{self, Product},
-    },
-    jwt::Role,
+use crate::api::{
+    session::{check_headers_token, gen_new_token, ErrorResponse, TokenResponse},
+    sql::{self, Product},
 };
 use axum::{
     extract::{Extension, Query},
@@ -34,13 +31,10 @@ pub async fn get_products(
 ) -> Response {
     let (claims, token) = match check_headers_token(&headers) {
         Err(e) => return e,
-        Ok(claims) => claims,
+        Ok(Some(claims)) => claims,
+        Ok(None) => return (StatusCode::BAD_REQUEST, "Invalid token").into_response(),
     };
 
-    if claims.role != Role::User {
-        eprintln!("GET /api/product: Unauthorized");
-        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
-    };
     let timestamp = param.timestamp.unwrap_or(0);
     let products = match sql::get_products(pool, timestamp).await {
         Err(e) => {
@@ -80,14 +74,9 @@ pub async fn post_product(
 ) -> impl IntoResponse {
     let (claims, token) = match check_headers_token(&headers) {
         Err(e) => return e,
-        Ok(claims) => claims,
+        Ok(Some(claims)) => claims,
+        Ok(None) => return (StatusCode::BAD_REQUEST, "Invalid token").into_response(),
     };
-
-    if claims.role != Role::User {
-        eprintln!("POST /api/product/{{id}}: Unauthorized");
-        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
-    };
-
     if let Some(ref barcode) = product.barcode {
         let produc_id = match sql::get_product_by_barcode(pool.clone(), barcode).await {
             Err(e) => {
@@ -120,10 +109,9 @@ pub async fn post_product(
             note: product.note,
             price: product.price,
             stock: product.stock,
-            stock_back: product.stock_back
+            stock_back: product.stock_back,
         };
-        match sql::updated_product(pool, p).await
-        {
+        match sql::updated_product(pool, p).await {
             Err(e) => {
                 eprintln!("Failed to access db: {:?}", e);
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to access db").into_response();
@@ -138,11 +126,9 @@ pub async fn post_product(
             note: product.note,
             price: product.price,
             stock: product.stock,
-            stock_back: product.stock_back
+            stock_back: product.stock_back,
         };
-        match sql::insert_product(pool, p)
-        .await
-        {
+        match sql::insert_product(pool, p).await {
             Err(e) => {
                 eprintln!("Failed to access db: {:?}", e);
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to access db").into_response();

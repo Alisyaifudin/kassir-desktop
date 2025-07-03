@@ -12,7 +12,7 @@ export function FormNo({ context }: { context: Context }) {
 			<form onSubmit={handleSubmit} className="flex gap-2 items-center">
 				<Spinner when={loading} />
 				<p>No:</p>
-				<Input type="search" placeholder="Cari catatan" name="no" />
+				<Input type="search" placeholder="Cari catatan" name="no" aria-autocomplete="list"/>
 			</form>
 		</div>
 	);

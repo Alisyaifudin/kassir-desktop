@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
 import { ItemWithoutDisc } from "../_utils/schema";
 import { useItems } from "./use-items";
 import { LocalContext } from "./use-local-state";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function useSearch(all: DB.Product[], context: LocalContext) {
 	const [query, setQuery] = useState("");
+	const ref = useRef<HTMLInputElement>(null);
 	const [products, setProducts] = useState<ProductResult[]>([]);
 	const [_, setItems] = useItems(context);
 	const { search } = useProductSearch(all);
@@ -27,7 +29,7 @@ export function useSearch(all: DB.Product[], context: LocalContext) {
 			});
 			setProducts(results);
 		}
-	}, 300);
+	}, DEBOUNCE_DELAY);
 	const [error, setError] = useState("");
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = e.currentTarget.value;
@@ -40,10 +42,12 @@ export function useSearch(all: DB.Product[], context: LocalContext) {
 		debounced(val);
 	};
 	const handleClick = (item: ItemWithoutDisc) => {
+		if (ref.current === null) return;
 		setItems.add(item);
 		setProducts([]);
 		setQuery("");
 		setError("");
+		ref.current.focus();
 	};
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -65,5 +69,5 @@ export function useSearch(all: DB.Product[], context: LocalContext) {
 			capital: product.capital,
 		});
 	};
-	return { query, products, handleChange, handleClick, handleSubmit, error };
+	return { query, products, handleChange, handleClick, handleSubmit, error, ref };
 }

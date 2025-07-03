@@ -1,6 +1,6 @@
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
-import { formatDate, formatTime } from "~/lib/utils";
+import { capitalize, formatDate, formatTime } from "~/lib/utils";
 
 export function Header({
 	headers,
@@ -23,7 +23,7 @@ export function Header({
 			<ForEach items={headers}>{(txt) => <p className="text-center">{txt}</p>}</ForEach>
 			<p>{address}</p>
 			<Show when={showCashier === "true"}>
-				<p>Kasir: {cashier}</p>
+				<p>Kasir: {capitalize(cashier)}</p>
 			</Show>
 			<div className="flex items-center justify-between">
 				<p>No: {timestamp}</p>

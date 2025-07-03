@@ -13,7 +13,7 @@ import { Spinner } from "~/components/Spinner";
 import { User } from "~/lib/auth";
 import { Database } from "~/database";
 import { Store } from "~/lib/store";
-import { Show } from "~/components/Show";
+import { Password } from "~/components/Password";
 
 export default function Profile({
 	context,
@@ -34,27 +34,23 @@ export default function Profile({
 				</Button>
 				<TextError>{name.error}</TextError>
 			</form>
-			<Show when={context.user.role === "admin"}>
-				<Accordion type="single" collapsible className="bg-red-400 text-white">
-					<AccordionItem value="item-1">
-						<AccordionTrigger className="font-bold text-3xl px-2">
-							Ganti kata sandi
-						</AccordionTrigger>
-						<AccordionContent>
-							<form onSubmit={password.handleChange} className="flex-col gap-2 flex px-2 text-3xl">
-								<label className="grid grid-cols-[250px_1fr] gap-2 items-center">
-									<span>Kata Sandi Baru</span>
-									<Input type="password" name="password" />
-								</label>
-								<Button className="w-fit self-end">
-									Simpan <Spinner when={password.loading} />
-								</Button>
-								<TextError>{password.error}</TextError>
-							</form>
-						</AccordionContent>
-					</AccordionItem>
-				</Accordion>
-			</Show>
+			<Accordion type="single" collapsible className="bg-red-400 text-white">
+				<AccordionItem value="item-1">
+					<AccordionTrigger className="font-bold text-3xl px-2">Ganti kata sandi</AccordionTrigger>
+					<AccordionContent>
+						<form onSubmit={password.handleChange} className="flex-col gap-2 flex px-2 text-3xl">
+							<label className="grid grid-cols-[250px_1fr] gap-2 items-center">
+								<span>Kata Sandi Baru</span>
+								<Password name="password" aria-autocomplete="list" />
+							</label>
+							<Button className="w-fit self-end">
+								Simpan <Spinner when={password.loading} />
+							</Button>
+							<TextError>{password.error}</TextError>
+						</form>
+					</AccordionContent>
+				</AccordionItem>
+			</Accordion>
 		</div>
 	);
 }

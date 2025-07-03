@@ -28,7 +28,7 @@ export default function Page({ db }: { db: Database }) {
 						className="outline w-full"
 						name="name"
 						required
-						autoComplete="off"
+						aria-autocomplete="list"
 					/>
 				</Field>
 				<Field error={error?.price} label="Harga*:">
@@ -37,7 +37,7 @@ export default function Page({ db }: { db: Database }) {
 						className="outline w-[300px]"
 						name="price"
 						required
-						autoComplete="off"
+						aria-autocomplete="list"
 					/>
 				</Field>
 				<Field error={error?.capital} label="Modal:">
@@ -45,7 +45,7 @@ export default function Page({ db }: { db: Database }) {
 						type="number"
 						className="outline w-[300px]"
 						name="capital"
-						autoComplete="off"
+						aria-autocomplete="list"
 						step={0.00001}
 					/>
 				</Field>
@@ -55,14 +55,14 @@ export default function Page({ db }: { db: Database }) {
 						className="outline w-[100px]"
 						name="stock"
 						required
-						autoComplete="off"
+						aria-autocomplete="list"
 					/>
 				</Field>
 				<Field error={error?.stock} label="Gudang:">
-					<Input type="number" className="outline w-[100px]" name="stock-back" autoComplete="off" />
+					<Input type="number" className="outline w-[100px]" name="stock-back" aria-autocomplete="list" />
 				</Field>
 				<Field error={error?.barcode} label="Barcode:">
-					<Input type="text" className="outline w-[300px]" name="barcode" autoComplete="off" />
+					<Input type="text" className="outline w-[300px]" name="barcode" aria-autocomplete="list" />
 				</Field>
 				<label className="flex flex-col">
 					<div className="grid grid-cols-[120px_1fr] gap-2 items-center">

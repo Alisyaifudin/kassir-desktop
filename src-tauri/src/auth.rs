@@ -10,7 +10,7 @@ use serde::Serialize;
 // Custom error type to send to frontend
 #[derive(Debug, Serialize)]
 pub struct AuthError {
-    message: String,
+    pub message: String,
 }
 
 // Helper to convert BcryptError to AuthError

@@ -12,7 +12,11 @@ const newAccountSchema = z.object({
 	confirm: z.string(),
 });
 
-export function useFresh(navigate: NavigateFunction, context: { db: Database; store: Store }) {
+export function useFresh(
+	navigate: NavigateFunction,
+	revalidate: () => void,
+	context: { db: Database; store: Store }
+) {
 	const { db, store } = context;
 	const { action, loading, error, setError } = useAction(
 		{ name: "", password: "", confirm: "" },
@@ -34,6 +38,7 @@ export function useFresh(navigate: NavigateFunction, context: { db: Database; st
 			if (errStore) {
 				return { name: "", password: "", confirm: errStore };
 			}
+			revalidate();
 			return null;
 		}
 	);
@@ -59,7 +64,7 @@ export function useFresh(navigate: NavigateFunction, context: { db: Database; st
 			return;
 		}
 		const error = await action(parsed.data);
-		if (error) {
+		if (error !== null) {
 			setError(error);
 			return;
 		}

@@ -1,5 +1,6 @@
 use crate::{
     api::sql::get_user,
+    auth,
     jwt::{decode_jwt, encode_jwt, JwtError, Role, UserClaims},
 };
 use axum::{
@@ -52,15 +53,14 @@ pub async fn post_session(
         }
     };
 
-    if record.password.is_empty() && cred.password.is_empty() {
+    if record.hash.is_empty() && cred.password.is_empty() {
         return jwt_response(cred.name, record.role.into());
     }
 
-    let Ok(h) = hash(&cred.password, DEFAULT_COST) else {
-        return (StatusCode::INTERNAL_SERVER_ERROR, "Hash error").into_response();
+    let Ok(verified) = auth::verify_password(cred.password, record.hash).await else {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "verify error").into_response();
     };
-
-    if h != record.password {
+    if !verified {
         return (
             StatusCode::OK,
             Json(ErrorResponse {
@@ -91,14 +91,25 @@ pub struct Session {
 
 #[derive(Serialize)]
 pub struct GetResponse {
-    pub token: String,
-    pub session: Session,
+    pub token: Option<String>,
+    pub session: Option<Session>,
 }
 
 pub async fn get_session(headers: HeaderMap) -> Response {
-    let (claims, token) = match check_headers_token(&headers) {
+    let decoded = match check_headers_token(&headers) {
         Err(e) => return e,
         Ok(claims) => claims,
+    };
+
+    let Some((claims, token)) = decoded else {
+        return (
+            StatusCode::OK,
+            Json(GetResponse {
+                token: None,
+                session: None,
+            }),
+        )
+            .into_response();
     };
 
     let new_token = gen_new_token(&token, &claims);
@@ -111,11 +122,11 @@ pub async fn get_session(headers: HeaderMap) -> Response {
         Ok(token) => (
             StatusCode::OK,
             Json(GetResponse {
-                token,
-                session: Session {
+                token: Some(token),
+                session: Some(Session {
                     name: claims.name,
                     role: claims.role,
-                },
+                }),
             }),
         )
             .into_response(),
@@ -131,7 +142,7 @@ pub fn gen_new_token(token: &str, claims: &UserClaims) -> Result<String, JwtErro
     }
 }
 
-pub fn check_headers_token(headers: &HeaderMap) -> Result<(UserClaims, String), Response> {
+pub fn check_headers_token(headers: &HeaderMap) -> Result<Option<(UserClaims, String)>, Response> {
     let Some(auth_header) = headers.get("X-Header-Token") else {
         return Err((StatusCode::UNAUTHORIZED, "Missing token").into_response());
     };
@@ -141,8 +152,8 @@ pub fn check_headers_token(headers: &HeaderMap) -> Result<(UserClaims, String), 
     };
 
     let Ok(claims) = decode_jwt(token.into()) else {
-        return Err((StatusCode::BAD_REQUEST, "Invalid token").into_response());
+        return Ok(None);
     };
 
-    return Ok((claims, token.into()));
+    return Ok(Some((claims, token.into())));
 }

@@ -41,6 +41,7 @@ export function Wrapper({ methods, context }: { methods: DB.Method[]; context: C
 			},
 			additionals: state.additionals,
 			items: state.items,
+			mode,
 		});
 	}, [state]);
 	if (state === null || summary === null) {

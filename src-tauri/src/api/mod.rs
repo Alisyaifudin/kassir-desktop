@@ -17,7 +17,6 @@ mod sql;
 
 pub async fn create_server(pool: SqlitePool) {
     let shared_pool = Arc::new(pool);
-
     let app = Router::new()
         .route("/", get(|| async { "Backend is alive!" }))
         .route("/check_health", get(check_health))

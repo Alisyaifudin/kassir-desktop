@@ -46,7 +46,7 @@ export function Summary({
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Bayar</span>
 					:
-					<Input type="number" value={data.pay} onChange={handleChange.pay} />
+					<Input type="number" value={data.pay} onChange={handleChange.pay} aria-autocomplete="list" />
 				</label>
 				<div className="flex gap-2">
 					<label className="grid grid-cols-[160px_10px_1fr] items-center flex-1 text-3xl">
@@ -57,6 +57,7 @@ export function Summary({
 							value={data.discVal}
 							step={data.discKind === "number" ? Math.pow(10, -1 * fix) : 0.00001}
 							onChange={handleChange.discVal}
+							aria-autocomplete="list"
 						/>
 					</label>
 					<select
@@ -76,6 +77,7 @@ export function Summary({
 						value={data.rounding}
 						step={Math.pow(10, -1 * fix)}
 						onChange={handleChange.rounding}
+						aria-autocomplete="list"
 					/>
 				</label>
 				<div className="grid grid-cols-[160px_20px_1fr] h-[60px] text-3xl items-center">

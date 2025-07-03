@@ -1,15 +1,18 @@
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
 import { Database } from "~/database";
+import { auth } from "~/lib/auth";
 
 export function useNewCashier(
 	setOpen: (open: boolean) => void,
 	revalidate: () => void,
 	db: Database
 ) {
-	const { action, loading, error, setError } = useAction("", (name: string) =>
-		db.cashier.add.one(name, "user")
-	);
+	const { action, loading, error, setError } = useAction("", async (name: string) => {
+		const [errMsg, hash] = await auth.hash("");
+		if (errMsg) return errMsg;
+		return db.cashier.add.one(name, "user", hash);
+	});
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);

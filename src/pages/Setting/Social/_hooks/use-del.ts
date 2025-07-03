@@ -16,7 +16,6 @@ export function useDel(
 		setError(errMsg);
 		if (errMsg === null) {
 			setOpen(false);
-			console.log("revalidating");
 			revalidate();
 		}
 	};

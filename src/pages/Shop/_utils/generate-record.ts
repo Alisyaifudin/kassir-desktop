@@ -49,10 +49,12 @@ export function generateRecordSummary({
 	record,
 	items,
 	additionals,
+	mode
 }: {
 	record: Record;
 	items: Item[];
 	additionals: Additional[];
+	mode: DB.Mode
 }): Summary {
 	const itemTransforms = transformItems(items);
 	const { totalDiscount, totalFromItems, totalAfterDiscount } = calcTotalDiscounts(
@@ -71,7 +73,12 @@ export function generateRecordSummary({
 			? 0
 			: itemTransforms.map((i) => i.qty).reduce((prev, curr) => prev + curr);
 	for (const item of itemTransforms) {
-		item.capital ??= calcCapital(item, totalFromItems, grandTotal.toNumber(), totalQty); // now capital must exist
+		if (mode === "buy") {
+			item.capital = calcCapital(item, totalFromItems, grandTotal.toNumber(), totalQty); // now capital must exist
+		} else {
+			item.capital ??= 0;
+		}
+		
 	}
 	const change = new Decimal(record.pay).minus(grandTotal);
 	return {

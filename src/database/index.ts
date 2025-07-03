@@ -11,6 +11,7 @@ import { genMoney } from "./money";
 import { genMethod } from "./method";
 
 export function generateDB(db: DatabaseTauri) {
+	
 	return {
 		product: new ProductTable(db),
 		record: genRecord(db),

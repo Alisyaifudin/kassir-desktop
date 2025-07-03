@@ -6,7 +6,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "~/components/ui/table";
-import { cn, formatTime } from "~/lib/utils";
+import { capitalize, cn, formatTime } from "~/lib/utils";
 import { RecordTransform } from "~/lib/record";
 import { ForEach } from "~/components/ForEach";
 import { getParam, setParam } from "../_utils/params";
@@ -41,7 +41,7 @@ export function RecordList({ records }: RecordListProps) {
 							)}
 						>
 							<TableCell>{i + 1}</TableCell>
-							<TableCell className="text-center">{record.cashier ?? "Admin"}</TableCell>
+							<TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
 							<TableCell className="text-center">{formatTime(record.timestamp)}</TableCell>
 							<TableCell className="text-right">
 								{record.grandTotal.toLocaleString("id-ID")}

@@ -29,7 +29,7 @@ export const useProductSearch = (all: ProductRecord[], mode: "buy" | "sell", que
 			}
 		}
 		return raw;
-	}, [query, mode]);
+	}, [query, mode, all]);
 	const miniSearch = useMemo(() => {
 		const miniSearch = new MiniSearch<ProductRecord>({
 			fields: ["name", "barcode"],

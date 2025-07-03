@@ -319,7 +319,7 @@ function Content({
 				</Button>
 			</DialogHeader>
 			<form onSubmit={handleSubmitYear}>
-				<Input type="number" defaultValue={date.year} name="year" id="year-input" />
+				<Input type="number" defaultValue={date.year} name="year" id="year-input" aria-autocomplete="list" />
 			</form>
 			<DialogFooter className="flex items-center justify-between">
 				<Button

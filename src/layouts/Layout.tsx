@@ -9,6 +9,8 @@ import { Store } from "~/lib/store";
 import { Database } from "~/database";
 import { Async } from "~/components/Async";
 import { useNotification } from "~/hooks/use-notification";
+import { Show } from "~/components/Show";
+import { RefetchProduct } from "./_components/RefetchProduct";
 
 function Layout({ user, db, store }: { user: User; store: Store; db: Database }) {
 	const [state, refetchName] = useShopName(store);
@@ -26,21 +28,12 @@ function Layout({ user, db, store }: { user: User; store: Store; db: Database })
 						</NavLink>
 						<NavLink path="/stock">Stok</NavLink>
 						<NavLink path="/records">Riwayat</NavLink>
-						<NavLink path="/analytics">Analisis</NavLink>
-						<NavLink path="/money">Uang</NavLink>
+						<Show when={user.role === "admin"}>
+							<NavLink path="/analytics">Analisis</NavLink>
+							<NavLink path="/money">Uang</NavLink>
+						</Show>
 						<SettingLink />
-						{/* <li className="h-[60px] flex items-center">
-							<Await
-								state={connection}
-								Loading={
-									<Button size="icon" variant="outline" className="rounded-full">
-										<Loader className="animate-ping" />
-									</Button>
-								}
-							>
-								{(connected) => <DownloadBtn connected={connected} />}
-							</Await>
-						</li> */}
+						<RefetchProduct  />
 					</ul>
 				</nav>
 			</header>

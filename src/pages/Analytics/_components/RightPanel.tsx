@@ -31,7 +31,7 @@ export function RightPanel({
 	mode,
 	start,
 	end,
-}: Props) {	
+}: Props) {
 	const handleClickInterval = (val: string) => {
 		const parsed = z.enum(["daily", "weekly", "monthly", "yearly"]).safeParse(val);
 		if (!parsed.success) {
@@ -44,7 +44,6 @@ export function RightPanel({
 			return search;
 		});
 	};
-
 	switch (option) {
 		case "cashflow":
 			return (

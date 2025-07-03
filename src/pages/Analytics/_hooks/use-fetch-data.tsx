@@ -22,8 +22,7 @@ export function useFetchData(
 			db.recordItem.get.byRange(start, end),
 			db.additional.get.byRange(start, end),
 			db.discount.get.byRange(start, end),
-			// db.product.get.byRange(start, end),
-			db.product.get.byRange(1746374400000, 1746979200000),
+			db.product.get.byRange(start, end),
 		]);
 		for (const [errMsg] of data) {
 			if (errMsg) return err(errMsg);
@@ -36,9 +35,8 @@ export function useFetchData(
 		const summaries = records.map((record) =>
 			generateRecordSummary({ record, items, additionals, discounts })
 		);
-		console.log("rerun");
 		return ok({ products, records: summaries.map((s) => s.record) });
-	}, [interval, time]);
+	}, [start, end]);
 	const [state] = useFetch(fetch);
 	return { state, start, end };
 }

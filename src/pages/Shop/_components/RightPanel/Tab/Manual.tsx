@@ -44,11 +44,11 @@ export function Manual({
 			<div className="flex gap-1 items-center">
 				<Show when={mode === "sell"}>
 					<Field label="Kuantitas">
-						<Input type="number" defaultValue={1} required name="qty" />
+						<Input type="number" defaultValue={1} required name="qty" aria-autocomplete="list" />
 					</Field>
 				</Show>
 				<Field label="Stok" error={error.qty}>
-					<Input type="number" defaultValue={1} required name="stock" />
+					<Input type="number" defaultValue={1} required name="stock" aria-autocomplete="list" />
 				</Field>
 			</div>
 			<TextError>{error.qty}</TextError>

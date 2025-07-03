@@ -12,6 +12,7 @@ import { Database } from "~/database";
 import { SelectMode } from "./SelectMode";
 import { Note } from "./Note";
 import { ToCreditBtn } from "./ToCreditBtn";
+import { Show } from "~/components/Show";
 
 export const EditDialog = memo(function ({
 	timestamp,
@@ -49,7 +50,9 @@ export const EditDialog = memo(function ({
 					<DialogTitle className="text-5xl">Sunting catatan</DialogTitle>
 				</DialogHeader>
 				<div className="flex flex-col gap-3 py-5">
-					<SelectMode close={close} context={context} mode={mode} timestamp={timestamp} />
+					<Show when={credit === 0}>
+						<SelectMode close={close} context={context} mode={mode} timestamp={timestamp} />
+					</Show>
 					<SelectMethod
 						revalidate={revalidate}
 						timestamp={timestamp}

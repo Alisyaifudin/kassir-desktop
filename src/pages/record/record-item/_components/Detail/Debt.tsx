@@ -25,8 +25,8 @@ export const Debt = memo(function ({
 			<form onSubmit={handleSubmit}>
 				<label className="flex items-center gap-5">
 					<span className="text-red-500">Kredit</span>
-					<Input placeholder="Bayaran..." type="number" name="pay" className="w-[200px]" />
-					<Input placeholder="Pembulatan" type="number" name="round" className="w-[200px]" />
+					<Input placeholder="Bayaran..." type="number" name="pay" className="w-[200px]" aria-autocomplete="list" />
+					<Input placeholder="Pembulatan" type="number" name="round" className="w-[200px]" aria-autocomplete="list" />
 					<Button>
 						Bayar <Spinner when={loading} />
 					</Button>
