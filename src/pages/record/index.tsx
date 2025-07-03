@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs, redirect, RouteObject } from "react-router";
-import { route as itemRoute } from "./record-item";
+import { route as itemRoute } from "./Record-Item";
 import { lazy } from "react";
 import { useDB } from "~/hooks/use-db";
 import { toast } from "sonner";
