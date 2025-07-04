@@ -29,7 +29,7 @@ export function Receipt({
 	const totalProductTypes = items.length;
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
-			<Top ref={ref} print={print} mode={record.mode} credit={record.credit} />
+			<Top buttonRef={ref} print={print} mode={record.mode} credit={record.credit} />
 			<div className="border pt-5">
 				<div id="print-container" className="flex flex-col gap-2 overflow-auto px-2">
 					<Header
@@ -42,7 +42,7 @@ export function Receipt({
 					/>
 					<hr />
 					<Show when={items.length > 0}>
-						<ForEach items={items}>{(item) => <ReceiptItem {...item}  />}</ForEach>
+						<ForEach items={items}>{(item) => <ReceiptItem {...item} />}</ForEach>
 						<hr />
 					</Show>
 					<SummaryBody

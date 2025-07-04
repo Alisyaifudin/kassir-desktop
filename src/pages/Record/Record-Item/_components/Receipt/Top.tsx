@@ -7,13 +7,13 @@ const title = {
 
 export function Top({
 	mode,
-	ref,
+	buttonRef,
 	print,
 	credit,
 }: {
 	mode: DB.Mode;
 	credit: 0 | 1;
-	ref: React.RefObject<HTMLButtonElement>;
+	buttonRef: React.RefObject<HTMLButtonElement>;
 	print: () => void;
 }) {
 	return (
@@ -28,7 +28,7 @@ export function Top({
 					)
 				) : null}
 			</div>
-			<Button ref={ref} onClick={print}>
+			<Button ref={buttonRef} onClick={print}>
 				Cetak
 			</Button>
 		</div>

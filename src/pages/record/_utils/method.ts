@@ -12,7 +12,12 @@ export function setMethod(setSearch: SetURLSearchParams, methodId: number | null
 	if (methodId === null) {
 		search.delete("method");
 	} else {
-		search.set("method", methodId.toString());
+		const selected = integer.nullable().catch(null).parse(search.get("method"));
+		if (selected === methodId) {
+			search.delete("method");
+		} else {
+			search.set("method", methodId.toString());
+		}
 	}
 	setSearch(search);
 }
