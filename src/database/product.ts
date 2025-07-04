@@ -197,10 +197,10 @@ function add(self: ProductTable) {
 			const [errMsg, res] = await tryResult({
 				run: () => {
 					if (data.productId) {
-						return self.db.execute("UPDATE products SET stock = stock - $1 WHERE id = $2", [
-							data.qty,
-							data.productId,
-						]);
+						return self.db.execute(
+							"UPDATE products SET stock = stock - $1, updated_at = unixepoch() WHERE id = $2",
+							[data.qty, data.productId]
+						);
 					} else {
 						return self.db.execute(
 							`INSERT INTO products (name, stock, price, barcode, capital, stock_back) VALUES ($1, $2, $3, $4, 0, 0)
@@ -238,7 +238,7 @@ function add(self: ProductTable) {
 				run: async () => {
 					if (data.id) {
 						return self.db.execute(
-							`UPDATE products SET name = $1, stock = stock + $2, capital = $3 WHERE id = $4`,
+							`UPDATE products SET name = $1, stock = stock + $2, capital = $3, updated_at = unixepoch() WHERE id = $4`,
 							[data.name.trim(), data.stock, data.capital, data.id]
 						);
 					} else {
@@ -266,37 +266,6 @@ function add(self: ProductTable) {
 			}
 			return ok(id);
 		},
-		// async upsertServer(data: {
-		// 	id: number;
-		// 	name: string;
-		// 	price: number;
-		// 	stock: number;
-		// 	capital: number;
-		// 	barcode: string | null;
-		// 	note: string;
-		// }): Promise<"Aplikasi bermasalah" | null> {
-		// 	const [errMsg] = await tryResult({
-		// 		run: async () => {
-		// 			return this.db.execute(
-		// 				`INSERT INTO products (id, name, price, stock, barcode, capital, note)
-		// 			 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(id) DO UPDATE SET
-		// 			 name = $2, price = $3, stock = $4, barcode = $5, capital = $6, note = $7`,
-		// 				[
-		// 					data.id,
-		// 					data.name.trim(),
-		// 					data.price,
-		// 					data.stock,
-		// 					data.barcode === null ? null : data.barcode.trim(),
-		// 					data.capital,
-		// 					data.note,
-		// 				]
-		// 			);
-		// 		},
-		// 	});
-		// 	if (errMsg) return errMsg;
-		// 	this.revalidate("all");
-		// 	return null;
-		// },
 	};
 }
 
@@ -416,7 +385,7 @@ function aux(self: ProductTable) {
 			if (res.length > 0) {
 				num = findNextBarcode(
 					res.filter((r) => r.barcode.length === 13).map((r) => Number(r.barcode.slice(7, -1)))
-				);
+				);p
 			}
 			const barcode = genBarcode(num);
 			return ok(barcode.toString());

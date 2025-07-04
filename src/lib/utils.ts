@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "3.1.4";
+export const version = "3.1.5";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export const METHOD_NAMES = {

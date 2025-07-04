@@ -9,7 +9,6 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use bcrypt::{hash, DEFAULT_COST};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
