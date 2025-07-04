@@ -10,7 +10,6 @@ export function AdminPanel() {
 			<NavLink path="/setting/profile">Profil</NavLink>
 			<NavLink path="/setting/method">Metode</NavLink>
 			<NavLink path="/setting/log">Log</NavLink>
-			<NavLink path="/setting/network">Jaringan</NavLink>
 		</ol>
 	);
 }
