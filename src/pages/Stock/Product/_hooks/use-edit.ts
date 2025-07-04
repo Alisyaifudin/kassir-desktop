@@ -33,10 +33,11 @@ export function useEdit(id: number, navigate: NavigateFunction, db: Database) {
 	const { action, error, loading, setError } = useAction(
 		emptyErrs,
 		(data: z.infer<typeof dataSchema>) => {
-			const updatedAt = Date.now();
+			const updatedAt = Math.floor(Date.now() / 1000);
 			return db.product.update.one({ ...data, updatedAt });
 		}
 	);
+
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);

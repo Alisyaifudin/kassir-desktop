@@ -316,7 +316,7 @@ function update(self: ProductTable) {
 			try {
 				await self.db.execute(
 					`UPDATE products SET name = $1, stock = $2, stock_back = $3, price = $4, 
-					 barcode = $5, capital = $6, note = $7 WHERE id = $8`,
+					 barcode = $5, capital = $6, note = $7, updated_at = $8 WHERE id = $9`,
 					[
 						data.name.trim(),
 						data.stock,
@@ -325,6 +325,7 @@ function update(self: ProductTable) {
 						data.barcode === null ? null : data.barcode.trim(),
 						data.capital,
 						data.note,
+						data.updatedAt,
 						data.id,
 					]
 				);
@@ -387,18 +388,37 @@ function aux(self: ProductTable) {
 			if (errMsg) return err(errMsg);
 			let num = 0;
 			if (res.length > 0) {
-				num = findNextBarcode(res.map((r) => Number(r.barcode.slice(7, -1))));
+				num = findNextBarcode(
+					res.filter((r) => r.barcode.length === 13).map((r) => Number(r.barcode.slice(7, -1)))
+				);
 			}
-
 			const barcode = genBarcode(num);
 			const [errUpdate] = await tryResult({
 				run: () =>
-					self.db.execute("UPDATE products SET barcode = $1 WHERE id = $2", [
-						barcode.toString(),
-						id,
-					]),
+					self.db.execute(
+						"UPDATE products SET barcode = $1, updated_at = unixepoch() WHERE id = $2",
+						[barcode.toString(), id]
+					),
 			});
 			if (errUpdate) return err(errUpdate);
+			return ok(barcode.toString());
+		},
+		async proposeBarcode(): Promise<Result<"Aplikasi bermasalah", string>> {
+			const [errMsg, res] = await tryResult({
+				run: () =>
+					self.db.select<{ barcode: string }[]>(
+						`SELECT barcode FROM products WHERE barcode LIKE '2123456%'
+					 ORDER BY barcode ASC`
+					),
+			});
+			if (errMsg) return err(errMsg);
+			let num = 0;
+			if (res.length > 0) {
+				num = findNextBarcode(
+					res.filter((r) => r.barcode.length === 13).map((r) => Number(r.barcode.slice(7, -1)))
+				);
+			}
+			const barcode = genBarcode(num);
 			return ok(barcode.toString());
 		},
 	};

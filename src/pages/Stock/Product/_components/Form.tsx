@@ -9,9 +9,11 @@ import { Database } from "~/database";
 import { useEdit } from "../_hooks/use-edit";
 import { useNavigate } from "react-router";
 import { Field } from "./Field";
+import { useRef } from "react";
 
 export function Form({ product, db }: { product: DB.Product; db: Database }) {
 	const navigate = useNavigate();
+	const barcodeRef = useRef<HTMLInputElement>(null);
 	const { error, loading, handleSubmit } = useEdit(product.id, navigate, db);
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full">
@@ -69,6 +71,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 			<div className="flex items-center gap-2">
 				<Field error={error?.barcode ?? ""} label="Barcode:">
 					<Input
+						ref={barcodeRef}
 						type="text"
 						className="outline w-[300px]"
 						name="barcode"
@@ -76,7 +79,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 						defaultValue={product.barcode ?? ""}
 					/>
 				</Field>
-				<GenerateBarcode id={product.id} barcode={product.barcode} db={db} />
+				<GenerateBarcode id={product.id} barcode={product.barcode} db={db} barcodeRef={barcodeRef} />
 			</div>
 			<label className="flex flex-col">
 				<div className="grid grid-cols-[120px_1fr] gap-2 items-center">

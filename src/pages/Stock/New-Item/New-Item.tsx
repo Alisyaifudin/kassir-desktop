@@ -7,9 +7,12 @@ import { Textarea } from "~/components/ui/textarea";
 import { Database } from "~/database";
 import { useNewProduct } from "./_hooks/use-new-product";
 import { Field } from "../_components/Field";
+import { GenerateBarcode } from "./_components/GenerateBarcodeBtn";
+import { useRef } from "react";
 
 export default function Page({ db }: { db: Database }) {
 	const navigate = useNavigate();
+	const barcodeRef = useRef<HTMLInputElement>(null);
 	const { loading, error, handleSubmit, ref } = useNewProduct(navigate, db);
 	return (
 		<main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
@@ -59,11 +62,25 @@ export default function Page({ db }: { db: Database }) {
 					/>
 				</Field>
 				<Field error={error?.stock} label="Gudang:">
-					<Input type="number" className="outline w-[100px]" name="stock-back" aria-autocomplete="list" />
+					<Input
+						type="number"
+						className="outline w-[100px]"
+						name="stock-back"
+						aria-autocomplete="list"
+					/>
 				</Field>
-				<Field error={error?.barcode} label="Barcode:">
-					<Input type="text" className="outline w-[300px]" name="barcode" aria-autocomplete="list" />
-				</Field>
+				<div className="flex items-center gap-2">
+					<Field error={error?.barcode} label="Barcode:">
+						<Input
+							ref={barcodeRef}
+							type="text"
+							className="outline w-[300px]"
+							name="barcode"
+							aria-autocomplete="list"
+						/>
+					</Field>
+					<GenerateBarcode db={db} barcodeRef={barcodeRef} />
+				</div>
 				<label className="flex flex-col">
 					<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
 						<span className="text-3xl">Catatan</span>

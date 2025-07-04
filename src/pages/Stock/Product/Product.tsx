@@ -44,7 +44,7 @@ export default function Page({ user, id, db }: { id: number; user: User; db: Dat
 							user.role === "user" ? (
 								<Info product={product} />
 							) : (
-								<Form product={product} db={db} />
+								<Form product={product} db={db}  />
 							);
 						return (
 							<>

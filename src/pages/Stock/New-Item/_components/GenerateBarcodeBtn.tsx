@@ -7,19 +7,15 @@ import { Database } from "~/database";
 import { useAction } from "~/hooks/useAction";
 
 export function GenerateBarcode({
-	id,
-	barcode,
 	barcodeRef,
 	db,
 }: {
-	id: number;
-	barcode: string | null;
 	barcodeRef: React.RefObject<HTMLInputElement>;
 	db: Database;
 }) {
-	const [hide, setHide] = useState(barcode !== null);
+	const [hide, setHide] = useState(false);
 	const { error, loading, setError, action } = useAction("", () =>
-		db.product.aux.generateBarcode(id)
+		db.product.aux.proposeBarcode()
 	);
 	useEffect(() => {
 		if (barcodeRef.current === null) return;
