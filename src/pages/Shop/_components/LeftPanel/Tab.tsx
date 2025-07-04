@@ -1,6 +1,7 @@
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { User } from "~/lib/auth";
+import { capitalize } from "~/lib/utils";
 
 export function Tab({
 	mode,
@@ -31,7 +32,7 @@ export function Tab({
 					</Button>
 				</Show>
 			</div>
-			<p className="text-3xl px-2">Kasir: {user.name}</p>
+			<p className="text-3xl px-2">Kasir: {capitalize(user.name)}</p>
 		</div>
 	);
 }

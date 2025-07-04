@@ -10,7 +10,7 @@ import {
 import { Link, useLocation } from "react-router";
 import { DeleteBtn } from "./DeleteBtn";
 import { Button } from "~/components/ui/button";
-import { formatDate, formatTime } from "~/lib/utils";
+import { capitalize, formatDate, formatTime } from "~/lib/utils";
 import { Summary } from "~/lib/record";
 import { useUser } from "~/hooks/use-user";
 import { Show } from "~/components/Show";
@@ -111,7 +111,7 @@ function List({
 						<p>
 							{formatTime(record.timestamp, "long")}, {formatDate(record.timestamp, "long")}
 						</p>
-						{record.cashier ? <p>Kasir: {record.cashier}</p> : null}
+						{record.cashier ? <p>Kasir: {capitalize(record.cashier)}</p> : null}
 					</div>
 				</div>
 				<Table className="text-3xl">
