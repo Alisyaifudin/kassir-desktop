@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "3.1.5";
+export const version = "3.1.6";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export const METHOD_NAMES = {
@@ -187,5 +187,5 @@ export function getBackURL(defaultURL: string, search: URLSearchParams) {
 
 export function capitalize(name: string): string {
 	const terms = name.split(" ");
-	return terms.map(t=> t[0].toUpperCase() + t.slice(1)).join(" ")
+	return terms.map((t) => t[0].toUpperCase() + t.slice(1)).join(" ");
 }

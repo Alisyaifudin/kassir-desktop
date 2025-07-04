@@ -39,7 +39,12 @@ export function Record({
 	records = records.filter((record) => record.mode === mode);
 	// filter by method
 	if (method !== null) {
-		records = records.filter((r) => method.id === r.method_id);
+		if (method.name === null) {
+			const topLevelMethods = methods.filter((m) => m.method === method.method).map((m) => m.id);
+			records = records.filter((r) => topLevelMethods.includes(r.method_id));
+		} else {
+			records = records.filter((r) => method.id === r.method_id);
+		}
 	}
 	const summaries = records.map((record) =>
 		generateRecordSummary({ record, items, additionals, discounts })
