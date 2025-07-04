@@ -25,7 +25,13 @@ export const SelectMethod = memo(function ({
 	const option = methods.filter((m) => m.name === null);
 	const suboption = methods.filter((m) => m.method === method.method && m.name !== null);
 	const top = methods.find((m) => m.method === method.method && m.name === null);
-	const { loading, error, handleChange } = useSelectMethod(timestamp, close, revalidate, context);
+	const { loading, error, handleChange, handleChangeSub } = useSelectMethod(
+		timestamp,
+		methods,
+		close,
+		revalidate,
+		context
+	);
 	if (top === undefined) {
 		log.error("No top found?");
 		return null;
@@ -38,13 +44,13 @@ export const SelectMethod = memo(function ({
 			</div>
 			<div className="flex items-center gap-2 text-3xl">
 				<p>:</p>
-				<select value={method.id} className=" w-fit outline" onChange={handleChange(false)}>
+				<select value={method.method} className=" w-fit outline" onChange={handleChange}>
 					<ForEach items={option}>
-						{(m) => <option value={m.id}>{METHOD_NAMES[m.method]}</option>}
+						{(m) => <option value={m.method}>{METHOD_NAMES[m.method]}</option>}
 					</ForEach>
 				</select>
 				<Show when={suboption.length > 0}>
-					<select value={method.id} className=" w-fit outline" onChange={handleChange(true)}>
+					<select value={method.id} className=" w-fit outline" onChange={handleChangeSub}>
 						<option value={top.id}>--Pilih--</option>
 						<ForEach items={suboption}>{(m) => <option value={m.id}>{m.name}</option>}</ForEach>
 					</select>
