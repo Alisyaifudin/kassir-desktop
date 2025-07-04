@@ -385,7 +385,7 @@ function aux(self: ProductTable) {
 			if (res.length > 0) {
 				num = findNextBarcode(
 					res.filter((r) => r.barcode.length === 13).map((r) => Number(r.barcode.slice(7, -1)))
-				);p
+				);
 			}
 			const barcode = genBarcode(num);
 			return ok(barcode.toString());
