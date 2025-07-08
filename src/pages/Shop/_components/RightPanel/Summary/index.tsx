@@ -30,7 +30,6 @@ export function Summary({
 		context
 	);
 	const change = new Decimal(Number(data.pay)).sub(summary.record.grandTotal);
-
 	return (
 		<div className="flex flex-col p-2 h-fit gap-2">
 			<div className="flex flex-col gap-2  flex-1 h-full items-center justify-between">
