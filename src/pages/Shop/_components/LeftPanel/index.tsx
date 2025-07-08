@@ -35,7 +35,7 @@ export function LeftPanel({
 				<Tab mode={mode} setMode={setMode} user={user} />
 				<Header />
 				<div className="flex text-3xl flex-col overflow-y-auto">
-					<ForEach items={summary.items}>
+					<ForEach items={summary.items} extractKey={(item, i) => `${i}-${item.name}`}>
 						{(item, i) => (
 							<ItemComponent
 								index={i}

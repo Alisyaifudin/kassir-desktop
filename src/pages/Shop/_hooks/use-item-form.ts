@@ -63,7 +63,9 @@ export function useItemForm(
 			setFormItem({ ...formItem, qty: str });
 			debounceQty(val);
 		},
-		del: () => setItems.del(index),
+		del: () => {
+			setItems.del(index)
+		},
 	};
 	return { handleChange, formItem };
 }
