@@ -81,7 +81,7 @@ function add(db: Database) {
 							data.discVal,
 							data.discKind,
 							data.methodId,
-							data.fix
+							data.fix,
 						]
 					),
 			});
@@ -186,7 +186,7 @@ function update(db: Database) {
 						? 0
 						: items.map((item) => item.qty).reduce((prev, curr) => prev + curr);
 				capitals = summary.items.map((item) =>
-					calcCapital(item, totalFromItems, grandTotal, totalQty)
+					calcCapital(item, totalFromItems, grandTotal, totalQty, record.fix)
 				);
 			}
 			const [errMsg] = await tryResult({
