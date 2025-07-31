@@ -59,6 +59,7 @@ function add(db: Database) {
 				pay: number;
 				discVal: number;
 				discKind: DB.ValueKind;
+				fix: number;
 			}
 		): Promise<"Aplikasi bermasalah" | null> {
 			const [errMsg] = await tryResult({
@@ -66,8 +67,8 @@ function add(db: Database) {
 					db.execute(
 						`INSERT INTO records 
 						(mode, timestamp, paid_at, cashier, credit, note, rounding, pay, 
-						 disc_val, disc_kind, method_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+						 disc_val, disc_kind, method_id, fix)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 						[
 							mode,
 							timestamp,
@@ -80,6 +81,7 @@ function add(db: Database) {
 							data.discVal,
 							data.discKind,
 							data.methodId,
+							data.fix
 						]
 					),
 			});

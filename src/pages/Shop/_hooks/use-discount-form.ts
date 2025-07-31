@@ -8,7 +8,11 @@ import { Item } from "../_utils/schema";
 import { LocalContext } from "./use-local-state";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 
-export function useDiscountForm(itemIndex: number, initDiscs: Item["discs"], context: LocalContext) {
+export function useDiscountForm(
+	itemIndex: number,
+	initDiscs: Item["discs"],
+	context: LocalContext
+) {
 	const [discs, setDiscs] = useState(
 		initDiscs.map((d) => ({
 			value: d.value.toString(),
@@ -20,6 +24,7 @@ export function useDiscountForm(itemIndex: number, initDiscs: Item["discs"], con
 		setItems.discs.kind(itemIndex, index, kind);
 	}, DEBOUNCE_DELAY);
 	const debouncedVal = useDebouncedCallback((index: number, value: number) => {
+		console.log(value);
 		setItems.discs.value(itemIndex, index, value);
 	}, DEBOUNCE_DELAY);
 	const handle = {

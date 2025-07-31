@@ -4,4 +4,4 @@ export const DEFAULT_METHOD: DB.Method = {
 	name: null,
 };
 
-export const DEBOUNCE_DELAY = 500;
+export const DEBOUNCE_DELAY = 200;

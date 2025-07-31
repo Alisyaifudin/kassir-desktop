@@ -49,36 +49,39 @@ export function generateRecordSummary({
 	record,
 	items,
 	additionals,
-	mode
+	mode,
+	fix,
 }: {
 	record: Record;
 	items: Item[];
 	additionals: Additional[];
-	mode: DB.Mode
+	mode: DB.Mode;
+	fix: number;
 }): Summary {
-	const itemTransforms = transformItems(items);
+	const itemTransforms = transformItems(items, fix);
 	const { totalDiscount, totalFromItems, totalAfterDiscount } = calcTotalDiscounts(
 		itemTransforms,
 		record.discVal,
-		record.discKind
+		record.discKind,
+		fix
 	);
-	const addTransfroms = transformAdditionals(additionals, totalAfterDiscount);
+	const addTransfroms = transformAdditionals(additionals, totalAfterDiscount, fix);
 	const { totalAdditional, totalAfterAdditional } = calcTotalAdditional(
 		addTransfroms,
-		totalAfterDiscount
+		totalAfterDiscount,
+		fix
 	);
-	const grandTotal = totalAfterAdditional.plus(record.rounding);
+	const grandTotal = new Decimal(totalAfterAdditional.plus(record.rounding).toFixed(fix));
 	const totalQty =
 		itemTransforms.length === 0
 			? 0
 			: itemTransforms.map((i) => i.qty).reduce((prev, curr) => prev + curr);
 	for (const item of itemTransforms) {
 		if (mode === "buy") {
-			item.capital = calcCapital(item, totalFromItems, grandTotal.toNumber(), totalQty); // now capital must exist
+			item.capital = calcCapital(item, totalFromItems, grandTotal.toNumber(), totalQty, fix); // now capital must exist
 		} else {
 			item.capital ??= 0;
 		}
-		
 	}
 	const change = new Decimal(record.pay).minus(grandTotal);
 	return {
@@ -99,27 +102,28 @@ export function generateRecordSummary({
 
 function calcEffVal(
 	v: { value: number; kind: DB.ValueKind },
-	base: Decimal
+	base: Decimal,
+	fix: number
 ): { subtotal: Decimal; effVal: number } {
-	let effVal = 0;
+	let effVal = new Decimal(0);
 	switch (v.kind) {
 		case "number":
-			effVal = v.value;
+			effVal = new Decimal(new Decimal(v.value).toFixed(fix));
 			break;
 		case "percent":
-			effVal = base.times(v.value).div(100).toNumber();
+			effVal = new Decimal(base.times(v.value).div(100).toFixed(fix));
 	}
 	const subtotal = base.minus(effVal);
-	return { effVal, subtotal };
+	return { effVal: effVal.toNumber(), subtotal };
 }
 
-function transformItem(item: Item): ItemTransformRaw {
+function transformItem(item: Item, fix: number): ItemTransformRaw {
 	const discounts = item.discs;
-	let grandTotal = new Decimal(item.price).times(item.qty);
+	let grandTotal = new Decimal(new Decimal(item.price).times(item.qty).toFixed(fix));
 	const total = new Decimal(grandTotal);
 	const transformDiscs: ItemTransform["discs"] = [];
 	for (const disc of discounts) {
-		const { subtotal, effVal } = calcEffVal(disc, grandTotal);
+		const { subtotal, effVal } = calcEffVal(disc, grandTotal, fix);
 		transformDiscs.push({
 			value: disc.value,
 			kind: disc.kind,
@@ -136,22 +140,25 @@ function transformItem(item: Item): ItemTransformRaw {
 	};
 }
 
-function transformItems(items: Item[]): ItemTransformRaw[] {
-	return items.map((item) => transformItem(item));
+function transformItems(items: Item[], fix: number): ItemTransformRaw[] {
+	return items.map((item) => transformItem(item, fix));
 }
 
 function calcTotalDiscounts(
 	items: ItemTransformRaw[],
 	discVal: number,
-	discKind: DB.ValueKind
+	discKind: DB.ValueKind,
+	fix: number
 ): {
 	totalFromItems: number;
 	totalDiscount: number;
 	totalAfterDiscount: Decimal;
 } {
 	const totalFromItems =
-		items.length > 0 ? Decimal.sum(...items.map((item) => item.grandTotal)) : new Decimal(0);
-	const { effVal, subtotal } = calcEffVal({ value: discVal, kind: discKind }, totalFromItems);
+		items.length > 0
+			? new Decimal(Decimal.sum(...items.map((item) => item.grandTotal)).toFixed(fix))
+			: new Decimal(0);
+	const { effVal, subtotal } = calcEffVal({ value: discVal, kind: discKind }, totalFromItems, fix);
 	const totalDiscount = effVal;
 	const totalAfterDiscount = subtotal;
 	return {
@@ -161,8 +168,12 @@ function calcTotalDiscounts(
 	};
 }
 
-function transformAdditional(additional: Additional, base: Decimal): AdditionalTransfrom {
-	const { effVal, subtotal } = calcEffVal(additional, base);
+function transformAdditional(
+	additional: Additional,
+	base: Decimal,
+	fix: number
+): AdditionalTransfrom {
+	const { effVal, subtotal } = calcEffVal(additional, base, fix);
 	return {
 		...additional,
 		effVal,
@@ -172,12 +183,13 @@ function transformAdditional(additional: Additional, base: Decimal): AdditionalT
 
 function transformAdditionals(
 	additionals: Additional[],
-	totalAfterDiscount: Decimal
+	totalAfterDiscount: Decimal,
+	fix: number
 ): AdditionalTransfrom[] {
 	let base = totalAfterDiscount;
 	const addTransfroms: AdditionalTransfrom[] = [];
 	for (const additional of additionals) {
-		const t = transformAdditional(additional, base);
+		const t = transformAdditional(additional, base, fix);
 		base = base.plus(t.effVal);
 		addTransfroms.push(t);
 	}
@@ -186,13 +198,16 @@ function transformAdditionals(
 
 function calcTotalAdditional(
 	addTransforms: AdditionalTransfrom[],
-	totalAfterDiscount: Decimal
+	totalAfterDiscount: Decimal,
+	fix: number
 ): {
 	totalAdditional: number;
 	totalAfterAdditional: Decimal;
 } {
 	const totalAdditional =
-		addTransforms.length > 0 ? Decimal.sum(...addTransforms.map((a) => a.effVal)) : new Decimal(0);
+		addTransforms.length > 0
+			? new Decimal(Decimal.sum(...addTransforms.map((a) => a.effVal)).toFixed(fix))
+			: new Decimal(0);
 	const totalAfterAdditional = totalAfterDiscount.plus(totalAdditional);
 	return {
 		totalAdditional: totalAdditional.toNumber(),
@@ -204,11 +219,12 @@ export function calcCapital(
 	item: ItemTransformRaw,
 	totalFromItems: number,
 	grandTotal: number,
-	totalQty: number
+	totalQty: number,
+	fix: number
 ): number {
 	let delta = new Decimal(grandTotal).minus(totalFromItems);
 	delta = delta.div(totalQty);
 	let capital = new Decimal(item.grandTotal).div(item.qty);
 	capital = capital.plus(delta);
-	return capital.toNumber();
+	return Number(capital.toFixed(fix));
 }

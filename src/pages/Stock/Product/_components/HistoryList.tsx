@@ -24,7 +24,7 @@ export function TableList({
 	switch (mode) {
 		case "buy":
 			return (
-				<Table className="text-3xl w-fit">
+				<Table className="text-3xl w-fit" parentClass="overflow-hidden">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[60px]">No</TableHead>
@@ -59,7 +59,7 @@ export function TableList({
 			);
 		case "sell":
 			return (
-				<Table className="text-3xl w-fit">
+				<Table className="text-3xl w-fit mb-10">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[60px]">No</TableHead>

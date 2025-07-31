@@ -35,7 +35,10 @@ export function useSummaryForm(
 	const debouncePay = useDebouncedCallback((val: number) => setPay(val), DEBOUNCE_DELAY);
 	const debounceRounding = useDebouncedCallback((val: number) => setRounding(val), DEBOUNCE_DELAY);
 	const debounceDiscVal = useDebouncedCallback((val: number) => setDisc.value(val), DEBOUNCE_DELAY);
-	const debounceDiscKind = useDebouncedCallback((val: DB.ValueKind) => setDisc.kind(val), DEBOUNCE_DELAY);
+	const debounceDiscKind = useDebouncedCallback(
+		(val: DB.ValueKind) => setDisc.kind(val),
+		DEBOUNCE_DELAY
+	);
 	const handleChange = {
 		pay: (e: React.ChangeEvent<HTMLInputElement>) => {
 			let str = e.currentTarget.value;
@@ -96,6 +99,7 @@ export function useSummaryForm(
 			return;
 		}
 		e.preventDefault();
+		if (loading) return;
 		const [errMsg, timestamp] = await action(credit);
 		if (errMsg !== null) {
 			log.error("Failed to submit");

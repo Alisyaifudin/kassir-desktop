@@ -104,7 +104,7 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 						</button>
 					</div>
 				</div>
-				<Discounts fix={fix} discs={item.discs} />
+				<Discounts discs={item.discs} />
 			</div>
 		</div>
 	);

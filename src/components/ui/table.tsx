@@ -49,11 +49,13 @@ TableScrollable.displayName = "TableScrollable";
 const Table = React.forwardRef<
 	HTMLTableElement,
 	React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
->(({ className, parentClass, ...props }, ref) => (
-	<div className={cn("relative w-full overflow-auto", parentClass)}>
-		<table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-	</div>
-));
+>(({ className, parentClass, ...props }, ref) => {
+	return (
+		<div className={cn("relative w-full overflow-auto", parentClass)}>
+			<table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+		</div>
+	);
+});
 Table.displayName = "Table";
 
 const TableHeader = React.forwardRef<

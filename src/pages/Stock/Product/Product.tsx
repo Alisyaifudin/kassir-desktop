@@ -34,7 +34,7 @@ export default function Page({ user, id, db }: { id: number; user: User; db: Dat
 			<Button variant="link" className="self-start" onClick={handleBack}>
 				<ChevronLeft /> Kembali
 			</Button>
-			<div className="flex gap-2 h-full overflow-hidden">
+			<div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
 				<Async state={item} Loading={<Loader2 className="animate-spin" />}>
 					{(product) => {
 						if (product === null) {
@@ -44,12 +44,12 @@ export default function Page({ user, id, db }: { id: number; user: User; db: Dat
 							user.role === "user" ? (
 								<Info product={product} />
 							) : (
-								<Form product={product} db={db}  />
+								<Form product={product} db={db} />
 							);
 						return (
 							<>
 								{Detail}
-								<Tabs value={tab} onValueChange={setTab} className="w-[1200px] overflow-hidden">
+								<Tabs value={tab} onValueChange={setTab} className="w-[1200px]">
 									<TabsList>
 										<TabsTrigger value="history" className="text-3xl">
 											Transaksi
@@ -58,7 +58,7 @@ export default function Page({ user, id, db }: { id: number; user: User; db: Dat
 											Gambar
 										</TabsTrigger>
 									</TabsList>
-									<TabsContent value="history" className="overflow-hidden h-full">
+									<TabsContent value="history" className="h-full overflow-hidden">
 										{History}
 									</TabsContent>
 									<TabsContent value="image" className="h-full">

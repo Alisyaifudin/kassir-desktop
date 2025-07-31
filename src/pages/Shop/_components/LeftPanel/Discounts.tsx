@@ -1,17 +1,11 @@
 import { ForEach } from "~/components/ForEach";
 import type { ItemTransform } from "../../_utils/generate-record";
 
-export function Discounts({
-	discs,
-	fix,
-}: {
-	discs: ItemTransform["discs"];
-	fix: number;
-}) {
+export function Discounts({ discs }: { discs: ItemTransform["discs"]; }) {
 	return (
 		<ForEach items={discs}>
 			{(disc) => {
-				let val = Number(disc.value.toFixed(fix));
+				let val = disc.value;
 				return (
 					<div className="grid grid-cols-[1fr_80px_150px_270px] gap-1 ">
 						<div />

@@ -144,7 +144,7 @@ function List({
 									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
 									<TableCell className="text-center">{item.qty}</TableCell>
 									<TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
-									<TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
+									<TableCell className="text-end">{item.grandTotal.toLocaleString("id-ID")}</TableCell>
 								</TableRow>
 							)}
 						</ForEach>

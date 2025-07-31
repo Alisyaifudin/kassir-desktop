@@ -78,8 +78,8 @@ function HistoryComp({
 		handleChangePage(newPage);
 	};
 	return (
-		<div className="flex flex-col gap-2 w-full p-1 overflow-auto h-full">
-			<div className="flex items-center justify-between">
+		<div className="flex flex-col gap-2 w-full p-1 h-full overflow-hidden">
+			<div className="flex items-center justify-between babi">
 				<RadioGroup
 					value={mode}
 					className="flex items-center gap-5"

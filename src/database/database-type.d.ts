@@ -32,6 +32,7 @@ declare namespace DB {
 		pay: number;
 		note: string;
 		method_id: number;
+		fix: number;
 	}
 	interface RecordItem {
 		id: number;

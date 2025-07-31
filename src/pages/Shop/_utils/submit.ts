@@ -74,8 +74,9 @@ export async function submitPayment(
 		methodId: record.method.id,
 		rounding: Number(record.rounding.toFixed(fix)),
 		pay: Number(record.pay.toFixed(fix)),
-		discVal: Number(record.discVal.toFixed(fix)),
+		discVal: Number(record.discVal),
 		discKind: record.discKind,
+		fix,
 	});
 	if (errRecord) {
 		return err(errRecord);
@@ -160,7 +161,7 @@ export async function submitPayment(
 				id,
 				discs.map((d) => ({
 					kind: d.kind,
-					value: Number(d.value.toFixed(fix)),
+					value: d.kind === "number" ? Number(d.value.toFixed(fix)) : d.value,
 				}))
 			)
 		);
