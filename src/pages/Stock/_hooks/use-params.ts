@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router";
 import { z } from "zod";
-import { integer,  } from "~/lib/utils";
+import { integer } from "~/lib/utils";
 
 export function useParams() {
 	const [search, setSearch] = useSearchParams();
@@ -14,28 +14,38 @@ export function useParams() {
 	};
 	const set = {
 		page: (v: number) => {
-			setSearch({
-				page: v.toString(),
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("page", v.toString());
+				return search;
 			});
 		},
 		sortDir: (v: "asc" | "desc") => {
-			setSearch({
-				sortDir: v,
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("sortDir", v);
+				return search;
 			});
 		},
 		sortBy: (v: "barcode" | "name" | "price" | "capital" | "stock") => {
-			setSearch({
-				sortBy: v,
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("sortBy", v);
+				return search;
 			});
 		},
 		query: (v: string) => {
-			setSearch({
-				query: v,
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("query", v);
+				return search;
 			});
 		},
-		limit: (limit: string) => {
-			setSearch({
-				limit,
+		limit: (v: string) => {
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("limit", v);
+				return search;
 			});
 		},
 	};

@@ -23,7 +23,7 @@ export default function Analytics({ db }: { db: Database }) {
 		handleTime(time, setSearch);
 	}, [updateTime]);
 	const handleClickOption = useCallback(
-		(option: "cashflow" | "profit" | "crowd" | "products") =>
+		(option: "cashflow" | "net" | "crowd" | "products") =>
 			handleClickOptionRaw(option, interval, setSearch),
 		[interval]
 	);
@@ -38,8 +38,8 @@ export default function Analytics({ db }: { db: Database }) {
 								<NavLink option="cashflow" onClick={handleClickOption} selectedOption={option}>
 									Arus Kas
 								</NavLink>
-								<NavLink option="profit" onClick={handleClickOption} selectedOption={option}>
-									Keuntungan
+								<NavLink option="net" onClick={handleClickOption} selectedOption={option}>
+									Net
 								</NavLink>
 								<NavLink option="crowd" onClick={handleClickOption} selectedOption={option}>
 									Keramaian
@@ -84,7 +84,7 @@ export default function Analytics({ db }: { db: Database }) {
 }
 
 function handleClickOptionRaw(
-	option: "cashflow" | "profit" | "crowd" | "products",
+	option: "cashflow" | "net" | "crowd" | "products",
 	interval: "daily" | "weekly" | "monthly" | "yearly",
 	setSearch: SetURLSearchParams
 ) {
@@ -96,11 +96,12 @@ function handleClickOptionRaw(
 				search.set("interval", "weekly");
 				break;
 			case "products":
-				if (interval === "yearly") {
-					search.set("interval", "monthly");
-				}
+				// if (interval === "yearly") {
+				// 	search.set("interval", "monthly");
+				// }
+				search.set("interval", "daily");
 				break;
-			case "profit":
+			case "net":
 			case "cashflow":
 				if (interval === "daily") {
 					search.set("interval", "weekly");

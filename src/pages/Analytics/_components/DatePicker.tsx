@@ -26,7 +26,7 @@ export function DatePicker({
 	time: number;
 	setTime: (time: number) => void;
 	handleClickInterval: (val: string) => void;
-	option: "cashflow" | "profit" | "crowd" | "products";
+	option: "cashflow" | "net" | "crowd" | "products";
 }) {
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz).startOfDay();

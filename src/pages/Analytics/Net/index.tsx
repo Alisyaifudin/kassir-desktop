@@ -14,7 +14,7 @@ type Props = {
 	time: number;
 };
 
-export function Profit({
+export function Net({
 	records,
 	interval,
 	start,
@@ -35,7 +35,7 @@ export function Profit({
 				handleClickInterval={handleClickInterval}
 				setTime={handleTime}
 				time={time}
-				option={"profit"}
+				option={"net"}
 				interval={interval}
 			/>
 			<div className="flex flex-col flex-1 py-5">

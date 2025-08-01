@@ -24,7 +24,6 @@ export function useDiscountForm(
 		setItems.discs.kind(itemIndex, index, kind);
 	}, DEBOUNCE_DELAY);
 	const debouncedVal = useDebouncedCallback((index: number, value: number) => {
-		console.log(value);
 		setItems.discs.value(itemIndex, index, value);
 	}, DEBOUNCE_DELAY);
 	const handle = {

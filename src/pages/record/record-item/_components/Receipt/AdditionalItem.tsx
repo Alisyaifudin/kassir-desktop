@@ -3,7 +3,7 @@ import { Summary } from "~/lib/record";
 
 export function AdditionalItem({ additional }: { additional: Summary["additionals"][number] }) {
 	return (
-		<div className="grid grid-cols-[100px_100px]">
+		<div className="grid grid-cols-[100px_120px]">
 			<p>
 				{additional.name} <Show when={additional.kind === "percent"}>{additional.value}%</Show>
 			</p>{" "}

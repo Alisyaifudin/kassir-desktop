@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { useMemo } from "react";
+import { Show } from "~/components/Show";
 import { ProductRecord } from "~/database/product";
 
 type Props = {
@@ -25,13 +26,37 @@ export function SummaryProduct({ products: all, mode, start, end }: Props) {
 		}
 		return products;
 	}, [start, end, mode, all]);
-	return <p className="text-3xl">Produk: {calcSum(products)}</p>;
+	return (
+		<div className="flex flex-col gap-1">
+			<p className="text-3xl">Produk: {calcSum(products)}</p>
+			<Show when={mode === "sell"}>
+				<p className="text-3xl">Untung: Rp{calcProfit(products).toLocaleString("id-ID")}</p>
+			</Show>
+		</div>
+	);
 }
 
 function calcSum(products: ProductRecord[]): number {
 	let val = new Decimal(0);
 	for (const v of products) {
 		val = val.add(v.qty);
+	}
+	return val.toNumber();
+}
+
+function calcProfit(products: ProductRecord[]): number {
+	let val = new Decimal(0);
+	for (const v of products) {
+		let capital = new Decimal(v.capital);
+		if (capital.comparedTo(0) === 0) {
+			if (v.price < 15000) {
+				capital = new Decimal(v.price).times(0.9);
+			} else {
+				capital = new Decimal(v.price).minus(5000);
+			}
+		}
+		const profit = new Decimal(v.price).minus(capital);
+		val = val.add(profit.times(v.qty));
 	}
 	return val.toNumber();
 }

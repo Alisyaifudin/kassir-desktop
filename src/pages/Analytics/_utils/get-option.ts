@@ -4,7 +4,7 @@ import { numeric } from "~/lib/utils";
 
 export function getOption(search: URLSearchParams) {
 	const option = z
-		.enum(["cashflow", "profit", "crowd", "products"])
+		.enum(["cashflow", "net", "crowd", "products"])
 		.catch("cashflow")
 		.parse(search.get("option"));
 	const interval = z

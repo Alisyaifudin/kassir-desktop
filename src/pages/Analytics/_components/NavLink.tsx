@@ -1,6 +1,6 @@
 import { Button } from "~/components/ui/button";
 
-type Option = "cashflow" | "profit" | "crowd" | "products";
+type Option = "cashflow" | "net" | "crowd" | "products";
 
 export function NavLink<T extends Option>({
 	onClick,
@@ -11,7 +11,7 @@ export function NavLink<T extends Option>({
 	onClick: (option: T) => void;
 	option: T;
 	children: string;
-	selectedOption: "cashflow" | "profit" | "crowd" | "products";
+	selectedOption: "cashflow" | "net" | "crowd" | "products";
 }) {
 	return (
 		<Button

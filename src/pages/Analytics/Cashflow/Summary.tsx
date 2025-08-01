@@ -9,7 +9,7 @@ type Props = {
 	start: number;
 	end: number;
 	time: number;
-	option: "profit" | "cashflow" | "crowd";
+	option: "net" | "cashflow" | "crowd";
 };
 
 export function Summary({ records, interval, start, end, option, time }: Props) {
@@ -21,7 +21,7 @@ export function Summary({ records, interval, start, end, option, time }: Props) 
 	});
 	const debtSum = calcSum(debts);
 	switch (option) {
-		case "profit":
+		case "net":
 			return (
 				<div className="flex flex-col text-3xl">
 					<p>Untung Total:</p>

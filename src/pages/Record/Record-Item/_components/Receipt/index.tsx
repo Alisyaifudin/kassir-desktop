@@ -45,17 +45,13 @@ export function Receipt({
 						<ForEach items={items}>{(item) => <ReceiptItem {...item} />}</ForEach>
 						<hr />
 					</Show>
-					<SummaryBody
-						additionals={additionals}
-						itemsLength={items.length}
-						method={method}
-						record={record}
-					/>
+					<SummaryBody additionals={additionals} itemsLength={items.length} record={record} />
 					<Footer
 						totalProductTypes={totalProductTypes}
 						totalQty={totalQty}
 						footers={footers}
 						socials={socials}
+						method={method}
 					/>
 				</div>
 			</div>

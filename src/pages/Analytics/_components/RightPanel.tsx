@@ -3,12 +3,12 @@ import { z } from "zod";
 import { ProductRecord } from "~/database/product";
 import { Product } from "../product";
 import { Cashflow } from "../cashflow";
-import { Profit } from "../profit";
+import { Net } from "../Net";
 import { Crowd } from "../crowd";
 import { RecordTransform } from "~/lib/record";
 
 type Props = {
-	option: "products" | "cashflow" | "profit" | "crowd";
+	option: "products" | "cashflow" | "net" | "crowd";
 	setSearch: SetURLSearchParams;
 	handleTime: (time: number) => void;
 	time: number;
@@ -57,9 +57,9 @@ export function RightPanel({
 					end={end}
 				/>
 			);
-		case "profit":
+		case "net":
 			return (
-				<Profit
+				<Net
 					time={time}
 					handleClickInterval={handleClickInterval}
 					handleTime={handleTime}
