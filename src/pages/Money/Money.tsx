@@ -35,7 +35,7 @@ export default function Page({ db }: { db: Database }) {
 		});
 	};
 	return (
-		<main className="flex flex-col gap-2 w-full max-w-6xl mx-auto flex-1 overflow-auto">
+		<main className="flex flex-col gap-2 w-full max-w-7xl mx-auto flex-1 overflow-hidden">
 			<h1 className="text-4xl font-bold">Catatan Keuangan</h1>
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
@@ -52,7 +52,7 @@ export default function Page({ db }: { db: Database }) {
 			<Async state={state}>
 				{(money) => {
 					return (
-						<Tabs value={kind} onValueChange={setChangeMode} className="overflow-auto flex-1">
+						<Tabs value={kind} onValueChange={setChangeMode} className="overflow-hidden flex-1 pb-12">
 							<TabsList>
 								<TabsTrigger className="text-3xl" value="saving">
 									Simpanan
@@ -73,7 +73,7 @@ export default function Page({ db }: { db: Database }) {
 									revalidate={revalidate}
 								/>
 							</TabsContent>
-							<TabsContent value="debt">
+							<TabsContent value="debt" className="overflow-auto h-full">
 								<TableList
 									money={money}
 									kind="debt"

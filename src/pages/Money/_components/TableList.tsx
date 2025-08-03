@@ -33,9 +33,9 @@ export const TableList = memo(function ({
 				<TableRow>
 					<TableHead className="w-[100px]">No</TableHead>
 					<TableHead className="w-[120px] text-center">Hari</TableHead>
-					<TableHead className="w-[200px] text-center">Tanggal</TableHead>
+					<TableHead className="w-[300px] text-center">Tanggal</TableHead>
 					<TableHead className="w-[130px] text-center">Waktu</TableHead>
-					{kind !== "diff" ? <TableHead className="text-right">Selisih</TableHead> : null}
+					{kind === "debt" ? <TableHead className="text-right">Selisih</TableHead> : null}
 					<TableHead className="text-right">Nilai</TableHead>
 					<TableHead className="text-right w-[100px]"></TableHead>
 				</TableRow>
@@ -47,7 +47,7 @@ export const TableList = memo(function ({
 						<TableCell className="text-center">{getDayName(m.timestamp)}</TableCell>
 						<TableCell className="text-center">{formatDate(m.timestamp, "long")}</TableCell>
 						<TableCell className="text-center">{formatTime(m.timestamp, "long")}</TableCell>
-						{kind !== "diff" ? (
+						{kind === "debt" ? (
 							<TableCell className="text-right">
 								{i + 1 < vals.length
 									? `Rp${new Decimal(m.value)
