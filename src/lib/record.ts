@@ -204,6 +204,8 @@ function calcTotalAdditional(
 
 // T = n1*c1 + n2*c2 + ...
 // c ~ p*k
+// p = total each item / n
+
 // T = k(p1*n1 + p2*n2 + ...)
 // k = T/totalFromItems
 export function calcCapital(
@@ -213,6 +215,7 @@ export function calcCapital(
 	fix: number
 ): number {
 	const k = new Decimal(grandTotal).div(totalFromItems);
-	let capital = k.times(item.price);
+	const p = new Decimal(item.grandTotal).div(item.qty);
+	const capital = k.times(p);
 	return Number(capital.toFixed(fix));
 }

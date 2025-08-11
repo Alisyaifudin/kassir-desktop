@@ -72,10 +72,6 @@ export function generateRecordSummary({
 		fix
 	);
 	const grandTotal = new Decimal(totalAfterAdditional.plus(record.rounding).toFixed(fix));
-	// const totalQty =
-	// 	itemTransforms.length === 0
-	// 		? 0
-	// 		: itemTransforms.map((i) => i.qty).reduce((prev, curr) => prev + curr);
 	for (const item of itemTransforms) {
 		if (mode === "buy") {
 			item.capital = calcCapital(item, totalFromItems, grandTotal.toNumber(), fix); // now capital must exist
@@ -222,6 +218,7 @@ export function calcCapital(
 	fix: number
 ): number {
 	const k = new Decimal(grandTotal).div(totalFromItems);
-	let capital = k.times(item.price);
+	const p = new Decimal(item.grandTotal).div(item.qty);
+	const capital = k.times(p);
 	return Number(capital.toFixed(fix));
 }
