@@ -60,6 +60,14 @@ function setName(context: Context) {
 		context.setState(state);
 	};
 }
+// function setName(context: Context) {
+// 	return (index: number, name: string) => {
+// 		const state = produce(context.state, (state) => {
+// 			state.items[index].name = name;
+// 		});
+// 		context.setState(state);
+// 	};
+// }
 
 function setBarcode(context: Context) {
 	return (index: number, barcode: string) => {

@@ -110,7 +110,7 @@ export const Detail = memo(function ({
 				pay={record.pay}
 				rounding={record.rounding}
 				totalAfterAdditional={record.totalAfterAdditional}
-				totalAfterDiscount={record.totalDiscount}
+				totalAfterDiscount={record.totalAfterDiscount}
 				totalDiscount={record.totalDiscount}
 				totalFromItems={record.totalFromItems}
 			/>

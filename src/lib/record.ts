@@ -202,16 +202,17 @@ function calcTotalAdditional(
 	};
 }
 
+// T = n1*c1 + n2*c2 + ...
+// c ~ p*k
+// T = k(p1*n1 + p2*n2 + ...)
+// k = T/totalFromItems
 export function calcCapital(
 	item: ItemTransform,
 	totalFromItems: number,
 	grandTotal: number,
-	totalQty: number,
 	fix: number
 ): number {
-	let delta = new Decimal(grandTotal).minus(totalFromItems);
-	delta = delta.div(totalQty);
-	let capital = new Decimal(item.grandTotal).div(item.qty);
-	capital = capital.plus(delta);
+	const k = new Decimal(grandTotal).div(totalFromItems);
+	let capital = k.times(item.price);
 	return Number(capital.toFixed(fix));
 }

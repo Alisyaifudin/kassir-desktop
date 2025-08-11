@@ -181,12 +181,12 @@ function update(db: Database) {
 			const { grandTotal, totalFromItems } = summary.record;
 			let capitals: number[] = [];
 			if (mode === "buy") {
-				const totalQty =
-					items.length === 0
-						? 0
-						: items.map((item) => item.qty).reduce((prev, curr) => prev + curr);
+				// const totalQty =
+				// 	items.length === 0
+				// 		? 0
+				// 		: items.map((item) => item.qty).reduce((prev, curr) => prev + curr);
 				capitals = summary.items.map((item) =>
-					calcCapital(item, totalFromItems, grandTotal, totalQty, record.fix)
+					calcCapital(item, totalFromItems, grandTotal, record.fix)
 				);
 			}
 			const [errMsg] = await tryResult({

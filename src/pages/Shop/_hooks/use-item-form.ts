@@ -23,9 +23,18 @@ export function useItemForm(
 		}
 	}, [item.qty]);
 	const productId = item.productId;
-	const debounceName = useDebouncedCallback((v: string) => setItems.name(index, v), DEBOUNCE_DELAY);
-	const debounceBarcode = useDebouncedCallback((v: string) => setItems.barcode(index, v), DEBOUNCE_DELAY);
-	const debouncePrice = useDebouncedCallback((v: number) => setItems.price(index, v), DEBOUNCE_DELAY);
+	const debounceName = useDebouncedCallback(
+		(v: string) => setItems.name(index, v),
+		DEBOUNCE_DELAY
+	);
+	const debounceBarcode = useDebouncedCallback(
+		(v: string) => setItems.barcode(index, v),
+		DEBOUNCE_DELAY
+	);
+	const debouncePrice = useDebouncedCallback(
+		(v: number) => setItems.price(index, v),
+		DEBOUNCE_DELAY
+	);
 	const debounceQty = useDebouncedCallback((v: number) => setItems.qty(index, v), DEBOUNCE_DELAY);
 	const [_, setItems] = useItems(context);
 	const handleChange = {
@@ -64,7 +73,7 @@ export function useItemForm(
 			debounceQty(val);
 		},
 		del: () => {
-			setItems.del(index)
+			setItems.del(index);
 		},
 	};
 	return { handleChange, formItem };
