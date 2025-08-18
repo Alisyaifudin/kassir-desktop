@@ -19,7 +19,11 @@ export function useNewItem(
 	const handleSubmitAbs = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
-		const parsed = numeric.safeParse(formData.get("value"));
+		let val = formData.get("value") as string | null;
+		if (val === null) return;
+		val = val.replaceAll(".", "");
+		val = val.replace(",", ".");
+		const parsed = numeric.safeParse(val);
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().formErrors;
 			setError(errs.join(";"));

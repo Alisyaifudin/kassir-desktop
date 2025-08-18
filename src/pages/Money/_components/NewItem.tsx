@@ -9,13 +9,13 @@ import {
 import { memo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { TextError } from "~/components/TextError";
-import { Input } from "~/components/ui/input";
 import { SetURLSearchParams } from "react-router";
 import { SelectType } from "./SelectType";
 import { useNewItem } from "../_hooks/use-new-item";
 import { Database } from "~/database";
+import { NumberField } from "~/components/NumberField";
 
-export const NewBtn = memo(function({
+export const NewBtn = memo(function ({
 	setSearch,
 	kind,
 	revalidate,
@@ -39,14 +39,18 @@ export const NewBtn = memo(function({
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
 			<Button asChild>
-				<DialogTrigger>Tambah</DialogTrigger>
+				<DialogTrigger>Catatan Baru</DialogTrigger>
 			</Button>
 			<DialogContent className="max-w-xl">
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Tambah Catatan Keuangan</DialogTitle>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 						<div className="flex items-center gap-2">
-							<Input name="value" placeholder="Nilai" aria-autocomplete="list" type="number" />
+							<NumberField
+								name="value"
+								placeholder="Nilai"
+								aria-autocomplete="list"
+							/>
 							{kind === "diff" ? null : <SelectType type={type} onChange={setType} />}
 						</div>
 						{error ? <TextError>{error}</TextError> : null}
@@ -61,5 +65,4 @@ export const NewBtn = memo(function({
 			</DialogContent>
 		</Dialog>
 	);
-}
-)
+});
