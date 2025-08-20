@@ -21,7 +21,6 @@ type Props = {
 export function ItemComponent({ index, mode, item, context, localContext }: Props) {
 	const { handleChange, formItem } = useItemForm(mode, index, item, localContext);
 	const { name, price, barcode, qty } = formItem;
-	console.log(name, barcode);
 	const [fix] = useFix(localContext);
 	const productId = item.productId;
 	return (
@@ -46,6 +45,18 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 				/>
 			</div>
 			<div className="flex flex-col">
+				<Either
+					if={productId === undefined}
+					then={
+						<input
+							type="text"
+							value={name}
+							className="px-0.5 outline"
+							onChange={(e) => handleChange.name(e)}
+						></input>
+					}
+					else={<p>{name}</p>}
+				/>
 				<div className="grid gap-1 grid-cols-[1fr_150px_230px_70px_150px_50px]">
 					<Either
 						if={productId === undefined}
@@ -93,19 +104,6 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 						</button>
 					</div>
 				</div>
-				<Either
-					if={productId === undefined}
-					then={
-						<input
-							type="text"
-							value={name}
-							className="px-0.5 outline"
-							onChange={(e) => handleChange.name(e)}
-						></input>
-					}
-					else={<p>{name}</p>}
-				/>
-
 				<Discounts discs={item.discs} />
 			</div>
 		</div>

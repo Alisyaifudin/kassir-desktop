@@ -6,6 +6,8 @@ import { useUser } from "~/hooks/use-user";
 import type { RecordTransform } from "~/lib/record";
 import { useSearchParams } from "react-router";
 import { getParam, setParam } from "../_utils/params";
+import { Label } from "~/components/ui/label";
+import { useState } from "react";
 
 export function RecordSide({
 	records,
@@ -18,11 +20,30 @@ export function RecordSide({
 }) {
 	const { ref, handleScroll } = useScroll();
 	const [search, setSearch] = useSearchParams();
+	const [order, setOrder] = useState<"time" | "total">("time");
 	const mode = getParam(search).mode;
 	const setMode = setParam(setSearch).mode;
 	const user = useUser();
+	if (order === "total") {
+		records.sort((a, b) => b.grandTotal - a.grandTotal);
+	} else {
+		records.sort((a, b) => b.timestamp - a.timestamp);
+	}
 	return (
 		<div className="flex flex-col gap-1 overflow-hidden">
+			<div className="flex items-center gap-1">
+				<Label>Urutkan</Label>
+				<select
+					value={order}
+					onChange={(e) => {
+						setOrder(e.currentTarget.value as any);
+					}}
+					className="text-2xl p-1 border border-border rounded-md"
+				>
+					<option value="time">Waktu</option>
+					<option value="total">Total</option>
+				</select>
+			</div>
 			<Tabs
 				onValueChange={(v) => {
 					if (v !== "sell" && v !== "buy") {

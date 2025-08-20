@@ -29,16 +29,19 @@ export function LeftPanel({
 }) {
 	const [fix] = useFix(localContext);
 	const { grandTotal, totalAfterDiscount } = summary.record;
+	const items = summary.items;
+	items.reverse();
+	const n = items.length;
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
 			<div className="outline flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
 				<Tab mode={mode} setMode={setMode} user={user} />
 				<Header />
 				<div className="flex text-3xl flex-col overflow-y-auto">
-					<ForEach items={summary.items} extractKey={(item, i) => `${i}-${item.name}`}>
+					<ForEach items={items} extractKey={(item, i) => `${n-i!-1}-${item.name}`}>
 						{(item, i) => (
 							<ItemComponent
-								index={i}
+								index={n-i-1}
 								mode={mode}
 								item={item}
 								context={context}
