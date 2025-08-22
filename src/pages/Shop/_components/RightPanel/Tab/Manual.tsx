@@ -29,6 +29,16 @@ export function Manual({
 			<Field label="Nama" error={error.name}>
 				<Input type="text" required name="name" aria-autocomplete="list" />
 			</Field>
+			<div className="flex gap-1 items-center">
+				<Show when={mode === "sell"}>
+					<Field label="Kuantitas">
+						<Input type="number" defaultValue={1} required name="qty" aria-autocomplete="list" />
+					</Field>
+				</Show>
+				<Field label="Stok" error={error.qty}>
+					<Input type="number" defaultValue={1} required name="stock" aria-autocomplete="list" />
+				</Field>
+			</div>
 			<Field label="Harga" error={error.price}>
 				<div className="flex items-center gap-1">
 					<p className="text-2xl">Rp</p>
@@ -41,16 +51,6 @@ export function Manual({
 					/>
 				</div>
 			</Field>
-			<div className="flex gap-1 items-center">
-				<Show when={mode === "sell"}>
-					<Field label="Kuantitas">
-						<Input type="number" defaultValue={1} required name="qty" aria-autocomplete="list" />
-					</Field>
-				</Show>
-				<Field label="Stok" error={error.qty}>
-					<Input type="number" defaultValue={1} required name="stock" aria-autocomplete="list" />
-				</Field>
-			</div>
 			<TextError>{error.qty}</TextError>
 			<Button>Tambahkan</Button>
 		</form>
