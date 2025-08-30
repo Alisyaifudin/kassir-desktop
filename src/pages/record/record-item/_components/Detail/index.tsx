@@ -34,6 +34,7 @@ export const Detail = memo(function ({
 	revalidate: () => void;
 	context: { db: Database };
 }) {
+	const customer = {name: record.customer_name, phone: record.customer_phone};
 	return (
 		<div className="flex flex-col gap-2 text-3xl">
 			<Header
@@ -114,6 +115,11 @@ export const Detail = memo(function ({
 				totalDiscount={record.totalDiscount}
 				totalFromItems={record.totalFromItems}
 			/>
+			<Show when={customer.name !== "" && customer.phone !== ""}>
+				<p>
+					Pelanggan: {customer.name} ({customer.phone})
+				</p>
+			</Show>
 			<EditDialog
 				credit={record.credit}
 				mode={record.mode}
