@@ -9,9 +9,9 @@ import { genImage } from "./image";
 import { genSocial } from "./social";
 import { genMoney } from "./money";
 import { genMethod } from "./method";
+import { genCustomer } from "./customer";
 
 export function generateDB(db: DatabaseTauri) {
-	
 	return {
 		product: new ProductTable(db),
 		record: genRecord(db),
@@ -23,6 +23,7 @@ export function generateDB(db: DatabaseTauri) {
 		social: genSocial(db),
 		money: genMoney(db),
 		method: genMethod(db),
+		customer: genCustomer(db),
 		exec: db.execute,
 	};
 }

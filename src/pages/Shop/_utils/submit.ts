@@ -10,7 +10,12 @@ export async function submitPayment(
 	fix: number,
 	record: Summary["record"],
 	items: Summary["items"],
-	additionals: Summary["additionals"]
+	additionals: Summary["additionals"],
+	customer: {
+		name: string;
+		phone: string;
+		isNew: boolean;
+	}
 ): Promise<
 	Result<
 		| "Tidak ada barang/biaya tambahan ._."
@@ -67,6 +72,10 @@ export async function submitPayment(
 	if (check) {
 		return err("Ada barang dengan barcode yang sama");
 	}
+	if (customer.isNew && customer.name.trim() !== "" && customer.phone.trim() !== "") {
+		const errCustomer = await db.customer.add.one(customer.phone.trim(), customer.name.trim());
+		if (errCustomer) return err(errCustomer);
+	}
 	const errRecord = await db.record.add.one(timestamp, mode, {
 		cashier: record.cashier,
 		credit,
@@ -77,6 +86,8 @@ export async function submitPayment(
 		discVal: Number(record.discVal),
 		discKind: record.discKind,
 		fix,
+		customerName: customer.name,
+		customerPhone: customer.phone,
 	});
 	if (errRecord) {
 		return err(errRecord);

@@ -14,6 +14,7 @@ import { useFix } from "./use-fix";
 import { Context } from "../Shop";
 import { log } from "~/lib/utils";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { useCustomer } from "./use-customer";
 
 export function useSummaryForm(
 	mode: DB.Mode,
@@ -26,6 +27,7 @@ export function useSummaryForm(
 	const [rounding, setRounding] = useRounding(localContext);
 	const [fix] = useFix(localContext);
 	const [disc, setDisc] = useDisc(localContext);
+	const [customer] = useCustomer(localContext);
 	const [data, setData] = useState({
 		pay: pay === 0 ? "" : pay.toString(),
 		rounding: rounding === 0 ? "" : rounding.toString(),
@@ -87,7 +89,7 @@ export function useSummaryForm(
 	const { record, items, additionals } = summary;
 	const navigate = useNavigate();
 	const { loading, action } = useAction("", async (credit: 0 | 1) =>
-		submitPayment(db, mode, credit, fix, record, items, additionals)
+		submitPayment(db, mode, credit, fix, record, items, additionals, customer)
 	);
 	const handleSubmit = (credit: 0 | 1) => async (e: React.FormEvent<HTMLFormElement>) => {
 		if (

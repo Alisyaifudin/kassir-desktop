@@ -11,6 +11,7 @@ import { Header } from "./Header";
 import { Subtotal } from "./Subtotal";
 import { LocalContext } from "../../_hooks/use-local-state";
 import { Context } from "../../Shop";
+import { useCustomer } from "../../_hooks/use-customer";
 
 export function LeftPanel({
 	mode,
@@ -28,6 +29,7 @@ export function LeftPanel({
 	context: Context;
 }) {
 	const [fix] = useFix(localContext);
+	const [customer] = useCustomer(localContext);
 	const { grandTotal, totalAfterDiscount } = summary.record;
 	const items = summary.items;
 	items.reverse();
@@ -38,10 +40,10 @@ export function LeftPanel({
 				<Tab mode={mode} setMode={setMode} user={user} />
 				<Header />
 				<div className="flex text-3xl flex-col overflow-y-auto">
-					<ForEach items={items} extractKey={(item, i) => `${n-i!-1}-${item.name}`}>
+					<ForEach items={items} extractKey={(item, i) => `${n - i! - 1}-${item.name}`}>
 						{(item, i) => (
 							<ItemComponent
-								index={n-i-1}
+								index={n - i - 1}
 								mode={mode}
 								item={item}
 								context={context}
@@ -57,6 +59,9 @@ export function LeftPanel({
 					</ForEach>
 				</div>
 			</div>
+			<Show when={customer.name.trim() !== "" && customer.phone.trim() !== ""}>
+				<p className="text-3xl">Pelanggan: {customer.name}</p>
+			</Show>
 			<GrandTotal fix={fix} grandTotal={grandTotal} />
 		</div>
 	);

@@ -45,6 +45,11 @@ export const emptyState: State = {
 	items: [],
 	additionals: [],
 	methods: [defaultMethod],
+	customer: {
+		name: "",
+		phone: "",
+		isNew: false,
+	},
 };
 
 const keyItem = {

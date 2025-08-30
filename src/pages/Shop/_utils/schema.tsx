@@ -126,6 +126,12 @@ export const stateSchema = z.object({
 	items: itemSchema.array(),
 	additionals: additionalSchema.array(),
 	fix: z.number().int(),
+	customer: z
+		.object({
+			phone: z.string(),
+			name: z.string(),
+			isNew: z.boolean(),
+		})
 });
 
 export type State = z.infer<typeof stateSchema>;

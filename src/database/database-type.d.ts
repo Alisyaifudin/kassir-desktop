@@ -33,6 +33,8 @@ declare namespace DB {
 		note: string;
 		method_id: number;
 		fix: number;
+		customer_name: string;
+		customer_phone: string;
 	}
 	interface RecordItem {
 		id: number;
@@ -77,5 +79,9 @@ declare namespace DB {
 		timestamp: number;
 		value: number;
 		kind: "saving" | "debt" | "diff";
+	}
+	interface Customer {
+		phone: string;
+		name: string;
 	}
 }

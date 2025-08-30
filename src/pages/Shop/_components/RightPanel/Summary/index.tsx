@@ -10,17 +10,18 @@ import { Method } from "./Method";
 import { Summary as SummaryRecord } from "~/pages/shop/_utils/generate-record";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
 import { Context } from "~/pages/shop/Shop";
+import { Customer } from "./Customer";
 
 export function Summary({
 	mode,
 	localContext,
 	summary,
-	context
+	context,
 }: {
 	mode: DB.Mode;
 	localContext: LocalContext;
 	summary: SummaryRecord;
-	context: Context
+	context: Context;
 }) {
 	const [fix] = useFix(localContext);
 	const { data, handleChange, handleSubmit, loading, clear } = useSummaryForm(
@@ -38,6 +39,7 @@ export function Summary({
 						<RefreshCcw />
 					</Button>
 					<Method context={localContext} />
+					<Customer context={localContext} />
 					<Note context={localContext} />
 				</div>
 			</div>
@@ -45,7 +47,12 @@ export function Summary({
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Bayar</span>
 					:
-					<Input type="number" value={data.pay} onChange={handleChange.pay} aria-autocomplete="list" />
+					<Input
+						type="number"
+						value={data.pay}
+						onChange={handleChange.pay}
+						aria-autocomplete="list"
+					/>
 				</label>
 				<div className="flex gap-2">
 					<label className="grid grid-cols-[160px_10px_1fr] items-center flex-1 text-3xl">

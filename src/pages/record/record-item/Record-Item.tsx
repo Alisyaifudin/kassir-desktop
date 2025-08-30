@@ -58,8 +58,8 @@ const Wrapper = memo(function ({
 			</div>
 			<Tabs value={tab} onValueChange={(val) => setTab(val)}>
 				<TabsList>
-					<TabsTrigger value="receipt">Struk</TabsTrigger>
-					<TabsTrigger value="detail">Detail</TabsTrigger>
+					<TabsTrigger className="text-5xl" value="receipt">Struk</TabsTrigger>
+					<TabsTrigger className="text-5xl"value="detail">Detail</TabsTrigger>
 				</TabsList>
 				<TabsContent value="receipt">
 					<Receipt data={data} profile={profile} socials={socials} />

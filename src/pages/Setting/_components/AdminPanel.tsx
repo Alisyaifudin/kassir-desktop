@@ -9,6 +9,7 @@ export function AdminPanel() {
 			<NavLink path="/setting/cashier">Kasir</NavLink>
 			<NavLink path="/setting/profile">Profil</NavLink>
 			<NavLink path="/setting/method">Metode</NavLink>
+			<NavLink path="/setting/customer">Pelanggan</NavLink>
 			<NavLink path="/setting/log">Log</NavLink>
 		</ol>
 	);
