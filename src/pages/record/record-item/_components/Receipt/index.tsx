@@ -52,7 +52,6 @@ export function Receipt({
 						footers={footers}
 						socials={socials}
 						method={method}
-						customer={{name: record.customer_name, phone: record.customer_phone}}
 					/>
 				</div>
 			</div>

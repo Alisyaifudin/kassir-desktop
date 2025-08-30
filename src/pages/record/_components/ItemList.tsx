@@ -144,20 +144,13 @@ function List({
 									<TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
 									<TableCell className="text-center">{item.qty}</TableCell>
 									<TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
-									<TableCell className="text-end">
-										{item.grandTotal.toLocaleString("id-ID")}
-									</TableCell>
+									<TableCell className="text-end">{item.grandTotal.toLocaleString("id-ID")}</TableCell>
 								</TableRow>
 							)}
 						</ForEach>
 					</TableBody>
 				</Table>
 				<Footer additionals={additionals} method={method} record={record} />
-				<Show when={record.customer_phone !== "" && record.customer_name !== ""}>
-					<p>
-						Pelanggan: {record.customer_name} ({record.customer_phone})
-					</p>
-				</Show>
 				<Show when={record.note !== ""}>
 					<div>
 						<p>Catatan:</p>
