@@ -12,6 +12,8 @@ import { Subtotal } from "./Subtotal";
 import { LocalContext } from "../../_hooks/use-local-state";
 import { Context } from "../../Shop";
 import { useCustomer } from "../../_hooks/use-customer";
+import { X } from "lucide-react";
+import { Button } from "~/components/ui/button";
 
 export function LeftPanel({
 	mode,
@@ -29,11 +31,14 @@ export function LeftPanel({
 	context: Context;
 }) {
 	const [fix] = useFix(localContext);
-	const [customer] = useCustomer(localContext);
 	const { grandTotal, totalAfterDiscount } = summary.record;
 	const items = summary.items;
 	items.reverse();
 	const n = items.length;
+	const [customer, setCustomer] = useCustomer(localContext);
+	function resetCustomer() {
+		setCustomer({ name: "", phone: "", isNew: false });
+	}
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
 			<div className="outline flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
@@ -60,7 +65,17 @@ export function LeftPanel({
 				</div>
 			</div>
 			<Show when={customer.name.trim() !== "" && customer.phone.trim() !== ""}>
-				<p className="text-3xl">Pelanggan: {customer.name}</p>
+				<div className="flex items-center gap-2">
+					<p className="text-3xl">Pelanggan: {customer.name}</p>
+					<Button
+						variant="destructive"
+						size="icon"
+						className="rounded-full"
+						onClick={resetCustomer}
+					>
+						<X />
+					</Button>
+				</div>
 			</Show>
 			<GrandTotal fix={fix} grandTotal={grandTotal} />
 		</div>
