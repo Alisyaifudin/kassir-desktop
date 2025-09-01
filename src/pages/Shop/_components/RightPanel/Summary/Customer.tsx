@@ -11,7 +11,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useCustomer } from "~/pages/Shop/_hooks/use-customer";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -83,7 +83,11 @@ function NewCustomer({ context, customers }: { context: LocalContext; customers:
 	const [name, setName] = useState(customer.isNew ? customer.name : "");
 	const [phone, setPhone] = useState(customer.isNew ? customer.phone : "");
 	const [error, setError] = useState("");
-
+	const ref = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		if (ref.current === null) return;
+		ref.current.focus();
+	}, []);
 	const debouncedPhone = useDebouncedCallback(
 		(phone: string) =>
 			setCustomer({
@@ -120,9 +124,15 @@ function NewCustomer({ context, customers }: { context: LocalContext; customers:
 	return (
 		<div className="grid grid-cols-[100px_1fr] items-center gap-2">
 			<Label htmlFor="customer-name">Nama</Label>
-			<Input value={name} onChange={handleChangeName} id="customer-name" />
+			<Input
+				aria-autocomplete="list"
+				ref={ref}
+				value={name}
+				onChange={handleChangeName}
+				id="customer-name"
+			/>
 			<Label htmlFor="customer-hp">HP</Label>
-			<Input value={phone} onChange={handleChangePhone} id="customer-hp" />
+			<Input aria-autocomplete="list" value={phone} onChange={handleChangePhone} id="customer-hp" />
 			<Show when={error !== ""}>
 				<p className="col-span-2 text-red-500 text-3xl">{error}</p>
 			</Show>
@@ -139,6 +149,11 @@ function AutoCustomer({
 }) {
 	const [customer, setCustomer] = useCustomer(context);
 	const [query, setQuery] = useState("");
+	const ref = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		if (ref.current === null) return;
+		ref.current.focus();
+	}, []);
 	let customers: DB.Customer[] = [];
 	if (query.trim() !== "") {
 		const q = query.toLowerCase().trim();
@@ -158,7 +173,9 @@ function AutoCustomer({
 	return (
 		<div className="flex flex-col gap-2 overflow-hidden">
 			<Input
+				ref={ref}
 				placeholder="Nama atau hp"
+				aria-autocomplete="list"
 				value={query}
 				onChange={(e) => setQuery(e.currentTarget.value)}
 				type="search"
