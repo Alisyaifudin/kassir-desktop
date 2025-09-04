@@ -84,7 +84,7 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 			<label className="flex flex-col">
 				<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
 					<span className="text-3xl">Catatan</span>
-					<Textarea className="min-h-[300px]" name="note" defaultValue={product.note} />
+					<Textarea className="min-h-[200px]" name="note" defaultValue={product.note} />
 				</div>
 				{error?.note === "" ? null : (
 					<div className="flex gap-2">
