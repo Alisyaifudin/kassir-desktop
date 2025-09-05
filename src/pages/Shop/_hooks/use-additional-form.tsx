@@ -6,15 +6,26 @@ import { LocalContext } from "./use-local-state";
 import { AdditionalTransfrom } from "../_utils/generate-record";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 
-export function useAdditionalForm(index: number, initAdd: AdditionalTransfrom, context: LocalContext) {
+export function useAdditionalForm(
+	index: number,
+	initAdd: AdditionalTransfrom,
+	context: LocalContext
+) {
 	const [additional, setAdditional] = useState({
 		kind: initAdd.kind,
 		value: initAdd.value.toString(),
 		name: initAdd.name,
+		saved: initAdd.saved,
 	});
 	const [_, setAdditionals] = useAdditional(context);
-	const debounceName = useDebouncedCallback((v: string) => setAdditionals.name(index, v), DEBOUNCE_DELAY);
-	const debounceValue = useDebouncedCallback((v: number) => setAdditionals.value(index, v), DEBOUNCE_DELAY);
+	const debounceName = useDebouncedCallback(
+		(v: string) => setAdditionals.name(index, v),
+		DEBOUNCE_DELAY
+	);
+	const debounceValue = useDebouncedCallback(
+		(v: number) => setAdditionals.value(index, v),
+		DEBOUNCE_DELAY
+	);
 	const debounceKind = useDebouncedCallback(
 		(v: DB.ValueKind) => setAdditionals.kind(index, v),
 		DEBOUNCE_DELAY
@@ -25,6 +36,11 @@ export function useAdditionalForm(index: number, initAdd: AdditionalTransfrom, c
 			const name = e.currentTarget.value.trimStart();
 			setAdditional({ ...additional, name });
 			debounceName(name);
+		},
+		changeSaved: (e: React.ChangeEvent<HTMLInputElement>) => {
+			const check = e.currentTarget.checked;
+			setAdditional({ ...additional, saved: check });
+			setAdditionals.saved(index, check);
 		},
 		changeKind: (e: React.ChangeEvent<HTMLSelectElement>) => {
 			const kind = z.enum(["percent", "number"]).catch("percent").parse(e.currentTarget.value);
@@ -39,7 +55,7 @@ export function useAdditionalForm(index: number, initAdd: AdditionalTransfrom, c
 		changeValue: (e: React.ChangeEvent<HTMLInputElement>) => {
 			const str = e.currentTarget.value;
 			const val = Number(str);
-			if (isNaN(val) || val < 0) {
+			if (isNaN(val)) {
 				return;
 			}
 			setAdditional({ ...additional, value: str });

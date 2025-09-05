@@ -9,23 +9,30 @@ import { LocalContext } from "../../_hooks/use-local-state";
 export function AdditionalItem({
 	index,
 	additional: initAdd,
-	context
+	context,
 }: {
 	index: number;
 	additional: AdditionalTransfrom;
-	context: LocalContext
+	context: LocalContext;
 }) {
 	const { handle, additional } = useAdditionalForm(index, initAdd, context);
 	const [fix] = useFix(context);
 	return (
 		<div
 			className={cn(
-				"grid gap-1 text-3xl self-end",
+				"grid gap-1 text-3xl self-end items-center",
 				additional.kind === "percent"
-					? "grid-cols-[200px_70px_110px_200px_50px]"
-					: "grid-cols-[275px_110px_35px_160px_50px]"
+					? "grid-cols-[30px_200px_70px_110px_200px_50px]"
+					: "grid-cols-[30px_275px_110px_35px_160px_50px]"
 			)}
 		>
+			<input
+				type="checkbox"
+				name="saved"
+				className="w-7 h-7"
+				checked={additional.saved}
+				onChange={handle.changeSaved}
+			/>
 			<input type="text" value={additional.name} onChange={handle.changeName} />
 			<Show when={additional.kind === "number"}>
 				<select value={additional.kind} className="w-fit" onChange={handle.changeKind}>

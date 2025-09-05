@@ -1,24 +1,19 @@
 import MiniSearch, { SearchOptions, MatchInfo } from "minisearch";
 import { useMemo } from "react";
 
-export type ProductResult = Pick<
-	DB.Product,
-	"barcode" | "name" | "price" | "capital" | "stock" | "id" | "stock_back"
->;
-
 
 export type MiniSearchProduct = {
 	terms: string[];
 	queryTerms: string[];
 	score: number;
 	match: MatchInfo;
-} & ProductResult;
+} & DB.AdditionalItem;
 
-export const useProductSearch = (products: DB.Product[]) => {
+export const useAdditionalSearch = (products: DB.AdditionalItem[]) => {
 	const miniSearch = useMemo(() => {
-		const instance = new MiniSearch<DB.Product>({
-			fields: ["name", "barcode"],
-			storeFields: ["id", "name", "barcode", "price", "capital", "stock", "stock_back"],
+		const instance = new MiniSearch<DB.AdditionalItem>({
+			fields: ["name"],
+			storeFields: ["id", "name", "value", "kind"],
 			idField: "id",
 			searchOptions: {
 				tokenize: (query: string) => query.split(/[\s-&%#*.]+/),

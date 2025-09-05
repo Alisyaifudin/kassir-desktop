@@ -10,6 +10,7 @@ export function useAdditional(context: LocalContext) {
 		name: setName(context),
 		kind: setKind(context),
 		value: setValue(context),
+		saved: setSaved(context),
 	};
 	return [additionals, setAdditionals] as const;
 }
@@ -60,10 +61,15 @@ function setValue(context: LocalContext) {
 			if (state.additionals[index].kind === "percent" && val > 100) {
 				val = 100;
 			}
-			if (val < 0) {
-				val = 0;
-			}
 			state.additionals[index].value = val;
+		});
+		context.setState(state);
+	};
+}
+function setSaved(context: LocalContext) {
+	return (index: number, check: boolean) => {
+		const state = produce(context.state, (state) => {
+			state.additionals[index].saved = check;
 		});
 		context.setState(state);
 	};

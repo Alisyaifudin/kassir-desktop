@@ -54,7 +54,7 @@ export function Summary({
 						aria-autocomplete="list"
 					/>
 				</label>
-				<div className="flex gap-2">
+				{/* <div className="flex gap-2">
 					<label className="grid grid-cols-[160px_10px_1fr] items-center flex-1 text-3xl">
 						<span className="text-3xl">Diskon</span>
 						:
@@ -74,7 +74,7 @@ export function Summary({
 						<option value="number">Angka</option>
 						<option value="percent">Persen</option>
 					</select>
-				</div>
+				</div> */}
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Pembulatan</span>
 					:

@@ -4,7 +4,7 @@ import { Protect } from "~/components/Protect.tsx";
 import { useUser } from "~/hooks/use-user.ts";
 import { useDB } from "~/hooks/use-db.ts";
 
-const Page = lazy(() => import("./New-Item.tsx"));
+const Page = lazy(() => import("./New-Product.tsx"));
 
 export const route: RouteObject = {
 	Component: () => {
@@ -16,5 +16,5 @@ export const route: RouteObject = {
 			</Protect>
 		);
 	},
-	path: "new",
+	path: "product/new",
 };

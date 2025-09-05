@@ -9,30 +9,27 @@ import {
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
 import { useNavigate } from "react-router";
-import { ProductResult } from "~/hooks/useProductSearch";
 import { useInterval } from "../_hooks/use-interval";
 
 type Props = {
-	products: ProductResult[];
+	products: DB.AdditionalItem[];
 };
 
-export function ProductList({ products }: Props) {
+export function AdditionalList({ products }: Props) {
 	const { start, end } = useInterval(products.length);
 	const navigate = useNavigate();
 	const handleClick = (id: number) => () => {
 		const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-		navigate({ pathname: `product/${id}`, search: `?url_back=${backURL}` });
+		navigate({ pathname: `additional/${id}`, search: `?url_back=${backURL}` });
 	};
 	return (
 		<TableScrollable className="text-3xl">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[50px]">No</TableHead>
-					<TableHead className="w-[250px]">Barcode</TableHead>
 					<TableHead>Nama</TableHead>
-					<TableHead className="text-right w-[150px]">Harga</TableHead>
-					<TableHead className="text-right w-[150px]">Modal</TableHead>
-					<TableHead className="text-right w-[100px]">Stok</TableHead>
+					<TableHead className="text-right w-[150px]">Jenis</TableHead>
+					<TableHead className="text-right w-[150px]">Nilai</TableHead>
 					<TableHead className="w-[50px]"></TableHead>
 				</TableRow>
 			</TableHeader>
@@ -40,11 +37,9 @@ export function ProductList({ products }: Props) {
 				{products.slice(start, end).map((product, i) => (
 					<TableRow key={i}>
 						<TableCell>{i + 1 + start}</TableCell>
-						<TableCell>{product.barcode ?? ""}</TableCell>
 						<TableCell>{product.name}</TableCell>
-						<TableCell className="text-right">{product.price.toLocaleString("id-ID")}</TableCell>
-						<TableCell className="text-right">{product.capital.toLocaleString("id-ID")}</TableCell>
-						<TableCell className="text-right">{product.stock}</TableCell>
+						<TableCell className="text-right">{label[product.kind]}</TableCell>
+						<TableCell className="text-right">{product.value.toLocaleString("id-ID")}</TableCell>
 						<TableCell>
 							<Button
 								variant="link"
@@ -59,4 +54,9 @@ export function ProductList({ products }: Props) {
 			</TableBody>
 		</TableScrollable>
 	);
+}
+
+const label = {
+	"percent": "Persen",
+	"number": "Angka"
 }

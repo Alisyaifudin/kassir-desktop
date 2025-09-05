@@ -49,7 +49,6 @@ function update(db: Database) {
 function del(db: Database) {
 	return {
 		async byPhone(phone: string): Promise<"Aplikasi bermasalah" | "Tidak ada yang dihapus" | null> {
-			console.log(phone);
 			const [errMsg, res] = await tryResult({
 				run: () => db.execute("DELETE FROM customers WHERE phone = $1", [phone]),
 			});

@@ -1,24 +1,32 @@
 import { ProductResult } from "~/hooks/useProductSearch";
 import { cn } from "~/lib/utils";
-import { ItemWithoutDisc } from "../../../_utils/schema";
+import { Additional, ItemWithoutDisc } from "../../../_utils/schema";
+import { Show } from "~/components/Show";
 
 export function Output({
 	products,
-	handleClick,
+	additionals,
+	handleClickAdditional,
+	handleClickProduct,
 	mode,
 }: {
 	mode: "buy" | "sell";
 	products: ProductResult[];
-	handleClick: (item: ItemWithoutDisc) => void;
+	additionals: Additional[];
+	handleClickProduct: (item: ItemWithoutDisc) => void;
+	handleClickAdditional: (additional: Additional) => void;
 }) {
 	return (
 		<div className="h-full w-full grow shrink basis-0 overflow-y-auto">
 			<ol className="flex flex-col gap-1">
+				<Show when={products.length > 0}>
+					<p className="text-bold text-2xl italic">----Produk</p>
+				</Show>
 				{products.map((product, i) => (
 					<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
 						<button
 							onClick={() =>
-								handleClick({
+								handleClickProduct({
 									productId: product.id,
 									stock: product.stock,
 									name: product.name,
@@ -36,6 +44,26 @@ export function Output({
 						>
 							<p className={cn("text-start text-wrap")}>{product.name}</p>
 							{product.barcode !== null ? <p className="text-start">{product.barcode}</p> : null}
+						</button>
+					</li>
+				))}
+				<Show when={additionals.length > 0}>
+					<p className="text-bold text-2xl italic">----Biaya Lainnya</p>
+				</Show>
+				{additionals.map((product, i) => (
+					<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
+						<button
+							onClick={() =>
+								handleClickAdditional({
+									name: product.name,
+									value: product.value,
+									kind: product.kind,
+									saved: product.saved,
+								})
+							}
+							className={cn("cursor-pointer text-2xl w-full grid hover:bg-sky-100/50")}
+						>
+							<p className={cn("text-start text-wrap")}>{product.name}</p>
 						</button>
 					</li>
 				))}

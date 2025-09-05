@@ -45,12 +45,19 @@ declare namespace DB {
 		qty: number;
 		capital: number;
 	}
+	interface AdditionalItem {
+		id: number;
+		name: string;
+		value: number;
+		kind: ValueKind;
+	}
 	interface Additional {
 		id: number;
 		name: string;
 		timestamp: number;
 		value: number;
 		kind: ValueKind;
+		item_id: number | null;
 	}
 	interface Discount {
 		id: number;
@@ -58,7 +65,7 @@ declare namespace DB {
 		value: number;
 		kind: ValueKind;
 	}
-	
+
 	interface Cashier {
 		name: string;
 		role: Role;

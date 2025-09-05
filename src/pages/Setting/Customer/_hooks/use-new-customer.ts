@@ -25,7 +25,6 @@ export function useNewCustomer(
 				name: formData.get("name"),
 				phone: formData.get("phone"),
 			});
-		console.log(parsed)
 		if (!parsed.success) {
 			setError(parsed.error.flatten().formErrors.join("; "));
 			return;

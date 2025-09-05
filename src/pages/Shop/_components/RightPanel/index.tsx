@@ -2,15 +2,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { AdditionalComponent } from "./Tab/Additional";
 import { Search } from "./Tab/SearchBar";
 import { Manual } from "./Tab/Manual";
-import { useProducts } from "~/hooks/useProducts";
 import { Loading } from "~/components/Loading";
 import { Summary } from "./Summary";
-import React from "react";
+import React, { useCallback } from "react";
 import { Precision } from "./Precision";
 import { Context } from "../../Shop";
 import { Async } from "~/components/Async";
 import { LocalContext } from "../../_hooks/use-local-state";
 import { Summary as SummaryRecord } from "../../_utils/generate-record";
+import { Database } from "~/database";
+import { err, ok, Result } from "~/lib/utils";
+import { useFetch } from "~/hooks/useFetch";
 
 export function RightPanel({
 	mode,
@@ -34,15 +36,20 @@ export function RightPanel({
 					<TabsList>
 						<TabsTrigger value="auto">Otomatis</TabsTrigger>
 						<TabsTrigger value="man">Manual</TabsTrigger>
-						<TabsTrigger value="add">Biaya Tambahan</TabsTrigger>
+						<TabsTrigger value="add">Tambahan</TabsTrigger>
 					</TabsList>
 					<Precision context={localContext} />
 				</div>
 				<Async state={state} Loading={<Loading />}>
-					{(products) => (
+					{({ products, additionals }) => (
 						<>
 							<TabBtn value="auto">
-								<Search mode={mode} products={products} context={localContext} />
+								<Search
+									mode={mode}
+									products={products}
+									additionals={additionals}
+									context={localContext}
+								/>
 							</TabBtn>
 							<TabBtn value="man">
 								<Manual mode={mode} products={products} context={localContext} />
@@ -68,4 +75,27 @@ function TabBtn({ children, value }: { children: React.ReactNode; value: string 
 			{children}
 		</TabsContent>
 	);
+}
+
+export function useProducts(context: { db: Database }) {
+	const db = context.db;
+	const fetch = useCallback(async (): Promise<
+		Result<
+			"Aplikasi bermasalah",
+			{
+				products: DB.Product[];
+				additionals: DB.AdditionalItem[];
+			}
+		>
+	> => {
+		const [[errProduct, products], [errAdd, additionals]] = await Promise.all([
+			db.product.get.all(),
+			db.additionalItem.get.all(),
+		]);
+		if (errProduct) return err(errProduct);
+		if (errAdd) return err(errAdd);
+		return ok({ products, additionals });
+	}, []);
+	const [state] = useFetch(fetch);
+	return state;
 }

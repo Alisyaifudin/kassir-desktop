@@ -35,10 +35,12 @@ export function Footer({
 					{(additional) => <Additional additional={additional} />}
 				</ForEach>
 				<hr className="w-full" />
+				<Show when={record.totalAfterAdditional !== record.grandTotal}>
 				<div className="grid grid-cols-[170px_200px]">
 					<div></div>{" "}
 					<p className="text-end">Rp{record.totalAfterAdditional.toLocaleString("de-DE")}</p>
 				</div>
+				</Show>
 			</Show>
 			<Show when={record.rounding > 0}>
 				<div className="grid grid-cols-[170px_200px]">

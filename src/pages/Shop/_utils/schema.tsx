@@ -49,6 +49,7 @@ export const additionalSchema = z.object({
 	name: z.string(),
 	value: z.number(),
 	kind: z.enum(["percent", "number"]),
+	saved: z.boolean(),
 });
 
 export type Additional = z.infer<typeof additionalSchema>;

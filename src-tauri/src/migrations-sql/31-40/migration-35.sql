@@ -2,6 +2,15 @@ PRAGMA foreign_keys = 0;
 
 ALTER TABLE additionals RENAME TO additionals_old;
 
+CREATE TABLE additional_items(
+    id        INTEGER PRIMARY KEY,
+    name      TEXT    UNIQUE NOT NULL,
+    kind      TEXT    NOT NULL
+                      REFERENCES value_kind_enum (v) 
+                      DEFAULT 'percent',
+    value     REAL    NOT NULL
+) STRICT;
+
 CREATE TABLE additionals (
     id        INTEGER PRIMARY KEY,
     name      TEXT    NOT NULL,
@@ -12,15 +21,14 @@ CREATE TABLE additionals (
                       REFERENCES value_kind_enum (v) 
                       DEFAULT 'percent',
     value     REAL    NOT NULL,
-    saved    INTEGER  NOT NULL
-                      CHECK (saved IN (0, 1) ) 
-                      DEFAULT 0
+    item_id   INTEGER REFERENCES additional_items(id) ON DELETE SET NULL
+                                                      ON UPDATE CASCADE
 )
 STRICT;
 
 INSERT INTO additionals (
     id,
-    name,
+    name, 
     timestamp,
     kind,
     value

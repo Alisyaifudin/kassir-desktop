@@ -4,19 +4,35 @@ import { integer } from "~/lib/utils";
 
 export function useParams() {
 	const [search, setSearch] = useSearchParams();
-	const { limit, page, query, sortBy, sortDir } = getOption(search);
+	const { limit, pageProduct, pageAdditional, query, sortBy, sortDir, tab } = getOption(search);
 	const get = {
-		page,
+		pageProduct,
+		pageAdditional,
 		sortDir,
 		sortBy,
 		query,
 		limit,
+		tab,
 	};
 	const set = {
-		page: (v: number) => {
+		tab: (v: string) => {
 			setSearch((s) => {
 				const search = new URLSearchParams(s);
-				search.set("page", v.toString());
+				search.set("tab", v.toString());
+				return search;
+			});
+		},
+		pageProduct: (v: number) => {
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("page-product", v.toString());
+				return search;
+			});
+		},
+		pageAdditional: (v: number) => {
+			setSearch((s) => {
+				const search = new URLSearchParams(s);
+				search.set("page-additional", v.toString());
 				return search;
 			});
 		},
@@ -56,20 +72,32 @@ export function getOption(search: URLSearchParams): {
 	sortDir: "asc" | "desc";
 	sortBy: "barcode" | "name" | "price" | "capital" | "stock";
 	query: string;
-	page: number;
+	pageProduct: number;
+	pageAdditional: number;
 	limit: number;
+	tab: "product" | "additional";
 } {
 	const sortDir = z.enum(["asc", "desc"]).catch("asc").parse(search.get("sortDir"));
+	const tab = z.enum(["product", "additional"]).catch("product").parse(search.get("tab"));
 	const sortBy = z
 		.enum(["barcode", "name", "price", "capital", "stock"])
 		.catch("name")
 		.parse(search.get("sortBy"));
-	const page = integer.catch(1).parse(search.get("page"));
+	const pageProduct = integer.catch(1).parse(search.get("page-product"));
+	const pageAdditional = integer.catch(1).parse(search.get("page-additional"));
 	const limit = z
 		.enum(["10", "20", "50", "100"])
 		.catch("100")
 		.transform(Number)
 		.parse(search.get("limit"));
 	const query = search.get("query") ?? "";
-	return { sortDir, query, sortBy, limit, page: page < 1 ? 1 : page };
+	return {
+		sortDir,
+		query,
+		sortBy,
+		limit,
+		pageProduct: pageProduct < 1 ? 1 : pageProduct,
+		pageAdditional: pageAdditional < 1 ? 1 : pageAdditional,
+		tab,
+	};
 }

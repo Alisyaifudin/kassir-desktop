@@ -1,5 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { err, ok, Result, tryResult } from "../lib/utils";
+import { AdditionalItemTable } from "./additional-item";
 
 export function genAdditional(db: Database) {
 	return {
@@ -35,15 +36,31 @@ function get(db: Database) {
 }
 
 function add(db: Database) {
+	const itemsTable = new AdditionalItemTable(db);
 	return {
 		async many(
 			timestamp: number,
-			additionals: { name: string; value: number; kind: DB.ValueKind }[]
+			additionals: { name: string; value: number; kind: DB.ValueKind; saved: boolean }[]
 		): Promise<Result<"Aplikasi bermasalah", number[]>> {
 			const [errMsg, res] = await tryResult({
-				run: () => {
+				run: async () => {
 					const promises = [];
 					for (const additional of additionals) {
+						if (additional.saved) {
+							let id = null as null | number;
+							const [errItem, res] = await itemsTable.add.one({ ...additional });
+							if (!errItem && res !== null) {
+								id = res;
+							}
+							promises.push(
+								db.execute(
+									`INSERT INTO additionals (timestamp, name, value, kind, item_id) 
+                 VALUES ($1, $2, $3, $4, $5)`,
+									[timestamp, additional.name.trim(), additional.value, additional.kind, id]
+								)
+							);
+							continue;
+						}
 						promises.push(
 							db.execute(
 								`INSERT INTO additionals (timestamp, name, value, kind) 

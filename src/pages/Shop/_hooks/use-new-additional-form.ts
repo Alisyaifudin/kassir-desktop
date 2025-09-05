@@ -10,9 +10,13 @@ const additionalSchema = z.object({
 		.refine((v) => !isNaN(Number(v)))
 		.transform((v) => Number(v)),
 	kind: z.enum(["percent", "number"]),
+	saved: z
+		.literal("on")
+		.nullable()
+		.transform((v) => v === "on"),
 });
 
-const emptyErrs = { name: "", value: "", kind: "" };
+const emptyErrs = { name: "", value: "", kind: "", saved: "" };
 
 export function useNewAdditionalForm(context: LocalContext) {
 	const [error, setError] = useState(emptyErrs);
@@ -25,6 +29,7 @@ export function useNewAdditionalForm(context: LocalContext) {
 			name: formData.get("name"),
 			value: formData.get("value"),
 			kind: formData.get("kind"),
+			saved: formData.get("saved"),
 		});
 		if (!parsed.success) {
 			const errs = parsed.error.flatten().fieldErrors;
@@ -32,19 +37,20 @@ export function useNewAdditionalForm(context: LocalContext) {
 				name: errs.name?.join("; ") ?? "",
 				value: errs.value?.join("; ") ?? "",
 				kind: errs.kind?.join("; ") ?? "",
+				saved: errs.saved?.join("; ") ?? "",
 			});
 			return;
 		}
 		const { value, kind } = parsed.data;
-		if (value <= 0) {
-			setError((prev) => ({ ...prev, value: "Harus lebih dari nol" }));
+		if (kind === "percent" && value < -100) {
+			setError((prev) => ({ ...prev, value: "Minimal 100" }));
 			return;
 		}
 		if (kind === "percent" && value > 100) {
 			setError((prev) => ({ ...prev, value: "Maksimal 100" }));
 			return;
 		}
-		setError({ name: "", value: "", kind: "" });
+		setError(emptyErrs);
 		setAdditional.add(parsed.data);
 		formEl.reset();
 	};

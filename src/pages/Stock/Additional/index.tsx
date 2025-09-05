@@ -4,7 +4,7 @@ import { numeric } from "~/lib/utils.ts";
 import { useDB } from "~/hooks/use-db.ts";
 import { useUser } from "~/hooks/use-user.ts";
 
-const Page = lazy(() => import("./Product.tsx"));
+const Page = lazy(() => import("./Addditional.tsx"));
 
 export const route: RouteObject = {
 	Component: () => {
@@ -14,7 +14,7 @@ export const route: RouteObject = {
 		return <Page user={user} db={db} id={id} />;
 	},
 	loader,
-	path: "product/:id",
+	path: "additional/:id",
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {

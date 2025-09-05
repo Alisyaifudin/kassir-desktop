@@ -9,7 +9,7 @@ import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
 import { useInterval } from "../_hooks/use-interval";
 
-export function Panel({ productsLength }: { productsLength: number }) {
+export function PanelProduct({ productsLength }: { productsLength: number }) {
 	const { set, get } = useParams();
 	const { totalPage } = useInterval(productsLength);
 	const user = useUser();
@@ -23,7 +23,10 @@ export function Panel({ productsLength }: { productsLength: number }) {
 			/>
 			<Search query={get.query} setQuery={set.query} />
 			<div className="flex items-center gap-2">
-				<Pagination pagination={{ page: get.page, total: totalPage }} setPage={set.page} />
+				<Pagination
+					pagination={{ page: get.pageProduct, total: totalPage }}
+					setPage={set.pageProduct}
+				/>
 				<div className="relative">
 					<span className="absolute -top-5 left-1 text-lg z-10 px-1 bg-white">limit</span>
 					<select
@@ -38,7 +41,7 @@ export function Panel({ productsLength }: { productsLength: number }) {
 					</select>
 				</div>
 				<Show when={user.role === "admin"}>
-					<Link to="/stock/new" className="self-end flex gap-5 items-center text-3xl w-fit">
+					<Link to="/stock/product/new" className="self-end flex gap-5 items-center text-3xl w-fit">
 						Tambah Produk
 						<Button className="rounded-full h-13 w-13">
 							<Plus size={35} />

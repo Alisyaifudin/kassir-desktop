@@ -56,11 +56,6 @@ export async function submitPayment(
 			return err("Harga tidak boleh negatif");
 		}
 	}
-	for (const add of additionals) {
-		if (add.value < 0) {
-			return err("Biaya tambahan tidak boleh negatif");
-		}
-	}
 	const [errBarcode, check] = await db.product.aux.checkBarcodes(
 		items
 			.filter((i) => i.barcode !== null && i.productId === undefined)
@@ -98,6 +93,7 @@ export async function submitPayment(
 			kind: a.kind,
 			name: a.name,
 			value: Number(a.value.toFixed(fix)),
+			saved: a.saved,
 		}))
 	);
 	if (errAdds) {
