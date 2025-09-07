@@ -25,7 +25,7 @@ export function Receipt({
 	}
 	const headers = profile.header === undefined ? [] : profile.header.split("\n");
 	const footers = profile.footer === undefined ? [] : profile.footer.split("\n");
-	const totalQty = items.map((i) => i.qty).reduce((p, c) => c + p);
+	const totalQty = items.length === 0 ? 0 : items.map((i) => i.qty).reduce((p, c) => c + p);
 	const totalProductTypes = items.length;
 	return (
 		<div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
@@ -52,6 +52,7 @@ export function Receipt({
 						footers={footers}
 						socials={socials}
 						method={method}
+						customer={{name: record.customer_name, phone: record.customer_phone}}
 					/>
 				</div>
 			</div>

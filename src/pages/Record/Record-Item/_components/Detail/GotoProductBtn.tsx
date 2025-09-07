@@ -16,7 +16,7 @@ export const GotoProductBtn = memo(function ({
 	}
 	const handleClick = () => {
 		const backURL = encodeURIComponent(window.location.pathname + window.location.search);
-		navigate({ pathname: `/stock/${productId}`, search: `?url_back=${backURL}` });
+		navigate({ pathname: `/stock/product/${productId}`, search: `?url_back=${backURL}` });
 	};
 	return (
 		<>

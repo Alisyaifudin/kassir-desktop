@@ -20,7 +20,7 @@ export function TableList({
 	mode: "buy" | "sell";
 	id: number;
 }) {
-	const urlBack = encodeURIComponent(`/stock/${id}`);
+	const urlBack = encodeURIComponent(`/stock/product/${id}`);
 	switch (mode) {
 		case "buy":
 			return (
