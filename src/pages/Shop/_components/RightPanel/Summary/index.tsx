@@ -86,9 +86,9 @@ export function Summary({
 						aria-autocomplete="list"
 					/>
 				</label>
-				<div className="grid grid-cols-[160px_20px_1fr] h-[60px] text-3xl items-center">
+				<div className="grid grid-cols-[160px_20px_1fr] h-[100px] text-3xl items-center">
 					<p className="text-3xl">Kembalian</p>:
-					<p className={cn("text-3xl", { "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
+					<p className={cn("text-8xl", { "bg-red-500 text-white px-1": change.toNumber() < 0 })}>
 						{Number(change.toFixed(fix)).toLocaleString("id-ID")}
 					</p>
 				</div>
