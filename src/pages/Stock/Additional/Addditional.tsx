@@ -19,7 +19,7 @@ export default function Page({ user, id, db }: { id: number; user: User; db: Dat
 		navigate(backURL);
 	};
 	return (
-		<main className="py-2 px-5 mx-auto w-full flex flex-col gap-2 flex-1 overflow-hidden">
+		<main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
 			<Button variant="link" className="self-start" onClick={handleBack}>
 				<ChevronLeft /> Kembali
 			</Button>
