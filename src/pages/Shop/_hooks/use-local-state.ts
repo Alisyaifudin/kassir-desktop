@@ -2,12 +2,14 @@ import { z } from "zod";
 import { safeJSON } from "~/lib/utils";
 import { State, stateSchema } from "../_utils/schema";
 import { useCallback, useEffect, useState } from "react";
+import { useSheet } from "./use-sheet";
 
 export type SetState = (state: State) => void;
 
 export type LocalContext = {
 	state: State;
 	setState: SetState;
+	clear: () => void;
 };
 
 export function useLocalState(
@@ -16,20 +18,40 @@ export function useLocalState(
 ): {
 	state: null | State;
 	setState: SetState;
+	clear: () => void;
 } {
+	const [sheet, setSheet] = useSheet();
 	const [state, setState] = useState<null | State>(null);
 	useEffect(() => {
-		const state = getState(mode, methods);
+		const state = getState(mode, methods, sheet);
+		if (state === null) {
+			setSheet(0);
+			return;
+		}
 		setState({ ...state, methods });
-	}, [mode, methods]);
+	}, [mode, methods, sheet]);
 	const setStateDI: SetState = useCallback(
 		(p: State) => {
 			setState(p);
-			setItemAsync(keyItem[mode], JSON.stringify(p));
+			setItemAsync(keyItem[mode] + "-" + sheet, JSON.stringify(p));
 		},
-		[mode, methods]
+		[mode, methods, sheet]
 	);
-	return { state, setState: setStateDI };
+	function clear() {
+		let num = 0;
+		for (let i = 0; i < 100; i++) {
+			const sell = localStorage.getItem(keyItem.sell + "-" + i);
+			const buy = localStorage.getItem(keyItem.buy + "-" + i);
+			if (sell === null && buy === null) continue;
+			num++;
+		}
+		if (num === 1) {
+			setStateDI(emptyState);
+			return;
+		}
+		localStorage.removeItem(keyItem[mode] + "-" + sheet);
+	}
+	return { state, setState: setStateDI, clear };
 }
 
 export const defaultMethod = { id: 1000, method: "cash" as const, name: null };
@@ -57,23 +79,33 @@ const keyItem = {
 	sell: `state-sell`,
 } as const;
 
-function getState(mode: DB.Mode, methods: DB.Method[]): State {
-	const parsed = z.string().safeParse(localStorage.getItem(keyItem[mode]));
+function getState(mode: DB.Mode, methods: DB.Method[], sheet: number): State | null {
+	const key = keyItem[mode] + "-" + sheet;
+	const parsed = z.string().safeParse(localStorage.getItem(key));
 	if (!parsed.success) {
+		if (sheet !== 0) {
+			return null;
+		}
 		const state = emptyState;
-		setItemAsync(keyItem[mode], JSON.stringify(state));
+		setItemAsync(key, JSON.stringify(state));
 		return state;
 	}
 	const [errMsg, obj] = safeJSON(parsed.data);
 	if (errMsg) {
+		if (sheet !== 0) {
+			return null;
+		}
 		const state = emptyState;
-		setItemAsync(keyItem[mode], JSON.stringify(state));
+		setItemAsync(key, JSON.stringify(state));
 		return state;
 	}
 	const parsedObj = stateSchema.safeParse(obj);
 	if (!parsedObj.success) {
+		if (sheet !== 0) {
+			return null;
+		}
 		const state = emptyState;
-		setItemAsync(keyItem[mode], JSON.stringify(state));
+		setItemAsync(key, JSON.stringify(state));
 		return state;
 	}
 	return { ...parsedObj.data, methods };

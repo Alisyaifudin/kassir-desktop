@@ -5,7 +5,6 @@ import { useDebouncedCallback } from "use-debounce";
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
 import { submitPayment } from "../_utils/submit";
-import { clear } from "./use-clear";
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import { LocalContext } from "./use-local-state";
@@ -108,9 +107,9 @@ export function useSummaryForm(
 			toast(errMsg);
 			return;
 		}
-		clear(localContext)();
+		localContext.clear(); 
 		navigate(`/records/${timestamp}`);
 		db.product.revalidate("all");
 	};
-	return { handleChange, handleSubmit, loading, data, clear };
+	return { handleChange, handleSubmit, loading, data };
 }

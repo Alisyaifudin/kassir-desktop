@@ -24,7 +24,7 @@ export function Summary({
 	context: Context;
 }) {
 	const [fix] = useFix(localContext);
-	const { data, handleChange, handleSubmit, loading, clear } = useSummaryForm(
+	const { data, handleChange, handleSubmit, loading } = useSummaryForm(
 		mode,
 		summary,
 		localContext,
@@ -35,7 +35,7 @@ export function Summary({
 		<div className="flex flex-col p-2 h-fit gap-2">
 			<div className="flex flex-col gap-2  flex-1 h-full items-center justify-between">
 				<div className="flex items-center justify-between w-full">
-					<Button variant="destructive" onClick={clear(localContext)}>
+					<Button variant="destructive" onClick={localContext.clear}>
 						<RefreshCcw />
 					</Button>
 					<Method context={localContext} />

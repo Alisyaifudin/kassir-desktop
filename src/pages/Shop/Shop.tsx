@@ -1,13 +1,8 @@
-import { useMemo, useState } from "react";
-import { RightPanel } from "./_components/RightPanel";
-import { LeftPanel } from "./_components/LeftPanel";
-import { useLocalState } from "./_hooks/use-local-state";
-import { Loader2 } from "lucide-react";
-import { generateRecordSummary } from "./_utils/generate-record";
-import { useUser } from "~/hooks/use-user";
 import { useFetchMethods } from "../../hooks/use-fetch-methods";
 import { Database } from "~/database";
 import { Async } from "~/components/Async";
+import { Sheet } from "./_components/Sheet";
+import { Tab } from "./_components/Tab";
 
 export type Context = {
 	db: Database;
@@ -23,47 +18,11 @@ export default function Page({ db, toast }: Context) {
 	);
 }
 
-export function Wrapper({ methods, context }: { methods: DB.Method[]; context: Context }) {
-	const [mode, setMode] = useState<"sell" | "buy">("sell");
-	const user = useUser();
-	const { state, setState } = useLocalState(mode, methods);
-	const summary = useMemo(() => {
-		if (state === null) return null;
-		return generateRecordSummary({
-			record: {
-				cashier: user.name,
-				discKind: state.discKind,
-				discVal: state.discVal,
-				method: state.method,
-				note: state.note,
-				pay: state.pay,
-				rounding: state.rounding,
-			},
-			additionals: state.additionals,
-			items: state.items,
-			mode,
-			fix: state.fix,
-		});
-	}, [state]);
-	if (state === null || summary === null) {
-		return <Loader2 className="animate-splin" />;
-	}
+function Wrapper({ methods, context }: { methods: DB.Method[]; context: Context }) {
 	return (
-		<main className="gap-2 p-2 flex min-h-0 grow shrink basis-0">
-			<LeftPanel
-				mode={mode}
-				setMode={setMode}
-				summary={summary}
-				user={user}
-				localContext={{ state, setState }}
-				context={context}
-			/>
-			<RightPanel
-				mode={mode}
-				context={context}
-				localContext={{ state, setState }}
-				summary={summary}
-			/>
+		<main className="flex flex-col min-h-0 grow shrink basis-0 relative">
+			<Sheet methods={methods} context={context} />
+			<Tab />
 		</main>
 	);
 }
