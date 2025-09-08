@@ -20,7 +20,7 @@ export default function Page({ db, toast }: Context) {
 
 function Wrapper({ methods, context }: { methods: DB.Method[]; context: Context }) {
 	return (
-		<main className="flex flex-col min-h-0 grow shrink basis-0 relative">
+		<main className="flex flex-col min-h-0 max-h-[calc(100vh-83px)] overflow-hidden grow shrink basis-0 relative">
 			<Sheet methods={methods} context={context} />
 			<Tab />
 		</main>

@@ -41,10 +41,10 @@ export function LeftPanel({
 	}
 	return (
 		<div className="border-r flex-1 flex flex-col gap-2">
-			<div className="outline flex-1 p-1 flex flex-col gap-1 overflow-y-auto">
+			<div className="outline flex-1 p-1 flex flex-col gap-1">
 				<Tab mode={mode} setMode={setMode} user={user} />
 				<Header />
-				<div className="flex text-3xl flex-col overflow-y-auto">
+				<div className="flex text-3xl flex-col overflow-y-auto min-h-0 h-full max-h-[calc(100vh-400px)]">
 					<ForEach items={items} extractKey={(item, i) => `${n - i! - 1}-${item.name}`}>
 						{(item, i) => (
 							<ItemComponent
