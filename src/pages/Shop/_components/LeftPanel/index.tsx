@@ -10,7 +10,7 @@ import { GrandTotal } from "./GrandTotal";
 import { Header } from "./Header";
 import { Subtotal } from "./Subtotal";
 import { LocalContext } from "../../_hooks/use-local-state";
-import { Context } from "../../Shop";
+import { Context } from "../../page";
 import { useCustomer } from "../../_hooks/use-customer";
 import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";

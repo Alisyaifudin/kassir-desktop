@@ -43,9 +43,9 @@ export function AdditionalItem({
 			<Show when={additional.kind === "number"}>
 				<p>Rp</p>
 			</Show>
-			<input type="number" value={additional.value} onChange={handle.changeValue} />
+			<input type="number" className="border py-1" value={additional.value} onChange={handle.changeValue} />
 			<Show when={additional.kind === "percent"}>
-				<select value={additional.kind} className="w-fit" onChange={handle.changeKind}>
+				<select value={additional.kind} className="w-fit border" onChange={handle.changeKind}>
 					<option value="number">Angka</option>
 					<option value="percent">Persen</option>
 				</select>

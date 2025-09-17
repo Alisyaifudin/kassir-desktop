@@ -5,7 +5,7 @@ import { generateRecordSummary } from "../_utils/generate-record";
 import { Loader2 } from "lucide-react";
 import { LeftPanel } from "./LeftPanel";
 import { RightPanel } from "./RightPanel";
-import { Context } from "../Shop";
+import { Context } from "../page";
 
 export function Sheet({ context, localContext }: { localContext: LocalContext; context: Context }) {
 	const user = useUser();
@@ -32,7 +32,7 @@ export function Sheet({ context, localContext }: { localContext: LocalContext; c
 		return <Loader2 className="animate-splin" />;
 	}
 	return (
-		<div className="gap-2 p-2 flex grow shrink basis-0">
+		<div className="gap-2 p-2 flex h-full">
 			<LeftPanel
 				summary={summary}
 				user={user}

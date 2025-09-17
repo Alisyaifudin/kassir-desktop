@@ -33,7 +33,7 @@ export function Tab({ methods, context }: { methods: DB.Method[]; context: Local
 		return modes;
 	}, [mode, tabs]);
 	return (
-		<div className="flex items-center gap-1 fixed bottom-0 z-20 bg-white p-0.5 left-2 sm:max-w-[500px] lg:max-w-[1000px] overflow-x-auto">
+		<div className="flex items-center gap-1 fixed bottom-0 z-20 shadow-lg bg-white px-0.5 pt-0.5 left-2 sm:max-w-[500px] lg:max-w-[1000px] overflow-x-auto">
 			<ForEach items={modes}>
 				{({ tab, mode }) => (
 					<div

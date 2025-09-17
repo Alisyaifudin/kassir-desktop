@@ -10,7 +10,7 @@ import { useState } from "react";
 import { LocalContext } from "./use-local-state";
 import { Summary } from "../_utils/generate-record";
 import { useFix } from "./use-fix";
-import { Context } from "../Shop";
+import { Context } from "../page";
 import { log } from "~/lib/utils";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useCustomer } from "./use-customer";
@@ -107,7 +107,7 @@ export function useSummaryForm(
 			toast(errMsg);
 			return;
 		}
-		localContext.clear(); 
+		localContext.clear();
 		navigate(`/records/${timestamp}`);
 		db.product.revalidate("all");
 	};

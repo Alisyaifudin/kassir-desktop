@@ -6,7 +6,7 @@ import { Loading } from "~/components/Loading";
 import { Summary } from "./Summary";
 import React, { useCallback } from "react";
 import { Precision } from "./Precision";
-import { Context } from "../../Shop";
+import { Context } from "../../page";
 import { Async } from "~/components/Async";
 import { LocalContext } from "../../_hooks/use-local-state";
 import { Summary as SummaryRecord } from "../../_utils/generate-record";

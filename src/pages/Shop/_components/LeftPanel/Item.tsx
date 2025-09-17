@@ -8,7 +8,7 @@ import { Either } from "~/components/Either";
 import { useFix } from "../../_hooks/use-fix";
 import { Discounts } from "./Discounts";
 import { LocalContext } from "../../_hooks/use-local-state";
-import { Context } from "../../Shop";
+import { Context } from "../../page";
 
 type Props = {
 	index: number;
@@ -51,6 +51,8 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 						<input
 							type="text"
 							value={name}
+							key={index}
+							id={`name-${index}`}
 							className="px-0.5 outline"
 							onChange={(e) => handleChange.name(e)}
 						></input>
@@ -64,7 +66,7 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 							<input
 								type="text"
 								value={barcode}
-								className="px-0.5 border-b border-l border-r"
+								className="px-0.5 border-b border-l border-r w-full"
 								onChange={handleChange.barcode}
 							></input>
 						}
@@ -99,7 +101,7 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 					></input>
 					<p>{Number(item.grandTotal.toFixed(fix)).toLocaleString("id-ID")}</p>
 					<div className="py-0.5 flex items-center">
-						<button type='button' onClick={handleChange.del} className="bg-red-500 text-white">
+						<button type="button" onClick={handleChange.del} className="bg-red-500 text-white">
 							<X size={35} />
 						</button>
 					</div>

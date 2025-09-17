@@ -10,7 +10,7 @@ export function Field({
 	label: string;
 }) {
 	return (
-		<label className="flex flex-col">
+		<label className="flex flex-col w-full">
 			<div className="grid grid-cols-[120px_1fr] gap-2 items-center">
 				<span className="text-3xl">{label}</span>
 				{children}

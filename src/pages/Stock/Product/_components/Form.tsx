@@ -68,18 +68,23 @@ export function Form({ product, db }: { product: DB.Product; db: Database }) {
 					defaultValue={product.stock_back}
 				/>
 			</Field>
-			<div className="flex items-center gap-2">
+			<div className="flex items-center gap-2 w-full">
 				<Field error={error?.barcode ?? ""} label="Barcode:">
 					<Input
 						ref={barcodeRef}
 						type="text"
-						className="outline w-[300px]"
+						className="outline w-full"
 						name="barcode"
 						aria-autocomplete="list"
 						defaultValue={product.barcode ?? ""}
 					/>
 				</Field>
-				<GenerateBarcode id={product.id} barcode={product.barcode} db={db} barcodeRef={barcodeRef} />
+				<GenerateBarcode
+					id={product.id}
+					barcode={product.barcode}
+					db={db}
+					barcodeRef={barcodeRef}
+				/>
 			</div>
 			<label className="flex flex-col">
 				<div className="grid grid-cols-[120px_1fr] gap-2 items-center">

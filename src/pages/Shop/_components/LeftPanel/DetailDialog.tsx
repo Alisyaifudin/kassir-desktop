@@ -13,7 +13,7 @@ import { Lock } from "lucide-react";
 import { cn, err, ok, Result } from "~/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Database } from "~/database";
-import { Context } from "../../Shop";
+import { Context } from "../../page";
 import { useFetch } from "~/hooks/useFetch";
 import { Async } from "~/components/Async";
 
@@ -139,7 +139,12 @@ function Image({ srcs }: { srcs: string[] }) {
 			<div className="flex flex-col w-full">
 				<div className="overflow-x-scroll flex items-center gap-1 h-36 overflow-y-hidden">
 					{srcs.map((src, i) => (
-						<button type="button" key={i} className={"h-32 aspect-square p-0.5"} onClick={handleClick(i)}>
+						<button
+							type="button"
+							key={i}
+							className={"h-32 aspect-square p-0.5"}
+							onClick={handleClick(i)}
+						>
 							<img
 								className={cn("object-contain w-full h-full", {
 									outline: selected === src,

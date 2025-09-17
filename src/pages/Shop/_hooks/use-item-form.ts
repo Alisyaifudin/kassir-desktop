@@ -23,14 +23,17 @@ export function useItemForm(
 		}
 	}, [item.qty]);
 	const productId = item.productId;
-	const debounceName = useDebouncedCallback(
-		(v: string) => setItems.name(index, v),
-		DEBOUNCE_DELAY
-	);
-	const debounceBarcode = useDebouncedCallback(
-		(v: string) => setItems.barcode(index, v),
-		DEBOUNCE_DELAY
-	);
+	const debounceName = useDebouncedCallback((v: string) => {
+		setItems.name(index, v);
+		// weird hack. dont know the root cause 😭
+		setTimeout(() => {
+			const input = document.getElementById(`name-${index}`) as HTMLInputElement | null;
+			input?.focus();
+		}, 1);
+	}, DEBOUNCE_DELAY);
+	const debounceBarcode = useDebouncedCallback((v: string) => {
+		setItems.barcode(index, v);
+	}, DEBOUNCE_DELAY);
 	const debouncePrice = useDebouncedCallback(
 		(v: number) => setItems.price(index, v),
 		DEBOUNCE_DELAY

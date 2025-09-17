@@ -3,7 +3,7 @@ import { getSheetList, useSheet } from "./use-sheet";
 import { emptyState } from "./use-local-state";
 
 export function useTabs() {
-	const [, setSheet, removeSheet, addSheet] = useSheet();
+	const [sheet, setSheet, removeSheet, addSheet] = useSheet();
 	const tabs = getSheetList();
 	useEffect(() => {}, []);
 	function addTab() {
@@ -17,8 +17,12 @@ export function useTabs() {
 			setSheet(0);
 			return;
 		}
-		const remaining = Array.from(tabs.values())[0];
-		setSheet(remaining);
+		if (tab === sheet) {
+			const remaining = Array.from(tabs.values())[0];
+			setSheet(remaining);
+		} else {
+			setSheet(sheet);
+		}
 	}
 	return [tabs, addTab, deleteTab] as const;
 }

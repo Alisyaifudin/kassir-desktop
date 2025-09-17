@@ -9,13 +9,13 @@ export type SetState = (state: State) => void;
 export type LocalContext = {
 	state: State;
 	setState: SetState;
-	clear: () => void;
+	clear: (del: boolean) => void;
 };
 
 export function useLocalState(methods: DB.Method[]): {
 	state: null | State;
 	setState: SetState;
-	clear: () => void;
+	clear: (del: boolean) => void;
 } {
 	const [sheet, setSheet, removeSheet] = useSheet();
 	const [state, setState] = useState<null | State>(null);
@@ -34,15 +34,14 @@ export function useLocalState(methods: DB.Method[]): {
 		},
 		[methods, sheet]
 	);
-	function clear() {
-		// const sheets = getSheetList();
-		// const num = sheets.size;
-		// if (num === 1) {
-		// 	setStateDI(emptyState);
-		// 	return;
-		// }
-		removeSheet(sheet);
-		localStorage.removeItem("state-" + sheet);
+	function clear(del = true) {
+		if (del) {
+			removeSheet(sheet);
+			localStorage.removeItem("state-" + sheet);
+		} else {
+			setState(emptyState);
+			setItemAsync("state-" + sheet, JSON.stringify(emptyState));
+		}
 	}
 	return { state, setState: setStateDI, clear };
 }

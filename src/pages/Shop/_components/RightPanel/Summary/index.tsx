@@ -9,7 +9,7 @@ import { useSummaryForm } from "../../../_hooks/use-summary-form";
 import { Method } from "./Method";
 import { Summary as SummaryRecord } from "~/pages/shop/_utils/generate-record";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
-import { Context } from "~/pages/shop/Shop";
+import { Context } from "~/pages/Shop/page";
 import { Customer } from "./Customer";
 import { useMode } from "~/pages/shop/_hooks/use-mode";
 
@@ -35,7 +35,7 @@ export function Summary({
 		<div className="flex flex-col p-2 h-fit gap-2">
 			<div className="flex flex-col gap-2  flex-1 h-full items-center justify-between">
 				<div className="flex items-center justify-between w-full">
-					<Button type="button" variant="destructive" onClick={localContext.clear}>
+					<Button type="button" variant="destructive" onClick={() => localContext.clear(false)}>
 						<RefreshCcw />
 					</Button>
 					<Method context={localContext} />
