@@ -43,8 +43,8 @@ export function Summary({
 					<Note context={localContext} />
 				</div>
 			</div>
-			{/* <form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit"> */}
-			<div className="flex-1 flex flex-col gap-1 h-fit">
+			<form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit">
+				{/* <div className="flex-1 flex flex-col gap-1 h-fit"> */}
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Bayar</span>
 					:
@@ -96,7 +96,8 @@ export function Summary({
 						</Button>
 					) : null}
 				</div>
-			</div>
+				{/* </div> */}
+			</form>
 		</div>
 	);
 }
