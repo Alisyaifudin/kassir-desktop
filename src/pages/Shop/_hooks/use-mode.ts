@@ -1,15 +1,8 @@
-import { useSearchParams } from "react-router";
-import { z } from "zod";
+import { LocalContext } from "./use-local-state";
 
-export function useMode() {
-	const [search, setSearch] = useSearchParams();
-	const mode = z.enum(["buy", "sell"]).catch("sell").parse(search.get("mode"));
-	function setMode(mode: string) {
-		setSearch((prev) => {
-			const search = new URLSearchParams(prev);
-			search.set("mode", mode);
-			return search;
-		});
-	}
+export function useMode(context: LocalContext) {
+	const { state, setState } = context;
+	const mode = state.mode;
+	const setMode = (mode: DB.Mode) => setState({ ...state, mode });
 	return [mode, setMode] as const;
 }

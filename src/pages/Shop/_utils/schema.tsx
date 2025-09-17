@@ -117,6 +117,7 @@ const methodSchema = z.object({
 });
 
 export const stateSchema = z.object({
+	mode: z.enum(["buy", "sell"]),
 	pay: z.number(),
 	rounding: z.number(),
 	discKind: z.enum(["number", "percent"]),

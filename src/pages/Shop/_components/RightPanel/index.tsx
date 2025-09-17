@@ -15,12 +15,10 @@ import { err, ok, Result } from "~/lib/utils";
 import { useFetch } from "~/hooks/useFetch";
 
 export function RightPanel({
-	mode,
 	context,
 	localContext,
 	summary,
 }: {
-	mode: DB.Mode;
 	context: Context;
 	localContext: LocalContext;
 	summary: SummaryRecord;
@@ -45,14 +43,13 @@ export function RightPanel({
 						<>
 							<TabBtn value="auto">
 								<Search
-									mode={mode}
 									products={products}
 									additionals={additionals}
 									context={localContext}
 								/>
 							</TabBtn>
 							<TabBtn value="man">
-								<Manual mode={mode} products={products} context={localContext} />
+								<Manual  products={products} context={localContext} />
 							</TabBtn>
 							<TabBtn value="add">
 								<AdditionalComponent context={localContext} />
@@ -63,7 +60,7 @@ export function RightPanel({
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />
-				<Summary mode={mode} localContext={localContext} summary={summary} context={context} />
+				<Summary localContext={localContext} summary={summary} context={context} />
 			</div>
 		</aside>
 	);

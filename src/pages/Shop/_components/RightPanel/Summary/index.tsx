@@ -11,19 +11,19 @@ import { Summary as SummaryRecord } from "~/pages/shop/_utils/generate-record";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
 import { Context } from "~/pages/shop/Shop";
 import { Customer } from "./Customer";
+import { useMode } from "~/pages/shop/_hooks/use-mode";
 
 export function Summary({
-	mode,
 	localContext,
 	summary,
 	context,
 }: {
-	mode: DB.Mode;
 	localContext: LocalContext;
 	summary: SummaryRecord;
 	context: Context;
 }) {
 	const [fix] = useFix(localContext);
+	const [mode] = useMode(localContext);
 	const { data, handleChange, handleSubmit, loading } = useSummaryForm(
 		mode,
 		summary,
@@ -54,27 +54,6 @@ export function Summary({
 						aria-autocomplete="list"
 					/>
 				</label>
-				{/* <div className="flex gap-2">
-					<label className="grid grid-cols-[160px_10px_1fr] items-center flex-1 text-3xl">
-						<span className="text-3xl">Diskon</span>
-						:
-						<Input
-							type="number"
-							value={data.discVal}
-							step={data.discKind === "number" ? Math.pow(10, -1 * fix) : 0.00001}
-							onChange={handleChange.discVal}
-							aria-autocomplete="list"
-						/>
-					</label>
-					<select
-						value={data.discKind}
-						onChange={handleChange.discKind}
-						className=" w-[100px] outline text-2xl"
-					>
-						<option value="number">Angka</option>
-						<option value="percent">Persen</option>
-					</select>
-				</div> */}
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Pembulatan</span>
 					:

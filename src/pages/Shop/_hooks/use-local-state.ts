@@ -2,7 +2,7 @@ import { z } from "zod";
 import { safeJSON } from "~/lib/utils";
 import { State, stateSchema } from "../_utils/schema";
 import { useCallback, useEffect, useState } from "react";
-import { useSheet } from "./use-sheet";
+import { getSheetList, useSheet } from "./use-sheet";
 
 export type SetState = (state: State) => void;
 
@@ -12,44 +12,37 @@ export type LocalContext = {
 	clear: () => void;
 };
 
-export function useLocalState(
-	mode: DB.Mode,
-	methods: DB.Method[]
-): {
+export function useLocalState(methods: DB.Method[]): {
 	state: null | State;
 	setState: SetState;
 	clear: () => void;
 } {
-	const [sheet, setSheet] = useSheet();
+	const [sheet, setSheet, removeSheet] = useSheet();
 	const [state, setState] = useState<null | State>(null);
 	useEffect(() => {
-		const state = getState(mode, methods, sheet);
+		const state = getState(methods, sheet);
 		if (state === null) {
 			setSheet(0);
 			return;
 		}
 		setState({ ...state, methods });
-	}, [mode, methods, sheet]);
+	}, [methods, sheet]);
 	const setStateDI: SetState = useCallback(
 		(p: State) => {
 			setState(p);
-			setItemAsync(keyItem[mode] + "-" + sheet, JSON.stringify(p));
+			setItemAsync("state-" + sheet, JSON.stringify(p));
 		},
-		[mode, methods, sheet]
+		[methods, sheet]
 	);
 	function clear() {
-		let num = 0;
-		for (let i = 0; i < 100; i++) {
-			const sell = localStorage.getItem(keyItem.sell + "-" + i);
-			const buy = localStorage.getItem(keyItem.buy + "-" + i);
-			if (sell === null && buy === null) continue;
-			num++;
-		}
-		if (num === 1) {
-			setStateDI(emptyState);
-			return;
-		}
-		localStorage.removeItem(keyItem[mode] + "-" + sheet);
+		// const sheets = getSheetList();
+		// const num = sheets.size;
+		// if (num === 1) {
+		// 	setStateDI(emptyState);
+		// 	return;
+		// }
+		removeSheet(sheet);
+		localStorage.removeItem("state-" + sheet);
 	}
 	return { state, setState: setStateDI, clear };
 }
@@ -57,6 +50,7 @@ export function useLocalState(
 export const defaultMethod = { id: 1000, method: "cash" as const, name: null };
 
 export const emptyState: State = {
+	mode: "sell",
 	pay: 0,
 	fix: 0,
 	rounding: 0,
@@ -74,16 +68,24 @@ export const emptyState: State = {
 	},
 };
 
-const keyItem = {
-	buy: `state-buy`,
-	sell: `state-sell`,
-} as const;
+// const keyItem = {
+// 	buy: `state-buy`,
+// 	sell: `state-sell`,
+// } as const;
 
-function getState(mode: DB.Mode, methods: DB.Method[], sheet: number): State | null {
-	const key = keyItem[mode] + "-" + sheet;
+export function getState(methods: DB.Method[], sheet: number): State | null {
+	const key = "state-" + sheet;
+	const sheets = getSheetList();
+	if (sheets.size === 0) {
+		if (sheet !== 0) {
+			return null;
+		}
+		setItemAsync("state-0", JSON.stringify(emptyState));
+		return emptyState;
+	}
 	const parsed = z.string().safeParse(localStorage.getItem(key));
 	if (!parsed.success) {
-		if (sheet !== 0) {
+		if (!sheets.has(sheet)) {
 			return null;
 		}
 		const state = emptyState;
@@ -92,7 +94,7 @@ function getState(mode: DB.Mode, methods: DB.Method[], sheet: number): State | n
 	}
 	const [errMsg, obj] = safeJSON(parsed.data);
 	if (errMsg) {
-		if (sheet !== 0) {
+		if (!sheets.has(sheet)) {
 			return null;
 		}
 		const state = emptyState;
@@ -101,7 +103,7 @@ function getState(mode: DB.Mode, methods: DB.Method[], sheet: number): State | n
 	}
 	const parsedObj = stateSchema.safeParse(obj);
 	if (!parsedObj.success) {
-		if (sheet !== 0) {
+		if (!sheets.has(sheet)) {
 			return null;
 		}
 		const state = emptyState;

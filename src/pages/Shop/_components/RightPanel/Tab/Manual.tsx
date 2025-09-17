@@ -6,18 +6,12 @@ import { useManual } from "../../../_hooks/use-manual";
 import { useFix } from "../../../_hooks/use-fix";
 import { Show } from "~/components/Show";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
+import { useMode } from "~/pages/shop/_hooks/use-mode";
 
-export function Manual({
-	mode,
-	products,
-	context,
-}: {
-	mode: "buy" | "sell";
-	products: DB.Product[];
-	context: LocalContext;
-}) {
+export function Manual({ products, context }: { products: DB.Product[]; context: LocalContext }) {
 	const { handleSubmit, error, ref } = useManual(products, context);
 	const [fix] = useFix(context);
+	const [mode] = useMode(context);
 	return (
 		<form
 			onSubmit={handleSubmit}

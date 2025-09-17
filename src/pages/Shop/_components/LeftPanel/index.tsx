@@ -14,23 +14,21 @@ import { Context } from "../../Shop";
 import { useCustomer } from "../../_hooks/use-customer";
 import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { useMode } from "../../_hooks/use-mode";
 
 export function LeftPanel({
-	mode,
-	setMode,
 	user,
 	summary,
 	localContext,
 	context,
 }: {
-	mode: "sell" | "buy";
-	setMode: (mode: "sell" | "buy") => void;
 	summary: Summary;
 	user: User;
 	localContext: LocalContext;
 	context: Context;
 }) {
 	const [fix] = useFix(localContext);
+	const [mode, setMode] = useMode(localContext);
 	const { grandTotal, totalAfterDiscount } = summary.record;
 	const items = summary.items;
 	items.reverse();

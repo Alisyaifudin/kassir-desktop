@@ -4,14 +4,13 @@ import { Field } from "./Field";
 import { Input } from "~/components/ui/input";
 import { useSearch } from "~/pages/shop/_hooks/use-search";
 import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
+import { useMode } from "~/pages/shop/_hooks/use-mode";
 
 export function Search({
-	mode,
 	products: allProducts,
 	additionals: allAdditionals,
 	context,
 }: {
-	mode: DB.Mode;
 	products: DB.Product[];
 	additionals: DB.AdditionalItem[];
 	context: LocalContext;
@@ -27,6 +26,7 @@ export function Search({
 		additionals,
 		ref,
 	} = useSearch(allProducts, allAdditionals, context);
+	const [mode] = useMode(context);
 	return (
 		<>
 			<form onSubmit={handleSubmit} className="flex items-end gap-1 px-1">
