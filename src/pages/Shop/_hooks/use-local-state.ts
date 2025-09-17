@@ -9,13 +9,13 @@ export type SetState = (state: State) => void;
 export type LocalContext = {
 	state: State;
 	setState: SetState;
-	clear: (del: boolean) => void;
+	clear: (del?: boolean) => void;
 };
 
 export function useLocalState(methods: DB.Method[]): {
 	state: null | State;
 	setState: SetState;
-	clear: (del: boolean) => void;
+	clear: (del?: boolean) => void;
 } {
 	const [sheet, setSheet, removeSheet] = useSheet();
 	const [state, setState] = useState<null | State>(null);
