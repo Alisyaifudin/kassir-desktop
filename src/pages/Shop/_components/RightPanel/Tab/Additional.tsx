@@ -29,7 +29,7 @@ export function AdditionalComponent({ context }: { context: LocalContext }) {
 				<span>Simpan?</span>
 				<input type="checkbox" name="saved" className="w-7 h-7" />
 			</Label>
-			<Button>Tambahkan</Button>
+			<Button type="button">Tambahkan</Button>
 		</form>
 	);
 }

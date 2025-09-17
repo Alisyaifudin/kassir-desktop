@@ -70,6 +70,7 @@ export function LeftPanel({
 						size="icon"
 						className="rounded-full"
 						onClick={resetCustomer}
+						type="button"
 					>
 						<X />
 					</Button>

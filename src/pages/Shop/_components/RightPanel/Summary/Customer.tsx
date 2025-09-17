@@ -38,7 +38,7 @@ function Wrapper({ context, customers }: { customers: DB.Customer[]; context: Lo
 	return (
 		<Dialog>
 			<Button asChild variant="secondary">
-				<DialogTrigger>
+				<DialogTrigger type="button">
 					<User />
 				</DialogTrigger>
 			</Button>

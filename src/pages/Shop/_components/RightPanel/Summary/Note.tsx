@@ -25,7 +25,7 @@ export function Note({ context }: { context: LocalContext }) {
 	return (
 		<Dialog>
 			<Button asChild variant="secondary">
-				<DialogTrigger>
+				<DialogTrigger type="button">
 					<NotepadText />
 				</DialogTrigger>
 			</Button>

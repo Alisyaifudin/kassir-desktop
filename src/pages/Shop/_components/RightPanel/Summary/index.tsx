@@ -35,7 +35,7 @@ export function Summary({
 		<div className="flex flex-col p-2 h-fit gap-2">
 			<div className="flex flex-col gap-2  flex-1 h-full items-center justify-between">
 				<div className="flex items-center justify-between w-full">
-					<Button variant="destructive" onClick={localContext.clear}>
+					<Button type="button" variant="destructive" onClick={localContext.clear}>
 						<RefreshCcw />
 					</Button>
 					<Method context={localContext} />
@@ -43,7 +43,8 @@ export function Summary({
 					<Note context={localContext} />
 				</div>
 			</div>
-			<form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit">
+			{/* <form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit"> */}
+			<div className="flex-1 flex flex-col gap-1 h-fit">
 				<label className="grid grid-cols-[160px_10px_1fr] items-center text-3xl">
 					<span className="text-3xl">Bayar</span>
 					:
@@ -95,7 +96,7 @@ export function Summary({
 						</Button>
 					) : null}
 				</div>
-			</form>
+			</div>
 		</div>
 	);
 }

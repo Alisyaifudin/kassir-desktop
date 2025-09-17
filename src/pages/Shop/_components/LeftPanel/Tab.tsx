@@ -19,6 +19,7 @@ export function Tab({
 					className={mode === "sell" ? "text-2xl font-bold" : "text-black/50"}
 					variant={mode === "sell" ? "default" : "ghost"}
 					onClick={() => setMode("sell")}
+					type="button"
 				>
 					Jual
 				</Button>
@@ -27,6 +28,7 @@ export function Tab({
 						className={mode === "buy" ? "text-2xl font-bold" : "text-black/50"}
 						variant={mode === "buy" ? "default" : "ghost"}
 						onClick={() => setMode("buy")}
+						type="button"
 					>
 						Beli
 					</Button>

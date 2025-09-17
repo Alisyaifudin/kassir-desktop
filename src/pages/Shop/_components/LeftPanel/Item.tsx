@@ -99,7 +99,7 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 					></input>
 					<p>{Number(item.grandTotal.toFixed(fix)).toLocaleString("id-ID")}</p>
 					<div className="py-0.5 flex items-center">
-						<button onClick={handleChange.del} className="bg-red-500 text-white">
+						<button type='button' onClick={handleChange.del} className="bg-red-500 text-white">
 							<X size={35} />
 						</button>
 					</div>

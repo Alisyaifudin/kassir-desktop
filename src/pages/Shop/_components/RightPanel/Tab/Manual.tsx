@@ -46,7 +46,7 @@ export function Manual({ products, context }: { products: DB.Product[]; context:
 				</div>
 			</Field>
 			<TextError>{error.qty}</TextError>
-			<Button>Tambahkan</Button>
+			<Button type="button">Tambahkan</Button>
 		</form>
 	);
 }

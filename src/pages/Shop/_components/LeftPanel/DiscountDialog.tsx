@@ -33,7 +33,7 @@ export function Discount({
 		<Dialog>
 			<div className="flex items-center justify-between px-1 gap-1">
 				<p className="text-3xl">{totalDisc.toLocaleString("id-ID")}</p>
-				<DialogTrigger>
+				<DialogTrigger type="button">
 					<Plus className="outline" />
 				</DialogTrigger>
 			</div>
@@ -59,19 +59,26 @@ export function Discount({
 									<option value="number">Angka</option>
 									<option value="percent">Persen</option>
 								</select>
-								<button onClick={handle.del(i)} className="bg-red-500 w-fit h-fit text-white">
+								<button
+									onClick={handle.del(i)}
+									type="button"
+									className="bg-red-500 w-fit h-fit text-white"
+								>
 									<X size={35} />
 								</button>
 							</>
 						)}
 					</ForEach>
-					<Button  onClick={handle.add}>
-							Tambah Diskon<Plus />
-						</Button>
+					<Button onClick={handle.add} type="button">
+						Tambah Diskon
+						<Plus />
+					</Button>
 				</div>
 				<DialogFooter className="flex justify-between w-full ">
 					<DialogClose asChild>
-						<Button variant="outline">Tutup</Button>
+						<Button type="button" variant="outline">
+							Tutup
+						</Button>
 					</DialogClose>
 				</DialogFooter>
 			</DialogContent>

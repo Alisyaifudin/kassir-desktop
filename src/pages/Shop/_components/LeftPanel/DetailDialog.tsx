@@ -37,7 +37,7 @@ export function DetailDialog({
 				if (srcs.length === 0) {
 					return (
 						<Popover>
-							<PopoverTrigger className="flex items-center">
+							<PopoverTrigger type="button" className="flex items-center">
 								<p className="text-center">{index + 1}</p>
 								<Lock />
 							</PopoverTrigger>
@@ -52,7 +52,7 @@ export function DetailDialog({
 					<Dialog>
 						<div className="flex items-center">
 							<p className="text-center">{index + 1}</p>
-							<DialogTrigger>
+							<DialogTrigger type="button">
 								<Lock />
 							</DialogTrigger>
 						</div>
@@ -119,6 +119,7 @@ function Image({ srcs }: { srcs: string[] }) {
 					variant="secondary"
 					onClick={handlePrev}
 					disabled={index <= 0}
+					type="button"
 				>
 					<ChevronLeft />
 				</Button>
@@ -130,6 +131,7 @@ function Image({ srcs }: { srcs: string[] }) {
 					variant="secondary"
 					disabled={index === srcs.length - 1}
 					onClick={handleNext}
+					type="button"
 				>
 					<ChevronRight />
 				</Button>
@@ -137,7 +139,7 @@ function Image({ srcs }: { srcs: string[] }) {
 			<div className="flex flex-col w-full">
 				<div className="overflow-x-scroll flex items-center gap-1 h-36 overflow-y-hidden">
 					{srcs.map((src, i) => (
-						<button key={i} className={"h-32 aspect-square p-0.5"} onClick={handleClick(i)}>
+						<button type="button" key={i} className={"h-32 aspect-square p-0.5"} onClick={handleClick(i)}>
 							<img
 								className={cn("object-contain w-full h-full", {
 									outline: selected === src,

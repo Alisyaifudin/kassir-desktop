@@ -25,6 +25,7 @@ export function Output({
 				{products.map((product, i) => (
 					<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
 						<button
+							type="button"
 							onClick={() =>
 								handleClickProduct({
 									productId: product.id,
@@ -53,6 +54,7 @@ export function Output({
 				{additionals.map((product, i) => (
 					<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
 						<button
+							type="button"
 							onClick={() =>
 								handleClickAdditional({
 									name: product.name,

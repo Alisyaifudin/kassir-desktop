@@ -32,9 +32,15 @@ export function RightPanel({
 			>
 				<div className="flex items-center justify-between w-full">
 					<TabsList>
-						<TabsTrigger value="auto">Otomatis</TabsTrigger>
-						<TabsTrigger value="man">Manual</TabsTrigger>
-						<TabsTrigger value="add">Tambahan</TabsTrigger>
+						<TabsTrigger type="button" value="auto">
+							Otomatis
+						</TabsTrigger>
+						<TabsTrigger type="button" value="man">
+							Manual
+						</TabsTrigger>
+						<TabsTrigger type="button" value="add">
+							Tambahan
+						</TabsTrigger>
 					</TabsList>
 					<Precision context={localContext} />
 				</div>
@@ -42,14 +48,10 @@ export function RightPanel({
 					{({ products, additionals }) => (
 						<>
 							<TabBtn value="auto">
-								<Search
-									products={products}
-									additionals={additionals}
-									context={localContext}
-								/>
+								<Search products={products} additionals={additionals} context={localContext} />
 							</TabBtn>
 							<TabBtn value="man">
-								<Manual  products={products} context={localContext} />
+								<Manual products={products} context={localContext} />
 							</TabBtn>
 							<TabBtn value="add">
 								<AdditionalComponent context={localContext} />
