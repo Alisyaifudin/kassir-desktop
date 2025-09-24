@@ -1,12 +1,12 @@
 import { useFetchMethods } from "~/hooks/use-fetch-methods";
 import { Async } from "~/components/Async";
-import { Tab } from "./_components/Tab";
+import { Tab } from "./Tab";
 import { Loader2 } from "lucide-react";
 import { useDB } from "~/hooks/use-db";
 import { context, Provider } from "./use-context";
 import { useContext } from "react";
-import { LeftPanel } from "./_components/LeftPanel";
-import { RightPanel } from "./_components/RightPanel";
+import { LeftPanel } from "./LeftPanel";
+import { RightPanel } from "./RightPanel";
 
 export type Context = {
 	toast: (text: string) => void;
