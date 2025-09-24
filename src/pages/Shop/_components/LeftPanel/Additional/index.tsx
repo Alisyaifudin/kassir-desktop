@@ -1,22 +1,19 @@
 import { X } from "lucide-react";
 import { cn } from "~/lib/utils";
-import { AdditionalTransfrom } from "../../_utils/generate-record";
-import { useAdditionalForm } from "../../_hooks/use-additional-form";
+import { AdditionalTransfrom } from "~/pages/Shop/_utils/util-generate-record";
+import { useAdditionalForm } from "~/pages/Shop/_components/LeftPanel/Additional/use-additional-form";
 import { Show } from "~/components/Show";
-import { useFix } from "../../_hooks/use-fix";
-import { LocalContext } from "../../_hooks/use-local-state";
+import { useFix } from "~/pages/Shop/_hooks/use-fix";
 
 export function AdditionalItem({
 	index,
 	additional: initAdd,
-	context,
 }: {
 	index: number;
 	additional: AdditionalTransfrom;
-	context: LocalContext;
 }) {
-	const { handle, additional } = useAdditionalForm(index, initAdd, context);
-	const [fix] = useFix(context);
+	const { handle, additional } = useAdditionalForm(index, initAdd);
+	const [fix] = useFix();
 	return (
 		<div
 			className={cn(
@@ -43,7 +40,12 @@ export function AdditionalItem({
 			<Show when={additional.kind === "number"}>
 				<p>Rp</p>
 			</Show>
-			<input type="number" className="border py-1" value={additional.value} onChange={handle.changeValue} />
+			<input
+				type="number"
+				className="border py-1"
+				value={additional.value}
+				onChange={handle.changeValue}
+			/>
 			<Show when={additional.kind === "percent"}>
 				<select value={additional.kind} className="w-fit border" onChange={handle.changeKind}>
 					<option value="number">Angka</option>

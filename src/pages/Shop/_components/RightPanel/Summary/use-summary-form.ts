@@ -1,32 +1,29 @@
-import { usePay } from "./use-pay";
-import { useRounding } from "./use-rounding";
-import { useDisc } from "./use-disc";
+import { usePay } from "~/pages/Shop/_hooks/use-pay";
+import { useRounding } from "~/pages/Shop/_hooks/use-rounding";
+import { useDisc } from "~/pages/Shop/_hooks/use-disc";
 import { useDebouncedCallback } from "use-debounce";
 import { z } from "zod";
 import { useAction } from "~/hooks/useAction";
-import { submitPayment } from "../_utils/submit";
+import { submitPayment } from "~/pages/Shop/util-submit";
 import { useNavigate } from "react-router";
 import { useState } from "react";
-import { LocalContext } from "./use-local-state";
-import { Summary } from "../_utils/generate-record";
-import { useFix } from "./use-fix";
-import { Context } from "../page";
+import { useFix } from "~/pages/Shop/_hooks/use-fix";
 import { log } from "~/lib/utils";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { useCustomer } from "./use-customer";
+import { useCustomer } from "~/pages/Shop/_hooks/use-customer";
+import { useCtx } from "~/pages/Shop/use-context";
+import { useDB } from "~/hooks/use-db";
+import { useMode } from "~/pages/Shop/_hooks/use-mode";
 
-export function useSummaryForm(
-	mode: DB.Mode,
-	summary: Summary,
-	localContext: LocalContext,
-	contex: Context
-) {
-	const { db, toast } = contex;
-	const [pay, setPay] = usePay(localContext);
-	const [rounding, setRounding] = useRounding(localContext);
-	const [fix] = useFix(localContext);
-	const [disc, setDisc] = useDisc(localContext);
-	const [customer] = useCustomer(localContext);
+export function useSummaryForm() {
+	const db = useDB();
+	const { toast, summary, clear } = useCtx();
+	const [pay, setPay] = usePay();
+	const [mode] = useMode();
+	const [rounding, setRounding] = useRounding();
+	const [fix] = useFix();
+	const [disc, setDisc] = useDisc();
+	const [customer] = useCustomer();
 	const [data, setData] = useState({
 		pay: pay === 0 ? "" : pay.toString(),
 		rounding: rounding === 0 ? "" : rounding.toString(),
@@ -107,7 +104,7 @@ export function useSummaryForm(
 			toast(errMsg);
 			return;
 		}
-		localContext.clear();
+		clear();
 		navigate(`/records/${timestamp}`);
 		db.product.revalidate("all");
 	};

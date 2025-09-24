@@ -1,7 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { Database } from "~/database";
 import { err, ok, Result } from "~/lib/utils";
-import { Summary } from "./generate-record";
+import { Summary } from "./util-generate-record";
 
 export async function submitPayment(
 	db: Database,

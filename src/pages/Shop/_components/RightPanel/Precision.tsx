@@ -1,8 +1,7 @@
 import { useFix } from "../../_hooks/use-fix";
-import { LocalContext } from "../../_hooks/use-local-state";
 
-export function Precision({ context }: { context: LocalContext }) {
-	const [fix, setFix] = useFix(context);
+export function Precision() {
+	const [fix, setFix] = useFix();
 	return (
 		<div>
 			<label className="text-2xl flex items-center gap-3 pr-5">

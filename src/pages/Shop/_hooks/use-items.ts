@@ -1,9 +1,9 @@
-import { Context } from "../_utils/context";
-import { ItemWithoutDisc, State } from "../_utils/schema";
-import { LocalContext, SetState } from "./use-local-state";
+import { ItemWithoutDisc } from "../../_utils/util-schema";
+import { Context, useCtx } from "../use-context";
 import { produce } from "immer";
 
-export function useItems(context: LocalContext) {
+export function useItems() {
+	const context = useCtx();
 	const items = context.state.items;
 	const setItems = {
 		add: add(context),
@@ -21,11 +21,6 @@ export function useItems(context: LocalContext) {
 	};
 	return [items, setItems] as const;
 }
-
-type Context = {
-	state: State;
-	setState: SetState;
-};
 
 function add(context: Context) {
 	return (item: ItemWithoutDisc) => {

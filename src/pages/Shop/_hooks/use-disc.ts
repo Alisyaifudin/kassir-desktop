@@ -1,7 +1,7 @@
-import { LocalContext } from "./use-local-state";
+import { useCtx } from "../use-context";
 
-export function useDisc(context: LocalContext) {
-	const { state, setState } = context;
+export function useDisc() {
+	const { state, setState } = useCtx();
 	const discKind = state.discKind;
 	const discVal = state.discVal;
 	const disc = { kind: discKind, value: discVal };

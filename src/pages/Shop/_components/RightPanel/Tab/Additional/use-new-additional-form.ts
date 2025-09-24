@@ -1,19 +1,5 @@
 import { useRef, useState } from "react";
-import { useAdditional } from "./use-additional";
-import { LocalContext } from "./use-local-state";
-
-// const additionalSchema = z.object({
-// 	name: z.string().min(1, { message: "Harus punya nama" }).trim(),
-// 	value: z
-// 		.string()
-// 		.refine((v) => !isNaN(Number(v)))
-// 		.transform((v) => Number(v)),
-// 	kind: z.enum(["percent", "number"]),
-// 	saved: z
-// 		.literal("on")
-// 		.nullable()
-// 		.transform((v) => v === "on"),
-// });
+import { useAdditional } from "~/pages/Shop/_hooks/use-additional";
 
 const emptyErrs = { name: "", value: "" };
 type Data = {
@@ -29,12 +15,12 @@ const emptyData: Data = {
 	saved: false,
 };
 
-export function useNewAdditionalForm(context: LocalContext) {
+export function useNewAdditionalForm() {
 	const [error, setError] = useState(emptyErrs);
 	const [data, setData] = useState<Data>(emptyData);
 	const nameRef = useRef<HTMLInputElement>(null);
 	const valueRef = useRef<HTMLInputElement>(null);
-	const [_, setAdditional] = useAdditional(context);
+	const [_, setAdditional] = useAdditional();
 	const set = {
 		name: (v: string) => {
 			setData((prev) => ({ ...prev, name: v }));

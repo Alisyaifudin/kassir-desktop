@@ -1,25 +1,20 @@
 import { useState } from "react";
-import { useItems } from "./use-items";
+import { useItems } from "../../../_hooks/use-items";
 import { useDebouncedCallback } from "use-debounce";
 import { z } from "zod";
 import { produce } from "immer";
 import { integer } from "~/lib/utils";
-import { Item } from "../_utils/schema";
-import { LocalContext } from "./use-local-state";
+import { Item } from "../../../../_utils/util-schema";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 
-export function useDiscountForm(
-	itemIndex: number,
-	initDiscs: Item["discs"],
-	context: LocalContext
-) {
+export function useDiscountForm(itemIndex: number, initDiscs: Item["discs"]) {
 	const [discs, setDiscs] = useState(
 		initDiscs.map((d) => ({
 			value: d.value.toString(),
 			kind: d.kind,
 		}))
 	);
-	const [_, setItems] = useItems(context);
+	const [_, setItems] = useItems();
 	const debouncedKind = useDebouncedCallback((index: number, kind: "percent" | "number") => {
 		setItems.discs.kind(itemIndex, index, kind);
 	}, DEBOUNCE_DELAY);

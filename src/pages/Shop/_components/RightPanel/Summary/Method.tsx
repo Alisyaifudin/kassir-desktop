@@ -1,10 +1,9 @@
 import { METHOD_NAMES } from "~/lib/utils";
-import { useMethodHandler } from "../../../_hooks/use-method-handler";
-import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
+import { useMethodHandler } from "./use-method-handler";
 
-export function Method({ context }: { context: LocalContext }) {
+export function Method() {
 	const { method, handleChange, option, suboption, suboptionTop, handleChangeSub } =
-		useMethodHandler(context);
+		useMethodHandler();
 	return (
 		<div className="flex items-center gap-3 text-3xl">
 			<select value={method.method} onChange={handleChange} className=" w-[200px] outline">

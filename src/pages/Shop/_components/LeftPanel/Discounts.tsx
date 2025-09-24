@@ -1,7 +1,7 @@
 import { ForEach } from "~/components/ForEach";
-import type { ItemTransform } from "../../_utils/generate-record";
+import type { ItemTransform } from "../../../_utils/util-generate-record";
 
-export function Discounts({ discs }: { discs: ItemTransform["discs"]; }) {
+export function Discounts({ discs }: { discs: ItemTransform["discs"] }) {
 	return (
 		<ForEach items={discs}>
 			{(disc) => {

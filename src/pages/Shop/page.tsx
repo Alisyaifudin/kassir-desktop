@@ -1,51 +1,51 @@
-import { useFetchMethods } from "../../hooks/use-fetch-methods";
-import { Database } from "~/database";
+import { useFetchMethods } from "~/hooks/use-fetch-methods";
 import { Async } from "~/components/Async";
-import { Sheet } from "./_components/Sheet";
 import { Tab } from "./_components/Tab";
-import { LocalContext, useLocalState } from "./_hooks/use-local-state";
 import { Loader2 } from "lucide-react";
+import { useDB } from "~/hooks/use-db";
+import { context, Provider } from "./use-context";
+import { useContext } from "react";
+import { LeftPanel } from "./_components/LeftPanel";
+import { RightPanel } from "./_components/RightPanel";
 
 export type Context = {
-	db: Database;
 	toast: (text: string) => void;
 };
 
-export default function Page({ db, toast }: Context) {
+export default function Page({ toast }: Context) {
+	const db = useDB();
 	const [state] = useFetchMethods(db);
 	return (
 		<Async state={state}>
-			{(methods) => <Wrapper methods={methods} context={{ db, toast }} />}
+			{(methods) => (
+				<Provider methods={methods} toast={toast}>
+					<Wrapper />
+				</Provider>
+			)}
 		</Async>
 	);
 }
 
-function Wrapper({ methods, context }: { methods: DB.Method[]; context: Context }) {
-	const { state, setState, clear } = useLocalState(methods);
-	if (state === null) {
+function Wrapper() {
+	const ctx = useContext(context);
+	if (ctx === null) {
 		return (
 			<main className="flex flex-col min-h-0 max-h-[calc(100vh-83px)] overflow-hidden grow shrink basis-0 relative">
 				<Loader2 className="animate-splin" />;
 			</main>
 		);
 	}
-	const localContext = { state, setState, clear };
-	return <Component methods={methods} localContext={localContext} context={context} />;
+	return <Component />;
 }
 
-function Component({
-	methods,
-	context,
-	localContext,
-}: {
-	methods: DB.Method[];
-	localContext: LocalContext;
-	context: Context;
-}) {
+function Component() {
 	return (
-		<main className="flex flex-col min-h-0 max-h-[calc(100vh-83px)] overflow-hidden grow shrink basis-0 relative">
-			<Sheet context={context} localContext={localContext} />
-			<Tab methods={methods} context={localContext} />
+		<main className="flex flex-col min-h-0 max-h-full overflow-hidden grow shrink basis-0 relative">
+			<div className="gap-2 p-2 flex h-full">
+				<LeftPanel />
+				<RightPanel />
+			</div>
+			<Tab />
 		</main>
 	);
 }

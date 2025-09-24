@@ -1,12 +1,11 @@
-import { Field } from "../../Field";
+import { Field } from "../../../Field";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { useNewAdditionalForm } from "~/pages/shop/_hooks/use-new-additional-form";
-import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
+import { useNewAdditionalForm } from "~/pages/Shop/_components/RightPanel/Tab/Additional/use-new-additional-form";
 import { Label } from "~/components/ui/label";
 
-export function AdditionalComponent({ context }: { context: LocalContext }) {
-	const { handleSubmit, error, set, data, refs } = useNewAdditionalForm(context);
+export function AdditionalForm() {
+	const { handleSubmit, error, set, data, refs } = useNewAdditionalForm();
 	const handleEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key !== "Enter") return;
 		handleSubmit();

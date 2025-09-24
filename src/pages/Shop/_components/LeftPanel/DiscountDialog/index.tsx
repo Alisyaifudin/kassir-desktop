@@ -10,24 +10,15 @@ import {
 import { Plus, X } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import type { ItemTransform } from "../../_utils/generate-record";
-import { useDiscountForm } from "../../_hooks/use-discount-form";
+import type { ItemTransform } from "~/pages/Shop/_utils/util-generate-record";
+import { useDiscountForm } from "./use-discount-form";
 import Decimal from "decimal.js";
-import { useFix } from "../../_hooks/use-fix";
+import { useFix } from "~/pages/Shop/_hooks/use-fix";
 import { ForEach } from "~/components/ForEach";
-import type { LocalContext } from "../../_hooks/use-local-state";
 
-export function Discount({
-	itemIndex,
-	item,
-	context,
-}: {
-	itemIndex: number;
-	item: ItemTransform;
-	context: LocalContext;
-}) {
-	const { discs, handle } = useDiscountForm(itemIndex, item.discs, context);
-	const [fix] = useFix(context);
+export function Discount({ itemIndex, item }: { itemIndex: number; item: ItemTransform }) {
+	const { discs, handle } = useDiscountForm(itemIndex, item.discs);
+	const [fix] = useFix();
 	const totalDisc = Number(new Decimal(item.total).minus(item.grandTotal).toFixed(fix));
 	return (
 		<Dialog>

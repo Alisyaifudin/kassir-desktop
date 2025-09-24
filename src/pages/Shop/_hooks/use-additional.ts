@@ -1,8 +1,9 @@
-import type { Additional } from "../_utils/schema";
-import type { LocalContext } from "./use-local-state";
+import type { Additional } from "../../_utils/util-schema";
+import { Context, useCtx } from "../use-context";
 import { produce } from "immer";
 
-export function useAdditional(context: LocalContext) {
+export function useAdditional() {
+	const context = useCtx();
 	const additionals = context.state.additionals;
 	const setAdditionals = {
 		add: add(context),
@@ -15,7 +16,7 @@ export function useAdditional(context: LocalContext) {
 	return [additionals, setAdditionals] as const;
 }
 
-function add(context: LocalContext) {
+function add(context: Context) {
 	return (additional: Additional) => {
 		const state = produce(context.state, (state) => {
 			state.additionals.push(additional);
@@ -24,7 +25,7 @@ function add(context: LocalContext) {
 	};
 }
 
-function del(context: LocalContext) {
+function del(context: Context) {
 	return (index: number) => {
 		const state = produce(context.state, (state) => {
 			state.additionals = state.additionals.filter((_, i) => i !== index);
@@ -33,7 +34,7 @@ function del(context: LocalContext) {
 	};
 }
 
-function setName(context: LocalContext) {
+function setName(context: Context) {
 	return (index: number, name: string) => {
 		const state = produce(context.state, (state) => {
 			state.additionals[index].name = name;
@@ -42,7 +43,7 @@ function setName(context: LocalContext) {
 	};
 }
 
-function setKind(context: LocalContext) {
+function setKind(context: Context) {
 	return (index: number, kind: DB.ValueKind) => {
 		const state = produce(context.state, (state) => {
 			state.additionals[index].kind = kind;
@@ -54,7 +55,7 @@ function setKind(context: LocalContext) {
 	};
 }
 
-function setValue(context: LocalContext) {
+function setValue(context: Context) {
 	return (index: number, value: number) => {
 		const state = produce(context.state, (state) => {
 			let val = value;
@@ -66,7 +67,7 @@ function setValue(context: LocalContext) {
 		context.setState(state);
 	};
 }
-function setSaved(context: LocalContext) {
+function setSaved(context: Context) {
 	return (index: number, check: boolean) => {
 		const state = produce(context.state, (state) => {
 			state.additionals[index].saved = check;

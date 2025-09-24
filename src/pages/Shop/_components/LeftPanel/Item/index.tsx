@@ -1,27 +1,24 @@
 import { X } from "lucide-react";
 import { cn } from "~/lib/utils";
-import { Discount } from "./DiscountDialog";
-import { DetailDialog } from "./DetailDialog";
-import { ItemTransform } from "../../_utils/generate-record";
-import { useItemForm } from "../../_hooks/use-item-form";
+import { Discount } from "../DiscountDialog";
+import { DetailDialog } from "../DetailDialog";
+import { useItemForm } from "./use-item-form";
 import { Either } from "~/components/Either";
-import { useFix } from "../../_hooks/use-fix";
-import { Discounts } from "./Discounts";
-import { LocalContext } from "../../_hooks/use-local-state";
-import { Context } from "../../page";
+import { useFix } from "../../../_hooks/use-fix";
+import { Discounts } from "../Discounts";
+import { useMode } from "~/pages/Shop/_hooks/use-mode";
+import { ItemTransform } from "~/pages/Shop/util-generate-record";
 
 type Props = {
 	index: number;
-	mode: "sell" | "buy";
 	item: ItemTransform;
-	localContext: LocalContext;
-	context: Context;
 };
 
-export function ItemComponent({ index, mode, item, context, localContext }: Props) {
-	const { handleChange, formItem } = useItemForm(mode, index, item, localContext);
+export function ItemComponent({ index, item }: Props) {
+	const [mode] = useMode();
+	const { handleChange, formItem } = useItemForm(index, item);
 	const { name, price, barcode, qty } = formItem;
-	const [fix] = useFix(localContext);
+	const [fix] = useFix();
 	const productId = item.productId;
 	return (
 		<div
@@ -39,7 +36,6 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 							productId={productId ?? 0}
 							stock={item.stock ?? 0}
 							name={name}
-							context={context}
 						/>
 					}
 				/>
@@ -88,7 +84,7 @@ export function ItemComponent({ index, mode, item, context, localContext }: Prop
 						}
 						else={<p>{Number(Number(price).toFixed(fix)).toLocaleString("id-ID")}</p>}
 					/>
-					<Discount item={item} itemIndex={index} context={localContext} />
+					<Discount item={item} itemIndex={index} />
 					<input
 						type="number"
 						className={cn(

@@ -1,19 +1,16 @@
-import { Output } from "./SearchOutput";
+import { Output } from "../SearchOutput";
 import { TextError } from "~/components/TextError";
-import { Field } from "./Field";
+import { Field } from "../Manual/Field";
 import { Input } from "~/components/ui/input";
-import { useSearch } from "~/pages/shop/_hooks/use-search";
-import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
-import { useMode } from "~/pages/shop/_hooks/use-mode";
+import { useSearch } from "~/pages/Shop/_components/RightPanel/Tab/SearchBar/use-search";
+import { useMode } from "~/pages/Shop/_hooks/use-mode";
 
 export function Search({
 	products: allProducts,
 	additionals: allAdditionals,
-	context,
 }: {
 	products: DB.Product[];
 	additionals: DB.AdditionalItem[];
-	context: LocalContext;
 }) {
 	const {
 		handleChange,
@@ -25,8 +22,8 @@ export function Search({
 		products,
 		additionals,
 		ref,
-	} = useSearch(allProducts, allAdditionals, context);
-	const [mode] = useMode(context);
+	} = useSearch(allProducts, allAdditionals);
+	const [mode] = useMode();
 	return (
 		<>
 			<form onSubmit={handleSubmit} className="flex items-end gap-1 px-1">

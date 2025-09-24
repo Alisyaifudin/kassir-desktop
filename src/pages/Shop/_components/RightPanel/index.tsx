@@ -1,29 +1,18 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { AdditionalComponent } from "./Tab/Additional";
+import { AdditionalForm } from "./Tab/Additional";
 import { Search } from "./Tab/SearchBar";
 import { Manual } from "./Tab/Manual";
 import { Loading } from "~/components/Loading";
 import { Summary } from "./Summary";
 import React, { useCallback } from "react";
 import { Precision } from "./Precision";
-import { Context } from "../../page";
 import { Async } from "~/components/Async";
-import { LocalContext } from "../../_hooks/use-local-state";
-import { Summary as SummaryRecord } from "../../_utils/generate-record";
-import { Database } from "~/database";
 import { err, ok, Result } from "~/lib/utils";
 import { useFetch } from "~/hooks/useFetch";
+import { useDB } from "~/hooks/use-db";
 
-export function RightPanel({
-	context,
-	localContext,
-	summary,
-}: {
-	context: Context;
-	localContext: LocalContext;
-	summary: SummaryRecord;
-}) {
-	const state = useProducts(context);
+export function RightPanel() {
+	const state = useProducts();
 	return (
 		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
 			<Tabs
@@ -42,19 +31,19 @@ export function RightPanel({
 							Tambahan
 						</TabsTrigger>
 					</TabsList>
-					<Precision context={localContext} />
+					<Precision />
 				</div>
 				<Async state={state} Loading={<Loading />}>
 					{({ products, additionals }) => (
 						<>
 							<TabBtn value="auto">
-								<Search products={products} additionals={additionals} context={localContext} />
+								<Search products={products} additionals={additionals} />
 							</TabBtn>
 							<TabBtn value="man">
-								<Manual products={products} context={localContext} />
+								<Manual products={products} />
 							</TabBtn>
 							<TabBtn value="add">
-								<AdditionalComponent context={localContext} />
+								<AdditionalForm />
 							</TabBtn>
 						</>
 					)}
@@ -62,7 +51,7 @@ export function RightPanel({
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />
-				<Summary localContext={localContext} summary={summary} context={context} />
+				<Summary  />
 			</div>
 		</aside>
 	);
@@ -76,8 +65,8 @@ function TabBtn({ children, value }: { children: React.ReactNode; value: string 
 	);
 }
 
-export function useProducts(context: { db: Database }) {
-	const db = context.db;
+export function useProducts() {
+	const db = useDB();
 	const fetch = useCallback(async (): Promise<
 		Result<
 			"Aplikasi bermasalah",

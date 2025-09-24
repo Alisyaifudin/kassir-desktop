@@ -1,23 +1,18 @@
 import { useState } from "react";
-import { useAdditional } from "./use-additional";
+import { useAdditional } from "~/pages/Shop/_hooks/use-additional";
 import { useDebouncedCallback } from "use-debounce";
 import { z } from "zod";
-import { LocalContext } from "./use-local-state";
-import { AdditionalTransfrom } from "../_utils/generate-record";
+import { AdditionalTransfrom } from "~/pages/Shop/_utils/util-generate-record";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 
-export function useAdditionalForm(
-	index: number,
-	initAdd: AdditionalTransfrom,
-	context: LocalContext
-) {
+export function useAdditionalForm(index: number, initAdd: AdditionalTransfrom) {
 	const [additional, setAdditional] = useState({
 		kind: initAdd.kind,
 		value: initAdd.value.toString(),
 		name: initAdd.name,
 		saved: initAdd.saved,
 	});
-	const [_, setAdditionals] = useAdditional(context);
+	const [_, setAdditionals] = useAdditional();
 	const debounceName = useDebouncedCallback(
 		(v: string) => setAdditionals.name(index, v),
 		DEBOUNCE_DELAY

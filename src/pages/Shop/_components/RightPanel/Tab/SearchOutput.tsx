@@ -1,6 +1,6 @@
 import { ProductResult } from "~/hooks/useProductSearch";
 import { cn } from "~/lib/utils";
-import { Additional, ItemWithoutDisc } from "../../../_utils/schema";
+import { Additional, ItemWithoutDisc } from "../../../../_utils/util-schema";
 import { Show } from "~/components/Show";
 
 export function Output({

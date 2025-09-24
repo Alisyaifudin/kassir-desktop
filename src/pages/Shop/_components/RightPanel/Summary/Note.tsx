@@ -10,12 +10,11 @@ import { NotepadText } from "lucide-react";
 import { Textarea } from "~/components/ui/textarea";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { useNote } from "../../../_hooks/use-note";
-import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
+import { useNote } from "./use-note";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 
-export function Note({ context }: { context: LocalContext }) {
-	const [note, setNote] = useNote(context);
+export function Note() {
+	const [note, setNote] = useNote();
 	const [val, setVal] = useState(note);
 	const debounced = useDebouncedCallback((value: string) => setNote(value), DEBOUNCE_DELAY);
 	const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

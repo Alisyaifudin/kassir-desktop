@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { Additional, Item, Record } from "./schema";
+import { Additional, Item, Record } from "./util-schema";
 
 export type ItemTransformRaw = {
 	discs: {

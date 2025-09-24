@@ -8,7 +8,6 @@ import {
 } from "~/components/ui/dialog";
 import { User, X } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
-import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useCustomer } from "~/pages/Shop/_hooks/use-customer";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,19 +20,15 @@ import { Async } from "~/components/Async";
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 
-export function Customer({ context }: { context: LocalContext }) {
+export function Customer() {
 	const db = useDB();
 	const fetch = useCallback(() => db.customer.get.all(), []);
 	const [state] = useFetch(fetch);
-	return (
-		<Async state={state}>
-			{(customers) => <Wrapper customers={customers} context={context} />}
-		</Async>
-	);
+	return <Async state={state}>{(customers) => <Wrapper customers={customers} />}</Async>;
 }
 
-function Wrapper({ context, customers }: { customers: DB.Customer[]; context: LocalContext }) {
-	const [customer] = useCustomer(context);
+function Wrapper({ customers }: { customers: DB.Customer[] }) {
+	const [customer] = useCustomer();
 	const tab = customer.isNew ? "man" : "auto";
 	return (
 		<Dialog>
@@ -57,10 +52,10 @@ function Wrapper({ context, customers }: { customers: DB.Customer[]; context: Lo
 						</TabsList>
 					</div>
 					<TabBtn value="auto">
-						<AutoCustomer customers={customers} context={context} />
+						<AutoCustomer customers={customers} />
 					</TabBtn>
 					<TabBtn value="man">
-						<NewCustomer context={context} customers={customers} />
+						<NewCustomer customers={customers} />
 					</TabBtn>
 				</Tabs>
 			</DialogContent>
@@ -78,8 +73,8 @@ function TabBtn({ children, value }: { children: React.ReactNode; value: string 
 	);
 }
 
-function NewCustomer({ context, customers }: { context: LocalContext; customers: DB.Customer[] }) {
-	const [customer, setCustomer] = useCustomer(context);
+function NewCustomer({ customers }: { customers: DB.Customer[] }) {
+	const [customer, setCustomer] = useCustomer();
 	const [name, setName] = useState(customer.isNew ? customer.name : "");
 	const [phone, setPhone] = useState(customer.isNew ? customer.phone : "");
 	const [error, setError] = useState("");
@@ -140,14 +135,8 @@ function NewCustomer({ context, customers }: { context: LocalContext; customers:
 	);
 }
 
-function AutoCustomer({
-	context,
-	customers: all,
-}: {
-	context: LocalContext;
-	customers: DB.Customer[];
-}) {
-	const [customer, setCustomer] = useCustomer(context);
+function AutoCustomer({ customers: all }: { customers: DB.Customer[] }) {
+	const [customer, setCustomer] = useCustomer();
 	const [query, setQuery] = useState("");
 	const ref = useRef<HTMLInputElement>(null);
 	useEffect(() => {

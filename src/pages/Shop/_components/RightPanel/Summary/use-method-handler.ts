@@ -1,10 +1,11 @@
-import { useMethod } from "./use-method";
+import { useMethod } from "~/pages/Shop/use-method";
 import { z } from "zod";
-import { defaultMethod, LocalContext } from "./use-local-state";
+import { defaultMethod } from "~/pages/Shop/use-local-state";
+import { useCtx } from "~/pages/Shop/use-context";
 
-export function useMethodHandler(context: LocalContext) {
-	const methods = context.state.methods;
-	const [method, setMethod] = useMethod(context);
+export function useMethodHandler() {
+	const { methods } = useCtx();
+	const [method, setMethod] = useMethod();
 	const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const val = e.currentTarget.value;
 		const methodKind = z.enum(["cash", "transfer", "debit", "qris"]).catch("cash").parse(val);

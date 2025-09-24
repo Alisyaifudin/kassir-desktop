@@ -1,7 +1,8 @@
-import { LocalContext } from "./use-local-state";
+import { useCtx } from "../use-context";
 
-export function useMode(context: LocalContext) {
-	const { state, setState } = context;
+export function useMode() {
+	const ctx = useCtx();
+	const { state, setState } = ctx;
 	const mode = state.mode;
 	const setMode = (mode: DB.Mode) => setState({ ...state, mode });
 	return [mode, setMode] as const;

@@ -1,7 +1,8 @@
-import { defaultMethod, LocalContext } from "./use-local-state";
+import { useCtx } from "./use-context";
+import { defaultMethod } from "./use-local-state";
 
-export function useMethod(context: LocalContext) {
-	const { state, setState } = context;
+export function useMethod() {
+	const { state, setState } = useCtx();
 	const method = state.methods.find((m) => m.id === state.method.id) ?? defaultMethod;
 	const setMethod = (id: number) => {
 		const method = state.methods.find((m) => m.id === id) ?? defaultMethod;

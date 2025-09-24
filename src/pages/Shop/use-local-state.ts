@@ -1,22 +1,14 @@
 import { z } from "zod";
 import { safeJSON } from "~/lib/utils";
-import { State, stateSchema } from "../_utils/schema";
+import { State, stateSchema } from "./util-schema";
 import { useCallback, useEffect, useState } from "react";
 import { getSheetList, useSheet } from "./use-sheet";
 
 export type SetState = (state: State) => void;
 
-export type LocalContext = {
-	state: State;
-	setState: SetState;
-	clear: (del?: boolean) => void;
-};
-
-export function useLocalState(methods: DB.Method[]): {
-	state: null | State;
-	setState: SetState;
-	clear: (del?: boolean) => void;
-} {
+export function useLocalState(
+	methods: DB.Method[]
+): [null | State, SetState, (del?: boolean) => void] {
 	const [sheet, setSheet, removeSheet] = useSheet();
 	const [state, setState] = useState<null | State>(null);
 	useEffect(() => {
@@ -43,7 +35,7 @@ export function useLocalState(methods: DB.Method[]): {
 			setItemAsync("state-" + sheet, JSON.stringify(emptyState));
 		}
 	}
-	return { state, setState: setStateDI, clear };
+	return [state, setStateDI, clear] as const;
 }
 
 export const defaultMethod = { id: 1000, method: "cash" as const, name: null };
@@ -66,11 +58,6 @@ export const emptyState: State = {
 		isNew: false,
 	},
 };
-
-// const keyItem = {
-// 	buy: `state-buy`,
-// 	sell: `state-sell`,
-// } as const;
 
 export function getState(methods: DB.Method[], sheet: number): State | null {
 	const key = "state-" + sheet;

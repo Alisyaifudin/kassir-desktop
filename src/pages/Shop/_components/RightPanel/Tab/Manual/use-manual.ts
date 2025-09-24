@@ -1,33 +1,10 @@
 import { useRef, useState } from "react";
-// import { z } from "zod";
-import { useItems } from "./use-items";
-import { LocalContext } from "./use-local-state";
-
-// const itemSchema = z.object({
-// 	barcode: z.string().trim(),
-// 	name: z.string().trim().min(1, { message: "Harus ada" }),
-// 	price: z
-// 		.string()
-// 		.refine((v) => !isNaN(Number(v)), { message: "Harus angka" })
-// 		.transform((v) => Number(v)),
-// 	qty: z
-// 		.string()
-// 		.refine((v) => !isNaN(Number(v)) || !Number.isInteger(Number(v)) || Number(v) < 0, {
-// 			message: "Tidak valid",
-// 		})
-// 		.transform((v) => Number(v)),
-// 	stock: z
-// 		.string()
-// 		.refine((v) => !isNaN(Number(v)) || !Number.isInteger(Number(v)) || Number(v) < 0, {
-// 			message: "Tidak valid",
-// 		})
-// 		.transform((v) => Number(v)),
-// });
+import { useItems } from "~/pages/Shop/_hooks/use-items";
 
 const emptyData = { name: "", price: "", qty: "1", barcode: "", stock: "1" };
 const emptyErrs = { barcode: "", qty: "", name: "" };
 
-export function useManual(products: DB.Product[], context: LocalContext) {
+export function useManual(products: DB.Product[]) {
 	const barcodeRef = useRef<HTMLInputElement | null>(null);
 	const nameRef = useRef<HTMLInputElement | null>(null);
 	const stockRef = useRef<HTMLInputElement | null>(null);
@@ -35,7 +12,7 @@ export function useManual(products: DB.Product[], context: LocalContext) {
 	const priceRef = useRef<HTMLInputElement | null>(null);
 	const [data, setData] = useState(emptyData);
 	const [error, setError] = useState(emptyErrs);
-	const [_, setItems] = useItems(context);
+	const [, setItems] = useItems();
 	const set = {
 		barcode(v: string) {
 			setData((prev) => ({ ...prev, barcode: v }));
@@ -63,6 +40,7 @@ export function useManual(products: DB.Product[], context: LocalContext) {
 			setError(emptyErrs);
 		},
 		stock(v: string) {
+			console.log("stock", v);
 			if (v.trim() === "") {
 				setData((prev) => ({ ...prev, stock: "" }));
 				setError(emptyErrs);
@@ -108,6 +86,7 @@ export function useManual(products: DB.Product[], context: LocalContext) {
 			setError({ ...emptyErrs, qty: "Ngaur" });
 			return;
 		}
+		console.log(stock);
 		setItems.add({
 			barcode: barcode === "" ? null : barcode.trim(),
 			qty,

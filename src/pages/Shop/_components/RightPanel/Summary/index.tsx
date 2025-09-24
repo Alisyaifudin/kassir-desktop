@@ -5,42 +5,28 @@ import { Button } from "~/components/ui/button";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { Note } from "./Note";
 import { useFix } from "../../../_hooks/use-fix";
-import { useSummaryForm } from "../../../_hooks/use-summary-form";
+import { useSummaryForm } from "./use-summary-form";
 import { Method } from "./Method";
-import { Summary as SummaryRecord } from "~/pages/shop/_utils/generate-record";
-import { LocalContext } from "~/pages/shop/_hooks/use-local-state";
-import { Context } from "~/pages/Shop/page";
 import { Customer } from "./Customer";
-import { useMode } from "~/pages/shop/_hooks/use-mode";
+import { useMode } from "~/pages/Shop/_hooks/use-mode";
+import { useCtx } from "~/pages/Shop/use-context";
 
-export function Summary({
-	localContext,
-	summary,
-	context,
-}: {
-	localContext: LocalContext;
-	summary: SummaryRecord;
-	context: Context;
-}) {
-	const [fix] = useFix(localContext);
-	const [mode] = useMode(localContext);
-	const { data, handleChange, handleSubmit, loading } = useSummaryForm(
-		mode,
-		summary,
-		localContext,
-		context
-	);
+export function Summary() {
+	const [fix] = useFix();
+	const [mode] = useMode();
+	const { summary, clear } = useCtx();
+	const { data, handleChange, handleSubmit, loading } = useSummaryForm();
 	const change = new Decimal(Number(data.pay)).sub(summary.record.grandTotal);
 	return (
 		<div className="flex flex-col p-2 h-fit gap-2">
 			<div className="flex flex-col gap-2  flex-1 h-full items-center justify-between">
 				<div className="flex items-center justify-between w-full">
-					<Button type="button" variant="destructive" onClick={() => localContext.clear(false)}>
+					<Button type="button" variant="destructive" onClick={() => clear(false)}>
 						<RefreshCcw />
 					</Button>
-					<Method context={localContext} />
-					<Customer context={localContext} />
-					<Note context={localContext} />
+					<Method />
+					<Customer />
+					<Note />
 				</div>
 			</div>
 			<form onSubmit={handleSubmit(0)} className="flex-1 flex flex-col gap-1 h-fit">

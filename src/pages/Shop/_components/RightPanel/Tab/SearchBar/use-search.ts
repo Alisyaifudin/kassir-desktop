@@ -1,24 +1,19 @@
 import { useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { ProductResult, useProductSearch } from "~/hooks/useProductSearch";
-import { Additional, ItemWithoutDisc } from "../_utils/schema";
-import { useItems } from "./use-items";
-import { LocalContext } from "./use-local-state";
+import { Additional, ItemWithoutDisc } from "../../../../../_utils/util-schema";
+import { useItems } from "../../../../_hooks/use-items";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useAdditionalSearch } from "~/hooks/useAdditionalSearch";
-import { useAdditional } from "./use-additional";
+import { useAdditional } from "../../../../_hooks/use-additional";
 
-export function useSearch(
-	allProducts: DB.Product[],
-	allAdditionals: DB.AdditionalItem[],
-	context: LocalContext
-) {
+export function useSearch(allProducts: DB.Product[], allAdditionals: DB.AdditionalItem[]) {
 	const [query, setQuery] = useState("");
 	const ref = useRef<HTMLInputElement>(null);
 	const [products, setProducts] = useState<ProductResult[]>([]);
 	const [additionals, setAdditionals] = useState<Additional[]>([]);
-	const [, setItems] = useItems(context);
-	const [, setAdditionalItems] = useAdditional(context);
+	const [, setItems] = useItems();
+	const [, setAdditionalItems] = useAdditional();
 	const { search: searchProduct } = useProductSearch(allProducts);
 	const { search: searchAdditional } = useAdditionalSearch(allAdditionals);
 	const debounced = useDebouncedCallback((value: string) => {

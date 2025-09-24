@@ -1,16 +1,12 @@
 import { useEffect, useState } from "react";
-import { useItems } from "./use-items";
+import { useItems } from "~/pages/Shop/_hooks/use-items";
 import { useDebouncedCallback } from "use-debounce";
-import { ItemTransform } from "../_utils/generate-record";
-import { LocalContext } from "./use-local-state";
+import { ItemTransform } from "~/pages/Shop/_utils/util-generate-record";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { useMode } from "~/pages/Shop/_hooks/use-mode";
 
-export function useItemForm(
-	mode: DB.Mode,
-	index: number,
-	item: ItemTransform,
-	context: LocalContext
-) {
+export function useItemForm(index: number, item: ItemTransform) {
+	const [mode] = useMode();
 	const [formItem, setFormItem] = useState({
 		name: item.name,
 		price: item.price.toString(),
@@ -26,10 +22,10 @@ export function useItemForm(
 	const debounceName = useDebouncedCallback((v: string) => {
 		setItems.name(index, v);
 		// weird hack. dont know the root cause 😭
-		setTimeout(() => {
-			const input = document.getElementById(`name-${index}`) as HTMLInputElement | null;
-			input?.focus();
-		}, 1);
+		// setTimeout(() => {
+		// 	const input = document.getElementById(`name-${index}`) as HTMLInputElement | null;
+		// 	input?.focus();
+		// }, 1);
 	}, DEBOUNCE_DELAY);
 	const debounceBarcode = useDebouncedCallback((v: string) => {
 		setItems.barcode(index, v);
@@ -39,7 +35,7 @@ export function useItemForm(
 		DEBOUNCE_DELAY
 	);
 	const debounceQty = useDebouncedCallback((v: number) => setItems.qty(index, v), DEBOUNCE_DELAY);
-	const [_, setItems] = useItems(context);
+	const [_, setItems] = useItems();
 	const handleChange = {
 		name: (e: React.ChangeEvent<HTMLInputElement>) => {
 			if (productId !== undefined) {

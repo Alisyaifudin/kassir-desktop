@@ -1,17 +1,12 @@
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
-import { User } from "~/lib/auth";
 import { capitalize } from "~/lib/utils";
+import { useMode } from "../../_hooks/use-mode";
+import { useUser } from "~/hooks/use-user";
 
-export function Tab({
-	mode,
-	setMode,
-	user,
-}: {
-	mode: DB.Mode;
-	setMode: (mode: DB.Mode) => void;
-	user: User;
-}) {
+export function Tab() {
+	const [mode, setMode] = useMode();
+	const user = useUser();
 	return (
 		<div className="flex gap-2 items-center justify-between">
 			<div className="flex items-center gap-1">
