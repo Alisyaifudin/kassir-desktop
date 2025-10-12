@@ -98,6 +98,7 @@ export function useSummaryForm() {
 		}
 		e.preventDefault();
 		if (loading) return;
+		if (credit === 0 && record.pay < record.grandTotal) return;
 		const [errMsg, timestamp] = await action(credit);
 		if (errMsg !== null) {
 			log.error("Failed to submit");
