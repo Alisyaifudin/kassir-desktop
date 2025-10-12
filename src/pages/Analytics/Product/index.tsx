@@ -9,7 +9,7 @@ import {
 import { ProductRecord } from "~/database/product";
 import { useProductSearch } from "./useProductSearch";
 import { DatePicker } from "../_components/DatePicker";
-import { SetURLSearchParams } from "react-router";
+import { Link, SetURLSearchParams } from "react-router";
 import { Mode } from "../_components/Mode";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
@@ -83,16 +83,32 @@ export function Product({
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{products.map((product, i) => (
-						<TableRow key={i}>
-							<TableCell className="font-medium">{i + 1}</TableCell>
-							<TableCell>{product.barcode ?? ""}</TableCell>
-							<TableCell>{product.name}</TableCell>
-							<TableCell className="text-end">{product.price.toLocaleString("id-ID")}</TableCell>
-							<TableCell className="text-end">{product.capital.toLocaleString("id-ID")}</TableCell>
-							<TableCell className="text-end">{product.qty}</TableCell>
-						</TableRow>
-					))}
+					{products.map((product, i) => {
+						const pathname = `/stock/product/${product.id}`;
+						return (
+							<TableRow key={i} className={product.price === product.capital ? "bg-red-300" : ""}>
+								<TableCell className="font-medium">{i + 1}</TableCell>
+								<TableCell>{product.barcode ?? ""}</TableCell>
+								<TableCell>
+									<Link
+										to={{
+											pathname,
+											search: `?url_back=${encodeURIComponent(
+												window.location.pathname + "?" + window.location.search
+											)}`,
+										}}
+									>
+										{product.name}
+									</Link>
+								</TableCell>
+								<TableCell className="text-end">{product.price.toLocaleString("id-ID")}</TableCell>
+								<TableCell className="text-end">
+									{product.capital.toLocaleString("id-ID")}
+								</TableCell>
+								<TableCell className="text-end">{product.qty}</TableCell>
+							</TableRow>
+						);
+					})}
 				</TableBody>
 			</Table>
 		</div>
