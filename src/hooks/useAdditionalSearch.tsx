@@ -1,7 +1,6 @@
 import MiniSearch, { SearchOptions, MatchInfo } from "minisearch";
 import { useMemo } from "react";
 
-
 export type MiniSearchProduct = {
 	terms: string[];
 	queryTerms: string[];
@@ -20,7 +19,7 @@ export const useAdditionalSearch = (products: DB.AdditionalItem[]) => {
 				processTerm: (term: string) => term.toLowerCase(),
 			},
 		});
-
+		products.sort((a, b) => a.name.localeCompare(b.name));
 		instance.addAll(products);
 		return instance;
 	}, [products]);

@@ -40,7 +40,7 @@ export function Form({ product, db }: { product: DB.AdditionalItem; db: Database
 				<Label className="text-3xl">Jenis:</Label>
 				<select
 					name="kind"
-					defaultValue="percent"
+					defaultValue={product.kind}
 					className="h-[54px] w-fit outline text-3xl"
 				>
 					<option value="number">Angka</option>

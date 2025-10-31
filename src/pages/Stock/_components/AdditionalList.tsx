@@ -29,7 +29,7 @@ export function AdditionalList({ products }: Props) {
 					<TableHead className="w-[50px]">No</TableHead>
 					<TableHead>Nama</TableHead>
 					<TableHead className="text-right w-[150px]">Jenis</TableHead>
-					<TableHead className="text-right w-[150px]">Nilai</TableHead>
+					<TableHead className="text-right w-[200px]">Nilai Awal</TableHead>
 					<TableHead className="w-[50px]"></TableHead>
 				</TableRow>
 			</TableHeader>
@@ -57,6 +57,6 @@ export function AdditionalList({ products }: Props) {
 }
 
 const label = {
-	"percent": "Persen",
-	"number": "Angka"
-}
+	percent: "Persen",
+	number: "Angka",
+};
