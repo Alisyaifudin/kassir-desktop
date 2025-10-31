@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export function SortDir({
+export function Sort({
 	setSortDir,
 	sortDir,
 	setSortBy,
@@ -8,8 +8,8 @@ export function SortDir({
 }: {
 	sortDir: "asc" | "desc";
 	setSortDir: (v: "asc" | "desc") => void;
-	sortBy: "barcode" | "name" | "price" | "capital" | "stock";
-	setSortBy: (v: "barcode" | "name" | "price" | "capital" | "stock") => void;
+	sortBy: "barcode" | "name" | "price" | "capital" | "stock" | "same";
+	setSortBy: (v: "barcode" | "name" | "price" | "capital" | "stock" | "same") => void;
 }) {
 	return (
 		<div className="flex gap-2 items-center">
@@ -20,7 +20,7 @@ export function SortDir({
 				value={sortBy}
 				onChange={(e) => {
 					const parsed = z
-						.enum(["barcode", "name", "price", "capital", "stock"])
+						.enum(["barcode", "name", "price", "capital", "stock", "same"])
 						.safeParse(e.currentTarget.value);
 					if (!parsed.success) {
 						return;
@@ -35,6 +35,7 @@ export function SortDir({
 				<option value="price">Harga</option>
 				<option value="capital">Modal</option>
 				<option value="stock">Stok</option>
+				<option value="same">Sama</option>
 			</select>
 			<select
 				id="sort-products"

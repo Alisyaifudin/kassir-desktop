@@ -20,6 +20,7 @@ export function useFilterProducts(all: DB.Product[]) {
 					prefix: true,
 					combineWith: "AND",
 			  });
-	sorting(products, sortBy, sortDir);
-	return products;
+	const p = sorting(products, sortBy, sortDir);
+	
+	return p;
 }

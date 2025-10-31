@@ -1,5 +1,5 @@
 import { useParams } from "../_hooks/use-params";
-import { SortDir } from "./Sort";
+import { Sort } from "./Sort";
 import { Search } from "./Search";
 import { Pagination } from "./Pagination";
 import { useUser } from "~/hooks/use-user";
@@ -15,7 +15,7 @@ export function PanelProduct({ productsLength }: { productsLength: number }) {
 	const user = useUser();
 	return (
 		<div className="flex items-center gap-10">
-			<SortDir
+			<Sort
 				sortDir={get.sortDir}
 				setSortDir={set.sortDir}
 				sortBy={get.sortBy}

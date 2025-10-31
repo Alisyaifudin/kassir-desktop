@@ -2,7 +2,7 @@ import { type ProductResult } from "~/hooks/useProductSearch.tsx";
 
 export function sorting(
 	products: ProductResult[],
-	by: "barcode" | "name" | "price" | "capital" | "stock" | "stock_back",
+	by: "barcode" | "name" | "price" | "capital" | "stock" | "stock_back" | "same",
 	dir: "asc" | "desc"
 ) {
 	const sign = dir === "asc" ? 1 : -1;
@@ -29,5 +29,11 @@ export function sorting(
 			break;
 		case "name":
 			products.sort((a, b) => a.name.localeCompare(b.name) * sign);
+			break;
+		case "same": {
+			products = products.filter((p) => p.capital === p.price);
+			products.sort((a, b) => a.name.localeCompare(b.name) * sign);
+		}
 	}
+	return products;
 }
