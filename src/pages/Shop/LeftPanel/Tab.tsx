@@ -3,9 +3,12 @@ import { Button } from "~/components/ui/button";
 import { capitalize } from "~/lib/utils";
 import { useMode } from "~/pages/Shop/use-mode";
 import { useUser } from "~/hooks/use-user";
+import { useTabs } from "../use-tab";
+import { Plus } from "lucide-react";
 
 export function Tab() {
 	const [mode, setMode] = useMode();
+	const [, addTab] = useTabs();
 	const user = useUser();
 	return (
 		<div className="flex gap-2 items-center justify-between">
@@ -29,7 +32,12 @@ export function Tab() {
 					</Button>
 				</Show>
 			</div>
-			<p className="text-3xl px-2">Kasir: {capitalize(user.name)}</p>
+			<div className="flex items-center gap-1">
+				<Button onClick={addTab}>
+					Tambah Tab <Plus />
+				</Button>
+				<p className="text-3xl px-2">Kasir: {capitalize(user.name)}</p>
+			</div>
 		</div>
 	);
 }
