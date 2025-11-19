@@ -1,6 +1,6 @@
 import { useFetchMethods } from "~/hooks/use-fetch-methods";
 import { Async } from "~/components/Async";
-import { Tab } from "./Tab";
+import { SheetTab } from "./LeftPanel/SheetTab";
 import { Loader2 } from "lucide-react";
 import { useDB } from "~/hooks/use-db";
 import { context, Provider } from "./use-context";
@@ -45,7 +45,6 @@ function Component() {
 				<LeftPanel />
 				<RightPanel />
 			</div>
-			<Tab />
 		</main>
 	);
 }

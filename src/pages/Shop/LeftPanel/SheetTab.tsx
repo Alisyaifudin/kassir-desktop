@@ -1,7 +1,5 @@
 import { ForEach } from "~/components/ForEach";
-import { Button } from "~/components/ui/button";
-import { Plus } from "lucide-react";
-import { DeleteSheet } from "./DeleteSheet";
+import { DeleteSheet } from "../DeleteSheet";
 import { Show } from "~/components/Show";
 import { cn, safeJSON } from "~/lib/utils";
 import { useSheet } from "~/pages/Shop/use-sheet";
@@ -15,10 +13,10 @@ const label = {
 	buy: "B",
 };
 
-export function Tab() {
+export function SheetTab() {
 	const [currentMode] = useMode();
 	const [sheet, setSheet] = useSheet();
-	const [tabs, addTab, deleteTab] = useTabs();
+	const [tabs, _, deleteTab] = useTabs();
 	const modes = useMemo(() => {
 		const modes: { mode: DB.Mode; tab: number }[] = [];
 		for (const tab of tabs.values()) {
@@ -33,11 +31,11 @@ export function Tab() {
 		return modes;
 	}, [currentMode, tabs]);
 	return (
-		<div className="flex items-center gap-1 fixed bottom-0 z-20 shadow-lg bg-white px-0.5 pt-0.5 left-2 sm:max-w-[500px] lg:max-w-[1000px] overflow-x-auto">
+		<div className="flex items-center gap-1 bg-white px-0.5 pt-0.5 left-2 max-w-[830px] overflow-x-auto">
 			<ForEach items={modes}>
 				{({ tab, mode }) => (
 					<div
-						className={cn("rounded-b-0 rounded-t-md text-3xl outline flex items-center gap-1", {
+						className={cn("rounded-b-0 bg-zinc-100 rounded-t-md text-3xl outline flex items-center gap-1", {
 							"bg-black text-white": sheet === tab,
 						})}
 					>
@@ -51,9 +49,6 @@ export function Tab() {
 					</div>
 				)}
 			</ForEach>
-			<Button className="rounded-full" size="icon" onClick={addTab}>
-				<Plus />
-			</Button>
 		</div>
 	);
 }
