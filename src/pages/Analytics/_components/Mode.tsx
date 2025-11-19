@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { useSize } from "~/hooks/use-size";
 
 export function Mode({
 	mode,
