@@ -10,6 +10,8 @@ import {
 import { Button } from "~/components/ui/button";
 import { useNavigate } from "react-router";
 import { useInterval } from "../_hooks/use-interval";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 type Props = {
 	products: DB.AdditionalItem[];
@@ -17,13 +19,14 @@ type Props = {
 
 export function AdditionalList({ products }: Props) {
 	const { start, end } = useInterval(products.length);
+	const size = useSize();
 	const navigate = useNavigate();
 	const handleClick = (id: number) => () => {
 		const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
 		navigate({ pathname: `additional/${id}`, search: `?url_back=${backURL}` });
 	};
 	return (
-		<TableScrollable className="text-3xl">
+		<TableScrollable style={style[size].text}>
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[50px]">No</TableHead>

@@ -11,10 +11,21 @@ import { useCustomer } from "~/pages/Shop/use-customer";
 import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useCtx } from "~/pages/Shop/use-context";
+import { useSize } from "~/hooks/use-size";
+
+const itemH = {
+	big: {
+		height: "calc(100vh - 400px)",
+	},
+	small: {
+		height: "calc(100vh - 300px)",
+	},
+};
 
 export function LeftPanel() {
 	const [fix] = useFix();
 	const summary = useCtx().summary;
+	const size = useSize();
 	const { grandTotal, totalAfterDiscount } = summary.record;
 	const items = summary.items;
 	items.reverse();
@@ -30,7 +41,7 @@ export function LeftPanel() {
 					<Tab />
 					<Header />
 				</div>
-				<div className="flex text-3xl flex-col overflow-y-auto min-h-0 h-full max-h-[calc(100vh-400px)]">
+				<div style={itemH[size]} className="flex flex-col overflow-y-auto min-h-0 h-full">
 					<ForEach items={items} extractKey={(item, i) => `${n - i! - 1}-${item.name}`}>
 						{(item, i) => <ItemComponent index={n - i - 1} item={item} />}
 					</ForEach>

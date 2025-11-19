@@ -4,7 +4,7 @@ export function Precision() {
 	const [fix, setFix] = useFix();
 	return (
 		<div>
-			<label className="text-2xl flex items-center gap-3 pr-5">
+			<label className="flex items-center gap-3 pr-5">
 				Bulatkan?
 				<select value={fix} onChange={(e) => setFix(Number(e.currentTarget.value))}>
 					<option value={0}>0</option>

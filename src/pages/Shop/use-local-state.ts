@@ -33,6 +33,9 @@ export function useLocalState(
 		} else {
 			setState(emptyState);
 			setItemAsync("state-" + sheet, JSON.stringify(emptyState));
+			// hack, fix later
+			// somehow, after clearing, the method can't be change
+			window.location.reload();
 		}
 	}
 	return [state, setStateDI, clear] as const;

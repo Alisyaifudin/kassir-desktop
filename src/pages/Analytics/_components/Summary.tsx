@@ -2,6 +2,8 @@ import Decimal from "decimal.js";
 import { getFlow, getVisitors } from "../_utils/group-items";
 import { Temporal } from "temporal-polyfill";
 import { RecordTransform } from "~/lib/record";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 type Props = {
 	records: RecordTransform[];
@@ -13,6 +15,7 @@ type Props = {
 };
 
 export function Summary({ records, interval, start, end, option, time }: Props) {
+	const size = useSize();
 	const { revenues, spendings, debts } = getFlow({ records, interval, start, end });
 	const profits: number[] = [];
 	revenues.forEach((rev, i) => {
@@ -23,14 +26,14 @@ export function Summary({ records, interval, start, end, option, time }: Props) 
 	switch (option) {
 		case "net":
 			return (
-				<div className="flex flex-col text-3xl">
+				<div style={style[size].text} className="flex flex-col text-3xl">
 					<p>Untung Total:</p>
 					<p className="text-end">Rp{calcSum(profits).toLocaleString("id-ID")}</p>
 				</div>
 			);
 		case "cashflow":
 			return (
-				<div className="flex flex-col gap-2 text-3xl">
+				<div style={style[size].text} className="flex flex-col gap-2 text-3xl">
 					<p>Pemasukan Total:</p>
 					<p className="text-end">Rp{calcSum(revenues).toLocaleString("id-ID")}</p>
 					<p>Pengeluaran Total:</p>
@@ -58,7 +61,7 @@ export function Summary({ records, interval, start, end, option, time }: Props) 
 				end,
 			});
 			return (
-				<div className="flex flex-col gap-2 text-3xl">
+				<div style={style[size].text} className="flex flex-col gap-2 text-3xl">
 					<p>Harian: {calcSum(visitorsDaily)}</p>
 					<p>Mingguan: {calcSum(visitorsWeekly)}</p>
 				</div>

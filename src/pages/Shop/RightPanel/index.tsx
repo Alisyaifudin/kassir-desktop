@@ -10,16 +10,34 @@ import { Async } from "~/components/Async";
 import { err, ok, Result } from "~/lib/utils";
 import { useFetch } from "~/hooks/useFetch";
 import { useDB } from "~/hooks/use-db";
+import { useSize } from "~/hooks/use-size";
+
+const localStyle = {
+	big: {
+		minWidth: {
+			minWidth: "666px",
+		},
+	},
+	small: {
+		minWidth: {
+			minWidth: "400px",
+		},
+	},
+};
 
 export function RightPanel() {
 	const state = useProducts();
+	const size = useSize();
 	return (
-		<aside className="flex flex-col overflow-hidden justify-between min-w-[666px] w-[35%] h-full">
+		<aside
+			style={localStyle[size].minWidth}
+			className="flex flex-col overflow-hidden justify-between w-[35%] h-full"
+		>
 			<Tabs
 				defaultValue="auto"
 				className="w-full grow shrink basis-0 items-start flex flex-col overflow-hidden"
 			>
-				<div className="flex items-center justify-between w-full">
+				<div className="flex items-center flex-wrap justify-between w-full">
 					<TabsList>
 						<TabsTrigger type="button" value="auto">
 							Otomatis
@@ -51,7 +69,7 @@ export function RightPanel() {
 			</Tabs>
 			<div style={{ flex: "0 0 auto" }}>
 				<hr />
-				<Summary  />
+				<Summary />
 			</div>
 		</aside>
 	);

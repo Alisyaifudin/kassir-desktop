@@ -3,16 +3,29 @@ import { useDebouncedCallback } from "use-debounce";
 import { useState } from "react";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { cn } from "~/lib/utils";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
-export function Search({ query, setQuery }: { query: string; setQuery: (v: string) => void }) {
+export function Search({
+	query,
+	setQuery,
+	className,
+}: {
+	className?: string;
+	query: string;
+	setQuery: (v: string) => void;
+}) {
 	const [value, setValue] = useState(query);
 	const debounced = useDebouncedCallback((value: string) => {
 		setQuery(value);
 	}, DEBOUNCE_DELAY);
+	const size = useSize();
 	return (
-		<label className="flex gap-2 items-center flex-1">
+		<label className={cn("flex gap-2 items-center flex-1", className)}>
 			<SearchIcon size={35} />
 			<Input
+				style={style[size].text}
 				type="search"
 				placeholder="Cari..."
 				className="w-full"

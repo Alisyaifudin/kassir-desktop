@@ -3,6 +3,8 @@ import { Show } from "~/components/Show";
 import { AdditionalTransfrom, RecordTransform } from "~/lib/record";
 import { Additional } from "./Additonal";
 import { METHOD_NAMES } from "~/lib/utils";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Footer({
 	method,
@@ -13,8 +15,9 @@ export function Footer({
 	record: RecordTransform;
 	additionals: AdditionalTransfrom[];
 }) {
+	const size = useSize();
 	return (
-		<div className="flex flex-col items-end">
+		<div style={style[size].text} className="flex flex-col items-end">
 			<Show when={record.disc_val > 0}>
 				<div className="grid grid-cols-[170px_200px]">
 					<p className="text-end">Subtotal:</p>
@@ -36,13 +39,13 @@ export function Footer({
 				</ForEach>
 				<hr className="w-full" />
 				<Show when={record.totalAfterAdditional !== record.grandTotal}>
-				<div className="grid grid-cols-[170px_200px]">
-					<div></div>{" "}
-					<p className="text-end">Rp{record.totalAfterAdditional.toLocaleString("de-DE")}</p>
-				</div>
+					<div className="grid grid-cols-[170px_200px]">
+						<div></div>{" "}
+						<p className="text-end">Rp{record.totalAfterAdditional.toLocaleString("de-DE")}</p>
+					</div>
 				</Show>
 			</Show>
-			<Show when={record.rounding > 0}>
+			<Show when={record.rounding !== 0}>
 				<div className="grid grid-cols-[170px_200px]">
 					<p className="text-end">Pembulatan:</p>
 					<p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>

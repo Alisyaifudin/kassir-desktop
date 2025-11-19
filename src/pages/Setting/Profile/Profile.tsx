@@ -14,6 +14,17 @@ import { User } from "~/lib/auth";
 import { Database } from "~/database";
 import { Store } from "~/lib/store";
 import { Password } from "~/components/Password";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+
+const grid = {
+	big: {
+		gridTemplateColumns: "250px 1fr",
+	},
+	small: {
+		gridTemplateColumns: "160px 1fr",
+	},
+};
 
 export default function Profile({
 	context,
@@ -22,6 +33,7 @@ export default function Profile({
 }) {
 	const password = useEditPassword(context);
 	const name = useEditName(context);
+	const size = useSize();
 	return (
 		<div className="flex flex-col gap-2 p-5 flex-1 text-3xl justify-between">
 			<form onSubmit={name.handleChange} className="flex-col gap-2 flex">
@@ -29,7 +41,7 @@ export default function Profile({
 					<span>Nama</span>
 					<Input defaultValue={context.user.name} name="name" required aria-autocomplete="list" />
 				</label>
-				<Button className="w-fit self-end">
+				<Button style={style[size].text} className="w-fit self-end">
 					Simpan <Spinner when={name.loading} />
 				</Button>
 				<TextError>{name.error}</TextError>
@@ -39,11 +51,11 @@ export default function Profile({
 					<AccordionTrigger className="font-bold text-3xl px-2">Ganti kata sandi</AccordionTrigger>
 					<AccordionContent>
 						<form onSubmit={password.handleChange} className="flex-col gap-2 flex px-2 text-3xl">
-							<label className="grid grid-cols-[250px_1fr] gap-2 items-center">
-								<span>Kata Sandi Baru</span>
-								<Password name="password" aria-autocomplete="list" />
+							<label style={grid[size]} className="grid gap-2 items-center">
+								<span style={style[size].text}>Kata Sandi Baru</span>
+								<Password style={style[size].text} name="password" aria-autocomplete="list" />
 							</label>
-							<Button className="w-fit self-end">
+							<Button style={style[size].text} className="w-fit self-end">
 								Simpan <Spinner when={password.loading} />
 							</Button>
 							<TextError>{password.error}</TextError>

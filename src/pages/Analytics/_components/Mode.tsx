@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
+import { useSize } from "~/hooks/use-size";
 
 export function Mode({
 	mode,
@@ -21,15 +22,11 @@ export function Mode({
 			>
 				<div className="flex items-center space-x-2">
 					<RadioGroupItem value="sell" id="sell" />
-					<Label htmlFor="sell" className="text-3xl">
-						Jual
-					</Label>
+					<Label htmlFor="sell">Jual</Label>
 				</div>
 				<div className="flex items-center space-x-2">
 					<RadioGroupItem value="buy" id="buy" />
-					<Label htmlFor="buy" className="text-3xl">
-						Beli
-					</Label>
+					<Label htmlFor="buy">Beli</Label>
 				</div>
 			</RadioGroup>
 		</div>

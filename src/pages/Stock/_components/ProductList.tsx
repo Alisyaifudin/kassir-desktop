@@ -11,6 +11,8 @@ import { Button } from "~/components/ui/button";
 import { useNavigate } from "react-router";
 import { ProductResult } from "~/hooks/useProductSearch";
 import { useInterval } from "../_hooks/use-interval";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 type Props = {
 	products: ProductResult[];
@@ -23,8 +25,9 @@ export function ProductList({ products }: Props) {
 		const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
 		navigate({ pathname: `product/${id}`, search: `?url_back=${backURL}` });
 	};
+	const size = useSize();
 	return (
-		<TableScrollable className="text-3xl">
+		<TableScrollable style={style[size].text}>
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[50px]">No</TableHead>

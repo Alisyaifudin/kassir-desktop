@@ -57,7 +57,7 @@ const Wrapper = memo(function ({
 				</Button>
 			</div>
 			<Tabs value={tab} onValueChange={(val) => setTab(val)}>
-				<TabsList>
+				<TabsList className="h-fit">
 					<TabsTrigger className="text-5xl" value="receipt">Struk</TabsTrigger>
 					<TabsTrigger className="text-5xl"value="detail">Detail</TabsTrigger>
 				</TabsList>

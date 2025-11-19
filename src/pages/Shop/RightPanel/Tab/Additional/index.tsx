@@ -3,9 +3,23 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { useNewAdditionalForm } from "./use-new-additional-form";
 import { Label } from "~/components/ui/label";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+
+const selectH = {
+	big: {
+		height: "54px",
+		marginTop: "40px",
+	},
+	small: {
+		height: "30px",
+		marginTop: "28px",
+	},
+};
 
 export function AdditionalForm() {
 	const { handleSubmit, error, set, data, refs } = useNewAdditionalForm();
+	const size = useSize();
 	const handleEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key !== "Enter") return;
 		handleSubmit();
@@ -41,17 +55,18 @@ export function AdditionalForm() {
 					/>
 				</Field>
 				<select
+					style={{ ...style[size].text, ...selectH[size] }}
 					onChange={(e) => set.kind(e.currentTarget.value)}
 					name="kind"
 					value={data.kind}
-					className="h-[54px] w-fit mt-10  outline text-3xl"
+					className="w-fit outline"
 				>
 					<option value="number">Angka</option>
 					<option value="percent">Persen</option>
 				</select>
 			</div>
 			<Label className="flex items-center gap-3">
-				<span>Simpan?</span>
+				<span style={style[size].text}>Simpan?</span>
 				<input
 					type="checkbox"
 					name="saved"

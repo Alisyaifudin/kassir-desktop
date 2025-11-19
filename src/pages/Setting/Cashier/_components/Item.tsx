@@ -7,6 +7,8 @@ import { useUpdateRole } from "../_hooks/use-update-role";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
 import { memo } from "react";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export const Item = memo(function ({
 	cashier,
@@ -21,20 +23,31 @@ export const Item = memo(function ({
 }) {
 	const name = useUpdateName(cashier.name, db);
 	const role = useUpdateRole(cashier.name, revalidate, db);
+	const size = useSize();
 	if (username === cashier.name) {
 		return (
-			<div className="flex items-center justify-between pr-22">
-				<p className="text-2xl pl-3">{username}</p>
-				<p className="text-3xl">{title[cashier.role]}</p>
+			<div className="flex items-center justify-between pr-17">
+				<p style={style[size].text} className=" pl-3">
+					{username}
+				</p>
+				<p style={style[size].text} className="text-3xl">
+					{title[cashier.role]}
+				</p>
 			</div>
 		);
 	}
 	return (
 		<form onSubmit={name.handleSubmit} className="flex items-center gap-3">
-			<Input type="text" defaultValue={cashier.name} name="name" aria-autocomplete="list" />
+			<Input
+				style={style[size].text}
+				type="text"
+				defaultValue={cashier.name}
+				name="name"
+				aria-autocomplete="list"
+			/>
 			<Spinner when={name.loading} />
 			<TextError>{name.error}</TextError>
-			<select value={cashier.role} onChange={role.handleChangeRole} className="text-3xl">
+			<select style={style[size].text} value={cashier.role} onChange={role.handleChangeRole}>
 				<option value="admin">Admin</option>
 				<option value="user">User</option>
 			</select>

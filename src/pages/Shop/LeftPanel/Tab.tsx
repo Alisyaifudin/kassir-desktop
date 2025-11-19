@@ -5,14 +5,17 @@ import { useUser } from "~/hooks/use-user";
 import { useTabs } from "../use-tab";
 import { Plus } from "lucide-react";
 import { SheetTab } from "./SheetTab";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Tab() {
 	const [, addTab] = useTabs();
+	const size = useSize()
 	return (
 		<div className="flex gap-2 items-center justify-between">
 			<div className="flex items-center gap-1">
-				<Button className="p-2 rounded-full" onClick={addTab}>
-					<Plus />
+				<Button className="p-1 rounded-full" onClick={addTab}>
+					<Plus size={style[size].icon}/>
 				</Button>
 				<SheetTab />
 			</div>

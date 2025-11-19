@@ -5,6 +5,8 @@ import { Store } from "~/lib/store";
 import { Async } from "~/components/Async";
 import { Spinner } from "~/components/Spinner";
 import { Show } from "~/components/Show";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Update({
 	notify,
@@ -15,27 +17,28 @@ export function Update({
 	toast: (v: string) => void;
 	store: Store;
 }) {
+	const size = useSize();
 	const { state, loading, handleClick } = useUpdate(update, notify, toast, store);
 	return (
 		<div className="flex flex-col gap-1">
 			<Async
 				state={state}
 				Loading={
-					<Button onClick={handleClick} variant="secondary">
-						Update <Loader2 className="animate-spin" />
+					<Button style={style[size].text} onClick={handleClick} variant="secondary">
+						Update <Loader2 size={style[size].icon} className="animate-spin" />
 					</Button>
 				}
 			>
 				{(data) => (
 					<>
-						<Button onClick={handleClick} variant="secondary">
+						<Button style={style[size].text} onClick={handleClick} variant="secondary">
 							Update <Spinner when={loading} />
 							<Show when={data === "true"}>
-								<BellRing className="text-red-500 animate-ring" />
+								<BellRing size={style[size].icon} className="text-red-500 animate-ring" />
 							</Show>
 						</Button>
 						<Show when={data === "true"}>
-							<p className="text-2xl">Ada versi baru!</p>
+							<p style={style[size].text}>Ada versi baru!</p>
 						</Show>
 					</>
 				)}

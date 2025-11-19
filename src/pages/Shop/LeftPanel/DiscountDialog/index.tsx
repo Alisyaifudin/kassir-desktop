@@ -15,17 +15,20 @@ import { useDiscountForm } from "./use-discount-form";
 import Decimal from "decimal.js";
 import { useFix } from "~/pages/Shop/use-fix";
 import { ForEach } from "~/components/ForEach";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Discount({ itemIndex, item }: { itemIndex: number; item: ItemTransform }) {
 	const { discs, handle } = useDiscountForm(itemIndex, item.discs);
 	const [fix] = useFix();
+	const size = useSize();
 	const totalDisc = Number(new Decimal(item.total).minus(item.grandTotal).toFixed(fix));
 	return (
 		<Dialog>
 			<div className="flex items-center justify-between px-1 gap-1">
-				<p className="text-3xl">{totalDisc.toLocaleString("id-ID")}</p>
+				<p style={style[size].text}>{totalDisc.toLocaleString("id-ID")}</p>
 				<DialogTrigger type="button">
-					<Plus className="outline" />
+					<Plus className="outline" size={style[size].icon} />
 				</DialogTrigger>
 			</div>
 			<DialogContent>
@@ -43,6 +46,7 @@ export function Discount({ itemIndex, item }: { itemIndex: number; item: ItemTra
 									aria-autocomplete="list"
 								></Input>
 								<select
+									style={style[size].text}
 									value={disc.kind}
 									onChange={handle.changeKind(i)}
 									className=" w-[110px] border"

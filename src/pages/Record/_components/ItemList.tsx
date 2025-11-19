@@ -18,6 +18,30 @@ import { DEFAULT_METHOD } from "~/lib/constants";
 import { ForEach } from "~/components/ForEach";
 import { Footer } from "./Footer";
 import type { Context } from "../Records";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+
+const localStyle = {
+	big: {
+		// no: {
+		// 	width: "160px",
+		// },
+		small: {
+			width: "70px",
+		},
+		big: {
+			width: "160px",
+		},
+	},
+	small: {
+		small: {
+			width: "40px",
+		},
+		big: {
+			width: "100px",
+		},
+	},
+};
 
 type RecordListProps = {
 	allItems: Summary["items"];
@@ -93,6 +117,7 @@ function List({
 	revalidate: () => void;
 	context: Context;
 }) {
+	const size = useSize();
 	const { pathname, search } = useLocation();
 	const path = encodeURIComponent(`${pathname}${search}`);
 	const user = useUser();
@@ -105,7 +130,7 @@ function List({
 			}
 		>
 			<div className="flex flex-col gap-2 overflow-auto">
-				<div className="flex items-center gap-2 justify-between">
+				<div style={style[size].text} className="flex items-center gap-2 justify-between">
 					<p>No: {record.timestamp}</p>
 					<div className="flex items-center gap-5">
 						<p>
@@ -114,16 +139,24 @@ function List({
 						{record.cashier ? <p>Kasir: {capitalize(record.cashier)}</p> : null}
 					</div>
 				</div>
-				<Table className="text-3xl">
+				<Table style={style[size].text}>
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-[70px]">No</TableHead>
+							<TableHead style={localStyle[size].small}>No</TableHead>
 							<TableHead>Nama</TableHead>
-							<TableHead className="w-[160px] text-end">Satuan</TableHead>
-							<TableHead className="w-[160px] text-end">Modal</TableHead>
-							<TableHead className="w-[70px]">Qty</TableHead>
-							<TableHead className="w-[160px]  text-end">Total*</TableHead>
-							<TableHead className="w-[160px]  text-end">Total</TableHead>
+							<TableHead style={localStyle[size].big} className="text-end">
+								Satuan
+							</TableHead>
+							<TableHead style={localStyle[size].big} className="text-end">
+								Modal
+							</TableHead>
+							<TableHead style={localStyle[size].small}>Qty</TableHead>
+							<TableHead style={localStyle[size].big} className="text-end">
+								Total*
+							</TableHead>
+							<TableHead style={localStyle[size].big} className="text-end">
+								Total
+							</TableHead>
 							<TableHead className="w-[50px]">
 								<Link to={`/records/${record.timestamp}`}>
 									<SquareArrowOutUpRight size={35} />
@@ -154,12 +187,12 @@ function List({
 				</Table>
 				<Footer additionals={additionals} method={method} record={record} />
 				<Show when={record.customer_phone !== "" && record.customer_name !== ""}>
-					<p>
+					<p style={style[size].text}>
 						Pelanggan: {record.customer_name} ({record.customer_phone})
 					</p>
 				</Show>
 				<Show when={record.note !== ""}>
-					<div>
+					<div style={style[size].text}>
 						<p>Catatan:</p>
 						<p>{record.note}</p>
 					</div>

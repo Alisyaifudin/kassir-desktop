@@ -1,7 +1,7 @@
 import { SetURLSearchParams, useSearchParams } from "react-router";
 import { useFetchData } from "./_hooks/use-fetch-data";
 import { useCallback, useEffect } from "react";
-import { Summary } from "./cashflow/Summary";
+import { Summary } from "./_components/Summary";
 import { SummaryProduct } from "./product/SummaryProducts";
 import { RightPanel } from "./_components/RightPanel";
 import { getOption } from "./_utils/get-option";
@@ -9,6 +9,16 @@ import { NavLink } from "./_components/NavLink";
 import { Either } from "~/components/Either";
 import { Database } from "~/database";
 import { Async } from "~/components/Async";
+import { useSize } from "~/hooks/use-size";
+
+const grid = {
+	big: {
+		gridTemplateColumns: "300px 1fr",
+	},
+	small: {
+		gridTemplateColumns: "200px 1fr",
+	},
+}
 
 export default function Analytics({ db }: { db: Database }) {
 	const [search, setSearch] = useSearchParams();
@@ -22,13 +32,14 @@ export default function Analytics({ db }: { db: Database }) {
 	useEffect(() => {
 		handleTime(time, setSearch);
 	}, [updateTime]);
+	const size = useSize()
 	const handleClickOption = useCallback(
 		(option: "cashflow" | "net" | "crowd" | "products") =>
 			handleClickOptionRaw(option, interval, setSearch),
 		[interval]
 	);
 	return (
-		<main className="grid grid-cols-[300px_1fr] p-2 gap-2 flex-1 overflow-auto">
+		<main style={grid[size]} className="grid p-2 gap-2 flex-1 overflow-auto">
 			<Async state={state}>
 				{(data) => {
 					const { records, products } = data;

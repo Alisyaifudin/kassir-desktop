@@ -2,6 +2,8 @@ import Decimal from "decimal.js";
 import { useMemo } from "react";
 import { Show } from "~/components/Show";
 import { ProductRecord } from "~/database/product";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 type Props = {
 	products: ProductRecord[];
@@ -11,6 +13,7 @@ type Props = {
 };
 
 export function SummaryProduct({ products: all, mode, start, end }: Props) {
+	const size = useSize();
 	const products = useMemo(() => {
 		const products: ProductRecord[] = [];
 		for (const p of all) {
@@ -27,10 +30,10 @@ export function SummaryProduct({ products: all, mode, start, end }: Props) {
 		return products;
 	}, [start, end, mode, all]);
 	return (
-		<div className="flex flex-col gap-1">
-			<p className="text-3xl">Produk: {calcSum(products)}</p>
+		<div style={style[size].text} className="flex flex-col gap-1">
+			<p>Produk: {calcSum(products)}</p>
 			<Show when={mode === "sell"}>
-				<p className="text-3xl">Untung: Rp{calcProfit(products).toLocaleString("id-ID")}</p>
+				<p>Untung: Rp{calcProfit(products).toLocaleString("id-ID")}</p>
 			</Show>
 		</div>
 	);

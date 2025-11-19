@@ -4,15 +4,16 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
-import { Label } from "~/components/ui/label";
-import { Checkbox } from "~/components/ui/checkbox";
 import { FieldDesc } from "./_components/FieldDesc";
 import { useEdit } from "./_hooks/use-edit";
-import { useCheckbox } from "./_hooks/use-checkbox";
 import { Spinner } from "~/components/Spinner";
 import { Store } from "~/lib/store";
 import { Async } from "~/components/Async";
 import { memo } from "react";
+import { CheckboxForm } from "./_components/CashierNameCheckbox";
+import { SelectSize } from "./_components/SelectSize";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export default function Shop({
 	refetchName,
@@ -22,14 +23,22 @@ export default function Shop({
 	context: { store: Store };
 }) {
 	const state = useProfile(context);
+	const size = useSize();
 	return (
 		<Async state={state}>
 			{({ address, header, owner, footer, showCashier }) => (
-				<div className="flex flex-col gap-2 flex-1 w-full">
-					<Form context={context} refetchName={refetchName}>
-						<FormFields header={header} address={address} footer={footer} owner={owner} />
+				<div className="flex flex-col gap-2 flex-1 w-full overflow-auto">
+					<Form size={size} context={context} refetchName={refetchName}>
+						<FormFields
+							size={size}
+							header={header}
+							address={address}
+							footer={footer}
+							owner={owner}
+						/>
 					</Form>
 					<CheckboxForm showCashier={showCashier === "true"} context={context} />
+					<SelectSize size={size} context={context} />
 				</div>
 			)}
 		</Async>
@@ -40,17 +49,19 @@ const Form = memo(function ({
 	context,
 	refetchName,
 	children,
+	size,
 }: {
 	children?: React.ReactNode;
 	context: { store: Store };
 	refetchName: () => void;
+	size: "big" | "small";
 }) {
 	const { handleSubmit, loading, error } = useEdit(refetchName, context);
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 			{children}
-			<TextError>{error}</TextError>
-			<Button>
+			<TextError style={style[size].text}>{error}</TextError>
+			<Button style={style[size].text}>
 				Simpan <Spinner when={loading} />
 			</Button>
 		</form>
@@ -62,46 +73,28 @@ const FormFields = memo(function ({
 	address,
 	footer,
 	header,
+	size
 }: {
 	owner?: string;
 	address?: string;
 	header?: string;
 	footer?: string;
+	size: "big" | "small";
 }) {
 	return (
 		<>
-			<FieldText label="Nama Toko">
-				<Input type="text" defaultValue={owner} name="owner" aria-autocomplete="list" />
+			<FieldText size={size} label="Nama Toko">
+				<Input style={style[size].text} type="text" defaultValue={owner} name="owner" aria-autocomplete="list" />
 			</FieldText>
-			<FieldText label="Alamat">
-				<Input type="text" defaultValue={address} name="address" aria-autocomplete="list" />
+			<FieldText size={size} label="Alamat">
+				<Input style={style[size].text} type="text" defaultValue={address} name="address" aria-autocomplete="list" />
 			</FieldText>
-			<FieldDesc label="Deskripsi Atas:">
-				<Textarea className="h-[120px]" name="header" defaultValue={header}></Textarea>
+			<FieldDesc size={size} label="Deskripsi Atas:">
+				<Textarea style={style[size].text} className="h-[120px]" name="header" defaultValue={header}></Textarea>
 			</FieldDesc>
-			<FieldDesc label="Deskripsi Bawah:">
-				<Textarea className="h-[120px]" name="footer" defaultValue={footer}></Textarea>
+			<FieldDesc size={size} label="Deskripsi Bawah:">
+				<Textarea style={style[size].text} className="h-[120px]" name="footer" defaultValue={footer}></Textarea>
 			</FieldDesc>
-		</>
-	);
-});
-
-const CheckboxForm = memo(function ({
-	context,
-	showCashier,
-}: {
-	showCashier: boolean;
-	context: { store: Store };
-}) {
-	const { loading, error, handleChangeShowCashier } = useCheckbox(context);
-	return (
-		<>
-			<Label className="text-3xl flex items-center gap-3">
-				<span>Tampilkan Nama Kasir</span>
-				<Checkbox defaultChecked={showCashier} onCheckedChange={handleChangeShowCashier} />
-				<Spinner when={loading} />
-			</Label>
-			<TextError>{error}</TextError>
 		</>
 	);
 });

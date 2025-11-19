@@ -9,7 +9,7 @@ import { Async } from "~/components/Async";
 export default function Cashier({ user, db }: { user: User; db: Database }) {
 	const [state, revalidate] = useCashier(db);
 	return (
-		<div className="flex flex-col gap-2 flex-1">
+		<div className="flex flex-col gap-2 flex-1 overflow-auto">
 			<h2 className="text-3xl font-bold">Daftar Kasir</h2>
 			<Async state={state} Error={(error) => <TextError>{error}</TextError>}>
 				{(cashiers) => {

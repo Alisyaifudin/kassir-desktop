@@ -7,6 +7,8 @@ import { useTabs } from "~/pages/Shop/use-tab";
 import { useMode } from "~/pages/Shop/use-mode";
 import { useMemo } from "react";
 import { z } from "zod";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 const label = {
 	sell: "J",
@@ -16,6 +18,7 @@ const label = {
 export function SheetTab() {
 	const [currentMode] = useMode();
 	const [sheet, setSheet] = useSheet();
+	const size = useSize();
 	const [tabs, _, deleteTab] = useTabs();
 	const modes = useMemo(() => {
 		const modes: { mode: DB.Mode; tab: number }[] = [];
@@ -30,16 +33,20 @@ export function SheetTab() {
 		}
 		return modes;
 	}, [currentMode, tabs]);
+	// TODO: should add useEffect on windows size changed, so add max-w accordingly
 	return (
 		<div className="flex items-center gap-1 bg-white px-0.5 pt-0.5 left-2 max-w-[830px] overflow-x-auto">
 			<ForEach items={modes}>
 				{({ tab, mode }) => (
 					<div
-						className={cn("rounded-b-0 bg-zinc-100 rounded-t-md text-3xl outline flex items-center gap-1", {
-							"bg-black text-white": sheet === tab,
-						})}
+						className={cn(
+							"rounded-b-0 bg-zinc-100 rounded-t-md text-3xl outline flex items-center gap-1",
+							{
+								"bg-black text-white": sheet === tab,
+							}
+						)}
 					>
-						<button className="p-2" onClick={() => setSheet(tab)}>
+						<button style={style[size].text} className="p-2" onClick={() => setSheet(tab)}>
 							{label[mode]}
 							{tab}
 						</button>

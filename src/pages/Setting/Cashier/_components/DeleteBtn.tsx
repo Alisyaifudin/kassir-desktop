@@ -14,6 +14,8 @@ import {
 import { useDeleteCashier } from "../_hooks/use-delete-cashier";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export const DeleteBtn = memo(function ({
 	name,
@@ -24,11 +26,12 @@ export const DeleteBtn = memo(function ({
 	revalidate: () => void;
 	db: Database;
 }) {
+	const size = useSize();
 	const [open, setOpen] = useState(false);
 	const { loading, error, handleClick } = useDeleteCashier(name, setOpen, revalidate, db);
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-			<Button type="button" asChild variant="destructive">
+			<Button className="rounded-full p-2" type="button" asChild variant="destructive">
 				<DialogTrigger>
 					<X />
 				</DialogTrigger>
@@ -36,16 +39,16 @@ export const DeleteBtn = memo(function ({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle className="text-3xl">Yakin?</DialogTitle>
-					<DialogDescription className="text-2xl">Kamu akan menghapus:</DialogDescription>
-					<DialogDescription className="text-2xl">
+					<DialogDescription style={style[size].text}>Kamu akan menghapus:</DialogDescription>
+					<DialogDescription style={style[size].text}>
 						{">"}
 						{name}
 					</DialogDescription>
 					<div className="flex justify-between mt-5">
-						<Button asChild>
+						<Button style={style[size].text} asChild>
 							<DialogClose>Batal</DialogClose>
 						</Button>
-						<Button onClick={handleClick} variant="destructive">
+						<Button style={style[size].text} onClick={handleClick} variant="destructive">
 							Hapus
 							<Spinner when={loading} />
 						</Button>

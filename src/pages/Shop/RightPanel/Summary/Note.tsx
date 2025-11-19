@@ -12,10 +12,13 @@ import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { useNote } from "./use-note";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Note() {
 	const [note, setNote] = useNote();
 	const [val, setVal] = useState(note);
+	const size = useSize();
 	const debounced = useDebouncedCallback((value: string) => setNote(value), DEBOUNCE_DELAY);
 	const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		setVal(e.currentTarget.value);
@@ -23,9 +26,9 @@ export function Note() {
 	};
 	return (
 		<Dialog>
-			<Button asChild variant="secondary">
+			<Button className="p-1 rounded-full" asChild variant="secondary">
 				<DialogTrigger type="button">
-					<NotepadText />
+					<NotepadText size={style[size].icon} />
 				</DialogTrigger>
 			</Button>
 			<DialogContent>
