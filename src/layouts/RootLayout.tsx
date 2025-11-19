@@ -3,39 +3,47 @@ import DatabaseTauri from "@tauri-apps/plugin-sql";
 import { Store as StoreTauri } from "@tauri-apps/plugin-store";
 import { generateDB } from "../database";
 import { generateStore } from "../lib/store";
-import { Loading } from "../components/Loading";
-import { Async } from "~/components/Async";
-import { useFetch } from "~/hooks/useFetch";
-import { tryResult } from "~/lib/utils";
-import { useCallback } from "react";
+import { Suspense, use, useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { storeStore } from "~/store/store";
+import { dbStore } from "~/store/db";
 
-function RootLayout({ storePath, dbPath }: { storePath: string; dbPath: string }) {
-	const state = useInit(storePath, dbPath);
+const STORE_PATH = "store.json";
+const DB_PATH = "sqlite:data.db";
+
+function Loading() {
 	return (
-		<Async state={state} Loading={<Loading />}>
-			{(data) => {
-				const store = generateStore(data[0]);
-				const db = generateDB(data[1]);
-				return <Outlet context={{ db, store }} />;
-			}}
-		</Async>
+		<main className="h-screen w-screen flex items-center justify-center">
+			<Loader2 className="animate-spin" size={100} />
+		</main>
+	);
+}
+function RootLayout() {
+	return (
+		<Suspense fallback={<Loading />}>
+			<Wrapper />
+		</Suspense>
 	);
 }
 
-function useInit(storePath: string, dbPath: string) {
-	const fetch = useCallback(
-		() =>
-			tryResult({
-				run: () =>
-					Promise.all([
-						StoreTauri.load(storePath, { autoSave: false }),
-						DatabaseTauri.load(dbPath),
-					]),
-			}),
-		[]
-	);
-	const [state] = useFetch(fetch);
-	return state;
+const dataPromise = Promise.all([
+	StoreTauri.load(STORE_PATH, { autoSave: false }),
+	DatabaseTauri.load(DB_PATH),
+]);
+
+function Wrapper() {
+	const data = use(dataPromise);
+	const store = generateStore(data[0]);
+	const db = generateDB(data[1]);
+	const [mount, setMount] = useState(false);
+	useEffect(() => {
+		storeStore.set(store);
+		dbStore.set(db);
+		setMount(true);
+	}, []);
+
+	if (!mount) return <Loading />;
+	return <Outlet></Outlet>;
 }
 
 export default RootLayout;

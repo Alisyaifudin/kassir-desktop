@@ -7,18 +7,19 @@ import { context, Provider } from "./use-context";
 import { useContext } from "react";
 import { LeftPanel } from "./LeftPanel";
 import { RightPanel } from "./RightPanel";
+import { toast } from "sonner";
 
 export type Context = {
 	toast: (text: string) => void;
 };
 
-export default function Page({ toast }: Context) {
+export default function Page() {
 	const db = useDB();
 	const [state] = useFetchMethods(db);
 	return (
 		<Async state={state}>
 			{(methods) => (
-				<Provider methods={methods} toast={toast}>
+				<Provider methods={methods} toast={toast.error}>
 					<Wrapper />
 				</Provider>
 			)}

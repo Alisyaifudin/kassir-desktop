@@ -1,7 +1,7 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { useDB } from "~/hooks/use-db";
-import { useStore } from "~/hooks/use-store";
+import { useDB } from "~/store/db";
+import { useStore } from "~/store/store";
 
 const Page = lazy(() => import("./Login"));
 

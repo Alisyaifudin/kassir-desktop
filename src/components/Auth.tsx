@@ -1,32 +1,25 @@
 import { auth, User } from "~/lib/auth";
 import Redirect from "./Redirect";
-import { Store } from "~/lib/store";
-import { useFetch } from "~/hooks/useFetch";
-import { Async } from "./Async";
-import { useCallback } from "react";
+import { Suspense, use } from "react";
 import { TextError } from "./TextError";
+import { useStore } from "~/store/store";
 
-export function Auth({
-	children,
-	store,
-}: {
-	children: (user: User, revalidate: () => void) => React.ReactNode;
-	store: Store;
-}) {
-	const [state, revalidate] = useAuth(store);
+export function Auth({ children }: { children: (user: User) => React.ReactNode }) {
 	return (
-		<Async state={state} Error={(msg) => <TextError>{msg}</TextError>}>
-			{(user) => {
-				if (user === null) {
-					return <Redirect to="/login" />;
-				}
-				return children(user, revalidate);
-			}}
-		</Async>
+		<Suspense>
+			<Wrapper>{(user) => children(user)}</Wrapper>
+		</Suspense>
 	);
 }
 
-function useAuth(store: Store) {
-	const fetch = useCallback(() => auth.decode(store), []);
-	return useFetch(fetch);
+function Wrapper({ children }: { children: (user: User) => React.ReactNode }) {
+	const store = useStore();
+	const [errMsg, user] = use(auth.decode(store));
+	if (errMsg) {
+		return <TextError>{errMsg}</TextError>;
+	}
+	if (user === null) {
+		return <Redirect to="/login" />;
+	}
+	return children(user);
 }

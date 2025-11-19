@@ -17,11 +17,22 @@ export function generateStore(store: StoreTauri) {
 	const profile = Object.fromEntries(obj) as {
 		[K in (typeof profiles)[number]]: ReturnType<typeof generate<K>>;
 	};
-	return { profile, core: store };
+	async function all() {
+		const promises: Promise<unknown>[] = [];
+		for (const key of profiles) {
+			promises.push(store.get(key));
+		}
+		const res = await Promise.all(promises);
+		const r = res.map((p, i) => [profiles[i], p] as const);
+		return Object.fromEntries(r) as {
+			[K in (typeof profiles)[number]]: string;
+		};
+	}
+	return { profile, core: store, all };
 }
 
 export type Store = ReturnType<typeof generateStore>;
 
 export type Profile = {
-		[K in keyof Store['profile']]: Awaited<ReturnType<Store['profile'][K]["get"]>>;
-	}
+	[K in keyof Store["profile"]]: Awaited<ReturnType<Store["profile"][K]["get"]>>;
+};
