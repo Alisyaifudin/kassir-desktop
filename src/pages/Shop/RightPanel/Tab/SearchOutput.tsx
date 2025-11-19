@@ -17,7 +17,7 @@ export function Output({
 	handleClickAdditional: (additional: Additional) => void;
 }) {
 	return (
-		<div className="h-full w-full grow shrink basis-0 overflow-y-auto">
+		<div className="h-[calc(100vh-230px)] bg-white absolute z-20 top-[150px] overflow-x-clip overflow-y-auto">
 			<ol className="flex flex-col gap-1">
 				<Show when={products.length > 0}>
 					<p className="text-bold text-2xl italic">----Produk</p>
