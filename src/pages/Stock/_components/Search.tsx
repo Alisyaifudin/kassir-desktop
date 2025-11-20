@@ -22,13 +22,13 @@ export function Search({
 	}, DEBOUNCE_DELAY);
 	const size = useSize();
 	return (
-		<label className={cn("flex gap-2 items-center flex-1", className)}>
-			<SearchIcon size={35} />
+		<label className={cn("relative flex gap-2 items-center flex-1", className)}>
+			<SearchIcon className="absolute left-2" size={style[size].icon} />
 			<Input
 				style={style[size].text}
 				type="search"
 				placeholder="Cari..."
-				className="w-full"
+				className="w-full pl-8"
 				value={value}
 				aria-autocomplete="list"
 				onChange={(e) => {

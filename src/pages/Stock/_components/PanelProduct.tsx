@@ -18,13 +18,14 @@ export function PanelProduct({ productsLength }: { productsLength: number }) {
 	const size = useSize();
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="flex items-center justify-between gap-10">
+			<div className="flex items-center justify-between gap-1">
 				<Sort
 					sortDir={get.sortDir}
 					setSortDir={set.sortDir}
 					sortBy={get.sortBy}
 					setSortBy={set.sortBy}
 				/>
+				<Search className="flex-1" query={get.query} setQuery={set.query} />
 				<div className="flex items-center gap-2">
 					<Pagination
 						pagination={{ page: get.pageProduct, total: totalPage }}
@@ -58,7 +59,6 @@ export function PanelProduct({ productsLength }: { productsLength: number }) {
 					</Show>
 				</div>
 			</div>
-			<Search className="xl:hidden" query={get.query} setQuery={set.query} />
 		</div>
 	);
 }
