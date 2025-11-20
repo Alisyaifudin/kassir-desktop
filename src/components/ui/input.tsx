@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
 import { useSizeSafe } from "~/hooks/use-size";
 import { style } from "~/lib/style";
 
-const inputHeight = {
+const inputHeight: { big: React.CSSProperties; small: React.CSSProperties } = {
 	big: {
 		height: "56px",
 	},
@@ -15,16 +15,10 @@ const inputHeight = {
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
 	({ className, style: localStyle, type, ...props }, ref) => {
-		const sizeSafe = useSizeSafe();
-		let styles = localStyle;
-		if (styles === undefined) {
-			if (sizeSafe !== undefined) {
-				styles = { ...style[sizeSafe].text, ...inputHeight[sizeSafe] };
-			} else {
-				styles = {
-					height: "56px",
-				};
-			}
+		const size = useSizeSafe() ?? "big";
+		let styles = { ...style[size].text, ...inputHeight[size] };
+		if (localStyle !== undefined) {
+			styles = { ...styles, ...localStyle };
 		}
 		return (
 			<input

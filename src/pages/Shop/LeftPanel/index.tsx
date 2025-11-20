@@ -15,10 +15,10 @@ import { useSize } from "~/hooks/use-size";
 
 const itemH = {
 	big: {
-		height: "calc(100vh - 400px)",
+		height: "calc(100vh - 365px)",
 	},
 	small: {
-		height: "calc(100vh - 300px)",
+		height: "calc(100vh - 253px)",
 	},
 };
 

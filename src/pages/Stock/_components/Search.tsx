@@ -7,6 +7,15 @@ import { cn } from "~/lib/utils";
 import { useSize } from "~/hooks/use-size";
 import { style } from "~/lib/style";
 
+const leftPad = {
+	big: {
+		paddingLeft: "40px",
+	},
+	small: {
+		paddingLeft: "32px",
+	},
+};
+
 export function Search({
 	query,
 	setQuery,
@@ -25,7 +34,7 @@ export function Search({
 		<label className={cn("relative flex gap-2 items-center flex-1", className)}>
 			<SearchIcon className="absolute left-2" size={style[size].icon} />
 			<Input
-				style={style[size].text}
+				style={{ ...style[size].text, ...leftPad[size] }}
 				type="search"
 				placeholder="Cari..."
 				className="w-full pl-8"
