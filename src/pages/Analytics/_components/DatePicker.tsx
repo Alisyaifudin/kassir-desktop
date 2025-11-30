@@ -4,8 +4,9 @@ import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { dayNames, formatDate,  monthNames } from "~/lib/utils";
-
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+import { dayNames, formatDate, monthNames } from "~/lib/utils";
 
 const mode = {
 	daily: "day",
@@ -13,7 +14,6 @@ const mode = {
 	monthly: "month",
 	yearly: "year",
 } as const;
-
 
 export function DatePicker({
 	interval,
@@ -28,6 +28,7 @@ export function DatePicker({
 	handleClickInterval: (val: string) => void;
 	option: "cashflow" | "net" | "crowd" | "products";
 }) {
+	const size = useSize();
 	const tz = Temporal.Now.timeZoneId();
 	const date = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz).startOfDay();
 	const handlePrev = () => {
@@ -63,7 +64,7 @@ export function DatePicker({
 		}
 	};
 	return (
-		<div className="flex items-center gap-7">
+		<div style={style[size].text} className="flex items-center gap-7">
 			<RadioGroup
 				value={interval}
 				className="flex items-center gap-5"
@@ -72,27 +73,27 @@ export function DatePicker({
 				{option === "products" ? (
 					<div className="flex items-center space-x-2">
 						<RadioGroupItem value="daily" id="daily" />
-						<Label htmlFor="daily" className="text-3xl">
+						<Label htmlFor="daily">
 							Hari
 						</Label>
 					</div>
 				) : null}
 				<div className="flex items-center space-x-2">
 					<RadioGroupItem value="weekly" id="weekly" />
-					<Label htmlFor="weekly" className="text-3xl">
+					<Label htmlFor="weekly">
 						Minggu
 					</Label>
 				</div>
 				<div className="flex items-center space-x-2">
 					<RadioGroupItem value="monthly" id="monthly" />
-					<Label htmlFor="monthly" className="text-3xl">
+					<Label htmlFor="monthly">
 						Bulan
 					</Label>
 				</div>
 				{option === "products" ? null : (
 					<div className="flex items-center space-x-2">
 						<RadioGroupItem value="yearly" id="yearly" />
-						<Label htmlFor="yearly" className="text-3xl">
+						<Label htmlFor="yearly">
 							Tahun
 						</Label>
 					</div>

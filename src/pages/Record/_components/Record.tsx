@@ -5,6 +5,16 @@ import { ItemList } from "./ItemList";
 import { useSearchParams } from "react-router";
 import { getParam } from "../_utils/params";
 import type { Context } from "../Records";
+import { useSize } from "~/hooks/use-size";
+
+const grid = {
+	big: {
+		gridTemplateColumns: "530px 1px 1fr",
+	},
+	small: {
+		gridTemplateColumns: "400px 1px 1fr",
+	},
+};
 
 export function Record({
 	revalidate,
@@ -24,6 +34,7 @@ export function Record({
 	context: Context;
 }) {
 	const [search] = useSearchParams();
+	const size = useSize();
 	const method = getParam(search).method(methods);
 	const mode = getParam(search).mode;
 	const query = getParam(search).query;
@@ -51,7 +62,7 @@ export function Record({
 	);
 	const { total, capital } = calcSummary(summaries);
 	return (
-		<div className="grid grid-cols-[530px_1px_1fr] gap-2 h-full overflow-hidden">
+		<div style={grid[size]} className="grid gap-2 h-full overflow-hidden">
 			<RecordSide capital={capital} total={total} records={summaries.map((r) => r.record)} />
 			<div className="border-l" />
 			<ItemList

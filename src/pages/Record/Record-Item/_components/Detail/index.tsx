@@ -18,6 +18,27 @@ import { Database } from "~/database";
 import { Summary } from "./Summary";
 import { LinkProductList } from "./LinkProduct";
 import { formatDate, formatTime, getDayName, METHOD_NAMES } from "~/lib/utils";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+
+const localStyle = {
+	big: {
+		small: {
+			width: "70px",
+		},
+		big: {
+			width: "170px",
+		},
+	},
+	small: {
+		small: {
+			width: "40px",
+		},
+		big: {
+			width: "100px",
+		},
+	},
+};
 
 export const Detail = memo(function ({
 	data: { additionals, items, method, record },
@@ -34,9 +55,10 @@ export const Detail = memo(function ({
 	revalidate: () => void;
 	context: { db: Database };
 }) {
-	const customer = {name: record.customer_name, phone: record.customer_phone};
+	const customer = { name: record.customer_name, phone: record.customer_phone };
+	const size = useSize();
 	return (
-		<div className="flex flex-col gap-2 text-3xl">
+		<div style={style[size].text} className="flex flex-col gap-2 text-3xl">
 			<Header
 				showCashier={showCashier}
 				cashier={record.cashier}
@@ -51,16 +73,24 @@ export const Detail = memo(function ({
 				timestamp={record.timestamp}
 				role={role}
 			/>
-			<Table className="text-3xl">
+			<Table style={style[size].text}>
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[70px]">No</TableHead>
+						<TableHead style={localStyle[size].small}>No</TableHead>
 						<TableHead>Nama</TableHead>
-						<TableHead className="w-[170px] text-end">Satuan</TableHead>
-						<TableHead className="w-[170px] text-end">Modal</TableHead>
-						<TableHead className="w-[70px]">Qty</TableHead>
-						<TableHead className="w-[170px]  text-end">Total*</TableHead>
-						<TableHead className="w-[170px]  text-end">Total</TableHead>
+						<TableHead style={localStyle[size].big} className="text-end">
+							Satuan
+						</TableHead>
+						<TableHead style={localStyle[size].big} className="text-end">
+							Modal
+						</TableHead>
+						<TableHead style={localStyle[size].small}>Qty</TableHead>
+						<TableHead style={localStyle[size].big} className="text-end">
+							Total*
+						</TableHead>
+						<TableHead style={localStyle[size].big} className="text-end">
+							Total
+						</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody className="border-b">

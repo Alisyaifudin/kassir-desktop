@@ -4,20 +4,34 @@ import { useSocials } from "./_hooks/use-socials";
 import { Database } from "~/database";
 import { Async } from "~/components/Async";
 import { ForEach } from "~/components/ForEach";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+
+const grid = {
+	big: {
+		gridTemplateColumns: "250px 1fr",
+	},
+	small: {
+		gridTemplateColumns: "200px 1fr",
+	},
+};
 
 export default function Shop({ db }: { db: Database }) {
 	const [state, revalidate] = useSocials(db);
+	const size = useSize();
 	return (
-		<div className="flex flex-col gap-2 w-full flex-1">
-			<h1 className="text-4xl font-bold">Daftar Kontak</h1>
-			<div className="grid grid-cols-[250px_1fr] gap-2 items-center text-3xl">
-				<p>Kontak</p>
-				<p>Isian</p>
+		<div className="flex flex-col gap-2 w-full flex-1 overflow-auto">
+			<h1 style={style[size].h1} className="font-bold">
+				Daftar Kontak
+			</h1>
+			<div style={grid[size]} className="grid gap-2 items-center text-3xl">
+				<p style={style[size].text}>Kontak</p>
+				<p style={style[size].text}>Isian</p>
 			</div>
 			<Async state={state}>
 				{(socials) => {
 					if (socials.length === 0) {
-						return <p className="text-3xl">---Belum Ada---</p>;
+						return <p style={style[size].h1}>---Belum Ada---</p>;
 					}
 					return (
 						<ForEach items={socials}>

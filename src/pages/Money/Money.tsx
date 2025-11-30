@@ -52,19 +52,17 @@ export default function Page({ db }: { db: Database }) {
 			<Async state={state}>
 				{(money) => {
 					return (
-						<Tabs value={kind} onValueChange={setChangeMode} className="overflow-hidden flex-1 pb-12">
+						<Tabs
+							value={kind}
+							onValueChange={setChangeMode}
+							className="overflow-hidden flex-1 pb-12"
+						>
 							<TabsList>
-								<TabsTrigger className="text-3xl" value="saving">
-									Simpanan
-								</TabsTrigger>
-								<TabsTrigger className="text-3xl" value="debt">
-									Utang
-								</TabsTrigger>
-								<TabsTrigger className="text-3xl" value="diff">
-									Selisih
-								</TabsTrigger>
+								<TabsTrigger value="saving">Simpanan</TabsTrigger>
+								<TabsTrigger value="debt">Utang</TabsTrigger>
+								<TabsTrigger value="diff">Selisih</TabsTrigger>
 							</TabsList>
-							<TabsContent value="saving">
+							<TabsContent value="saving" className="overflow-auto h-full">
 								<TableList
 									money={money}
 									kind="saving"
@@ -82,7 +80,7 @@ export default function Page({ db }: { db: Database }) {
 									revalidate={revalidate}
 								/>
 							</TabsContent>
-							<TabsContent value="diff">
+							<TabsContent value="diff" className="overflow-auto h-full">
 								<TableList
 									money={money}
 									kind="diff"

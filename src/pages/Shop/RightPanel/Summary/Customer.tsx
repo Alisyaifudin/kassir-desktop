@@ -19,6 +19,8 @@ import { useDB } from "~/hooks/use-db";
 import { Async } from "~/components/Async";
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Customer() {
 	const db = useDB();
@@ -30,11 +32,12 @@ export function Customer() {
 function Wrapper({ customers }: { customers: DB.Customer[] }) {
 	const [customer] = useCustomer();
 	const tab = customer.isNew ? "man" : "auto";
+	const size = useSize();
 	return (
 		<Dialog>
-			<Button asChild variant="secondary">
+			<Button className="p-1 rounded-full" asChild variant="secondary">
 				<DialogTrigger type="button">
-					<User />
+					<User size={style[size].icon} />
 				</DialogTrigger>
 			</Button>
 			<DialogContent className="min-w-6xl">

@@ -96,7 +96,7 @@ const Bottom = memo(function ({
 }) {
 	return (
 		<>
-			<Show when={rounding > 0}>
+			<Show when={rounding !== 0}>
 				<p className="text-end">Rp{totalAfterAdditional.toLocaleString("de-DE")}</p>
 				<div className="grid grid-cols-[200px_250px]">
 					<p className="text-end">Pembulatan:</p>

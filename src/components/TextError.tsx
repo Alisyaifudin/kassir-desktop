@@ -1,23 +1,32 @@
 import { cn } from "~/lib/utils";
 
-type TextErrorProps =(
+type TextErrorProps = (
 	| { children: string | null | undefined }
 	| {
 			when: boolean;
 			children: string;
-	  }) & {className?: string}
+	  }
+) & { className?: string; style?: React.CSSProperties };
 
 export function TextError(props: TextErrorProps) {
 	if ("when" in props) {
 		if (typeof props.when === "boolean") {
 			if (props.when) {
-				return <p className={cn("text-2xl text-red-500", props.className)}>{props.children}</p>;
+				return (
+					<p className={cn("text-2xl text-red-500", props.className)} style={props.style}>
+						{props.children}
+					</p>
+				);
 			}
 			return null;
 		}
 	} else {
 		if (props.children === null || props.children === undefined || props.children === "")
 			return null;
-		return <p className={cn("text-2xl text-red-500", props.className)}>{props.children}</p>;
+		return (
+			<p className={cn("text-2xl text-red-500", props.className)} style={props.style}>
+				{props.children}
+			</p>
+		);
 	}
 }

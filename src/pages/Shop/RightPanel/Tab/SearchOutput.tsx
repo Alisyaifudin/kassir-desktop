@@ -2,6 +2,8 @@ import { ProductResult } from "~/hooks/useProductSearch";
 import { cn } from "~/lib/utils";
 import { Additional, ItemWithoutDisc } from "~/pages/Shop/util-schema";
 import { Show } from "~/components/Show";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Output({
 	products,
@@ -16,15 +18,19 @@ export function Output({
 	handleClickProduct: (item: ItemWithoutDisc) => void;
 	handleClickAdditional: (additional: Additional) => void;
 }) {
+	const size = useSize();
 	return (
-		<div className="h-full w-full grow shrink basis-0 overflow-y-auto">
+		<div className="h-[calc(100vh-200px)] bg-white absolute z-20 top-[150px] overflow-x-clip overflow-y-auto">
 			<ol className="flex flex-col gap-1">
 				<Show when={products.length > 0}>
-					<p className="text-bold text-2xl italic">----Produk</p>
+					<p style={style[size].text} className="text-bold text-2xl italic">
+						----Produk
+					</p>
 				</Show>
 				{products.map((product, i) => (
 					<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
 						<button
+							style={style[size].text}
 							type="button"
 							onClick={() =>
 								handleClickProduct({
@@ -39,7 +45,7 @@ export function Output({
 							}
 							className={cn(
 								"cursor-pointer text-2xl w-full grid hover:bg-sky-100/50",
-								product.barcode !== null ? "grid-cols-[1fr_170px]" : "",
+								product.barcode !== null ? "grid-cols-[1fr_150px]" : "",
 								{ "bg-red-400 hover:bg-red-300": product.stock === 0 && mode === "sell" }
 							)}
 						>
@@ -49,11 +55,14 @@ export function Output({
 					</li>
 				))}
 				<Show when={additionals.length > 0}>
-					<p className="text-bold text-2xl italic">----Biaya Lainnya</p>
+					<p style={style[size].text} className="text-bold text-2xl italic">
+						----Biaya Lainnya
+					</p>
 				</Show>
 				{additionals.map((product, i) => (
 					<li key={i} className={i % 2 === 0 ? "bg-muted" : ""}>
 						<button
+							style={style[size].text}
 							type="button"
 							onClick={() =>
 								handleClickAdditional({

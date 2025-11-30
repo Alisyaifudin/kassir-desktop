@@ -18,8 +18,8 @@ export function useTabs() {
 			return;
 		}
 		if (tab === sheet) {
-			const remaining = Array.from(tabs.values())[0];
-			setSheet(remaining);
+			const remaining = Array.from(tabs.values());
+			setSheet(remaining[remaining.length - 1]);
 		} else {
 			setSheet(sheet);
 		}

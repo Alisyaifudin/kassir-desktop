@@ -8,6 +8,8 @@ import { Database } from "~/database";
 import { Store } from "~/lib/store";
 import { useNavigate } from "react-router";
 import { capitalize } from "~/lib/utils";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function LoginForm({
 	cashiers,
@@ -17,6 +19,7 @@ export function LoginForm({
 	context: { db: Database; store: Store };
 }) {
 	const navigate = useNavigate();
+	const size = useSize();
 	const { handleSelect, handleSubmit, loading, error, selected } = useLogin(
 		cashiers,
 		navigate,
@@ -46,7 +49,11 @@ export function LoginForm({
 					<Password name="password" />
 				</label>
 				<TextError>{error}</TextError>
-				<Button className="w-fit self-end" disabled={loading || selected === null}>
+				<Button
+					style={style[size].text}
+					className="w-fit self-end"
+					disabled={loading || selected === null}
+				>
 					Masuk
 					<Spinner when={loading} />
 				</Button>

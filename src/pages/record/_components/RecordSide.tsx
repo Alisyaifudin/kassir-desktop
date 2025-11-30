@@ -8,6 +8,8 @@ import { useSearchParams } from "react-router";
 import { getParam, setParam } from "../_utils/params";
 import { Label } from "~/components/ui/label";
 import { useState } from "react";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function RecordSide({
 	records,
@@ -21,6 +23,7 @@ export function RecordSide({
 	const { ref, handleScroll } = useScroll();
 	const [search, setSearch] = useSearchParams();
 	const [order, setOrder] = useState<"time" | "total">("time");
+	const size = useSize();
 	const mode = getParam(search).mode;
 	const setMode = setParam(setSearch).mode;
 	const user = useUser();
@@ -71,7 +74,7 @@ export function RecordSide({
 					</TabsContent>
 				</Show>
 			</Tabs>
-			<div className="grid grid-cols-[90px_1fr]">
+			<div style={style[size].text} className="grid grid-cols-[90px_1fr]">
 				<Show when={mode === "sell"}>
 					<p>Modal</p>
 					<p>: Rp{capital.toLocaleString("id-ID")}</p>

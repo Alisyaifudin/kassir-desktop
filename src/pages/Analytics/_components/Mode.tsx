@@ -21,15 +21,11 @@ export function Mode({
 			>
 				<div className="flex items-center space-x-2">
 					<RadioGroupItem value="sell" id="sell" />
-					<Label htmlFor="sell" className="text-3xl">
-						Jual
-					</Label>
+					<Label htmlFor="sell">Jual</Label>
 				</div>
 				<div className="flex items-center space-x-2">
 					<RadioGroupItem value="buy" id="buy" />
-					<Label htmlFor="buy" className="text-3xl">
-						Beli
-					</Label>
+					<Label htmlFor="buy">Beli</Label>
 				</div>
 			</RadioGroup>
 		</div>

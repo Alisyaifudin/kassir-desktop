@@ -13,6 +13,8 @@ import { DialogDescription } from "@radix-ui/react-dialog";
 import { useDel } from "../_hooks/use-del";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export const DeleteBtn = memo(function ({
 	method,
@@ -25,11 +27,12 @@ export const DeleteBtn = memo(function ({
 }) {
 	const [open, setOpen] = useState(false);
 	const { error, loading, handleSubmit } = useDel(method, setOpen, revalidate, db);
+	const size = useSize()
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-			<Button type="button" asChild className="rounded-full" variant="destructive">
+			<Button type="button" asChild className="rounded-full p-2" variant="destructive">
 				<DialogTrigger>
-					<X size={30} />
+					<X size={style[size].icon} />
 				</DialogTrigger>
 			</Button>
 			<DialogContent className="max-w-4xl">

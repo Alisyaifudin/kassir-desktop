@@ -7,11 +7,14 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
 import { useInterval } from "../_hooks/use-interval";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function PanelAdditional({ length }: { length: number }) {
 	const { set, get } = useParams();
 	const { totalPage } = useInterval(length);
 	const user = useUser();
+	const size = useSize();
 	return (
 		<div className="flex items-center gap-10">
 			<Search query={get.query} setQuery={set.query} />
@@ -23,6 +26,7 @@ export function PanelAdditional({ length }: { length: number }) {
 				<div className="relative">
 					<span className="absolute -top-5 left-1 text-lg z-10 px-1 bg-white">limit</span>
 					<select
+						style={style[size].text}
 						value={get.limit}
 						className="w-fit text-3xl"
 						onChange={(e) => set.limit(e.currentTarget.value)}
@@ -35,12 +39,13 @@ export function PanelAdditional({ length }: { length: number }) {
 				</div>
 				<Show when={user.role === "admin"}>
 					<Link
+						style={style[size].text}
 						to="/stock/additional/new"
 						className="self-end flex gap-5 items-center text-3xl w-fit"
 					>
 						Tambah Biaya Lainnya
-						<Button className="rounded-full h-13 w-13">
-							<Plus size={35} />
+						<Button className="rounded-full p-2">
+							<Plus size={style[size].icon} />
 						</Button>
 					</Link>
 				</Show>

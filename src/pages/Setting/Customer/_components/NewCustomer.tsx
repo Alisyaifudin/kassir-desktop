@@ -14,6 +14,8 @@ import { Input } from "~/components/ui/input";
 import { useNewCustomer } from "../_hooks/use-new-customer";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export const NewCustomer = memo(function ({
 	revalidate,
@@ -24,9 +26,10 @@ export const NewCustomer = memo(function ({
 }) {
 	const [open, setOpen] = useState(false);
 	const { handleSubmit, loading, error } = useNewCustomer(setOpen, revalidate, db);
+	const size = useSize();
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-			<Button asChild>
+			<Button style={style[size].text} asChild>
 				<DialogTrigger>
 					Tambah Pelanggan <Plus />
 				</DialogTrigger>
@@ -37,18 +40,18 @@ export const NewCustomer = memo(function ({
 				</DialogHeader>
 				<form onSubmit={handleSubmit} className="flex flex-col gap-2">
 					<label className="grid grid-cols-[100px_1fr] items-center">
-						<span className="text-3xl">Nama:</span>
+						<span style={style[size].text}>Nama:</span>
 						<Input type="text" name="name" aria-autocomplete="list" />
 					</label>
 					<label className="grid grid-cols-[100px_1fr] items-center">
-						<span className="text-3xl">Hp:</span>
+						<span style={style[size].text}>Hp:</span>
 						<Input type="number" name="phone" aria-autocomplete="list" />
 					</label>
 					<div className="flex justify-between mt-5">
-						<Button asChild variant={"secondary"}>
+						<Button style={style[size].text} asChild variant={"secondary"}>
 							<DialogClose type="button">Batal</DialogClose>
 						</Button>
-						<Button>
+						<Button style={style[size].text}>
 							Tambahkan <Spinner when={loading} />
 						</Button>
 					</div>

@@ -3,21 +3,40 @@ import { Link, useLocation } from "react-router";
 import { Show } from "~/components/Show";
 import { cn } from "~/lib/utils";
 import { useCheckUpdate } from "../_hooks/use-check-update";
+import { Size } from "~/hooks/use-size";
 
-export function SettingLink() {
+const icon = {
+	big: 35,
+	small: 20,
+};
+
+const liHeight = {
+	big: {
+		height: "60px",
+	},
+	small: {
+		height: "30px",
+	},
+};
+
+export function SettingLink({ size }: { size: Size }) {
 	const hasUpdate = useCheckUpdate();
 	const { pathname } = useLocation();
 	return (
 		<li
+			style={liHeight[size]}
 			className={cn(
-				"rounded-t-full h-[60px] flex items-center p-5",
+				"rounded-t-full flex items-center p-5",
 				pathname.includes("/setting") ? "bg-white" : "bg-black text-white"
 			)}
 		>
 			<Link to="/setting" className="relative">
-				<Settings size={35} />
+				<Settings size={icon[size]} />
 				<Show when={hasUpdate}>
-					<BellRing className="text-red-500 animate-ring absolute -top-3 -right-3" />
+					<BellRing
+						size={icon[size]}
+						className="text-red-500 animate-ring absolute -top-3 -right-3"
+					/>
 				</Show>
 			</Link>
 		</li>

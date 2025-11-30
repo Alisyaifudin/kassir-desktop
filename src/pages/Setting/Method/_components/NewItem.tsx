@@ -12,6 +12,8 @@ import { Input } from "~/components/ui/input";
 import { useAdd } from "../_hooks/use-add";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export const NewBtn = memo(function ({
 	method,
@@ -24,9 +26,10 @@ export const NewBtn = memo(function ({
 }) {
 	const [open, setOpen] = useState(false);
 	const { error, handleSubmit, loading } = useAdd(method, setOpen, revalidate, db);
+	const size = useSize()
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-			<Button className="w-fit self-end" asChild>
+			<Button style={style[size].text} className="w-fit self-end" asChild>
 				<DialogTrigger>Tambah</DialogTrigger>
 			</Button>
 			<DialogContent className="max-w-xl">
@@ -36,7 +39,7 @@ export const NewBtn = memo(function ({
 						<Input name="name" placeholder="Nama" aria-autocomplete="list" />
 						<TextError>{error}</TextError>
 						<div className="col-span-2 flex flex-col items-end">
-							<Button>
+							<Button style={style[size].text}>
 								Tambah
 								<Spinner when={loading} />
 							</Button>

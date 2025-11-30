@@ -5,9 +5,12 @@ import { TextError } from "~/components/TextError";
 import { useDownloadRecord } from "../_hooks/use-download-records";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
-export default function Record({db}: {db: Database}) {
+export default function Record({ db }: { db: Database }) {
 	const { startOfMonth, endOfMonth, handleDownload, loading, error } = useDownloadRecord(db);
+	const size = useSize();
 	return (
 		<div className="flex gap-2 flex-col p-2 bg-sky-50">
 			<div className="flex gap-2 items-center justify-between ">
@@ -17,15 +20,25 @@ export default function Record({db}: {db: Database}) {
 				<div className="flex gap-3 items-end">
 					<label className="flex flex-col gap-1">
 						<span>Dari:</span>
-						<Input type="date" name="start" defaultValue={formatDate(startOfMonth)} aria-autocomplete="list" />
+						<Input
+							type="date"
+							name="start"
+							defaultValue={formatDate(startOfMonth)}
+							aria-autocomplete="list"
+						/>
 					</label>
 					<div className="h-12">&mdash;</div>
 					<label className="flex flex-col gap-1">
 						<span>Sampai:</span>
-						<Input type="date" name="end" defaultValue={formatDate(endOfMonth)} aria-autocomplete="list" />
+						<Input
+							type="date"
+							name="end"
+							defaultValue={formatDate(endOfMonth)}
+							aria-autocomplete="list"
+						/>
 					</label>
 				</div>
-				<Button>
+				<Button style={style[size].text}>
 					Unduh <Spinner when={loading} />
 				</Button>
 			</form>

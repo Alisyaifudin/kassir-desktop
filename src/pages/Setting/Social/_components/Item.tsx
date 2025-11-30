@@ -6,6 +6,17 @@ import { useEdit } from "../_hooks/use-edit";
 import { Either } from "~/components/Either";
 import { memo } from "react";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
+
+const grid = {
+	big: {
+		gridTemplateColumns: "250px 1fr 60px",
+	},
+	small: {
+		gridTemplateColumns: "200px 1fr 30px",
+	},
+};
 
 export const Item = memo(function ({
 	id,
@@ -21,10 +32,18 @@ export const Item = memo(function ({
 	db: Database;
 }) {
 	const { loading, handleSubmit, error } = useEdit(id, revalidate, db);
+	const size = useSize();
 	return (
-		<form onSubmit={handleSubmit} className="grid grid-cols-[250px_1fr_60px] gap-2 items-center">
-			<Input name="name" defaultValue={name} placeholder="Nama Kontak" aria-autocomplete="list" />
+		<form onSubmit={handleSubmit} style={grid[size]} className="grid  gap-2 items-center">
 			<Input
+				style={style[size].text}
+				name="name"
+				defaultValue={name}
+				placeholder="Nama Kontak"
+				aria-autocomplete="list"
+			/>
+			<Input
+				style={style[size].text}
 				name="value"
 				defaultValue={value}
 				placeholder="Isian Kontak"
@@ -35,12 +54,14 @@ export const Item = memo(function ({
 			</button>
 			<Either
 				if={loading}
-				then={<Loader2 className="animate-spin" size={35} />}
+				then={<Loader2 className="animate-spin" size={style[size].icon} />}
 				else={<DeleteBtn id={id} name={name} value={value} revalidate={revalidate} db={db} />}
 			/>
-			<TextError className="col-span-2">{error?.global}</TextError>
-			<TextError>{error?.name}</TextError>
-			<TextError>{error?.value}</TextError>
+			<TextError style={style[size].text} className="col-span-2">
+				{error?.global}
+			</TextError>
+			<TextError style={style[size].text}>{error?.name}</TextError>
+			<TextError style={style[size].text}>{error?.value}</TextError>
 		</form>
 	);
 });

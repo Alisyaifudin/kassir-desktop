@@ -3,43 +3,52 @@ import { Notification } from "../components/Notification";
 import { User } from "../lib/auth";
 import { Toaster } from "../components/ui/sonner";
 import { NavLink } from "./_components/NavLink";
-import { useStoreInfo } from "./_hooks/use-store-info";
+import { useShop } from "./_hooks/use-shop";
 import { SettingLink } from "./_components/SettingLink";
 import { Async } from "~/components/Async";
 import { useNotification } from "~/hooks/use-notification";
 import { Show } from "~/components/Show";
 import { RefetchProduct } from "./_components/RefetchProduct";
-import { useStore } from "~/store/store";
 
-function Layout({ user }: { user: User }) {
-	const store = useStore();
-	const [state, refetchName] = useStoreInfo(store);
+
+function Layout({ user, db, store }: { user: User; store: Store; db: Database }) {
+	const [state, refetchName] = useShop(store);
 	const { notification, notify } = useNotification();
 	return (
 		<Async state={state}>
-			{(shop) => (
+			{({ name, size }) => (
 				<>
-					<header className="bg-sky-300 h-[78px] flex">
-						<nav className="flex px-3 pt-5 justify-between w-full items-end">
-							<div className="pb-4">
-								<p className="text-5xl italic">{shop.owner}</p>
+					<header style={localStyle[size].header} className="bg-sky-300 flex">
+						<nav className="flex px-3 justify-between w-full items-end">
+							<div style={localStyle[size].padBottom}>
+								<p style={localStyle[size].title} className="italic">
+									{name}
+								</p>
 							</div>
-							<ul className="flex gap-5 justify-end  items-end">
-								<NavLink path="/" root>
+							<ul style={localStyle[size].ul} className="flex justify-end  items-end">
+								<NavLink size={size} path="/" root>
 									Toko
 								</NavLink>
-								<NavLink path="/stock">Stok</NavLink>
-								<NavLink path="/records">Riwayat</NavLink>
+								<NavLink size={size} path="/stock">
+									Stok
+								</NavLink>
+								<NavLink size={size} path="/records">
+									Riwayat
+								</NavLink>
 								<Show when={user.role === "admin"}>
-									<NavLink path="/analytics">Analisis</NavLink>
-									<NavLink path="/money">Uang</NavLink>
+									<NavLink size={size} path="/analytics">
+										Analisis
+									</NavLink>
+									<NavLink size={size} path="/money">
+										Uang
+									</NavLink>
 								</Show>
-								<SettingLink />
-								<RefetchProduct />
+								<SettingLink size={size} />
+								<RefetchProduct size={size} />
 							</ul>
 						</nav>
 					</header>
-					<Outlet context={{ refetchName, notify }} />
+					<Outlet context={{ db, store, user, refetchName, notify, size }} />
 					<Notification>{notification}</Notification>
 					<Toaster />
 				</>
@@ -85,3 +94,36 @@ export function ErrorBoundary() {
 		return <h1>Unknown Error</h1>;
 	}
 }
+
+const localStyle = {
+	big: {
+		title: {
+			fontSize: "48px",
+			lineHeight: 1,
+		},
+		padBottom: {
+			paddingBottom: "16px",
+		},
+		header: {
+			height: "78px",
+		},
+		ul: {
+			gap: "20px",
+		},
+	},
+	small: {
+		padBottom: {
+			paddingBottom: "8px",
+		},
+		title: {
+			fontSize: "30px",
+			lineHeight: 1.2,
+		},
+		header: {
+			height: "50px",
+		},
+		ul: {
+			gap: "10px",
+		},
+	},
+};

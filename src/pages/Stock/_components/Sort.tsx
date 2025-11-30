@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export function Sort({
 	setSortDir,
@@ -11,9 +13,10 @@ export function Sort({
 	sortBy: "barcode" | "name" | "price" | "capital" | "stock" | "same";
 	setSortBy: (v: "barcode" | "name" | "price" | "capital" | "stock" | "same") => void;
 }) {
+	const size = useSize();
 	return (
 		<div className="flex gap-2 items-center">
-			<label htmlFor="sort-products" className="text-3xl">
+			<label style={style[size].text} htmlFor="sort-products">
 				Urutkan
 			</label>
 			<select
@@ -28,7 +31,8 @@ export function Sort({
 					const v = parsed.data;
 					setSortBy(v);
 				}}
-				className="h-[40px] w-fit outline text-3xl"
+				style={style[size].text}
+				className="h-[40px] w-fit outline"
 			>
 				<option value="name">Nama</option>
 				<option value="barcode">Barcode</option>
@@ -38,6 +42,7 @@ export function Sort({
 				<option value="same">Sama</option>
 			</select>
 			<select
+				style={style[size].text}
 				id="sort-products"
 				value={sortDir}
 				onChange={(e) => {

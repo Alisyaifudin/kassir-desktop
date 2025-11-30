@@ -15,6 +15,8 @@ import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { style } from "~/lib/style";
+import { useSize } from "~/hooks/use-size";
 
 export function Product({
 	products: all,
@@ -35,6 +37,7 @@ export function Product({
 	setSearch: SetURLSearchParams;
 	interval: "daily" | "weekly" | "monthly" | "yearly";
 }) {
+	const size = useSize();
 	const [query, setQuery] = useState("");
 	const [q, setQ] = useState("");
 	const products = useProductSearch(all, mode, q);
@@ -63,15 +66,16 @@ export function Product({
 					interval={interval}
 				/>
 				<Mode mode={mode} setMode={handleMode} />
-				<Input
-					type="search"
-					placeholder="Cari..."
-					value={query}
-					onChange={handleChange}
-					aria-autocomplete="list"
-				/>
 			</div>
-			<Table className="overflow-auto text-3xl">
+			<Input
+			className="mx-1"
+				type="search"
+				placeholder="Cari..."
+				value={query}
+				onChange={handleChange}
+				aria-autocomplete="list"
+			/>
+			<Table style={style[size].text} className="overflow-auto text-3xl">
 				<TableHeader>
 					<TableRow>
 						<TableHead className="w-[60px]">No</TableHead>
@@ -79,7 +83,7 @@ export function Product({
 						<TableHead>Nama</TableHead>
 						<TableHead className="text-end w-[140px]">Harga</TableHead>
 						<TableHead className="text-end w-[140px]">Modal</TableHead>
-						<TableHead className="w-[100px]">Jumlah</TableHead>
+						<TableHead className="w-[40px]">Qty</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>

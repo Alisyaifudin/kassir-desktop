@@ -14,6 +14,7 @@ import { useUser } from "~/hooks/use-user";
 import { toast } from "sonner";
 import { useNotify } from "~/hooks/use-notification";
 import { useRefetchShopname } from "~/hooks/use-refetch-shopname";
+import { useSize } from "~/hooks/use-size";
 
 const Page = lazy(() => import("./Setting"));
 
@@ -35,6 +36,9 @@ export const route: RouteObject = {
 		const user = useUser();
 		const refetchName = useRefetchShopname();
 		const notify = useNotify();
-		return <Page toast={toast.error} notify={notify} context={{ db, store, user, refetchName }} />;
+		const size = useSize();
+		return (
+			<Page toast={toast.error} notify={notify} context={{ db, store, user, refetchName, size }} />
+		);
 	},
 };

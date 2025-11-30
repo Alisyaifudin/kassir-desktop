@@ -13,7 +13,7 @@ export function useSheet() {
 		}
 		if (!sheets.has(sheet)) {
 			const list = Array.from(sheets.values());
-			sheet = list[0];
+			sheet = list[list.length - 1];
 		}
 		if (sheet < 0 || sheet > 100) {
 			return;
@@ -24,18 +24,18 @@ export function useSheet() {
 			return search;
 		});
 	}
-	let sheet = 0;
 	const sheets = getSheetList();
+	let sheet = 0;
 	if (!parsed.success) {
 		const list = Array.from(sheets.values());
-		sheet = list[0];
+		sheet = list[list.length - 1];
 	} else {
 		const proposed = parsed.data;
 		if (sheets.has(proposed)) {
 			sheet = proposed;
 		} else {
 			const list = Array.from(sheets.values());
-			sheet = list[0];
+			sheet = list[list.length - 1];
 		}
 	}
 	function removeSheet(sheet: number) {

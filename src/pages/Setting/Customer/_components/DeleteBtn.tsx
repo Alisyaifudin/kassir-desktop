@@ -14,6 +14,8 @@ import {
 import { useDeleteCustomer } from "../_hooks/use-delete-cusomer";
 import { Spinner } from "~/components/Spinner";
 import { Database } from "~/database";
+import { useSize } from "~/hooks/use-size";
+import { style } from "~/lib/style";
 
 export const DeleteBtn = memo(function ({
 	name,
@@ -28,11 +30,12 @@ export const DeleteBtn = memo(function ({
 }) {
 	const [open, setOpen] = useState(false);
 	const { loading, error, handleClick } = useDeleteCustomer(phone, setOpen, revalidate, db);
+	const size = useSize();
 	return (
 		<Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-			<Button type="button" asChild variant="destructive">
+			<Button className="p-2 rounded-full" type="button" asChild variant="destructive">
 				<DialogTrigger>
-					<X />
+					<X size={style[size].icon} />
 				</DialogTrigger>
 			</Button>
 			<DialogContent>
@@ -48,10 +51,10 @@ export const DeleteBtn = memo(function ({
 						{phone}
 					</DialogDescription>
 					<div className="flex justify-between mt-5">
-						<Button asChild>
+						<Button style={style[size].text} asChild>
 							<DialogClose>Batal</DialogClose>
 						</Button>
-						<Button onClick={handleClick} variant="destructive">
+						<Button style={style[size].text} onClick={handleClick} variant="destructive">
 							Hapus
 							<Spinner when={loading} />
 						</Button>
