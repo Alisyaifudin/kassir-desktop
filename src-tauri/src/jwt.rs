@@ -71,7 +71,7 @@ pub fn encode_jwt(name: String, role: String) -> Result<String, JwtError> {
         &claims,
         &EncodingKey::from_secret(ENV.as_ref()),
     )
-    .map_err(|_| JwtError::InvalidToken.into());
+    .map_err(|_| JwtError::InvalidToken);
 }
 
 #[tauri::command]

@@ -1,0 +1,47 @@
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "~/components/ui/dialog";
+import { useState } from "react";
+import { TextError } from "~/components/TextError";
+import { Form, useActionData } from "react-router";
+import { Size } from "~/lib/store-old";
+import { sizeClass } from "~/lib/utils";
+import { Spinner } from "~/components/Spinner";
+import { useLoading } from "~/hooks/use-loading";
+import { Action } from "../action";
+
+export function DeleteBtn({ timestamp, size }: { timestamp: number; size: Size }) {
+  const [open, setOpen] = useState(false);
+  const loading = useLoading();
+  const error = useActionData<Action>();
+  return (
+    <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+      <Button asChild variant="destructive">
+        <DialogTrigger>Hapus</DialogTrigger>
+      </Button>
+      <DialogContent className={sizeClass[size]}>
+        <DialogHeader>
+          <DialogTitle className="text-big">Hapus catatan riwayat?</DialogTitle>
+          <div className="flex justify-between mt-5">
+            <Button asChild>
+              <DialogClose>Batal</DialogClose>
+            </Button>
+            <Form method="POST">
+              <input type="hidden" name="timestamp" value={timestamp}></input>
+              <Button variant="destructive">
+                Hapus <Spinner when={loading} />
+              </Button>
+            </Form>
+          </div>
+          <TextError>{error}</TextError>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+  );
+}

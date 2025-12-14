@@ -1,94 +1,97 @@
 declare namespace DB {
-	type Role = "admin" | "user";
-	type ValueKind = "number" | "percent";
-	type Mode = "sell" | "buy";
-	type MethodEnum = "cash" | "transfer" | "debit" | "qris";
+  type Role = "admin" | "user";
+  type ValueKind = "number" | "percent";
+  type DiscKind = ValueKind | "pcs";
+  type MoneyEnum = "saving" | "debt" | "diff";
+  type Mode = "sell" | "buy";
+  type MethodEnum = "cash" | "transfer" | "debit" | "qris";
 
-	interface Method {
-		id: number;
-		name: string | null;
-		method: MethodEnum;
-	}
-	interface Product {
-		id: number;
-		name: string;
-		price: number;
-		stock: number;
-		stock_back: number;
-		barcode: string | null;
-		capital: number;
-		note: string;
-		updated_at: number;
-	}
-	interface Record {
-		timestamp: number; // primary key
-		paid_at: number;
-		disc_val: number;
-		disc_kind: ValueKind;
-		rounding: number;
-		credit: 0 | 1;
-		cashier: string;
-		mode: Mode;
-		pay: number;
-		note: string;
-		method_id: number;
-		fix: number;
-		customer_name: string;
-		customer_phone: string;
-	}
-	interface RecordItem {
-		id: number;
-		product_id: number | null;
-		timestamp: number;
-		name: string;
-		price: number;
-		qty: number;
-		capital: number;
-	}
-	interface AdditionalItem {
-		id: number;
-		name: string;
-		value: number;
-		kind: ValueKind;
-	}
-	interface Additional {
-		id: number;
-		name: string;
-		timestamp: number;
-		value: number;
-		kind: ValueKind;
-		item_id: number | null;
-	}
-	interface Discount {
-		id: number;
-		record_item_id: number;
-		value: number;
-		kind: ValueKind;
-	}
-
-	interface Cashier {
-		name: string;
-		role: Role;
-		password: string;
-	}
-	interface Image {
-		id: number;
-		name: string;
-		mime: "image/png" | "image/jpeg";
-		product_id: number;
-	}
-	interface Social {
-		name: string;
-		id: number;
-		value: string;
-	}
-	interface Money {
-		timestamp: number;
-		value: number;
-		kind: "saving" | "debt" | "diff";
-	}
-	interface Customer {
-		phone: string;
-		name: string;
-	}
+  interface Cashier {
+    cashier_name: string;
+    cashier_role: Role;
+    cashier_hash: string;
+  }
+  interface Image {
+    img_id: number;
+    img_name: string;
+    img_mime: "image/png" | "image/jpeg";
+    product_id: number;
+  }
+  interface Social {
+    social_name: string;
+    social_id: number;
+    social_value: string;
+  }
+  interface Money {
+    timestamp: number;
+    money_value: number;
+    money_kind: MoneyEnum;
+  }
+  interface Customer {
+    customer_phone: string;
+    customer_name: string;
+  }
+  interface RecordExtra {
+    record_extra_id: number;
+    record_extra_name: string;
+    timestamp: number;
+    record_extra_value: number;
+    record_extra_eff: number;
+    record_extra_kind: ValueKind;
+  }
+  interface Discount {
+    disc_id: number;
+    record_product_id: number;
+    disc_value: number;
+    disc_kind: ValueKind;
+  }
+  interface RecordProduct {
+    record_product_id: number;
+    product_id: number | null;
+    timestamp: number;
+    record_product_name: string;
+    record_product_price: number;
+    record_product_qty: number;
+    record_product_capital: number;
+    record_product_capital_raw: number;
+    record_product_total: number; // total including discount
+  }
+  interface Record {
+    timestamp: number; // primary key
+    record_paid_at: number;
+    record_rounding: number;
+    record_is_credit: 0 | 1;
+    record_cashier: string;
+    record_mode: Mode;
+    record_pay: number;
+    record_note: string;
+    method_id: number;
+    record_fix: number;
+    record_customer_name: string;
+    record_customer_phone: string;
+    record_sub_total: number; // total from record_product, including discounts
+    record_total: number; // total after including extra
+  }
+  interface Method {
+    method_id: number;
+    method_name: string | null;
+    method_kind: MethodEnum;
+    // (1000, 'cash'), (1001, 'transfer'), (1002, 'debit'), (1003, 'qris');
+    method_deleted_at: number | null;
+  }
+  interface Extra {
+    extra_id: number;
+    extra_name: string;
+    extra_value: number;
+    extra_kind: ValueKind;
+  }
+  interface Product {
+    product_id: number;
+    product_barcode: string | null;
+    product_name: string;
+    product_price: number;
+    product_stock: number;
+    product_capital: number;
+    product_note: string;
+  }
 }

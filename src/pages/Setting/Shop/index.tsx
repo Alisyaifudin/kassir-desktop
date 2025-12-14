@@ -1,22 +1,15 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { Protect } from "~/components/Protect";
-import { useRefetchShopname } from "~/hooks/use-refetch-shopname";
-import { useStore } from "~/hooks/use-store";
-import { useUser } from "~/hooks/use-user";
+import { admin } from "~/middleware/admin";
+import { loader } from "./loader";
+import { action } from "./action";
 
-const Page = lazy(() => import("./Shop"));
+const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
-	Component: () => {
-		const user = useUser();
-		const store = useStore();
-		const refetchName = useRefetchShopname();
-		return (
-			<Protect role={user.role} redirect="/setting/profile">
-				<Page refetchName={refetchName} context={{ store }} />
-			</Protect>
-		);
-	},
-	index: true,
+	middleware: [admin],
+	Component: Page,
+	loader,
+	action,
+	path: "shop",
 };

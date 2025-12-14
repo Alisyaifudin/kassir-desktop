@@ -1,15 +1,13 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { useDB } from "~/store/db";
-import { useStore } from "~/store/store";
+import { loader } from "./loader";
+import { action } from "./action";
 
-const Page = lazy(() => import("./Login"));
+const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
 	path: "login",
-	Component: () => {
-		const db = useDB();
-		const store = useStore();
-		return <Page context={{ db, store }} />;
-	},
+	loader,
+	action,
+	Component: Page,
 };

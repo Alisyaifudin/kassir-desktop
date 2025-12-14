@@ -13,7 +13,7 @@ export function TextError(props: TextErrorProps) {
 		if (typeof props.when === "boolean") {
 			if (props.when) {
 				return (
-					<p className={cn("text-2xl text-red-500", props.className)} style={props.style}>
+					<p className={cn("text-small text-red-500", props.className)} style={props.style}>
 						{props.children}
 					</p>
 				);
@@ -24,7 +24,7 @@ export function TextError(props: TextErrorProps) {
 		if (props.children === null || props.children === undefined || props.children === "")
 			return null;
 		return (
-			<p className={cn("text-2xl text-red-500", props.className)} style={props.style}>
+			<p className={cn("text-small text-red-500", props.className)} style={props.style}>
 				{props.children}
 			</p>
 		);

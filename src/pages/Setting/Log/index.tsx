@@ -1,21 +1,15 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { toast } from "sonner";
-import { Protect } from "~/components/Protect";
-import { useUser } from "~/hooks/use-user";
+import { loader } from "./loader";
+import { action } from "./action";
+import { admin } from "~/middleware/admin";
 
-const Page = lazy(() => import("./Log"));
-
-export const LOG_PATH = "logs/kassir.log";
+const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
-	Component: () => {
-		const user = useUser();
-		return (
-			<Protect role={user.role} redirect="/setting/profile">
-				<Page logPath={LOG_PATH} toast={toast.success} />
-			</Protect>
-		);
-	},
+	Component: Page,
+	middleware: [admin],
 	path: "log",
+	loader,
+	action
 };

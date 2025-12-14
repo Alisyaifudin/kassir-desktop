@@ -1,7 +1,7 @@
-import { useAction } from "~/hooks/useAction";
+import { useAction } from "~/hooks-old/use-action";
 import { z } from "zod";
 import { useSearchParams } from "react-router";
-import { Context } from "../Records";
+import { Context } from "../page";
 
 export function useRecordByNo({ db, toast }: Context) {
 	const [_, setSearch] = useSearchParams();

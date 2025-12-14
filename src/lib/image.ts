@@ -64,7 +64,7 @@ export namespace image {
 				}),
 		});
 		if (errImage) return err(errImage);
-		const blob = new Blob([image], { type: mimeType });
+		const blob = new Blob([image as any], { type: mimeType });
 		const objectURL = URL.createObjectURL(blob);
 		return ok(objectURL);
 	}

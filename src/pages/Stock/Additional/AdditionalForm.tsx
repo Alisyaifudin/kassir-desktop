@@ -1,0 +1,72 @@
+import { Input } from "~/components/ui/input";
+import { TextError } from "~/components/TextError";
+import { Button } from "~/components/ui/button";
+import { DeleteBtn } from "./DeleteBtn";
+import { Field } from "../Field";
+import { Label } from "~/components/ui/label";
+import { Form } from "react-router";
+import { Spinner } from "~/components/Spinner";
+import { useLoading } from "~/hooks/use-loading";
+import { useAction } from "~/hooks/use-action";
+import { Action } from "./action";
+import { Size } from "~/lib/store-old";
+
+export function AdditionalForm({
+  additional,
+  size,
+}: {
+  additional: DB.AdditionalItem;
+  size: Size;
+}) {
+  const loading = useLoading();
+  const error = useAction<Action>()("edit");
+  return (
+    <Form method="POST" className="flex flex-col gap-2 w-full">
+      <input type="hidden" name="action" value="edit"></input>
+      <input type="hidden" name="id" value={additional.id}></input>
+      <h1 className="font-bold text-big">Edit biaya lainnya</h1>
+
+      <Field error={error?.name} label="Nama*">
+        <Input
+          type="text"
+          className="outline"
+          name="name"
+          required
+          defaultValue={additional.name}
+          aria-autocomplete="list"
+        />
+      </Field>
+      <Field error={error?.value} label="Nilai*">
+        <Input
+          type="number"
+          className="outline w-[300px]"
+          name="value"
+          required
+          defaultValue={additional.value}
+          step={0.00001}
+          aria-autocomplete="list"
+        />
+      </Field>
+      <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+        <Label className="text-3xl">Jenis:</Label>
+        <select
+          name="kind"
+          defaultValue={additional.kind}
+          className="h-[54px] w-fit outline text-normal"
+        >
+          <option value="number">Angka</option>
+          <option value="percent">Persen</option>
+        </select>
+      </div>
+      <TextError>{error?.global}</TextError>
+      <div className="flex items-center justify-between">
+        <Button className="w-fit" type="submit">
+          Simpan
+          <Spinner when={loading} />
+        </Button>
+        <DeleteBtn name={additional.name} size={size} />
+      </div>
+      <TextError>{error?.global}</TextError>
+    </Form>
+  );
+}

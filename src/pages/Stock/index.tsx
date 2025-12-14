@@ -4,19 +4,17 @@ import { route as productRoute } from "./product";
 import { route as newAdditionalRoute } from "./New-Additional/index.tsx";
 import { route as additionalRoute } from "./Additional";
 import { lazy } from "react";
-import { useDB } from "~/hooks/use-db";
+import { loader } from "./loader.ts";
 
-const Page = lazy(() => import("./Stock.tsx"));
+const Page = lazy(() => import("./page.tsx"));
 
 export const route: RouteObject = {
 	path: "stock",
 	children: [
 		{
 			index: true,
-			Component: () => {
-				const db = useDB();
-				return <Page db={db} />;
-			},
+			Component: Page,
+			loader,
 		},
 		newProductRoute,
 		productRoute,

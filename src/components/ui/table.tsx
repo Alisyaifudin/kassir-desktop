@@ -1,49 +1,23 @@
 import * as React from "react";
 
-import { cn, numeric } from "../../lib/utils";
-import { useEffect, useRef } from "react";
+import { cn } from "../../lib/utils";
+import { useScroll } from "~/hooks/use-scroll";
 
-const TableScrollable = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-	({ className, ...props }, ref) => {
-		const parentRef = useRef<HTMLDivElement>(null);
-		const isProgrammaticScroll = useRef(false);
-		// Restore scroll position on component mount
-		useEffect(() => {
-			const params = new URLSearchParams(window.location.search);
-			const parsed = numeric.safeParse(params.get("scroll"));
-			const scrollTop = parsed.success ? parsed.data : 0;
-
-			if (scrollTop && parentRef.current) {
-				isProgrammaticScroll.current = true;
-				parentRef.current.scrollTop = scrollTop;
-
-				// Reset the flag after scroll completes
-				setTimeout(() => {
-					isProgrammaticScroll.current = false;
-				}, 100);
-			}
-		}, []);
-		// Throttled scroll handler
-		const handleScroll = () => {
-			if (isProgrammaticScroll.current || !parentRef.current) return;
-
-			const scrollTop = parentRef.current.scrollTop;
-			const params = new URLSearchParams(window.location.search);
-			const parsed = numeric.safeParse(params.get("scroll"));
-			const currentScroll = parsed.success ? parsed.data : 0;
-			// Only update if scroll position changed significantly
-			if (Math.abs(currentScroll - scrollTop) > 10) {
-				params.set("scroll", scrollTop.toString());
-				window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-			}
-		};
-		return (
-			<div className="relative w-full overflow-auto" onScroll={handleScroll} ref={parentRef}>
-				<table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-			</div>
-		);
-	}
-);
+const TableScrollable = React.forwardRef<
+	HTMLTableElement,
+	React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
+>(({ className, parentClass, ...props }, ref) => {
+	const [parentRef, handleScroll] = useScroll();
+	return (
+		<div
+			className={cn("relative w-full overflow-auto", parentClass)}
+			onScroll={handleScroll}
+			ref={parentRef}
+		>
+			<table ref={ref} className={cn("w-full caption-bottom", className)} {...props} />
+		</div>
+	);
+});
 TableScrollable.displayName = "TableScrollable";
 
 const Table = React.forwardRef<
@@ -51,8 +25,8 @@ const Table = React.forwardRef<
 	React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
 >(({ className, parentClass, ...props }, ref) => {
 	return (
-		<div className={cn("relative w-full overflow-auto", parentClass)}>
-			<table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+		<div className={cn("relative w-full", parentClass)}>
+			<table ref={ref} className={cn("w-full caption-bottom", className)} {...props} />
 		</div>
 	);
 });

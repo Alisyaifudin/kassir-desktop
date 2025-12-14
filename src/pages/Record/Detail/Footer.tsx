@@ -1,0 +1,74 @@
+import { ForEach } from "~/components/ForEach";
+import { Show } from "~/components/Show";
+import { AdditionalTransfrom, RecordTransform } from "~/lib/record";
+import { Additional } from "./Additonal";
+import { cn, METHOD_NAMES } from "~/lib/utils";
+import { css } from "../style.css";
+import { Size } from "~/lib/store-old";
+
+export function Footer({
+  method,
+  record,
+  additionals,
+  size,
+}: {
+  method: DB.Method;
+  record: RecordTransform;
+  additionals: AdditionalTransfrom[];
+  size: Size;
+}) {
+  return (
+    <div className="flex flex-col items-end">
+      <Show when={record.disc_val > 0}>
+        <div className={cn("grid", css.footer[size])}>
+          <p className="text-end">Subtotal:</p>
+          <p className="text-end">Rp{record.totalFromItems.toLocaleString("id-ID")}</p>
+        </div>
+        <div className={cn("grid", css.footer[size])}>
+          <p className="text-end">Diskon:</p>
+          <p className="text-end">Rp{record.totalDiscount.toLocaleString("id-ID")}</p>
+        </div>
+        <hr />
+        <div className={cn("grid", css.footer[size])}>
+          <div></div>{" "}
+          <p className="text-end">Rp{record.totalAfterDiscount.toLocaleString("de-DE")}</p>
+        </div>
+      </Show>
+      <Show when={additionals.length > 0}>
+        <ForEach items={additionals}>
+          {(additional) => <Additional additional={additional} />}
+        </ForEach>
+        <hr className="w-full" />
+        <Show when={record.totalAfterAdditional !== record.grandTotal}>
+          <div className={cn("grid", css.footer[size])}>
+            <div></div>{" "}
+            <p className="text-end">Rp{record.totalAfterAdditional.toLocaleString("de-DE")}</p>
+          </div>
+        </Show>
+      </Show>
+      <Show when={record.rounding !== 0}>
+        <div className={cn("grid", css.footer[size])}>
+          <p className="text-end">Pembulatan:</p>
+          <p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
+        </div>
+      </Show>
+      <div className={cn("grid", css.footer[size])}>
+        <p className="text-end">Total:</p>
+        <p className="text-end">Rp{record.grandTotal.toLocaleString("id-ID")}</p>
+      </div>
+      <div className={cn("grid", css.footer[size])}>
+        <p className="text-end">Pembayaran:</p>
+        <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
+      </div>
+      <div className={cn("grid", css.footer[size])}>
+        <p className="text-end">Kembalian:</p>{" "}
+        <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
+      </div>
+      <p className="self-start">{record.note}</p>
+      <p className="self-start">
+        Metode: {METHOD_NAMES[method.method]}
+        {method.name === null ? null : " " + method.name}
+      </p>
+    </div>
+  );
+}

@@ -1,26 +1,13 @@
-import { LoaderFunctionArgs, redirect, RouteObject, useLoaderData } from "react-router";
+import { RouteObject } from "react-router";
 import { lazy } from "react";
-import { numeric } from "~/lib/utils.ts";
-import { useDB } from "~/hooks/use-db.ts";
-import { useUser } from "~/hooks/use-user.ts";
+import { loader } from "./loader.ts";
+import { action } from "./action/index.ts";
 
-const Page = lazy(() => import("./Addditional.tsx"));
+const Page = lazy(() => import("./page.tsx"));
 
 export const route: RouteObject = {
-	Component: () => {
-		const { id } = useLoaderData<typeof loader>();
-		const db = useDB();
-		const user = useUser();
-		return <Page user={user} db={db} id={id} />;
-	},
+	Component: Page,
 	loader,
+	action,
 	path: "additional/:id",
 };
-
-export async function loader({ params }: LoaderFunctionArgs) {
-	const parsed = numeric.safeParse(params.id);
-	if (!parsed.success) {
-		return redirect("/stock");
-	}
-	return { id: parsed.data };
-}

@@ -1,20 +1,13 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { Protect } from "~/components/Protect";
-import { useDB } from "~/hooks/use-db";
-import { useUser } from "~/hooks/use-user";
+import { action } from "./action";
+import { admin } from "~/middleware/admin";
 
 const Page = lazy(() => import("./Data"));
 
 export const route: RouteObject = {
-	Component: () => {
-		const user = useUser();
-		const db = useDB();
-		return (
-			<Protect role={user.role} redirect="/setting/profile">
-				<Page db={db} />
-			</Protect>
-		);
-	},
+	Component: Page,
 	path: "data",
+	middleware: [admin],
+	action,
 };

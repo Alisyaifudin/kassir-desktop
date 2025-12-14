@@ -1,10 +1,10 @@
-import { useOutletContext } from "react-router";
-import { User } from "~/lib/auth";
+import { auth } from "~/lib/auth";
 
-export const useUser = () => {
-	const context = useOutletContext<{ user: User }|null>();
-	if (context === null) {
-		throw new Error("Outside the provider")
-	}
-	return context.user;
-};
+export function useUser() {
+  const user = auth.get();
+  if (user === undefined) {
+    throw new Error("Unauthenticated");
+  }
+  // const v = useStoreValue(userStore);
+  return user;
+}

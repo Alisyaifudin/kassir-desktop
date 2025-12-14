@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
@@ -10,6 +11,7 @@ export default defineConfig(async ({ command, mode }) => {
 	const isDev = command === "serve" || mode === "development";
 	return {
 		plugins: [
+			vanillaExtractPlugin(),
 			react(),
 			tailwindcss(),
 			tsconfigPaths(),
@@ -42,7 +44,7 @@ export default defineConfig(async ({ command, mode }) => {
 						protocol: "ws",
 						host,
 						port: 1421,
-				  }
+					}
 				: undefined,
 			watch: {
 				// 3. tell vite to ignore watching `src-tauri`

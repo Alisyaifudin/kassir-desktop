@@ -1,20 +1,15 @@
 import { RouteObject } from "react-router";
 import { lazy } from "react";
-import { Protect } from "~/components/Protect.tsx";
-import { useUser } from "~/hooks/use-user.ts";
-import { useDB } from "~/hooks/use-db.ts";
+import { loader } from "./loader.ts";
+import { action } from "./action.ts";
+import { admin } from "~/middleware/admin.ts";
 
-const Page = lazy(() => import("./New-Additional.tsx"));
+const Page = lazy(() => import("./page.tsx"));
 
 export const route: RouteObject = {
-	Component: () => {
-		const user = useUser();
-		const db = useDB();
-		return (
-			<Protect redirect="/stock" role={user.role}>
-				<Page db={db} />
-			</Protect>
-		);
-	},
+	Component: Page,
+	middleware: [admin],
+	loader,
+	action,
 	path: "additional/new",
 };

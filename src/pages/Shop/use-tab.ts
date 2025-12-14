@@ -1,28 +1,30 @@
-import { useEffect } from "react";
-import { getSheetList, useSheet } from "./use-sheet";
-import { emptyState } from "./use-local-state";
+import { useSearchParams } from "react-router";
+import { integer } from "~/lib/utils";
+import { basicStore } from "./use-transaction";
+import { useStoreValue } from "@simplestack/store/react";
+import { TabInfo } from "~/transaction/transaction/get-all";
 
-export function useTabs() {
-	const [sheet, setSheet, removeSheet, addSheet] = useSheet();
-	const tabs = getSheetList();
-	useEffect(() => {}, []);
-	function addTab() {
-		const i = addSheet();
-		if (i === null) return;
-		localStorage.setItem("state-" + i, JSON.stringify(emptyState));
-	}
-	function deleteTab(tab: number) {
-		const tabs = removeSheet(tab);
-		if (tabs.size === 0) {
-			setSheet(0);
-			return;
-		}
-		if (tab === sheet) {
-			const remaining = Array.from(tabs.values());
-			setSheet(remaining[remaining.length - 1]);
-		} else {
-			setSheet(sheet);
-		}
-	}
-	return [tabs, addTab, deleteTab] as const;
+export function useTab() {
+  const [search, setSearch] = useSearchParams();
+  const tabs = useStoreValue(basicStore.select("tabs"));
+  const tab = getTab(search, tabs);
+  function setTab(tab: number) {
+    setSearch({
+      tab: tab.toString(),
+    });
+  }
+  return [tab, setTab] as const;
+}
+
+function getTab(search: URLSearchParams, tabs: TabInfo[]) {
+  const last = tabs[tabs.length - 1].tab;
+  const parsed = integer.safeParse(search.get("tab"));
+  if (!parsed.success) {
+    return last;
+  }
+  const tab = parsed.data;
+  if (tabs.find((t) => t.tab === tab) === undefined) {
+    return last;
+  }
+  return tab;
 }

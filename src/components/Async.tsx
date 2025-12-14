@@ -1,4 +1,4 @@
-import { AsyncState } from "../hooks/useFetch";
+import { AsyncState } from "../hooks-old/use-fetch";
 import { log } from "../lib/utils";
 type AwaitProps<E, T> = {
 	state: AsyncState<E, T>;

@@ -2,28 +2,31 @@ import { createBrowserRouter } from "react-router";
 import { route as loginRoute } from "./pages/login";
 import { route as shopRoute } from "./pages/shop";
 import { route as stockRoute } from "./pages/stock";
-import Layout, { ErrorBoundary } from "./layouts/Layout.tsx";
 import { route as settingRoute } from "./pages/setting";
 import { route as recordsRoute } from "./pages/Record/index.tsx";
 import { route as moneyRoute } from "./pages/money";
-import { route as analRoute } from "./pages/analytics";
-import RootLayout from "./layouts/RootLayout.tsx";
-import { Auth } from "./components/Auth.tsx";
+// import { route as analRoute } from "./pages/analytics";
+import AuthLayout, { loader } from "./layouts/authenticated";
+import RootLayout, { ErrorBoundary, loader as rootLoader } from "./layouts/root";
+import { authentication } from "./middleware/authenticate.ts";
 
 export const router = createBrowserRouter([
-	{
-		path: "/",
-		Component: RootLayout,
-		ErrorBoundary,
-		children: [
-			loginRoute,
-			{
-				path: "/",
-				Component: () => {
-					return <Auth>{(user) => <Layout user={user} />}</Auth>;
-				},
-				children: [shopRoute, settingRoute, stockRoute, recordsRoute, analRoute, moneyRoute],
-			},
-		],
-	},
+  {
+    path: "/",
+    ErrorBoundary,
+    Component: RootLayout,
+    loader: rootLoader,
+    children: [
+      loginRoute,
+      {
+        path: "/",
+        middleware: [authentication],
+        Component: AuthLayout,
+        loader,
+        // children: [shopRoute, settingRoute, stockRoute, recordsRoute, analRoute, moneyRoute],
+        // children: [shopRoute, settingRoute, moneyRoute, stockRoute, recordsRoute],
+        children: [shopRoute],
+      },
+    ],
+  },
 ]);

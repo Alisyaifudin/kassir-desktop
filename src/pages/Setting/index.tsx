@@ -8,15 +8,10 @@ import { route as methodRoute } from "./method";
 import { route as logRoute } from "./log";
 import { route as customerRouter } from "./customer";
 import { lazy } from "react";
-import { useDB } from "~/hooks/use-db";
-import { useStore } from "~/hooks/use-store";
-import { useUser } from "~/hooks/use-user";
-import { toast } from "sonner";
-import { useNotify } from "~/hooks/use-notification";
-import { useRefetchShopname } from "~/hooks/use-refetch-shopname";
-import { useSize } from "~/hooks/use-size";
+import { loader } from "./loader";
+import { action } from "./action";
 
-const Page = lazy(() => import("./Setting"));
+const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
 	path: "setting",
@@ -30,15 +25,7 @@ export const route: RouteObject = {
 		logRoute,
 		customerRouter,
 	],
-	Component: () => {
-		const db = useDB();
-		const store = useStore();
-		const user = useUser();
-		const refetchName = useRefetchShopname();
-		const notify = useNotify();
-		const size = useSize();
-		return (
-			<Page toast={toast.error} notify={notify} context={{ db, store, user, refetchName, size }} />
-		);
-	},
+	Component: Page,
+	action,
+	loader,
 };
