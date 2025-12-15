@@ -4,12 +4,12 @@ import { Basic } from "./Basic";
 import { TextError } from "~/components/TextError";
 import { ForEach } from "~/components/ForEach";
 import { basicStore } from "../../use-transaction";
-import { useStoreValue } from "@simplestack/store/react";
-import { Product, productsStore, useInitProducts } from "./use-products-xstate";
+import { productsStore, useInitProducts } from "./use-products";
 import { Loading } from "~/components/Loading";
 import { DefaultError, Result } from "~/lib/utils";
 import { Product as ProductTX } from "~/transaction/product/get-by-tab";
-import { useSelector } from "@xstate/store/react";
+import { useAtom, useSelector } from "@xstate/store/react";
+import { memo } from "react";
 
 export function ProductList({
   products: promise,
@@ -23,40 +23,30 @@ export function ProductList({
 }
 
 function Wrapper() {
-  const products = useSelector(productsStore, (state) => state.context);
-  const n = products.length;
+  const ids = useSelector(productsStore, (state) => state.context).map((s) => s.id);
+  const n = ids.length;
   const arr = Array.from({ length: n }).map((_, i) => i);
   return (
-    <ForEach items={arr} extractKey={(i) => products[n - i - 1].id}>
-      {(i) => <Item product={products[n - i - 1]} index={i} />}
+    <ForEach items={arr} extractKey={(i) => ids[n - i - 1]}>
+      {(i) => <Item id={ids[n - i - 1]} index={i} />}
     </ForEach>
   );
 }
 
-const Item = ({ product, index }: { product: Product; index: number }) => {
-  const mode = useStoreValue(basicStore.select("mode"));
+const Item = memo(({ id, index }: { id: string; index: number }) => {
+  const mode = useAtom(basicStore, (state) => state.mode);
   switch (mode) {
     case "buy":
       return (
-        <Container
-          name={product.name}
-          stock={product.stock}
-          productId={product.product?.id}
-          index={index}
-        >
-          <Editable product={product} />
+        <Container id={id} index={index}>
+          <Editable id={id} />
         </Container>
       );
     case "sell":
       return (
-        <Container
-          name={product.name}
-          stock={product.stock}
-          productId={product.product?.id}
-          index={index}
-        >
-          <Basic product={product} />
+        <Container id={id} index={index}>
+          <Basic id={id} />
         </Container>
       );
   }
-};
+});

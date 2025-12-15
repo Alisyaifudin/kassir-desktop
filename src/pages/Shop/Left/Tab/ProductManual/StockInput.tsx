@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
@@ -7,11 +7,21 @@ import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { Field } from "../Field";
 import { useTab } from "~/pages/shop/use-tab";
-
-const store = manualStore.select("product").select("stock");
+import { produce } from "immer";
+import { useAtom } from "@xstate/store/react";
 
 export function StockInput() {
-  const [value, setValue] = useState(store.get() === 0 ? "" : store.get().toString());
+  const stock = useAtom(manualStore, (state) => state.product.stock);
+  const [value, setValue] = useState(() => {
+    const stock = manualStore.get().product.stock;
+    if (stock === 0) return "";
+    return stock.toString();
+  });
+  useEffect(() => {
+    if (stock === 0) {
+      setValue("");
+    }
+  }, [stock]);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
     queue.add(() => tx.transaction.update.product.price(tab, v));
@@ -29,7 +39,11 @@ export function StockInput() {
           const num = Number(v);
           if (isNaN(num) || num <= 0) return;
           setValue(v);
-          store.set(num);
+          manualStore.set(
+            produce((draft) => {
+              draft.product.stock = num;
+            }),
+          );
           save(num);
         }}
       />

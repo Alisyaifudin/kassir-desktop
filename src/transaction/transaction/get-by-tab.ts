@@ -51,7 +51,7 @@ export async function byTab(tab: number): Promise<Result<DefaultError | NotFound
     extra: {
       kind: r.tx_extra_kind,
       name: r.tx_extra_name,
-      saved: Boolean(r.tx_extra_saved),
+      saved: Boolean(r.tx_extra_is_saved),
       value: r.tx_extra_value,
     },
     product: {

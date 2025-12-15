@@ -1,16 +1,15 @@
 import { manualStore } from "~/pages/Shop/use-transaction";
-import { useStoreValue } from "@simplestack/store/react";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { Label } from "~/components/ui/label";
 import { useTab } from "~/pages/shop/use-tab";
-
-const store = manualStore.select("extra").select("saved");
+import { useAtom } from "@xstate/store/react";
+import { produce } from "immer";
 
 export function SavedCheck() {
-  const value = useStoreValue(store);
+  const value = useAtom(manualStore, (state) => state.extra.saved);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: boolean) => {
     queue.add(() => tx.transaction.update.extra.saved(tab, v));
@@ -24,7 +23,11 @@ export function SavedCheck() {
         checked={value}
         onChange={(e) => {
           const checked = e.currentTarget.checked;
-          store.set(checked);
+          manualStore.set(
+            produce((draft) => {
+              draft.extra.saved = checked;
+            }),
+          );
           save(checked);
         }}
         className="icon"

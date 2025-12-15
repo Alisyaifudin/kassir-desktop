@@ -1,9 +1,10 @@
-import { store } from "@simplestack/store";
+import { createAtom } from "@xstate/store";
+import { useAtom } from "@xstate/store/react";
 import { use, useEffect, useState } from "react";
 import { Result } from "~/lib/utils";
 import { Transaction } from "~/transaction/transaction/get-by-tab";
 
-export const basicStore = store<{
+export const basicStore = createAtom<{
   tabs: { tab: number; mode: TX.Mode }[];
   tab: number;
   fix: number;
@@ -25,13 +26,13 @@ export const basicStore = store<{
   note: "",
 });
 
-export const customerStore = store({
+export const customerStore = createAtom({
   name: "",
   phone: "",
   isNew: false,
 });
 
-export const manualStore = store({
+export const manualStore = createAtom({
   product: {
     name: "",
     barcode: "",
@@ -66,8 +67,24 @@ export function useInitTx(
     setLoading(false);
   }, [transaction]);
   useEffect(() => {
-    basicStore.select("tabs").set(tabs);
+    basicStore.set((prev) => ({ ...prev, tabs }));
   }, [tabs]);
 
   return [error, loading] as const;
+}
+
+export function useFix() {
+  return useAtom(basicStore, (state) => state.fix);
+}
+
+export function useMode() {
+  return useAtom(basicStore, (state) => state.mode);
+}
+
+export function useRounding() {
+  return useAtom(basicStore, (state) => state.rounding);
+}
+
+export function usePay() {
+  return useAtom(basicStore, (state) => state.pay);
 }

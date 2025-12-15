@@ -13,14 +13,15 @@ import { Loading } from "~/components/Loading";
 import { Method as MethodDB } from "~/database/method/get-all";
 import { useClear } from "./use-clear";
 import { useSize } from "~/hooks/use-size";
-import { useStoreValue } from "@simplestack/store/react";
-import { basicStore } from "../../use-transaction";
+import { useFix, useMode, usePay, useRounding } from "../../use-transaction";
 import { useTotal } from "../../Right/use-total";
 import { useStatus } from "../../use-status";
 import { productsStore } from "../../Right/Product/use-products";
 import { extrasStore } from "../../Right/Extra/use-extras";
 import { useSubmit } from "react-router";
 import { Customer as CustomerDB } from "~/database/customer/get-all";
+import { useAtom } from "@xstate/store/react";
+import { useLoading } from "~/hooks/use-loading";
 
 export function Summary({
   methods,
@@ -29,14 +30,15 @@ export function Summary({
   methods: Promise<Result<"Aplikasi bermasalah", MethodDB[]>>;
   customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
 }) {
-  const fix = useStoreValue(basicStore.select("fix"));
-  const pay = useStoreValue(basicStore.select("pay"));
-  const mode = useStoreValue(basicStore.select("mode"));
-  const productsLength = useStoreValue(productsStore).length;
-  const extrasLength = useStoreValue(extrasStore).length;
+  const submitLoading = useLoading();
+  const fix = useFix();
+  const pay = usePay();
+  const mode = useMode();
+  const rounding = useRounding();
+  const productsLength = useAtom(productsStore, (state) => state.context.length);
+  const extrasLength = useAtom(extrasStore, (state) => state.context.length);
   const status = useStatus();
-  const loading = status === "active";
-  const rounding = useStoreValue(basicStore.select("rounding"));
+  const loading = status === "active" || submitLoading;
   const [form, setForm] = useState({
     pay: pay === 0 ? "" : pay.toString(),
     rounding: rounding === 0 ? "" : rounding.toString(),
@@ -139,7 +141,7 @@ export function Summary({
           {(total) => {
             const rounding = Number(form.rounding);
             const pay = Number(form.pay);
-            const change = -1*Number(total.plus(rounding).minus(pay).toFixed(fix));
+            const change = -1 * Number(total.plus(rounding).minus(pay).toFixed(fix));
             return (
               <>
                 <div className={cn("grid items-center", css.summary[size].grid)}>

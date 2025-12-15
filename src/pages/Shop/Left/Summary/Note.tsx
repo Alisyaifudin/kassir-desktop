@@ -9,22 +9,27 @@ import {
 import { NotepadText } from "lucide-react";
 import { Textarea } from "~/components/ui/textarea";
 import { basicStore } from "../../use-transaction";
-import { useStoreValue } from "@simplestack/store/react";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction";
 import { useTab } from "../../use-tab";
+import { useAtom } from "@xstate/store/react";
+
+function setNote(note: string) {
+  basicStore.set((prev) => ({ ...prev, note }));
+}
 
 export function Note() {
-  const note = useStoreValue(basicStore.select("note"));
+  const note = useAtom(basicStore, (state) => state.note);
   const [tab] = useTab();
   const saveNote = useDebouncedCallback((note: string) => {
     queue.add(() => tx.transaction.update.note(tab, note));
   }, DEBOUNCE_DELAY);
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    basicStore.select("note").set(e.currentTarget.value);
-    saveNote(e.currentTarget.value);
+    const v = e.currentTarget.value;
+    setNote(v);
+    saveNote(v);
   };
   return (
     <Dialog>

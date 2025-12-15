@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router";
 import { cn } from "~/lib/utils";
 import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
-import { useUser } from "~/hooks/use-user";
+import { auth } from "~/lib/auth";
 
 const icon = {
   big: 40,
@@ -14,7 +14,7 @@ export function SettingLink() {
   // const hasUpdate = useCheckUpdate();
   const { pathname } = useLocation();
   const size = useSize();
-  const role = useUser().role;
+  const role = auth.get()?.role;
   return (
     <li
       className={cn(

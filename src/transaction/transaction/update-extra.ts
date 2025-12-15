@@ -40,7 +40,7 @@ async function saved(tab: number, v: boolean): Promise<DefaultError | null> {
   const tx = await getTX();
   const [errMsg] = await tryResult({
     run: () =>
-      tx.execute(`UPDATE transactions SET tx_extra_saved = $1 WHERE tab = $2`, [v ? 1 : 0, tab]),
+      tx.execute(`UPDATE transactions SET tx_extra_is_saved = $1 WHERE tab = $2`, [v ? 1 : 0, tab]),
   });
   if (errMsg) return errMsg;
   return null;
@@ -51,7 +51,7 @@ async function clear(tab: number): Promise<DefaultError | null> {
   const [errMsg] = await tryResult({
     run: () =>
       tx.execute(
-        `UPDATE transactions SET tx_extra_saved = 0, tx_extra_name = '', tx_extra_value = 0,
+        `UPDATE transactions SET tx_extra_is_saved = 0, tx_extra_name = '', tx_extra_value = 0,
          tx_extra_kind = 'percent' WHERE tab = $1`,
         [tab],
       ),

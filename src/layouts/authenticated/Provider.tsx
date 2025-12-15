@@ -1,9 +1,9 @@
-import { store } from "@simplestack/store";
+import { createAtom } from "@xstate/store";
 import React, { useEffect, useState } from "react";
 import { LoadingBig } from "~/components/Loading";
 import { User } from "~/lib/auth";
 
-export const userStore = store<User>({
+export const userStore = createAtom<User>({
   name: "",
   role: "user",
 });

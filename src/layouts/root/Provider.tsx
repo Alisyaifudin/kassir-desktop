@@ -1,9 +1,11 @@
-import { store } from "@simplestack/store";
 import React, { useEffect, useState } from "react";
 import { LoadingBig } from "~/components/Loading";
 import { Size } from "~/lib/store-old";
+import { createAtom } from "@xstate/store";
 
-export const sizeStore = store<Size>("big");
+// export const sizeStore = store<Size>("big");
+export const sizeStore = createAtom<Size>("big")
+
 function useInit(size: Size) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {

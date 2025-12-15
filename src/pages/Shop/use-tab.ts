@@ -1,12 +1,12 @@
 import { useSearchParams } from "react-router";
 import { integer } from "~/lib/utils";
 import { basicStore } from "./use-transaction";
-import { useStoreValue } from "@simplestack/store/react";
 import { TabInfo } from "~/transaction/transaction/get-all";
+import { useAtom } from "@xstate/store/react";
 
 export function useTab() {
   const [search, setSearch] = useSearchParams();
-  const tabs = useStoreValue(basicStore.select("tabs"));
+  const tabs = useAtom(basicStore, state => state.tabs);
   const tab = getTab(search, tabs);
   function setTab(tab: number) {
     setSearch({

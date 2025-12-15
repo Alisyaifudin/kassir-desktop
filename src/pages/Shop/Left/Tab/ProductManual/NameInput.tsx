@@ -1,4 +1,3 @@
-import { useStoreValue } from "@simplestack/store/react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
@@ -7,11 +6,11 @@ import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { Field } from "../Field";
 import { useTab } from "~/pages/shop/use-tab";
-
-const store = manualStore.select("product").select("name");
+import { useAtom } from "@xstate/store/react";
+import { produce } from "immer";
 
 export function NameInput() {
-  const value = useStoreValue(store);
+  const value = useAtom(manualStore, (state) => state.product.name);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: string) => {
     queue.add(() => tx.transaction.update.product.name(tab, v));
@@ -24,7 +23,11 @@ export function NameInput() {
         value={value}
         onChange={(e) => {
           const v = e.currentTarget.value;
-          store.set(v);
+          manualStore.set(
+            produce((draft) => {
+              draft.product.name = v;
+            }),
+          );
           save(v);
         }}
         aria-autocomplete="list"

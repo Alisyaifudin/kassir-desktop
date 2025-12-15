@@ -1,24 +1,24 @@
-import { useStoreValue } from "@simplestack/store/react";
 import { productsStore } from "./Product/use-products";
 import Decimal from "decimal.js";
-import { store } from "@simplestack/store";
 import { useEffect } from "react";
+import { createAtom } from "@xstate/store";
+import { useAtom, useSelector } from "@xstate/store/react";
 
-const subStore = store(new Decimal(0));
+const subStore = createAtom(new Decimal(0));
 
 // calc the total from items, including discounts
 export function useSubtotal() {
-  const items = useStoreValue(productsStore);
-  const subtotal = useStoreValue(subStore);
+  const products = useSelector(productsStore, (state) => state.context);
+  const subtotal = useAtom(subStore);
   useEffect(() => {
     let subtotal = new Decimal(0);
-    for (const item of items) {
-      const discEff = item.discEff;
-      if (discEff === undefined) return undefined;
-      const total = new Decimal(item.subtotal).minus(discEff);
+    for (const product of products) {
+      const totalDisc =
+        product.discounts.length === 0 ? 0 : Decimal.sum(...product.discounts.map((d) => d.eff));
+      const total = new Decimal(product.qty).times(product.price).minus(totalDisc);
       subtotal = subtotal.plus(total);
     }
     subStore.set(subtotal);
-  }, [items]);
+  }, [products]);
   return subtotal;
 }

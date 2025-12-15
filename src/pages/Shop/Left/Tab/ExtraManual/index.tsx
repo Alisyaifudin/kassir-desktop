@@ -5,33 +5,34 @@ import { NameInput } from "./NameInput";
 import { ValueInput } from "./ValueInput";
 import { KindSelect } from "./KindSelect";
 import { SavedCheck } from "./SavedCheck";
-import { extrasStore } from "~/pages/Shop/Right/Extra/use-extras";
-import { produce } from "immer";
 import { generateId } from "~/lib/random";
 import { queue, retry } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { useTab } from "~/pages/shop/use-tab";
-
-const store = manualStore.select("extra");
+import { extrasStore } from "~/pages/shop/Right/Extra/use-extras";
+import { useSubtotal } from "~/pages/shop/Right/use-subtotal";
+import { useRef } from "react";
 
 export function ExtraManual() {
+  const subtotal = useSubtotal();
+  const [tab] = useTab();
+  const ref = useRef<HTMLInputElement>(null);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     const id = generateId();
-    const { value, name, kind, saved } = store.get();
-    const [tab] = useTab();
-    extrasStore.set(
-      produce((draft) => {
-        draft.push({
-          id,
-          tab,
-          kind,
-          saved,
-          name,
-          value,
-        });
-      }),
-    );
+    const { value, name, kind, saved } = manualStore.get().extra;
+    extrasStore.trigger.add({
+      subtotal,
+      extra: {
+        id,
+        tab,
+        kind,
+        saved,
+        name,
+        value,
+      },
+    });
     const errMsg = await retry(10, () =>
       tx.extra.add({
         tab,
@@ -43,22 +44,27 @@ export function ExtraManual() {
       }),
     );
     if (errMsg !== null) {
-      extrasStore.set((prev) => prev.filter((p) => p.id !== id));
+      extrasStore.trigger.delete({ id });
       return;
     }
-    store.set({
-      kind: "percent",
-      name: "",
-      saved: false,
-      value: 0,
-    });
+    manualStore.set((prev) => ({
+      ...prev,
+      extra: {
+        kind: "percent",
+        name: "",
+        saved: false,
+        value: 0,
+      },
+    }));
+    form.reset();
+    ref.current?.focus();
     queue.add(() => tx.transaction.update.extra.clear(tab));
   }
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-1 px-1">
-      <NameInput />
+      <NameInput ref={ref} />
       <Label htmlFor="extra-value">Nilai</Label>
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-2 ">
         <ValueInput />
         <KindSelect />
       </div>

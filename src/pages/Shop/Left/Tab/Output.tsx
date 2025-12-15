@@ -3,9 +3,9 @@ import { Show } from "~/components/Show";
 import { css } from "~/pages/Shop/style.css";
 import { Extra } from "~/database/extra/caches";
 import { Product } from "~/database/product/caches";
-import { useStoreValue } from "@simplestack/store/react";
 import { basicStore } from "../../use-transaction";
 import { useSize } from "~/hooks/use-size";
+import { useAtom } from "@xstate/store/react";
 
 export function Output({
   products,
@@ -19,7 +19,7 @@ export function Output({
   handleClickExtra: (extra: Extra) => void;
 }) {
   const size = useSize();
-  const mode = useStoreValue(basicStore.select("mode"));
+  const mode = useAtom(basicStore, (state) => state.mode);
   return (
     <div
       className={cn(

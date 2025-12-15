@@ -1,4 +1,3 @@
-import { useStoreValue } from "@simplestack/store/react";
 import { customerStore } from "../use-transaction";
 import { queue } from "../utils/queue";
 import { Show } from "~/components/Show";
@@ -6,6 +5,7 @@ import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
 import { tx } from "~/transaction";
 import { useTab } from "../use-tab";
+import { useAtom } from "@xstate/store/react";
 
 const emptyCustomer = {
   name: "",
@@ -14,7 +14,7 @@ const emptyCustomer = {
 };
 
 export function Customer() {
-  const customer = useStoreValue(customerStore);
+  const customer = useAtom(customerStore);
   const [tab] = useTab();
   function resetCustomer() {
     customerStore.set(emptyCustomer);

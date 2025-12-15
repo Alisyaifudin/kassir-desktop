@@ -1,53 +1,49 @@
 import { Button } from "~/components/ui/button";
 import { Show } from "~/components/Show";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PriceInput } from "./PriceInput";
 import { NameInput } from "./NameInput";
 import { BarcodeInput } from "./BarcodeInput";
 import { Product } from "~/database/product/caches";
 import { productsStore } from "~/pages/Shop/Right/Product/use-products";
-import { produce } from "immer";
 import { basicStore, manualStore } from "~/pages/Shop/use-transaction";
 import { generateId } from "~/lib/random";
-import Decimal from "decimal.js";
 import { queue, retry } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { toast } from "sonner";
 import { QtyInput } from "./QtyInput";
-import { useStoreValue } from "@simplestack/store/react";
 import { StockInput } from "./StockInput";
-
-const store = manualStore.select("product");
+import { useAtom } from "@xstate/store/react";
+import { useTab } from "~/pages/shop/use-tab";
 
 export function ProductManual({ products }: { products: Product[] }) {
   const [error, setError] = useState("");
-  const mode = useStoreValue(basicStore.select("mode"));
+  const [tab] = useTab();
+  const ref = useRef<HTMLInputElement>(null);
+  const mode = useAtom(basicStore, (state) => state.mode);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     if (error !== "") return;
-    const { barcode, name, price, qty, stock } = store.get();
+    const { barcode, name, price, qty, stock } = manualStore.get().product;
     if (barcode !== "" && products.find((product) => product.barcode === barcode) !== undefined) {
       setError("Barang sudah ada");
       return;
     }
-    const tab = basicStore.select("tab").get();
     const id = generateId();
-    productsStore.set(
-      produce((draft) => {
-        draft.push({
-          barcode,
-          discounts: [],
-          id,
-          name,
-          price,
-          qty,
-          stock,
-          subtotal: new Decimal(price),
-          tab,
-          discEff: new Decimal(0),
-        });
-      }),
-    );
+    productsStore.trigger.addProduct({
+      product: {
+        total: price,
+        barcode,
+        discounts: [],
+        id,
+        name,
+        price,
+        qty,
+        stock,
+        tab,
+      },
+    });
     const errMsg = await retry(10, () =>
       tx.product.add({
         id,
@@ -60,17 +56,22 @@ export function ProductManual({ products }: { products: Product[] }) {
       }),
     );
     if (errMsg !== null) {
-      productsStore.set((prev) => prev.filter((p) => p.id !== id));
+      productsStore.trigger.deleteProduct({ id });
       toast.error("Gagal meyimpan catatan baru. Coba lagi.");
       return;
     }
-    store.set({
-      barcode: "",
-      name: "",
-      price: 0,
-      qty: 0,
-      stock: 0,
-    });
+    manualStore.set((prev) => ({
+      ...prev,
+      product: {
+        name: "",
+        barcode: "",
+        price: 0,
+        stock: 0,
+        qty: 0,
+      },
+    }));
+    form.reset();
+    ref.current?.focus();
     queue.add(() => tx.transaction.update.product.clear(tab));
   }
   return (
@@ -78,7 +79,7 @@ export function ProductManual({ products }: { products: Product[] }) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-2 grow shrink px-1 basis-0 overflow-y-auto"
     >
-      <BarcodeInput products={products} error={error} setError={setError} />
+      <BarcodeInput ref={ref} products={products} error={error} setError={setError} />
       <NameInput />
       <PriceInput />
       <div className="flex gap-1 items-center">

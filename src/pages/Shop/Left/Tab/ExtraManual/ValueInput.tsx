@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useAtom } from "@xstate/store/react";
+import { produce } from "immer";
+import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
@@ -7,10 +9,17 @@ import { manualStore } from "~/pages/Shop/use-transaction";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 
-const store = manualStore.select("extra").select("value");
-
 export function ValueInput() {
-  const [value, setValue] = useState(store.get() === 0 ? "" : store.get().toString());
+  const val = useAtom(manualStore, (state) => state.extra.value);
+  const [value, setValue] = useState(() => {
+    if (val === 0) return "";
+    return val.toString();
+  });
+  useEffect(() => {
+    if (val === 0) {
+      setValue("");
+    }
+  }, [val]);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
     queue.add(() => tx.transaction.update.extra.value(tab, v));
@@ -23,14 +32,18 @@ export function ValueInput() {
       onChange={(e) => {
         const val = e.currentTarget.value;
         const num = Number(val);
-        const kind = manualStore.select("extra").select("kind").get();
+        const kind = manualStore.get().extra.kind;
         if (isNaN(num)) return;
         if (kind === "percent") {
           if (num < -100) return;
           if (num > 100) return;
         }
         setValue(val);
-        store.set(num);
+        manualStore.set(
+          produce((draft) => {
+            draft.extra.value = num;
+          }),
+        );
         save(num);
       }}
       name="value"

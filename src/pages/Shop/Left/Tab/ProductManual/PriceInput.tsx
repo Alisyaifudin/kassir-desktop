@@ -1,5 +1,4 @@
-import { useStoreValue } from "@simplestack/store/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
@@ -8,13 +7,22 @@ import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { Field } from "../Field";
 import { useTab } from "~/pages/shop/use-tab";
-
-const store = manualStore.select("product").select("price");
+import { useAtom } from "@xstate/store/react";
+import { produce } from "immer";
 
 export function PriceInput() {
-  const [value, setValue] = useState(store.get() === 0 ? "" : store.get().toString());
+  const price = useAtom(manualStore, (state) => state.product.price);
+  const [value, setValue] = useState(() => {
+    if (price === 0) return "";
+    return price.toString();
+  });
+  useEffect(() => {
+    if (price === 0) {
+      setValue("");
+    }
+  }, [price]);
   const [tab] = useTab();
-  const fix = useStoreValue(basicStore.select("fix"));
+  const fix = useAtom(basicStore, (state) => state.fix);
   const save = useDebouncedCallback((v: number) => {
     queue.add(() => tx.transaction.update.product.price(tab, v));
   }, DEBOUNCE_DELAY);
@@ -34,7 +42,11 @@ export function PriceInput() {
             const num = Number(v);
             if (isNaN(num) || num <= 0) return;
             setValue(v);
-            store.set(num);
+            manualStore.set(
+              produce((draft) => {
+                draft.product.price = num;
+              }),
+            );
             save(num);
           }}
         />

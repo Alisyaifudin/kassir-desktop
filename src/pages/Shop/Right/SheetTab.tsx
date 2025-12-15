@@ -11,8 +11,8 @@ import { Action } from "../action";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { TabInfo } from "~/transaction/transaction/get-all";
-import { useStoreValue } from "@simplestack/store/react";
 import { basicStore } from "../use-transaction";
+import { useAtom } from "@xstate/store/react";
 
 const label = {
   sell: "J",
@@ -21,7 +21,7 @@ const label = {
 
 export function SheetTab({ tabs }: { tabs: TabInfo[] }) {
   const [selected, setTab] = useTab();
-  const mode = useStoreValue(basicStore.select("mode"));
+  const mode = useAtom(basicStore, (state) => state.mode);
   const error = useAction<Action>()("new");
   useEffect(() => {
     if (error === undefined) return;

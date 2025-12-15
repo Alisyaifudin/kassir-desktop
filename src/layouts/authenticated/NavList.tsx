@@ -5,11 +5,11 @@ import { SettingLink } from "./SettingLink";
 import { Refresh } from "../../components/Refresh";
 import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
-import { useUser } from "~/hooks/use-user";
+import { auth } from "~/lib/auth";
 
 export function NavList() {
   const size = useSize();
-  const role = useUser().role;
+  const role = auth.get()?.role;
   return (
     <ul className={cn("flex justify-end items-end", css.navlist[size])}>
       <NavLink path="/" root>

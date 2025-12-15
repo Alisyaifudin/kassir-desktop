@@ -1,4 +1,3 @@
-import { Show } from "~/components/Show";
 import { useSubtotal } from "../use-subtotal";
 
 export function Subtotal() {
@@ -6,9 +5,7 @@ export function Subtotal() {
   return (
     <div className="self-end justify-between flex py-1 gap-2">
       <p>Subtotal:</p>
-      <Show value={subtotal}>
-        {(subtotal) => <p className="font-bold">Rp{subtotal.toNumber().toLocaleString("id-ID")}</p>}
-      </Show>
+      <p className="font-bold">Rp{subtotal.toNumber().toLocaleString("id-ID")}</p>
       <div className="w-[50px]" />
     </div>
   );

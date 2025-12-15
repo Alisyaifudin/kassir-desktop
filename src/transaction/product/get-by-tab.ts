@@ -46,7 +46,7 @@ export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah
         `SELECT products.product_id, db_product_id, db_product_price, db_product_name,
          product_name, product_barcode, product_price, product_qty, product_stock, 
          disc_id, disc_value, disc_kind
-         FROM products LEFT JOIN discounts
+         FROM products LEFT JOIN discounts ON products.product_id = discounts.product_id
          WHERE tab = $1`,
         [tab],
       ),

@@ -9,7 +9,7 @@ export function Delete({ id }: { id: string }) {
       <button
         type="button"
         onClick={() => {
-          extrasStore.set((prev) => prev.filter((p) => p.id !== id));
+          extrasStore.trigger.delete({ id });
           queue.add(() => tx.extra.delById(id));
         }}
         className="bg-red-500 text-white"

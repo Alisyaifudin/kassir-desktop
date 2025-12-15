@@ -3,7 +3,6 @@ import { useDebouncedCallback } from "use-debounce";
 import { useProductSearch } from "~/hooks/use-product-search";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useExtraSearch } from "~/hooks/use-extra-search";
-import { useStoreValue } from "@simplestack/store/react";
 import { basicStore } from "../../use-transaction";
 import { productsStore } from "../../Right/Product/use-products";
 import { extrasStore } from "../../Right/Extra/use-extras";
@@ -12,23 +11,26 @@ import { Product } from "~/database/product/caches";
 import { Extra } from "~/database/extra/caches";
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction";
-import { produce } from "immer";
 import { useTab } from "../../use-tab";
+import { useAtom } from "@xstate/store/react";
+import { useSubtotal } from "../../Right/use-subtotal";
 
-const queryStore = basicStore.select("query");
+function setQuery(query: string) {
+  basicStore.set((prev) => ({ ...prev, query }));
+}
 
 function useQuery() {
-  const value = useStoreValue(queryStore);
-  const setValue = queryStore.set;
-  return [value, setValue] as const;
+  const value = useAtom(basicStore, (state) => state.query);
+  return value;
 }
 
 export function useSearch(allProducts: Product[], allExtras: Extra[]) {
   const ref = useRef<HTMLInputElement>(null);
   const [tab] = useTab();
-  const [query, setQuery] = useQuery();
+  const query = useQuery();
   const [products, setProducts] = useState<Product[]>([]);
   const [extras, setExtras] = useState<Extra[]>([]);
+  const subtotal = useSubtotal();
   const searchProduct = useProductSearch(allProducts);
   const searchExtra = useExtraSearch(allExtras);
   const debounced = useDebouncedCallback((value: string) => {
@@ -63,27 +65,24 @@ export function useSearch(allProducts: Product[], allExtras: Extra[]) {
     queue.add(() => tx.transaction.update.query(tab, ""));
     ref.current.focus();
     const id = generateId();
-    productsStore.set(
-      produce((draft) => {
-        draft.push({
-          product: {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-          },
-          discEff: 0,
-          barcode: product.barcode ?? "",
-          discounts: [],
-          id,
+    productsStore.trigger.addProduct({
+      product: {
+        product: {
+          id: product.id,
           name: product.name,
           price: product.price,
-          qty: 1,
-          stock: product.stock,
-          subtotal: product.price,
-          tab,
-        });
-      }),
-    );
+        },
+        barcode: product.barcode ?? "",
+        discounts: [],
+        id,
+        name: product.name,
+        price: product.price,
+        qty: 1,
+        stock: product.stock,
+        tab,
+        total: product.price,
+      },
+    });
     queue.add(() =>
       tx.product.add({
         id,
@@ -110,19 +109,18 @@ export function useSearch(allProducts: Product[], allExtras: Extra[]) {
     queue.add(() => tx.transaction.update.query(tab, ""));
     ref.current.focus();
     const id = generateId();
-    extrasStore.set(
-      produce((draft) => {
-        draft.push({
-          id,
-          kind: extra.kind,
-          name: extra.name,
-          saved: false,
-          tab,
-          value: extra.value,
-          extraId: extra.id,
-        });
-      }),
-    );
+    extrasStore.trigger.add({
+      extra: {
+        id,
+        kind: extra.kind,
+        name: extra.name,
+        saved: false,
+        tab,
+        value: extra.value,
+        extraId: extra.id,
+      },
+      subtotal,
+    });
     queue.add(() =>
       tx.extra.add({
         tab,

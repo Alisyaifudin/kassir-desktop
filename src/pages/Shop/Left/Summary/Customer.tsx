@@ -15,12 +15,12 @@ import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import { cn, Result } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
-import { useStoreValue } from "@simplestack/store/react";
 import { customerStore } from "../../use-transaction";
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction";
 import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { useTab } from "../../use-tab";
+import { useAtom } from "@xstate/store/react";
 
 export function Customer({
   customers: promise,
@@ -28,7 +28,7 @@ export function Customer({
   customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
 }) {
   const [errMsg, customers] = use(promise);
-  const customer = useStoreValue(customerStore);
+  const customer = useAtom(customerStore)
   const [tab, setTab] = useState(customer.isNew ? "man" : "auto");
   if (errMsg) {
     return <TextError>{errMsg}</TextError>;
@@ -144,7 +144,7 @@ function NewCustomer({
 }
 
 function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
-  const customer = useStoreValue(customerStore);
+  const customer = useAtom(customerStore);
   const [tab] = useTab();
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLInputElement>(null);

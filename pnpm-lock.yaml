@@ -35,9 +35,6 @@ importers:
       '@radix-ui/react-tabs':
         specifier: ^1.1.9
         version: 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@simplestack/store':
-        specifier: ^0.6.4
-        version: 0.6.5(react@19.2.0)
       '@tailwindcss/vite':
         specifier: ^4.1.4
         version: 4.1.17(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
@@ -1117,14 +1114,6 @@ packages:
     resolution: {integrity: sha512-UhTd8u31dXadv0MopwGgNOBpUVROFKWVQgAg5N1ESyCz8AuBcMqm4AuTjrwgQKGDfoFuz02EuMRHQIw/frmYKQ==}
     cpu: [x64]
     os: [win32]
-
-  '@simplestack/store@0.6.5':
-    resolution: {integrity: sha512-jiiS2RUvJEMg94hQeyxuI7HtHntnNOiDUSBnhmCWEQProterAS3gFU0FNlXqhRga6oRFQ8rI+FezF9EotqNfiw==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      react:
-        optional: true
 
   '@tailwindcss/node@4.1.17':
     resolution: {integrity: sha512-csIkHIgLb3JisEFQ0vxr2Y57GUNYh447C8xzwj89U/8fdW8LhProdxvnVH6U8M2Y73QKiTIH+LWbK3V2BBZsAg==}
@@ -2826,12 +2815,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.53.3':
     optional: true
-
-  '@simplestack/store@0.6.5(react@19.2.0)':
-    dependencies:
-      signal-polyfill: 0.2.2
-    optionalDependencies:
-      react: 19.2.0
 
   '@tailwindcss/node@4.1.17':
     dependencies:

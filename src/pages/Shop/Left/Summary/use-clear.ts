@@ -2,8 +2,8 @@ import { tx } from "~/transaction";
 import { basicStore, customerStore, manualStore } from "../../use-transaction";
 import { queue } from "../../utils/queue";
 import { productsStore } from "../../Right/Product/use-products";
-import { extrasStore } from "../../Right/Extra/use-extras";
 import { useTab } from "../../use-tab";
+import { extrasStore } from "../../Right/Extra/use-extras";
 
 export function useClear() {
   const [tab] = useTab();
@@ -37,8 +37,8 @@ export function useClear() {
       name: "",
       phone: "",
     });
-    productsStore.set([]);
-    extrasStore.set([]);
+    productsStore.trigger.clear();
+    extrasStore.trigger.clear();
     queue.add(() => tx.clear(tab));
   }
   return clear;

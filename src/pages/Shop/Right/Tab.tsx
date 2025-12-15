@@ -1,11 +1,11 @@
 import { Button } from "~/components/ui/button";
 import { SheetTab } from "./SheetTab";
-import { useStoreValue } from "@simplestack/store/react";
 import { basicStore } from "../use-transaction";
 import { queue } from "../utils/queue";
 import { TabInfo } from "~/transaction/transaction/get-all";
 import { tx } from "~/transaction";
 import { useTab } from "../use-tab";
+import { useAtom } from "@xstate/store/react";
 
 export function Tab({ tabs }: { tabs: TabInfo[] }) {
   return (
@@ -21,10 +21,10 @@ export function Tab({ tabs }: { tabs: TabInfo[] }) {
 }
 
 function ModeTab() {
-  const mode = useStoreValue(basicStore.select("mode"));
+  const mode = useAtom(basicStore, (state) => state.mode);
   const [tab] = useTab();
   function click(mode: TX.Mode) {
-    basicStore.select("mode").set(mode);
+    basicStore.set((prev) => ({ ...prev, mode }));
     queue.add(() => tx.transaction.update.mode(tab, mode));
   }
   return (

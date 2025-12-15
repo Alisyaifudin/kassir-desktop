@@ -1,4 +1,5 @@
-import { useStoreValue } from "@simplestack/store/react";
+import { useAtom } from "@xstate/store/react";
+import { produce } from "immer";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useTab } from "~/pages/shop/use-tab";
@@ -6,10 +7,8 @@ import { manualStore } from "~/pages/Shop/use-transaction";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 
-const store = manualStore.select("extra").select("kind");
-
 export function KindSelect() {
-  const value = useStoreValue(store);
+  const value = useAtom(manualStore, (state) => state.extra.kind);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: TX.ValueKind) => {
     queue.add(() => tx.transaction.update.extra.kind(tab, v));
@@ -19,7 +18,11 @@ export function KindSelect() {
       onChange={(e) => {
         const val = e.currentTarget.value;
         if (val !== "percent" && val !== "number") return;
-        store.set(val);
+        manualStore.set(
+          produce((draft) => {
+            draft.extra.kind = val;
+          }),
+        );
         save(val);
       }}
       name="kind"

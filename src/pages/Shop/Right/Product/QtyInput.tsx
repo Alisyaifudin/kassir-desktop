@@ -4,11 +4,11 @@ import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { updateProduct } from "./use-products";
+import { productsStore } from "./use-products";
 
 export const QtyInput = memo(
-  ({ id, qty, alreadyExist }: { id: string; qty: number; alreadyExist: boolean }) => {
-    const [input, setInput] = useState(qty.toString());
+  ({ id, alreadyExist, qty }: { id: string; alreadyExist: boolean; qty: number }) => {
+    const [input, setInput] = useState(qty === 0 ? "" : qty.toString());
     const save = useDebouncedCallback((v: number) => {
       queue.add(() => tx.product.update.qty(id, v));
     }, DEBOUNCE_DELAY);
@@ -22,8 +22,11 @@ export const QtyInput = memo(
           const num = Number(val);
           if (isNaN(num) || num < 0) return;
           setInput(val);
-          updateProduct(id, (draft) => {
-            draft.qty = num;
+          productsStore.trigger.updateProduct({
+            id,
+            recipe: (draft) => {
+              draft.qty = num;
+            },
           });
           save(num);
         }}
