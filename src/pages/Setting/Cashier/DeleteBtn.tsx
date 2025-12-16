@@ -16,10 +16,8 @@ import { Form } from "react-router";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
 
-export const DeleteBtn = memo(function ({ name, size }: { name: string; size: Size }) {
+export const DeleteBtn = memo(function ({ name }: { name: string }) {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
   const error = useAction<Action>()("delete");
@@ -31,7 +29,7 @@ export const DeleteBtn = memo(function ({ name, size }: { name: string; size: Si
         </DialogTrigger>
       </Button>
       <DialogContent>
-        <DialogHeader className={sizeClass[size]}>
+        <DialogHeader>
           <DialogTitle className="text-big">Yakin?</DialogTitle>
           <DialogDescription>Kamu akan menghapus:</DialogDescription>
           <DialogDescription>

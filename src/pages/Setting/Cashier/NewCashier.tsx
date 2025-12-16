@@ -16,10 +16,8 @@ import { Form } from "react-router";
 import { useLoading } from "~/hooks/use-loading";
 import { Action } from "./action";
 import { useAction } from "~/hooks/use-action";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
 
-export const NewCashier = memo(function ({ size }: { size: Size }) {
+export const NewCashier = memo(function () {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
   const error = useAction<Action>()("new");
@@ -35,7 +33,7 @@ export const NewCashier = memo(function ({ size }: { size: Size }) {
           Tambah Kasir <Plus />
         </DialogTrigger>
       </Button>
-      <DialogContent className={sizeClass[size]}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Kasir</DialogTitle>
         </DialogHeader>

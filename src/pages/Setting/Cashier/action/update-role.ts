@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
 
-export async function updateRoleAction({ context, formdata }: SubAction) {
+export async function updateRoleAction(formdata: FormData) {
 	const parsed = z
 		.object({
 			name: z.string().min(1, { message: "Harus ada" }),
@@ -16,7 +15,6 @@ export async function updateRoleAction({ context, formdata }: SubAction) {
 		return parsed.error.message;
 	}
 	const { name, role } = parsed.data;
-	const { db } = getContext(context);
 	const errMsg = await db.cashier.update.role(name, role);
 	return errMsg ?? undefined;
 }

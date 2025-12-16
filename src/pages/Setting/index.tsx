@@ -1,10 +1,10 @@
 import { RouteObject } from "react-router";
 import { route as shopRoute } from "./shop";
 import { route as dataRoute } from "./data";
-// import { route as cashierRoute } from "./cashier";
+import { route as cashierRoute } from "./cashier";
 import { route as profileRoute } from "./profile";
 import { route as socialRoute } from "./social";
-// import { route as methodRoute } from "./method";
+import { route as methodRoute } from "./method";
 // import { route as logRoute } from "./log";
 // import { route as customerRouter } from "./customer";
 import { lazy } from "react";
@@ -19,8 +19,8 @@ export const route: RouteObject = {
     shopRoute,
     socialRoute,
     dataRoute,
-    // cashierRoute,
-    // methodRoute,
+    cashierRoute,
+    methodRoute,
     // logRoute,
     // customerRouter,
   ],

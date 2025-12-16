@@ -1,4 +1,4 @@
-import { Item, type Method } from "./Item";
+import { Item } from "./Item";
 import { NewBtn } from "./NewBtn";
 import { useMethod } from "./use-method";
 import { TabLink } from "./TabLink";
@@ -8,40 +8,38 @@ import { TextError } from "~/components/TextError";
 import { Loading } from "~/components/Loading";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
-import { Size } from "~/lib/store-old";
+import { Method } from "~/database/method/get-all";
 
 export default function Page() {
-  const { methods, size } = useLoaderData<Loader>();
+  const methods = useLoaderData<Loader>();
   return (
     <div className="flex flex-col gap-2 p-5 flex-1 overflow-auto">
       <h1 className="text-big font-bold">Metode Pembayaran</h1>
       <TabLink />
       <Suspense fallback={<Loading />}>
-        <MethodComp methods={methods} size={size} />
+        <MethodComp methods={methods} />
       </Suspense>
+      <NewBtn />
     </div>
   );
 }
 
 function MethodComp({
   methods: promise,
-  size,
 }: {
-  methods: Promise<Result<"Aplikasi bermasalah", DB.Method[]>>;
-  size: Size;
+  methods: Promise<Result<"Aplikasi bermasalah", Method[]>>;
 }) {
   const [errMsg, data] = use(promise);
   const [method] = useMethod();
   if (errMsg !== null) {
     return <TextError>{errMsg}</TextError>;
   }
-  const methods = data.filter((d) => d.method === method && d.name !== null) as Method[];
+  const methods = data.filter((d) => d.kind === method && d.name !== undefined) as Method[];
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 overflow-auto">
       {methods.map((m) => (
-        <Item key={m.id} method={m} size={size} />
+        <Item key={m.id} method={m} />
       ))}
-      <NewBtn size={size} />
     </div>
   );
 }

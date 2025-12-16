@@ -1,6 +1,5 @@
 import { Input } from "~/components/ui/input";
 import { TextError } from "~/components/TextError";
-import { CashierWithoutPassword } from "~/database/old/cashier";
 import { DeleteBtn } from "./DeleteBtn";
 import { Spinner } from "~/components/Spinner";
 import { memo } from "react";
@@ -8,17 +7,9 @@ import { Form, useSubmit } from "react-router";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
+import { Cashier } from "~/database/cashier/get-all";
 
-export const Item = memo(function ({
-  cashier,
-  username,
-  size,
-}: {
-  cashier: CashierWithoutPassword;
-  username: string;
-  size: Size;
-}) {
+export const Item = memo(function ({ cashier, username }: { cashier: Cashier; username: string }) {
   const loading = useLoading();
   const error = useAction<Action>()("update-name");
   if (username === cashier.name) {
@@ -37,7 +28,7 @@ export const Item = memo(function ({
       <Spinner when={loading} />
       <TextError>{error}</TextError>
       <SelectRole cashier={cashier} />
-      <DeleteBtn size={size} name={cashier.name} />
+      <DeleteBtn name={cashier.name} />
     </Form>
   );
 });
@@ -47,7 +38,7 @@ const title = {
   user: "User",
 };
 
-function SelectRole({ cashier }: { cashier: CashierWithoutPassword }) {
+function SelectRole({ cashier }: { cashier: Cashier }) {
   const submit = useSubmit();
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const role = e.currentTarget.value;

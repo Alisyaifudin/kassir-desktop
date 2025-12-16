@@ -1,11 +1,9 @@
-import { LoaderArgs } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { data } from "react-router";
+import { db } from "~/database";
 
-export async function loader({ context }: LoaderArgs) {
-	const { db, store } = getContext(context);
-	const methods = db.method.get.all();
-	const size = await store.size();
-	return { methods, size };
+export async function loader() {
+  const methods = db.method.getAll();
+  return data(methods);
 }
 
 export type Loader = typeof loader;

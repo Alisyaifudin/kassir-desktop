@@ -8,7 +8,7 @@ export async function getAll(): Promise<Result<"Aplikasi bermasalah", Method[]>>
   const [errMsg, res] = await tryResult({
     run: () =>
       db.select<DB.Method[]>(
-        "SELECT method_id, method_kind, method_name FROM methods ORDER BY method_id",
+        "SELECT method_id, method_kind, method_name FROM methods WHERE method_deleted_at is null ORDER BY method_id"
       ),
   });
   if (errMsg) return err(errMsg);
@@ -17,6 +17,6 @@ export async function getAll(): Promise<Result<"Aplikasi bermasalah", Method[]>>
       id: r.method_id,
       kind: r.method_kind,
       name: r.method_name ?? undefined,
-    })),
+    }))
   );
 }

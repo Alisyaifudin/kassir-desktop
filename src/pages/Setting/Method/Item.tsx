@@ -7,14 +7,9 @@ import { useAction } from "~/hooks/use-action";
 import { Form } from "react-router";
 import { useLoading } from "~/hooks/use-loading";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
+import { Method } from "~/database/method/get-all";
 
-export interface Method {
-  id: number;
-  name: string;
-}
-
-export const Item = memo(function ({ method, size }: { method: Method; size: Size }) {
+export const Item = memo(function ({ method }: { method: Method }) {
   const loading = useLoading();
   const error = useAction<Action>()("edit");
   return (
@@ -31,7 +26,7 @@ export const Item = memo(function ({ method, size }: { method: Method; size: Siz
           />
           <Spinner when={loading} />
         </Form>
-        <DeleteBtn method={method} size={size} />
+        <DeleteBtn method={method} />
       </div>
       <TextError>{error}</TextError>
     </>

@@ -14,11 +14,9 @@ import { useLoading } from "~/hooks/use-loading";
 import { Form } from "react-router";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
 import { useMethod } from "./use-method";
 
-export const NewBtn = memo(function ({ size }: { size: Size }) {
+export const NewBtn = memo(function () {
   const [method] = useMethod();
   const [open, setOpen] = useState(false);
   const loading = useLoading();
@@ -34,7 +32,7 @@ export const NewBtn = memo(function ({ size }: { size: Size }) {
         <DialogTrigger>Tambah</DialogTrigger>
       </Button>
       <DialogContent className="max-w-xl">
-        <DialogHeader className={sizeClass[size]}>
+        <DialogHeader>
           <DialogTitle className="text-3xl">Tambahkan Jenis Pembayaran</DialogTitle>
           <Form method="POST" className="flex flex-col gap-2">
             <input type="hidden" name="action" value="new"></input>

@@ -13,13 +13,11 @@ import { DialogDescription } from "@radix-ui/react-dialog";
 import { Spinner } from "~/components/Spinner";
 import { useAction } from "~/hooks/use-action";
 import { Form } from "react-router";
-import type { Method } from "./Item";
 import { useLoading } from "~/hooks/use-loading";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
+import { Method } from "~/database/method/get-all";
 
-export const DeleteBtn = memo(function ({ method, size }: { method: Method; size: Size }) {
+export const DeleteBtn = memo(function ({ method }: { method: Method }) {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
   const error = useAction<Action>()("delete");
@@ -32,11 +30,11 @@ export const DeleteBtn = memo(function ({ method, size }: { method: Method; size
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button type="button" asChild className="rounded-full p-2" variant="destructive">
         <DialogTrigger>
-          <X />
+          <X className="icon" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
-        <DialogHeader className={sizeClass[size]}>
+        <DialogHeader>
           <DialogTitle className="text-3xl">Hapus Catatan</DialogTitle>
           <Form method="POST" className="flex flex-col gap-2 text-3xl">
             <input type="hidden" name="action" value="delete"></input>
