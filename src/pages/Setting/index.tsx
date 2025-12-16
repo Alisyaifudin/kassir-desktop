@@ -5,8 +5,8 @@ import { route as cashierRoute } from "./cashier";
 import { route as profileRoute } from "./profile";
 import { route as socialRoute } from "./social";
 import { route as methodRoute } from "./method";
-// import { route as logRoute } from "./log";
-// import { route as customerRouter } from "./customer";
+import { route as logRoute } from "./log";
+import { route as customerRouter } from "./customer";
 import { lazy } from "react";
 import { action } from "./action";
 
@@ -21,8 +21,8 @@ export const route: RouteObject = {
     dataRoute,
     cashierRoute,
     methodRoute,
-    // logRoute,
-    // customerRouter,
+    customerRouter,
+    logRoute,
   ],
   Component: Page,
   action,

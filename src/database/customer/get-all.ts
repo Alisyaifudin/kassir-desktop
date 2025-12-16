@@ -4,6 +4,7 @@ import { getDB } from "../instance";
 export type Customer = {
   phone: string;
   name: string;
+  id: number;
 };
 
 export async function getAll(): Promise<Result<"Aplikasi bermasalah", Customer[]>> {
@@ -16,6 +17,7 @@ export async function getAll(): Promise<Result<"Aplikasi bermasalah", Customer[]
     res.map((r) => ({
       name: r.customer_name,
       phone: r.customer_phone,
-    })),
+      id: r.customer_id,
+    }))
   );
 }

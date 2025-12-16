@@ -28,6 +28,7 @@ declare namespace DB {
     money_kind: MoneyEnum;
   }
   interface Customer {
+    customer_id: number;
     customer_phone: string;
     customer_name: string;
   }

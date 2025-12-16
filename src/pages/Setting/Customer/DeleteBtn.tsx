@@ -16,17 +16,15 @@ import { useLoading } from "~/hooks/use-loading";
 import { Form } from "react-router";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
 
 export const DeleteBtn = memo(function ({
+  id,
   name,
   phone,
-  size,
 }: {
+  id: number;
   name: string;
   phone: string;
-  size: Size;
 }) {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
@@ -40,12 +38,12 @@ export const DeleteBtn = memo(function ({
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button className="p-2 rounded-full" type="button" asChild variant="destructive">
         <DialogTrigger>
-          <X />
+          <X className="icon" />
         </DialogTrigger>
       </Button>
-      <DialogContent className={sizeClass[size]}>
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-3xl">Yakin?</DialogTitle>
+          <DialogTitle className="text-normal">Yakin?</DialogTitle>
           <DialogDescription className="text-small">Kamu akan menghapus:</DialogDescription>
           <DialogDescription className="text-small">
             {">"} Nama: {name}
@@ -55,7 +53,7 @@ export const DeleteBtn = memo(function ({
           </DialogDescription>
           <Form method="POST" className="flex justify-between mt-5">
             <input type="hidden" name="action" value="delete"></input>
-            <input type="hidden" name="phone" value={phone}></input>
+            <input type="hidden" name="id" value={id}></input>
             <Button type="button" asChild>
               <DialogClose>Batal</DialogClose>
             </Button>

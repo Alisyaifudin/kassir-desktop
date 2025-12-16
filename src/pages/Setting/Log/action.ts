@@ -1,10 +1,10 @@
 import { BaseDirectory, writeTextFile } from "@tauri-apps/plugin-fs";
-import { ActionArgs, tryResult } from "~/lib/utils";
+import {  tryResult } from "~/lib/utils";
 import { LOG_PATH } from "./loader";
-import { getUser } from "~/middleware/authenticate";
+import { auth } from "~/lib/auth";
 
-export async function action({ context }: ActionArgs) {
-	const user = await getUser(context);
+export async function action() {
+	const user = auth.user()
 	if (user.role !== "admin") {
 		throw new Error("Unauthorized");
 	}

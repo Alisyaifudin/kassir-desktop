@@ -31,9 +31,9 @@ function Wrapper({
   }
   if (cashiers.length > 0) {
     return (
-      <main className="flex flex-1 flex-col justify-center bg-zinc-950">
+      <div className="flex flex-1 flex-col justify-center bg-zinc-950">
         <LoginForm cashiers={cashiers} />
-      </main>
+      </div>
     );
   }
   return (
