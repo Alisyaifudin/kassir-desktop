@@ -19,7 +19,6 @@ function useInit(size: Size) {
       setUpdating(percent);
     });
     mig.on("finish", () => {
-      console.log("uwu?");
       setUpdating(null);
     });
   }, []);

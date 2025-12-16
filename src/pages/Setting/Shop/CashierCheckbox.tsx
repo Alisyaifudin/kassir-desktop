@@ -10,7 +10,6 @@ import { useAction } from "~/hooks/use-action";
 
 export const CashierCheckbox = memo(function ({ showCashier }: { showCashier: boolean }) {
   const [loading, handleCheck] = useCheckbox();
-  console.log("show", showCashier);
   const error = useAction<Action>()("show-cashier");
   return (
     <>

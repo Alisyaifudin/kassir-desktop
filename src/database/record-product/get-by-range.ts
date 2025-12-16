@@ -36,7 +36,7 @@ export async function getByRange(
           discount_eff: number | null;
         })[]
       >(
-        `SELECT timestamp, product_id, records_products.record_product_id, record_product_name, record_product_price,
+        `SELECT timestamp, product_id, record_products.record_product_id, record_product_name, record_product_price,
         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
         discount_id, discount_kind, discount_value, discount_eff
         FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id

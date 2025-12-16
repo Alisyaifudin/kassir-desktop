@@ -1,7 +1,7 @@
 import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
-export type Extra = {
+export type RecordExtra = {
   id: number;
   name: string;
   timestamp: number;
@@ -13,7 +13,7 @@ export type Extra = {
 export async function getByRange(
   start: number,
   end: number
-): Promise<Result<DefaultError, Extra[]>> {
+): Promise<Result<DefaultError, RecordExtra[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () =>

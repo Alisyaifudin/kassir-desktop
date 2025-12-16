@@ -4,7 +4,7 @@ import { getDB } from "../instance";
 export type Record = {
   timestamp: number;
   paidAt: number;
-  ronding: number;
+  rounding: number;
   isCredit: boolean;
   cashier: string;
   mode: "buy" | "sell";
@@ -61,7 +61,7 @@ export async function getByRange(
       note: r.record_note,
       paidAt: r.record_paid_at,
       pay: r.record_pay,
-      ronding: r.record_rounding,
+      rounding: r.record_rounding,
       subTotal: r.record_sub_total,
       timestamp: r.timestamp,
       total: r.record_total,

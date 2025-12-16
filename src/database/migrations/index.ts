@@ -11,7 +11,6 @@ async function run(event: EventEmitter) {
   if (errVer !== null) throw new Error(errVer);
   const versions = res.map((r) => r.v);
   if (versions.length === 0) {
-    console.log("halooo");
     const mig = migration00000(db);
     mig.on("update", (percentage: number) => {
       event.emit("update", percentage);

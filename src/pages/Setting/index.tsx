@@ -1,6 +1,6 @@
 import { RouteObject } from "react-router";
 import { route as shopRoute } from "./shop";
-// import { route as dataRoute } from "./data";
+import { route as dataRoute } from "./data";
 // import { route as cashierRoute } from "./cashier";
 import { route as profileRoute } from "./profile";
 import { route as socialRoute } from "./social";
@@ -18,7 +18,7 @@ export const route: RouteObject = {
     profileRoute,
     shopRoute,
     socialRoute,
-    // dataRoute,
+    dataRoute,
     // cashierRoute,
     // methodRoute,
     // logRoute,

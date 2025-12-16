@@ -16,7 +16,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return { res, action };
     }
     case "record": {
-      const res = await recordAction({ context, formdata });
+      const res = await recordAction(formdata);
       return { res, action };
     }
     default:

@@ -40,7 +40,7 @@ export const productsStore = createStore({
         const product = produce(draft[index], event.recipe);
         const discounts = calcEffDiscounts(
           { price: product.price, qty: product.qty },
-          product.discounts,
+          product.discounts
         );
         product.discounts = discounts;
         const effDisc = discounts.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff));
@@ -79,7 +79,7 @@ export const productsStore = createStore({
           value?: number;
           kind?: TX.DiscKind;
         };
-      },
+      }
     ) {
       return produce(context, (draft) => {
         const index = draft.findIndex((d) => d.id === event.id);
@@ -121,7 +121,6 @@ export function useInitProducts(promise: Promise<Result<DefaultError, ProductTx[
     if (products === null) return;
     loadStore.set((prev) => ({ ...prev, product: true }));
     const arr = products.map(({ discounts: d, ...product }) => {
-      console.log(d, product);
       const discounts =
         d.length === 0 ? [] : calcEffDiscounts({ price: product.price, qty: product.qty }, d);
       const effDisc = d.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff));
@@ -145,7 +144,7 @@ export function useProduct(id: string) {
 function calcEffDisc(
   base: Decimal,
   price: number,
-  discount: { value: number; kind: "number" | "percent" | "pcs" },
+  discount: { value: number; kind: "number" | "percent" | "pcs" }
 ): { subtotal: Decimal; eff: number } {
   let subtotal = new Decimal(base);
   switch (discount.kind) {
@@ -171,7 +170,7 @@ function calcEffDisc(
 
 function calcEffDiscounts(
   item: { price: number; qty: number },
-  discounts: { id: string; value: number; kind: "number" | "percent" | "pcs" }[],
+  discounts: { id: string; value: number; kind: "number" | "percent" | "pcs" }[]
 ): Discount[] {
   const subtotal = new Decimal(item.price).times(item.qty);
   let total = new Decimal(subtotal);

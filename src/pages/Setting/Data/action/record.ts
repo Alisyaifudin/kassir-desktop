@@ -1,17 +1,9 @@
+import Decimal from "decimal.js";
 import { z } from "zod";
 import { db } from "~/database";
-import { Database } from "~/database/old";
-import {
-  constructCSV,
-  dateStringSchema,
-  dateToEpoch,
-  err,
-  log,
-  ok,
-  Result,
-  SubAction,
-} from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { RecordExtra } from "~/database/record-extra/get-by-range";
+import { RecordProduct } from "~/database/record-product/get-by-range";
+import { dateStringSchema, dateToEpoch, err, log, ok, Result } from "~/lib/utils";
 
 const dateRangeSchema = z.object({
   start: dateStringSchema,
@@ -20,12 +12,7 @@ const dateRangeSchema = z.object({
 
 export type RecordOk = {
   name: string;
-  record: string;
-  item: string;
-  additional: string;
-  discount: string;
-  start: number;
-  end: number;
+  data: string;
 };
 
 export async function recordAction(formdata: FormData): Promise<Result<string, RecordOk>> {
@@ -38,19 +25,14 @@ export async function recordAction(formdata: FormData): Promise<Result<string, R
   }
   const start = dateToEpoch(parsed.data.start);
   const end = dateToEpoch(parsed.data.end);
-  const [errMsg, res] = await getBlob(start, end);
+  const [errMsg, data] = await getJson(start, end);
   if (errMsg !== null) {
     return err(errMsg);
   }
-  const name = `record_${start}_${end}.zip`;
+  const name = `record_${start}_${end}.json`;
   return ok({
+    data,
     name,
-    additional: res.additional,
-    discount: res.discount,
-    item: res.item,
-    record: res.record,
-    start,
-    end,
   });
   // return new Response(blob, {
   // 	headers: {
@@ -60,47 +42,68 @@ export async function recordAction(formdata: FormData): Promise<Result<string, R
   // });
 }
 
-async function getBlob(
-  start: number,
-  end: number,
-): Promise<
-  Result<
-    string,
-    {
-      record: string;
-      item: string;
-      additional: string;
-      discount: string;
-    }
-  >
-> {
-  const [[errRecords, records], [errItems, items], [errAdd, additionals], [errDisc, discounts]] =
-    await Promise.all([
-      db.record.get.byRange(start, end),
-      db.recordItem.get.byRange(start, end),
-      db.additional.get.byRange(start, end),
-      db.discount.get.byRange(start, end),
-    ]);
+type Record = {
+  timestamp: number;
+  paidAt: number;
+  rounding: number;
+  isCredit: boolean;
+  cashier: string;
+  mode: "buy" | "sell";
+  pay: number;
+  note: string;
+  method: {
+    id: number;
+    name?: string;
+    kind: DB.MethodEnum;
+  };
+  fix: number;
+  customer: {
+    name: string;
+    phone: string;
+  };
+  subTotal: number;
+  total: number;
+  grandTotal: number;
+  products: RecordProduct[];
+  extras: RecordExtra[];
+};
+
+async function getJson(start: number, end: number): Promise<Result<string, string>> {
+  const [[errRecords, rs], [errProd, ps], [errExtra, es]] = await Promise.all([
+    db.record.get.byRange(start, end),
+    db.recordProduct.get.byRange(start, end),
+    db.recordExtra.get.byRange(start, end),
+  ]);
   if (errRecords !== null) {
     log.error(errRecords);
     return err(errRecords);
   }
-  if (errAdd !== null) {
-    log.error(errAdd);
-    return err(errAdd);
+  if (errExtra !== null) {
+    log.error(errExtra);
+    return err(errExtra);
   }
-  if (errItems !== null) {
-    log.error(errItems);
-    return err(errItems);
+  if (errProd !== null) {
+    log.error(errProd);
+    return err(errProd);
   }
-  if (errDisc !== null) {
-    log.error(errDisc);
-    return err(errDisc);
+  const records: Record[] = [];
+  for (const r of rs) {
+    const products = ps.filter((p) => p.timestamp === r.timestamp);
+    const extras = es.filter((e) => e.timestamp === r.timestamp);
+    const fix = r.fix;
+    const grandTotal = new Decimal(r.total).plus(r.rounding).toFixed(fix);
+    records.push({
+      ...r,
+      products,
+      extras,
+      grandTotal: Number(grandTotal),
+    });
   }
-  const recordCSV = constructCSV(records);
-  const itemCSV = constructCSV(items);
-  const additionalsCSV = constructCSV(additionals);
-  const discountsCSV = constructCSV(discounts);
+  return ok(JSON.stringify(records, null, 2));
+  // const recordCSV = constructCSV(records);
+  // const itemCSV = constructCSV(items);
+  // const additionalsCSV = constructCSV(additionals);
+  // const discountsCSV = constructCSV(discounts);
 
   // const zip = new JSZip();
   // zip.file(`records_${start}_${end}.csv`, recordCSV);
@@ -109,10 +112,10 @@ async function getBlob(
   // zip.file(`discount_${start}_${end}.csv`, discountsCSV);
 
   // const blob = await zip.generateAsync({ type: "blob" });
-  return ok({
-    record: recordCSV,
-    item: itemCSV,
-    additional: additionalsCSV,
-    discount: discountsCSV,
-  });
+  // return ok({
+  //   record: recordCSV,
+  //   item: itemCSV,
+  //   additional: additionalsCSV,
+  //   discount: discountsCSV,
+  // });
 }
