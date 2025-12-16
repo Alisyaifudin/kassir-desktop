@@ -1,11 +1,7 @@
-import { SubAction, tryResult } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { store } from "~/store";
 
-export async function action({ context, formdata }: SubAction) {
-	const checked = formdata.get("check") === "true";
-	const { store } = getContext(context);
-	const [errMsg] = await tryResult({
-		run: () => store.set({ showCashier: String(checked) }),
-	});
-	return errMsg ?? undefined;
+export async function action(formdata: FormData) {
+  const checked = formdata.get("check") === "true";
+  const errMsg = await store.info.set.showCashier(checked);
+  return errMsg ?? undefined;
 }

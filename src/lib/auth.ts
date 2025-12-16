@@ -35,6 +35,11 @@ export const auth = {
     }
     return _user;
   },
+  user() {
+    const user = this.get();
+    if (user === undefined) throw new Error("Unauthenticated");
+    return user;
+  },
   set(user?: User) {
     if (user === undefined) {
       localStorage.removeItem("user");

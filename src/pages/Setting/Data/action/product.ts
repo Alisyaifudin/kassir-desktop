@@ -1,13 +1,9 @@
 import { Temporal } from "temporal-polyfill";
-import { Database } from "~/database/old";
-import { constructCSV, err, log, ok, Result, SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
+import { constructCSV, err, log, ok, Result } from "~/lib/utils";
 
-export async function productAction({
-  context,
-}: SubAction): Promise<Result<string, { name: string; csv: string }>> {
-  const { db } = getContext(context);
-  const [errMsg, csv] = await getCSV(db);
+export async function productAction(): Promise<Result<string, { name: string; csv: string }>> {
+  const [errMsg, csv] = await getCSV();
   if (errMsg !== null) {
     return err(errMsg);
   }
@@ -16,7 +12,7 @@ export async function productAction({
   return ok({ name, csv });
 }
 
-async function getCSV(db: Database): Promise<Result<string, string>> {
+async function getCSV(): Promise<Result<string, string>> {
   const [errMsg, products] = await db.product.get.all();
   if (errMsg !== null) {
     log.error(errMsg);

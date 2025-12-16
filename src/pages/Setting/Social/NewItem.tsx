@@ -10,18 +10,19 @@ import { memo, useEffect, useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
-import { cn, sizeClass } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { useAction } from "~/hooks/use-action";
 import { Form } from "react-router";
-import { Size } from "~/lib/store-old";
 import { useLoading } from "~/hooks/use-loading";
 import { Action } from "./action";
 import { css } from "./style.css";
+import { useSize } from "~/hooks/use-size";
 
-export const NewBtn = memo(function ({ size }: { size: Size }) {
+export const NewItem = memo(function () {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
   const error = useAction<Action>()("new");
+  const size = useSize();
   useEffect(() => {
     if (error === undefined && !loading) {
       setOpen(false);
@@ -33,7 +34,7 @@ export const NewBtn = memo(function ({ size }: { size: Size }) {
         <DialogTrigger>Tambah</DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
-        <DialogHeader className={sizeClass[size]}>
+        <DialogHeader>
           <DialogTitle className="text-big">Tambah Kontak</DialogTitle>
           <Form
             method="POST"
@@ -44,8 +45,8 @@ export const NewBtn = memo(function ({ size }: { size: Size }) {
             <Input name="value" placeholder="Isian Kontak" aria-autocomplete="list" />
             {error ? (
               <>
-                <TextError>{error.name}</TextError>
-                <TextError>{error.value}</TextError>
+                <TextError>{error?.name}</TextError>
+                <TextError>{error?.value}</TextError>
               </>
             ) : null}
             <div className="col-span-2 flex flex-col items-end">

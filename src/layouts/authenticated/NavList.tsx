@@ -6,10 +6,11 @@ import { Refresh } from "../../components/Refresh";
 import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
 import { auth } from "~/lib/auth";
+import { memo } from "react";
 
-export function NavList() {
+export const NavList = memo(() => {
   const size = useSize();
-  const role = auth.get()?.role;
+  const role = auth.user().role;
   return (
     <ul className={cn("flex justify-end items-end", css.navlist[size])}>
       <NavLink path="/" root>
@@ -25,4 +26,4 @@ export function NavList() {
       <Refresh />
     </ul>
   );
-}
+});

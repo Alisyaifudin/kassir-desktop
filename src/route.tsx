@@ -25,7 +25,7 @@ export const router = createBrowserRouter([
         loader,
         // children: [shopRoute, settingRoute, stockRoute, recordsRoute, analRoute, moneyRoute],
         // children: [shopRoute, settingRoute, moneyRoute, stockRoute, recordsRoute],
-        children: [shopRoute],
+        children: [shopRoute, settingRoute],
       },
     ],
   },

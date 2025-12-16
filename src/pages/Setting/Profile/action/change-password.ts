@@ -1,16 +1,16 @@
 import { z } from "zod";
-import { SubAction } from "~/lib/utils";
-import { getUser } from "~/middleware/authenticate";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
+import { auth } from "~/lib/auth";
 
-export async function passwordAction({ context, formdata }: SubAction) {
-	const parsed = z.string().safeParse(formdata.get("password"));
-	if (!parsed.success) {
-		return parsed.error.message;
-	}
-	const password = parsed.data;
-	const user = await getUser(context);
-	const { db } = getContext(context);
-	const errMsg = await db.cashier.update.password(user.name, password);
-	return errMsg ?? undefined;
+export async function passwordAction(formdata: FormData) {
+  const parsed = z.string().safeParse(formdata.get("password"));
+  if (!parsed.success) {
+    return parsed.error.message;
+  }
+  const password = parsed.data;
+  const [errHash, hash] = await auth.hash(password);
+  if (errHash) return errHash;
+  const user = auth.user();
+  const errMsg = await db.cashier.update.hash(user.name, hash);
+  return errMsg ?? undefined;
 }

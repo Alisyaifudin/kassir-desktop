@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { db } from "~/database";
 import { Database } from "~/database/old";
 import {
   constructCSV,
@@ -27,10 +28,7 @@ export type RecordOk = {
   end: number;
 };
 
-export async function recordAction({
-  context,
-  formdata,
-}: SubAction): Promise<Result<string, RecordOk>> {
+export async function recordAction(formdata: FormData): Promise<Result<string, RecordOk>> {
   const parsed = dateRangeSchema.safeParse({
     start: formdata.get("start"),
     end: formdata.get("end"),
@@ -38,10 +36,9 @@ export async function recordAction({
   if (!parsed.success) {
     return err(parsed.error.flatten().formErrors.join("; "));
   }
-  const { db } = getContext(context);
   const start = dateToEpoch(parsed.data.start);
   const end = dateToEpoch(parsed.data.end);
-  const [errMsg, res] = await getBlob(db, start, end);
+  const [errMsg, res] = await getBlob(start, end);
   if (errMsg !== null) {
     return err(errMsg);
   }
@@ -64,7 +61,6 @@ export async function recordAction({
 }
 
 async function getBlob(
-  db: Database,
   start: number,
   end: number,
 ): Promise<

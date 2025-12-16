@@ -7,9 +7,9 @@ import { action } from "./action";
 const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
-	middleware: [admin],
-	Component: Page,
-	loader,
-	action,
-	path: "shop",
+  middleware: [admin],
+  Component: Page,
+  loader,
+  action,
+  path: "shop",
 };

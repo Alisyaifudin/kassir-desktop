@@ -8,7 +8,7 @@ import { Provider } from "./Provider";
 import { Button } from "~/components/ui/button";
 
 export async function loader() {
-  const size = store.size();
+  const size = store.size.get();
   return data(size);
 }
 
@@ -39,6 +39,11 @@ export function ErrorBoundary() {
       <main className="flex flex-col gap-2">
         <p>Halaman bermasalah</p>
         <p>
+          <button onClick={() => history.back()} className="underline cursor-pointer">
+            Kembali
+          </button>
+        </p>
+        <p>
           Kembali ke <a href="/">halaman utama</a>
         </p>
       </main>
@@ -50,6 +55,11 @@ export function ErrorBoundary() {
         <Button className="w-fit" onClick={() => window.location.reload()}>
           Segarkan/<em>Refresh</em> Halaman
         </Button>
+        <p>
+          <button onClick={() => history.back()} className="underline cursor-pointer">
+            Kembali
+          </button>
+        </p>
         <a href="/" className="underline">
           Kembali ke halaman utama
         </a>
@@ -65,6 +75,11 @@ export function ErrorBoundary() {
         <Button className="w-fit" onClick={() => window.location.reload()}>
           Segarkan/<em>Refresh</em> Halaman
         </Button>
+        <p>
+          <button onClick={() => history.back()} className="underline cursor-pointer">
+            Kembali
+          </button>
+        </p>
         <a href="/" className="underline">
           Kembali ke halaman utama
         </a>
@@ -80,6 +95,11 @@ export function ErrorBoundary() {
         <Button className="w-fit" onClick={() => window.location.reload()}>
           Segarkan/<em>Refresh</em> Halaman
         </Button>
+        <p>
+          <button onClick={() => history.back()} className="underline cursor-pointer">
+            Kembali
+          </button>
+        </p>
         <a href="/" className="underline">
           Kembali ke halaman utama
         </a>

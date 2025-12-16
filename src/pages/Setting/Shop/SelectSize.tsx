@@ -1,13 +1,14 @@
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { Size } from "~/lib/store-old";
 import { toast } from "sonner";
 import { useActionData, useNavigation, useSubmit } from "react-router";
 import { Action } from "./action";
+import { useSize } from "~/hooks/use-size";
 
-export function SelectSize({ size }: { size: Size }) {
-  const [loading, handleChange] = useSize();
+export function SelectSize() {
+  const [loading, handleChange] = useHandleSubmit();
   const error = useAction();
+  const size = useSize();
   return (
     <div className="flex items-center gap-2">
       <input type="hidden" name="action" value="size"></input>
@@ -26,7 +27,7 @@ export function SelectSize({ size }: { size: Size }) {
   );
 }
 
-export function useSize() {
+export function useHandleSubmit() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const loading = navigation.state === "submitting";

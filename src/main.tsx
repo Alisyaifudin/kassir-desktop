@@ -11,6 +11,7 @@ import { router } from "./route";
 //   </React.StrictMode>,
 // );
 
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <RouterProvider router={router} />
 );

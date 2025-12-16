@@ -1,18 +1,9 @@
-import { getSize } from "~/lib/store-old";
-import { LoaderArgs } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { data } from "react-router";
+import { store } from "~/store";
 
-export async function loader({ context }: LoaderArgs) {
-  const { store } = getContext(context);
-  const { address, footer, header, owner, showCashier, size } = await store.get();
-  return {
-    address,
-    footer,
-    header,
-    owner,
-    showCashier: showCashier === "true",
-    size: getSize(size),
-  };
+export async function loader() {
+  const info = store.info.get();
+  return data(info);
 }
 
 export type Loader = typeof loader;

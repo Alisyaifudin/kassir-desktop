@@ -1,9 +1,9 @@
 import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
-import { getStore } from "./instance";
+import { getStore } from "../instance";
 
 export type Size = "big" | "small";
 
-export async function size(): Promise<Result<DefaultError, Size>> {
+export async function get(): Promise<Result<DefaultError, Size>> {
   const store = await getStore();
   const [errMsg, res] = await tryResult({
     run: () => store.get("size"),

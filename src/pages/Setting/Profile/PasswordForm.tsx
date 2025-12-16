@@ -11,13 +11,14 @@ import {
 import { Button } from "~/components/ui/button";
 import { useAction } from "~/hooks/use-action";
 import { useLoading } from "~/hooks/use-loading";
-import { Size } from "~/lib/store-old";
 import { cn } from "~/lib/utils";
 import { Action } from "./action";
 import { css } from "./style.css";
+import { useSize } from "~/hooks/use-size";
 
-export function PasswordForm({ size }: { size: Size }) {
+export function PasswordForm() {
   const loading = useLoading();
+  const size = useSize();
   const error = useAction<Action>()("change-password");
   return (
     <Accordion type="single" collapsible className="bg-red-400 text-white">

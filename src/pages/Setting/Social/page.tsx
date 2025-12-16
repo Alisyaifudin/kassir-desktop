@@ -2,37 +2,37 @@ import { Item } from "./Item";
 import { ForEach } from "~/components/ForEach";
 import { Suspense, use } from "react";
 import { cn, Result } from "~/lib/utils";
-import { NewBtn } from "./NewItem";
+import { NewItem } from "./NewItem";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
 import { TextError } from "~/components/TextError";
-import { Size } from "~/lib/store-old";
 import { Loading } from "~/components/Loading";
+import { Social } from "~/database/social/get-all";
+import { useSize } from "~/hooks/use-size";
 import { css } from "./style.css";
 
 export default function Page() {
-  const { size, socials } = useLoaderData<Loader>();
+  const socials = useLoaderData<Loader>();
+  const size = useSize();
   return (
-    <div className="flex flex-col gap-2 w-full flex-1 overflow-auto">
+    <div className="flex flex-col gap-2 w-full flex-1 overflow-hidden">
       <h1 className="font-bold text-big">Daftar Kontak</h1>
-      <div className={cn("grid gap-2 items-center text-normal", css.page[size])}>
+      <div className={cn("grid gap-2 items-center text-normal", css.item[size])}>
         <p>Kontak</p>
         <p>Isian</p>
       </div>
       <Suspense fallback={<Loading />}>
-        <Socials size={size} socials={socials} />
+        <Socials socials={socials} />
       </Suspense>
-      <NewBtn size={size} />
+      <NewItem />
     </div>
   );
 }
 
 function Socials({
   socials: promise,
-  size,
 }: {
-  socials: Promise<Result<"Aplikasi bermasalah", DB.Social[]>>;
-  size: Size;
+  socials: Promise<Result<"Aplikasi bermasalah", Social[]>>;
 }) {
   const [errMsg, socials] = use(promise);
   if (errMsg) {
@@ -42,8 +42,8 @@ function Socials({
     return <p className="text-big">---Belum Ada---</p>;
   }
   return (
-    <ForEach items={socials}>
-      {(s) => <Item id={s.id} name={s.name} value={s.value} size={size} />}
-    </ForEach>
+    <div className="flex flex-col gap-1 overflow-y-auto">
+      <ForEach items={socials}>{(s) => <Item id={s.id} name={s.name} value={s.value} />}</ForEach>
+    </div>
   );
 }

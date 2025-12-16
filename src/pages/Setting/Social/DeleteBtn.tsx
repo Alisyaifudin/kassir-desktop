@@ -40,7 +40,7 @@ export const DeleteBtn = memo(function ({
         variant="destructive"
       >
         <DialogTrigger>
-          <X size={css.delete[size].icon} />
+          <X className="icon" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">

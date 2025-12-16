@@ -1,22 +1,19 @@
 import { z } from "zod";
+import { db } from "~/database";
 import { auth } from "~/lib/auth";
-import { SubAction } from "~/lib/utils";
-import { getUser } from "~/middleware/authenticate";
-import { getContext } from "~/middleware/global";
 
-export async function nameAction({ context, formdata }: SubAction) {
+export async function nameAction(formdata: FormData) {
   const parsed = z.string().safeParse(formdata.get("name"));
   if (!parsed.success) {
     return parsed.error.message;
   }
   const name = parsed.data;
-  const user = await getUser(context);
-  const { db, store } = getContext(context);
-  const errUpdate = await db.cashier.update.name(user.name, name);
-  if (errUpdate) {
-    return errUpdate;
+  const user = auth.user();
+  const errMsg = await db.cashier.update.name({ old: user.name, new: name });
+  if (errMsg) {
+    return errMsg;
   }
   const updated = { ...user, name };
-  const errMsg = await auth.genToken(store, updated);
+  auth.set(updated);
   return errMsg ?? undefined;
 }

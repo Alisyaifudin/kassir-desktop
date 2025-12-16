@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { log, numeric, SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
+import { log, numeric } from "~/lib/utils";
 
 const schema = z.object({
 	id: numeric,
@@ -8,7 +8,7 @@ const schema = z.object({
 	value: z.string().min(1, { message: "Harus ada" }),
 });
 
-export async function editAction({ context, formdata }: SubAction) {
+export async function editAction(formdata: FormData) {
 	const parsed = schema.safeParse({
 		id: formdata.get("id"),
 		name: formdata.get("name"),
@@ -22,9 +22,8 @@ export async function editAction({ context, formdata }: SubAction) {
 			value: errs.value?.join("; "),
 		};
 	}
-	const { db } = getContext(context);
 	const { id, name, value } = parsed.data;
-	const errMsg = await db.social.update.one(id, name, value);
+	const errMsg = await db.social.update(id, name, value);
 	if (errMsg !== null) {
 		return {
 			global: errMsg,
