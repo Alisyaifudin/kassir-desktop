@@ -15,7 +15,7 @@ export const SelectType = memo(function({
 				const v = z.enum(["absolute", "change"]).catch("absolute").parse(e.currentTarget.value);
 				onChange(v);
 			}}
-			className="h-[55px] w-fit outline text-3xl outline-border shadow-md rounded-sm"
+			className="py-1 w-fit outline text-3xl outline-border shadow-md rounded-sm"
 		>
 			<option value="change">Perubahan</option>
 			<option value="absolute">Mutlak</option>

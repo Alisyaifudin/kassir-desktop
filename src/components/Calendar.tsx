@@ -9,10 +9,9 @@ import {
 } from "./ui/dialog";
 import { memo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn, formatDate, monthNames, numeric, sizeClass } from "~/lib/utils";
+import { cn, formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "./ui/input";
-import { Size } from "~/lib/store-old";
 
 export const Calendar = memo(function ({
   time,
@@ -20,14 +19,12 @@ export const Calendar = memo(function ({
   mode: modeInit = "day",
   children,
   className,
-  size,
 }: {
   time: number;
   setTime: (time: number) => void;
   mode?: "day" | "month" | "year";
   children?: React.ReactNode;
   className?: string;
-  size: Size;
 }) {
   const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
   const changeMode = (mode: "day" | "month" | "year") => {
@@ -51,11 +48,7 @@ export const Calendar = memo(function ({
         setOpen(open);
       }}
     >
-      <Button
-        asChild
-        variant="ghost"
-        className={cn("flex items-center gap-2 outline", sizeClass[size], className)}
-      >
+      <Button asChild variant="ghost" className={cn("flex items-center gap-2 outline", className)}>
         <DialogTrigger>
           {children === undefined ? <CalendarLabel mode={modeInit} time={time} /> : children}
           <CalendarDays className="icon" />
@@ -70,7 +63,6 @@ export const Calendar = memo(function ({
           setOpen(false);
         }}
         changeMode={changeMode}
-        size={size}
       />
     </Dialog>
   );
@@ -99,14 +91,12 @@ function Content({
   depth,
   setTime,
   changeMode,
-  size,
 }: {
   mode: "day" | "month" | "year";
   depth: "day" | "month" | "year";
   time: number;
   setTime: (time: number) => void;
   changeMode: (mode: "day" | "month" | "year") => void;
-  size: Size;
 }) {
   const tz = Temporal.Now.timeZoneId();
   const timeStartOfDay = Temporal.Instant.fromEpochMilliseconds(time)
@@ -126,7 +116,7 @@ function Content({
       const deltaStart = startOfMonth.dayOfWeek - 1;
       const start = startOfMonth.subtract(Temporal.Duration.from({ days: deltaStart }));
       const endOfMonth = startOfMonth.add(
-        Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 }),
+        Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 })
       );
       const deltaEnd = 7 - endOfMonth.dayOfWeek;
       const end = endOfMonth.add(Temporal.Duration.from({ days: deltaEnd + 1 }));
@@ -148,7 +138,7 @@ function Content({
         setShowTime(startOfMonth.add(Temporal.Duration.from({ months: 1 })).epochMilliseconds);
       };
       return (
-        <DialogContent className={sizeClass[size]}>
+        <DialogContent>
           <DialogHeader>
             <div className="flex flex-row items-center gap-2">
               <Button onClick={handlePrev} className="p-2">
@@ -179,15 +169,15 @@ function Content({
                   epoch === timeStartOfDay.epochMilliseconds
                     ? "default"
                     : epoch === today.epochMilliseconds
-                      ? "outline"
-                      : "ghost"
+                    ? "outline"
+                    : "ghost"
                 }
                 className={
                   inside
                     ? ""
                     : epoch === timeStartOfDay.epochMilliseconds
-                      ? "text-zinc-100"
-                      : "text-zinc-500"
+                    ? "text-zinc-100"
+                    : "text-zinc-500"
                 }
                 onClick={() => {
                   setShowTime(epoch);
@@ -237,7 +227,7 @@ function Content({
         setShowTime(date.add(Temporal.Duration.from({ years: 1 })).epochMilliseconds);
       };
       return (
-        <DialogContent className={sizeClass[size]}>
+        <DialogContent>
           <DialogHeader>
             <div className="flex flex-row items-center gap-2">
               <Button onClick={handlePrev} className="p-2">
@@ -322,7 +312,7 @@ function Content({
     }
   };
   return (
-    <DialogContent className={sizeClass[size]}>
+    <DialogContent>
       <DialogHeader>
         <Button className="w-fit" variant="secondary" onClick={() => changeMode("day")}>
           <DialogTitle className="text-normal">Tahun</DialogTitle>

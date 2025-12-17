@@ -3,6 +3,7 @@ import { customer } from "./customer";
 import { extra } from "./extra";
 import { image } from "./image";
 import { method } from "./method";
+import { money } from "./money";
 import { product } from "./product";
 import { record } from "./record";
 import { recordExtra } from "./record-extra";
@@ -19,5 +20,6 @@ export const db = {
   record,
   recordExtra,
   recordProduct,
-  image
+  image,
+  money
 };

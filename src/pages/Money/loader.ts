@@ -1,35 +1,19 @@
 import Decimal from "decimal.js";
+import { data, LoaderFunctionArgs } from "react-router";
 import { Temporal } from "temporal-polyfill";
-import { Database } from "~/database/old";
-import { LoaderArgs, numeric } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
+import { Money } from "~/database/money/get-by-range";
+import { DefaultError, err, integer, ok, Result } from "~/lib/utils";
 
-export async function loader({ context, request }: LoaderArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const search = url.searchParams;
   const { start, end } = getInterval(search);
-  const { db, store } = getContext(context);
-  const [errMsg, money] = await db.money.get.byRange(start, end);
+  const [errMsg, money] = await getMoney(start, end);
   if (errMsg !== null) {
     throw new Error(errMsg);
   }
-  const saving = money.filter((m) => m.kind === "saving");
-  const diff = money.filter((m) => m.kind === "diff");
-  const debtRaw = money.filter((m) => m.kind === "debt");
-  const lastDebt = await getLastDebt(start, debtRaw.length, db);
-  debtRaw.push(lastDebt);
-  const debt = debtRaw
-    .slice(0, -1)
-    .map((m, i) => ({
-      diff: new Decimal(m.value)
-        .sub(debtRaw[i + 1].value)
-        .toNumber()
-        .toLocaleString("id-ID"),
-      ...m,
-    }))
-    .filter((m) => m.timestamp > start);
-  const size = await store.size();
-  return { size, money: { diff, saving, debt } };
+  return data(money);
 }
 
 export type Loader = typeof loader;
@@ -40,14 +24,9 @@ export type Debt = {
   timestamp: number;
 };
 
-export type Money = {
-  value: number;
-  timestamp: number;
-};
-
 function getInterval(search: URLSearchParams) {
   const now = Temporal.Now.instant().epochMilliseconds;
-  const timestamp = numeric.catch(now).parse(search.get("time"));
+  const timestamp = integer.catch(now).parse(search.get("time"));
   const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(timestamp)
     .toZonedDateTimeISO(tz)
@@ -62,30 +41,59 @@ function getInterval(search: URLSearchParams) {
   return { start: start.epochMilliseconds, end: end.epochMilliseconds };
 }
 
-async function getLastDebt(start: number, count: number, db: Database): Promise<DB.Money> {
-  const [errCount, dbCount] = await db.money.debt.count();
-  if (errCount !== null) {
-    throw new Error(errCount);
+export type MoneyData = {
+  diff: {
+    value: number;
+    timestamp: number;
+  }[];
+  saving: {
+    value: number;
+    timestamp: number;
+  }[];
+  debt: {
+    value: number;
+    timestamp: number;
+    diff: number;
+  }[];
+};
+async function getMoney(start: number, end: number): Promise<Result<DefaultError, MoneyData>> {
+  const [[errMoney, money], [errLast, last]] = await Promise.all([
+    db.money.get.byRange(start, end),
+    db.money.get.last(start, "debt"),
+  ]);
+  if (errMoney !== null) return err(errMoney);
+  if (errLast !== null) return err(errLast);
+  return ok({
+    saving: money
+      .filter((m) => m.kind === "saving")
+      .map((m) => ({ timestamp: m.timestamp, value: m.value })),
+    diff: money
+      .filter((m) => m.kind === "diff")
+      .map((m) => ({ timestamp: m.timestamp, value: m.value })),
+    debt: collectMoney(money, last),
+  });
+}
+
+function collectMoney(money: Money[], last: Money | null): MoneyData["debt"] {
+  const filtered = money.filter((m) => m.kind === "debt");
+  if (filtered.length === 0) return [];
+  const n = filtered.length;
+  const data: MoneyData["debt"] = [];
+  for (let i = 0; i < filtered.length - 1; i++) {
+    data.push({
+      value: filtered[i].value,
+      timestamp: filtered[i].timestamp,
+      diff: new Decimal(filtered[i].value).minus(filtered[i + 1].value).toNumber(),
+    });
   }
-  // it is imposible for count > dbCount. but just in case
-  if (count >= dbCount) {
-    return { kind: "debt", timestamp: 0, value: 0 };
+  let diff = filtered[n - 1].value;
+  if (last !== null) {
+    diff = new Decimal(diff).minus(last.value).toNumber();
   }
-  const tz = Temporal.Now.timeZoneId();
-  let tEnd = Temporal.Instant.fromEpochMilliseconds(start).toZonedDateTimeISO(tz);
-  let tStart = () => tEnd.subtract(Temporal.Duration.from({ months: 1 }));
-  while (true) {
-    // fetch until found!
-    const [errMsg, money] = await db.money.debt.getByRange(
-      tStart().epochMilliseconds,
-      tEnd.epochMilliseconds,
-    );
-    if (errMsg !== null) {
-      throw new Error(errMsg);
-    }
-    if (money.length > 0) {
-      return money[0];
-    }
-    tEnd = tStart();
-  }
+  data.push({
+    value: filtered[n - 1].value,
+    timestamp: filtered[n - 1].timestamp,
+    diff,
+  });
+  return data;
 }

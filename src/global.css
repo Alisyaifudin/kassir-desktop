@@ -220,6 +220,9 @@ p, textarea, button, a, label, select {
 /* select {
   height: 54px;
 } */
+main {
+  max-height: calc(100vh - 68px);
+}
 
 body[data-size='small'] {
   --text-font-size-big: var(--text-4xl);

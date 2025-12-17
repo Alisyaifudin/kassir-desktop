@@ -23,7 +23,7 @@ export const router = createBrowserRouter([
         middleware: [authentication],
         Component: AuthLayout,
         loader,
-        children: [shopRoute, settingRoute, stockRoute],
+        children: [shopRoute, settingRoute, stockRoute, moneyRoute],
       },
     ],
   },
