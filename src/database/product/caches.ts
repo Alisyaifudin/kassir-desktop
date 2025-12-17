@@ -4,6 +4,7 @@ export type Product = {
   barcode?: string;
   name: string;
   stock: number;
+  capital: number;
 };
 
 let cache: Product[] | null = null;

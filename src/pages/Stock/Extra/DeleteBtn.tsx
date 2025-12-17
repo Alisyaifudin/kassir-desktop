@@ -14,10 +14,8 @@ import { Spinner } from "~/components/Spinner";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
 
-export function DeleteBtn({ name, size }: { name: string; size: Size }) {
+export function DeleteBtn({ name }: { name: string }) {
   const loading = useLoading();
   const error = useAction<Action>()("delete");
   return (
@@ -25,7 +23,7 @@ export function DeleteBtn({ name, size }: { name: string; size: Size }) {
       <Button asChild variant="destructive">
         <DialogTrigger>Hapus</DialogTrigger>
       </Button>
-      <DialogContent className={sizeClass[size]}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-big">Yakin?</DialogTitle>
           <DialogDescription className="text-normal">Kamu akan menghapus:</DialogDescription>

@@ -1,21 +1,20 @@
+import { db } from "~/database";
 import { image } from "~/lib/image";
-import { integer, SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { integer } from "~/lib/utils";
 
-export async function deleteImageAction({ context, formdata }: SubAction) {
-	const parsed = integer.safeParse(formdata.get("image-id"));
-	if (!parsed.success) {
-		return parsed.error.flatten().formErrors.join("; ");
-	}
-	const imageId = parsed.data;
-	const { db } = getContext(context);
-	const [errImg, name] = await db.image.del.byId(imageId);
-	switch (errImg) {
-		case "Aplikasi bermasalah":
-			return errImg;
-		case "Gambar tidak ada":
-			throw new Error(errImg);
-	}
-	image.del(name); // delete the image in disk on the background
-	return undefined;
+export async function deleteImageAction(formdata: FormData) {
+  const parsed = integer.safeParse(formdata.get("image-id"));
+  if (!parsed.success) {
+    return parsed.error.flatten().formErrors.join("; ");
+  }
+  const imageId = parsed.data;
+  const [errImg, name] = await db.image.delById(imageId);
+  switch (errImg) {
+    case "Aplikasi bermasalah":
+      return errImg;
+    case "Tidak ditemukan":
+      throw new Error(errImg);
+  }
+  image.del(name); // delete the image in the disk on the background
+  return undefined;
 }

@@ -21,8 +21,8 @@ export function Field({
         {children}
       </div>
       {error === undefined ? null : (
-        <div className="flex gap-2">
-          <div className="w-[120px]"></div>
+        <div className={cn("grid gap-2 items-center", css.grid[size])}>
+          <div />
           <TextError>{error}</TextError>
         </div>
       )}

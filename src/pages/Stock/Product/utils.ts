@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Database } from "~/database/old";
+import { db } from "~/database";
 import { image } from "~/lib/image";
 import { DefaultError, err, numeric, ok, Result } from "~/lib/utils";
 
@@ -24,7 +24,7 @@ export type ImageResult = {
 
 export type ImagePromise = Promise<Result<DefaultError, ImageResult[]>>;
 
-export async function getImages(id: number, db: Database): ImagePromise {
+export async function getImages(id: number): ImagePromise {
   const [errMsg, images] = await db.image.get.byProductId(id);
   if (errMsg) {
     return err(errMsg);

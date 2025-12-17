@@ -43,7 +43,7 @@ export function useSearchParams() {
 				return search;
 			});
 		},
-		sortBy: (v: "barcode" | "name" | "price" | "capital" | "stock" | "same") => {
+		sortBy: (v: "barcode" | "name" | "price" | "capital" | "stock") => {
 			setSearch((s) => {
 				const search = new URLSearchParams(s);
 				search.set("sortBy", v);
@@ -70,17 +70,17 @@ export function useSearchParams() {
 
 export function getOption(search: URLSearchParams): {
 	sortDir: "asc" | "desc";
-	sortBy: "barcode" | "name" | "price" | "capital" | "stock" | "same";
+	sortBy: "barcode" | "name" | "price" | "capital" | "stock";
 	query: string;
 	pageProduct: number;
 	pageAdditional: number;
 	limit: number;
-	tab: "product" | "additional";
+	tab: "product" | "extra";
 } {
 	const sortDir = z.enum(["asc", "desc"]).catch("asc").parse(search.get("sortDir"));
-	const tab = z.enum(["product", "additional"]).catch("product").parse(search.get("tab"));
+	const tab = z.enum(["product", "extra"]).catch("product").parse(search.get("tab"));
 	const sortBy = z
-		.enum(["barcode", "name", "price", "capital", "stock", "same"])
+		.enum(["barcode", "name", "price", "capital", "stock"])
 		.catch("name")
 		.parse(search.get("sortBy"));
 	const pageProduct = integer.catch(1).parse(search.get("page-product"));

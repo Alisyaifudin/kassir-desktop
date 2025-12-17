@@ -1,5 +1,4 @@
 import { useSearchParams } from "./use-search-params";
-import { Sort } from "./Sort";
 import { Search } from "./Search";
 import { Pagination } from "./Pagination";
 import { Show } from "~/components/Show";
@@ -7,36 +6,29 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
 import { useInterval } from "./use-interval";
-import { Size } from "~/lib/store-old";
+import { auth } from "~/lib/auth";
 
-export function PanelProduct({
-  productsLength,
-  role,
-  size,
-}: {
-  productsLength: number;
-  role: DB.Role;
-  size: Size;
-}) {
+export function ProductPanel({ productsLength }: { productsLength: number }) {
   const { set, get } = useSearchParams();
+  const role = auth.user().role;
   const { totalPage } = useInterval(productsLength);
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-1">
-        <Sort
+        {/* <Sort
           sortDir={get.sortDir}
           setSortDir={set.sortDir}
           sortBy={get.sortBy}
           setSortBy={set.sortBy}
-        />
-        <Search className="flex-1" query={get.query} setQuery={set.query} size={size} />
+        /> */}
+        <Search className="flex-1" query={get.query} setQuery={set.query} />
         <div className="flex items-center gap-2">
           <Pagination
             pagination={{ page: get.pageProduct, total: totalPage }}
             setPage={set.pageProduct}
           />
-          <div className="relative">
-            <span className="absolute -top-5 left-0 text-small z-10 px-1 bg-white">Batas</span>
+          <div className="relative pt-3">
+            <span className="absolute -top-2 left-0 text-small z-10 px-1 bg-white">Batas</span>
             <select
               value={get.limit}
               className="w-fit text-normal py-1 outline"

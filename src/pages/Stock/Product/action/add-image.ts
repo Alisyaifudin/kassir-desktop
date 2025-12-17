@@ -1,18 +1,14 @@
 import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
+import { db } from "~/database";
 import { image } from "~/lib/image";
-import { SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
 
-type Action = SubAction & {
-	id: number;
-};
 
 const fileSchema = z
 	.instanceof(File)
 	.refine((file) => file.size > 0, { message: "Ukuran gambar nol" });
 
-export async function addImageAction({ context, formdata, id }: Action) {
+export async function addImageAction(id: number, formdata: FormData) {
 	const parsed = fileSchema.safeParse(formdata.get("image"));
 	if (!parsed.success) {
 		return parsed.error.flatten().formErrors.join("; ");
@@ -29,8 +25,7 @@ export async function addImageAction({ context, formdata, id }: Action) {
 		return "Format gambar tidak didukung";
 	}
 	const mimeType = parsedMime.data;
-	const { db } = getContext(context);
-	const errMsgs = await Promise.all([image.save(file, name), db.image.add.one(name, mimeType, id)]);
+	const errMsgs = await Promise.all([image.save(file, name), db.image.add(name, mimeType, id)]);
 	for (const errMsg of errMsgs) {
 		if (errMsg) return errMsg;
 	}

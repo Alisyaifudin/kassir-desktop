@@ -6,22 +6,15 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
 import { useInterval } from "./use-interval";
-import { Size } from "~/lib/store-old";
+import { auth } from "~/lib/auth";
 
-export function PanelAdditional({
-  length,
-  role,
-  size,
-}: {
-  length: number;
-  role: DB.Role;
-  size: Size;
-}) {
+export function ExtraPanel({ length }: { length: number }) {
   const { set, get } = useSearchParams();
   const { totalPage } = useInterval(length);
+  const role = auth.user().role;
   return (
     <div className="flex items-center gap-10">
-      <Search query={get.query} setQuery={set.query} size={size} />
+      <Search query={get.query} setQuery={set.query} />
       <div className="flex items-center gap-2">
         <Pagination
           pagination={{ page: get.pageAdditional, total: totalPage }}
@@ -42,7 +35,7 @@ export function PanelAdditional({
         </div>
         <Show when={role === "admin"}>
           <Link
-            to="/stock/additional/new"
+            to="/stock/extra/new"
             className="hover:bg-accent outline rounded-xl flex gap-2 items-center pl-3 w-fit"
           >
             Tambah Biaya Lainnya

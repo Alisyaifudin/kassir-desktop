@@ -1,6 +1,7 @@
 import { cashier } from "./cashier";
 import { customer } from "./customer";
 import { extra } from "./extra";
+import { image } from "./image";
 import { method } from "./method";
 import { product } from "./product";
 import { record } from "./record";
@@ -18,4 +19,5 @@ export const db = {
   record,
   recordExtra,
   recordProduct,
+  image
 };

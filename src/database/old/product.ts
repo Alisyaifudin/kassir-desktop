@@ -199,7 +199,7 @@ function add(self: ProductTable) {
       productId: number | null;
     }): Promise<
       Result<
-        "Aplikasi bermasalah" | `Ada barang dengan barcode yang sama: ${string}` | null,
+        "Aplikasi bermasalah" | `Ada barang dengan kode yang sama: ${string}` | null,
         number | null
       >
     > {
@@ -292,7 +292,7 @@ function update(self: ProductTable) {
       id: number;
       note: string;
       updatedAt: number;
-    }): Promise<"Aplikasi bermasalah" | "Barang dengan barcode tersebut sudah ada" | null> {
+    }): Promise<"Aplikasi bermasalah" | "Barang dengan kode tersebut sudah ada" | null> {
       try {
         await self.db.execute(
           `UPDATE products SET name = $1, stock = $2, stock_back = $3, price = $4, 
@@ -328,7 +328,7 @@ function update(self: ProductTable) {
       } catch (error) {
         if (typeof error === "string") {
           if (error.includes("UNIQUE constraint failed: products.barcode")) {
-            return "Barang dengan barcode tersebut sudah ada";
+            return "Barang dengan kode tersebut sudah ada";
           }
         }
         return "Aplikasi bermasalah";

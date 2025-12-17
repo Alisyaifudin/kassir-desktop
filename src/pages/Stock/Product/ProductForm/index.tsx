@@ -10,13 +10,15 @@ import { Form } from "react-router";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../action";
-import { Size } from "~/lib/store-old";
 import { cn } from "~/lib/utils";
 import { css } from "./style.css";
+import { Product } from "~/database/product/get-by-id";
+import { useSize } from "~/hooks/use-size";
 
-export function ProductForm({ product, size }: { product: DB.Product; size: Size }) {
+export function ProductForm({ product }: { product: Product }) {
   const loading = useLoading();
   const error = useAction<Action>()("edit");
+  const size = useSize();
   return (
     <Form method="POST" className="flex flex-col gap-2 w-full h-full overflow-auto px-0.5">
       <input type="hidden" name="action" value="edit"></input>
@@ -62,16 +64,7 @@ export function ProductForm({ product, size }: { product: DB.Product; size: Size
           defaultValue={product.stock}
         />
       </Field>
-      <Field size={size} error={error?.stockBack ?? ""} label="Gudang">
-        <Input
-          type="number"
-          className="outline w-[100px]"
-          name="stock-back"
-          aria-autocomplete="list"
-          defaultValue={product.stock_back}
-        />
-      </Field>
-      <Barcode size={size} barcode={product.barcode} />
+      <Barcode barcode={product.barcode} error={error?.barcode} />
       <label className="flex flex-col">
         <div className={cn("grid gap-2 items-center", css.grid[size])}>
           <span className="text-normal">Catatan</span>

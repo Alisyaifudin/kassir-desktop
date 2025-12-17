@@ -1,0 +1,35 @@
+import { ActionFunctionArgs, redirect } from "react-router";
+import { getBackURL, integer } from "~/lib/utils";
+import { editAction } from "./edit";
+import { deleteAction } from "./delete";
+import { auth } from "~/lib/auth";
+
+export async function action({ params, request }: ActionFunctionArgs) {
+  const parsed = integer.safeParse(params.id);
+  if (!parsed.success) {
+    throw redirect("/stock?tab=extra");
+  }
+  const id = parsed.data;
+  const user = auth.user();
+  if (user.role !== "admin") {
+    throw new Error("Unauthorized");
+  }
+  const search = new URL(request.url).searchParams;
+  const backUrl = getBackURL("/stock?tab=extra", search);
+  const formdata = await request.formData();
+  const action = formdata.get("action");
+  switch (action) {
+    case "edit": {
+      const error = await editAction(formdata, backUrl);
+      return { error, action };
+    }
+    case "delete": {
+      const error = await deleteAction(id, backUrl);
+      return { error, action };
+    }
+    default:
+      throw new Error(`Invalid action: ${action}`);
+  }
+}
+
+export type Action = typeof action;

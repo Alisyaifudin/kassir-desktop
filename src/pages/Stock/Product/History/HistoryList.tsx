@@ -6,7 +6,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableScrollable,
+  Table,
 } from "~/components/ui/table";
 import { ProductHistory } from "~/database/old/product";
 import { formatDate, formatTime } from "~/lib/utils";
@@ -24,7 +24,7 @@ export function HistoryTable({
   switch (mode) {
     case "buy":
       return (
-        <TableScrollable className="text-normal w-fit">
+        <Table className="text-normal w-fit">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[60px]">No</TableHead>
@@ -55,11 +55,11 @@ export function HistoryTable({
                 </TableRow>
               ))}
           </TableBody>
-        </TableScrollable>
+        </Table>
       );
     case "sell":
       return (
-        <TableScrollable className="text-normal w-fit">
+        <Table className="text-normal w-fit">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[60px]">No</TableHead>
@@ -88,7 +88,7 @@ export function HistoryTable({
                 </TableRow>
               ))}
           </TableBody>
-        </TableScrollable>
+        </Table>
       );
   }
 }

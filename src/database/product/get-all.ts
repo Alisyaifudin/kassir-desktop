@@ -11,10 +11,15 @@ export async function all(): Promise<Result<DefaultError, Product[]>> {
       db.select<
         Pick<
           DB.Product,
-          "product_id" | "product_barcode" | "product_name" | "product_stock" | "product_price"
+          | "product_id"
+          | "product_barcode"
+          | "product_name"
+          | "product_stock"
+          | "product_price"
+          | "product_capital"
         >[]
       >(
-        "SELECT product_id, product_barcode, product_name, product_stock, product_price FROM products",
+        "SELECT product_id, product_barcode, product_name, product_stock, product_price, product_capital FROM products"
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -24,6 +29,7 @@ export async function all(): Promise<Result<DefaultError, Product[]>> {
     price: r.product_price,
     id: r.product_id,
     stock: r.product_stock,
+    capital: r.product_capital
   }));
   setCache(items);
   return ok(items);

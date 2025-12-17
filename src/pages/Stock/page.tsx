@@ -1,44 +1,45 @@
-import { Loading } from "~/components/Loading";
+import { LoadingBig } from "~/components/Loading";
 import { useFilterProducts } from "./use-products";
 import { ProductList } from "./ProductList";
-import { PanelProduct } from "./PanelProduct";
+import { ProductPanel } from "./ProductPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { useFilterAdditionals } from "./use-additionals";
-import { AdditionalList } from "./AdditionalList";
+import { useFilterExtras } from "./use-extras";
+import { ExtraList } from "./ExtraList";
 import { useSearchParams } from "./use-search-params";
-import { PanelAdditional } from "./PanelAdditional";
+import { ExtraPanel } from "./ExtraPanel";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
-import { cn, Result, sizeClass } from "~/lib/utils";
+import { Result } from "~/lib/utils";
 import { Suspense, use } from "react";
 import { TextError } from "~/components/TextError";
-import { Size } from "~/lib/store-old";
 import { useScroll } from "~/hooks/use-scroll";
+import { Product } from "~/database/product/caches";
+import { Extra } from "~/database/extra/caches";
 
 export default function Page() {
-  const { size, role, additionals, products } = useLoaderData<Loader>();
+  const { extras, products } = useLoaderData<Loader>();
   const { get, set } = useSearchParams();
   const [ref, handleScroll] = useScroll();
   const tab = get.tab;
   return (
-    <main
-      ref={ref}
-      onScroll={handleScroll}
-      className={cn("flex flex-col gap-5 py-2 px-0.5 flex-1 overflow-auto", sizeClass[size])}
-    >
-      <Tabs value={tab} onValueChange={(v) => set.tab(v)}>
+    <main ref={ref} onScroll={handleScroll} className="flex flex-col gap-5 py-2 px-0.5 flex-1">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => set.tab(v)}
+        className="flex items-start flex-col flex-1 overflow-hidden"
+      >
         <TabsList>
           <TabsTrigger value="product">Produk</TabsTrigger>
-          <TabsTrigger value="additional">Biaya Lainnya</TabsTrigger>
+          <TabsTrigger value="extra">Biaya Lainnya</TabsTrigger>
         </TabsList>
-        <TabsContent value="product">
-          <Suspense fallback={<Loading />}>
-            <Product products={products} role={role} size={size} />
+        <TabsContent value="product" className="overflow-hidden flex-1 w-full flex flex-col">
+          <Suspense fallback={<LoadingBig />}>
+            <ProductComp products={products} />
           </Suspense>
         </TabsContent>
-        <TabsContent value="additional">
-          <Suspense fallback={<Loading />}>
-            <Additional additionals={additionals} role={role} size={size} />
+        <TabsContent value="extra" className="overflow-hidden flex-1 w-full flex flex-col">
+          <Suspense fallback={<LoadingBig />}>
+            <ExtraComp extras={extras} />
           </Suspense>
         </TabsContent>
       </Tabs>
@@ -46,14 +47,10 @@ export default function Page() {
   );
 }
 
-function Product({
+function ProductComp({
   products: promise,
-  role,
-  size,
 }: {
-  products: Promise<Result<"Aplikasi bermasalah", DB.Product[]>>;
-  role: DB.Role;
-  size: Size;
+  products: Promise<Result<"Aplikasi bermasalah", Product[]>>;
 }) {
   const [errMsg, all] = use(promise);
   if (errMsg !== null) {
@@ -62,30 +59,35 @@ function Product({
   const products = useFilterProducts(all);
   return (
     <>
-      <PanelProduct size={size} productsLength={products.length} role={role} />
-      <ProductList products={products} size={size} />
+      <ProductPanel productsLength={products.length} />
+      <div className="flex-1 overflow-hidden">
+        <div className="flex max-h-full overflow-hidden">
+          <ProductList products={products} />
+        </div>
+      </div>
     </>
   );
 }
 
-function Additional({
-  additionals: promise,
-  role,
-  size,
+function ExtraComp({
+  extras: promise,
 }: {
-  additionals: Promise<Result<"Aplikasi bermasalah", DB.AdditionalItem[]>>;
-  role: DB.Role;
-  size: Size;
+  extras: Promise<Result<"Aplikasi bermasalah", Extra[]>>;
 }) {
   const [errMsg, all] = use(promise);
   if (errMsg !== null) {
     return <TextError>{errMsg}</TextError>;
   }
-  const additionals = useFilterAdditionals(all);
+  console.log(all);
+  const extras = useFilterExtras(all);
   return (
     <>
-      <PanelAdditional size={size} length={additionals.length} role={role} />
-      <AdditionalList additionals={additionals} />
+      <ExtraPanel length={extras.length} />
+      <div className="flex-1 overflow-hidden">
+        <div className="flex max-h-full overflow-hidden">
+          <ExtraList extras={extras} />
+        </div>
+      </div>
     </>
   );
 }

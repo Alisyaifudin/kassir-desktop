@@ -82,7 +82,11 @@ function HistoryList({
           </Button>
         </div>
       </div>
-      <HistoryTable products={histories} mode={mode} id={id} />
+      <div className="flex-1 overflow-hidden">
+        <div className="max-h-full overflow-hidden flex">
+          <HistoryTable products={histories} mode={mode} id={id} />
+        </div>
+      </div>
     </div>
   );
 }

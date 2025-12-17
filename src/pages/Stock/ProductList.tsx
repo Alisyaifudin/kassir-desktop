@@ -8,13 +8,13 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { useInterval } from "./use-interval";
-import { Size } from "~/lib/store-old";
+import { useSize } from "~/hooks/use-size";
+import { Product } from "~/database/product/caches";
 
 type Props = {
-  products: DB.Product[];
-  size: Size;
+  products: Product[];
 };
 
 const width = {
@@ -54,15 +54,12 @@ const width = {
   },
 };
 
-export function ProductList({ products, size }: Props) {
+export function ProductList({ products }: Props) {
   const { start, end } = useInterval(products.length);
-  const navigate = useNavigate();
-  const handleClick = (id: number) => () => {
-    const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-    navigate({ pathname: `product/${id}`, search: `?url_back=${backURL}` });
-  };
+  const size = useSize();
+  const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
   return (
-    <Table className="text-normal">
+    <Table className="text-normal flex-1">
       <TableHeader>
         <TableRow>
           <TableHead style={width[size].no}>No</TableHead>
@@ -78,23 +75,20 @@ export function ProductList({ products, size }: Props) {
           <TableHead style={width[size].link}></TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <TableBody className="overflow-auto flex-1 w-full">
         {products.slice(start, end).map((product, i) => (
           <TableRow key={i}>
             <TableCell>{i + 1 + start}</TableCell>
-            {/* <TableCell>{product.barcode ?? ""}</TableCell> */}
-            <TableCell>{formatBarcdode(product.barcode)}</TableCell>
+            <TableCell>{formatBarcode(product.barcode)}</TableCell>
             <TableCell>{product.name}</TableCell>
             <TableCell className="text-right">{product.price.toLocaleString("id-ID")}</TableCell>
             <TableCell className="text-right">{product.capital.toLocaleString("id-ID")}</TableCell>
             <TableCell className="text-right">{product.stock}</TableCell>
             <TableCell>
-              <Button
-                variant="link"
-                className="p-0 cursor-pointer"
-                onClick={handleClick(product.id)}
-              >
-                <SquareArrowOutUpRight className="icon" />
+              <Button variant="link" className="p-0 cursor-pointer">
+                <Link to={{ pathname: `product/${product.id}`, search: `?url_back=${backURL}` }}>
+                  <SquareArrowOutUpRight className="icon" />
+                </Link>
               </Button>
             </TableCell>
           </TableRow>
@@ -104,8 +98,8 @@ export function ProductList({ products, size }: Props) {
   );
 }
 
-function formatBarcdode(barcode: string | null) {
-  if (barcode === null) return "";
+function formatBarcode(barcode?: string) {
+  if (barcode === undefined) return "";
   const chunks = chunkSubstr(barcode, 13);
   return chunks.join("\n");
 }

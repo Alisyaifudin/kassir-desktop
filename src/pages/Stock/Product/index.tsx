@@ -1,13 +1,18 @@
 import { RouteObject } from "react-router";
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { loader } from "./loader.ts";
 import { action } from "./action/index.ts";
+import { LoadingBig } from "~/components/Loading.tsx";
 
 const Page = lazy(() => import("./page.tsx"));
 
 export const route: RouteObject = {
-	Component: Page,
-	loader,
-	action,
-	path: "product/:id",
+  Component: () => (
+    <Suspense fallback={<LoadingBig />}>
+      <Page />
+    </Suspense>
+  ),
+  loader,
+  action,
+  path: "product/:id",
 };

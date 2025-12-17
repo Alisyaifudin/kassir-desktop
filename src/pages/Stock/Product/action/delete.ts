@@ -1,21 +1,18 @@
 import { redirect } from "react-router";
+import { db } from "~/database";
 import { image } from "~/lib/image";
-import { SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
 
-type Action = SubAction & {
-	id: number;
-	backUrl: string;
-};
-
-export async function deleteAction({ context, id, backUrl }: Action) {
-	const { db } = getContext(context);
-	const [errMsg, imageNames] = await db.product.del.byId(id);
-	if (errMsg) {
-		return errMsg;
-	}
-	for (const name of imageNames) {
-		image.del(name);
-	}
-	throw redirect(backUrl);
+export async function deleteAction(id: number, backUrl: string) {
+  const [errImg, images] = await db.image.get.byProductId(id);
+  if (errImg) {
+    return errImg;
+  }
+  const errMsg = await db.product.delById(id);
+  if (errMsg) {
+    return errMsg;
+  }
+  for (const img of images) {
+    image.del(img.name);
+  }
+  throw redirect(backUrl);
 }

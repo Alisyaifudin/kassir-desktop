@@ -1,5 +1,5 @@
 import { Link, useLoaderData, useSearchParams } from "react-router";
-import { cn, getBackURL, sizeClass } from "~/lib/utils";
+import { cn, getBackURL } from "~/lib/utils";
 import { Suspense } from "react";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft } from "lucide-react";
@@ -12,19 +12,21 @@ import { ImagePromise } from "./utils";
 import { ImageSection } from "./ImageSection";
 import { useTab } from "./use-tab";
 import { Loading } from "~/components/Loading";
-import { Size } from "~/lib/store-old";
 import { css } from "./style.css";
+import { useSize } from "~/hooks/use-size";
+import { Product } from "~/database/product/get-by-id";
+import { auth } from "~/lib/auth";
 
 export default function Page() {
-  const { histories, images, product, size, role, id } = useLoaderData<Loader>();
+  const { histories, images, product, id } = useLoaderData<Loader>();
   const [search] = useSearchParams();
+  const size = useSize();
   const backURL = getBackURL("/stock", search);
   return (
     <main
       className={cn(
         "py-2 px-5 mx-auto w-full h-full flex flex-col gap-2 overflow-hidden",
-        css.nav[size],
-        sizeClass[size],
+        css.nav[size]
       )}
     >
       <Button asChild variant="link" className="self-start">
@@ -34,18 +36,19 @@ export default function Page() {
       </Button>
       <div className="grid grid-cols-2 gap-2 flex-1  overflow-hidden">
         <div className="h-full overflow-hidden">
-          <Detail product={product} role={role} size={size} />
+          <Detail product={product} />
         </div>
-        <SideTab role={role} histories={histories} id={id} images={images} />
+        <SideTab histories={histories} id={id} images={images} />
       </div>
     </main>
   );
 }
 
-function Detail({ product, role, size }: { product: DB.Product; role: DB.Role; size: Size }) {
+function Detail({ product }: { product: Product }) {
+  const role = auth.user().role;
   switch (role) {
     case "admin":
-      return <ProductForm product={product} size={size} />;
+      return <ProductForm product={product} />;
     case "user":
       return <Info product={product} />;
   }
@@ -55,12 +58,10 @@ function SideTab({
   histories,
   images,
   id,
-  role,
 }: {
   histories: HistoryPromise;
   images: ImagePromise;
   id: number;
-  role: DB.Role;
 }) {
   const [tab, setTab] = useTab();
   return (
@@ -73,14 +74,14 @@ function SideTab({
           Gambar
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="history" className="flex-1 overflow-hidden">
+      <TabsContent value="history" className="flex-1 max-h-full overflow-hidden">
         <Suspense fallback={<Loading />}>
           <History histories={histories} id={id} />
         </Suspense>
       </TabsContent>
       <TabsContent value="image" id="image-container" className="flex-1 flex overflow-hidden">
         <Suspense fallback={<Loading />}>
-          <ImageSection images={images} role={role} />
+          <ImageSection images={images} />
         </Suspense>
       </TabsContent>
     </Tabs>

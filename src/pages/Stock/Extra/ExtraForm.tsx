@@ -9,21 +9,15 @@ import { Spinner } from "~/components/Spinner";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
-import { Size } from "~/lib/store-old";
+import { Extra } from "~/database/extra/caches";
 
-export function AdditionalForm({
-  additional,
-  size,
-}: {
-  additional: DB.AdditionalItem;
-  size: Size;
-}) {
+export function AdditionalForm({ extra: extra }: { extra: Extra }) {
   const loading = useLoading();
   const error = useAction<Action>()("edit");
   return (
     <Form method="POST" className="flex flex-col gap-2 w-full">
       <input type="hidden" name="action" value="edit"></input>
-      <input type="hidden" name="id" value={additional.id}></input>
+      <input type="hidden" name="id" value={extra.id}></input>
       <h1 className="font-bold text-big">Edit biaya lainnya</h1>
 
       <Field error={error?.name} label="Nama*">
@@ -32,7 +26,7 @@ export function AdditionalForm({
           className="outline"
           name="name"
           required
-          defaultValue={additional.name}
+          defaultValue={extra.name}
           aria-autocomplete="list"
         />
       </Field>
@@ -42,7 +36,7 @@ export function AdditionalForm({
           className="outline w-[300px]"
           name="value"
           required
-          defaultValue={additional.value}
+          defaultValue={extra.value}
           step={0.00001}
           aria-autocomplete="list"
         />
@@ -51,7 +45,7 @@ export function AdditionalForm({
         <Label className="text-3xl">Jenis:</Label>
         <select
           name="kind"
-          defaultValue={additional.kind}
+          defaultValue={extra.kind}
           className="h-[54px] w-fit outline text-normal"
         >
           <option value="number">Angka</option>
@@ -64,7 +58,7 @@ export function AdditionalForm({
           Simpan
           <Spinner when={loading} />
         </Button>
-        <DeleteBtn name={additional.name} size={size} />
+        <DeleteBtn name={extra.name} />
       </div>
       <TextError>{error?.global}</TextError>
     </Form>

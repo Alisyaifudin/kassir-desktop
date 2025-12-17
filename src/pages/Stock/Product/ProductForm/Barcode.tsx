@@ -9,17 +9,9 @@ import { useSubmit } from "react-router";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../action";
-import { Size } from "~/lib/store-old";
+import { useSize } from "~/hooks/use-size";
 
-export function Barcode({
-  barcode: raw,
-  error,
-  size,
-}: {
-  barcode: string | null;
-  error?: string;
-  size: Size;
-}) {
+export function Barcode({ barcode: raw, error }: { barcode?: string; error?: string }) {
   const [barcode, setBarcode] = useState(raw);
   const errorGen = useAction<Action>()("generate-barcode");
   useEffect(() => {
@@ -27,9 +19,10 @@ export function Barcode({
       setBarcode(errorGen.barcode);
     }
   }, [errorGen]);
+  const size = useSize();
   return (
     <div className="flex items-center gap-2 w-full">
-      <Field error={error} label="Kode" size={size}>
+      <Field error={error ?? errorGen?.error} label="Kode" size={size}>
         <Input
           type="text"
           className="outline w-full"
@@ -39,7 +32,7 @@ export function Barcode({
           onChange={(e) => setBarcode(e.currentTarget.value)}
         />
       </Field>
-      <Show when={barcode === null || barcode === ""}>
+      <Show when={barcode === undefined || barcode === ""}>
         <GenerateBarcode />
       </Show>
     </div>

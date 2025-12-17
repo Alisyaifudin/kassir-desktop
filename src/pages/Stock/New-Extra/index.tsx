@@ -1,13 +1,13 @@
 import { RouteObject } from "react-router";
 import { lazy } from "react";
-import { loader } from "./loader.ts";
-import { action } from "./action/index.ts";
+import { action } from "./action.ts";
+import { admin } from "~/middleware/admin.ts";
 
 const Page = lazy(() => import("./page.tsx"));
 
 export const route: RouteObject = {
-	Component: Page,
-	loader,
-	action,
-	path: "additional/:id",
+  Component: Page,
+  middleware: [admin],
+  action,
+  path: "extra/new",
 };

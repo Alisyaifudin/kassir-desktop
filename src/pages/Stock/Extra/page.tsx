@@ -1,48 +1,37 @@
 import { Link, useLoaderData, useSearchParams } from "react-router";
-import { cn, getBackURL, sizeClass } from "~/lib/utils";
+import { getBackURL } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { Info } from "./Info";
-import { AdditionalForm } from "./AdditionalForm";
+import { AdditionalForm } from "./ExtraForm";
 import { Loader } from "./loader";
-import { Size } from "~/lib/store-old";
+import { Extra } from "~/database/extra/caches";
+import { auth } from "~/lib/auth";
 
 export default function Page() {
-  const { additional, role, size } = useLoaderData<Loader>();
+  const extra = useLoaderData<Loader>();
   const [search] = useSearchParams();
   const backURL = getBackURL("/stock", search);
   return (
-    <main
-      className={cn(
-        "py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden",
-        sizeClass[size],
-      )}
-    >
+    <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
       <Button asChild variant="link" className="self-start">
         <Link to={backURL}>
           <ChevronLeft /> Kembali
         </Link>
       </Button>
       <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
-        <Detail role={role} additional={additional} size={size} />
+        <Detail extra={extra} />
       </div>
     </main>
   );
 }
 
-function Detail({
-  role,
-  additional,
-  size,
-}: {
-  additional: DB.AdditionalItem;
-  role: DB.Role;
-  size: Size;
-}) {
+function Detail({ extra }: { extra: Extra }) {
+  const role = auth.user().role;
   switch (role) {
     case "admin":
-      return <AdditionalForm additional={additional} size={size} />;
+      return <AdditionalForm extra={extra} />;
     case "user":
-      return <Info additional={additional} />;
+      return <Info extra={extra} />;
   }
 }
