@@ -1,9 +1,11 @@
-import { DefaultError, err, LoaderArgs, ok, Result } from "~/lib/utils";
+import { DefaultError, err, ok, Result } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
-import { Database } from "~/database/old";
-import { redirect } from "react-router";
-import { getContext } from "~/middleware/global";
-import { getUser } from "~/middleware/authenticate";
+import { LoaderFunctionArgs, redirect } from "react-router";
+import { db } from "~/database";
+import { Record as RecordDB } from "~/database/record/get-by-range";
+import { RecordProduct } from "~/database/record-product/get-by-range";
+import { RecordExtra } from "~/database/record-extra/get-by-range";
+import Decimal from "decimal.js";
 
 const tz = Temporal.Now.timeZoneId();
 const earliest = Temporal.ZonedDateTime.from({
@@ -19,7 +21,7 @@ const furthest = Temporal.ZonedDateTime.from({
   day: 1,
 }).startOfDay();
 
-export async function loader({ context, request }: LoaderArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const time = getTime(url);
   if (
@@ -29,45 +31,60 @@ export async function loader({ context, request }: LoaderArgs) {
     const now = Date.now();
     throw redirect("/records?time=" + now);
   }
-  const user = await getUser(context);
-  const { store, db } = getContext(context);
-  const [size, [errMsg, methods]] = await Promise.all([store.size(), db.method.get.all()]);
-  if (errMsg) {
-    throw new Error(errMsg);
-  }
-  const data = getRecord(db, time.epochMilliseconds);
-  return { size, data, methods, role: user.role };
+  const methods = db.method.getAll();
+  const records = getRecord(time.epochMilliseconds);
+  return { records, methods };
 }
 
 export type Loader = typeof loader;
 
-export type Data = {
-  records: DB.Record[];
-  items: DB.RecordItem[];
-  additionals: DB.Additional[];
-  discounts: DB.Discount[];
+export type Record = RecordDB & {
+  grandTotal: number;
+  change: number;
 };
 
-async function getRecord(db: Database, timestamp: number): Promise<Result<DefaultError, Data>> {
+export type Data = {
+  record: Record;
+  products: RecordProduct[];
+  extras: RecordExtra[];
+};
+
+async function getRecord(timestamp: number): Promise<Result<DefaultError, Data[]>> {
   const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
   const start = date.startOfDay().epochMilliseconds;
   const end = date.startOfDay().add(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
   const promises = Promise.all([
     db.record.get.byRange(start, end),
-    db.recordItem.get.byRange(start, end),
-    db.additional.get.byRange(start, end),
-    db.discount.get.byRange(start, end),
+    db.recordProduct.get.byRange(start, end),
+    db.recordExtra.get.byRange(start, end),
   ]);
   const res = await promises;
   for (const [errMsg] of res) {
     if (errMsg) return err(errMsg);
   }
-  const records = res[0][1]!;
-  const items = res[1][1]!;
-  const additionals = res[2][1]!;
-  const discounts = res[3][1]!;
-  return ok({ records, items, additionals, discounts });
+  const recordsRaw = res[0][1]!;
+  const products = res[1][1]!;
+  const extras = res[2][1]!;
+  const records: Data[] = recordsRaw.map((r) => {
+    const ps = products.filter((p) => p.timestamp === r.timestamp);
+    const es = extras.filter((p) => p.timestamp === r.timestamp);
+    const grandTotal = new Decimal(r.total).plus(r.rounding);
+    const change = new Decimal(r.pay).minus(grandTotal);
+    return {
+      record: {
+        ...r,
+        subTotal: Number(r.subTotal.toFixed(r.fix)),
+        total: Number(r.total.toFixed(r.fix)),
+        grandTotal: Number(grandTotal.toFixed(r.fix)),
+        change: Number(change.toFixed(r.fix)),
+      },
+      products: ps,
+      extras: es,
+    };
+  });
+
+  return ok(records);
 }
 
 function getTime(url: URL): Temporal.ZonedDateTime {

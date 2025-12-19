@@ -1,49 +1,24 @@
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
-import { AdditionalTransfrom, RecordTransform } from "~/lib/record";
-import { Additional } from "./Additonal";
+import { Extra } from "./Extra";
 import { cn, METHOD_NAMES } from "~/lib/utils";
 import { css } from "../style.css";
-import { Size } from "~/lib/store-old";
+import { RecordExtra } from "~/database/record-extra/get-by-range";
+import { Record } from "../loader";
+import { useSize } from "~/hooks/use-size";
 
-export function Footer({
-  method,
-  record,
-  additionals,
-  size,
-}: {
-  method: DB.Method;
-  record: RecordTransform;
-  additionals: AdditionalTransfrom[];
-  size: Size;
-}) {
+export function Footer({ record, extras }: { record: Record; extras: RecordExtra[] }) {
+  const size = useSize();
   return (
     <div className="flex flex-col items-end">
-      <Show when={record.disc_val > 0}>
-        <div className={cn("grid", css.footer[size])}>
-          <p className="text-end">Subtotal:</p>
-          <p className="text-end">Rp{record.totalFromItems.toLocaleString("id-ID")}</p>
-        </div>
-        <div className={cn("grid", css.footer[size])}>
-          <p className="text-end">Diskon:</p>
-          <p className="text-end">Rp{record.totalDiscount.toLocaleString("id-ID")}</p>
-        </div>
-        <hr />
-        <div className={cn("grid", css.footer[size])}>
-          <div></div>{" "}
-          <p className="text-end">Rp{record.totalAfterDiscount.toLocaleString("de-DE")}</p>
-        </div>
+      <Show when={record.subTotal !== record.grandTotal}>
+        <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
       </Show>
-      <Show when={additionals.length > 0}>
-        <ForEach items={additionals}>
-          {(additional) => <Additional additional={additional} />}
-        </ForEach>
+      <Show when={extras.length > 0}>
+        <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>
         <hr className="w-full" />
-        <Show when={record.totalAfterAdditional !== record.grandTotal}>
-          <div className={cn("grid", css.footer[size])}>
-            <div></div>{" "}
-            <p className="text-end">Rp{record.totalAfterAdditional.toLocaleString("de-DE")}</p>
-          </div>
+        <Show when={record.total !== record.grandTotal}>
+          <p className="text-end">Rp{record.total.toLocaleString("id-ID")}</p>
         </Show>
       </Show>
       <Show when={record.rounding !== 0}>
@@ -60,14 +35,15 @@ export function Footer({
         <p className="text-end">Pembayaran:</p>
         <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
       </div>
-      <div className={cn("grid", css.footer[size])}>
-        <p className="text-end">Kembalian:</p>{" "}
-        <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
-      </div>
-      <p className="self-start">{record.note}</p>
+      <Show when={record.change !== 0}>
+        <div className={cn("grid", css.footer[size])}>
+          <p className="text-end">Kembalian:</p>{" "}
+          <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
+        </div>
+      </Show>
       <p className="self-start">
-        Metode: {METHOD_NAMES[method.method]}
-        {method.name === null ? null : " " + method.name}
+        Metode: {METHOD_NAMES[record.method.kind]}
+        {record.method.name === undefined ? "" : " " + record.method.name}
       </p>
     </div>
   );

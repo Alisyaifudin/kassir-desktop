@@ -5,7 +5,6 @@ import { ProductPanel } from "./ProductPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useFilterExtras } from "./use-extras";
 import { ExtraList } from "./ExtraList";
-import { useSearchParams } from "./use-search-params";
 import { ExtraPanel } from "./ExtraPanel";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
@@ -15,17 +14,17 @@ import { TextError } from "~/components/TextError";
 import { useScroll } from "~/hooks/use-scroll";
 import { Product } from "~/database/product/caches";
 import { Extra } from "~/database/extra/caches";
+import { useTab } from "./use-tab";
 
 export default function Page() {
   const { extras, products } = useLoaderData<Loader>();
-  const { get, set } = useSearchParams();
   const [ref, handleScroll] = useScroll();
-  const tab = get.tab;
+  const [tab, setTab] = useTab();
   return (
     <main ref={ref} onScroll={handleScroll} className="flex flex-col gap-5 py-2 px-0.5 flex-1">
       <Tabs
         value={tab}
-        onValueChange={(v) => set.tab(v)}
+        onValueChange={(v) => setTab(v)}
         className="flex items-start flex-col flex-1 overflow-hidden"
       >
         <TabsList>

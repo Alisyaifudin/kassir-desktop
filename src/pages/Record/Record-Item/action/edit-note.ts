@@ -1,17 +1,19 @@
 import { z } from "zod";
-import { SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
 
-type Action = SubAction & { timestamp: number };
-
-export async function editNoteAction({ formdata, context, timestamp }: Action) {
-	const parsed = z.string().safeParse(formdata.get("note"));
-	if (!parsed.success) {
-		const errs = parsed.error.flatten().formErrors;
-		return errs.join("; ");
-	}
-	const note = parsed.data;
-	const { db } = getContext(context);
-	const errMsg = await db.record.update.note(timestamp, note);
-	return errMsg ?? undefined;
+export async function editNoteAction(timestamp: number, formdata: FormData) {
+  const parsed = z.string().safeParse(formdata.get("note"));
+  if (!parsed.success) {
+    const errs = parsed.error.flatten().formErrors;
+    return {
+      error: errs.join("; "),
+      close: false,
+    };
+  }
+  const note = parsed.data;
+  const errMsg = await db.record.update.note(timestamp, note);
+  if (errMsg !== null) {
+    return { error: errMsg, close: false };
+  }
+  return { close: true };
 }

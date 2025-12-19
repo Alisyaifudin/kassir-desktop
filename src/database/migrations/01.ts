@@ -51,7 +51,7 @@ async function run(
     }
     for (const extra of extras) {
       queue.add(() =>
-        db.execute("UPDATE record_extras SET record_extra_eff = $1 WHERE record_extra_id = $1", [
+        db.execute("UPDATE record_extras SET record_extra_eff = $1 WHERE record_extra_id = $2", [
           extra.eff,
           extra.id,
         ])
@@ -67,7 +67,7 @@ async function run(
     event.emit("update", i / n);
     i++;
   }
-  await db.execute("INSERT INTO versions VALUES (0)");
+  await db.execute(`INSERT INTO versions VALUES (0)`);
   event.emit("finish");
 }
 

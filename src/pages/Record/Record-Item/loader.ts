@@ -1,88 +1,109 @@
-import { redirect } from "react-router";
-import { Database } from "~/database/old";
-import { generateRecordSummary, Summary } from "~/lib/record";
-import { Size, Store } from "~/lib/store-old";
-import { DefaultError, err, integer, LoaderArgs, NotFound, ok, Result } from "~/lib/utils";
-import { getUser } from "~/middleware/authenticate";
-import { getContext } from "~/middleware/global";
+import Decimal from "decimal.js";
+import { LoaderFunctionArgs, redirect } from "react-router";
+import { db } from "~/database";
+import { RecordExtra } from "~/database/record-extra/get-by-range";
+import { RecordProduct } from "~/database/record-product/get-by-range";
+import { Record } from "~/database/record/get-by-range";
+import { Social } from "~/database/social/get-all";
+import { DefaultError, err, integer, NotFound, ok, Result } from "~/lib/utils";
+import { store } from "~/store";
 
-export async function loader({ context, params }: LoaderArgs) {
+export async function loader({ params }: LoaderFunctionArgs) {
   const parsed = integer.safeParse(params.timestamp);
   if (!parsed.success) {
     return redirect("/records");
   }
   const timestamp = parsed.data;
-  const { db, store } = getContext(context);
-  const [[errData, data], info, [errSocial, socials], [errMethod, methods]] = await getData(
-    store,
-    db,
-    timestamp,
-  );
-  switch (errData) {
+  const [errMsg, res] = await getData(timestamp);
+  switch (errMsg) {
     case "Aplikasi bermasalah":
-      throw new Error(errData);
+      throw new Error(errMsg);
     case "Tidak ditemukan":
       throw redirect("/records");
   }
-  if (errSocial) {
-    throw new Error(errSocial);
-  }
-  if (errMethod) {
-    throw new Error(errMethod);
-  }
-  const user = await getUser(context);
   const products = db.product.get.all();
-  return { info, data, socials, methods, role: user.role, products };
+  const methods = db.method.getAll();
+  return { data: res.data, info: res.info, methods, products };
 }
 
 export type Loader = typeof loader;
 
-// export type Data = {
-// 	record: DB.Record;
-// 	items: DB.RecordItem[];
-// 	discounts: DB.Discount[];
-// 	additionals: DB.Additional[];
-// };
+export type Data = {
+  record: Record & {
+    grandTotal: number;
+    change: number;
+  };
+  products: RecordProduct[];
+  extras: RecordExtra[];
+};
 
-async function getRecord(
-  db: Database,
-  timestamp: number,
-): Promise<Result<DefaultError | NotFound, Summary>> {
-  const promises = await Promise.all([
+async function getRecord(timestamp: number): Promise<Result<DefaultError | NotFound, Data>> {
+  const promises = Promise.all([
     db.record.get.byTimestamp(timestamp),
-    db.recordItem.get.byTimestamp(timestamp),
-    db.discount.get.byTimestamp(timestamp),
-    db.additional.get.byTimestamp(timestamp),
+    db.recordProduct.get.byTimestamp(timestamp),
+    db.recordExtra.get.byTimestamp(timestamp),
   ]);
-  for (const [errMsg] of promises) {
+  const res = await promises;
+  for (const [errMsg] of res) {
     if (errMsg) return err(errMsg);
   }
-  const record = promises[0][1]!;
-  const items = promises[1][1]!;
-  const discounts = promises[2][1]!;
-  const additionals = promises[3][1]!;
-  const summary = generateRecordSummary({ record, items, additionals, discounts });
-  return ok(summary);
+  const r = res[0][1]!;
+  const products = res[1][1]!;
+  const extras = res[2][1]!;
+  const grandTotal = new Decimal(r.total).plus(r.rounding);
+  const change = new Decimal(r.pay).minus(grandTotal);
+  return ok({
+    record: {
+      ...r,
+      subTotal: Number(r.subTotal.toFixed(r.fix)),
+      total: Number(r.total.toFixed(r.fix)),
+      grandTotal: Number(grandTotal.toFixed(r.fix)),
+      change: Number(change.toFixed(r.fix)),
+    },
+    products,
+    extras,
+  });
 }
 
-async function getInfo(store: Store) {
-  const info = await store.get();
-  let size: Size = "big";
-  if (info.size === "small") {
-    size = "small";
+async function getInfo() {
+  const info = await store.info.get();
+  return info;
+}
+
+async function getSocials() {
+  return db.social.getAll();
+}
+
+export type Info = {
+  address: string;
+  footer: string;
+  header: string;
+  owner: string;
+  showCashier: boolean;
+  socials: Social[];
+};
+
+async function getData(timestamp: number): Promise<
+  Result<
+    DefaultError | NotFound,
+    {
+      data: Data;
+      info: Info;
+    }
+  >
+> {
+  const res = await Promise.all([getRecord(timestamp), getInfo(), getSocials()]);
+  for (const [errMsg] of res) {
+    if (errMsg !== null) return err(errMsg);
   }
-  const showCashier = info.showCashier === "true";
-  return { ...info, size, showCashier };
-}
-
-async function getSocials(db: Database) {
-  return db.social.get.all();
-}
-
-async function getMethods(db: Database) {
-  return db.method.get.all();
-}
-
-async function getData(store: Store, db: Database, timestamp: number) {
-  return Promise.all([getRecord(db, timestamp), getInfo(store), getSocials(db), getMethods(db)]);
+  const data = res[0][1]!;
+  const info = res[1][1]!;
+  const socials = res[2][1]!;
+  return ok({
+    data,
+    info: {
+      ...info,
+      socials,
+    },
+  });
 }

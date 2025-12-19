@@ -6,16 +6,14 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { cn } from "~/lib/utils";
 import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
+import { useQuery } from "./use-query";
 
 export function Search({
-  query,
-  setQuery,
   className,
 }: {
   className?: string;
-  query: string;
-  setQuery: (v: string) => void;
 }) {
+  const [query, setQuery] = useQuery()
   const [value, setValue] = useState(query);
   const debounced = useDebouncedCallback((value: string) => {
     setQuery(value);

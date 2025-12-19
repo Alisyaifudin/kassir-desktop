@@ -21,6 +21,12 @@ export const METHOD_BASE_ID = {
   debit: 1002,
   qris: 1003,
 } as const;
+export const METHOD_BASE_KIND = {
+  1000: "cash",
+  1001: "transfer",
+  1002: "debit",
+  1003: "qris",
+} as const;
 
 export const log = logTauri;
 
@@ -129,7 +135,7 @@ export function formatDate(epochMilli: number, type: "short" | "long" = "short")
 
 export const dateStringSchema = z.string().regex(
   /^\d+-\d{2}-\d{2}$/, // Regular expression to match any number of digits for the year, followed by MM-DD
-  "Tanggal tidak valid",
+  "Tanggal tidak valid"
 );
 
 export function formatTime(epochMilli: number, format: "long" | "short" = "short"): string {
@@ -214,4 +220,3 @@ export const sizeClass = {
 //   context: Readonly<RouterContextProvider>;
 //   formdata: FormData;
 // };
-

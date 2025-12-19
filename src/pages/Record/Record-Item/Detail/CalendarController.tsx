@@ -12,11 +12,9 @@ import { Size } from "~/lib/store-old";
 export const CalendarController = memo(function ({
   timestamp,
   mode,
-  size,
 }: {
   timestamp: number;
   mode: DB.Mode;
-  size: Size;
 }) {
   const name = getDayName(timestamp);
   const submit = useSubmit();
@@ -29,13 +27,13 @@ export const CalendarController = memo(function ({
       formdata.set("timestamp", time.toString());
       submit(formdata, { method: "post" });
     },
-    [timestamp],
+    [timestamp]
   );
   return (
     <div className="flex gap-2 items-center">
       <p className="font-bold pr-5">{mode === "buy" ? "Beli" : "Jual"}</p>
       <TextError>{error}</TextError>
-      <Calendar size={size} time={timestamp} setTime={handleChange}>
+      <Calendar time={timestamp} setTime={handleChange}>
         <p>
           {formatTime(timestamp, "long")} {name}, {formatDate(timestamp, "long")}
         </p>

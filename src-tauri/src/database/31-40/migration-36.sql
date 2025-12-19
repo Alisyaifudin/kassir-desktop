@@ -64,7 +64,8 @@ SELECT timestamp, value, kind FROM money_old;
 
 -----------------------------------------------------
 CREATE TABLE customers (
-  customer_name TEXT PRIMARY KEY,
+  customer_id INTEGER PRIMARY KEY,
+  customer_name TEXT NOT NULL,
   customer_phone TEXT NOT NULL
 ) STRICT;
 
@@ -188,7 +189,7 @@ FROM records_old;
 CREATE TABLE record_products (
   record_product_id INTEGER PRIMARY KEY,
   product_id INTEGER REFERENCES products(product_id) ON DELETE SET NULL,
-  timestamp INTEGER NOT NULL REFERENCES records(timestamp) ON DELETE CASCADE,
+  timestamp INTEGER NOT NULL REFERENCES records(timestamp) ON DELETE CASCADE ON UPDATE CASCADE,
   record_product_name TEXT NOT NULL,
   record_product_price REAL NOT NULL,
   record_product_qty INTEGER NOT NULL,
@@ -236,7 +237,7 @@ FROM discounts_old;
 CREATE TABLE record_extras (
   record_extra_id INTEGER PRIMARY KEY,
   record_extra_name TEXT NOT NULL,
-  timestamp INTEGER NOT NULL REFERENCES records(timestamp) ON DELETE CASCADE,
+  timestamp INTEGER NOT NULL REFERENCES records(timestamp) ON DELETE CASCADE ON UPDATE CASCADE,
   record_extra_value REAL NOT NULL,
   record_extra_eff REAL NOT NULL,
   record_extra_kind TEXT NOT NULL CHECK (record_extra_kind IN ('number', 'percent'))
@@ -253,3 +254,17 @@ INSERT INTO record_extras (
 SELECT 
   id, name, timestamp, value, 0, kind
 FROM record_extras_old;
+
+----------------------------------------------
+DROP TABLE record_extras_old;
+DROP TABLE discounts_old;
+DROP TABLE record_products_old;
+DROP TABLE records_old;
+DROP TABLE methods_old;
+DROP TABLE extras_old;
+DROP TABLE images_old;
+DROP TABLE products_old;
+DROP TABLE cashiers_old;
+DROP TABLE socials_old;
+DROP TABLE money_old;
+DROP TABLE customers_old;

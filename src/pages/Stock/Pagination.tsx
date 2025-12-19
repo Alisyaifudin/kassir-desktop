@@ -2,14 +2,16 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { PaginationContent, PaginationItem, Pagination as Root } from "~/components/ui/pagination";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
+import { usePage } from "./use-page";
 
 type Props = {
-  pagination: { page: number; total: number } | { page: null; total: null };
-  setPage: (page: number) => void;
+  // pagination: { page: number; total: number } | { page: null; total: null };
+  // setPage: (page: number) => void;
+  total: number;
 };
 
-export function Pagination({ pagination, setPage }: Props) {
-  const { page, total } = pagination;
+export function Pagination({ total }: Props) {
+  const [page, setPage] = usePage();
   if (page === null) {
     return <Loader2 className="animate-spin" />;
   }

@@ -9,16 +9,24 @@ import {
 import { SlidersHorizontal, X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
 import { FilterBtn } from "./FilterBtn";
-import { getParam, setParam } from "../utils/params";
-import { useSearchParams } from "react-router";
-import { METHOD_NAMES, sizeClass } from "~/lib/utils";
+import { DefaultError, METHOD_NAMES, Result } from "~/lib/utils";
 import { Show } from "~/components/Show";
-import { Size } from "~/lib/store-old";
+import { Method } from "~/database/method/get-all";
+import { useParams, useSetParams } from "../use-params";
+import { use } from "react";
+import { TextError } from "~/components/TextError";
 
-export function Filter({ methods, size }: { methods: DB.Method[]; size: Size }) {
-  const [search, setSearch] = useSearchParams();
-  const method = getParam(search).method(methods);
-  const setMethod = setParam(setSearch).method;
+export function Filter({ methods: promise }: { methods: Promise<Result<DefaultError, Method[]>> }) {
+  const [errMsg, methods] = use(promise);
+  if (errMsg !== null) {
+    return <TextError>{errMsg}</TextError>;
+  }
+  return <Wrapper methods={methods} />;
+}
+
+function Wrapper({ methods }: { methods: Method[] }) {
+  const method = useParams().method(methods);
+  const setMethod = useSetParams().method;
   const handleClick = (id: number) => {
     setMethod(id);
   };
@@ -34,7 +42,7 @@ export function Filter({ methods, size }: { methods: DB.Method[]; size: Size }) 
           <Show value={method} fallback={<p>Filter</p>}>
             {(v) => (
               <p>
-                {METHOD_NAMES[v.method]} {v.name}
+                {METHOD_NAMES[v.kind]} {v.name}
               </p>
             )}
           </Show>
@@ -45,7 +53,7 @@ export function Filter({ methods, size }: { methods: DB.Method[]; size: Size }) 
           <X />
         </Button>
       )}
-      <DialogContent className={sizeClass[size]}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-normal">Filter Metode Pembayaran</DialogTitle>
           <div className="flex flex-col gap-5">
@@ -67,7 +75,7 @@ export function Filter({ methods, size }: { methods: DB.Method[]; size: Size }) 
   );
 }
 
-function groupMethods(methods: DB.Method[]): { top: DB.Method; options: DB.Method[] }[] {
+function groupMethods(methods: Method[]): { top: Method; options: Method[] }[] {
   return [
     filterMethod("cash", methods),
     filterMethod("transfer", methods),
@@ -75,9 +83,9 @@ function groupMethods(methods: DB.Method[]): { top: DB.Method; options: DB.Metho
     filterMethod("qris", methods),
   ];
 }
-function filterMethod(name: DB.MethodEnum, methods: DB.Method[]) {
-  const top = methods.find((m) => m.method === name && m.name === null);
+function filterMethod(name: DB.MethodEnum, methods: Method[]) {
+  const top = methods.find((m) => m.kind === name && m.name === undefined);
   if (top === undefined) throw new Error("No " + name);
-  const options = methods.filter((m) => m.method === name && m.name !== null);
+  const options = methods.filter((m) => m.kind === name && m.name !== undefined);
   return { top, options };
 }

@@ -1,30 +1,32 @@
 import { useState } from "react";
 import { useSubmit } from "react-router";
 import { useDebouncedCallback } from "use-debounce";
-import { useProductSearch } from "~/hooks/use-product-search-fuzzysort";
+import { useProductSearch } from "~/hooks/use-product-search";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { Data } from "../../loader";
+import { Product } from "~/database/product/caches";
 
-export function useLinkProduct(item: DB.RecordItem, products: DB.Product[]) {
+export function useLinkProduct(product: Data["products"][number], products: Product[]) {
   const [query, setQuery] = useState("");
-  const { search } = useProductSearch();
-  const [shownProducts, setShown] = useState<DB.Product[]>([]);
+  const search = useProductSearch(products);
+  const [shownProducts, setShown] = useState<Product[]>([]);
   const selected =
-    item.product_id === null ? undefined : products.find((p) => p.id === item.product_id);
+    product.productId === undefined ? undefined : products.find((p) => p.id === product.productId);
   const debounced = useDebouncedCallback((value: string) => {
     if (value.trim() === "") {
       setShown([]);
     } else {
       new Promise((resolve) => {
-        const results = search(value.trim(), products);
+        const results = search(value.trim());
         resolve(results);
       }).then((v) => setShown(v as any));
     }
   }, DEBOUNCE_DELAY);
   const submit = useSubmit();
-  const handleClick = (itemId: number, productId: number) => async () => {
+  const handleClick = (recordProductId: number, productId: number) => async () => {
     const formdata = new FormData();
     formdata.set("action", "link-product");
-    formdata.set("item-id", itemId.toString());
+    formdata.set("record-product-id", recordProductId.toString());
     formdata.set("product-id", productId.toString());
     submit(formdata, { method: "POST" });
   };

@@ -1,10 +1,7 @@
-import { SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
 
-type Action = SubAction & { timestamp: number };
 
-export async function toCreditAction({ context, timestamp }: Action) {
-	const { db } = getContext(context);
+export async function toCreditAction(timestamp: number) {
 	const errMsg = await db.record.update.toCredit(timestamp);
 	return errMsg ?? undefined;
 }

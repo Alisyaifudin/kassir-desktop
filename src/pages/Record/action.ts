@@ -1,27 +1,26 @@
-import { redirect } from "react-router";
-import { ActionArgs, integer } from "~/lib/utils";
-import { getUser } from "~/middleware/authenticate";
-import { getContext } from "~/middleware/global";
+import { ActionFunctionArgs, redirect } from "react-router";
+import { db } from "~/database";
+import { auth } from "~/lib/auth";
+import { integer } from "~/lib/utils";
 
-export async function action({ context, request }: ActionArgs) {
-	const user = await getUser(context);
-	if (user.role !== "admin") {
-		throw new Error("Unauthorized");
-	}
-	const formdata = await request.formData();
-	const parsed = integer.safeParse(formdata.get("timestamp"));
-	if (!parsed.success) {
-		return parsed.error.flatten().formErrors.join("; ");
-	}
-	const timestamp = parsed.data;
-	const { db } = getContext(context);
-	const errMsg = await db.record.del.byTimestamp(timestamp);
-	if (errMsg) {
-		return errMsg;
-	}
-	const url = new URL(request.url);
-	url.searchParams.delete("selected");
-	throw redirect(url.href);
+export async function action({ request }: ActionFunctionArgs) {
+  const user = auth.user();
+  if (user.role !== "admin") {
+    throw new Error("Unauthorized");
+  }
+  const formdata = await request.formData();
+  const parsed = integer.safeParse(formdata.get("timestamp"));
+  if (!parsed.success) {
+    return parsed.error.flatten().formErrors.join("; ");
+  }
+  const timestamp = parsed.data;
+  const errMsg = await db.record.delByTimestamp(timestamp);
+  if (errMsg !== null) {
+    return errMsg;
+  }
+  const url = new URL(request.url);
+  url.searchParams.delete("selected");
+  throw redirect(url.href);
 }
 
 export type Action = typeof action;

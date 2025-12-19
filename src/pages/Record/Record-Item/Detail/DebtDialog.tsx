@@ -7,8 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { Size } from "~/lib/store-old";
-import { cn, sizeClass } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { Form } from "react-router";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
@@ -18,7 +17,7 @@ import Decimal from "decimal.js";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../action";
 
-export const DebtDialog = memo(function ({ grandTotal, size }: { grandTotal: number; size: Size }) {
+export const DebtDialog = memo(function ({ grandTotal }: { grandTotal: number }) {
   const [open, setOpen] = useState(false);
   const [mount, setMount] = useState(false);
   const loading = useLoading();
@@ -37,7 +36,7 @@ export const DebtDialog = memo(function ({ grandTotal, size }: { grandTotal: num
       <Button variant="destructive" asChild className="w-fit">
         <DialogTrigger>Bayar Kredit</DialogTrigger>
       </Button>
-      <DialogContent className={cn("text-normal", sizeClass[size])}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-big">Bayar Kredit</DialogTitle>
         </DialogHeader>

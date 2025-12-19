@@ -9,23 +9,20 @@ import {
 } from "~/components/ui/dialog";
 import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatDate, monthNames, numeric, sizeClass } from "~/lib/utils";
+import { formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "~/components/ui/input";
-import { Size } from "~/lib/store-old";
 
 export function Calendar({
   time,
   setTime,
   mode: modeInit = "day",
   children,
-  size,
 }: {
   time: number;
   setTime: (time: number) => void;
   mode?: "day" | "month" | "year";
   children?: React.ReactNode;
-  size: Size;
 }) {
   const [mode, setMode] = useState<"day" | "month" | "year">(modeInit);
   const tz = Temporal.Now.timeZoneId();
@@ -59,7 +56,6 @@ export function Calendar({
         setDate={setDate}
         changeMode={changeMode}
         setTime={handleTime}
-        size={size}
       />
     </Dialog>
   );
@@ -88,14 +84,12 @@ function Content({
   date,
   changeMode,
   setTime,
-  size,
 }: {
   mode: "day" | "month" | "year";
   date: Temporal.ZonedDateTime;
   setDate: React.Dispatch<React.SetStateAction<Temporal.ZonedDateTime>>;
   changeMode: (mode: "day" | "month" | "year") => void;
   setTime: (time: number) => void;
-  size: Size;
 }) {
   const tz = Temporal.Now.timeZoneId();
   const timeStartOfDay = date.startOfDay();
@@ -113,7 +107,7 @@ function Content({
       const deltaStart = startOfMonth.dayOfWeek - 1;
       const start = startOfMonth.subtract(Temporal.Duration.from({ days: deltaStart }));
       const endOfMonth = startOfMonth.add(
-        Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 }),
+        Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 })
       );
       const deltaEnd = 7 - endOfMonth.dayOfWeek;
       const end = endOfMonth.add(Temporal.Duration.from({ days: deltaEnd + 1 }));
@@ -135,7 +129,7 @@ function Content({
         setShowTime(startOfMonth.add(Temporal.Duration.from({ months: 1 })));
       };
       return (
-        <DialogContent className={sizeClass[size]}>
+        <DialogContent>
           <DialogHeader>
             <div className="flex flex-row items-center gap-2">
               <Button onClick={handlePrev}>
@@ -166,8 +160,8 @@ function Content({
                   d.year === date.year && d.month === date.month && d.day === date.day
                     ? "default"
                     : d.year === today.year && d.month === today.month && d.day === today.day
-                      ? "outline"
-                      : "ghost"
+                    ? "outline"
+                    : "ghost"
                 }
                 className={inside ? "" : d.equals(date) ? "text-zinc-100" : "text-zinc-500"}
                 onClick={() => {
@@ -243,7 +237,7 @@ function Content({
         setShowTime(startOfDate.add(Temporal.Duration.from({ years: 1 })));
       };
       return (
-        <DialogContent className={sizeClass[size]}>
+        <DialogContent>
           <DialogHeader>
             <div className="flex flex-row items-center gap-2">
               <Button onClick={handlePrev}>
@@ -342,7 +336,7 @@ function Content({
     changeMode("month");
   };
   return (
-    <DialogContent className={sizeClass[size]}>
+    <DialogContent>
       <DialogHeader>
         <Button className="w-fit" variant="secondary" onClick={() => changeMode("day")}>
           <DialogTitle className="text-normal">Tahun</DialogTitle>
@@ -400,7 +394,7 @@ function Clock({
                 minute: date.minute,
                 second: date.second,
                 millisecond: date.millisecond,
-              }),
+              })
             )
           }
         >
@@ -426,7 +420,7 @@ function Clock({
                 minute: Number(e.currentTarget.value),
                 second: date.second,
                 millisecond: date.millisecond,
-              }),
+              })
             )
           }
         >
@@ -452,7 +446,7 @@ function Clock({
                 minute: date.minute,
                 second: Number(e.currentTarget.value),
                 millisecond: date.millisecond,
-              }),
+              })
             )
           }
         >

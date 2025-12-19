@@ -1,31 +1,30 @@
 import { z } from "zod";
-import { integer, SubAction } from "~/lib/utils";
-import { getContext } from "~/middleware/global";
+import { db } from "~/database";
+import { integer } from "~/lib/utils";
 
 const schema = z.object({
-	itemId: integer,
-	productId: z.nullable(integer),
+  recordProductId: integer,
+  productId: z.nullable(integer),
 });
 
-export async function linkProductAction({ formdata, context }: SubAction) {
-	const parsed = schema.safeParse({
-		itemId: formdata.get("item-id"),
-		productId: formdata.get("product-id"),
-	});
-	if (!parsed.success) {
-		const errs = parsed.error.flatten().fieldErrors;
-		return {
-			itemId: errs.itemId?.join("; "),
-			productId: errs.productId?.join("; "),
-		};
-	}
-	const { itemId, productId } = parsed.data;
-	const { db } = getContext(context);
-	const errMsg = await db.recordItem.update.productId(itemId, productId);
-	if (errMsg) {
-		return {
-			global: errMsg,
-		};
-	}
-	return undefined;
+export async function linkProductAction(formdata: FormData) {
+  const parsed = schema.safeParse({
+    itemId: formdata.get("record-product-id"),
+    productId: formdata.get("product-id"),
+  });
+  if (!parsed.success) {
+    const errs = parsed.error.flatten().fieldErrors;
+    return {
+      recordProductId: errs.recordProductId?.join("; "),
+      productId: errs.productId?.join("; "),
+    };
+  }
+  const { recordProductId, productId } = parsed.data;
+  const errMsg = await db.recordProduct.update.productId(recordProductId, productId);
+  if (errMsg) {
+    return {
+      global: errMsg,
+    };
+  }
+  return undefined;
 }

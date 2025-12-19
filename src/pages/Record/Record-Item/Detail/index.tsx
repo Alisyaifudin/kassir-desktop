@@ -14,10 +14,21 @@ import { Show } from "~/components/Show";
 import { EditDialog } from "./EditDialog";
 import { Summary } from "./Summary";
 import { LinkProductList } from "./LinkProduct";
-import { formatDate, formatTime, getDayName, METHOD_NAMES, Result } from "~/lib/utils";
-import { Size } from "~/lib/store-old";
-import { Summary as SummaryType } from "~/lib/record";
+import {
+  DefaultError,
+  formatDate,
+  formatTime,
+  getDayName,
+  METHOD_NAMES,
+  Result,
+} from "~/lib/utils";
 import { DebtDialog } from "./DebtDialog";
+import { Data } from "../loader";
+import { Method } from "~/database/method/get-all";
+import { Product } from "~/database/product/caches";
+import { auth } from "~/lib/auth";
+import { useSize } from "~/hooks/use-size";
+import Decimal from "decimal.js";
 
 const localStyle = {
   big: {
@@ -39,35 +50,25 @@ const localStyle = {
 };
 
 export const Detail = memo(function ({
-  data: { additionals, items, record },
+  data,
   methods,
-  role,
-  showCashier,
-  size,
-  method,
   products,
 }: {
-  data: SummaryType;
-  methods: DB.Method[];
-  role: DB.Role;
-  showCashier: boolean;
-  method: DB.Method;
-  size: Size;
-  products: Promise<Result<"Aplikasi bermasalah", DB.Product[]>>;
+  data: Data;
+  methods: Promise<Result<DefaultError, Method[]>>;
+  products: Promise<Result<"Aplikasi bermasalah", Product[]>>;
 }) {
-  const customer = { name: record.customer_name, phone: record.customer_phone };
+  const role = auth.user().role;
+  const size = useSize();
   return (
     <div className="flex flex-col gap-2 text-3xl">
       <Header
-        size={size}
-        showCashier={showCashier}
-        cashier={record.cashier}
-        mode={record.mode}
-        timestamp={record.timestamp}
-        role={role}
+        cashier={data.record.cashier}
+        mode={data.record.mode}
+        timestamp={data.record.timestamp}
       />
-      <Show when={record.credit === 1 && role === "admin"}>
-        <DebtDialog size={size} grandTotal={record.grandTotal} />
+      <Show when={data.record.isCredit && role === "admin"}>
+        <DebtDialog grandTotal={data.record.grandTotal} />
       </Show>
       <Table className="text-normal">
         <TableHeader>
@@ -90,39 +91,48 @@ export const Detail = memo(function ({
           </TableRow>
         </TableHeader>
         <TableBody className="border-b">
-          <ForEach items={items}>
-            {(item, i) => (
+          <ForEach items={data.products}>
+            {(product, i) => (
               <>
                 <TableRow>
                   <TableCell className="flex items-center">
                     {i + 1}
                     <Show when={role === "admin"}>
                       <Suspense>
-                        <LinkProductList size={size} products={products} item={item} />
+                        <LinkProductList products={products} product={product} />
                       </Suspense>
                     </Show>
                   </TableCell>
-                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{product.name}</TableCell>
                   <TableCell className="text-end flex items-center gap-1 justify-end">
-                    <GotoProductBtn productId={item.product_id} />
-                    {item.price.toLocaleString("id-ID")}{" "}
+                    <GotoProductBtn productId={product.productId} />
+                    {product.price.toLocaleString("id-ID")}{" "}
                   </TableCell>
-                  <TableCell className="text-end">{item.capital.toLocaleString("id-ID")}</TableCell>
-                  <TableCell className="text-center">{item.qty}</TableCell>
-                  <TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
                   <TableCell className="text-end">
-                    {item.grandTotal.toLocaleString("id-ID")}
+                    {product.capital.toLocaleString("id-ID")}
+                  </TableCell>
+                  <TableCell className="text-center">{product.qty}</TableCell>
+                  <TableCell className="text-end">
+                    {Number(
+                      new Decimal(product.price).times(product.qty).toFixed(data.record.fix)
+                    ).toLocaleString("id-ID")}
+                  </TableCell>
+                  <TableCell className="text-end">
+                    {product.total.toLocaleString("id-ID")}
                   </TableCell>
                 </TableRow>
-                <ForEach items={item.discs}>
+                <ForEach items={product.discounts}>
                   {(disc) => (
                     <TableRow>
                       <TableCell colSpan={5} className="text-end">
-                        Diskon {disc.kind === "percent" ? `${disc.value}%` : null}
+                        Diskon{" "}
+                        {disc.kind === "percent"
+                          ? `${disc.value}%`
+                          : disc.kind === "pcs"
+                          ? `${disc.value}pcs`
+                          : ""}
                       </TableCell>
-                      <TableCell className="text-end">
-                        {disc.effVal.toLocaleString("id-ID")}
-                      </TableCell>
+                      <TableCell className="text-end">{disc.eff.toLocaleString("id-ID")}</TableCell>
                     </TableRow>
                   )}
                 </ForEach>
@@ -131,40 +141,30 @@ export const Detail = memo(function ({
           </ForEach>
         </TableBody>
       </Table>
-      <Summary
-        additionals={additionals}
-        change={record.change}
-        discVal={record.disc_val}
-        grandTotal={record.grandTotal}
-        pay={record.pay}
-        rounding={record.rounding}
-        totalAfterAdditional={record.totalAfterAdditional}
-        totalAfterDiscount={record.totalAfterDiscount}
-        totalDiscount={record.totalDiscount}
-        totalFromItems={record.totalFromItems}
-      />
-      <Show when={customer.name !== "" && customer.phone !== ""}>
+      <Summary extras={data.extras} record={data.record} productLength={data.products.length} />
+      <Show when={data.record.customer.name !== "" && data.record.customer.phone !== ""}>
         <p>
-          Pelanggan: {customer.name} ({customer.phone})
+          Pelanggan: {data.record.customer.name} ({data.record.customer.phone})
         </p>
       </Show>
-      <EditDialog
-        size={size}
-        isCredit={record.credit === 1}
-        mode={record.mode}
-        note={record.note}
-        method={method}
-        methods={methods}
-      />
+      <Suspense>
+        <EditDialog
+          isCredit={data.record.isCredit}
+          mode={data.record.mode}
+          note={data.record.note}
+          method={data.record.method}
+          methods={methods}
+        />
+      </Suspense>
       <div className="flex flex-col gap-2">
         <p>
-          Dibayar: {formatTime(record.paid_at, "long")} | {getDayName(record.paid_at)},{" "}
-          {formatDate(record.paid_at, "long")}
+          Dibayar: {formatTime(data.record.paidAt, "long")} | {getDayName(data.record.paidAt)},{" "}
+          {formatDate(data.record.paidAt, "long")}
         </p>
         <p>
-          Metode: {METHOD_NAMES[method.method]} {method.name}
+          Metode: {METHOD_NAMES[data.record.method.kind]} {data.record.method.name}
         </p>
-        <p>{record.note}</p>
+        <p>{data.record.note}</p>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ export const useProductSearch = (products: Product[]) => {
       includeScore: true,
       includeMatches: true,
       threshold: 0.2,
-      minMatchCharLength: 2,
+      minMatchCharLength: 1,
     };
     return new Fuse<Product>(products, options);
   }, [products]);

@@ -1,46 +1,83 @@
 import {
+  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  TableScrollable,
 } from "~/components/ui/table";
 import { capitalize, cn, formatTime } from "~/lib/utils";
-import { RecordTransform } from "~/lib/record";
 import { ForEach } from "~/components/ForEach";
-import { getParam, setParam } from "../utils/params";
-import { useSearchParams } from "react-router";
-import { Size } from "~/lib/store-old";
 import { css } from "../style.css";
+import { Record } from "../loader";
+import { useParams, useSetParams } from "../use-params";
+import { useSize } from "~/hooks/use-size";
+import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
+import { useCallback } from "react";
 
 type ListProps = {
-  records: RecordTransform[];
-  size: Size;
+  records: Record[];
 };
 
-export function List({ records, size }: ListProps) {
-  const [search, setSearch] = useSearchParams();
-  const selected = getParam(search).selected;
-  const setSelected = (clicked: number) => setParam(setSearch).selected(clicked, selected);
+export function List({ records }: ListProps) {
+  const size = useSize();
+  const selected = useParams().selected;
+  const setSelected = useSetParams().selected;
+  const { order, sort } = useParams().order;
+  const setOrder = useSetParams().order;
+  const handleClickSort = useCallback(
+    (o: "time" | "total") => {
+      let s = sort;
+      if (order === o) {
+        s = s === "asc" ? "desc" : "asc";
+      }
+      setOrder(o, s);
+    },
+    [order, sort]
+  );
+  const sign = sort === "asc" ? 1 : -1;
+  switch (order) {
+    case "time":
+      records.sort((a, b) => sign * (a.timestamp - b.timestamp));
+      break;
+    case "total":
+      records.sort((a, b) => sign * (a.grandTotal - b.grandTotal));
+      break;
+  }
   return (
-    <TableScrollable className="text-normal" parentClass="flex-1 overflow-auto">
+    <Table className="text-normal">
       <TableHeader>
         <TableRow>
           <TableHead className={css.recordGrid[size].no}>No</TableHead>
           <TableHead className={cn("text-center", css.recordGrid[size].cashier)}>Kasir</TableHead>
-          <TableHead className={cn("text-center", css.recordGrid[size].cashier)}>Waktu</TableHead>
-          <TableHead className="text-right">Total</TableHead>
+          <TableHead className={cn(css.recordGrid[size].cashier)}>
+            <SortBtn
+              onClick={() => handleClickSort("time")}
+              sort={order === "time" ? sort : undefined}
+              className="justify-center"
+            >
+              Waktu
+            </SortBtn>
+          </TableHead>
+          <TableHead>
+            <SortBtn
+              onClick={() => handleClickSort("total")}
+              sort={order === "total" ? sort : undefined}
+              className="justify-end"
+            >
+              Total
+            </SortBtn>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         <ForEach items={records}>
           {(record, i) => (
             <TableRow
-              onClick={() => setSelected(record.timestamp)}
+              onClick={() => setSelected(record.timestamp, selected)}
               className={cn(
                 { "bg-sky-200 hover:bg-sky-100": selected === record.timestamp },
-                { "bg-red-300": record.credit === 1 },
+                { "bg-red-300": record.isCredit }
               )}
             >
               <TableCell>{i + 1}</TableCell>
@@ -53,6 +90,37 @@ export function List({ records, size }: ListProps) {
           )}
         </ForEach>
       </TableBody>
-    </TableScrollable>
+    </Table>
+  );
+}
+
+function SortBtn({
+  children,
+  sort,
+  onClick,
+  className,
+}: {
+  children: string;
+  sort?: "asc" | "desc";
+  onClick: () => void;
+  className?: string;
+}) {
+  if (sort === undefined)
+    return (
+      <button
+        onClick={onClick}
+        className={cn("p-0 w-full h-full flex items-center hover:shadow-md", className)}
+      >
+        {children}
+      </button>
+    );
+  return (
+    <button
+      onClick={onClick}
+      className="p-0 w-full h-full flex items-center justify-between hover:shadow-md"
+    >
+      {children}
+      {sort === "desc" ? <ArrowDownWideNarrow /> : <ArrowDownNarrowWide />}
+    </button>
   );
 }

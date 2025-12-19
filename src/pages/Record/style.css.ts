@@ -47,10 +47,10 @@ export const css = {
 	},
 	footer: {
 		big: style({
-			gridTemplateColumns: "1fr 200px",
+			gridTemplateColumns: "1fr 220px",
 		}),
 		small: style({
-			gridTemplateColumns: "1fr 140px",
+			gridTemplateColumns: "1fr 170px",
 		}),
 	},
 };

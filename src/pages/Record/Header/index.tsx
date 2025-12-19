@@ -1,30 +1,32 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
-import { formatDate } from "~/lib/utils";
+import { DefaultError, formatDate, Result } from "~/lib/utils";
 import { Filter } from "./FilterDialog";
-import { getParam, setParam } from "../utils/params";
-import { useSearchParams } from "react-router";
-import { Size } from "~/lib/store-old";
 import { SearchBars } from "./SearchBars";
 import { ModeTab } from "./ModeTab";
+import { useParams, useSetParams } from "../use-params";
+import { Method } from "~/database/method/get-all";
+import { Suspense } from "react";
+import { Loading } from "~/components/Loading";
 
-export function Header({ methods, size }: { methods: DB.Method[]; size: Size }) {
-  const [search, setSearch] = useSearchParams();
-  const { time, yesterday, tomorrow } = getParam(search).time;
-  const setTime = setParam(setSearch).time;
+export function Header({ methods }: { methods: Promise<Result<DefaultError, Method[]>> }) {
+  const { time, yesterday, tomorrow } = useParams().time;
+  const setTime = useSetParams().time;
   return (
     <div className="flex gap-2 items-center w-full justify-between">
       <div className="flex gap-1 items-center">
         <ModeTab />
-        <Filter methods={methods} size={size} />
+        <Suspense fallback={<Loading />}>
+          <Filter methods={methods} />
+        </Suspense>
       </div>
       <SearchBars />
       <div className="flex gap-1 items-center">
         <Button className="p-2" variant={"ghost"} onClick={() => setTime(yesterday)}>
           <ChevronLeft className="icon" />
         </Button>
-        <Calendar time={time} setTime={(time) => setTime(time)} size={size}>
+        <Calendar time={time} setTime={(time) => setTime(time)}>
           <p>{formatDate(time, "long")}</p>
         </Calendar>
         <Button className="p-2" variant={"ghost"} onClick={() => setTime(tomorrow)}>

@@ -10,13 +10,11 @@ import {
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Form, useActionData } from "react-router";
-import { Size } from "~/lib/store-old";
-import { sizeClass } from "~/lib/utils";
 import { Spinner } from "~/components/Spinner";
 import { useLoading } from "~/hooks/use-loading";
 import { Action } from "../action";
 
-export function DeleteBtn({ timestamp, size }: { timestamp: number; size: Size }) {
+export function DeleteBtn({ timestamp }: { timestamp: number }) {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
   const error = useActionData<Action>();
@@ -25,7 +23,7 @@ export function DeleteBtn({ timestamp, size }: { timestamp: number; size: Size }
       <Button asChild variant="destructive">
         <DialogTrigger>Hapus</DialogTrigger>
       </Button>
-      <DialogContent className={sizeClass[size]}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-big">Hapus catatan riwayat?</DialogTitle>
           <div className="flex justify-between mt-5">

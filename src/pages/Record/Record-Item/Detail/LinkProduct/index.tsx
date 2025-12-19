@@ -9,12 +9,12 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import {
+  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  TableScrollable,
 } from "~/components/ui/table";
 import { TextError } from "~/components/TextError";
 import { useLinkProduct } from "./use-link-product";
@@ -25,50 +25,53 @@ import { use } from "react";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../../action";
-import { Size } from "~/lib/store-old";
+import { Product } from "~/database/product/caches";
+import { Data } from "../../loader";
+import { useSize } from "~/hooks/use-size";
 
 export function LinkProductList({
-  item,
-  size,
+  product,
   products: promise,
 }: {
-  item: DB.RecordItem;
-  size: Size;
-  products: Promise<Result<"Aplikasi bermasalah", DB.Product[]>>;
+  product: Data["products"][number];
+  products: Promise<Result<"Aplikasi bermasalah", Product[]>>;
 }) {
   const [errMsg, products] = use(promise);
   if (errMsg) {
     return <TextError>{errMsg}</TextError>;
   }
-  return <LinkProduct size={size} item={item} products={products} />;
+  return <LinkProduct product={product} products={products} />;
 }
 
 export function LinkProduct({
-  item,
+  product,
   products,
-  size,
 }: {
-  item: DB.RecordItem;
-  products: DB.Product[];
-  size: Size;
+  product: Data["products"][number];
+  products: Product[];
 }) {
   const { handleChange, handleClick, query, shownProducts, selected } = useLinkProduct(
-    item,
-    products,
+    product,
+    products
   );
+  const size = useSize();
   const loading = useLoading();
   const error = useAction<Action>()("link-product");
   return (
     <Dialog>
       <Button variant="ghost" size="icon" asChild>
         <DialogTrigger>
-          {item.product_id ? <Lock className="icon" /> : <ExternalLink className="icon" />}
+          {product.productId !== undefined ? (
+            <Lock className="icon" />
+          ) : (
+            <ExternalLink className="icon" />
+          )}
         </DialogTrigger>
       </Button>
       <DialogContent
         className={cn(
           "left-5 top-5 bottom-5 right-5 w-[calc(100%-40px)] max-w-full translate-0 flex flex-col gap-2",
-          sizeClass[size],
+          sizeClass[size]
         )}
       >
         <DialogHeader>
@@ -77,8 +80,8 @@ export function LinkProduct({
         <div className="flex flex-col p-2 gap-2">
           <div className="flex items-center gap-5">
             <p className="">Barang:</p>
-            <p>{item.name}</p>
-            <p>Rp{item.price.toLocaleString("id-ID")}</p>
+            <p>{product.name}</p>
+            <p>Rp{product.price.toLocaleString("id-ID")}</p>
           </div>
           <div className="flex items-center gap-2">
             <p className="">Produk terhubung:</p>
@@ -86,7 +89,7 @@ export function LinkProduct({
             <Show value={selected} fallback={<p>--Kosong--</p>}>
               {(selected) => (
                 <div className="flex gap-5 items-center">
-                  {selected.barcode === null || selected.barcode === "" ? null : (
+                  {selected.barcode === undefined || selected.barcode === "" ? null : (
                     <p>{selected.barcode}</p>
                   )}
                   <p>{selected.name}</p>
@@ -105,7 +108,7 @@ export function LinkProduct({
           aria-autocomplete="list"
         />
         <TextError>{error?.global}</TextError>
-        <TableScrollable>
+        <Table>
           <TableHeader className="text-normal">
             <TableRow>
               <TableHead className="w-[70px]">No</TableHead>
@@ -115,11 +118,11 @@ export function LinkProduct({
             </TableRow>
           </TableHeader>
           <TableBody className="overflow-auto text-normal">
-            {shownProducts.slice(0, 20).map((product, i) => (
-              <TableRow key={product.id}>
+            {shownProducts.slice(0, 20).map((p, i) => (
+              <TableRow key={p.id}>
                 <TableCell className="font-medium">
                   <Button
-                    onClick={handleClick(item.id, product.id)}
+                    onClick={handleClick(product.id, p.id)}
                     className="w-full p-1"
                     variant={
                       selected !== undefined && selected.id === product.id ? "secondary" : "default"
@@ -128,15 +131,13 @@ export function LinkProduct({
                     {i + 1}
                   </Button>
                 </TableCell>
-                <TableCell>{product.barcode ?? ""}</TableCell>
-                <TableCell>{product.name}</TableCell>
-                <TableCell className="text-right">
-                  {product.price.toLocaleString("id-ID")}
-                </TableCell>
+                <TableCell>{p.barcode ?? ""}</TableCell>
+                <TableCell>{p.name}</TableCell>
+                <TableCell className="text-right">{p.price.toLocaleString("id-ID")}</TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </TableScrollable>
+        </Table>
       </DialogContent>
     </Dialog>
   );
