@@ -220,3 +220,20 @@ export const sizeClass = {
 //   context: Readonly<RouterContextProvider>;
 //   formdata: FormData;
 // };
+
+export function formatBarcode(barcode?: string) {
+  if (barcode === undefined) return "";
+  const chunks = chunkSubstr(barcode, 13);
+  return chunks.join("\n");
+}
+
+function chunkSubstr(str: string, size: number): string[] {
+  const numChunks = Math.ceil(str.length / size);
+  const chunks: string[] = new Array(numChunks);
+
+  for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+    chunks[i] = str.substring(o, size);
+  }
+
+  return chunks;
+}

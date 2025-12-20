@@ -26,7 +26,6 @@ export async function payCreditAction(timestamp: number, formdata: FormData) {
     };
   }
   const { pay, rounding, grandTotal } = parsed.data;
-  console.log(grandTotal, rounding, pay);
   if (new Decimal(grandTotal).plus(rounding).toNumber() > pay) {
     return {
       global: "Tidak cukup",

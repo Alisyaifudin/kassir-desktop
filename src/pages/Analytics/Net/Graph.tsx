@@ -1,0 +1,106 @@
+import { use, useEffect } from "react";
+import { TextError } from "~/components/TextError";
+import { Record } from "~/database/record/get-by-range";
+import { Result } from "~/lib/utils";
+import { getFlow, getTicks } from "../utils/group-items";
+import { DatePicker } from "../DatePicker";
+import { useInterval } from "../use-interval";
+import Decimal from "decimal.js";
+import { Bar } from "../Bar";
+import { useSummary } from "./Summary";
+
+export function Graph({
+  records: promise,
+  start,
+  end,
+}: {
+  records: Promise<Result<"Aplikasi bermasalah", Record[]>>;
+  start: number;
+  end: number;
+}) {
+  const [errMsg, records] = use(promise);
+  if (errMsg !== null) {
+    return <TextError>{errMsg}</TextError>;
+  }
+  return <Wrapper start={start} end={end} records={records} />;
+}
+
+function Wrapper({ records, start, end }: { records: Record[]; start: number; end: number }) {
+  const [int] = useInterval("week");
+  const interval = int === "day" ? "week" : int;
+  const [, setSummary] = useSummary();
+  const { revenues, labels, spendings, debts } = getFlow({ records, start, end, interval });
+  const profits: number[] = revenues.map((rev, i) =>
+    new Decimal(rev).minus(spendings[i]).plus(debts[i]).toNumber()
+  );
+  useEffect(() => {
+    setSummary({
+      loading: false,
+      profit: Decimal.sum(...profits).toNumber(),
+    });
+  }, [records]);
+  return (
+    <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
+      <DatePicker option="cashflow" defaultInterval="week" />
+      <div className="flex flex-col flex-1 py-5">
+        <GraphBar orientation="up" vals={profits} />
+        <div className="flex gap-1 w-full">
+          <div className="w-[100px]"></div>
+          <div className="flex gap-1 w-full">
+            {labels.map((label) => (
+              <div
+                key={label}
+                className="h-[50px] flex justify-center items-center text-2xl"
+                style={{ width: `${100 / labels.length}%` }}
+              >
+                <p>{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <GraphBar orientation="down" vals={profits} />
+      </div>
+    </div>
+  );
+}
+
+function GraphBar({ vals, orientation }: { vals: number[]; orientation: "up" | "down" }) {
+  let maxVal = Math.max(Math.max(...vals), -1 * Math.min(...vals));
+  const ticks = getTicks(maxVal);
+  return (
+    <div className="flex gap-1 w-full h-full">
+      <div className="relative h-full border-r w-[100px]">
+        {ticks.map((tick) => (
+          <p
+            key={tick}
+            className="right-1 absolute"
+            style={{ top: `${((orientation === "up" ? maxVal - tick : tick) / maxVal) * 100}%` }}
+          >
+            {tick.toLocaleString("id-ID")}
+          </p>
+        ))}
+      </div>
+      {orientation === "up" ? (
+        <div className="w-full h-full flex-1 flex gap-1 items-end">
+          {vals.map((v, i) =>
+            v < 0.0001 ? (
+              <div key={i} style={{ width: `${100 / vals.length}%` }} />
+            ) : (
+              <Bar orientation={orientation} v={v} key={i} maxVal={maxVal} length={vals.length} />
+            )
+          )}
+        </div>
+      ) : (
+        <div className="w-full h-full flex-1 flex gap-1">
+          {vals.map((v, i) =>
+            v > -0.0001 ? (
+              <div key={i} style={{ width: `${100 / vals.length}%` }} />
+            ) : (
+              <Bar orientation={orientation} v={-v} key={i} maxVal={maxVal} length={vals.length} />
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

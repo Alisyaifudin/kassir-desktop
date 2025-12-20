@@ -1,18 +1,16 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { Protect } from "~/components/Protect";
+import { admin } from "~/middleware/admin";
+import { cashflowRoute } from "./Cashflow";
+import { netRoute } from "./Net";
+import { crowdRoute } from "./Crowd";
+import { productRoute } from "./Product";
 
-const Page = lazy(() => import("./Analytics"));
+const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
-	path: "analytics",
-	Component: () => {
-		const user = useUser();
-		const db = useDB();
-		return (
-			<Protect role={user.role} redirect="/setting">
-				<Page db={db} />
-			</Protect>
-		);
-	},
+  path: "analytics",
+  middleware: [admin],
+  Component: Page,
+  children: [cashflowRoute, netRoute, crowdRoute, productRoute],
 };

@@ -13,7 +13,7 @@ import { useInterval } from "./use-interval";
 import { useSize } from "~/hooks/use-size";
 import { Product } from "~/database/product/caches";
 import { useCallback } from "react";
-import { cn } from "~/lib/utils";
+import { cn, formatBarcode } from "~/lib/utils";
 import { useSortBy } from "./use-sort-by";
 import { useSortDir } from "./use-sort-dir";
 
@@ -181,19 +181,3 @@ function SortBtn({
   );
 }
 
-function formatBarcode(barcode?: string) {
-  if (barcode === undefined) return "";
-  const chunks = chunkSubstr(barcode, 13);
-  return chunks.join("\n");
-}
-
-function chunkSubstr(str: string, size: number): string[] {
-  const numChunks = Math.ceil(str.length / size);
-  const chunks: string[] = new Array(numChunks);
-
-  for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
-    chunks[i] = str.substring(o, size);
-  }
-
-  return chunks;
-}

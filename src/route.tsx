@@ -5,7 +5,7 @@ import { route as stockRoute } from "./pages/stock";
 import { route as settingRoute } from "./pages/setting";
 import { route as recordsRoute } from "./pages/Record/index.tsx";
 import { route as moneyRoute } from "./pages/money";
-// import { route as analRoute } from "./pages/analytics";
+import { route as analRoute } from "./pages/analytics";
 import AuthLayout, { loader } from "./layouts/authenticated";
 import RootLayout, { ErrorBoundary, loader as rootLoader } from "./layouts/root";
 import { authentication } from "./middleware/authenticate.ts";
@@ -23,7 +23,7 @@ export const router = createBrowserRouter([
         middleware: [authentication],
         Component: AuthLayout,
         loader,
-        children: [shopRoute, settingRoute, stockRoute, moneyRoute, recordsRoute],
+        children: [shopRoute, settingRoute, stockRoute, moneyRoute, recordsRoute, analRoute],
       },
     ],
   },

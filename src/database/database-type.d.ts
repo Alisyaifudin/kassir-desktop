@@ -45,6 +45,7 @@ declare namespace DB {
     disc_id: number;
     record_product_id: number;
     disc_value: number;
+    disc_eff: number;
     disc_kind: ValueKind;
   }
   interface RecordProduct {

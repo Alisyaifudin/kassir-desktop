@@ -1,10 +1,10 @@
 import { SetURLSearchParams } from "react-router";
 import { z } from "zod";
 import { ProductRecord } from "~/database/old/product";
-import { Product } from "../product";
-import { Cashflow } from "../cashflow";
-import { Net } from "../Net";
-import { Crowd } from "../crowd";
+import { ProductList } from "./Product/ProductList";
+import { Cashflow } from "./cashflow";
+import { Net } from "./Net/page-0";
+import { Crowd } from "./Crowd/page";
 import { RecordTransform } from "~/lib/record";
 
 type Props = {
@@ -73,7 +73,7 @@ export function RightPanel({
       return <Crowd records={records} weekly={[start, end]} handleTime={handleTime} time={time} />;
     case "products":
       return (
-        <Product
+        <ProductList
           products={products}
           mode={mode}
           start={start}

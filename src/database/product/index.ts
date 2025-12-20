@@ -6,12 +6,14 @@ import { getById } from "./get-by-id";
 import { getHistory } from "./history";
 import { proposeBarcode } from "./propose-barcode";
 import { updateDetail } from "./update";
+import { byRange } from "./get-by-range";
 
 export const product = {
   get: {
     all,
     byId: getById,
     history: getHistory,
+    byRange: byRange,
   },
   delById,
   update: {

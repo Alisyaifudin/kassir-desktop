@@ -77,7 +77,6 @@ function ExtraComp({
   if (errMsg !== null) {
     return <TextError>{errMsg}</TextError>;
   }
-  console.log(all);
   const extras = useFilterExtras(all);
   return (
     <>
