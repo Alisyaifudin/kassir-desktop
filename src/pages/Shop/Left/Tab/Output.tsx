@@ -23,7 +23,7 @@ export function Output({
   return (
     <div
       className={cn(
-        "bg-white absolute left-1 w-full h-fit border shadow-md right-1 z-20 overflow-x-clip overflow-y-auto",
+        "bg-white absolute left-1 h-fit border shadow-md right-1 z-20 overflow-x-clip overflow-y-auto",
         css.output[size],
         {
           hidden: products.length === 0 && extras.length === 0,

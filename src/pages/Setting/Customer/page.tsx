@@ -36,7 +36,7 @@ function Customer({
   return (
     <>
       {customers.map((customer) => (
-        <Item key={customer.name} customer={customer} />
+        <Item key={customer.id} customer={customer} />
       ))}
       <TextError>{error}</TextError>
     </>

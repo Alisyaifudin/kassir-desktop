@@ -22,6 +22,7 @@ export function ExtraManual() {
     const form = e.currentTarget;
     const id = generateId();
     const { value, name, kind, saved } = manualStore.get().extra;
+    if (name.trim() === "" || value === 0) return;
     extrasStore.trigger.add({
       subtotal,
       extra: {
@@ -41,7 +42,7 @@ export function ExtraManual() {
         saved,
         name,
         value,
-      }),
+      })
     );
     if (errMsg !== null) {
       extrasStore.trigger.delete({ id });

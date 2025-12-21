@@ -5,11 +5,28 @@ import { Loader } from "./loader";
 import { useInitTx } from "./use-transaction";
 import { TextError } from "~/components/TextError";
 import { LoadingBig } from "~/components/Loading";
+import { useEffect } from "react";
 
 export default function Page() {
   const { product, customers, methods, transaction, products, extras, tabs } =
     useLoaderData<Loader>();
   const [error, loading] = useInitTx(tabs, transaction);
+  useEffect(() => {
+    document.body.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "F1": {
+          const el = document.getElementById("searchbar");
+          el?.focus();
+          break;
+        }
+        case "F2": {
+          const el = document.getElementById("pay-input");
+          el?.focus();
+          break;
+        }
+      }
+    });
+  }, []);
   if (error) {
     return <TextError>{error}</TextError>;
   }
@@ -23,3 +40,21 @@ export default function Page() {
     </main>
   );
 }
+// function Wrapper({
+//   product,
+//   customers,
+//   methods,
+//   products,
+//   extras,
+//   tabs,
+// }: {
+//   product: Promise<DBItems>;
+//   customers: Promise<Result<"Aplikasi bermasalah", Customer[]>>;
+//   methods: Promise<Result<"Aplikasi bermasalah", Method[]>>;
+//   products: Promise<Result<"Aplikasi bermasalah", Product[]>>;
+//   extras: Promise<Result<"Aplikasi bermasalah", Extra[]>>;
+//   tabs: TabInfo[];
+// }) {
+//   return (
+//   );
+// }

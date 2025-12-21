@@ -110,7 +110,7 @@ const BarcodeInput = memo(
     if (alreadyExist) return <p>{barcode}</p>;
     return (
       <input
-        className={cn("px-0.5 border-b border-l border-r")}
+        className={cn("px-0.5 border-b text-normal border-l border-r")}
         value={barcode}
         onChange={(e) => {
           const val = e.currentTarget.value;

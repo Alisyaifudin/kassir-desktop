@@ -23,13 +23,14 @@ import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { useAtom } from "@xstate/store/react";
 import { useLoading } from "~/hooks/use-loading";
 import { submitHandler } from "./submit";
-import { allAtom } from "./all-product";
 import { useTab } from "../../use-tab";
 import { auth } from "~/lib/auth";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../../action";
 import { TextError } from "~/components/TextError";
 import { toast } from "sonner";
+import { productsDB } from "../use-load-db";
+import { Kbd } from "~/components/ui/kdb";
 
 export function Summary({
   methods,
@@ -40,7 +41,6 @@ export function Summary({
 }) {
   const error = useAction<Action>()("submit");
   const submitLoading = useLoading();
-  const all = useAtom(allAtom);
   const [tab] = useTab();
   const fix = useFix();
   const mode = useMode();
@@ -49,6 +49,7 @@ export function Summary({
   const productsLength = products.length;
   const extrasLength = useAtom(extrasStore, (state) => state.context.length);
   const status = useStatus();
+  const all = useAtom(productsDB);
   const loading = status === "active" || submitLoading || all === null;
   const [form, setForm] = useState({
     pay: "",
@@ -116,10 +117,13 @@ export function Summary({
         className="flex-1 flex flex-col gap-1 h-fit"
       >
         <label className={cn("grid items-center", css.summary[size].grid)}>
-          <span>Bayar</span>
+          <span>
+            Bayar <Kbd>F2</Kbd>
+          </span>
           :
           <Input
             type="number"
+            id="pay-input"
             value={form.pay}
             step={Math.pow(10, -1 * fix)}
             onChange={(e) => {

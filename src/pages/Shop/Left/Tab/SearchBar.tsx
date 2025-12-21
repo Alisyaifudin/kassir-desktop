@@ -1,18 +1,14 @@
 import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { useSearch } from "./use-search";
-import { Field } from "./Field";
 import { Output } from "./Output";
-import { Product } from "~/database/product/caches";
-import { Extra } from "~/database/extra/caches";
+import { useEffect } from "react";
+import { useAtom } from "@xstate/store/react";
+import { dbLoaded } from "../use-load-db";
+import { Spinner } from "~/components/Spinner";
+import { Kbd } from "~/components/ui/kdb";
 
-export function Search({
-  products: allProducts,
-  extras: allExtras,
-}: {
-  products: Product[];
-  extras: Extra[];
-}) {
+export function Search() {
   const {
     handleChange,
     handleClickProduct,
@@ -23,27 +19,38 @@ export function Search({
     products,
     extras,
     ref,
-  } = useSearch(allProducts, allExtras);
+  } = useSearch();
+  const { loading, error: errorDB } = useAtom(dbLoaded);
+  useEffect(() => {
+    if (ref.current === null) return;
+    ref.current.focus();
+  }, [ref]);
   return (
     <>
       <form onSubmit={handleSubmit} className="flex items-end gap-1 px-1">
-        <Field label="Cari">
+        <label className="flex flex-col gap-1 w-full">
+          <div>
+            <span>Cari: <Kbd>F1</Kbd></span>
+            <Spinner when={loading} />
+          </div>
           <Input
             ref={ref}
             type="search"
+            id="searchbar"
             value={query}
             onChange={handleChange}
             aria-autocomplete="list"
           />
-        </Field>
+          <TextError>{error}</TextError>
+        </label>
       </form>
-      {error ? <TextError>{error}</TextError> : null}
       <Output
         products={products}
         handleClickProduct={handleClickProduct}
         extras={extras}
         handleClickExtra={handleClickExtra}
       />
+      <TextError>{errorDB}</TextError>
     </>
   );
 }

@@ -46,14 +46,12 @@ export async function submitAction(formdata: FormData) {
   const { extras, total } = transformExtras(subtotal, eRaw, fix);
   const grandTotal = Number(new Decimal(total).plus(rounding).toFixed(fix));
   if (!isCredit && pay < grandTotal) {
-    console.log(pay, grandTotal);
     return {
       global: "Pembayaran tidak cukup",
     };
   }
   products = calcCapitals(products, subtotal, grandTotal, fix);
   // DO THE TRANSACTION 😱
-  console.log(1);
   const [errRecord, timestamp] = await db.record.add({
     cashier,
     customer,
@@ -67,12 +65,10 @@ export async function submitAction(formdata: FormData) {
     subtotal,
     total,
   });
-  console.log(2);
   if (errRecord !== null) {
     return { global: errRecord };
   }
-  console.log(3);
-  if (customer.id === undefined) {
+  if (customer.id === undefined && customer.name.trim() !== "") {
     const errCustomer = await db.customer.add(customer.name, customer.phone);
     if (errCustomer !== null) {
       db.record.delByTimestamp(timestamp);
@@ -81,7 +77,6 @@ export async function submitAction(formdata: FormData) {
       };
     }
   }
-  console.log(4);
   const promises: Promise<DefaultError | NotFound | null>[] = [];
   for (const extra of extras) {
     promises.push(db.recordExtra.add({ timestamp, ...extra }));
@@ -99,7 +94,7 @@ export async function submitAction(formdata: FormData) {
     }
   }
   tx.transaction.del(tab);
-  throw redirect(`/records/${timestamp}`);
+  throw redirect(`/records/${timestamp}?url_back=${encodeURI("/")}`);
 }
 
 type Res = {

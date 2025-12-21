@@ -1,30 +1,29 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Search } from "./Tab/SearchBar";
 import { ProductManual } from "./Tab/ProductManual";
-import { Loading } from "~/components/Loading";
 import { Summary } from "./Summary";
-import React, { Suspense, use, useEffect } from "react";
+import React from "react";
 import { Precision } from "./Precision";
 import { cn, Result } from "~/lib/utils";
 import { css } from "../style.css";
-import { TextError } from "~/components/TextError";
 import { ExtraManual } from "./Tab/ExtraManual";
 import { Method } from "~/database/method/get-all";
 import { DBItems } from "../loader/get-db-items";
 import { useSize } from "~/hooks/use-size";
 import { Customer } from "~/database/customer/get-all";
-import { allAtom } from "./Summary/all-product";
+import { useLoadDB } from "./use-load-db";
 
 export function Left({
-  product,
   methods,
   customers,
+  product,
 }: {
   product: Promise<DBItems>;
   methods: Promise<Result<"Aplikasi bermasalah", Method[]>>;
   customers: Promise<Result<"Aplikasi bermasalah", Customer[]>>;
 }) {
   const size = useSize();
+  useLoadDB(product);
   return (
     <aside
       className={cn(
@@ -50,37 +49,21 @@ export function Left({
           </TabsList>
           <Precision />
         </div>
-        <Suspense fallback={<Loading />}>
-          <TabContent product={product} />
-        </Suspense>
+        <TabBtn value="auto">
+          <Search />
+        </TabBtn>
+        <TabBtn value="man">
+          <ProductManual />
+        </TabBtn>
+        <TabBtn value="add">
+          <ExtraManual />
+        </TabBtn>
       </Tabs>
       <div style={{ flex: "0 0 auto" }}>
         <hr />
         <Summary customers={customers} methods={methods} />
       </div>
     </aside>
-  );
-}
-
-function TabContent({ product }: { product: Promise<DBItems> }) {
-  const [errMsg, prod] = use(product);
-  if (errMsg) return <TextError>{errMsg}</TextError>;
-  const { products, extras } = prod;
-  useEffect(() => {
-    allAtom.set(products);
-  }, [products]);
-  return (
-    <>
-      <TabBtn value="auto">
-        <Search products={products} extras={extras} />
-      </TabBtn>
-      <TabBtn value="man">
-        <ProductManual products={products} />
-      </TabBtn>
-      <TabBtn value="add">
-        <ExtraManual />
-      </TabBtn>
-    </>
   );
 }
 

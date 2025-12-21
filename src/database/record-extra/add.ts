@@ -7,6 +7,7 @@ type Input = {
   value: number;
   eff: number;
   kind: DB.ValueKind;
+  saved: boolean;
 };
 
 export async function add({
@@ -15,6 +16,7 @@ export async function add({
   value,
   eff,
   kind,
+  saved,
 }: Input): Promise<DefaultError | null> {
   const db = await getDB();
   const [errMsg] = await tryResult({
@@ -25,5 +27,15 @@ export async function add({
         [name, timestamp, value, eff, kind]
       ),
   });
+  if (saved) {
+    tryResult({
+      run: () =>
+        db.execute(`INSERT INTO extras (extra_name, extra_value, extra_kind) VALUES ($1, $2, $3)`, [
+          name,
+          value,
+          kind,
+        ]),
+    });
+  }
   return errMsg;
 }

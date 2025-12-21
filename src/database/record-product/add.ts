@@ -1,6 +1,7 @@
 import { DefaultError, NotFound, Result, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 import Decimal from "decimal.js";
+import { setCache } from "../product/caches";
 
 type Input = {
   timestamp: number;
@@ -69,6 +70,17 @@ export async function add({
     if (errMsg !== null) return errMsg;
     const id = res.lastInsertId;
     if (id === undefined) return "Aplikasi bermasalah";
+    setCache((prev) => [
+      ...prev,
+      {
+        capital,
+        id,
+        name,
+        price,
+        stock,
+        barcode: b ?? undefined,
+      },
+    ]);
     productId = id;
   }
   const [errMsg, res] = await tryResult({

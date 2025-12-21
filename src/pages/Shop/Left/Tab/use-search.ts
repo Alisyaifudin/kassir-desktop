@@ -14,6 +14,7 @@ import { tx } from "~/transaction";
 import { useTab } from "../../use-tab";
 import { useAtom } from "@xstate/store/react";
 import { useSubtotal } from "../../Right/use-subtotal";
+import { extrasDB, productsDB } from "../use-load-db";
 
 function setQuery(query: string) {
   basicStore.set((prev) => ({ ...prev, query }));
@@ -24,13 +25,15 @@ function useQuery() {
   return value;
 }
 
-export function useSearch(allProducts: Product[], allExtras: Extra[]) {
+export function useSearch() {
   const ref = useRef<HTMLInputElement>(null);
   const [tab] = useTab();
   const query = useQuery();
   const [products, setProducts] = useState<Product[]>([]);
   const [extras, setExtras] = useState<Extra[]>([]);
   const subtotal = useSubtotal();
+  const allProducts = useAtom(productsDB);
+  const allExtras = useAtom(extrasDB);
   const searchProduct = useProductSearch(allProducts);
   const searchExtra = useExtraSearch(allExtras);
   const debounced = useDebouncedCallback((value: string) => {

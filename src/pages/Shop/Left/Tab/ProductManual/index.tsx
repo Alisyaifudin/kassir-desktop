@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { PriceInput } from "./PriceInput";
 import { NameInput } from "./NameInput";
 import { BarcodeInput } from "./BarcodeInput";
-import { Product } from "~/database/product/caches";
 import { productsStore } from "~/pages/Shop/Right/Product/use-products";
 import { basicStore, manualStore } from "~/pages/Shop/use-transaction";
 import { generateId } from "~/lib/random";
@@ -15,10 +14,12 @@ import { QtyInput } from "./QtyInput";
 import { StockInput } from "./StockInput";
 import { useAtom } from "@xstate/store/react";
 import { useTab } from "~/pages/shop/use-tab";
+import { productsDB } from "../../use-load-db";
 
-export function ProductManual({ products }: { products: Product[] }) {
+export function ProductManual() {
   const [error, setError] = useState("");
   const [tab] = useTab();
+  const products = useAtom(productsDB);
   const ref = useRef<HTMLInputElement>(null);
   const mode = useAtom(basicStore, (state) => state.mode);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

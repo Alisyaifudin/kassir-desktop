@@ -1,8 +1,8 @@
 import { db } from "~/database";
-import { getDBItems } from "./get-db-items";
 import { getTab } from "./get-tab";
 import { LoaderFunctionArgs } from "react-router";
 import { tx } from "~/transaction";
+import { getDBItems } from "./get-db-items";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const [errMsg, tabs] = await tx.transaction.get.all();

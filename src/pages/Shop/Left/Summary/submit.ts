@@ -30,7 +30,7 @@ export function submitHandler({
       continue;
     }
     if (p.barcode.trim() === "") continue;
-    const rest = products.filter((p) => p.id !== p.id);
+    const rest = products.filter((pi) => pi.id !== p.id);
     const dup = rest.find((r) => r.barcode === p.barcode);
     if (dup !== undefined) {
       errors.push({ id: p.id, message: `Duplikat kode dengan ${dup.name}` });
@@ -40,7 +40,6 @@ export function submitHandler({
     return err(errors);
   }
   const formdata = new FormData();
-  console.log("pay", pay);
   formdata.set("pay", pay.toString());
   formdata.set("rounding", rounding.toString());
   formdata.set("tab", tab.toString());
