@@ -33,7 +33,6 @@ export function useClear() {
       },
     });
     customerStore.set({
-      isNew: false,
       name: "",
       phone: "",
     });

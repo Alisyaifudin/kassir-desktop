@@ -10,7 +10,6 @@ import { useAtom } from "@xstate/store/react";
 const emptyCustomer = {
   name: "",
   phone: "",
-  isNew: false,
 };
 
 export function Customer() {

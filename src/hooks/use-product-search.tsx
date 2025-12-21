@@ -18,7 +18,7 @@ export const useProductSearch = (products: Product[]) => {
   // Typed search function
   const search = useCallback(
     (query: string) => {
-      return fuse.search(query);
+      return fuse.search(query).map((p) => p.item);
     },
     [products]
   );

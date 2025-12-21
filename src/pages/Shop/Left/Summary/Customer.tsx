@@ -28,8 +28,7 @@ export function Customer({
   customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
 }) {
   const [errMsg, customers] = use(promise);
-  const customer = useAtom(customerStore)
-  const [tab, setTab] = useState(customer.isNew ? "man" : "auto");
+  const [tab, setTab] = useState<"auto" | "man">("auto");
   if (errMsg) {
     return <TextError>{errMsg}</TextError>;
   }
@@ -86,7 +85,7 @@ function NewCustomer({
   setTab,
 }: {
   customers: CustomerDB[];
-  setTab: (tab: string) => void;
+  setTab: (tab: "man" | "auto") => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -108,7 +107,7 @@ function NewCustomer({
       return;
     }
     setError("");
-    const customer = { name: form.name, phone: form.phone, isNew: true };
+    const customer = { name: form.name, phone: form.phone };
     customerStore.set(customer);
     queue.add(() => tx.transaction.update.customer(tab, customer));
     target.reset();
@@ -156,19 +155,19 @@ function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
   if (query.trim() !== "") {
     const q = query.toLowerCase().trim();
     customers = all.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q),
+      (c) => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)
     );
   }
-  function handleSelect(name: string, phone: string) {
+  function handleSelect(name: string, phone: string, id: number) {
     return function () {
-      const customer = { name, phone, isNew: false };
+      const customer = { name, phone, id };
       setQuery("");
       customerStore.set(customer);
       queue.add(() => tx.transaction.update.customer(tab, customer));
     };
   }
   function handleUnselect() {
-    const customer = { name: "", phone: "", isNew: false };
+    const customer = { name: "", phone: "" };
     customerStore.set(customer);
     queue.add(() => tx.transaction.update.customer(tab, customer));
   }
@@ -182,7 +181,11 @@ function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
         onChange={(e) => setQuery(e.currentTarget.value)}
         type="search"
       />
-      <Show when={!customer.isNew && customer.name.trim() !== "" && customer.phone.trim() !== ""}>
+      <Show
+        when={
+          customer.id !== undefined && customer.name.trim() !== "" && customer.phone.trim() !== ""
+        }
+      >
         <div className="flex gap-3 items-center justify-between">
           <div className="flex-1 flex items-center justify-between">
             <p className="text-3xl font-bold">{customer.name}</p>
@@ -200,7 +203,7 @@ function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={handleSelect(customer.name, customer.phone)}
+                onClick={handleSelect(customer.name, customer.phone, customer.id)}
                 className="flex items-center justify-between w-full h-10"
               >
                 <p className="text-3xl font-normal">{customer.name}</p>

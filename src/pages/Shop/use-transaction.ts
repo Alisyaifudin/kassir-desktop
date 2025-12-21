@@ -11,25 +11,23 @@ export const basicStore = createAtom<{
   mode: TX.Mode;
   rounding: number;
   query: string;
-  pay: number;
   methodId: number;
   note: string;
 }>({
   tabs: [],
   tab: 0,
   fix: 0,
-  mode: "sell",
   rounding: 0,
+  mode: "sell",
   query: "",
-  pay: 0,
   methodId: 1000, //cash
   note: "",
 });
 
-export const customerStore = createAtom({
+export const customerStore = createAtom<{ name: string; phone: string; id?: number }>({
   name: "",
   phone: "",
-  isNew: false,
+  id: undefined,
 });
 
 export const manualStore = createAtom({
@@ -50,14 +48,14 @@ export const manualStore = createAtom({
 
 export function useInitTx(
   tabs: { tab: number; mode: TX.Mode }[],
-  promise: Promise<Result<"Aplikasi bermasalah" | "Tidak ditemukan", Transaction>>,
+  promise: Promise<Result<"Aplikasi bermasalah" | "Tidak ditemukan", Transaction>>
 ) {
   const [loading, setLoading] = useState(true);
   const [error, transaction] = use(promise);
   useEffect(() => {
     if (transaction === null) return;
     const { customer, product, extra, ...basic } = transaction;
-    basicStore.set({ ...basic, pay: 0, rounding: 0, tabs });
+    basicStore.set({ ...basic, rounding: 0, tabs });
     customerStore.set(customer);
     const stock = Math.max(product.stock, product.qty);
     manualStore.set({
@@ -83,8 +81,4 @@ export function useMode() {
 
 export function useRounding() {
   return useAtom(basicStore, (state) => state.rounding);
-}
-
-export function usePay() {
-  return useAtom(basicStore, (state) => state.pay);
 }

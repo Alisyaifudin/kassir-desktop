@@ -6,14 +6,14 @@ import { Note } from "./Note";
 import { Method } from "./Method";
 import { Customer } from "./Customer";
 import { css } from "../../style.css";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { Loading } from "~/components/Loading";
 import { Method as MethodDB } from "~/database/method/get-all";
 import { useClear } from "./use-clear";
 import { useSize } from "~/hooks/use-size";
-import { useFix, useMode, usePay, useRounding } from "../../use-transaction";
+import { basicStore, useFix, useMode, useRounding } from "../../use-transaction";
 import { useTotal } from "../../Right/use-total";
 import { useStatus } from "../../use-status";
 import { productsStore } from "../../Right/Product/use-products";
@@ -22,6 +22,14 @@ import { useSubmit } from "react-router";
 import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { useAtom } from "@xstate/store/react";
 import { useLoading } from "~/hooks/use-loading";
+import { submitHandler } from "./submit";
+import { allAtom } from "./all-product";
+import { useTab } from "../../use-tab";
+import { auth } from "~/lib/auth";
+import { useAction } from "~/hooks/use-action";
+import { Action } from "../../action";
+import { TextError } from "~/components/TextError";
+import { toast } from "sonner";
 
 export function Summary({
   methods,
@@ -30,29 +38,53 @@ export function Summary({
   methods: Promise<Result<"Aplikasi bermasalah", MethodDB[]>>;
   customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
 }) {
+  const error = useAction<Action>()("submit");
   const submitLoading = useLoading();
+  const all = useAtom(allAtom);
+  const [tab] = useTab();
   const fix = useFix();
-  const pay = usePay();
   const mode = useMode();
   const rounding = useRounding();
-  const productsLength = useAtom(productsStore, (state) => state.context.length);
+  const products = useAtom(productsStore, (state) => state.context);
+  const productsLength = products.length;
   const extrasLength = useAtom(extrasStore, (state) => state.context.length);
   const status = useStatus();
-  const loading = status === "active" || submitLoading;
+  const loading = status === "active" || submitLoading || all === null;
   const [form, setForm] = useState({
-    pay: pay === 0 ? "" : pay.toString(),
+    pay: "",
     rounding: rounding === 0 ? "" : rounding.toString(),
   });
+  useEffect(() => {
+    if (!loading && error !== undefined && error.global !== undefined) {
+      toast.error(error.global);
+    }
+  }, [error, loading]);
+  const cashier = auth.user().name;
   const total = useTotal();
   const clear = useClear();
   const size = useSize();
   const submit = useSubmit();
   function handleSubmit(isCredit: boolean) {
-    const formdata = new FormData();
-    formdata.set("action", "submit");
-    formdata.set("pay", form.pay);
-    formdata.set("rounding", form.rounding);
-    formdata.set("is-credit", String(isCredit));
+    if (all === null) return;
+    if (loading) return;
+    const pay = Number(form.pay);
+    const rounding = Number(form.rounding);
+    if (isNaN(pay) || isNaN(rounding)) {
+      return;
+    }
+    const [errs, formdata] = submitHandler({
+      pay,
+      rounding,
+      isCredit,
+      products,
+      tab,
+      all,
+      cashier,
+    });
+    if (errs !== null) {
+      productsStore.trigger.updateErrors({ errors: errs });
+      return;
+    }
     submit(formdata, { method: "post" });
   }
   return (
@@ -99,6 +131,7 @@ export function Summary({
             aria-autocomplete="list"
           />
         </label>
+        <TextError>{error?.pay}</TextError>
         <label className={cn("grid items-center", css.summary[size].grid)}>
           <span>Pembulatan</span>
           :
@@ -111,10 +144,12 @@ export function Summary({
               const num = Number(val);
               if (isNaN(num)) return;
               setForm((form) => ({ ...form, rounding: val }));
+              basicStore.set((prev) => ({ ...prev, rounding: num }));
             }}
             aria-autocomplete="list"
           />
         </label>
+        <TextError>{error?.rounding}</TextError>
         <Show
           value={total}
           fallback={
@@ -146,21 +181,25 @@ export function Summary({
               <>
                 <div className={cn("grid items-center", css.summary[size].grid)}>
                   <p>Kembalian</p>:
-                  <p className={cn({ "bg-red-500 text-white px-1": change < 0 })}>
-                    {change.toLocaleString("id-ID")}
+                  <p
+                    className={cn(css.summary[size].change, {
+                      "bg-red-500 text-white px-1": change < 0,
+                    })}
+                  >
+                    {change === 0 ? "0" : change.toLocaleString("id-ID")}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 w-full">
                   <Button
                     className="flex-1"
                     type="submit"
-                    disabled={change < 0 || (productsLength === 0 && extrasLength === 0)}
+                    disabled={loading || change < 0 || (productsLength === 0 && extrasLength === 0)}
                   >
                     Bayar <Spinner when={loading} />
                   </Button>
                   <Show when={mode === "buy"}>
                     <Button
-                      disabled={productsLength === 0 && extrasLength === 0}
+                      disabled={(productsLength === 0 && extrasLength === 0) || loading}
                       className="flex-1"
                       onClick={() => handleSubmit(true)}
                       type="button"
@@ -173,6 +212,7 @@ export function Summary({
             );
           }}
         </Show>
+        <TextError>{error?.isCredit}</TextError>
       </form>
     </div>
   );

@@ -25,7 +25,6 @@ export function NavLink({ selected, to }: { to: Option; selected: Option }) {
     s.delete("interval");
     search = "?" + s.toString();
   }
-  console.log(search);
   const handleClick = () => {
     navigate({ pathname: `/analytics/${path[to]}`, search });
   };

@@ -97,7 +97,7 @@ export function useSearch(allProducts: Product[], allExtras: Extra[]) {
           name: product.name,
           price: product.price,
         },
-      }),
+      })
     );
   };
   const handleClickExtra = (extra: Extra) => {
@@ -129,7 +129,7 @@ export function useSearch(allProducts: Product[], allExtras: Extra[]) {
         value: extra.value,
         kind: extra.kind,
         saved: false,
-      }),
+      })
     );
   };
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -147,6 +147,7 @@ export function useSearch(allProducts: Product[], allExtras: Extra[]) {
         price: product.price,
         id: product.id,
         stock: product.stock,
+        capital: product.capital,
       });
       return;
     }

@@ -35,6 +35,7 @@ function Wrapper() {
 
 const Item = memo(({ id, index }: { id: string; index: number }) => {
   const mode = useAtom(basicStore, (state) => state.mode);
+
   switch (mode) {
     case "buy":
       return (

@@ -11,7 +11,7 @@ export type Transaction = {
   customer: {
     name: string;
     phone: string;
-    isNew: boolean;
+    id?: number;
   };
   product: {
     barcode: string;
@@ -46,7 +46,7 @@ export async function byTab(tab: number): Promise<Result<DefaultError | NotFound
     customer: {
       name: r.tx_customer_name,
       phone: r.tx_customer_phone,
-      isNew: Boolean(r.tx_customer_is_new),
+      id: r.tx_customer_id ?? undefined
     },
     extra: {
       kind: r.tx_extra_kind,

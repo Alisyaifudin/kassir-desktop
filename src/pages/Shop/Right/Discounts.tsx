@@ -1,5 +1,5 @@
 import { ForEach } from "~/components/ForEach";
-import { Item } from "../utils/schema";
+import { Item } from "../utils/schema-old";
 import { Size } from "~/lib/store-old";
 import { cn } from "~/lib/utils";
 import { css } from "../style.css";

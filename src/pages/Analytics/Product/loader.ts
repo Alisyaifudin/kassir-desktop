@@ -48,7 +48,6 @@ function getRange(interval: "week" | "month" | "day", time: number): [number, nu
 
 function getParam(search: URLSearchParams) {
   let interval = z.enum(["day", "week", "month"]).catch("day").parse(search.get("interval"));
-  console.log("interval", interval);
   const time = integer.catch(Date.now()).parse(search.get("time"));
   return { interval, time };
 }

@@ -16,11 +16,12 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { memo, useRef } from "react";
 import deepEq from "fast-deep-equal";
 import { useAtom } from "@xstate/store/react";
+import { TextError } from "~/components/TextError";
 
 export const Editable = memo(
   ({ id }: { id: string }) => {
     const size = useSize();
-    const { name, barcode, discounts, price, qty, total, product } = useProduct(id);
+    const { name, barcode, discounts, price, qty, total, product, error } = useProduct(id);
     const fix = useFix();
     const alreadyExist = product !== undefined;
     return (
@@ -34,10 +35,11 @@ export const Editable = memo(
           <p>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</p>
           <Delete id={id} />
         </div>
+        <TextError>{error}</TextError>
       </div>
     );
   },
-  (p, n) => deepEq(p, n),
+  (p, n) => deepEq(p, n)
 );
 
 const NameInput = memo(
@@ -87,7 +89,7 @@ const NameInput = memo(
         ></input>
       </div>
     );
-  },
+  }
 );
 
 const BarcodeInput = memo(
@@ -123,5 +125,5 @@ const BarcodeInput = memo(
         step={1 / Math.pow(10, fix)}
       ></input>
     );
-  },
+  }
 );

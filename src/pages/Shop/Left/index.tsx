@@ -3,7 +3,7 @@ import { Search } from "./Tab/SearchBar";
 import { ProductManual } from "./Tab/ProductManual";
 import { Loading } from "~/components/Loading";
 import { Summary } from "./Summary";
-import React, { Suspense, use } from "react";
+import React, { Suspense, use, useEffect } from "react";
 import { Precision } from "./Precision";
 import { cn, Result } from "~/lib/utils";
 import { css } from "../style.css";
@@ -13,6 +13,7 @@ import { Method } from "~/database/method/get-all";
 import { DBItems } from "../loader/get-db-items";
 import { useSize } from "~/hooks/use-size";
 import { Customer } from "~/database/customer/get-all";
+import { allAtom } from "./Summary/all-product";
 
 export function Left({
   product,
@@ -28,7 +29,7 @@ export function Left({
     <aside
       className={cn(
         "flex flex-col overflow-hidden justify-between w-[35%] h-full",
-        css.right[size].minWidth,
+        css.right[size].minWidth
       )}
     >
       <Tabs
@@ -65,6 +66,9 @@ function TabContent({ product }: { product: Promise<DBItems> }) {
   const [errMsg, prod] = use(product);
   if (errMsg) return <TextError>{errMsg}</TextError>;
   const { products, extras } = prod;
+  useEffect(() => {
+    allAtom.set(products);
+  }, [products]);
   return (
     <>
       <TabBtn value="auto">

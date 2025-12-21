@@ -8,11 +8,12 @@ import { useSize } from "~/hooks/use-size";
 import { memo } from "react";
 import { useFix } from "../../use-transaction";
 import { Delete } from "./Delete";
+import { TextError } from "~/components/TextError";
 
 export const Basic = memo(({ id }: { id: string }) => {
   const size = useSize();
-  const { name, barcode, discounts, price, qty, total, product } = useProduct(id);
-  const fix = useFix()
+  const { name, error, barcode, discounts, price, qty, total, product } = useProduct(id);
+  const fix = useFix();
   const alreadyExist = product !== undefined;
   return (
     <div className="flex flex-col">
@@ -25,6 +26,7 @@ export const Basic = memo(({ id }: { id: string }) => {
         <p>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</p>
         <Delete id={id} />
       </div>
+      <TextError>{error}</TextError>
     </div>
   );
 });

@@ -11,7 +11,7 @@ declare namespace TX {
     tx_note: string;
     tx_customer_name: string;
     tx_customer_phone: string;
-    tx_customer_is_new: 0 | 1;
+    tx_customer_id: number | null;
     tx_product_barcode: string;
     tx_product_name: string;
     tx_product_price: number;

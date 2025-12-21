@@ -11,7 +11,7 @@ CREATE TABLE transactions (
   tx_note TEXT NOT NULL DEFAULT (''),
   tx_customer_name TEXT NOT NULL DEFAULT (''),
   tx_customer_phone TEXT NOT NULL DEFAULT (''),
-  tx_customer_is_new INTEGER NOT NULL DEFAULT 0 CHECK (tx_customer_is_new IN (0, 1)),
+  tx_customer_id INTEGER,
   tx_product_barcode TEXT NOT NULL DEFAULT (''),
   tx_product_name TEXT NOT NULL DEFAULT (''),
   tx_product_price REAL NOT NULL DEFAULT 0,

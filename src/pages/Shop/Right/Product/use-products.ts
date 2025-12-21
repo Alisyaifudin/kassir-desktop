@@ -11,6 +11,7 @@ import { useSelector } from "@xstate/store/react";
 export type Product = Omit<ProductTx, "discounts"> & {
   discounts: Discount[];
   total: number;
+  error?: string;
 };
 
 export type Discount = {
@@ -33,6 +34,16 @@ export const productsStore = createStore({
     addProduct(context, event: { product: Product }) {
       return [...context, event.product];
     },
+    updateErrors(context, event: { errors: { id: string; message: string }[] }) {
+      return produce(context, (draft) => {
+        const errors = event.errors;
+        for (const error of errors) {
+          const index = draft.findIndex((d) => d.id === error.id);
+          if (index === -1) continue;
+          draft[index].error = error.message;
+        }
+      });
+    },
     updateProduct(context, event: { id: string; recipe: (draft: WritableDraft<Product>) => void }) {
       return produce(context, (draft) => {
         const index = draft.findIndex((p) => p.id === event.id);
@@ -43,6 +54,7 @@ export const productsStore = createStore({
           product.discounts
         );
         product.discounts = discounts;
+        product.error = undefined;
         const effDisc = discounts.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff));
         const total = new Decimal(product.price).times(product.qty).minus(effDisc);
         product.total = total.toNumber();
