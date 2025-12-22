@@ -54,3 +54,6 @@ jobs:
           releaseBody: "Windows version of the app"
           releaseDraft: true
           prerelease: false
+          # ADD THESE LINES to explicitly use Bun
+          projectPath: ./src-tauri
+          packageManager: bun
