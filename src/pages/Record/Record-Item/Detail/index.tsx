@@ -83,7 +83,7 @@ export const Detail = memo(function ({
             </TableHead>
             <TableHead style={localStyle[size].small}>Qty</TableHead>
             <TableHead style={localStyle[size].big} className="text-end">
-              Total*
+              Subtotal
             </TableHead>
             <TableHead style={localStyle[size].big} className="text-end">
               Total
