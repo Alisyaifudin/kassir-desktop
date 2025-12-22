@@ -9,6 +9,7 @@ import { Loading } from "~/components/Loading";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
 import { Method } from "~/database/method/get-all";
+import { DefaultMeth } from "~/store/method/get";
 
 export default function Page() {
   const methods = useLoaderData<Loader>();
@@ -27,19 +28,25 @@ export default function Page() {
 function MethodComp({
   methods: promise,
 }: {
-  methods: Promise<Result<"Aplikasi bermasalah", Method[]>>;
+  methods: Promise<
+    [Result<"Aplikasi bermasalah", Method[]>, Result<"Aplikasi bermasalah", DefaultMeth>]
+  >;
 }) {
-  const [errMsg, data] = use(promise);
+  const [[errMsg, data], [errMeth, defMeths]] = use(promise);
   const [method] = useMethod();
-  if (errMsg !== null) {
-    return <TextError>{errMsg}</TextError>;
+  if (errMsg !== null || errMeth) {
+    return <TextError>{errMsg ?? errMeth}</TextError>;
   }
   const methods = data.filter((d) => d.kind === method && d.name !== undefined) as Method[];
+  console.log(defMeths);
   return (
     <div className="flex flex-col gap-2 overflow-auto">
-      {methods.map((m) => (
-        <Item key={m.id} method={m} />
-      ))}
+      {methods.map((m) => {
+        const kind = m.kind;
+        if (kind === "cash") return null;
+        const defVal = defMeths[kind];
+        return <Item key={m.id} method={m} defVal={defVal} />;
+      })}
     </div>
   );
 }

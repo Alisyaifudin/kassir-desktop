@@ -1,6 +1,7 @@
 import { err, ok, Result, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
+// export type MethodKind = Exclude<DB.MethodEnum, "cash">
 export type Method = { id: number; kind: DB.MethodEnum; name?: string };
 
 export async function getAll(): Promise<Result<"Aplikasi bermasalah", Method[]>> {

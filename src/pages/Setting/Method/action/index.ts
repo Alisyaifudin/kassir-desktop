@@ -3,6 +3,7 @@ import { editAction } from "./edit";
 import { deleteAction } from "./delete";
 import { auth } from "~/lib/auth";
 import { ActionFunctionArgs } from "react-router";
+import { updateDefaultAction } from "./update-default";
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = auth.user();
@@ -14,6 +15,10 @@ export async function action({ request }: ActionFunctionArgs) {
   switch (action) {
     case "new": {
       const error = await newAction(formdata);
+      return { error, action };
+    }
+    case "update-default": {
+      const error = await updateDefaultAction(formdata);
       return { error, action };
     }
     case "edit": {

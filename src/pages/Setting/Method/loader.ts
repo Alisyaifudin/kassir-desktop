@@ -1,8 +1,9 @@
 import { data } from "react-router";
 import { db } from "~/database";
+import { store } from "~/store";
 
 export async function loader() {
-  const methods = db.method.getAll();
+  const methods = Promise.all([db.method.getAll(), store.method.get()]);
   return data(methods);
 }
 
