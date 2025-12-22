@@ -2,7 +2,6 @@ import { Show } from "~/components/Show";
 import { CalendarController } from "./CalendarController";
 import { memo } from "react";
 import { capitalize } from "~/lib/utils";
-import { Size } from "~/lib/store-old";
 import { auth } from "~/lib/auth";
 
 export const Header = memo(function ({

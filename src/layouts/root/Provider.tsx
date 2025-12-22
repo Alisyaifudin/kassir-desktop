@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { LoadingBig } from "~/components/Loading";
-import { Size } from "~/lib/store-old";
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
 import { migration } from "~/database/migrations";
 import { Loader2 } from "lucide-react";
+import { Size } from "~/store/size/get";
 
 export const sizeStore = createAtom<Size>("big");
 

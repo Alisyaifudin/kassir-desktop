@@ -41,12 +41,9 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies with Bun
-        run: bun install --frozen-lockfile
+        run: bun install 
 
-      - name: build with bun
-        run: bun run build
-
-      - uses: tauri-apps/tauri-action@v0.5.20
+      - uses: tauri-apps/tauri-action@v0.6.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

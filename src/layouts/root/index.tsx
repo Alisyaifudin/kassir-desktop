@@ -1,11 +1,11 @@
 import { Suspense, use } from "react";
 import { data, isRouteErrorResponse, Outlet, useLoaderData, useRouteError } from "react-router";
 import { LoadingBig } from "~/components/Loading";
-import { Size } from "~/lib/store-old";
 import { DefaultError, Result } from "~/lib/utils";
 import { store } from "~/store";
 import { Provider } from "./Provider";
 import { Button } from "~/components/ui/button";
+import { Size } from "~/store/size/get";
 
 export async function loader() {
   const size = store.size.get();

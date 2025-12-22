@@ -1,7 +1,7 @@
 import { TextError } from "~/components/TextError";
-import { Size } from "~/lib/store-old";
 import { cn } from "~/lib/utils";
 import { css } from "./style.css";
+import { Size } from "~/store/size/get";
 
 export function Field({
   error,

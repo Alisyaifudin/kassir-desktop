@@ -1,8 +1,0 @@
-import { RouteObject } from "react-router";
-
-export const route: RouteObject = {
-	path: "api",
-	children: [
-
-  ]
-};

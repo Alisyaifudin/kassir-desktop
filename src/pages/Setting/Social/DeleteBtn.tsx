@@ -10,24 +10,23 @@ import { memo, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { cn, sizeClass } from "~/lib/utils";
-import { Size } from "~/lib/store-old";
 import { Form } from "react-router";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "./action";
 import { useLoading } from "~/hooks/use-loading";
 import { css } from "./style.css";
+import { useSize } from "~/hooks/use-size";
 
 export const DeleteBtn = memo(function ({
   id,
   name,
   value,
-  size,
 }: {
   id: number;
   name: string;
   value: string;
-  size: Size;
 }) {
+  const size = useSize()
   const [open, setOpen] = useState(false);
   const error = useAction<Action>()("delete");
   const loading = useLoading();

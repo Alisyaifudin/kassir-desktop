@@ -39,7 +39,7 @@ export const Item = memo(function ({
         Submit
       </button>
       <Show when={!loading} fallback={<Loader2 className="animate-spin" />}>
-        <DeleteBtn id={id} name={name} value={value} size={size} />
+        <DeleteBtn id={id} name={name} value={value} />
       </Show>
       <TextError className="col-span-2">{error?.global}</TextError>
       <TextError>{error?.name}</TextError>

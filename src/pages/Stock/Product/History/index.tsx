@@ -1,6 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { ProductHistory } from "~/database/old/product";
 import { use, useEffect } from "react";
 import { z } from "zod";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
@@ -11,6 +10,7 @@ import { useMode } from "./use-mode";
 import { HistoryPromise } from "../loader";
 import { TextError } from "~/components/TextError";
 import { LIMIT } from "../constants";
+import { ProductHistory } from "~/database/product/history";
 
 export function History({ id, histories: promise }: { id: number; histories: HistoryPromise }) {
   const [errMsg, data] = use(promise);

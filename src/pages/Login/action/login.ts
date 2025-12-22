@@ -2,7 +2,6 @@ import { redirect } from "react-router";
 import { z } from "zod";
 import { db } from "~/database";
 import { auth, User } from "~/lib/auth";
-import { log } from "~/lib/utils";
 
 const newAccountSchema = z.object({
   name: z.string().min(1, { message: "Minimal satu karakter" }),

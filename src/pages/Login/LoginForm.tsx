@@ -1,14 +1,14 @@
 import { Password } from "~/components/Password";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
-import { CashierWithoutPassword } from "~/database/old/cashier";
 import { Spinner } from "~/components/Spinner";
 import { capitalize } from "~/lib/utils";
 import { Form, useActionData, useNavigation } from "react-router";
 import { useState } from "react";
 import { Action } from "./action";
+import { Cashier } from "~/database/cashier/get-all";
 
-export function LoginForm({ cashiers }: { cashiers: CashierWithoutPassword[] }) {
+export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
   const [selected, handleSelect] = useLogin(cashiers);
   const navigation = useNavigation();
   const error = useAction();
@@ -48,7 +48,7 @@ export function LoginForm({ cashiers }: { cashiers: CashierWithoutPassword[] }) 
   );
 }
 
-function useLogin(cashiers: CashierWithoutPassword[]) {
+function useLogin(cashiers: Cashier[]) {
   const [selected, setSelected] = useState<{ name: string; role: "admin" | "user" } | null>(null);
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const user = cashiers.find((c) => c.name === e.currentTarget.value);

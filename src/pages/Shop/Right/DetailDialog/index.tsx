@@ -8,21 +8,18 @@
 // import { Lock } from "lucide-react";
 // import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 // import { Image } from "./Image";
-import { Size } from "~/lib/store-old";
 
 // TODO: PROPER POPOVER
 export function DetailDialog({
-  productId,
-  stock,
+  productId: _productId,
+  stock: _stock,
   index,
-  name,
-  size,
+  name: _name,
 }: {
   productId: number;
   stock: number;
   name: string;
   index: number;
-  size: Size;
 }) {
   return <p className="text-center">{index + 1}</p>;
   // <Async state={state}>

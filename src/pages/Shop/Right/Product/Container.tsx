@@ -31,19 +31,18 @@ export const Container = memo(
         {children}
       </div>
     );
-  },
+  }
 );
 const Wrapper = memo(({ index, id }: Props) => {
-  const size = useSize();
   const { name, stock, product } = useSelector(
     productsStore,
-    (state) => state.context.find((c) => c.id === id)!,
+    (state) => state.context.find((c) => c.id === id)!
   );
   return (
     <div className="flex justify-center items-center">
       <Show value={product?.id} fallback={<p className="text-center">{index + 1}</p>}>
         {(productId) => (
-          <DetailDialog index={index} size={size} productId={productId} stock={stock} name={name} />
+          <DetailDialog index={index} productId={productId} stock={stock} name={name} />
         )}
       </Show>
     </div>

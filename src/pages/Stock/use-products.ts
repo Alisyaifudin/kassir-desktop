@@ -7,7 +7,6 @@ import { useSortDir } from "./use-sort-dir";
 import { useAttention } from "./use-attention";
 
 export function useFilterProducts(all: Product[]) {
-  // const { query, sortBy, sortDir, attention } = get;
   const [query] = useQuery();
   const [sortBy] = useSortBy();
   const [sortDir] = useSortDir();
@@ -22,5 +21,5 @@ export function useFilterProducts(all: Product[]) {
     return filtered;
   }
   let p = search(query.trim());
-  return p.map((p) => p.item);
+  return p;
 }

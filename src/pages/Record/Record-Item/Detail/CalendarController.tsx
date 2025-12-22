@@ -7,7 +7,6 @@ import { useSubmit } from "react-router";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../action";
 import { useLoading } from "~/hooks/use-loading";
-import { Size } from "~/lib/store-old";
 
 export const CalendarController = memo(function ({
   timestamp,
