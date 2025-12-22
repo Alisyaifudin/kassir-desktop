@@ -28,47 +28,57 @@ async function run(
 ) {
   const n = records.length;
   let i = 1;
+  const queue = new PQueue({ concurrency: 20 });
   for (const r of records) {
-    const queue = new PQueue({ concurrency: 5 });
     const productsRaw = productsAll.filter((p) => p.timestamp === r.timestamp);
     const extrasRaw = extrasAll.filter((p) => p.timestamp === r.timestamp);
     const { products, extras, record } = transformRecord(r, productsRaw, extrasRaw);
-    for (const product of products) {
-      for (const discount of product.discounts) {
-        queue.add(() =>
-          db.execute("UPDATE discounts SET discount_eff = $1 WHERE discount_id = $2", [
-            discount.eff,
-            discount.id,
-          ])
-        );
-      }
+    queue.add(() =>
+      migrateRecord(db, products, extras, record).then(() => {
+        event.emit("update", i / n);
+        i++;
+      })
+    );
+  }
+  await queue.onIdle();
+  await db.execute(`INSERT INTO versions VALUES (0)`);
+  event.emit("finish");
+}
+
+async function migrateRecord(db: Database, products: Product[], extras: Extra[], record: Record) {
+  const queue = new PQueue({ concurrency: 20 });
+  for (const product of products) {
+    for (const discount of product.discounts) {
       queue.add(() =>
-        db.execute(
-          "UPDATE record_products SET record_product_total = $1 WHERE record_product_id = $2",
-          [product.total, product.id]
-        )
-      );
-    }
-    for (const extra of extras) {
-      queue.add(() =>
-        db.execute("UPDATE record_extras SET record_extra_eff = $1 WHERE record_extra_id = $2", [
-          extra.eff,
-          extra.id,
+        db.execute("UPDATE discounts SET discount_eff = $1 WHERE discount_id = $2", [
+          discount.eff,
+          discount.id,
         ])
       );
     }
     queue.add(() =>
       db.execute(
-        "UPDATE records SET record_sub_total = $1, record_total = $2 WHERE timestamp = $3",
-        [record.subTotal, record.total, record.timestamp]
+        "UPDATE record_products SET record_product_total = $1 WHERE record_product_id = $2",
+        [product.total, product.id]
       )
     );
-    await queue.onIdle();
-    event.emit("update", i / n);
-    i++;
   }
-  await db.execute(`INSERT INTO versions VALUES (0)`);
-  event.emit("finish");
+  for (const extra of extras) {
+    queue.add(() =>
+      db.execute("UPDATE record_extras SET record_extra_eff = $1 WHERE record_extra_id = $2", [
+        extra.eff,
+        extra.id,
+      ])
+    );
+  }
+  queue.add(() =>
+    db.execute("UPDATE records SET record_sub_total = $1, record_total = $2 WHERE timestamp = $3", [
+      record.subTotal,
+      record.total,
+      record.timestamp,
+    ])
+  );
+  return queue.onIdle();
 }
 
 function transformDiscounts(
