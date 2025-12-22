@@ -8,6 +8,7 @@ import { extrasStore } from "../../Right/Extra/use-extras";
 export function useClear() {
   const [tab] = useTab();
   function clear() {
+    if (tab === undefined) return;
     basicStore.set((prev) => ({
       ...prev,
       fix: 0,

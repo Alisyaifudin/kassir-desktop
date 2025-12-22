@@ -24,6 +24,7 @@ function ModeTab() {
   const mode = useAtom(basicStore, (state) => state.mode);
   const [tab] = useTab();
   function click(mode: TX.Mode) {
+    if (tab === undefined) return;
     basicStore.set((prev) => ({ ...prev, mode }));
     queue.add(() => tx.transaction.update.mode(tab, mode));
   }

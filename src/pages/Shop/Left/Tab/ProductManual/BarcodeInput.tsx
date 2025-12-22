@@ -22,6 +22,7 @@ export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
     const value = useAtom(manualStore, (state) => state.product.barcode);
     const [tab] = useTab();
     const save = useDebouncedCallback((v: string) => {
+      if (tab === undefined) return;
       queue.add(() => tx.transaction.update.product.barcode(tab, v));
     }, DEBOUNCE_DELAY);
     function handleBarcode(e: React.ChangeEvent<HTMLInputElement>) {
@@ -29,7 +30,7 @@ export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
       manualStore.set(
         produce((draft) => {
           draft.product.barcode = value;
-        }),
+        })
       );
       if (value !== "" && products.find((product) => product.barcode === value) !== undefined) {
         setError("Barang sudah ada");
@@ -49,5 +50,5 @@ export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
         />
       </Field>
     );
-  },
+  }
 );

@@ -5,20 +5,12 @@ import { TextError } from "~/components/TextError";
 import { ForEach } from "~/components/ForEach";
 import { basicStore } from "../../use-transaction";
 import { productsStore, useInitProducts } from "./use-products";
-import { Loading } from "~/components/Loading";
-import { DefaultError, Result } from "~/lib/utils";
-import { Product as ProductTX } from "~/transaction/product/get-by-tab";
 import { useAtom, useSelector } from "@xstate/store/react";
 import { memo } from "react";
 
-export function ProductList({
-  products: promise,
-}: {
-  products: Promise<Result<DefaultError, ProductTX[]>>;
-}) {
-  const [loading, errMsg] = useInitProducts(promise);
+export function ProductList() {
+  const errMsg = useInitProducts();
   if (errMsg) return <TextError>{errMsg}</TextError>;
-  if (loading) return <Loading />;
   return <Wrapper />;
 }
 

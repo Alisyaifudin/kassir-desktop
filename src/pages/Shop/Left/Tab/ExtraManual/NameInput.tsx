@@ -14,6 +14,7 @@ export const NameInput = forwardRef<HTMLInputElement>((_p, ref) => {
   const value = useAtom(manualStore, (state) => state.extra.name);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: string) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.extra.name(tab, v));
   }, DEBOUNCE_DELAY);
   return (

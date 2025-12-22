@@ -5,7 +5,7 @@ import { Loader2, RefreshCcw } from "lucide-react";
 import { Note } from "./Note";
 import { Method } from "./Method";
 import { Customer } from "./Customer";
-import { css } from "../../style.css";
+import { css } from "./style.css";
 import { Suspense, useEffect, useState } from "react";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
@@ -23,7 +23,7 @@ import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { useAtom } from "@xstate/store/react";
 import { useLoading } from "~/hooks/use-loading";
 import { submitHandler } from "./submit";
-import { useTab } from "../../use-tab";
+import { tabsStore, useTab } from "../../use-tab";
 import { auth } from "~/lib/auth";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../../action";
@@ -31,6 +31,7 @@ import { TextError } from "~/components/TextError";
 import { toast } from "sonner";
 import { productsDB } from "../use-load-db";
 import { Kbd } from "~/components/ui/kdb";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function Summary({
   methods,
@@ -66,7 +67,7 @@ export function Summary({
   const size = useSize();
   const submit = useSubmit();
   function handleSubmit(isCredit: boolean) {
-    if (all === null) return;
+    if (all === null || tab === undefined) return;
     if (loading) return;
     const pay = Number(form.pay);
     const rounding = Number(form.rounding);
@@ -87,6 +88,11 @@ export function Summary({
       return;
     }
     submit(formdata, { method: "post" });
+    setTimeout(() => {
+      tabsStore.set((prev) => prev.filter((p) => p.tab !== tab));
+      productsStore.trigger.clear();
+      extrasStore.trigger.clear();
+    }, DEBOUNCE_DELAY);
   }
   return (
     <div className="flex flex-col p-2 h-fit gap-2">
@@ -116,7 +122,7 @@ export function Summary({
         }}
         className="flex-1 flex flex-col gap-1 h-fit"
       >
-        <label className={cn("grid items-center", css.summary[size].grid)}>
+        <label className={cn("grid items-center", css.grid[size])}>
           <span>
             Bayar <Kbd>F2</Kbd>
           </span>
@@ -136,7 +142,7 @@ export function Summary({
           />
         </label>
         <TextError>{error?.pay}</TextError>
-        <label className={cn("grid items-center", css.summary[size].grid)}>
+        <label className={cn("grid items-center", css.grid[size])}>
           <span>Pembulatan</span>
           :
           <Input
@@ -158,9 +164,9 @@ export function Summary({
           value={total}
           fallback={
             <>
-              <div className={cn("grid items-center", css.summary[size].grid)}>
+              <div className={cn("grid items-center", css.grid[size])}>
                 <p>Kembalian</p>:
-                <p className={css.summary[size].change}>
+                <p className={css.change[size]}>
                   <Loader2 className="animate-spin" />
                 </p>
               </div>
@@ -183,10 +189,10 @@ export function Summary({
             const change = -1 * Number(total.plus(rounding).minus(pay).toFixed(fix));
             return (
               <>
-                <div className={cn("grid items-center", css.summary[size].grid)}>
+                <div className={cn("grid items-center", css.grid[size])}>
                   <p>Kembalian</p>:
                   <p
-                    className={cn(css.summary[size].change, {
+                    className={cn(css.grid[size], {
                       "bg-red-500 text-white px-1": change < 0,
                     })}
                   >

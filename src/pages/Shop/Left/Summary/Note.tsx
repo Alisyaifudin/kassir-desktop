@@ -24,6 +24,7 @@ export function Note() {
   const note = useAtom(basicStore, (state) => state.note);
   const [tab] = useTab();
   const saveNote = useDebouncedCallback((note: string) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.note(tab, note));
   }, DEBOUNCE_DELAY);
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "3.9.2";
+export const version = "4.0.0";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export const METHOD_NAMES = {
@@ -210,16 +210,6 @@ export const sizeClass = {
   big: "",
   small: "small-size",
 } as const;
-
-// export type ActionArgs = {
-// 	context:
-// }
-// export type LoaderArgs = LoaderFunctionArgs<Readonly<RouterContextProvider>>;
-// export type ActionArgs = ActionFunctionArgs<Readonly<RouterContextProvider>>;
-// export type SubAction = {
-//   context: Readonly<RouterContextProvider>;
-//   formdata: FormData;
-// };
 
 export function formatBarcode(barcode?: string) {
   if (barcode === undefined) return "";

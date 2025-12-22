@@ -19,6 +19,7 @@ export function ExtraManual() {
   const ref = useRef<HTMLInputElement>(null);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (tab === undefined) return;
     const form = e.currentTarget;
     const id = generateId();
     const { value, name, kind, saved } = manualStore.get().extra;

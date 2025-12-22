@@ -37,6 +37,7 @@ export function useSearch() {
   const searchProduct = useProductSearch(allProducts);
   const searchExtra = useExtraSearch(allExtras);
   const debounced = useDebouncedCallback((value: string) => {
+    if (tab === undefined) return;
     if (value.trim() === "") {
       setProducts([]);
       setExtras([]);
@@ -60,7 +61,7 @@ export function useSearch() {
   };
 
   const handleClickProduct = async (product: Product) => {
-    if (ref.current === null) return;
+    if (ref.current === null || tab === undefined) return;
     setProducts([]);
     setExtras([]);
     setQuery("");
@@ -104,7 +105,7 @@ export function useSearch() {
     );
   };
   const handleClickExtra = (extra: Extra) => {
-    if (ref.current === null) return;
+    if (ref.current === null || tab === undefined) return;
     setProducts([]);
     setExtras([]);
     setQuery("");

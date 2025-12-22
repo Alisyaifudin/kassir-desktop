@@ -23,6 +23,7 @@ export function QtyInput() {
   }, [qty]);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.product.price(tab, v));
   }, DEBOUNCE_DELAY);
   return (

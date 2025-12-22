@@ -99,6 +99,7 @@ function NewCustomer({
     ref.current.focus();
   }, []);
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (tab === undefined) return;
     e.preventDefault();
     const target = e.currentTarget;
     if (error !== "") return;
@@ -160,6 +161,7 @@ function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
   }
   function handleSelect(name: string, phone: string, id: number) {
     return function () {
+      if (tab === undefined) return;
       const customer = { name, phone, id };
       setQuery("");
       customerStore.set(customer);
@@ -167,6 +169,7 @@ function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
     };
   }
   function handleUnselect() {
+    if (tab === undefined) return;
     const customer = { name: "", phone: "" };
     customerStore.set(customer);
     queue.add(() => tx.transaction.update.customer(tab, customer));

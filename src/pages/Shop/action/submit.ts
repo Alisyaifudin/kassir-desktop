@@ -7,6 +7,9 @@ import { tx } from "~/transaction";
 import { Extra } from "~/transaction/extra/get-by-tab";
 import { Product } from "~/transaction/product/get-by-tab";
 import { Transaction } from "~/transaction/transaction/get-by-tab";
+import { tabsStore } from "../use-tab";
+import { productsStore } from "../Right/Product/use-products";
+import { extrasStore } from "../Right/Extra/use-extras";
 
 const schema = z.object({
   tab: integer,

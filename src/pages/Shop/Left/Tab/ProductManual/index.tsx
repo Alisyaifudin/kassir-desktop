@@ -24,6 +24,7 @@ export function ProductManual() {
   const mode = useAtom(basicStore, (state) => state.mode);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (tab === undefined) return;
     const form = e.currentTarget;
     if (error !== "") return;
     const { barcode, name, price, qty, stock } = manualStore.get().product;

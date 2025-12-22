@@ -5,8 +5,6 @@ import { Result } from "~/lib/utils";
 import { Transaction } from "~/transaction/transaction/get-by-tab";
 
 export const basicStore = createAtom<{
-  tabs: { tab: number; mode: TX.Mode }[];
-  tab: number;
   fix: number;
   mode: TX.Mode;
   rounding: number;
@@ -14,8 +12,6 @@ export const basicStore = createAtom<{
   methodId: number;
   note: string;
 }>({
-  tabs: [],
-  tab: 0,
   fix: 0,
   rounding: 0,
   mode: "sell",
@@ -47,7 +43,6 @@ export const manualStore = createAtom({
 });
 
 export function useInitTx(
-  tabs: { tab: number; mode: TX.Mode }[],
   promise: Promise<Result<"Aplikasi bermasalah" | "Tidak ditemukan", Transaction>>
 ) {
   const [loading, setLoading] = useState(true);
@@ -55,7 +50,7 @@ export function useInitTx(
   useEffect(() => {
     if (transaction === null) return;
     const { customer, product, extra, ...basic } = transaction;
-    basicStore.set({ ...basic, rounding: 0, tabs });
+    basicStore.set({ ...basic, rounding: 0 });
     customerStore.set(customer);
     const stock = Math.max(product.stock, product.qty);
     manualStore.set({
@@ -65,8 +60,8 @@ export function useInitTx(
     setLoading(false);
   }, [transaction]);
   useEffect(() => {
-    basicStore.set((prev) => ({ ...prev, tabs }));
-  }, [tabs]);
+    basicStore.set((prev) => ({ ...prev }));
+  }, []);
 
   return [error, loading] as const;
 }

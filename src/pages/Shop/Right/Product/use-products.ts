@@ -1,12 +1,12 @@
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Decimal from "decimal.js";
-// import { loadStore } from "../use-total";
-import { DefaultError, Result } from "~/lib/utils";
 import { Product as ProductTx } from "~/transaction/product/get-by-tab";
 import { produce, WritableDraft } from "immer";
 import { createStore } from "@xstate/store";
-import { loadStore } from "../use-total";
+import { loadingStore } from "../use-total";
 import { useSelector } from "@xstate/store/react";
+import { useTab } from "../../use-tab";
+import { tx } from "~/transaction";
 
 export type Product = Omit<ProductTx, "discounts"> & {
   discounts: Discount[];
@@ -126,27 +126,36 @@ export const productsStore = createStore({
   },
 });
 
-export function useInitProducts(promise: Promise<Result<DefaultError, ProductTx[]>>) {
-  const [errMsg, products] = use(promise);
-  const [loading, setLoading] = useState(true);
+export function useInitProducts() {
+  // const loading = useSelector(loadingStore, (state) => state.context.product);
+  const [error, setError] = useState<null | string>(null);
+  const [tab] = useTab();
   useEffect(() => {
-    if (products === null) return;
-    loadStore.set((prev) => ({ ...prev, product: true }));
-    const arr = products.map(({ discounts: d, ...product }) => {
-      const discounts =
-        d.length === 0 ? [] : calcEffDiscounts({ price: product.price, qty: product.qty }, d);
-      const effDisc = d.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff));
-      const total = new Decimal(product.price).times(product.qty).minus(effDisc);
-      return {
-        total: total.toNumber(),
-        discounts,
-        ...product,
-      };
-    });
-    productsStore.trigger.init({ products: arr });
-    setLoading(false);
-  }, [products]);
-  return [loading, errMsg] as const;
+    if (tab === undefined) return;
+    async function init(tab: number) {
+      loadingStore.trigger.setProduct({ value: true });
+      const [errMsg, res] = await tx.product.getByTab(tab);
+      loadingStore.trigger.setProduct({ value: false });
+      setError(errMsg);
+      if (errMsg !== null) {
+        return;
+      }
+      const arr = res.map(({ discounts: d, ...product }) => {
+        const discounts =
+          d.length === 0 ? [] : calcEffDiscounts({ price: product.price, qty: product.qty }, d);
+        const effDisc = d.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff));
+        const total = new Decimal(product.price).times(product.qty).minus(effDisc);
+        return {
+          total: total.toNumber(),
+          discounts,
+          ...product,
+        };
+      });
+      productsStore.trigger.init({ products: arr });
+    }
+    init(tab);
+  }, [tab]);
+  return error;
 }
 
 export function useProduct(id: string) {

@@ -13,6 +13,7 @@ export function NameInput() {
   const value = useAtom(manualStore, (state) => state.product.name);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: string) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.product.name(tab, v));
   }, DEBOUNCE_DELAY);
   return (

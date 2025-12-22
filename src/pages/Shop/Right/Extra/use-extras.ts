@@ -1,12 +1,13 @@
-import { use, useEffect, useState } from "react";
-import { DefaultError, Result } from "~/lib/utils";
+import { useEffect, useState } from "react";
 import Decimal from "decimal.js";
-import { loadStore } from "../use-total";
+import { loadingStore } from "../use-total";
 import { Extra as ExtraTx } from "~/transaction/extra/get-by-tab";
 import { createAtom, createStore } from "@xstate/store";
 import { produce, WritableDraft } from "immer";
 import { useSubtotal } from "../use-subtotal";
 import { useSelector } from "@xstate/store/react";
+import { useTab } from "../../use-tab";
+import { tx } from "~/transaction";
 
 export type Extra = ExtraTx & {
   eff: number;
@@ -63,27 +64,36 @@ export const extrasStore = createStore({
 
 export const totalExtra = createAtom([]);
 
-export function useInitExtras(promise: Promise<Result<DefaultError, ExtraTx[]>>) {
-  const [errMsg, extras] = use(promise);
+export function useInitExtras() {
+  const [tab] = useTab();
   const subtotal = useSubtotal();
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<null | string>(null);
   useEffect(() => {
-    if (extras === null) return;
-    loadStore.set((prev) => ({ ...prev, extra: true }));
-    const arr: ExtraTx[] = extras.map((extra) => ({
-      id: extra.id,
-      tab: extra.tab,
-      name: extra.name,
-      kind: extra.kind,
-      value: extra.value,
-      saved: Boolean(extra.saved),
-      extraId: extra.extraId,
-    }));
-    extrasStore.trigger.init({ extras: calcEffExtras(subtotal, arr) });
-    setLoading(false);
-  }, [extras]);
+    if (tab === undefined) return;
+    async function init(tab: number) {
+      loadingStore.trigger.setExtra({ value: true });
+      const [errMsg, res] = await tx.extra.getByTab(tab);
+      loadingStore.trigger.setExtra({ value: false });
+      if (errMsg !== null) {
+        setError(errMsg);
+        return;
+      }
+      setError(null);
+      const arr: ExtraTx[] = res.map((extra) => ({
+        id: extra.id,
+        tab: extra.tab,
+        name: extra.name,
+        kind: extra.kind,
+        value: extra.value,
+        saved: Boolean(extra.saved),
+        extraId: extra.extraId,
+      }));
+      extrasStore.trigger.init({ extras: calcEffExtras(subtotal, arr) });
+    }
+    init(tab);
+  }, [tab]);
 
-  return [loading, errMsg] as const;
+  return error;
 }
 
 export function useExtraTotal() {
@@ -96,7 +106,7 @@ export function useExtraTotal() {
 function calcEff(
   base: Decimal,
   value: number,
-  kind: TX.ValueKind,
+  kind: TX.ValueKind
 ): {
   eff: number;
   subtotal: Decimal;

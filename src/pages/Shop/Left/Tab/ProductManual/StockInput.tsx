@@ -24,6 +24,7 @@ export function StockInput() {
   }, [stock]);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.product.price(tab, v));
   }, DEBOUNCE_DELAY);
   return (
@@ -42,7 +43,7 @@ export function StockInput() {
           manualStore.set(
             produce((draft) => {
               draft.product.stock = num;
-            }),
+            })
           );
           save(num);
         }}

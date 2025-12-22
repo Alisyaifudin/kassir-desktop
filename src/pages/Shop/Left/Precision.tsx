@@ -15,6 +15,7 @@ export function Precision() {
           className="py-1 h-fit! outline text-tiny!"
           value={fix}
           onChange={(e) => {
+            if (tab === undefined) return;
             const val = e.currentTarget.value;
             const num = Number(val);
             if (isNaN(num)) return;

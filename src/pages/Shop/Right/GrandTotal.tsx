@@ -1,11 +1,11 @@
 import { capitalize, cn } from "~/lib/utils";
-import { css } from "../style.css";
 import { useTotal } from "./use-total";
 import { useFix, useRounding } from "../use-transaction";
 import Decimal from "decimal.js";
 import { Show } from "~/components/Show";
 import { useSize } from "~/hooks/use-size";
 import { auth } from "~/lib/auth";
+import { css } from "./style.css";
 
 export function GrandTotal() {
   const size = useSize();

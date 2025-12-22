@@ -31,26 +31,6 @@ export const css = {
       gridTemplateColumns: "40px 1fr 100px 140px 40px 100px 30px",
     }),
   },
-  grandTotal: {
-    big: {
-      grandTotal: style({
-        fontSize: "128px",
-        lineHeight: 0.8,
-      }),
-      container: style({
-        paddingBottom: "36px",
-      }),
-    },
-    small: {
-      grandTotal: style({
-        fontSize: "96px",
-        lineHeight: 0.8,
-      }),
-      container: style({
-        paddingBottom: "25px",
-      }),
-    },
-  },
   discount: {
     big: style({
       gridTemplateColumns: "1fr 80px 150px 270px",
@@ -58,25 +38,5 @@ export const css = {
     small: style({
       gridTemplateColumns: "1fr 80px 130px 185px",
     }),
-  },
-  summary: {
-    big: {
-      grid: style({
-        gridTemplateColumns: "160px 10px 1fr",
-      }),
-      change: style({
-        fontSize: "96px",
-        lineHeight: 1,
-      }),
-    },
-    small: {
-      grid: style({
-        gridTemplateColumns: "120px 10px 1fr",
-      }),
-      change: style({
-        fontSize: "60px",
-        lineHeight: 1,
-      }),
-    },
   },
 };

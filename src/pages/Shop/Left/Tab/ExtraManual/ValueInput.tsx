@@ -22,6 +22,7 @@ export function ValueInput() {
   }, [val]);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.extra.value(tab, v));
   }, DEBOUNCE_DELAY);
   return (

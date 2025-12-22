@@ -1,6 +1,40 @@
 import { style } from "@vanilla-extract/css";
 
 export const css = {
+  tab: {
+    big: style({
+      width: "60px",
+    }),
+    small: style({
+      width: "50px",
+    }),
+  },
+  grandTotal: {
+    big: {
+      loading: style({
+        height: "128px",
+      }),
+      grandTotal: style({
+        fontSize: "128px",
+        lineHeight: 0.8,
+      }),
+      container: style({
+        paddingBottom: "36px",
+      }),
+    },
+    small: {
+      loading: style({
+        height: "76px",
+      }),
+      grandTotal: style({
+        fontSize: "96px",
+        lineHeight: 0.8,
+      }),
+      container: style({
+        paddingBottom: "25px",
+      }),
+    },
+  },
   additional: {
     big: {
       percent: style({
@@ -21,6 +55,9 @@ export const css = {
   },
   item: {
     big: {
+      loading: style({
+        height: "62px",
+      }),
       topLevel: style({
         gridTemplateColumns: "70px 1fr",
       }),
@@ -29,6 +66,9 @@ export const css = {
       }),
     },
     small: {
+      loading: style({
+        height: "58px",
+      }),
       topLevel: style({
         gridTemplateColumns: "40px 1fr",
       }),

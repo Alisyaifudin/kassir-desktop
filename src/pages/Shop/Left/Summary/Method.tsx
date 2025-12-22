@@ -50,6 +50,7 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
         style={selectWidth[size]}
         value={method.kind}
         onChange={(e) => {
+          if (tab === undefined) return;
           const val = e.currentTarget.value as DB.MethodEnum;
           const methodId = METHOD_BASE_ID[val];
           setMethod(methodId);
@@ -67,6 +68,7 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
           style={selectWidth[size]}
           value={method.id}
           onChange={(e) => {
+            if (tab === undefined) return;
             const val = e.currentTarget.value;
             const num = Number(val);
             if (isNaN(num)) return;

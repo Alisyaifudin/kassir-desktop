@@ -24,6 +24,7 @@ export function PriceInput() {
   const [tab] = useTab();
   const fix = useAtom(basicStore, (state) => state.fix);
   const save = useDebouncedCallback((v: number) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.product.price(tab, v));
   }, DEBOUNCE_DELAY);
   return (

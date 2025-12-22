@@ -11,6 +11,7 @@ export function KindSelect() {
   const value = useAtom(manualStore, (state) => state.extra.kind);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: TX.ValueKind) => {
+    if (tab === undefined) return;
     queue.add(() => tx.transaction.update.extra.kind(tab, v));
   }, DEBOUNCE_DELAY);
   return (
@@ -21,7 +22,7 @@ export function KindSelect() {
         manualStore.set(
           produce((draft) => {
             draft.extra.kind = val;
-          }),
+          })
         );
         save(val);
       }}
