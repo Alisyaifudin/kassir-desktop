@@ -8,7 +8,7 @@ mod transaction;
 pub fn run() {
     let database_migs = database::generate_migration();
     let transaction_migs = transaction::generate_migration();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(
@@ -31,14 +31,12 @@ pub fn run() {
             auth::verify_password,
             jwt::decode_jwt,
             jwt::encode_jwt,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
+        ]);
+    // Only enable the plugin in production
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_prevent_default::init());
 
-// .plugin(
-//     tauri_plugin_sql::Builder::default()
-//         .add_migrations("sqlite:txtxtx.db", transaction_migs)
-//         // .add_migrations("sqlite:data.db", database_migs)
-//         .build(),
-// )
+    builder
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application")
+}
