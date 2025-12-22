@@ -3,20 +3,28 @@ import { ExtraList } from "./Extra";
 import { Tab } from "./Tab";
 import { GrandTotal } from "./GrandTotal";
 import { Header } from "./Header";
-import { use, useEffect } from "react";
-import { cn, Result } from "~/lib/utils";
+import { Suspense, use, useEffect } from "react";
+import { capitalize, cn, Result } from "~/lib/utils";
 import { Customer } from "./Customer";
 import { TabInfo } from "~/transaction/transaction/get-all";
 import { TextError } from "~/components/TextError";
 import { tx } from "~/transaction";
 import { tabsStore } from "../use-tab";
+import { Note } from "../Left/Summary/Note";
+import { Loading } from "~/components/Loading";
+import { Customer as CustomerDB } from "~/database/customer/get-all";
+import { CustomerDialog } from "./CustomerDialog";
+import { auth } from "~/lib/auth";
 
 export function Right({
   tabs: promise,
+  customers,
 }: {
   tabs: Promise<Result<"Aplikasi bermasalah", TabInfo[]>>;
+  customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
 }) {
   const [errMsg, tabs] = use(promise);
+  const username = auth.get()?.name ?? "admin";
   useEffect(() => {
     if (tabs === null) return;
     async function init(tabs: TabInfo[]) {
@@ -45,7 +53,16 @@ export function Right({
           <ProductList />
         </div>
       </div>
-      <Customer />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Note />
+          <Suspense fallback={<Loading />}>
+            <CustomerDialog customers={customers} />
+          </Suspense>
+          <Customer />
+        </div>
+        <p className="px-2 text-end">Kasir: {capitalize(username)}</p>
+      </div>
       <GrandTotal />
     </div>
   );

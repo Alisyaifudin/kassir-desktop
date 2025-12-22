@@ -26,8 +26,7 @@ export function Customer() {
         <p className="text-normal">Pelanggan: {customer.name}</p>
         <Button
           variant="destructive"
-          size="icon"
-          className="rounded-full"
+          className="rounded-full p-1"
           onClick={resetCustomer}
           type="button"
         >

@@ -217,6 +217,10 @@ input[type=number] {
 p, textarea, button, a, label, select {
   @apply text-normal;
 }
+
+kbd {
+  font-size: var(--text-lg);
+}
 /* select {
   height: 54px;
 } */
@@ -241,6 +245,9 @@ body[data-size='small'] {
 
   main {
     max-height: calc(100vh - 44px);
+  }
+  kbd {
+    font-size: var(--text-sm);
   }
   /* input {
     height: 40px;

@@ -7,20 +7,17 @@ import { Precision } from "./Precision";
 import { cn, Result } from "~/lib/utils";
 import { css } from "../style.css";
 import { ExtraManual } from "./Tab/ExtraManual";
-import { Method } from "~/database/method/get-all";
 import { DBItems } from "../loader/get-db-items";
 import { useSize } from "~/hooks/use-size";
-import { Customer } from "~/database/customer/get-all";
 import { useLoadDB } from "./use-load-db";
+import { Method } from "../loader/get-method";
 
 export function Left({
   methods,
-  customers,
   product,
 }: {
   product: Promise<DBItems>;
   methods: Promise<Result<"Aplikasi bermasalah", Method[]>>;
-  customers: Promise<Result<"Aplikasi bermasalah", Customer[]>>;
 }) {
   const size = useSize();
   useLoadDB(product);
@@ -61,7 +58,7 @@ export function Left({
       </Tabs>
       <div style={{ flex: "0 0 auto" }}>
         <hr />
-        <Summary customers={customers} methods={methods} />
+        <Summary methods={methods} />
       </div>
     </aside>
   );

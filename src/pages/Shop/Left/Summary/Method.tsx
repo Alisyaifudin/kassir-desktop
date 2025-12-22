@@ -2,13 +2,23 @@ import { METHOD_BASE_ID, Result } from "~/lib/utils";
 import { use, useEffect } from "react";
 import { TextError } from "~/components/TextError";
 import { Loading } from "~/components/Loading";
-import { Method as MethodDB } from "~/database/method/get-all";
+import { Method as MethodDB } from "../../loader/get-method";
 import { basicStore } from "../../use-transaction";
 import { useSize } from "~/hooks/use-size";
 import { tx } from "~/transaction";
 import { queue } from "../../utils/queue";
 import { useTab } from "../../use-tab";
 import { useAtom } from "@xstate/store/react";
+import { Kbd } from "~/components/ui/kdb";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { css } from "./style.css";
 
 const selectWidth = {
   big: {
@@ -37,32 +47,94 @@ export function Method({
 function setMethod(methodId: number) {
   basicStore.set((prev) => ({ ...prev, methodId }));
 }
+const methodLabel = {
+  cash: "Tunai",
+  qris: "QRIS",
+  transfer: "Transfer",
+  debit: "Debit",
+} as const;
+const methodKbd = {
+  cash: "Ctrl+0",
+  qris: "Ctrl+1",
+  transfer: "Ctrl+2",
+  debit: "Ctrl+3",
+} as const;
+
+function selectMethod(val: DB.MethodEnum, defVals: MethodDB[], tab: number) {
+  const defVal = defVals.find((m) => m.kind === val);
+  if (defVal === undefined) {
+    const methodId = METHOD_BASE_ID[val];
+    setMethod(methodId);
+    queue.add(() => tx.transaction.update.methodId(tab, methodId));
+  } else {
+    setMethod(defVal.id);
+    queue.add(() => tx.transaction.update.methodId(tab, defVal.id));
+  }
+}
 
 function Wrapper({ methods }: { methods: MethodDB[] }) {
   const method = useMethod(methods);
   const size = useSize();
   const [tab] = useTab();
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (tab === undefined) return;
+      if (!e.ctrlKey) return;
+      switch (e.key) {
+        case "0":
+          selectMethod("cash", defVals, tab);
+          break;
+        case "1":
+          selectMethod("qris", defVals, tab);
+          break;
+        case "2":
+          selectMethod("transfer", defVals, tab);
+          break;
+        case "3":
+          selectMethod("debit", defVals, tab);
+          break;
+      }
+    }
+    document.body.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.removeEventListener("keydown", handleKey);
+    };
+  }, []);
   if (method === undefined) return <Loading />;
   const suboption = methods.filter((m) => m.kind === method.kind && m.name !== undefined);
+  const defVals = methods.filter((m) => m.isDefault);
   return (
-    <div className="flex items-center gap-3">
-      <select
-        style={selectWidth[size]}
+    <div className="flex items-center gap-3 flex-1">
+      <Select
         value={method.kind}
-        onChange={(e) => {
+        onValueChange={(e) => {
           if (tab === undefined) return;
-          const val = e.currentTarget.value as DB.MethodEnum;
-          const methodId = METHOD_BASE_ID[val];
-          setMethod(methodId);
-          queue.add(() => tx.transaction.update.methodId(tab, methodId));
+          const val = e as DB.MethodEnum;
+          selectMethod(val, defVals, tab);
         }}
-        className="outline"
       >
-        <option value="cash">Tunai</option>
-        <option value="transfer">Transfer</option>
-        <option value="debit">Debit</option>
-        <option value="qris">QRIS</option>
-      </select>
+        <SelectTrigger>
+          <SelectValue placeholder="Metode">
+            {methodLabel[method.kind]} <Kbd>{methodKbd[method.kind]}</Kbd>
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup className={css.method[size]}>
+            <SelectItem kbd={<Kbd>Ctrl+0</Kbd>} value="cash">
+              Tunai
+            </SelectItem>
+            <SelectItem kbd={<Kbd>Ctrl+1</Kbd>} value="qris">
+              QRIS
+            </SelectItem>
+            <SelectItem kbd={<Kbd>Ctrl+2</Kbd>} value="transfer">
+              Transfer
+            </SelectItem>
+            <SelectItem kbd={<Kbd>Ctrl+3</Kbd>} value="debit">
+              Debit
+            </SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
       {suboption.length > 0 ? (
         <select
           style={selectWidth[size]}

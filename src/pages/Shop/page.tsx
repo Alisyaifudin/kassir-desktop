@@ -13,7 +13,7 @@ import { tx } from "~/transaction";
 export default function Page() {
   const { product, customers, methods, tabs } = useLoaderData<Loader>();
   useEffect(() => {
-    document.body.addEventListener("keydown", (e) => {
+    function handleKey(e: KeyboardEvent) {
       switch (e.key) {
         case "F1": {
           const el = document.getElementById("searchbar");
@@ -26,7 +26,11 @@ export default function Page() {
           break;
         }
       }
-    });
+    }
+    document.body.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.removeEventListener("keydown", handleKey);
+    };
   }, []);
   const [tab] = useTab();
   const [error, setError] = useState<null | string>(null);
@@ -60,9 +64,9 @@ export default function Page() {
   return (
     <main className="flex flex-col min-h-0 h-full overflow-hidden grow shrink basis-0 relative">
       <div className="gap-2 pt-1 flex h-full">
-        <Left customers={customers} methods={methods} product={product} />
+        <Left methods={methods} product={product} />
         <Suspense fallback={<LoadingRight />}>
-          <Right tabs={tabs} />
+          <Right tabs={tabs} customers={customers} />
         </Suspense>
       </div>
     </main>

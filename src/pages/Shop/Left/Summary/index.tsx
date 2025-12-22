@@ -2,15 +2,13 @@ import { Input } from "~/components/ui/input";
 import { cn, Result } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Loader2, RefreshCcw } from "lucide-react";
-import { Note } from "./Note";
 import { Method } from "./Method";
-import { Customer } from "./Customer";
 import { css } from "./style.css";
 import { Suspense, useEffect, useState } from "react";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { Loading } from "~/components/Loading";
-import { Method as MethodDB } from "~/database/method/get-all";
+import { Method as MethodDB } from "../../loader/get-method";
 import { useClear } from "./use-clear";
 import { useSize } from "~/hooks/use-size";
 import { basicStore, useFix, useMode, useRounding } from "../../use-transaction";
@@ -19,7 +17,6 @@ import { useStatus } from "../../use-status";
 import { productsStore } from "../../Right/Product/use-products";
 import { extrasStore } from "../../Right/Extra/use-extras";
 import { useSubmit } from "react-router";
-import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { useAtom } from "@xstate/store/react";
 import { useLoading } from "~/hooks/use-loading";
 import { submitHandler } from "./submit";
@@ -35,10 +32,8 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function Summary({
   methods,
-  customers,
 }: {
   methods: Promise<Result<"Aplikasi bermasalah", MethodDB[]>>;
-  customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
 }) {
   const error = useAction<Action>()("submit");
   const submitLoading = useLoading();
@@ -109,10 +104,6 @@ export function Summary({
           <Suspense fallback={<Loading />}>
             <Method methods={methods} />
           </Suspense>
-          <Suspense fallback={<Loading />}>
-            <Customer customers={customers} />
-          </Suspense>
-          <Note />
         </div>
       </div>
       <form

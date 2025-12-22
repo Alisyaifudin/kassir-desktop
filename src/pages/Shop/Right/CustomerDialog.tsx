@@ -15,14 +15,14 @@ import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import { cn, Result } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
-import { customerStore } from "../../use-transaction";
-import { queue } from "../../utils/queue";
+import { customerStore } from "../use-transaction";
+import { queue } from "../utils/queue";
 import { tx } from "~/transaction";
 import { Customer as CustomerDB } from "~/database/customer/get-all";
-import { useTab } from "../../use-tab";
+import { useTab } from "../use-tab";
 import { useAtom } from "@xstate/store/react";
 
-export function Customer({
+export function CustomerDialog({
   customers: promise,
 }: {
   customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;

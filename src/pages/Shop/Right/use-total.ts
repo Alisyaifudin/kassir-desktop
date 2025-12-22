@@ -28,7 +28,6 @@ export function useTotal() {
   const [total, setTotal] = useState<Decimal | undefined>(undefined);
   const { product, extra, transaction } = useSelector(loadingStore, (state) => state.context);
   const subtotal = useSubtotal();
-  console.log(product, extra, transaction);
   const extraTotal = useExtraTotal();
   useEffect(() => {
     if (product || extra || transaction || subtotal === undefined) return;
