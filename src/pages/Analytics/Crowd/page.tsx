@@ -8,17 +8,23 @@ import { Summary } from "./Summary";
 import { Record } from "~/database/record/get-by-range";
 import { TextError } from "~/components/TextError";
 import { Crowd } from "./Crowd";
+import { useTime } from "../use-time";
+import { DatePickerCrowd } from "./DatePicker";
 
 export default function Page() {
   const { records, start, end } = useLoaderData<Loader>();
+  const [time, setTime] = useTime();
   return (
     <>
       <NavList selected="crowd">
         <Summary />
       </NavList>
-      <Suspense fallback={<LoadingBig />}>
-        <Wrapper records={records} start={start} end={end} />
-      </Suspense>
+      <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
+        <DatePickerCrowd setTime={setTime} time={time} />
+        <Suspense fallback={<LoadingBig />}>
+          <Wrapper records={records} start={start} end={end} />
+        </Suspense>
+      </div>
     </>
   );
 }

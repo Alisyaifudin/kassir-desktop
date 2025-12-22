@@ -5,8 +5,9 @@ import { useEffect } from "react";
 import { Temporal } from "temporal-polyfill";
 import { getTicks, getVisitors } from "../utils/group-items";
 import Decimal from "decimal.js";
-import { DatePickerCrowd } from "./DatePicker";
 import { Bar } from "../Bar";
+import { useSize } from "~/hooks/use-size";
+import { formatTick } from "../utils/format-tick";
 
 type Props = {
   records: Record[];
@@ -15,9 +16,9 @@ type Props = {
 };
 
 export function Crowd({ records, start, end }: Props) {
-  const [time, setTime] = useTime();
   const [, setSummary] = useSummary();
   const tz = Temporal.Now.timeZoneId();
+  const [time] = useTime();
   const startOfDay = Temporal.Instant.fromEpochMilliseconds(time)
     .toZonedDateTimeISO(tz)
     .startOfDay();
@@ -42,59 +43,66 @@ export function Crowd({ records, start, end }: Props) {
     });
   }, [records]);
   return (
-    <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
-      <DatePickerCrowd setTime={setTime} time={time} />
-      <div className="flex flex-col flex-1 py-5">
-        <Graph vals={visitorsDaily.filter((_, i) => i >= 6)} />
+    <div className="flex flex-col flex-1 py-5">
+      <Graph vals={visitorsDaily.filter((_, i) => i >= 6)} />
+      <div className="flex gap-1 w-full">
+        <div className="w-[100px]"></div>
         <div className="flex gap-1 w-full">
-          <div className="w-[100px]"></div>
-          <div className="flex gap-1 w-full">
-            {labelsDaily
-              .filter((_, i) => i >= 6)
-              .map((label) => (
-                <div
-                  key={label}
-                  className="h-[50px] flex justify-center items-center text-2xl"
-                  style={{ width: `${100 / labelsDaily.filter((_, i) => i >= 6).length}%` }}
-                >
-                  <p>{label}</p>
-                </div>
-              ))}
-          </div>
-        </div>
-        <Graph vals={visitorsWeekly} />
-        <div className="flex gap-1 w-full">
-          <div className="w-[100px]"></div>
-          <div className="flex gap-1 w-full">
-            {labelsWeekly.map((label) => (
+          {labelsDaily
+            .filter((_, i) => i >= 6)
+            .map((label) => (
               <div
                 key={label}
                 className="h-[50px] flex justify-center items-center text-2xl"
-                style={{ width: `${100 / labelsWeekly.length}%` }}
+                style={{ width: `${100 / labelsDaily.filter((_, i) => i >= 6).length}%` }}
               >
                 <p>{label}</p>
               </div>
             ))}
-          </div>
+        </div>
+      </div>
+      <Graph vals={visitorsWeekly} />
+      <div className="flex gap-1 w-full">
+        <div className="w-[100px]"></div>
+        <div className="flex gap-1 w-full">
+          {labelsWeekly.map((label) => (
+            <div
+              key={label}
+              className="h-[50px] flex justify-center items-center text-2xl"
+              style={{ width: `${100 / labelsWeekly.length}%` }}
+            >
+              <p>{label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
+const style = {
+  small: {
+    width: "60px",
+  },
+  big: {
+    width: "80px",
+  },
+};
+
 function Graph({ vals }: { vals: number[] }) {
   const maxVal = Math.max(...vals);
   const ticks = getTicks(maxVal);
+  const size = useSize();
   return (
     <div className="flex gap-1 w-full h-full">
-      <div className="relative h-full border-r w-[100px]">
+      <div className="relative h-full border-r" style={style[size]}>
         {ticks.map((tick) => (
           <p
             key={tick}
             className="right-1 absolute"
             style={{ top: `${((maxVal - tick) / maxVal) * 100}%` }}
           >
-            {tick.toLocaleString("id-ID")}
+            {formatTick(tick)}
           </p>
         ))}
       </div>

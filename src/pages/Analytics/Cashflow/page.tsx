@@ -5,6 +5,7 @@ import { Loader } from "./loader";
 import { Graph } from "./Graph";
 import { LoadingBig } from "~/components/Loading";
 import { Summary } from "./Summary";
+import { DatePicker } from "../DatePicker";
 
 export default function Page() {
   const { records, start, end } = useLoaderData<Loader>();
@@ -13,9 +14,12 @@ export default function Page() {
       <NavList selected="cashflow">
         <Summary />
       </NavList>
-      <Suspense fallback={<LoadingBig />}>
-        <Graph records={records} start={start} end={end} />
-      </Suspense>
+      <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
+        <DatePicker option="cashflow" defaultInterval="week" />
+        <Suspense fallback={<LoadingBig />}>
+          <Graph records={records} start={start} end={end} />
+        </Suspense>
+      </div>
     </>
   );
 }

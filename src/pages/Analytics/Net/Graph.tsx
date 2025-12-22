@@ -3,11 +3,12 @@ import { TextError } from "~/components/TextError";
 import { Record } from "~/database/record/get-by-range";
 import { Result } from "~/lib/utils";
 import { getFlow, getTicks } from "../utils/group-items";
-import { DatePicker } from "../DatePicker";
 import { useInterval } from "../use-interval";
 import Decimal from "decimal.js";
 import { Bar } from "../Bar";
 import { useSummary } from "./Summary";
+import { formatTick } from "../utils/format-tick";
+import { useSize } from "~/hooks/use-size";
 
 export function Graph({
   records: promise,
@@ -40,43 +41,50 @@ function Wrapper({ records, start, end }: { records: Record[]; start: number; en
     });
   }, [records]);
   return (
-    <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
-      <DatePicker option="cashflow" defaultInterval="week" />
-      <div className="flex flex-col flex-1 py-5">
-        <GraphBar orientation="up" vals={profits} />
+    <div className="flex flex-col flex-1 py-5">
+      <GraphBar orientation="up" vals={profits} />
+      <div className="flex gap-1 w-full">
+        <div className="w-[100px]"></div>
         <div className="flex gap-1 w-full">
-          <div className="w-[100px]"></div>
-          <div className="flex gap-1 w-full">
-            {labels.map((label) => (
-              <div
-                key={label}
-                className="h-[50px] flex justify-center items-center text-2xl"
-                style={{ width: `${100 / labels.length}%` }}
-              >
-                <p>{label}</p>
-              </div>
-            ))}
-          </div>
+          {labels.map((label) => (
+            <div
+              key={label}
+              className="h-[50px] flex justify-center items-center text-2xl"
+              style={{ width: `${100 / labels.length}%` }}
+            >
+              <p>{label}</p>
+            </div>
+          ))}
         </div>
-        <GraphBar orientation="down" vals={profits} />
       </div>
+      <GraphBar orientation="down" vals={profits} />
     </div>
   );
 }
 
+const style = {
+  small: {
+    width: "60px",
+  },
+  big: {
+    width: "80px",
+  },
+};
+
 function GraphBar({ vals, orientation }: { vals: number[]; orientation: "up" | "down" }) {
   let maxVal = Math.max(Math.max(...vals), -1 * Math.min(...vals));
+  const size = useSize();
   const ticks = getTicks(maxVal);
   return (
     <div className="flex gap-1 w-full h-full">
-      <div className="relative h-full border-r w-[100px]">
+      <div className="relative h-full border-r" style={style[size]}>
         {ticks.map((tick) => (
           <p
             key={tick}
             className="right-1 absolute"
             style={{ top: `${((orientation === "up" ? maxVal - tick : tick) / maxVal) * 100}%` }}
           >
-            {tick.toLocaleString("id-ID")}
+            {formatTick(tick)}
           </p>
         ))}
       </div>

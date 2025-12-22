@@ -1,16 +1,28 @@
 import { useState } from "react";
-import { getTicks } from "./utils/group-items";
+import { getTicks } from "../utils/group-items";
 import { Tooltip } from "~/components/Tooltip";
+import { formatTick } from "../utils/format-tick";
+import { useSize } from "~/hooks/use-size";
+
+const style = {
+  small: {
+    width: "60px",
+  },
+  big: {
+    width: "80px",
+  },
+};
 
 export function GraphDown({ vals, debts }: { vals: number[]; debts: number[] }) {
   const maxVal = Math.max(...vals);
+  const size = useSize();
   const ticks = getTicks(maxVal);
   return (
     <div className="flex gap-1 w-full h-full">
-      <div className="relative h-full border-r w-[100px]">
+      <div className="relative h-full border-r" style={style[size]}>
         {ticks.map((tick) => (
           <p key={tick} className="right-1 absolute" style={{ top: `${(tick / maxVal) * 100}%` }}>
-            {tick.toLocaleString("id-ID")}
+            {formatTick(tick)}
           </p>
         ))}
       </div>

@@ -1,6 +1,3 @@
-import { DatePicker } from "../DatePicker";
-import { Mode } from "./Mode";
-import { Input } from "~/components/ui/input";
 import { Item } from "~/database/product/get-by-range";
 import { useQuery } from "./use-query";
 import { useMode } from "./use-mode";
@@ -21,7 +18,7 @@ function estCapital(capital: number, price: number, qty: number, total: number):
 }
 
 export function ProductList({ items: all }: { items: Item[] }) {
-  const [query, setQuery] = useQuery();
+  const [query] = useQuery();
   const [mode] = useMode();
   const items = useItemSearch(all, mode, query);
   const [, setSummary] = useSummary();
@@ -41,27 +38,10 @@ export function ProductList({ items: all }: { items: Item[] }) {
     }
     setSummary({ loading: false, product: totalQty, profit });
   }, [all]);
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.currentTarget.value);
-  };
   return (
-    <div className="flex flex-col gap-2 py-1 flex-1 overflow-hidden">
-      <div className="flex items-center gap-5">
-        <DatePicker defaultInterval="day" option="products" />
-        <Mode />
-      </div>
-      <Input
-        className="mx-1"
-        type="search"
-        placeholder="Cari..."
-        value={query}
-        onChange={handleChange}
-        aria-autocomplete="list"
-      />
-      <div className="flex-1 overflow-hidden">
-        <div className="flex-1 max-h-full overflow-hidden flex">
-          <ProductTable items={items} />
-        </div>
+    <div className="flex-1 overflow-hidden">
+      <div className="flex-1 max-h-full overflow-hidden flex">
+        <ProductTable items={items} />
       </div>
     </div>
   );
