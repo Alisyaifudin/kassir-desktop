@@ -7,9 +7,13 @@ import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useInterval } from "./use-interval";
 import { TableList } from "./TableList";
-import { Loader } from "./loader";
+import { Loader, MoneyData } from "./loader";
 import { NewItem } from "./NewItem";
 import { TableListDebt } from "./TableListDebt";
+import { Suspense, use } from "react";
+import { Result } from "~/lib/utils";
+import { TextError } from "~/components/TextError";
+import { LoadingBig } from "~/components/Loading";
 
 export default function Page() {
   const money = useLoaderData<Loader>();
@@ -60,22 +64,34 @@ export default function Page() {
             <NewItem key={kind} kind={kind} />
           </div>
         </div>
-        <TabsContent value="saving" className="overflow-hidden flex-1 w-full">
-          <div className="h-full flex-1 max-w-4xl overflow-hidden mx-auto">
-            <TableList money={money.saving} />
-          </div>
-        </TabsContent>
-        <TabsContent value="debt" className="overflow-hidden flex-1 w-full">
-          <div className="h-full max-w-full overflow-hidden">
-            <TableListDebt money={money.debt} />
-          </div>
-        </TabsContent>
-        <TabsContent value="diff" className="overflow-hidden flex-1 w-full">
-          <div className="h-full flex-1 max-w-4xl overflow-hidden mx-auto">
-            <TableList money={money.diff} />
-          </div>
-        </TabsContent>
+        <Suspense fallback={<LoadingBig />}>
+          <Content money={money} />
+        </Suspense>
       </Tabs>
     </main>
+  );
+}
+
+function Content({ money: promise }: { money: Promise<Result<"Aplikasi bermasalah", MoneyData>> }) {
+  const [errMsg, money] = use(promise);
+  if (errMsg !== null) return <TextError>{errMsg}</TextError>;
+  return (
+    <>
+      <TabsContent value="saving" className="overflow-hidden flex-1 w-full">
+        <div className="h-full flex-1 max-w-4xl overflow-hidden mx-auto">
+          <TableList money={money.saving} />
+        </div>
+      </TabsContent>
+      <TabsContent value="debt" className="overflow-hidden flex-1 w-full">
+        <div className="h-full max-w-full overflow-hidden">
+          <TableListDebt money={money.debt} />
+        </div>
+      </TabsContent>
+      <TabsContent value="diff" className="overflow-hidden flex-1 w-full">
+        <div className="h-full flex-1 max-w-4xl overflow-hidden mx-auto">
+          <TableList money={money.diff} />
+        </div>
+      </TabsContent>
+    </>
   );
 }

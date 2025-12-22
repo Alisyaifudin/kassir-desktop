@@ -9,10 +9,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const search = url.searchParams;
   const { start, end } = getInterval(search);
-  const [errMsg, money] = await getMoney(start, end);
-  if (errMsg !== null) {
-    throw new Error(errMsg);
-  }
+  const money = getMoney(start, end);
   return data(money);
 }
 
