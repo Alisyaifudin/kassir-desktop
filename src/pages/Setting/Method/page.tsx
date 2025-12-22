@@ -38,7 +38,6 @@ function MethodComp({
     return <TextError>{errMsg ?? errMeth}</TextError>;
   }
   const methods = data.filter((d) => d.kind === method && d.name !== undefined) as Method[];
-  console.log(defMeths);
   return (
     <div className="flex flex-col gap-2 overflow-auto">
       {methods.map((m) => {

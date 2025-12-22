@@ -6,7 +6,6 @@ export async function set(
   val?: number
 ): Promise<DefaultError | null> {
   const store = await getStore();
-  console.log(key, val);
   const [errMsg] = await tryResult({
     run: async () => {
       if (val === undefined) {
