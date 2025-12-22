@@ -3,6 +3,7 @@ import { PaginationContent, PaginationItem, Pagination as Root } from "~/compone
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { usePage } from "./use-page";
+import { useSize } from "~/hooks/use-size";
 
 type Props = {
   // pagination: { page: number; total: number } | { page: null; total: null };
@@ -10,8 +11,18 @@ type Props = {
   total: number;
 };
 
+const style = {
+  small: {
+    left: "-35px",
+  },
+  big: {
+    left: "-40px",
+  },
+};
+
 export function Pagination({ total }: Props) {
   const [page, setPage] = usePage();
+  const size = useSize();
   if (page === null) {
     return <Loader2 className="animate-spin" />;
   }
@@ -39,7 +50,9 @@ export function Pagination({ total }: Props) {
           </Button>
         </PaginationItem>
         <PaginationItem className="relative">
-          <span className="absolute -top-6 text-lg -left-8 z-50 px-1">Halaman</span>
+          <span style={style[size]} className="absolute -top-6 text-small z-50 px-1">
+            Halaman
+          </span>
           <p>{page}</p>
         </PaginationItem>
         <PaginationItem>

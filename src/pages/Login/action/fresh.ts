@@ -14,7 +14,7 @@ export async function freshAction(formdata: FormData) {
   const parsed = newAccountSchema.safeParse({
     name: formdata.get("name"),
     password: formdata.get("password"),
-    confirm: formdata.get("confirmed"),
+    confirm: formdata.get("confirm"),
   });
   if (!parsed.success) {
     const errs = parsed.error.flatten();

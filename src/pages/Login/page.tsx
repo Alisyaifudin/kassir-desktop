@@ -37,8 +37,8 @@ function Wrapper({
     );
   }
   return (
-    <main className="flex flex-1 flex-col justify-center bg-zinc-950">
+    <div className="flex flex-1 flex-col justify-center bg-zinc-950">
       <FreshForm />;
-    </main>
+    </div>
   );
 }

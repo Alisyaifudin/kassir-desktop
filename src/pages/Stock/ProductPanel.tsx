@@ -23,7 +23,7 @@ export function ProductPanel({ productsLength }: { productsLength: number }) {
           <Show when={role === "admin"}>
             <Link
               to="/stock/product/new"
-              className="outline hover:bg-accent rounded-xl pl-3 flex gap-2 items-center  w-fit"
+              className="outline hover:bg-accent rounded-xl pl-3 flex gap-2 items-center w-fit"
             >
               Tambah Produk
               <Button className="rounded-full p-1 cursor-pointer">

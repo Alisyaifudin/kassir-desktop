@@ -1,4 +1,4 @@
-import { METHOD_BASE_ID, Result } from "~/lib/utils";
+import { integer, METHOD_BASE_ID, Result } from "~/lib/utils";
 import { use, useEffect } from "react";
 import { TextError } from "~/components/TextError";
 import { Loading } from "~/components/Loading";
@@ -7,7 +7,7 @@ import { basicStore } from "../../use-transaction";
 import { useSize } from "~/hooks/use-size";
 import { tx } from "~/transaction";
 import { queue } from "../../utils/queue";
-import { useTab } from "../../use-tab";
+import { tabsStore, useTab } from "../../use-tab";
 import { useAtom } from "@xstate/store/react";
 import { Kbd } from "~/components/ui/kdb";
 import {
@@ -60,7 +60,25 @@ const methodKbd = {
   debit: "Ctrl+3",
 } as const;
 
-function selectMethod(val: DB.MethodEnum, defVals: MethodDB[], tab: number) {
+function getTab() {
+  const tabs = tabsStore.get();
+  const search = new URLSearchParams(window.location.search);
+  if (tabs.length === 0) return undefined;
+  const last = tabs[tabs.length - 1].tab;
+  const parsed = integer.safeParse(search.get("tab"));
+  if (!parsed.success) {
+    return last;
+  }
+  const tab = parsed.data;
+  if (tabs.find((t) => t.tab === tab) === undefined) {
+    return last;
+  }
+  return tab;
+}
+
+function selectMethod(val: DB.MethodEnum, defVals: MethodDB[]) {
+  const tab = getTab();
+  if (tab === undefined) return;
   const defVal = defVals.find((m) => m.kind === val);
   if (defVal === undefined) {
     const methodId = METHOD_BASE_ID[val];
@@ -78,20 +96,19 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
   const [tab] = useTab();
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (tab === undefined) return;
       if (!e.ctrlKey) return;
       switch (e.key) {
         case "0":
-          selectMethod("cash", defVals, tab);
+          selectMethod("cash", defVals);
           break;
         case "1":
-          selectMethod("qris", defVals, tab);
+          selectMethod("qris", defVals);
           break;
         case "2":
-          selectMethod("transfer", defVals, tab);
+          selectMethod("transfer", defVals);
           break;
         case "3":
-          selectMethod("debit", defVals, tab);
+          selectMethod("debit", defVals);
           break;
       }
     }
@@ -108,9 +125,8 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
       <Select
         value={method.kind}
         onValueChange={(e) => {
-          if (tab === undefined) return;
           const val = e as DB.MethodEnum;
-          selectMethod(val, defVals, tab);
+          selectMethod(val, defVals);
         }}
       >
         <SelectTrigger>

@@ -3,8 +3,8 @@ import { useLimit } from "./use-limit";
 export function Limit() {
   const [limit, setLimit] = useLimit();
   return (
-    <div className="relative">
-      <span className="absolute -top-5 left-0 text-small z-10 px-1 bg-white">Batas</span>
+    <div className="relative pt-4 pb-1">
+      <span className="absolute -top-2 left-0 text-small z-10 px-1 bg-white">Batas</span>
       <select
         value={limit}
         className="w-fit text-normal outline"
