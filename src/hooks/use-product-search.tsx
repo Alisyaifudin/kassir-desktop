@@ -6,7 +6,6 @@ export const useProductSearch = (products: Product[]) => {
   const fuse = useMemo(() => {
     const options: IFuseOptions<Product> = {
       keys: ["name", "barcode"],
-      distance: 10,
       includeScore: true,
       includeMatches: true,
       threshold: 0.2,

@@ -23,7 +23,7 @@ export const css = {
       lineHeight: 1,
     }),
     small: style({
-      fontSize: "60px",
+      fontSize: "50px",
       lineHeight: 1,
     }),
   },

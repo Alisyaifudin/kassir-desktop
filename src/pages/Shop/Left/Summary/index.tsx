@@ -183,7 +183,7 @@ export function Summary({
                 <div className={cn("grid items-center", css.grid[size])}>
                   <p>Kembalian</p>:
                   <p
-                    className={cn(css.grid[size], {
+                    className={cn(css.change[size], {
                       "bg-red-500 text-white px-1": change < 0,
                     })}
                   >
