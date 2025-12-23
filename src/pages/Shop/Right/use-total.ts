@@ -32,7 +32,7 @@ export function useTotal() {
   useEffect(() => {
     if (product || extra || transaction) return;
     if (extraTotal !== undefined) {
-      setTotal(subtotal.plus(extraTotal));
+      setTotal(new Decimal(extraTotal));
     } else {
       setTotal(subtotal);
     }

@@ -67,6 +67,7 @@ export const totalExtra = createAtom([]);
 export function useInitExtras() {
   const [tab] = useTab();
   const subtotal = useSubtotal();
+  console.log(subtotal);
   const [error, setError] = useState<null | string>(null);
   useEffect(() => {
     if (tab === undefined) return;
@@ -92,6 +93,10 @@ export function useInitExtras() {
     }
     init(tab);
   }, [tab]);
+  useEffect(() => {
+    const arr = extrasStore.get().context;
+    extrasStore.trigger.init({ extras: calcEffExtras(subtotal, arr) });
+  }, [subtotal]);
 
   return error;
 }
