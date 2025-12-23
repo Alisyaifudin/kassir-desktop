@@ -45,6 +45,7 @@ declare namespace TX {
   }
   interface Discount {
     disc_id: string;
+    disc_order: number;
     product_id: string;
     disc_value: number;
     disc_kind: DiscKind;

@@ -40,7 +40,7 @@ export async function getByRange(
         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
         discount_id, discount_kind, discount_value, discount_eff
         FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
-        WHERE timestamp BETWEEN $1 AND $2`,
+        WHERE timestamp BETWEEN $1 AND $2 ORDER BY discount_id`,
         [start, end]
       ),
   });

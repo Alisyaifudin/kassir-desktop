@@ -43,7 +43,7 @@ export async function getByTimestampFull(
         discount_id, discount_kind, discount_value, discount_eff, product_barcode, product_stock, product_name, product_price
         FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
         LEFT JOIN products ON record_products.product_id = products.product_id
-        WHERE timestamp = $1`,
+        WHERE timestamp = $1 ORDER BY discount_id`,
         [timestamp]
       ),
   });

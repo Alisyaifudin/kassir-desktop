@@ -1,7 +1,8 @@
 import { tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
-import { migration00000 } from "./01";
+import { migration00000 } from "./00";
 import EventEmitter from "eventemitter3";
+import { migration00001 } from "./01";
 
 async function run(event: EventEmitter) {
   const db = await getDB();
@@ -16,11 +17,20 @@ async function run(event: EventEmitter) {
       event.emit("update", percentage);
     });
     mig.on("finish", () => {
-      event.emit("finish");
+      run(event);
     });
-  } else {
-    event.emit("finish");
+    return;
+  } else if (versions[0] === 0) {
+    const mig = migration00001(db);
+    mig.on("update", (percentage: number) => {
+      event.emit("update", percentage);
+    });
+    mig.on("finish", () => {
+      run(event);
+    });
+    return;
   }
+  event.emit("finish");
 }
 
 export function migration() {

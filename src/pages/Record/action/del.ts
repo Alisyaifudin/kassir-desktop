@@ -22,7 +22,6 @@ export async function delAction(formdata: FormData, href: string) {
   const promises: Promise<DefaultError | null>[] = [];
   for (const p of products) {
     const stock = p.stock + sign * p.qty;
-    console.log(stock, sign, mode);
     promises.push(db.product.update.stock({ id: p.id, stock }));
   }
   const res = await Promise.all(promises);

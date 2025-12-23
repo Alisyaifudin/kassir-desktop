@@ -4,7 +4,7 @@ import Decimal from "decimal.js";
 import PQueue from "p-queue";
 import EventEmitter from "eventemitter3";
 
-export function migration00001(db: Database) {
+export function migration00000(db: Database) {
   const event = new EventEmitter();
   async function getData() {
     const [[errRecord, records], [errProd, productsAll], [errExtra, extrasAll]] = await Promise.all(
@@ -41,7 +41,7 @@ async function run(
     );
   }
   await queue.onIdle();
-  await db.execute(`UPDATE versions SET v = 1`);
+  await db.execute(`INSERT INTO versions VALUES (0)`);
   event.emit("finish");
 }
 
@@ -268,8 +268,7 @@ async function getAllProduct(db: Database): Promise<Result<DefaultError, Product
         `SELECT timestamp, product_id, record_products.record_product_id, record_product_name, record_product_price,
         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
         discount_id, discount_kind, discount_value, discount_eff
-        FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
-        ORDER BY discount_id`
+        FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id`
       ),
   });
   if (errMsg !== null) return err(errMsg);

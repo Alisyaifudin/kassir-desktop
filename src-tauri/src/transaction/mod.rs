@@ -6,6 +6,11 @@ pub fn generate_migration() -> Vec<Migration> {
         description: "create_initial_tables",
         sql: include_str!("../../src/transaction/01-10/migration-01.sql"),
         kind: MigrationKind::Up,
+    }, Migration {
+        version: 2,
+        description: "update_discount",
+        sql: include_str!("../../src/transaction/01-10/migration-02.sql"),
+        kind: MigrationKind::Up,
     }];
     return migrations;
 }

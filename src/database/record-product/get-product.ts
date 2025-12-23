@@ -15,7 +15,7 @@ export async function getProduct(
       db.select<{ product_id: number; product_stock: number; record_product_qty: number }[]>(
         `SELECT products.product_id, product_stock, record_product_qty FROM products 
         INNER JOIN record_products ON record_products.product_id = products.product_id
-        WHERE timestamp = $1`,
+        WHERE timestamp = $1 ORDER BY discount_id`,
         [timestamp]
       ),
   });

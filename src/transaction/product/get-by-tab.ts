@@ -47,8 +47,8 @@ export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah
          product_name, product_barcode, product_price, product_qty, product_stock, 
          disc_id, disc_value, disc_kind
          FROM products LEFT JOIN discounts ON products.product_id = discounts.product_id
-         WHERE tab = $1`,
-        [tab],
+         WHERE tab = $1 ORDER BY disc_order`,
+        [tab]
       ),
   });
   if (errMsg !== null) return err("Aplikasi bermasalah");
@@ -76,7 +76,8 @@ export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah
     item.discounts.push(discount);
     items.set(row.product_id, item);
   }
-  return ok(Array.from(items.values()));
+  const prods = Array.from(items.values());
+  return ok(prods);
 }
 
 function getProduct(id: number | null, price: number | null, name: string | null) {
@@ -89,7 +90,7 @@ function getProduct(id: number | null, price: number | null, name: string | null
 function getDiscount(
   id: string | null,
   value: number | null,
-  kind: "percent" | "number" | "pcs" | null,
+  kind: "percent" | "number" | "pcs" | null
 ): undefined | Discount {
   if (id !== null && value !== null && kind !== null) {
     return { id, value, kind };

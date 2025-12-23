@@ -49,7 +49,6 @@ export const productsStore = createStore({
         const index = draft.findIndex((p) => p.id === event.id);
         if (index === -1) return undefined;
         const product = produce(draft[index], event.recipe);
-        console.log(product);
         const discounts = calcEffDiscounts(
           { price: product.price, qty: product.qty },
           product.discounts
@@ -207,15 +206,15 @@ function calcEffDiscounts(
 
 function updateDiscount(product: Product, indexDisc: number, discount: Discount) {
   if (indexDisc === 0) {
-    const subtotal = new Decimal(product.price).times(product.qty);
-    const { eff } = calcEffDisc(subtotal, product.price, discount);
+    const base = new Decimal(product.price).times(product.qty);
+    const { eff, subtotal } = calcEffDisc(base, product.price, discount);
     discount.eff = eff;
     discount.subtotal = subtotal.toNumber();
   } else {
-    const subtotal = product.discounts[indexDisc - 1].subtotal;
-    const { eff } = calcEffDisc(new Decimal(subtotal), product.price, discount);
+    const base = product.discounts[indexDisc - 1].subtotal;
+    const { eff, subtotal } = calcEffDisc(new Decimal(base), product.price, discount);
     discount.eff = eff;
-    discount.subtotal = subtotal;
+    discount.subtotal = subtotal.toNumber();
   }
   return discount;
 }

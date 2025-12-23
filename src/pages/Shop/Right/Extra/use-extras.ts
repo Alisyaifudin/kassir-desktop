@@ -67,7 +67,6 @@ export const totalExtra = createAtom([]);
 export function useInitExtras() {
   const [tab] = useTab();
   const subtotal = useSubtotal();
-  console.log(subtotal);
   const [error, setError] = useState<null | string>(null);
   useEffect(() => {
     if (tab === undefined) return;
