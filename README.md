@@ -6,6 +6,5 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- hapus record harus perbaiki jumlah stok!
 - sonner tulisannya diperbesar
 - cari catatan dari no
