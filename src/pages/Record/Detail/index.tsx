@@ -22,36 +22,13 @@ import { useSize } from "~/hooks/use-size";
 import Decimal from "decimal.js";
 import { auth } from "~/lib/auth";
 import { useSetParams } from "../use-params";
+import { ToTransaction } from "./ToTransaction";
 
 type RecordListProps = {
   extras: RecordExtra[];
   products: RecordProduct[];
   record: Record;
 };
-
-// function filterData(
-//   timestamp: number | null,
-//   allItems: Summary["items"],
-//   allAdditionals: Summary["additionals"],
-//   records: Summary["record"][]
-// ): {
-//   items: Summary["items"];
-//   additionals: Summary["additionals"];
-//   record: Summary["record"] | null;
-// } {
-//   if (timestamp === null) {
-//     return { items: [], record: null, additionals: [] };
-//   }
-//   const record = records.find((r) => r.timestamp === timestamp);
-//   if (record === undefined) {
-//     return { items: [], record: null, additionals: [] };
-//   }
-//   return {
-//     items: allItems.filter((item) => item.timestamp === timestamp),
-//     record,
-//     additionals: allAdditionals.filter((item) => item.timestamp === timestamp),
-//   };
-// }
 
 export function Detail({ extras, products, record }: RecordListProps) {
   const size = useSize();
@@ -146,9 +123,12 @@ function NavBtn({ timestamp }: { timestamp: number }) {
           Lihat
         </Link>
       </Button>
-      <Show when={role === "admin"}>
-        <DeleteBtn timestamp={timestamp} />
-      </Show>
+      <div className="flex items-center gap-3">
+        <ToTransaction timestamp={timestamp} />
+        <Show when={role === "admin"}>
+          <DeleteBtn timestamp={timestamp} />
+        </Show>
+      </div>
     </div>
   );
 }

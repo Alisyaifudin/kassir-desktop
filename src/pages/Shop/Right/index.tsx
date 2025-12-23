@@ -29,7 +29,7 @@ export function Right({
     if (tabs === null) return;
     async function init(tabs: TabInfo[]) {
       if (tabs.length === 0) {
-        const [errMsg, tab] = await tx.transaction.add();
+        const [errMsg, tab] = await tx.transaction.addNew();
         if (errMsg) {
           throw new Error(errMsg);
         }

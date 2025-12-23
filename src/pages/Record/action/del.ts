@@ -1,14 +1,8 @@
-import { ActionFunctionArgs, redirect } from "react-router";
+import { redirect } from "react-router";
 import { db } from "~/database";
-import { auth } from "~/lib/auth";
 import { integer } from "~/lib/utils";
 
-export async function action({ request }: ActionFunctionArgs) {
-  const user = auth.user();
-  if (user.role !== "admin") {
-    throw new Error("Unauthorized");
-  }
-  const formdata = await request.formData();
+export async function delAction(formdata: FormData, href: string) {
   const parsed = integer.safeParse(formdata.get("timestamp"));
   if (!parsed.success) {
     return parsed.error.flatten().formErrors.join("; ");
@@ -18,9 +12,8 @@ export async function action({ request }: ActionFunctionArgs) {
   if (errMsg !== null) {
     return errMsg;
   }
-  const url = new URL(request.url);
+  const url = new URL(href);
   url.searchParams.delete("selected");
   throw redirect(url.href);
 }
 
-export type Action = typeof action;

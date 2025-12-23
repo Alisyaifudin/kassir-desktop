@@ -9,15 +9,16 @@ import {
 } from "~/components/ui/dialog";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
-import { Form, useActionData } from "react-router";
+import { Form } from "react-router";
 import { Spinner } from "~/components/Spinner";
 import { useLoading } from "~/hooks/use-loading";
+import { useAction } from "~/hooks/use-action";
 import { Action } from "../action";
 
 export function DeleteBtn({ timestamp }: { timestamp: number }) {
   const [open, setOpen] = useState(false);
   const loading = useLoading();
-  const error = useActionData<Action>();
+  const error = useAction<Action>()("delete");
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild variant="destructive">
@@ -31,6 +32,7 @@ export function DeleteBtn({ timestamp }: { timestamp: number }) {
               <DialogClose>Batal</DialogClose>
             </Button>
             <Form method="POST">
+              <input type="hidden" name="action" value="delete"></input>
               <input type="hidden" name="timestamp" value={timestamp}></input>
               <Button variant="destructive">
                 Hapus <Spinner when={loading} />

@@ -32,7 +32,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw redirect("/records?time=" + now);
   }
   const methods = db.method.getAll();
-  const records = getRecord(time.epochMilliseconds);
+  const records = getRecords(time.epochMilliseconds);
   return { records, methods };
 }
 
@@ -49,7 +49,7 @@ export type Data = {
   extras: RecordExtra[];
 };
 
-async function getRecord(timestamp: number): Promise<Result<DefaultError, Data[]>> {
+async function getRecords(timestamp: number): Promise<Result<DefaultError, Data[]>> {
   const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
   const start = date.startOfDay().epochMilliseconds;

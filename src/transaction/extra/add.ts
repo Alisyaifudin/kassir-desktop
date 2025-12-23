@@ -21,7 +21,6 @@ export async function add({
   const tx = await getTX();
   const [errMsg] = await tryResult({
     run: async () =>
-      // DANGEROUS BUT NECESSARY! SOMEHOW PARAMETERIZED `saved ? 1 : 0` does not work!!!
       tx.execute(
         `INSERT INTO extras (extra_id, tab, extra_name, extra_value, extra_kind, extra_is_saved) 
          VALUES ($1, $2, $3, $4, $5, $6)`,

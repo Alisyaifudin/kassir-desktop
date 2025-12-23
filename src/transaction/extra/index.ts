@@ -1,4 +1,5 @@
 import { add } from "./add";
+import { addMany } from "./add-many";
 import { delById } from "./del-by-id";
 import { getByTab } from "./get-by-tab";
 import { kind } from "./update-kind";
@@ -8,6 +9,7 @@ import { value } from "./update-value";
 
 export const extra = {
   add,
+  addMany,
   getByTab,
   delById,
   update: {
