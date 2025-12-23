@@ -1,5 +1,5 @@
 import { cn } from "~/lib/utils";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction";
 import { useDebouncedCallback } from "use-debounce";
@@ -12,6 +12,9 @@ export const QtyInput = memo(
     const save = useDebouncedCallback((v: number) => {
       queue.add(() => tx.product.update.qty(id, v));
     }, DEBOUNCE_DELAY);
+    useEffect(() => {
+      if (qty !== 0 && qty !== Number(input)) setInput(qty.toString());
+    }, [qty]);
     return (
       <input
         type="number"
@@ -33,5 +36,5 @@ export const QtyInput = memo(
         pattern="[1-9][0-9]*"
       ></input>
     );
-  },
+  }
 );

@@ -49,6 +49,7 @@ export const productsStore = createStore({
         const index = draft.findIndex((p) => p.id === event.id);
         if (index === -1) return undefined;
         const product = produce(draft[index], event.recipe);
+        console.log(product);
         const discounts = calcEffDiscounts(
           { price: product.price, qty: product.qty },
           product.discounts

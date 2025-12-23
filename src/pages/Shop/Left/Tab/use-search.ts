@@ -52,12 +52,11 @@ export function useSearch() {
   const [error, setError] = useState("");
   useEffect(() => {
     debounced(query);
-  }, []);
+  }, [query]);
   const handleChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.currentTarget.value.trimStart();
     setQuery(val);
     setError("");
-    debounced(val);
   };
 
   const handleClickProduct = async (product: Product) => {
@@ -69,40 +68,52 @@ export function useSearch() {
     queue.add(() => tx.transaction.update.query(tab, ""));
     ref.current.focus();
     const id = generateId();
-    productsStore.trigger.addProduct({
-      product: {
+    const storedProducts = productsStore.get().context;
+    const found = storedProducts.find((s) => s.barcode === product.barcode);
+    if (found === undefined) {
+      productsStore.trigger.addProduct({
         product: {
-          id: product.id,
+          product: {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+          },
+          barcode: product.barcode ?? "",
+          discounts: [],
+          id,
           name: product.name,
           price: product.price,
+          qty: 1,
+          stock: product.stock,
+          tab,
+          total: product.price,
         },
-        barcode: product.barcode ?? "",
-        discounts: [],
-        id,
-        name: product.name,
-        price: product.price,
-        qty: 1,
-        stock: product.stock,
-        tab,
-        total: product.price,
-      },
-    });
-    queue.add(() =>
-      tx.product.add({
-        id,
-        tab,
-        price: product.price,
-        name: product.name,
-        barcode: product.barcode ?? "",
-        qty: 1,
-        stock: product.stock,
-        product: {
-          id: product.id,
-          name: product.name,
+      });
+      queue.add(() =>
+        tx.product.add({
+          id,
+          tab,
           price: product.price,
+          name: product.name,
+          barcode: product.barcode ?? "",
+          qty: 1,
+          stock: product.stock,
+          product: {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+          },
+        })
+      );
+    } else {
+      productsStore.trigger.updateProduct({
+        id: found.id,
+        recipe: (draft) => {
+          draft.qty += 1;
         },
-      })
-    );
+      });
+      queue.add(() => tx.product.update.qty(found.id, found.qty + 1));
+    }
   };
   const handleClickExtra = (extra: Extra) => {
     if (ref.current === null || tab === undefined) return;
