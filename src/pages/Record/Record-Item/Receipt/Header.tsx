@@ -19,7 +19,7 @@ export function Header({
 }) {
 	return (
 		<div className="flex flex-col">
-			<p className="text-center text-lg font-bold">{owner}</p>
+			<h1 className="text-center font-bold">{owner}</h1>
 			<ForEach items={headers}>{(txt) => <p className="text-center">{txt}</p>}</ForEach>
 			<p>{address}</p>
 			<Show when={showCashier}>

@@ -20,7 +20,7 @@ export function SummaryBody({
         </Show>
         <Show when={extras.length > 0}>
           <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>
-          <hr className="w-full" />
+          <hr className="h-2 bg-transparent border-t-2 border-dashed border-black w-full" />
           <Show when={record.total !== record.grandTotal}>
             <p className="text-end">Rp{record.total.toLocaleString("id-ID")}</p>
           </Show>
@@ -40,7 +40,7 @@ export function SummaryBody({
           <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
         </div>
         <Show when={record.change !== 0}>
-          <hr className="w-full" />
+          <hr className="h-2 bg-transparent border-t-2 border-dashed border-black w-full" />
           <div className="grid grid-cols-[100px_120px]">
             <p>Kembalian</p> <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
           </div>

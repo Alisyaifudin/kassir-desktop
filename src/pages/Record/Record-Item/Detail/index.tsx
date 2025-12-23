@@ -78,9 +78,11 @@ export const Detail = memo(function ({
             <TableHead style={localStyle[size].big} className="text-end">
               Satuan
             </TableHead>
-            <TableHead style={localStyle[size].big} className="text-end">
-              Modal
-            </TableHead>
+            <Show when={data.record.mode === "buy"}>
+              <TableHead style={localStyle[size].big} className="text-end">
+                Modal
+              </TableHead>
+            </Show>
             <TableHead style={localStyle[size].small}>Qty</TableHead>
             <TableHead style={localStyle[size].big} className="text-end">
               Subtotal
@@ -108,9 +110,11 @@ export const Detail = memo(function ({
                     <GotoProductBtn productId={product.productId} />
                     {product.price.toLocaleString("id-ID")}{" "}
                   </TableCell>
-                  <TableCell className="text-end">
-                    {product.capital.toLocaleString("id-ID")}
-                  </TableCell>
+                  <Show when={data.record.mode === "buy"}>
+                    <TableCell className="text-end">
+                      {product.capital.toLocaleString("id-ID")}
+                    </TableCell>
+                  </Show>
                   <TableCell className="text-center">{product.qty}</TableCell>
                   <TableCell className="text-end">
                     {Number(

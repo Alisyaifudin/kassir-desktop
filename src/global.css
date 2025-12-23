@@ -207,8 +207,12 @@ input[type=number] {
 }
 
 #print-container {
+  h1 {
+    font-size: 18px;
+    line-height: 1.1;
+  }
   p {
-    font-size: small;
+    font-size: 15px;
     line-height: 1.2;
     font-family: "Courier New", monospace;
   }

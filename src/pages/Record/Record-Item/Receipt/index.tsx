@@ -31,10 +31,10 @@ export function Receipt({ data: { extras, products, record }, info }: { data: Da
             showCashier={info.showCashier}
             timestamp={record.timestamp}
           />
-          <hr />
+          <hr className="h-1 bg-transparent border-t-2 border-dashed border-black" />
           <Show when={products.length > 0}>
             <ForEach items={products}>{(item) => <Product {...item} />}</ForEach>
-            <hr />
+            <hr className="h-1 bg-transparent border-t-2 border-dashed border-black" />
           </Show>
           <SummaryBody extras={extras} record={record} productLength={products.length} />
           <Footer
