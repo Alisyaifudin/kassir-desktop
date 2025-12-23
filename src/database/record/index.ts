@@ -2,6 +2,7 @@ import { add } from "./add";
 import { delByTimestamp } from "./del-by-timestamp";
 import { getByRange } from "./get-by-range";
 import { getByTimestamp } from "./get-by-timestamp";
+import { getMode } from "./get-mode";
 import { updateMethod } from "./update-method";
 import { updateMode } from "./update-mode";
 import { updateNote } from "./update-note";
@@ -13,6 +14,7 @@ export const record = {
   get: {
     byRange: getByRange,
     byTimestamp: getByTimestamp,
+    mode: getMode,
   },
   add,
   delByTimestamp,

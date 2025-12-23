@@ -8,12 +8,8 @@ import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
 import { useQuery } from "./use-query";
 
-export function Search({
-  className,
-}: {
-  className?: string;
-}) {
-  const [query, setQuery] = useQuery()
+export function Search({ className }: { className?: string }) {
+  const [query, setQuery] = useQuery();
   const [value, setValue] = useState(query);
   const debounced = useDebouncedCallback((value: string) => {
     setQuery(value);
@@ -24,6 +20,8 @@ export function Search({
       <SearchIcon className="absolute left-2" />
       <Input
         type="search"
+        key="stock"
+        id="stock-product-search"
         placeholder="Cari..."
         className={cn("w-full pl-8", css.search[size])}
         value={value}

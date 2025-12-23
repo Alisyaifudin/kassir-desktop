@@ -30,9 +30,9 @@ export function useTotal() {
   const subtotal = useSubtotal();
   const extraTotal = useExtraTotal();
   useEffect(() => {
-    if (product || extra || transaction || subtotal === undefined) return;
+    if (product || extra || transaction) return;
     if (extraTotal !== undefined) {
-      setTotal(new Decimal(extraTotal));
+      setTotal(subtotal.plus(extraTotal));
     } else {
       setTotal(subtotal);
     }

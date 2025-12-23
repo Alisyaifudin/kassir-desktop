@@ -82,7 +82,9 @@ export async function submitAction(formdata: FormData) {
     promises.push(db.recordExtra.add({ timestamp, ...extra }));
   }
   for (const product of products) {
-    promises.push(db.recordProduct.add({ timestamp, productId: product.product?.id, ...product }));
+    promises.push(
+      db.recordProduct.add({ mode, timestamp, productId: product.product?.id, ...product })
+    );
   }
   const resPromise = await Promise.all(promises);
   for (const errMsg of resPromise) {

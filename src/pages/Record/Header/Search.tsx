@@ -20,6 +20,7 @@ export function Search() {
       <Input
         id="record-no"
         type="search"
+        key="record"
         placeholder="Cari..."
         className="w-full"
         value={value}
