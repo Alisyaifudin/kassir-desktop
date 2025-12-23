@@ -11,7 +11,7 @@ export function Footer({ record, extras }: { record: Record; extras: RecordExtra
   const size = useSize();
   return (
     <div className="flex flex-col items-end">
-      <Show when={record.subTotal !== record.grandTotal}>
+      <Show when={record.subTotal !== record.grandTotal && record.subTotal !== 0}>
         <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
       </Show>
       <Show when={extras.length > 0}>

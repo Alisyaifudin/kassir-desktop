@@ -53,43 +53,53 @@ export function Detail({ extras, products, record }: RecordListProps) {
             {record.cashier ? <p>Kasir: {capitalize(record.cashier)}</p> : null}
           </div>
         </div>
-        <div>
-          <Table className="text-normal">
-            <TableHeader>
-              <TableRow>
-                <TableHead className={css.summary[size].small}>No</TableHead>
-                <TableHead>Nama</TableHead>
-                <TableHead className={cn("text-end", css.summary[size].big)}>Satuan</TableHead>
-                <TableHead className={cn("text-end", css.summary[size].big)}>Modal</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead className={cn("text-end", css.summary[size].big)}>SubTotal</TableHead>
-                <TableHead className={cn("text-end", css.summary[size].big)}>Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="border-b">
-              <ForEach items={products}>
-                {(item, i) => (
-                  <TableRow>
-                    <TableCell className="flex items-center">
-                      {i + 1}
-                      {item.productId === null ? "" : <Lock className="icon" />}
-                    </TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell className="text-end">{item.price.toLocaleString("id-ID")}</TableCell>
-                    <TableCell className="text-end">
-                      {item.capital.toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="text-center">{item.qty}</TableCell>
-                    <TableCell className="text-end">
-                      {new Decimal(item.price).times(item.qty).toNumber().toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="text-end">{item.total.toLocaleString("id-ID")}</TableCell>
-                  </TableRow>
-                )}
-              </ForEach>
-            </TableBody>
-          </Table>
-        </div>
+        <Show when={products.length > 0}>
+          <div>
+            <Table className="text-normal">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className={css.summary[size].small}>No</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead className={cn("text-end", css.summary[size].big)}>Satuan</TableHead>
+                  <Show when={record.mode === "buy"}>
+                    <TableHead className={cn("text-end", css.summary[size].big)}>Modal</TableHead>
+                  </Show>
+                  <TableHead className={css.summary[size].small}>Qty</TableHead>
+                  <TableHead className={cn("text-end", css.summary[size].big)}>SubTotal</TableHead>
+                  <TableHead className={cn("text-end", css.summary[size].big)}>Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="border-b">
+                <ForEach items={products}>
+                  {(item, i) => (
+                    <TableRow>
+                      <TableCell className="flex items-center">
+                        {i + 1}
+                        {item.productId === null ? "" : <Lock className="icon" />}
+                      </TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell className="text-end">
+                        {item.price.toLocaleString("id-ID")}
+                      </TableCell>
+                      <Show when={record.mode === "buy"}>
+                        <TableCell className="text-end">
+                          {item.capital.toLocaleString("id-ID")}
+                        </TableCell>
+                      </Show>
+                      <TableCell className="text-center">{item.qty}</TableCell>
+                      <TableCell className="text-end">
+                        {new Decimal(item.price).times(item.qty).toNumber().toLocaleString("id-ID")}
+                      </TableCell>
+                      <TableCell className="text-end">
+                        {item.total.toLocaleString("id-ID")}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </ForEach>
+              </TableBody>
+            </Table>
+          </div>
+        </Show>
         <Footer extras={extras} record={record} />
         <Show when={record.customer.name !== "" && record.customer.phone !== ""}>
           <p>
