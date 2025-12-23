@@ -5,6 +5,7 @@ import { setCache } from "../product/caches";
 
 type Input = {
   mode: DB.Mode;
+  fix: number;
   timestamp: number;
   productId?: number;
   name: string;
@@ -23,6 +24,7 @@ type Input = {
 
 export async function add({
   mode,
+  fix,
   timestamp,
   name,
   price,
@@ -39,8 +41,8 @@ export async function add({
   if (productId !== undefined) {
     const [errMsg, res] = await tryResult({
       run: () =>
-        db.select<{ product_stock: number; product_capital: number }[]>(
-          `SELECT product_stock, product_capital FROM products WHERE product_id = $1`,
+        db.select<{ product_stock: number; product_capital: number; product_price: number }[]>(
+          `SELECT product_stock, product_capital, product_price FROM products WHERE product_id = $1`,
           [productId]
         ),
     });
@@ -51,7 +53,7 @@ export async function add({
       const w2 = new Decimal(res[0].product_capital).times(res[0].product_stock);
       const t = new Decimal(res[0].product_stock).plus(qty);
       const w = w1.plus(w2);
-      capital = w.div(t).toNumber();
+      capital = Number(w.div(t).toFixed(fix));
     } else {
       capital = res[0].product_capital;
     }
@@ -65,7 +67,7 @@ export async function add({
       run: () =>
         db.execute(
           "UPDATE products SET product_stock = $1, product_price = $2, product_name = $3, product_capital = $4 WHERE product_id = $5",
-          [newStock, price, name, cap, productId]
+          [newStock, mode === "sell" ? price : res[0].product_price, name, cap, productId]
         ),
     });
     if (errUpdate !== null) return errUpdate;
