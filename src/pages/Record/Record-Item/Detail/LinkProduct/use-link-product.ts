@@ -27,7 +27,9 @@ export function useLinkProduct(product: Data["products"][number], products: Prod
     const formdata = new FormData();
     formdata.set("action", "link-product");
     formdata.set("record-product-id", recordProductId.toString());
-    formdata.set("product-id", productId.toString());
+    if (selected?.id !== productId) {
+      formdata.set("product-id", productId.toString());
+    }
     submit(formdata, { method: "POST" });
   };
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

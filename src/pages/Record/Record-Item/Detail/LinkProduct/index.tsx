@@ -99,6 +99,7 @@ export function LinkProduct({
             </Show>
             <Spinner when={loading} />
           </div>
+          <TextError>{error?.recordProductId}</TextError>
         </div>
         <Input
           type="search"
@@ -125,7 +126,7 @@ export function LinkProduct({
                     onClick={handleClick(product.id, p.id)}
                     className="w-full p-1"
                     variant={
-                      selected !== undefined && selected.id === product.id ? "secondary" : "default"
+                      selected !== undefined && selected.id === p.id ? "secondary" : "default"
                     }
                   >
                     {i + 1}

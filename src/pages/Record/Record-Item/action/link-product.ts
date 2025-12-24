@@ -9,7 +9,7 @@ const schema = z.object({
 
 export async function linkProductAction(formdata: FormData) {
   const parsed = schema.safeParse({
-    itemId: formdata.get("record-product-id"),
+    recordProductId: formdata.get("record-product-id"),
     productId: formdata.get("product-id"),
   });
   if (!parsed.success) {

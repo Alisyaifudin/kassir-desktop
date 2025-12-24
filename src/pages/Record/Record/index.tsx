@@ -7,15 +7,10 @@ import { METHOD_BASE_KIND } from "~/lib/utils";
 export function Record({ records }: { records: Data[] }) {
   const mode = useParams().mode;
   let filtered = records.filter((r) => r.record.mode === mode);
-  const total = calcTotal(filtered);
   const methodId = useParams().methodId;
   const query = useParams().query;
   filtered = filterRecords(filtered, methodId, query);
-  // if (order === "total") {
-  // 	records.sort((a, b) => b.grandTotal - a.grandTotal);
-  // } else {
-  // 	records.sort((a, b) => b.timestamp - a.timestamp);
-  // }
+  const total = calcTotal(filtered);
   return (
     <div className="flex flex-col gap-1 overflow-hidden">
       <div className="flex-1 max-h-full overflow-hidden">
