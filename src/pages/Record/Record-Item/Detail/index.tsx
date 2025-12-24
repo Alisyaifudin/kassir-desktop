@@ -29,6 +29,7 @@ import { Product } from "~/database/product/caches";
 import { auth } from "~/lib/auth";
 import { useSize } from "~/hooks/use-size";
 import Decimal from "decimal.js";
+import { DeleteBtn } from "./DeleteBtn";
 
 const localStyle = {
   big: {
@@ -151,15 +152,18 @@ export const Detail = memo(function ({
           Pelanggan: {data.record.customer.name} ({data.record.customer.phone})
         </p>
       </Show>
-      <Suspense>
-        <EditDialog
-          isCredit={data.record.isCredit}
-          mode={data.record.mode}
-          note={data.record.note}
-          method={data.record.method}
-          methods={methods}
-        />
-      </Suspense>
+      <div className="flex items-center justify-between">
+        <Suspense>
+          <EditDialog
+            isCredit={data.record.isCredit}
+            mode={data.record.mode}
+            note={data.record.note}
+            method={data.record.method}
+            methods={methods}
+          />
+        </Suspense>
+        <DeleteBtn timestamp={data.record.timestamp} />
+      </div>
       <div className="flex flex-col gap-2">
         <p>
           Dibayar: {formatTime(data.record.paidAt, "long")} | {getDayName(data.record.paidAt)},{" "}

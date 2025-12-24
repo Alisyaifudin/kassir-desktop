@@ -8,6 +8,7 @@ import { changeModeAction } from "./change-mode";
 import { changeMethodAction } from "./change-method";
 import { toCreditAction } from "./to-credit";
 import { auth } from "~/lib/auth";
+import { delAction } from "./del";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const parsed = integer.safeParse(params.timestamp);
@@ -48,6 +49,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
     case "change-method": {
       const error = await changeMethodAction(timestamp, formdata);
+      return { error, action };
+    }
+    case "delete": {
+      const error = await delAction(timestamp);
       return { error, action };
     }
     default:
