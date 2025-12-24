@@ -15,6 +15,7 @@ import { StockInput } from "./StockInput";
 import { useAtom } from "@xstate/store/react";
 import { useTab } from "~/pages/shop/use-tab";
 import { productsDB } from "../../use-load-db";
+import Decimal from "decimal.js";
 
 export function ProductManual() {
   const [error, setError] = useState("");
@@ -35,7 +36,7 @@ export function ProductManual() {
     const id = generateId();
     productsStore.trigger.addProduct({
       product: {
-        total: price,
+        total: new Decimal(price).times(qty).toNumber(),
         barcode,
         discounts: [],
         id,
@@ -55,7 +56,7 @@ export function ProductManual() {
         barcode,
         qty,
         stock,
-      }),
+      })
     );
     if (errMsg !== null) {
       productsStore.trigger.deleteProduct({ id });

@@ -69,7 +69,9 @@ export function useSearch() {
     ref.current.focus();
     const id = generateId();
     const storedProducts = productsStore.get().context;
-    const found = storedProducts.find((s) => s.barcode === product.barcode);
+    const found = storedProducts.find(
+      (s) => s.barcode === product.barcode && s.barcode.trim() !== ""
+    );
     if (found === undefined) {
       productsStore.trigger.addProduct({
         product: {
