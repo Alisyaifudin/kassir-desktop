@@ -88,12 +88,12 @@ function MultiRow({
   item: Prod;
 }) {
   const [limit, setLimit] = useState(0);
-  const handleMore = useCallback(() => {
+  const handleMore = () => {
     setLimit((prev) => {
       const limit = Math.min(prev + 5, item.items.length);
       return limit;
     });
-  }, []);
+  };
   const handleReset = useCallback(() => {
     setLimit(0);
   }, []);
@@ -148,18 +148,16 @@ function MultiRow({
             </TableRow>
           )}
         </ForEach>
-        <TableRow>
-          <TableCell colSpan={6} className="text-end">
-            Menampilkan {limit} / {item.items.length}
-            <Show when={limit < item.items.length}>
-              {" "}
-              |{" "}
+        <Show when={limit < item.items.length}>
+          <TableRow>
+            <TableCell colSpan={6} className="text-end">
+              Menampilkan {limit} / {item.items.length} |{" "}
               <button className="underline" onClick={handleMore}>
                 Lebih banyak
               </button>
-            </Show>
-          </TableCell>
-        </TableRow>
+            </TableCell>
+          </TableRow>
+        </Show>
       </Show>
     </>
   );
