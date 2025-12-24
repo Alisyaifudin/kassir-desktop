@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
 import { z } from "zod";
 
-export function useInterval(defaultDay: "week" | "day") {
+export function useInterval(defaultDay: "week" | "day" | "month") {
   const [search, setSearch] = useSearchParams();
   let interval = z
     .enum(["week", "month", "year", "day"])

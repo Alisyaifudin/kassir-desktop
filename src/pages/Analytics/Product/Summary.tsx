@@ -1,7 +1,7 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
 import { Loading } from "~/components/Loading";
-import { useMode } from "./use-mode";
+import { useMode } from "../use-mode";
 import { Show } from "~/components/Show";
 
 const store = createAtom({

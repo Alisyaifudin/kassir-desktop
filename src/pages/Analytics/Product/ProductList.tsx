@@ -1,6 +1,6 @@
 import { Item } from "~/database/product/get-by-range";
 import { useQuery } from "./use-query";
-import { useMode } from "./use-mode";
+import { useMode } from "../use-mode";
 import { useItemSearch } from "./use-search";
 import { ProductTable } from "./ProductTable";
 import { useEffect } from "react";
@@ -40,7 +40,7 @@ export function ProductList({ items: all }: { items: Item[] }) {
   }, [all]);
   return (
     <div className="flex-1 overflow-hidden">
-      <div className="flex-1 max-h-full overflow-hidden flex">
+      <div className="max-h-full overflow-hidden flex">
         <ProductTable items={items} />
       </div>
     </div>

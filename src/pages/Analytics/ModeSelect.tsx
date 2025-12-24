@@ -3,7 +3,7 @@ import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { useMode } from "./use-mode";
 
-export function Mode() {
+export function ModeSelect() {
   const [mode, setMode] = useMode();
   return (
     <div className="flex items-center gap-7">

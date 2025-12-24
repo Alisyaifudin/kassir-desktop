@@ -9,9 +9,8 @@ import { Item } from "~/database/product/get-by-range";
 import { Summary } from "./Summary";
 import { ProductList } from "./ProductList";
 import { useQuery } from "./use-query";
-import { DatePicker } from "../DatePicker";
-import { Mode } from "./Mode";
 import { Input } from "~/components/ui/input";
+import { Panel } from "./Panel";
 
 export default function Page() {
   const items = useLoaderData<Loader>();
@@ -25,10 +24,7 @@ export default function Page() {
         <Summary />
       </NavList>
       <div className="flex flex-col gap-2 py-1 flex-1 overflow-hidden">
-        <div className="flex items-center gap-5">
-          <DatePicker defaultInterval="day" option="products" />
-          <Mode />
-        </div>
+        <Panel />
         <Input
           className="mx-1"
           type="search"

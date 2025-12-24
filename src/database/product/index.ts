@@ -8,6 +8,7 @@ import { proposeBarcode } from "./propose-barcode";
 import { updateDetail } from "./update-detail";
 import { byRange } from "./get-by-range";
 import { updateStock } from "./update-stock";
+import { getPerformance } from "./get-performance";
 
 export const product = {
   get: {
@@ -15,11 +16,12 @@ export const product = {
     byId: getById,
     history: getHistory,
     byRange: byRange,
+    performance: getPerformance,
   },
   delById,
   update: {
     detail: updateDetail,
-    stock: updateStock
+    stock: updateStock,
   },
   barcode: {
     gen: generateBarcode,

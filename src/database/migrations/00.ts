@@ -268,7 +268,8 @@ async function getAllProduct(db: Database): Promise<Result<DefaultError, Product
         `SELECT timestamp, product_id, record_products.record_product_id, record_product_name, record_product_price,
         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
         discount_id, discount_kind, discount_value, discount_eff
-        FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id`
+        FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
+        ORDER BY discount_id`
       ),
   });
   if (errMsg !== null) return err(errMsg);
