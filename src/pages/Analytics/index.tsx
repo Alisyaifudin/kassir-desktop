@@ -5,7 +5,6 @@ import { cashflowRoute } from "./Cashflow";
 import { netRoute } from "./Net";
 import { crowdRoute } from "./Crowd";
 import { productRoute } from "./Product";
-import { performanceRoute } from "./Performance";
 
 const Page = lazy(() => import("./page"));
 
@@ -13,5 +12,5 @@ export const route: RouteObject = {
   path: "analytics",
   middleware: [admin],
   Component: Page,
-  children: [cashflowRoute, netRoute, crowdRoute, productRoute, performanceRoute],
+  children: [cashflowRoute, netRoute, crowdRoute, productRoute],
 };

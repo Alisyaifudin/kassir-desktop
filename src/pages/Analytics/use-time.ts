@@ -7,6 +7,7 @@ export function useTime() {
   const set = (time: number) => {
     const s = new URLSearchParams(window.location.search);
     s.set("time", time.toString());
+    s.set("limit", "100");
     setSearch(s);
   };
   return [time, set] as const;

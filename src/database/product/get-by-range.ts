@@ -62,7 +62,7 @@ export async function byRange(start: number, end: number): Promise<Result<Defaul
          INNER JOIN records ON records.timestamp = record_products.timestamp
          LEFT JOIN products ON products.product_id = record_products.product_id
          WHERE record_products.timestamp BETWEEN $1 AND $2
-         ORDER BY record_products.timestamp DESC, record_product_name`,
+         ORDER BY record_products.timestamp DESC`,
         [start, end]
       ),
   });

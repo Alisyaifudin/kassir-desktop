@@ -10,6 +10,7 @@ export function useInterval(defaultDay: "week" | "day" | "month") {
   const set = (interval: "day" | "week" | "month" | "year") => {
     const s = new URLSearchParams(window.location.search);
     s.set("interval", interval);
+    s.set("limit", "100");
     setSearch(s);
   };
   return [interval, set] as const;

@@ -19,8 +19,6 @@ async function run(event: EventEmitter) {
       run(event);
     });
     return;
-  } else if (versions[0] === 1) {
-    await db.execute("UPDATE versions SET v = 0")
   }
   event.emit("finish");
 }
