@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { image } from "~/lib/image";
 import { log } from "~/lib/utils";
 
-// TODO: PROPER POPOVER
 export function DetailDialog({
   productId,
   stock,

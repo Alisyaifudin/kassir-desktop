@@ -20,7 +20,7 @@ function Wrapper() {
   const arr = Array.from({ length: n }).map((_, i) => i);
   return (
     <ForEach items={arr} extractKey={(i) => ids[n - i - 1]}>
-      {(i) => <Item id={ids[n - i - 1]} index={i} />}
+      {(i) => <Item id={ids[n - i - 1]} index={n - i - 1} />}
     </ForEach>
   );
 }

@@ -47,7 +47,7 @@ export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah
          product_name, product_barcode, product_price, product_qty, product_stock, 
          disc_id, disc_value, disc_kind
          FROM products LEFT JOIN discounts ON products.product_id = discounts.product_id
-         WHERE tab = $1 ORDER BY disc_order`,
+         WHERE tab = $1 ORDER BY product_order, disc_order`,
         [tab]
       ),
   });
