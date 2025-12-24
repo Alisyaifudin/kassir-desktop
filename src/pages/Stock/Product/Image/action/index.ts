@@ -1,11 +1,8 @@
 import { ActionFunctionArgs, redirect } from "react-router";
-import { getBackURL, integer } from "~/lib/utils";
-import { editAction } from "./edit";
-import { deleteAction } from "./delete";
-import { deleteImageAction } from "./delete-image";
-import { addImageAction } from "./add-image";
-import { generateBarcodeAction } from "./generate-barcode";
-import { swapImageAction } from "./swap-image";
+import { integer } from "~/lib/utils";
+import { deleteImageAction } from "./del";
+import { addImageAction } from "./add";
+import { swapImageAction } from "./swap";
 import { auth } from "~/lib/auth";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -18,33 +15,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
     throw redirect("/stock");
   }
   const id = parsed.data;
-  const search = new URL(request.url).searchParams;
-  const backUrl = getBackURL("/stock", search);
   const formdata = await request.formData();
   const action = formdata.get("action");
   switch (action) {
-    case "edit": {
-      const error = await editAction(id, formdata, backUrl);
-      return { error, action };
-    }
     case "delete": {
-      const error = await deleteAction(id, backUrl);
-      return { error, action };
-    }
-    case "delete-image": {
       const error = await deleteImageAction(formdata);
       return { error, action };
     }
-    case "add-image": {
+    case "add": {
       const error = await addImageAction(id, formdata);
       return { error, action };
     }
-    case "swap-image": {
+    case "swap": {
       const error = await swapImageAction(formdata);
-      return { error, action };
-    }
-    case "generate-barcode": {
-      const error = await generateBarcodeAction(id);
       return { error, action };
     }
     default:

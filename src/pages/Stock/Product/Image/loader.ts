@@ -1,21 +1,22 @@
-import { z } from "zod";
+import { data, LoaderFunctionArgs, redirect } from "react-router";
+import { DefaultError, err, integer, ok, Result } from "~/lib/utils";
 import { db } from "~/database";
 import { image } from "~/lib/image";
-import { DefaultError, err, numeric, ok, Result } from "~/lib/utils";
 
-export function getParams(search: URLSearchParams): { page: number; mode: "buy" | "sell" } {
-  const pageRaw = numeric.safeParse(search.get("page"));
-  let page = 1;
-  if (pageRaw.success && pageRaw.data >= 1) {
-    page = pageRaw.data;
+export async function loader({ params }: LoaderFunctionArgs) {
+  const parsed = integer.safeParse(params.id);
+  if (!parsed.success) {
+    throw redirect("/stock");
   }
-  const modeRaw = z.enum(["buy", "sell"]).safeParse(search.get("mode"));
-  let mode: "buy" | "sell" = "sell";
-  if (modeRaw.success) {
-    mode = modeRaw.data;
+  const id = parsed.data;
+  const [errMsg, images] = await getImages(id);
+  if (errMsg) {
+    throw new Error(errMsg);
   }
-  return { mode, page };
+  return data(images);
 }
+
+export type Loader = typeof loader;
 
 export type ImageResult = {
   href: string;

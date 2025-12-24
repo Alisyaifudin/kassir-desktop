@@ -1,32 +1,24 @@
 import { Button } from "~/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { use } from "react";
 import { cn } from "~/lib/utils";
-import { TextError } from "~/components/TextError";
 import { DeleteImg } from "./DeleteImg";
-import { ImagePromise, ImageResult } from "../utils";
 import { ImageControl } from "./ImageControl";
 import { useSelected } from "./use-selected";
 import { useChange } from "./use-change";
 import { useContainerSize, useControlSize } from "./use-container-size";
 import { auth } from "~/lib/auth";
+import { useLoaderData } from "react-router";
+import { ImageResult, Loader } from "./loader";
 
-export function ImageSection({ images: promise }: { images: ImagePromise }) {
-  const [errMsg, images] = use(promise);
-  if (errMsg) {
-    return <TextError>{errMsg}</TextError>;
-  }
-  return <ImageList images={images} />;
-}
-
-function ImageList({ images }: { images: ImageResult[] }) {
+export default function Page() {
+  const images = useLoaderData<Loader>();
   const [selected, setSelected] = useSelected(images);
   const [index, handlePrev, handleNext] = useChange(images);
-  const container = useContainerSize();
+  const [refContainer, container] = useContainerSize();
   const [ref, control] = useControlSize();
   const role = auth.user().role;
   return (
-    <div className="flex flex-col gap-1 flex-1 w-full min-h-0">
+    <div ref={refContainer} className="flex flex-col gap-1 flex-1 w-full min-h-0">
       <div className="flex-1 min-h-0 justify-center  items-center flex">
         <Button
           className="h-full px-0"

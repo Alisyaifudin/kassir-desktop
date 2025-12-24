@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
-import { ImageResult } from "../utils";
 import { useCallback, useMemo } from "react";
 import { integer } from "~/lib/utils";
+import { ImageResult } from "./loader";
 
 export function useSelected(images: ImageResult[]) {
 	const [search, setSearch] = useSearchParams();

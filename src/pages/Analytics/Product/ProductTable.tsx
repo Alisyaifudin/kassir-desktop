@@ -54,9 +54,7 @@ export function ProductTable({ items }: { items: Item[] }) {
   const [limit, setLimit] = useLimit();
   const handleMore = () => {
     setLimit((prev) => {
-      console.log("prev", prev);
       const limit = Math.min(prev + 100, items.length);
-      console.log("now", limit);
       return limit;
     });
   };

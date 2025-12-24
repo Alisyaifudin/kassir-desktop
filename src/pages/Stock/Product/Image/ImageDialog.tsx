@@ -50,7 +50,7 @@ export function ImageDialog() {
 			return;
 		}
 		const formdata = new FormData();
-		formdata.set("action", "add-image");
+		formdata.set("action", "add");
 		formdata.set("image", file);
 		submit(formdata, { method: "POST", encType: "multipart/form-data" });
 	};

@@ -14,9 +14,9 @@ import { useEffect, useState } from "react";
 import { Spinner } from "~/components/Spinner";
 import { useLoading } from "~/hooks/use-loading";
 import { Form } from "react-router";
-import { ImageResult } from "../utils";
 import { Action } from "../action";
 import { useAction } from "~/hooks/use-action";
+import { ImageResult } from "./loader";
 
 export function DeleteImg({ selected }: { selected: ImageResult }) {
 	const [open, setOpen] = useState(false);
@@ -47,7 +47,7 @@ export function DeleteImg({ selected }: { selected: ImageResult }) {
 							<DialogClose>Batal</DialogClose>
 						</Button>
 						<Form method="POST">
-							<input type="hidden" name="action" value="delete-image"></input>
+							<input type="hidden" name="action" value="delete"></input>
 							<input type="hidden" name="image-id" value={selected.id}></input>
 							<Button variant="destructive">
 								Hapus <Spinner when={loading} />
