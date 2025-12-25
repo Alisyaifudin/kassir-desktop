@@ -33,12 +33,13 @@ export async function toTransactionAction(formdata: FormData) {
       return {
         barcode: p.product?.barcode ?? "",
         id,
+        discounts: p.discounts,
         name: p.product?.name ?? p.name,
         price: p.price,
         qty: p.qty,
         stock: p.product?.stock ?? p.qty,
         tab,
-        product: p.product
+        product: p.product,
       };
     })
   );

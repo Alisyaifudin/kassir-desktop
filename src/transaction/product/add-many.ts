@@ -1,6 +1,7 @@
 import { DefaultError, tryResult } from "~/lib/utils";
 import { getTX } from "../db-instance";
 import Database from "@tauri-apps/plugin-sql";
+import { generateId } from "~/lib/random";
 
 type Data = {
   tab: number;
@@ -15,13 +16,17 @@ type Data = {
   price: number;
   qty: number;
   stock: number;
+  discounts: {
+    value: number;
+    kind: TX.DiscKind;
+  }[];
 };
 
 export async function addMany(data: Data[]): Promise<DefaultError | null> {
   const tx = await getTX();
   const promises: Promise<DefaultError | null>[] = [];
   for (const d of data) {
-    promises.push(add(tx, d));
+    promises.push(addProduct(tx, d));
   }
   const res = await Promise.all(promises);
   for (const errMsg of res) {
@@ -30,11 +35,11 @@ export async function addMany(data: Data[]): Promise<DefaultError | null> {
   return null;
 }
 
-async function add(
+async function addProduct(
   tx: Database,
-  { id, tab, price, product, name, barcode, qty, stock }: Data
+  { discounts, id, tab, price, product, name, barcode, qty, stock }: Data
 ): Promise<DefaultError | null> {
-  const [errMsg] = await tryResult({
+  const [errProd] = await tryResult({
     run: async () =>
       tx.execute(
         `INSERT INTO products (product_id, tab, product_name, product_barcode, product_price, 
@@ -52,6 +57,32 @@ async function add(
           product?.name ?? null,
           product?.price ?? null,
         ]
+      ),
+  });
+  if (errProd !== null) return errProd;
+  const promises: Promise<DefaultError | null>[] = [];
+  for (const d of discounts) {
+    promises.push(addDiscount(tx, id, d));
+  }
+  const res = await Promise.all(promises);
+  for (const errMsg of res) {
+    if (errMsg !== null) return errMsg;
+  }
+  return null;
+}
+
+async function addDiscount(
+  tx: Database,
+  productId: string,
+  { kind, value }: Data["discounts"][number]
+): Promise<DefaultError | null> {
+  const id = generateId();
+  const [errMsg] = await tryResult({
+    run: async () =>
+      tx.execute(
+        `INSERT INTO discounts (product_id, disc_id, disc_value, disc_kind) 
+         VALUES ($1, $2, $3, $4)`,
+        [productId, id, value, kind]
       ),
   });
   return errMsg;
