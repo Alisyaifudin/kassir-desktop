@@ -13,6 +13,7 @@ export async function loader() {
 
 export default function Layout() {
   const owner = useLoaderData<typeof loader>();
+  
   return (
     <>
       <header className="bg-sky-300 flex">

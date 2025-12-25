@@ -5,24 +5,26 @@ import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
 import { auth } from "~/lib/auth";
 import { memo } from "react";
+import { Kbd } from "~/components/ui/kdb";
 
 const icon = {
   big: 40,
   small: 20,
 };
 
-export const SettingLink = memo(() => {
+export const SettingLink = memo(({ show }: { show: boolean }) => {
   const { pathname } = useLocation();
   const size = useSize();
   const role = auth.get()?.role;
   return (
     <li
       className={cn(
-        "rounded-t-full flex items-center px-3",
+        "rounded-t-full flex items-center px-3 relative",
         css.setting[size],
         pathname.includes("/setting") ? "bg-white" : "bg-black text-white"
       )}
     >
+      <Kbd className={cn("absolute -bottom-3 -left-2", { hidden: !show })}>alt+5</Kbd>
       <Link to={role === "admin" ? "/setting/shop" : "/setting"} className="relative">
         <Settings size={icon[size]} />
         {/* <Show when={hasUpdate}>
