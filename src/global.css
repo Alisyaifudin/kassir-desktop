@@ -226,7 +226,7 @@ input[type=number] {
   p {
     font-size: 15px;
     line-height: 1.2;
-    font-family: "Courier New", monospace;
+    font-family: Arial, Helvetica, sans-serif;
   }
 }
 
