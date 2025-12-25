@@ -6,7 +6,7 @@ export const useProductSearch = (products: Product[]) => {
   const [fuzzyName, fuzzyBarcode] = useMemo(() => {
     const fuzzyName = createFuzzySearch(products, {
       key: "name",
-      strategy: "aggressive",
+      strategy: "smart",
     });
     const fuzzyBarcode = createFuzzySearch(products, {
       key: "barcode",
@@ -32,7 +32,7 @@ export const useProductSearch = (products: Product[]) => {
     }
     const res = Array.from(map.values());
     res.sort((a, b) => a.score - b.score);
-    return res.map((r) => r.item);
+    return res;
   };
 
   return search;

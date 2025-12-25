@@ -8,13 +8,13 @@ export const useExtraSearch = (products: Extra[]) => {
     const fuzzy = createFuzzySearch(products, {
       key: "name",
     });
-    return fuzzy
+    return fuzzy;
   }, [products]);
 
   // Typed search function
   const search = (query: string) => {
     const res = fuzz(query);
-    return res.map((q) => q.item);
+    return res;
   };
 
   return search;

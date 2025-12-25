@@ -15,6 +15,7 @@ import { useTab } from "../../use-tab";
 import { useAtom } from "@xstate/store/react";
 import { useSubtotal } from "../../Right/use-subtotal";
 import { extrasDB, productsDB } from "../use-load-db";
+import { FuzzyResult } from "@nozbe/microfuzz";
 
 function setQuery(query: string) {
   basicStore.set((prev) => ({ ...prev, query }));
@@ -29,8 +30,9 @@ export function useSearch() {
   const ref = useRef<HTMLInputElement>(null);
   const [tab] = useTab();
   const query = useQuery();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [extras, setExtras] = useState<Extra[]>([]);
+  const [products, setProducts] = useState<FuzzyResult<Product>[]>([]);
+  console.log(products);
+  const [extras, setExtras] = useState<FuzzyResult<Extra>[]>([]);
   const subtotal = useSubtotal();
   const allProducts = useAtom(productsDB);
   const allExtras = useAtom(extrasDB);
@@ -154,26 +156,67 @@ export function useSearch() {
     if (error !== "" || query.trim() === "") {
       return;
     }
-    const product = allProducts.find((p) => p.barcode === query.trim()) ?? products.at(0);
-    const extra =
-      allExtras.find((p) => p.name.toLowerCase() === query.toLowerCase().trim()) ?? extras.at(0);
+    const productWithBarcode = allProducts.find((p) => p.barcode === query.trim());
+    if (productWithBarcode !== undefined) {
+      handleClickProduct({
+        barcode: productWithBarcode.barcode,
+        name: productWithBarcode.name,
+        price: productWithBarcode.price,
+        id: productWithBarcode.id,
+        stock: productWithBarcode.stock,
+        capital: productWithBarcode.capital,
+      });
+      return;
+    }
+    const extraMatch = allExtras.find((p) => p.name.toLowerCase() === query.toLowerCase().trim());
+    if (extraMatch !== undefined) {
+      handleClickExtra({
+        kind: extraMatch.kind,
+        name: extraMatch.name,
+        value: extraMatch.value,
+        id: extraMatch.id,
+      });
+      return;
+    }
+    const product = products.at(0);
+    const extra = extras.at(0);
+    if (product !== undefined && extra !== undefined) {
+      if (product.score >= extra.score) {
+        handleClickProduct({
+          barcode: product.item.barcode,
+          name: product.item.name,
+          price: product.item.price,
+          id: product.item.id,
+          stock: product.item.stock,
+          capital: product.item.capital,
+        });
+        return;
+      }
+      handleClickExtra({
+        kind: extra.item.kind,
+        name: extra.item.name,
+        value: extra.item.value,
+        id: extra.item.id,
+      });
+      return;
+    }
     if (product !== undefined) {
       handleClickProduct({
-        barcode: product.barcode,
-        name: product.name,
-        price: product.price,
-        id: product.id,
-        stock: product.stock,
-        capital: product.capital,
+        barcode: product.item.barcode,
+        name: product.item.name,
+        price: product.item.price,
+        id: product.item.id,
+        stock: product.item.stock,
+        capital: product.item.capital,
       });
       return;
     }
     if (extra !== undefined) {
       handleClickExtra({
-        kind: extra.kind,
-        name: extra.name,
-        value: extra.value,
-        id: extra.id,
+        kind: extra.item.kind,
+        name: extra.item.name,
+        value: extra.item.value,
+        id: extra.item.id,
       });
       return;
     }

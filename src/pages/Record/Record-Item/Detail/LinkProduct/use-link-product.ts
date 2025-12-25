@@ -18,7 +18,7 @@ export function useLinkProduct(product: Data["products"][number], products: Prod
     } else {
       new Promise((resolve) => {
         const results = search(value.trim());
-        resolve(results);
+        resolve(results.map((r) => r.item));
       }).then((v) => setShown(v as any));
     }
   }, DEBOUNCE_DELAY);

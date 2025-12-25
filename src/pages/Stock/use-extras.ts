@@ -6,6 +6,6 @@ export function useFilterExtras(all: Extra[]) {
   const search = useExtraSearch(all);
   const [query] = useQuery();
   const p = all.sort((a, b) => a.name.localeCompare(b.name));
-  const extras: Extra[] = query.trim() === "" ? p : search(query.trim());
+  const extras: Extra[] = query.trim() === "" ? p : search(query.trim()).map((a) => a.item);
   return extras;
 }

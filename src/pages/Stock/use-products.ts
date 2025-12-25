@@ -21,5 +21,5 @@ export function useFilterProducts(all: Product[]) {
     return filtered;
   }
   let p = search(query.trim());
-  return p;
+  return p.map((p) => p.item);
 }

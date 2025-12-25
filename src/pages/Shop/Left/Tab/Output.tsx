@@ -6,6 +6,7 @@ import { Product } from "~/database/product/caches";
 import { basicStore } from "../../use-transaction";
 import { useSize } from "~/hooks/use-size";
 import { useAtom } from "@xstate/store/react";
+import { FuzzyResult } from "@nozbe/microfuzz";
 
 export function Output({
   products,
@@ -13,8 +14,8 @@ export function Output({
   handleClickExtra,
   handleClickProduct,
 }: {
-  products: Product[];
-  extras: Extra[];
+  products: FuzzyResult<Product>[];
+  extras: FuzzyResult<Extra>[];
   handleClickProduct: (product: Product) => void;
   handleClickExtra: (extra: Extra) => void;
 }) {
@@ -41,23 +42,23 @@ export function Output({
                 type="button"
                 onClick={() =>
                   handleClickProduct({
-                    id: product.id,
-                    stock: product.stock,
-                    name: product.name,
-                    price: product.price,
-                    barcode: product.barcode ?? "",
-                    capital: product.capital,
+                    id: product.item.id,
+                    stock: product.item.stock,
+                    name: product.item.name,
+                    price: product.item.price,
+                    barcode: product.item.barcode ?? "",
+                    capital: product.item.capital,
                   })
                 }
                 className={cn(
                   "cursor-pointer text-small w-full grid hover:bg-sky-100/50",
                   "flex items-center justify-between",
-                  { "bg-red-400 hover:bg-red-300": product.stock === 0 && mode === "sell" }
+                  { "bg-red-400 hover:bg-red-300": product.item.stock === 0 && mode === "sell" }
                 )}
               >
-                <span className={cn("text-start text-wrap")}>{product.name}</span>
-                {product.barcode !== null ? (
-                  <span className="text-start">{product.barcode}</span>
+                <span className={cn("text-start text-wrap")}>{product.item.name}</span>
+                {product.item.barcode !== null ? (
+                  <span className="text-start">{product.item.barcode}</span>
                 ) : null}
               </button>
             </li>
@@ -72,15 +73,15 @@ export function Output({
               type="button"
               onClick={() =>
                 handleClickExtra({
-                  name: extra.name,
-                  value: extra.value,
-                  kind: extra.kind,
-                  id: extra.id,
+                  name: extra.item.name,
+                  value: extra.item.value,
+                  kind: extra.item.kind,
+                  id: extra.item.id,
                 })
               }
               className={cn("cursor-pointer text-small w-full grid hover:bg-sky-100/50")}
             >
-              <span className={cn("text-start text-wrap")}>{extra.name}</span>
+              <span className={cn("text-start text-wrap")}>{extra.item.name}</span>
             </button>
           </li>
         ))}
