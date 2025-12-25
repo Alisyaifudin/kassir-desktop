@@ -50,26 +50,28 @@ export async function add({
     });
     if (errMsg) return errMsg;
     if (res.length === 0) return "Tidak ditemukan";
-    if (mode === "buy") {
-      const w1 = new Decimal(capitalRaw).times(qty);
-      const w2 = new Decimal(res[0].product_capital).times(res[0].product_stock);
-      const t = new Decimal(res[0].product_stock).plus(qty);
-      const w = w1.plus(w2);
-      capital = Number(w.div(t).toFixed(fix));
-    } else {
-      capital = res[0].product_capital;
-    }
+    const w1 = new Decimal(capitalRaw).times(qty);
+    const w2 = new Decimal(res[0].product_capital).times(res[0].product_stock);
+    const t = new Decimal(res[0].product_stock).plus(qty);
+    const w = w1.plus(w2);
+    capital = Number(w.div(t).toFixed(fix));
+    const productCapital = mode === "buy" ? capital : res[0].product_capital;
     const sign = mode === "buy" ? 1 : -1;
     let newStock = res[0].product_stock + sign * qty;
     if (mode === "buy" && res[0].product_stock < 0) {
       newStock = qty;
     }
-    const cap = mode === "buy" ? capital : res[0].product_capital;
     const [errUpdate] = await tryResult({
       run: () =>
         db.execute(
           "UPDATE products SET product_stock = $1, product_price = $2, product_name = $3, product_capital = $4 WHERE product_id = $5",
-          [newStock, mode === "sell" ? price : res[0].product_price, name, cap, productId]
+          [
+            newStock,
+            mode === "sell" ? price : res[0].product_price,
+            name,
+            productCapital,
+            productId,
+          ]
         ),
     });
     if (errUpdate !== null) return errUpdate;
@@ -78,7 +80,7 @@ export async function add({
         if (p.id === productId) {
           return {
             ...p,
-            capital: cap,
+            capital: productCapital,
             stock: newStock,
             name,
             price,
