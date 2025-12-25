@@ -12,6 +12,7 @@ import { Limit } from "./Limit";
 export function ProductPanel({ productsLength }: { productsLength: number }) {
   const role = auth.user().role;
   const { totalPage } = useInterval(productsLength);
+  const search = window.location.search;
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-1">
@@ -22,7 +23,7 @@ export function ProductPanel({ productsLength }: { productsLength: number }) {
           <Limit />
           <Show when={role === "admin"}>
             <Link
-              to="/stock/product/new"
+              to={{ pathname: "/stock/product/new", search }}
               className="outline hover:bg-accent rounded-xl pl-3 flex gap-2 items-center w-fit"
             >
               Tambah Produk
