@@ -8,6 +8,18 @@ body {
   display: flex;
 }
 
+.toast div[data-title] {
+  @apply text-normal;
+}
+
+.toast div[data-icon] svg {
+  @apply icon;
+}
+
+.toast div[data-icon]  {
+  @apply w-fit!;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

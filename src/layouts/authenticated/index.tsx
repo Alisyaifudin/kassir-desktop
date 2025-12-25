@@ -25,7 +25,7 @@ export default function Layout() {
       </header>
       <Outlet />
       {/* <Notification>{notification}</Notification> */}
-      <Toaster />
+      <Toaster className="toast" />
     </>
   );
 }
