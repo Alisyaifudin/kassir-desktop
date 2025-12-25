@@ -20,6 +20,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/transaction/01-10/migration-03.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "update_extra",
+            sql: include_str!("../../src/transaction/01-10/migration-04.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }
