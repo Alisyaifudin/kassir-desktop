@@ -17,7 +17,7 @@ export function GraphUp({ vals }: { vals: number[] }) {
   const ticks = getTicks(maxVal);
   const size = useSize();
   return (
-    <div className="flex gap-1 w-full h-full">
+    <div className="flex w-full h-full">
       <div style={style[size]} className="relative h-full border-r">
         {ticks.map((tick) => (
           <p
@@ -29,7 +29,7 @@ export function GraphUp({ vals }: { vals: number[] }) {
           </p>
         ))}
       </div>
-      <div className="w-full h-full flex-1 flex gap-1 items-end">
+      <div className="h-full flex-1 flex gap-1">
         {vals.map((v, i) => (
           <Bar orientation={"up"} v={v} key={i} maxVal={maxVal} length={vals.length} />
         ))}

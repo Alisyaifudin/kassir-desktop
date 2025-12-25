@@ -32,18 +32,18 @@ function getEdges(
         edges.push(date.epochMilliseconds);
       }
       const labels = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
         "Mei",
         "Juni",
         "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
+        "Agu",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Des",
       ];
       return { edges, labels };
   }

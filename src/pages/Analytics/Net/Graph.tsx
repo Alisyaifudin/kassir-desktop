@@ -34,6 +34,7 @@ function Wrapper({ records, start, end }: { records: Record[]; start: number; en
   const profits: number[] = revenues.map((rev, i) =>
     new Decimal(rev).minus(spendings[i]).plus(debts[i]).toNumber()
   );
+  const size = useSize();
   useEffect(() => {
     setSummary({
       loading: false,
@@ -43,16 +44,16 @@ function Wrapper({ records, start, end }: { records: Record[]; start: number; en
   return (
     <div className="flex flex-col flex-1 py-5">
       <GraphBar orientation="up" vals={profits} />
-      <div className="flex gap-1 w-full">
-        <div className="w-[100px]"></div>
-        <div className="flex gap-1 w-full">
+      <div className="flex w-full" style={style.height[size]}>
+        <div style={style.width[size]}></div>
+        <div className="flex-1 flex gap-1">
           {labels.map((label) => (
             <div
               key={label}
-              className="h-[50px] flex justify-center items-center text-2xl"
+              className="flex justify-center items-center"
               style={{ width: `${100 / labels.length}%` }}
             >
-              <p>{label}</p>
+              <p className="text-small! absolute">{label}</p>
             </div>
           ))}
         </div>
@@ -63,11 +64,21 @@ function Wrapper({ records, start, end }: { records: Record[]; start: number; en
 }
 
 const style = {
-  small: {
-    width: "60px",
+  width: {
+    small: {
+      width: "60px",
+    },
+    big: {
+      width: "80px",
+    },
   },
-  big: {
-    width: "80px",
+  height: {
+    small: {
+      height: "50px",
+    },
+    big: {
+      height: "70px",
+    },
   },
 };
 
@@ -77,7 +88,7 @@ function GraphBar({ vals, orientation }: { vals: number[]; orientation: "up" | "
   const ticks = getTicks(maxVal);
   return (
     <div className="flex gap-1 w-full h-full">
-      <div className="relative h-full border-r" style={style[size]}>
+      <div className="relative h-full border-r" style={style.width[size]}>
         {ticks.map((tick) => (
           <p
             key={tick}
