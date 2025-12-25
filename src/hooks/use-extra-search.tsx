@@ -1,24 +1,19 @@
-import Fuse, { IFuseOptions, FuseResult } from "fuse.js";
 import { useMemo } from "react";
+import createFuzzySearch from "@nozbe/microfuzz";
 import { Extra } from "~/database/extra/caches";
 // Fuse returns the original item nested within the result object
-export type FuseProductSearchResult = FuseResult<Extra>;
 
 export const useExtraSearch = (products: Extra[]) => {
-  const fuse = useMemo(() => {
-    const options: IFuseOptions<Extra> = {
-      keys: ["name"],
-      includeScore: true,
-      includeMatches: true,
-      threshold: 0.2,
-    };
-
-    return new Fuse<Extra>(products, options);
+  const fuzz = useMemo(() => {
+    const fuzzy = createFuzzySearch(products, {
+      key: "name",
+    });
+    return fuzzy
   }, [products]);
 
   // Typed search function
   const search = (query: string) => {
-    const res = fuse.search(query);
+    const res = fuzz(query);
     return res.map((q) => q.item);
   };
 
