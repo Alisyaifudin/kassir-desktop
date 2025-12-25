@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 
-export type Option =  "cashflow" | "net" | "crowd" | "products";
+export type Option = "cashflow" | "net" | "crowd" | "products";
 
 const label = {
   cashflow: "Arus Kas",
@@ -19,23 +19,20 @@ const path = {
 
 export function NavLink({ selected, to }: { to: Option; selected: Option }) {
   const navigate = useNavigate();
-  let search = window.location.search;
+  let search = new URLSearchParams(window.location.search);
   switch (to) {
-    case "products": {
-      const s = new URLSearchParams(search);
-      s.delete("interval");
-      search = "?" + s.toString();
+    case "products":
+    case "crowd": {
+      search.set("interval", "day");
       break;
     }
-    case "crowd": {
-      const s = new URLSearchParams(search);
-      s.set("interval", "week");
-      search = "?" + s.toString();
+    default: {
+      search.set("interval", "month");
       break;
     }
   }
   const handleClick = () => {
-    navigate({ pathname: `/analytics/${path[to]}`, search });
+    navigate({ pathname: `/analytics/${path[to]}`, search: search.toString() });
   };
   return (
     <Button

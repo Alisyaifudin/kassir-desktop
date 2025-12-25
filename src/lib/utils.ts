@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "4.1.9";
+export const version = "4.1.11";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export const METHOD_NAMES = {
@@ -213,7 +213,7 @@ export const sizeClass = {
 
 export function formatBarcode(barcode?: string) {
   if (barcode === undefined) return "";
-  const chunks = chunkSubstr(barcode, 13);
+  const chunks = chunkSubstr(barcode, 14);
   return chunks.join("\n");
 }
 
@@ -222,7 +222,7 @@ function chunkSubstr(str: string, size: number): string[] {
   const chunks: string[] = new Array(numChunks);
 
   for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
-    chunks[i] = str.substring(o, size);
+    chunks[i] = str.substring(o, size + o);
   }
 
   return chunks;

@@ -92,7 +92,7 @@ export function ProductList({ products }: Props) {
             <SortBtn
               onClick={handleSort("name")}
               sort={sortBy === "name" ? sortDir : undefined}
-              className="justify-center"
+              className="justify-start"
             >
               Nama
             </SortBtn>
@@ -180,4 +180,3 @@ function SortBtn({
     </button>
   );
 }
-

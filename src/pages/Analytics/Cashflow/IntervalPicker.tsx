@@ -4,9 +4,9 @@ import { z } from "zod";
 import { Label } from "~/components/ui/label";
 
 export function IntervalPicker() {
-  const [interval, setInterval] = useInterval("week");
+  const [interval, setInterval] = useInterval("month");
   const handleClickInterval = (v: string) => {
-    const interval = z.enum(["year", "week", "month"]).catch("week").parse(v);
+    const interval = z.enum(["year", "week", "month"]).catch("month").parse(v);
     setInterval(interval);
   };
   return (

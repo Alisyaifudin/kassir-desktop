@@ -18,7 +18,7 @@ export default function Page() {
         <Summary />
       </NavList>
       <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
-        <DatePicker defaultInterval="week" />
+        <DatePicker defaultInterval="day" />
         <Suspense fallback={<LoadingBig />}>
           <Wrapper records={records} start={start} end={end} />
         </Suspense>

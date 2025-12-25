@@ -2,13 +2,16 @@ import { LoaderFunctionArgs } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
 import { db } from "~/database";
-import { integer } from "~/lib/utils";
+import { formatDate, integer } from "~/lib/utils";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const search = new URL(request.url).searchParams;
   const { interval, time } = getParam(search);
   const [start, end] = getRange(interval, time);
   const records = db.record.get.byRange(start, end);
+  console.log(interval);
+  console.log(formatDate(start, "long"));
+  console.log(formatDate(end, "long"));
   return { start, end, records };
 }
 

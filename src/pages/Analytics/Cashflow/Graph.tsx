@@ -46,7 +46,7 @@ const style = {
 };
 
 function Wrapper({ records, start, end }: { records: Record[]; start: number; end: number }) {
-  const [int] = useInterval("week");
+  const [int] = useInterval("month");
   const interval = int === "day" ? "week" : int;
   const [, setSummary] = useSummary();
   const { revenues, debts, labels, spendings } = getFlow({ records, start, end, interval });
