@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { setCache } from "../product/caches";
 
 type Input = {
+  recordId: number;
   mode: DB.Mode;
   fix: number;
   timestamp: number;
@@ -23,6 +24,7 @@ type Input = {
 };
 
 export async function add({
+  recordId,
   mode,
   fix,
   timestamp,
@@ -117,10 +119,10 @@ export async function add({
   const [errMsg, res] = await tryResult({
     run: () =>
       db.execute(
-        `INSERT INTO record_products (product_id, timestamp, record_product_name, record_product_price,
+        `INSERT INTO record_products (product_id, record_product_id, timestamp, record_product_name, record_product_price,
          record_product_qty, record_product_capital, record_product_capital_raw, record_product_total)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [productId, timestamp, name, price, qty, capital, capitalRaw, total]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [productId, recordId, timestamp, name, price, qty, capital, capitalRaw, total]
       ),
   });
   if (errMsg !== null) return errMsg;

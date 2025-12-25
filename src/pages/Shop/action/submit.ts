@@ -52,22 +52,29 @@ export async function submitAction(formdata: FormData) {
   }
   products = calcCapitals(products, subtotal, grandTotal, fix);
   // DO THE TRANSACTION 😱
-  const [errRecord, timestamp] = await db.record.add({
-    cashier,
-    customer,
-    fix,
-    isCredit,
-    methodId,
-    mode,
-    note,
-    pay,
-    rounding,
-    subtotal,
-    total,
-  });
+  const [[errRecord, timestamp], [errLast, lastId]] = await Promise.all([
+    db.record.add({
+      cashier,
+      customer,
+      fix,
+      isCredit,
+      methodId,
+      mode,
+      note,
+      pay,
+      rounding,
+      subtotal,
+      total,
+    }),
+    db.recordProduct.get.lastId(),
+  ]);
   if (errRecord !== null) {
     return { global: errRecord };
   }
+  if (errLast !== null) {
+    return { global: errLast };
+  }
+  const ids = Array.from({ length: products.length }).map((_, i) => i + 1 + lastId);
   if (customer.id === undefined && customer.name.trim() !== "") {
     const errCustomer = await db.customer.add(customer.name, customer.phone);
     if (errCustomer !== null) {
@@ -81,9 +88,18 @@ export async function submitAction(formdata: FormData) {
   for (const extra of extras) {
     promises.push(db.recordExtra.add({ timestamp, ...extra }));
   }
-  for (const product of products) {
+  for (let i = 0; i < products.length; i++) {
+    const product = products[i];
+    const recordId = ids[i];
     promises.push(
-      db.recordProduct.add({ mode, fix, timestamp, productId: product.product?.id, ...product })
+      db.recordProduct.add({
+        recordId,
+        mode,
+        fix,
+        timestamp,
+        productId: product.product?.id,
+        ...product,
+      })
     );
   }
   const resPromise = await Promise.all(promises);
