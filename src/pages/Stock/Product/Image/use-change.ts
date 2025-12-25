@@ -1,4 +1,4 @@
-import { ImageResult } from "../utils";
+import { ImageResult } from "./loader";
 import { useSelected } from "./use-selected";
 
 export function useChange(images: ImageResult[]) {

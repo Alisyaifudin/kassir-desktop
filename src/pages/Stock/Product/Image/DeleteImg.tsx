@@ -14,14 +14,14 @@ import { useEffect, useState } from "react";
 import { Spinner } from "~/components/Spinner";
 import { useLoading } from "~/hooks/use-loading";
 import { Form } from "react-router";
-import { Action } from "../action";
+import { Action } from "./action";
 import { useAction } from "~/hooks/use-action";
 import { ImageResult } from "./loader";
 
 export function DeleteImg({ selected }: { selected: ImageResult }) {
 	const [open, setOpen] = useState(false);
 	const loading = useLoading();
-	const error = useAction<Action>()("delete-image");
+	const error = useAction<Action>()("delete");
 	useEffect(() => {
 		if (!loading && error === undefined) {
 			setOpen(false);

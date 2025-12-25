@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { useSubmit } from "react-router";
-import { Action } from "../action";
+import { Action } from "./action";
 import { useAction } from "~/hooks/use-action";
 import { useLoading } from "~/hooks/use-loading";
 
@@ -22,7 +22,7 @@ export function ImageDialog() {
 	const [file, setFile] = useState<File | null>(null);
 	const [img, setImg] = useState<null | string>(null);
 	const [open, setOpen] = useState(false);
-	const error = useAction<Action>()("add-image");
+	const error = useAction<Action>()("add");
 	const loading = useLoading();
 	const submit = useSubmit();
 	useEffect(() => {
