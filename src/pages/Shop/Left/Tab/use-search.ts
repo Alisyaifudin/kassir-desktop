@@ -31,7 +31,6 @@ export function useSearch() {
   const [tab] = useTab();
   const query = useQuery();
   const [products, setProducts] = useState<FuzzyResult<Product>[]>([]);
-  console.log(products);
   const [extras, setExtras] = useState<FuzzyResult<Extra>[]>([]);
   const subtotal = useSubtotal();
   const allProducts = useAtom(productsDB);
