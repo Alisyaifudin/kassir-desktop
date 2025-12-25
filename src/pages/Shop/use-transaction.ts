@@ -1,8 +1,5 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
-import { use, useEffect, useState } from "react";
-import { Result } from "~/lib/utils";
-import { Transaction } from "~/transaction/transaction/get-by-tab";
 
 export const basicStore = createAtom<{
   fix: number;
@@ -41,30 +38,6 @@ export const manualStore = createAtom({
     saved: false,
   },
 });
-
-export function useInitTx(
-  promise: Promise<Result<"Aplikasi bermasalah" | "Tidak ditemukan", Transaction>>
-) {
-  const [loading, setLoading] = useState(true);
-  const [error, transaction] = use(promise);
-  useEffect(() => {
-    if (transaction === null) return;
-    const { customer, product, extra, ...basic } = transaction;
-    basicStore.set({ ...basic, rounding: 0 });
-    customerStore.set(customer);
-    const stock = Math.max(product.stock, product.qty);
-    manualStore.set({
-      product: { ...product, stock },
-      extra,
-    });
-    setLoading(false);
-  }, [transaction]);
-  useEffect(() => {
-    basicStore.set((prev) => ({ ...prev }));
-  }, []);
-
-  return [error, loading] as const;
-}
 
 export function useFix() {
   return useAtom(basicStore, (state) => state.fix);

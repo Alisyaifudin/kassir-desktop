@@ -1,5 +1,4 @@
 import Decimal from "decimal.js";
-import { redirect } from "react-router";
 import { z } from "zod";
 import { db } from "~/database";
 import { DefaultError, err, integer, NotFound, numeric, ok, Result } from "~/lib/utils";
@@ -107,12 +106,14 @@ export async function submitAction(formdata: FormData) {
     if (errMsg !== null) {
       db.record.delByTimestamp(timestamp);
       return {
-        global: "Gagal menyimpan transaksi. Coba lagi",
+        global: "Gagal menyimpan transaksi. Coba lagi/refresh.",
       };
     }
   }
   tx.transaction.del(tab);
-  throw redirect(`/records/${timestamp}?url_back=${encodeURI("/")}`);
+  return {
+    redirect: `/records/${timestamp}?url_back=${encodeURI("/")}&clear=true`,
+  };
 }
 
 type Res = {
@@ -237,8 +238,9 @@ function calcCapitals(
   fix: number
 ): ProductT[] {
   return products.map((p) => {
-    const eff = new Decimal(p.total).div(subtotal).times(grandTotal);
-    const capital = eff.div(p.qty);
+    const eff =
+      subtotal > 0 ? new Decimal(p.total).div(subtotal).times(grandTotal) : new Decimal(0);
+    const capital = p.qty > 0 ? eff.div(p.qty) : 0;
     p.capital = Number(capital.toFixed(fix));
     return p;
   });

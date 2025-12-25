@@ -1,4 +1,13 @@
-import { DefaultError, NotFound, Result, tryResult } from "~/lib/utils";
+import {
+  DEFAULT_ERROR,
+  DefaultError,
+  err,
+  log,
+  NotFound,
+  ok,
+  Result,
+  tryResult,
+} from "~/lib/utils";
 import { getDB } from "../instance";
 import Decimal from "decimal.js";
 import { setCache } from "../product/caches";
@@ -51,10 +60,11 @@ export async function add({
     if (errMsg) return errMsg;
     if (res.length === 0) return "Tidak ditemukan";
     const w1 = new Decimal(capitalRaw).times(qty);
-    const w2 = new Decimal(res[0].product_capital).times(res[0].product_stock);
-    const t = new Decimal(res[0].product_stock).plus(qty);
+    const stock = res[0].product_stock < 0 ? 0 : res[0].product_stock;
+    const w2 = new Decimal(res[0].product_capital).times(stock);
+    const t = new Decimal(stock).plus(qty);
     const w = w1.plus(w2);
-    capital = Number(w.div(t).toFixed(fix));
+    capital = t.toNumber() > 0 ? Number(w.div(t).toFixed(fix)) : 0;
     const productCapital = mode === "buy" ? capital : res[0].product_capital;
     const sign = mode === "buy" ? 1 : -1;
     let newStock = res[0].product_stock + sign * qty;
@@ -118,15 +128,21 @@ export async function add({
     ]);
     productId = id;
   }
-  const [errMsg, res] = await tryResult({
-    run: () =>
-      db.execute(
+  const [errMsg, res] = await (async () => {
+    try {
+      const res = await db.execute(
         `INSERT INTO record_products (product_id, record_product_id, timestamp, record_product_name, record_product_price,
          record_product_qty, record_product_capital, record_product_capital_raw, record_product_total)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [productId, recordId, timestamp, name, price, qty, capital, capitalRaw, total]
-      ),
-  });
+      );
+      return ok(res);
+    } catch (error) {
+      log.error(JSON.stringify(error));
+      log.error(`capital ${capital}`);
+      return err(DEFAULT_ERROR);
+    }
+  })();
   if (errMsg !== null) return errMsg;
   const id = res.lastInsertId;
   if (id === undefined) return "Aplikasi bermasalah";

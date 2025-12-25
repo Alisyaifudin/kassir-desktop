@@ -16,11 +16,11 @@ import { useTotal } from "../../Right/use-total";
 import { useStatus } from "../../use-status";
 import { productsStore } from "../../Right/Product/use-products";
 import { extrasStore } from "../../Right/Extra/use-extras";
-import { useSubmit } from "react-router";
+import { useNavigate, useSubmit } from "react-router";
 import { useAtom } from "@xstate/store/react";
 import { useLoading } from "~/hooks/use-loading";
 import { submitHandler } from "./submit";
-import { tabsStore, useTab } from "../../use-tab";
+import { useTab } from "../../use-tab";
 import { auth } from "~/lib/auth";
 import { useAction } from "~/hooks/use-action";
 import { Action } from "../../action";
@@ -28,14 +28,13 @@ import { TextError } from "~/components/TextError";
 import { toast } from "sonner";
 import { productsDB } from "../use-load-db";
 import { Kbd } from "~/components/ui/kdb";
-import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function Summary({
   methods,
 }: {
   methods: Promise<Result<"Aplikasi bermasalah", MethodDB[]>>;
 }) {
-  const error = useAction<Action>()("submit");
+  const actionData = useAction<Action>()("submit");
   const submitLoading = useLoading();
   const [tab] = useTab();
   const fix = useFix();
@@ -51,19 +50,25 @@ export function Summary({
     pay: "",
     rounding: rounding === 0 ? "" : rounding.toString(),
   });
+  const navigate = useNavigate();
   useEffect(() => {
-    if (!loading && error !== undefined && error.global !== undefined) {
-      toast.error(error.global);
+    if (!loading && actionData !== undefined) {
+      if (actionData.global !== undefined) {
+        toast.error(actionData.global);
+      } else if (actionData.redirect !== undefined) {
+        navigate(actionData.redirect);
+      }
     }
-  }, [error, loading]);
+  }, [actionData, loading]);
   const cashier = auth.user().name;
   const total = useTotal();
   const clear = useClear();
   const size = useSize();
   const submit = useSubmit();
-  function handleSubmit(isCredit: boolean) {
+  async function handleSubmit(isCredit: boolean) {
     if (all === null || tab === undefined) return;
     if (loading) return;
+    if (productsLength === 0 && extrasLength === 0) return;
     const pay = Number(form.pay);
     const rounding = Number(form.rounding);
     if (isNaN(pay) || isNaN(rounding)) {
@@ -83,11 +88,6 @@ export function Summary({
       return;
     }
     submit(formdata, { method: "post" });
-    setTimeout(() => {
-      tabsStore.set((prev) => prev.filter((p) => p.tab !== tab));
-      productsStore.trigger.clear();
-      extrasStore.trigger.clear();
-    }, DEBOUNCE_DELAY);
   }
   return (
     <div className="flex flex-col p-2 h-fit gap-2">
@@ -132,7 +132,7 @@ export function Summary({
             aria-autocomplete="list"
           />
         </label>
-        <TextError>{error?.pay}</TextError>
+        <TextError>{actionData?.pay}</TextError>
         <label className={cn("grid items-center", css.grid[size])}>
           <span>Pembulatan</span>
           :
@@ -150,7 +150,7 @@ export function Summary({
             aria-autocomplete="list"
           />
         </label>
-        <TextError>{error?.rounding}</TextError>
+        <TextError>{actionData?.rounding}</TextError>
         <Show
           value={total}
           fallback={
@@ -213,7 +213,7 @@ export function Summary({
             );
           }}
         </Show>
-        <TextError>{error?.isCredit}</TextError>
+        <TextError>{actionData?.isCredit}</TextError>
       </form>
     </div>
   );
