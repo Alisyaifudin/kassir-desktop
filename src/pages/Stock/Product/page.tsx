@@ -30,6 +30,9 @@ export default function Page() {
           <TabsTrigger id={id} tab="images">
             Gambar
           </TabsTrigger>
+          <TabsTrigger id={id} tab="performance">
+            Performa
+          </TabsTrigger>
         </div>
       </div>
       <Outlet />
@@ -40,6 +43,7 @@ export default function Page() {
 const tabs = (id: number) => ({
   detail: `/stock/product/${id}`,
   images: `/stock/product/${id}/images`,
+  performance: `/stock/product/${id}/performance`,
 });
 
 function TabsTrigger({
@@ -49,7 +53,7 @@ function TabsTrigger({
 }: {
   children: React.ReactNode;
   id: number;
-  tab: "detail" | "images";
+  tab: "detail" | "images" | "performance";
 }) {
   const to = tabs(id)[tab];
   const active = useActive();
@@ -67,13 +71,15 @@ function TabsTrigger({
   );
 }
 
-function useActive(): "detail" | "images" {
+function useActive(): "detail" | "images" | "performance" {
   const { pathname } = useLocation();
   const pathnames = pathname.split("/");
   if (pathnames.length <= 4) return "detail";
   switch (pathnames[4]) {
     case "images":
       return "images";
+    case "performance":
+      return "performance";
     default:
       return "detail";
   }

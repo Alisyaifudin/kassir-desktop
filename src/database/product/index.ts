@@ -9,12 +9,14 @@ import { updateDetail } from "./update-detail";
 import { byRange } from "./get-by-range";
 import { updateStock } from "./update-stock";
 import { getPerformance } from "./get-performance";
+import { getHistoryRange } from "./history-range";
 
 export const product = {
   get: {
     all,
     byId: getById,
     history: getHistory,
+    historyRange: getHistoryRange,
     byRange: byRange,
     performance: getPerformance,
   },
