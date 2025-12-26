@@ -3,7 +3,7 @@ import { style } from "@vanilla-extract/css";
 export const css = {
   mode: {
     big: style({
-      fontSize: "60px",
+      fontSize: "200px",
     }),
     small: style({
       fontSize: "120px",
