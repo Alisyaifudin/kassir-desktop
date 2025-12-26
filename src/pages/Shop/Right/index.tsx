@@ -15,6 +15,9 @@ import { Loading } from "~/components/Loading";
 import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { CustomerDialog } from "./CustomerDialog";
 import { auth } from "~/lib/auth";
+import { useMode } from "../use-transaction";
+import { useSize } from "~/hooks/use-size";
+import { css } from "./style.css";
 
 export function Right({
   tabs: promise,
@@ -39,6 +42,8 @@ export function Right({
     }
     init(tabs);
   }, [tabs]);
+  const size = useSize();
+  const mode = useMode();
   if (errMsg !== null) return <TextError>{errMsg}</TextError>;
   if (tabs.length === 0) return <div className="animate-pulse h-full w-full"></div>;
   return (
@@ -48,9 +53,22 @@ export function Right({
           <Tab tabs={tabs} />
           <Header />
         </div>
-        <div className={cn("flex flex-1 flex-col overflow-y-auto min-h-0 h-full")}>
+        <div
+          className={cn("relative flex flex-1 flex-col overflow-y-auto min-h-0 h-full", {
+            "bg-blue-50": mode === "buy",
+          })}
+        >
           <ExtraList />
           <ProductList />
+          <span
+            className={cn(
+              css.mode[size],
+              { hidden: mode === "sell" },
+              "fixed pointer-events-none opacity-5 -translate-y-1/2 translate-x-1/2 -rotate-45 top-1/2 left-1/2"
+            )}
+          >
+            BELI
+          </span>
         </div>
       </div>
       <div className="flex items-center justify-between">

@@ -1,6 +1,14 @@
 import { style } from "@vanilla-extract/css";
 
 export const css = {
+  mode: {
+    big: style({
+      fontSize: "60px",
+    }),
+    small: style({
+      fontSize: "120px",
+    }),
+  },
   tab: {
     big: style({
       width: "60px",
