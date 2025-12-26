@@ -21,7 +21,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const search = new URL(request.url).searchParams;
   const { page, mode } = getParams(search);
   const histories = db.product.get.history(id, (page - 1) * LIMIT, LIMIT, mode);
-  return { product, histories, id };
+  return { product, histories };
 }
 
 export type HistoryPromise = Promise<

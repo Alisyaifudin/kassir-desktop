@@ -46,14 +46,12 @@ const style = {
 export function HistoryTable({
   mode,
   products,
-  id,
 }: {
   products: ProductHistory[];
   mode: "buy" | "sell";
-  id: number;
 }) {
   const size = useSize();
-  const urlBack = encodeURIComponent(`/stock/product/${id}`);
+  const urlBack = encodeURIComponent(window.location.href);
   switch (mode) {
     case "buy":
       return (

@@ -9,14 +9,14 @@ import { Product } from "~/database/product/get-by-id";
 import { auth } from "~/lib/auth";
 
 export default function Page() {
-  const { histories, product, id } = useLoaderData<Loader>();
+  const { histories, product } = useLoaderData<Loader>();
   return (
     <div className="grid grid-cols-2 gap-2 flex-1  overflow-hidden">
       <div className="h-full overflow-hidden">
         <Detail product={product} />
       </div>
       <Suspense fallback={<LoadingBig />}>
-        <History histories={histories} id={id} />
+        <History histories={histories} />
       </Suspense>
     </div>
   );

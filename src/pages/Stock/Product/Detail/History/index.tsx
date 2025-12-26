@@ -12,24 +12,16 @@ import { TextError } from "~/components/TextError";
 import { LIMIT } from "../constants";
 import { ProductHistory } from "~/database/product/history";
 
-export function History({ id, histories: promise }: { id: number; histories: HistoryPromise }) {
+export function History({ histories: promise }: { histories: HistoryPromise }) {
   const [errMsg, data] = use(promise);
   if (errMsg) {
     return <TextError>{errMsg}</TextError>;
   }
   const { total, histories } = data;
-  return <HistoryList id={id} histories={histories} total={total} />;
+  return <HistoryList histories={histories} total={total} />;
 }
 
-function HistoryList({
-  histories,
-  id,
-  total,
-}: {
-  histories: ProductHistory[];
-  total: number;
-  id: number;
-}) {
+function HistoryList({ histories, total }: { histories: ProductHistory[]; total: number }) {
   const [page, setPage] = usePage();
   const [mode, setMode] = useMode();
   const totalPage = Math.ceil(total / LIMIT);
@@ -84,7 +76,7 @@ function HistoryList({
       </div>
       <div className="flex-1 overflow-hidden">
         <div className="max-h-full overflow-hidden flex">
-          <HistoryTable products={histories} mode={mode} id={id} />
+          <HistoryTable products={histories} mode={mode} />
         </div>
       </div>
     </div>
