@@ -20,31 +20,25 @@ import { useLimit } from "./use-limit";
 
 const style = {
   small: {
-    no: {
-      width: "60px",
-    },
     barcode: {
       width: "150px",
     },
     price: {
-      width: "100px",
+      width: "90px",
     },
     qty: {
       width: "40px",
     },
   },
   big: {
-    no: {
-      width: "60px",
-    },
     barcode: {
-      width: "150px",
+      width: "219px",
     },
     price: {
-      width: "100px",
+      width: "120px",
     },
     qty: {
-      width: "40px",
+      width: "57px",
     },
   },
 };
@@ -88,7 +82,7 @@ export function ProductTable({ items }: { items: Item[] }) {
     <Table className="text-normal">
       <TableHeader>
         <TableRow>
-          <TableHead style={style[size].no}>No</TableHead>
+          <TableHead className="w-10">No</TableHead>
           <TableHead style={style[size].barcode}>Barcode</TableHead>
           <TableHead>
             <SortBtn sort={sortBy === "name" ? sortDir : undefined} onClick={handleSort("name")}>

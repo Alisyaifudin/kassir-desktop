@@ -50,7 +50,7 @@ export function List({ records }: ListProps) {
         <TableRow>
           <TableHead className={css.recordGrid[size].no}>No</TableHead>
           <TableHead className={cn("text-center", css.recordGrid[size].cashier)}>Kasir</TableHead>
-          <TableHead className={cn(css.recordGrid[size].cashier)}>
+          <TableHead className={cn(css.recordGrid[size].time)}>
             <SortBtn
               onClick={() => handleClickSort("time")}
               sort={order === "time" ? sort : undefined}

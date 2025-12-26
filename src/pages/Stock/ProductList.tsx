@@ -27,33 +27,27 @@ const width = {
       width: "50px",
     },
     code: {
-      width: "160px",
+      width: "230px",
     },
     price: {
-      width: "100px",
+      width: "120px",
     },
     stock: {
-      width: "50px",
-    },
-    link: {
-      width: "30px",
+      width: "60px",
     },
   },
   small: {
     no: {
-      width: "50px",
+      width: "40px",
     },
     code: {
-      width: "160px",
+      width: "150px",
     },
     price: {
-      width: "100px",
+      width: "80px",
     },
     stock: {
-      width: "50px",
-    },
-    link: {
-      width: "30px",
+      width: "43px",
     },
   },
 };
@@ -124,12 +118,18 @@ export function ProductList({ products }: Props) {
               Stok
             </SortBtn>
           </TableHead>
-          <TableHead style={width[size].link}></TableHead>
+          <TableHead className="icon"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="overflow-auto flex-1 w-full">
         {products.slice(start, end).map((product, i) => (
-          <TableRow key={i} className={cn({ "bg-red-100": product.capital >= product.price })}>
+          <TableRow
+            key={i}
+            className={cn(
+              { "bg-blue-50/50": i % 2 == 0 },
+              { "bg-red-100": product.capital >= product.price }
+            )}
+          >
             <TableCell>{i + 1 + start}</TableCell>
             <TableCell>{formatBarcode(product.barcode)}</TableCell>
             <TableCell>{product.name}</TableCell>

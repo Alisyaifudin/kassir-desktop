@@ -1,4 +1,4 @@
-import { Lock, X } from "lucide-react";
+import {  Unlock, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -75,7 +75,7 @@ export function Detail({ extras, products, record }: RecordListProps) {
                     <TableRow>
                       <TableCell className="flex items-center">
                         {i + 1}
-                        {item.productId === null ? "" : <Lock className="icon" />}
+                        {item.productId === undefined ? <Unlock className="icon" /> : null}
                       </TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell className="text-end">

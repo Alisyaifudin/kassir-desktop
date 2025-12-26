@@ -5,7 +5,9 @@ export type ProductHistory = {
   qty: number;
   timestamp: number;
   capital: number;
+  capitalRaw: number;
   mode: DB.Mode;
+  price: number;
 };
 
 export async function getHistory(
@@ -24,9 +26,11 @@ export async function getHistory(
             record_product_qty: number;
             record_mode: DB.Mode;
             record_product_capital: number;
+            record_product_capital_raw: number;
+            record_product_price: number;
           }[]
         >(
-          `SELECT records.timestamp, record_product_qty, record_mode, record_product_capital
+          `SELECT records.timestamp, record_product_qty, record_mode, record_product_capital, record_product_price, record_product_capital_raw
 					FROM record_products 
           INNER JOIN records ON records.timestamp = record_products.timestamp
 					WHERE product_id = $1 AND record_mode = $2
@@ -53,6 +57,8 @@ export async function getHistory(
       mode: r.record_mode,
       timestamp: r.timestamp,
       qty: r.record_product_qty,
+      price: r.record_product_price,
+      capitalRaw: r.record_product_capital_raw,
     })),
     total,
   });

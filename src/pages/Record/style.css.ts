@@ -3,10 +3,10 @@ import { style } from "@vanilla-extract/css";
 export const css = {
 	bodyGrid: {
 		big: style({
-			gridTemplateColumns: "530px 1px 1fr",
+			gridTemplateColumns: "490px 1px 1fr",
 		}),
 		small: style({
-			gridTemplateColumns: "350px 1px 1fr",
+			gridTemplateColumns: "335px 1px 1fr",
 		}),
 	},
 	recordGrid: {
@@ -15,7 +15,10 @@ export const css = {
 				width: "30px",
 			}),
 			cashier: style({
-				width: "200px",
+				width: "150px",
+			}),
+			time: style({
+				width: "120px",
 			}),
 		},
 		small: {
@@ -23,14 +26,17 @@ export const css = {
 				width: "10px",
 			}),
 			cashier: style({
-				width: "100px",
+				width: "90px",
+			}),
+			time: style({
+				width: "93px",
 			}),
 		},
 	},
 	summary: {
 		big: {
 			small: style({
-				width: "70px",
+				width: "57px",
 			}),
 			big: style({
 				width: "160px",
@@ -38,7 +44,7 @@ export const css = {
 		},
 		small: {
 			small: style({
-				width: "40px",
+				width: "41px",
 			}),
 			big: style({
 				width: "100px",

@@ -59,12 +59,14 @@ export async function add({
     });
     if (errMsg) return errMsg;
     if (res.length === 0) return "Tidak ditemukan";
-    const w1 = new Decimal(capitalRaw).times(qty);
-    const stock = res[0].product_stock < 0 ? 0 : res[0].product_stock;
-    const w2 = new Decimal(res[0].product_capital).times(stock);
-    const t = new Decimal(stock).plus(qty);
-    const w = w1.plus(w2);
-    capital = t.toNumber() > 0 ? Number(w.div(t).toFixed(fix)) : 0;
+    if (res[0].product_capital > 0 && res[0].product_stock > 0) {
+      const w1 = new Decimal(capitalRaw).times(qty);
+      const stock = res[0].product_stock < 0 ? 0 : res[0].product_stock;
+      const w2 = new Decimal(res[0].product_capital).times(stock);
+      const t = new Decimal(stock).plus(qty);
+      const w = w1.plus(w2);
+      capital = t.toNumber() > 0 ? Number(w.div(t).toFixed(fix)) : 0;
+    }
     const productCapital = mode === "buy" ? capital : res[0].product_capital;
     const sign = mode === "buy" ? 1 : -1;
     let newStock = res[0].product_stock + sign * qty;
@@ -93,7 +95,7 @@ export async function add({
             capital: productCapital,
             stock: newStock,
             name,
-            price,
+            price: mode === "sell" ? price : res[0].product_price,
           };
         }
         return p;

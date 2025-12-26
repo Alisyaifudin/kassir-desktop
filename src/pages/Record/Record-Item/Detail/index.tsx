@@ -34,7 +34,10 @@ import { DeleteBtn } from "./DeleteBtn";
 const localStyle = {
   big: {
     small: {
-      width: "70px",
+      width: "93px",
+    },
+    qty: {
+      width: "57px",
     },
     big: {
       width: "170px",
@@ -42,6 +45,9 @@ const localStyle = {
   },
   small: {
     small: {
+      width: "80px",
+    },
+    qty: {
       width: "40px",
     },
     big: {
@@ -81,10 +87,15 @@ export const Detail = memo(function ({
             </TableHead>
             <Show when={data.record.mode === "buy"}>
               <TableHead style={localStyle[size].big} className="text-end">
+                Modal*
+              </TableHead>
+              <TableHead style={localStyle[size].big} className="text-end">
                 Modal
               </TableHead>
             </Show>
-            <TableHead style={localStyle[size].small}>Qty</TableHead>
+            <TableHead style={localStyle[size].qty} className="text-end">
+              Qty
+            </TableHead>
             <TableHead style={localStyle[size].big} className="text-end">
               Subtotal
             </TableHead>
@@ -113,10 +124,13 @@ export const Detail = memo(function ({
                   </TableCell>
                   <Show when={data.record.mode === "buy"}>
                     <TableCell className="text-end">
+                      {product.capitalRaw.toLocaleString("id-ID")}
+                    </TableCell>
+                    <TableCell className="text-end">
                       {product.capital.toLocaleString("id-ID")}
                     </TableCell>
                   </Show>
-                  <TableCell className="text-center">{product.qty}</TableCell>
+                  <TableCell className="text-end">{product.qty}</TableCell>
                   <TableCell className="text-end">
                     {Number(
                       new Decimal(product.price).times(product.qty).toFixed(data.record.fix)
