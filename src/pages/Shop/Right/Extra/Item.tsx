@@ -8,10 +8,12 @@ import { Delete } from "./Delete";
 import { Loading } from "~/components/Loading";
 import { tx } from "~/transaction";
 import { useSize } from "~/hooks/use-size";
+import { useFix } from "../../use-transaction";
 
 export const Item = memo(
   ({ extra }: { extra: Extra }) => {
     const { id, saved, name, kind, value } = extra;
+    const fix = useFix()
     const size = useSize();
     const [input, setInput] = useState(value === 0 ? "" : value.toString());
     const handleKind = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -118,7 +120,7 @@ export const Item = memo(
             <option value="percent">Persen</option>
           </select>
           <Show value={extra.eff} fallback={<Loading />}>
-            {(effVal) => <p className="text-end">Rp{Number(effVal).toLocaleString("id-ID")}</p>}
+            {(effVal) => <p className="text-end">Rp{Number(effVal.toFixed(fix)).toLocaleString("id-ID")}</p>}
           </Show>
         </Show>
         <Delete id={id} />
