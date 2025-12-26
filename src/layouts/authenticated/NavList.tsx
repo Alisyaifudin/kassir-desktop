@@ -30,8 +30,8 @@ export const NavList = memo(() => {
       if (!e.altKey) return;
       const link = linkMap[e.key] as string | undefined;
       if (link === undefined) return;
-      navigate(link);
       setShow(false);
+      navigate(link);
     }
     function handleAltDown(e: KeyboardEvent) {
       if (e.altKey) {
@@ -58,24 +58,24 @@ export const NavList = memo(() => {
   }, []);
   return (
     <ul className={cn("flex justify-end items-end", css.navlist[size])}>
-      <NavLink path="/" root show={show} alt="alt+0">
+      <NavLink path="/" root show={show} setShow={setShow} alt="alt+0">
         Toko
       </NavLink>
-      <NavLink path="/stock" show={show} alt="alt+1">
+      <NavLink path="/stock" show={show} setShow={setShow} alt="alt+1">
         Stok
       </NavLink>
-      <NavLink path="/records" show={show} alt="alt+2">
+      <NavLink path="/records" show={show} setShow={setShow} alt="alt+2">
         Riwayat
       </NavLink>
-      <NavLink path="/analytics" show={show} alt="alt+3">
+      <NavLink path="/analytics" show={show} setShow={setShow} alt="alt+3">
         Analisis
       </NavLink>
       <Show when={role === "admin"}>
-        <NavLink path="/money" show={show} alt="alt+4">
+        <NavLink path="/money" show={show} setShow={setShow} alt="alt+4">
           Uang
         </NavLink>
       </Show>
-      <SettingLink show={show} />
+      <SettingLink show={show} setShow={setShow} />
       <Refresh />
     </ul>
   );

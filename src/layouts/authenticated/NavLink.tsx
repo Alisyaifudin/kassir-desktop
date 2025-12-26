@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
 import { css } from "./style.css";
 import { useSize } from "~/hooks/use-size";
@@ -12,15 +12,18 @@ export const NavLink = memo(
     root = false,
     alt,
     show,
+    setShow,
   }: {
     path: string;
     children: string;
     root?: boolean;
     alt: string;
     show: boolean;
+    setShow: (s: boolean) => void;
   }) => {
     const { pathname } = useLocation();
     const size = useSize();
+    const navigate = useNavigate();
     return (
       <li
         className={cn(
@@ -30,7 +33,16 @@ export const NavLink = memo(
         )}
       >
         <Kbd className={cn("absolute -bottom-3 -left-2", { hidden: !show })}>{alt}</Kbd>
-        <Link to={path}>{children}</Link>
+        <button
+          className="cursor-pointer"
+          onClick={(e) => {
+            e.preventDefault();
+            setShow(false);
+            navigate(path);
+          }}
+        >
+          {children}
+        </button>
       </li>
     );
   }
