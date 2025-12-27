@@ -1,3 +1,5 @@
+import { Temporal } from "temporal-polyfill";
+
 export const DEFAULT_METHOD = {
   id: 1000,
   method: "cash",
@@ -20,3 +22,5 @@ export const MONTHS = [
   "Nov",
   "Des",
 ];
+
+export const tz = Temporal.Now.timeZoneId();

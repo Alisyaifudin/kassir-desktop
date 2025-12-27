@@ -3,6 +3,7 @@ import { route as itemRoute } from "./Record-Item";
 import { lazy } from "react";
 import { loader } from "./loader";
 import { action } from "./action";
+import { searchRoute } from "./Search";
 
 const Page = lazy(() => import("./page"));
 
@@ -16,6 +17,6 @@ export const route: RouteObject = {
       index: true,
     },
     itemRoute,
-    // searchRoute,
+    searchRoute,
   ],
 };
