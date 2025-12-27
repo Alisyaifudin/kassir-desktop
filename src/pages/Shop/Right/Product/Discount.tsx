@@ -129,6 +129,9 @@ function DiscForm({
             updates: { kind, value },
           });
           queue.add(() => tx.discount.update.kind(discount.id, kind));
+          if (value !== undefined) {
+            queue.add(() => tx.discount.update.value(discount.id, value));
+          }
         }}
         className=" w-[110px] border"
       >
