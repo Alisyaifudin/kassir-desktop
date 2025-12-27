@@ -6,6 +6,4 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- sonner tulisannya diperbesar
-- halaman cari catatan
 - kembalikan update aplikasi otomatis

@@ -1,4 +1,4 @@
-import {  Unlock, X } from "lucide-react";
+import { Unlock, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -19,7 +19,6 @@ import { RecordExtra } from "~/database/record-extra/get-by-range";
 import { RecordProduct } from "~/database/record-product/get-by-range";
 import { Record } from "../loader";
 import { useSize } from "~/hooks/use-size";
-import Decimal from "decimal.js";
 import { auth } from "~/lib/auth";
 import { useSetParams } from "../use-params";
 import { ToTransaction } from "./ToTransaction";
@@ -61,11 +60,7 @@ export function Detail({ extras, products, record }: RecordListProps) {
                   <TableHead className={css.summary[size].small}>No</TableHead>
                   <TableHead>Nama</TableHead>
                   <TableHead className={cn("text-end", css.summary[size].big)}>Satuan</TableHead>
-                  <Show when={record.mode === "buy"}>
-                    <TableHead className={cn("text-end", css.summary[size].big)}>Modal</TableHead>
-                  </Show>
                   <TableHead className={css.summary[size].small}>Qty</TableHead>
-                  <TableHead className={cn("text-end", css.summary[size].big)}>SubTotal</TableHead>
                   <TableHead className={cn("text-end", css.summary[size].big)}>Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -81,15 +76,7 @@ export function Detail({ extras, products, record }: RecordListProps) {
                       <TableCell className="text-end">
                         {item.price.toLocaleString("id-ID")}
                       </TableCell>
-                      <Show when={record.mode === "buy"}>
-                        <TableCell className="text-end">
-                          {item.capital.toLocaleString("id-ID")}
-                        </TableCell>
-                      </Show>
                       <TableCell className="text-center">{item.qty}</TableCell>
-                      <TableCell className="text-end">
-                        {new Decimal(item.price).times(item.qty).toNumber().toLocaleString("id-ID")}
-                      </TableCell>
                       <TableCell className="text-end">
                         {item.total.toLocaleString("id-ID")}
                       </TableCell>

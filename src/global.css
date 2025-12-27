@@ -370,6 +370,10 @@ body[data-size='small'] {
   line-height: var(--text-line-height-tiny);
 }
 
+@utility scroll-gutter {
+  scrollbar-gutter: stable;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

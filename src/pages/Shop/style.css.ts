@@ -25,10 +25,10 @@ export const css = {
   },
   header: {
     big: style({
-      gridTemplateColumns: "70px 1fr 150px 230px 70px 150px 50px",
+      gridTemplateColumns: "70px 1fr 155px 230px 70px 150px 65px",
     }),
     small: style({
-      gridTemplateColumns: "40px 1fr 100px 140px 40px 100px 30px",
+      gridTemplateColumns: "40px 1fr 105px 140px 40px 100px 45px",
     }),
   },
   discount: {

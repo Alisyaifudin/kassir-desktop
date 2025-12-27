@@ -54,7 +54,7 @@ export function Right({
           <Header />
         </div>
         <div
-          className={cn("relative flex flex-1 flex-col overflow-y-auto min-h-0 h-full", {
+          className={cn("relative flex flex-1 flex-col overflow-y-auto min-h-0 h-full scroll-gutter", {
             "bg-blue-50": mode === "buy",
           })}
         >

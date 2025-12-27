@@ -3,6 +3,7 @@ import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
 import { db } from "~/database";
 import { RecordProduct } from "~/database/record-product/get-history";
+import { tz } from "~/lib/constants";
 import { DefaultError, integer, ok, Result } from "~/lib/utils";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -31,7 +32,10 @@ function getParams(search: URLSearchParams): {
   const today = Temporal.Now.zonedDateTimeISO().startOfDay();
   const lastMonth = today.subtract(Temporal.Duration.from({ months: 1 }));
   const start = integer.catch(lastMonth.epochMilliseconds).parse(search.get("start"));
-  const end = integer.catch(today.epochMilliseconds).parse(search.get("end"));
+  const endRaw = integer.catch(today.epochMilliseconds).parse(search.get("end"));
+  const end = Temporal.Instant.fromEpochMilliseconds(endRaw)
+    .toZonedDateTimeISO(tz)
+    .add(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
   const query = z.string().catch("").parse(search.get("query"));
   return { start, end, query };
 }

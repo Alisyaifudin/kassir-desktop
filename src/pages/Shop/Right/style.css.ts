@@ -70,7 +70,7 @@ export const css = {
         gridTemplateColumns: "70px 1fr",
       }),
       inside: style({
-        gridTemplateColumns: "1fr 150px 230px 70px 150px 50px",
+        gridTemplateColumns: "1fr 160px 230px 70px 150px 50px",
       }),
     },
     small: {
@@ -81,7 +81,7 @@ export const css = {
         gridTemplateColumns: "40px 1fr",
       }),
       inside: style({
-        gridTemplateColumns: "1fr 100px 140px 40px 100px 30px",
+        gridTemplateColumns: "1fr 110px 140px 40px 100px 30px",
       }),
     },
   },

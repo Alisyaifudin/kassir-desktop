@@ -15,6 +15,7 @@ import { EditDialog } from "./EditDialog";
 import { Summary } from "./Summary";
 import { LinkProductList } from "./LinkProduct";
 import {
+  cn,
   DefaultError,
   formatDate,
   formatTime,
@@ -97,9 +98,6 @@ export const Detail = memo(function ({
               Qty
             </TableHead>
             <TableHead style={localStyle[size].big} className="text-end">
-              Subtotal
-            </TableHead>
-            <TableHead style={localStyle[size].big} className="text-end">
               Total
             </TableHead>
           </TableRow>
@@ -131,19 +129,16 @@ export const Detail = memo(function ({
                     </TableCell>
                   </Show>
                   <TableCell className="text-end">{product.qty}</TableCell>
-                  <TableCell className="text-end">
+                  <TableCell className={cn("text-end", { italic: product.discounts.length > 0 })}>
                     {Number(
                       new Decimal(product.price).times(product.qty).toFixed(data.record.fix)
                     ).toLocaleString("id-ID")}
                   </TableCell>
-                  <TableCell className="text-end">
-                    {product.total.toLocaleString("id-ID")}
-                  </TableCell>
                 </TableRow>
-                <ForEach items={product.discounts}>
+                <ForEach items={transformDisc(product.price, product.qty, product.discounts)}>
                   {(disc) => (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-end">
+                      <TableCell colSpan={4} className="text-end">
                         Diskon{" "}
                         {disc.kind === "percent"
                           ? `${disc.value}%`
@@ -151,7 +146,10 @@ export const Detail = memo(function ({
                           ? `${disc.value}pcs`
                           : ""}
                       </TableCell>
-                      <TableCell className="text-end">{disc.eff.toLocaleString("id-ID")}</TableCell>
+                      <TableCell colSpan={2} className="text-end">{disc.eff.toLocaleString("id-ID")}</TableCell>
+                      <TableCell className="text-end">
+                        {disc.subtotal.toLocaleString("id-ID")}
+                      </TableCell>
                     </TableRow>
                   )}
                 </ForEach>
@@ -191,3 +189,19 @@ export const Detail = memo(function ({
     </div>
   );
 });
+
+type Disc = Data["products"][number]["discounts"][number];
+type DiscT = Disc & { subtotal: number };
+
+function transformDisc(price: number, qty: number, discounts: Disc[]): DiscT[] {
+  const discs = [];
+  let subtotal = new Decimal(price).times(qty);
+  for (const d of discounts) {
+    subtotal = subtotal.minus(d.eff);
+    discs.push({
+      ...d,
+      subtotal: subtotal.toNumber(),
+    });
+  }
+  return discs;
+}
