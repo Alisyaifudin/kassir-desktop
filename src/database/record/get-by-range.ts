@@ -50,7 +50,7 @@ export async function getByRange(
         phone: r.record_customer_phone,
       },
       cashier: r.record_cashier,
-      fix: r.record_fix,
+      fix: isNaN(r.record_fix) || r.record_fix < 0 || r.record_fix > 5 ? 0 : r.record_fix,
       isCredit: Boolean(r.record_is_credit),
       method: {
         id: r.method_id,

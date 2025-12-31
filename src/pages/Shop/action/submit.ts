@@ -55,7 +55,7 @@ export async function submitAction(formdata: FormData) {
     db.record.add({
       cashier,
       customer,
-      fix,
+      fix: isNaN(fix) || fix < 0 || fix > 5 ? 0 : fix,
       isCredit,
       methodId,
       mode,
@@ -228,7 +228,7 @@ function transformExtras(
       tab: d.tab,
     });
   }
-  return { extras: exs, total: total.toNumber() };
+  return { extras: exs, total: Number(total.toFixed(fix)) };
 }
 
 function calcCapitals(
