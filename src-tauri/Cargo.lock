@@ -2435,7 +2435,7 @@ dependencies = [
 
 [[package]]
 name = "kassir"
-version = "4.1.23"
+version = "4.1.25"
 dependencies = [
  "axum",
  "bcrypt",

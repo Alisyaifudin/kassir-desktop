@@ -138,7 +138,7 @@ export const Detail = memo(function ({
                 <ForEach items={transformDisc(product.price, product.qty, product.discounts)}>
                   {(disc) => (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-end">
+                      <TableCell colSpan={data.record.mode === "buy" ? 4 : 2} className="text-end">
                         Diskon{" "}
                         {disc.kind === "percent"
                           ? `${disc.value}%`
@@ -146,7 +146,9 @@ export const Detail = memo(function ({
                           ? `${disc.value}pcs`
                           : ""}
                       </TableCell>
-                      <TableCell colSpan={2} className="text-end">{disc.eff.toLocaleString("id-ID")}</TableCell>
+                      <TableCell colSpan={2} className="text-end">
+                        {disc.eff.toLocaleString("id-ID")}
+                      </TableCell>
                       <TableCell className="text-end">
                         {disc.subtotal.toLocaleString("id-ID")}
                       </TableCell>
