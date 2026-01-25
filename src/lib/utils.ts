@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Temporal } from "temporal-polyfill";
 import * as logTauri from "@tauri-apps/plugin-log";
 
-export const version = "4.1.25";
+export const version = "4.1.26";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export const METHOD_NAMES = {
@@ -135,7 +135,7 @@ export function formatDate(epochMilli: number, type: "short" | "long" = "short")
 
 export const dateStringSchema = z.string().regex(
   /^\d+-\d{2}-\d{2}$/, // Regular expression to match any number of digits for the year, followed by MM-DD
-  "Tanggal tidak valid"
+  "Tanggal tidak valid",
 );
 
 export function formatTime(epochMilli: number, format: "long" | "short" = "short"): string {

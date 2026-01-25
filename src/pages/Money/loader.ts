@@ -42,15 +42,18 @@ export type MoneyData = {
   diff: {
     value: number;
     timestamp: number;
+    note: string;
   }[];
   saving: {
     value: number;
     timestamp: number;
+    note: string;
   }[];
   debt: {
     value: number;
     timestamp: number;
     diff: number;
+    note: string;
   }[];
 };
 async function getMoney(start: number, end: number): Promise<Result<DefaultError, MoneyData>> {
@@ -63,10 +66,10 @@ async function getMoney(start: number, end: number): Promise<Result<DefaultError
   return ok({
     saving: money
       .filter((m) => m.kind === "saving")
-      .map((m) => ({ timestamp: m.timestamp, value: m.value })),
+      .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
     diff: money
       .filter((m) => m.kind === "diff")
-      .map((m) => ({ timestamp: m.timestamp, value: m.value })),
+      .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
     debt: collectMoney(money, last),
   });
 }
@@ -81,6 +84,7 @@ function collectMoney(money: Money[], last: Money | null): MoneyData["debt"] {
       value: filtered[i].value,
       timestamp: filtered[i].timestamp,
       diff: new Decimal(filtered[i].value).minus(filtered[i + 1].value).toNumber(),
+      note: filtered[i].note,
     });
   }
   let diff = filtered[n - 1].value;
@@ -91,6 +95,7 @@ function collectMoney(money: Money[], last: Money | null): MoneyData["debt"] {
     value: filtered[n - 1].value,
     timestamp: filtered[n - 1].timestamp,
     diff,
+    note: filtered[n - 1].note,
   });
   return data;
 }

@@ -6,10 +6,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useInterval } from "./use-interval";
-import { TableList } from "./TableList";
+import { TableList } from "./z-TableList";
 import { Loader, MoneyData } from "./loader";
-import { NewItem } from "./NewItem";
-import { TableListDebt } from "./TableListDebt";
+import { NewItem } from "./z-NewItem";
+import { TableListDebt } from "./z-TableListDebt";
 import { Suspense, use } from "react";
 import { Result } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
@@ -38,7 +38,7 @@ export default function Page() {
     });
   };
   return (
-    <main className="flex flex-col gap-2 w-full max-w-7xl px-0.5 mx-auto flex-1 overflow-hidden">
+    <main className="flex flex-col gap-2 w-full px-0.5 mx-auto flex-1 overflow-hidden">
       <h1 className="text-big font-bold">Catatan Keuangan</h1>
       <Tabs
         value={kind}
@@ -78,19 +78,13 @@ function Content({ money: promise }: { money: Promise<Result<"Aplikasi bermasala
   return (
     <>
       <TabsContent value="saving" className="overflow-hidden flex-1 w-full">
-        <div className="h-full flex-1 max-w-4xl overflow-hidden mx-auto">
-          <TableList money={money.saving} />
-        </div>
+        <TableList money={money.saving} />
       </TabsContent>
       <TabsContent value="debt" className="overflow-hidden flex-1 w-full">
-        <div className="h-full max-w-full overflow-hidden">
-          <TableListDebt money={money.debt} />
-        </div>
+        <TableListDebt money={money.debt} />
       </TabsContent>
       <TabsContent value="diff" className="overflow-hidden flex-1 w-full">
-        <div className="h-full flex-1 max-w-4xl overflow-hidden mx-auto">
-          <TableList money={money.diff} />
-        </div>
+        <TableList money={money.diff} />
       </TabsContent>
     </>
   );

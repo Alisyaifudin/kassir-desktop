@@ -5,6 +5,7 @@ export type Money = {
   timestamp: number;
   value: number;
   kind: DB.MoneyEnum;
+  note: string;
 };
 
 export async function getByRange(
@@ -17,5 +18,5 @@ export async function getByRange(
       db.select<DB.Money[]>("SELECT * FROM money WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC", [start, end]),
   });
   if (errMsg !== null) return err(errMsg);
-  return ok(res.map((r) => ({ timestamp: r.timestamp, value: r.money_value, kind: r.money_kind })));
+  return ok(res.map((r) => ({ timestamp: r.timestamp, value: r.money_value, kind: r.money_kind, note: r.note })));
 }

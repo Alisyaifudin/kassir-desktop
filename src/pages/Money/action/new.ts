@@ -7,12 +7,14 @@ const schema = z.object({
   type: z.enum(["change", "absolute"]),
   kind: z.enum(["diff", "debt", "saving"]),
   value: z.string(),
+  note: z.string(),
 });
 
 export async function newAction(formdata: FormData) {
   const parsed = schema.safeParse({
     type: formdata.get("type"),
     value: formdata.get("value"),
+    note: formdata.get("note"),
     kind: formdata.get("kind"),
   });
   if (!parsed.success) {
@@ -29,7 +31,7 @@ export async function newAction(formdata: FormData) {
     log.error(errs);
     return errs;
   }
-  const { type, kind } = parsed.data;
+  const { type, kind, note } = parsed.data;
   const value = parsedVal.data;
   if (value > 1e12) {
     return "Nilai tidak mungkin lebih dari 1 triliun. Serius?";
@@ -39,24 +41,24 @@ export async function newAction(formdata: FormData) {
   }
   switch (type) {
     case "absolute":
-      return handleAbs(value, kind);
+      return handleAbs(value, kind, note);
     case "change":
-      return handleChange(value, kind);
+      return handleChange(value, kind, note);
     default:
       throw new Error(`Invalid type: ${type}`);
   }
 }
 
-async function handleAbs(value: number, kind: "diff" | "saving" | "debt") {
+async function handleAbs(value: number, kind: "diff" | "saving" | "debt", note: string) {
   // TODO: apakah perlu cek nilai absolut minus untuk `saving` dan `debt`???
   // if (value < 0 && kind !== "diff") {
   // 	return "Nilai tidak boleh kurang dari nol";
   // }
-  const errMsg = await db.money.add(value, kind);
+  const errMsg = await db.money.add(value, kind, note);
   return errMsg ?? undefined;
 }
 
-async function handleChange(value: number, kind: "diff" | "saving" | "debt") {
+async function handleChange(value: number, kind: "diff" | "saving" | "debt", note: string) {
   const [errMoney, money] = await db.money.get.last(Date.now(), kind);
   if (errMoney !== null) {
     return errMoney;
@@ -65,6 +67,6 @@ async function handleChange(value: number, kind: "diff" | "saving" | "debt") {
   if (money !== null) {
     val = new Decimal(money.value).plus(value).toNumber();
   }
-  const errMsg = await db.money.add(val, kind);
+  const errMsg = await db.money.add(val, kind, note);
   return errMsg ?? undefined;
 }

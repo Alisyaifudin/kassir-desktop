@@ -5,7 +5,7 @@ declare namespace DB {
   type MoneyEnum = "saving" | "debt" | "diff";
   type Mode = "sell" | "buy";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
-  type Mime = "image/png" | "image/jpeg"
+  type Mime = "image/png" | "image/jpeg";
 
   interface Cashier {
     cashier_name: string;
@@ -27,6 +27,7 @@ declare namespace DB {
     timestamp: number;
     money_value: number;
     money_kind: MoneyEnum;
+    note: string;
   }
   interface Customer {
     customer_id: number;

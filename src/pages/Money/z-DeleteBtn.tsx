@@ -53,6 +53,10 @@ export const DeleteBtn = memo(function ({ money }: { money: MoneyData["saving"][
               <p>Nilai</p>
               <p>: Rp{money.value.toLocaleString("id-ID")}</p>
             </div>
+            <div className="grid grid-cols-[200px_1fr]">
+              <p>Catatan</p>
+              <p>: {money.note}</p>
+            </div>
             <TextError>{error}</TextError>
             <div className="col-span-2 flex flex-col items-end">
               <Button variant="destructive">

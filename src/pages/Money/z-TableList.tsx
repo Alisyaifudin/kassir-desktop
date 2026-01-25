@@ -7,13 +7,13 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { formatDate, formatTime, getDayName } from "~/lib/utils";
-import { DeleteBtn } from "./DeleteBtn";
+import { DeleteBtn } from "./z-DeleteBtn";
 import { memo } from "react";
 import { MoneyData } from "./loader";
-import { style } from "./style";
 import { useSize } from "~/hooks/use-size";
+import { style } from "./style";
 
-export const TableListDebt = memo(function ({ money }: { money: MoneyData["debt"] }) {
+export const TableList = memo(function ({ money }: { money: MoneyData["saving"] }) {
   const size = useSize();
   return (
     <Table className="text-normal">
@@ -29,8 +29,10 @@ export const TableListDebt = memo(function ({ money }: { money: MoneyData["debt"
           <TableHead style={style[size].time} className="text-center">
             Waktu
           </TableHead>
-          <TableHead className="text-right">Selisih</TableHead>
-          <TableHead className="text-right">Nilai</TableHead>
+          <TableHead style={style[size].value} className="text-right">
+            Nilai
+          </TableHead>
+          <TableHead className="text-center">Catatan</TableHead>
           <TableHead style={style[size].last} className="text-right"></TableHead>
         </TableRow>
       </TableHeader>
@@ -41,8 +43,8 @@ export const TableListDebt = memo(function ({ money }: { money: MoneyData["debt"
             <TableCell className="text-center">{getDayName(m.timestamp)}</TableCell>
             <TableCell className="text-center">{formatDate(m.timestamp, "long")}</TableCell>
             <TableCell className="text-center">{formatTime(m.timestamp, "long")}</TableCell>
-            <TableCell className="text-right">Rp{m.diff.toLocaleString("id-ID")}</TableCell>
             <TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
+            <TableCell className="text-center">{m.note}</TableCell>
             <TableCell>
               <DeleteBtn money={m} />
             </TableCell>
