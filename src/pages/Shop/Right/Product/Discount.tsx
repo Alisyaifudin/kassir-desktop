@@ -57,25 +57,27 @@ export const Discount = memo(({ id, discounts }: { id: string; discounts: Disc[]
 function Add({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false);
   return (
-    <Button
-      onClick={async () => {
-        setLoading(true);
-        const id = generateId();
-        productsStore.trigger.addDiscount({ id: productId, idDisc: id });
-        const errMsg = await retry(10, () => tx.discount.add({ id, productId }));
-        setLoading(false);
-        if (errMsg !== null) {
-          toast.error("Gagal membuat diskon baru");
-          productsStore.trigger.deleteDiscount({ id: productId, idDisc: id });
-          return;
-        }
-      }}
-      type="button"
-    >
+    <div className="flex items-center gap-1">
+      <Button
+        onClick={async () => {
+          setLoading(true);
+          const id = generateId();
+          productsStore.trigger.addDiscount({ id: productId, idDisc: id });
+          const errMsg = await retry(10, () => tx.discount.add({ id, productId }));
+          setLoading(false);
+          if (errMsg !== null) {
+            toast.error("Gagal membuat diskon baru");
+            productsStore.trigger.deleteDiscount({ id: productId, idDisc: id });
+            return;
+          }
+        }}
+        type="button"
+      >
+        Tambah Diskon
+        <Plus />
+      </Button>
       <Spinner when={loading} />
-      Tambah Diskon
-      <Plus />
-    </Button>
+    </div>
   );
 }
 
@@ -95,7 +97,7 @@ function DiscForm({
         onChange={(e) => {
           let val = e.currentTarget.value;
           let num = Number(val);
-          if (isNaN(num) || num < 0) return;
+          if (isNaN(num) || num < 0 || num > 1e9) return;
           if (discount.kind === "percent" && num > 100) {
             num = 100;
             val = "100";

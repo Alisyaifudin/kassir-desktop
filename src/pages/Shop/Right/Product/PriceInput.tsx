@@ -48,7 +48,7 @@ export const PriceInput = memo(
           onChange={(e) => {
             const val = e.currentTarget.value;
             const num = Number(val);
-            if (isNaN(num) || num < 0) return;
+            if (isNaN(num) || num < 0 || num > 1e9) return;
             setInput(val);
             setPrice(id, num);
             save(num);

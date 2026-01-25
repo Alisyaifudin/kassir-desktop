@@ -23,7 +23,7 @@ export const QtyInput = memo(
         onChange={(e) => {
           const val = e.currentTarget.value;
           const num = Number(val);
-          if (isNaN(num) || num < 0) return;
+          if (isNaN(num) || num < 0 || num > 1e4) return;
           setInput(val);
           productsStore.trigger.updateProduct({
             id,
