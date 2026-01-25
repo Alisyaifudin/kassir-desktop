@@ -98,7 +98,7 @@ export async function submitAction(formdata: FormData) {
         timestamp,
         productId: product.product?.id,
         ...product,
-      })
+      }),
     );
   }
   const resPromise = await Promise.all(promises);
@@ -110,9 +110,8 @@ export async function submitAction(formdata: FormData) {
       };
     }
   }
-  tx.transaction.del(tab);
   return {
-    redirect: `/records/${timestamp}?url_back=${encodeURI("/")}&clear=true`,
+    redirect: `/records/${timestamp}?url_back=${encodeURI("/")}&from-tab=${tab}`,
   };
 }
 
@@ -143,7 +142,7 @@ function transformDiscounts(
   price: number,
   qty: number,
   discounts: Product["discounts"],
-  fix: number
+  fix: number,
 ): { discounts: DiscountT[]; total: number } {
   const subtotal = new Decimal(price).times(qty);
   let total = new Decimal(subtotal);
@@ -179,7 +178,7 @@ type ProductT = Omit<Product, "discounts"> & {
 
 function transformProducts(
   products: Product[],
-  fix: number
+  fix: number,
 ): { products: ProductT[]; subtotal: number } {
   const prods: ProductT[] = [];
   let subtotal = new Decimal(0);
@@ -208,7 +207,7 @@ type ExtraT = Extra & { eff: number };
 function transformExtras(
   subtotal: number,
   extras: Extra[],
-  fix: number
+  fix: number,
 ): { extras: ExtraT[]; total: number } {
   const exs: ExtraT[] = [];
   let total = new Decimal(subtotal);
@@ -235,7 +234,7 @@ function calcCapitals(
   products: ProductT[],
   subtotal: number,
   grandTotal: number,
-  fix: number
+  fix: number,
 ): ProductT[] {
   return products.map((p) => {
     const eff =

@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { LoaderFunctionArgs, redirect } from "react-router";
+import { z } from "zod";
 import { db } from "~/database";
 import { RecordExtra } from "~/database/record-extra/get-by-range";
 import { RecordProduct } from "~/database/record-product/get-by-range";
@@ -8,12 +9,14 @@ import { Social } from "~/database/social/get-all";
 import { DefaultError, err, integer, NotFound, ok, Result } from "~/lib/utils";
 import { store } from "~/store";
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ params, request }: LoaderFunctionArgs) {
   const parsed = integer.safeParse(params.timestamp);
   if (!parsed.success) {
     return redirect("/records");
   }
   const timestamp = parsed.data;
+  const search = new URL(request.url).searchParams;
+  const fromTab = getSearchParams(search);
   const [errMsg, res] = await getData(timestamp);
   switch (errMsg) {
     case "Aplikasi bermasalah":
@@ -23,7 +26,12 @@ export async function loader({ params }: LoaderFunctionArgs) {
   }
   const products = db.product.get.all();
   const methods = db.method.getAll();
-  return { data: res.data, info: res.info, methods, products };
+  return { fromTab, data: res.data, info: res.info, methods, products };
+}
+
+function getSearchParams(search: URLSearchParams) {
+  const fromTab = z.nullable(integer).catch(null).parse(search.get("from-tab"));
+  return fromTab;
 }
 
 export type Loader = typeof loader;

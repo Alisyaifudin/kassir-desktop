@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { createAtom } from "@xstate/store";
 import { useAtom, useSelector } from "@xstate/store/react";
 
-const subStore = createAtom(new Decimal(0));
+export const subStore = createAtom(new Decimal(0));
 
 // calc the total from items, including discounts
 export function useSubtotal() {

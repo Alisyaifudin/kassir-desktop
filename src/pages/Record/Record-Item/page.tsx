@@ -7,9 +7,11 @@ import { useTab } from "./use-tab";
 import { Link, useLoaderData, useSearchParams } from "react-router";
 import { Loader } from "./loader";
 import { getURLBack } from "./utils";
+import { useClearTab } from "./use-clear-tab";
 
 export default function Page() {
-  const { info, data, methods, products } = useLoaderData<Loader>();
+  const { info, data, methods, products, fromTab } = useLoaderData<Loader>();
+  useClearTab(fromTab);
   const [tab, setTab] = useTab();
   const [search] = useSearchParams();
   const urlBack = getURLBack(data.record.timestamp, data.record.mode, search);
@@ -41,14 +43,3 @@ export default function Page() {
     </main>
   );
 }
-
-// const defaultMethod = {
-//   id: 1000,
-//   name: null,
-//   method: "cash",
-// } as const;
-
-// function getMethod(methods: DB.Method[], methodId: number): DB.Method {
-//   const method = methods.find((m) => m.id === methodId);
-//   return method ?? defaultMethod;
-// }
