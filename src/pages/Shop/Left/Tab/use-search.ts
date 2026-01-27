@@ -71,7 +71,7 @@ export function useSearch() {
     const id = generateId();
     const storedProducts = productsStore.get().context;
     const found = storedProducts.find(
-      (s) => s.barcode === product.barcode && s.barcode.trim() !== ""
+      (s) => s.barcode === product.barcode && s.barcode.trim() !== "",
     );
     if (found === undefined) {
       productsStore.trigger.addProduct({
@@ -106,7 +106,7 @@ export function useSearch() {
             name: product.name,
             price: product.price,
           },
-        })
+        }),
       );
     } else {
       productsStore.trigger.updateProduct({
@@ -147,7 +147,7 @@ export function useSearch() {
         value: extra.value,
         kind: extra.kind,
         saved: false,
-      })
+      }),
     );
   };
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

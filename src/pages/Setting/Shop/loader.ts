@@ -1,9 +1,7 @@
-import { data } from "react-router";
-import { store } from "~/store";
+import { store } from "~/store-effect";
 
-export async function loader() {
+export function loader() {
+  console.log("load...");
   const info = store.info.get();
-  return data(info);
+  return info;
 }
-
-export type Loader = typeof loader;

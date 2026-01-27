@@ -2,7 +2,7 @@ import { LoaderFunctionArgs } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
 import { db } from "~/database";
-import {  integer } from "~/lib/utils";
+import { integer } from "~/lib/utils";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const search = new URL(request.url).searchParams;

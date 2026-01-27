@@ -21,5 +21,5 @@ export const db = {
   recordExtra,
   recordProduct,
   image,
-  money
+  money,
 };

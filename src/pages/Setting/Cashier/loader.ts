@@ -1,9 +1,7 @@
-import { data } from "react-router";
-import { db } from "~/database";
+import { db } from "~/database-effect";
 
-export async function loader() {
-	const cashiers = db.cashier.get.all();
-	return data(cashiers)
+export function loader() {
+  const cashiers = db.cashier.get.all();
+  return cashiers;
 }
-
-export type Loader = typeof loader;
+export const KEY = "cashiers";

@@ -23,7 +23,7 @@ export function submitHandler({
   const errors: { id: string; message: string }[] = [];
   for (const p of products) {
     const dupStock = all.findIndex(
-      (a) => a.barcode === p.barcode.trim() && p.product === undefined && p.barcode.trim() !== ""
+      (a) => a.barcode === p.barcode.trim() && p.product === undefined && p.barcode.trim() !== "",
     );
     if (dupStock !== -1) {
       errors.push({ id: p.id, message: `Barang dengan kode ini sudah ada di stok` });

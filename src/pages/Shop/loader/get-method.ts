@@ -20,7 +20,7 @@ export async function getMethod(): Promise<Result<DefaultError, Method[]>> {
       const defVal = defMeth[m.kind];
       const method = { ...m, isDefault: m.id === defVal };
       return method;
-    })
+    }),
   );
   // already force to have at least one tab
 }

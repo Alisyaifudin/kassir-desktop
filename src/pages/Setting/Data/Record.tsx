@@ -1,26 +1,46 @@
-import { err, formatDate, Result } from "~/lib/utils";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { Form, useActionData } from "react-router";
 import { Temporal } from "temporal-polyfill";
-import { useLoading } from "~/hooks/use-loading";
-import { Action } from "./action";
-import { useEffect } from "react";
-import { RecordOk } from "./action/record";
+import { formatDate } from "~/lib/date";
+import { useSubmit } from "~/hooks/use-submit";
+import { Effect, pipe } from "effect";
+import { program } from "./util-record";
+import { log } from "~/lib/utils";
 
 export default function Record() {
   const { startOfMonth, endOfMonth } = useDateInterval();
-  const loading = useLoading();
-  const [error, res] = useAction();
-  useDownload(res);
+  const { loading, error, handleSubmit } = useSubmit(
+    (e) => {
+      const formdata = new FormData(e.currentTarget);
+      return pipe(
+        program(formdata).pipe(
+          Effect.catchTag("DbError", ({ e }) => {
+            log.error(JSON.stringify(e.stack));
+            return Effect.fail(e.message);
+          }),
+        ),
+        Effect.either,
+        Effect.runPromise,
+      );
+    },
+    ({ data, name }) => {
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  );
   return (
     <div className="flex gap-2 flex-col p-2 bg-sky-50">
       <div className="flex gap-2 items-center justify-between ">
         <h3 className="italic text-normal font-bold">Riwayat</h3>
       </div>
-      <Form method="POST" className="text-2xl flex justify-between items-end">
+      <form onSubmit={handleSubmit} className="text-2xl flex justify-between items-end">
         <input type="hidden" name="action" value="record"></input>
         <div className="flex gap-3 items-end">
           <label className="flex flex-col gap-1">
@@ -46,7 +66,7 @@ export default function Record() {
         <Button>
           Unduh <Spinner when={loading} />
         </Button>
-      </Form>
+      </form>
       <TextError>{error}</TextError>
     </div>
   );
@@ -65,32 +85,4 @@ export function useDateInterval() {
     startOfMonth: startOfMonth.epochMilliseconds,
     endOfMonth: endOfMonth.epochMilliseconds,
   };
-}
-
-function useAction(): Result<string | null, RecordOk> {
-  const data = useActionData<Action>();
-  if (data !== undefined && data.action === "record") {
-    return data.res;
-  }
-  return err(null);
-}
-
-function useDownload(res: RecordOk | null) {
-  useEffect(() => {
-    if (res === null) {
-      return;
-    }
-    async function process(ok: RecordOk) {
-      const { data, name } = ok;
-      // const blob = await zip.generateAsync({ type: "blob" });
-      const blob = new Blob([data], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-    process(res);
-  }, [res]);
 }

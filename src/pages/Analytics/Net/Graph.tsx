@@ -32,7 +32,7 @@ function Wrapper({ records, start, end }: { records: Record[]; start: number; en
   const [, setSummary] = useSummary();
   const { revenues, labels, spendings, debts } = getFlow({ records, start, end, interval });
   const profits: number[] = revenues.map((rev, i) =>
-    new Decimal(rev).minus(spendings[i]).plus(debts[i]).toNumber()
+    new Decimal(rev).minus(spendings[i]).plus(debts[i]).toNumber(),
   );
   const size = useSize();
   useEffect(() => {
@@ -106,7 +106,7 @@ function GraphBar({ vals, orientation }: { vals: number[]; orientation: "up" | "
               <div key={i} style={{ width: `${100 / vals.length}%` }} />
             ) : (
               <Bar orientation={orientation} v={v} key={i} maxVal={maxVal} length={vals.length} />
-            )
+            ),
           )}
         </div>
       ) : (
@@ -116,7 +116,7 @@ function GraphBar({ vals, orientation }: { vals: number[]; orientation: "up" | "
               <div key={i} style={{ width: `${100 / vals.length}%` }} />
             ) : (
               <Bar orientation={orientation} v={-v} key={i} maxVal={maxVal} length={vals.length} />
-            )
+            ),
           )}
         </div>
       )}

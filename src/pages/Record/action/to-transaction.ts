@@ -41,7 +41,7 @@ export async function toTransactionAction(formdata: FormData) {
         tab,
         product: p.product,
       };
-    })
+    }),
   );
   const extraPromise = tx.extra.addMany(
     extras.map((e) => {
@@ -54,7 +54,7 @@ export async function toTransactionAction(formdata: FormData) {
         tab,
         value: e.value,
       };
-    })
+    }),
   );
   const [errMsg1, errMsg2] = await Promise.all([prodPromise, extraPromise]);
   if (errMsg1 !== null) return errMsg1;

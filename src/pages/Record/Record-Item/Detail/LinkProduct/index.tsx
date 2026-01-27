@@ -52,7 +52,7 @@ export function LinkProduct({
 }) {
   const { handleChange, handleClick, query, shownProducts, selected } = useLinkProduct(
     product,
-    products
+    products,
   );
   const size = useSize();
   const loading = useLoading();
@@ -71,7 +71,7 @@ export function LinkProduct({
       <DialogContent
         className={cn(
           "left-5 top-5 bottom-5 right-5 w-[calc(100%-40px)] max-w-full translate-0 flex flex-col gap-2",
-          sizeClass[size]
+          sizeClass[size],
         )}
       >
         <DialogHeader>

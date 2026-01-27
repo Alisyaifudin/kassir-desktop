@@ -5,7 +5,7 @@ import { Record } from "~/database/record/get-by-range";
 function getEdges(
   interval: "day" | "week" | "month" | "year",
   start: number,
-  end: number
+  end: number,
 ): { edges: number[]; labels: string[] } {
   const tz = Temporal.Now.timeZoneId();
   let date = Temporal.Instant.fromEpochMilliseconds(start).toZonedDateTimeISO(tz);
@@ -91,7 +91,7 @@ export function getFlow({
     } else {
       // Record belongs to current interval
       const grandTotal = Number(
-        new Decimal(record.total).plus(record.rounding).toFixed(record.fix)
+        new Decimal(record.total).plus(record.rounding).toFixed(record.fix),
       );
       if (record.mode === "sell") {
         revenues[currentInterval] += grandTotal;

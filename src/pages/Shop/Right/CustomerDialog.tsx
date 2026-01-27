@@ -156,7 +156,7 @@ function AutoCustomer({ customers: all }: { customers: CustomerDB[] }) {
   if (query.trim() !== "") {
     const q = query.toLowerCase().trim();
     customers = all.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)
+      (c) => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q),
     );
   }
   function handleSelect(name: string, phone: string, id: number) {

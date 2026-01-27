@@ -1,5 +1,6 @@
 import { db } from "~/database";
-import { integer, METHOD_BASE_ID } from "~/lib/utils";
+import { METHOD_BASE_ID } from "~/lib/constants";
+import { integer } from "~/lib/utils";
 
 export async function changeMethodAction(timestamp: number, formdata: FormData) {
   const parsed = integer.safeParse(formdata.get("method-id"));

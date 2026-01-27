@@ -28,7 +28,7 @@ export function Output({
         css.output[size],
         {
           hidden: products.length === 0 && extras.length === 0,
-        }
+        },
       )}
     >
       <ol className="flex flex-col gap-1 w-full">
@@ -74,7 +74,7 @@ export function Output({
                 className={cn(
                   "cursor-pointer text-small w-full grid hover:bg-sky-100/50",
                   "flex items-center justify-between",
-                  { "bg-red-400 hover:bg-red-300": product.item.stock === 0 && mode === "sell" }
+                  { "bg-red-400 hover:bg-red-300": product.item.stock === 0 && mode === "sell" },
                 )}
               >
                 <span className={cn("text-start text-wrap")}>{product.item.name}</span>

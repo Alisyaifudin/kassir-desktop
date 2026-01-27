@@ -27,7 +27,7 @@ export function useSetParams() {
       time: (timestamp: number) => setTime(setSearch, timestamp),
       order: (order: "time" | "total", sort: "asc" | "desc") => setOrder(setSearch, order, sort),
     }),
-    []
+    [],
   );
   return set;
 }

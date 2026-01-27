@@ -66,7 +66,7 @@ export function ProductList({ products }: Props) {
       }
       setSortBy(sort);
     },
-    [sortDir, sortBy]
+    [sortDir, sortBy],
   );
   return (
     <Table className="text-normal flex-1">
@@ -127,7 +127,7 @@ export function ProductList({ products }: Props) {
             key={i}
             className={cn(
               { "bg-blue-50/50": i % 2 == 0 },
-              { "bg-red-100": product.capital >= product.price }
+              { "bg-red-100": product.capital >= product.price },
             )}
           >
             <TableCell>{i + 1 + start}</TableCell>

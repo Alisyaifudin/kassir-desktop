@@ -1,9 +1,8 @@
-import { data } from "react-router";
-import { db } from "~/database";
+import { db } from "~/database-effect";
 
-export async function loader() {
+export function loader() {
   const socials = db.social.getAll();
-  return data(socials);
+  return socials;
 }
 
-export type Loader = typeof loader;
+export const KEY = "socials"

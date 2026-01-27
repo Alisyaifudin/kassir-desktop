@@ -131,7 +131,7 @@ export const Detail = memo(function ({
                   <TableCell className="text-end">{product.qty}</TableCell>
                   <TableCell className={cn("text-end", { italic: product.discounts.length > 0 })}>
                     {Number(
-                      new Decimal(product.price).times(product.qty).toFixed(data.record.fix)
+                      new Decimal(product.price).times(product.qty).toFixed(data.record.fix),
                     ).toLocaleString("id-ID")}
                   </TableCell>
                 </TableRow>
@@ -143,8 +143,8 @@ export const Detail = memo(function ({
                         {disc.kind === "percent"
                           ? `${disc.value}%`
                           : disc.kind === "pcs"
-                          ? `${disc.value}pcs`
-                          : ""}
+                            ? `${disc.value}pcs`
+                            : ""}
                       </TableCell>
                       <TableCell colSpan={2} className="text-end">
                         {disc.eff.toLocaleString("id-ID")}

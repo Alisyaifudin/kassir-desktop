@@ -3,7 +3,7 @@ import { Product } from "~/database/product/caches";
 export function sorting(
   products: Product[],
   by: "barcode" | "name" | "price" | "capital" | "stock",
-  dir: "asc" | "desc"
+  dir: "asc" | "desc",
 ): Product[] {
   const sign = dir === "asc" ? 1 : -1;
   switch (by) {

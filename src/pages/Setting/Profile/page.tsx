@@ -1,5 +1,5 @@
-import { Name } from "./Name";
-import { PasswordForm } from "./PasswordForm";
+import { Name } from "./z-Name";
+import { PasswordForm } from "./z-PasswordForm";
 
 export default function Page() {
   return (

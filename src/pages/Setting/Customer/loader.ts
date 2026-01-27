@@ -1,9 +1,8 @@
-import { data } from "react-router";
-import { db } from "~/database";
+import { db } from "~/database-effect";
 
-export async function loader() {
+export function loader() {
   const customers = db.customer.getAll();
-  return data(customers);
+  return customers;
 }
 
-export type Loader = typeof loader;
+export const KEY = "customers";

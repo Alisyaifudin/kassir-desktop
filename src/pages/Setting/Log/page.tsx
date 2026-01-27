@@ -1,51 +1,50 @@
-import { Button } from "~/components/ui/button";
-import { Spinner } from "~/components/Spinner";
-import { Result } from "~/lib/utils";
-import { Form, useActionData, useLoaderData } from "react-router";
-import { Loader } from "./loader";
-import { Suspense, use } from "react";
+import { log } from "~/lib/utils";
+import { loader } from "./loader";
+import { Suspense } from "react";
 import { TextError } from "~/components/TextError";
 import { Loading } from "~/components/Loading";
-import { useLoading } from "~/hooks/use-loading";
-import { Action } from "./action";
+import { Either } from "effect";
+import { Clear } from "./z-Clear";
+import { useMicro } from "~/hooks/use-micro";
 
 export default function Page() {
-	const text = useLoaderData<Loader>();
-	const loading = useLoading();
-	const error = useActionData<Action>();
-	return (
-		<div className="flex flex-col gap-2 flex-1 text-3xl overflow-hidden">
-			<div className="flex justify-between items-center">
-				<h1 className="text-3xl font-bold">Log</h1>
-				<Form method="POST">
-					<TextError>{error}</TextError>
-					<Button variant="destructive">
-						<Spinner when={loading} />
-						Bersihkan
-					</Button>
-				</Form>
-			</div>
-			<div className="flex flex-col gap-1 bg-black h-full overflow-auto">
-				<Suspense fallback={<Loading />}>
-					<Log text={text} />
-				</Suspense>
-			</div>
-		</div>
-	);
+  return (
+    <div className="flex flex-col gap-2 flex-1 text-3xl overflow-hidden">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Log</h1>
+        <Clear />
+      </div>
+      <div className="flex flex-col gap-1 bg-black h-full overflow-auto">
+        <Suspense fallback={<Loading />}>
+          <Log />
+        </Suspense>
+      </div>
+    </div>
+  );
 }
 
-function Log({ text: promise }: { text: Promise<Result<"Aplikasi bermasalah", string[]>> }) {
-	const [errMsg, text] = use(promise);
-	if (errMsg !== null) {
-		return <TextError>{errMsg}</TextError>;
-	}
-	return (
-		<>
-			{text.map((t, i) => (
-				<p className="text-white text-small" key={i}>
-					{t}
-				</p>
-			))}
-		</>
-	);
+
+function Log() {
+  const either = useMicro({
+    fn: () => loader(),
+    key: "log",
+  });
+  return Either.match(either, {
+    onLeft(left) {
+      const errMsg = left.e.message;
+      log.error(JSON.stringify(left.e.stack));
+      return <TextError>{errMsg}</TextError>;
+    },
+    onRight(text) {
+      return (
+        <>
+          {text.map((t, i) => (
+            <p className="text-white text-small" key={i}>
+              {t}
+            </p>
+          ))}
+        </>
+      );
+    },
+  });
 }

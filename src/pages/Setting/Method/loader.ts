@@ -1,10 +1,12 @@
-import { data } from "react-router";
-import { db } from "~/database";
-import { store } from "~/store";
+import { Effect } from "effect";
+import { db } from "~/database-effect";
+import { store } from "~/store-effect";
 
-export async function loader() {
-  const methods = Promise.all([db.method.getAll(), store.method.get()]);
-  return data(methods);
+export function loader() {
+  const methods = Effect.all([db.method.getAll(), store.method.get()], {
+    concurrency: "unbounded",
+  });
+  return methods;
 }
 
-export type Loader = typeof loader;
+export const KEY = "methods";

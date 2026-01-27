@@ -63,7 +63,7 @@ export function ProductTable({ items }: { items: Item[] }) {
       }
       setSort(by, sortDir);
     },
-    [sortDir, sortBy]
+    [sortDir, sortBy],
   );
   const clickProduct = (id: number) => () => {
     navigate({

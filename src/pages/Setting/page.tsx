@@ -1,6 +1,6 @@
 import { Form, Outlet, useNavigation } from "react-router";
 import { Button } from "~/components/ui/button";
-import { cn, version } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { Loader2, LogOut } from "lucide-react";
 import { Show } from "~/components/Show";
 import { UserPanel } from "./UserPanel";
@@ -8,6 +8,7 @@ import { AdminPanel } from "./AdminPanel";
 import { grid } from "./style.css";
 import { useSize } from "~/hooks/use-size";
 import { auth } from "~/lib/auth";
+import { version } from "~/lib/constants";
 
 export default function Page() {
   const size = useSize();

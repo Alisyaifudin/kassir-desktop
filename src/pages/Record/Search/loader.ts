@@ -16,7 +16,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 async function getHistory(
   start: number,
   end: number,
-  query: string
+  query: string,
 ): Promise<Result<DefaultError, RecordProduct[]>> {
   if (query.trim() === "") return ok([]);
   return db.recordProduct.get.history(start, end, query);
