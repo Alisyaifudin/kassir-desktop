@@ -12,7 +12,7 @@ import { SelectMode } from "./SelectMode";
 import { Note } from "./Note";
 import { ToCreditBtn } from "./ToCreditBtn";
 import { Show } from "~/components/Show";
-import { DefaultError, Result } from "~/lib/utils";
+import { DefaultError, ResultOld } from "~/lib/utils";
 import { useLoading } from "~/hooks/use-loading";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
@@ -29,7 +29,7 @@ export const EditDialog = memo(function ({
   note: string;
   isCredit: boolean;
   method: Method;
-  methods: Promise<Result<DefaultError, Method[]>>;
+  methods: Promise<ResultOld<DefaultError, Method[]>>;
 }) {
   const [errMsg, methods] = use(promise);
   if (errMsg !== null) {

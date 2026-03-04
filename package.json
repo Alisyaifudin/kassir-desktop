@@ -1,7 +1,7 @@
 {
   "name": "kassir",
   "private": true,
-  "version": "5.0.0",
+  "version": "5.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tabs": "^1.1.9",
     "@tailwindcss/vite": "^4.1.4",
+    "@tanstack/react-form": "^1.28.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-fs": "~2",
     "@tauri-apps/plugin-http": "~2",
@@ -46,6 +47,7 @@
     "lucide-react": "^0.523.0",
     "next-themes": "^0.4.6",
     "p-queue": "^9.0.1",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.9.6",
@@ -54,6 +56,7 @@
     "tailwindcss": "^4.1.4",
     "temporal-polyfill": "^0.3.0",
     "use-debounce": "^10.0.4",
+    "valibot": "^1.2.0",
     "vite-tsconfig-paths": "^5.1.4",
     "zod": "^3.24.3"
   },

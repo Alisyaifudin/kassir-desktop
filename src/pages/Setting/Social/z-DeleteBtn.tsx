@@ -9,15 +9,9 @@ import {
 import { memo, useState } from "react";
 import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
-import { cn, log, sizeClass } from "~/lib/utils";
-import { css } from "./style.css";
-import { useSize } from "~/hooks/use-size";
-import { Effect } from "effect";
-import { db } from "~/database-effect";
-import { revalidate } from "~/hooks/use-micro";
-import { useSubmit } from "~/hooks/use-submit";
+import { cn } from "~/lib/utils";
 import { Spinner } from "~/components/Spinner";
-import { KEY } from "./loader";
+import { useDelete } from "./use-delete";
 
 export const DeleteBtn = memo(function ({
   id,
@@ -28,24 +22,15 @@ export const DeleteBtn = memo(function ({
   name: string;
   value: string;
 }) {
-  const size = useSize();
   const [open, setOpen] = useState(false);
-  const { loading, error, handleSubmit } = useSubmit(
-    (e) => {
-      e.stopPropagation();
-      return Effect.runPromise(program(id));
-    },
-    () => {
-      setOpen(false);
-      revalidate(KEY);
-    },
-  );
+  const { error, handleSubmit, loading } = useDelete(id, () => setOpen(false));
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Button
         type="button"
         asChild
-        className={cn("w-fit p-0 rounded-full", css.delete[size].iconBtn)}
+        className={cn("w-fit p-0 rounded-full", "p-1.5 small:p-1")}
         variant="destructive"
       >
         <DialogTrigger>
@@ -53,20 +38,20 @@ export const DeleteBtn = memo(function ({
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
-        <DialogHeader className={sizeClass[size]}>
+        <DialogHeader>
           <DialogTitle className="text-big">Hapus Kontak</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-            <div className={cn("grid", css.delete[size].grid)}>
-              <p>Nama</p>
-              <p>: {name}</p>
+            <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
+              <span>Jenis Kontak</span>
+              <span>: {name}</span>
             </div>
-            <div className={cn("grid", css.delete[size].grid)}>
-              <p>Isian</p>
-              <p>: {value}</p>
+            <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
+              <span>Nama Kontak</span>
+              <span>: {value}</span>
             </div>
             <TextError>{error}</TextError>
             <div className="col-span-2 flex flex-col items-end">
-              <Button variant="destructive" type="submit">
+              <Button disabled={loading} variant="destructive" type="submit">
                 Hapus
                 <Spinner when={loading} />
               </Button>
@@ -77,18 +62,3 @@ export const DeleteBtn = memo(function ({
     </Dialog>
   );
 });
-
-function program(id: number) {
-  return Effect.gen(function* () {
-    yield* db.social.delById(id);
-    return null;
-  }).pipe(
-    Effect.catchTags({
-      DbError: ({ e }) => {
-        console.error(e);
-        log.error(JSON.stringify(e.stack));
-        return Effect.succeed(e.message);
-      },
-    }),
-  );
-}

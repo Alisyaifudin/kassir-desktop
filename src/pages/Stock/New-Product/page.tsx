@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { TextError } from "~/components/TextError";
 import { Textarea } from "~/components/ui/textarea";
-import { Field } from "../Field";
+import { Field } from "../z-Field";
 import { Form, Link } from "react-router";
 import { Barcode } from "./Barcode";
 import { Spinner } from "~/components/Spinner";

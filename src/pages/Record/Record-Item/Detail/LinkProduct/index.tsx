@@ -20,7 +20,7 @@ import { TextError } from "~/components/TextError";
 import { useLinkProduct } from "./use-link-product";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
-import { cn, Result, sizeClass } from "~/lib/utils";
+import { cn, ResultOld, sizeClass } from "~/lib/utils";
 import { use } from "react";
 import { useLoading } from "~/hooks/use-loading";
 import { useAction } from "~/hooks/use-action";
@@ -34,7 +34,7 @@ export function LinkProductList({
   products: promise,
 }: {
   product: Data["products"][number];
-  products: Promise<Result<"Aplikasi bermasalah", Product[]>>;
+  products: Promise<ResultOld<"Aplikasi bermasalah", Product[]>>;
 }) {
   const [errMsg, products] = use(promise);
   if (errMsg) {

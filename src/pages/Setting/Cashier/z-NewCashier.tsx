@@ -12,26 +12,12 @@ import { Plus } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
-import { useSubmit } from "~/hooks/use-submit";
-import { isString, log } from "~/lib/utils";
-import { db } from "~/database-effect";
-import { Effect } from "effect";
-import { auth } from "~/lib/auth-effect";
-import { revalidate } from "~/hooks/use-micro";
-import { KEY } from "./loader";
+import { useNewCashier } from "./use-new-cashier";
+import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 
 export const NewCashier = memo(function () {
   const [open, setOpen] = useState(false);
-  const { error, loading, handleSubmit } = useSubmit(
-    async (e) => {
-      const formdata = new FormData(e.currentTarget);
-      return Effect.runPromise(program(formdata));
-    },
-    () => {
-      revalidate(KEY);
-      setOpen(false);
-    },
-  );
+  const { error, form } = useNewCashier(() => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>
@@ -39,22 +25,49 @@ export const NewCashier = memo(function () {
           Tambah Kasir <Plus />
         </DialogTrigger>
       </Button>
-      <DialogContent>
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Kasir</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <label className="grid grid-cols-[100px_1fr] text-normal items-center">
-            <span>Nama:</span>
-            <Input type="text" name="name" aria-autocomplete="list" />
-          </label>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit();
+          }}
+        >
+          <FieldGroup>
+            <form.Field name="name">
+              {(field) => (
+                <Field orientation="horizontal">
+                  <FieldLabel htmlFor={`select-${field.name}`}>Nama</FieldLabel>
+                  <Input
+                    required
+                    disabled={field.form.state.isSubmitting}
+                    id={`input-${field.name}`}
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.currentTarget.value)}
+                    onBlur={field.handleBlur}
+                    aria-autocomplete="list"
+                  />
+                  <FieldError errors={field.state.meta.errors}></FieldError>
+                </Field>
+              )}
+            </form.Field>
+            <TextError>{error}</TextError>
+          </FieldGroup>
           <div className="flex justify-between mt-5">
             <Button asChild variant={"secondary"}>
               <DialogClose type="button">Batal</DialogClose>
             </Button>
-            <Button>
-              Tambahkan <Spinner when={loading} />
-            </Button>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(isSubmitting) => (
+                <Button className="w-fit self-end" disabled={isSubmitting}>
+                  Tambahkan
+                  <Spinner when={isSubmitting} />
+                </Button>
+              )}
+            </form.Subscribe>
           </div>
         </form>
         <TextError>{error}</TextError>
@@ -63,17 +76,17 @@ export const NewCashier = memo(function () {
   );
 });
 
-function program(formdata: FormData) {
-  return Effect.gen(function* () {
-    const name = formdata.get("name");
-    if (!isString(name)) return null;
-    const hash = yield* auth.hash("");
-    yield* db.cashier.add({ name, role: "user", hash });
-    return null;
-  }).pipe(
-    Effect.catchAll(({ e }) => {
-      log.error(e.message);
-      return Effect.succeed(e.message);
-    }),
-  );
-}
+// function program(formdata: FormData) {
+//   return Effect.gen(function* () {
+//     const name = formdata.get("name");
+//     if (!isString(name)) return null;
+//     const hash = yield* auth.hash("");
+//     yield* db.cashier.add({ name, role: "user", hash });
+//     return null;
+//   }).pipe(
+//     Effect.catchAll(({ e }) => {
+//       logOld.error(e.message);
+//       return Effect.succeed(e.message);
+//     }),
+//   );
+// }

@@ -3,11 +3,10 @@ import { useState } from "react";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
-import { LOG_PATH } from "./loader";
+import { LOG_PATH, revalidate } from "./use-data";
 import { BaseDirectory, writeTextFile } from "@tauri-apps/plugin-fs";
-import { WriteError } from "./effect-error";
-import { log } from "~/lib/utils";
-import { revalidate } from "~/hooks/use-micro";
+import { WriteError } from "./util-effect-error";
+import { logOld } from "~/lib/utils";
 
 export function Clear() {
   const { loading, error, handleClear } = useClear();
@@ -39,10 +38,10 @@ function useClear() {
     setLoading(false);
     if (error === null) {
       setError(null);
-      revalidate("log");
+      revalidate();
       return;
     }
-    log.error(JSON.stringify(error.e.cause));
+    logOld.error(JSON.stringify(error.e.cause));
     setError("Aplikasi bermasalah");
   }
   return { loading, error, handleClear };

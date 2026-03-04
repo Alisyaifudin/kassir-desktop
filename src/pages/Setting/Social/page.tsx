@@ -1,22 +1,23 @@
 import { Item } from "./z-Item";
 import { ForEach } from "~/components/ForEach";
 import { Suspense } from "react";
-import { cn, log } from "~/lib/utils";
+import { cn, logOld } from "~/lib/utils";
 import { NewItem } from "./z-NewItem";
-import { KEY, loader } from "./loader";
+import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
-import { useSize } from "~/hooks/use-size";
-import { css } from "./style.css";
-import { useMicro } from "~/hooks/use-micro";
-import { Either } from "effect";
+import { Loading, LoadingFull } from "~/components/Loading";
+import { Result } from "~/lib/result";
 
 export default function Page() {
-  const size = useSize();
   return (
     <div className="flex flex-col gap-2 w-full flex-1 overflow-hidden">
       <h1 className="font-bold text-big">Daftar Kontak</h1>
-      <div className={cn("grid gap-2 items-center text-normal", css.item[size])}>
+      <div
+        className={cn(
+          "grid gap-2 items-center text-normal",
+          "grid-cols-[250px_1fr] small:grid-cols-[200px_1fr]",
+        )}
+      >
         <p>Kontak</p>
         <p>Isian</p>
       </div>
@@ -29,16 +30,16 @@ export default function Page() {
 }
 
 function Socials() {
-  const res = useMicro({
-    fn: () => loader(),
-    key: KEY,
-  });
-  return Either.match(res, {
-    onLeft({ e }) {
-      log.error(JSON.stringify(e.stack));
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingFull />;
+    },
+    onError({ e }) {
+      logOld.error(JSON.stringify(e.stack));
       return <TextError>{e.message}</TextError>;
     },
-    onRight(socials) {
+    onSuccess(socials) {
       if (socials.length === 0) return <p className="text-big">---Belum Ada---</p>;
       return (
         <div className="flex flex-col gap-1 overflow-y-auto">

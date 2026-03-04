@@ -2,37 +2,47 @@ import { Effect, pipe } from "effect";
 import { toast } from "sonner";
 import { db } from "~/database-effect";
 import { Cashier } from "~/database/cashier/get-all";
-import { revalidate } from "~/hooks/use-micro";
-import { log } from "~/lib/utils";
-import { KEY } from "./loader";
+import { logOld } from "~/lib/utils";
+import { revalidate } from "./use-data";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 
 export function SelectRole({ cashier }: { cashier: Cashier }) {
-  const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const role = e.currentTarget.value;
+  const handleChange = async (role: string) => {
     if (role !== "admin" && role !== "user") {
       return;
     }
-    const errMsg = await Effect.runPromise(program({ role, name: cashier.name }));
+    const errMsg = await Effect.runPromise(program(cashier.name, role));
     if (errMsg !== null) {
       toast.error(errMsg);
     } else {
-      revalidate(KEY);
+      revalidate();
     }
   };
   return (
-    <select onChange={handleChange} className="text-normal" value={cashier.role}>
-      <option value="admin">Admin</option>
-      <option value="user">User</option>
-    </select>
+    <Select value={cashier.role} onValueChange={handleChange}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Peran" />
+      </SelectTrigger>
+      <SelectContent position="item-aligned">
+        <SelectItem value="admin">Admin</SelectItem>
+        <SelectItem value="user">User</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 
-export function program({ role, name }: { role: DB.Role; name: string }) {
+export function program(name: string, role: DB.Role) {
   return pipe(
     db.cashier.update.role(name, role),
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
-      log.error(JSON.stringify(e.stack));
+      logOld.error(JSON.stringify(e.stack));
       return Effect.succeed(e.message);
     }),
   );

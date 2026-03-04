@@ -3,7 +3,7 @@ import { queue } from "./utils/queue";
 
 export function useStatus() {
   const [status, setStatus] = useState<"idle" | "active">(() => {
-    if (queue.size === 0 && queue.pending === 0) return "idle";
+    if (queue.size() === 0 && queue.pending() === 0) return "idle";
     return "active";
   });
 

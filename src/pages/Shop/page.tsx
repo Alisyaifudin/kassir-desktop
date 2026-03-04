@@ -1,74 +1,84 @@
 import { Right } from "./Right";
-import { Left } from "./Left";
-import { useLoaderData } from "react-router";
-import { Loader } from "./loader";
-import { basicStore } from "./use-transaction";
 import { TextError } from "~/components/TextError";
-import { Suspense, useEffect, useState } from "react";
-import { LoadingRight } from "./Right/loading";
-import { useTab } from "./use-tab";
-import { loadingStore } from "./Right/use-total";
-import { tx } from "~/transaction";
+import { useShortcut } from "./use-shortcut";
+import { useMicro } from "~/hooks/use-micro";
+import { Effect, Either } from "effect";
+import { tx } from "~/transaction-effect";
+import { logOld } from "~/lib/utils";
+import { tabsStore, useTab } from "./Right/Header/use-tab";
+import { key } from "./utils/keys";
+import { TabInfo } from "~/transaction-effect/transaction/get-all";
+import { customerStore } from "./Right/CustomerDialog/use-customer";
+import { basicStore, manualStore } from "./use-transaction";
+import { Left } from "./Left";
 
 export default function Page() {
-  const { product, customers, methods, tabs } = useLoaderData<Loader>();
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      switch (e.key) {
-        case "F1": {
-          const el = document.getElementById("searchbar");
-          el?.focus();
-          break;
-        }
-        case "F2": {
-          const el = document.getElementById("pay-input");
-          el?.focus();
-          break;
-        }
-      }
-    }
-    document.body.addEventListener("keydown", handleKey);
-    return () => {
-      document.body.removeEventListener("keydown", handleKey);
-    };
-  }, []);
+  useShortcut();
   const [tab] = useTab();
-  const [error, setError] = useState<null | string>(null);
-  useEffect(() => {
+  const res = useMicro({
+    fn: () => loader(tab),
+    key: key.transaction,
+  });
+  return Either.match(res, {
+    onLeft({ e }) {
+      logOld.error(JSON.stringify(e.stack));
+      return (
+        <main className="flex flex-col min-h-0 h-full overflow-hidden grow shrink basis-0 relative">
+          <TextError>{e.message}</TextError>
+        </main>
+      );
+    },
+    onRight() {
+      return (
+        <main className="flex flex-col min-h-0 h-full overflow-hidden grow shrink basis-0 relative">
+          <div className="gap-2 pt-1 flex h-full">
+            uwu
+            {/* <Left />
+            <Right /> */}
+          </div>
+        </main>
+      );
+    },
+  });
+}
+
+function loader(tab?: number) {
+  return Effect.gen(function* () {
+    // const tabs = yield* tx.transaction.get.all();
+    // tabsStore.set(tabs);
+    // const tab = yield* guard(tabs, rawTab);
+    // setTab(tab);
     if (tab === undefined) return;
-    async function init(tab: number) {
-      loadingStore.trigger.setTransaction({ value: true });
-      const [errMsg, res] = await tx.transaction.get.byTab(tab);
-      loadingStore.trigger.setTransaction({ value: false });
-      setError(errMsg);
-      if (errMsg !== null) {
-        return;
-      }
-      basicStore.set({
-        rounding: 0,
-        fix: res.fix,
-        methodId: res.methodId,
-        mode: res.mode,
-        note: res.note,
-        query: res.query,
-      });
-    }
-    init(tab);
-  }, [tab]);
-  if (error !== null)
-    return (
-      <main className="flex flex-col min-h-0 h-full overflow-hidden grow shrink basis-0 relative">
-        <TextError>{error}</TextError>
-      </main>
-    );
-  return (
-    <main className="flex flex-col min-h-0 h-full overflow-hidden grow shrink basis-0 relative">
-      <div className="gap-2 pt-1 flex h-full">
-        <Left methods={methods} product={product} />
-        <Suspense fallback={<LoadingRight />}>
-          <Right tabs={tabs} customers={customers} />
-        </Suspense>
-      </div>
-    </main>
+    const { fix, customer, extra, methodId, mode, note, product, query } =
+      yield* tx.transaction.get.byTab(tab);
+    basicStore.set({
+      fix,
+      methodId,
+      mode,
+      note,
+      query,
+      rounding: 0,
+    });
+    customerStore.set(customer);
+    manualStore.set({
+      extra,
+      product,
+    });
+    // tabsStore.set(tabs);
+  }).pipe(
+    Effect.catchTag("NotFound", () => {
+      return Effect.void;
+    }),
   );
+}
+
+function guard(tabs: TabInfo[], rawTab?: number) {
+  if (tabs.length === 0) {
+    return tx.transaction.add.new();
+  } else if (rawTab !== undefined && tabs.map((t) => t.tab).includes(rawTab)) {
+    return Effect.succeed(rawTab);
+  } else {
+    const tab = tabs[tabs.length - 1].tab;
+    return Effect.succeed(tab);
+  }
 }

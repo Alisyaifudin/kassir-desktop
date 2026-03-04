@@ -21,7 +21,7 @@ import {
   formatTime,
   getDayName,
   METHOD_NAMES,
-  Result,
+  ResultOld,
 } from "~/lib/utils";
 import { DebtDialog } from "./DebtDialog";
 import { Data } from "../loader";
@@ -63,8 +63,8 @@ export const Detail = memo(function ({
   products,
 }: {
   data: Data;
-  methods: Promise<Result<DefaultError, Method[]>>;
-  products: Promise<Result<"Aplikasi bermasalah", Product[]>>;
+  methods: Promise<ResultOld<DefaultError, Method[]>>;
+  products: Promise<ResultOld<"Aplikasi bermasalah", Product[]>>;
 }) {
   const role = auth.user().role;
   const size = useSize();

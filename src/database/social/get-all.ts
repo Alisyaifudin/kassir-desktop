@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type Social = {
@@ -7,7 +7,7 @@ export type Social = {
   value: string;
 };
 
-export async function getAll(): Promise<Result<DefaultError, Social[]>> {
+export async function getAll(): Promise<ResultOld<DefaultError, Social[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () => db.select<DB.Social[]>("SELECT * FROM socials"),
@@ -18,6 +18,6 @@ export async function getAll(): Promise<Result<DefaultError, Social[]>> {
       name: r.social_name,
       id: r.social_id,
       value: r.social_value,
-    }))
+    })),
   );
 }

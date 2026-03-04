@@ -6,55 +6,48 @@ import { memo } from "react";
 import { Cashier } from "~/database/cashier/get-all";
 import { auth } from "~/lib/auth-effect";
 import { SelectRole } from "./z-SelectRole";
-import { useSubmit } from "~/hooks/use-submit";
-import { isString, log } from "~/lib/utils";
-import { db } from "~/database-effect";
-import { Effect, pipe } from "effect";
-import { revalidate } from "~/hooks/use-micro";
-import { KEY } from "./loader";
-
-export const Item = memo(function ({ cashier }: { cashier: Cashier }) {
-  const username = auth.user().name;
-  const { loading, error, handleSubmit } = useSubmit(
-    async (e) => {
-      const formdata = new FormData(e.currentTarget);
-      const newName = formdata.get("name");
-      if (!isString(newName)) return null;
-      return Effect.runPromise(program({ old: cashier.name, new: newName }));
-    },
-    () => revalidate(KEY),
-  );
-  if (username === cashier.name) {
-    return (
-      <div className="flex items-center justify-between pr-16">
-        <p className="pl-3">{username}</p>
-        <p>{title[cashier.role]}</p>
-      </div>
-    );
-  }
-  return (
-    <form onSubmit={handleSubmit} className="flex items-center px-0.5 gap-3">
-      <Input type="text" defaultValue={cashier.name} name="name" aria-autocomplete="list" />
-      <Spinner when={loading} />
-      <TextError>{error}</TextError>
-      <SelectRole cashier={cashier} />
-      <DeleteBtn name={cashier.name} />
-    </form>
-  );
-});
+import { useUpdate } from "./use-update";
+import { Show } from "~/components/Show";
 
 const title = {
   admin: "Admin",
   user: "User",
 };
 
-function program(input: { old: string; new: string }) {
-  return pipe(
-    db.cashier.update.name(input),
-    Effect.as(null),
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(JSON.stringify(e.stack));
-      return Effect.succeed(e.message);
-    }),
+export const Item = memo(function ({ cashier }: { cashier: Cashier }) {
+  const username = auth.user().name;
+  const { error, handleSubmit, loading, name } = useUpdate(cashier.name);
+  if (username === cashier.name) {
+    return (
+      <div className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center">
+        <p className="pl-3">{username}</p>
+        <p>{title[cashier.role]}</p>
+      </div>
+    );
+  }
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center px-0.5 gap-3"
+    >
+      <div className="flex flex-col gap-1">
+        <Input
+          type="text"
+          disabled={loading}
+          value={name.value}
+          onChange={(e) => name.setName(e.currentTarget.value)}
+          name="name"
+          aria-autocomplete="list"
+        />
+        <TextError>{error}</TextError>
+      </div>
+      <SelectRole cashier={cashier} />
+      <Show when={!loading} fallback={<Spinner when={true} />}>
+        <DeleteBtn name={cashier.name} />
+      </Show>
+    </form>
   );
-}
+});

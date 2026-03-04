@@ -1,4 +1,4 @@
-import { err, ok, Result, tryResult } from "~/lib/utils";
+import { err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type ProductHistory = {
@@ -14,8 +14,8 @@ export async function getHistory(
   id: number,
   offset: number,
   limit: number,
-  mode: "buy" | "sell"
-): Promise<Result<"Aplikasi bermasalah", { histories: ProductHistory[]; total: number }>> {
+  mode: "buy" | "sell",
+): Promise<ResultOld<"Aplikasi bermasalah", { histories: ProductHistory[]; total: number }>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () =>
@@ -38,13 +38,13 @@ export async function getHistory(
 					LIMIT $3
 					OFFSET $4
 					`,
-          [id, mode, limit, offset]
+          [id, mode, limit, offset],
         ),
         db.select<{ count: number }[]>(
           `SELECT COUNT(*) as count
 						 FROM record_products INNER JOIN records ON records.timestamp = record_products.timestamp
 						 WHERE product_id = $1 AND record_mode = $2`,
-          [id, mode]
+          [id, mode],
         ),
       ]),
   });

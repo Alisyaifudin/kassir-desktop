@@ -6,23 +6,24 @@ import { route as settingRoute } from "./pages/setting";
 import { route as recordsRoute } from "./pages/Record/index.tsx";
 import { route as moneyRoute } from "./pages/money";
 import { route as analRoute } from "./pages/analytics";
-import AuthLayout, { loader } from "./layouts/authenticated";
-import RootLayout, { ErrorBoundary, loader as rootLoader } from "./layouts/root";
 import { authentication } from "./middleware/authenticate.ts";
+import { lazy } from "react";
+
+const RootLayout = lazy(() => import("./layouts/root"));
+const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
+const AuthLayout = lazy(() => import("./layouts/authenticated"));
 
 export const router = createBrowserRouter([
   {
     path: "/",
     ErrorBoundary,
     Component: RootLayout,
-    loader: rootLoader,
     children: [
       loginRoute,
       {
         path: "/",
         middleware: [authentication],
         Component: AuthLayout,
-        loader,
         children: [shopRoute, settingRoute, stockRoute, moneyRoute, recordsRoute, analRoute],
       },
     ],

@@ -1,13 +1,11 @@
 import { lazy } from "react";
 import { RouteObject } from "react-router";
-import { loader } from "./loader";
-import { action } from "./action";
+import { lazyLoader } from "~/lib/utils";
 
 const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
-	path: "login",
-	loader,
-	action,
-	Component: Page,
+  path: "login",
+  loader: lazyLoader(() => import("./loader")),
+  Component: Page,
 };

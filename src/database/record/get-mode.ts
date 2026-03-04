@@ -1,9 +1,9 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export async function getMode(
-  timestamp: number
-): Promise<Result<DefaultError | NotFound, DB.Mode>> {
+  timestamp: number,
+): Promise<ResultOld<DefaultError | NotFound, DB.Mode>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult<{ record_mode: DB.Mode }[]>({
     run: () => db.select(`SELECT record_mode FROM records WHERE timestamp = $1`, [timestamp]),

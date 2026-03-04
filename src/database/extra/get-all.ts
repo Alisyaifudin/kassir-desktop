@@ -1,8 +1,8 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getCache, Extra, setCache } from "./caches";
 import { getDB } from "../instance";
 
-export async function all(): Promise<Result<DefaultError, Extra[]>> {
+export async function all(): Promise<ResultOld<DefaultError, Extra[]>> {
   const cache = getCache();
   if (cache !== null) return ok(cache);
   const db = await getDB();

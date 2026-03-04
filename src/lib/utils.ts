@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import * as logTauri from "@tauri-apps/plugin-log";
 
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
-export const log = logTauri;
+export const logOld = logTauri;
 
 export const numerish = z.string().refine((val) => val !== "" || !isNaN(Number(val)), {
   message: "Harus angka",
@@ -19,7 +19,7 @@ export const integer = z
   })
   .transform((v) => Number(v));
 
-export type Result<E, T> = [E, null] | [null, T];
+export type ResultOld<E, T> = [E, null] | [null, T];
 
 export function err<T>(value: T): [T, null] {
   return [value, null];
@@ -43,21 +43,21 @@ export async function tryResult<R, const T = DefaultError>({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   run: (...arg: any[]) => Promise<R>;
   message?: T;
-}): Promise<Result<T, R>> {
+}): Promise<ResultOld<T, R>> {
   try {
     return ok(await run());
   } catch (error) {
-    log.error(JSON.stringify(error));
+    logOld.error(JSON.stringify(error));
     return err(message);
   }
 }
 
-export function safeJSON(v: string): Result<"Gagal parse json", any> {
+export function safeJSON(v: string): ResultOld<"Gagal parse json", any> {
   try {
     const parsed = JSON.parse(v);
     return ok(parsed);
   } catch (error) {
-    log.error(JSON.stringify(error));
+    logOld.error(JSON.stringify(error));
     return err("Gagal parse json");
   }
 }

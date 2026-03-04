@@ -7,3 +7,8 @@ export async function loader() {
 }
 
 export type Loader = typeof loader;
+
+export const key = {
+  products: "products",
+  extras: "extras",
+};

@@ -1,4 +1,4 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getTX } from "../db-instance";
 
 export type Transaction = {
@@ -28,7 +28,7 @@ export type Transaction = {
   };
 };
 
-export async function byTab(tab: number): Promise<Result<DefaultError | NotFound, Transaction>> {
+export async function byTab(tab: number): Promise<ResultOld<DefaultError | NotFound, Transaction>> {
   const tx = await getTX();
   const [errMsg, res] = await tryResult({
     run: () => tx.select<TX.Transaction[]>("SELECT * FROM transactions WHERE tab = $1", [tab]),
@@ -46,7 +46,7 @@ export async function byTab(tab: number): Promise<Result<DefaultError | NotFound
     customer: {
       name: r.tx_customer_name,
       phone: r.tx_customer_phone,
-      id: r.tx_customer_id ?? undefined
+      id: r.tx_customer_id ?? undefined,
     },
     extra: {
       kind: r.tx_extra_kind,

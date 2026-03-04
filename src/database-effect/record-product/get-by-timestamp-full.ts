@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 import { Discount } from "./get-by-range";
 
@@ -21,8 +21,8 @@ export type RecordProductFull = {
   discounts: Discount[];
 };
 export async function getByTimestampFull(
-  timestamp: number
-): Promise<Result<DefaultError, RecordProductFull[]>> {
+  timestamp: number,
+): Promise<ResultOld<DefaultError, RecordProductFull[]>> {
   const db = await getDB();
   const [errMsg, rows] = await tryResult({
     run: () =>
@@ -44,7 +44,7 @@ export async function getByTimestampFull(
         FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
         LEFT JOIN products ON record_products.product_id = products.product_id
         WHERE timestamp = $1 ORDER BY discount_id`,
-        [timestamp]
+        [timestamp],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -54,14 +54,14 @@ export async function getByTimestampFull(
       row.discount_id,
       row.discount_kind,
       row.discount_value,
-      row.discount_eff
+      row.discount_eff,
     );
     const product = collectProduct(
       row.product_id,
       row.product_barcode,
       row.product_stock,
       row.product_name,
-      row.product_price
+      row.product_price,
     );
     const item = items.get(row.record_product_id);
     if (item === undefined) {
@@ -97,7 +97,7 @@ function collectProduct(
   barcode: string | null,
   stock: number | null,
   name: string | null,
-  price: number | null
+  price: number | null,
 ): Product | undefined {
   if (id === null || stock === null || name === null || price === null) return undefined;
   return { id, barcode, stock, name, price };
@@ -107,7 +107,7 @@ function collectDiscount(
   id: number | null,
   kind: DB.DiscKind | null,
   value: number | null,
-  eff: number | null
+  eff: number | null,
 ): Discount | undefined {
   if (id === null || kind === null || value === null || eff === null) return undefined;
   return {

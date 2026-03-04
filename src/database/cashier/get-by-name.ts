@@ -1,4 +1,4 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 type Cashier = {
@@ -7,7 +7,7 @@ type Cashier = {
   hash: string;
 };
 
-export async function byName(name: string): Promise<Result<DefaultError | NotFound, Cashier>> {
+export async function byName(name: string): Promise<ResultOld<DefaultError | NotFound, Cashier>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () => db.select<DB.Cashier[]>("SELECT * FROM cashiers WHERE cashier_name = $1", [name]),

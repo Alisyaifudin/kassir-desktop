@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type Cashier = {
@@ -6,7 +6,7 @@ export type Cashier = {
   role: DB.Role;
 };
 
-export async function all(): Promise<Result<DefaultError, Cashier[]>> {
+export async function all(): Promise<ResultOld<DefaultError, Cashier[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () => db.select<DB.Cashier[]>("SELECT cashier_name, cashier_role FROM cashiers"),

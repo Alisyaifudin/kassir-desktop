@@ -1,11 +1,11 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 import { Money } from "./get-by-range";
 
 export async function getLast(
   timestamp: number,
   kind: DB.MoneyEnum,
-): Promise<Result<DefaultError, Money | null>> {
+): Promise<ResultOld<DefaultError, Money | null>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () =>

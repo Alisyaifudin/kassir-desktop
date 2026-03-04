@@ -1,4 +1,4 @@
-import { err, ok, Result, tryResult } from "~/lib/utils";
+import { err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type Customer = {
@@ -7,7 +7,7 @@ export type Customer = {
   id: number;
 };
 
-export async function getAll(): Promise<Result<"Aplikasi bermasalah", Customer[]>> {
+export async function getAll(): Promise<ResultOld<"Aplikasi bermasalah", Customer[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () => db.select<DB.Customer[]>("SELECT * FROM customers"),
@@ -18,6 +18,6 @@ export async function getAll(): Promise<Result<"Aplikasi bermasalah", Customer[]
       name: r.customer_name,
       phone: r.customer_phone,
       id: r.customer_id,
-    }))
+    })),
   );
 }

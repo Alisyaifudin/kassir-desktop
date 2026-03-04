@@ -1,81 +1,74 @@
 import { Input } from "~/components/ui/input";
 import { DeleteBtn } from "./z-DeleteBtn";
-import { memo, useEffect, useRef } from "react";
+import { memo } from "react";
 import { Customer } from "~/database/customer/get-all";
 import { Show } from "~/components/Show";
 import { Loader2 } from "lucide-react";
-import { useSubmit } from "~/hooks/use-submit";
 import { TextError } from "~/components/TextError";
-import { Effect } from "effect";
-import { db } from "~/database-effect";
-import { log } from "~/lib/utils";
-import { revalidate } from "~/hooks/use-micro";
-import { KEY } from "./loader";
+import { useUpdate } from "./use-update";
+import { Field, FieldError, FieldGroup } from "~/components/ui/field";
+import eq from "fast-deep-equal";
 
 export const Item = memo(function ({ customer }: { customer: Customer }) {
-  const { error, handleSubmit, loading } = useSubmit(
-    async () => {
-      if (ref.phone.current === null || ref.name.current === null) return null;
-      const phone = ref.phone.current.value;
-      const name = ref.name.current.value;
-      return Effect.runPromise(program({ id: customer.id, name, phone }));
-    },
-    () => revalidate(KEY),
-  );
-  const ref = useForm();
+  const { form, error } = useUpdate(customer);
   return (
-    <form onSubmit={handleSubmit} ref={ref.form} className="flex items-center px-0.5 gap-3">
-      <Input
-        ref={ref.name}
-        type="text"
-        defaultValue={customer.name}
-        name="name"
-        aria-autocomplete="list"
-      />
-      <Input
-        type="number"
-        ref={ref.phone}
-        defaultValue={customer.phone}
-        name="phone"
-        aria-autocomplete="list"
-      />
-      <Show when={!loading} fallback={<Loader2 className="animate-spin" />}>
-        <DeleteBtn name={customer.name} phone={customer.phone} id={customer.id} />
-      </Show>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        form.handleSubmit();
+      }}
+      className="flex flex-col items-center px-0.5 gap-1"
+    >
+      <FieldGroup className="grid grid-cols-[1fr_1fr_35px] items-center gap-3">
+        <form.Field name="name">
+          {(field) => (
+            <Field>
+              <Input
+                required
+                placeholder="Nama"
+                id={`input-${field.name}`}
+                name={field.name}
+                disabled={field.form.state.isSubmitting}
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.currentTarget.value)}
+                onBlur={field.handleBlur}
+                aria-autocomplete="list"
+              />
+              <FieldError errors={field.state.meta.errors}></FieldError>
+            </Field>
+          )}
+        </form.Field>
+        <form.Field name="phone">
+          {(field) => (
+            <Field>
+              <Input
+                required
+                type="number"
+                disabled={field.form.state.isSubmitting}
+                id={`input-${field.name}`}
+                placeholder="No Hp"
+                name={field.name}
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.currentTarget.value)}
+                onBlur={field.handleBlur}
+                aria-autocomplete="list"
+              />
+              <FieldError errors={field.state.meta.errors}></FieldError>
+            </Field>
+          )}
+        </form.Field>
+        <button type="submit" className="hidden">
+          Submit
+        </button>
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <Show when={!isSubmitting} fallback={<Loader2 className="animate-spin" />}>
+              <DeleteBtn name={customer.name} phone={customer.phone} id={customer.id} />
+            </Show>
+          )}
+        </form.Subscribe>
+      </FieldGroup>
       <TextError>{error}</TextError>
     </form>
   );
-});
-
-function useForm() {
-  const refName = useRef<HTMLInputElement>(null);
-  const refPhone = useRef<HTMLInputElement>(null);
-  const refForm = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (refName.current === null || refForm.current === null || refPhone.current === null) return;
-    function handleSubmit(e: KeyboardEvent) {
-      if (e.key === "Enter" && refForm.current !== null) {
-        refForm.current.requestSubmit();
-      }
-    }
-    refName.current.addEventListener("keydown", handleSubmit);
-    refPhone.current.addEventListener("keydown", handleSubmit);
-    return () => {
-      refName.current?.removeEventListener("keydown", handleSubmit);
-      refPhone.current?.removeEventListener("keydown", handleSubmit);
-    };
-  }, []);
-  return { phone: refPhone, name: refName, form: refForm };
-}
-
-function program({ id, name, phone }: { id: number; name: string; phone: string }) {
-  return Effect.gen(function* () {
-    yield* db.customer.update(id, name, phone);
-    return null;
-  }).pipe(
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(JSON.stringify(e.stack));
-      return Effect.succeed(e.message);
-    }),
-  );
-}
+}, eq);

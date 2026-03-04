@@ -3,7 +3,7 @@ import { useSize } from "~/hooks/use-size";
 import { css } from "./style.css";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
-import { Header } from "./Header";
+import { Header } from "./Header/z-HeaderColumn";
 
 export function LoadingRight() {
   const size = useSize();
@@ -22,19 +22,19 @@ export function LoadingRight() {
                 <div
                   className={cn(
                     css.tab[size],
-                    "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1"
+                    "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1",
                   )}
                 />
                 <div
                   className={cn(
                     css.tab[size],
-                    "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1"
+                    "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1",
                   )}
                 />
                 <div
                   className={cn(
                     css.tab[size],
-                    "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1"
+                    "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1",
                   )}
                 />
               </div>

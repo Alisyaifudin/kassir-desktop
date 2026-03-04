@@ -1,10 +1,10 @@
 import Decimal from "decimal.js";
 import { useEffect } from "react";
-import { log } from "~/lib/utils";
-import { extrasStore } from "~/pages/shop/Right/Extra/use-extras";
+import { logOld } from "~/lib/utils";
+import { extrasStore } from "~/pages/Shop/store/extra";
 import { productsStore } from "~/pages/shop/Right/Product/use-products";
 import { subStore } from "~/pages/shop/Right/use-subtotal";
-import { basicStore, customerStore, manualStore } from "~/pages/shop/use-transaction";
+import { basicStore, customerStore, manualStore } from "~/pages/Shop/store/transaction";
 import { tx } from "~/transaction";
 
 export function useClearTab(tab: number | null) {
@@ -13,7 +13,7 @@ export function useClearTab(tab: number | null) {
     handleTab(tab).then((errMsg) => {
       clear();
       if (errMsg === null) return;
-      log.error(errMsg);
+      logOld.error(errMsg);
     });
   }, []);
 }

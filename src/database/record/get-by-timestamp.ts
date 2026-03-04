@@ -1,4 +1,4 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 import Decimal from "decimal.js";
 
@@ -28,8 +28,8 @@ export type Record = {
 };
 
 export async function getByTimestamp(
-  timestamp: number
-): Promise<Result<DefaultError | NotFound, Record>> {
+  timestamp: number,
+): Promise<ResultOld<DefaultError | NotFound, Record>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult<
     (DB.Record & { method_name: string | null; method_kind: DB.MethodEnum })[]
@@ -41,7 +41,7 @@ export async function getByTimestamp(
       record_sub_total, record_total, methods.method_id, method_name, method_kind 
       FROM records INNER JOIN methods ON records.method_id = methods.method_id
       WHERE timestamp = $1`,
-        [timestamp]
+        [timestamp],
       ),
   });
   if (errMsg !== null) return err(errMsg);

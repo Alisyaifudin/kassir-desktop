@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getTX } from "../db-instance";
 
 export type TabInfo = {
@@ -6,7 +6,7 @@ export type TabInfo = {
   mode: TX.Mode;
 };
 
-export async function all(): Promise<Result<DefaultError, TabInfo[]>> {
+export async function all(): Promise<ResultOld<DefaultError, TabInfo[]>> {
   const tx = await getTX();
   const [errMsg, res] = await tryResult({
     run: () =>

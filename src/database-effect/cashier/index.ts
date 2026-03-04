@@ -9,7 +9,7 @@ import { updateRole } from "./update-role";
 export const cashier = {
   get: {
     all,
-    // byName,
+    byName,
   },
   add,
   update: {

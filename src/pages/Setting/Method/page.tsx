@@ -1,15 +1,13 @@
-import { Item } from "./z-Item";
+import { Item, Method } from "./z-Item";
 import { NewBtn } from "./z-NewBtn";
 import { useMethod } from "./use-method";
 import { TabLink } from "./z-TabLink";
-import { log } from "~/lib/utils";
+import { logOld } from "~/lib/utils";
 import { Suspense } from "react";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
-import { Method } from "~/database-effect/method/get-all";
-import { useMicro } from "~/hooks/use-micro";
-import { KEY, loader } from "./loader";
-import { Either } from "effect";
+import { Loading, LoadingFull } from "~/components/Loading";
+import { useData } from "./use-data";
+import { Result } from "~/lib/result";
 
 export default function Page() {
   return (
@@ -25,17 +23,17 @@ export default function Page() {
 }
 
 function Wrapper() {
-  const res = useMicro({
-    fn: () => loader(),
-    key: KEY,
-  });
+  const res = useData();
   const [method] = useMethod();
-  return Either.match(res, {
-    onLeft({ e }) {
-      log.error(JSON.stringify(e.stack));
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingFull />;
+    },
+    onError({ e }) {
+      logOld.error(JSON.stringify(e.stack));
       return <TextError>{e.message}</TextError>;
     },
-    onRight([data, defaultMethod]) {
+    onSuccess([data, defaultMethod]) {
       const methods = data.filter((d) => d.kind === method && d.name !== undefined) as Method[];
       return (
         <div className="flex flex-col gap-2 overflow-auto">

@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 import { db } from "~/database";
-import { DefaultError, err, integer, NotFound, ok, Result } from "~/lib/utils";
+import { DefaultError, err, integer, NotFound, ok, ResultOld } from "~/lib/utils";
 import { tx } from "~/transaction";
 import { RecordExtra } from "~/database/record-extra/get-by-range";
 import { generateId } from "~/lib/random";
@@ -68,7 +68,7 @@ export type Data = {
   extras: RecordExtra[];
 };
 
-async function getRecord(timestamp: number): Promise<Result<DefaultError | NotFound, Data>> {
+async function getRecord(timestamp: number): Promise<ResultOld<DefaultError | NotFound, Data>> {
   const promises = Promise.all([
     db.record.get.byTimestamp(timestamp),
     db.recordProduct.get.byTimestampFull(timestamp),

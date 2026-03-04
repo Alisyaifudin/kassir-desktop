@@ -1,4 +1,4 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type Product = {
@@ -11,7 +11,7 @@ export type Product = {
   note: string;
 };
 
-export async function getById(id: number): Promise<Result<DefaultError | NotFound, Product>> {
+export async function getById(id: number): Promise<ResultOld<DefaultError | NotFound, Product>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () => db.select<DB.Product[]>("SELECT * FROM products WHERE product_id = $1", [id]),

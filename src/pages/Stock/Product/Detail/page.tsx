@@ -4,7 +4,7 @@ import { History } from "./History";
 import { Loader } from "./loader";
 import { ProductForm } from "./ProductForm";
 import { Info } from "./Info";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 import { Product } from "~/database/product/get-by-id";
 import { auth } from "~/lib/auth";
 
@@ -15,7 +15,7 @@ export default function Page() {
       <div className="h-full overflow-hidden">
         <Detail product={product} />
       </div>
-      <Suspense fallback={<LoadingBig />}>
+      <Suspense fallback={<LoadingFull />}>
         <History histories={histories} />
       </Suspense>
     </div>

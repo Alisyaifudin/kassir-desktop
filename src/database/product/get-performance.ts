@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type Product = {
@@ -11,8 +11,8 @@ export type Product = {
 export async function getPerformance(
   start: number,
   end: number,
-  mode: DB.Mode
-): Promise<Result<DefaultError, Product[]>> {
+  mode: DB.Mode,
+): Promise<ResultOld<DefaultError, Product[]>> {
   const db = await getDB();
   const [errMsg, rows] = await tryResult({
     run: () =>
@@ -32,7 +32,7 @@ export async function getPerformance(
         WHERE rp.timestamp BETWEEN $1 AND $2 AND record_mode = $3
         GROUP BY p.product_id, p.product_name, p.product_barcode
         ORDER BY qty DESC`,
-        [start, end, mode]
+        [start, end, mode],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -42,6 +42,6 @@ export async function getPerformance(
       name: r.product_name,
       qty: r.qty,
       barcode: r.product_barcode ?? undefined,
-    }))
+    })),
   );
 }

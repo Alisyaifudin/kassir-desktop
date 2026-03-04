@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type RecordProduct = {
@@ -13,8 +13,8 @@ export type RecordProduct = {
 export async function getHistory(
   start: number,
   end: number,
-  query: string
-): Promise<Result<DefaultError, RecordProduct[]>> {
+  query: string,
+): Promise<ResultOld<DefaultError, RecordProduct[]>> {
   const db = await getDB();
   const [errMsg, rows] = await tryResult({
     run: () =>
@@ -34,7 +34,7 @@ export async function getHistory(
          INNER JOIN records ON records.timestamp = record_products.timestamp
          WHERE records.timestamp BETWEEN $1 AND $2 AND record_product_name LIKE '%' || LOWER($3) || '%'
          ORDER BY records.timestamp DESC`,
-        [start, end, query.trim().toLowerCase()]
+        [start, end, query.trim().toLowerCase()],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -46,6 +46,6 @@ export async function getHistory(
       price: r.record_product_price,
       qty: r.record_product_qty,
       timestamp: r.timestamp,
-    }))
+    })),
   );
 }

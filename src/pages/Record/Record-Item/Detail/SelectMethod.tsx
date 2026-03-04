@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { ForEach } from "~/components/ForEach";
-import { log, METHOD_BASE_ID, METHOD_NAMES } from "~/lib/utils";
+import { logOld, METHOD_BASE_ID, METHOD_NAMES } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
 import { Show } from "~/components/Show";
 import { useLoading } from "~/hooks/use-loading";
@@ -32,7 +32,7 @@ export const SelectMethod = memo(function ({
     setMount(true);
   }, [actionData, loading]);
   if (top === undefined) {
-    log.error("No top found?");
+    logOld.error("No top found?");
     return null;
   }
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {

@@ -3,7 +3,7 @@ import { NavList } from "../NavList";
 import { useLoaderData } from "react-router";
 import { Loader } from "../Cashflow/loader";
 import { Graph } from "./Graph";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 import { Summary } from "./Summary";
 import { Panel } from "./Panel";
 
@@ -16,7 +16,7 @@ export default function Page() {
       </NavList>
       <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
         <Panel />
-        <Suspense fallback={<LoadingBig />}>
+        <Suspense fallback={<LoadingFull />}>
           <Graph records={records} start={start} end={end} />
         </Suspense>
       </div>

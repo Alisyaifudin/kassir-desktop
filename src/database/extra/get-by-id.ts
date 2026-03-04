@@ -1,8 +1,8 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { Extra, getCache } from "./caches";
 import { getDB } from "../instance";
 
-export async function getById(id: number): Promise<Result<DefaultError | NotFound, Extra>> {
+export async function getById(id: number): Promise<ResultOld<DefaultError | NotFound, Extra>> {
   const db = await getDB();
   const cache = getCache();
   if (cache !== null) {

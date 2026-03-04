@@ -1,108 +1,177 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
-import { Effect } from "effect";
-import { store } from "~/store-effect";
-import { z } from "zod";
-import { log } from "~/lib/utils";
-import { validate } from "~/lib/validate";
-import { revalidate } from "~/hooks/use-micro";
+import { useUpdate } from "./use-update";
+import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 
-export const Info = memo(function ({
-  owner,
-  address,
-  footer,
-  header,
-}: {
+export const Info = memo(function (props: {
   owner: string;
   address: string;
   header: string;
   footer: string;
 }) {
-  const { loading, error, handleSubmit } = useSubmit();
+  const { form, error } = useUpdate(props);
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 p-0.5">
-      <FieldText label="Nama Toko">
-        <Input type="text" defaultValue={owner} name="owner" aria-autocomplete="list" />
-      </FieldText>
-      <FieldText label="Alamat">
-        <Input type="text" defaultValue={address} name="address" aria-autocomplete="list" />
-      </FieldText>
-      <FieldDesc label="Deskripsi Atas:">
-        <Textarea rows={3} name="header" defaultValue={header}></Textarea>
-      </FieldDesc>
-      <FieldDesc label="Deskripsi Bawah:">
-        <Textarea rows={3} name="footer" defaultValue={footer}></Textarea>
-      </FieldDesc>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        form.handleSubmit();
+      }}
+      className="flex flex-col gap-2 p-0.5"
+    >
+      <form.Field name="owner">
+        {(field) => (
+          <FieldText
+            label={<FieldLabel htmlFor={`input-${field.name}`}>Nama Toko</FieldLabel>}
+            error={<FieldError errors={field.state.meta.errors} />}
+          >
+            <Input
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              disabled={field.form.state.isSubmitting}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              id={`input-${field.name}`}
+              aria-autocomplete="list"
+            />
+          </FieldText>
+        )}
+      </form.Field>
+      <form.Field name="address">
+        {(field) => (
+          <FieldText
+            label={<FieldLabel htmlFor={`input-${field.name}`}>Alamat</FieldLabel>}
+            error={<FieldError errors={field.state.meta.errors} />}
+          >
+            <Input
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              onBlur={field.handleBlur}
+              disabled={field.form.state.isSubmitting}
+              id={`input-${field.name}`}
+              aria-autocomplete="list"
+            />
+          </FieldText>
+        )}
+      </form.Field>
+      <form.Field name="header">
+        {(field) => (
+          <Field>
+            <FieldLabel htmlFor={`input-${field.name}`}>Deskripsi Atas:</FieldLabel>
+            <Textarea
+              rows={3}
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              onBlur={field.handleBlur}
+              disabled={field.form.state.isSubmitting}
+              id={`input-${field.name}`}
+              aria-autocomplete="list"
+            />
+            <FieldError errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
+      <form.Field name="footer">
+        {(field) => (
+          <Field>
+            <FieldLabel htmlFor={`input-${field.name}`}>Deskripsi Bawah:</FieldLabel>
+            <Textarea
+              rows={3}
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              onBlur={field.handleBlur}
+              disabled={field.form.state.isSubmitting}
+              id={`input-${field.name}`}
+              aria-autocomplete="list"
+            />
+            <FieldError errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
       <TextError>{error}</TextError>
-      <Button>
-        Simpan <Spinner when={loading} />
-      </Button>
+      <form.Subscribe selector={(e) => e.isSubmitting}>
+        {(isSubmitting) => (
+          <Button disabled={isSubmitting}>
+            Simpan <Spinner when={isSubmitting} />
+          </Button>
+        )}
+      </form.Subscribe>
     </form>
   );
 });
 
-function FieldText({ children, label }: { children: React.ReactNode; label: string }) {
+function FieldText({
+  children,
+  label,
+  error,
+}: {
+  children: React.ReactNode;
+  label: React.ReactNode;
+  error: React.ReactNode;
+}) {
   return (
-    <label className="grid grid-cols-[160px_10px_1fr] text-normal items-center gap-1">
-      <span>{label}</span>:{children}
-    </label>
-  );
-}
-function FieldDesc({ children, label }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-normal">
-      <div>
-        <span>{label}</span>
+    <div className="flex flex-col gap-1 ">
+      <div className="grid grid-cols-[160px_1fr] small:grid-cols-[100px_1fr] text-normal items-center gap-1">
+        {label}
+        {children}
       </div>
-      {children}
-    </label>
+      {error}
+    </div>
   );
 }
+// function FieldDesc({ children, label }: { label: string; children: React.ReactNode }) {
+//   return (
+//     <label className="flex flex-col gap-1 text-normal">
+//       <div>
+//         <span>{label}</span>
+//       </div>
+//       {children}
+//     </label>
+//   );
+// }
 
-function useSubmit() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formdata = new FormData(form);
-    setLoading(true);
-    const error = await Effect.runPromise(program(formdata));
-    setLoading(false);
-    setError(error);
-  }
-  return { loading, error, handleSubmit };
-}
+// function useSubmit() {
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState<null | string>(null);
+//   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+//     e.preventDefault();
+//     const form = e.currentTarget;
+//     const formdata = new FormData(form);
+//     setLoading(true);
+//     const error = await Effect.runPromise(program(formdata));
+//     setLoading(false);
+//     setError(error);
+//   }
+//   return { loading, error, handleSubmit };
+// }
 
-function program(formdata: FormData) {
-  return Effect.gen(function* () {
-    const data = yield* validate(schema, {
-      owner: formdata.get("owner"),
-      header: formdata.get("header"),
-      footer: formdata.get("footer"),
-      address: formdata.get("address"),
-    });
-    yield* store.info.set.basic(data);
-    revalidate("shop");
-    return null;
-  }).pipe(
-    Effect.catchTags({
-      ZodValError: (e) => Effect.succeed(e.error.message),
-      StoreError: ({ e }) => {
-        log.error(JSON.stringify(e.stack));
-        return Effect.succeed(e.message);
-      },
-    }),
-  );
-}
+// function program(formdata: FormData) {
+//   return Effect.gen(function* () {
+//     const data = yield* validate(schema, {
+//       owner: formdata.get("owner"),
+//       header: formdata.get("header"),
+//       footer: formdata.get("footer"),
+//       address: formdata.get("address"),
+//     });
+//     yield* store.info.set.basic(data);
+//     revalidate("shop");
+//     return null;
+//   }).pipe(
+//     Effect.catchTags({
+//       ZodValError: (e) => Effect.succeed(e.error.message),
+//       StoreError: ({ e }) => {
+//         logOld.error(JSON.stringify(e.stack));
+//         return Effect.succeed(e.message);
+//       },
+//     }),
+//   );
+// }
 
-const schema = z.object({
-  owner: z.string(),
-  header: z.string(),
-  footer: z.string(),
-  address: z.string(),
-});
+// const schema = z.object({
+//   owner: z.string(),
+//   header: z.string(),
+//   footer: z.string(),
+//   address: z.string(),
+// });

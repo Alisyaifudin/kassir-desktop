@@ -6,8 +6,8 @@ import { TextError } from "~/components/TextError";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { Effect, pipe } from "effect";
 import { store } from "~/store-effect";
-import { log } from "~/lib/utils";
-import { revalidate } from "~/hooks/use-micro";
+import { log } from "~/lib/log";
+import { revalidate } from "./use-data";
 
 export const CashierCheckbox = memo(function ({ showCashier }: { showCashier: boolean }) {
   const { loading, handleCheck, error } = useCheckbox();
@@ -29,20 +29,23 @@ function useCheckbox() {
   const handleCheck = async (e: CheckedState) => {
     const checked = e === true;
     setLoading(true);
-    const error = await pipe(
-      store.info.set.showCashier(checked),
-      Effect.map(() => {
-        revalidate("shop");
-        return null;
-      }),
-      Effect.catchTag("StoreError", (e) => {
-        log.error(JSON.stringify(e.e.stack));
-        return Effect.succeed(e.e.message);
-      }),
-      Effect.runPromise,
-    );
+    const error = await Effect.runPromise(program(checked));
     setLoading(false);
     setError(error);
+    if (error === null) {
+      revalidate();
+    }
   };
   return { loading, error, handleCheck };
+}
+
+function program(checked: boolean) {
+  return pipe(
+    store.info.set.showCashier(checked),
+    Effect.as(null),
+    Effect.catchTag("StoreError", ({ e }) => {
+      log.error(e);
+      return Effect.succeed(e.message);
+    }),
+  );
 }

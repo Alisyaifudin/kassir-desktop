@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
 import { z } from "zod";
 
@@ -7,7 +7,7 @@ export type DefaultMeth = {
   debit?: number;
   qris?: number;
 };
-export async function get(): Promise<Result<DefaultError, DefaultMeth>> {
+export async function get(): Promise<ResultOld<DefaultError, DefaultMeth>> {
   const store = await getStore();
   const [errMsg, res] = await tryResult({
     run: () =>

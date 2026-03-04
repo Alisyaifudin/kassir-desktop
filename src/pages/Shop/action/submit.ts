@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { db } from "~/database";
-import { DefaultError, err, integer, NotFound, numeric, ok, Result } from "~/lib/utils";
+import { DefaultError, err, integer, NotFound, numeric, ok, ResultOld } from "~/lib/utils";
 import { tx } from "~/transaction";
 import { Extra } from "~/transaction/extra/get-by-tab";
 import { Product } from "~/transaction/product/get-by-tab";
@@ -121,7 +121,7 @@ type Res = {
   extras: Extra[];
 };
 
-async function getTransaction(tab: number): Promise<Result<DefaultError | NotFound, Res>> {
+async function getTransaction(tab: number): Promise<ResultOld<DefaultError | NotFound, Res>> {
   const promises = await Promise.all([
     tx.transaction.get.byTab(tab),
     tx.product.getByTab(tab),

@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { LoaderFunctionArgs, redirect } from "react-router";
 import { db } from "~/database";
@@ -49,7 +49,7 @@ export type Data = {
   extras: RecordExtra[];
 };
 
-async function getRecords(timestamp: number): Promise<Result<DefaultError, Data[]>> {
+async function getRecords(timestamp: number): Promise<ResultOld<DefaultError, Data[]>> {
   const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
   const start = date.startOfDay().epochMilliseconds;

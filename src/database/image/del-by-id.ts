@@ -1,7 +1,7 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
-export async function delById(id: number): Promise<Result<DefaultError | NotFound, string>> {
+export async function delById(id: number): Promise<ResultOld<DefaultError | NotFound, string>> {
   const db = await getDB();
   const [errSelect, res] = await tryResult({
     run: () =>

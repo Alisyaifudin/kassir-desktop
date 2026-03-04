@@ -1,7 +1,7 @@
 import { use, useEffect } from "react";
 import { TextError } from "~/components/TextError";
 import { Record } from "~/database/record/get-by-range";
-import { Result } from "~/lib/utils";
+import { ResultOld } from "~/lib/utils";
 import { getFlow, getTicks } from "../utils/group-items";
 import { useInterval } from "../use-interval";
 import Decimal from "decimal.js";
@@ -15,7 +15,7 @@ export function Graph({
   start,
   end,
 }: {
-  records: Promise<Result<"Aplikasi bermasalah", Record[]>>;
+  records: Promise<ResultOld<"Aplikasi bermasalah", Record[]>>;
   start: number;
   end: number;
 }) {

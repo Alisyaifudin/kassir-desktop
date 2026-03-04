@@ -1,6 +1,6 @@
 import { Input } from "~/components/ui/input";
 import { useQuery } from "./use-query";
-import { cn, DefaultError, formatDate, formatTime, Result } from "~/lib/utils";
+import { cn, DefaultError, formatDate, formatTime, ResultOld } from "~/lib/utils";
 import { RecordProduct } from "~/database/record-product/get-history";
 import { Suspense, use, useEffect, useRef, useState } from "react";
 import { TextError } from "~/components/TextError";
@@ -17,14 +17,14 @@ import { Button } from "~/components/ui/button";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Show } from "~/components/Show";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 import { ModeSelect } from "./ModeSelect";
 import { useMode } from "./use-mode";
 
 export function Search({
   histories,
 }: {
-  histories: Promise<Result<DefaultError, RecordProduct[]>>;
+  histories: Promise<ResultOld<DefaultError, RecordProduct[]>>;
 }) {
   const [query, setQuery] = useQuery();
   const ref = useRef<HTMLInputElement>(null);
@@ -64,7 +64,7 @@ export function Search({
 function Output({
   histories: promise,
 }: {
-  histories: Promise<Result<DefaultError, RecordProduct[]>>;
+  histories: Promise<ResultOld<DefaultError, RecordProduct[]>>;
 }) {
   const [errMsg, histories] = use(promise);
   if (errMsg !== null) {
@@ -73,7 +73,7 @@ function Output({
   return (
     <output className="flex-1 overflow-hidden">
       <div className="max-h-full overflow-hidden flex">
-        <Suspense fallback={<LoadingBig />}>
+        <Suspense fallback={<LoadingFull />}>
           <SearchTable histories={histories} />
         </Suspense>
       </div>

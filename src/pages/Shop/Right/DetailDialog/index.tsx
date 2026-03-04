@@ -12,7 +12,7 @@ import { Image } from "./Image";
 import { db } from "~/database";
 import { toast } from "sonner";
 import { image } from "~/lib/image";
-import { log } from "~/lib/utils";
+import { logOld } from "~/lib/utils";
 
 export function DetailDialog({
   productId,
@@ -31,14 +31,14 @@ export function DetailDialog({
       const [errMsg, res] = await db.image.get.byProductId(productId);
       if (errMsg) {
         toast.error("Gagal mencari gambar");
-        log.error(`Failed to fetch image for ${productId} (${name})`);
+        logOld.error(`Failed to fetch image for ${productId} (${name})`);
         return;
       }
       const imgs = await Promise.all(res.map((r) => image.load(r.name, r.mime)));
       const urls: string[] = [];
       for (const [errMsg, img] of imgs) {
         if (errMsg) {
-          log.error(`Failed to load image for ${productId} (${name})`);
+          logOld.error(`Failed to load image for ${productId} (${name})`);
           continue;
         }
         urls.push(img);

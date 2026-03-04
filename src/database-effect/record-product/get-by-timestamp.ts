@@ -1,10 +1,10 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 import { Discount, RecordProduct } from "./get-by-range";
 
 export async function getByTimestamp(
-  timestamp: number
-): Promise<Result<DefaultError, RecordProduct[]>> {
+  timestamp: number,
+): Promise<ResultOld<DefaultError, RecordProduct[]>> {
   const db = await getDB();
   const [errMsg, rows] = await tryResult({
     run: () =>
@@ -21,7 +21,7 @@ export async function getByTimestamp(
         discount_id, discount_kind, discount_value, discount_eff
         FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
         WHERE timestamp = $1 ORDER BY discount_id`,
-        [timestamp]
+        [timestamp],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -31,7 +31,7 @@ export async function getByTimestamp(
       row.discount_id,
       row.discount_kind,
       row.discount_value,
-      row.discount_eff
+      row.discount_eff,
     );
     const item = items.get(row.record_product_id);
     if (item === undefined) {
@@ -58,7 +58,7 @@ function collectDiscount(
   id: number | null,
   kind: DB.DiscKind | null,
   value: number | null,
-  eff: number | null
+  eff: number | null,
 ): Discount | undefined {
   if (id === null || kind === null || value === null || eff === null) return undefined;
   return {

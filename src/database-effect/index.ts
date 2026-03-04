@@ -14,7 +14,7 @@ export const db = {
   customer,
   method,
   product,
-  // extra,
+  extra,
   cashier,
   social,
   record,

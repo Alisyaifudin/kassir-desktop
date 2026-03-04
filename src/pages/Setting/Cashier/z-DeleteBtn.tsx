@@ -12,33 +12,11 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Spinner } from "~/components/Spinner";
-import { db } from "~/database-effect";
-import { useSubmit } from "~/hooks/use-submit";
-import { Effect, pipe } from "effect";
-import { log } from "~/lib/utils";
-import { revalidate } from "~/hooks/use-micro";
-import { KEY } from "./loader";
+import { useDelete } from "./use-delete";
 
 export const DeleteBtn = memo(function ({ name }: { name: string }) {
   const [open, setOpen] = useState(false);
-  const { loading, error, handleSubmit } = useSubmit(
-    (e) => {
-      e.stopPropagation();
-      return pipe(
-        db.cashier.delete(name),
-        Effect.as(null),
-        Effect.catchTag("DbError", ({ e }) => {
-          log.error(JSON.stringify(e.stack));
-          return Effect.succeed(e.message);
-        }),
-        Effect.runPromise,
-      );
-    },
-    () => {
-      revalidate(KEY);
-      setOpen(false);
-    },
-  );
+  const { error, handleSubmit, loading } = useDelete(name, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button className="rounded-full p-2" type="button" asChild variant="destructive">
@@ -58,7 +36,7 @@ export const DeleteBtn = memo(function ({ name }: { name: string }) {
             <Button asChild>
               <DialogClose>Batal</DialogClose>
             </Button>
-            <Button variant="destructive">
+            <Button type="submit" variant="destructive">
               Hapus
               <Spinner when={loading} />
             </Button>

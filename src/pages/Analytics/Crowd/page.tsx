@@ -1,8 +1,8 @@
-import { DefaultError, Result } from "~/lib/utils";
+import { DefaultError, ResultOld } from "~/lib/utils";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
 import { NavList } from "../NavList";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 import { Suspense, use } from "react";
 import { Summary } from "./Summary";
 import { Record } from "~/database/record/get-by-range";
@@ -19,7 +19,7 @@ export default function Page() {
       </NavList>
       <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
         <DatePicker defaultInterval="day" />
-        <Suspense fallback={<LoadingBig />}>
+        <Suspense fallback={<LoadingFull />}>
           <Wrapper records={records} start={start} end={end} />
         </Suspense>
       </div>
@@ -34,7 +34,7 @@ function Wrapper({
 }: {
   start: number;
   end: number;
-  records: Promise<Result<DefaultError, Record[]>>;
+  records: Promise<ResultOld<DefaultError, Record[]>>;
 }) {
   const [errMsg, records] = use(promise);
   if (errMsg !== null) {

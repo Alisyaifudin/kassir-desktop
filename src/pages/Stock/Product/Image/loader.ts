@@ -1,5 +1,5 @@
 import { data, LoaderFunctionArgs, redirect } from "react-router";
-import { DefaultError, err, integer, ok, Result } from "~/lib/utils";
+import { DefaultError, err, integer, ok, ResultOld } from "~/lib/utils";
 import { db } from "~/database";
 import { image } from "~/lib/image";
 
@@ -23,7 +23,7 @@ export type ImageResult = {
   id: number;
 };
 
-export type ImagePromise = Promise<Result<DefaultError, ImageResult[]>>;
+export type ImagePromise = Promise<ResultOld<DefaultError, ImageResult[]>>;
 
 export async function getImages(id: number): ImagePromise {
   const [errMsg, images] = await db.image.get.byProductId(id);

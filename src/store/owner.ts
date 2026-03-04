@@ -1,7 +1,7 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getStore } from "./instance";
 
-export async function owner(): Promise<Result<DefaultError, string>> {
+export async function owner(): Promise<ResultOld<DefaultError, string>> {
   const store = await getStore();
   const [errMsg, res] = await tryResult({
     run: () => store.get("owner"),

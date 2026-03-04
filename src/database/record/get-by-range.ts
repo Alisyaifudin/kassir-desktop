@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type Record = {
@@ -26,8 +26,8 @@ export type Record = {
 
 export async function getByRange(
   start: number,
-  end: number
-): Promise<Result<DefaultError, Record[]>> {
+  end: number,
+): Promise<ResultOld<DefaultError, Record[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult<
     (DB.Record & { method_name: string | null; method_kind: DB.MethodEnum })[]
@@ -39,7 +39,7 @@ export async function getByRange(
       record_sub_total, record_total, methods.method_id, method_name, method_kind 
       FROM records INNER JOIN methods ON records.method_id = methods.method_id
       WHERE timestamp BETWEEN $1 AND $2`,
-        [start, end]
+        [start, end],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -65,6 +65,6 @@ export async function getByRange(
       subTotal: r.record_sub_total,
       timestamp: r.timestamp,
       total: r.record_total,
-    }))
+    })),
   );
 }

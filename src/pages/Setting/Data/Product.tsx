@@ -1,11 +1,12 @@
 import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { constructCSV, log } from "~/lib/utils";
+import { constructCSV } from "~/lib/utils";
 import { useSubmit } from "~/hooks/use-submit";
 import { Effect, pipe } from "effect";
 import { db } from "~/database-effect";
 import { Temporal } from "temporal-polyfill";
+import { log } from "~/lib/log";
 
 export function Product() {
   const { error, loading, handleSubmit } = useSubmit(
@@ -37,7 +38,7 @@ function program() {
   return Effect.gen(function* () {
     const products = yield* db.product.get.all().pipe(
       Effect.catchTag("DbError", ({ e }) => {
-        log.error(JSON.stringify(e.stack));
+        log.error(e);
         return Effect.fail(e.message);
       }),
     );

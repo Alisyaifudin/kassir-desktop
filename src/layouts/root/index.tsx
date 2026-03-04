@@ -1,110 +1,24 @@
-import { Suspense, use } from "react";
-import { data, isRouteErrorResponse, Outlet, useLoaderData, useRouteError } from "react-router";
-import { LoadingBig } from "~/components/Loading";
-import { DefaultError, Result } from "~/lib/utils";
-import { store } from "~/store";
+import { Outlet } from "react-router";
+import { LoadingFull } from "~/components/Loading";
+import { store } from "~/store-effect";
 import { Provider } from "./Provider";
-import { Button } from "~/components/ui/button";
-import { Size } from "~/store/size/get";
-
-export async function loader() {
-  const size = store.size.get();
-  return data(size);
-}
+import { Result } from "~/lib/result";
 
 export default function Layout() {
-  const size = useLoaderData<typeof loader>();
-  return (
-    <Suspense fallback={<LoadingBig />}>
-      <Wrapper size={size} />
-    </Suspense>
-  );
-}
-
-function Wrapper({ size: promise }: { size: Promise<Result<DefaultError, Size>> }) {
-  const [errMsg, size] = use(promise);
-  if (errMsg) throw new Error(errMsg);
-  return (
-    <Provider size={size}>
-      <Outlet />
-    </Provider>
-  );
-}
-
-export function ErrorBoundary() {
-  const env = import.meta.env.DEV;
-  const error = useRouteError();
-  if (!env) {
-    return (
-      <main className="flex flex-col gap-2">
-        <p>Halaman bermasalah</p>
-        <p>
-          <button onClick={() => history.back()} className="underline cursor-pointer">
-            Kembali
-          </button>
-        </p>
-        <p>
-          Kembali ke <a href="/">halaman utama</a>
-        </p>
-      </main>
-    );
-  }
-  if (isRouteErrorResponse(error)) {
-    return (
-      <main className="flex flex-col gap-2 p-1">
-        <Button className="w-fit" onClick={() => window.location.reload()}>
-          Segarkan/<em>Refresh</em> Halaman
-        </Button>
-        <p>
-          <button onClick={() => history.back()} className="underline cursor-pointer">
-            Kembali
-          </button>
-        </p>
-        <a href="/" className="underline">
-          Kembali ke halaman utama
-        </a>
-        <h1>
-          {error.status} {error.statusText}
-        </h1>
-        <p>{error.data}</p>
-      </main>
-    );
-  } else if (error instanceof Error) {
-    return (
-      <main className="flex flex-col gap-2 p-1">
-        <Button className="w-fit" onClick={() => window.location.reload()}>
-          Segarkan/<em>Refresh</em> Halaman
-        </Button>
-        <p>
-          <button onClick={() => history.back()} className="underline cursor-pointer">
-            Kembali
-          </button>
-        </p>
-        <a href="/" className="underline">
-          Kembali ke halaman utama
-        </a>
-        <h1>Error</h1>
-        <p>{error.message}</p>
-        <p>The stack trace is:</p>
-        <pre>{error.stack}</pre>
-      </main>
-    );
-  } else {
-    return (
-      <main className="flex flex-col gap-2 p-1">
-        <Button className="w-fit" onClick={() => window.location.reload()}>
-          Segarkan/<em>Refresh</em> Halaman
-        </Button>
-        <p>
-          <button onClick={() => history.back()} className="underline cursor-pointer">
-            Kembali
-          </button>
-        </p>
-        <a href="/" className="underline">
-          Kembali ke halaman utama
-        </a>
-        <h1>Unknown Error</h1>;
-      </main>
-    );
-  }
+  const res = Result.use({
+    fn: () => store.size.get(),
+    key: "root-layout",
+  });
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingFull />;
+    },
+    onSuccess(size) {
+      return (
+        <Provider size={size}>
+          <Outlet />
+        </Provider>
+      );
+    },
+  });
 }

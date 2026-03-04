@@ -1,8 +1,8 @@
-import { DefaultError, err, log, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, logOld, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getTX } from "../db-instance";
 import { count as getCount } from "./count";
 
-export async function addNew(): Promise<Result<DefaultError | "Terlalu banyak", number>> {
+export async function addNew(): Promise<ResultOld<DefaultError | "Terlalu banyak", number>> {
   const tx = await getTX();
   const [errCount, count] = await getCount();
   if (errCount !== null) return err(errCount);
@@ -15,7 +15,7 @@ export async function addNew(): Promise<Result<DefaultError | "Terlalu banyak", 
   if (errMsg) return err(errMsg);
   const id = res.lastInsertId;
   if (id === undefined) {
-    log.error("Failed to insert new transaction");
+    logOld.error("Failed to insert new transaction");
     return err("Aplikasi bermasalah");
   }
   return ok(id);

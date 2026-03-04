@@ -7,7 +7,7 @@ import { formatDate } from "~/lib/date";
 import { useSubmit } from "~/hooks/use-submit";
 import { Effect, pipe } from "effect";
 import { program } from "./util-record";
-import { log } from "~/lib/utils";
+import { log } from "~/lib/log";
 
 export default function Record() {
   const { startOfMonth, endOfMonth } = useDateInterval();
@@ -17,7 +17,7 @@ export default function Record() {
       return pipe(
         program(formdata).pipe(
           Effect.catchTag("DbError", ({ e }) => {
-            log.error(JSON.stringify(e.stack));
+            log.error(e);
             return Effect.fail(e.message);
           }),
         ),

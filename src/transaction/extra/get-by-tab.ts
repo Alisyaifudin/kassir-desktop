@@ -1,4 +1,4 @@
-import { err, ok, Result, tryResult } from "~/lib/utils";
+import { err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getTX } from "../db-instance";
 
 export type Extra = {
@@ -21,7 +21,7 @@ type Output = {
   extra_is_saved: boolean;
 };
 
-export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah", Extra[]>> {
+export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasalah", Extra[]>> {
   const tx = await getTX();
   const [errMsg, rows] = await tryResult({
     run: () =>

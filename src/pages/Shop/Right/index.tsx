@@ -1,84 +1,41 @@
 import { ProductList } from "./Product";
 import { ExtraList } from "./Extra";
-import { Tab } from "./Tab";
-import { GrandTotal } from "./GrandTotal";
-import { Header } from "./Header";
-import { Suspense, use, useEffect } from "react";
-import { capitalize, cn, Result } from "~/lib/utils";
-import { Customer } from "./Customer";
-import { TabInfo } from "~/transaction/transaction/get-all";
-import { TextError } from "~/components/TextError";
-import { tx } from "~/transaction";
-import { tabsStore } from "../use-tab";
-import { Note } from "../Left/Summary/Note";
+import { GrandTotal } from "./z-GrandTotal";
+import { Suspense } from "react";
+import { capitalize } from "~/lib/utils";
+import { Customer } from "./z-Customer";
+import { useTab, useTabs } from "./Header/use-tab";
+import { Note } from "../Left/Summary/z-Note";
 import { Loading } from "~/components/Loading";
-import { Customer as CustomerDB } from "~/database/customer/get-all";
 import { CustomerDialog } from "./CustomerDialog";
 import { auth } from "~/lib/auth";
-import { useMode } from "../use-transaction";
-import { useSize } from "~/hooks/use-size";
-import { css } from "./style.css";
+import { Watermark } from "./z-Watermark";
+import { Header } from "./Header";
 
-export function Right({
-  tabs: promise,
-  customers,
-}: {
-  tabs: Promise<Result<"Aplikasi bermasalah", TabInfo[]>>;
-  customers: Promise<Result<"Aplikasi bermasalah", CustomerDB[]>>;
-}) {
-  const [errMsg, tabs] = use(promise);
+export function Right() {
+  const tabs = useTabs();
+  const [tab] = useTab();
   const username = auth.get()?.name ?? "admin";
-  useEffect(() => {
-    if (tabs === null) return;
-    async function init(tabs: TabInfo[]) {
-      if (tabs.length === 0) {
-        const [errMsg, tab] = await tx.transaction.addNew();
-        if (errMsg) {
-          throw new Error(errMsg);
-        }
-        tabs.push({ tab, mode: "sell" });
-      }
-      tabsStore.set(tabs);
-    }
-    init(tabs);
-  }, [tabs]);
-  const size = useSize();
-  const mode = useMode();
-  if (errMsg !== null) return <TextError>{errMsg}</TextError>;
-  if (tabs.length === 0) return <div className="animate-pulse h-full w-full"></div>;
+  if (tabs.length === 0 || tab === undefined)
+    return <div className="animate-pulse h-full w-full"></div>;
   return (
     <div className="border-r flex-1 flex flex-col m-1 gap-2">
       <div className="outline flex-1 p-1 flex flex-col gap-1 overflow-hidden">
-        <div className="flex flex-col">
-          <Tab tabs={tabs} />
-          <Header />
-        </div>
-        <div
-          className={cn(
-            "relative flex flex-1 flex-col overflow-y-auto min-h-0 h-full scroll-gutter",
-            {
-              "bg-blue-50": mode === "buy",
-            },
-          )}
-        >
-          <ExtraList />
-          <ProductList />
-          <span
-            className={cn(
-              css.mode[size],
-              { hidden: mode === "sell" },
-              "fixed pointer-events-none opacity-5 -translate-y-1/2 translate-x-1/2 -rotate-45 top-1/2 left-1/2",
-            )}
-          >
-            BELI
-          </span>
-        </div>
+        <Header />
+        <Watermark>
+          <Suspense>
+            <ExtraList tab={tab} />
+          </Suspense>
+          <Suspense>
+            <ProductList tab={tab} />
+          </Suspense>
+        </Watermark>
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Note />
           <Suspense fallback={<Loading />}>
-            <CustomerDialog customers={customers} />
+            <CustomerDialog />
           </Suspense>
           <Customer />
         </div>

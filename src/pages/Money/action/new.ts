@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { db } from "~/database";
-import { log, numeric } from "~/lib/utils";
+import { logOld, numeric } from "~/lib/utils";
 
 const schema = z.object({
   type: z.enum(["change", "absolute"]),
@@ -19,7 +19,7 @@ export async function newAction(formdata: FormData) {
   });
   if (!parsed.success) {
     const errs = parsed.error.flatten().formErrors.join("; ");
-    log.error(errs);
+    logOld.error(errs);
     return errs;
   }
   let val = parsed.data.value;
@@ -28,7 +28,7 @@ export async function newAction(formdata: FormData) {
   const parsedVal = numeric.safeParse(val);
   if (!parsedVal.success) {
     const errs = parsedVal.error.flatten().formErrors.join("; ");
-    log.error(errs);
+    logOld.error(errs);
     return errs;
   }
   const { type, kind, note } = parsed.data;

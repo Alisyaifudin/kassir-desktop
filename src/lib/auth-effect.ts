@@ -10,6 +10,8 @@ export type User = {
 
 let _user: undefined | User = undefined;
 
+export class Unauthenticated extends Error {}
+
 const userSchema = z.object({
   name: z.string(),
   role: z.enum(["admin", "user"]),
@@ -38,7 +40,7 @@ export const auth = {
   },
   user() {
     const user = this.get();
-    if (user === undefined) throw new Error("Unauthenticated");
+    if (user === undefined) throw new Unauthenticated("Unauthenticated");
     return user;
   },
   set(user?: User) {

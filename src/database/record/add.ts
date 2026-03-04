@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 type Input = {
@@ -30,7 +30,7 @@ export async function add({
   pay,
   subtotal,
   total,
-}: Input): Promise<Result<DefaultError, number>> {
+}: Input): Promise<ResultOld<DefaultError, number>> {
   const db = await getDB();
   const timestamp = Date.now();
   const [errMsg] = await tryResult({
@@ -53,7 +53,7 @@ export async function add({
           customer.phone,
           subtotal,
           total,
-        ]
+        ],
       ),
   });
   if (errMsg !== null) return err(errMsg);

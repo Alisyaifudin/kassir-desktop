@@ -1,8 +1,8 @@
-import { DefaultError, Result } from "~/lib/utils";
+import { DefaultError, ResultOld } from "~/lib/utils";
 import { useLoaderData } from "react-router";
 import { Loader } from "./loader";
 import { NavList } from "../NavList";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 import { Suspense, use } from "react";
 import { TextError } from "~/components/TextError";
 import { Item } from "~/database/product/get-by-range";
@@ -33,7 +33,7 @@ export default function Page() {
           onChange={handleChange}
           aria-autocomplete="list"
         />
-        <Suspense fallback={<LoadingBig />}>
+        <Suspense fallback={<LoadingFull />}>
           <Wrapper items={items} />
         </Suspense>
       </div>
@@ -41,7 +41,7 @@ export default function Page() {
   );
 }
 
-function Wrapper({ items: promise }: { items: Promise<Result<DefaultError, Item[]>> }) {
+function Wrapper({ items: promise }: { items: Promise<ResultOld<DefaultError, Item[]>> }) {
   const [errMsg, items] = use(promise);
   if (errMsg !== null) {
     return <TextError>{errMsg}</TextError>;

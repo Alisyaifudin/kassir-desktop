@@ -2,10 +2,10 @@ import { Header } from "./Header";
 import { Record } from "./Record";
 import { useLoaderData } from "react-router";
 import { Data, Loader } from "./loader";
-import { cn, DefaultError, Result } from "~/lib/utils";
+import { cn, DefaultError, ResultOld } from "~/lib/utils";
 import { Suspense, use } from "react";
 import { TextError } from "~/components/TextError";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 import { css } from "./style.css";
 import { Detail } from "./Detail";
 import { Show } from "~/components/Show";
@@ -17,14 +17,18 @@ export default function Page() {
   return (
     <main className="flex flex-col gap-2 p-2 flex-1 text-3xl overflow-hidden">
       <Header methods={methods} />
-      <Suspense fallback={<LoadingBig />}>
+      <Suspense fallback={<LoadingFull />}>
         <Wrapper records={records} />
       </Suspense>
     </main>
   );
 }
 
-export function Wrapper({ records: promise }: { records: Promise<Result<DefaultError, Data[]>> }) {
+export function Wrapper({
+  records: promise,
+}: {
+  records: Promise<ResultOld<DefaultError, Data[]>>;
+}) {
   const [errMsg, records] = use(promise);
   const params = useParams();
   const size = useSize();

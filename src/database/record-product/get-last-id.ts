@@ -1,7 +1,7 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
-export async function getLastId(): Promise<Result<DefaultError, number>> {
+export async function getLastId(): Promise<ResultOld<DefaultError, number>> {
   const db = await getDB();
   const [errMsg, rows] = await tryResult({
     run: () =>

@@ -3,7 +3,7 @@ import { data, LoaderFunctionArgs } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { db } from "~/database";
 import { Money } from "~/database/money/get-by-range";
-import { DefaultError, err, integer, ok, Result } from "~/lib/utils";
+import { DefaultError, err, integer, ok, ResultOld } from "~/lib/utils";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -56,7 +56,7 @@ export type MoneyData = {
     note: string;
   }[];
 };
-async function getMoney(start: number, end: number): Promise<Result<DefaultError, MoneyData>> {
+async function getMoney(start: number, end: number): Promise<ResultOld<DefaultError, MoneyData>> {
   const [[errMoney, money], [errLast, last]] = await Promise.all([
     db.money.get.byRange(start, end),
     db.money.get.last(start, "debt"),

@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs, redirect } from "react-router";
-import { integer, Result } from "~/lib/utils";
+import { integer, ResultOld } from "~/lib/utils";
 import { LIMIT } from "./constants";
 import { db } from "~/database";
 import { ProductHistory } from "~/database/product/history";
@@ -25,7 +25,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export type HistoryPromise = Promise<
-  Result<
+  ResultOld<
     "Aplikasi bermasalah",
     {
       histories: ProductHistory[];

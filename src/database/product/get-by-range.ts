@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 type Raw = {
@@ -50,7 +50,10 @@ type Input = {
   record_mode: DB.Mode;
 };
 
-export async function byRange(start: number, end: number): Promise<Result<DefaultError, Item[]>> {
+export async function byRange(
+  start: number,
+  end: number,
+): Promise<ResultOld<DefaultError, Item[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () =>
@@ -63,7 +66,7 @@ export async function byRange(start: number, end: number): Promise<Result<Defaul
          LEFT JOIN products ON products.product_id = record_products.product_id
          WHERE record_products.timestamp BETWEEN $1 AND $2
          ORDER BY record_products.timestamp DESC`,
-        [start, end]
+        [start, end],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -75,7 +78,7 @@ export async function byRange(start: number, end: number): Promise<Result<Defaul
       r.product_name,
       r.product_barcode,
       r.product_capital,
-      r.product_price
+      r.product_price,
     );
     if (product === null) {
       raws.push({
@@ -136,7 +139,7 @@ function collectProduct(
   name: string | null,
   barcode: string | null,
   capital: number | null,
-  price: number | null
+  price: number | null,
 ): Product | null {
   if (id === null || name === null || capital === null || price === null) {
     return null;

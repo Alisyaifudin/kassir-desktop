@@ -1,4 +1,4 @@
-import { err, ok, Result, tryResult } from "~/lib/utils";
+import { err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 
 export type ProductHistory = {
@@ -10,8 +10,8 @@ export type ProductHistory = {
 export async function getHistoryRange(
   id: number,
   start: number,
-  end: number
-): Promise<Result<"Aplikasi bermasalah", ProductHistory[]>> {
+  end: number,
+): Promise<ResultOld<"Aplikasi bermasalah", ProductHistory[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () =>
@@ -28,7 +28,7 @@ export async function getHistoryRange(
 					WHERE product_id = $1 AND records.timestamp BETWEEN $2 AND $3
 					ORDER BY records.timestamp DESC
 					`,
-        [id, start, end]
+        [id, start, end],
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -37,6 +37,6 @@ export async function getHistoryRange(
       mode: r.record_mode,
       qty: r.record_product_qty,
       timestamp: r.timestamp,
-    }))
+    })),
   );
 }

@@ -1,8 +1,8 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getCache, Product, setCache } from "./caches";
 import { getDB } from "../instance";
 
-export async function all(): Promise<Result<DefaultError, Product[]>> {
+export async function all(): Promise<ResultOld<DefaultError, Product[]>> {
   const cache = getCache();
   if (cache !== null) return ok(cache);
   const db = await getDB();
@@ -19,7 +19,7 @@ export async function all(): Promise<Result<DefaultError, Product[]>> {
           | "product_capital"
         >[]
       >(
-        "SELECT product_id, product_barcode, product_name, product_stock, product_price, product_capital FROM products"
+        "SELECT product_id, product_barcode, product_name, product_stock, product_price, product_capital FROM products",
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -29,7 +29,7 @@ export async function all(): Promise<Result<DefaultError, Product[]>> {
     price: r.product_price,
     id: r.product_id,
     stock: r.product_stock,
-    capital: r.product_capital
+    capital: r.product_capital,
   }));
   setCache(items);
   return ok(items);

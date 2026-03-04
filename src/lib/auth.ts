@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { err, log, ok, Result, safeJSON } from "./utils";
+import { err, logOld, ok, ResultOld, safeJSON } from "./utils";
 import { z } from "zod";
 // import { jwt } from "./jwt";
 export type User = {
@@ -48,12 +48,12 @@ export const auth = {
     }
     _user = user;
   },
-  async hash(password: string): Promise<Result<"Aplikasi bermasalah", string>> {
+  async hash(password: string): Promise<ResultOld<"Aplikasi bermasalah", string>> {
     try {
       const hashedPassword = await invoke<string>("hash_password", { password });
       return ok(hashedPassword);
     } catch (error) {
-      log.error("Hashing failed: " + String(error));
+      logOld.error("Hashing failed: " + String(error));
       return err("Aplikasi bermasalah");
     }
   },
@@ -73,8 +73,8 @@ export const auth = {
       }
     } catch (error) {
       console.error(error);
-      log.error(JSON.stringify(error));
-      log.error("Hashing failed: " + String(error));
+      logOld.error(JSON.stringify(error));
+      logOld.error("Hashing failed: " + String(error));
       return "Aplikasi bermasalah";
     }
   },

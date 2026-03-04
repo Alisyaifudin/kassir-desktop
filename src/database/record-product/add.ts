@@ -2,10 +2,10 @@ import {
   DEFAULT_ERROR,
   DefaultError,
   err,
-  log,
+  logOld,
   NotFound,
   ok,
-  Result,
+  ResultOld,
   tryResult,
 } from "~/lib/utils";
 import { getDB } from "../instance";
@@ -54,7 +54,7 @@ export async function add({
       run: () =>
         db.select<{ product_stock: number; product_capital: number; product_price: number }[]>(
           `SELECT product_stock, product_capital, product_price FROM products WHERE product_id = $1`,
-          [productId]
+          [productId],
         ),
     });
     if (errMsg) return errMsg;
@@ -83,7 +83,7 @@ export async function add({
             name,
             productCapital,
             productId,
-          ]
+          ],
         ),
     });
     if (errUpdate !== null) return errUpdate;
@@ -99,7 +99,7 @@ export async function add({
           };
         }
         return p;
-      })
+      }),
     );
   } else {
     if (stock < qty) {
@@ -111,7 +111,7 @@ export async function add({
         db.execute(
           `INSERT INTO products (product_barcode, product_name, product_price, product_stock, product_capital,
            product_note) VALUES ($1, $2, $3, $4, $5, '')`,
-          [b, name, price, stock, capital]
+          [b, name, price, stock, capital],
         ),
     });
     if (errMsg !== null) return errMsg;
@@ -136,28 +136,28 @@ export async function add({
         `INSERT INTO record_products (product_id, record_product_id, timestamp, record_product_name, record_product_price,
          record_product_qty, record_product_capital, record_product_capital_raw, record_product_total)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [productId, recordId, timestamp, name, price, qty, capital, capitalRaw, total]
+        [productId, recordId, timestamp, name, price, qty, capital, capitalRaw, total],
       );
       return ok(res);
     } catch (error) {
-      log.error(JSON.stringify(error));
-      log.error(`capital ${capital}`);
+      logOld.error(JSON.stringify(error));
+      logOld.error(`capital ${capital}`);
       return err(DEFAULT_ERROR);
     }
   })();
   if (errMsg !== null) return errMsg;
   const id = res.lastInsertId;
   if (id === undefined) return "Aplikasi bermasalah";
-  const promises: Promise<Result<DefaultError, any>>[] = [];
+  const promises: Promise<ResultOld<DefaultError, any>>[] = [];
   for (const d of discounts) {
     promises.push(
       tryResult({
         run: () =>
           db.execute(
             `INSERT INTO discounts (record_product_id, discount_kind, discount_value, discount_eff) VALUES ($1, $2, $3, $4)`,
-            [id, d.kind, d.value, d.eff]
+            [id, d.kind, d.value, d.eff],
           ),
-      })
+      }),
     );
   }
   const promRes = await Promise.all(promises);

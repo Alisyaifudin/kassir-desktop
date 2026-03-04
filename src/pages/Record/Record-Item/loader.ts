@@ -6,7 +6,7 @@ import { RecordExtra } from "~/database/record-extra/get-by-range";
 import { RecordProduct } from "~/database/record-product/get-by-range";
 import { Record } from "~/database/record/get-by-range";
 import { Social } from "~/database/social/get-all";
-import { DefaultError, err, integer, NotFound, ok, Result } from "~/lib/utils";
+import { DefaultError, err, integer, NotFound, ok, ResultOld } from "~/lib/utils";
 import { store } from "~/store";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
@@ -45,7 +45,7 @@ export type Data = {
   extras: RecordExtra[];
 };
 
-async function getRecord(timestamp: number): Promise<Result<DefaultError | NotFound, Data>> {
+async function getRecord(timestamp: number): Promise<ResultOld<DefaultError | NotFound, Data>> {
   const promises = Promise.all([
     db.record.get.byTimestamp(timestamp),
     db.recordProduct.get.byTimestamp(timestamp),
@@ -92,7 +92,7 @@ export type Info = {
 };
 
 async function getData(timestamp: number): Promise<
-  Result<
+  ResultOld<
     DefaultError | NotFound,
     {
       data: Data;

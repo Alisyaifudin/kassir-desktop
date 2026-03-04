@@ -8,7 +8,6 @@ import { route as methodRoute } from "./method";
 import { route as logRoute } from "./log";
 import { route as customerRouter } from "./customer";
 import { lazy } from "react";
-import { action } from "./action";
 
 const Page = lazy(() => import("./page"));
 
@@ -25,5 +24,4 @@ export const route: RouteObject = {
     logRoute,
   ],
   Component: Page,
-  action,
 };

@@ -1,4 +1,4 @@
-import { err, ok, Result, tryResult } from "~/lib/utils";
+import { err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getTX } from "../db-instance";
 
 export type Product = {
@@ -38,7 +38,7 @@ type Output = {
   disc_kind: "percent" | "number" | "pcs" | null;
 };
 
-export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah", Product[]>> {
+export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasalah", Product[]>> {
   const tx = await getTX();
   const [errMsg, rows] = await tryResult({
     run: () =>
@@ -48,7 +48,7 @@ export async function getByTab(tab: number): Promise<Result<"Aplikasi bermasalah
          disc_id, disc_value, disc_kind
          FROM products LEFT JOIN discounts ON products.product_id = discounts.product_id
          WHERE tab = $1 ORDER BY product_order, disc_order`,
-        [tab]
+        [tab],
       ),
   });
   if (errMsg !== null) return err("Aplikasi bermasalah");
@@ -90,7 +90,7 @@ function getProduct(id: number | null, price: number | null, name: string | null
 function getDiscount(
   id: string | null,
   value: number | null,
-  kind: "percent" | "number" | "pcs" | null
+  kind: "percent" | "number" | "pcs" | null,
 ): undefined | Discount {
   if (id !== null && value !== null && kind !== null) {
     return { id, value, kind };

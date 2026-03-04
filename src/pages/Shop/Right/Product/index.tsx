@@ -1,17 +1,41 @@
-import { Container } from "./Container";
-import { Editable } from "./editable";
-import { Basic } from "./Basic";
-import { TextError } from "~/components/TextError";
+import { Container } from "./z-Container";
+import { Editable } from "./z-Editable";
+import { Basic } from "./z-Basic";
 import { ForEach } from "~/components/ForEach";
-import { basicStore } from "../../use-transaction";
-import { productsStore, useInitProducts } from "./use-products";
-import { useAtom, useSelector } from "@xstate/store/react";
+import { useSelector } from "@xstate/store/react";
 import { memo } from "react";
+import { useMicro } from "~/hooks/use-micro";
+import { Effect, Either } from "effect";
+import { tx } from "~/transaction-effect";
+import { transformProduct } from "../../store/product/transform-product";
+import { productsStore } from "../../store/product";
+import { key } from "../../utils/keys";
+import { logOld } from "~/lib/utils";
+import { TextError } from "~/components/TextError";
+import { useMode } from "../../use-transaction";
 
-export function ProductList() {
-  const errMsg = useInitProducts();
-  if (errMsg) return <TextError>{errMsg}</TextError>;
-  return <Wrapper />;
+export function ProductList({ tab }: { tab: number }) {
+  const res = useMicro({
+    fn: () => loader(tab),
+    key: key.products,
+  });
+  return Either.match(res, {
+    onLeft({ e }) {
+      logOld.error(JSON.stringify(e.stack));
+      return <TextError>{e.message}</TextError>;
+    },
+    onRight() {
+      return <Wrapper />;
+    },
+  });
+}
+
+function loader(tab: number) {
+  return Effect.gen(function* () {
+    const raw = yield* tx.product.getByTab(tab);
+    const products = transformProduct(raw);
+    productsStore.trigger.init({ products });
+  });
 }
 
 function Wrapper() {
@@ -26,8 +50,7 @@ function Wrapper() {
 }
 
 const Item = memo(({ id, index }: { id: string; index: number }) => {
-  const mode = useAtom(basicStore, (state) => state.mode);
-
+  const mode = useMode();
   switch (mode) {
     case "buy":
       return (

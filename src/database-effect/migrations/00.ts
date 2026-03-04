@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import Database from "@tauri-apps/plugin-sql";
 import Decimal from "decimal.js";
 import PQueue from "p-queue";
@@ -8,7 +8,7 @@ export function migration00000(db: Database) {
   const event = new EventEmitter();
   async function getData() {
     const [[errRecord, records], [errProd, productsAll], [errExtra, extrasAll]] = await Promise.all(
-      [getAllRecord(db), getAllProduct(db), getAllExtra(db)]
+      [getAllRecord(db), getAllProduct(db), getAllExtra(db)],
     );
     if (errRecord !== null) throw new Error(errRecord);
     if (errProd !== null) throw new Error(errProd);
@@ -24,7 +24,7 @@ async function run(
   event: EventEmitter,
   records: Record[],
   productsAll: Product[],
-  extrasAll: Extra[]
+  extrasAll: Extra[],
 ) {
   const n = records.length;
   let i = 1;
@@ -37,7 +37,7 @@ async function run(
       migrateRecord(db, products, extras, record).then(() => {
         event.emit("update", i / n);
         i++;
-      })
+      }),
     );
   }
   await queue.onIdle();
@@ -53,14 +53,14 @@ async function migrateRecord(db: Database, products: Product[], extras: Extra[],
         db.execute("UPDATE discounts SET discount_eff = $1 WHERE discount_id = $2", [
           discount.eff,
           discount.id,
-        ])
+        ]),
       );
     }
     queue.add(() =>
       db.execute(
         "UPDATE record_products SET record_product_total = $1 WHERE record_product_id = $2",
-        [product.total, product.id]
-      )
+        [product.total, product.id],
+      ),
     );
   }
   for (const extra of extras) {
@@ -68,7 +68,7 @@ async function migrateRecord(db: Database, products: Product[], extras: Extra[],
       db.execute("UPDATE record_extras SET record_extra_eff = $1 WHERE record_extra_id = $2", [
         extra.eff,
         extra.id,
-      ])
+      ]),
     );
   }
   queue.add(() =>
@@ -76,7 +76,7 @@ async function migrateRecord(db: Database, products: Product[], extras: Extra[],
       record.subTotal,
       record.total,
       record.timestamp,
-    ])
+    ]),
   );
   return queue.onIdle();
 }
@@ -84,7 +84,7 @@ async function migrateRecord(db: Database, products: Product[], extras: Extra[],
 function transformDiscounts(
   price: number,
   qty: number,
-  discounts: Discount[]
+  discounts: Discount[],
 ): {
   discounts: Discount[];
   total: number;
@@ -145,7 +145,7 @@ function transformExtras(base: Decimal, extras: Extra[]): { extras: Extra[]; tot
 function transformRecord(
   recordRaw: Record,
   productsRaw: Product[],
-  extrasRaw: Extra[]
+  extrasRaw: Extra[],
 ): {
   record: Record;
   extras: Extra[];
@@ -183,7 +183,7 @@ type Record = {
   total: number;
 };
 
-async function getAllRecord(db: Database): Promise<Result<DefaultError, Record[]>> {
+async function getAllRecord(db: Database): Promise<ResultOld<DefaultError, Record[]>> {
   const [errMsg, res] = await tryResult<DB.Record[]>({
     run: () => db.select(`SELECT * FROM records`),
   });
@@ -206,7 +206,7 @@ async function getAllRecord(db: Database): Promise<Result<DefaultError, Record[]
       timestamp: r.timestamp,
       subTotal: 0,
       total: 0,
-    }))
+    })),
   );
 }
 
@@ -219,7 +219,7 @@ type Extra = {
   kind: DB.ValueKind;
 };
 
-async function getAllExtra(db: Database): Promise<Result<DefaultError, Extra[]>> {
+async function getAllExtra(db: Database): Promise<ResultOld<DefaultError, Extra[]>> {
   const [errMsg, res] = await tryResult({
     run: () => db.select<DB.RecordExtra[]>("SELECT * FROM record_extras"),
   });
@@ -232,7 +232,7 @@ async function getAllExtra(db: Database): Promise<Result<DefaultError, Extra[]>>
       value: r.record_extra_value,
       eff: r.record_extra_eff,
       kind: r.record_extra_kind,
-    }))
+    })),
   );
 }
 type Discount = {
@@ -254,7 +254,7 @@ type Product = {
   discounts: Discount[];
 };
 
-async function getAllProduct(db: Database): Promise<Result<DefaultError, Product[]>> {
+async function getAllProduct(db: Database): Promise<ResultOld<DefaultError, Product[]>> {
   const [errMsg, rows] = await tryResult({
     run: () =>
       db.select<
@@ -269,7 +269,7 @@ async function getAllProduct(db: Database): Promise<Result<DefaultError, Product
         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
         discount_id, discount_kind, discount_value, discount_eff
         FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
-        ORDER BY discount_id`
+        ORDER BY discount_id`,
       ),
   });
   if (errMsg !== null) return err(errMsg);
@@ -279,7 +279,7 @@ async function getAllProduct(db: Database): Promise<Result<DefaultError, Product
       row.discount_id,
       row.discount_kind,
       row.discount_value,
-      row.discount_eff
+      row.discount_eff,
     );
     const item = items.get(row.record_product_id);
     if (item === undefined) {
@@ -305,7 +305,7 @@ function collectDiscount(
   id: number | null,
   kind: DB.DiscKind | null,
   value: number | null,
-  eff: number | null
+  eff: number | null,
 ): Discount | undefined {
   if (id === null || kind === null || value === null || eff === null) return undefined;
   return {

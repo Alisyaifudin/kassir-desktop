@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "~/database";
 import { RecordProduct } from "~/database/record-product/get-history";
 import { tz } from "~/lib/constants";
-import { DefaultError, integer, ok, Result } from "~/lib/utils";
+import { DefaultError, integer, ok, ResultOld } from "~/lib/utils";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const search = new URL(request.url).searchParams;
@@ -17,7 +17,7 @@ async function getHistory(
   start: number,
   end: number,
   query: string,
-): Promise<Result<DefaultError, RecordProduct[]>> {
+): Promise<ResultOld<DefaultError, RecordProduct[]>> {
   if (query.trim() === "") return ok([]);
   return db.recordProduct.get.history(start, end, query);
 }

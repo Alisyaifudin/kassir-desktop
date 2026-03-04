@@ -1,11 +1,9 @@
-import { log } from "~/lib/utils";
-import { loader } from "./loader";
-import { Suspense } from "react";
+import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
-import { Either } from "effect";
+import { LoadingFull } from "~/components/Loading";
 import { Clear } from "./z-Clear";
-import { useMicro } from "~/hooks/use-micro";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
 
 export default function Page() {
   return (
@@ -15,27 +13,23 @@ export default function Page() {
         <Clear />
       </div>
       <div className="flex flex-col gap-1 bg-black h-full overflow-auto">
-        <Suspense fallback={<Loading />}>
-          <Log />
-        </Suspense>
+        <Log />
       </div>
     </div>
   );
 }
 
-
 function Log() {
-  const either = useMicro({
-    fn: () => loader(),
-    key: "log",
-  });
-  return Either.match(either, {
-    onLeft(left) {
-      const errMsg = left.e.message;
-      log.error(JSON.stringify(left.e.stack));
-      return <TextError>{errMsg}</TextError>;
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingFull />;
     },
-    onRight(text) {
+    onError({ e }) {
+      log.error(e);
+      return <TextError>{e.message}</TextError>;
+    },
+    onSuccess(text) {
       return (
         <>
           {text.map((t, i) => (

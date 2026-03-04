@@ -1,10 +1,10 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getDB } from "../instance";
 import { RecordExtra } from "./get-by-range";
 
 export async function getByTimestamp(
-  timestamp: number
-): Promise<Result<DefaultError, RecordExtra[]>> {
+  timestamp: number,
+): Promise<ResultOld<DefaultError, RecordExtra[]>> {
   const db = await getDB();
   const [errMsg, res] = await tryResult({
     run: () =>
@@ -19,6 +19,6 @@ export async function getByTimestamp(
       value: r.record_extra_value,
       eff: r.record_extra_eff,
       kind: r.record_extra_kind,
-    }))
+    })),
   );
 }

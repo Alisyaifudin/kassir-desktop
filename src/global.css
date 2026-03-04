@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant small (&:is(.small *));
 
 body {
   min-height: 100vh;
@@ -195,6 +196,7 @@ input[type=number] {
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
   /* size */
+
   --text-font-size-big: var(--text-5xl);
   --text-line-height-big: var(--tw-leading, var(--text-5xl--line-height));
 
@@ -228,13 +230,6 @@ input[type=number] {
   }
 }
 
-p, textarea, button, a, label, select {
-  @apply text-normal;
-}
-
-kbd {
-  font-size: var(--text-lg);
-}
 /* select {
   height: 54px;
 } */
@@ -242,7 +237,7 @@ main {
   max-height: calc(100vh - 68px);
 }
 
-body[data-size='small'] {
+/* body[data-size='small'] {
   --text-font-size-big: var(--text-4xl);
   --text-line-height-big: var(--tw-leading, var(--text-4xl--line-height));
 
@@ -263,10 +258,33 @@ body[data-size='small'] {
   kbd {
     font-size: var(--text-sm);
   }
-  /* input {
+} */
+
+.small {
+  --text-font-size-big: var(--text-4xl);
+  --text-line-height-big: var(--tw-leading, var(--text-4xl--line-height));
+
+  --text-font-size-normal: var(--text-xl);
+  --text-line-height-normal: var(--tw-leading, var(--text-xl--line-height));
+
+  --text-font-size-small: var(--text-lg);
+  --text-line-height-small: var(--tw-leading, var(--text-lg--line-height));
+
+  --text-font-size-tiny: var(--text-xs);
+  --text-line-height-tiny: var(--tw-leading, var(--text-xs--line-height));
+
+  --icon-size: 20px; 
+
+  main {
+    max-height: calc(100vh - 44px);
+  }
+  kbd {
+    font-size: var(--text-sm);
+  }
+  input {
     height: 40px;
   }
-  select {
+  /* select {
     height: 40px;
   } */
 }
@@ -381,4 +399,16 @@ body[data-size='small'] {
   body {
     @apply bg-background text-foreground;
   }
+  p, textarea, button, a, label, select, input, span {
+    @apply text-normal;
+  }
+  kbd {
+    font-size: var(--text-lg);
+  }
+  input {
+    height: 54px;
+  }
+  /* select {
+    height: 60px;
+  } */
 }

@@ -9,14 +9,18 @@ import {
 import { SlidersHorizontal, X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
 import { FilterBtn } from "./FilterBtn";
-import { DefaultError, METHOD_NAMES, Result } from "~/lib/utils";
+import { DefaultError, METHOD_NAMES, ResultOld } from "~/lib/utils";
 import { Show } from "~/components/Show";
 import { Method } from "~/database/method/get-all";
 import { useParams, useSetParams } from "../use-params";
 import { use } from "react";
 import { TextError } from "~/components/TextError";
 
-export function Filter({ methods: promise }: { methods: Promise<Result<DefaultError, Method[]>> }) {
+export function Filter({
+  methods: promise,
+}: {
+  methods: Promise<ResultOld<DefaultError, Method[]>>;
+}) {
   const [errMsg, methods] = use(promise);
   if (errMsg !== null) {
     return <TextError>{errMsg}</TextError>;

@@ -7,9 +7,9 @@ import { update } from "./update";
 export const extra = {
   get: {
     all,
-    byId: getById,
+    // byId: getById,
   },
-  delById,
-  update,
-  add,
+  // delById,
+  // update,
+  // add,
 };

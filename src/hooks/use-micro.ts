@@ -1,5 +1,5 @@
 import { Effect, Either } from "effect";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 type Listener = () => void;
 
@@ -64,6 +64,7 @@ const queryCache = new Map<string, Query<any, any>>();
 type UseMicroOptions<A, E> = {
   key: string;
   fn: () => Effect.Effect<A, E>;
+  unmount?: boolean;
 };
 
 export function useMicro<A, E = never>(options: UseMicroOptions<A, E>): Either.Either<A, E> {
@@ -74,6 +75,14 @@ export function useMicro<A, E = never>(options: UseMicroOptions<A, E>): Either.E
     queryCache.set(options.key, query);
   }
   useSyncExternalStore(query.subscribe, query.getSnapshot);
+  // unmount
+  useEffect(() => {
+    if (options.unmount) {
+      return () => {
+        queryCache.delete(options.key);
+      };
+    }
+  }, []);
 
   return query.read();
 }

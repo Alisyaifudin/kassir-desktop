@@ -11,9 +11,9 @@ import { Loader, MoneyData } from "./loader";
 import { NewItem } from "./z-NewItem";
 import { TableListDebt } from "./z-TableListDebt";
 import { Suspense, use } from "react";
-import { Result } from "~/lib/utils";
+import { ResultOld } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
-import { LoadingBig } from "~/components/Loading";
+import { LoadingFull } from "~/components/Loading";
 
 export default function Page() {
   const money = useLoaderData<Loader>();
@@ -64,7 +64,7 @@ export default function Page() {
             <NewItem key={kind} kind={kind} />
           </div>
         </div>
-        <Suspense fallback={<LoadingBig />}>
+        <Suspense fallback={<LoadingFull />}>
           <Content money={money} />
         </Suspense>
       </Tabs>
@@ -72,7 +72,11 @@ export default function Page() {
   );
 }
 
-function Content({ money: promise }: { money: Promise<Result<"Aplikasi bermasalah", MoneyData>> }) {
+function Content({
+  money: promise,
+}: {
+  money: Promise<ResultOld<"Aplikasi bermasalah", MoneyData>>;
+}) {
   const [errMsg, money] = use(promise);
   if (errMsg !== null) return <TextError>{errMsg}</TextError>;
   return (

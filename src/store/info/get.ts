@@ -1,4 +1,4 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
+import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
 import { z } from "zod";
 
@@ -15,7 +15,7 @@ const schema = z.object({
 
 export type Info = z.infer<typeof schema>;
 
-export async function get(): Promise<Result<DefaultError, Info>> {
+export async function get(): Promise<ResultOld<DefaultError, Info>> {
   const store = await getStore();
   const [errMsg, res] = await tryResult({
     run: () =>
