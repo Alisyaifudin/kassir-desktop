@@ -1,18 +1,48 @@
-import { RouteObject } from "react-router";
-import { lazy, Suspense } from "react";
-import { loader } from "./loader.ts";
-import { action } from "./action/index.ts";
-import { LoadingFull } from "~/components/Loading.tsx";
+import { Result } from "~/lib/result";
+import { useData } from "./use-data";
+import { log } from "~/lib/log";
+import { ErrorComponent } from "~/components/ErrorComponent";
+import { ExtraPanel } from "./z-ExtraPanel";
+import { ExtraList } from "./z-ExtraList";
+import { Table, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { Loading } from "./z-Loading";
 
-const Page = lazy(() => import("./page.tsx"));
+export function ExtraEntries() {
+  return (
+    <>
+      <ExtraPanel />
+      <div className="flex-1 overflow-hidden">
+        <div className="flex max-h-full overflow-hidden">
+          <Table className="text-normal">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">No</TableHead>
+                <TableHead>Nama</TableHead>
+                <TableHead className="text-right w-[150px]">Jenis</TableHead>
+                <TableHead className="text-right w-[200px]">Nilai Awal</TableHead>
+                <TableHead className="icon"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <Loader />
+          </Table>
+        </div>
+      </div>
+    </>
+  );
+}
 
-export const route: RouteObject = {
-  Component: () => (
-    <Suspense fallback={<LoadingFull />}>
-      <Page />
-    </Suspense>
-  ),
-  loader,
-  action,
-  path: "extra/:id",
-};
+function Loader() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <Loading />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <ErrorComponent status={500}>{e.message}</ErrorComponent>;
+    },
+    onSuccess(extras) {
+      return <ExtraList all={extras} />;
+    },
+  });
+}

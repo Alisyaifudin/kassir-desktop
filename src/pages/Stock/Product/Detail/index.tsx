@@ -1,18 +1,15 @@
 import { RouteObject } from "react-router";
-import { lazy, Suspense } from "react";
-import { loader } from "./loader";
-import { action } from "./action/index.ts";
-import { LoadingFull } from "~/components/Loading.tsx";
+import { lazy } from "react";
+import { loader } from "./loader.ts";
+import { imageRoute } from "./Image/index.tsx";
+import { detailRoute } from "./Info/index.tsx";
+import { perfRoute } from "./Performance/index.tsx";
 
 const Page = lazy(() => import("./page.tsx"));
 
-export const detailRoute: RouteObject = {
-  Component: () => (
-    <Suspense fallback={<LoadingFull />}>
-      <Page />
-    </Suspense>
-  ),
+export const route: RouteObject = {
+  Component: Page,
   loader,
-  action,
-  index: true,
+  path: "product/:id",
+  children: [imageRoute, detailRoute, perfRoute],
 };

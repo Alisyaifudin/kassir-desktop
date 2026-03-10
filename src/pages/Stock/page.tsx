@@ -1,19 +1,8 @@
-import { LoadingFull } from "~/components/Loading";
-import { useFilterProducts } from "./use-products";
-import { ProductList } from "./z-ProductList";
-import { ProductPanel } from "./z-ProductPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { useFilterExtras } from "./use-extras";
-import { ExtraList } from "./z-ExtraList";
-import { ExtraPanel } from "./z-ExtraPanel";
-import { logOld } from "~/lib/utils";
-import { Suspense } from "react";
-import { TextError } from "~/components/TextError";
 import { useTab } from "./use-tab";
-import { useMicro } from "~/hooks/use-micro";
-import { db } from "~/database-effect";
-import { Either } from "effect";
 import { Layout } from "./z-Layout";
+import { ExtraEntries } from "./Extra";
+import { ProductEntries } from "./Product";
 
 export default function Page() {
   const [tab, setTab] = useTab();
@@ -29,68 +18,12 @@ export default function Page() {
           <TabsTrigger value="extra">Biaya Lainnya</TabsTrigger>
         </TabsList>
         <TabsContent value="product" className="overflow-hidden flex-1 w-full flex flex-col">
-          <Suspense fallback={<LoadingFull />}>
-            <ProductEntries />
-          </Suspense>
+          <ProductEntries />
         </TabsContent>
-        <TabsContent value="extra" className="overflow-hidden flex-1 w-full flex flex-col">
-          <Suspense fallback={<LoadingFull />}>
-            <ExtraEntries />
-          </Suspense>
+        <TabsContent value="extra" className="overflow-hidden px-0.5 flex-1 w-full flex flex-col">
+          <ExtraEntries />
         </TabsContent>
       </Tabs>
     </Layout>
   );
-}
-
-function ProductEntries() {
-  const res = useMicro({
-    fn: () => db.product.get.all(),
-    key: "extras",
-  });
-  return Either.match(res, {
-    onLeft({ e }) {
-      logOld.error(JSON.stringify(e.stack));
-      return <TextError>{e.message}</TextError>;
-    },
-    onRight(all) {
-      const products = useFilterProducts(all);
-      return (
-        <>
-          <ProductPanel productsLength={products.length} />
-          <div className="flex-1 overflow-hidden">
-            <div className="flex max-h-full overflow-hidden">
-              <ProductList products={products} />
-            </div>
-          </div>
-        </>
-      );
-    },
-  });
-}
-
-function ExtraEntries() {
-  const res = useMicro({
-    fn: () => db.extra.get.all(),
-    key: "extras",
-  });
-  return Either.match(res, {
-    onLeft({ e }) {
-      logOld.error(JSON.stringify(e.stack));
-      return <TextError>{e.message}</TextError>;
-    },
-    onRight(all) {
-      const extras = useFilterExtras(all);
-      return (
-        <>
-          <ExtraPanel length={extras.length} />
-          <div className="flex-1 overflow-hidden">
-            <div className="flex max-h-full overflow-hidden">
-              <ExtraList extras={extras} />
-            </div>
-          </div>
-        </>
-      );
-    },
-  });
 }

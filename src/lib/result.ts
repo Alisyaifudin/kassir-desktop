@@ -37,7 +37,21 @@ async function run<T, E>(
 }
 
 export const Result = {
-  use<T, E = never>({ fn, key }: { readonly key?: string; fn: () => Effect.Effect<T, E> }) {
+  use<T, E = never>({
+    fn,
+    key,
+    revalidateOn = {
+      unmount: false,
+    },
+    deps = [],
+  }: {
+    readonly key?: string;
+    fn: () => Effect.Effect<T, E>;
+    revalidateOn?: {
+      unmount?: boolean;
+    };
+    deps?: React.DependencyList;
+  }) {
     const [, setVersion] = useState(0);
     const fnRef = useRef(fn);
     fnRef.current = fn;
@@ -56,6 +70,18 @@ export const Result = {
     }, [key]);
 
     useEffect(() => {
+      if (query.result.type === "pending") return;
+
+      let cancelled = false;
+      run(() => fnRef.current()).then((result) => {
+        if (cancelled) return;
+        query.result = result;
+        setVersion((v) => v + 1);
+      });
+
+    }, deps);
+
+    useEffect(() => {
       if (query.result.type !== "pending") return;
 
       let cancelled = false;
@@ -68,7 +94,7 @@ export const Result = {
 
       return () => {
         cancelled = true;
-        cache.delete(key);
+        if (revalidateOn.unmount) cache.delete(key);
       };
     }, [key, query]);
 

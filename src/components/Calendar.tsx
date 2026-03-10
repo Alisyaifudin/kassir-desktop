@@ -9,9 +9,10 @@ import {
 } from "./ui/dialog";
 import { memo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn, formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "./ui/input";
+import { cn, numeric } from "~/lib/utils";
+import { formatDate, monthNames } from "~/lib/date";
 
 export const Calendar = memo(function ({
   time,

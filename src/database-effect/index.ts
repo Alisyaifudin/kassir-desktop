@@ -20,6 +20,6 @@ export const db = {
   record,
   recordExtra,
   recordProduct,
-  // image,
+  image,
   // money
 };

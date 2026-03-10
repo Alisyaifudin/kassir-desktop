@@ -32,6 +32,7 @@ export const NewCashier = memo(function () {
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             form.handleSubmit();
           }}
         >

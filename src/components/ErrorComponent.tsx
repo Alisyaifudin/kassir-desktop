@@ -9,8 +9,7 @@ export function ErrorComponent({
   children: React.ReactNode;
   title?: string;
 }) {
-  const navigate = useNavigate();
-
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center space-y-4">

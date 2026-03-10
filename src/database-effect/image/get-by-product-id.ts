@@ -1,5 +1,5 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
 export type Image = {
   id: number;
@@ -7,17 +7,17 @@ export type Image = {
   mime: DB.Image["img_mime"];
 };
 
-export async function getByProductId(productId: number): Promise<ResultOld<DefaultError, Image[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () => db.select<DB.Image[]>("SELECT * FROM images WHERE product_id = $1", [productId]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
-      id: r.img_id,
-      name: r.img_name,
-      mime: r.img_mime,
-    })),
+export function getByProductId(productId: number) {
+  return DB.try((db) =>
+    db.select<DB.Image[]>("SELECT * FROM images WHERE product_id = $1", [productId]),
+  ).pipe(
+    Effect.map(
+      (res) =>
+        res.map((r) => ({
+          id: r.img_id,
+          name: r.img_name,
+          mime: r.img_mime,
+        })) satisfies Image[],
+    ),
   );
 }

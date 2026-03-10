@@ -1,10 +1,9 @@
 import { RouteObject } from "react-router";
-import { route as newProductRoute } from "./New-Product/index.tsx";
-import { route as productRoute } from "./product";
-import { route as newExtraRoute } from "./New-Extra/index.tsx";
-import { route as extraRoute } from "./Extra/index.tsx";
+import { route as newProductRoute } from "./product/New";
+import { route as productRoute } from "./product/Detail";
+import { route as newExtraRoute } from "./Extra/New";
+import { route as extraRoute } from "./Extra/Detail";
 import { lazy } from "react";
-// import { loader } from "./loader.ts";
 
 const Page = lazy(() => import("./page.tsx"));
 
@@ -14,7 +13,6 @@ export const route: RouteObject = {
     {
       index: true,
       Component: Page,
-      // loader,
     },
     newProductRoute,
     productRoute,
