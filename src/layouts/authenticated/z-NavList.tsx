@@ -5,8 +5,10 @@ import { SettingLink } from "./z-SettingLink";
 import { Refresh } from "./z-Refresh";
 import { auth } from "~/lib/auth";
 import { memo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { showShortcut } from "./use-shortcut";
+import { Button } from "~/components/ui/button";
+import { Home } from "lucide-react";
 
 const linkMap = {
   0: "/",
@@ -55,6 +57,11 @@ export const NavList = memo(() => {
   }, []);
   return (
     <ul className={cn("flex justify-end items-end pt-2 small:pt-1 gap-5 small:gap-[10px]")}>
+      <Button asChild variant="link" size="icon">
+        <Link to="/">
+          <Home />
+        </Link>
+      </Button>
       <NavLink path="/" root alt="alt+0">
         Toko
       </NavLink>

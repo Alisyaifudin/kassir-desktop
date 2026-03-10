@@ -29,7 +29,7 @@ export function SettingLink() {
       <button
         onClick={(e) => {
           e.preventDefault();
-          const p = role === "admin" ? "/setting/shop" : "/setting";
+          const p = role === "admin" ? "/setting/shop" : "/setting/profile";
           navigate(p);
           showShortcut(false);
         }}
