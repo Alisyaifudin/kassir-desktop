@@ -1,76 +1,145 @@
-import { useRef, useState } from "react";
+import { useRef, useLayoutEffect, useState } from "react";
 import { Input } from "./ui/input";
 
-// Format with Indonesian rules: "." for thousands, "," for decimals
-function formatID(noSep: string) {
-	let sign = "";
-	if (noSep.startsWith("-")) {
-		sign = "-";
-		noSep = noSep.slice(1);
-	}
+export function NumberField({
+  value,
+  onValueChange,
+  ...props
+}: React.ComponentProps<"input"> & { onValueChange: (value: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [caretPos, setCaretPos] = useState<number | null>(null);
 
-	const hasComma = noSep.includes(",");
-	const [intPart = "", fracPart = ""] = noSep.split(",");
+  // Format the number with Indonesian locale (e.g., 100000 -> 100.000)
+  const formattedValue = value === "" ? "" : Number(value).toLocaleString("id-ID");
 
-	// Add thousand separators "." to integer part
-	const intWithDots = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  // Apply caret position after render
+  useLayoutEffect(() => {
+    if (caretPos !== null && inputRef.current) {
+      inputRef.current.setSelectionRange(caretPos, caretPos);
+      setCaretPos(null); // Reset after applying
+    }
+  }, [formattedValue, caretPos]);
 
-	return sign + intWithDots + (hasComma ? "," + fracPart : "");
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const rawValue = input.value;
+    if (rawValue === "") {
+      setCaretPos(0);
+      onValueChange("");
+      return;
+    }
+    const selectionStart = input.selectionStart || 0;
+
+    // Remove all thousand separators and parse
+    const cleanValue = rawValue.replaceAll(".", "");
+    const num = Number(cleanValue);
+
+    if (isNaN(num)) return;
+
+    // Calculate new caret position
+    const newFormatted = num.toLocaleString("id-ID");
+    const newCaretPos = calculateNewCaretPos(rawValue, selectionStart, newFormatted);
+
+    setCaretPos(newCaretPos);
+    onValueChange(String(num));
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const selectionStart = input.selectionStart || 0;
+    const selectionEnd = input.selectionEnd || 0;
+
+    // Handle Delete key (Delete . should delete next character)
+    if (e.key === "Delete" || e.key === "Del") {
+      const value = input.value;
+
+      // If caret is right before a dot, skip the dot and delete next digit
+      if (value[selectionStart] === "." && selectionStart === selectionEnd) {
+        e.preventDefault();
+        // Delete the character after the dot (skip the dot)
+        const newValue = value.slice(0, selectionStart) + value.slice(selectionStart + 2);
+
+        // Update value and caret
+        const cleanValue = newValue.replaceAll(".", "");
+        const num = Number(cleanValue);
+        if (!isNaN(num)) {
+          const newFormatted = num.toLocaleString("id-ID");
+          const newCaretPos = calculateNewCaretPos(
+            value,
+            selectionStart,
+            newFormatted,
+            true, // deletion mode
+          );
+          setCaretPos(newCaretPos);
+          onValueChange(String(num));
+        }
+      }
+    }
+
+    // Handle Backspace (optional: similar logic for consistency)
+    if (e.key === "Backspace") {
+      const value = input.value;
+
+      // If caret is right after a dot, skip the dot and delete previous digit
+      if (value[selectionStart - 1] === "." && selectionStart === selectionEnd) {
+        e.preventDefault();
+        const newValue = value.slice(0, selectionStart - 2) + value.slice(selectionStart);
+
+        const cleanValue = newValue.replaceAll(".", "");
+        const num = Number(cleanValue);
+        if (!isNaN(num)) {
+          const newFormatted = num.toLocaleString("id-ID");
+          const newCaretPos = calculateNewCaretPos(value, selectionStart - 1, newFormatted, true);
+          setCaretPos(newCaretPos);
+          onValueChange(String(num));
+        }
+      }
+    }
+  }
+
+  return (
+    <Input
+      ref={inputRef}
+      type="text"
+      inputMode="decimal"
+      value={formattedValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      {...props}
+    />
+  );
 }
 
-export function NumberField(props: React.ComponentProps<"input">) {
-	const [value, setValue] = useState("");
-	const inputRef = useRef<HTMLInputElement>(null);
+// Helper to calculate where caret should be after formatting change
+function calculateNewCaretPos(
+  oldValue: string,
+  oldCaretPos: number,
+  newValue: string,
+  isDeletion: boolean = false,
+): number {
+  // Count digits before caret in old value
+  let digitsBeforeCaret = 0;
+  for (let i = 0; i < oldCaretPos && i < oldValue.length; i++) {
+    if (oldValue[i] !== ".") {
+      digitsBeforeCaret++;
+    }
+  }
 
-	function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-		const el = e.currentTarget;
-		const raw = el.value;
-		const selStart = el.selectionStart ?? raw.length;
+  // Find position in new value with same number of digits before it
+  let newPos = 0;
+  let digitsCounted = 0;
 
-		// Strip thousand separators (.)
-		const noSep = raw.replace(/\./g, "");
+  while (newPos < newValue.length && digitsCounted < digitsBeforeCaret) {
+    if (newValue[newPos] !== ".") {
+      digitsCounted++;
+    }
+    newPos++;
+  }
 
-		// Allow transitional states: "", "-", ",", "-,", "123,"
-		if (!/^-?\d*(,\d*)?$/.test(noSep)) {
-			requestAnimationFrame(() => {
-				const i = inputRef.current;
-				if (i) i.setSelectionRange(selStart, selStart);
-			});
-			return;
-		}
+  // Adjust for edge cases
+  if (isDeletion && newPos > 0 && newValue[newPos - 1] === ".") {
+    newPos--; // Stay before the dot after deletion
+  }
 
-		if (noSep === "" || noSep === "-" || noSep === "," || noSep === "-,") {
-			setValue(raw.replace(/[^\d,.\-]/g, "")); // sanitize
-			requestAnimationFrame(() => {
-				const i = inputRef.current;
-				if (i) i.setSelectionRange(selStart, selStart);
-			});
-			return;
-		}
-
-		// caret index in "noSep" string (exclude thousands separators)
-		const dotsLeft = (raw.slice(0, selStart).match(/\./g) || []).length;
-		const caretInNoSep = selStart - dotsLeft;
-
-		// Format properly
-		const formatted = formatID(noSep);
-		setValue(formatted);
-
-		// Restore caret
-		requestAnimationFrame(() => {
-			const i = inputRef.current;
-			if (!i) return;
-			let pos = 0;
-			let count = 0;
-			while (pos < formatted.length && count < caretInNoSep) {
-				if (formatted[pos] !== ".") count++;
-				pos++;
-			}
-			i.setSelectionRange(pos, pos);
-		});
-	}
-
-	return (
-		<Input ref={inputRef} value={value} onChange={handleChange} inputMode="decimal" {...props} />
-	);
+  return Math.min(newPos, newValue.length);
 }

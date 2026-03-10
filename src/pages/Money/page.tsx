@@ -1,4 +1,4 @@
-import { useLoaderData, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
@@ -7,16 +7,15 @@ import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useInterval } from "./use-interval";
 import { TableList } from "./z-TableList";
-import { Loader, MoneyData } from "./loader";
 import { NewItem } from "./z-NewItem";
 import { TableListDebt } from "./z-TableListDebt";
-import { Suspense, use } from "react";
-import { ResultOld } from "~/lib/utils";
-import { TextError } from "~/components/TextError";
-import { LoadingFull } from "~/components/Loading";
+import { LoadingBig } from "~/components/Loading";
+import { useData } from "./use-data";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { ErrorComponent } from "~/components/ErrorComponent";
 
 export default function Page() {
-  const money = useLoaderData<Loader>();
   const [search, setSearch] = useSearchParams();
   const { time, kind, date } = useInterval(search);
   const setTime = (time: number) => {
@@ -64,32 +63,36 @@ export default function Page() {
             <NewItem key={kind} kind={kind} />
           </div>
         </div>
-        <Suspense fallback={<LoadingFull />}>
-          <Content money={money} />
-        </Suspense>
+        <Wrapper />
       </Tabs>
     </main>
   );
 }
 
-function Content({
-  money: promise,
-}: {
-  money: Promise<ResultOld<"Aplikasi bermasalah", MoneyData>>;
-}) {
-  const [errMsg, money] = use(promise);
-  if (errMsg !== null) return <TextError>{errMsg}</TextError>;
-  return (
-    <>
-      <TabsContent value="saving" className="overflow-hidden flex-1 w-full">
-        <TableList money={money.saving} />
-      </TabsContent>
-      <TabsContent value="debt" className="overflow-hidden flex-1 w-full">
-        <TableListDebt money={money.debt} />
-      </TabsContent>
-      <TabsContent value="diff" className="overflow-hidden flex-1 w-full">
-        <TableList money={money.diff} />
-      </TabsContent>
-    </>
-  );
+export function Wrapper() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingBig />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <ErrorComponent>{e.message}</ErrorComponent>;
+    },
+    onSuccess(money) {
+      return (
+        <>
+          <TabsContent value="saving" className="overflow-hidden flex-1 w-full">
+            <TableList money={money.saving} />
+          </TabsContent>
+          <TabsContent value="debt" className="overflow-hidden flex-1 w-full">
+            <TableListDebt money={money.debt} />
+          </TabsContent>
+          <TabsContent value="diff" className="overflow-hidden flex-1 w-full">
+            <TableList money={money.diff} />
+          </TabsContent>
+        </>
+      );
+    },
+  });
 }

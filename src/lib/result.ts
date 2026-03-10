@@ -78,7 +78,6 @@ export const Result = {
         query.result = result;
         setVersion((v) => v + 1);
       });
-
     }, deps);
 
     useEffect(() => {
@@ -136,6 +135,7 @@ export const Result = {
       });
     } else {
       const query = cache.get(key);
+      // console.log("revalidating,,,,, ", key, query);
       if (query === undefined) return;
       const res = await query.revalidate();
       query.result = res;

@@ -6,27 +6,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { TextError } from "~/components/TextError";
-import { Form } from "react-router";
 import { SelectType } from "./z-SelectType";
 import { NumberField } from "~/components/NumberField";
 import { Spinner } from "~/components/Spinner";
-import { useLoading } from "~/hooks/use-loading";
-import { useAction } from "~/hooks/use-action";
-import { Action } from "./action";
 import { Textarea } from "~/components/ui/textarea";
+import { useNew } from "./use-new";
+import { Show } from "~/components/Show";
 
 export const NewItem = memo(function ({ kind }: { kind: "saving" | "debt" | "diff" }) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<"change" | "absolute">(kind === "debt" ? "change" : "absolute");
-  const loading = useLoading();
-  const error = useAction<Action>()("new");
-  useEffect(() => {
-    if (error === undefined && !loading) {
-      setOpen(false);
-    }
-  }, [loading, error]);
+  const { form, error } = useNew(() => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>
@@ -35,23 +26,56 @@ export const NewItem = memo(function ({ kind }: { kind: "saving" | "debt" | "dif
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Catatan Keuangan</DialogTitle>
-          <Form method="POST" className="flex flex-col gap-2">
-            <input type="hidden" name="action" value="new"></input>
-            <input type="hidden" name="type" value={type}></input>
-            <input type="hidden" name="kind" value={kind}></input>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              form.handleSubmit();
+            }}
+            className="flex flex-col gap-2"
+          >
             <div className="flex items-center gap-2">
-              <NumberField name="value" placeholder="Nilai" aria-autocomplete="list" />
-              {kind === "diff" ? null : <SelectType type={type} onChange={setType} />}
+              <form.Field name="value">
+                {(field) => (
+                  <NumberField
+                    value={field.state.value}
+                    onValueChange={field.handleChange}
+                    name="value"
+                    placeholder="Nilai"
+                    aria-autocomplete="list"
+                  />
+                )}
+              </form.Field>
+              <Show when={kind !== "diff"}>
+                <form.Field name="type">
+                  {(field) => <SelectType type={field.state.value} onChange={field.handleChange} />}
+                </form.Field>
+              </Show>
             </div>
             <TextError>{error}</TextError>
-            <Textarea rows={3} name="note" placeholder="Catatan"/>
+            <form.Field name="note">
+              {(field) => (
+                <Textarea
+                  rows={3}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.currentTarget.value)}
+                  name="note"
+                  placeholder="Catatan"
+                />
+              )}
+            </form.Field>
             <div className="col-span-2 flex flex-col items-end">
-              <Button>
-                Tambah
-                <Spinner when={loading} />
-              </Button>
+              <form.Subscribe selector={(s) => s.isSubmitting}>
+                {(isSubmitting) => (
+                  <Button>
+                    Tambah
+                    <Spinner when={isSubmitting} />
+                  </Button>
+                )}
+              </form.Subscribe>
             </div>
-          </Form>
+          </form>
         </DialogHeader>
       </DialogContent>
     </Dialog>

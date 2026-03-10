@@ -1,19 +1,28 @@
 import Decimal from "decimal.js";
-import { data, LoaderFunctionArgs } from "react-router";
+import { Effect } from "effect";
+import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
-import { db } from "~/database";
+import { db } from "~/database-effect";
 import { Money } from "~/database/money/get-by-range";
-import { DefaultError, err, integer, ok, ResultOld } from "~/lib/utils";
+import { Result } from "~/lib/result";
+import { integer } from "~/lib/utils";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const search = url.searchParams;
-  const { start, end } = getInterval(search);
-  const money = getMoney(start, end);
-  return data(money);
+const KEY = "money";
+
+export function useData() {
+  const [search] = useSearchParams();
+  const [start, end] = getInterval(search);
+  const res = Result.use({
+    fn: () => loader(start, end),
+    key: KEY,
+    deps: [start, end],
+  });
+  return res;
 }
 
-export type Loader = typeof loader;
+export function revalidate() {
+  Result.revalidate(KEY);
+}
 
 export type Debt = {
   value: number;
@@ -35,7 +44,7 @@ function getInterval(search: URLSearchParams) {
     timeZone: tz,
   }).startOfDay();
   const end = start.add(Temporal.Duration.from({ months: 1 }));
-  return { start: start.epochMilliseconds, end: end.epochMilliseconds };
+  return [start.epochMilliseconds, end.epochMilliseconds] as const;
 }
 
 export type MoneyData = {
@@ -56,21 +65,22 @@ export type MoneyData = {
     note: string;
   }[];
 };
-async function getMoney(start: number, end: number): Promise<ResultOld<DefaultError, MoneyData>> {
-  const [[errMoney, money], [errLast, last]] = await Promise.all([
-    db.money.get.byRange(start, end),
-    db.money.get.last(start, "debt"),
-  ]);
-  if (errMoney !== null) return err(errMoney);
-  if (errLast !== null) return err(errLast);
-  return ok({
-    saving: money
-      .filter((m) => m.kind === "saving")
-      .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
-    diff: money
-      .filter((m) => m.kind === "diff")
-      .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
-    debt: collectMoney(money, last),
+
+function loader(start: number, end: number) {
+  return Effect.gen(function* () {
+    const [money, last] = yield* Effect.all(
+      [db.money.get.byRange(start, end), db.money.get.last(start, "debt")],
+      { concurrency: "unbounded" },
+    );
+    return {
+      saving: money
+        .filter((m) => m.kind === "saving")
+        .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
+      diff: money
+        .filter((m) => m.kind === "diff")
+        .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
+      debt: collectMoney(money, last),
+    };
   });
 }
 

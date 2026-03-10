@@ -6,34 +6,23 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { formatDate, formatTime, getDayName } from "~/lib/utils";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { memo } from "react";
-import { MoneyData } from "./loader";
-import { useSize } from "~/hooks/use-size";
-import { style } from "./style";
+import { MoneyData } from "./use-data";
+import { formatDate, formatTime, getDayName } from "~/lib/date";
 
 export const TableList = memo(function ({ money }: { money: MoneyData["saving"] }) {
-  const size = useSize();
   return (
     <Table className="text-normal">
       <TableHeader>
         <TableRow>
-          <TableHead style={style[size].no}>No</TableHead>
-          <TableHead style={style[size].day} className="text-center">
-            Hari
-          </TableHead>
-          <TableHead style={style[size].date} className="text-center">
-            Tanggal
-          </TableHead>
-          <TableHead style={style[size].time} className="text-center">
-            Waktu
-          </TableHead>
-          <TableHead style={style[size].value} className="text-right">
-            Nilai
-          </TableHead>
+          <TableHead className="w-[55px] small:w-[40px]">No</TableHead>
+          <TableHead className="text-center w-[120px] small:w-[70px]">Hari</TableHead>
+          <TableHead className="text-center w-[290px] small:w-[200px]">Tanggal</TableHead>
+          <TableHead className="text-center w-[140px] small:w-[100px]">Waktu</TableHead>
+          <TableHead className="text-right w-[200px] small:w-[150px]">Nilai</TableHead>
           <TableHead className="text-center">Catatan</TableHead>
-          <TableHead style={style[size].last} className="text-right"></TableHead>
+          <TableHead className="text-right w-[50px]"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

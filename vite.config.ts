@@ -12,7 +12,12 @@ export default defineConfig(async ({ command, mode }) => {
   return {
     plugins: [
       vanillaExtractPlugin(),
-      react(),
+      react({
+        babel: {
+          plugins: ["babel-plugin-react-compiler"],
+        },
+      }),
+      ,
       tailwindcss(),
       tsconfigPaths(),
       {

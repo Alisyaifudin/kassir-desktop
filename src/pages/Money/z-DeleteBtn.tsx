@@ -9,18 +9,14 @@ import {
 import { memo, useState } from "react";
 import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
-import { formatDate, formatTime, getDayName } from "~/lib/utils";
-import { Form } from "react-router";
 import { Spinner } from "~/components/Spinner";
-import { useLoading } from "~/hooks/use-loading";
-import { useAction } from "~/hooks/use-action";
-import { Action } from "./action";
-import { MoneyData } from "./loader";
+import { MoneyData } from "./use-data";
+import { formatDate, formatTime, getDayName } from "~/lib/date";
+import { useDelete } from "./use-delete";
 
 export const DeleteBtn = memo(function ({ money }: { money: MoneyData["saving"][number] }) {
   const [open, setOpen] = useState(false);
-  const loading = useLoading();
-  const error = useAction<Action>()("delete");
+  const { loading, error, handleDelete } = useDelete(money.timestamp, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button
@@ -36,9 +32,7 @@ export const DeleteBtn = memo(function ({ money }: { money: MoneyData["saving"][
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="text-3xl">Hapus Catatan</DialogTitle>
-          <Form method="POST" className="flex flex-col gap-2 text-3xl">
-            <input type="hidden" name="action" value="delete"></input>
-            <input type="hidden" name="timestamp" value={money.timestamp}></input>
+          <div className="flex flex-col gap-2 text-3xl">
             <div className="grid grid-cols-[200px_1fr]">
               <p>Tanggal</p>
               <p>
@@ -59,12 +53,12 @@ export const DeleteBtn = memo(function ({ money }: { money: MoneyData["saving"][
             </div>
             <TextError>{error}</TextError>
             <div className="col-span-2 flex flex-col items-end">
-              <Button variant="destructive">
+              <Button onClick={handleDelete} variant="destructive">
                 Hapus
                 <Spinner when={loading} />
               </Button>
             </div>
-          </Form>
+          </div>
         </DialogHeader>
       </DialogContent>
     </Dialog>
