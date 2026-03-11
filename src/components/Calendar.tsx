@@ -14,7 +14,7 @@ import { Input } from "./ui/input";
 import { cn, numeric } from "~/lib/utils";
 import { formatDate, monthNames } from "~/lib/date";
 
-export const Calendar = memo(function ({
+export const Calendar = memo(function Calendar({
   time,
   setTime,
   mode: modeInit = "day",

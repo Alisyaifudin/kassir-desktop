@@ -9,10 +9,11 @@ import {
 } from "~/components/ui/dialog";
 import { memo, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn, formatDate, monthNames } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "~/components/ui/input";
-import { MONTHS, tz } from "~/lib/constants";
+import { MONTHS, formatDate, monthNames } from "~/lib/date";
+import { tz } from "~/lib/constants";
 import { useSize } from "~/hooks/use-size";
 
 type Interval = "day" | "month" | "year";
@@ -52,7 +53,7 @@ function sanitizeTime(t: number | Temporal.ZonedDateTime): number | Temporal.Zon
   return t;
 }
 
-export const DateRange = memo(function ({
+export const DateRange = memo(function DateRange({
   className,
   range,
   setRange,
@@ -230,7 +231,7 @@ function DayCalendar({
       days.push({ ms, label, inside });
     }
     return days;
-  }, [start.epochMilliseconds]);
+  }, [start, end.epochMilliseconds, startOfMonth.epochMilliseconds, endOfMonth.epochMilliseconds]);
   const handlePrev = () => {
     const t = sanitizeTime(startOfMonth.subtract(Temporal.Duration.from({ months: 1 })));
     setDate(t);
@@ -353,7 +354,7 @@ function MonthCalendar({
       start = end;
     }
     return months;
-  }, [startOfYear.epochMilliseconds]);
+  }, [startOfYear]);
   return (
     <div style={style[size]} className="flex flex-col gap-2">
       <DialogHeader>

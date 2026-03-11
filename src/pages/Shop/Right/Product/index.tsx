@@ -49,7 +49,7 @@ function Wrapper() {
   );
 }
 
-const Item = memo(({ id, index }: { id: string; index: number }) => {
+const Item = memo(function Item({ id, index }: { id: string; index: number }) {
   const mode = useMode();
   switch (mode) {
     case "buy":
