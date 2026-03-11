@@ -14,6 +14,10 @@ You are the Lead Engineer AI for **Kassir Desktop**, a modern, high-performance 
 ## 🎨 Design Vibe
 - **Premium Desktop Feel**: The app should feel like a native macOS/Windows application, not a website.
 - **Aesthetics**: Clean, minimal, high contrast, smooth transitions (using `lucide-react` icons).
+- **Typography Tokens**:
+  - Always use utility classes: `text-normal` for standard text and `text-big` for headers/prominent text.
+  - **NO HARDCODED** text sizes (e.g., avoid `text-sm`, `text-lg`, `text-[14px]`).
+- **Color Awareness**: Ensure high contrast for readability. Never use dark text on dark backgrounds. Use theme-aware colors (e.g., `text-primary-foreground` on `bg-primary`).
 - **Responsiveness**: Primarily optimized for desktop screens (POS terminals, laptops).
 
 ## 🧠 Engineering Principles
@@ -27,5 +31,6 @@ You are the Lead Engineer AI for **Kassir Desktop**, a modern, high-performance 
 
 ## 🚀 Vibe Coding Instructions
 - When asked to "beautify" or "improve UI," prioritize modern design trends: glassmorphism, subtle shadows, and `lucide-react` icons.
+- Strictly adhere to the **Typography Tokens** and **Color Awareness** rules.
 - Always check for `Effect` patterns in the codebase before implementing logic.
 - Ensure all new components are accessible (ARIA labels, keyboard navigation).

@@ -18,6 +18,7 @@ import { Loading } from "~/components/Loading";
 import { log } from "~/lib/log";
 import { DEFAULT_METHODS, METHOD_NAMES } from "~/lib/constants";
 import { setMethods, useMethod, useMethods } from "../use-method";
+import { cn } from "~/lib/utils";
 
 export function Filter() {
   const res = useGetMethods((methods) => {
@@ -48,29 +49,54 @@ function Wrapper() {
     setMethod(null);
   };
   const group = groupMethods(methods);
+
   return (
-    <Dialog>
-      <Button asChild variant="outline">
-        <DialogTrigger>
-          <SlidersHorizontal />
-          <Show value={method} fallback={<p>Filter</p>}>
-            {(v) => (
-              <p>
-                {METHOD_NAMES[v.kind]} {v.name}
-              </p>
+    <div className="flex items-center gap-2">
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button
+            variant={method ? "default" : "outline"}
+            className={cn(
+              "gap-2 rounded-xl transition-all duration-300 h-10 px-4",
+              method
+                ? "shadow-lg shadow-primary/20 border-primary/50 text-primary-foreground"
+                : "hover:border-primary/50",
             )}
-          </Show>
+          >
+            <SlidersHorizontal size={16} strokeWidth={2.5} />
+            <Show value={method} fallback={<span className="font-semibold">Filter</span>}>
+              {(v) => (
+                <span className="max-w-[150px] truncate font-bold">
+                  {v.name ? `${METHOD_NAMES[v.kind]} ${v.name}` : METHOD_NAMES[v.kind]}
+                </span>
+              )}
+            </Show>
+          </Button>
         </DialogTrigger>
-      </Button>
-      {method === null ? null : (
-        <Button size="icon" variant="ghost" onClick={handleClear}>
-          <X />
-        </Button>
-      )}
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-normal">Filter Metode Pembayaran</DialogTitle>
-          <div className="flex flex-col gap-5">
+        {method !== null && (
+          <Button
+            size="icon"
+            variant="secondary"
+            onClick={handleClear}
+            className="rounded-xl h-10 w-10 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
+            title="Clear Filter"
+          >
+            <X size={18} />
+          </Button>
+        )}
+
+        <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+          <DialogHeader className="p-6 pb-4 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-big font-black tracking-tight">
+                Kategori Pembayaran
+              </DialogTitle>
+            </div>
+            <p className="text-normal text-muted-foreground font-medium mt-1">
+              Pilih metode pembayaran untuk menyaring data.
+            </p>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 p-6 pt-2 max-h-[70vh] overflow-y-auto">
             <ForEach items={group}>
               {({ top, options }) => (
                 <FilterBtn
@@ -83,9 +109,9 @@ function Wrapper() {
               )}
             </ForEach>
           </div>
-        </DialogHeader>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 

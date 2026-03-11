@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderSearch, Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { Filter } from "./FilterDialog";
@@ -11,31 +11,47 @@ import { useTime } from "../use-time";
 export function Header() {
   const [{ yesterday, time, tomorrow }, setTime] = useTime();
   const navigate = useNavigate();
+
   return (
-    <div className="flex gap-2 items-center w-full justify-between">
-      <div className="flex gap-1 items-center">
+    <div className="flex gap-2 items-center w-full justify-between bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="flex gap-1.5 items-center">
         <ModeTab />
         <Filter />
       </div>
+
       <SearchBars />
+
       <Button
-        className="cursor-pointer"
+        className="h-10 w-10 shrink-0 rounded-lg border border-primary/10 transition-all shadow-sm"
         onClick={() => {
           const urlBack = encodeURIComponent(window.location.href);
           navigate({ pathname: "/records/search", search: `?url_back=${urlBack}` });
         }}
       >
-        <FolderSearch className="icon" />
+        <FolderSearch size={16} strokeWidth={2.5} />
       </Button>
-      <div className="flex gap-1 items-center">
-        <Button className="p-2" variant={"ghost"} onClick={() => setTime(yesterday)}>
-          <ChevronLeft className="icon" />
+      <div className="flex items-center bg-muted/30 gap-1 p-0.5 rounded-lg">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => setTime(yesterday)}
+          className="rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-all"
+        >
+          <ChevronLeft size={14} strokeWidth={2.5} />
         </Button>
+
         <Calendar time={time} setTime={(time) => setTime(time)}>
-          <p>{formatDate(time, "long")}</p>
+          <CalendarIcon size={12} className="text-primary" strokeWidth={2.5} />
+          {formatDate(time, "long")}
         </Calendar>
-        <Button className="p-2" variant={"ghost"} onClick={() => setTime(tomorrow)}>
-          <ChevronRight className="icon" />
+
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => setTime(tomorrow)}
+          className="rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-all"
+        >
+          <ChevronRight size={14} strokeWidth={2.5} />
         </Button>
       </div>
     </div>

@@ -12,7 +12,7 @@ import { ErrorComponent } from "~/components/ErrorComponent";
 
 export default function Page() {
   return (
-    <main className="flex flex-col gap-2 p-2 flex-1 text-3xl overflow-hidden">
+    <main className="flex flex-col gap-2 p-0.5 flex-1 text-3xl overflow-hidden">
       <Header />
       <Loader />
     </main>
