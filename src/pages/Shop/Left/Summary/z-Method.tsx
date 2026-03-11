@@ -207,7 +207,6 @@ function setMethod(methodId: number) {
 }
 
 function selectMethod(val: DB.MethodEnum, defVals: MethodDB[], tab?: number) {
-  console.log(val, defVals, tab);
   if (tab === undefined) return;
   const defVal = defVals.find((m) => m.kind === val);
   if (defVal === undefined) {

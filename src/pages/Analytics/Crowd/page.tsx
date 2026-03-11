@@ -1,17 +1,14 @@
-import { DefaultError, ResultOld } from "~/lib/utils";
-import { useLoaderData } from "react-router";
-import { Loader } from "./loader";
-import { NavList } from "../NavList";
-import { LoadingFull } from "~/components/Loading";
-import { Suspense, use } from "react";
-import { Summary } from "./Summary";
-import { Record } from "~/database/record/get-by-range";
-import { TextError } from "~/components/TextError";
-import { Crowd } from "./Crowd";
-import { DatePicker } from "../DatePicker";
+import { useData } from "./use-data";
+import { NavList } from "../z-NavList";
+import { LoadingBig } from "~/components/Loading";
+import { Summary } from "./z-Summary";
+import { Crowd } from "./z-Crowd";
+import { DatePicker } from "../z-DatePicker";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { ErrorComponent } from "~/components/ErrorComponent";
 
 export default function Page() {
-  const { records, start, end } = useLoaderData<Loader>();
   return (
     <>
       <NavList selected="crowd">
@@ -19,26 +16,24 @@ export default function Page() {
       </NavList>
       <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
         <DatePicker defaultInterval="day" />
-        <Suspense fallback={<LoadingFull />}>
-          <Wrapper records={records} start={start} end={end} />
-        </Suspense>
+        <Wrapper />
       </div>
     </>
   );
 }
 
-function Wrapper({
-  start,
-  end,
-  records: promise,
-}: {
-  start: number;
-  end: number;
-  records: Promise<ResultOld<DefaultError, Record[]>>;
-}) {
-  const [errMsg, records] = use(promise);
-  if (errMsg !== null) {
-    return <TextError>{errMsg}</TextError>;
-  }
-  return <Crowd records={records} start={start} end={end} />;
+function Wrapper() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingBig />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <ErrorComponent>{e.message}</ErrorComponent>;
+    },
+    onSuccess({ daily, weekly }) {
+      return <Crowd daily={daily} weekly={weekly} />;
+    },
+  });
 }

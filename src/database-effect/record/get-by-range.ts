@@ -34,7 +34,7 @@ export function getByRange(start: number, end: number) {
       record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone,
       record_sub_total, record_total, methods.method_id, method_name, method_kind 
       FROM records INNER JOIN methods ON records.method_id = methods.method_id
-      WHERE timestamp BETWEEN $1 AND $2`,
+      WHERE record_paid_at BETWEEN $1 AND $2`,
         [start, end],
       ),
     );

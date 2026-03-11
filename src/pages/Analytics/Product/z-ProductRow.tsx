@@ -3,7 +3,8 @@ import { useCallback, useState } from "react";
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import { TableCell, TableRow } from "~/components/ui/table";
-import { formatBarcode, formatDate, formatTime } from "~/lib/utils";
+import { formatDate, formatTime } from "~/lib/date";
+import { formatBarcode } from "~/lib/utils";
 
 type Prod = {
   kind: "product";

@@ -14,6 +14,8 @@ export function useSummary() {
   return [v, store.set] as const;
 }
 
+export const setSummary = store.set;
+
 export function Summary() {
   const [summary] = useSummary();
   if (summary.loading) return <Loading />;

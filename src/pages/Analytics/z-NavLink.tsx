@@ -19,19 +19,22 @@ const path = {
 
 export function NavLink({ selected, to }: { to: Option; selected: Option }) {
   const navigate = useNavigate();
-  let search = new URLSearchParams(window.location.search);
-  switch (to) {
-    case "products":
-    case "crowd": {
-      search.set("interval", "day");
-      break;
-    }
-    default: {
-      search.set("interval", "month");
-      break;
-    }
-  }
   const handleClick = () => {
+    const search = new URLSearchParams(window.location.search);
+    const interval = search.get("interval");
+    switch (to) {
+      case "crowd":
+      case "products":
+        search.set("interval", "day");
+        break;
+      case "cashflow":
+      case "net": {
+        if (interval === "day") {
+          search.set("interval", "month");
+        }
+        break;
+      }
+    }
     navigate({ pathname: `/analytics/${path[to]}`, search: search.toString() });
   };
   return (

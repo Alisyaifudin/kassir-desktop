@@ -4,8 +4,7 @@ import { Loading } from "~/components/Loading";
 
 const store = createAtom({
   loading: true,
-  daily: 0,
-  weekly: 0,
+  profit: 0,
 });
 
 export function useSummary() {
@@ -13,13 +12,15 @@ export function useSummary() {
   return [v, store.set] as const;
 }
 
+export const setSummary = store.set;
+
 export function Summary() {
   const [summary] = useSummary();
   if (summary.loading) return <Loading />;
   return (
-    <div className="flex flex-col gap-2">
-      <p>Harian: {summary.daily}</p>
-      <p>Mingguan: {summary.weekly}</p>
+    <div className="flex flex-col">
+      <p>Untung Total:</p>
+      <p className="text-end">Rp{summary.profit.toLocaleString("id-ID")}</p>
     </div>
   );
 }

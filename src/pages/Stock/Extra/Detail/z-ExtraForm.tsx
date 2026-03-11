@@ -14,7 +14,6 @@ export function ExtraForm({ extra }: { extra: Extra }) {
         <div className="flex items-center justify-between">
           <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => {
-              console.log("root", isSubmitting);
               return (
                 <Button className="w-fit" type="submit">
                   Simpan

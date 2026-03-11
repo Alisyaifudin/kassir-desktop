@@ -5,6 +5,7 @@ import { getById } from "./get-by-id";
 import { updateInfo } from "./update-info";
 import { getHistoryRange } from "./get-history-range";
 import { add } from "./add";
+import { getByRange } from "./get-by-range";
 
 export const product = {
   get: {
@@ -12,7 +13,7 @@ export const product = {
     byId: getById,
     history: getHistory,
     historyRange: getHistoryRange,
-    // byRange: byRange,
+    byRange: getByRange,
     // performance: getPerformance,
   },
   delById,

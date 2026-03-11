@@ -1,23 +1,15 @@
-import { DefaultError, ResultOld } from "~/lib/utils";
-import { useLoaderData } from "react-router";
-import { Loader } from "./loader";
-import { NavList } from "../NavList";
-import { LoadingFull } from "~/components/Loading";
-import { Suspense, use } from "react";
-import { TextError } from "~/components/TextError";
-import { Item } from "~/database/product/get-by-range";
-import { Summary } from "./Summary";
-import { ProductList } from "./ProductList";
-import { useQuery } from "./use-query";
-import { Input } from "~/components/ui/input";
-import { Panel } from "./Panel";
+import { useData } from "./use-data";
+import { NavList } from "../z-NavList";
+import { LoadingBig } from "~/components/Loading";
+import { Summary } from "./z-Summary";
+import { ProductList } from "./z-ProductList";
+import { Panel } from "./z-Panel";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { ErrorComponent } from "~/components/ErrorComponent";
+import { SearchInput } from "./z-SearchInput";
 
 export default function Page() {
-  const items = useLoaderData<Loader>();
-  const [query, setQuery] = useQuery();
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.currentTarget.value);
-  };
   return (
     <>
       <NavList selected="products">
@@ -25,26 +17,25 @@ export default function Page() {
       </NavList>
       <div className="flex flex-col gap-2 py-1 flex-1 overflow-hidden">
         <Panel />
-        <Input
-          className="mx-1"
-          type="search"
-          placeholder="Cari..."
-          value={query}
-          onChange={handleChange}
-          aria-autocomplete="list"
-        />
-        <Suspense fallback={<LoadingFull />}>
-          <Wrapper items={items} />
-        </Suspense>
+        <SearchInput />
+        <Wrapper />
       </div>
     </>
   );
 }
 
-function Wrapper({ items: promise }: { items: Promise<ResultOld<DefaultError, Item[]>> }) {
-  const [errMsg, items] = use(promise);
-  if (errMsg !== null) {
-    return <TextError>{errMsg}</TextError>;
-  }
-  return <ProductList items={items} />;
+function Wrapper() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingBig />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <ErrorComponent>{e.message}</ErrorComponent>;
+    },
+    onSuccess(items) {
+      return <ProductList items={items} />;
+    },
+  });
 }

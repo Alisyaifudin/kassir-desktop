@@ -1,6 +1,6 @@
-import { DatePicker } from "../DatePicker";
-import { ModeSelect } from "../ModeSelect";
-import { IntervalPicker } from "./IntervalPicker";
+import { DatePicker } from "../z-DatePicker";
+import { ModeSelect } from "../z-ModeSelect";
+import { IntervalPicker } from "./z-IntervalPicker";
 
 export function Panel() {
   return (

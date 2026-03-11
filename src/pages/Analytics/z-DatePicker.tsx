@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Temporal } from "temporal-polyfill";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
-import { dayNames, formatDate, monthNames } from "~/lib/utils";
+import { dayNames, formatDate, monthNames } from "~/lib/date";
 import { useTime } from "./use-time";
 import { useInterval } from "./use-interval";
 

@@ -9,42 +9,15 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Item } from "~/database/product/get-by-range";
-import { useSize } from "~/hooks/use-size";
 import { cn } from "~/lib/utils";
 import { useSort } from "./use-sort";
 import { useCallback } from "react";
-import { RawRow } from "./RawRow";
-import { ProductRow } from "./ProductRow";
+import { RawRow } from "./z-RawRow";
+import { ProductRow } from "./z-ProductRow";
 import { Show } from "~/components/Show";
 import { useLimit } from "./use-limit";
 
-const style = {
-  small: {
-    barcode: {
-      width: "150px",
-    },
-    price: {
-      width: "90px",
-    },
-    qty: {
-      width: "40px",
-    },
-  },
-  big: {
-    barcode: {
-      width: "219px",
-    },
-    price: {
-      width: "120px",
-    },
-    qty: {
-      width: "57px",
-    },
-  },
-};
-
 export function ProductTable({ items }: { items: Item[] }) {
-  const size = useSize();
   const [limit, setLimit] = useLimit();
   const handleMore = () => {
     setLimit((prev) => {
@@ -83,19 +56,15 @@ export function ProductTable({ items }: { items: Item[] }) {
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">No</TableHead>
-          <TableHead style={style[size].barcode}>Barcode</TableHead>
+          <TableHead className="w-[219px] small:w-[150px]">Barcode</TableHead>
           <TableHead>
             <SortBtn sort={sortBy === "name" ? sortDir : undefined} onClick={handleSort("name")}>
               Nama
             </SortBtn>
           </TableHead>
-          <TableHead style={style[size].price} className="text-end">
-            Harga
-          </TableHead>
-          <TableHead style={style[size].price} className="text-end">
-            Modal
-          </TableHead>
-          <TableHead style={style[size].qty}>
+          <TableHead className="text-end w-[120px] small:w-[90px]">Harga</TableHead>
+          <TableHead className="text-end w-[120px] small:w-[90px]">Modal</TableHead>
+          <TableHead className="w-[57px] small:w-[40px]">
             <SortBtn sort={sortBy === "qty" ? sortDir : undefined} onClick={handleSort("qty")}>
               Qty
             </SortBtn>
@@ -121,7 +90,7 @@ export function ProductTable({ items }: { items: Item[] }) {
         <Show when={limit < items.length}>
           <TableRow>
             <TableCell colSpan={6} className="text-end">
-              Menampilkan {limit} / {items.length} |{" "}
+              Menampilkan {limit} / {items.length || 1} |{" "}
               <button className="underline" onClick={handleMore}>
                 Lebih banyak
               </button>

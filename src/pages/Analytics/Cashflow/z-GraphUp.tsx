@@ -1,24 +1,13 @@
-import { useSize } from "~/hooks/use-size";
-import { Bar } from "../Bar";
+import { Bar } from "../z-Bar";
 import { formatTick } from "../utils/format-tick";
 import { getTicks } from "../utils/group-items";
 
-const style = {
-  small: {
-    width: "60px",
-  },
-  big: {
-    width: "80px",
-  },
-};
-
-export function GraphUp({ vals }: { vals: number[] }) {
-  const maxVal = Math.max(...vals);
+export function GraphUp({ vals }: { vals: { number: number; timestamp: number }[] }) {
+  const maxVal = vals.length === 0 ? 1 : Math.max(...vals.map((v) => v.number));
   const ticks = getTicks(maxVal);
-  const size = useSize();
   return (
     <div className="flex w-full h-full">
-      <div style={style[size]} className="relative h-full border-r">
+      <div className="relative h-full border-r w-[80px] small:w-[60px]">
         {ticks.map((tick) => (
           <p
             key={tick}
@@ -31,7 +20,14 @@ export function GraphUp({ vals }: { vals: number[] }) {
       </div>
       <div className="h-full flex-1 flex gap-1">
         {vals.map((v, i) => (
-          <Bar orientation={"up"} v={v} key={i} maxVal={maxVal} length={vals.length} />
+          <Bar
+            orientation={"up"}
+            v={v.number}
+            timestamp={v.timestamp}
+            key={i}
+            maxVal={maxVal}
+            length={vals.length}
+          />
         ))}
       </div>
     </div>

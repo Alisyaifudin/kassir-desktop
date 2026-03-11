@@ -1,14 +1,14 @@
-import { Suspense } from "react";
-import { NavList } from "../NavList";
-import { useLoaderData } from "react-router";
-import { Loader } from "./loader";
-import { Graph } from "./Graph";
-import { LoadingFull } from "~/components/Loading";
-import { Summary } from "./Summary";
-import { Panel } from "./Panel";
+import { NavList } from "../z-NavList";
+import { useData } from "./use-data";
+import { Graph } from "./z-Graph";
+import { LoadingBig } from "~/components/Loading";
+import { Summary } from "./z-Summary";
+import { Panel } from "./z-Panel";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { ErrorComponent } from "~/components/ErrorComponent";
 
 export default function Page() {
-  const { records, start, end } = useLoaderData<Loader>();
   return (
     <>
       <NavList selected="cashflow">
@@ -16,10 +16,32 @@ export default function Page() {
       </NavList>
       <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
         <Panel />
-        <Suspense fallback={<LoadingFull />}>
-          <Graph records={records} start={start} end={end} />
-        </Suspense>
+        <Wrapper />
       </div>
     </>
   );
+}
+
+function Wrapper() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingBig />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <ErrorComponent>{e.message}</ErrorComponent>;
+    },
+    onSuccess({ debts, labels, revenues, spendings, interval }) {
+      return (
+        <Graph
+          debts={debts}
+          labels={labels}
+          revenues={revenues}
+          interval={interval}
+          spendings={spendings}
+        />
+      );
+    },
+  });
 }
