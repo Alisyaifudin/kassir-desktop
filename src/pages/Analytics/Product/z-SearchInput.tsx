@@ -1,10 +1,13 @@
 import { Input } from "~/components/ui/input";
 import { useQuery } from "./use-query";
+import { useState } from "react";
 
 export function SearchInput() {
-  const [query, setQuery] = useQuery();
+  const [querySearch, setQuerySearch] = useQuery();
+  const [query, setQuery] = useState(querySearch);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.currentTarget.value);
+    setQuerySearch(e.currentTarget.value);
   };
   return (
     <Input

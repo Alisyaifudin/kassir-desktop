@@ -1,4 +1,4 @@
-import { Item } from "~/database/product/get-by-range";
+import { Item } from "~/database-effect/product/get-by-range";
 import { useQuery } from "./use-query";
 import { useItemSearch } from "./use-search";
 import { ProductTable } from "./z-ProductTable";

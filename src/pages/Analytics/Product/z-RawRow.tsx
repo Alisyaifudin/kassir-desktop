@@ -13,7 +13,7 @@ export function RawRow({
     price: number;
     capital: number;
     qty: number;
-    timestamp: number;
+    paidAt: number;
     total: number;
     mode: DB.Mode;
   };
@@ -23,7 +23,7 @@ export function RawRow({
       <TableCell className="font-medium">{i + 1}</TableCell>
       <TableCell></TableCell>
       <TableCell className="text-normal">
-        <button className="cursor-pointer text-start" onClick={clickRecord(item.timestamp)}>
+        <button className="cursor-pointer text-start" onClick={clickRecord(item.paidAt)}>
           {item.name}
         </button>
       </TableCell>

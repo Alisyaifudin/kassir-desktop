@@ -17,7 +17,7 @@ type Prod = {
   mode: DB.Mode;
   items: {
     id: number;
-    timestamp: number;
+    paidAt: number;
     name: string;
     price: number;
     qty: number;
@@ -61,7 +61,7 @@ function SingleRow({
         <div className="flex items-center justify-between h-full">
           <button
             className="cursor-pointer text-start"
-            onClick={clickRecord(item.items[0].timestamp)}
+            onClick={clickRecord(item.items[0].paidAt)}
           >
             {item.name}
           </button>
@@ -136,10 +136,10 @@ function MultiRow({
                 {i + 1}.{j + 1}
               </TableCell>
               <TableCell>
-                {formatDate(it.timestamp).split("-").at(-1)} - {formatTime(it.timestamp)}
+                {formatDate(it.paidAt).split("-").at(-1)} - {formatTime(it.paidAt)}
               </TableCell>
               <TableCell className="flex items-center justify-between">
-                <button className="cursor-pointer italic" onClick={clickRecord(it.timestamp)}>
+                <button className="cursor-pointer italic" onClick={clickRecord(it.paidAt)}>
                   {it.name}
                 </button>
               </TableCell>
