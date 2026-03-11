@@ -3,21 +3,21 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
-// @ts-expect-error process is a nodejs global
+// process is a nodejs/bun global
 const host = process.env.TAURI_DEV_HOST;
 
+// react({
+//   babel: {
+//     plugins: ["babel-plugin-react-compiler"],
+//   },
+// }),
 // https://vitejs.dev/config/
-export default defineConfig(async ({ command, mode }) => {
+export default defineConfig(({ command, mode }) => {
   const isDev = command === "serve" || mode === "development";
   return {
     plugins: [
       vanillaExtractPlugin(),
-      react({
-        babel: {
-          plugins: ["babel-plugin-react-compiler"],
-        },
-      }),
-      ,
+      react(),
       tailwindcss(),
       tsconfigPaths(),
       {

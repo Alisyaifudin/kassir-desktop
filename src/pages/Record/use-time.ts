@@ -29,11 +29,15 @@ function getTimeBase(search: URLSearchParams): Temporal.ZonedDateTime {
   return Temporal.Instant.fromEpochMilliseconds(Number(timeStr)).toZonedDateTimeISO(tz);
 }
 
-export function setTime(search: URLSearchParams, time: number) {
-  search.set("time", time.toString());
-}
-
 export function useTime() {
-  const [search] = useSearchParams();
-  return getTime(search);
+  const [search, setSearch] = useSearchParams();
+  const time = getTime(search);
+  function setTime(time: number) {
+    setSearch((old) => {
+      const search = new URLSearchParams(old);
+      search.set("time", time.toString());
+      return search;
+    });
+  }
+  return [time, setTime] as const;
 }

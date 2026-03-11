@@ -6,7 +6,7 @@ import { logOld } from "~/lib/utils";
 import { Suspense } from "react";
 import { TextError } from "~/components/TextError";
 import { Loading, LoadingFull } from "~/components/Loading";
-import { useData } from "./use-data";
+import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
 
 export default function Page() {
@@ -23,7 +23,7 @@ export default function Page() {
 }
 
 function Wrapper() {
-  const res = useData();
+  const res = useGetMethods();
   const [method] = useMethod();
   return Result.match(res, {
     onLoading() {

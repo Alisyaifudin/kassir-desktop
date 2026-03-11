@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database-effect";
 import { log } from "~/lib/log";
-import { revalidate } from "./use-data";
+import { revalidate } from "../../../hooks/use-get-methods";
 import { useMethod } from "./use-method";
 
 export function useNew(onClose: () => void) {

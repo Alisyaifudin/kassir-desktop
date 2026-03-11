@@ -22,7 +22,7 @@ import { db } from "~/database-effect";
 import { Effect, Either } from "effect";
 import { store } from "~/store-effect";
 import { useMicro } from "~/hooks/use-micro";
-import { KEY } from "~/pages/Setting/Method/use-data";
+import { KEY } from "~/hooks/use-get-methods";
 import { basicStore } from "../../use-transaction";
 
 const selectWidth = {

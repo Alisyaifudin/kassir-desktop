@@ -10,32 +10,22 @@ import {
 import { Link, useLocation } from "react-router";
 import { DeleteBtn } from "./DeleteBtn";
 import { Button } from "~/components/ui/button";
-import { capitalize, cn, formatDate, formatTime } from "~/lib/utils";
+import { capitalize, cn } from "~/lib/utils";
 import { Show } from "~/components/Show";
 import { ForEach } from "~/components/ForEach";
 import { Footer } from "./Footer";
-import { css } from "../style.css";
-import { RecordExtra } from "~/database/record-extra/get-by-range";
-import { RecordProduct } from "~/database/record-product/get-by-range";
-import { Record } from "../loader";
-import { useSize } from "~/hooks/use-size";
-import { auth } from "~/lib/auth";
-import { useSetParams } from "../use-params";
+import { Data } from "../use-records";
 import { ToTransaction } from "./ToTransaction";
+import { useUnselect } from "../use-selected";
+import { useUser } from "~/hooks/use-user";
+import { formatDate, formatTime } from "~/lib/date";
 
-type RecordListProps = {
-  extras: RecordExtra[];
-  products: RecordProduct[];
-  record: Record;
-};
-
-export function Detail({ extras, products, record }: RecordListProps) {
-  const size = useSize();
-  const unselect = useSetParams().unselect;
+export function Detail({ extras, products, record }: Data) {
+  const unselect = useUnselect();
   return (
     <Show
       when={products.length !== 0 || extras.length !== 0}
-      fallback={<DeleteBtn timestamp={record.timestamp} />}
+      fallback={<DeleteBtn mode={record.mode} products={products} timestamp={record.timestamp} />}
     >
       <div className="flex flex-col gap-2 overflow-auto">
         <div className="flex items-center gap-2 justify-between">
@@ -47,7 +37,7 @@ export function Detail({ extras, products, record }: RecordListProps) {
           </div>
           <div className="flex items-center gap-5">
             <p>
-              {formatTime(record.timestamp, "long")}, {formatDate(record.timestamp, "long")}
+              {formatTime(record.paidAt, "long")}, {formatDate(record.paidAt, "long")}
             </p>
             {record.cashier ? <p>Kasir: {capitalize(record.cashier)}</p> : null}
           </div>
@@ -57,11 +47,11 @@ export function Detail({ extras, products, record }: RecordListProps) {
             <Table className="text-normal">
               <TableHeader>
                 <TableRow>
-                  <TableHead className={css.summary[size].small}>No</TableHead>
+                  <TableHead className="w-[57px] small:w-[41px]">No</TableHead>
                   <TableHead>Nama</TableHead>
-                  <TableHead className={cn("text-end", css.summary[size].big)}>Satuan</TableHead>
-                  <TableHead className={css.summary[size].small}>Qty</TableHead>
-                  <TableHead className={cn("text-end", css.summary[size].big)}>Total</TableHead>
+                  <TableHead className={cn("text-end w-[160px] small:w-[100px]")}>Satuan</TableHead>
+                  <TableHead className="w-[57px] small:w-[41px]">Qty</TableHead>
+                  <TableHead className={cn("text-end  w-[160px] small:w-[100px]")}>Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="border-b">
@@ -99,21 +89,21 @@ export function Detail({ extras, products, record }: RecordListProps) {
             <p>{record.note}</p>
           </div>
         </Show>
-        <NavBtn timestamp={record.timestamp} />
+        <FooterBtn data={{ extras, products, record }} />
       </div>
     </Show>
   );
 }
-function NavBtn({ timestamp }: { timestamp: number }) {
+function FooterBtn({ data }: { data: Data }) {
   const { pathname, search } = useLocation();
   const path = encodeURIComponent(`${pathname}${search}`);
-  const role = auth.user().role;
+  const role = useUser().role;
   return (
     <div className="pt-20 flex justify-between w-full">
       <Button asChild>
         <Link
           to={{
-            pathname: `/records/${timestamp}`,
+            pathname: `/records/${data.record.timestamp}`,
             search: `?url_back=${path}`,
           }}
         >
@@ -121,9 +111,13 @@ function NavBtn({ timestamp }: { timestamp: number }) {
         </Link>
       </Button>
       <div className="flex items-center gap-3">
-        <ToTransaction timestamp={timestamp} />
+        <ToTransaction data={data} />
         <Show when={role === "admin"}>
-          <DeleteBtn timestamp={timestamp} />
+          <DeleteBtn
+            timestamp={data.record.timestamp}
+            mode={data.record.mode}
+            products={data.products}
+          />
         </Show>
       </div>
     </div>

@@ -1,17 +1,18 @@
-import { Form } from "react-router";
 import { Button } from "~/components/ui/button";
-import { useAction } from "~/hooks/use-action";
-import { Action } from "../action";
 import { TextError } from "~/components/TextError";
+import { Data } from "../use-records";
+import { useToTransaction } from "./use-to-transaction";
+import { Spinner } from "~/components/Spinner";
 
-export function ToTransaction({ timestamp }: { timestamp: number }) {
-  const error = useAction<Action>()("to-transaction");
+export function ToTransaction({ data }: { data: Data }) {
+  const { error, loading, handleClick } = useToTransaction(data);
   return (
-    <Form method="POST" className="flex flex-col gap-1">
-      <input type="hidden" name="action" value="to-transaction"></input>
-      <input type="hidden" name="timestamp" value={timestamp}></input>
-      <Button variant="secondary">Jadikan Transaksi</Button>
+    <div className="flex flex-col gap-1">
+      <Button onClick={handleClick} variant="secondary">
+        Jadikan Transaksi
+        <Spinner when={loading} />
+      </Button>
       <TextError>{error}</TextError>
-    </Form>
+    </div>
   );
 }

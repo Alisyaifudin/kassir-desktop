@@ -7,12 +7,16 @@ function getMode(search: URLSearchParams) {
   return mode;
 }
 
-export function setMode(search: URLSearchParams, mode: "sell" | "buy") {
-  search.set("mode", mode);
-  search.delete("selected");
-}
-
 export function useMode() {
-  const [search] = useSearchParams();
-  return getMode(search);
+  const [search, setSearch] = useSearchParams();
+  const mode = getMode(search);
+  function setMode(mode: DB.Mode) {
+    setSearch((old) => {
+      const search = new URLSearchParams(old);
+      search.set("mode", mode);
+      search.delete("selected");
+      return search;
+    });
+  }
+  return [mode, setMode] as const;
 }

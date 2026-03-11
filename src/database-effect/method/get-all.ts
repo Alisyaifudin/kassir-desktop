@@ -3,6 +3,7 @@ import { Effect, pipe } from "effect";
 
 export type MethodKind = Exclude<DB.MethodEnum, "cash">;
 export type Method = { id: number; kind: MethodKind; name?: string };
+export type MethodFull = { id: number; kind: DB.MethodEnum; name?: string };
 
 type Output = {
   method_id: number;

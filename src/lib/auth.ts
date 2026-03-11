@@ -7,7 +7,7 @@ export type User = {
   role: "admin" | "user";
 };
 
-let _user: undefined | User = undefined;
+export let _user: undefined | User = undefined;
 
 const userSchema = z.object({
   name: z.string(),
@@ -79,53 +79,6 @@ export const auth = {
     }
   },
 
-  // export async function decode(token: string): Promise<
-  //   Result<
-  //     "Invalid" | "Failed to encode" | "Expired",
-  //     {
-  //       user: User;
-  //       token?: string;
-  //     }
-  //   >
-  // > {
-  //   const now = Date.now() / 1000;
-  //   // try {
-  //   //   var tokenRaw = await store.core.get("token");
-  //   // } catch (error) {
-  //   //   log.error(JSON.stringify(error));
-  //   //   log.error("Failed to get token");
-  //   //   return err("Aplikasi bermasalah");
-  //   // }
-  //   // const token = z.string().nullish().catch(null).parse(tokenRaw);
-  //   // if (token === undefined || token === null) return ok(null);
-  //   const [errMsg, claims] = await jwt.decode(token);
-  //   let nextToken: undefined | string = undefined;
-  //   if (errMsg) {
-  //     // store.core.delete("token");
-  //     return err(errMsg);
-  //   }
-  //   if (claims.exp < now) return err("Expired");
-  //   if (claims.exp - now < 1 * 24 * 3600) {
-  //     const [errToken, token] = await jwt.encode(claims);
-  //     if (errToken) {
-  //       log.error("Failed encode token");
-  //       return err("Failed to encode");
-  //     }
-  //     nextToken = token;
-  //     // store.core.set("token", token);
-  //   }
-  //   return ok({ user: claims, token: nextToken });
-  // }
-
-  // export async function logout(store: Store): Promise<"Aplikasi bermasalah" | null> {
-  //   try {
-  //     await store.core.delete("token");
-  //   } catch (error) {
-  //     log.error(String(error));
-  //     return "Aplikasi bermasalah";
-  //   }
-  //   return null;
-  // }
 };
 
 export type UserClaim = {

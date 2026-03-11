@@ -1,13 +1,9 @@
 import { Show } from "~/components/Show";
-import { RecordExtra } from "~/database/record-extra/get-by-range";
-import { useSize } from "~/hooks/use-size";
-import { cn } from "~/lib/utils";
-import { css } from "../style.css";
+import type { RecordExtra } from "~/database-effect/record-extra/get-by-range";
 
 export function Extra({ extra }: { extra: RecordExtra }) {
-  const size = useSize();
   return (
-    <div className={cn("grid", css.footer[size])}>
+    <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
       <p className="text-end">
         {extra.name} <Show when={extra.kind === "percent"}>{extra.value}%</Show>
       </p>{" "}

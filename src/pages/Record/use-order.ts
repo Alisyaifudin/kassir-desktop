@@ -20,12 +20,16 @@ function getOrder(search: URLSearchParams): {
   return parsed.data;
 }
 
-export function setOrder(search: URLSearchParams, order: "total" | "time", sort: "asc" | "desc") {
-  search.set("order", order);
-  search.set("sort", sort);
-}
-
 export function useOrder() {
-  const [search] = useSearchParams();
-  return getOrder(search);
+  const [search, setSearch] = useSearchParams();
+  const order = getOrder(search);
+  function setOrder(order: "total" | "time", sort: "asc" | "desc") {
+    setSearch((old) => {
+      const search = new URLSearchParams(old);
+      search.set("order", order);
+      search.set("sort", sort);
+      return search;
+    });
+  }
+  return [order, setOrder] as const;
 }

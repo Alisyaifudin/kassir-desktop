@@ -9,28 +9,38 @@ import {
 import { SlidersHorizontal, X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
 import { FilterBtn } from "./FilterBtn";
-import { DefaultError, METHOD_NAMES, ResultOld } from "~/lib/utils";
 import { Show } from "~/components/Show";
-import { Method } from "~/database/method/get-all";
-import { useParams, useSetParams } from "../use-params";
-import { use } from "react";
+import { MethodFull } from "~/database-effect/method/get-all";
 import { TextError } from "~/components/TextError";
+import { useGetMethods } from "~/hooks/use-get-methods";
+import { Result } from "~/lib/result";
+import { Loading } from "~/components/Loading";
+import { log } from "~/lib/log";
+import { DEFAULT_METHODS, METHOD_NAMES } from "~/lib/constants";
+import { setMethods, useMethod, useMethods } from "../use-method";
 
-export function Filter({
-  methods: promise,
-}: {
-  methods: Promise<ResultOld<DefaultError, Method[]>>;
-}) {
-  const [errMsg, methods] = use(promise);
-  if (errMsg !== null) {
-    return <TextError>{errMsg}</TextError>;
-  }
-  return <Wrapper methods={methods} />;
+export function Filter() {
+  const res = useGetMethods((methods) => {
+    const combined = [...methods, ...DEFAULT_METHODS];
+    setMethods(combined);
+  });
+  return Result.match(res, {
+    onLoading() {
+      return <Loading />;
+    },
+    onError(error) {
+      log.error(error.e);
+      return <TextError>{error.e.message}</TextError>;
+    },
+    onSuccess() {
+      return <Wrapper />;
+    },
+  });
 }
 
-function Wrapper({ methods }: { methods: Method[] }) {
-  const method = useParams().method(methods);
-  const setMethod = useSetParams().method;
+function Wrapper() {
+  const [method, setMethod] = useMethod();
+  const methods = useMethods();
   const handleClick = (id: number) => {
     setMethod(id);
   };
@@ -79,7 +89,7 @@ function Wrapper({ methods }: { methods: Method[] }) {
   );
 }
 
-function groupMethods(methods: Method[]): { top: Method; options: Method[] }[] {
+function groupMethods(methods: MethodFull[]): { top: MethodFull; options: MethodFull[] }[] {
   return [
     filterMethod("cash", methods),
     filterMethod("transfer", methods),
@@ -87,7 +97,7 @@ function groupMethods(methods: Method[]): { top: Method; options: Method[] }[] {
     filterMethod("qris", methods),
   ];
 }
-function filterMethod(name: DB.MethodEnum, methods: Method[]) {
+function filterMethod(name: DB.MethodEnum, methods: MethodFull[]) {
   const top = methods.find((m) => m.kind === name && m.name === undefined);
   if (top === undefined) throw new Error("No " + name);
   const options = methods.filter((m) => m.kind === name && m.name !== undefined);

@@ -9,16 +9,26 @@ import {
 } from "~/components/ui/dialog";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
-import { Form } from "react-router";
 import { Spinner } from "~/components/Spinner";
-import { useLoading } from "~/hooks/use-loading";
-import { useAction } from "~/hooks/use-action";
-import { Action } from "../action";
+import { useDelete } from "./use-delete";
+import { Data } from "../use-records";
 
-export function DeleteBtn({ timestamp }: { timestamp: number }) {
+export function DeleteBtn({
+  timestamp,
+  mode,
+  products,
+}: {
+  timestamp: number;
+  mode: DB.Mode;
+  products: Data["products"];
+}) {
   const [open, setOpen] = useState(false);
-  const loading = useLoading();
-  const error = useAction<Action>()("delete");
+  const { error, loading, handleDelete } = useDelete({
+    timestamp,
+    mode,
+    products,
+    onClose: () => setOpen(false),
+  });
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild variant="destructive">
@@ -31,13 +41,9 @@ export function DeleteBtn({ timestamp }: { timestamp: number }) {
             <Button asChild>
               <DialogClose>Batal</DialogClose>
             </Button>
-            <Form method="POST">
-              <input type="hidden" name="action" value="delete"></input>
-              <input type="hidden" name="timestamp" value={timestamp}></input>
-              <Button variant="destructive">
-                Hapus <Spinner when={loading} />
-              </Button>
-            </Form>
+            <Button onClick={handleDelete} variant="destructive">
+              Hapus <Spinner when={loading} />
+            </Button>
           </div>
           <TextError>{error}</TextError>
         </DialogHeader>

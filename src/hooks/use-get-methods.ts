@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { db } from "~/database-effect";
+import { Method } from "~/database-effect/method/get-all";
 import { Result } from "~/lib/result";
 import { store } from "~/store-effect";
 
@@ -12,9 +13,14 @@ function loader() {
 
 const KEY = "methods";
 
-export function useData() {
+export function useGetMethods(cb?: (methods: Method[]) => void) {
   const res = Result.use({
-    fn: () => loader(),
+    fn: () =>
+      loader().pipe(
+        Effect.tap(([methods]) => {
+          cb?.(methods);
+        }),
+      ),
     key: KEY,
   });
   return res;

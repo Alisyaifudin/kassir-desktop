@@ -6,25 +6,22 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { capitalize, cn, formatTime } from "~/lib/utils";
+import { capitalize, cn } from "~/lib/utils";
 import { ForEach } from "~/components/ForEach";
-import { css } from "../style.css";
-import { Record } from "../loader";
-import { useParams, useSetParams } from "../use-params";
-import { useSize } from "~/hooks/use-size";
+import { Record } from "../use-records";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import { useCallback } from "react";
+import { formatTime } from "~/lib/date";
+import { useSelected } from "../use-selected";
+import { useOrder } from "../use-order";
 
 type ListProps = {
   records: Record[];
 };
 
 export function List({ records }: ListProps) {
-  const size = useSize();
-  const selected = useParams().selected;
-  const setSelected = useSetParams().selected;
-  const { order, sort } = useParams().order;
-  const setOrder = useSetParams().order;
+  const [selected, setSelected] = useSelected();
+  const [{ order, sort }, setOrder] = useOrder();
   const handleClickSort = useCallback(
     (o: "time" | "total") => {
       let s = sort;
@@ -33,12 +30,12 @@ export function List({ records }: ListProps) {
       }
       setOrder(o, s);
     },
-    [order, sort]
+    [order, sort, setOrder],
   );
   const sign = sort === "asc" ? 1 : -1;
   switch (order) {
     case "time":
-      records.sort((a, b) => sign * (a.timestamp - b.timestamp));
+      records.sort((a, b) => sign * (a.paidAt - b.paidAt));
       break;
     case "total":
       records.sort((a, b) => sign * (a.grandTotal - b.grandTotal));
@@ -48,9 +45,9 @@ export function List({ records }: ListProps) {
     <Table className="text-normal">
       <TableHeader>
         <TableRow>
-          <TableHead className={css.recordGrid[size].no}>No</TableHead>
-          <TableHead className={cn("text-center", css.recordGrid[size].cashier)}>Kasir</TableHead>
-          <TableHead className={cn(css.recordGrid[size].time)}>
+          <TableHead className="w-[30px] small:w-[10px]">No</TableHead>
+          <TableHead className={cn("text-center w-[150px] small:w-[90px]")}>Kasir</TableHead>
+          <TableHead className="w-[120px] small:w-[93px]">
             <SortBtn
               onClick={() => handleClickSort("time")}
               sort={order === "time" ? sort : undefined}
@@ -74,15 +71,15 @@ export function List({ records }: ListProps) {
         <ForEach items={records}>
           {(record, i) => (
             <TableRow
-              onClick={() => setSelected(record.timestamp, selected)}
+              onClick={() => setSelected(record.timestamp)}
               className={cn(
                 { "bg-sky-200 hover:bg-sky-100": selected === record.timestamp },
-                { "bg-red-300": record.isCredit }
+                { "bg-red-300": record.isCredit },
               )}
             >
               <TableCell>{i + 1}</TableCell>
               <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
-              <TableCell className="text-center">{formatTime(record.timestamp)}</TableCell>
+              <TableCell className="text-center">{formatTime(record.paidAt)}</TableCell>
               <TableCell className="text-right">
                 {record.grandTotal.toLocaleString("id-ID")}
               </TableCell>

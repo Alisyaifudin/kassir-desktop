@@ -1,27 +1,21 @@
 import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
-import { DefaultError, formatDate, ResultOld } from "~/lib/utils";
 import { Filter } from "./FilterDialog";
 import { SearchBars } from "./SearchBars";
 import { ModeTab } from "./ModeTab";
-import { useParams, useSetParams } from "../use-params";
-import { Method } from "~/database/method/get-all";
-import { Suspense } from "react";
-import { Loading } from "~/components/Loading";
 import { useNavigate } from "react-router";
+import { formatDate } from "~/lib/date";
+import { useTime } from "../use-time";
 
-export function Header({ methods }: { methods: Promise<ResultOld<DefaultError, Method[]>> }) {
-  const { time, yesterday, tomorrow } = useParams().time;
-  const setTime = useSetParams().time;
+export function Header() {
+  const [{ yesterday, time, tomorrow }, setTime] = useTime();
   const navigate = useNavigate();
   return (
     <div className="flex gap-2 items-center w-full justify-between">
       <div className="flex gap-1 items-center">
         <ModeTab />
-        <Suspense fallback={<Loading />}>
-          <Filter methods={methods} />
-        </Suspense>
+        <Filter />
       </div>
       <SearchBars />
       <Button

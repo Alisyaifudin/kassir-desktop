@@ -1,15 +1,22 @@
 import { List } from "./List";
-import { Data } from "../loader";
-import { useParams } from "../use-params";
+import { Data } from "../use-records";
 import Decimal from "decimal.js";
-import { METHOD_BASE_KIND } from "~/lib/utils";
+import { METHOD_BASE_KIND } from "~/lib/constants";
+import { useMode } from "../use-mode";
+import { useMethod } from "../use-method";
+import { useQuery } from "../use-query";
+import { useMemo } from "react";
 
 export function Record({ records }: { records: Data[] }) {
-  const mode = useParams().mode;
-  let filtered = records.filter((r) => r.record.mode === mode);
-  const methodId = useParams().methodId;
-  const query = useParams().query;
-  filtered = filterRecords(filtered, methodId, query);
+  const [mode] = useMode();
+  const [query] = useQuery();
+  const [method] = useMethod();
+  const methodId = method?.id ?? null;
+  const filtered = useMemo(() => {
+    let filtered = records.filter((r) => r.record.mode === mode);
+    filtered = filterRecords(filtered, methodId, query);
+    return filtered;
+  }, [mode, records, query, methodId]);
   const total = calcTotal(filtered);
   return (
     <div className="flex flex-col gap-1 overflow-hidden">
@@ -52,21 +59,4 @@ function filterRecords(records: Data[], methodId: number | null, query: string):
     records = f;
   }
   return records;
-}
-
-{
-  /* <div className="flex items-center gap-1">
-				<Label>Urutkan</Label>
-
-				<select
-					value={order}
-					onChange={(e) => {
-						setOrder(e.currentTarget.value as any);
-					}}
-					className="text-2xl p-1 border border-border rounded-md"
-				>
-					<option value="time">Waktu</option>
-					<option value="total">Total</option>
-				</select>
-			</div> */
 }

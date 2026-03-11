@@ -3,12 +3,12 @@ import { NavLink } from "./z-NavLink";
 import { Show } from "~/components/Show";
 import { SettingLink } from "./z-SettingLink";
 import { Refresh } from "./z-Refresh";
-import { auth } from "~/lib/auth";
 import { memo, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { showShortcut } from "./use-shortcut";
 import { Button } from "~/components/ui/button";
 import { Home } from "lucide-react";
+import { useUser } from "~/hooks/use-user";
 
 const linkMap = {
   0: "/",
@@ -22,7 +22,7 @@ const linkMap = {
 let press = false;
 
 export const NavList = memo(() => {
-  const role = auth.user().role;
+  const role = useUser().role;
   const navigate = useNavigate();
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {

@@ -17,7 +17,7 @@ export const record = {
     // mode: getMode,
   },
   // add,
-  // delByTimestamp,
+  delByTimestamp,
   // update: {
   //   toCredit: updateToCredit,
   //   payCredit: updatePayCredit,

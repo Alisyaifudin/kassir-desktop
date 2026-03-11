@@ -1,10 +1,9 @@
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
-import { useParams, useSetParams } from "../use-params";
+import { useMode } from "../use-mode";
 
 export function ModeTab() {
-  const mode = useParams().mode;
-  const setMode = useSetParams().mode;
+  const [mode, setMode] = useMode();
   return (
     <div className="flex items-center gap-1 px-1 rounded-lg bg-muted">
       <Button

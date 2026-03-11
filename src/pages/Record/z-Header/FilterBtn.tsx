@@ -1,6 +1,6 @@
 import { Button } from "~/components/ui/button";
-import { Method } from "~/database/method/get-all";
-import { METHOD_NAMES } from "~/lib/utils";
+import { MethodFull } from "~/database-effect/method/get-all";
+import { METHOD_NAMES } from "~/lib/constants";
 
 export function FilterBtn({
   selected,
@@ -10,8 +10,8 @@ export function FilterBtn({
 }: {
   onClick: (id: number) => void;
   selected: number | null;
-  top: Method;
-  options: Method[];
+  top: MethodFull;
+  options: MethodFull[];
 }) {
   return (
     <div className="flex flex-col gap-2">

@@ -1,4 +1,5 @@
 import { Temporal } from "temporal-polyfill";
+import { MethodFull } from "~/database-effect/method/get-all";
 
 export const version = "5.1.0";
 
@@ -30,6 +31,24 @@ export const DEFAULT_METHOD = {
   name: null,
 } as const;
 
+export const DEFAULT_METHODS: MethodFull[] = [
+  {
+    id: 1000,
+    kind: "cash",
+  },
+  {
+    id: 1001,
+    kind: "transfer",
+  },
+  {
+    id: 1002,
+    kind: "debit",
+  },
+  {
+    id: 1003,
+    kind: "qris",
+  },
+];
 export const DEBOUNCE_DELAY = 200;
 
 export const tz = Temporal.Now.timeZoneId();

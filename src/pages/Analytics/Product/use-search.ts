@@ -18,6 +18,5 @@ export const useItemSearch = (all: Item[], query: string) => {
     const res = fuzzy(query);
     return res.map((r) => r.item);
   }, [query, fuzzy, all]);
-  console.log(">>>", query, "<<<", searched);
   return searched;
 };
