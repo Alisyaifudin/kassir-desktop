@@ -3,7 +3,7 @@ import { route as itemRoute } from "./Record-Item";
 import { lazy } from "react";
 import { loader } from "./loader";
 import { action } from "./action";
-import { searchRoute } from "./Search";
+import { searchRoute } from "./z-Search";
 
 const Page = lazy(() => import("./page"));
 

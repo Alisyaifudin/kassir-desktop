@@ -1,5 +1,5 @@
-import { Header } from "./Header";
-import { Record } from "./Record";
+import { Header } from "./z-Header";
+import { Record } from "./z-Record";
 import { useLoaderData } from "react-router";
 import { Data, Loader } from "./loader";
 import { cn, DefaultError, ResultOld } from "~/lib/utils";
@@ -7,7 +7,7 @@ import { Suspense, use } from "react";
 import { TextError } from "~/components/TextError";
 import { LoadingFull } from "~/components/Loading";
 import { css } from "./style.css";
-import { Detail } from "./Detail";
+import { Detail } from "./z-Detail";
 import { Show } from "~/components/Show";
 import { useSize } from "~/hooks/use-size";
 import { useParams } from "./use-params";
