@@ -1,33 +1,38 @@
-import Decimal from "decimal.js";
+import { Effect } from "effect";
 import { useEffect } from "react";
-import { logOld } from "~/lib/utils";
+import { toast } from "sonner";
+import { log } from "~/lib/log";
 import { extrasStore } from "~/pages/Shop/store/extra";
-import { productsStore } from "~/pages/shop/Right/Product/use-products";
-import { subStore } from "~/pages/shop/Right/use-subtotal";
-import { basicStore, customerStore, manualStore } from "~/pages/Shop/store/transaction";
-import { tx } from "~/transaction";
+import { basicStore, customerStore, manualStore } from "~/pages/shop/use-transaction";
+import { tx } from "~/transaction-effect";
 
-export function useClearTab(tab: number | null) {
+export function useClearTab(tab?: number) {
   useEffect(() => {
-    if (tab === null) return;
-    handleTab(tab).then((errMsg) => {
-      clear();
-      if (errMsg === null) return;
-      logOld.error(errMsg);
-    });
-  }, []);
+    if (tab === undefined) return;
+    Effect.runPromise(program(tab));
+  }, [tab]);
 }
 
-async function handleTab(tab: number) {
-  const errMsg = await tx.transaction.del(tab);
-  if (errMsg !== null) return errMsg;
-  const [errTab, tabs] = await tx.transaction.get.all();
-  if (errTab !== null) return errTab;
-  if (tabs.length === 0) {
-    const [errNew] = await tx.transaction.addNew();
-    if (errNew !== null) return errNew;
-  }
-  return null;
+function program(tab: number) {
+  return Effect.gen(function* () {
+    yield* tx.transaction.delete(tab);
+    clear();
+    const tabs = yield* tx.transaction.get.all();
+    if (tabs.length === 0) {
+      yield* tx.transaction.add.new();
+    }
+  }).pipe(
+    Effect.catchTag("TooMany", (e) => {
+      log.error(e.msg);
+      toast.error("Terlalu banyak tab");
+      return Effect.void;
+    }),
+    Effect.catchTag("TxError", (e) => {
+      log.error(e.e);
+      toast.error(e.e.message);
+      return Effect.void;
+    }),
+  );
 }
 
 function clear() {
@@ -59,7 +64,5 @@ function clear() {
     name: "",
     phone: "",
   });
-  subStore.set(new Decimal(0));
-  productsStore.trigger.clear();
   extrasStore.trigger.clear();
 }

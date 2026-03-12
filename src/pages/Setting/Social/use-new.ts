@@ -5,6 +5,7 @@ import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
+import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
 const schema = z.object({
   name: z.string().nonempty("Harus ada"),
@@ -25,6 +26,7 @@ export function useNew(onClose: () => void) {
       setError(errMsg);
       if (errMsg === null) {
         revalidate();
+        revalidateInfo();
         onClose();
       }
     },

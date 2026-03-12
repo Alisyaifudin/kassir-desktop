@@ -10,14 +10,14 @@ import { updateProductId } from "./update-product-id";
 export const recordProduct = {
   get: {
     byRange: getByRange,
-    // byTimestamp: getByTimestamp,
+    byTimestamp: getByTimestamp,
     // byTimestampFull: getByTimestampFull,
     // product: getProduct,
     // lastId: getLastId,
     // history: getHistory,
   },
   // add,
-  // update: {
-  //   productId: updateProductId,
-  // },
+  update: {
+    productId: updateProductId,
+  },
 };

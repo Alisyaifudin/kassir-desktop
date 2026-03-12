@@ -7,6 +7,7 @@ import { log } from "~/lib/log";
 import { useAppForm } from "../../../z-ProductForm";
 import { createProductOptions } from "../../../util-product-options";
 import { useBackUrl } from "~/hooks/use-back-url";
+import { revalidateProducts } from "../../../../../../hooks/use-get-products";
 
 export function useUpdate(product: Product) {
   const [error, setError] = useState<null | string>(null);
@@ -20,6 +21,7 @@ export function useUpdate(product: Product) {
       onSuccess() {
         setError(null);
         navigate(backUrl);
+        revalidateProducts();
       },
       product,
       program: (p) => program({ ...p, id: product.id }),

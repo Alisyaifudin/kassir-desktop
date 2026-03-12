@@ -47,7 +47,7 @@ function filterRecords(records: Data[], methodId: number | null, query: string):
       records = records.filter((r) => r.record.method.id === methodId);
     }
   }
-  let q = query.trim().toLowerCase();
+  const q = query.trim().toLowerCase();
   if (q !== "") {
     const f: Data[] = [];
     for (const r of records) {

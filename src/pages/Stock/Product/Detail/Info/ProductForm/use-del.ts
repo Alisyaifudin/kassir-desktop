@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { db } from "~/database-effect";
 import { useBackUrl } from "~/hooks/use-back-url";
 import { log } from "~/lib/log";
+import { revalidateProducts } from "../../../../../../hooks/use-get-products";
 
 export function useDel(id: number) {
   const [error, setError] = useState<null | string>(null);
@@ -15,7 +16,10 @@ export function useDel(id: number) {
     const errMsg = await Effect.runPromise(program(id));
     setLoading(false);
     setError(errMsg);
-    if (errMsg === null) navigate(backUrl);
+    if (errMsg === null) {
+      navigate(backUrl);
+      revalidateProducts();
+    }
   }
   return { error, loading, handleDelete };
 }

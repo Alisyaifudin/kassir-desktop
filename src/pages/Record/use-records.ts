@@ -36,6 +36,10 @@ export function useRecords() {
   return res;
 }
 
+export function revalidate() {
+  Result.revalidate(KEY);
+}
+
 function loader(timestamp: number) {
   return Effect.gen(function* () {
     const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);

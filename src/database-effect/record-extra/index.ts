@@ -5,7 +5,7 @@ import { getByTimestamp } from "./get-by-timestamp";
 export const recordExtra = {
   get: {
     byRange: getByRange,
-    // byTimestamp: getByTimestamp,
+    byTimestamp: getByTimestamp,
   },
   // add,
 };

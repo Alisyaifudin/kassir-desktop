@@ -3,6 +3,7 @@ import { useState } from "react";
 import { db } from "~/database-effect";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
+import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
 export function useDelete(id: number, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
@@ -17,6 +18,7 @@ export function useDelete(id: number, onClose: () => void) {
     if (errMsg === null) {
       onClose();
       revalidate();
+      revalidateInfo();
     }
   }
   return { error, loading, handleSubmit };

@@ -1,5 +1,5 @@
 import { Result } from "~/lib/result";
-import { useData } from "./use-data";
+import { useGetProducts } from "../../../hooks/use-get-products";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { ProductPanel } from "./z-ProductPanel";
@@ -25,7 +25,7 @@ export function ProductEntries() {
 }
 
 export function Loader() {
-  const res = useData();
+  const res = useGetProducts();
   return Result.match(res, {
     onLoading() {
       return <Loading />;

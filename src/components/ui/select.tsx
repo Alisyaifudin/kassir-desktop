@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
 import { Show } from "../Show";
@@ -90,8 +90,12 @@ function SelectItem({
   className,
   children,
   kbd,
+  showCheck = false,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item> & { kbd?: React.ReactNode }) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  kbd?: React.ReactNode;
+  showCheck?: boolean;
+}) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -103,6 +107,13 @@ function SelectItem({
     >
       <Show value={kbd}>
         {(kbd) => <span className="absolute right-2 flex items-center justify-center">{kbd}</span>}
+      </Show>
+      <Show when={showCheck}>
+        <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
+          <SelectPrimitive.ItemIndicator>
+            <CheckIcon className="pointer-events-none" />
+          </SelectPrimitive.ItemIndicator>
+        </span>
       </Show>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>

@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router";
 export function NotFound() {
   const navigate = useNavigate();
   return (
-    <div className="flex h-[calc(100vh-54x)] w-full flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors px-4">
+    <div className="flex flex-1 w-full flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors px-4">
       <div className="text-center space-y-6 max-w-md">
         <div className="relative flex justify-center">
           <span className="text-[10rem] font-black text-zinc-200 dark:text-zinc-900 leading-none select-none">

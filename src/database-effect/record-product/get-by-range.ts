@@ -30,16 +30,20 @@ type Output = DB.RecordProduct & {
 
 export function getByRange(start: number, end: number) {
   return Effect.gen(function* () {
+    console.log("starttttt");
     const rows = yield* DB.try((db) =>
       db.select<Output[]>(
-        `SELECT timestamp, product_id, record_products.record_product_id, record_product_name, record_product_price,
+        `SELECT record_products.timestamp, product_id, record_products.record_product_id, record_product_name, record_product_price,
         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
         discount_id, discount_kind, discount_value, discount_eff
-        FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
-        WHERE timestamp BETWEEN $1 AND $2 ORDER BY discount_id`,
+        FROM record_products 
+        LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
+        INNER JOIN records ON records.timestamp = record_products.timestamp
+        WHERE record_paid_at BETWEEN $1 AND $2 ORDER BY discount_id`,
         [start, end],
       ),
     );
+    console.log("halooooo");
     const items: Map<number, RecordProduct> = new Map();
     for (const row of rows) {
       const discount = collectDiscount(

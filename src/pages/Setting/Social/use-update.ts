@@ -6,6 +6,7 @@ import { revalidate } from "./use-data";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
 import { Social } from "~/database-effect/social/get-all";
+import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
 const schema = z.object({
   name: z.string().nonempty("Harus ada"),
@@ -27,6 +28,7 @@ export function useUpdate({ id, name, value }: Social) {
       setError(errMsg);
       if (errMsg === null) {
         revalidate();
+        revalidateInfo();
       }
     },
   });

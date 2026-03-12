@@ -15,11 +15,11 @@ export function useFilterProducts(all: Product[]) {
   if (attention) {
     filtered = filtered.filter((s) => s.capital >= s.price);
   }
-  let sorted = sorting(filtered, sortBy, sortDir);
+  const sorted = sorting(filtered, sortBy, sortDir);
   const search = useProductSearch(sorted);
   if (query.trim() === "") {
     return filtered;
   }
-  let p = search(query.trim());
+  const p = search(query.trim());
   return p.map((p) => p.item);
 }

@@ -37,7 +37,8 @@ function Loader() {
 
 function Wrapper({ records }: { records: Data[] }) {
   const [selected] = useSelected();
-  const record = selected === null ? undefined : records.find((r) => r.record.paidAt === selected);
+  const record =
+    selected === null ? undefined : records.find((r) => r.record.timestamp === selected);
   return (
     <div
       className={cn(

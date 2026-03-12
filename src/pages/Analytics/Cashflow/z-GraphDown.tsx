@@ -62,7 +62,7 @@ function BarWithDebt({
   };
   return (
     <Link
-      to={`/records/${timestamp}`}
+      to={`/records?time=${timestamp}&mode=buy`}
       className="h-full"
       style={{ width: `${100 / (length || 0)}%` }}
     >

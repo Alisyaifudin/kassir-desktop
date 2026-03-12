@@ -6,6 +6,7 @@ import { log } from "~/lib/log";
 import { useAppForm } from "../z-ProductForm";
 import { createProductOptions } from "../util-product-options";
 import { useBackUrl } from "~/hooks/use-back-url";
+import { revalidateProducts } from "../../../../hooks/use-get-products";
 
 export function useSubmit() {
   const [error, setError] = useState<null | string>(null);
@@ -19,6 +20,7 @@ export function useSubmit() {
       onSuccess() {
         setError(null);
         navigate(backUrl);
+        revalidateProducts();
       },
       program,
     }),

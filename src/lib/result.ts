@@ -78,6 +78,9 @@ export const Result = {
         query.result = result;
         setVersion((v) => v + 1);
       });
+      return () => {
+        cancelled = true;
+      };
     }, deps);
 
     useEffect(() => {
@@ -95,7 +98,7 @@ export const Result = {
         cancelled = true;
         if (revalidateOn.unmount) cache.delete(key);
       };
-    }, [key, query]);
+    }, [key, query, revalidateOn.unmount]);
 
     return query.result;
   },

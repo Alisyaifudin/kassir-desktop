@@ -4,6 +4,7 @@ import { MethodFull } from "~/database-effect/method/get-all";
 export const version = "5.1.0";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
+export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
 export const METHOD_NAMES = {
   cash: "Tunai",
   transfer: "Transfer",

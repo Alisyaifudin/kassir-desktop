@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { Data } from "../use-records";
+import { Data, revalidate } from "../use-records";
 import { db } from "~/database-effect";
 import { log } from "~/lib/log";
 import { useUnselect } from "../use-selected";
@@ -27,6 +27,7 @@ export function useDelete({
     if (errMsg === null) {
       unselect();
       onClose();
+      revalidate();
     }
   }
   return { error, loading, handleDelete };
