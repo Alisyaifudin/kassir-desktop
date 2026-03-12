@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { z } from "zod";
 import { db } from "~/database";
 import { DefaultError, err, integer, NotFound, numeric, ok, ResultOld } from "~/lib/utils";
@@ -6,6 +6,8 @@ import { tx } from "~/transaction";
 import { Extra } from "~/transaction/extra/get-by-tab";
 import { Product } from "~/transaction/product/get-by-tab";
 import { Transaction } from "~/transaction/transaction/get-by-tab";
+import { printReceipt } from "~/lib/printer-effect";
+import { store } from "~/store";
 
 const schema = z.object({
   tab: integer,
@@ -62,8 +64,7 @@ export async function submitAction(formdata: FormData) {
       note,
       pay,
       rounding,
-      subtotal,
-      total,
+      total: grandTotal, // Use grandTotal for the total in record
     }),
     db.recordProduct.get.lastId(),
   ]);
@@ -83,6 +84,72 @@ export async function submitAction(formdata: FormData) {
       };
     }
   }
+
+  // Construct receipt data
+  const receiptLines: string[] = [];
+  receiptLines.push("----------------------------------------");
+  receiptLines.push(`KASIR: ${cashier}`);
+  if (customer.name.trim() !== "") {
+    receiptLines.push(`PELANGGAN: ${customer.name}`);
+  }
+  receiptLines.push("----------------------------------------");
+  receiptLines.push(formatReceiptLine("ITEM", "QTY", "HARGA"));
+  receiptLines.push("----------------------------------------");
+
+  for (const p of products) {
+    receiptLines.push(
+      formatReceiptLine(
+        p.product?.name || "",
+        p.qty.toString(),
+        Number(p.total).toLocaleString("id-ID"),
+      ),
+    );
+  }
+  if (extras.length > 0) {
+    receiptLines.push("----------------------------------------");
+    for (const e of extras) {
+      receiptLines.push(
+        formatReceiptLine(
+          e.name,
+          "",
+          e.kind === "percent" ? `${e.value}%` : Number(e.value).toLocaleString("id-ID"),
+        ),
+      );
+    }
+  }
+  receiptLines.push("----------------------------------------");
+  receiptLines.push(formatReceiptLine("SUBTOTAL", "", Number(subtotal).toLocaleString("id-ID")));
+  if (rounding !== 0) {
+    receiptLines.push(
+      formatReceiptLine("PEMBULATAN", "", Number(rounding).toLocaleString("id-ID")),
+    );
+  }
+  receiptLines.push(
+    formatReceiptLine("GRAND TOTAL", "", Number(grandTotal).toLocaleString("id-ID")),
+  );
+  receiptLines.push(formatReceiptLine("BAYAR", "", Number(pay).toLocaleString("id-ID")));
+  receiptLines.push(
+    formatReceiptLine("KEMBALI", "", Number(pay - grandTotal).toLocaleString("id-ID")),
+  );
+  receiptLines.push("----------------------------------------");
+  receiptLines.push(`Tanggal: ${new Date(timestamp).toLocaleDateString("id-ID")}`);
+  receiptLines.push(`Waktu: ${new Date(timestamp).toLocaleTimeString("id-ID")}`);
+  receiptLines.push("----------------------------------------");
+
+  const receiptData = receiptLines.join("\n");
+
+  // Attempt to print receipt
+  const { defaultPrinter } = store.printer();
+  if (defaultPrinter) {
+    try {
+      console.log(`Attempting to print to ${defaultPrinter}`);
+      await printReceipt(defaultPrinter, receiptData);
+    } catch (printError) {
+      console.error("Failed to print receipt:", printError);
+      // Log the error but don't block the transaction
+    }
+  }
+
   const promises: Promise<DefaultError | NotFound | null>[] = [];
   for (const extra of extras) {
     promises.push(db.recordExtra.add({ timestamp, ...extra }));
@@ -243,4 +310,20 @@ function calcCapitals(
     p.capital = Number(capital.toFixed(fix));
     return p;
   });
+}
+
+function formatReceiptLine(left: string, center: string, right: string): string {
+  const totalWidth = 42; // Adjust based on your printer's column width
+  let line = left;
+
+  const rightPart = right;
+  const centerPart = center;
+
+  const spaceAfterLeft = totalWidth - left.length - rightPart.length - centerPart.length;
+  if (spaceAfterLeft > 0) {
+    line += " ".repeat(spaceAfterLeft);
+  }
+  line += centerPart;
+  line += rightPart;
+  return line;
 }

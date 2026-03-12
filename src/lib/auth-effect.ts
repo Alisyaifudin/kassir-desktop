@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { safeJSON } from "./utils";
 import { z } from "zod";
 import { Effect } from "effect";
+import { InvokeError } from "./effect-error";
 // import { jwt } from "./jwt";
 export type User = {
   name: string;
@@ -81,21 +82,6 @@ export type UserClaim = {
   exp: number;
 };
 
-export class InvokeError {
-  readonly _tag = "InvokeError";
-  constructor(readonly e: Error) {}
-  static new(e: unknown, msg: string) {
-    if (e instanceof Error) {
-      e.message = msg;
-      return new InvokeError(e);
-    }
-    if (typeof e === "string") {
-      return new InvokeError(new Error(e));
-    }
-    const unknown = new Error(msg, { cause: e });
-    return new InvokeError(unknown);
-  }
-}
 
 export class InvalidCredential {
   readonly _tag = "InvalidCredential";

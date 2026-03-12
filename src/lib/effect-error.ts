@@ -18,3 +18,19 @@ export class NotFound {
     return Effect.fail(new NotFound(msg));
   }
 }
+
+export class InvokeError {
+  readonly _tag = "InvokeError";
+  constructor(readonly e: Error) {}
+  static new(e: unknown, msg: string) {
+    if (e instanceof Error) {
+      e.message = msg;
+      return new InvokeError(e);
+    }
+    if (typeof e === "string") {
+      return new InvokeError(new Error(e));
+    }
+    const unknown = new Error(msg, { cause: e });
+    return new InvokeError(unknown);
+  }
+}
