@@ -9,12 +9,12 @@ import { Product } from "~/database/product/caches";
 import { Extra } from "~/database/extra/caches";
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction-effect";
-import { useTab } from "../../Right/Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { FuzzyResult } from "@nozbe/microfuzz";
 import { useDBExtras, useDBProducts } from "../../store/db";
 import { basicStore } from "../../use-transaction";
 import { productsStore, useSubtotal } from "../../store/product";
+import { useTab } from "../../use-tab";
 
 function setQuery(query: string) {
   basicStore.set((prev) => ({ ...prev, query }));
@@ -52,7 +52,7 @@ export function useSearch() {
   const [error, setError] = useState("");
   useEffect(() => {
     debounced(query);
-  }, [query]);
+  }, [query, debounced]);
   const handleChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.currentTarget.value.trimStart();
     setQuery(val);

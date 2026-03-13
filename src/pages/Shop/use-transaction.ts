@@ -1,5 +1,10 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
+import { Transaction } from "~/transaction-effect/transaction/get-by-tab";
+import { productsStore } from "./store/product";
+import { extrasStore } from "./store/extra";
+import { queue } from "./utils/queue";
+import { tx } from "~/transaction-effect";
 
 export const basicStore = createAtom<{
   fix: number;
@@ -38,6 +43,61 @@ export const manualStore = createAtom({
     saved: false,
   },
 });
+
+export function initStore({
+  fix,
+  methodId,
+  mode,
+  query,
+  note,
+  customer,
+  extra,
+  product,
+}: Transaction) {
+  basicStore.set({
+    fix,
+    methodId,
+    mode,
+    note,
+    query,
+    rounding: 0,
+  });
+  customerStore.set(customer);
+  manualStore.set({
+    extra,
+    product,
+  });
+}
+
+export function resetStore(tab: number) {
+  basicStore.set({
+    fix: 0,
+    methodId: 1000,
+    mode: "sell",
+    note: "",
+    query: "",
+    rounding: 0,
+  });
+  customerStore.set({ name: "", phone: "" });
+  manualStore.set({
+    product: {
+      name: "",
+      barcode: "",
+      price: 0,
+      stock: 0,
+      qty: 0,
+    },
+    extra: {
+      name: "",
+      value: 0,
+      kind: "percent" as "percent" | "number",
+      saved: false,
+    },
+  });
+  productsStore.trigger.clear();
+  extrasStore.trigger.clear();
+  queue.add(tx.clear(tab));
+}
 
 export function useFix() {
   return useAtom(basicStore, (state) => state.fix);

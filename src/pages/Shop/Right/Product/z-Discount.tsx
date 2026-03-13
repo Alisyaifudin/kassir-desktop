@@ -20,8 +20,14 @@ import { generateId } from "~/lib/random";
 import { useFix } from "../../use-transaction";
 import { productsStore, type Discount as Disc } from "../../store/product";
 
-export const Discount = memo(({ id, discounts }: { id: string; discounts: Disc[] }) => {
-  const fix = useFix()
+export const Discount = memo(function Discount({
+  id,
+  discounts,
+}: {
+  id: string;
+  discounts: Disc[];
+}) {
+  const fix = useFix();
   const discEff =
     discounts.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff)).toNumber();
   return (
@@ -61,7 +67,7 @@ function Add({ productId }: { productId: string }) {
           setLoading(true);
           const id = generateId();
           productsStore.trigger.addDiscount({ id: productId, idDisc: id });
-          queue.add(tx.discount.add({ id, productId }))
+          queue.add(tx.discount.add({ id, productId }));
         }}
         type="button"
       >

@@ -3,7 +3,7 @@ import { LoadingFull } from "~/components/Loading";
 import { Item } from "./z-Item";
 import { NewCustomer } from "./z-NewCustomer";
 import { Result } from "~/lib/result";
-import { useData } from "./use-data";
+import { useGetCustomers } from "./use-get-customer";
 import { log } from "~/lib/log";
 
 export default function Page() {
@@ -17,7 +17,7 @@ export default function Page() {
 }
 
 function Customer() {
-  const res = useData();
+  const res = useGetCustomers();
   return Result.match(res, {
     onLoading() {
       return <LoadingFull />;

@@ -1,20 +1,17 @@
 import { Extra, extrasStore } from "../../store/extra";
 import { memo, useState } from "react";
 import { cn } from "~/lib/utils";
-import { css } from "../style.css";
 import { queue } from "~/pages/Shop/utils/queue";
 import { Show } from "~/components/Show";
 import { Delete } from "./z-Delete";
 import { Loading } from "~/components/Loading";
 import { tx } from "~/transaction-effect";
-import { useSize } from "~/hooks/use-size";
 import { useFix } from "../../use-transaction";
 
 export const Item = memo(
-  ({ extra }: { extra: Extra }) => {
+  function Item({ extra }: { extra: Extra }) {
     const { id, saved, name, kind, value } = extra;
     const fix = useFix();
-    const size = useSize();
     const [input, setInput] = useState(value === 0 ? "" : value.toString());
     const handleKind = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = e.currentTarget.value;
@@ -47,7 +44,14 @@ export const Item = memo(
       queue.add(tx.extra.update.kind(id, val));
     };
     return (
-      <div className={cn("grid gap-1 py-0.5 self-end items-center", css.additional[size][kind])}>
+      <div
+        className={cn(
+          "grid gap-1 py-0.5 self-end items-center",
+          kind === "percent"
+            ? "grid-cols-[30px_200px_70px_110px_200px_50px] small:grid-cols-[30px_100px_70px_110px_100px_50px]"
+            : "grid-cols-[30px_275px_110px_35px_160px_50px] small:grid-cols-[30px_100px_90px_35px_120px_50px]",
+        )}
+      >
         <input
           type="checkbox"
           name="saved"

@@ -1,8 +1,6 @@
 import { cn } from "~/lib/utils";
 import { DetailDialog } from "../DetailDialog";
-import { css } from "../style.css";
 import { Show } from "~/components/Show";
-import { useSize } from "~/hooks/use-size";
 import { memo } from "react";
 import { useSelector } from "@xstate/store/react";
 import { productsStore } from "../../store/product";
@@ -12,31 +10,28 @@ type Props = {
   index: number;
 };
 
-export const Container = memo(
-  ({
-    index,
-    children,
-    id,
-  }: Props & {
-    children: React.ReactNode;
-  }) => {
-    const size = useSize();
-    return (
-      <div
-        className={cn("grid items-center py-0.5", css.item[size].topLevel, {
-          "bg-muted": index % 2 == 0,
-        })}
-      >
-        <Wrapper id={id} index={index} />
-        {children}
-      </div>
-    );
-  }
-);
-const Wrapper = memo(({ index, id }: Props) => {
+export const Container = memo(function Container({
+  index,
+  children,
+  id,
+}: Props & {
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn("grid items-center py-0.5 grid-cols-[70px_1fr] small:grid-cols-[40px_1fr]", {
+        "bg-muted": index % 2 == 0,
+      })}
+    >
+      <Wrapper id={id} index={index} />
+      {children}
+    </div>
+  );
+});
+const Wrapper = memo(function Wrapper({ index, id }: Props) {
   const { name, stock, product } = useSelector(
     productsStore,
-    (state) => state.context.find((c) => c.id === id)!
+    (state) => state.context.find((c) => c.id === id)!,
   );
   return (
     <div className="flex justify-center items-center">

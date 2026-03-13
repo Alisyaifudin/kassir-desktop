@@ -2,25 +2,31 @@ import { TabsContent as TabsContentRaw } from "~/components/ui/tabs";
 import { Search } from "./z-SearchBar";
 import { ProductManual } from "./ProductManual";
 import { ExtraManual } from "./ExtraManual";
-import { Effect, Either } from "effect";
+import { Effect } from "effect";
 import { db } from "~/database-effect";
 import { dbItemsStore } from "../../store/db";
-import { useMicro } from "~/hooks/use-micro";
-import { key } from "../../utils/keys";
-import { logOld } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { Loading } from "~/components/Loading";
 
 export function Content() {
-  const res = useMicro({
+  const res = Result.use({
     fn: () => loader(),
-    key: key.db,
+    key: "productAndExtra",
+    revalidateOn: {
+      unmount: true,
+    },
   });
-  return Either.match(res, {
-    onLeft({ e }) {
-      logOld.error(JSON.stringify(e.stack));
+  return Result.match(res, {
+    onLoading() {
+      return <Loading />;
+    },
+    onError({ e }) {
+      log.error(e);
       return <TextError>{e.message}</TextError>;
     },
-    onRight() {
+    onSuccess() {
       return (
         <>
           <TabContent value="auto">

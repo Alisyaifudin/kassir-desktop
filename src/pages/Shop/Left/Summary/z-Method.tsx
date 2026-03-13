@@ -1,11 +1,7 @@
-import { logOld } from "~/lib/utils";
 import { useEffect } from "react";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
-import { useSize } from "~/hooks/use-size";
 import { tx } from "~/transaction-effect";
 import { queue } from "../../utils/queue";
-import { useTab } from "../../Right/Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { Kbd } from "~/components/ui/kdb";
 import {
@@ -16,36 +12,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { css } from "./style.css";
 import { METHOD_BASE_ID } from "~/lib/constants";
-import { db } from "~/database-effect";
-import { Effect, Either } from "effect";
-import { store } from "~/store-effect";
-import { useMicro } from "~/hooks/use-micro";
-import { KEY } from "~/hooks/use-get-methods";
+import { useGetMethods } from "~/hooks/use-get-methods";
 import { basicStore } from "../../use-transaction";
-
-const selectWidth = {
-  big: {
-    width: "200px",
-  },
-  small: {
-    width: "130px",
-  },
-};
+import { Result } from "~/lib/result";
+import { Skeleton } from "~/components/ui/skeleton";
+import { log } from "~/lib/log";
+import { Loading } from "~/components/Loading";
+import { useTab } from "../../use-tab";
 
 export function Method() {
-  const res = useMicro({
-    fn: () => loader(),
-    key: KEY,
-  });
-  return Either.match(res, {
-    onLeft({ e }) {
-      logOld.error(JSON.stringify(e.stack));
+  const res = useGetMethods();
+  return Result.match(res, {
+    onLoading() {
+      return <Skeleton className="w-[100px] self-stretch" />;
+    },
+    onError({ e }) {
+      log.error(e);
       return <TextError>{e.message}</TextError>;
     },
-    onRight(methods) {
-      return <Wrapper methods={methods} />;
+    onSuccess([methods, defaultMethods]) {
+      const transformed = methods.map((m) => ({
+        ...m,
+        isDefault: defaultMethods[m.kind] === m.id,
+      }));
+      return (
+        <Wrapper
+          methods={[{ kind: "cash", id: METHOD_BASE_ID.cash, isDefault: true }, ...transformed]}
+        />
+      );
     },
   });
 }
@@ -53,24 +48,9 @@ export function Method() {
 type MethodDB = {
   isDefault: boolean;
   id: number;
-  name?: string | undefined;
+  name?: string;
   kind: "cash" | "transfer" | "debit" | "qris";
 };
-
-function loader() {
-  return Effect.gen(function* () {
-    const [methods, defMeth] = yield* Effect.all([db.method.getAll(), store.method.get()], {
-      concurrency: "unbounded",
-    });
-    const transformed: MethodDB[] = methods.map((m) => {
-      const defVal = defMeth[m.kind];
-      const method = { ...m, isDefault: m.id === defVal };
-      return method;
-    });
-    transformed.push({ id: 1000, isDefault: true, kind: "cash" });
-    return transformed;
-  });
-}
 
 const methodLabel = {
   cash: "Tunai",
@@ -85,25 +65,8 @@ const methodKbd = {
   debit: "Ctrl+3",
 } as const;
 
-// function getTab() {
-//   const tabs = tabsStore.get();
-//   const search = new URLSearchParams(window.location.search);
-//   if (tabs.length === 0) return undefined;
-//   const last = tabs[tabs.length - 1].tab;
-//   const parsed = integer.safeParse(search.get("tab"));
-//   if (!parsed.success) {
-//     return last;
-//   }
-//   const tab = parsed.data;
-//   if (tabs.find((t) => t.tab === tab) === undefined) {
-//     return last;
-//   }
-//   return tab;
-// }
-
 function Wrapper({ methods }: { methods: MethodDB[] }) {
   const method = useMethod(methods);
-  const size = useSize();
   const [tab] = useTab();
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -127,6 +90,7 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
     return () => {
       document.body.removeEventListener("keydown", handleKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   if (method === undefined) return <Loading />;
   const suboption = methods.filter((m) => m.kind === method.kind && m.name !== undefined);
@@ -140,14 +104,14 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
           selectMethod(val, defVals, tab);
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-[200px] small:w-[165px]">
           <SelectValue placeholder="Metode">
             {methodLabel[method.kind]} <Kbd>{methodKbd[method.kind]}</Kbd>
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectGroup className={css.method[size]}>
-            <SelectItem kbd={<Kbd>Ctrl+0</Kbd>} value="cash">
+          <SelectGroup className="w-[200px] small:w-[150px]">
+            <SelectItem className="text-small!" kbd={<Kbd>Ctrl+0</Kbd>} value="cash">
               Tunai
             </SelectItem>
             <SelectItem kbd={<Kbd>Ctrl+1</Kbd>} value="qris">
@@ -163,29 +127,33 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
         </SelectContent>
       </Select>
       {suboption.length > 0 ? (
-        <select
-          style={selectWidth[size]}
-          value={method.id}
-          onChange={(e) => {
+        <Select
+          value={method.id.toString()}
+          onValueChange={(val) => {
             if (tab === undefined) return;
-            const val = e.currentTarget.value;
             const num = Number(val);
             if (isNaN(num)) return;
             if (methods.find((m) => m.id === num) === undefined) return;
             setMethod(num);
             queue.add(tx.transaction.update.methodId(tab, num));
           }}
-          className="outline"
         >
-          <option value={METHOD_BASE_ID[method.kind]}>--PILIH--</option>
-          {suboption.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[200px] small:w-[140px]">
+            <SelectValue placeholder="--Pilih--">{method.name ?? "--Pilih--"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup className="w-[200px] small:w-[140px]">
+              <SelectItem value={METHOD_BASE_ID[method.kind].toString()}>--Pilih--</SelectItem>
+              {suboption.map((m) => (
+                <SelectItem value={m.id.toString()} key={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       ) : (
-        <div style={selectWidth[size]} />
+        <div className="w-[200px] small:w-[140px]" />
       )}
     </div>
   );
@@ -198,7 +166,7 @@ function useMethod(methods: MethodDB[]): MethodDB | undefined {
     if (find === undefined) {
       setMethod(METHOD_BASE_ID.cash);
     }
-  }, [methodId]);
+  }, [methodId, find]);
   return find;
 }
 

@@ -1,12 +1,8 @@
 import { cn } from "~/lib/utils";
-import { useSize } from "~/hooks/use-size";
-import { css } from "./style.css";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
-import { Header } from "./Header/z-HeaderColumn";
 
 export function LoadingRight() {
-  const size = useSize();
   return (
     <div className="border-r flex-1 flex flex-col m-1 gap-2">
       <div className="outline flex-1 p-1 flex flex-col gap-1">
@@ -21,19 +17,19 @@ export function LoadingRight() {
                 </div>
                 <div
                   className={cn(
-                    css.tab[size],
+                    "w-[60px] small:w-[50px]",
                     "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1",
                   )}
                 />
                 <div
                   className={cn(
-                    css.tab[size],
+                    "w-[60px] small:w-[50px]",
                     "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1",
                   )}
                 />
                 <div
                   className={cn(
-                    css.tab[size],
+                    "w-[60px] small:w-[50px]",
                     "rounded-b-0 animate-pulse bg-zinc-300 self-stretch rounded-t-md outline flex items-center gap-1",
                   )}
                 />
@@ -50,20 +46,18 @@ export function LoadingRight() {
               </div>
             </div>
           </div>
-          <Header />
+          {/* <HeaderColumn /> */}
         </div>
         <div className="flex flex-1 gap-1 flex-col min-h-0 h-full">
-          <div className={cn("w-full bg-zinc-200 animate-pulse", css.item[size].loading)}></div>
-          <div className={cn("w-full bg-zinc-200 animate-pulse", css.item[size].loading)}></div>
-          <div className={cn("w-full bg-zinc-200 animate-pulse", css.item[size].loading)}></div>
-          <div className={cn("w-full bg-zinc-200 animate-pulse", css.item[size].loading)}></div>
+          <div className={cn("w-full bg-zinc-200 animate-pulse", "w-[62px] small:w-[58px]")}></div>
+          <div className={cn("w-full bg-zinc-200 animate-pulse", "w-[62px] small:w-[58px]")}></div>
+          <div className={cn("w-full bg-zinc-200 animate-pulse", "w-[62px] small:w-[58px]")}></div>
+          <div className={cn("w-full bg-zinc-200 animate-pulse", "w-[62px] small:w-[58px]")}></div>
         </div>
       </div>
-      <div className={cn("flex flex-col pb-5", css.grandTotal[size].container)}>
+      <div className={cn("flex flex-col pb-[36px] small:pb-[25px]")}>
         <p className="px-2 text-end">Kasir:</p>
-        <div
-          className={cn("text-center bg-zinc-200 animate-pulse", css.grandTotal[size].loading)}
-        ></div>
+        <div className={cn("text-center bg-zinc-200 animate-pulse h-[128px] small:h-[76px]")}></div>
       </div>
     </div>
   );

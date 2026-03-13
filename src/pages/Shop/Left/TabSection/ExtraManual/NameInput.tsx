@@ -4,12 +4,13 @@ import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { forwardRef } from "react";
 import { manualStore } from "~/pages/Shop/use-transaction";
+import { useTab } from "~/pages/shop/use-tab";
 
+// eslint-disable-next-line react/display-name
 export const NameInput = forwardRef<HTMLInputElement>((_p, ref) => {
   const value = useAtom(manualStore, (state) => state.extra.name);
   const [tab] = useTab();

@@ -5,10 +5,10 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";
 import { Field } from "../z-Field";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
 import { produce } from "immer";
 import { useAtom } from "@xstate/store/react";
 import { manualStore } from "~/pages/Shop/use-transaction";
+import { useTab } from "~/pages/shop/use-tab";
 
 export function StockInput() {
   const stock = useAtom(manualStore, (state) => state.product.stock);

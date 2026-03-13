@@ -4,10 +4,10 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";
 import { Field } from "../z-Field";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { manualStore } from "~/pages/Shop/use-transaction";
+import { useTab } from "~/pages/shop/use-tab";
 
 export function NameInput() {
   const value = useAtom(manualStore, (state) => state.product.name);

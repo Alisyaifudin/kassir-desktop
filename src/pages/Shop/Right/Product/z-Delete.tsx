@@ -4,7 +4,7 @@ import { tx } from "~/transaction-effect";
 import { memo } from "react";
 import { productsStore } from "../../store/product";
 
-export const Delete = memo(({ id }: { id: string }) => {
+export const Delete = memo(function Delete({ id }: { id: string }) {
   return (
     <div className="py-0.5 flex items-center">
       <button

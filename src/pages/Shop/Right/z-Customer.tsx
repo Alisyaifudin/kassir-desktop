@@ -3,9 +3,9 @@ import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
 import { tx } from "~/transaction-effect";
-import { useTab } from "./Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { customerStore } from "./CustomerDialog/use-customer";
+import { useTab } from "../use-tab";
 
 const emptyCustomer = {
   name: "",

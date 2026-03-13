@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { To } from "react-router";
 
 export class TooMany {
   readonly _tag = "TooMany";
@@ -16,6 +17,14 @@ export class NotFound {
   }
   static fail(msg: string) {
     return Effect.fail(new NotFound(msg));
+  }
+}
+
+export class RedirectError {
+  readonly _tag = "RedirectError";
+  constructor(public to: To) {}
+  static fail(to: To) {
+    return Effect.fail(new RedirectError(to));
   }
 }
 

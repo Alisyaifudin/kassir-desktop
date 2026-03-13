@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Customer } from "~/database/customer/get-all";
-import { useTab } from "../Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { customerStore } from "./use-customer";
 import { tx } from "~/transaction-effect";
@@ -10,6 +9,7 @@ import { Show } from "~/components/Show";
 import { X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
 import { Button } from "~/components/ui/button";
+import { useTab } from "../../use-tab";
 
 export function AutoCustomer({ customers: all }: { customers: Customer[] }) {
   const customer = useAtom(customerStore);

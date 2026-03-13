@@ -1,7 +1,7 @@
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction-effect";
-import { useTab } from "../../Right/Header/use-tab";
 import { basicStore, useFix } from "../../use-transaction";
+import { useTab } from "../../use-tab";
 
 export function Precision() {
   const fix = useFix();

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database-effect";
 import { log } from "~/lib/log";
-import { revalidate } from "./use-data";
+import { revalidateCustomers } from "./use-get-customer";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
 
@@ -26,7 +26,7 @@ export function useNew(onClose: () => void) {
       const errMsg = await Effect.runPromise(program(value.name, value.phone));
       setError(errMsg);
       if (errMsg === null) {
-        revalidate();
+        revalidateCustomers();
         onClose();
         form.reset();
       }

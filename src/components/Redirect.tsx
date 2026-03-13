@@ -1,24 +1,19 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router";
+import { To, useNavigate } from "react-router";
 
 interface RedirectProps {
-	to: string;
-	replace?: boolean;
-	delay?: number; // Optional delay in milliseconds
+  to: To;
+  replace?: boolean;
 }
 
-const Redirect = ({ to, replace = true, delay = 0 }: RedirectProps) => {
-	const navigate = useNavigate();
+const Redirect = ({ to, replace = true }: RedirectProps) => {
+  const navigate = useNavigate();
 
-	useEffect(() => {
-		const timeout = setTimeout(() => {
-			navigate(to, { replace });
-		}, delay);
+  useEffect(() => {
+    navigate(to, { replace });
+  }, [to, replace, navigate]);
 
-		return () => clearTimeout(timeout);
-	}, [to, replace, delay, navigate]);
-
-	return null;
+  return null;
 };
 
 export default Redirect;

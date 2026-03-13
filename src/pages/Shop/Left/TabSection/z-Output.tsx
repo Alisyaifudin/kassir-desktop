@@ -1,9 +1,7 @@
 import { cn } from "~/lib/utils";
 import { Show } from "~/components/Show";
-import { css } from "~/pages/Shop/style.css";
 import { Extra } from "~/database/extra/caches";
 import { Product } from "~/database/product/caches";
-import { useSize } from "~/hooks/use-size";
 import { FuzzyResult } from "@nozbe/microfuzz";
 import { useMode } from "../../use-transaction";
 
@@ -18,13 +16,12 @@ export function Output({
   handleClickProduct: (product: Product) => void;
   handleClickExtra: (extra: Extra) => void;
 }) {
-  const size = useSize();
   const mode = useMode()
   return (
     <output
       className={cn(
         "bg-white absolute left-1 h-fit border shadow-md right-1 z-20 overflow-x-clip overflow-y-auto",
-        css.output[size],
+        "max-h-[calc(100dvh-200px)] small:max-h-[calc(100dvh-177px)] top-[150px] small:top-[125px]",
         {
           hidden: products.length === 0 && extras.length === 0,
         },

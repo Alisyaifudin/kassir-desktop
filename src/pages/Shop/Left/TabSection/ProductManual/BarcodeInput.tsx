@@ -5,11 +5,11 @@ import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";
 import { Field } from "../z-Field";
 import { Product } from "~/database/product/caches";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { forwardRef } from "react";
 import { manualStore } from "~/pages/Shop/use-transaction";
+import { useTab } from "~/pages/shop/use-tab";
 
 type Props = {
   products: Product[];
@@ -17,6 +17,7 @@ type Props = {
   setError: (v: string) => void;
 };
 
+// eslint-disable-next-line react/display-name
 export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
   ({ products, error, setError }, ref) => {
     const value = useAtom(manualStore, (state) => state.product.barcode);

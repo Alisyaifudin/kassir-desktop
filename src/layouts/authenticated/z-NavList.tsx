@@ -21,7 +21,7 @@ const linkMap = {
 
 let press = false;
 
-export const NavList = memo(() => {
+export const NavList = memo(function NavList() {
   const role = useUser().role;
   const navigate = useNavigate();
   useEffect(() => {
@@ -54,7 +54,7 @@ export const NavList = memo(() => {
       document.body.removeEventListener("keydown", handleAltDown);
       document.body.removeEventListener("keyup", handleAltUp);
     };
-  }, []);
+  }, [navigate]);
   return (
     <ul className={cn("flex justify-end items-end pt-2 small:pt-1 gap-5 small:gap-[10px]")}>
       <Button asChild variant="link" size="icon">
@@ -62,7 +62,7 @@ export const NavList = memo(() => {
           <Home />
         </Link>
       </Button>
-      <NavLink path="/" root alt="alt+0">
+      <NavLink path="/shop" root alt="alt+0">
         Toko
       </NavLink>
       <NavLink path="/stock" alt="alt+1">

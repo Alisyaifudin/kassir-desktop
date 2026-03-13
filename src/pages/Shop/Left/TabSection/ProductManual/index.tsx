@@ -9,11 +9,11 @@ import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";
 import { QtyInput } from "./QtyInput";
 import { StockInput } from "./StockInput";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
 import Decimal from "decimal.js";
 import { useDBProducts } from "~/pages/Shop/store/db";
 import { manualStore, useMode } from "~/pages/Shop/use-transaction";
 import { productsStore } from "~/pages/shop/store/product";
+import { useTab } from "~/pages/shop/use-tab";
 
 export function ProductManual() {
   const [error, setError] = useState("");

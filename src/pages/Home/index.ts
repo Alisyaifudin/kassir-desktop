@@ -3,7 +3,7 @@ import { RouteObject } from "react-router";
 
 const Page = lazy(() => import("./page"));
 
-export const shopRoute: RouteObject = {
-  path: "shop",
+export const homeRoute: RouteObject = {
+  index: true,
   Component: Page,
 };

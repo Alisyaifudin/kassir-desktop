@@ -4,37 +4,23 @@ import { Basic } from "./z-Basic";
 import { ForEach } from "~/components/ForEach";
 import { useSelector } from "@xstate/store/react";
 import { memo } from "react";
-import { useMicro } from "~/hooks/use-micro";
-import { Effect, Either } from "effect";
-import { tx } from "~/transaction-effect";
-import { transformProduct } from "../../store/product/transform-product";
 import { productsStore } from "../../store/product";
-import { key } from "../../utils/keys";
-import { logOld } from "~/lib/utils";
 import { TextError } from "~/components/TextError";
 import { useMode } from "../../use-transaction";
+import { useData } from "./use-data";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
 
-export function ProductList({ tab }: { tab: number }) {
-  const res = useMicro({
-    fn: () => loader(tab),
-    key: key.products,
-  });
-  return Either.match(res, {
-    onLeft({ e }) {
-      logOld.error(JSON.stringify(e.stack));
+export function ProductList() {
+  const res = useData();
+  return Result.match(res, {
+    onError({ e }) {
+      log.error(e);
       return <TextError>{e.message}</TextError>;
     },
-    onRight() {
+    onSuccess() {
       return <Wrapper />;
     },
-  });
-}
-
-function loader(tab: number) {
-  return Effect.gen(function* () {
-    const raw = yield* tx.product.getByTab(tab);
-    const products = transformProduct(raw);
-    productsStore.trigger.init({ products });
   });
 }
 

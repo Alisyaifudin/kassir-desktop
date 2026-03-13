@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useTab } from "../Header/use-tab";
 import { customerStore } from "./use-customer";
 import { Customer } from "~/database-effect/customer/get-all";
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction-effect";
+import { useTab } from "../../use-tab";
 
 export function useNew(customers: Customer[], form: { phone: string; name: string }) {
   const ref = useRef<HTMLInputElement>(null);

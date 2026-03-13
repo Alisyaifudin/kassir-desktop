@@ -2,7 +2,7 @@ import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
+import { useTab } from "~/pages/shop/use-tab";
 import { manualStore } from "~/pages/Shop/use-transaction";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";

@@ -12,9 +12,9 @@ import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { queue } from "../../utils/queue";
 import { tx } from "~/transaction-effect";
-import { useTab } from "../../Right/Header/use-tab";
 import { useAtom } from "@xstate/store/react";
 import { basicStore } from "../../use-transaction";
+import { useTab } from "../../use-tab";
 
 function setNote(note: string) {
   basicStore.set((prev) => ({ ...prev, note }));

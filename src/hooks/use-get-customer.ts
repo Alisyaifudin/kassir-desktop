@@ -3,7 +3,7 @@ import { Result } from "~/lib/result";
 
 const KEY = "customers";
 
-export function useData() {
+export function useGetCustomers() {
   const res = Result.use({
     fn: () => db.customer.getAll(),
     key: KEY,
@@ -11,6 +11,6 @@ export function useData() {
   return res;
 }
 
-export function revalidate() {
+export function revalidateCustomers() {
   Result.revalidate(KEY);
 }

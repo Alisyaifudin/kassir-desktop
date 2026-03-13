@@ -1,7 +1,5 @@
 import { basicStore, useFix, useMode } from "../../use-transaction";
-import { useSize } from "~/hooks/use-size";
 import { cn } from "~/lib/utils";
-import { css } from "./style.css";
 import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
@@ -9,7 +7,6 @@ import { Show } from "~/components/Show";
 import { usePay } from "./use-pay";
 
 export function Form() {
-  const size = useSize();
   const mode = useMode();
   const fix = useFix();
   const { form, setForm, change, disable } = usePay();
@@ -20,7 +17,7 @@ export function Form() {
       }}
       className="flex-1 flex flex-col gap-1 h-fit"
     >
-      <label className={cn("grid items-center", css.grid[size])}>
+      <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>
           Bayar <Kbd>F2</Kbd>
         </span>
@@ -39,7 +36,7 @@ export function Form() {
           aria-autocomplete="list"
         />
       </label>
-      <label className={cn("grid items-center", css.grid[size])}>
+      <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>Pembulatan</span>
         :
         <Input
@@ -56,15 +53,15 @@ export function Form() {
           aria-autocomplete="list"
         />
       </label>
-      <div className={cn("grid items-center", css.grid[size])}>
-        <p>Kembalian</p>:
-        <p
-          className={cn(css.change[size], {
+      <div className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
+        <span>Kembalian</span>:
+        <span
+          className={cn("text-change", {
             "bg-red-500 text-white px-1": change < 0,
           })}
         >
           {change === 0 ? "0" : change.toLocaleString("id-ID")}
-        </p>
+        </span>
       </div>
       <div className="flex items-center gap-1 w-full">
         <Button className="flex-1" type="submit" disabled={disable || change < 0}>

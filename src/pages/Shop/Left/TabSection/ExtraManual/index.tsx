@@ -7,11 +7,11 @@ import { SavedCheck } from "./SavedCheck";
 import { generateId } from "~/lib/random";
 import { queue } from "~/pages/Shop/utils/queue";
 import { tx } from "~/transaction-effect";
-import { useTab } from "~/pages/Shop/Right/Header/use-tab";
 import { extrasStore } from "~/pages/Shop/store/extra";
 import { useRef } from "react";
 import { manualStore } from "~/pages/Shop/use-transaction";
 import { useSubtotal } from "~/pages/shop/store/product";
+import { useTab } from "~/pages/shop/use-tab";
 
 export function ExtraManual() {
   const subtotal = useSubtotal();

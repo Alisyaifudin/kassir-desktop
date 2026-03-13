@@ -4,8 +4,8 @@ import { useSearch } from "./use-search";
 import { Output } from "./z-Output";
 import { useEffect } from "react";
 import { Kbd } from "~/components/ui/kdb";
-import { useTab } from "../../Right/Header/use-tab";
 import { useMode } from "../../use-transaction";
+import { useTab } from "../../use-tab";
 
 export function Search() {
   const {

@@ -4,31 +4,22 @@ import { GrandTotal } from "./z-GrandTotal";
 import { Suspense } from "react";
 import { capitalize } from "~/lib/utils";
 import { Customer } from "./z-Customer";
-import { useTab, useTabs } from "./Header/use-tab";
 import { Note } from "../Left/Summary/z-Note";
 import { Loading } from "~/components/Loading";
 import { CustomerDialog } from "./CustomerDialog";
-import { auth } from "~/lib/auth";
 import { Watermark } from "./z-Watermark";
 import { Header } from "./Header";
+import { useUser } from "~/hooks/use-user";
 
 export function Right() {
-  const tabs = useTabs();
-  const [tab] = useTab();
-  const username = auth.get()?.name ?? "admin";
-  if (tabs.length === 0 || tab === undefined)
-    return <div className="animate-pulse h-full w-full"></div>;
+  const username = useUser().name ?? "admin";
   return (
     <div className="border-r flex-1 flex flex-col m-1 gap-2">
       <div className="outline flex-1 p-1 flex flex-col gap-1 overflow-hidden">
         <Header />
         <Watermark>
-          <Suspense>
-            <ExtraList tab={tab} />
-          </Suspense>
-          <Suspense>
-            <ProductList tab={tab} />
-          </Suspense>
+          <ExtraList />
+          <ProductList />
         </Watermark>
       </div>
       <div className="flex items-center justify-between">
