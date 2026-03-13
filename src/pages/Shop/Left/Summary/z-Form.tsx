@@ -1,15 +1,16 @@
-import { basicStore, useFix, useMode } from "../../use-transaction";
-import { cn } from "~/lib/utils";
+import { setPay, setRounding, useFix, useMode, usePay, useRounding } from "../../use-transaction";
 import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Show } from "~/components/Show";
-import { usePay } from "./use-pay";
+import { useChange } from "./use-change";
 
 export function Form() {
   const mode = useMode();
   const fix = useFix();
-  const { form, setForm, change, disable } = usePay();
+  const pay = usePay();
+  const rounding = useRounding();
+  const { change, disable } = useChange(pay.num, rounding.num);
   return (
     <form
       onSubmit={(e) => {
@@ -26,12 +27,10 @@ export function Form() {
           type="number"
           id="pay-input"
           step={Math.pow(10, -1 * fix)}
-          value={form.pay}
+          value={pay.str}
           onChange={(e) => {
             const val = e.currentTarget.value;
-            const num = Number(val);
-            if (isNaN(num) || num < 0) return;
-            setForm((form) => ({ ...form, pay: val }));
+            setPay(val);
           }}
           aria-autocomplete="list"
         />
@@ -42,13 +41,10 @@ export function Form() {
         <Input
           type="number"
           step={Math.pow(10, -1 * fix)}
-          value={form.rounding}
+          value={rounding.str}
           onChange={(e) => {
             const val = e.currentTarget.value;
-            const num = Number(val);
-            if (isNaN(num)) return;
-            setForm((form) => ({ ...form, rounding: val }));
-            basicStore.set((prev) => ({ ...prev, rounding: num }));
+            setRounding(val);
           }}
           aria-autocomplete="list"
         />
@@ -56,9 +52,15 @@ export function Form() {
       <div className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>Kembalian</span>:
         <span
-          className={cn("text-change", {
-            "bg-red-500 text-white px-1": change < 0,
-          })}
+          style={
+            change < 0
+              ? {
+                  backgroundColor: "var(--color-red-500)",
+                  color: "var(--color-white)",
+                }
+              : undefined
+          }
+          className="text-change px-1"
         >
           {change === 0 ? "0" : change.toLocaleString("id-ID")}
         </span>

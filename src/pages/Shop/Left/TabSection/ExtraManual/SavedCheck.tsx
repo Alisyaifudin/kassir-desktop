@@ -12,7 +12,6 @@ export function SavedCheck() {
   const value = useAtom(manualStore, (state) => state.extra.saved);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: boolean) => {
-    if (tab === undefined) return;
     queue.add(tx.transaction.update.extra.saved(tab, v));
   }, DEBOUNCE_DELAY);
   return (

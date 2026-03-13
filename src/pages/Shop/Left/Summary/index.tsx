@@ -18,7 +18,7 @@ export function Summary() {
               type="button"
               variant="destructive"
               onClick={() => {
-                if (tab !== undefined) resetStore(tab);
+                resetStore(tab);
               }}
             >
               <RefreshCcw className="icon" />

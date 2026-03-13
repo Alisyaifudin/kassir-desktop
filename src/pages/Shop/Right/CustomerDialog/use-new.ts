@@ -15,7 +15,6 @@ export function useNew(customers: Customer[], form: { phone: string; name: strin
   }, []);
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (tab === undefined) return;
     if (error !== "") return;
     if (customers.find((c) => c.phone === form.phone) !== undefined) {
       setError("Pelanggan sudah ada");

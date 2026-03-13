@@ -3,7 +3,7 @@ import { Effect, Either } from "effect";
 import { tx } from "~/transaction-effect";
 import { log } from "~/lib/log";
 import { toast } from "sonner";
-import { revalidateTabs } from "./use-tabs";
+import { revalidateTabs } from "../../use-tabs";
 
 export function useAdd() {
   const [, setTab] = useTab();

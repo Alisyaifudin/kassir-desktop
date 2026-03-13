@@ -130,7 +130,6 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
         <Select
           value={method.id.toString()}
           onValueChange={(val) => {
-            if (tab === undefined) return;
             const num = Number(val);
             if (isNaN(num)) return;
             if (methods.find((m) => m.id === num) === undefined) return;
@@ -174,8 +173,7 @@ function setMethod(methodId: number) {
   basicStore.set((prev) => ({ ...prev, methodId }));
 }
 
-function selectMethod(val: DB.MethodEnum, defVals: MethodDB[], tab?: number) {
-  if (tab === undefined) return;
+function selectMethod(val: DB.MethodEnum, defVals: MethodDB[], tab: number) {
   const defVal = defVals.find((m) => m.kind === val);
   if (defVal === undefined) {
     const methodId = METHOD_BASE_ID[val];

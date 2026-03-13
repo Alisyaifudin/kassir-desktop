@@ -29,7 +29,6 @@ export function AutoCustomer({ customers: all }: { customers: Customer[] }) {
   }
   function handleSelect(name: string, phone: string, id: number) {
     return function () {
-      if (tab === undefined) return;
       const customer = { name, phone, id };
       setQuery("");
       customerStore.set(customer);

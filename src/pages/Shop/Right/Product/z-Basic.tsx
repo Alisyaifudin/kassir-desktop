@@ -15,7 +15,7 @@ export const Basic = memo(function Basic({ id }: { id: string }) {
   const alreadyExist = product !== undefined;
   return (
     <div className="flex flex-col">
-      <div className="h-10 flex items-center">
+      <div className="h-10 pl-[3px] flex items-center">
         <span>{name}</span>
       </div>
       <div
@@ -34,7 +34,9 @@ export const Basic = memo(function Basic({ id }: { id: string }) {
         <PriceInput id={id} price={price} productPrice={product?.price} />
         <Discount id={id} discounts={discounts} />
         <QtyInput id={id} qty={qty} alreadyExist={alreadyExist} />
-        <span>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</span>
+        <div className="flex items-center">
+          <span>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</span>
+        </div>
         <Delete id={id} />
       </div>
       <TextError>{error}</TextError>

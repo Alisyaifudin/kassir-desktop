@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { tx } from "~/transaction-effect";
 import { log } from "~/lib/log";
-import { revalidateTabs } from "./use-tabs";
+import { revalidateTabs } from "../../use-tabs";
 import { useState } from "react";
 
 export function useDelete(tab: number, onClose: () => void) {

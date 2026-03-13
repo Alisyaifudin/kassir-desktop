@@ -23,9 +23,8 @@ export function useData() {
   return res;
 }
 
-function loader(subtotal: Decimal, tab?: number) {
+function loader(subtotal: Decimal, tab: number) {
   return Effect.gen(function* () {
-    if (tab === undefined) return;
     const raw = yield* tx.extra.getByTab(tab);
     const extras = transformExtra(subtotal, raw);
     extrasStore.trigger.init({ extras });

@@ -4,12 +4,8 @@ import { cn } from "~/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { DeleteSheet } from "./z-DeleteSheet";
-import { useTabs } from "./use-tabs";
+import { useTabs } from "../../use-tabs";
 import { useTab } from "../../use-tab";
-import { Result } from "~/lib/result";
-import { Loading } from "./z-Loading";
-import { log } from "~/lib/log";
-import { TextError } from "~/components/TextError";
 import { TabInfo } from "~/transaction-effect/transaction/get-all";
 import { useTransaction } from "./use-transaction";
 import { useAdd } from "./use-new-tab";
@@ -21,27 +17,7 @@ const label = {
 };
 
 export function SheetTab() {
-  const res = useTabs();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError(error) {
-      switch (error._tag) {
-        case "TxError":
-          log.error(error.e);
-          return <TextError>{error.e.message}</TextError>;
-        case "TooMany":
-          throw new Error("Tidak mungkin");
-      }
-    },
-    onSuccess(tabs) {
-      return <Wrapper tabs={tabs} />;
-    },
-  });
-}
-
-function Wrapper({ tabs }: { tabs: [TabInfo, ...TabInfo[]] }) {
+  const tabs = useTabs();
   const [selected, setTab] = useTab();
   const handleNew = useAdd();
   // TODO: should add useEffect on windows size changed, so add max-w accordingly
@@ -61,7 +37,7 @@ function Wrapper({ tabs }: { tabs: [TabInfo, ...TabInfo[]] }) {
         }
       </ForEach>
       <Show when={tabs.find((t) => t.tab === selected) === undefined}>
-        <NotFound tabs={tabs} />
+        <NotFound  />
       </Show>
     </div>
   );
@@ -82,7 +58,7 @@ function TabBtn({
 }) {
   return (
     <div
-      className={cn("rounded-b-0 bg-zinc-100 rounded-t-md outline flex items-center gap-1", {
+      className={cn("rounded-b-0 rounded-t-md outline flex items-center gap-1", {
         "bg-black text-white": isSelected,
       })}
     >

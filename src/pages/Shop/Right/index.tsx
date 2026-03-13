@@ -14,7 +14,7 @@ export function Right() {
   const username = useUser().name ?? "admin";
   return (
     <div className="border-r flex-1 flex flex-col m-1 gap-2">
-      <div className="outline flex-1 p-1 flex flex-col gap-1 overflow-hidden">
+      <div className="outline flex-1 p-1 flex flex-col overflow-hidden">
         <Header />
         <Watermark>
           <ExtraList />

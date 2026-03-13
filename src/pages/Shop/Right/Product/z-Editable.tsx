@@ -13,6 +13,7 @@ import { memo, useRef } from "react";
 import { TextError } from "~/components/TextError";
 import { useFix } from "../../use-transaction";
 import { productsStore, useProduct } from "../../store/product";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
 export const Editable = memo(function Editable({ id }: { id: string }) {
   const { name, barcode, discounts, price, qty, total, product, error } = useProduct(id);
@@ -26,7 +27,9 @@ export const Editable = memo(function Editable({ id }: { id: string }) {
         <PriceInput id={id} price={price} productPrice={product?.price} />
         <Discount id={id} discounts={discounts} />
         <QtyInput id={id} alreadyExist={alreadyExist} qty={qty} />
-        <p>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</p>
+        <div className="flex items-center">
+          <span>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</span>
+        </div>
         <Delete id={id} />
       </div>
       <TextError>{error}</TextError>
@@ -104,7 +107,17 @@ const BarcodeInput = memo(function BarcodeInput({
   const save = useDebouncedCallback((v: string) => {
     queue.add(tx.product.update.barcode(id, v));
   }, DEBOUNCE_DELAY);
-  if (alreadyExist) return <p>{barcode}</p>;
+  if (alreadyExist)
+    return (
+      <div className="h-10 flex items-center overflow-hidden">
+        <Popover>
+          <PopoverTrigger type="button" style={{ textOverflow: "ellipsis" }}>
+            {barcode}
+          </PopoverTrigger>
+          <PopoverContent className="flex flex-col text-2xl w-fit">{barcode}</PopoverContent>
+        </Popover>
+      </div>
+    );
   return (
     <input
       className={cn("px-0.5 border-b text-normal border-l border-r")}

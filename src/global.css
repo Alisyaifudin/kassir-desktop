@@ -308,26 +308,27 @@ main {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   /* size */
-}
 
-@utility text-big {
-  font-size: var(--text-font-size-big);
-  line-height: var(--text-line-height-big);
-}
+  --text-change: var(--text-font-size-change);
+  --text-change--line-height: var(--text-line-height-change);
 
-@utility text-change {
-  font-size: var(--text-font-size-change);
-  line-height: var(--text-line-height-change);
-}
 
-@utility text-grand-total {
-  font-size: var(--text-font-size-grand-total);
-  line-height: var(--text-line-height-grand-total);
-}
+  --text-big: var(--text-font-size-big);
+  --text-big--line-height: var(--text-line-height-big);
 
-@utility text-normal {
-  font-size: var(--text-font-size-normal);
-  line-height: var(--text-line-height-normal);
+  --text-grand-total: var(--text-font-size-grand-total);
+  --text-grand-total--line-height: var(--text-line-height-grand-total);
+
+  --text-normal: var(--text-font-size-normal);
+  --text-normal--line-height: var(--text-line-height-normal);
+
+
+  --text-small: var(--text-font-size-small);
+  --text-small--line-height: var(--text-line-height-small);
+
+
+  --text-tiny: var(--text-font-size-tiny);
+  --text-tiny--line-height: var(--text-line-height-tiny);
 }
 
 @utility icon {
@@ -335,15 +336,6 @@ main {
   height: var(--icon-size);
 }
 
-@utility text-small {
-  font-size: var(--text-font-size-small);
-  line-height: var(--text-line-height-small);
-}
-
-@utility text-tiny {
-  font-size: var(--text-font-size-tiny);
-  line-height: var(--text-line-height-tiny);
-}
 
 @utility scroll-gutter {
   scrollbar-gutter: stable;

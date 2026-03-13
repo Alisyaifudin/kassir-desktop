@@ -1,25 +1,19 @@
 import { extrasStore, useTotal } from "../../store/extra";
-import { useFix, useRounding } from "../../use-transaction";
-import { useState } from "react";
+import { useFix } from "../../use-transaction";
 import { useStatus } from "../../use-status";
 import { useSelector } from "@xstate/store/react";
 import { productsStore } from "../../store/product";
 
-export function usePay() {
+export function useChange(pay: number, rounding: number) {
   const total = useTotal();
-  const rounding = useRounding();
   const fix = useFix();
-  const [form, setForm] = useState({
-    pay: "",
-    rounding: rounding === 0 ? "" : rounding.toString(),
-  });
   const grandTotal = total.plus(rounding);
-  const change = Number(grandTotal.minus(Number(form.pay)).times(-1).toFixed(fix));
+  const change = Number(grandTotal.minus(pay).times(-1).toFixed(fix));
   const loading = useStatus() === "active";
   const productsLength = useSelector(productsStore, (state) => state.context.length);
   const extrasLength = useSelector(extrasStore, (state) => state.context.length);
   const disable = loading || (productsLength === 0 && extrasLength === 0);
-  return { form, setForm, change, disable };
+  return { change, disable };
 }
 
 // function program({

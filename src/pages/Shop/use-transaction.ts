@@ -5,17 +5,49 @@ import { productsStore } from "./store/product";
 import { extrasStore } from "./store/extra";
 import { queue } from "./utils/queue";
 import { tx } from "~/transaction-effect";
+import { produce, immerable } from "immer";
+
+class Numeric {
+  [immerable] = true;
+  num: number;
+  private _str: string;
+  constructor(
+    init: string,
+    private nonNegative: boolean = false,
+  ) {
+    const num = Number(init);
+    if (isNaN(num) || !isFinite(num)) {
+      this.num = 0;
+      this._str = "";
+    } else {
+      this.num = num;
+      this._str = init;
+    }
+  }
+  set str(value: string) {
+    const num = Number(value);
+    if (isNaN(num) || !isFinite(num)) return;
+    if (this.nonNegative && num < 0) return;
+    this._str = value;
+    this.num = num;
+  }
+  get str() {
+    return this._str;
+  }
+}
 
 export const basicStore = createAtom<{
   fix: number;
   mode: TX.Mode;
-  rounding: number;
+  rounding: Numeric;
   query: string;
+  pay: Numeric;
   methodId: number;
   note: string;
 }>({
   fix: 0,
-  rounding: 0,
+  rounding: new Numeric(""),
+  pay: new Numeric("", true),
   mode: "sell",
   query: "",
   methodId: 1000, //cash
@@ -60,7 +92,8 @@ export function initStore({
     mode,
     note,
     query,
-    rounding: 0,
+    pay: new Numeric("", true),
+    rounding: new Numeric(""),
   });
   customerStore.set(customer);
   manualStore.set({
@@ -76,7 +109,8 @@ export function resetStore(tab: number) {
     mode: "sell",
     note: "",
     query: "",
-    rounding: 0,
+    pay: new Numeric("", true),
+    rounding: new Numeric(""),
   });
   customerStore.set({ name: "", phone: "" });
   manualStore.set({
@@ -109,4 +143,25 @@ export function useMode() {
 
 export function useRounding() {
   return useAtom(basicStore, (state) => state.rounding);
+}
+
+export function setRounding(val: string) {
+  basicStore.set(
+    produce((r) => {
+      r.rounding.str = val;
+    }),
+  );
+}
+
+export function usePay() {
+  const pay = useAtom(basicStore, (state) => state.pay);
+  return { num: pay.num, str: pay.str };
+}
+
+export function setPay(val: string) {
+  basicStore.set(
+    produce((r) => {
+      r.pay.str = val;
+    }),
+  );
 }

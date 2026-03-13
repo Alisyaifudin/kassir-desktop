@@ -23,7 +23,6 @@ export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
     const value = useAtom(manualStore, (state) => state.product.barcode);
     const [tab] = useTab();
     const save = useDebouncedCallback((v: string) => {
-      if (tab === undefined) return;
       queue.add(tx.transaction.update.product.barcode(tab, v));
     }, DEBOUNCE_DELAY);
     function handleBarcode(e: React.ChangeEvent<HTMLInputElement>) {

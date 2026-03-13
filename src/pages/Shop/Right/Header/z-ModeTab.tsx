@@ -3,26 +3,22 @@ import { queue } from "../../utils/queue";
 import { tx } from "~/transaction-effect";
 import { basicStore, useMode } from "../../use-transaction";
 import { useTab } from "../../use-tab";
-import { revalidateTabs } from "./use-tabs";
-import { Effect } from "effect";
+import { revalidateTabs } from "../../use-tabs";
 
 export function ModeTab() {
   const mode = useMode();
   const [tab] = useTab();
   function click(m: TX.Mode) {
-    if (tab === undefined) return;
     if (mode === m) return;
     basicStore.set((prev) => ({ ...prev, mode: m }));
-    queue.add(
-      tx.transaction.update.mode(tab, m).pipe(
-        Effect.tap(() => {
-          revalidateTabs();
-        }),
-      ),
-    );
+    queue.add(tx.transaction.update.mode(tab, m), {
+      onSuccess() {
+        revalidateTabs();
+      },
+    });
   }
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 pb-1">
       <Button
         className={mode === "sell" ? "font-bold" : "text-black/50"}
         variant={mode === "sell" ? "default" : "ghost"}

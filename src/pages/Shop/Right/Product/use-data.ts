@@ -17,9 +17,8 @@ export function useData() {
   });
   return res;
 }
-function loader(tab?: number) {
+function loader(tab: number) {
   return Effect.gen(function* () {
-    if (tab === undefined) return;
     const raw = yield* tx.product.getByTab(tab);
     const products = transformProduct(raw);
     productsStore.trigger.init({ products });

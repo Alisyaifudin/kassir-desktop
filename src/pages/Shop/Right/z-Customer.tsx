@@ -16,7 +16,6 @@ export function Customer() {
   const customer = useAtom(customerStore);
   const [tab] = useTab();
   function resetCustomer() {
-    if (tab === undefined) return;
     customerStore.set(emptyCustomer);
     queue.add(tx.transaction.update.customer(tab, emptyCustomer));
   }

@@ -21,7 +21,6 @@ export function Precision() {
         <Select
           value={fix.toString()}
           onValueChange={(val) => {
-            if (tab === undefined) return;
             const num = Number(val);
             if (isNaN(num)) return;
             basicStore.set((prev) => ({ ...prev, fix: num }));
