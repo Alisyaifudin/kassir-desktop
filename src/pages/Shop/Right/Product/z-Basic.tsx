@@ -7,6 +7,7 @@ import { Delete } from "./z-Delete";
 import { TextError } from "~/components/TextError";
 import { useFix } from "../../use-transaction";
 import { useProduct } from "../../store/product";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
 export const Basic = memo(function Basic({ id }: { id: string }) {
   const { name, error, barcode, discounts, price, qty, total, product } = useProduct(id);
@@ -14,17 +15,26 @@ export const Basic = memo(function Basic({ id }: { id: string }) {
   const alreadyExist = product !== undefined;
   return (
     <div className="flex flex-col">
-      <p>{name}</p>
+      <div className="h-10 flex items-center">
+        <span>{name}</span>
+      </div>
       <div
         className={cn(
-          "grid gap-1 items-center grid-cols-[1fr_160px_230px_70px_150px_50px] small:grid-cols-[1fr_110px_140px_40px_100px_30px]",
+          "grid border-red-500 gap-1 items-center grid-cols-[1fr_160px_230px_70px_150px_50px] small:grid-cols-[1fr_110px_140px_40px_100px_30px]",
         )}
       >
-        <p>{barcode}</p>
+        <div className="h-10 flex items-center overflow-hidden">
+          <Popover>
+            <PopoverTrigger type="button" style={{ textOverflow: "ellipsis" }}>
+              {barcode}
+            </PopoverTrigger>
+            <PopoverContent className="flex flex-col text-2xl w-fit">{barcode}</PopoverContent>
+          </Popover>
+        </div>
         <PriceInput id={id} price={price} productPrice={product?.price} />
         <Discount id={id} discounts={discounts} />
         <QtyInput id={id} qty={qty} alreadyExist={alreadyExist} />
-        <p>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</p>
+        <span>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</span>
         <Delete id={id} />
       </div>
       <TextError>{error}</TextError>

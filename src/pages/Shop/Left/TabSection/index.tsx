@@ -1,5 +1,4 @@
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Precision } from "./z-Precision";
 import { Suspense } from "react";
 import { Content } from "./z-Content";
 
@@ -21,7 +20,6 @@ export function TabSection() {
             Tambahan
           </TabsTrigger>
         </TabsList>
-        <Precision />
       </div>
       <Suspense>
         <Content />

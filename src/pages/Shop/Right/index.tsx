@@ -1,15 +1,14 @@
 import { ProductList } from "./Product";
 import { ExtraList } from "./Extra";
 import { GrandTotal } from "./z-GrandTotal";
-import { Suspense } from "react";
 import { capitalize } from "~/lib/utils";
 import { Customer } from "./z-Customer";
 import { Note } from "../Left/Summary/z-Note";
-import { Loading } from "~/components/Loading";
 import { CustomerDialog } from "./CustomerDialog";
 import { Watermark } from "./z-Watermark";
 import { Header } from "./Header";
 import { useUser } from "~/hooks/use-user";
+import { Precision } from "./z-Precision";
 
 export function Right() {
   const username = useUser().name ?? "admin";
@@ -25,10 +24,9 @@ export function Right() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Note />
-          <Suspense fallback={<Loading />}>
-            <CustomerDialog />
-          </Suspense>
+          <CustomerDialog />
           <Customer />
+          <Precision />
         </div>
         <p className="px-2 text-end">Kasir: {capitalize(username)}</p>
       </div>
