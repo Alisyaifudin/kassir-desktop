@@ -1,12 +1,10 @@
-import { useTab } from "../../use-tab";
 import { Effect, Either } from "effect";
 import { tx } from "~/transaction-effect";
 import { log } from "~/lib/log";
 import { toast } from "sonner";
-import { revalidateTabs } from "../../use-tabs";
+import { revalidateTabs, setNewTabBuffer } from "../../use-tabs";
 
 export function useAdd() {
-  const [, setTab] = useTab();
   async function handleNew() {
     const either = await Effect.runPromise(program);
     Either.match(either, {
@@ -23,7 +21,7 @@ export function useAdd() {
       },
       onRight(info) {
         revalidateTabs();
-        setTab(info.tab);
+        setNewTabBuffer(info.tab);
       },
     });
   }
