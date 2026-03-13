@@ -21,9 +21,6 @@ function getTimeBase(search: URLSearchParams): Temporal.ZonedDateTime {
   const timeStr = search.get("time");
   if (timeStr === null || Number.isNaN(timeStr)) {
     const now = Temporal.Now.instant().toZonedDateTimeISO(tz);
-    const search = new URLSearchParams(window.location.search);
-    search.set("time", now.epochMilliseconds.toString());
-    window.location.search = search.toString();
     return now;
   }
   return Temporal.Instant.fromEpochMilliseconds(Number(timeStr)).toZonedDateTimeISO(tz);
