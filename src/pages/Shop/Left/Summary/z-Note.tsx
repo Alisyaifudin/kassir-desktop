@@ -33,7 +33,7 @@ export function Note() {
   };
   return (
     <Dialog>
-      <Button className="p-1 rounded-full" asChild variant="secondary">
+      <Button className="p-1 z-10 rounded-full" asChild variant="secondary">
         <DialogTrigger type="button">
           <NotepadText className="icon" />
         </DialogTrigger>

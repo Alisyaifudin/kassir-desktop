@@ -1,6 +1,14 @@
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { useDebouncedCallback } from "use-debounce";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useTab } from "~/pages/shop/use-tab";
 import { manualStore } from "~/pages/Shop/use-transaction";
@@ -14,9 +22,9 @@ export function KindSelect() {
     queue.add(tx.transaction.update.extra.kind(tab, v));
   }, DEBOUNCE_DELAY);
   return (
-    <select
-      onChange={(e) => {
-        const val = e.currentTarget.value;
+    <Select
+      value={value}
+      onValueChange={(val) => {
         if (val !== "percent" && val !== "number") return;
         manualStore.set(
           produce((draft) => {
@@ -25,12 +33,16 @@ export function KindSelect() {
         );
         save(val);
       }}
-      name="kind"
-      value={value}
-      className="w-fit outline"
     >
-      <option value="number">Angka</option>
-      <option value="percent">Persen</option>
-    </select>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Theme" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="number">Angka</SelectItem>
+          <SelectItem value="percent">Persen</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }

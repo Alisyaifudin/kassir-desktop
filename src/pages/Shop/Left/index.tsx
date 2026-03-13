@@ -6,8 +6,7 @@ export function Left() {
   return (
     <aside
       className={cn(
-        "flex flex-col overflow-hidden justify-between w-[35%] h-full",
-        "min-w-[666px] small:min-w-[400px]",
+        "flex flex-col overflow-hidden justify-between w-full h-full border-r",
       )}
     >
       <TabSection />

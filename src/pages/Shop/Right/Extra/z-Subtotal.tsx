@@ -6,9 +6,8 @@ export function Subtotal() {
   const fix = useFix();
   return (
     <div className="self-end justify-between flex py-1 gap-2">
-      <p>Subtotal:</p>
-      <p className="font-bold">Rp{Number(subtotal.toFixed(fix)).toLocaleString("id-ID")}</p>
-      <div className="w-[50px]" />
+      <span className="font-bold text-big">Subtotal:</span>
+      <span className="font-bold text-big">Rp{Number(subtotal.toFixed(fix)).toLocaleString("id-ID")}</span>
     </div>
   );
 }

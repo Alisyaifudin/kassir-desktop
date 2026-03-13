@@ -9,6 +9,9 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { productsStore } from "../../store/product";
 import { useFix } from "../../use-transaction";
 
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+
 function setPrice(id: string, v: number) {
   return productsStore.trigger.updateProduct({
     id,
@@ -43,12 +46,12 @@ export const PriceInput = memo(function PriceInput({
     queue.add(tx.product.update.price(id, v));
   }, DEBOUNCE_DELAY);
   return (
-    <div className="flex justify-between items-center">
-      <input
+    <div className="relative flex items-center">
+      <Input
         ref={ref}
         type="number"
-        className={cn("px-0.5 text-normal min-w-0 border", {
-          "bg-red-200": undo,
+        className={cn("h-9 text-right pr-8", {
+          "bg-red-50 border-red-200": undo,
         })}
         value={input}
         onChange={(e) => {
@@ -60,11 +63,16 @@ export const PriceInput = memo(function PriceInput({
           save(num);
         }}
         step={1 / Math.pow(10, fix)}
-      ></input>
+      />
       <Show when={undo}>
-        <button onClick={() => undoPrice()}>
-          <Undo2 className="icon" />
-        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-100"
+          onClick={() => undoPrice()}
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
       </Show>
     </div>
   );

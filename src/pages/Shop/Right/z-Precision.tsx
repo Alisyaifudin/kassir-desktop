@@ -27,7 +27,7 @@ export function Precision() {
             queue.add(tx.transaction.update.fix(tab, num));
           }}
         >
-          <SelectTrigger id="precision" className="">
+          <SelectTrigger id="precision" className="h-8">
             <SelectValue>{fix}</SelectValue>
           </SelectTrigger>
           <SelectContent className="min-w-[50px]">

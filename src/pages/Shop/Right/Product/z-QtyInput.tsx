@@ -6,15 +6,9 @@ import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { productsStore } from "../../store/product";
 
-export const QtyInput = memo(function QtyInput({
-  id,
-  alreadyExist,
-  qty,
-}: {
-  id: string;
-  alreadyExist: boolean;
-  qty: number;
-}) {
+import { Input } from "~/components/ui/input";
+
+export const QtyInput = memo(function QtyInput({ id, qty }: { id: string; qty: number }) {
   const [input, setInput] = useState(qty === 0 ? "" : qty.toString());
   const save = useDebouncedCallback((v: number) => {
     queue.add(tx.product.update.qty(id, v));
@@ -23,9 +17,9 @@ export const QtyInput = memo(function QtyInput({
     if (qty !== 0 && qty !== Number(input)) setInput(qty.toString());
   }, [qty, input]);
   return (
-    <input
+    <Input
       type="number"
-      className={cn("px-0.5 text-normal", alreadyExist ? "border" : "border-b border-l border-r")}
+      className={cn("h-9 text-center")}
       value={input}
       onChange={(e) => {
         const val = e.currentTarget.value;
@@ -41,6 +35,6 @@ export const QtyInput = memo(function QtyInput({
         save(num);
       }}
       pattern="[1-9][0-9]*"
-    ></input>
+    />
   );
 });

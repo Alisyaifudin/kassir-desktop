@@ -1,44 +1,90 @@
-import { cn } from "~/lib/utils";
 import { Discount } from "./z-Discount";
 import { PriceInput } from "./z-PriceInput";
 import { QtyInput } from "./z-QtyInput";
 import { memo } from "react";
 import { Delete } from "./z-Delete";
-import { TextError } from "~/components/TextError";
 import { useFix } from "../../use-transaction";
 import { useProduct } from "../../store/product";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { TextError } from "~/components/TextError";
+import { BarcodeInput } from "./z-BarcodeInput";
 
 export const Basic = memo(function Basic({ id }: { id: string }) {
   const { name, error, barcode, discounts, price, qty, total, product } = useProduct(id);
-  const fix = useFix();
   const alreadyExist = product !== undefined;
+  const fix = useFix();
   return (
-    <div className="flex flex-col">
-      <div className="h-10 pl-[3px] flex items-center">
-        <span>{name}</span>
-      </div>
-      <div
-        className={cn(
-          "grid border-red-500 gap-1 items-center grid-cols-[1fr_160px_230px_70px_150px_50px] small:grid-cols-[1fr_110px_140px_40px_100px_30px]",
-        )}
-      >
-        <div className="h-10 flex items-center overflow-hidden">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex-1 min-w-0 ">
           <Popover>
-            <PopoverTrigger type="button" style={{ textOverflow: "ellipsis" }}>
-              {barcode}
+            <PopoverTrigger asChild>
+              <h3 className="text-normal text-foreground leading-tight truncate">{name}</h3>
             </PopoverTrigger>
-            <PopoverContent className="flex flex-col text-2xl w-fit">{barcode}</PopoverContent>
+            <PopoverContent className="flex flex-col text-normal w-full max-w-3xl text-wrap">
+              {name}
+            </PopoverContent>
           </Popover>
         </div>
-        <PriceInput id={id} price={price} productPrice={product?.price} />
-        <Discount id={id} discounts={discounts} />
-        <QtyInput id={id} qty={qty} alreadyExist={alreadyExist} />
-        <div className="flex items-center">
-          <span>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</span>
+        <div className="flex-none text-right">
+          <div className="text-big font-bold text-primary tabular-nums">
+            Rp{Number(total.toFixed(fix)).toLocaleString("id-ID")}
+          </div>
         </div>
-        <Delete id={id} />
       </div>
+
+      <div className="grid grid-cols-[1fr_160px_160px_110px] small:grid-cols-[1fr_120px_120px_90px] gap-1 items-end">
+        <div className="col-span-1">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Kode
+          </div>
+          <BarcodeInput id={id} fix={fix} alreadyExist={alreadyExist} barcode={barcode} />
+        </div>
+        {/* <div className="col-span-1 h-15 flex flex-col">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Kode
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <span className="w-full px-1 py-1 h-10 justify-start font-mono text-normal text-muted-foreground truncate border-dashed bg-muted/5 shadow-none">
+                {barcode}
+              </span>
+            </PopoverTrigger>
+            <Show when={barcode.trim() !== ""}>
+              <PopoverContent className="flex flex-col text-normal w-fit font-mono">
+                {barcode}
+              </PopoverContent>
+            </Show>
+          </Popover>
+        </div> */}
+
+        <div className="col-span-1">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Harga Satuan
+          </div>
+          <PriceInput id={id} price={price} productPrice={product?.price} />
+        </div>
+
+        <div className="col-span-1 h-[62px] flex flex-col">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Diskon
+          </div>
+          <Discount id={id} discounts={discounts} />
+        </div>
+
+        <div className="col-span-1 flex items-end gap-2">
+          <div className="flex-1">
+            <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+              Qty
+            </div>
+            <QtyInput id={id} qty={qty} />
+          </div>
+          <div className="pb-1 pr-1 flex items-center">
+            <Delete id={id} />
+          </div>
+        </div>
+      </div>
+
       <TextError>{error}</TextError>
     </div>
   );

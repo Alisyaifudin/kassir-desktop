@@ -39,7 +39,7 @@ function Wrapper({ customers }: { customers: Customer[] }) {
   const [tab, setTab] = useState<"auto" | "man">("auto");
   return (
     <Dialog>
-      <Button className="p-1 rounded-full" asChild variant="secondary">
+      <Button className="p-1 rounded-full z-10" asChild variant="secondary">
         <DialogTrigger type="button">
           <User className="icon" />
         </DialogTrigger>

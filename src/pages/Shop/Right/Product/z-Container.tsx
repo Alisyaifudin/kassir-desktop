@@ -18,13 +18,20 @@ export const Container = memo(function Container({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn("grid items-center py-0.5 grid-cols-[70px_1fr] small:grid-cols-[40px_1fr]", {
-        "bg-muted": index % 2 == 0,
-      })}
-    >
-      <Wrapper id={id} index={index} />
-      {children}
+    <div className="py-1">
+      <div
+        className={cn(
+          "flex gap-4 rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/30 group",
+          {
+            "bg-muted/10": index % 2 === 0,
+          },
+        )}
+      >
+        <div className="flex-none flex flex-col items-center justify-start pt-1">
+          <Wrapper id={id} index={index} />
+        </div>
+        <div className="min-w-0 flex-1 pr-1 py-1">{children}</div>
+      </div>
     </div>
   );
 });
@@ -34,8 +41,15 @@ const Wrapper = memo(function Wrapper({ index, id }: Props) {
     (state) => state.context.find((c) => c.id === id)!,
   );
   return (
-    <div className="flex justify-center items-center">
-      <Show value={product?.id} fallback={<p className="text-center">{index + 1}</p>}>
+    <div className="flex flex-col items-center gap-2">
+      <Show
+        value={product?.id}
+        fallback={
+          <div className="w-8 h-8 rounded-full bg-muted/20 flex items-center justify-center text-small font-bold text-muted-foreground">
+            {index + 1}
+          </div>
+        }
+      >
         {(productId) => (
           <DetailDialog index={index} productId={productId} stock={stock} name={name} />
         )}

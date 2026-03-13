@@ -21,7 +21,7 @@ export function Customer() {
   }
   return (
     <Show when={customer.name.trim() !== ""}>
-      <div className="flex items-center gap-2">
+      <div className="relative z-10 flex items-center gap-2">
         <p className="text-normal">Pelanggan: {customer.name}</p>
         <Button
           variant="destructive"

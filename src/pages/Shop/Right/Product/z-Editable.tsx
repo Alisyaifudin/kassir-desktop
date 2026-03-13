@@ -10,27 +10,64 @@ import { tx } from "~/transaction-effect";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { memo, useRef } from "react";
-import { TextError } from "~/components/TextError";
 import { useFix } from "../../use-transaction";
 import { productsStore, useProduct } from "../../store/product";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { TextError } from "~/components/TextError";
+import { BarcodeInput } from "./z-BarcodeInput";
 
 export const Editable = memo(function Editable({ id }: { id: string }) {
   const { name, barcode, discounts, price, qty, total, product, error } = useProduct(id);
   const fix = useFix();
   const alreadyExist = product !== undefined;
   return (
-    <div className="flex flex-col">
-      <NameInput id={id} name={name} productName={product?.name} />
-      <div className="grid gap-1 grid-cols-[1fr_160px_230px_70px_150px_50px] small:grid-cols-[1fr_110px_140px_40px_100px_30px]">
-        <BarcodeInput id={id} fix={fix} alreadyExist={alreadyExist} barcode={barcode} />
-        <PriceInput id={id} price={price} productPrice={product?.price} />
-        <Discount id={id} discounts={discounts} />
-        <QtyInput id={id} alreadyExist={alreadyExist} qty={qty} />
-        <div className="flex items-center">
-          <span>{Number(total.toFixed(fix)).toLocaleString("id-ID")}</span>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <NameInput id={id} name={name} productName={product?.name} />
         </div>
-        <Delete id={id} />
+        <div className="flex-none text-right">
+          <div className="text-big font-bold text-primary tabular-nums">
+            Rp{Number(total.toFixed(fix)).toLocaleString("id-ID")}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[1fr_160px_160px_110px] small:grid-cols-[1fr_120px_120px_90px] gap-1 items-end">
+        <div className="col-span-1">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Kode
+          </div>
+          <BarcodeInput id={id} fix={fix} alreadyExist={alreadyExist} barcode={barcode} />
+        </div>
+
+        <div className="col-span-1">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Harga Satuan
+          </div>
+          <PriceInput id={id} price={price} productPrice={product?.price} />
+        </div>
+
+        <div className="col-span-1">
+          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+            Diskon
+          </div>
+          <Discount id={id} discounts={discounts} />
+        </div>
+
+        <div className="col-span-1 flex items-end gap-2">
+          <div className="flex-1">
+            <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
+              Qty
+            </div>
+            <QtyInput id={id} qty={qty} />
+          </div>
+          <div className="pb-1 pr-1 flex items-center">
+            <Delete id={id} />
+          </div>
+        </div>
       </div>
       <TextError>{error}</TextError>
     </div>
@@ -65,74 +102,38 @@ const NameInput = memo(function NameInput({
     queue.add(tx.product.update.name(id, v));
   }, DEBOUNCE_DELAY);
   return (
-    <div className="flex justify-between items-center">
-      <Show when={undo}>
-        <button onClick={() => undoName()}>
-          <Undo2 className="icon" />
-        </button>
-      </Show>
-      <input
-        className={cn("px-0.5 border-b border-l text-normal border-r w-full", {
-          "bg-red-100": undo,
-        })}
-        ref={ref}
-        value={name}
-        onChange={(e) => {
-          const val = e.currentTarget.value;
-          productsStore.trigger.updateProduct({
-            id,
-            recipe: (draft) => {
-              draft.name = val;
-            },
-          });
-          save(val);
-        }}
-        step={1 / Math.pow(10, fix)}
-      ></input>
-    </div>
-  );
-});
-
-const BarcodeInput = memo(function BarcodeInput({
-  id,
-  fix,
-  barcode,
-  alreadyExist,
-}: {
-  id: string;
-  fix: number;
-  barcode: string;
-  alreadyExist: boolean;
-}) {
-  const save = useDebouncedCallback((v: string) => {
-    queue.add(tx.product.update.barcode(id, v));
-  }, DEBOUNCE_DELAY);
-  if (alreadyExist)
-    return (
-      <div className="h-10 flex items-center overflow-hidden">
-        <Popover>
-          <PopoverTrigger type="button" style={{ textOverflow: "ellipsis" }}>
-            {barcode}
-          </PopoverTrigger>
-          <PopoverContent className="flex flex-col text-2xl w-fit">{barcode}</PopoverContent>
-        </Popover>
+    <div className="flex gap-2 items-center">
+      <div className="relative flex-1">
+        <Input
+          className={cn("h-9 font-medium text-normal", {
+            "bg-red-50 border-red-200": undo,
+          })}
+          ref={ref}
+          value={name}
+          onChange={(e) => {
+            const val = e.currentTarget.value;
+            productsStore.trigger.updateProduct({
+              id,
+              recipe: (draft) => {
+                draft.name = val;
+              },
+            });
+            save(val);
+          }}
+          step={1 / Math.pow(10, fix)}
+          placeholder="Nama produk..."
+        />
+        <Show when={undo}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-100"
+            onClick={() => undoName()}
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+        </Show>
       </div>
-    );
-  return (
-    <input
-      className={cn("px-0.5 border-b text-normal border-l border-r")}
-      value={barcode}
-      onChange={(e) => {
-        const val = e.currentTarget.value;
-        productsStore.trigger.updateProduct({
-          id,
-          recipe: (draft) => {
-            draft.barcode = val;
-          },
-        });
-        save(val);
-      }}
-      step={1 / Math.pow(10, fix)}
-    ></input>
+    </div>
   );
 });
