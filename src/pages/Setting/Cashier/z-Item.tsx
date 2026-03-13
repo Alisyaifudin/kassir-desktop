@@ -4,18 +4,18 @@ import { DeleteBtn } from "./z-DeleteBtn";
 import { Spinner } from "~/components/Spinner";
 import { memo } from "react";
 import { Cashier } from "~/database/cashier/get-all";
-import { auth } from "~/lib/auth-effect";
 import { SelectRole } from "./z-SelectRole";
 import { useUpdate } from "./use-update";
 import { Show } from "~/components/Show";
+import { useUser } from "~/hooks/use-user";
 
 const title = {
   admin: "Admin",
   user: "User",
 };
 
-export const Item = memo(function ({ cashier }: { cashier: Cashier }) {
-  const username = auth.user().name;
+export const Item = memo(function Item({ cashier }: { cashier: Cashier }) {
+  const username = useUser().name;
   const { error, handleSubmit, loading, name } = useUpdate(cashier.name);
   if (username === cashier.name) {
     return (

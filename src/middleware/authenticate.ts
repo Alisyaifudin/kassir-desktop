@@ -1,5 +1,5 @@
 import { MiddlewareFunction, redirect } from "react-router";
-import { auth } from "~/lib/auth";
+import { auth } from "~/lib/auth-effect";
 
 export const authentication: MiddlewareFunction = async (_arg, next) => {
   const user = auth.get();

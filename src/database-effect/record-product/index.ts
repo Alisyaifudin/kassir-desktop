@@ -14,7 +14,7 @@ export const recordProduct = {
     // byTimestampFull: getByTimestampFull,
     // product: getProduct,
     // lastId: getLastId,
-    // history: getHistory,
+    history: getHistory,
   },
   // add,
   update: {

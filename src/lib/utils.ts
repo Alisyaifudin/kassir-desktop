@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import * as logTauri from "@tauri-apps/plugin-log";
 
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
-export const logOld = logTauri;
+import { log } from "./log";
 
 export const numerish = z.string().refine((val) => val !== "" || !isNaN(Number(val)), {
   message: "Harus angka",
@@ -19,46 +18,13 @@ export const integer = z
   })
   .transform((v) => Number(v));
 
-export type ResultOld<E, T> = [E, null] | [null, T];
-
-export function err<T>(value: T): [T, null] {
-  return [value, null];
-}
-
-export function ok<T>(value: T): [null, T] {
-  return [null, value];
-}
-
-// First, define the default message type and value
-export const DEFAULT_ERROR = "Aplikasi bermasalah" as const;
-export type DefaultError = typeof DEFAULT_ERROR;
-export const NOT_FOUND = "Tidak ditemukan" as const;
-export type NotFound = typeof NOT_FOUND;
-
-// Modified function with default type parameter
-export async function tryResult<R, const T = DefaultError>({
-  run,
-  message = DEFAULT_ERROR as T,
-}: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  run: (...arg: any[]) => Promise<R>;
-  message?: T;
-}): Promise<ResultOld<T, R>> {
-  try {
-    return ok(await run());
-  } catch (error) {
-    logOld.error(JSON.stringify(error));
-    return err(message);
-  }
-}
-
-export function safeJSON(v: string): ResultOld<"Gagal parse json", any> {
+export function safeJSON(v: string) {
   try {
     const parsed = JSON.parse(v);
-    return ok(parsed);
+    return [null, parsed] as const;
   } catch (error) {
-    logOld.error(JSON.stringify(error));
-    return err("Gagal parse json");
+    log.error(JSON.stringify(error));
+    return ["Gagal parse json", null] as const;
   }
 }
 
@@ -77,6 +43,7 @@ export function lazyLoader(importer: () => Promise<{ loader: LoaderFunction }>):
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function constructCSV<T extends Record<string, any>>(data: T[]): string {
   if (data.length === 0) return "";
 

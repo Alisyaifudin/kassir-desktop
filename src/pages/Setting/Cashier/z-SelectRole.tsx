@@ -2,7 +2,6 @@ import { Effect, pipe } from "effect";
 import { toast } from "sonner";
 import { db } from "~/database-effect";
 import { Cashier } from "~/database/cashier/get-all";
-import { logOld } from "~/lib/utils";
 import { revalidate } from "./use-data";
 import {
   Select,
@@ -11,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { log } from "~/lib/log";
 
 export function SelectRole({ cashier }: { cashier: Cashier }) {
   const handleChange = async (role: string) => {
@@ -42,7 +42,7 @@ export function program(name: string, role: DB.Role) {
     db.cashier.update.role(name, role),
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
-      logOld.error(JSON.stringify(e.stack));
+      log.error(e);
       return Effect.succeed(e.message);
     }),
   );

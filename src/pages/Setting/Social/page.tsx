@@ -1,12 +1,13 @@
 import { Item } from "./z-Item";
 import { ForEach } from "~/components/ForEach";
 import { Suspense } from "react";
-import { cn, logOld } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { NewItem } from "./z-NewItem";
 import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
 import { Loading, LoadingFull } from "~/components/Loading";
 import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
 
 export default function Page() {
   return (
@@ -36,7 +37,7 @@ function Socials() {
       return <LoadingFull />;
     },
     onError({ e }) {
-      logOld.error(JSON.stringify(e.stack));
+      log.error(e);
       return <TextError>{e.message}</TextError>;
     },
     onSuccess(socials) {

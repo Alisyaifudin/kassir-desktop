@@ -5,14 +5,14 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
 import { useInterval } from "../use-interval";
-import { auth } from "~/lib/auth";
 import { Limit } from "../z-Limit";
 import { useLength } from "./use-length";
+import { useUser } from "~/hooks/use-user";
 
 export function ExtraPanel() {
   const length = useLength();
   const { totalPage } = useInterval(length);
-  const role = auth.user().role;
+  const role = useUser().role;
   return (
     <div className="flex items-center gap-10">
       <Search />

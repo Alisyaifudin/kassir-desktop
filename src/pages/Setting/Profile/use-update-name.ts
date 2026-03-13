@@ -1,11 +1,12 @@
 import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database-effect";
+import { useUser } from "~/hooks/use-user";
 import { auth } from "~/lib/auth-effect";
 import { log } from "~/lib/log";
 
 export function useUpdateName() {
-  const name = auth.user().name;
+  const name = useUser().name;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [input, setInput] = useState(name);

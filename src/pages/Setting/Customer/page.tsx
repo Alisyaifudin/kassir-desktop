@@ -3,8 +3,8 @@ import { LoadingFull } from "~/components/Loading";
 import { Item } from "./z-Item";
 import { NewCustomer } from "./z-NewCustomer";
 import { Result } from "~/lib/result";
-import { useGetCustomers } from "./use-get-customer";
 import { log } from "~/lib/log";
+import { useGetCustomers } from "~/hooks/use-get-customer";
 
 export default function Page() {
   return (

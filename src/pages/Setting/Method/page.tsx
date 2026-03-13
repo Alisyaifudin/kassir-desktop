@@ -2,12 +2,12 @@ import { Item, Method } from "./z-Item";
 import { NewBtn } from "./z-NewBtn";
 import { useMethod } from "./use-method";
 import { TabLink } from "./z-TabLink";
-import { logOld } from "~/lib/utils";
 import { Suspense } from "react";
 import { TextError } from "~/components/TextError";
 import { Loading, LoadingFull } from "~/components/Loading";
 import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
 
 export default function Page() {
   return (
@@ -30,7 +30,7 @@ function Wrapper() {
       return <LoadingFull />;
     },
     onError({ e }) {
-      logOld.error(JSON.stringify(e.stack));
+      log.error(e);
       return <TextError>{e.message}</TextError>;
     },
     onSuccess([data, defaultMethod]) {

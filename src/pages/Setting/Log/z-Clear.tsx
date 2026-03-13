@@ -6,7 +6,7 @@ import { Button } from "~/components/ui/button";
 import { LOG_PATH, revalidate } from "./use-data";
 import { BaseDirectory, writeTextFile } from "@tauri-apps/plugin-fs";
 import { WriteError } from "./util-effect-error";
-import { logOld } from "~/lib/utils";
+import { log } from "~/lib/log";
 
 export function Clear() {
   const { loading, error, handleClear } = useClear();
@@ -41,7 +41,7 @@ function useClear() {
       revalidate();
       return;
     }
-    logOld.error(JSON.stringify(error.e.cause));
+    log.error(error.e);
     setError("Aplikasi bermasalah");
   }
   return { loading, error, handleClear };

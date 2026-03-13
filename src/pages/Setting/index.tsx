@@ -8,9 +8,9 @@ import { route as methodRoute } from "./method";
 import { route as logRoute } from "./log";
 import { route as customerRouter } from "./customer";
 import { lazy } from "react";
+import { printerRoute } from "./Printer";
 
 const Page = lazy(() => import("./page"));
-const PrinterSettingsPage = lazy(() => import("./Printer/page"));
 
 export const route: RouteObject = {
   path: "setting",
@@ -23,10 +23,7 @@ export const route: RouteObject = {
     methodRoute,
     customerRouter,
     logRoute,
-    {
-      path: "printer",
-      Component: PrinterSettingsPage,
-    },
+    printerRoute
   ],
   Component: Page,
 };

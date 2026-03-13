@@ -5,16 +5,16 @@ import { LogOut } from "lucide-react";
 import { Show } from "~/components/Show";
 import { UserPanel } from "./z-UserPanel";
 import { AdminPanel } from "./z-AdminPanel";
-import { auth } from "~/lib/auth";
 import { version } from "~/lib/constants";
 import { useLogout } from "./use-logout";
+import { useUser } from "~/hooks/use-user";
 
 export default function Page() {
   return (
     <main
       className={cn(
         "grid gap-2 p-2 flex-1 w-full justify-between overflow-hidden",
-        "grid-cols-[300px_1fr] small:grid-cols-[150px_1fr]",
+        "grid-cols-[300px_1fr] small:grid-cols-[180px_1fr]",
       )}
     >
       <Navigation />
@@ -24,10 +24,10 @@ export default function Page() {
 }
 
 function Navigation() {
-  const role = auth.user().role;
+  const role = useUser().role;
   const handleLogout = useLogout();
   return (
-    <nav className="w-full h-full flex py-1 flex-col justify-between overflow-auto">
+    <nav className="w-full h-full flex py-1 gap-0.5 flex-col justify-between overflow-auto">
       <Show when={role === "admin"} fallback={<UserPanel />}>
         <AdminPanel />
       </Show>

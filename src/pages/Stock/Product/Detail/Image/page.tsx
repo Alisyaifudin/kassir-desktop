@@ -6,12 +6,12 @@ import { ImageControl } from "./z-ImageControl";
 import { useSelected } from "./use-selected";
 import { useChange } from "./use-change";
 import { useContainerSize, useControlSize } from "./use-container-size";
-import { auth } from "~/lib/auth";
 import { ImageResult, useData } from "./use-data";
 import { Result } from "~/lib/result";
 import { LoadingFull } from "~/components/Loading";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { log } from "~/lib/log";
+import { useUser } from "~/hooks/use-user";
 
 export default function Page() {
   const res = useData();
@@ -34,7 +34,7 @@ function Wrapper({ images }: { images: ImageResult[] }) {
   const [index, handlePrev, handleNext] = useChange(images);
   const [refContainer, container] = useContainerSize();
   const [ref, control] = useControlSize();
-  const role = auth.user().role;
+  const role = useUser().role;
   return (
     <div ref={refContainer} className="flex flex-col gap-1 flex-1 w-full min-h-0">
       <div className="flex-1 min-h-0 justify-center  items-center flex">

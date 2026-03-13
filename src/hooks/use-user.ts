@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { _user } from "~/lib/auth";
+import { _user } from "~/lib/auth-effect";
 
 function getSnapshot() {
   return _user;

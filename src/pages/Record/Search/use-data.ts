@@ -1,28 +1,35 @@
-import { data, LoaderFunctionArgs } from "react-router";
+import { Effect } from "effect";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
-import { db } from "~/database";
-import { RecordProduct } from "~/database/record-product/get-history";
+import { db } from "~/database-effect";
 import { tz } from "~/lib/constants";
-import { DefaultError, integer, ok, ResultOld } from "~/lib/utils";
+import { Result } from "~/lib/result";
+import { integer } from "~/lib/utils";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const search = new URL(request.url).searchParams;
-  const { start, end, query } = getParams(search);
-  const histories = getHistory(start, end, query);
-  return data(histories);
+const KEY = "full-search";
+
+export function useData() {
+  const [search] = useSearchParams();
+  const { start, end, query } = useMemo(() => {
+    return getParams(search);
+  }, [search]);
+  const res = Result.use({
+    fn: () => program(start, end, query),
+    key: KEY,
+    revalidateOn: {
+      unmount: true,
+    },
+    deps: [start, end, query],
+  });
+  return res;
 }
 
-async function getHistory(
-  start: number,
-  end: number,
-  query: string,
-): Promise<ResultOld<DefaultError, RecordProduct[]>> {
-  if (query.trim() === "") return ok([]);
+function program(start: number, end: number, query: string) {
+  if (query.trim() === "") return Effect.succeed([]);
   return db.recordProduct.get.history(start, end, query);
 }
-
-export type Loader = typeof loader;
 
 function getParams(search: URLSearchParams): {
   start: number;

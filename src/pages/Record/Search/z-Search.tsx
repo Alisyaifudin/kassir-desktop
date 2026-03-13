@@ -1,9 +1,8 @@
 import { Input } from "~/components/ui/input";
 import { useQuery } from "./use-query";
-import { cn, DefaultError, formatDate, formatTime, ResultOld } from "~/lib/utils";
+import { cn } from "~/lib/utils";
 import { RecordProduct } from "~/database/record-product/get-history";
-import { Suspense, use, useEffect, useRef, useState } from "react";
-import { TextError } from "~/components/TextError";
+import { useEffect, useRef, useState } from "react";
 import {
   Table,
   TableBody,
@@ -12,20 +11,20 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { useSize } from "~/hooks/use-size";
 import { Button } from "~/components/ui/button";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Show } from "~/components/Show";
-import { LoadingFull } from "~/components/Loading";
-import { ModeSelect } from "./ModeSelect";
+import { LoadingBig } from "~/components/Loading";
+import { ModeSelect } from "./z-ModeSelect";
 import { useMode } from "./use-mode";
+import { useData } from "./use-data";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { ErrorComponent } from "~/components/ErrorComponent";
+import { formatDate, formatTime } from "~/lib/date";
 
-export function Search({
-  histories,
-}: {
-  histories: Promise<ResultOld<DefaultError, RecordProduct[]>>;
-}) {
+export function Search() {
   const [query, setQuery] = useQuery();
   const ref = useRef<HTMLInputElement>(null);
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -56,71 +55,35 @@ export function Search({
         </form>
         <ModeSelect />
       </div>
-      <Output histories={histories} />
+      <Output />
     </div>
   );
 }
 
-function Output({
-  histories: promise,
-}: {
-  histories: Promise<ResultOld<DefaultError, RecordProduct[]>>;
-}) {
-  const [errMsg, histories] = use(promise);
-  if (errMsg !== null) {
-    return <TextError>{errMsg}</TextError>;
-  }
-  return (
-    <output className="flex-1 overflow-hidden">
-      <div className="max-h-full overflow-hidden flex">
-        <Suspense fallback={<LoadingFull />}>
-          <SearchTable histories={histories} />
-        </Suspense>
-      </div>
-    </output>
-  );
+function Output() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingBig />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <ErrorComponent>{e.message}</ErrorComponent>;
+    },
+    onSuccess(histories) {
+      return (
+        <output className="flex-1 overflow-hidden">
+          <div className="max-h-full overflow-hidden flex">
+            <SearchTable histories={histories} />
+          </div>
+        </output>
+      );
+    },
+  });
 }
-
-const width = {
-  small: {
-    no: {
-      width: "50px",
-    },
-    date: {
-      width: "110px",
-    },
-    time: {
-      width: "80px",
-    },
-    qty: {
-      width: "50px",
-    },
-    price: {
-      width: "120px",
-    },
-  },
-  big: {
-    no: {
-      width: "60px",
-    },
-    date: {
-      width: "170px",
-    },
-    time: {
-      width: "100px",
-    },
-    qty: {
-      width: "57px",
-    },
-    price: {
-      width: "120px",
-    },
-  },
-};
 
 function SearchTable({ histories }: { histories: RecordProduct[] }) {
   const [limit, setLimit] = useState(100);
-  const size = useSize();
   const navigate = useNavigate();
   function handleClick(timestamp: number) {
     return function () {
@@ -140,20 +103,12 @@ function SearchTable({ histories }: { histories: RecordProduct[] }) {
     <Table className="text-normal flex-1">
       <TableHeader>
         <TableRow>
-          <TableHead style={width[size].no}>No</TableHead>
-          <TableHead style={width[size].date} className="text-center">
-            Tanggal
-          </TableHead>
-          <TableHead style={width[size].time} className="text-center">
-            Waktu
-          </TableHead>
+          <TableHead className="w-[60px] small:w-[50px]">No</TableHead>
+          <TableHead className="text-center w-[170px] small:w-[110px]">Tanggal</TableHead>
+          <TableHead className="text-center w-[100px] small:w-[80px]">Waktu</TableHead>
           <TableHead>Nama</TableHead>
-          <TableHead style={width[size].qty} className="text-center">
-            Qty
-          </TableHead>
-          <TableHead style={width[size].price} className="text-end">
-            Harga
-          </TableHead>
+          <TableHead className="text-center w-[57px] small:w-[50px]">Qty</TableHead>
+          <TableHead className="text-end w-[120px]">Harga</TableHead>
           <TableHead className="icon"></TableHead>
         </TableRow>
       </TableHeader>

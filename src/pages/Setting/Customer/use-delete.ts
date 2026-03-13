@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database-effect";
+import { revalidateCustomers } from "~/hooks/use-get-customer";
 import { log } from "~/lib/log";
-import { revalidateCustomers } from "./use-get-customer";
 
 export function useDelete(id: number, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);

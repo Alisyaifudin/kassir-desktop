@@ -5,13 +5,13 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Plus } from "lucide-react";
 import { useInterval } from "../use-interval";
-import { auth } from "~/lib/auth";
 import { Attention } from "./z-Attention";
 import { Limit } from "../z-Limit";
 import { useLength } from "./use-length";
+import { useUser } from "~/hooks/use-user";
 
 export function ProductPanel() {
-  const role = auth.user().role;
+  const role = useUser().role;
   const length = useLength();
   const { totalPage } = useInterval(length);
   const search = window.location.search;

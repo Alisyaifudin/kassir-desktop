@@ -1,10 +1,10 @@
 import { Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
-import { auth } from "~/lib/auth";
 import { Kbd } from "~/components/ui/kdb";
 import { showShortcut, useShortcut } from "./use-shortcut";
 import { useSize } from "~/hooks/use-size";
+import { useUser } from "~/hooks/use-user";
 
 const iconSize = {
   big: 40,
@@ -13,7 +13,7 @@ const iconSize = {
 
 export function SettingLink() {
   const { pathname } = useLocation();
-  const role = auth.get()?.role;
+  const role = useUser().role;
   const size = useSize();
   const show = useShortcut();
   const navigate = useNavigate();

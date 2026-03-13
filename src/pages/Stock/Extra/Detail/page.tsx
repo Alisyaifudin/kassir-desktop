@@ -4,13 +4,13 @@ import { ChevronLeft } from "lucide-react";
 import { Info } from "./z-Info";
 import { ExtraForm } from "./z-ExtraForm";
 import { Extra } from "~/database/extra/caches";
-import { auth } from "~/lib/auth";
 import { useData } from "./use-data";
 import { Result } from "~/lib/result";
 import { LoadingBig } from "~/components/Loading";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { NotFound } from "~/components/NotFound";
+import { useUser } from "~/hooks/use-user";
 
 export default function Page({ id }: { id: number }) {
   return (
@@ -49,7 +49,7 @@ function Loader({ id }: { id: number }) {
 }
 
 function Detail({ extra }: { extra: Extra }) {
-  const role = auth.user().role;
+  const role = useUser().role;
   switch (role) {
     case "admin":
       return <ExtraForm extra={extra} />;

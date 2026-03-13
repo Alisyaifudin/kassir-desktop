@@ -15,7 +15,7 @@ import { Spinner } from "~/components/Spinner";
 import { useNewCashier } from "./use-new-cashier";
 import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 
-export const NewCashier = memo(function () {
+export const NewCashier = memo(function NewCashier() {
   const [open, setOpen] = useState(false);
   const { error, form } = useNewCashier(() => setOpen(false));
   return (

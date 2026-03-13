@@ -9,7 +9,7 @@ export type User = {
   role: "admin" | "user";
 };
 
-let _user: undefined | User = undefined;
+export let _user: undefined | User = undefined;
 
 export class Unauthenticated extends Error {}
 
