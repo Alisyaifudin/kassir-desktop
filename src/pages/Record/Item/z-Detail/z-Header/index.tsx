@@ -2,7 +2,7 @@ import { Show } from "~/components/Show";
 import { CalendarController } from "./CalendarController";
 import { memo } from "react";
 import { capitalize } from "~/lib/utils";
-import { auth } from "~/lib/auth";
+import { useUser } from "~/hooks/use-user";
 
 export const Header = memo(function Header({
   paidAt,
@@ -15,7 +15,7 @@ export const Header = memo(function Header({
   cashier: string;
   mode: DB.Mode;
 }) {
-  const role = auth.user().role;
+  const role = useUser().role;
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">

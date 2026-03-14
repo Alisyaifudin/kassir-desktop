@@ -1,5 +1,6 @@
-import { Right } from "./Right";
-import { Left } from "./Left";
+import { Right } from "./z-Right";
+import { Left } from "./z-Left";
+import { Complete } from "./z-Complete";
 
 export default function Page() {
   return (
@@ -8,6 +9,7 @@ export default function Page() {
         <Left />
         <Right />
       </div>
+      <Complete />
     </main>
   );
 }

@@ -18,10 +18,8 @@ export const transaction = {
     all,
     byTab,
   },
-  // count,
   add: {
     new: addNew,
-    // one: add,
   },
   update: {
     customer,

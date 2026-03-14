@@ -7,7 +7,7 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
     // 1. Fetch current record products
     const recordProducts = yield* DB.try((db) =>
       db.select<{ id: number; qty: number; capital: number }[]>(
-        `SELECT product_id AS id, record_product_qty AS qty, record_product_capital AS capital FROM record_products WHERE timestamp = $1 AND product_id IS NOT NULL`,
+        `SELECT product_id AS id, record_product_qty AS qty, record_product_capital_raw AS capital FROM record_products WHERE timestamp = $1 AND product_id IS NOT NULL`,
         [timestamp],
       ),
     );
@@ -85,11 +85,8 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
         if (originalStock < 0) originalStock = 0;
         let finalStock = p.stock + 2 * p.qty;
         if (finalStock < 0) finalStock = 0;
-        const totalWeight = originalStock + p.qty;
-        const updatedCapital =
-          totalWeight === 0
-            ? p.prevCapital
-            : (p.prevCapital * originalStock + p.capital * p.qty) / totalWeight;
+
+        const updatedCapital = calcCombinedCapital(p.prevCapital, originalStock, p.capital, p.qty);
 
         sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++}, product_price = $${bindIndex++} WHERE product_id = $${bindIndex++};\n`;
         binds.push(finalStock, updatedCapital, p.prevPrice, p.id);
@@ -107,4 +104,14 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
     // 4. Fire the monolithic query with bindings
     yield* DB.try((db) => db.execute(sql, binds));
   });
+}
+
+export function calcCombinedCapital(
+  prevCapital: number,
+  prevStock: number,
+  buyCapital: number,
+  qty: number,
+) {
+  const weight = prevStock + qty;
+  return weight === 0 ? prevCapital : (prevCapital * prevStock + buyCapital * qty) / weight;
 }

@@ -45,9 +45,9 @@ declare namespace DB {
   interface Discount {
     disc_id: number;
     record_product_id: number;
-    disc_value: number;
-    disc_eff: number;
-    disc_kind: ValueKind;
+    discount_value: number;
+    discount_eff: number;
+    discount_kind: ValueKind;
   }
   interface RecordProduct {
     record_product_id: number;

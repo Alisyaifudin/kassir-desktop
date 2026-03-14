@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { queue } from "./utils/queue";
+import { queue } from "./util-queue";
 
 export function useStatus() {
   const [status, setStatus] = useState<"idle" | "active">(() => {

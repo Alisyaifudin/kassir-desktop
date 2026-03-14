@@ -22,7 +22,7 @@ export const extrasStore = createStore({
       if (context.length === 0) return context;
       return produce(context, (draft) => {
         let base = event.subtotal;
-        for (let extra of draft) {
+        for (const extra of draft) {
           const { eff, subtotal } = calcEff(base, extra.value, extra.kind);
           extra.eff = eff;
           extra.subtotal = subtotal.toNumber();
@@ -55,7 +55,7 @@ export const extrasStore = createStore({
         draft[index] = produce(draft[index], event.recipe);
         let base = new Decimal(draft[index].base);
         // recalculate the rest
-        for (let extra of draft.slice(index)) {
+        for (const extra of draft.slice(index)) {
           const { eff, subtotal } = calcEff(base, extra.value, extra.kind);
           extra.eff = eff;
           extra.subtotal = subtotal.toNumber();
@@ -98,6 +98,10 @@ export const totalExtra = createAtom([]);
 export function useTotal() {
   const extras = useSelector(extrasStore, (state) => state.context);
   const subtotal = useSubtotal();
+  return calcTotal(subtotal, extras);
+}
+
+export function calcTotal(subtotal: Decimal, extras: Extra[]) {
   if (extras.length === 0) return subtotal;
   const total = extras[extras.length - 1].subtotal;
   return new Decimal(total);

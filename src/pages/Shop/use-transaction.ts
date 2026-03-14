@@ -3,9 +3,9 @@ import { useAtom } from "@xstate/store/react";
 import { Transaction } from "~/transaction-effect/transaction/get-by-tab";
 import { productsStore } from "./store/product";
 import { extrasStore } from "./store/extra";
-import { queue } from "./utils/queue";
 import { tx } from "~/transaction-effect";
 import { produce, immerable } from "immer";
+import { queue } from "./util-queue";
 
 class Numeric {
   [immerable] = true;
