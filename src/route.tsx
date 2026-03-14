@@ -10,7 +10,7 @@ import { authentication } from "./middleware/authenticate.ts";
 import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
 
-const RootLayout = lazy(() => import("./layouts/root"));
+const RootLayout = lazy(() => import("./layouts/root.tsx"));
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
 const AuthLayout = lazy(() => import("./layouts/authenticated"));
 

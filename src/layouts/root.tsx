@@ -1,24 +1,26 @@
 import { Outlet } from "react-router";
 import { store } from "~/store";
-import { Provider } from "./Provider";
 import { Result } from "~/lib/result";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Effect } from "effect";
+import { setSize } from "~/hooks/use-size";
 
 export default function Layout() {
   const res = Result.use({
-    fn: () => store.size.get(),
+    fn: () =>
+      store.size.get().pipe(
+        Effect.tap((size) => {
+          setSize(size);
+        }),
+      ),
     key: "root-layout",
   });
   return Result.match(res, {
     onLoading() {
       return <Loading />;
     },
-    onSuccess(size) {
-      return (
-        <Provider size={size}>
-          <Outlet />
-        </Provider>
-      );
+    onSuccess() {
+      return <Outlet />;
     },
   });
 }
