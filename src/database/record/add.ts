@@ -88,7 +88,7 @@ export function add({
       total,
     );
 
-    if (customer.id === undefined) {
+    if (customer.id === undefined && customer.name !== "") {
       query += `INSERT INTO customers (customer_name, customer_phone) VALUES ($${bindingIndex++}, $${bindingIndex++});\n`;
       bindings.push(customer.name, customer.phone);
     }
