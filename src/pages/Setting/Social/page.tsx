@@ -5,9 +5,10 @@ import { cn } from "~/lib/utils";
 import { NewItem } from "./z-NewItem";
 import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
-import { Loading, LoadingFull } from "~/components/Loading";
+import { Loading } from "~/components/Loading";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
@@ -34,7 +35,7 @@ function Socials() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <LoadingFull />;
+      return <LoadingList />;
     },
     onError({ e }) {
       log.error(e);
@@ -51,4 +52,23 @@ function Socials() {
       );
     },
   });
+}
+
+function LoadingList() {
+  return (
+    <div className="flex flex-col gap-1 overflow-y-auto">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            "grid gap-2 items-center text-normal",
+            "grid-cols-[250px_1fr] small:grid-cols-[200px_1fr]",
+          )}
+        >
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  );
 }

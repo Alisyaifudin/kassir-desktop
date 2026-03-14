@@ -15,7 +15,6 @@ import { Button } from "~/components/ui/button";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Show } from "~/components/Show";
-import { LoadingBig } from "~/components/Loading";
 import { ModeSelect } from "./z-ModeSelect";
 import { useMode } from "./use-mode";
 import { useData } from "./use-data";
@@ -23,6 +22,7 @@ import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { formatDate, formatTime } from "~/lib/date";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function Search() {
   const [query, setQuery] = useQuery();
@@ -64,7 +64,7 @@ function Output() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <LoadingBig />;
+      return <LoadingTable />;
     },
     onError({ e }) {
       log.error(e);
@@ -146,5 +146,54 @@ function SearchTable({ histories }: { histories: RecordProduct[] }) {
         </Show>
       </TableBody>
     </Table>
+  );
+}
+
+function LoadingTable() {
+  return (
+    <output className="flex-1 overflow-hidden">
+      <div className="max-h-full overflow-hidden flex">
+        <Table className="text-normal flex-1">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[60px] small:w-[50px]">No</TableHead>
+              <TableHead className="text-center w-[170px] small:w-[110px]">Tanggal</TableHead>
+              <TableHead className="text-center w-[100px] small:w-[80px]">Waktu</TableHead>
+              <TableHead>Nama</TableHead>
+              <TableHead className="text-center w-[57px] small:w-[50px]">Qty</TableHead>
+              <TableHead className="text-end w-[120px]">Harga</TableHead>
+              <TableHead className="icon"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="overflow-auto flex-1 w-full">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <TableRow key={i} className={cn({ "bg-blue-50/50": i % 2 == 0 })}>
+                <TableCell>
+                  <Skeleton className="h-4 w-6" />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Skeleton className="h-4 w-24 mx-auto" />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Skeleton className="h-4 w-16 mx-auto" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-48" />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Skeleton className="h-4 w-10 mx-auto" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Skeleton className="h-4 w-20 ml-auto" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-8 w-8 ml-auto" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </output>
   );
 }

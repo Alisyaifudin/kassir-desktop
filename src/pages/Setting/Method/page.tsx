@@ -4,10 +4,11 @@ import { useMethod } from "./use-method";
 import { TabLink } from "./z-TabLink";
 import { Suspense } from "react";
 import { TextError } from "~/components/TextError";
-import { Loading, LoadingFull } from "~/components/Loading";
+import { Loading } from "~/components/Loading";
 import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
@@ -27,7 +28,7 @@ function Wrapper() {
   const [method] = useMethod();
   return Result.match(res, {
     onLoading() {
-      return <LoadingFull />;
+      return <LoadingList />;
     },
     onError({ e }) {
       log.error(e);
@@ -46,4 +47,21 @@ function Wrapper() {
       );
     },
   });
+}
+
+function LoadingList() {
+  return (
+    <div className="flex flex-col gap-2 overflow-auto">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-1">
+          <div className="flex items-center gap-1 p-0.5 w-full">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 flex-1" />
+            <Skeleton className="h-10 w-10" />
+          </div>
+          <Skeleton className="h-4 w-48" />
+        </div>
+      ))}
+    </div>
+  );
 }

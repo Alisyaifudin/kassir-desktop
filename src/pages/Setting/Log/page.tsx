@@ -1,9 +1,9 @@
 import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
-import { LoadingFull } from "~/components/Loading";
 import { Clear } from "./z-Clear";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
@@ -23,7 +23,7 @@ function Log() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <LoadingFull />;
+      return <LoadingLines />;
     },
     onError({ e }) {
       log.error(e);
@@ -41,4 +41,18 @@ function Log() {
       );
     },
   });
+}
+
+function LoadingLines() {
+  return (
+    <div className="flex flex-col gap-1 p-2 w-full">
+      {Array.from({ length: 30 }).map((_, i) => (
+        <Skeleton
+          key={i}
+          className="h-3 bg-white/10"
+          style={{ width: `${60 + ((i * 7) % 40)}%` }}
+        />
+      ))}
+    </div>
+  );
 }

@@ -15,7 +15,6 @@ import { AutoCustomer } from "./z-AutoCustomer";
 import { NewCustomer } from "./z-NewCustomer";
 import { useGetCustomers } from "~/hooks/use-get-customer";
 import { Result } from "~/lib/result";
-import { Loading } from "~/components/Loading";
 import { log } from "~/lib/log";
 import { Customer } from "~/database/customer/get-all";
 
@@ -33,6 +32,14 @@ export function CustomerDialog() {
       return <Wrapper customers={customers} />;
     },
   });
+}
+
+function Loading() {
+  return (
+    <Button className="p-1 rounded-full z-10" type="button" variant="secondary" disabled>
+      <User className="icon opacity-50" />
+    </Button>
+  );
 }
 
 function Wrapper({ customers }: { customers: Customer[] }) {

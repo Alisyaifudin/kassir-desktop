@@ -14,11 +14,11 @@ import { MethodFull } from "~/database/method/get-all";
 import { TextError } from "~/components/TextError";
 import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
-import { Loading } from "~/components/Loading";
 import { log } from "~/lib/log";
 import { DEFAULT_METHODS, METHOD_NAMES } from "~/lib/constants";
 import { setMethods, useMethod, useMethods } from "../use-method";
 import { cn } from "~/lib/utils";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function Filter() {
   const res = useGetMethods((methods) => {
@@ -37,6 +37,15 @@ export function Filter() {
       return <Wrapper />;
     },
   });
+}
+
+function Loading() {
+  return (
+    <div className="flex items-center gap-2">
+      <Skeleton className="h-10 w-[140px] rounded-xl" />
+      <Skeleton className="h-10 w-10 rounded-xl" />
+    </div>
+  );
 }
 
 function Wrapper() {

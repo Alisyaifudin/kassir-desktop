@@ -4,7 +4,6 @@ import { Graph } from "./z-Graph";
 import { useId } from "../use-id";
 import { useData } from "./use-data";
 import { Result } from "~/lib/result";
-import { LoadingBig } from "~/components/Loading";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { NotFound } from "~/components/NotFound";
@@ -13,13 +12,14 @@ import { useBound } from "./use-bound";
 import { useMemo } from "react";
 import { useInterval } from "./use-interval";
 import { useMode } from "./use-mode";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   const id = useId();
   const res = useData(id);
   return Result.match(res, {
     onLoading() {
-      return <LoadingBig />;
+      return <Loading />;
     },
     onError(e) {
       switch (e._tag) {
@@ -35,6 +35,20 @@ export default function Page() {
     },
   });
 }
+
+function Loading() {
+  return (
+    <div className="flex flex-col gap-1 flex-1">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-64" />
+      </div>
+      <Skeleton className="h-6 w-52" />
+      <Skeleton className="flex-1 w-full" />
+    </div>
+  );
+}
+
 function Wrapper({
   histories,
   product,

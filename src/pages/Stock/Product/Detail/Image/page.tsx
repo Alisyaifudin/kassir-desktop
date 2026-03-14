@@ -8,16 +8,16 @@ import { useChange } from "./use-change";
 import { useContainerSize, useControlSize } from "./use-container-size";
 import { ImageResult, useData } from "./use-data";
 import { Result } from "~/lib/result";
-import { LoadingFull } from "~/components/Loading";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { log } from "~/lib/log";
 import { useUser } from "~/hooks/use-user";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <LoadingFull />;
+      return <Loading />;
     },
     onError(error) {
       log.error(error.e);
@@ -27,6 +27,28 @@ export default function Page() {
       return <Wrapper images={images} />;
     },
   });
+}
+
+function Loading() {
+  return (
+    <div className="flex flex-col gap-1 flex-1 w-full min-h-0">
+      <div className="flex-1 min-h-0 justify-center items-center flex gap-1">
+        <Skeleton className="h-full w-10" />
+        <div className="relative flex-1 min-h-0 flex justify-center items-center overflow-hidden">
+          <Skeleton className="h-full w-full" />
+        </div>
+        <Skeleton className="h-full w-10" />
+      </div>
+      <div className="flex flex-col w-full min-h-0 gap-1">
+        <div className="overflow-x-scroll flex items-center gap-1 h-36 overflow-y-hidden">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 aspect-square" />
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full" />
+      </div>
+    </div>
+  );
 }
 
 function Wrapper({ images }: { images: ImageResult[] }) {

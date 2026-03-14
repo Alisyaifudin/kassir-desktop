@@ -1,8 +1,8 @@
 import { Result } from "~/lib/result";
 import { store } from "~/store";
 import { TextError } from "~/components/TextError";
-import { Spinner } from "~/components/Spinner";
 import { Link } from "react-router";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function Title() {
   const res = Result.use({
@@ -11,7 +11,11 @@ export function Title() {
   });
   return Result.match(res, {
     onLoading() {
-      return <Spinner when={true} />;
+      return (
+        <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
+          <Skeleton className="h-5 w-24" />
+        </div>
+      );
     },
     onError(error) {
       console.error(error.e);

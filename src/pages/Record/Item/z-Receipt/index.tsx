@@ -10,15 +10,15 @@ import { TextError } from "~/components/TextError";
 import { Data } from "../use-data";
 import { Info, useInfo } from "./use-info";
 import { Result } from "~/lib/result";
-import { LoadingBig } from "~/components/Loading";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { log } from "~/lib/log";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function Receipt({ data }: { data: Data }) {
   const res = useInfo();
   return Result.match(res, {
     onLoading() {
-      return <LoadingBig />;
+      return <LoadingReceipt />;
     },
     onError(error) {
       log.error(error.e);
@@ -68,6 +68,36 @@ function Wrapper({ data: { extras, products, record }, info }: { data: Data; inf
             method={record.method}
             customer={record.customer}
           />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoadingReceipt() {
+  return (
+    <div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
+      <Skeleton className="h-12 w-full" />
+      <div className="border pt-5">
+        <div className="flex flex-col gap-2 px-2 pb-5">
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="h-4 w-56" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-32" />
+          <div className="h-px bg-border" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between gap-3">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+          <div className="h-px bg-border" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between gap-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          ))}
         </div>
       </div>
     </div>

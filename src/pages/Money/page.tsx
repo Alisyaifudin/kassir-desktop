@@ -9,11 +9,19 @@ import { useInterval } from "./use-interval";
 import { TableList } from "./z-TableList";
 import { NewItem } from "./z-NewItem";
 import { TableListDebt } from "./z-TableListDebt";
-import { LoadingBig } from "~/components/Loading";
 import { useData } from "./use-data";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
+import { Skeleton } from "~/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 
 export default function Page() {
   const [search, setSearch] = useSearchParams();
@@ -73,7 +81,7 @@ export function Wrapper() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <LoadingBig />;
+      return <Loading />;
     },
     onError({ e }) {
       log.error(e);
@@ -95,4 +103,47 @@ export function Wrapper() {
       );
     },
   });
+}
+
+function Loading() {
+  return (
+    <>
+      <TabsContent value="saving" className="overflow-hidden flex-1 w-full">
+        <LoadingTable cols={7} />
+      </TabsContent>
+      <TabsContent value="debt" className="overflow-hidden flex-1 w-full">
+        <LoadingTable cols={8} />
+      </TabsContent>
+      <TabsContent value="diff" className="overflow-hidden flex-1 w-full">
+        <LoadingTable cols={7} />
+      </TabsContent>
+    </>
+  );
+}
+
+function LoadingTable({ cols }: { cols: number }) {
+  return (
+    <Table className="text-normal">
+      <TableHeader>
+        <TableRow>
+          {Array.from({ length: cols }).map((_, i) => (
+            <TableHead key={i}>
+              <Skeleton className="h-4 w-24" />
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <TableRow key={i}>
+            {Array.from({ length: cols }).map((_, j) => (
+              <TableCell key={j}>
+                <Skeleton className="h-4 w-full" />
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 }
