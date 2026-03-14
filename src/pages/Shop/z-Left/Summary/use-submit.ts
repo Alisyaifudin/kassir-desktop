@@ -7,10 +7,14 @@ import { resetStore } from "../../use-transaction";
 import { useTab } from "../../use-tab";
 import { useState } from "react";
 import { productsStore } from "../../store/product";
+import { tx } from "~/transaction";
+import { revalidateTabs, useTabs } from "../../use-tabs";
+import { TabInfo } from "~/transaction/transaction/get-all";
 
 export function useSubmit() {
   const [loading, setLoading] = useState(false);
   const [tab] = useTab();
+  const tabs = useTabs();
   async function handleSubmit(isCredit: boolean) {
     const productsError = productsStore
       .get()
@@ -44,8 +48,33 @@ export function useSubmit() {
           timestamp,
         });
         resetStore(tab);
+
+        Effect.runPromise(clearTab(tab, tabs)).then((errMsg) => {
+          if (errMsg === null) return;
+          toast.error(errMsg);
+        });
       },
     });
   }
   return { loading, handleSubmit };
+}
+
+function clearTab(tab: number, tabs: TabInfo[]) {
+  return Effect.gen(function* () {
+    yield* tx.transaction.delete(tab);
+    if (tabs.length === 1) {
+      yield* tx.transaction.add.new();
+    }
+    revalidateTabs();
+    return null;
+  }).pipe(
+    Effect.catchTag("TooMany", (e) => {
+      log.error(e.msg);
+      return Effect.succeed(e.msg);
+    }),
+    Effect.catchTag("TxError", ({ e }) => {
+      log.error(e);
+      return Effect.fail(e.message);
+    }),
+  );
 }
