@@ -1,8 +1,8 @@
 import { Effect, pipe } from "effect";
 import { useSyncExternalStore } from "react";
 import { log } from "~/lib/log";
-import { store } from "~/store-effect";
-import { Size } from "~/store-effect/size/get";
+import { store } from "~/store";
+import { Size } from "~/store/size/get";
 
 let inMemorySize: Size = "big";
 

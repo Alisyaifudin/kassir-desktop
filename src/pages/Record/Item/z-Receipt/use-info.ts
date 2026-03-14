@@ -1,8 +1,8 @@
-import { db } from "~/database-effect";
-import { store } from "~/store-effect";
+import { db } from "~/database";
+import { store } from "~/store";
 import { Result } from "~/lib/result";
 import { Effect } from "effect";
-import { Social } from "~/database-effect/social/get-all";
+import { Social } from "~/database/social/get-all";
 
 const KEY = "receipt-info";
 
@@ -29,10 +29,9 @@ export function revalidateInfo() {
 
 function loader() {
   return Effect.gen(function* () {
-    const [info, socials] = yield* Effect.all(
-      [store.info.get(), db.social.getAll()],
-      { concurrency: "unbounded" },
-    );
+    const [info, socials] = yield* Effect.all([store.info.get(), db.social.getAll()], {
+      concurrency: "unbounded",
+    });
 
     const res: Info = {
       ...info,

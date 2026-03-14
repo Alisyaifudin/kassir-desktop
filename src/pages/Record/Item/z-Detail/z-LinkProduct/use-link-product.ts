@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Data, revalidate } from "../../use-data";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
-
 
 export function useLinkProduct(product: Data["products"][number]) {
   const [loading, setLoading] = useState(false);

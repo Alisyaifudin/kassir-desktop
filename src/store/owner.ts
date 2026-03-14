@@ -1,14 +1,13 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getStore } from "./instance";
+import { Effect } from "effect";
 
-export async function owner(): Promise<ResultOld<DefaultError, string>> {
-  const store = await getStore();
-  const [errMsg, res] = await tryResult({
-    run: () => store.get("owner"),
+export function owner() {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    const res = yield* store.get("owner");
+    const owner = parseOwner(res);
+    return owner;
   });
-  if (errMsg) return err(errMsg);
-  const owner = parseOwner(res);
-  return ok(owner);
 }
 
 function parseOwner(owner: unknown) {

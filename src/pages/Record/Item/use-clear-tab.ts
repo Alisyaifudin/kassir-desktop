@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { log } from "~/lib/log";
 import { extrasStore } from "~/pages/Shop/store/extra";
 import { basicStore, customerStore, manualStore } from "~/pages/shop/use-transaction";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 
 export function useClearTab(tab?: number) {
   useEffect(() => {

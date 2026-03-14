@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 

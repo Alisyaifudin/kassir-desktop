@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { log } from "~/lib/log";
 import { revalidateTabs } from "../../use-tabs";
 import { useState } from "react";

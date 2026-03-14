@@ -1,11 +1,11 @@
 import { Result } from "~/lib/result";
 import { Effect } from "effect";
 import { NotFound } from "~/lib/effect-error";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { initStore } from "../../use-transaction";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { TabInfo } from "~/transaction-effect/transaction/get-all";
+import { TabInfo } from "~/transaction/transaction/get-all";
 import { log } from "~/lib/log";
 import { toast } from "sonner";
 

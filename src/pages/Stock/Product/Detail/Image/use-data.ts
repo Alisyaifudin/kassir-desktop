@@ -1,4 +1,4 @@
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { image } from "~/lib/image-effect";
 import { useId } from "../use-id";
 import { Effect } from "effect";

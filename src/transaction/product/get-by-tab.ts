@@ -1,5 +1,5 @@
-import { err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { Effect } from "effect";
+import { TX } from "../instance";
 
 export type Product = {
   id: string;
@@ -38,10 +38,9 @@ type Output = {
   disc_kind: "percent" | "number" | "pcs" | null;
 };
 
-export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasalah", Product[]>> {
-  const tx = await getTX();
-  const [errMsg, rows] = await tryResult({
-    run: () =>
+export function getByTab(tab: number) {
+  return Effect.gen(function* () {
+    const rows = yield* TX.try((tx) =>
       tx.select<Output[]>(
         `SELECT products.product_id, db_product_id, db_product_price, db_product_name,
          product_name, product_barcode, product_price, product_qty, product_stock, 
@@ -50,8 +49,12 @@ export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasa
          WHERE tab = $1 ORDER BY product_order, disc_order`,
         [tab],
       ),
+    );
+    return collect(tab, rows);
   });
-  if (errMsg !== null) return err("Aplikasi bermasalah");
+}
+
+function collect(tab: number, rows: Output[]) {
   const items: Map<string, Product> = new Map();
   for (const row of rows) {
     const discount = getDiscount(row.disc_id, row.disc_value, row.disc_kind);
@@ -77,7 +80,7 @@ export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasa
     items.set(row.product_id, item);
   }
   const prods = Array.from(items.values());
-  return ok(prods);
+  return prods;
 }
 
 function getProduct(id: number | null, price: number | null, name: string | null) {

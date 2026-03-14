@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";

@@ -6,7 +6,7 @@ import { Button } from "~/components/ui/button";
 import { DeleteSheet } from "./z-DeleteSheet";
 import { useTabs } from "../../use-tabs";
 import { useTab } from "../../use-tab";
-import { TabInfo } from "~/transaction-effect/transaction/get-all";
+import { TabInfo } from "~/transaction/transaction/get-all";
 import { useTransaction } from "./use-transaction";
 import { useAdd } from "./use-new-tab";
 import { NotFound } from "./z-NotFound";
@@ -37,7 +37,7 @@ export function SheetTab() {
         }
       </ForEach>
       <Show when={tabs.find((t) => t.tab === selected) === undefined}>
-        <NotFound  />
+        <NotFound />
       </Show>
     </div>
   );

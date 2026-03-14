@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { useBackUrl } from "~/hooks/use-back-url";
 import { log } from "~/lib/log";
 import { revalidateProducts } from "../../../../../../hooks/use-get-products";

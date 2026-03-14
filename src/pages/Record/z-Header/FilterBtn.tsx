@@ -1,6 +1,6 @@
 import { Banknote, CreditCard, QrCode, Send } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 import { METHOD_NAMES } from "~/lib/constants";
 import { cn } from "~/lib/utils";
 

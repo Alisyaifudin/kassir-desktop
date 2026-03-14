@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { z } from "zod";
 import { useKind } from "./use-kind";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Effect } from "effect";
 import Decimal from "decimal.js";
 import { log } from "~/lib/log";

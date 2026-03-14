@@ -1,19 +1,14 @@
-import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { Effect } from "effect";
+import { DB } from "../instance";
+import { NotFound } from "~/lib/effect-error";
 
-export async function delById(id: number): Promise<ResultOld<DefaultError | NotFound, string>> {
-  const db = await getDB();
-  const [errSelect, res] = await tryResult({
-    run: () =>
+export function delById(id: number) {
+  return Effect.gen(function* () {
+    const images = yield* DB.try((db) =>
       db.select<{ name: string }[]>("SELECT img_name AS name FROM images WHERE img_id = $1", [id]),
+    );
+    if (images.length === 0) return yield* NotFound.fail("Gambar tidak ditemukan");
+    yield* DB.try((db) => db.execute("DELETE FROM images WHERE img_id = $1", [id]));
+    return images[0].name;
   });
-  if (errSelect !== null) {
-    return err(errSelect);
-  }
-  if (res.length === 0) return err("Tidak ditemukan");
-  const [errMsg] = await tryResult({
-    run: () => db.execute("DELETE FROM images WHERE img_id = $1", [id]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(res[0].name);
 }

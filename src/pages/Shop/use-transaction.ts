@@ -1,9 +1,9 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
-import { Transaction } from "~/transaction-effect/transaction/get-by-tab";
+import { Transaction } from "~/transaction/transaction/get-by-tab";
 import { productsStore } from "./store/product";
 import { extrasStore } from "./store/extra";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { produce, immerable } from "immer";
 import { queue } from "./util-queue";
 

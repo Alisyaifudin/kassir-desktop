@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { auth } from "~/lib/auth-effect";
 import { log } from "~/lib/log";
 

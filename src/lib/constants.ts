@@ -1,5 +1,5 @@
 import { Temporal } from "temporal-polyfill";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 
 export const version = "5.1.0";
 

@@ -5,7 +5,7 @@ import { Button } from "~/components/ui/button";
 import { generateId } from "~/lib/random";
 import { productsStore } from "~/pages/shop/store/product";
 import { queue } from "~/pages/shop/util-queue";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 
 export function Add({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false);

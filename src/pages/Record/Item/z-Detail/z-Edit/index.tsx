@@ -13,7 +13,7 @@ import { ToCreditBtn } from "./ToCreditBtn";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 import { useNote } from "./use-note";
 import { Textarea } from "~/components/ui/textarea";
 

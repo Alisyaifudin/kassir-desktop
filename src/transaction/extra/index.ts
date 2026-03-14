@@ -8,8 +8,10 @@ import { saved } from "./update-saved";
 import { value } from "./update-value";
 
 export const extra = {
-  add,
-  addMany,
+  add: {
+    one: add,
+  },
+  // addMany,
   getByTab,
   delById,
   update: {

@@ -18,9 +18,9 @@ export const transaction = {
     all,
     byTab,
   },
-  count,
-  addNew,
-  add,
+  add: {
+    new: addNew,
+  },
   update: {
     customer,
     mode,
@@ -31,5 +31,5 @@ export const transaction = {
     product,
     extra,
   },
-  del,
+  delete: del,
 };

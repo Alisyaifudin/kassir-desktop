@@ -17,7 +17,7 @@ import { useGetCustomers } from "~/hooks/use-get-customer";
 import { Result } from "~/lib/result";
 import { Loading } from "~/components/Loading";
 import { log } from "~/lib/log";
-import { Customer } from "~/database-effect/customer/get-all";
+import { Customer } from "~/database/customer/get-all";
 
 export function CustomerDialog() {
   const res = useGetCustomers();

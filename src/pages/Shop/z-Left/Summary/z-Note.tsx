@@ -10,7 +10,7 @@ import { NotepadText } from "lucide-react";
 import { Textarea } from "~/components/ui/textarea";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useAtom } from "@xstate/store/react";
 import { basicStore } from "../../use-transaction";
 import { useTab } from "../../use-tab";

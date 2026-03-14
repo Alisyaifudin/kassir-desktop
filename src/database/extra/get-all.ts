@@ -1,22 +1,21 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
+import { Effect } from "effect";
 import { getCache, Extra, setCache } from "./caches";
-import { getDB } from "../instance";
+import { DB } from "../instance";
 
-export async function all(): Promise<ResultOld<DefaultError, Extra[]>> {
-  const cache = getCache();
-  if (cache !== null) return ok(cache);
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () =>
+export function all() {
+  return Effect.gen(function* () {
+    const cache = getCache();
+    if (cache !== null) return cache;
+    const res = yield* DB.try((db) =>
       db.select<DB.Extra[]>("SELECT extra_id, extra_name, extra_value, extra_kind FROM extras"),
+    );
+    const items: Extra[] = res.map((r) => ({
+      id: r.extra_id,
+      kind: r.extra_kind,
+      name: r.extra_name,
+      value: r.extra_value,
+    }));
+    setCache(items);
+    return items;
   });
-  if (errMsg !== null) return err(errMsg);
-  const items: Extra[] = res.map((r) => ({
-    id: r.extra_id,
-    kind: r.extra_kind,
-    name: r.extra_name,
-    value: r.extra_value,
-  }));
-  setCache(items);
-  return ok(items);
 }

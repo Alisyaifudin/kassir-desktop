@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useAppForm } from "../z-ProductForm";
 import { createProductOptions } from "../util-product-options";

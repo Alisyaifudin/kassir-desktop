@@ -1,5 +1,5 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { Effect } from "effect";
+import { TX } from "../instance";
 
 export const extra = {
   name,
@@ -9,53 +9,36 @@ export const extra = {
   clear,
 };
 
-async function name(tab: number, v: string): Promise<DefaultError | null> {
-  const tx = await getTX();
-  const [errMsg] = await tryResult({
-    run: () => tx.execute(`UPDATE transactions SET tx_extra_name = $1 WHERE tab = $2`, [v, tab]),
-  });
-  if (errMsg) return errMsg;
-  return null;
+function name(tab: number, v: string) {
+  return TX.try((tx) =>
+    tx.execute(`UPDATE transactions SET tx_extra_name = $1 WHERE tab = $2`, [v, tab]),
+  ).pipe(Effect.asVoid);
 }
 
-async function value(tab: number, v: number): Promise<DefaultError | null> {
-  const tx = await getTX();
-  const [errMsg] = await tryResult({
-    run: () => tx.execute(`UPDATE transactions SET tx_extra_value = $1 WHERE tab = $2`, [v, tab]),
-  });
-  if (errMsg) return errMsg;
-  return null;
+function value(tab: number, v: number) {
+  return TX.try((tx) =>
+    tx.execute(`UPDATE transactions SET tx_extra_value = $1 WHERE tab = $2`, [v, tab]),
+  ).pipe(Effect.asVoid);
 }
 
-async function kind(tab: number, v: TX.ValueKind): Promise<DefaultError | null> {
-  const tx = await getTX();
-  const [errMsg] = await tryResult({
-    run: () => tx.execute(`UPDATE transactions SET tx_extra_kind = $1 WHERE tab = $2`, [v, tab]),
-  });
-  if (errMsg) return errMsg;
-  return null;
+function kind(tab: number, v: TX.ValueKind) {
+  return TX.try((tx) =>
+    tx.execute(`UPDATE transactions SET tx_extra_kind = $1 WHERE tab = $2`, [v, tab]),
+  ).pipe(Effect.asVoid);
 }
 
-async function saved(tab: number, v: boolean): Promise<DefaultError | null> {
-  const tx = await getTX();
-  const [errMsg] = await tryResult({
-    run: () =>
-      tx.execute(`UPDATE transactions SET tx_extra_is_saved = $1 WHERE tab = $2`, [v ? 1 : 0, tab]),
-  });
-  if (errMsg) return errMsg;
-  return null;
+function saved(tab: number, v: boolean) {
+  return TX.try((tx) =>
+    tx.execute(`UPDATE transactions SET tx_extra_is_saved = $1 WHERE tab = $2`, [v ? 1 : 0, tab]),
+  ).pipe(Effect.asVoid);
 }
 
-async function clear(tab: number): Promise<DefaultError | null> {
-  const tx = await getTX();
-  const [errMsg] = await tryResult({
-    run: () =>
-      tx.execute(
-        `UPDATE transactions SET tx_extra_is_saved = 0, tx_extra_name = '', tx_extra_value = 0,
+function clear(tab: number) {
+  return TX.try((tx) =>
+    tx.execute(
+      `UPDATE transactions SET tx_extra_is_saved = 0, tx_extra_name = '', tx_extra_value = 0,
          tx_extra_kind = 'percent' WHERE tab = $1`,
-        [tab],
-      ),
-  });
-  if (errMsg) return errMsg;
-  return null;
+      [tab],
+    ),
+  ).pipe(Effect.asVoid);
 }

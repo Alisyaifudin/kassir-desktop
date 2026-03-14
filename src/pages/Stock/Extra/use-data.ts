@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Result } from "~/lib/result";
 import { setLength } from "./use-length";
 

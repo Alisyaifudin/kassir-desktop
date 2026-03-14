@@ -4,7 +4,7 @@ import { Spinner } from "~/components/Spinner";
 import { constructCSV } from "~/lib/utils";
 import { useSubmit } from "~/hooks/use-submit";
 import { Effect, pipe } from "effect";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Temporal } from "temporal-polyfill";
 import { log } from "~/lib/log";
 

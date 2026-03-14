@@ -1,6 +1,6 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
 import { z } from "zod";
+import { Effect } from "effect";
 
 const schema = z.object({
   address: z.string().default(""),
@@ -15,25 +15,26 @@ const schema = z.object({
 
 export type Info = z.infer<typeof schema>;
 
-export async function get(): Promise<ResultOld<DefaultError, Info>> {
-  const store = await getStore();
-  const [errMsg, res] = await tryResult({
-    run: () =>
-      Promise.all([
+export function get() {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    const res = yield* Effect.all(
+      [
         store.get("address"),
         store.get("footer"),
         store.get("header"),
         store.get("owner"),
         store.get("show-cashier"),
-      ]),
+      ],
+      { concurrency: "unbounded" },
+    );
+    const info = schema.parse({
+      address: res[0],
+      footer: res[1],
+      header: res[2],
+      owner: res[3],
+      showCashier: res[4],
+    });
+    return info;
   });
-  if (errMsg) return err(errMsg);
-  const info = schema.parse({
-    address: res[0],
-    footer: res[1],
-    header: res[2],
-    owner: res[3],
-    showCashier: res[4],
-  });
-  return ok(info);
 }

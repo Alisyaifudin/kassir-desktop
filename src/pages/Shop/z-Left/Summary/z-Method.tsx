@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { TextError } from "~/components/TextError";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useAtom } from "@xstate/store/react";
 import { Kbd } from "~/components/ui/kdb";
 import {

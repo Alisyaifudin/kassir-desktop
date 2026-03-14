@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { Effect } from "effect";
 import { z } from "zod";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { RecordExtra } from "~/database/record-extra/get-by-range";
 import { RecordProduct } from "~/database/record-product/get-by-range";
 import { dateStringSchema, dateToEpoch } from "~/lib/date";

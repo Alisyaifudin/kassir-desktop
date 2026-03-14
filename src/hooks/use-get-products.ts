@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Result } from "~/lib/result";
 import { setLength } from "../pages/Stock/Product/use-length";
-import { Product } from "~/database-effect/product/caches";
+import { Product } from "~/database/product/caches";
 import { useSyncExternalStore } from "react";
 
 const KEY = "products";

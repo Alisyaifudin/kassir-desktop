@@ -8,7 +8,7 @@ import { LoadingBig } from "~/components/Loading";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { NotFound } from "~/components/NotFound";
-import { ProductHistory } from "~/database-effect/product/get-history-range";
+import { ProductHistory } from "~/database/product/get-history-range";
 import { useBound } from "./use-bound";
 import { useMemo } from "react";
 import { useInterval } from "./use-interval";

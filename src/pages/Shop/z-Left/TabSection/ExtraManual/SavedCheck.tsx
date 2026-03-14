@@ -1,6 +1,6 @@
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { Label } from "~/components/ui/label";
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";

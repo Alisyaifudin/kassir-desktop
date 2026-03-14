@@ -2,7 +2,7 @@ import { ForEach } from "~/components/ForEach";
 import { TextError } from "~/components/TextError";
 import { Show } from "~/components/Show";
 import { METHOD_BASE_ID, METHOD_NAMES } from "~/lib/constants";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 import { useMethod } from "./use-method";
 import {
   Select,

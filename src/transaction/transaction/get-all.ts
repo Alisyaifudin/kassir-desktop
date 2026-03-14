@@ -1,17 +1,17 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { TX } from "../instance";
+import { Effect } from "effect";
 
 export type TabInfo = {
   tab: number;
   mode: TX.Mode;
 };
 
-export async function all(): Promise<ResultOld<DefaultError, TabInfo[]>> {
-  const tx = await getTX();
-  const [errMsg, res] = await tryResult({
-    run: () =>
-      tx.select<{ tab: number; tx_mode: TX.Mode }[]>("SELECT tab, tx_mode FROM transactions"),
+type Output = { tab: number; tx_mode: TX.Mode };
+
+export function all() {
+  return Effect.gen(function* () {
+    const res = yield* TX.try((tx) => tx.select<Output[]>("SELECT tab, tx_mode FROM transactions"));
+    const tabs: TabInfo[] = res.map((r) => ({ tab: r.tab, mode: r.tx_mode }));
+    return tabs;
   });
-  if (errMsg !== null) return err(errMsg);
-  return ok(res.map((r) => ({ tab: r.tab, mode: r.tx_mode })));
 }

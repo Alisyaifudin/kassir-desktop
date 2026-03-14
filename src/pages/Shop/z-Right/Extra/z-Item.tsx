@@ -3,7 +3,7 @@ import { memo, useState } from "react";
 import { Show } from "~/components/Show";
 import { Delete } from "./z-Delete";
 import { Loading } from "~/components/Loading";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useFix } from "../../use-transaction";
 import { Input } from "~/components/ui/input";
 import {

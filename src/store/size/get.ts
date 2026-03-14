@@ -1,16 +1,15 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
+import { Effect } from "effect";
 
 export type Size = "big" | "small";
 
-export async function get(): Promise<ResultOld<DefaultError, Size>> {
-  const store = await getStore();
-  const [errMsg, res] = await tryResult({
-    run: () => store.get("size"),
+export function get() {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    const res = yield* store.get("size");
+    const size = parseSize(res);
+    return size;
   });
-  if (errMsg) return err(errMsg);
-  const size = parseSize(res);
-  return ok(size);
 }
 
 function parseSize(size: unknown): Size {

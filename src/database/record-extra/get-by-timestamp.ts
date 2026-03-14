@@ -1,24 +1,18 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
-import { RecordExtra } from "./get-by-range";
+import { Effect } from "effect";
+import { DB } from "../instance";
 
-export async function getByTimestamp(
-  timestamp: number,
-): Promise<ResultOld<DefaultError, RecordExtra[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () =>
+export function getByTimestamp(timestamp: number) {
+  return Effect.gen(function* () {
+    const res = yield* DB.try((db) =>
       db.select<DB.RecordExtra[]>("SELECT * FROM record_extras WHERE timestamp = $1", [timestamp]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
+    );
+    return res.map((r) => ({
       id: r.record_extra_id,
       name: r.record_extra_name,
       timestamp: r.timestamp,
       value: r.record_extra_value,
       eff: r.record_extra_eff,
       kind: r.record_extra_kind,
-    })),
-  );
+    }));
+  });
 }

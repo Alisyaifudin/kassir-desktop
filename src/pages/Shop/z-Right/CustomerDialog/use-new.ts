@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Customer } from "~/database-effect/customer/get-all";
-import { tx } from "~/transaction-effect";
+import { Customer } from "~/database/customer/get-all";
+import { tx } from "~/transaction";
 import { useTab } from "../../use-tab";
 import { queue } from "../../util-queue";
 import { customerStore } from "../../use-transaction";

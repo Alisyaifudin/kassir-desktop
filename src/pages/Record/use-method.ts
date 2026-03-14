@@ -1,7 +1,7 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
 import { useSearchParams } from "react-router";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 import { DEFAULT_METHODS } from "~/lib/constants";
 import { integer } from "~/lib/utils";
 

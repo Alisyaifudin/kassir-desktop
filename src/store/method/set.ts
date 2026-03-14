@@ -1,19 +1,13 @@
-import { DefaultError, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
+import { Effect } from "effect";
 
-export async function set(
-  key: "transfer" | "debit" | "qris",
-  val?: number
-): Promise<DefaultError | null> {
-  const store = await getStore();
-  const [errMsg] = await tryResult({
-    run: async () => {
-      if (val === undefined) {
-        store.delete(`default-${key}`);
-      } else {
-        store.set(`default-${key}`, val);
-      }
-    },
+export function set(key: "transfer" | "debit" | "qris", val?: number) {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    if (val === undefined) {
+      yield* store.delete(`default-${key}`);
+    } else {
+      yield* store.set(`default-${key}`, val);
+    }
   });
-  return errMsg;
 }

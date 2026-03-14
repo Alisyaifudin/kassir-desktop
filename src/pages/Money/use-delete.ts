@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";

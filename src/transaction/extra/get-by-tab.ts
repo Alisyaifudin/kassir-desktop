@@ -1,5 +1,5 @@
-import { err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { TX } from "../instance";
+import { Effect } from "effect";
 
 export type Extra = {
   id: string;
@@ -21,18 +21,15 @@ type Output = {
   extra_is_saved: boolean;
 };
 
-export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasalah", Extra[]>> {
-  const tx = await getTX();
-  const [errMsg, rows] = await tryResult({
-    run: () =>
+export function getByTab(tab: number) {
+  return Effect.gen(function* () {
+    const rows = yield* TX.try((tx) =>
       tx.select<Output[]>(
         `SELECT extra_id, tab, db_extra_id, extra_name, extra_value, extra_kind, extra_is_saved FROM extras WHERE tab = $1`,
         [tab],
       ),
-  });
-  if (errMsg !== null) return err("Aplikasi bermasalah");
-  return ok(
-    rows.map((r) => ({
+    );
+    return rows.map((r) => ({
       id: r.extra_id,
       tab,
       kind: r.extra_kind,
@@ -40,6 +37,6 @@ export async function getByTab(tab: number): Promise<ResultOld<"Aplikasi bermasa
       saved: r.extra_is_saved,
       value: r.extra_value,
       extraId: r.db_extra_id ?? undefined,
-    })),
-  );
+    }));
+  });
 }

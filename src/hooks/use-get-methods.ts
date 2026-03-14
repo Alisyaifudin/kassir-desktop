@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { db } from "~/database-effect";
-import { Method } from "~/database-effect/method/get-all";
+import { db } from "~/database";
+import { Method } from "~/database/method/get-all";
 import { Result } from "~/lib/result";
-import { store } from "~/store-effect";
+import { store } from "~/store";
 
 function loader() {
   const methods = Effect.all([db.method.getAll(), store.method.get()], {

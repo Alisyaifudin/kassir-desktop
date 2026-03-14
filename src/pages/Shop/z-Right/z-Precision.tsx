@@ -1,4 +1,4 @@
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { basicStore, useFix } from "../use-transaction";
 import { useTab } from "../use-tab";
 import {

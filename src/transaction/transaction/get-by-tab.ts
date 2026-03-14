@@ -1,5 +1,6 @@
-import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { TX } from "../instance";
+import { Effect } from "effect";
+import { NotFound } from "~/lib/effect-error";
 
 export type Transaction = {
   tab: number;
@@ -28,38 +29,39 @@ export type Transaction = {
   };
 };
 
-export async function byTab(tab: number): Promise<ResultOld<DefaultError | NotFound, Transaction>> {
-  const tx = await getTX();
-  const [errMsg, res] = await tryResult({
-    run: () => tx.select<TX.Transaction[]>("SELECT * FROM transactions WHERE tab = $1", [tab]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  if (res.length === 0) return err("Tidak ditemukan");
-  const r = res[0];
-  return ok({
-    tab,
-    mode: r.tx_mode,
-    query: r.tx_query,
-    fix: r.tx_fix,
-    methodId: r.tx_method_id,
-    note: r.tx_note,
-    customer: {
-      name: r.tx_customer_name,
-      phone: r.tx_customer_phone,
-      id: r.tx_customer_id ?? undefined,
-    },
-    extra: {
-      kind: r.tx_extra_kind,
-      name: r.tx_extra_name,
-      saved: Boolean(r.tx_extra_is_saved),
-      value: r.tx_extra_value,
-    },
-    product: {
-      barcode: r.tx_product_barcode,
-      name: r.tx_product_name,
-      price: r.tx_product_price,
-      qty: r.tx_product_qty,
-      stock: r.tx_product_stock,
-    },
+export function byTab(tab: number) {
+  return Effect.gen(function* () {
+    const res = yield* TX.try((tx) =>
+      tx.select<TX.Transaction[]>("SELECT * FROM transactions WHERE tab = $1", [tab]),
+    );
+    if (res.length === 0) return yield* Effect.fail(NotFound.new("Tab tidak ditemukan"));
+    const r = res[0];
+    const transaction: Transaction = {
+      tab,
+      mode: r.tx_mode,
+      query: r.tx_query,
+      fix: r.tx_fix,
+      methodId: r.tx_method_id,
+      note: r.tx_note,
+      customer: {
+        name: r.tx_customer_name,
+        phone: r.tx_customer_phone,
+        id: r.tx_customer_id ?? undefined,
+      },
+      extra: {
+        kind: r.tx_extra_kind,
+        name: r.tx_extra_name,
+        saved: Boolean(r.tx_extra_is_saved),
+        value: r.tx_extra_value,
+      },
+      product: {
+        barcode: r.tx_product_barcode,
+        name: r.tx_product_name,
+        price: r.tx_product_price,
+        qty: r.tx_product_qty,
+        stock: r.tx_product_stock,
+      },
+    };
+    return transaction;
   });
 }

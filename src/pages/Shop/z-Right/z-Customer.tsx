@@ -1,7 +1,7 @@
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useAtom } from "@xstate/store/react";
 // import { customerStore } from "./CustomerDialog/use-customer";
 import { useTab } from "../use-tab";

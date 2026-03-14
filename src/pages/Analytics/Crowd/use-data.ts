@@ -1,5 +1,5 @@
 import { Temporal } from "temporal-polyfill";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { useTime } from "../use-time";
 import { Result } from "~/lib/result";
 import { Effect } from "effect";

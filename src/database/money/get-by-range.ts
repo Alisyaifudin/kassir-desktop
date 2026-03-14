@@ -1,5 +1,5 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
 export type Money = {
   timestamp: number;
@@ -8,25 +8,20 @@ export type Money = {
   note: string;
 };
 
-export async function getByRange(
-  start: number,
-  end: number,
-): Promise<ResultOld<DefaultError, Money[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () =>
+export function getByRange(start: number, end: number) {
+  return Effect.gen(function* () {
+    const raw = yield* DB.try((db) =>
       db.select<DB.Money[]>(
         "SELECT * FROM money WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC",
         [start, end],
       ),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
+    );
+    const money: Money[] = raw.map((r) => ({
       timestamp: r.timestamp,
       value: r.money_value,
       kind: r.money_kind,
       note: r.note,
-    })),
-  );
+    }));
+    return money;
+  });
 }

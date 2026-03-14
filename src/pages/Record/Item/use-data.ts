@@ -1,8 +1,8 @@
 import Decimal from "decimal.js";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { RecordExtra } from "~/database/record-extra/get-by-range";
 import { RecordProduct } from "~/database/record-product/get-by-range";
-import { Record } from "~/database-effect/record/get-by-range";
+import { Record } from "~/database/record/get-by-range";
 import { Result } from "~/lib/result";
 import { Effect } from "effect";
 

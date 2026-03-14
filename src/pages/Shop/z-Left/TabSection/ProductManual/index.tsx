@@ -5,7 +5,7 @@ import { PriceInput } from "./PriceInput";
 import { NameInput } from "./NameInput";
 import { BarcodeInput } from "./BarcodeInput";
 import { generateId } from "~/lib/random";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { QtyInput } from "./QtyInput";
 import { StockInput } from "./StockInput";
 import Decimal from "decimal.js";

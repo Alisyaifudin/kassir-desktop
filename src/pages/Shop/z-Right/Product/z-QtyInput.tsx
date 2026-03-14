@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils";
 import { memo, useEffect, useState } from "react";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { productsStore } from "../../store/product";

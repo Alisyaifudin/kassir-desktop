@@ -5,7 +5,7 @@ import { ValueInput } from "./ValueInput";
 import { KindSelect } from "./KindSelect";
 import { SavedCheck } from "./SavedCheck";
 import { generateId } from "~/lib/random";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { extrasStore } from "~/pages/Shop/store/extra";
 import { useRef } from "react";
 import { manualStore } from "~/pages/Shop/use-transaction";

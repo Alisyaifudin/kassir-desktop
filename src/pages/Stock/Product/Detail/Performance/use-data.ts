@@ -1,5 +1,5 @@
 import { Result } from "~/lib/result";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { useBound } from "./use-bound";
 import { Effect } from "effect";
 

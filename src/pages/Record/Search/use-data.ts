@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { tz } from "~/lib/constants";
 import { Result } from "~/lib/result";
 import { integer } from "~/lib/utils";

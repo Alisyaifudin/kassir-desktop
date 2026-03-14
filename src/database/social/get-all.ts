@@ -1,5 +1,5 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
 export type Social = {
   id: number;
@@ -7,17 +7,14 @@ export type Social = {
   value: string;
 };
 
-export async function getAll(): Promise<ResultOld<DefaultError, Social[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () => db.select<DB.Social[]>("SELECT * FROM socials"),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
+export function getAll() {
+  return Effect.gen(function* () {
+    const res = yield* DB.try((db) => db.select<DB.Social[]>("SELECT * FROM socials"));
+    const socials: Social[] = res.map((r) => ({
       name: r.social_name,
       id: r.social_id,
       value: r.social_value,
-    })),
-  );
+    }));
+    return socials;
+  });
 }

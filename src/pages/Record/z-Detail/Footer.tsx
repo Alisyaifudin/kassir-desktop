@@ -1,7 +1,7 @@
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import { Extra } from "./Extra";
-import type { RecordExtra } from "~/database-effect/record-extra/get-by-range";
+import type { RecordExtra } from "~/database/record-extra/get-by-range";
 import type { Record } from "../use-records";
 import { METHOD_NAMES } from "~/lib/constants";
 

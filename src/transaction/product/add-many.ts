@@ -1,5 +1,5 @@
 import { DefaultError, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { getTX } from "../instance";
 import Database from "@tauri-apps/plugin-sql";
 import { generateId } from "~/lib/random";
 
@@ -37,7 +37,7 @@ export async function addMany(data: Data[]): Promise<DefaultError | null> {
 
 async function addProduct(
   tx: Database,
-  { discounts, id, tab, price, product, name, barcode, qty, stock }: Data
+  { discounts, id, tab, price, product, name, barcode, qty, stock }: Data,
 ): Promise<DefaultError | null> {
   const [errProd] = await tryResult({
     run: async () =>
@@ -56,7 +56,7 @@ async function addProduct(
           product?.id ?? null,
           product?.name ?? null,
           product?.price ?? null,
-        ]
+        ],
       ),
   });
   if (errProd !== null) return errProd;
@@ -74,7 +74,7 @@ async function addProduct(
 async function addDiscount(
   tx: Database,
   productId: string,
-  { kind, value }: Data["discounts"][number]
+  { kind, value }: Data["discounts"][number],
 ): Promise<DefaultError | null> {
   const id = generateId();
   const [errMsg] = await tryResult({
@@ -82,7 +82,7 @@ async function addDiscount(
       tx.execute(
         `INSERT INTO discounts (product_id, disc_id, disc_value, disc_kind) 
          VALUES ($1, $2, $3, $4)`,
-        [productId, id, value, kind]
+        [productId, id, value, kind],
       ),
   });
   return errMsg;

@@ -1,6 +1,6 @@
 import { Outlet } from "react-router";
 import { LoadingFull } from "~/components/Loading";
-import { store } from "~/store-effect";
+import { store } from "~/store";
 import { Provider } from "./Provider";
 import { Result } from "~/lib/result";
 

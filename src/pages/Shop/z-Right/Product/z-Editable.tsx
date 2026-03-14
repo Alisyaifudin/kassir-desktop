@@ -5,7 +5,7 @@ import { Discount } from "./z-Discount";
 import { PriceInput } from "./z-PriceInput";
 import { QtyInput } from "./z-QtyInput";
 import { Delete } from "./z-Delete";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { memo, useRef } from "react";

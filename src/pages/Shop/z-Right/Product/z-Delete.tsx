@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { memo } from "react";
 import { productsStore } from "../../store/product";
 

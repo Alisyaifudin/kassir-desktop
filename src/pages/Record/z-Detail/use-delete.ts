@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { useState } from "react";
 import { Data, revalidate } from "../use-records";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useUnselect } from "../use-selected";
 

@@ -1,5 +1,5 @@
 import { DefaultError, err, logOld, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { getTX } from "../instance";
 import { count as getCount } from "./count";
 
 type Input = {

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { useMemo } from "react";
 import { Temporal } from "temporal-polyfill";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Result } from "~/lib/result";
 import { setSummary } from "./z-Summary";
 import { getFlow } from "../utils/group-items";

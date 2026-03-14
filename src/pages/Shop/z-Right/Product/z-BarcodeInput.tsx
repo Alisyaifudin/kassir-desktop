@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Input } from "~/components/ui/input";

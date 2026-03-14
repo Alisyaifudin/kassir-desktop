@@ -1,15 +1,13 @@
-import { add } from "./add";
 import { delById } from "./del-by-id";
-import { generateBarcode } from "./generate-barcode";
+import { getHistory } from "./get-history";
 import { all } from "./get-all";
 import { getById } from "./get-by-id";
-import { getHistory } from "./history";
-import { proposeBarcode } from "./propose-barcode";
-import { updateDetail } from "./update-detail";
-import { byRange } from "./get-by-range";
-import { updateStock } from "./update-stock";
-import { getPerformance } from "./get-performance";
-import { getHistoryRange } from "./history-range";
+import { updateInfo } from "./update-info";
+import { getHistoryRange } from "./get-history-range";
+import { add } from "./add";
+import { getByRange } from "./get-by-range";
+import { incStock } from "./inc-stock";
+import { decStock } from "./dec-stock";
 
 export const product = {
   get: {
@@ -17,17 +15,21 @@ export const product = {
     byId: getById,
     history: getHistory,
     historyRange: getHistoryRange,
-    byRange: byRange,
-    performance: getPerformance,
+    byRange: getByRange,
+    // performance: getPerformance,
   },
   delById,
   update: {
-    detail: updateDetail,
-    stock: updateStock,
+    info: updateInfo,
+    stock: {
+      inc: incStock,
+      dec: decStock,
+    },
+    // stock: updateStock,
   },
-  barcode: {
-    gen: generateBarcode,
-    propose: proposeBarcode,
-  },
+  // barcode: {
+  //   gen: generateBarcode,
+  //   propose: proposeBarcode,
+  // },
   add,
 };

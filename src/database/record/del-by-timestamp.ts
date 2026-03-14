@@ -1,10 +1,8 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { Effect } from "effect";
+import { DB } from "../instance";
 
-export async function delByTimestamp(timestamp: number): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () => db.execute("DELETE FROM records WHERE timestamp = $1", [timestamp]),
-  });
-  return errMsg;
+export function delByTimestamp(timestamp: number) {
+  return DB.try((db) => db.execute("DELETE FROM records WHERE timestamp = $1", [timestamp])).pipe(
+    Effect.asVoid,
+  );
 }

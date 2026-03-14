@@ -1,11 +1,11 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
-import { Social } from "~/database-effect/social/get-all";
+import { Social } from "~/database/social/get-all";
 import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
 const schema = z.object({

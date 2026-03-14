@@ -11,12 +11,12 @@ export const recordProduct = {
   get: {
     byRange: getByRange,
     byTimestamp: getByTimestamp,
-    byTimestampFull: getByTimestampFull,
-    product: getProduct,
-    lastId: getLastId,
+    // byTimestampFull: getByTimestampFull,
+    // product: getProduct,
+    // lastId: getLastId,
     history: getHistory,
   },
-  add,
+  // add,
   update: {
     productId: updateProductId,
   },

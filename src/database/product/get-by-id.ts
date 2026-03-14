@@ -1,5 +1,6 @@
-import { DefaultError, err, NotFound, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
+import { NotFound } from "~/lib/effect-error";
 
 export type Product = {
   id: number;
@@ -11,20 +12,24 @@ export type Product = {
   note: string;
 };
 
-export async function getById(id: number): Promise<ResultOld<DefaultError | NotFound, Product>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () => db.select<DB.Product[]>("SELECT * FROM products WHERE product_id = $1", [id]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  if (res.length === 0) return err("Tidak ditemukan");
-  return ok({
-    id: res[0].product_id,
-    barcode: res[0].product_barcode ?? undefined,
-    name: res[0].product_name,
-    price: res[0].product_price,
-    stock: res[0].product_stock,
-    capital: res[0].product_capital,
-    note: res[0].product_note,
-  });
+export function getById(id: number) {
+  return DB.try((db) =>
+    db.select<DB.Product[]>("SELECT * FROM products WHERE product_id = $1", [id]),
+  ).pipe(
+    Effect.flatMap((r) =>
+      r.length === 0 ? NotFound.fail("Barang tidak ditemukan") : Effect.succeed(r[0]),
+    ),
+    Effect.map(
+      (r) =>
+        ({
+          id: r.product_id,
+          barcode: r.product_barcode ?? undefined,
+          name: r.product_name,
+          price: r.product_price,
+          stock: r.product_stock,
+          capital: r.product_capital,
+          note: r.product_note,
+        }) satisfies Product,
+    ),
+  );
 }

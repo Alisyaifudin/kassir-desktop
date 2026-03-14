@@ -1,5 +1,5 @@
 import { DefaultError, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { getTX } from "../instance";
 import Database from "@tauri-apps/plugin-sql";
 
 type Data = {
@@ -26,14 +26,14 @@ export async function addMany(data: Data[]): Promise<DefaultError | null> {
 
 async function add(
   tx: Database,
-  { tab, id, name, value, kind, saved }: Data
+  { tab, id, name, value, kind, saved }: Data,
 ): Promise<DefaultError | null> {
   const [errMsg] = await tryResult({
     run: async () =>
       tx.execute(
         `INSERT INTO extras (extra_id, tab, extra_name, extra_value, extra_kind, extra_is_saved) 
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [id, tab, name, value, kind, saved ? 1 : 0]
+        [id, tab, name, value, kind, saved ? 1 : 0],
       ),
   });
   return errMsg;

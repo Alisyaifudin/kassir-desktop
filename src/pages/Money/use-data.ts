@@ -2,7 +2,7 @@ import Decimal from "decimal.js";
 import { Effect } from "effect";
 import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Money } from "~/database/money/get-by-range";
 import { Result } from "~/lib/result";
 import { integer } from "~/lib/utils";

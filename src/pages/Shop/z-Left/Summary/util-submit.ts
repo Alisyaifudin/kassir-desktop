@@ -3,7 +3,7 @@ import { calcTotal, extrasStore } from "../../store/extra";
 import { productsStore } from "../../store/product";
 import { calcSubtotal } from "../../store/product/calc-subtotal";
 import { basicStore, customerStore } from "../../use-transaction";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { auth } from "~/lib/auth-effect";
 
 class NotEnoughError {

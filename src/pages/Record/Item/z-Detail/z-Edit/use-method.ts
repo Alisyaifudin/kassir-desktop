@@ -1,10 +1,10 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "../../use-data";
 import { METHOD_BASE_ID } from "~/lib/constants";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 
 export function useMethod({
   timestamp,

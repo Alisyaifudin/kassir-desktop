@@ -8,7 +8,7 @@ import {
 } from "~/components/ui/select";
 import { productsStore } from "~/pages/shop/store/product";
 import { queue } from "~/pages/shop/util-queue";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 
 export function DiscKind({
   id,

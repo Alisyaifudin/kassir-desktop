@@ -1,7 +1,7 @@
 import { LoginForm } from "./z-LoginForm";
 import { FreshForm } from "./z-FreshForm";
 import { Result } from "~/lib/result";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { ErrorComponent } from "~/components/ErrorComponent";
 
 export default function Page() {

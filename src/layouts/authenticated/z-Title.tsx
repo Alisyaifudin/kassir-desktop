@@ -1,5 +1,5 @@
 import { Result } from "~/lib/result";
-import { store } from "~/store-effect";
+import { store } from "~/store";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 

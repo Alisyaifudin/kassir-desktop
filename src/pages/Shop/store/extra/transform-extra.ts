@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import type { Extra as ExtraTx } from "~/transaction-effect/extra/get-by-tab";
+import type { Extra as ExtraTx } from "~/transaction/extra/get-by-tab";
 import type { Extra } from ".";
 
 export function calcEff(

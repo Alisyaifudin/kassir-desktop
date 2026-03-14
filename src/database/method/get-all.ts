@@ -1,22 +1,31 @@
-import { err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect, pipe } from "effect";
 
-export type Method = { id: number; kind: DB.MethodEnum; name?: string };
+export type MethodKind = Exclude<DB.MethodEnum, "cash">;
+export type Method = { id: number; kind: MethodKind; name?: string };
+export type MethodFull = { id: number; kind: DB.MethodEnum; name?: string };
 
-export async function getAll(): Promise<ResultOld<"Aplikasi bermasalah", Method[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () =>
-      db.select<DB.Method[]>(
-        "SELECT method_id, method_kind, method_name FROM methods WHERE method_deleted_at is null ORDER BY method_id",
+type Output = {
+  method_id: number;
+  method_name: string | null;
+  method_kind: MethodKind;
+};
+
+export function getAll() {
+  return pipe(
+    DB.try((db) =>
+      db.select<Output[]>(
+        `SELECT method_id, method_kind, method_name FROM methods 
+         WHERE method_deleted_at is null AND method_kind != 'cash' 
+         ORDER BY method_id`,
       ),
-  });
-  if (errMsg) return err(errMsg);
-  return ok(
-    res.map((r) => ({
-      id: r.method_id,
-      kind: r.method_kind,
-      name: r.method_name ?? undefined,
-    })),
+    ),
+    Effect.map((res) =>
+      res.map((r) => ({
+        id: r.method_id,
+        kind: r.method_kind,
+        name: r.method_name ?? undefined,
+      })),
+    ),
   );
 }

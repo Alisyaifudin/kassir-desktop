@@ -4,7 +4,7 @@ import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
-import { store } from "~/store-effect";
+import { store } from "~/store";
 import { revalidateTitle } from "~/layouts/authenticated/z-Title";
 import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 

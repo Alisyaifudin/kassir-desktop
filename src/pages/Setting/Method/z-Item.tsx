@@ -3,7 +3,7 @@ import { Input } from "~/components/ui/input";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { Spinner } from "~/components/Spinner";
 import { memo } from "react";
-import { MethodKind } from "~/database-effect/method/get-all";
+import { MethodKind } from "~/database/method/get-all";
 import { DefaultMethod } from "./z-DefaultMethod";
 import equal from "fast-deep-equal";
 import { useUpdate } from "./use-update";

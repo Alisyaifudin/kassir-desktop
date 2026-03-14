@@ -1,19 +1,12 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { Effect } from "effect";
+import { TX } from "../instance";
 
-export async function customer(
-  tab: number,
-  customer: { name: string; phone: string; id?: number }
-): Promise<DefaultError | null> {
-  const tx = await getTX();
-  const [errMsg] = await tryResult({
-    run: () =>
-      tx.execute(
-        `UPDATE transactions SET tx_customer_name = $1, tx_customer_phone = $2, tx_customer_id = $3 
+export function customer(tab: number, customer: { name: string; phone: string; id?: number }) {
+  return TX.try((tx) =>
+    tx.execute(
+      `UPDATE transactions SET tx_customer_name = $1, tx_customer_phone = $2, tx_customer_id = $3 
              WHERE tab = $4`,
-        [customer.name, customer.phone, customer.id ?? null, tab]
-      ),
-  });
-  if (errMsg) return errMsg;
-  return null;
+      [customer.name, customer.phone, customer.id ?? null, tab],
+    ),
+  ).pipe(Effect.asVoid);
 }

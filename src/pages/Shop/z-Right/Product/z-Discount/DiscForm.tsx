@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Input } from "~/components/ui/input";
 import { productsStore } from "~/pages/shop/store/product";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { Delete } from "./Delete";
 import { DiscKind } from "./DiscKind";
 import { queue } from "~/pages/shop/util-queue";

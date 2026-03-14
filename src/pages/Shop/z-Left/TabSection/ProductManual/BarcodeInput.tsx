@@ -1,7 +1,7 @@
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { Field } from "../z-Field";
 import { Product } from "~/database/product/caches";
 import { useAtom } from "@xstate/store/react";

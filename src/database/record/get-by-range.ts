@@ -1,5 +1,5 @@
-import { DefaultError, err, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
 export type Record = {
   timestamp: number;
@@ -24,27 +24,21 @@ export type Record = {
   total: number;
 };
 
-export async function getByRange(
-  start: number,
-  end: number,
-): Promise<ResultOld<DefaultError, Record[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult<
-    (DB.Record & { method_name: string | null; method_kind: DB.MethodEnum })[]
-  >({
-    run: () =>
-      db.select(
+type Output = DB.Record & { method_name: string | null; method_kind: DB.MethodEnum };
+
+export function getByRange(start: number, end: number) {
+  return Effect.gen(function* () {
+    const res = yield* DB.try((db) =>
+      db.select<Output[]>(
         `SELECT timestamp, record_paid_at, record_rounding, record_is_credit, record_cashier,
       record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone,
       record_sub_total, record_total, methods.method_id, method_name, method_kind 
       FROM records INNER JOIN methods ON records.method_id = methods.method_id
-      WHERE timestamp BETWEEN $1 AND $2`,
+      WHERE record_paid_at BETWEEN $1 AND $2`,
         [start, end],
       ),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
+    );
+    const data: Record[] = res.map((r) => ({
       customer: {
         name: r.record_customer_name,
         phone: r.record_customer_phone,
@@ -65,6 +59,7 @@ export async function getByRange(
       subTotal: r.record_sub_total,
       timestamp: r.timestamp,
       total: r.record_total,
-    })),
-  );
+    }));
+    return data;
+  });
 }

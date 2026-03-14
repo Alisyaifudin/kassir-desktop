@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";

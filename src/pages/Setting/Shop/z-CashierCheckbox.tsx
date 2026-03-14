@@ -5,7 +5,7 @@ import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { Effect, pipe } from "effect";
-import { store } from "~/store-effect";
+import { store } from "~/store";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 

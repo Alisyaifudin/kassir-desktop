@@ -2,7 +2,7 @@ import { Input } from "~/components/ui/input";
 import { Field } from "../z-Field";
 import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { forwardRef } from "react";

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Customer } from "~/database/customer/get-all";
 import { useAtom } from "@xstate/store/react";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { Input } from "~/components/ui/input";
 import { Show } from "~/components/Show";
 import { X } from "lucide-react";

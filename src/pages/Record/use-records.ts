@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { useSearchParams } from "react-router";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Record as RecordDB } from "~/database/record/get-by-range";
 import { RecordProduct } from "~/database/record-product/get-by-range";
 import { RecordExtra } from "~/database/record-extra/get-by-range";

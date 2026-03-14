@@ -1,10 +1,8 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { Effect } from "effect";
+import { DB } from "../instance";
 
-export async function delById(id: number): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () => db.execute("DELETE FORM socials WHERE social_id = $1", [id]),
-  });
-  return errMsg;
+export function delById(id: number) {
+  return DB.try((db) => db.execute("DELETE FROM socials WHERE social_id = $1", [id])).pipe(
+    Effect.asVoid,
+  );
 }

@@ -3,7 +3,7 @@ import { Search } from "./z-SearchBar";
 import { ProductManual } from "./ProductManual";
 import { ExtraManual } from "./ExtraManual";
 import { Effect } from "effect";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { dbItemsStore } from "../../store/db";
 import { TextError } from "~/components/TextError";
 import { Result } from "~/lib/result";

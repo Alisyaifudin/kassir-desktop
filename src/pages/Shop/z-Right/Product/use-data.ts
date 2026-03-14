@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { Result } from "~/lib/result";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { transformProduct } from "../../store/product/transform-product";
 import { productsStore } from "../../store/product";
 import { useTab } from "../../use-tab";

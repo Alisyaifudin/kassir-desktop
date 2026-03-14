@@ -1,22 +1,18 @@
-import { DefaultError, err, logOld, ok, ResultOld, tryResult } from "~/lib/utils";
-import { getTX } from "../db-instance";
+import { Effect } from "effect";
 import { count as getCount } from "./count";
+import { TooMany } from "~/lib/effect-error";
+import { TX, TxError } from "../instance";
+import { TabInfo } from "./get-all";
 
-export async function addNew(): Promise<ResultOld<DefaultError | "Terlalu banyak", number>> {
-  const tx = await getTX();
-  const [errCount, count] = await getCount();
-  if (errCount !== null) return err(errCount);
-  if (count >= 100) {
-    return err("Terlalu banyak");
-  }
-  const [errMsg, res] = await tryResult({
-    run: async () => tx.execute("INSERT INTO transactions DEFAULT VALUES"),
+export function addNew() {
+  return Effect.gen(function* () {
+    const count = yield* getCount();
+    if (count >= 100) return yield* Effect.fail(TooMany.new("Terlalu banyak transaksi"));
+    const res = yield* TX.try((tx) => tx.execute("INSERT INTO transactions DEFAULT VALUES"));
+    const id = res.lastInsertId;
+    if (id === undefined)
+      return yield* Effect.fail(TxError.new(new Error("Failed to insert new transaction")));
+    const info: TabInfo = { mode: "sell", tab: id };
+    return info;
   });
-  if (errMsg) return err(errMsg);
-  const id = res.lastInsertId;
-  if (id === undefined) {
-    logOld.error("Failed to insert new transaction");
-    return err("Aplikasi bermasalah");
-  }
-  return ok(id);
 }

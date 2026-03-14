@@ -1,4 +1,4 @@
-import { Product } from "~/transaction-effect/product/get-by-tab";
+import { Product } from "~/transaction/product/get-by-tab";
 import { Discount } from ".";
 import Decimal from "decimal.js";
 

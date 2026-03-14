@@ -1,10 +1,10 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
-import { Customer } from "~/database-effect/customer/get-all";
+import { Customer } from "~/database/customer/get-all";
 import { revalidateCustomers } from "~/hooks/use-get-customer";
 
 const schema = z.object({

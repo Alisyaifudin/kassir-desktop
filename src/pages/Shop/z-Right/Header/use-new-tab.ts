@@ -1,5 +1,5 @@
 import { Effect, Either } from "effect";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { log } from "~/lib/log";
 import { toast } from "sonner";
 import { revalidateTabs, setNewTabBuffer } from "../../use-tabs";

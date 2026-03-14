@@ -1,14 +1,8 @@
-import { tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { Effect } from "effect";
+import { DB } from "../instance";
 
-export async function add(
-  name: string,
-  kind: DB.MethodEnum
-): Promise<"Aplikasi bermasalah" | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () =>
-      db.execute("INSERT INTO methods (method_name, method_kind) VALUES ($1, $2)", [name, kind]),
-  });
-  return errMsg;
+export function add(name: string, kind: Exclude<DB.MethodEnum, "cash">) {
+  return DB.try((db) =>
+    db.execute("INSERT INTO methods (method_name, method_kind) VALUES ($1, $2)", [name, kind]),
+  ).pipe(Effect.asVoid);
 }

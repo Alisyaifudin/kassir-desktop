@@ -7,7 +7,7 @@ import { extrasStore } from "../../store/extra";
 import { generateId } from "~/lib/random";
 import { Product } from "~/database/product/caches";
 import { Extra } from "~/database/extra/caches";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { useAtom } from "@xstate/store/react";
 import { FuzzyResult } from "@nozbe/microfuzz";
 import { useDBExtras, useDBProducts } from "../../store/db";

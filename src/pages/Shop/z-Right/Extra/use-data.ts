@@ -2,7 +2,7 @@ import { Result } from "~/lib/result";
 import { useSubtotal } from "../../store/product";
 import Decimal from "decimal.js";
 import { Effect } from "effect";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { transformExtra } from "../../store/extra/transform-extra";
 import { extrasStore } from "../../store/extra";
 import { useTab } from "../../use-tab";

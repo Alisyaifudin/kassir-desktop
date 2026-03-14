@@ -10,7 +10,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
 import { FilterBtn } from "./FilterBtn";
 import { Show } from "~/components/Show";
-import { MethodFull } from "~/database-effect/method/get-all";
+import { MethodFull } from "~/database/method/get-all";
 import { TextError } from "~/components/TextError";
 import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";

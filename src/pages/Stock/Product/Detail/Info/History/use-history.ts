@@ -1,4 +1,4 @@
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Result } from "~/lib/result";
 import { usePage } from "./use-page";
 import { useMode } from "./use-mode";

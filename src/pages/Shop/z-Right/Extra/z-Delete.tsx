@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { extrasStore } from "../../store/extra";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { Button } from "~/components/ui/button";
 import { queue } from "../../util-queue";
 

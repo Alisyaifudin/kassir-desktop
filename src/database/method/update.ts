@@ -1,10 +1,8 @@
-import { tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
-export async function update(id: number, name: string): Promise<"Aplikasi bermasalah" | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () => db.execute("UPDATE methods SET method_name = $1 WHERE method_id = $2", [name, id]),
-  });
-  return errMsg;
+export function update(id: number, name: string) {
+  return DB.try((db) =>
+    db.execute("UPDATE methods SET method_name = $1 WHERE method_id = $2", [name, id]),
+  ).pipe(Effect.asVoid);
 }

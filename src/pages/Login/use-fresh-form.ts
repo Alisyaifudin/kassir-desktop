@@ -3,7 +3,7 @@ import { Effect, Either } from "effect";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import z from "zod";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { auth } from "~/lib/auth-effect";
 import { log } from "~/lib/log";
 

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 import { Result } from "~/lib/result";
-import { TabInfo } from "~/transaction-effect/transaction/get-all";
+import { TabInfo } from "~/transaction/transaction/get-all";
 import { useNavigate, useOutletContext } from "react-router";
 
 const KEY = "tabs";

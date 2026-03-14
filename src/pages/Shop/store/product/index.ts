@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { Product as ProductTx } from "~/transaction-effect/product/get-by-tab";
+import { Product as ProductTx } from "~/transaction/product/get-by-tab";
 import { produce, WritableDraft } from "immer";
 import { createAtom, createStore } from "@xstate/store";
 import { useAtom, useSelector } from "@xstate/store/react";

@@ -1,6 +1,6 @@
 import { Effect, pipe } from "effect";
 import { toast } from "sonner";
-import { db } from "~/database-effect";
+import { db } from "~/database";
 import { Cashier } from "~/database/cashier/get-all";
 import { revalidate } from "./use-data";
 import {

@@ -7,7 +7,7 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { useTab } from "~/pages/shop/use-tab";
 import { manualStore } from "~/pages/Shop/use-transaction";
 import { queue } from "~/pages/shop/util-queue";
-import { tx } from "~/transaction-effect";
+import { tx } from "~/transaction";
 
 export function ValueInput() {
   const val = useAtom(manualStore, (state) => state.extra.value);
