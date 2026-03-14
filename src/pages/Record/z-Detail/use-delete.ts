@@ -21,7 +21,7 @@ export function useDelete({
   const unselect = useUnselect();
   async function handleDelete() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp, mode, products));
+    const errMsg = await Effect.runPromise(programDeleteRecord(timestamp, mode, products));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -33,9 +33,13 @@ export function useDelete({
   return { error, loading, handleDelete };
 }
 
-function program(timestamp: number, mode: DB.Mode, products: Data["products"]) {
+export function programDeleteRecord(
+  timestamp: number,
+  mode: DB.Mode,
+  productRecords: { id: number; productId?: number; qty: number }[],
+) {
   return Effect.gen(function* () {
-    const filtered = products.flatMap((p) =>
+    const filtered = productRecords.flatMap((p) =>
       p.productId === undefined ? [] : [{ id: p.productId, qty: p.qty }],
     );
     yield* Effect.all([
