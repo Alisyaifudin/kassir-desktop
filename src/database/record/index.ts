@@ -1,5 +1,5 @@
 import { add } from "./add";
-import { count } from "./count";
+import { countRecord } from "./count-record";
 import { delByTimestamp } from "./del-by-timestamp";
 import { getByRange } from "./get-by-range";
 import { getByTimestamp } from "./get-by-timestamp";
@@ -15,7 +15,9 @@ export const record = {
     byRange: getByRange,
     byTimestamp: getByTimestamp,
   },
-  count,
+  count: {
+    record: countRecord,
+  },
   add,
   delByTimestamp,
   update: {

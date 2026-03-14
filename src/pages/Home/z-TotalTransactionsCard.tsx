@@ -85,7 +85,7 @@ function useData() {
     return [today.epochMilliseconds, endOfDay.epochMilliseconds];
   }, []);
   const res = Result.use({
-    fn: () => db.record.count(start, end),
+    fn: () => db.record.count.record(start, end),
     key: "total-transactions",
     revalidateOn: {
       unmount: true,
