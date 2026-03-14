@@ -1,7 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { Interval } from "./use-interval";
-import { ProductHistory } from "~/database/product/history-range";
 import { MONTHS } from "~/lib/date";
+import { ProductHistory } from "~/database/product/get-history-range";
 
 export type Data = {
   count: number;
@@ -183,7 +183,7 @@ function allBins(start: number, end: number): Bin[] {
 
 export function agg(histories: ProductHistory[], bins: Bin[]): Data[] {
   return bins.map((b) => {
-    const filtered = histories.filter((h) => h.timestamp < b.end && h.timestamp >= b.start);
+    const filtered = histories.filter((h) => h.paidAt < b.end && h.paidAt >= b.start);
     let count = 0;
     if (filtered.length > 0) {
       count = filtered.map((h) => h.qty).reduce((acc, cur) => acc + cur);

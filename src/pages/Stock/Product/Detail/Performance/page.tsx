@@ -47,14 +47,14 @@ function Wrapper({
   const [mode] = useMode();
   const [start, end] = useMemo(() => {
     if (interval === "all") {
-      const times = histories.map((h) => h.timestamp);
+      const times = histories.map((h) => h.paidAt);
       const start = times.length > 0 ? Math.min(...times) : Date.now();
       const end = times.length > 0 ? Math.max(...times) : Date.now() + 1;
       return [start, end] as const;
     } else {
       return [startRaw, endRaw] as const;
     }
-  }, [startRaw, endRaw, interval]);
+  }, [startRaw, endRaw, interval, histories]);
   const bins = getBins(interval, start, end);
   const data = agg(
     histories.filter((h) => h.mode === mode),

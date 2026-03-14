@@ -1,3 +1,4 @@
+// import { formatDate } from "~/lib/date";
 import { DB } from "../instance";
 import { Effect } from "effect";
 
@@ -19,7 +20,7 @@ export function getHistoryRange(id: number, start: number, end: number) {
       `SELECT records.record_paid_at, record_product_qty, record_mode
 					FROM record_products 
           INNER JOIN records ON records.timestamp = record_products.timestamp
-					WHERE product_id = $1 AND records.timestamp BETWEEN $2 AND $3
+					WHERE product_id = $1 AND records.record_paid_at BETWEEN $2 AND $3
 					ORDER BY records.record_paid_at DESC
 					`,
       [id, start, end],
