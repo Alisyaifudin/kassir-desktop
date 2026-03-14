@@ -34,7 +34,7 @@ export function useLoginForm() {
         onRight(user) {
           setError(null);
           auth.set(user);
-          navigate("/setting");
+          navigate("/");
         },
       });
     },
