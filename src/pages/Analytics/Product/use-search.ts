@@ -9,7 +9,7 @@ export const useItemSearch = (all: Item[], query: string) => {
       strategy: "smart",
     });
     return fuzzy;
-  }, []);
+  }, [all]);
 
   const searched = useMemo(() => {
     if (query.trim() === "") {

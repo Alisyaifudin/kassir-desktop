@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { db } from "~/database";
-import { image } from "~/lib/image-effect";
+import { image } from "~/lib/image";
 import { log } from "~/lib/log";
 import { Result } from "~/lib/result";
 

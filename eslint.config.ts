@@ -7,7 +7,7 @@ import react from "eslint-plugin-react";
 import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", ".tauri", "src-tauri"] },
+  { ignores: ["dist", "build", "node_modules", ".tauri", "src-tauri", "docs"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

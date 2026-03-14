@@ -1,84 +1,97 @@
-// import { exists, mkdir, writeFile, readFile, remove } from "@tauri-apps/plugin-fs";
-// import { err, logOld, ok, ResultOld, tryResult } from "./utils";
-// import * as path from "@tauri-apps/api/path";
+import { exists, mkdir, writeFile, readFile, remove, BaseDirectory } from "@tauri-apps/plugin-fs";
+import * as path from "@tauri-apps/api/path";
+import { Effect } from "effect";
 
-// export namespace image {
-//   export async function save(file: File, name: string): Promise<"Aplikasi bermasalah" | null> {
-//     const [errCheck, checkExist] = await tryResult({
-//       run: () =>
-//         exists("images", {
-//           baseDir: path.BaseDirectory.AppData,
-//         }),
-//     });
-//     if (errCheck) {
-//       logOld.error("Failed to check directory");
-//       return errCheck;
-//     }
-//     if (!checkExist) {
-//       const [errMkdir] = await tryResult({
-//         run: () =>
-//           mkdir("images", {
-//             baseDir: path.BaseDirectory.AppData,
-//           }),
-//       });
-//       if (errMkdir) {
-//         logOld.error("Failed to create directory");
-//         return errMkdir;
-//       }
-//     }
-//     const arrayBuffer = await file.arrayBuffer();
-//     const data = new Uint8Array(arrayBuffer);
-//     const [errJoin, pathname] = await tryResult({
-//       run: () => path.join("images", name),
-//     });
-//     if (errJoin) {
-//       logOld.error("Failed to join path");
-//       return errJoin;
-//     }
+class IOError {
+  readonly _tag = "IOError";
+  error: Error;
+  constructor(v: unknown, msg: string) {
+    this.error = new Error(msg, { cause: v });
+  }
+}
 
-//     const [errMsg] = await tryResult({
-//       run: () =>
-//         Promise.all([
-//           writeFile(pathname, data, {
-//             baseDir: path.BaseDirectory.AppData,
-//           }),
-//         ]),
-//     });
-//     if (errMsg) {
-//       logOld.error("Failed to save file");
-//     }
-//     return errMsg;
-//   }
-//   export async function load(
-//     name: string,
-//     mimeType: "image/png" | "image/jpeg",
-//   ): Promise<ResultOld<"Aplikasi bermasalah", string>> {
-//     const [errJoin, pathname] = await tryResult({
-//       run: () => path.join("images", name),
-//     });
-//     if (errJoin) return err(errJoin);
-//     const [errImage, image] = await tryResult({
-//       run: () =>
-//         readFile(pathname, {
-//           baseDir: path.BaseDirectory.AppData,
-//         }),
-//     });
-//     if (errImage) return err(errImage);
-//     const blob = new Blob([image as any], { type: mimeType });
-//     const objectURL = URL.createObjectURL(blob);
-//     return ok(objectURL);
-//   }
-//   export async function del(name: string): Promise<"Aplikasi bermasalah" | null> {
-//     const [errJoin, pathname] = await tryResult({
-//       run: () => path.join("images", name),
-//     });
-//     if (errJoin) return errJoin;
-//     const [errMsg] = await tryResult({
-//       run: () =>
-//         remove(pathname, {
-//           baseDir: path.BaseDirectory.AppData,
-//         }),
-//     });
-//     return errMsg;
-//   }
-// }
+class ArrayBufferError {
+  readonly _tag = "ArrayBufferError";
+  error: Error;
+  constructor(v: unknown) {
+    this.error = new Error("Gagal mengkonversi file ke arraybuffer", { cause: v });
+  }
+}
+
+type MimeType = "image/png" | "image/jpeg";
+
+function save(file: File, name: string) {
+  return Effect.gen(function* () {
+    const checkExist = yield* Effect.tryPromise({
+      try: () =>
+        exists("images", {
+          baseDir: BaseDirectory.AppData,
+        }),
+      catch: (error) => new IOError(error, "Gagal membaca folder images"),
+    });
+    if (!checkExist) {
+      yield* Effect.tryPromise({
+        try: () =>
+          mkdir("images", {
+            baseDir: BaseDirectory.AppData,
+            recursive: true,
+          }),
+        catch: (error) => new IOError(error, "Gagal membuat folder images"),
+      });
+    }
+    const arrayBuffer = yield* Effect.tryPromise({
+      try: () => file.arrayBuffer(),
+      catch: (e) => new ArrayBufferError(e),
+    });
+    const data = new Uint8Array(arrayBuffer);
+    yield* Effect.tryPromise({
+      try: () =>
+        writeFile(`images/${name}`, data, {
+          baseDir: BaseDirectory.AppData,
+        }),
+      catch: (e) => new IOError(e, "Gagal menyimpan file"),
+    });
+  });
+}
+
+function load(name: string, mimeType: MimeType) {
+  return Effect.gen(function* () {
+    const pathname = yield* Effect.tryPromise({
+      try: () => path.join("images", name),
+      catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
+    });
+    const image = yield* Effect.tryPromise({
+      try: () =>
+        readFile(pathname, {
+          baseDir: BaseDirectory.AppData,
+        }),
+      catch: (e) => new IOError(e, "Gagal membaca gambar"),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const blob = new Blob([image as any], { type: mimeType });
+    const objectURL = URL.createObjectURL(blob);
+    return objectURL;
+  });
+}
+
+function del(name: string) {
+  return Effect.gen(function* () {
+    const pathname = yield* Effect.tryPromise({
+      try: () => path.join("images", name),
+      catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
+    });
+    yield* Effect.tryPromise({
+      try: () =>
+        remove(pathname, {
+          baseDir: BaseDirectory.AppData,
+        }),
+      catch: (e) => new IOError(e, "Gagal membaca gambar"),
+    });
+  });
+}
+
+export const image = {
+  save,
+  load,
+  del,
+} as const;

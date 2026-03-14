@@ -1,5 +1,5 @@
 import { db } from "~/database";
-import { image } from "~/lib/image-effect";
+import { image } from "~/lib/image";
 import { useId } from "../use-id";
 import { Effect } from "effect";
 import { Result } from "~/lib/result";

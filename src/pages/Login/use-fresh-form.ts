@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import z from "zod";
 import { db } from "~/database";
-import { auth } from "~/lib/auth-effect";
+import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
 
 const schema = z

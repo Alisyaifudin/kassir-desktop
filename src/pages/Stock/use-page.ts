@@ -7,11 +7,13 @@ export function usePage() {
   const page = integer.catch(1).parse(search.get("page"));
   const set = useCallback(
     (page: number) => {
-      const s = new URLSearchParams(window.location.search);
-      s.set("page", page.toString());
-      setSearch(s);
+      setSearch((old) => {
+        const s = new URLSearchParams(old);
+        s.set("page", page.toString());
+        return s;
+      });
     },
-    [page]
+    [setSearch],
   );
   return [page, set] as const;
 }

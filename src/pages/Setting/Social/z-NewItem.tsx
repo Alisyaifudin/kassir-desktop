@@ -14,7 +14,7 @@ import { cn } from "~/lib/utils";
 import { useNew } from "./use-new";
 import { Field, FieldError } from "~/components/ui/field";
 
-export const NewItem = memo(function () {
+export const NewItem = memo(function NewItem() {
   const [open, setOpen] = useState(false);
   const { form, error } = useNew(() => setOpen(false));
   return (

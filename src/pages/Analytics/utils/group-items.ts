@@ -25,7 +25,7 @@ function getEdges(
       const labels = Array.from({ length: date.daysInMonth }).map((_, i) => String(i + 1));
       return { edges, labels };
     }
-    case "year":
+    case "year": {
       const edges: number[] = [start];
       for (let i = 0; i < 12; i++) {
         date = date.add(Temporal.Duration.from({ months: 1 }));
@@ -46,6 +46,7 @@ function getEdges(
         "Des",
       ];
       return { edges, labels };
+    }
   }
 }
 

@@ -9,7 +9,7 @@ import { Social } from "~/database/social/get-all";
 import { useUpdate } from "./use-update";
 import { Field, FieldError } from "~/components/ui/field";
 
-export const Item = memo(function ({ id, name, value }: Social) {
+export const Item = memo(function Item({ id, name, value }: Social) {
   const { form, error } = useUpdate({ id, name, value });
   return (
     <form

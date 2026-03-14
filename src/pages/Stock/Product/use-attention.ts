@@ -11,15 +11,17 @@ export function useAttention() {
     .parse(search.get("attention"));
   const set = useCallback(
     (attention: boolean) => {
-      const s = new URLSearchParams(window.location.search);
-      if (attention) {
-        s.set("attention", "true");
-      } else {
-        s.delete("attention");
-      }
-      setSearch(s);
+      setSearch((old) => {
+        const s = new URLSearchParams(old);
+        if (attention) {
+          s.set("attention", "true");
+        } else {
+          s.delete("attention");
+        }
+        return s;
+      });
     },
-    [attention]
+    [setSearch],
   );
   return [attention, set] as const;
 }

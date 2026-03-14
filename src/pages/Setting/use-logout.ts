@@ -1,4 +1,4 @@
-import { auth } from "~/lib/auth-effect";
+import { auth } from "~/lib/auth";
 
 export function useLogout() {
   function handleClick() {

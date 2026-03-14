@@ -10,12 +10,14 @@ export function useSortBy() {
     .parse(search.get("sort-by"));
   const set = useCallback(
     (sortBy: string) => {
-      const s = new URLSearchParams(window.location.search);
-      s.set("sort-by", sortBy);
-      s.set("page", "1");
-      setSearch(s);
+      setSearch((old) => {
+        const s = new URLSearchParams(old);
+        s.set("sort-by", sortBy);
+        s.set("page", "1");
+        return s;
+      });
     },
-    [sortBy]
+    [setSearch],
   );
   return [sortBy, set] as const;
 }

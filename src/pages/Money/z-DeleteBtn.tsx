@@ -14,7 +14,7 @@ import { MoneyData } from "./use-data";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 import { useDelete } from "./use-delete";
 
-export const DeleteBtn = memo(function ({ money }: { money: MoneyData["saving"][number] }) {
+export const DeleteBtn = memo(function DeleteBtn({ money }: { money: MoneyData["saving"][number] }) {
   const [open, setOpen] = useState(false);
   const { loading, error, handleDelete } = useDelete(money.timestamp, () => setOpen(false));
   return (

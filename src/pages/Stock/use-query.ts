@@ -6,15 +6,17 @@ export function useQuery() {
   const query = search.get("query") ?? "";
   const set = useCallback(
     (query: string) => {
-      const s = new URLSearchParams(window.location.search);
-      if (query.trim() === "") {
-        s.delete("query");
-      } else {
-        s.set("query", query);
-      }
-      setSearch(s);
+      setSearch((old) => {
+        const s = new URLSearchParams(old);
+        if (query.trim() === "") {
+          s.delete("query");
+        } else {
+          s.set("query", query);
+        }
+        return s;
+      });
     },
-    [query]
+    [setSearch],
   );
   return [query, set] as const;
 }

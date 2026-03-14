@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database";
-import { auth } from "~/lib/auth-effect";
+import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
 
 export function useUpdatePassword() {

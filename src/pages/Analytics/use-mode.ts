@@ -5,9 +5,11 @@ export function useMode() {
   const [search, setSearch] = useSearchParams();
   const mode = z.enum(["sell", "buy"]).catch("sell").parse(search.get("mode"));
   const set = (mode: "sell" | "buy") => {
-    const s = new URLSearchParams(window.location.search);
-    s.set("mode", mode.toString());
-    setSearch(s);
+    setSearch((old) => {
+      const s = new URLSearchParams(old);
+      s.set("mode", mode.toString());
+      return s;
+    });
   };
   return [mode, set] as const;
 }

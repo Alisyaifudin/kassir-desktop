@@ -15,7 +15,7 @@ import { Spinner } from "~/components/Spinner";
 import { useNew } from "./use-new";
 import { Field, FieldError, FieldGroup } from "~/components/ui/field";
 
-export const NewCustomer = memo(function () {
+export const NewCustomer = memo(function NewCustomer() {
   const [open, setOpen] = useState(false);
   const { form, error } = useNew(() => setOpen(false));
   return (

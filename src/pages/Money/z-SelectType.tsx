@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { z } from "zod";
 
-export const SelectType = memo(function({
+export const SelectType = memo(function SelectType({
 	type,
 	onChange,
 }: {

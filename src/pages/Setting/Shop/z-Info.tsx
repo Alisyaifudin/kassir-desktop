@@ -7,7 +7,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { useUpdate } from "./use-update";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 
-export const Info = memo(function (props: {
+export const Info = memo(function Info(props: {
   owner: string;
   address: string;
   header: string;

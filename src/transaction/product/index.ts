@@ -1,5 +1,4 @@
 import { add } from "./add";
-import { addMany } from "./add-many";
 import { delById } from "./del-by-id";
 import { getByTab } from "./get-by-tab";
 import { barcode } from "./update-barcode";
@@ -11,7 +10,6 @@ export const product = {
   add: {
     one: add,
   },
-  // addMany,
   getByTab,
   update: {
     price,

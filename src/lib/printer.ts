@@ -27,21 +27,21 @@ export function printReceipt(
   });
 }
 
-type ReceiptData = {
-  company: {
-    name: string;
-    description: string;
-    address: string;
-  },
-  cashier: string;
-  timestamp: number;
-  items: {
-    name: string;
-    price: number;
-    qty: number;
+// type ReceiptData = {
+//   company: {
+//     name: string;
+//     description: string;
+//     address: string;
+//   },
+//   cashier: string;
+//   timestamp: number;
+//   items: {
+//     name: string;
+//     price: number;
+//     qty: number;
     
-  }[]
-}
+//   }[]
+// }
 
 export function formatReceiptData(): string {
   const companyName = "Maskeransay";

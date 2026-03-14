@@ -9,7 +9,7 @@ import { store } from "~/store";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 
-export const CashierCheckbox = memo(function ({ showCashier }: { showCashier: boolean }) {
+export const CashierCheckbox = memo(function CashierCheckbox({ showCashier }: { showCashier: boolean }) {
   const { loading, handleCheck, error } = useCheckbox();
   return (
     <>

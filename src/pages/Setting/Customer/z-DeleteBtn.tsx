@@ -14,7 +14,7 @@ import {
 import { Spinner } from "~/components/Spinner";
 import { useDelete } from "./use-delete";
 
-export const DeleteBtn = memo(function ({
+export const DeleteBtn = memo(function DeleteBtn({
   id,
   name,
   phone,

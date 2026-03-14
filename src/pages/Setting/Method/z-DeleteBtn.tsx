@@ -15,7 +15,7 @@ import { Method } from "~/database/method/get-all";
 import { useDelete } from "./use-delete";
 import equal from "fast-deep-equal";
 
-export const DeleteBtn = memo(function ({ method }: { method: Method }) {
+export const DeleteBtn = memo(function DeleteBtn({ method }: { method: Method }) {
   const [open, setOpen] = useState(false);
   const { error, handleSubmit, loading } = useDelete(method.id, () => setOpen(false));
   return (

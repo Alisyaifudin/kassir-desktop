@@ -11,11 +11,13 @@ export function useLimit() {
     .parse(search.get("limit"));
   const set = useCallback(
     (limit: number) => {
-      const s = new URLSearchParams(window.location.search);
-      s.set("limit", limit.toString());
-      setSearch(s);
+      setSearch((old) => {
+        const s = new URLSearchParams(old);
+        s.set("limit", limit.toString());
+        return s;
+      });
     },
-    [limit]
+    [setSearch],
   );
   return [limit, set] as const;
 }

@@ -1,6 +1,6 @@
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { Button } from "./ui/button";
-import { Unauthenticated } from "~/lib/auth-effect";
+import { Unauthenticated } from "~/lib/auth";
 import Redirect from "./Redirect";
 import { AlertTriangle, ArrowLeft, Home, Terminal, ShieldAlert, FileQuestion } from "lucide-react";
 import { cn } from "~/lib/utils";

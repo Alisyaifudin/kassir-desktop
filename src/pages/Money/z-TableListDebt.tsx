@@ -11,7 +11,7 @@ import { memo } from "react";
 import { MoneyData } from "./use-data";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 
-export const TableListDebt = memo(function ({ money }: { money: MoneyData["debt"] }) {
+export const TableListDebt = memo(function TableListDebt({ money }: { money: MoneyData["debt"] }) {
   return (
     <Table className="text-normal">
       <TableHeader>

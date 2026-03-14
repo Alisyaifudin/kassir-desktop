@@ -14,7 +14,7 @@ export type Method = {
   name: string;
 };
 
-export const Item = memo(function ({ method, defVal }: { method: Method; defVal?: number }) {
+export const Item = memo(function Item({ method, defVal }: { method: Method; defVal?: number }) {
   const { handleSubmit, error, loading, name } = useUpdate(method.id, method.name);
   return (
     <>

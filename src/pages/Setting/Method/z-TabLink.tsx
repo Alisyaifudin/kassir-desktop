@@ -3,7 +3,7 @@ import { Button } from "~/components/ui/button";
 import { useMethod } from "./use-method";
 import { METHOD_NAMES, METHODS } from "~/lib/constants";
 
-export const TabLink = memo(function () {
+export const TabLink = memo(function TabLink() {
   const [method, setMethod] = useMethod();
   return (
     <ol className="flex items-cente gap-1">

@@ -12,7 +12,7 @@ import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
 import { useNew } from "./use-new";
 
-export const NewBtn = memo(function () {
+export const NewBtn = memo(function NewBtn() {
   const [open, setOpen] = useState(false);
   const { handleSubmit, error, loading, name } = useNew(() => setOpen(false));
   return (

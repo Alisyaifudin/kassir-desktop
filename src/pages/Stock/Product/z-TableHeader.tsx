@@ -16,7 +16,7 @@ export function TableHeader() {
       }
       setSortBy(sort);
     },
-    [sortDir, sortBy],
+    [sortDir, sortBy, setSortBy, setSortDir],
   );
   return (
     <TableHeaderRoot>

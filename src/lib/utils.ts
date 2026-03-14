@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
 import { log } from "./log";
 
@@ -85,11 +84,6 @@ export function capitalize(name: string): string {
   const terms = name.split(" ");
   return terms.map((t) => t[0].toUpperCase() + t.slice(1)).join(" ");
 }
-
-export const sizeClass = {
-  big: "",
-  small: "small-size",
-} as const;
 
 export function formatBarcode(barcode?: string) {
   if (barcode === undefined) return "";

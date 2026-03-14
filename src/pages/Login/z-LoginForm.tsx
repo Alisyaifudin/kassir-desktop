@@ -5,7 +5,7 @@ import { Spinner } from "~/components/Spinner";
 import { capitalize } from "~/lib/utils";
 import { Cashier } from "~/database/cashier/get-all";
 import { useLoginForm } from "./use-login-form";
-import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
+import { FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 import {
   Select,
   SelectContent,

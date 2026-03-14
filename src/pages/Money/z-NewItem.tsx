@@ -15,7 +15,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { useNew } from "./use-new";
 import { Show } from "~/components/Show";
 
-export const NewItem = memo(function ({ kind }: { kind: "saving" | "debt" | "diff" }) {
+export const NewItem = memo(function NewItem({ kind }: { kind: "saving" | "debt" | "diff" }) {
   const [open, setOpen] = useState(false);
   const { form, error } = useNew(() => setOpen(false));
   return (

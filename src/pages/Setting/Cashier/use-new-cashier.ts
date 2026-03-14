@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { z } from "zod";
 import { db } from "~/database";
-import { auth } from "~/lib/auth-effect";
+import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 

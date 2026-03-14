@@ -9,7 +9,7 @@ import { useUpdate } from "./use-update";
 import { Field, FieldError, FieldGroup } from "~/components/ui/field";
 import eq from "fast-deep-equal";
 
-export const Item = memo(function ({ customer }: { customer: Customer }) {
+export const Item = memo(function Item({ customer }: { customer: Customer }) {
   const { form, error } = useUpdate(customer);
   return (
     <form
