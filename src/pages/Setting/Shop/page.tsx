@@ -9,9 +9,19 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-2 flex-1 w-full overflow-auto pb-3">
-      <Wrapper />
-      <SelectSize />
+    <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Pengaturan Toko</h1>
+        <p className="text-muted-foreground text-normal">Kelola identitas dan preferensi toko</p>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <Wrapper />
+      </div>
+
+      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <SelectSize />
+      </div>
     </div>
   );
 }

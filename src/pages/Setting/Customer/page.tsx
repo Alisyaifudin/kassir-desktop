@@ -8,9 +8,14 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-2 flex-1 overflow-auto">
-      <h2 className="text-big font-bold">Daftar Pelanggan</h2>
+    <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Daftar Pelanggan</h1>
+        <p className="text-muted-foreground text-normal">Kelola informasi pelanggan dan kontak</p>
+      </div>
+
       <Customer />
+
       <NewCustomer />
     </div>
   );
@@ -40,15 +45,18 @@ function Customer() {
 
 function LoadingList() {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex flex-col items-center px-0.5 gap-1">
+        <div
+          key={i}
+          className="flex flex-col items-center p-3 gap-2 rounded-xl bg-muted/30 animate-pulse"
+        >
           <div className="grid grid-cols-[1fr_1fr_35px] items-center gap-3 w-full">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-10 justify-self-end" />
+            <Skeleton className="h-8 w-full rounded-lg" />
+            <Skeleton className="h-8 w-full rounded-lg" />
+            <Skeleton className="h-8 w-8 rounded-full justify-self-end" />
           </div>
-          <Skeleton className="h-4 w-48 self-start" />
+          <Skeleton className="h-3 w-48 self-start rounded" />
         </div>
       ))}
     </div>

@@ -2,9 +2,7 @@ import { Item, Method } from "./z-Item";
 import { NewBtn } from "./z-NewBtn";
 import { useMethod } from "./use-method";
 import { TabLink } from "./z-TabLink";
-import { Suspense } from "react";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
 import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
@@ -12,12 +10,17 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-2 p-5 flex-1 overflow-auto">
-      <h1 className="text-big font-bold">Metode Pembayaran</h1>
-      <TabLink />
-      <Suspense fallback={<Loading />}>
+    <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Metode Pembayaran</h1>
+        <p className="text-muted-foreground text-normal">Kelola metode pembayaran yang tersedia</p>
+      </div>
+
+      <div className="space-y-4 ">
+        <TabLink />
         <Wrapper />
-      </Suspense>
+      </div>
+
       <NewBtn />
     </div>
   );
@@ -51,15 +54,15 @@ function Wrapper() {
 
 function LoadingList() {
   return (
-    <div className="flex flex-col gap-2 overflow-auto">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex flex-col gap-1">
-          <div className="flex items-center gap-1 p-0.5 w-full">
-            <Skeleton className="h-10 w-10" />
-            <Skeleton className="h-10 flex-1" />
-            <Skeleton className="h-10 w-10" />
+        <div key={i} className="flex flex-col gap-2 p-3 rounded-xl bg-muted/30 animate-pulse">
+          <div className="flex items-center gap-3 w-full">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 flex-1 rounded-lg" />
+            <Skeleton className="h-8 w-8 rounded-full" />
           </div>
-          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-3 w-48 rounded" />
         </div>
       ))}
     </div>

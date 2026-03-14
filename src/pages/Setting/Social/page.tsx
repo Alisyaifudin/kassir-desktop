@@ -1,31 +1,35 @@
 import { Item } from "./z-Item";
 import { ForEach } from "~/components/ForEach";
-import { Suspense } from "react";
 import { cn } from "~/lib/utils";
 import { NewItem } from "./z-NewItem";
 import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-2 w-full flex-1 overflow-hidden">
-      <h1 className="font-bold text-big">Daftar Kontak</h1>
+    <div className="flex flex-col gap-4 p-6 w-full flex-1 overflow-hidden">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Kontak Media Sosial</h1>
+        <p className="text-muted-foreground text-normal">
+          Kelola kontak yang muncul di struk transaksi
+        </p>
+      </div>
+
       <div
         className={cn(
           "grid gap-2 items-center text-normal",
           "grid-cols-[250px_1fr] small:grid-cols-[200px_1fr]",
         )}
       >
-        <p>Kontak</p>
-        <p>Isian</p>
+        <p className="font-semibold text-foreground">Kontak</p>
+        <p className="font-semibold text-foreground">Isian</p>
       </div>
-      <Suspense fallback={<Loading />}>
-        <Socials />
-      </Suspense>
+
+      <Socials />
+
       <NewItem />
     </div>
   );

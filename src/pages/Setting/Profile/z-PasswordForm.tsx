@@ -14,11 +14,9 @@ import { useUpdatePassword } from "./use-update-password";
 export function PasswordForm() {
   const { error, handleSubmit, loading, password } = useUpdatePassword();
   return (
-    <Accordion type="single" collapsible className="bg-red-400 text-white">
+    <Accordion type="single" collapsible className=" text-white">
       <AccordionItem value="item-1">
-        <AccordionTrigger className="font-bold px-2">
-          Ganti kata sandi
-        </AccordionTrigger>
+        <AccordionTrigger className="font-bold px-2">Ganti kata sandi</AccordionTrigger>
         <AccordionContent>
           <form onSubmit={handleSubmit} className="flex-col gap-2 flex px-2 ">
             <label

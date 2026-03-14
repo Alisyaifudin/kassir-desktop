@@ -7,24 +7,44 @@ import { Button } from "~/components/ui/button";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <h2 className="text-xl font-bold">Printer Settings</h2>
-
-      <div>
-        <Label htmlFor="default-printer">Default Printer</Label>
+    <div className="flex flex-col gap-6 p-6 flex-1">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Pengaturan Printer</h1>
+        <p className="text-muted-foreground text-normal">
+          Konfigurasi printer untuk cetak struk
+        </p>
       </div>
 
-      <div>
-        <Label htmlFor="receipt-width">Receipt Width (mm)</Label>
-        <Input
-          id="receipt-width"
-          type="number"
-          min={42} // Typical minimum for thermal printers
-          max={80} // Typical maximum for thermal printers
-        />
-      </div>
+      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="default-printer" className="text-normal font-semibold">
+              Printer Default
+            </Label>
+            <p className="text-muted-foreground text-small">
+              Pilih printer yang akan digunakan untuk mencetak struk
+            </p>
+          </div>
 
-      <Button className="mt-4">Test Print</Button>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="receipt-width" className="text-normal font-semibold">
+              Lebar Struk (mm)
+            </Label>
+            <p className="text-muted-foreground text-small">
+              Atur lebar kertas struk untuk printer thermal
+            </p>
+            <Input
+              id="receipt-width"
+              type="number"
+              min={42}
+              max={80}
+              className="bg-background border-border mt-1"
+            />
+          </div>
+
+          <Button className="mt-2">Test Cetak</Button>
+        </div>
+      </div>
     </div>
   );
 }
