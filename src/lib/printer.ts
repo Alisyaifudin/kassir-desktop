@@ -2,26 +2,44 @@ import { invoke } from "@tauri-apps/api/core";
 import { Effect } from "effect";
 import { InvokeError } from "./effect-error";
 
-export interface PrinterInfo {
+interface PrinterInfo {
   name: string;
 }
 
-export function getPrinters(): Effect.Effect<PrinterInfo[], InvokeError> {
+export function getPrinters(): Effect.Effect<string[], InvokeError> {
   return Effect.tryPromise({
     try: () => invoke<PrinterInfo[]>("get_printers"),
     catch: (e) => InvokeError.new(e, "Gagal mendapatkan daftar printer"),
-  });
+  }).pipe(Effect.map((printers) => printers.map((p) => p.name)));
 }
 
 export function printReceipt(
   printerName: string,
-  receiptData: string,
+  data: string,
 ): Effect.Effect<string, InvokeError> {
   return Effect.tryPromise({
     try: () =>
       invoke<string>("print_receipt", {
         printerName,
-        receiptData,
+        data: {
+          store_name: "Maskeransay",
+          store_description: "Toko Kosmetik & Skincares",
+          store_address: "Jl. A.W. Syahranie No. 26, Seberang Kantor BPJS",
+          cashier: "Ali",
+          order_no: "1766066062310",
+          date_time: "2025/12/18, 21:54",
+          items: [
+            { name: "G2G 2in1 Cushion 03", price: "Rp150000", quantity: 1, total: "Rp150000" },
+            { name: "Selsun Gold 120ml", price: "Rp50000", quantity: 1, total: "Rp50000" },
+            { name: "Ushas Blush 06", price: "Rp27000", quantity: 1, total: "Rp27000" },
+          ],
+          total_amount: "Rp237000",
+          payment_amount: "Rp237000",
+          summary_text: "Terima kasih sudah berbelanja di Maskeransay!",
+          payment_method: "QRIS Mandiri",
+          footer_messages: ["Terima kasih sudah berbelanja di Maskeransay!"],
+          socials: ["Facebook", "Instagram", "Twitter", data],
+        },
       }),
     catch: (e) => InvokeError.new(e, "Gagal mencetak struk"),
   });
@@ -39,7 +57,7 @@ export function printReceipt(
 //     name: string;
 //     price: number;
 //     qty: number;
-    
+
 //   }[]
 // }
 

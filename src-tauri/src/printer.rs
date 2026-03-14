@@ -36,11 +36,11 @@ pub struct Data {
 
 // Command to get a list of available printers
 #[command]
-pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
-    Ok(get_system_printers()
+pub fn get_printers() -> Vec<PrinterInfo> {
+    get_system_printers()
         .into_iter()
         .map(|p| PrinterInfo { name: p.name })
-        .collect())
+        .collect()
 }
 
 // Command to print a receipt
@@ -57,25 +57,21 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
 
     // We create a new scope so the printer drops and flushes its buffer
     println!("Testing HTML to PDF implementation...");
-
     let items_html: String = data
         .items
         .iter()
         .map(|item| {
             format!(
                 r#"
-            <div style="margin-bottom: 5px;">
-                <div>{}</div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>{:?} &times; {}</span>
-                    <span>{:?}.000</span>
-                </div>
+        <div style="margin-bottom: 5px;">
+            <div>{}</div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>{:?} &times; {}</span>
+                <span>{:?}.000</span>
             </div>
-            "#,
-                item.name,
-                item.price,
-                item.quantity,
-                item.total
+        </div>
+        "#,
+                item.name, item.price, item.quantity, item.total
             )
         })
         .collect::<Vec<String>>()
@@ -96,74 +92,74 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
 
     let html = format!(
         r#"
-        <html>
-            <head>
-                <style>
-                    body {{
-                        font-family: 'Roboto';
-                        font-size: 12px;
-                        width: 300px;
-                        margin: 0;
-                        padding: 10px;
-                        color: #000;
-                    }}
-                    .center {{ text-align: center; }}
-                    .bold {{ font-weight: bold; }}
-                    .store-name {{ font-size: 18px; margin-bottom: 2px; }}
-                    .separator {{ border-top: 1px dashed #000; margin: 8px 0; }}
-                    .flex-row {{ display: flex; justify-content: space-between; }}
-                </style>
-            </head>
-            <body>
-                <div class="center">
-                    <div class="bold store-name">{}</div>
-                    <div>{}</div>
-                    <div style="font-size: 11px;">{}</div>
-                </div>
+    <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Roboto';
+                    font-size: 12px;
+                    width: 300px;
+                    margin: 0;
+                    padding: 10px;
+                    color: #000;
+                }}
+                .center {{ text-align: center; }}
+                .bold {{ font-weight: bold; }}
+                .store-name {{ font-size: 18px; margin-bottom: 2px; }}
+                .separator {{ border-top: 1px dashed #000; margin: 8px 0; }}
+                .flex-row {{ display: flex; justify-content: space-between; }}
+            </style>
+        </head>
+        <body>
+            <div class="center">
+                <div class="bold store-name">{}</div>
+                <div>{}</div>
+                <div style="font-size: 11px;">{}</div>
+            </div>
 
-                <div style="margin-top: 8px;">
-                    <div>Kasir: {}</div>
+            <div style="margin-top: 8px;">
+                <div>Kasir: {}</div>
+                <div class="flex-row">
+                    <span>No: {}</span>
+                    <span>{}</span>
+                </div>
+            </div>
+
+            <div class="separator"></div>
+
+            <div class="items">
+                {}
+            </div>
+
+            <div class="separator"></div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <div style="width: 60%;">
                     <div class="flex-row">
-                        <span>No: {}</span>
+                        <span>Total</span>
+                        <span>{}</span>
+                    </div>
+                    <div class="flex-row">
+                        <span>Pembayaran</span>
                         <span>{}</span>
                     </div>
                 </div>
+            </div>
 
-                <div class="separator"></div>
+            <div class="flex-row" style="margin-top: 10px;">
+                <span>{}</span>
+                <span>{}</span>
+            </div>
 
-                <div class="items">
+            <div class="center" style="margin-top: 15px; font-size: 11px;">
+                {}
+                <div style="margin-top: 4px;">
                     {}
                 </div>
-
-                <div class="separator"></div>
-
-                <div style="display: flex; justify-content: flex-end;">
-                    <div style="width: 60%;">
-                        <div class="flex-row">
-                            <span>Total</span>
-                            <span>{}</span>
-                        </div>
-                        <div class="flex-row">
-                            <span>Pembayaran</span>
-                            <span>{}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex-row" style="margin-top: 10px;">
-                    <span>{}</span>
-                    <span>{}</span>
-                </div>
-
-                <div class="center" style="margin-top: 15px; font-size: 11px;">
-                    {}
-                    <div style="margin-top: 4px;">
-                        {}
-                    </div>
-                </div>
-            </body>
-        </html>
-        "#,
+            </div>
+        </body>
+    </html>
+    "#,
         data.store_name,
         data.store_description,
         data.store_address,
@@ -185,11 +181,13 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
     // load the roboto font bytes and add it to the fonts map under a name
     let roboto_bytes = include_bytes!("../assets/Roboto-Regular.ttf").to_vec();
     fonts.insert("Roboto".to_string(), Base64OrRaw::Raw(roboto_bytes.clone()));
-    let options = GeneratePdfOptions::default();
     let mut warnings = Vec::new();
+    let options = GeneratePdfOptions::default();
 
     println!("Parsing HTML and generating PDF...");
 
+    let mut save_warnings = Vec::new();
+    let save_options = PdfSaveOptions::default();
     let doc = match PdfDocument::from_html(&html, &images, &fonts, &options, &mut warnings) {
         Ok(doc) => {
             println!("[OK] Successfully generated PDF");
@@ -203,14 +201,9 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
         }
         Err(e) => {
             eprintln!("[ERROR] Failed to generate PDF: {}", e);
-            return Err("Error".to_string());
+            return Err(format!("Failed to generate PDF: {}", e));
         }
     };
-
-    // Save to file
-    let save_options = PdfSaveOptions::default();
-    let mut save_warnings = Vec::new();
-    let buffer = doc.save(&save_options, &mut save_warnings);
 
     if !save_warnings.is_empty() {
         println!("Save warnings:");
@@ -218,10 +211,10 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
             println!("  - {:?}", warn);
         }
     }
-
+    let bytes = doc.save(&save_options, &mut save_warnings);
     // Now we send the raw bytes to the system printer
     sys_printer
-        .print(&buffer, PrinterJobOptions::none())
+        .print(&bytes, PrinterJobOptions::none())
         .map_err(|e| format!("Failed to send raw data to system printer: {:?}", e))?;
 
     Ok(format!(
