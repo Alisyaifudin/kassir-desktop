@@ -1,7 +1,6 @@
 use printers::{common::base::job::PrinterJobOptions, get_printers as get_system_printers};
-use printpdf::{self, Base64OrRaw, GeneratePdfOptions, PdfDocument, PdfSaveOptions};
+use printpdf::{self, Base64OrRaw, PdfDocument, PdfSaveOptions};
 use std::collections::BTreeMap;
-
 use tauri::command;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -45,7 +44,7 @@ pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
 
 // Command to print a receipt
 #[command]
-pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String> {
+pub fn print_receipt(printer_name: String, data: Data, width_mm: f32) -> Result<String, String> {
     // Find the printer by name
     let system_printers = get_system_printers();
     let sys_printer = system_printers.into_iter().find(|p| p.name == printer_name);
@@ -55,8 +54,21 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
         None => return Err(format!("Printer '{}' not found in system", printer_name)),
     };
 
-    // We create a new scope so the printer drops and flushes its buffer
-    println!("Testing HTML to PDF implementation...");
+    log::info!(
+        "Generating PDF for printer: {} (width: {}mm)",
+        printer_name,
+        width_mm
+    );
+
+    // Calculate approximate height based on content
+    let header_lines = 4;
+    let info_lines = 2;
+    let item_lines = data.items.len() * 2; // Name line + Price/Qty line
+    let footer_lines = data.footer_messages.len() + data.socials.len() + 4;
+    let total_lines = header_lines + info_lines + item_lines + footer_lines + 5;
+
+    let line_height_pt = 12.0;
+    let _total_height_pt = (total_lines as f32 * line_height_pt) + 40.0; // Add some margin
 
     let items_html: String = data
         .items
@@ -67,15 +79,12 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
             <div style="margin-bottom: 5px;">
                 <div>{}</div>
                 <div style="display: flex; justify-content: space-between;">
-                    <span>{:?} &times; {}</span>
-                    <span>{:?}.000</span>
+                    <span>{} &times; {}</span>
+                    <span>{}</span>
                 </div>
             </div>
             "#,
-                item.name,
-                item.price,
-                item.quantity,
-                item.total
+                item.name, item.price, item.quantity, item.total
             )
         })
         .collect::<Vec<String>>()
@@ -101,10 +110,10 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
                 <style>
                     body {{
                         font-family: 'Roboto';
-                        font-size: 12px;
-                        width: 300px;
+                        font-size: 11px;
+                        width: {}mm;
                         margin: 0;
-                        padding: 10px;
+                        padding: 5px;
                         color: #000;
                     }}
                     .center {{ text-align: center; }}
@@ -164,6 +173,7 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
             </body>
         </html>
         "#,
+        width_mm,
         data.store_name,
         data.store_description,
         data.store_address,
@@ -185,39 +195,26 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
     // load the roboto font bytes and add it to the fonts map under a name
     let roboto_bytes = include_bytes!("../assets/Roboto-Regular.ttf").to_vec();
     fonts.insert("Roboto".to_string(), Base64OrRaw::Raw(roboto_bytes.clone()));
-    let options = GeneratePdfOptions::default();
+    let options = printpdf::GeneratePdfOptions::default();
     let mut warnings = Vec::new();
 
-    println!("Parsing HTML and generating PDF...");
+    log::info!("Parsing HTML and generating PDF...");
 
     let doc = match PdfDocument::from_html(&html, &images, &fonts, &options, &mut warnings) {
         Ok(doc) => {
-            println!("[OK] Successfully generated PDF");
-            if !warnings.is_empty() {
-                println!("Warnings:");
-                for warn in &warnings {
-                    println!("  - {:?}", warn);
-                }
-            }
+            log::info!("[OK] Successfully generated PDF");
             doc
         }
         Err(e) => {
-            eprintln!("[ERROR] Failed to generate PDF: {}", e);
-            return Err("Error".to_string());
+            log::error!("[ERROR] Failed to generate PDF: {}", e);
+            return Err("Error generating PDF".to_string());
         }
     };
 
-    // Save to file
+    // Save PDF to buffer
     let save_options = PdfSaveOptions::default();
     let mut save_warnings = Vec::new();
     let buffer = doc.save(&save_options, &mut save_warnings);
-
-    if !save_warnings.is_empty() {
-        println!("Save warnings:");
-        for warn in &save_warnings {
-            println!("  - {:?}", warn);
-        }
-    }
 
     // Now we send the raw bytes to the system printer
     sys_printer

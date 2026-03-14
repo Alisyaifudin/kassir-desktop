@@ -6,6 +6,29 @@ export interface PrinterInfo {
   name: string;
 }
 
+export interface ReceiptItem {
+  name: string;
+  price: string;
+  quantity: number;
+  total: string;
+}
+
+export interface ReceiptData {
+  store_name: string;
+  store_description: string;
+  store_address: string;
+  cashier: string;
+  order_no: string;
+  date_time: string;
+  items: ReceiptItem[];
+  total_amount: string;
+  payment_amount: string;
+  summary_text: string;
+  payment_method: string;
+  footer_messages: string[];
+  socials: string[];
+}
+
 export function getPrinters(): Effect.Effect<PrinterInfo[], InvokeError> {
   return Effect.tryPromise({
     try: () => invoke<PrinterInfo[]>("get_printers"),
@@ -15,84 +38,41 @@ export function getPrinters(): Effect.Effect<PrinterInfo[], InvokeError> {
 
 export function printReceipt(
   printerName: string,
-  receiptData: string,
+  data: ReceiptData,
+  widthMm: number = 80,
 ): Effect.Effect<string, InvokeError> {
   return Effect.tryPromise({
     try: () =>
       invoke<string>("print_receipt", {
         printerName,
-        receiptData,
+        data,
+        widthMm,
       }),
     catch: (e) => InvokeError.new(e, "Gagal mencetak struk"),
   });
 }
 
-type ReceiptData = {
-  company: {
-    name: string;
-    description: string;
-    address: string;
-  },
-  cashier: string;
-  timestamp: number;
-  items: {
-    name: string;
-    price: number;
-    qty: number;
-    
-  }[]
-}
-
-export function formatReceiptData(): string {
-  const companyName = "Maskeransay";
-  const companyAddress = "Toko Kosmetik & Skincares";
-  const streetAddress = "Jl. A.W. Syahranie No. 26, Seberang Kantor BPJS";
-  const cashierName = "Ali";
-  const transactionNo = "1766066062310";
-  const dateTime = "2025/12/18, 21:54";
-
-  const items = [
-    { name: "G2G 2in1 Cushion 03", price: 150000, qty: 1 },
-    { name: "Selsun Gold 120ml", price: 50000, qty: 1 },
-    { name: "Ushas Blush 06", price: 27000, qty: 1 },
-  ];
-
-  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const payment = total;
-  const paymentMethod = "QRIS Mandiri";
-
-  let receipt = "";
-
-  // Header
-  receipt += `${companyName.padStart(20 + companyName.length / 2)}\n`;
-  receipt += `${companyAddress.padStart(20 + companyAddress.length / 2)}\n`;
-  receipt += `${streetAddress.padStart(20 + streetAddress.length / 2)}\n`;
-  receipt += `Kasir: ${cashierName}\n`;
-  receipt += `No: ${transactionNo} ${dateTime.padStart(40 - `No: ${transactionNo}`.length)}\n`;
-  receipt += "----------------------------------------\n";
-
-  // Items
-  items.forEach((item) => {
-    const itemTotal = item.price * item.qty;
-    receipt += `${item.name}\n`;
-    receipt += `${item.price.toLocaleString("id-ID")} \u00D7 ${item.qty} ${itemTotal.toLocaleString("id-ID").padStart(40 - `${item.price.toLocaleString("id-ID")} \u00D7 ${item.qty}`.length)}\n`;
-  });
-
-  receipt += "----------------------------------------\n";
-
-  // Totals
-  receipt += `Total ${`Rp${total.toLocaleString("id-ID")}`.padStart(40 - "Total".length)}\n`;
-  receipt += `Pembayaran ${`Rp${payment.toLocaleString("id-ID")}`.padStart(40 - "Pembayaran".length)}\n`;
-
-  receipt += `\n`;
-  receipt += `3 Jenis/${items.length} pcs ${paymentMethod.padStart(40 - `3 Jenis/${items.length} pcs`.length)}\n`;
-  receipt += `\n`;
-
-  // Footer
-  receipt += `Terima kasih telah berbelanja di toko kami\n`;
-  receipt += `Barang yang telah dibeli tidak dapat ditukar lagi\n`;
-  receipt += `Ig: @maskeransay.smd\n`;
-  receipt += `Shopee: @maskeransay.smd\n`;
-
-  return receipt;
+export function getSampleReceiptData(): ReceiptData {
+  return {
+    store_name: "Maskeransay",
+    store_description: "Toko Kosmetik & Skincares",
+    store_address: "Jl. A.W. Syahranie No. 26, Seberang Kantor BPJS",
+    cashier: "Ali",
+    order_no: "1766066062310",
+    date_time: "2025/12/18, 21:54",
+    items: [
+      { name: "G2G 2in1 Cushion 03", price: "150.000", quantity: 1, total: "150.000" },
+      { name: "Selsun Gold 120ml", price: "50.000", quantity: 1, total: "50.000" },
+      { name: "Ushas Blush 06", price: "27.000", quantity: 1, total: "27.000" },
+    ],
+    total_amount: "227.000",
+    payment_amount: "227.000",
+    summary_text: "3 Jenis/3 pcs",
+    payment_method: "QRIS Mandiri",
+    footer_messages: [
+      "Terima kasih telah berbelanja di toko kami",
+      "Barang yang telah dibeli tidak dapat ditukar lagi",
+    ],
+    socials: ["Ig: @maskeransay.smd", "Shopee: @maskeransay.smd"],
+  };
 }
