@@ -20,7 +20,7 @@ function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
 
   return (
     <div className="relative flex items-end h-full">
-      <Kbd className={cn("absolute -top-1 -left-1 z-10", { hidden: !show })}>{alt}</Kbd>
+      <Kbd className={cn("absolute -top-1 -left-1 z-30", { hidden: !show })}>{alt}</Kbd>
       <button
         onClick={() => {
           const search = new URLSearchParams();

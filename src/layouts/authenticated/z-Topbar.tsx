@@ -52,7 +52,7 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-4 h-full">
-          {!isHome && <TopNavList />}
+          <TopNavList />
           <div className="flex items-center gap-2 small:gap-1 pl-4 border-l border-black/10 h-10 small:h-8 my-auto">
             <SettingLink />
             <Refresh />

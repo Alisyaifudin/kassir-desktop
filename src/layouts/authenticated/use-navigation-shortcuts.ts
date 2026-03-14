@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { showShortcut } from "./use-shortcut";
 
 const linkMap = {
-  0: "/",
+  0: "/shop",
   1: "/stock",
   2: "/records",
   3: "/analytics",

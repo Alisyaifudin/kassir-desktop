@@ -9,14 +9,11 @@ export function useShortcut() {
 }
 
 let timeoutId: null | NodeJS.Timeout = null;
-const TIMEOUT = 4000;
+const TIMEOUT = 5000;
 
 export function showShortcut(v: boolean | ((old: boolean) => boolean)) {
-  if (typeof v === "function") {
-    shortcutAtom.set(v);
-    return;
-  }
-  set(() => v);
+  const func = typeof v === "function" ? v : () => v;
+  set(func);
 }
 
 function set(func: (old: boolean) => boolean) {
@@ -25,6 +22,7 @@ function set(func: (old: boolean) => boolean) {
     timeoutId = null;
   }
   const updated = func(shortcutAtom.get());
+  shortcutAtom.set(updated);
   if (updated) {
     timeoutId = setTimeout(() => {
       shortcutAtom.set(false);
