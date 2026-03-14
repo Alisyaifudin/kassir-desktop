@@ -5,9 +5,10 @@ import { Kbd } from "~/components/ui/kdb";
 import { showShortcut, useShortcut } from "./use-shortcut";
 import { useSize } from "~/hooks/use-size";
 import { useUser } from "~/hooks/use-user";
+import { Button } from "~/components/ui/button";
 
 const iconSize = {
-  big: 40,
+  big: 24,
   small: 20,
 };
 
@@ -17,32 +18,26 @@ export function SettingLink() {
   const size = useSize();
   const show = useShortcut();
   const navigate = useNavigate();
+  
   return (
-    <li
-      className={cn(
-        "rounded-t-full flex items-center px-3 relative",
-        "h-[60px] small:h-[35px]",
-        pathname.includes("/setting") ? "bg-white" : "bg-black text-white",
-      )}
-    >
-      <Kbd className={cn("absolute -bottom-3 -left-2", { hidden: !show })}>alt+5</Kbd>
-      <button
+    <div className="relative flex items-center">
+      <Kbd className={cn("absolute -bottom-3 -left-2 z-10", { hidden: !show })}>alt+5</Kbd>
+      <Button
+        variant={pathname.includes("/setting") ? "secondary" : "ghost"}
+        size="icon"
         onClick={(e) => {
           e.preventDefault();
           const p = role === "admin" ? "/setting/shop" : "/setting/profile";
           navigate(p);
           showShortcut(false);
         }}
-        className="relative cursor-pointer"
+        className={cn(
+          "rounded-full h-10 w-10 small:h-8 small:w-8 transition-all hover:bg-sky-400/50",
+          pathname.includes("/setting") && "bg-white/80"
+        )}
       >
         <Settings size={iconSize[size]} />
-        {/* <Show when={hasUpdate}>
-					<BellRing
-						size={icon[size]}
-						className="text-red-500 animate-ring absolute -top-3 -right-3"
-					/>
-				</Show> */}
-      </button>
-    </li>
+      </Button>
+    </div>
   );
 }

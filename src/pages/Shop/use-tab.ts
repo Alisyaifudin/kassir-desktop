@@ -15,7 +15,7 @@ export function useTab() {
 
   function setTab(tab: number) {
     if (tabs.find((t) => t.tab === tab) === undefined) return;
-    navigate(`/shop/${tab}`);
+    navigate(`/shop/${tab}`, { replace: true });
   }
   return [tab, setTab] as const;
 }

@@ -2,6 +2,7 @@ import { Result } from "~/lib/result";
 import { store } from "~/store";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
+import { Link } from "react-router";
 
 export function Title() {
   const res = Result.use({
@@ -18,8 +19,10 @@ export function Title() {
     },
     onSuccess(title) {
       return (
-        <div className="pb-4 small:pb-2">
-          <p className="text-5xl small:text-3xl italic">{title}</p>
+        <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
+          <Link title={title} to="/" className="text-xl font-medium italic opacity-80">
+            {title.slice(0, 16)}
+          </Link>
         </div>
       );
     },

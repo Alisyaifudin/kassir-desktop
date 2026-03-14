@@ -13,12 +13,14 @@ export default function Page() {
   return (
     <main
       className={cn(
-        "grid gap-2 p-2 flex-1 w-full justify-between overflow-hidden",
+        "grid gap-2 p-2 flex-1 w-full justify-between overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]",
         "grid-cols-[300px_1fr] small:grid-cols-[180px_1fr]",
       )}
     >
       <Navigation />
-      <Outlet />
+      <div className="overflow-y-auto h-full pr-2">
+        <Outlet />
+      </div>
     </main>
   );
 }
@@ -27,11 +29,13 @@ function Navigation() {
   const role = useUser().role;
   const handleLogout = useLogout();
   return (
-    <nav className="w-full h-full flex py-1 gap-0.5 flex-col justify-between overflow-auto">
-      <Show when={role === "admin"} fallback={<UserPanel />}>
-        <AdminPanel />
-      </Show>
-      <div className="flex flex-col gap-1">
+    <nav className="w-full flex-1 flex py-1 gap-4 flex-col justify-between overflow-y-auto h-full pr-2">
+      <div className="flex flex-col gap-0.5">
+        <Show when={role === "admin"} fallback={<UserPanel />}>
+          <AdminPanel />
+        </Show>
+      </div>
+      <div className="flex flex-col gap-1 mt-auto pb-4">
         <Button onClick={handleLogout}>
           Keluar
           <LogOut />

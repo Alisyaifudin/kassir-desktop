@@ -25,7 +25,9 @@ export function useGetTabs() {
       programTabs.pipe(
         Effect.tap(() => {
           const tab = popNewTabBuffer();
-          if (tab !== null) navigate(`/shop/${tab}`);
+          if (tab !== null) {
+            navigate(`/shop/${tab}`, { replace: true });
+          }
         }),
       ),
     key: KEY,

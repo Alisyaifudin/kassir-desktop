@@ -1,21 +1,18 @@
 import { Outlet } from "react-router";
 import { Toaster } from "~/components/ui/sonner";
-import { Title } from "./z-Title";
-import { NavList } from "./z-NavList";
+import { Topbar } from "./z-Topbar";
+import { useNavigationShortcuts } from "./use-navigation-shortcuts";
 
 export default function Layout() {
+  useNavigationShortcuts();
+
   return (
-    <>
-      <header className="bg-sky-300 flex">
-        <nav className="flex px-3 justify-between w-full items-end">
-          <Title />
-          <NavList />
-        </nav>
-      </header>
-      <Outlet />
+    <div className="flex flex-col min-h-screen bg-background">
+      <Topbar />
+      <div id="main-body" className="flex-1">
+        <Outlet />
+      </div>
       <Toaster className="toast" />
-    </>
+    </div>
   );
 }
-
-//  <Notification>{notification}</Notification>

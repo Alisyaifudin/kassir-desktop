@@ -19,13 +19,13 @@ export function Record({ records }: { records: DataRecord[] }) {
   }, [mode, records, query, methodId]);
   const total = calcTotal(filtered);
   return (
-    <div className="flex flex-col gap-1 overflow-hidden">
-      <div className="flex-1 max-h-full overflow-hidden">
+    <div className="flex flex-col gap-1 overflow-hidden h-full">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <div className="h-full overflow-hidden">
           <List records={filtered.map((f) => f.record)} />
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0 py-2 border-t mt-auto">
         <p>Total</p>
         <p>: Rp{total.toLocaleString("id-ID")}</p>
       </div>

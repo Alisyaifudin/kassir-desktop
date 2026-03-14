@@ -3,22 +3,20 @@ import { Button } from "~/components/ui/button";
 import { useSize } from "~/hooks/use-size";
 
 const iconSize = {
-  big: 30,
+  big: 24,
   small: 20,
 };
 
 export function Refresh() {
   const size = useSize();
   return (
-    <li className="h-[60px] flex items-center small:h-[35px]">
-      <Button
-        size="icon"
-        className="rounded-full"
-        onClick={() => window.location.reload()}
-        variant="ghost"
-      >
-        <RefreshCcw size={iconSize[size]} />
-      </Button>
-    </li>
+    <Button
+      size="icon"
+      className="rounded-full h-10 w-10 small:h-8 small:w-8 hover:bg-sky-400/50"
+      onClick={() => window.location.reload()}
+      variant="ghost"
+    >
+      <RefreshCcw size={iconSize[size]} />
+    </Button>
   );
 }

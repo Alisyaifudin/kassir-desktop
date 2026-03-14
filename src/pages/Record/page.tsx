@@ -12,9 +12,11 @@ import { ErrorComponent } from "~/components/ErrorComponent";
 
 export default function Page() {
   return (
-    <main className="flex flex-col gap-2 p-0.5 flex-1 text-3xl overflow-hidden">
+    <main className="flex flex-col gap-2 p-0.5 flex-1 text-3xl overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
       <Header />
-      <Loader />
+      <div className="flex-1 min-h-0">
+        <Loader />
+      </div>
     </main>
   );
 }
@@ -45,13 +47,17 @@ function Wrapper({ records }: { records: DataRecord[] }) {
         "grid gap-2 h-full overflow-hidden grid-cols-[490px_1px_1fr] small:grid-cols-[335px_1px_1fr]",
       )}
     >
-      <Record records={records} />
-      <div className="border-l" />
-      <Show value={record}>
-        {({ record, extras, products }) => (
-          <Detail extras={extras} products={products} record={record} />
-        )}
-      </Show>
+      <div className="h-full overflow-hidden">
+        <Record records={records} />
+      </div>
+      <div className="border-l h-full" />
+      <div className="h-full overflow-hidden">
+        <Show value={record}>
+          {({ record, extras, products }) => (
+            <Detail extras={extras} products={products} record={record} />
+          )}
+        </Show>
+      </div>
     </div>
   );
 }

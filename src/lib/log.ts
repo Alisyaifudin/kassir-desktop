@@ -11,4 +11,8 @@ export const log = {
     console.error(e);
     logTauri.error(error);
   },
+  info(msg: string) {
+    console.info(msg);
+    logTauri.info(msg);
+  },
 };

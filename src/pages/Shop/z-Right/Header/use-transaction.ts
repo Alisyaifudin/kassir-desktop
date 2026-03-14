@@ -17,13 +17,13 @@ export function useTransaction(tabs: [TabInfo, ...TabInfo[]], tab: number) {
     async function init() {
       if (tab === undefined) return;
       if (tabs.find((t) => t.tab === tab) === undefined) {
-        navigate(`/shop/${tabs[tabs.length - 1].tab}`);
+        navigate(`/shop/${tabs[tabs.length - 1].tab}`, { replace: true });
         return;
       }
       const errMsg = await Effect.runPromise(loader(tab));
       if (errMsg !== null) {
         if (errMsg === "NotFound") {
-          navigate(`/shop/${tabs[tabs.length - 1].tab}`);
+          navigate(`/shop/${tabs[tabs.length - 1].tab}`, { replace: true });
           return;
         }
         toast.error(errMsg);
