@@ -40,7 +40,7 @@ export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
       save(value);
     }
     return (
-      <Field label="Barcode" error={error}>
+      <Field label="Kode" error={error}>
         <Input
           type="text"
           ref={ref}
