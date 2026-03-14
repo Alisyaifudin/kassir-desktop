@@ -1,6 +1,3 @@
-import { Link } from "react-router";
-import { Button } from "~/components/ui/button";
-import { ChevronLeft } from "lucide-react";
 import { Info } from "./z-Info";
 import { ExtraForm } from "./z-ExtraForm";
 import { Extra } from "~/database/extra/caches";
@@ -15,11 +12,6 @@ import { useUser } from "~/hooks/use-user";
 export default function Page({ id }: { id: number }) {
   return (
     <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
-      <Button asChild variant="link" className="self-start">
-        <Link to="/stock?tab=extra">
-          <ChevronLeft /> Kembali
-        </Link>
-      </Button>
       <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
         <Loader id={id} />
       </div>

@@ -1,12 +1,8 @@
-import { Link, Outlet, useLoaderData, useLocation, useSearchParams } from "react-router";
-import { cn, getBackURL } from "~/lib/utils";
-import { Button } from "~/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { Link, Outlet, useLoaderData, useLocation } from "react-router";
+import { cn } from "~/lib/utils";
 
 export default function Page() {
   const id = useLoaderData();
-  const [search] = useSearchParams();
-  const backURL = getBackURL("/stock", search);
   return (
     <main
       className={cn(
@@ -15,11 +11,6 @@ export default function Page() {
       )}
     >
       <div className="flex items-center justify-between">
-        <Button asChild variant="link" className="self-start">
-          <Link to={backURL}>
-            <ChevronLeft /> Kembali
-          </Link>
-        </Button>
         <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
           <TabsTrigger id={id} tab="info">
             Info
