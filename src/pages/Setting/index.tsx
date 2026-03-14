@@ -10,6 +10,7 @@ import { route as customerRouter } from "./customer";
 import { lazy } from "react";
 import { printerRoute } from "./Printer";
 
+const Layout = lazy(() => import("./layout"));
 const Page = lazy(() => import("./page"));
 
 export const route: RouteObject = {
@@ -23,7 +24,11 @@ export const route: RouteObject = {
     methodRoute,
     customerRouter,
     logRoute,
-    printerRoute
+    printerRoute,
+    {
+      index: true,
+      Component: Page,
+    }
   ],
-  Component: Page,
+  Component: Layout,
 };

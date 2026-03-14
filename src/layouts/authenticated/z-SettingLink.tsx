@@ -4,7 +4,6 @@ import { cn } from "~/lib/utils";
 import { Kbd } from "~/components/ui/kdb";
 import { showShortcut, useShortcut } from "./use-shortcut";
 import { useSize } from "~/hooks/use-size";
-import { useUser } from "~/hooks/use-user";
 import { Button } from "~/components/ui/button";
 
 const iconSize = {
@@ -14,11 +13,10 @@ const iconSize = {
 
 export function SettingLink() {
   const { pathname } = useLocation();
-  const role = useUser().role;
   const size = useSize();
   const show = useShortcut();
   const navigate = useNavigate();
-  
+
   return (
     <div className="relative flex items-center">
       <Kbd className={cn("absolute -bottom-3 -left-2 z-10", { hidden: !show })}>alt+5</Kbd>
@@ -27,13 +25,12 @@ export function SettingLink() {
         size="icon"
         onClick={(e) => {
           e.preventDefault();
-          const p = role === "admin" ? "/setting/shop" : "/setting/profile";
-          navigate(p);
+          navigate("/setting");
           showShortcut(false);
         }}
         className={cn(
           "rounded-full h-10 w-10 small:h-8 small:w-8 transition-all hover:bg-sky-400/50",
-          pathname.includes("/setting") && "bg-white/80"
+          pathname.includes("/setting") && "bg-white/80",
         )}
       >
         <Settings size={iconSize[size]} />

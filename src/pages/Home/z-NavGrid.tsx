@@ -55,7 +55,7 @@ export function NavGrid() {
       </Show>
       <NavCard
         label="Pengaturan"
-        path={isAdmin ? "/setting/shop" : "/setting/profile"}
+        path="/setting"
         icon={Settings}
         description="Konfigurasi akun dan pengaturan aplikasi"
         color="bg-gray-100 text-gray-600"
