@@ -1,5 +1,4 @@
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Suspense } from "react";
 import { Content } from "./z-Content";
 
 export function TabSection() {
@@ -21,9 +20,7 @@ export function TabSection() {
           </TabsTrigger>
         </TabsList>
       </div>
-      <Suspense>
-        <Content />
-      </Suspense>
+      <Content />
     </Tabs>
   );
 }
