@@ -1,5 +1,6 @@
 import { add } from "./add";
 import { countRecord } from "./count-record";
+import { countTotal } from "./count-total";
 import { delByTimestamp } from "./del-by-timestamp";
 import { getByRange } from "./get-by-range";
 import { getByTimestamp } from "./get-by-timestamp";
@@ -17,6 +18,7 @@ export const record = {
   },
   count: {
     record: countRecord,
+    total: countTotal,
   },
   add,
   delByTimestamp,

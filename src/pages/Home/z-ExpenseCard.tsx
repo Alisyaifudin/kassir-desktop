@@ -1,14 +1,15 @@
 import { CreditCard } from "lucide-react";
-import { StatsCard } from "./z-StatsCard";
+import { BaseFinancialCard } from "./z-BaseFinancialCard";
 
 export function ExpenseCard() {
   return (
-    <StatsCard
+    <BaseFinancialCard
       label="Pengeluaran Hari Ini"
-      value="Rp 450.000"
-      description="+8% dari kemarin"
       icon={CreditCard}
       color="text-red-500"
+      mode="buy"
+      queryKey="expense-card"
+      errorTitle="Gagal memuat pengeluaran"
     />
   );
 }
