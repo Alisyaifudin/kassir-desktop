@@ -20,7 +20,7 @@ export function Title() {
     onSuccess(title) {
       return (
         <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
-          <Link title={title} to="/" className="text-xl font-medium italic opacity-80">
+          <Link title={title} to="/" className="text-normal font-medium italic opacity-80">
             {title.slice(0, 16)}
           </Link>
         </div>
