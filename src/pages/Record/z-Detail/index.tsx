@@ -14,13 +14,13 @@ import { capitalize, cn } from "~/lib/utils";
 import { Show } from "~/components/Show";
 import { ForEach } from "~/components/ForEach";
 import { Footer } from "./Footer";
-import { Data } from "../use-records";
+import { DataRecord } from "../use-records";
 import { ToTransaction } from "./ToTransaction";
 import { useUnselect } from "../use-selected";
 import { useUser } from "~/hooks/use-user";
 import { formatDate, formatTime } from "~/lib/date";
 
-export function Detail({ extras, products, record }: Data) {
+export function Detail({ extras, products, record }: DataRecord) {
   const unselect = useUnselect();
   return (
     <Show
@@ -94,7 +94,7 @@ export function Detail({ extras, products, record }: Data) {
     </Show>
   );
 }
-function FooterBtn({ data }: { data: Data }) {
+function FooterBtn({ data }: { data: DataRecord }) {
   const { pathname, search } = useLocation();
   const path = encodeURIComponent(`${pathname}${search}`);
   const role = useUser().role;

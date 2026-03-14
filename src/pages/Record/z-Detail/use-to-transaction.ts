@@ -1,25 +1,43 @@
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { useState } from "react";
-import { Data } from "../use-records";
+import { DataRecord } from "../use-records";
+import { tx } from "~/transaction";
+import { log } from "~/lib/log";
+import { useNavigate } from "react-router";
 
-export function useToTransaction(data: Data) {
+export function useToTransaction(data: DataRecord) {
   const [error, setError] = useState<null | string>(null);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   async function handleClick() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(data));
+    const either = await Effect.runPromise(program(data));
     setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      console.log("TODO");
-    }
+    Either.match(either, {
+      onLeft: (e) => setError(e),
+      onRight: (tab) => {
+        setError(null);
+        navigate(`/shop/${tab.tab}`);
+      },
+    });
   }
   return { error, loading, handleClick };
 }
 
-function program(data: Data) {
-  return Effect.gen(function* () {
-    // TODO:
-    return null;
-  });
+function program(data: DataRecord) {
+  return tx.transaction.add.one(data).pipe(
+    Effect.catchTag("DbError", ({ e }) => {
+      log.error(e);
+      return Effect.fail(e.message);
+    }),
+    Effect.catchTag("TooMany", (e) => {
+      log.error(e.msg);
+      return Effect.fail(e.msg);
+    }),
+    Effect.catchTag("TxError", ({ e }) => {
+      log.error(e);
+      return Effect.fail(e.message);
+    }),
+    Effect.either,
+  );
 }

@@ -11,7 +11,7 @@ import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { useDelete } from "./use-delete";
-import { Data } from "../use-records";
+import { DataRecord } from "../use-records";
 
 export function DeleteBtn({
   timestamp,
@@ -20,7 +20,7 @@ export function DeleteBtn({
 }: {
   timestamp: number;
   mode: DB.Mode;
-  products: Data["products"];
+  products: DataRecord["products"];
 }) {
   const [open, setOpen] = useState(false);
   const { error, loading, handleDelete } = useDelete({

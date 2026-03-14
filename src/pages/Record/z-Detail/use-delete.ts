@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { useState } from "react";
-import { Data, revalidate } from "../use-records";
+import { DataRecord, revalidate } from "../use-records";
 import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useUnselect } from "../use-selected";
@@ -13,7 +13,7 @@ export function useDelete({
 }: {
   timestamp: number;
   mode: DB.Mode;
-  products: Data["products"];
+  products: DataRecord["products"];
   onClose: () => void;
 }) {
   const [error, setError] = useState<null | string>(null);

@@ -53,7 +53,7 @@ function loader(timestamp: number) {
       ],
       { concurrency: "unbounded" },
     );
-    const records: Data[] = recordsRaw.map((r) => {
+    const records: DataRecord[] = recordsRaw.map((r) => {
       const ps = products.filter((p) => p.timestamp === r.timestamp);
       const es = extras.filter((p) => p.timestamp === r.timestamp);
       const grandTotal = new Decimal(r.total).plus(r.rounding);
@@ -80,7 +80,7 @@ export type Record = RecordDB & {
   change: number;
 };
 
-export type Data = {
+export type DataRecord = {
   record: Record;
   products: RecordProduct[];
   extras: RecordExtra[];

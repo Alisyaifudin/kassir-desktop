@@ -1,6 +1,5 @@
-import { add } from "./add";
 import { addNew } from "./add-new";
-import { count } from "./count";
+import { addOne } from "./add-one";
 import { del } from "./del";
 import { all } from "./get-all";
 import { byTab } from "./get-by-tab";
@@ -20,6 +19,7 @@ export const transaction = {
   },
   add: {
     new: addNew,
+    one: addOne,
   },
   update: {
     customer,

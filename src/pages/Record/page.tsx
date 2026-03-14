@@ -1,6 +1,6 @@
 import { Header } from "./z-Header";
 import { Record } from "./z-Record";
-import { Data, useRecords } from "./use-records";
+import { DataRecord, useRecords } from "./use-records";
 import { cn } from "~/lib/utils";
 import { LoadingBig } from "~/components/Loading";
 import { Detail } from "./z-Detail";
@@ -35,7 +35,7 @@ function Loader() {
   });
 }
 
-function Wrapper({ records }: { records: Data[] }) {
+function Wrapper({ records }: { records: DataRecord[] }) {
   const [selected] = useSelected();
   const record =
     selected === null ? undefined : records.find((r) => r.record.timestamp === selected);
