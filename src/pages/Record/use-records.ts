@@ -40,7 +40,8 @@ export function revalidate() {
   Result.revalidate(KEY);
 }
 
-function loader(timestamp: number) {
+function loader(timestamp: number | null) {
+  timestamp ??= Date.now();
   return Effect.gen(function* () {
     const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
     const start = date.startOfDay().epochMilliseconds;
@@ -86,14 +87,14 @@ export type DataRecord = {
   extras: RecordExtra[];
 };
 
-function getTime(search: URLSearchParams): number {
+function getTime(search: URLSearchParams): number | null {
   const timeStr = search.get("time");
   const timeNum = Number(timeStr);
   if (timeStr === null || Number.isNaN(timeNum)) {
-    return Date.now();
+    return null;
   }
   if (earliest > timeNum || furthest < timeNum) {
-    return Date.now();
+    return null;
   }
   return timeNum;
 }

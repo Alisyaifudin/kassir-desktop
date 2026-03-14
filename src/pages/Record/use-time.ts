@@ -20,10 +20,12 @@ function getTimeBase(search: URLSearchParams): Temporal.ZonedDateTime {
   const tz = Temporal.Now.timeZoneId();
   const timeStr = search.get("time");
   if (timeStr === null || Number.isNaN(timeStr)) {
-    const now = Temporal.Now.instant().toZonedDateTimeISO(tz);
+    const now = Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay();
     return now;
   }
-  return Temporal.Instant.fromEpochMilliseconds(Number(timeStr)).toZonedDateTimeISO(tz);
+  return Temporal.Instant.fromEpochMilliseconds(Number(timeStr))
+    .toZonedDateTimeISO(tz)
+    .startOfDay();
 }
 
 export function useTime() {
