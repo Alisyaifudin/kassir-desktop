@@ -40,7 +40,7 @@ export function usePrint() {
     document.documentElement.style.setProperty("--paper-width", `72`);
     printRef.current.focus();
     function printWebView(e: KeyboardEvent) {
-      if (e.ctrlKey + e.key === "p") {
+      if (e.ctrlKey && e.key === "p") {
         window.print();
       }
     }
