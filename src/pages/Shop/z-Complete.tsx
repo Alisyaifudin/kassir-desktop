@@ -22,6 +22,9 @@ import { programDeleteRecord } from "../Record/z-Detail/use-delete";
 import { useTab } from "./use-tab";
 import { revalidateTabs, useTabs } from "./use-tabs";
 import { resetStore, useMode } from "./use-transaction";
+import { programPrint } from "../setting/Printer/use-test";
+import { loadDetailRecord } from "../Record/Item/use-data";
+import { Spinner } from "~/components/Spinner";
 
 const completeAtom = createAtom({
   open: false,
@@ -42,6 +45,7 @@ export function Complete() {
   const cancelFlag = useRef(false);
   const printButtonRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const { open, grandTotal, change, timestamp } = useComplete();
   const [tab] = useTab();
@@ -109,10 +113,38 @@ export function Complete() {
     closeDialog();
   };
 
-  const printReceipt = () => {
-    console.log("Mock: Printing receipt for", timestamp);
-    alert("Mock: Print receipt success!");
-    closeDialog();
+  const printReceipt = async () => {
+    if (timestamp === undefined) return;
+    setLoading(true);
+    const errMsg = await Effect.runPromise(
+      Effect.gen(function* () {
+        const data = yield* loadDetailRecord(timestamp);
+        const socials = yield* db.social.getAll();
+        yield* programPrint({
+          record: data.record,
+          products: data.products,
+          extras: data.extras,
+          socials,
+        });
+        return null;
+      }).pipe(
+        Effect.catchAll((e) => {
+          switch (e._tag) {
+            case "DbError":
+              log.error(e.e);
+              return Effect.fail(e.e.message);
+            case "NotFound":
+              return Effect.fail("Transaksi tidak ditemukan");
+          }
+        }),
+      ),
+    );
+    setLoading(false);
+    if (errMsg) {
+      setError(errMsg);
+    } else {
+      closeDialog();
+    }
   };
 
   const cancelTransaction = () => {
@@ -140,6 +172,7 @@ export function Complete() {
         <TextError>{error}</TextError>
 
         <Actions
+          loading={loading}
           onCancel={cancelTransaction}
           onViewDetail={viewDetail}
           onPrint={printReceipt}
@@ -174,7 +207,9 @@ function Actions({
   onViewDetail,
   onPrint,
   printRef,
+  loading,
 }: {
+  loading: boolean;
   onCancel: () => void;
   onViewDetail: () => void;
   onPrint: () => void;
@@ -193,6 +228,7 @@ function Actions({
       </div>
       <Button ref={printRef} className="flex-1 h-20" onClick={onPrint}>
         Cetak
+        <Spinner when={loading} />
       </Button>
     </DialogFooter>
   );

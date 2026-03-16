@@ -10,7 +10,7 @@ const KEY = "record-item";
 
 export function useData(timestamp: number) {
   const res = Result.use({
-    fn: () => loader(timestamp),
+    fn: () => loadDetailRecord(timestamp),
     key: KEY,
     revalidateOn: {
       unmount: true,
@@ -23,7 +23,7 @@ export function revalidate() {
   Result.revalidate(KEY);
 }
 
-export type Loader = typeof loader;
+export type Loader = typeof loadDetailRecord;
 
 export type RecordData = {
   record: Record & {
@@ -34,7 +34,7 @@ export type RecordData = {
   extras: RecordExtra[];
 };
 
-function loader(timestamp: number) {
+export function loadDetailRecord(timestamp: number) {
   return Effect.gen(function* () {
     const [r, products, extras] = yield* Effect.all(
       [

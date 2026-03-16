@@ -2,6 +2,7 @@ import { TextData, UserDefinedOption } from "./printer";
 import { Info } from "~/store/info/get";
 import { formatDate, formatTime } from "./date";
 import { MethodFull } from "~/database/method/get-all";
+import { capitalize } from "./utils";
 
 export type ReceiptData = {
   record: {
@@ -51,12 +52,12 @@ export const FONT_SIZE_SCALE = 1.633625;
 export const LINE_HEIHGT_SCALE = 1.633625;
 
 export const option: Omit<Option, "paper_height" | "paper_width"> = {
-  normal_line_height: 3.0, // mm
-  normal_font_size: 2.0, // mm
-  big_font_size: 3.0, // mm
-  big_line_height: 4.0, // mm
+  normal_line_height: 2.0, // mm
+  normal_font_size: 1.4, // mm
+  big_font_size: 2.5, // mm
+  big_line_height: 3, // mm
   padding: 2.0, // mm
-  summary_space: 50, //mm
+  summary_space: 40, //mm
 };
 
 function getHorizontalCapacity({
@@ -108,12 +109,19 @@ export function createReceipt(
 
   // Build summary section
   const summarySpace = Math.min(
-    option.summary_space / option.normal_font_size,
+    Math.ceil(option.summary_space / option.normal_font_size),
     capacityNormalHorizontal,
   );
   const spacePadding = " ".repeat(Math.max(0, capacityNormalHorizontal - summarySpace));
 
-  buildSummarySection(textData, record, extras, summarySpace, spacePadding);
+  buildSummarySection(
+    textData,
+    record,
+    extras,
+    summarySpace,
+    spacePadding,
+    capacityNormalHorizontal,
+  );
 
   // Build transaction summary (items count and payment method)
   buildTransactionSummary(textData, products, record, capacityNormalHorizontal);
@@ -175,7 +183,7 @@ function buildHeaderSection(
 
   // Cashier info (if enabled)
   if (info.showCashier) {
-    const cashier = "Kasir: " + record.cashier;
+    const cashier = "Kasir: " + capitalize(record.cashier);
     textData.push({
       text: cashier.slice(0, capacityNormal),
       size: "Normal",
@@ -223,11 +231,12 @@ function buildSummarySection(
   extras: ReceiptData["extras"],
   summarySpace: number,
   spacePadding: string,
+  capacityNormalHorizontal: number,
 ) {
   // Subtotal display (if different from total)
   if (record.subTotal !== record.total) {
     const text = `Rp${record.subTotal.toLocaleString("id-ID")}`;
-    const space = " ".repeat(Math.max(0, summarySpace - text.length));
+    const space = " ".repeat(Math.max(0, capacityNormalHorizontal - text.length));
     textData.push({
       text: space + text,
       size: "Normal",
@@ -266,12 +275,12 @@ function buildSummarySection(
   if (record.rounding > 0) {
     const roundingLabel = "Pembulatan";
     const sign = record.rounding > 0 ? "" : "-";
-    const roundingText = `${sign}Rp${record.rounding.toLocaleString("id-ID")}`;
+    const roundingText = `${sign}Rp${Math.abs(record.rounding).toLocaleString("id-ID")}`;
     const roundingSpaceBetween = " ".repeat(
       Math.max(0, summarySpace - roundingLabel.length - roundingText.length),
     );
     textData.push({
-      text: spacePadding + roundingLabel + roundingSpaceBetween + sign + roundingText,
+      text: spacePadding + roundingLabel + roundingSpaceBetween + roundingText,
       size: "Normal",
     });
 
@@ -296,12 +305,12 @@ function buildSummarySection(
 
     const changeLabel = "Kembalian";
     const sign = record.change > 0 ? "" : "-";
-    const changeText = `${sign}Rp${record.change.toLocaleString("id-ID")}`;
+    const changeText = `${sign}Rp${Math.abs(record.change).toLocaleString("id-ID")}`;
     const changeSpaceBetween = " ".repeat(
       Math.max(0, summarySpace - changeLabel.length - changeText.length),
     );
     textData.push({
-      text: spacePadding + changeLabel + changeSpaceBetween + sign + changeText,
+      text: spacePadding + changeLabel + changeSpaceBetween + changeText,
       size: "Normal",
     });
   }
@@ -472,16 +481,13 @@ function extrasTextData(extras: ReceiptData["extras"], summarySpace: number, spa
     let label = "";
     switch (extra.kind) {
       case "number": {
-        label = "Diskon".slice(0, remainingSpace);
+        label = extra.name.slice(0, remainingSpace);
         break;
       }
       case "percent": {
-        label = `Diskon ${extra.value}%`;
+        label = `${extra.name} ${extra.value}%`;
         if (label.length > remainingSpace) {
-          label = `Disk ${extra.value}%`;
-        }
-        if (label.length > remainingSpace) {
-          label = "Diskon".slice(0, remainingSpace);
+          label = extra.name.slice(0, remainingSpace);
         }
         break;
       }

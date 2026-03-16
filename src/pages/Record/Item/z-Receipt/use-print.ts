@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 
 export function usePrint() {
-	const styleRef = useRef<HTMLStyleElement | null>(null);
-	const printRef = useRef<HTMLButtonElement>(null);
-	useEffect(() => {
-		const style = document.createElement("style");
-		style.textContent = `
+  const styleRef = useRef<HTMLStyleElement | null>(null);
+  const printRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
         @media print {
           @page {
             size: var(--paper-width)mm auto;
@@ -23,25 +23,35 @@ export function usePrint() {
           }
         }
       `;
-		document.head.appendChild(style);
-		styleRef.current = style;
+    document.head.appendChild(style);
+    styleRef.current = style;
 
-		return () => {
-			if (styleRef.current) {
-				document.head.removeChild(styleRef.current);
-				styleRef.current = null;
-			}
-		};
-	}, []);
-	useEffect(() => {
-		if (printRef.current === null) {
-			return;
-		}
-		printRef.current.focus();
-	}, [printRef]);
-	const print = () => {
-		document.documentElement.style.setProperty("--paper-width", `72`);
-		window.print();
-	};
-	return [printRef, print] as const 
+    return () => {
+      if (styleRef.current) {
+        document.head.removeChild(styleRef.current);
+        styleRef.current = null;
+      }
+    };
+  }, []);
+  useEffect(() => {
+    if (printRef.current === null) {
+      return;
+    }
+    document.documentElement.style.setProperty("--paper-width", `72`);
+    printRef.current.focus();
+    function printWebView(e: KeyboardEvent) {
+      if (e.ctrlKey + e.key === "p") {
+        window.print();
+      }
+    }
+    window.addEventListener("keydown", printWebView);
+    return () => {
+      window.removeEventListener("keydown", printWebView);
+    };
+  }, [printRef]);
+  // const printWebView = () => {
+  //
+  // 	window.print();
+  // };
+  return [printRef] as const;
 }

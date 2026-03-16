@@ -97,7 +97,7 @@ export function add({
       query += `INSERT INTO record_extras (record_extra_name, timestamp, record_extra_value, record_extra_eff, record_extra_kind)
          VALUES ${extras.map(() => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`).join(", ")};\n`;
       for (const extra of extras) {
-        bindings.push(extra.name, timestamp, extra.base, extra.eff, extra.kind);
+        bindings.push(extra.name, timestamp, extra.value, extra.eff, extra.kind);
       }
     }
 

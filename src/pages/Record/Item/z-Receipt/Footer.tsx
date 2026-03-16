@@ -1,5 +1,5 @@
 import { Show } from "~/components/Show";
-import { Method } from "~/database/method/get-all";
+import {  MethodFull } from "~/database/method/get-all";
 import { Social } from "~/database/social/get-all";
 import { METHOD_NAMES } from "~/lib/constants";
 
@@ -15,7 +15,7 @@ export function Footer({
   socials: Social[];
   totalProductTypes: number;
   totalQty: number;
-  method: Method;
+  method: MethodFull;
   customer: { name: string; phone: string };
 }) {
   const phone = "xxxxxxx" + customer.phone.slice(-5, -1);

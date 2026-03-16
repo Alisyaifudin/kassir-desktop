@@ -13,6 +13,11 @@ import { Result } from "~/lib/result";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useState } from "react";
+import { Effect } from "effect";
+import { db } from "~/database";
+import { programPrint } from "~/pages/setting/Printer/use-test";
+import { toast } from "sonner";
 
 export function Receipt({ data }: { data: RecordData }) {
   const res = useInfo();
@@ -31,10 +36,39 @@ export function Receipt({ data }: { data: RecordData }) {
 }
 
 function Wrapper({ data: { extras, products, record }, info }: { data: RecordData; info: Info }) {
-  const [ref, print] = usePrint();
+  const [ref] = usePrint();
+  const [loading, setLoading] = useState(false);
+  async function print() {
+    setLoading(true);
+    const errMsg = await Effect.runPromise(
+      Effect.gen(function* () {
+        const socials = yield* db.social.getAll();
+        yield* programPrint({
+          record,
+          products,
+          extras,
+          socials,
+        });
+        return null;
+      }).pipe(
+        Effect.catchAll((e) => {
+          switch (e._tag) {
+            case "DbError":
+              log.error(e.e);
+              return Effect.fail(e.e.message);
+          }
+        }),
+      ),
+    );
+    setLoading(false);
+    if (errMsg) {
+      toast.error(errMsg);
+    }
+  }
   if (products.length === 0 && extras.length === 0) {
     return <TextError>Kosong</TextError>;
   }
+
   const headers = info.header === "" ? [] : info.header.split("\n");
   const footers = info.footer === "" ? [] : info.footer.split("\n");
   const totalQty =
@@ -43,7 +77,13 @@ function Wrapper({ data: { extras, products, record }, info }: { data: RecordDat
 
   return (
     <div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
-      <Top ref={ref} print={print} mode={record.mode} isCredit={record.isCredit} />
+      <Top
+        loading={loading}
+        ref={ref}
+        print={print}
+        mode={record.mode}
+        isCredit={record.isCredit}
+      />
       <div className="border pt-5">
         <div id="print-container" className="flex flex-col gap-2 px-2 pb-5">
           <Header
