@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createHashRouter } from "react-router";
 import { route as loginRoute } from "./pages/login";
 import { shopRoute as shopRoute } from "./pages/shop";
 import { route as stockRoute } from "./pages/stock";
@@ -14,7 +14,7 @@ const RootLayout = lazy(() => import("./layouts/root.tsx"));
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
 const AuthLayout = lazy(() => import("./layouts/authenticated"));
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: "/",
     ErrorBoundary,
