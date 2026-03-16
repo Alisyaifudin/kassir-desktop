@@ -1,4 +1,4 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
 
 const Page = lazy(() => import("./page"));
@@ -6,7 +6,11 @@ const Layout = lazy(() => import("./layout"));
 
 export const shopRoute: RouteObject = {
   path: "shop",
-  Component: Layout,
+  Component: () => (
+    <Suspense>
+      <Layout />
+    </Suspense>
+  ),
   children: [
     {
       index: true,
@@ -14,7 +18,11 @@ export const shopRoute: RouteObject = {
     },
     {
       path: ":tab",
-      Component: Page,
+      Component: () => (
+        <Suspense>
+          <Page />
+        </Suspense>
+      ),
       ErrorBoundary: lazy(() => import("./z-RedirectErrorBoundary")),
     },
   ],

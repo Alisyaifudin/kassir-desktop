@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs, redirect, useLoaderData, type RouteObject } from "react-router";
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 
 const Page = lazy(() => import("./page"));
 
@@ -7,7 +7,11 @@ export const route: RouteObject = {
   path: ":timestamp",
   Component: () => {
     const timestamp = useLoaderData<Loader>();
-    return <Page timestamp={timestamp} />;
+    return (
+      <Suspense>
+        <Page timestamp={timestamp} />
+      </Suspense>
+    );
   },
   loader,
 };

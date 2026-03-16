@@ -1,9 +1,13 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
 
 const Page = lazy(() => import("./page"));
 
 export const productRoute: RouteObject = {
   path: "products",
-  Component: Page,
+  Component: () => (
+    <Suspense>
+      <Page />
+    </Suspense>
+  ),
 };

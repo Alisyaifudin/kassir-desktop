@@ -7,7 +7,7 @@ import { route as socialRoute } from "./social";
 import { route as methodRoute } from "./method";
 import { route as logRoute } from "./log";
 import { route as customerRouter } from "./customer";
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { printerRoute } from "./Printer";
 
 const Layout = lazy(() => import("./layout"));
@@ -27,8 +27,16 @@ export const route: RouteObject = {
     printerRoute,
     {
       index: true,
-      Component: Page,
-    }
+      Component: () => (
+        <Suspense>
+          <Page />
+        </Suspense>
+      ),
+    },
   ],
-  Component: Layout,
+  Component: () => (
+    <Suspense>
+      <Layout />
+    </Suspense>
+  ),
 };

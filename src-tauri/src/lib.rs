@@ -2,8 +2,8 @@ use log::LevelFilter;
 mod auth;
 mod database;
 mod jwt;
-mod transaction;
 mod printer;
+mod transaction;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -36,8 +36,8 @@ pub fn run() {
             printer::print_receipt,
         ]);
     // Only enable the plugin in production
-    #[cfg(not(debug_assertions))]
-    let builder = builder.plugin(tauri_plugin_prevent_default::init());
+    // #[cfg(not(debug_assertions))]
+    // let builder = builder.plugin(tauri_plugin_prevent_default::init());
 
     builder
         .run(tauri::generate_context!())
