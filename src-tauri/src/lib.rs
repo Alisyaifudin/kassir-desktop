@@ -4,6 +4,7 @@ mod database;
 mod jwt;
 mod printer;
 mod transaction;
+use tauri_plugin_prevent_default::Flags;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -36,8 +37,12 @@ pub fn run() {
             printer::print_receipt,
         ]);
     // Only enable the plugin in production
-    // #[cfg(not(debug_assertions))]
-    // let builder = builder.plugin(tauri_plugin_prevent_default::init());
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(
+        tauri_plugin_prevent_default::Builder::new()
+            .with_flags(Flags::all().difference(Flags::CONTEXT_MENU | Flags::RELOAD | Flags::PRINT))
+            .build(),
+    );
 
     builder
         .run(tauri::generate_context!())
