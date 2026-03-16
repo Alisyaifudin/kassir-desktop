@@ -4,6 +4,7 @@ import { log } from "~/lib/log";
 import { SelectPrinter } from "./z-SelectPrinter";
 import { PrinterWidth } from "./z-PrinterWidth";
 import { TestBtn } from "./z-TestBtn";
+import { Loading } from "./z-Loading";
 
 export default function Page() {
   return (
@@ -22,7 +23,7 @@ function Loader() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <div>Loading...</div>;
+      return <Loading />;
     },
     onError({ e }) {
       log.error(e);
