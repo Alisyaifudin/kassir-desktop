@@ -21,11 +21,11 @@ import { useLinkProduct } from "./use-link-product";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { cn } from "~/lib/utils";
-import { Data } from "../../use-data";
+import { RecordData } from "../../use-data";
 import { useProducts } from "~/hooks/use-get-products";
 import { useChange } from "./use-change";
 
-export function LinkProductList({ product }: { product: Data["products"][number] }) {
+export function LinkProductList({ product }: { product: RecordData["products"][number] }) {
   const products = useProducts();
   const { handleClick, error, loading } = useLinkProduct(product);
   const { handleChange, query, selected, shownProducts } = useChange(product, products);

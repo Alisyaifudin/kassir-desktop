@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Data, revalidate } from "../../use-data";
+import { RecordData, revalidate } from "../../use-data";
 import { db } from "~/database";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
 
-export function useLinkProduct(product: Data["products"][number]) {
+export function useLinkProduct(product: RecordData["products"][number]) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const handleClick = (productId: number) => async () => {

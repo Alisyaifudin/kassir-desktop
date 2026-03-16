@@ -1,7 +1,7 @@
 import { Show } from "~/components/Show";
-import { Data } from "../use-data";
+import { RecordData } from "../use-data";
 
-export function Extra({ extra }: { extra: Data["extras"][number] }) {
+export function Extra({ extra }: { extra: RecordData["extras"][number] }) {
   return (
     <div className="grid grid-cols-[100px_120px]">
       <p>

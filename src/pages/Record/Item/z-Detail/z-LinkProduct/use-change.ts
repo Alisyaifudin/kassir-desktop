@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { useProductSearch } from "~/hooks/use-product-search";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { Data } from "../../use-data";
+import { RecordData } from "../../use-data";
 import { Product } from "~/database/product/caches";
 
-export function useChange(product: Data["products"][number], products: Product[]) {
+export function useChange(product: RecordData["products"][number], products: Product[]) {
   const [query, setQuery] = useState("");
   const search = useProductSearch(products);
   const [shownProducts, setShown] = useState<Product[]>([]);

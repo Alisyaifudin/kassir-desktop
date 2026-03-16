@@ -2,7 +2,7 @@ import { Show } from "~/components/Show";
 import { ForEach } from "~/components/ForEach";
 import { Extra } from "./Extra";
 import { memo } from "react";
-import { Data } from "../../use-data";
+import { RecordData } from "../../use-data";
 
 export const Summary = memo(function Summary({
   extras,
@@ -10,8 +10,8 @@ export const Summary = memo(function Summary({
   productLength,
 }: {
   productLength: number;
-  extras: Data["extras"];
-  record: Data["record"];
+  extras: RecordData["extras"];
+  record: RecordData["record"];
 }) {
   return (
     <div className="flex flex-col items-end">

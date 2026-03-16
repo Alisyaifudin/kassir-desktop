@@ -6,25 +6,6 @@ import { Record } from "~/database/record/get-by-range";
 import { Result } from "~/lib/result";
 import { Effect } from "effect";
 
-// export async function loader({ params, request }: LoaderFunctionArgs) {
-//   const parsed = integer.safeParse(params.timestamp);
-//   if (!parsed.success) {
-//     return redirect("/records");
-//   }
-//   const timestamp = parsed.data;
-//   const search = new URL(request.url).searchParams;
-//   const fromTab = getSearchParams(search);
-//   const [errMsg, res] = await getData(timestamp);
-//   switch (errMsg) {
-//     case "Aplikasi bermasalah":
-//       throw new Error(errMsg);
-//     case "Tidak ditemukan":
-//       throw redirect("/records");
-//   }
-//   const products = db.product.get.all();
-//   const methods = db.method.getAll();
-//   return { fromTab, data: res.data, info: res.info, methods, products };
-// }
 const KEY = "record-item";
 
 export function useData(timestamp: number) {
@@ -44,7 +25,7 @@ export function revalidate() {
 
 export type Loader = typeof loader;
 
-export type Data = {
+export type RecordData = {
   record: Record & {
     grandTotal: number;
     change: number;
@@ -65,7 +46,7 @@ function loader(timestamp: number) {
     );
     const grandTotal = new Decimal(r.total).plus(r.rounding);
     const change = new Decimal(r.pay).minus(grandTotal);
-    const data: Data = {
+    const data: RecordData = {
       record: {
         ...r,
         subTotal: Number(r.subTotal.toFixed(r.fix)),

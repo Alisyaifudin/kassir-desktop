@@ -1,7 +1,7 @@
 import { Extra } from "./Extra";
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
-import { Data } from "../use-data";
+import { RecordData } from "../use-data";
 
 export function SummaryBody({
   record,
@@ -9,8 +9,8 @@ export function SummaryBody({
   productLength,
 }: {
   productLength: number;
-  record: Data["record"];
-  extras: Data["extras"];
+  record: RecordData["record"];
+  extras: RecordData["extras"];
 }) {
   return (
     <div className="flex justify-end">

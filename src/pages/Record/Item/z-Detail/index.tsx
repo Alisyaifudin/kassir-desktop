@@ -15,7 +15,7 @@ import { Summary } from "./z-Summary";
 import { LinkProductList } from "./z-LinkProduct";
 import { cn } from "~/lib/utils";
 import { DebtDialog } from "./z-Debt";
-import { Data } from "../use-data";
+import { RecordData } from "../use-data";
 import Decimal from "decimal.js";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { useUser } from "~/hooks/use-user";
@@ -23,7 +23,7 @@ import { formatDate, formatTime, getDayName } from "~/lib/date";
 import { METHOD_NAMES } from "~/lib/constants";
 import { useLoadProducts } from "./use-load-products";
 
-export function Detail({ data }: { data: Data }) {
+export function Detail({ data }: { data: RecordData }) {
   const role = useUser().role;
   useLoadProducts(role);
   return (
@@ -143,7 +143,7 @@ export function Detail({ data }: { data: Data }) {
   );
 }
 
-type Disc = Data["products"][number]["discounts"][number];
+type Disc = RecordData["products"][number]["discounts"][number];
 type DiscT = Disc & { subtotal: number };
 
 function transformDisc(price: number, qty: number, discounts: Disc[]): DiscT[] {

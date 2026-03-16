@@ -9,7 +9,7 @@ export function TestBtn() {
     <div>
       <div className="flex flex-col gap-4">
         <Button onClick={handleClick} disabled={loading} className="mt-2">
-          Test Cetak <Spinner when={loading} />
+          Tes Cetak <Spinner when={loading} />
         </Button>
       </div>
       <TextError>{error}</TextError>

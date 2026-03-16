@@ -1,6 +1,5 @@
 use printers::{common::base::job::PrinterJobOptions, get_printers as get_system_printers};
-use printpdf::{self, Base64OrRaw, GeneratePdfOptions, PdfDocument, PdfSaveOptions};
-use std::collections::BTreeMap;
+use printpdf::*;
 
 use tauri::command;
 
@@ -10,11 +9,23 @@ pub struct PrinterInfo {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ReceiptItem {
+pub struct Discount {
+    pub name: String,
+    pub value: String,
+}
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Product {
     pub name: String,
     pub price: String,
     pub quantity: u32,
     pub total: String,
+    pub discounts: Vec<Discount>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Extra {
+    pub name: String,
+    pub value: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -25,11 +36,12 @@ pub struct Data {
     pub cashier: String,
     pub order_no: String,
     pub date_time: String,
-    pub items: Vec<ReceiptItem>,
-    pub total_amount: String,
-    pub payment_amount: String,
-    pub summary_text: String,
-    pub payment_method: String,
+    pub products: Vec<Product>,
+    pub extras: Vec<Extra>,
+    pub subtotal: String,
+    pub payment: String,
+    pub summary: String,
+    pub method: String,
     pub footer_messages: Vec<String>,
     pub socials: Vec<String>,
 }
@@ -43,175 +55,159 @@ pub fn get_printers() -> Vec<PrinterInfo> {
         .collect()
 }
 
-// Command to print a receipt
+static MONO_REGULAR_TTF: &[u8] = include_bytes!("../assets/fonts/SpaceMono-Regular.ttf");
+static MONO_BOLD_TTF: &[u8] = include_bytes!("../assets/fonts/SpaceMono-Bold.ttf");
+static COLOR_BLACK: Color = Color::Rgb(Rgb {
+    r: 0.0,
+    g: 0.0,
+    b: 0.0,
+    icc_profile: None,
+});
+struct Operation {
+    ops: Vec<Op>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RawPoint {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone)]
+struct TextOption {
+    pub font: PdfFontHandle,
+    pub size: Pt,
+    pub line_height: Pt,
+    pub position: Option<RawPoint>,
+}
+
+impl Operation {
+    pub fn collect(self) -> Vec<Op> {
+        self.ops
+    }
+    pub fn new() -> Self {
+        Self { ops: Vec::new() }
+    }
+    pub fn save_graphics_state(mut self) -> Self {
+        self.ops.push(Op::SaveGraphicsState);
+        return self;
+    }
+    pub fn restore_graphics_state(mut self) -> Self {
+        self.ops.push(Op::RestoreGraphicsState);
+        return self;
+    }
+    pub fn add_line_break(mut self) -> Self {
+        self.ops.push(Op::AddLineBreak);
+        return self;
+    }
+    pub fn add_text(mut self, text: &str, opt: TextOption) -> Self {
+        let ops = vec![
+            Op::SetFont {
+                font: opt.font,
+                size: opt.size,
+            },
+            Op::SetLineHeight {
+                lh: opt.line_height,
+            },
+            Op::SetFillColor {
+                col: COLOR_BLACK.clone(),
+            },
+            Op::ShowText {
+                items: vec![TextItem::Text(text.to_string())],
+            },
+        ];
+        if let Some(pos) = opt.position {
+            if self.ops.contains(&Op::StartTextSection) && !self.ops.contains(&Op::EndTextSection) {
+                self.ops.push(Op::EndTextSection);
+            }
+            self.ops.push(Op::StartTextSection);
+            self.ops.push(Op::SetTextCursor {
+                pos: Point::new(Mm(pos.x), Mm(pos.y)),
+            });
+        }
+        self.ops.extend(ops);
+
+        return self;
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Printer {
+    pub name: String,
+    pub width: f32,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct UserDefinedOption {
+    pub normal_line_height: f32,
+    pub normal_font_size: f32,
+    pub big_font_size: f32,
+    pub big_line_height: f32,
+    pub paper_height: f32,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum TextSize {
+    Normal,
+    Big,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TextData {
+    pub size: TextSize,
+    pub text: String,
+    pub position: Option<RawPoint>,
+}
+
 #[command]
-pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String> {
+pub fn print_receipt(
+    printer: Printer,
+    data: Vec<TextData>,
+    option: UserDefinedOption,
+) -> Result<String, String> {
     // Find the printer by name
     let system_printers = get_system_printers();
-    let sys_printer = system_printers.into_iter().find(|p| p.name == printer_name);
+    let sys_printer = system_printers.into_iter().find(|p| p.name == printer.name);
 
     let sys_printer = match sys_printer {
         Some(p) => p,
-        None => return Err(format!("Printer '{}' not found in system", printer_name)),
+        None => return Err(format!("Printer '{}' not found in system", printer.name)),
     };
-
+    let mut doc = PdfDocument::new("Text Example");
     // We create a new scope so the printer drops and flushes its buffer
-    println!("Testing HTML to PDF implementation...");
-    let items_html: String = data
-        .items
-        .iter()
-        .map(|item| {
-            format!(
-                r#"
-        <div style="margin-bottom: 5px;">
-            <div>{}</div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>{:?} &times; {}</span>
-                <span>{:?}.000</span>
-            </div>
-        </div>
-        "#,
-                item.name, item.price, item.quantity, item.total
-            )
-        })
-        .collect::<Vec<String>>()
-        .join("");
+    // Load and register an external font
+    let mono_regular = ParsedFont::from_bytes(MONO_REGULAR_TTF, 0, &mut Vec::new()).unwrap();
+    let mono_regular_id = doc.add_font(&mono_regular);
+    let mono_bold = ParsedFont::from_bytes(MONO_BOLD_TTF, 0, &mut Vec::new()).unwrap();
+    let mono_bold_id = doc.add_font(&mono_bold);
 
-    let footer_msgs_html: String = data
-        .footer_messages
-        .iter()
-        .map(|msg| format!("<div>{}</div>", msg))
-        .collect::<Vec<String>>()
-        .join("");
-    let socials: String = data
-        .socials
-        .iter()
-        .map(|msg| format!("<div>{}</div>", msg))
-        .collect::<Vec<String>>()
-        .join("");
-
-    let html = format!(
-        r#"
-    <html>
-        <head>
-            <style>
-                body {{
-                    font-family: 'Roboto';
-                    font-size: 12px;
-                    width: 300px;
-                    margin: 0;
-                    padding: 10px;
-                    color: #000;
-                }}
-                .center {{ text-align: center; }}
-                .bold {{ font-weight: bold; }}
-                .store-name {{ font-size: 18px; margin-bottom: 2px; }}
-                .separator {{ border-top: 1px dashed #000; margin: 8px 0; }}
-                .flex-row {{ display: flex; justify-content: space-between; }}
-            </style>
-        </head>
-        <body>
-            <div class="center">
-                <div class="bold store-name">{}</div>
-                <div>{}</div>
-                <div style="font-size: 11px;">{}</div>
-            </div>
-
-            <div style="margin-top: 8px;">
-                <div>Kasir: {}</div>
-                <div class="flex-row">
-                    <span>No: {}</span>
-                    <span>{}</span>
-                </div>
-            </div>
-
-            <div class="separator"></div>
-
-            <div class="items">
-                {}
-            </div>
-
-            <div class="separator"></div>
-
-            <div style="display: flex; justify-content: flex-end;">
-                <div style="width: 60%;">
-                    <div class="flex-row">
-                        <span>Total</span>
-                        <span>{}</span>
-                    </div>
-                    <div class="flex-row">
-                        <span>Pembayaran</span>
-                        <span>{}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex-row" style="margin-top: 10px;">
-                <span>{}</span>
-                <span>{}</span>
-            </div>
-
-            <div class="center" style="margin-top: 15px; font-size: 11px;">
-                {}
-                <div style="margin-top: 4px;">
-                    {}
-                </div>
-            </div>
-        </body>
-    </html>
-    "#,
-        data.store_name,
-        data.store_description,
-        data.store_address,
-        data.cashier,
-        data.order_no,
-        data.date_time,
-        items_html,
-        data.total_amount,
-        data.payment_amount,
-        data.summary_text,
-        data.payment_method,
-        footer_msgs_html,
-        socials
-    );
-
-    // Create PDF from HTML
-    let images = BTreeMap::new();
-    let mut fonts: BTreeMap<String, Base64OrRaw> = BTreeMap::new();
-    // load the roboto font bytes and add it to the fonts map under a name
-    let roboto_bytes = include_bytes!("../assets/Roboto-Regular.ttf").to_vec();
-    fonts.insert("Roboto".to_string(), Base64OrRaw::Raw(roboto_bytes.clone()));
-    let mut warnings = Vec::new();
-    let options = GeneratePdfOptions::default();
-
-    println!("Parsing HTML and generating PDF...");
-
-    let mut save_warnings = Vec::new();
-    let save_options = PdfSaveOptions::default();
-    let doc = match PdfDocument::from_html(&html, &images, &fonts, &options, &mut warnings) {
-        Ok(doc) => {
-            println!("[OK] Successfully generated PDF");
-            if !warnings.is_empty() {
-                println!("Warnings:");
-                for warn in &warnings {
-                    println!("  - {:?}", warn);
-                }
-            }
-            doc
-        }
-        Err(e) => {
-            eprintln!("[ERROR] Failed to generate PDF: {}", e);
-            return Err(format!("Failed to generate PDF: {}", e));
-        }
-    };
-
-    if !save_warnings.is_empty() {
-        println!("Save warnings:");
-        for warn in &save_warnings {
-            println!("  - {:?}", warn);
-        }
+    let mut ops_builder = Operation::new().save_graphics_state();
+    for item in data {
+        let opt = match item.size {
+            TextSize::Normal => TextOption {
+                font: PdfFontHandle::External(mono_regular_id.clone()),
+                size: Mm(option.normal_font_size).into_pt(),
+                line_height: Mm(option.normal_line_height).into_pt(),
+                position: item.position,
+            },
+            TextSize::Big => TextOption {
+                font: PdfFontHandle::External(mono_bold_id.clone()),
+                size: Mm(option.big_font_size).into_pt(),
+                line_height: Mm(option.big_line_height).into_pt(),
+                position: item.position,
+            },
+        };
+        ops_builder = ops_builder.add_text(&item.text, opt).add_line_break();
     }
-    let bytes = doc.save(&save_options, &mut save_warnings);
+
+    // Create a page with our operations
+    let ops = ops_builder.restore_graphics_state().collect();
+    let page = PdfPage::new(Mm(printer.width), Mm(option.paper_height), ops);
+
+    // Save the PDF to a file
+    let bytes = doc
+        .with_pages(vec![page])
+        .save(&PdfSaveOptions::default(), &mut Vec::new());
     // Now we send the raw bytes to the system printer
     sys_printer
         .print(&bytes, PrinterJobOptions::none())
@@ -219,6 +215,7 @@ pub fn print_receipt(printer_name: String, data: Data) -> Result<String, String>
 
     Ok(format!(
         "Successfully sent receipt data to system printer: {}",
-        printer_name
+        printer.name
     ))
 }
+// Command to print

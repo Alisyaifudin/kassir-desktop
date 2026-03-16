@@ -2,7 +2,7 @@ import { Receipt } from "./z-Receipt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Detail } from "./z-Detail";
 import { useTab } from "./use-tab";
-import { Data, useData } from "./use-data";
+import { RecordData, useData } from "./use-data";
 import { useClearTab } from "./use-clear-tab";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
@@ -62,7 +62,7 @@ function Loading() {
   );
 }
 
-function Wrapper({ data }: { data: Data }) {
+function Wrapper({ data }: { data: RecordData }) {
   const [tab, setTab] = useTab();
   // const [search] = useSearchParams();
   // const urlBack = getURLBack(data.record.timestamp, data.record.mode, search);

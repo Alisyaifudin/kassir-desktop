@@ -10,7 +10,7 @@ import {
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { Data } from "../../use-data";
+import { RecordData } from "../../use-data";
 import { useDelete } from "./use-delete";
 
 export function DeleteBtn({
@@ -20,7 +20,7 @@ export function DeleteBtn({
 }: {
   timestamp: number;
   mode: DB.Mode;
-  products: Data["products"];
+  products: RecordData["products"];
 }) {
   const [open, setOpen] = useState(false);
   const { error, handleDelete, loading } = useDelete({ timestamp, mode, products });

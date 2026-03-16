@@ -7,14 +7,14 @@ import { SummaryBody } from "./Summary";
 import { Footer } from "./Footer";
 import { usePrint } from "./use-print";
 import { TextError } from "~/components/TextError";
-import { Data } from "../use-data";
+import { RecordData } from "../use-data";
 import { Info, useInfo } from "./use-info";
 import { Result } from "~/lib/result";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export function Receipt({ data }: { data: Data }) {
+export function Receipt({ data }: { data: RecordData }) {
   const res = useInfo();
   return Result.match(res, {
     onLoading() {
@@ -30,7 +30,7 @@ export function Receipt({ data }: { data: Data }) {
   });
 }
 
-function Wrapper({ data: { extras, products, record }, info }: { data: Data; info: Info }) {
+function Wrapper({ data: { extras, products, record }, info }: { data: RecordData; info: Info }) {
   const [ref, print] = usePrint();
   if (products.length === 0 && extras.length === 0) {
     return <TextError>Kosong</TextError>;

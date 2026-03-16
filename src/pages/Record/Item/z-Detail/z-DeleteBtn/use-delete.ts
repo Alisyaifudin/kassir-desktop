@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database";
 import { log } from "~/lib/log";
-import { Data } from "../../use-data";
+import { RecordData } from "../../use-data";
 import { useBackUrl } from "~/hooks/use-back-url";
 import { useNavigate } from "react-router";
 
@@ -13,7 +13,7 @@ export function useDelete({
 }: {
   timestamp: number;
   mode: DB.Mode;
-  products: Data["products"];
+  products: RecordData["products"];
 }) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ export function useDelete({
   return { error, loading, handleDelete };
 }
 
-function program(timestamp: number, mode: DB.Mode, products: Data["products"]) {
+function program(timestamp: number, mode: DB.Mode, products: RecordData["products"]) {
   return Effect.gen(function* () {
     const filtered = products.flatMap((p) =>
       p.productId === undefined ? [] : [{ id: p.productId, qty: p.qty }],

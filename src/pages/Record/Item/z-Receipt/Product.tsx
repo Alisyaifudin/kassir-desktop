@@ -1,8 +1,8 @@
 import { ForEach } from "~/components/ForEach";
 import { Discount } from "./Discount";
-import { Data } from "../use-data";
+import { RecordData } from "../use-data";
 
-export function Product({ name, price, qty, discounts, total }: Data["products"][number]) {
+export function Product({ name, price, qty, discounts, total }: RecordData["products"][number]) {
   return (
     <div className="flex flex-col">
       <p className="text-wrap">{name}</p>
