@@ -160,7 +160,7 @@ export function Complete() {
         else setComplete((prev) => ({ ...prev, open: true }));
       }}
     >
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="max-w-4xl">
         <DialogHeader className="text-center">
           <DialogTitle className="text-big font-bold mb-4 text-center w-full">
             Transaksi Berhasil
