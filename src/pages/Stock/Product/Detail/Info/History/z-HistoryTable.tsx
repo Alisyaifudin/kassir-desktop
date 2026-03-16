@@ -8,7 +8,7 @@ import {
   TableRow,
   Table,
 } from "~/components/ui/table";
-import { ProductHistory } from "~/database/product/history";
+import { ProductHistory } from "~/database/product/get-history";
 import { formatDate, formatTime } from "~/lib/date";
 
 export function HistoryTable({

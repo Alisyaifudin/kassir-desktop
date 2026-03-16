@@ -34,7 +34,6 @@ export type ImageResult =
       id: number;
     };
 
-// export type ImagePromise = Promise<ResultOld<DefaultError, ImageResult[]>>;
 
 export function program(id: number) {
   return Effect.gen(function* () {

@@ -3,15 +3,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Detail } from "./z-Detail";
 import { useTab } from "./use-tab";
 import { RecordData, useData } from "./use-data";
-import { useClearTab } from "./use-clear-tab";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { NotFound } from "~/components/NotFound";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export default function Page({ timestamp, fromTab }: { timestamp: number; fromTab?: number }) {
-  useClearTab(fromTab);
+export default function Page({ timestamp }: { timestamp: number }) {
   const res = useData(timestamp);
   return Result.match(res, {
     onLoading() {

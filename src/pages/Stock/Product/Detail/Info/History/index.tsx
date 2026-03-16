@@ -6,7 +6,6 @@ import { Label } from "~/components/ui/label";
 import { HistoryTable } from "./z-HistoryTable";
 import { usePage } from "./use-page";
 import { useMode } from "./use-mode";
-import { ProductHistory } from "~/database/product/history";
 import { useHistory } from "./use-history";
 import { useId } from "../../use-id";
 import { Result } from "~/lib/result";
@@ -21,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { ProductHistory } from "~/database/product/get-history";
 
 export function History() {
   const id = useId();

@@ -1,5 +1,5 @@
 import { getTicks } from "../utils/group-items";
-import { Bar } from "../z-Bar";
+import { Bar } from "./z-Bar";
 import { formatTick } from "../utils/format-tick";
 
 type Props = {
