@@ -17,7 +17,7 @@ export function ProductList({ all }: Props) {
   const products = useFilterProducts(all);
   const { start, end } = useInterval(products.length);
   return (
-    <TableBody className="overflow-auto flex-1 w-full">
+    <TableBody>
       {products.slice(start, end).map((product, i) => (
         <TableRow
           key={i}
