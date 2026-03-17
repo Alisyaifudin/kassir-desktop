@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
+import arraybuffer from "vite-plugin-arraybuffer";
 // process is a nodejs/bun global
 const host = process.env.TAURI_DEV_HOST;
 
@@ -18,6 +19,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       vanillaExtractPlugin(),
       react(),
+      arraybuffer(),
       tailwindcss(),
       tsconfigPaths(),
       {

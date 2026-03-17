@@ -13,11 +13,16 @@ import { Result } from "~/lib/result";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
-import { useState } from "react";
 import { Effect } from "effect";
 import { db } from "~/database";
-import { programPrint } from "~/pages/setting/Printer/use-test";
+import { useState } from "react";
 import { toast } from "sonner";
+import { programPrint } from "~/pages/setting/Printer/util-program-print";
+// import { useState } from "react";
+// import { Effect } from "effect";
+// import { db } from "~/database";
+// import { programPrint } from "~/pages/setting/Printer/use-test";
+// import { toast } from "sonner";
 
 export function Receipt({ data }: { data: RecordData }) {
   const res = useInfo();

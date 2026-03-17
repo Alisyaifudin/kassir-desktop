@@ -37,10 +37,10 @@ export function usePrint() {
     if (printRef.current === null) {
       return;
     }
-    document.documentElement.style.setProperty("--paper-width", `72`);
     printRef.current.focus();
     function printWebView(e: KeyboardEvent) {
       if (e.ctrlKey && e.key === "p") {
+        document.documentElement.style.setProperty("--paper-width", `72`);
         window.print();
       }
     }
@@ -50,8 +50,8 @@ export function usePrint() {
     };
   }, [printRef]);
   // const printWebView = () => {
-  //
-  // 	window.print();
+  //   document.documentElement.style.setProperty("--paper-width", `72`);
+  //   window.print();
   // };
   return [printRef] as const;
 }

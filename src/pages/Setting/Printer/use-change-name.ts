@@ -8,7 +8,6 @@ export function useChangePrinterName(init: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [name, setName] = useState(init);
-  console.log(loading);
   async function handleChange(name: string) {
     setName(name);
     setLoading(true);

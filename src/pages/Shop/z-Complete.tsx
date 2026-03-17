@@ -22,9 +22,9 @@ import { programDeleteRecord } from "../Record/z-Detail/use-delete";
 import { useTab } from "./use-tab";
 import { revalidateTabs, useTabs } from "./use-tabs";
 import { resetStore, useMode } from "./use-transaction";
-import { programPrint } from "../setting/Printer/use-test";
 import { loadDetailRecord } from "../Record/Item/use-data";
 import { Spinner } from "~/components/Spinner";
+import { programPrint } from "../setting/Printer/util-program-print";
 
 const completeAtom = createAtom({
   open: false,

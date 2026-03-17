@@ -30,7 +30,7 @@ function Loader() {
       return <p>{e.message}</p>;
     },
     onSuccess([printer, printers]) {
-      return <Wrapper printer={printer} printers={printers} />;
+      return <Wrapper printer={printer} printers={printers.map((p) => p.name)} />;
     },
   });
 }

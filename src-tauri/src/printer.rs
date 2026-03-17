@@ -1,221 +1,180 @@
-use printers::{common::base::job::PrinterJobOptions, get_printers as get_system_printers};
-use printpdf::*;
-
+use std::io::Write;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 use tauri::command;
+use tempfile::NamedTempFile;
+use winprint::{
+    printer::{FilePrinter, PrinterDevice, WinPdfPrinter},
+    ticket::PrintTicket,
+};
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+// ============================================================================
+// Data Structures
+// ============================================================================
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PrinterInfo {
-    name: String,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Discount {
     pub name: String,
-    pub value: String,
-}
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Product {
-    pub name: String,
-    pub price: String,
-    pub quantity: u32,
-    pub total: String,
-    pub discounts: Vec<Discount>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Extra {
-    pub name: String,
-    pub value: String,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Data {
-    pub store_name: String,
-    pub store_description: String,
-    pub store_address: String,
-    pub cashier: String,
-    pub order_no: String,
-    pub date_time: String,
-    pub products: Vec<Product>,
-    pub extras: Vec<Extra>,
-    pub subtotal: String,
-    pub payment: String,
-    pub summary: String,
-    pub method: String,
-    pub footer_messages: Vec<String>,
-    pub socials: Vec<String>,
-}
-
-// Command to get a list of available printers
-#[command]
-pub fn get_printers() -> Vec<PrinterInfo> {
-    get_system_printers()
-        .into_iter()
-        .map(|p| PrinterInfo { name: p.name })
-        .collect()
-}
-
-static MONO_REGULAR_TTF: &[u8] = include_bytes!("../assets/fonts/SpaceMono-Regular.ttf");
-static MONO_BOLD_TTF: &[u8] = include_bytes!("../assets/fonts/SpaceMono-Bold.ttf");
-static COLOR_BLACK: Color = Color::Rgb(Rgb {
-    r: 0.0,
-    g: 0.0,
-    b: 0.0,
-    icc_profile: None,
-});
-struct Operation {
-    ops: Vec<Op>,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RawPoint {
-    pub x: f32,
-    pub y: f32,
+pub struct PrintResult {
+    pub success: bool,
+    pub message: String,
 }
 
-#[derive(Debug, Clone)]
-struct TextOption {
-    pub font: PdfFontHandle,
-    pub size: Pt,
-    pub line_height: Pt,
-    pub position: Option<RawPoint>,
-}
+// ============================================================================
+// Error Helpers (No additional crates)
+// ============================================================================
 
-impl Operation {
-    pub fn collect(self) -> Vec<Op> {
-        self.ops
-    }
-    pub fn new() -> Self {
-        Self { ops: Vec::new() }
-    }
-    pub fn save_graphics_state(mut self) -> Self {
-        self.ops.push(Op::SaveGraphicsState);
-        return self;
-    }
-    pub fn restore_graphics_state(mut self) -> Self {
-        self.ops.push(Op::RestoreGraphicsState);
-        return self;
-    }
-    pub fn add_line_break(mut self) -> Self {
-        self.ops.push(Op::AddLineBreak);
-        return self;
-    }
-    pub fn add_text(mut self, text: &str, opt: TextOption) -> Self {
-        let ops = vec![
-            Op::SetFont {
-                font: opt.font,
-                size: opt.size,
-            },
-            Op::SetLineHeight {
-                lh: opt.line_height,
-            },
-            Op::SetFillColor {
-                col: COLOR_BLACK.clone(),
-            },
-            Op::ShowText {
-                items: vec![TextItem::Text(text.to_string())],
-            },
-        ];
-        if let Some(pos) = opt.position {
-            if self.ops.contains(&Op::StartTextSection) && !self.ops.contains(&Op::EndTextSection) {
-                self.ops.push(Op::EndTextSection);
-            }
-            self.ops.push(Op::StartTextSection);
-            self.ops.push(Op::SetTextCursor {
-                pos: Point::new(Mm(pos.x), Mm(pos.y)),
-            });
-        }
-        self.ops.extend(ops);
+// ============================================================================
+// Commands
+// ============================================================================
 
-        return self;
+#[command]
+pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
+    let devices =
+        PrinterDevice::all().map_err(|e| format!("Failed to enumerate printers: {:?}", e))?;
+
+    if devices.is_empty() {
+        return Err(
+            "No printers found on this system. Please install a printer first.".to_string(),
+        );
     }
-}
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Printer {
-    pub name: String,
-    pub width: f32,
-}
+    let printers: Vec<PrinterInfo> = devices
+        .into_iter()
+        .map(|device| PrinterInfo {
+            name: device.name().to_string(),
+            status: "Ready".to_string(),
+        })
+        .collect();
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct UserDefinedOption {
-    pub normal_line_height: f32,
-    pub normal_font_size: f32,
-    pub big_font_size: f32,
-    pub big_line_height: f32,
-    pub paper_height: f32,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum TextSize {
-    Normal,
-    Big,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct TextData {
-    pub size: TextSize,
-    pub text: String,
-    pub position: Option<RawPoint>,
+    Ok(printers)
 }
 
 #[command]
-pub fn print_receipt(
-    printer: Printer,
-    data: Vec<TextData>,
-    option: UserDefinedOption,
-) -> Result<String, String> {
-    // Find the printer by name
-    let system_printers = get_system_printers();
-    let sys_printer = system_printers.into_iter().find(|p| p.name == printer.name);
-
-    let sys_printer = match sys_printer {
-        Some(p) => p,
-        None => return Err(format!("Printer '{}' not found in system", printer.name)),
-    };
-    let mut doc = PdfDocument::new("Text Example");
-    // We create a new scope so the printer drops and flushes its buffer
-    // Load and register an external font
-    let mono_regular = ParsedFont::from_bytes(MONO_REGULAR_TTF, 0, &mut Vec::new()).unwrap();
-    let mono_regular_id = doc.add_font(&mono_regular);
-    let mono_bold = ParsedFont::from_bytes(MONO_BOLD_TTF, 0, &mut Vec::new()).unwrap();
-    let mono_bold_id = doc.add_font(&mono_bold);
-
-    let mut ops_builder = Operation::new().save_graphics_state();
-    for item in data {
-        let opt = match item.size {
-            TextSize::Normal => TextOption {
-                font: PdfFontHandle::External(mono_regular_id.clone()),
-                size: Mm(option.normal_font_size).into_pt(),
-                line_height: Mm(option.normal_line_height).into_pt(),
-                position: item.position,
-            },
-            TextSize::Big => TextOption {
-                font: PdfFontHandle::External(mono_bold_id.clone()),
-                size: Mm(option.big_font_size).into_pt(),
-                line_height: Mm(option.big_line_height).into_pt(),
-                position: item.position,
-            },
-        };
-        ops_builder = ops_builder.add_text(&item.text, opt).add_line_break();
+pub fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, String> {
+    // Validate PDF before doing anything else
+    if pdf_bytes.len() < 4 {
+        return Err(format!(
+            "Invalid PDF: file too small ({} bytes, expected at least 4 bytes for PDF header)",
+            pdf_bytes.len()
+        ));
     }
 
-    // Create a page with our operations
-    let ops = ops_builder.restore_graphics_state().collect();
-    let page = PdfPage::new(Mm(printer.width), Mm(option.paper_height), ops);
+    if &pdf_bytes[0..4] != b"%PDF" {
+        let header = String::from_utf8_lossy(&pdf_bytes[0..pdf_bytes.len().min(20)]);
+        return Err(format!(
+            "Invalid PDF: missing PDF header. Found '{:?}' instead of '%PDF'. \
+             Make sure you're sending raw PDF bytes, not base64 or JSON. \
+             First 20 bytes: {}",
+            &pdf_bytes[0..4],
+            header
+        ));
+    }
 
-    // Save the PDF to a file
-    let bytes = doc
-        .with_pages(vec![page])
-        .save(&PdfSaveOptions::default(), &mut Vec::new());
-    // Now we send the raw bytes to the system printer
-    sys_printer
-        .print(&bytes, PrinterJobOptions::none())
-        .map_err(|e| format!("Failed to send raw data to system printer: {:?}", e))?;
+    // Find the requested printer
+    let devices = PrinterDevice::all().map_err(|e| format!("Failed to list printers: {:?}", e))?;
+
+    let device = devices
+        .into_iter()
+        .find(|p| p.name() == printer_name)
+        .ok_or_else(|| {
+            let available: Vec<String> = PrinterDevice::all()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|p| format!("'{}'", p.name()))
+                .collect();
+
+            format!(
+                "Printer '{}' not found. Available printers: [{}]",
+                printer_name,
+                if available.is_empty() {
+                    "none".to_string()
+                } else {
+                    available.join(", ")
+                }
+            )
+        })?;
+
+    // Write to temp file with detailed error context
+    let temp_path = {
+        let mut temp = NamedTempFile::with_suffix(".pdf")
+            .map_err(|e| format!("Failed to create temp file: {}", e))?;
+
+        temp.write_all(&pdf_bytes)
+            .map_err(|e| format!("Failed to write PDF: {}", e))?;
+        temp.flush()
+            .map_err(|e| format!("Failed to flush: {}", e))?;
+
+        // IMPORTANT: Close the file by persisting it
+        let (file, path) = temp
+            .keep()
+            .map_err(|e| format!("Failed to persist temp file: {}", e))?;
+        drop(file); // Explicitly close the handle
+
+        path
+    };
+
+    let path_display = temp_path.display().to_string();
+
+    // Now print - file is closed and accessible
+    let printer = WinPdfPrinter::new(device);
+
+    // Workaround for Microsoft Print to PDF driver:
+    // Use timeout to prevent indefinite hangs on consecutive calls.
+    // NOTE: Print happens in background thread. If timeout occurs, the print
+    // may still complete in the background (hence saved PDF despite error).
+    let path_for_thread = temp_path.clone();
+    let printer_name_clone = printer_name.clone();
+    let path_display_clone = path_display.clone();
+    let pdf_len = pdf_bytes.len();
+
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let result = printer.print(&path_for_thread, PrintTicket::default());
+        let _ = tx.send(result);
+    });
+
+    // Wait for print with 30-second timeout
+    let print_result = match rx.recv_timeout(Duration::from_secs(30)) {
+        Ok(result) => result,
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(
+                "Print job timed out (Microsoft Print to PDF driver running slowly). \
+                 The PDF may still be saved in the background. Check your print queue."
+                    .to_string(),
+            );
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err("Print thread crashed (Windows driver error)".to_string());
+        }
+    };
+
+    print_result.map_err(|e| {
+        format!(
+            "Print job failed for printer '{}': {:?}. \
+         Temp file: '{}', PDF size: {} bytes",
+            printer_name_clone, e, path_display_clone, pdf_len
+        )
+    })?;
+
+    // Small delay to ensure driver releases resources before next call
+    // (Microsoft Print to PDF driver quirk workaround)
+    thread::sleep(Duration::from_millis(500));
+
+    // Clean up temp file after printing
+    let _ = std::fs::remove_file(&temp_path);
 
     Ok(format!(
-        "Successfully sent receipt data to system printer: {}",
-        printer.name
+        "Successfully sent {} byte PDF to printer '{}'",
+        pdf_bytes.len(),
+        printer_name
     ))
 }
-// Command to print

@@ -1,4 +1,4 @@
-import { ReceiptData } from "~/lib/receipt";
+import { ReceiptData } from "~/lib/receipt/type";
 
 export const mockData: Omit<ReceiptData, "info"> = {
   record: {
