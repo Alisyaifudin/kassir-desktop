@@ -48,6 +48,20 @@ export const productsStore = createStore({
       setSubtotal(calcSubtotal(products));
       return products;
     },
+    moveUp(context, event: { id: string }) {
+      const index = context.findIndex((product) => product.id === event.id);
+      if (index === 0) return;
+      return produce(context, (draft) => {
+        [draft[index], draft[index - 1]] = [draft[index - 1], draft[index]];
+      });
+    },
+    moveDown(context, event: { id: string }) {
+      const index = context.findIndex((product) => product.id === event.id);
+      if (index === context.length - 1) return;
+      return produce(context, (draft) => {
+        [draft[index], draft[index + 1]] = [draft[index + 1], draft[index]];
+      });
+    },
     updateErrors(context, event: { errors: { id: string; message: string }[] }) {
       return produce(context, (draft) => {
         const errors = event.errors;
@@ -152,6 +166,10 @@ export const productsStore = createStore({
 
 export function useProduct(id: string) {
   return useSelector(productsStore, (state) => state.context.find((c) => c.id === id)!);
+}
+
+export function useProductLength() {
+  return useSelector(productsStore, (state) => state.context.length);
 }
 
 function updateDiscount(product: Product, indexDisc: number, discount: Discount) {

@@ -19,7 +19,7 @@ export const Basic = memo(function Basic({ id }: { id: string }) {
         <div className="flex-1 min-w-0 ">
           <Popover>
             <PopoverTrigger asChild>
-              <h3 className="text-normal text-foreground leading-tight truncate">{name}</h3>
+              <h3 className="text-normal text-foreground leading-tight w-fit truncate">{name}</h3>
             </PopoverTrigger>
             <PopoverContent className="flex flex-col text-normal w-full max-w-3xl text-wrap">
               {name}

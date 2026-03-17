@@ -104,7 +104,7 @@ const NameInput = memo(function NameInput({
     <div className="flex gap-2 items-center">
       <div className="relative flex-1">
         <Input
-          className={cn("h-9 font-medium text-normal", {
+          className={cn("h-9", {
             "bg-red-50 border-red-200": undo,
           })}
           ref={ref}

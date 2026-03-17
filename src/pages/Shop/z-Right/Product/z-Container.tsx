@@ -4,6 +4,7 @@ import { Show } from "~/components/Show";
 import { memo } from "react";
 import { useSelector } from "@xstate/store/react";
 import { productsStore } from "../../store/product";
+import { Move } from "./z-Move";
 
 type Props = {
   id: string;
@@ -54,6 +55,7 @@ const Wrapper = memo(function Wrapper({ index, id }: Props) {
           <DetailDialog index={index} productId={productId} stock={stock} name={name} />
         )}
       </Show>
+      <Move id={id} index={index} />
     </div>
   );
 });
