@@ -5,7 +5,7 @@ import { cn } from "~/lib/utils";
 import { Refresh } from "./z-Refresh";
 import { SettingLink } from "./z-SettingLink";
 import { Title } from "./z-Title";
-import { useBackUrl } from "~/hooks/use-back-url";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { TopNavList } from "./z-TopNavList";
 
 const routeTitles: Record<string, string> = {
@@ -21,7 +21,7 @@ const routeTitles: Record<string, string> = {
 export function Topbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const backUrl = useBackUrl("/");
+  const backUrl = useGetUrlBack("/");
 
   // Find the title based on the start of the pathname
   const activeRoute = Object.keys(routeTitles)

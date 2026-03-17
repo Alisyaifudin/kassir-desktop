@@ -1,5 +1,6 @@
 import { LoaderFunctionArgs, redirect, useLoaderData, type RouteObject } from "react-router";
 import { lazy, Suspense } from "react";
+import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
@@ -8,7 +9,7 @@ export const route: RouteObject = {
   Component: () => {
     const timestamp = useLoaderData<Loader>();
     return (
-      <Suspense>
+      <Suspense fallback={<Loading />}>
         <Page timestamp={timestamp} />
       </Suspense>
     );

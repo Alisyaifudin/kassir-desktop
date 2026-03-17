@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { db } from "~/database";
-import { useBackUrl } from "~/hooks/use-back-url";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { log } from "~/lib/log";
 import { revalidateProducts } from "../../../../../../hooks/use-get-products";
 
@@ -10,7 +10,7 @@ export function useDel(id: number) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const backUrl = useBackUrl("/stock");
+  const backUrl = useGetUrlBack("/stock");
   async function handleDelete() {
     setLoading(true);
     const errMsg = await Effect.runPromise(program(id));

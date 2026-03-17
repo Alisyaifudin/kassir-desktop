@@ -8,11 +8,13 @@ import { useInterval } from "../use-interval";
 import { Limit } from "../z-Limit";
 import { useLength } from "./use-length";
 import { useUser } from "~/hooks/use-user";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function ExtraPanel() {
   const length = useLength();
   const { totalPage } = useInterval(length);
   const role = useUser().role;
+  const urlBack = useGenerateUrlBack("/stock");
   return (
     <div className="flex items-center gap-10">
       <Search />
@@ -21,7 +23,7 @@ export function ExtraPanel() {
         <Limit />
         <Show when={role === "admin"}>
           <Link
-            to="/stock/extra/new"
+            to={{ pathname: "/stock/extra/new", search: `url_back=${encodeURIComponent(urlBack)}` }}
             className="hover:bg-accent outline rounded-xl flex gap-2 items-center pl-3 w-fit"
           >
             Tambah Biaya Lainnya

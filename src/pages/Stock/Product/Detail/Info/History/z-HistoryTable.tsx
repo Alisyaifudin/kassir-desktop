@@ -9,7 +9,9 @@ import {
   Table,
 } from "~/components/ui/table";
 import { ProductHistory } from "~/database/product/get-history";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { formatDate, formatTime } from "~/lib/date";
+import { useId } from "../../use-id";
 
 export function HistoryTable({
   mode,
@@ -18,7 +20,8 @@ export function HistoryTable({
   products: ProductHistory[];
   mode: "buy" | "sell";
 }) {
-  const urlBack = encodeURIComponent(window.location.href);
+  const id = useId();
+  const urlBack = useGenerateUrlBack(`/stock/product/${id}`);
   switch (mode) {
     case "buy":
       return (
@@ -82,7 +85,10 @@ export function HistoryTable({
                   <TableCell className="text-center">{r.qty}</TableCell>
                   <TableCell>
                     <Link
-                      to={{ pathname: `/records/${r.timestamp}`, search: `?url_back=${urlBack}` }}
+                      to={{
+                        pathname: `/records/${r.timestamp}`,
+                        search: `?url_back=${encodeURIComponent(urlBack)}`,
+                      }}
                     >
                       <ExternalLink className="icon" />
                     </Link>

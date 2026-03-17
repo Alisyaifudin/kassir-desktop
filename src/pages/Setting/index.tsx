@@ -9,6 +9,8 @@ import { route as logRoute } from "./log";
 import { route as customerRouter } from "./customer";
 import { lazy, Suspense } from "react";
 import { printerRoute } from "./Printer";
+import { LoadingLayout } from "./z-LoadingLayout";
+import { LoadingPage } from "./z-LoadingPage";
 
 const Layout = lazy(() => import("./layout"));
 const Page = lazy(() => import("./page"));
@@ -28,14 +30,14 @@ export const route: RouteObject = {
     {
       index: true,
       Component: () => (
-        <Suspense>
+        <Suspense fallback={<LoadingPage />}>
           <Page />
         </Suspense>
       ),
     },
   ],
   Component: () => (
-    <Suspense>
+    <Suspense fallback={<LoadingLayout />}>
       <Layout />
     </Suspense>
   ),

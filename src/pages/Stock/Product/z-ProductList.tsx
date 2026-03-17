@@ -6,15 +6,16 @@ import { useInterval } from "../use-interval";
 import { Product } from "~/database/product/caches";
 import { cn, formatBarcode } from "~/lib/utils";
 import { useFilterProducts } from "./use-filter-products";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 type Props = {
   all: Product[];
 };
 
 export function ProductList({ all }: Props) {
+  const urlBack = useGenerateUrlBack("/stock");
   const products = useFilterProducts(all);
   const { start, end } = useInterval(products.length);
-  const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
   return (
     <TableBody className="overflow-auto flex-1 w-full">
       {products.slice(start, end).map((product, i) => (
@@ -33,7 +34,12 @@ export function ProductList({ all }: Props) {
           <TableCell className="text-right">{product.stock}</TableCell>
           <TableCell>
             <Button variant="link" className="p-0 cursor-pointer">
-              <Link to={{ pathname: `product/${product.id}`, search: `?url_back=${backURL}` }}>
+              <Link
+                to={{
+                  pathname: `product/${product.id}`,
+                  search: `?url_back=${encodeURIComponent(urlBack)}`,
+                }}
+              >
                 <SquareArrowOutUpRight className="icon" />
               </Link>
             </Button>

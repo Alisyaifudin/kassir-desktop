@@ -3,7 +3,7 @@ import { useState } from "react";
 import { db } from "~/database";
 import { log } from "~/lib/log";
 import { RecordData } from "../../use-data";
-import { useBackUrl } from "~/hooks/use-back-url";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { useNavigate } from "react-router";
 
 export function useDelete({
@@ -17,7 +17,7 @@ export function useDelete({
 }) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
-  const backUrl = useBackUrl("/records");
+  const backUrl = useGetUrlBack("/records");
   const navigate = useNavigate();
   async function handleDelete() {
     setLoading(true);

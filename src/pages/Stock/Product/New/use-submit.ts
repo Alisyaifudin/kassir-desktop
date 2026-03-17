@@ -5,13 +5,13 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useAppForm } from "../z-ProductForm";
 import { createProductOptions } from "../util-product-options";
-import { useBackUrl } from "~/hooks/use-back-url";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { revalidateProducts } from "../../../../hooks/use-get-products";
 
 export function useSubmit() {
   const [error, setError] = useState<null | string>(null);
   const navigate = useNavigate();
-  const backUrl = useBackUrl("/stock");
+  const backUrl = useGetUrlBack("/stock");
   const options = useRef(
     createProductOptions({
       onError(error) {

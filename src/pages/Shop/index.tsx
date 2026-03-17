@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
+import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 const Layout = lazy(() => import("./layout"));
@@ -7,7 +8,7 @@ const Layout = lazy(() => import("./layout"));
 export const shopRoute: RouteObject = {
   path: "shop",
   Component: () => (
-    <Suspense>
+    <Suspense fallback={<Loading />}>
       <Layout />
     </Suspense>
   ),
@@ -19,7 +20,7 @@ export const shopRoute: RouteObject = {
     {
       path: ":tab",
       Component: () => (
-        <Suspense>
+        <Suspense fallback={<Loading />}>
           <Page />
         </Suspense>
       ),

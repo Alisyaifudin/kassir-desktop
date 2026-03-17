@@ -9,12 +9,13 @@ import { Attention } from "./z-Attention";
 import { Limit } from "../z-Limit";
 import { useLength } from "./use-length";
 import { useUser } from "~/hooks/use-user";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function ProductPanel() {
+  const urlBack = useGenerateUrlBack("/stock");
   const role = useUser().role;
   const length = useLength();
   const { totalPage } = useInterval(length);
-  const search = window.location.search;
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-1">
@@ -25,7 +26,10 @@ export function ProductPanel() {
           <Limit />
           <Show when={role === "admin"}>
             <Link
-              to={{ pathname: "/stock/product/new", search }}
+              to={{
+                pathname: "/stock/product/new",
+                search: `url_back=${encodeURIComponent(urlBack)}`,
+              }}
               className="outline hover:bg-accent rounded-xl pl-3 flex gap-2 items-center w-fit"
             >
               Tambah Produk

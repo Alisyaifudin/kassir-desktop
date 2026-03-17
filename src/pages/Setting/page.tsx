@@ -130,7 +130,7 @@ export default function Page() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 small:grid-cols-1">
+      <div className="grid sm:grid-cols-2 gap-4 grid-cols-1">
         <Cards cards={cards} />
       </div>
     </div>

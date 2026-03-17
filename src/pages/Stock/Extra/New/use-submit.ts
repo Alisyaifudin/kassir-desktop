@@ -5,12 +5,12 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { createExtraOptions } from "../util-extra-options";
 import { useAppForm } from "../z-ExtraForm";
-import { useBackUrl } from "~/hooks/use-back-url";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 
 export function useSubmit() {
   const [error, setError] = useState<null | string>(null);
   const navigate = useNavigate();
-  const backUrl = useBackUrl("/stock?tab=extra");
+  const backUrl = useGetUrlBack("/stock?tab=extra");
   const options = useRef(
     createExtraOptions({
       onError(error) {

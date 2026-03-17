@@ -6,6 +6,7 @@ import { useInterval } from "../use-interval";
 import { Extra } from "~/database/extra/caches";
 import { useFilterExtras } from "./use-filter-extras";
 import { cn } from "~/lib/utils";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 type Props = {
   all: Extra[];
@@ -14,7 +15,7 @@ type Props = {
 export function ExtraList({ all }: Props) {
   const extras = useFilterExtras(all);
   const { start, end } = useInterval(extras.length);
-  const backURL = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+  const urlBack = useGenerateUrlBack("/stock");
   return (
     <TableBody>
       {extras.slice(start, end).map((extra, i) => (
@@ -25,7 +26,12 @@ export function ExtraList({ all }: Props) {
           <TableCell className="text-right">{extra.value.toLocaleString("id-ID")}</TableCell>
           <TableCell className="">
             <Button asChild variant="link" className="p-0 cursor-pointer">
-              <Link to={{ pathname: `extra/${extra.id}`, search: `?url_back=${backURL}` }}>
+              <Link
+                to={{
+                  pathname: `extra/${extra.id}`,
+                  search: `?url_back=${encodeURIComponent(urlBack)}`,
+                }}
+              >
                 <SquareArrowOutUpRight className="icon" />
               </Link>
             </Button>
