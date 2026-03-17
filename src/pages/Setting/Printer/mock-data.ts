@@ -2,7 +2,7 @@ import { ReceiptData } from "~/lib/receipt/type";
 
 export const mockData: Omit<ReceiptData, "info"> = {
   record: {
-    cashier: "Raisya",
+    cashier: "Budi",
     change: 90,
     fix: 0,
     grandTotal: 12010,
@@ -19,21 +19,21 @@ export const mockData: Omit<ReceiptData, "info"> = {
   },
   extras: [
     {
-      name: "Extra 1",
+      name: "Diskon",
       value: -1000,
       kind: "number",
       eff: -1000,
     },
     {
-      name: "Extra 1",
-      value: 10,
+      name: "PPN",
+      value: 11,
       kind: "percent",
       eff: 1000,
     },
   ],
   products: [
     {
-      name: "Product 1",
+      name: "Semangka",
       price: 1000,
       qty: 3,
       total: 3000,
@@ -56,21 +56,14 @@ export const mockData: Omit<ReceiptData, "info"> = {
       ],
     },
     {
-      name: "Product 2",
+      name: "Gorengan",
       price: 2000,
       qty: 2,
       total: 4000,
       discounts: [],
     },
     {
-      name: "Pilih printer yang akan digunakan untuk mencetak struk",
-      price: 2000,
-      qty: 2,
-      total: 4000,
-      discounts: [],
-    },
-    {
-      name: "Product 4",
+      name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed at congue massa, in pharetra diam.",
       price: 2000,
       qty: 2,
       total: 4000,
@@ -79,12 +72,12 @@ export const mockData: Omit<ReceiptData, "info"> = {
   ],
   socials: [
     {
-      name: "Facebook",
-      value: "@raisya",
+      name: "Shopee",
+      value: "@andi",
     },
     {
       name: "Instagram",
-      value: "@raisya",
+      value: "@dewi",
     },
   ],
 };
