@@ -4,13 +4,7 @@ import { Effect } from "effect";
 
 const schema = z.object({
   name: z.string().default(""),
-  width: z
-    .string()
-    .default("80")
-    .transform((val) => {
-      const num = Number(val);
-      return isNaN(num) ? 80 : num;
-    }),
+  width: z.number().default(80),
 });
 
 export type Printer = z.infer<typeof schema>;
