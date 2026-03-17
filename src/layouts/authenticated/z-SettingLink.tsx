@@ -19,7 +19,7 @@ export function SettingLink() {
 
   return (
     <div className="relative flex items-center">
-      <Kbd className={cn("absolute -bottom-3 -left-2 z-10", { hidden: !show })}>alt+5</Kbd>
+      <Kbd className={cn("absolute -bottom-3 -left-2 z-10", { hidden: !show })}>alt+4</Kbd>
       <Button
         variant={pathname.includes("/setting") ? "secondary" : "ghost"}
         size="icon"

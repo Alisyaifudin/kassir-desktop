@@ -5,7 +5,7 @@ import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page.tsx"));
 
-export const route: RouteObject = {
+export const extraRoute: RouteObject = {
   Component: () => {
     const id = useLoaderData<Loader>();
     return (

@@ -8,7 +8,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+    <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
       <div className="flex flex-col gap-1">
         <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
         <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
@@ -19,7 +19,7 @@ export default function Page() {
       </div>
 
       <NewCashier />
-    </div>
+    </main>
   );
 }
 

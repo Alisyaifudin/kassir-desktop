@@ -5,6 +5,10 @@ import {
   BarChart3,
   Wallet,
   Settings,
+  Phone,
+  Users,
+  CreditCard,
+  ReceiptText,
 } from "lucide-react";
 import { NavCard } from "./z-NavCard";
 import { useUser } from "~/hooks/use-user";
@@ -53,6 +57,34 @@ export function NavGrid() {
           color="bg-emerald-100 text-emerald-600"
         />
       </Show>
+      <NavCard
+        label="Kontak"
+        path="/social"
+        icon={Phone}
+        description="Kelola informasi media sosial dan kontak lainnya"
+        color="bg-purple-100 text-purple-600"
+      />
+      <NavCard
+        label="Kasir"
+        path="/cashier"
+        icon={Users}
+        description="Kelola akun kasir dan peran"
+        color="bg-emerald-100 text-emerald-700"
+      />
+      <NavCard
+        label="Metode"
+        path="/method"
+        icon={CreditCard}
+        description="Konfigurasi metode pembayaran"
+        color="bg-indigo-100 text-indigo-700"
+      />
+      <NavCard
+        label="Pelanggan"
+        path="/customer"
+        icon={ReceiptText}
+        description="Kelola daftar pelanggan"
+        color="bg-teal-100 text-teal-700"
+      />
       <NavCard
         label="Pengaturan"
         path="/setting"

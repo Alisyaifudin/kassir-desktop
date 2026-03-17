@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { revalidate } from "../../../hooks/use-get-methods";
+import { revalidate } from "../../hooks/use-get-methods";
 import { store } from "~/store";
 import { log } from "~/lib/log";
 import { toast } from "sonner";

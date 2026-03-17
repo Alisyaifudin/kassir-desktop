@@ -8,7 +8,7 @@ import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page.tsx"));
 
-export const route: RouteObject = {
+export const productRoute: RouteObject = {
   Component: () => (
     <Suspense fallback={<Loading />}>
       <Page />

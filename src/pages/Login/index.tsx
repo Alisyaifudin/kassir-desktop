@@ -4,7 +4,7 @@ import { lazyLoader } from "~/lib/utils";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
+export const loginRoute: RouteObject = {
   path: "login",
   loader: lazyLoader(() => import("./loader")),
   Component: () => (

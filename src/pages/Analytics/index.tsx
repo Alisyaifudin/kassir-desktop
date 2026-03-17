@@ -8,7 +8,7 @@ import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
+export const analRoute: RouteObject = {
   path: "analytics",
   Component: () => (
     <Suspense fallback={<Loading />}>

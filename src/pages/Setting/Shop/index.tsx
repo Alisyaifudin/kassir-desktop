@@ -4,7 +4,7 @@ import { admin } from "~/middleware/admin";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
+export const shopRoute: RouteObject = {
   middleware: [admin],
   Component: () => (
     <Suspense>

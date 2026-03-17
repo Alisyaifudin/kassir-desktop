@@ -6,9 +6,8 @@ const linkMap = {
   0: "/shop",
   1: "/stock",
   2: "/records",
-  3: "/analytics",
-  4: "/money",
-  5: "/setting",
+  3: "/money",
+  4: "/setting",
 } as Record<string, string>;
 
 let press = false;

@@ -4,7 +4,7 @@ import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
+export const itemRoute: RouteObject = {
   path: ":timestamp",
   Component: () => {
     const timestamp = useLoaderData<Loader>();

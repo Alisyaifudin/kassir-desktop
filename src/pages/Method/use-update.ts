@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database";
 import { log } from "~/lib/log";
-import { revalidate } from "../../../hooks/use-get-methods";
+import { revalidate } from "../../hooks/use-get-methods";
 
 export function useUpdate(id: number, name: string) {
   const [error, setError] = useState<null | string>(null);

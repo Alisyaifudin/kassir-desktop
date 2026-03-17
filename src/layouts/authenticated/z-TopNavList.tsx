@@ -50,9 +50,8 @@ export function TopNavList() {
       <TopNavLink path="/shop" label="Toko" alt="alt+0" root />
       <TopNavLink path="/stock" label="Stok" alt="alt+1" />
       <TopNavLink path="/records" label="Riwayat" alt="alt+2" />
-      <TopNavLink path="/analytics" label="Analisis" alt="alt+3" />
       <Show when={role === "admin"}>
-        <TopNavLink path="/money" label="Uang" alt="alt+4" />
+        <TopNavLink path="/money" label="Uang" alt="alt+3" />
       </Show>
     </div>
   );

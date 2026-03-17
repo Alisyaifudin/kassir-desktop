@@ -1,14 +1,4 @@
-import {
-  Building2,
-  User,
-  Phone,
-  Database,
-  Users,
-  CreditCard,
-  ReceiptText,
-  Printer,
-  ScrollText,
-} from "lucide-react";
+import { Building2, User, Database, ScrollText, Printer } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
@@ -17,11 +7,7 @@ export function AdminPanel() {
   const items = [
     { path: "/setting/shop", label: "Toko", icon: Building2 },
     { path: "/setting/profile", label: "Profil", icon: User },
-    { path: "/setting/social", label: "Kontak", icon: Phone },
     { path: "/setting/data", label: "Data", icon: Database },
-    { path: "/setting/cashier", label: "Kasir", icon: Users },
-    { path: "/setting/method", label: "Metode", icon: CreditCard },
-    { path: "/setting/customer", label: "Pelanggan", icon: ReceiptText },
     { path: "/setting/printer", label: "Printer", icon: Printer },
     { path: "/setting/log", label: "Log", icon: ScrollText },
   ] as const;

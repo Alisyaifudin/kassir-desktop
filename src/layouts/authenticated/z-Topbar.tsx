@@ -11,6 +11,10 @@ import { TopNavList } from "./z-TopNavList";
 const routeTitles: Record<string, string> = {
   "/": "Beranda",
   "/shop": "Toko",
+  "/method": "Metode",
+  "/customer": "Pelanggan",
+  "/cashier": "Kasir",
+  "/social": "Kontak",
   "/stock": "Stok",
   "/records": "Riwayat",
   "/analytics": "Analisis",
