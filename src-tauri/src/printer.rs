@@ -1,7 +1,4 @@
 use std::io::Write;
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
 use tauri::command;
 use tempfile::NamedTempFile;
 use winprint::{
@@ -119,57 +116,16 @@ pub fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, Str
         path
     };
 
-    let path_display = temp_path.display().to_string();
-
-    // Now print - file is closed and accessible
     let printer = WinPdfPrinter::new(device);
 
-    // Workaround for Microsoft Print to PDF driver:
-    // Use timeout to prevent indefinite hangs on consecutive calls.
-    // NOTE: Print happens in background thread. If timeout occurs, the print
-    // may still complete in the background (hence saved PDF despite error).
-    let path_for_thread = temp_path.clone();
-    let printer_name_clone = printer_name.clone();
-    let path_display_clone = path_display.clone();
-    let pdf_len = pdf_bytes.len();
-
-    let (tx, rx) = mpsc::channel();
-
-    thread::spawn(move || {
-        let result = printer.print(&path_for_thread, PrintTicket::default());
-        let _ = tx.send(result);
-    });
-
-    // Wait for print with 30-second timeout
-    let print_result = match rx.recv_timeout(Duration::from_secs(30)) {
-        Ok(result) => result,
-        Err(mpsc::RecvTimeoutError::Timeout) => {
+    // Now print - file is closed and accessible
+    printer
+        .print(&temp_path, PrintTicket::default())
+        .map_err(|e| {
             let _ = std::fs::remove_file(&temp_path);
-            return Err(
-                "Print job timed out (Microsoft Print to PDF driver running slowly). \
-                 The PDF may still be saved in the background. Check your print queue."
-                    .to_string(),
-            );
-        }
-        Err(mpsc::RecvTimeoutError::Disconnected) => {
-            let _ = std::fs::remove_file(&temp_path);
-            return Err("Print thread crashed (Windows driver error)".to_string());
-        }
-    };
+            e.to_string()
+        })?;
 
-    print_result.map_err(|e| {
-        format!(
-            "Print job failed for printer '{}': {:?}. \
-         Temp file: '{}', PDF size: {} bytes",
-            printer_name_clone, e, path_display_clone, pdf_len
-        )
-    })?;
-
-    // Small delay to ensure driver releases resources before next call
-    // (Microsoft Print to PDF driver quirk workaround)
-    thread::sleep(Duration::from_millis(500));
-
-    // Clean up temp file after printing
     let _ = std::fs::remove_file(&temp_path);
 
     Ok(format!(
