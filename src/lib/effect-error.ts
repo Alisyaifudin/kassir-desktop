@@ -43,3 +43,29 @@ export class InvokeError {
     return new InvokeError(unknown);
   }
 }
+
+export class IOError {
+  readonly _tag = "IOError";
+  e: Error;
+  constructor(error: unknown, msg?: string) {
+    if (msg !== undefined) {
+      this.e = new Error(msg, { cause: error });
+    } else if (typeof error === "string") {
+      this.e = new Error(error);
+    } else {
+      this.e = new Error("Io error", { cause: error });
+    }
+  }
+}
+
+export class ArrayBufferError {
+  readonly _tag = "ArrayBufferError";
+  e: Error;
+  constructor(error: unknown) {
+    if (typeof error === "string") {
+      this.e = new Error(error);
+    } else {
+      this.e = new Error("Array buffer conversion error", { cause: error });
+    }
+  }
+}

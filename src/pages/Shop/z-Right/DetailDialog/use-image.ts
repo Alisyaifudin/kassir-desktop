@@ -28,9 +28,9 @@ function program(productId: number) {
       log.error(e);
       return Effect.fail(e.message);
     }),
-    Effect.catchTag("IOError", ({ error }) => {
-      log.error(error);
-      return Effect.fail(error.message);
+    Effect.catchTag("IOError", ({ e }) => {
+      log.error(e);
+      return Effect.fail(e.message);
     }),
   );
 }

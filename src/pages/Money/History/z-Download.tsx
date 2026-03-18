@@ -6,6 +6,7 @@ import { Button } from "~/components/ui/button";
 import { db } from "~/database";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
+import { IOError } from "~/lib/effect-error";
 
 export function Download({ kindId, kind }: { kindId: number; kind: string }) {
   const [loading, setLoading] = useState(false);
@@ -25,17 +26,6 @@ export function Download({ kindId, kind }: { kindId: number; kind: string }) {
   );
 }
 
-class IOError {
-  static _tag = "IOError";
-  e: Error;
-  constructor(error: unknown) {
-    if (typeof error === "string") {
-      this.e = new Error(error);
-    } else {
-      this.e = new Error("Io error", { cause: error });
-    }
-  }
-}
 
 function program(kindId: number, kind: string) {
   return Effect.gen(function* () {

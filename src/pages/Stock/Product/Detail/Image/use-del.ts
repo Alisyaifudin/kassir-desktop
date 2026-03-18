@@ -30,11 +30,9 @@ function program(id: number) {
     Effect.catchAll((e) => {
       switch (e._tag) {
         case "DbError":
+        case "IOError":
           log.error(e.e);
           return Effect.succeed(e.e.message);
-        case "IOError":
-          log.error(e.error);
-          return Effect.succeed(e.error.message);
         case "NotFound":
           log.error(e.msg);
           return Effect.succeed(e.msg);

@@ -59,16 +59,9 @@ function program(id: number, file: File) {
     yield* db.image.add(name, mimeType, id);
     return null;
   }).pipe(
-    Effect.catchAll((e) => {
-      switch (e._tag) {
-        case "DbError":
-          log.error(e.e);
-          return Effect.succeed(e.e.message);
-        case "IOError":
-        case "ArrayBufferError":
-          log.error(e.error);
-          return Effect.succeed(e.error.message);
-      }
+    Effect.catchAll(({ e }) => {
+      log.error(e);
+      return Effect.succeed(e.message);
     }),
   );
 }

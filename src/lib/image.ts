@@ -1,22 +1,7 @@
 import { exists, mkdir, writeFile, readFile, remove, BaseDirectory } from "@tauri-apps/plugin-fs";
 import * as path from "@tauri-apps/api/path";
 import { Effect } from "effect";
-
-class IOError {
-  readonly _tag = "IOError";
-  error: Error;
-  constructor(v: unknown, msg: string) {
-    this.error = new Error(msg, { cause: v });
-  }
-}
-
-class ArrayBufferError {
-  readonly _tag = "ArrayBufferError";
-  error: Error;
-  constructor(v: unknown) {
-    this.error = new Error("Gagal mengkonversi file ke arraybuffer", { cause: v });
-  }
-}
+import { ArrayBufferError, IOError } from "./effect-error";
 
 type MimeType = "image/png" | "image/jpeg";
 
