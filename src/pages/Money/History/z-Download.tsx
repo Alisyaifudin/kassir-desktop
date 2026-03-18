@@ -26,7 +26,6 @@ export function Download({ kindId, kind }: { kindId: number; kind: string }) {
   );
 }
 
-
 function program(kindId: number, kind: string) {
   return Effect.gen(function* () {
     const money = yield* db.money.get.all(kindId);

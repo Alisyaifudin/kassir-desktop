@@ -1,3 +1,4 @@
+import { addExternal } from "./add-external";
 import { addKind } from "./add-kind";
 import { addRecord } from "./add-record";
 import { delByTimestamp } from "./del-by-timestamp";
@@ -23,6 +24,7 @@ export const money = {
   add: {
     kind: addKind,
     record: addRecord,
+    external: addExternal,
   },
   update: {
     type: updateType,

@@ -143,7 +143,7 @@ export const Result = {
       const res = await query.revalidate();
       query.result = res;
       cache.set(key, query);
-      query.setVersion((v) => v + 1);
+      query.setVersion(Math.random() * 1000);
     }
   },
 };

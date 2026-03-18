@@ -17,6 +17,7 @@ import { Header } from "./z-Header";
 import { TableList } from "./z-TableList";
 import { DeletePocketBtn } from "./z-DeletePocket";
 import { Download } from "./z-Download";
+import { UploadMoney } from "./z-UploadDialog";
 
 export default function Page({ kindId }: { kindId: number }) {
   const res = useData(kindId);
@@ -46,7 +47,10 @@ function Wrapper({ kind, money }: { kind: MoneyKind; money: Money[] }) {
       <TableList money={money} type={kind.type} />
       <div className="flex items-center pb-1 justify-between">
         <DeletePocketBtn kindId={kind.id} />
-        <Download kind={kind.name} kindId={kind.id} />
+        <div className="flex items-center gap-2">
+          <UploadMoney kindId={kind.id} />
+          <Download kind={kind.name} kindId={kind.id} />
+        </div>
       </div>
     </main>
   );
