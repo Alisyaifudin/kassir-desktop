@@ -1,5 +1,5 @@
-import Record from "./Record";
-import { Product } from "./Product";
+import RecordDownload from "./RecordDownload";
+import { ProductDownload } from "./ProductDownload";
 
 export default function Page() {
   return (
@@ -19,8 +19,8 @@ export default function Page() {
           </h2>
           <p className="text-muted-foreground text-normal">Ekspor data produk dan transaksi</p>
         </div>
-        <Product />
-        <Record />
+        <ProductDownload />
+        <RecordDownload />
       </section>
 
       <section aria-labelledby="upload-title" className="rounded-2xl border bg-card p-6 shadow-sm">

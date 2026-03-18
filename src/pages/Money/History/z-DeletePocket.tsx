@@ -25,7 +25,7 @@ export const DeletePocketBtn = memo(function DeleteBtn({ kindId }: { kindId: num
           <DialogTitle className="text-3xl">Hapus Kantong</DialogTitle>
           <div className="flex flex-col gap-2 text-3xl">
             <p>
-              Kamu akan menghapus kantong ini. Semua catatan keuangan pada kantong ini adalah
+              Kamu akan menghapus kantong ini. Semua catatan keuangan pada kantong ini akan
               terhapus selamanya!
             </p>
             <TextError>{error}</TextError>
