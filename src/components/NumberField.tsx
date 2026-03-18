@@ -10,7 +10,8 @@ export function NumberField({
   const [caretPos, setCaretPos] = useState<number | null>(null);
 
   // Format the number with Indonesian locale (e.g., 100000 -> 100.000)
-  const formattedValue = value === "" ? "" : Number(value).toLocaleString("id-ID");
+  const formattedValue =
+    value === "" ? "" : value === "-" ? "-" : Number(value).toLocaleString("id-ID");
 
   // Apply caret position after render
   useLayoutEffect(() => {
@@ -26,6 +27,11 @@ export function NumberField({
     if (rawValue === "") {
       setCaretPos(0);
       onValueChange("");
+      return;
+    }
+    if (rawValue === "-") {
+      setCaretPos(1);
+      onValueChange("-");
       return;
     }
     const selectionStart = input.selectionStart || 0;

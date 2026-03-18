@@ -6,4 +6,5 @@ Aplikasi untuk kasir.
 
 # TODO
 
+- export data keuangan
 - kembalikan update aplikasi otomatis
