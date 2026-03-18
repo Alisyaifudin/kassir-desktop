@@ -1,4 +1,5 @@
 import { Link, Outlet, useLoaderData, useLocation } from "react-router";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { cn } from "~/lib/utils";
 
 export default function Page() {
@@ -45,9 +46,9 @@ function TabsTrigger({
 }) {
   const to = tabs(id)[tab];
   const active = useActive();
-  const search = window.location.search;
+  const urlBack = useGenerateUrlBack("/stock");
   return (
-    <Link to={{ pathname: to, search }}>
+    <Link to={{ pathname: to, search: `url_back=${encodeURIComponent(urlBack)}` }}>
       <button
         className={cn(
           "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",

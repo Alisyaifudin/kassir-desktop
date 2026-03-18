@@ -109,7 +109,7 @@ function HistoryList({ histories, total }: { histories: ProductHistory[]; total:
     setPage(newPage);
   };
   return (
-    <div className="flex flex-col gap-2 w-full p-1 h-full overflow-hidden">
+    <div className="flex flex-col  gap-2 w-full p-1 h-full overflow-hidden">
       <div className="flex items-center justify-between">
         <RadioGroup
           value={mode}

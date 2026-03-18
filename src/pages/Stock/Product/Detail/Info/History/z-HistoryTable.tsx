@@ -25,7 +25,7 @@ export function HistoryTable({
   switch (mode) {
     case "buy":
       return (
-        <Table className="text-normal w-fit">
+        <Table className="text-normal">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px] small:w-[30px]">No</TableHead>
@@ -62,7 +62,7 @@ export function HistoryTable({
       );
     case "sell":
       return (
-        <Table className="text-normal w-fit">
+        <Table className="text-normal">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px] small:w-[30px]">No</TableHead>

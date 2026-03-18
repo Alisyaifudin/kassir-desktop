@@ -13,7 +13,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
   return (
-    <div className="grid grid-cols-2 gap-2 flex-1  overflow-hidden">
+    <div className="grid grid-cols-2 gap-2 flex-1 overflow-hidden">
       <Detail />
       <History />
     </div>
