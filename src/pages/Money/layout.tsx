@@ -18,7 +18,7 @@ import { NewPocket } from "./z-NewPocket";
 export default function Page() {
   return (
     <main className="flex flex-col gap-2 w-full px-0.5 mx-auto flex-1 overflow-hidden">
-      <div className="flex items-center justify-between p-0.5">
+      <div className="flex items-center justify-between py-1 pr-1">
         <h1 className="text-big font-bold">Catatan Keuangan</h1>
         <TimePicker />
         <NewPocket />

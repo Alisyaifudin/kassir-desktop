@@ -16,6 +16,7 @@ import { Money, MoneyKind } from "~/database/money/get-by-range";
 import { Header } from "./z-Header";
 import { TableList } from "./z-TableList";
 import { DeletePocketBtn } from "./z-DeletePocket";
+import { Download } from "./z-Download";
 
 export default function Page({ kindId }: { kindId: number }) {
   const res = useData(kindId);
@@ -43,8 +44,9 @@ function Wrapper({ kind, money }: { kind: MoneyKind; money: Money[] }) {
     <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
       <Header kind={kind} />
       <TableList money={money} />
-      <div className="pb-1">
+      <div className="flex items-center pb-1 justify-between">
         <DeletePocketBtn kindId={kind.id} />
+        <Download kind={kind.name} kindId={kind.id} />
       </div>
     </main>
   );

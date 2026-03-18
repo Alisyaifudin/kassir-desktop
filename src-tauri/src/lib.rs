@@ -10,6 +10,7 @@ pub fn run() {
     let database_migs = database::generate_migration();
     let transaction_migs = transaction::generate_migration();
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(

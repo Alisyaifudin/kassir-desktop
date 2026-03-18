@@ -54,7 +54,7 @@ export function NavCard({ kind, kindId, timestamp, value }: NavCardProps) {
       <Show value={value}>
         {(value) => (
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+            <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
               {formatCurrency(value)}
             </span>
           </div>

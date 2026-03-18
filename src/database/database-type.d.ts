@@ -31,7 +31,7 @@ declare namespace DB {
   interface Money {
     timestamp: number;
     money_value: number;
-    money_kind: string;
+    money_kind_id: number;
     money_note: string;
   }
   interface Customer {
