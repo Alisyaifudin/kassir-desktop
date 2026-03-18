@@ -10,8 +10,15 @@ import { DeleteRecordBtn } from "./z-DeleteRecordBtn";
 import { memo } from "react";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 import { Money } from "~/database/money/get-by-range";
+import { Show } from "~/components/Show";
 
-export const TableList = memo(function TableListDebt({ money }: { money: Money[] }) {
+export const TableList = memo(function TableListDebt({
+  money,
+  type,
+}: {
+  money: Money[];
+  type: DB.MoneyType;
+}) {
   return (
     <Table className="text-normal">
       <TableHeader>
@@ -20,7 +27,9 @@ export const TableList = memo(function TableListDebt({ money }: { money: Money[]
           <TableHead className="text-center w-[120px] small:w-[70px]">Hari</TableHead>
           <TableHead className="text-center w-[290px] small:w-[200px]">Tanggal</TableHead>
           <TableHead className="text-center w-[140px] small:w-[100px]">Waktu</TableHead>
-          <TableHead className="text-right w-[200px] small:w-[150px]">Selisih</TableHead>
+          <Show when={type === "change"}>
+            <TableHead className="text-right w-[200px] small:w-[150px]">Selisih</TableHead>
+          </Show>
           <TableHead className="text-right w-[200px] small:w-[150px]">Nilai</TableHead>
           <TableHead className="text-center">Catatan</TableHead>
           <TableHead className="text-right w-[50px]"></TableHead>
@@ -33,7 +42,9 @@ export const TableList = memo(function TableListDebt({ money }: { money: Money[]
             <TableCell className="text-center">{getDayName(m.timestamp)}</TableCell>
             <TableCell className="text-center">{formatDate(m.timestamp, "long")}</TableCell>
             <TableCell className="text-center">{formatTime(m.timestamp, "long")}</TableCell>
-            <TableCell className="text-right">Rp{m.diff.toLocaleString("id-ID")}</TableCell>
+            <Show when={type === "change"}>
+              <TableCell className="text-right">Rp{m.diff.toLocaleString("id-ID")}</TableCell>
+            </Show>
             <TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
             <TableCell className="text-center">{m.note}</TableCell>
             <TableCell>

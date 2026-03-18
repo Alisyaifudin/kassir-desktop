@@ -43,7 +43,7 @@ function Wrapper({ kind, money }: { kind: MoneyKind; money: Money[] }) {
   return (
     <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
       <Header kind={kind} />
-      <TableList money={money} />
+      <TableList money={money} type={kind.type} />
       <div className="flex items-center pb-1 justify-between">
         <DeletePocketBtn kindId={kind.id} />
         <Download kind={kind.name} kindId={kind.id} />
