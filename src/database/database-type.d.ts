@@ -2,8 +2,8 @@ declare namespace DB {
   type Role = "admin" | "user";
   type ValueKind = "number" | "percent";
   type DiscKind = ValueKind | "pcs";
-  type MoneyEnum = "saving" | "debt" | "diff";
   type Mode = "sell" | "buy";
+  type MoneyType = "absolute" | "change";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";
 
@@ -23,11 +23,16 @@ declare namespace DB {
     social_id: number;
     social_value: string;
   }
+  interface MoneyKind {
+    money_kind_id: number;
+    money_kind_name: string;
+    money_kind_type: MoneyType;
+  }
   interface Money {
     timestamp: number;
     money_value: number;
-    money_kind: MoneyEnum;
-    note: string;
+    money_kind: string;
+    money_note: string;
   }
   interface Customer {
     customer_id: number;

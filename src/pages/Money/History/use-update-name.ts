@@ -2,16 +2,15 @@ import { useState } from "react";
 import { db } from "~/database";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
-import { revalidateMoney } from "./use-data";
+import { revalidate } from "./use-data";
 import { toast } from "sonner";
+import { revalidateMoney } from "../use-data";
 
-export function useNew(onClose: () => void) {
-  const [name, setName] = useState("");
-  const [error, setError] = useState<null | string>(null);
+export function useUpdateName(id: number, nameInit: string) {
+  const [name, setName] = useState(nameInit);
   const [loading, setLoading] = useState(false);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    e.stopPropagation();
     setLoading(true);
     if (name.trim() === "") {
       toast.error("Nama kantong tidak boleh kosong");
@@ -21,20 +20,20 @@ export function useNew(onClose: () => void) {
       toast.error("Nama kantong tidak boleh lebih dari 20 karakter");
       return;
     }
-    const errMsg = await Effect.runPromise(program(name));
+    const errMsg = await Effect.runPromise(program(id, name));
     setLoading(false);
-    setError(errMsg);
     if (errMsg === null) {
+      revalidate();
       revalidateMoney();
-      onClose();
-      setName("");
+    } else {
+      toast.error(errMsg);
     }
   }
-  return { name, setName, error, loading, handleSubmit };
+  return { name, setName, loading, handleSubmit };
 }
 
-function program(name: string) {
-  return db.money.add.kind(name).pipe(
+function program(id: number, name: string) {
+  return db.money.update.name(id, name).pipe(
     Effect.as(null),
     Effect.catchAll(({ e }) => {
       log.error(e);

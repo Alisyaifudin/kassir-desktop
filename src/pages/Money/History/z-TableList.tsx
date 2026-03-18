@@ -6,12 +6,12 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { DeleteBtn } from "./z-DeleteBtn";
+import { DeleteRecordBtn } from "./z-DeleteRecordBtn";
 import { memo } from "react";
-import { MoneyData } from "./use-data";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
+import { Money } from "~/database/money/get-by-range";
 
-export const TableListDebt = memo(function TableListDebt({ money }: { money: MoneyData["debt"] }) {
+export const TableList = memo(function TableListDebt({ money }: { money: Money[] }) {
   return (
     <Table className="text-normal">
       <TableHeader>
@@ -37,7 +37,7 @@ export const TableListDebt = memo(function TableListDebt({ money }: { money: Mon
             <TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
             <TableCell className="text-center">{m.note}</TableCell>
             <TableCell>
-              <DeleteBtn money={m} />
+              <DeleteRecordBtn money={m} />
             </TableCell>
           </TableRow>
         ))}

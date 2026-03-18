@@ -81,7 +81,7 @@ export const Result = {
       return () => {
         cancelled = true;
       };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps);
 
     useEffect(() => {

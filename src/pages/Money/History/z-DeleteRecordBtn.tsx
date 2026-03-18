@@ -10,13 +10,13 @@ import { memo, useState } from "react";
 import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { MoneyData } from "./use-data";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
-import { useDelete } from "./use-delete";
+import { useDeleteRecord } from "./use-delete-record";
+import { Money } from "~/database/money/get-by-range";
 
-export const DeleteBtn = memo(function DeleteBtn({ money }: { money: MoneyData["saving"][number] }) {
+export const DeleteRecordBtn = memo(function DeleteBtn({ money }: { money: Money }) {
   const [open, setOpen] = useState(false);
-  const { loading, error, handleDelete } = useDelete(money.timestamp, () => setOpen(false));
+  const { loading, error, handleDelete } = useDeleteRecord(money.timestamp, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button

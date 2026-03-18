@@ -13,19 +13,24 @@ import { NumberField } from "~/components/NumberField";
 import { Spinner } from "~/components/Spinner";
 import { Textarea } from "~/components/ui/textarea";
 import { useNew } from "./use-new";
-import { Show } from "~/components/Show";
+import { Plus } from "lucide-react";
+import { MoneyKind } from "~/database/money/get-by-range";
+import equal from "fast-deep-equal";
 
-export const NewItem = memo(function NewItem({ kind }: { kind: "saving" | "debt" | "diff" }) {
+export const NewRecord = memo(function NewItem({ kind }: { kind: MoneyKind }) {
   const [open, setOpen] = useState(false);
-  const { form, error } = useNew(() => setOpen(false));
+  const { form, error } = useNew(kind, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>
-        <DialogTrigger>Catatan Baru</DialogTrigger>
+        <DialogTrigger>
+          <Plus />
+          Catatan Baru
+        </DialogTrigger>
       </Button>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Tambah Catatan Keuangan</DialogTitle>
+          <DialogTitle className="text-big">Tambah Catatan Keuangan Baru</DialogTitle>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -46,11 +51,9 @@ export const NewItem = memo(function NewItem({ kind }: { kind: "saving" | "debt"
                   />
                 )}
               </form.Field>
-              <Show when={kind !== "diff"}>
-                <form.Field name="type">
-                  {(field) => <SelectType type={field.state.value} onChange={field.handleChange} />}
-                </form.Field>
-              </Show>
+              <form.Field name="type">
+                {(field) => <SelectType type={field.state.value} onChange={field.handleChange} />}
+              </form.Field>
             </div>
             <TextError>{error}</TextError>
             <form.Field name="note">
@@ -80,4 +83,4 @@ export const NewItem = memo(function NewItem({ kind }: { kind: "saving" | "debt"
       </DialogContent>
     </Dialog>
   );
-});
+}, equal);

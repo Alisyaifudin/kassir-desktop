@@ -1,111 +1,19 @@
-import Decimal from "decimal.js";
-import { Effect } from "effect";
-import { useSearchParams } from "react-router";
-import { Temporal } from "temporal-polyfill";
 import { db } from "~/database";
-import { Money } from "~/database/money/get-by-range";
 import { Result } from "~/lib/result";
-import { integer } from "~/lib/utils";
 
 const KEY = "money";
 
 export function useData() {
-  const [search] = useSearchParams();
-  const [start, end] = getInterval(search);
   const res = Result.use({
-    fn: () => loader(start, end),
+    fn: () => db.money.get.allKind(),
     key: KEY,
-    deps: [start, end],
+    revalidateOn: {
+      unmount: true,
+    },
   });
   return res;
 }
 
-export function revalidate() {
+export function revalidateMoney() {
   Result.revalidate(KEY);
-}
-
-export type Debt = {
-  value: number;
-  diff: string;
-  timestamp: number;
-};
-
-function getInterval(search: URLSearchParams) {
-  const now = Temporal.Now.instant().epochMilliseconds;
-  const timestamp = integer.catch(now).parse(search.get("time"));
-  const tz = Temporal.Now.timeZoneId();
-  const date = Temporal.Instant.fromEpochMilliseconds(timestamp)
-    .toZonedDateTimeISO(tz)
-    .startOfDay();
-  const start = Temporal.ZonedDateTime.from({
-    year: date.year,
-    month: date.month,
-    day: 1,
-    timeZone: tz,
-  }).startOfDay();
-  const end = start.add(Temporal.Duration.from({ months: 1 }));
-  return [start.epochMilliseconds, end.epochMilliseconds] as const;
-}
-
-export type MoneyData = {
-  diff: {
-    value: number;
-    timestamp: number;
-    note: string;
-  }[];
-  saving: {
-    value: number;
-    timestamp: number;
-    note: string;
-  }[];
-  debt: {
-    value: number;
-    timestamp: number;
-    diff: number;
-    note: string;
-  }[];
-};
-
-function loader(start: number, end: number) {
-  return Effect.gen(function* () {
-    const [money, last] = yield* Effect.all(
-      [db.money.get.byRange(start, end), db.money.get.last(start, "debt")],
-      { concurrency: "unbounded" },
-    );
-    return {
-      saving: money
-        .filter((m) => m.kind === "saving")
-        .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
-      diff: money
-        .filter((m) => m.kind === "diff")
-        .map((m) => ({ timestamp: m.timestamp, value: m.value, note: m.note })),
-      debt: collectMoney(money, last),
-    };
-  });
-}
-
-function collectMoney(money: Money[], last: Money | null): MoneyData["debt"] {
-  const filtered = money.filter((m) => m.kind === "debt");
-  if (filtered.length === 0) return [];
-  const n = filtered.length;
-  const data: MoneyData["debt"] = [];
-  for (let i = 0; i < filtered.length - 1; i++) {
-    data.push({
-      value: filtered[i].value,
-      timestamp: filtered[i].timestamp,
-      diff: new Decimal(filtered[i].value).minus(filtered[i + 1].value).toNumber(),
-      note: filtered[i].note,
-    });
-  }
-  let diff = filtered[n - 1].value;
-  if (last !== null) {
-    diff = new Decimal(diff).minus(last.value).toNumber();
-  }
-  data.push({
-    value: filtered[n - 1].value,
-    timestamp: filtered[n - 1].timestamp,
-    diff,
-    note: filtered[n - 1].note,
-  });
-  return data;
 }

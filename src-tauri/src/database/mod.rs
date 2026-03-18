@@ -224,6 +224,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/31-40/migration-37.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 38,
+            description: "update_money_table",
+            sql: include_str!("../../src/database/31-40/migration-38.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }
