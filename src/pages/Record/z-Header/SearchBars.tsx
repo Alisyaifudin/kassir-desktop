@@ -31,7 +31,7 @@ export function SearchBars() {
           key="record"
           placeholder="Cari..."
           className={cn(
-            "w-full pl-8 pr-3 h-8 rounded-lg border-border bg-muted/40 text-normal font-medium transition-all duration-200",
+            "w-full pl-8 pr-3 h-12 rounded-lg border-border bg-muted/40 text-normal font-medium transition-all duration-200",
             "focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:bg-background focus-visible:border-primary/40 shadow-none"
           )}
           value={query}

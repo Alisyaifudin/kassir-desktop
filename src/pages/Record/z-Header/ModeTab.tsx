@@ -9,10 +9,10 @@ export function ModeTab() {
       <Button
         variant="ghost"
         className={cn(
-          "px-3 h-7 text-normal font-bold rounded-md transition-all duration-200",
-          mode === "sell" 
-            ? "bg-background text-primary shadow-sm hover:bg-background" 
-            : "text-muted-foreground hover:text-foreground hover:bg-transparent"
+          "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
+          mode === "sell"
+            ? "bg-background text-primary shadow-sm hover:bg-background"
+            : "text-muted-foreground hover:text-foreground hover:bg-transparent",
         )}
         onClick={() => setMode("sell")}
       >
@@ -21,10 +21,10 @@ export function ModeTab() {
       <Button
         variant="ghost"
         className={cn(
-          "px-3 h-7 text-normal font-bold rounded-md transition-all duration-200",
-          mode === "buy" 
-            ? "bg-background text-primary shadow-sm hover:bg-background" 
-            : "text-muted-foreground hover:text-foreground hover:bg-transparent"
+          "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
+          mode === "buy"
+            ? "bg-background text-primary shadow-sm hover:bg-background"
+            : "text-muted-foreground hover:text-foreground hover:bg-transparent",
         )}
         onClick={() => setMode("buy")}
       >

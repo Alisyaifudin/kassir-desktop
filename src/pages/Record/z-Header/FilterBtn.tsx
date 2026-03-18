@@ -51,7 +51,7 @@ export function FilterBtn({
             variant={isSelected ? "default" : "outline"}
             onClick={() => onClick(top.id)}
             className={cn(
-              "rounded-full h-8 px-3 text-normal font-medium transition-all duration-200",
+              "rounded-full h-10 px-3 text-normal font-medium transition-all duration-200",
               isSelected
                 ? "shadow-md scale-105 text-primary-foreground border-transparent"
                 : "hover:bg-accent/60 hover:border-accent",
@@ -71,7 +71,7 @@ export function FilterBtn({
                 key={m.id}
                 variant={isOptionSelected ? "default" : "outline"}
                 className={cn(
-                  "rounded-full h-8 px-3 text-normal font-medium transition-all duration-200",
+                  "rounded-full h-10 px-3 text-normal font-medium transition-all duration-200",
                   isOptionSelected
                     ? "shadow-md scale-105 text-primary-foreground border-transparent"
                     : "hover:bg-accent/60 hover:border-accent",

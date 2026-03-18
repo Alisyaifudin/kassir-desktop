@@ -66,7 +66,7 @@ function Wrapper() {
           <Button
             variant={method ? "default" : "outline"}
             className={cn(
-              "gap-2 rounded-xl transition-all duration-300 h-10 px-4",
+              "gap-2 rounded-xl transition-all duration-300 h-12 px-4",
               method
                 ? "shadow-lg shadow-primary/20 border-primary/50 text-primary-foreground"
                 : "hover:border-primary/50",
@@ -75,7 +75,7 @@ function Wrapper() {
             <SlidersHorizontal size={16} strokeWidth={2.5} />
             <Show value={method} fallback={<span className="font-semibold">Filter</span>}>
               {(v) => (
-                <span className="max-w-[150px] truncate font-bold">
+                <span className="font-bold">
                   {v.name ? `${METHOD_NAMES[v.kind]} ${v.name}` : METHOD_NAMES[v.kind]}
                 </span>
               )}
