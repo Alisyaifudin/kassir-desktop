@@ -69,3 +69,20 @@ export class ArrayBufferError {
     }
   }
 }
+
+export class JsonError {
+  readonly _tag = "JsonError";
+  e: Error;
+  constructor(error: unknown) {
+    if (typeof error === "string") {
+      this.e = new Error(error);
+    } else {
+      this.e = new Error("Json conversion error", { cause: error });
+    }
+  }
+}
+
+export class TooBigError {
+  readonly _tag = "TooBigError";
+  constructor(public size: number) {}
+}

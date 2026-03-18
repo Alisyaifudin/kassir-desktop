@@ -41,7 +41,7 @@ export function submit(isCredit: boolean) {
       subtotal: Number(subtotal.toFixed(fix)),
       total: Number(total.toFixed(fix)),
     };
-    const timestamp = yield* db.record.add(record);
+    const timestamp = yield* db.record.add.one(record);
     return {
       grandTotal: record.grandTotal,
       change: Number(change.toFixed(fix)),

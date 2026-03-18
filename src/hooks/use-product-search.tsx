@@ -19,15 +19,15 @@ export const useProductSearch = (products: Product[]) => {
   const search = (query: string) => {
     const resNames = fuzzyName(query);
     const resBarcode = fuzzyBarcode(query);
-    const map = new Map(resNames.map((p) => [p.item.name, p]));
+    const map = new Map(resNames.map((p) => [p.item.id, p]));
     for (const b of resBarcode) {
-      const item = map.get(b.item.name);
+      const item = map.get(b.item.id);
       if (item === undefined) {
-        map.set(b.item.name, b);
+        map.set(b.item.id, b);
         continue;
       }
       if (b.score > item.score) {
-        map.set(b.item.name, b);
+        map.set(b.item.id, b);
       }
     }
     const res = Array.from(map.values());

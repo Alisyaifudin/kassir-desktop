@@ -1,7 +1,7 @@
 import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { useProduct } from "./use-product";
+import { useProduct } from "./use-product-download";
 
 export function ProductDownload() {
   const { loading, error, handleSubmit } = useProduct();

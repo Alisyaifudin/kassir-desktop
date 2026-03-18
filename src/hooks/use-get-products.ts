@@ -52,6 +52,9 @@ export function useGetProducts() {
         }),
       ),
     key: KEY,
+    revalidateOn: {
+      unmount: true,
+    },
   });
   return res;
 }

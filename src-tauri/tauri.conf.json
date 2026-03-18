@@ -15,6 +15,7 @@
         "title": "kassir",
         "width": 800,
         "height": 600,
+        "dragDropEnabled": false,
         "resizable": true,
         "maximized": true
       }

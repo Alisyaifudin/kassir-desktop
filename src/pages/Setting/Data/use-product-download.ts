@@ -20,7 +20,7 @@ export function useProduct() {
 }
 
 const program = Effect.gen(function* () {
-  const products = yield* db.product.get.all();
+  const products = yield* db.product.get.allFull();
   const json = JSON.stringify(products, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const data = yield* Effect.tryPromise({

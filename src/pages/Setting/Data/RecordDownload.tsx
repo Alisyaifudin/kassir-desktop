@@ -2,7 +2,7 @@ import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { DateRange } from "~/components/DateRange";
-import { useRecord } from "./use-record";
+import { useRecord } from "./use-record-download";
 
 export default function RecordDownload() {
   const { loading, error, handleSubmit, range, setRange } = useRecord();
@@ -23,26 +23,4 @@ export default function RecordDownload() {
       <TextError>{error}</TextError>
     </div>
   );
-}
-
-{
-  /* <label className="flex flex-col gap-1">
-            <span>Dari:</span>
-            <Input
-              type="date"
-              name="start"
-              defaultValue={formatDate(startOfMonth)}
-              aria-autocomplete="list"
-            />
-          </label>
-          <div className="h-12">&mdash;</div>
-          <label className="flex flex-col gap-1">
-            <span>Sampai:</span>
-            <Input
-              type="date"
-              name="end"
-              defaultValue={formatDate(endOfMonth)}
-              aria-autocomplete="list"
-            />
-          </label> */
 }

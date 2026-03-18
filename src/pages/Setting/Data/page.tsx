@@ -1,5 +1,7 @@
 import RecordDownload from "./RecordDownload";
 import { ProductDownload } from "./ProductDownload";
+import { RecordUpload } from "./RecordUpload";
+import { PorductUpload } from "./ProductUpload";
 
 export default function Page() {
   return (
@@ -23,16 +25,18 @@ export default function Page() {
         <RecordDownload />
       </section>
 
-      <section aria-labelledby="upload-title" className="rounded-2xl border bg-card p-6 shadow-sm">
+      <section
+        aria-labelledby="upload-title"
+        className="rounded-2xl space-y-6 border bg-card p-6 shadow-sm"
+      >
         <div className="flex flex-col gap-1 mb-4">
           <h2 className="font-bold text-big text-foreground" id="upload-title">
             Unggah Data
           </h2>
           <p className="text-muted-foreground text-normal">Impor data ke sistem</p>
         </div>
-        <div className="flex items-center justify-center p-8 bg-muted/30 rounded-xl">
-          <p className="text-muted-foreground text-normal">Sedang dikerjakan 😊</p>
-        </div>
+        <PorductUpload />
+        <RecordUpload />
       </section>
     </div>
   );

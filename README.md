@@ -6,5 +6,7 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- export data keuangan
+- rounding any precision
+- filter select too small
+- Pembulatan (precision)
 - kembalikan update aplikasi otomatis

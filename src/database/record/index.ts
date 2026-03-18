@@ -1,4 +1,5 @@
 import { add } from "./add";
+import { addExternal } from "./add-external";
 import { countRecord } from "./count-record";
 import { countTotal } from "./count-total";
 import { delByTimestamp } from "./del-by-timestamp";
@@ -20,7 +21,10 @@ export const record = {
     record: countRecord,
     total: countTotal,
   },
-  add,
+  add: {
+    one: add,
+    external: addExternal,
+  },
   delByTimestamp,
   update: {
     paidAt: updatePaidAt,

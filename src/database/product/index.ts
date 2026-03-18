@@ -8,10 +8,12 @@ import { add } from "./add";
 import { getByRange } from "./get-by-range";
 import { incStock } from "./inc-stock";
 import { decStock } from "./dec-stock";
+import { allFull } from "./get-all-full";
 
 export const product = {
   get: {
     all,
+    allFull,
     byId: getById,
     history: getHistory,
     historyRange: getHistoryRange,
