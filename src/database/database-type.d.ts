@@ -13,18 +13,18 @@ declare namespace DB {
     cashier_hash: string;
   }
   interface Image {
-    img_id: number;
-    img_name: string;
-    img_mime: Mime;
-    product_id: number;
+    image_id: number;
+    image_name: string;
+    image_mime: Mime;
+    product_id: string;
   }
   interface Social {
     social_name: string;
-    social_id: number;
+    social_id: string;
     social_value: string;
   }
   interface MoneyKind {
-    money_kind_id: number;
+    money_kind_id: string;
     money_kind_name: string;
     money_kind_type: MoneyType;
   }

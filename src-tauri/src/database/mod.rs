@@ -230,6 +230,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/31-40/migration-38.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 39,
+            description: "refactor_table_to_use_text_primary_key",
+            sql: include_str!("../../src/database/31-40/migration-39.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }
