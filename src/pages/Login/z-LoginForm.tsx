@@ -3,7 +3,7 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { capitalize } from "~/lib/utils";
-import { Cashier } from "~/database/cashier/get-all";
+import { CashierWithoutHash } from "~/database/cashier/get-all";
 import { useLoginForm } from "./use-login-form";
 import { FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 import {
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
-export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
+export function LoginForm({ cashiers }: { cashiers: CashierWithoutHash[] }) {
   const { form, error } = useLoginForm();
   return (
     <div className="flex flex-col gap-5 p-5 bg-white mx-auto w-full max-w-5xl ">
@@ -27,7 +27,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
         className="flex text-normal flex-col gap-2"
       >
         <FieldGroup>
-          <form.Field name="name">
+          <form.Field name="id">
             {(field) => (
               <div className="grid grid-cols-[150px_1fr] small:grid-cols-[100px_1fr] items-center">
                 <FieldLabel htmlFor={`select-${field.name}`}>Nama</FieldLabel>
@@ -45,7 +45,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
                   </SelectTrigger>
                   <SelectContent position="item-aligned">
                     {cashiers.map((cashier) => (
-                      <SelectItem key={cashier.name} value={cashier.name}>
+                      <SelectItem key={cashier.id} value={cashier.id}>
                         {capitalize(cashier.name)}
                       </SelectItem>
                     ))}
@@ -74,7 +74,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
           <TextError>{error}</TextError>
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
-              <form.Subscribe selector={(state) => state.values.name}>
+              <form.Subscribe selector={(state) => state.values.id}>
                 {(name) => (
                   <Button className="w-fit self-end" disabled={isSubmitting || name === ""}>
                     Simpan

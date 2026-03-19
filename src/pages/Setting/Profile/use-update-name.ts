@@ -6,15 +6,15 @@ import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
 
 export function useUpdateName() {
-  const name = useUser().name;
+  const user = useUser();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
-  const [input, setInput] = useState(name);
+  const [input, setInput] = useState(user.name);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const user = auth.user();
     setLoading(true);
-    const error = await Effect.runPromise(program({ old: user.name, new: input }));
+    const error = await Effect.runPromise(program(user.id, input));
     setLoading(false);
     setError(error);
     if (error === null) {
@@ -24,9 +24,9 @@ export function useUpdateName() {
   return { loading, error, handleSubmit, name: { value: input, set: setInput } };
 }
 
-function program(name: { old: string; new: string }) {
+function program(id: string, name: string) {
   return Effect.gen(function* () {
-    yield* db.cashier.update.name(name);
+    yield* db.cashier.update.name(id, name);
     return null;
   }).pipe(
     Effect.catchTags({

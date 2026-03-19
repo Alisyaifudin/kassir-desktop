@@ -14,9 +14,9 @@ import {
 import { Spinner } from "~/components/Spinner";
 import { useDelete } from "./use-delete";
 
-export const DeleteBtn = memo(function DeleteBtn({ name }: { name: string }) {
+export const DeleteBtn = memo(function DeleteBtn({ name, id }: { name: string; id: string }) {
   const [open, setOpen] = useState(false);
-  const { error, handleSubmit, loading } = useDelete(name, () => setOpen(false));
+  const { error, handleSubmit, loading } = useDelete(id, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button className="rounded-full p-2" type="button" asChild variant="destructive">

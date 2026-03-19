@@ -1,7 +1,7 @@
 import { Effect, pipe } from "effect";
 import { toast } from "sonner";
 import { db } from "~/database";
-import { Cashier } from "~/database/cashier/get-all";
+import { CashierWithoutHash } from "~/database/cashier/get-all";
 import { revalidate } from "./use-data";
 import {
   Select,
@@ -12,12 +12,12 @@ import {
 } from "~/components/ui/select";
 import { log } from "~/lib/log";
 
-export function SelectRole({ cashier }: { cashier: Cashier }) {
+export function SelectRole({ cashier }: { cashier: CashierWithoutHash }) {
   const handleChange = async (role: string) => {
     if (role !== "admin" && role !== "user") {
       return;
     }
-    const errMsg = await Effect.runPromise(program(cashier.name, role));
+    const errMsg = await Effect.runPromise(program(cashier.id, role));
     if (errMsg !== null) {
       toast.error(errMsg);
     } else {
@@ -37,9 +37,9 @@ export function SelectRole({ cashier }: { cashier: Cashier }) {
   );
 }
 
-export function program(name: string, role: DB.Role) {
+export function program(id: string, role: DB.Role) {
   return pipe(
-    db.cashier.update.role(name, role),
+    db.cashier.update.role(id, role),
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

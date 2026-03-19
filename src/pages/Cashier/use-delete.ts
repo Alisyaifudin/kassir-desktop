@@ -4,14 +4,14 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 
-export function useDelete(name: string, onClose: () => void) {
+export function useDelete(id: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     e.stopPropagation();
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(name));
+    const errMsg = await Effect.runPromise(program(id));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -22,9 +22,9 @@ export function useDelete(name: string, onClose: () => void) {
   return { error, loading, handleSubmit };
 }
 
-function program(name: string) {
+function program(id: string) {
   return Effect.gen(function* () {
-    yield* db.cashier.delete(name);
+    yield* db.cashier.delete(id);
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

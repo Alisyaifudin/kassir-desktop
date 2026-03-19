@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 
-export function updateRole(name: string, role: DB.Role) {
+export function updateRole(id: string, role: DB.Role) {
   return DB.try((db) =>
-    db.execute("UPDATE cashiers SET cashier_role = $1 WHERE cashier_name = $2", [role, name]),
+    db.execute("UPDATE cashiers SET cashier_role = $1 WHERE cashier_id = $2", [role, id]),
   ).pipe(Effect.asVoid);
 }

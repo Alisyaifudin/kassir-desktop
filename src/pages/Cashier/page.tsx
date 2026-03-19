@@ -17,7 +17,6 @@ export default function Page() {
       <div className="flex flex-col gap-2">
         <Cashier />
       </div>
-
       <NewCashier />
     </main>
   );

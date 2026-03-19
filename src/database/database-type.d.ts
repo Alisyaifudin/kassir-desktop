@@ -8,56 +8,68 @@ declare namespace DB {
   type Mime = "image/png" | "image/jpeg";
 
   interface Cashier {
+    cashier_id: string;
     cashier_name: string;
     cashier_role: Role;
     cashier_hash: string;
   }
   interface Image {
-    image_id: number;
+    image_id: string;
     image_name: string;
     image_mime: Mime;
     product_id: string;
+    image_updated_at: number;
+    image_sync_at: number | null;
   }
   interface Social {
     social_name: string;
     social_id: string;
     social_value: string;
+    social_updated_at: number;
+    social_sync_at: number | null;
   }
   interface MoneyKind {
     money_kind_id: string;
     money_kind_name: string;
     money_kind_type: MoneyType;
+    money_kind_updated_at: number;
+    money_kind_sync_at: number | null;
   }
   interface Money {
+    money_id: string;
     timestamp: number;
     money_value: number;
-    money_kind_id: number;
+    money_kind_id: string;
     money_note: string;
+    money_updated_at: number;
+    money_sync_at: number | null;
   }
   interface Customer {
-    customer_id: number;
+    customer_id: string;
     customer_phone: string;
     customer_name: string;
+    customer_updated_at: number;
+    customer_sync_at: number | null;
   }
   interface RecordExtra {
-    record_extra_id: number;
+    record_extra_id: string;
     record_extra_name: string;
-    timestamp: number;
+    record_id: string;
     record_extra_value: number;
     record_extra_eff: number;
     record_extra_kind: ValueKind;
   }
   interface Discount {
-    disc_id: number;
-    record_product_id: number;
+    discount_id: string;
+    record_product_id: string;
     discount_value: number;
     discount_eff: number;
-    discount_kind: ValueKind;
+    discount_kind: DiscKind;
   }
   interface RecordProduct {
-    record_product_id: number;
-    product_id: number | null;
-    timestamp: number;
+    record_product_id: string;
+    product_id: string | null;
+    record_id: string;
     record_product_name: string;
     record_product_price: number;
     record_product_qty: number;
@@ -66,7 +78,8 @@ declare namespace DB {
     record_product_total: number; // total including discount
   }
   interface Record {
-    timestamp: number; // primary key
+    record_id: string;
+    method_id: string;
     record_paid_at: number;
     record_rounding: number;
     record_is_credit: 0 | 1;
@@ -74,33 +87,40 @@ declare namespace DB {
     record_mode: Mode;
     record_pay: number;
     record_note: string;
-    method_id: number;
     record_fix: number;
     record_customer_name: string;
     record_customer_phone: string;
     record_sub_total: number; // total from record_product, including discounts
     record_total: number; // total after including extra
+    record_updated_at: number;
+    record_sync_at: number | null;
   }
   interface Method {
-    method_id: number;
+    method_id: string;
     method_name: string | null;
     method_kind: MethodEnum;
-    // (1000, 'cash'), (1001, 'transfer'), (1002, 'debit'), (1003, 'qris');
+    // ("1000", 'cash'), ("1001", 'transfer'), ("1002", 'debit'), ("1003", 'qris');
     method_deleted_at: number | null;
+    method_updated_at: number;
+    method_sync_at: number | null;
   }
   interface Extra {
-    extra_id: number;
+    extra_id: string;
     extra_name: string;
     extra_value: number;
     extra_kind: ValueKind;
+    extra_updated_at: number;
+    extra_sync_at: number | null;
   }
   interface Product {
-    product_id: number;
+    product_id: string;
     product_barcode: string | null;
     product_name: string;
     product_price: number;
     product_stock: number;
     product_capital: number;
     product_note: string;
+    product_updated_at: number;
+    product_sync_at: number | null;
   }
 }

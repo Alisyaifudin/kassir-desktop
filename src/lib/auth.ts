@@ -2,21 +2,21 @@ import { invoke } from "@tauri-apps/api/core";
 import { safeJSON } from "./utils";
 import { z } from "zod";
 import { Effect } from "effect";
-import { InvokeError } from "./effect-error";
-// import { jwt } from "./jwt";
-export type User = {
-  name: string;
-  role: "admin" | "user";
-};
+import { InvalidCredential, InvokeError } from "./effect-error";
+
+
+const userSchema = z.object({
+  id: z.string().nonempty(),
+  name: z.string(),
+  role: z.enum(["admin", "user"]),
+});
+
+export type User = z.infer<typeof userSchema>
 
 export let _user: undefined | User = undefined;
 
 export class Unauthenticated extends Error {}
 
-const userSchema = z.object({
-  name: z.string(),
-  role: z.enum(["admin", "user"]),
-});
 
 export const auth = {
   get() {
@@ -76,14 +76,5 @@ export const auth = {
   },
 };
 
-export type UserClaim = {
-  name: string;
-  role: "admin" | "user";
-  exp: number;
-};
 
 
-export class InvalidCredential {
-  readonly _tag = "InvalidCredential";
-  constructor(readonly msg: string) {}
-}

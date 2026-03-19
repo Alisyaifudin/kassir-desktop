@@ -86,3 +86,8 @@ export class TooBigError {
   readonly _tag = "TooBigError";
   constructor(public size: number) {}
 }
+
+export class InvalidCredential {
+  readonly _tag = "InvalidCredential";
+  constructor(readonly msg: string) {}
+}

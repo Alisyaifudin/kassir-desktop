@@ -3,7 +3,7 @@ import { TextError } from "~/components/TextError";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { Spinner } from "~/components/Spinner";
 import { memo } from "react";
-import { Cashier } from "~/database/cashier/get-all";
+import { CashierWithoutHash } from "~/database/cashier/get-all";
 import { SelectRole } from "./z-SelectRole";
 import { useUpdate } from "./use-update";
 import { Show } from "~/components/Show";
@@ -14,9 +14,9 @@ const title = {
   user: "User",
 };
 
-export const Item = memo(function Item({ cashier }: { cashier: Cashier }) {
+export const Item = memo(function Item({ cashier }: { cashier: CashierWithoutHash }) {
   const username = useUser().name;
-  const { error, handleSubmit, loading, name } = useUpdate(cashier.name);
+  const { error, handleSubmit, loading, name } = useUpdate(cashier.id, cashier.name);
   if (username === cashier.name) {
     return (
       <div className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center p-3 gap-3 rounded-xl bg-muted/20">
@@ -49,7 +49,7 @@ export const Item = memo(function Item({ cashier }: { cashier: Cashier }) {
       </div>
       <SelectRole cashier={cashier} />
       <Show when={!loading} fallback={<Spinner when={true} />}>
-        <DeleteBtn name={cashier.name} />
+        <DeleteBtn name={cashier.name} id={cashier.id} />
       </Show>
     </form>
   );

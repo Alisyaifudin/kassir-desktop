@@ -11,7 +11,7 @@ export default function ErrorBoundary() {
 
   // Handle Unauthenticated error
   if (error instanceof Unauthenticated) {
-    return <Redirect to="/login" />;
+    return <Redirect to="/login" hard />;
   }
 
   const reloadPage = () => window.location.reload();

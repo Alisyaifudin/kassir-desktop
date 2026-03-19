@@ -4,13 +4,13 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 
-export function useUpdate(name: string) {
+export function useUpdate(id: string, name: string) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   const [input, setInput] = useState(name);
   async function handleSubmit() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program({ old: name, new: input }));
+    const errMsg = await Effect.runPromise(program(id, input));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -28,9 +28,9 @@ export function useUpdate(name: string) {
   };
 }
 
-function program(name: { old: string; new: string }) {
+function program(id: string, name: string) {
   return Effect.gen(function* () {
-    yield* db.cashier.update.name(name);
+    yield* db.cashier.update.name(id, name);
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

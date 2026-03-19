@@ -1,8 +1,25 @@
 -----------------------------------------------------
+ALTER TABLE cashiers RENAME TO cashiers_old;
 ALTER TABLE money RENAME TO money_old;
 ALTER TABLE money_kind RENAME TO money_kind_old;
 ALTER TABLE socials RENAME TO socials_old;
 ALTER TABLE customers RENAME TO customers_old;
+
+CREATE TABLE cashier_roles (
+  v TEXT PRIMARY KEY
+) STRICT;
+
+INSERT INTO cashier_roles (v) VALUES ("admin"), ("user");
+
+CREATE TABLE cashiers (
+  cashier_id    TEXT PRIMARY KEY,
+  cashier_name  TEXT UNIQUE NOT NULL,
+  cashier_role  TEXT NOT NULL REFERENCES cashier_roles(v),
+  cashier_hash  TEXT NOT NULL 
+) STRICT;
+
+INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash)
+SELECT cashier_name, cashier_name, cashier_role, cashier_hash FROM cashiers_old;
 
 CREATE TABLE money_kind (
   money_kind_id    TEXT PRIMARY KEY,
@@ -27,34 +44,52 @@ CREATE TABLE money (
   money_sync_at    INTEGER
 ) STRICT;
 
-INSERT INTO money (money_id, timestamp, money_value, money_kind_id, money_note)
-SELECT CAST(money_id AS TEXT), timestamp, money_value, CAST(money_kind_id AS TEXT), money_note,
+INSERT INTO money (
+  money_id,
+  timestamp,
+  money_value,
+  money_kind_id,
+  money_note,
+  money_updated_at,
+  money_sync_at
+)
+SELECT CAST(timestamp AS TEXT), timestamp, money_value, CAST(money_kind_id AS TEXT), money_note,
        CAST(unixepoch('subsec') * 1000 AS INTEGER), null  
 FROM money_old;
 
 -----------------------------------------------------
 CREATE TABLE socials (
-  social_id    TEXT PRIMARY KEY,
-  social_name  TEXT NOT NULL,
-  social_value TEXT NOT NULL
+  social_id         TEXT PRIMARY KEY,
+  social_name       TEXT NOT NULL,
+  social_value      TEXT NOT NULL,
+  social_updated_at INTEGER NOT NULL,
+  social_sync_at    INTEGER
 ) STRICT;
 
 INSERT INTO socials(
   social_id, 
   social_name, 
-  social_value 
+  social_value,
+  social_updated_at,
+  social_sync_at
 )
-SELECT CAST(social_id AS TEXT), social_name, social_value FROM socials_old;
+SELECT CAST(social_id AS TEXT), social_name, social_value,
+       CAST(unixepoch('subsec') * 1000 AS INTEGER), null  
+ FROM socials_old;
 
 -----------------------------------------------------
 CREATE TABLE customers (
-  customer_id    TEXT PRIMARY KEY,
-  customer_name  TEXT NOT NULL,
-  customer_phone TEXT NOT NULL
+  customer_id         TEXT PRIMARY KEY,
+  customer_name       TEXT NOT NULL,
+  customer_phone      TEXT NOT NULL,
+  customer_updated_at INTEGER NOT NULL,
+  customer_sync_at    INTEGER
 ) STRICT;
 
-INSERT INTO customers (customer_id, customer_name, customer_phone)
-SELECT CAST(customer_id AS TEXT), customer_name, customer_phone FROM customers_old;
+INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at, customer_sync_at)
+SELECT CAST(customer_id AS TEXT), customer_name, customer_phone,
+       CAST(unixepoch('subsec') * 1000 AS INTEGER), null  
+FROM customers_old;
 
 -----------------------------------------------------
 ALTER TABLE record_extras RENAME TO record_extras_old;
@@ -187,7 +222,7 @@ INSERT INTO records (
   record_mode, 
   record_pay, 
   record_note, 
-  CAST(method_id AS TEXT), 
+  method_id, 
   record_fix, 
   record_customer_name, 
   record_customer_phone, 
@@ -205,7 +240,7 @@ SELECT
   record_mode, 
   record_pay, 
   record_note, 
-  method_id, 
+  CAST(method_id AS TEXT), 
   record_fix, 
   record_customer_name, 
   record_customer_phone, 
@@ -315,3 +350,4 @@ DROP TABLE customers_old;
 DROP TABLE socials_old;
 DROP TABLE money_kind_old;
 DROP TABLE money_old;
+DROP TABLE cashiers_old;

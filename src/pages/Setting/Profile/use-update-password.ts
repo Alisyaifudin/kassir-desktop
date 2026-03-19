@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { useState } from "react";
+import { toast } from "sonner";
 import { db } from "~/database";
 import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
@@ -12,21 +13,21 @@ export function useUpdatePassword() {
     e.preventDefault();
     const user = auth.user();
     setLoading(true);
-    const error = await Effect.runPromise(program(user.name, input));
+    const error = await Effect.runPromise(program(user.id, input));
     setLoading(false);
     setError(error);
     if (error === null) {
-      auth.set({ ...user, name: input });
       setInput("");
+      toast.success("Berhasil diperbarui");
     }
   }
   return { loading, error, handleSubmit, password: { value: input, set: setInput } };
 }
 
-function program(name: string, password: string) {
+function program(id: string, password: string) {
   return Effect.gen(function* () {
     const hash = yield* auth.hash(password);
-    yield* db.cashier.update.hash(name, hash);
+    yield* db.cashier.update.hash(id, hash);
     return null;
   }).pipe(
     Effect.catchTags({

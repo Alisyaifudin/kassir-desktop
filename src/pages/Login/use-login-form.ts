@@ -8,13 +8,13 @@ import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
 
 const schema = z.object({
-  name: z.string().nonempty(),
+  id: z.string().nonempty(),
   password: z.string(),
 });
 
 type InputForm = z.infer<typeof schema>;
 
-const defaultValues: InputForm = { name: "", password: "" };
+const defaultValues: InputForm = { id: "", password: "" };
 
 export function useLoginForm() {
   const navigate = useNavigate();
@@ -25,15 +25,15 @@ export function useLoginForm() {
       onSubmit: schema,
     },
     async onSubmit({ value }) {
-      const { password, name } = value;
-      const either = await Effect.runPromise(program(name, password));
+      const { password, id } = value;
+      const either = await Effect.runPromise(program(id, password));
       Either.match(either, {
         onLeft(errMsg) {
           setError(errMsg);
         },
         onRight(user) {
-          setError(null);
           auth.set(user);
+          setError(null);
           navigate("/");
         },
       });
@@ -42,12 +42,11 @@ export function useLoginForm() {
   return { error, form };
 }
 
-function program(name: string, password: string) {
+function program(id: string, password: string) {
   return Effect.gen(function* () {
-    const cashier = yield* db.cashier.get.byName(name);
+    const cashier = yield* db.cashier.get.byId(id);
     yield* auth.verify(password, cashier.hash);
-    auth.set({ name, role: "admin" });
-    return { role: cashier.role, name: cashier.name };
+    return { id: cashier.id, role: cashier.role, name: cashier.name };
   }).pipe(
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);
