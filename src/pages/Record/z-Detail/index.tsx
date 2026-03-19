@@ -22,6 +22,7 @@ import { formatDate, formatTime } from "~/lib/date";
 
 export function Detail({ extras, products, record }: DataRecord) {
   const unselect = useUnselect();
+  console.log(products);
   return (
     <Show
       when={products.length !== 0 || extras.length !== 0}
@@ -65,7 +66,7 @@ export function Detail({ extras, products, record }: DataRecord) {
                       <TableRow>
                         <TableCell className="flex items-center">
                           {i + 1}
-                          {item.productId === undefined ? <Unlock className="icon" /> : null}
+                          {item.productId !== undefined ? <Unlock className="icon" /> : null}
                         </TableCell>
                         <TableCell>{item.name}</TableCell>
                         <TableCell className="text-end">

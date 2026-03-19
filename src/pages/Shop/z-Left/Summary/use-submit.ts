@@ -5,15 +5,40 @@ import { toast } from "sonner";
 import { setComplete } from "../../z-Complete";
 import { useState } from "react";
 import { productsStore } from "../../store/product";
+import { useDBProducts } from "../../store/db";
 
 export function useSubmit() {
   const [loading, setLoading] = useState(false);
+  const productsDB = useDBProducts();
   async function handleSubmit(isCredit: boolean) {
-    const productsError = productsStore
-      .get()
-      .context.map((p) => p.error)
-      .filter((p) => p !== undefined);
-    if (productsError.length > 0) {
+    const products = productsStore.get().context;
+    let errorFlag = false;
+    for (const product of products) {
+      const duplicateStock =
+        product.barcode === ""
+          ? undefined
+          : productsDB.find((p) => p.barcode === product.barcode && product.product === undefined);
+      const duplicateSelf =
+        product.barcode === ""
+          ? undefined
+          : products.find((p) => p.barcode === product.barcode && p.id !== product.id);
+      if (duplicateStock !== undefined) {
+        productsStore.trigger.updateError({
+          id: product.id,
+          message: "Kode yang sama sudah ada di stok: " + duplicateStock.name,
+        });
+        errorFlag = true;
+      } else if (duplicateSelf !== undefined) {
+        productsStore.trigger.updateError({
+          id: product.id,
+          message: "Duplikat dengan barang " + duplicateSelf.name,
+        });
+        errorFlag = true;
+      } else if (product.error !== undefined) {
+        errorFlag = true;
+      }
+    }
+    if (errorFlag) {
       toast.error("Masih ada error, cek lagi.");
       return;
     }

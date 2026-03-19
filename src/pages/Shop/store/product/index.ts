@@ -62,14 +62,11 @@ export const productsStore = createStore({
         [draft[index], draft[index + 1]] = [draft[index + 1], draft[index]];
       });
     },
-    updateErrors(context, event: { errors: { id: string; message: string }[] }) {
+    updateError(context, event: { id: string; message: string }) {
       return produce(context, (draft) => {
-        const errors = event.errors;
-        for (const error of errors) {
-          const index = draft.findIndex((d) => d.id === error.id);
-          if (index === -1) continue;
-          draft[index].error = error.message;
-        }
+        const index = draft.findIndex((d) => d.id === event.id);
+        if (index === -1) return;
+        draft[index].error = event.message;
       });
     },
     updateProduct(context, event: { id: string; recipe: (draft: WritableDraft<Product>) => void }) {
