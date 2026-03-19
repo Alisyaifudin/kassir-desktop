@@ -61,7 +61,7 @@ export function Detail({ data }: { data: RecordData }) {
                   </TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell className="text-end flex items-center gap-1 justify-end">
-                    <GotoProductBtn productId={product.productId} />
+                    <GotoProductBtn timestamp={data.record.timestamp} productId={product.productId} />
                     {product.price.toLocaleString("id-ID")}{" "}
                   </TableCell>
                   <Show when={data.record.mode === "buy"}>

@@ -16,6 +16,7 @@ import { RawRow } from "./z-RawRow";
 import { ProductRow } from "./z-ProductRow";
 import { Show } from "~/components/Show";
 import { useLimit } from "./use-limit";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function ProductTable({ items }: { items: Item[] }) {
   const [limit, setLimit] = useLimit();
@@ -26,6 +27,7 @@ export function ProductTable({ items }: { items: Item[] }) {
     });
   };
   const navigate = useNavigate();
+  const urlBack = useGenerateUrlBack(`/analytics/products`);
   const [sort, setSort] = useSort();
   const { sortBy, sortDir } = sort;
   const handleSort = useCallback(
@@ -41,13 +43,13 @@ export function ProductTable({ items }: { items: Item[] }) {
   const clickProduct = (id: number) => () => {
     navigate({
       pathname: `/stock/product/${id}`,
-      search: `?url_back=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+      search: `?url_back=${encodeURIComponent(urlBack)}`,
     });
   };
   const clickRecord = (timestamp: number) => () => {
     navigate({
       pathname: `/records/${timestamp}`,
-      search: `?url_back=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+      search: `?url_back=${encodeURIComponent(urlBack)}`,
     });
   };
   sortItems(items, sortBy, sortDir);

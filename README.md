@@ -7,6 +7,5 @@ Aplikasi untuk kasir.
 # TODO
 
 - rounding any precision
-- filter select too small
 - Pembulatan (precision)
 - kembalikan update aplikasi otomatis

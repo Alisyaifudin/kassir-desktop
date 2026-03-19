@@ -3,6 +3,7 @@ import { getTicks } from "../utils/group-items";
 import { Tooltip } from "~/components/Tooltip";
 import { formatTick } from "../utils/format-tick";
 import { Link } from "react-router";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function GraphDown({
   vals,
@@ -29,6 +30,7 @@ export function GraphDown({
       <div className="w-full h-full flex-1 flex gap-1">
         {vals.map((v, i) => (
           <BarWithDebt
+            base="/analytics"
             v={v.number}
             timestamp={v.timestamp}
             key={i}
@@ -48,21 +50,24 @@ function BarWithDebt({
   length,
   debt,
   timestamp,
+  base,
 }: {
   v: number;
   debt: number;
   maxVal: number;
   length: number;
   timestamp: number;
+  base: string;
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const urlBack = useGenerateUrlBack(base);
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     setPosition({ x: e.clientX, y: e.clientY });
   };
   return (
     <Link
-      to={`/records?time=${timestamp}&mode=buy`}
+      to={`/records?time=${timestamp}&mode=buy&url_back=${encodeURIComponent(urlBack)}`}
       className="h-full"
       style={{ width: `${100 / (length || 0)}%` }}
     >

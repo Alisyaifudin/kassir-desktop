@@ -63,6 +63,7 @@ function GraphBar({
               <div key={i} style={{ width: `${100 / (vals.length || 1)}%` }} />
             ) : (
               <Bar
+                base="/analytics/net"
                 timestamp={v.timestamp}
                 orientation={orientation}
                 v={v.number}
@@ -80,6 +81,7 @@ function GraphBar({
               <div key={i} style={{ width: `${100 / (vals.length || 1)}%` }} />
             ) : (
               <Bar
+                base="/analytics/net"
                 timestamp={v.timestamp}
                 orientation={orientation}
                 v={-v.number}

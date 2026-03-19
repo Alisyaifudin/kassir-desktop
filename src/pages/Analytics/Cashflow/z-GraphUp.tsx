@@ -27,6 +27,7 @@ export function GraphUp({ vals }: { vals: { number: number; timestamp: number }[
             key={i}
             maxVal={maxVal}
             length={vals.length}
+            base="/analytics"
           />
         ))}
       </div>
