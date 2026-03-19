@@ -6,6 +6,4 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- rounding any precision
-- Pembulatan (precision)
 - kembalikan update aplikasi otomatis

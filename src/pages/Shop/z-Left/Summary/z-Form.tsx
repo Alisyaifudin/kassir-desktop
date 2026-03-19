@@ -44,7 +44,7 @@ export function Form() {
         :
         <Input
           type="number"
-          step={Math.pow(10, -1 * fix)}
+          step="any"
           value={rounding.str}
           onChange={(e) => {
             const val = e.currentTarget.value;

@@ -20,9 +20,9 @@ export function submit(isCredit: boolean) {
   const total = calcTotal(subtotal, extras);
   const { fix, methodId, mode, note, pay, rounding } = basicStore.get();
   const grandTotal = total.add(rounding.num);
-  const change = grandTotal.sub(pay.num).times(-1);
+  const change = Number(grandTotal.sub(pay.num).times(-1).toFixed(fix));
   return Effect.gen(function* () {
-    if (change.lessThan(0) && !isCredit) {
+    if (change < 0 && !isCredit) {
       return yield* Effect.fail(new NotEnoughError("Uang tidak cukup"));
     }
     const record = {
@@ -32,8 +32,8 @@ export function submit(isCredit: boolean) {
       methodId,
       mode,
       note,
-      pay: isCredit ? 0 : pay.num,
-      rounding: rounding.num,
+      pay: isCredit ? 0 : Number(pay.num.toFixed(fix)),
+      rounding: Number(rounding.num.toFixed(fix)),
       customer,
       extras,
       products,
@@ -44,7 +44,7 @@ export function submit(isCredit: boolean) {
     const timestamp = yield* db.record.add.one(record);
     return {
       grandTotal: record.grandTotal,
-      change: Number(change.toFixed(fix)),
+      change,
       timestamp,
     };
   });

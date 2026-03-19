@@ -17,7 +17,7 @@ export function Precision() {
   return (
     <div>
       <label htmlFor="precision" className="flex pr-1 gap-2 items-center">
-        Pembulatan
+        Presisi
         <Select
           value={fix.toString()}
           onValueChange={(val) => {
@@ -40,6 +40,7 @@ export function Precision() {
             </SelectGroup>
           </SelectContent>
         </Select>
+        belakang koma
       </label>
     </div>
   );
