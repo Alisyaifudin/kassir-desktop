@@ -151,7 +151,7 @@ export function generatePdfBytes(data: ReceiptData, option: ReceiptOption) {
 
     const paperSize = {
       width: option.paperWidth * PT_IN_MM,
-      height: option.padding * 4,
+      height: option.padding * 6,
     };
 
     const textData = createReceiptData(data, paperSize.width);

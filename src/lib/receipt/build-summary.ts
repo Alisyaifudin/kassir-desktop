@@ -72,16 +72,24 @@ export function buildSummarySection(
     });
   }
 
+  textData.push({
+    size: "normal",
+    kind: "line",
+    x: paperWidth - space,
+  });
+  const payLabel = "Pembayaran";
+  const paySign = record.pay >= 0 ? "" : "-";
+  const payText = `${paySign}Rp${Math.abs(record.pay).toLocaleString("id-ID")}`;
+  textData.push({
+    size: "normal",
+    kind: "spacebetween",
+    x: paperWidth - space,
+    text: [payLabel, payText],
+  });
   // Change calculation
   if (record.change !== 0) {
-    textData.push({
-      size: "normal",
-      kind: "line",
-      x: paperWidth - space,
-    });
-
     const changeLabel = "Kembalian";
-    const sign = record.change > 0 ? "" : "-";
+    const sign = record.change >= 0 ? "" : "-";
     const changeText = `${sign}Rp${Math.abs(record.change).toLocaleString("id-ID")}`;
     textData.push({
       size: "normal",
