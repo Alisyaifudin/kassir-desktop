@@ -24,12 +24,12 @@ declare namespace TX {
   }
   interface Extra {
     extra_id: string;
+    extra_order: number;
     tab: number;
     db_extra_id: string | null;
     extra_name: string;
     extra_kind: ValueKind;
     extra_value: number;
-    extra_is_saved: 0 | 1;
   }
   interface Product {
     product_id: string;
@@ -43,7 +43,6 @@ declare namespace TX {
     product_barcode: string;
     product_price: number;
     product_qty: number;
-    product_stock: number;
   }
   interface Discount {
     disc_id: string;

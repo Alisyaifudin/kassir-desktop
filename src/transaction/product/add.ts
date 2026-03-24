@@ -5,15 +5,16 @@ type Data = {
   tab: number;
   id: string;
   product?: {
-    id: number;
+    id: string;
     price: number;
     name: string;
+    stock: number;
+    capital: number;
   };
   name: string;
   barcode: string;
   price: number;
   qty: number;
-  stock: number;
   discounts: {
     id: string;
     value: number;
@@ -21,13 +22,14 @@ type Data = {
   }[];
 };
 
-export function add({ id, tab, price, product, name, barcode, qty, stock, discounts }: Data) {
+export function add({ id, tab, price, product, name, barcode, qty, discounts }: Data) {
   return Effect.gen(function* () {
     yield* TX.try((tx) =>
       tx.execute(
         `INSERT INTO products (product_id, tab, product_name, product_barcode, product_price, 
-         product_qty, product_stock, db_product_id, db_product_name, db_product_price) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         product_qty, db_product_id, db_product_name, db_product_price, db_product_stock,
+         db_product_capital) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           id,
           tab,
@@ -35,10 +37,11 @@ export function add({ id, tab, price, product, name, barcode, qty, stock, discou
           barcode,
           price,
           qty,
-          stock,
           product?.id ?? null,
           product?.name ?? null,
           product?.price ?? null,
+          product?.stock ?? null,
+          product?.capital ?? null,
         ],
       ),
     );

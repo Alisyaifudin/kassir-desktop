@@ -8,14 +8,13 @@ export type Product = {
     id: string;
     price: number;
     name: string;
-    capital: number; // TODO: NOT IMPLEMENTED YET
+    capital: number;
     stock: number;
   };
   name: string;
   barcode: string;
   price: number;
   qty: number;
-  stock: number;
   discounts: {
     id: string;
     value: number;
@@ -36,7 +35,6 @@ type Output = {
   product_barcode: string;
   product_price: number;
   product_qty: number;
-  product_stock: number;
   disc_id: string | null;
   disc_value: number | null;
   disc_kind: "percent" | "number" | "pcs" | null;
@@ -48,7 +46,7 @@ export function getByTab(tab: number) {
       tx.select<Output[]>(
         `SELECT products.product_id, db_product_id, db_product_price, db_product_capital, 
          db_product_stock, db_product_name, product_name, product_barcode, product_price, 
-         product_qty, product_stock, disc_id, disc_value, disc_kind
+         product_qty, disc_id, disc_value, disc_kind
          FROM products LEFT JOIN discounts ON products.product_id = discounts.product_id
          WHERE tab = $1 ORDER BY product_order, disc_order`,
         [tab],
@@ -78,7 +76,6 @@ function collect(tab: number, rows: Output[]) {
         name: row.product_name,
         price: row.product_price,
         qty: row.product_qty,
-        stock: row.product_stock,
         tab,
         product,
       };

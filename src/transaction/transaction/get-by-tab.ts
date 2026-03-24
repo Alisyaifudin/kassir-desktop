@@ -7,7 +7,7 @@ export type Transaction = {
   query: string;
   mode: TX.Mode;
   fix: number;
-  methodId: number;
+  methodId: string;
   note: string;
   customer: {
     name: string;
@@ -18,14 +18,12 @@ export type Transaction = {
     barcode: string;
     name: string;
     price: number;
-    stock: number;
     qty: number;
   };
   extra: {
     name: string;
     value: number;
     kind: TX.ValueKind;
-    saved: boolean;
   };
 };
 
@@ -51,7 +49,6 @@ export function byTab(tab: number) {
       extra: {
         kind: r.tx_extra_kind,
         name: r.tx_extra_name,
-        saved: Boolean(r.tx_extra_is_saved),
         value: r.tx_extra_value,
       },
       product: {
@@ -59,7 +56,6 @@ export function byTab(tab: number) {
         name: r.tx_product_name,
         price: r.tx_product_price,
         qty: r.tx_product_qty,
-        stock: r.tx_product_stock,
       },
     };
     return transaction;

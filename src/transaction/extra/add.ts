@@ -7,15 +7,14 @@ type Data = {
   name: string;
   value: number;
   kind: TX.ValueKind;
-  saved: boolean;
 };
 
-export function add({ tab, id, name, value, kind, saved }: Data) {
+export function add({ tab, id, name, value, kind }: Data) {
   return TX.try((tx) =>
     tx.execute(
-      `INSERT INTO extras (extra_id, tab, extra_name, extra_value, extra_kind, extra_is_saved) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-      [id, tab, name, value, kind, saved ? 1 : 0],
+      `INSERT INTO extras (extra_id, tab, extra_name, extra_value, extra_kind) 
+         VALUES ($1, $2, $3, $4, $5)`,
+      [id, tab, name, value, kind],
     ),
   ).pipe(Effect.asVoid);
 }

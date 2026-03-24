@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import { count as getCount } from "./count";
 import { TooMany } from "~/lib/effect-error";
-import { DataRecord } from "~/pages/Record/use-records";
 import { TX, TxError } from "../instance";
 import { generateId } from "~/lib/random";
 import { add as addProduct } from "../product/add";
@@ -9,23 +8,63 @@ import { add as addExtra } from "../extra/add";
 import { TabInfo } from "./get-all";
 import { DB } from "~/database/instance";
 
+type Record = {
+  mode: "buy" | "sell";
+  note: string;
+  methodId: string;
+  fix: number;
+  customer: {
+    id?: string;
+    name: string;
+    phone: string;
+  };
+};
+
+type Discount = {
+  kind: DB.DiscKind;
+  value: number;
+  eff: number;
+};
+
+type RecordProduct = {
+  productId?: string;
+  name: string;
+  price: number;
+  qty: number;
+  discounts: Discount[];
+};
+
+type RecordExtra = {
+  name: string;
+  value: number;
+  eff: number;
+  kind: DB.ValueKind;
+};
+
+type DataRecord = {
+  record: Record;
+  products: RecordProduct[];
+  extras: RecordExtra[];
+};
+
 export function addOne({ record, products, extras }: DataRecord) {
   return Effect.gen(function* () {
     const count = yield* getCount();
     if (count >= 100) return yield* Effect.fail(TooMany.new("Terlalu banyak transaksi"));
-    const productIds = products.map((p) => p.productId);
-    const barcodeMap = yield* fetchBarcode(productIds);
+    const productIds = products.flatMap((p) => (p.productId === undefined ? [] : [p.productId]));
+    const productsMap = yield* fetchProduct(productIds);
     const res = yield* TX.try((tx) =>
       tx.execute(
-        `INSERT INTO transactions (tx_mode, tx_fix, tx_method_id, tx_note, tx_customer_name, tx_customer_phone) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO transactions (tx_mode, tx_fix, tx_method_id, tx_note, tx_customer_name, 
+         tx_customer_phone, tx_customer_id) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           record.mode,
           record.fix,
-          record.method.id,
+          record.methodId,
           record.note,
           record.customer.name,
           record.customer.phone,
+          record.customer.id ?? null,
         ],
       ),
     );
@@ -35,29 +74,23 @@ export function addOne({ record, products, extras }: DataRecord) {
       return yield* Effect.fail(TxError.new(new Error("Failed to insert new transaction")));
 
     yield* Effect.all(
-      products.map((p) =>
-        addProduct({
+      products.map((p) => {
+        const product = p.productId === undefined ? undefined : productsMap.get(p.productId);
+        return addProduct({
           id: generateId(),
           tab,
-          barcode: p.productId ? (barcodeMap.get(p.productId) ?? "") : "",
+          barcode: product === undefined ? "" : (product.barcode ?? ""),
           name: p.name,
           price: p.price,
           qty: p.qty,
-          stock: p.qty, // at least equal to qty
-          product: p.productId
-            ? {
-                id: p.productId,
-                name: p.name,
-                price: p.price,
-              }
-            : undefined,
+          product,
           discounts: p.discounts.map((d) => ({
             id: generateId(),
             kind: d.kind,
             value: d.value,
           })),
-        }),
-      ),
+        });
+      }),
       { concurrency: 10 },
     );
 
@@ -68,7 +101,6 @@ export function addOne({ record, products, extras }: DataRecord) {
           tab,
           kind: e.kind,
           name: e.name,
-          saved: false,
           value: e.value,
         }),
       ),
@@ -80,21 +112,47 @@ export function addOne({ record, products, extras }: DataRecord) {
   });
 }
 
-function fetchBarcode(productIds: (number | undefined)[]) {
+type ProductInfo = {
+  id: string;
+  name: string;
+  barcode?: string;
+  capital: number;
+  stock: number;
+  price: number;
+};
+
+function fetchProduct(productIds: string[]) {
   return Effect.gen(function* () {
-    const ids = Array.from(new Set(productIds.filter((id): id is number => id !== undefined)));
-    if (ids.length === 0) return new Map<number, string>();
+    const ids = Array.from(new Set(productIds));
+    if (ids.length === 0) return new Map<string, ProductInfo>();
 
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
     const rows = yield* DB.try((db) =>
-      db.select<{ product_id: number; product_barcode: string | null }[]>(
-        `SELECT product_id, product_barcode FROM products WHERE product_id IN (${placeholders})`,
+      db.select<
+        {
+          product_id: string;
+          product_barcode: string | null;
+          product_name: string;
+          product_capital: number;
+          product_price: number;
+          product_stock: number;
+        }[]
+      >(
+        `SELECT product_id, product_name, product_barcode, product_capital, product_stock, product_price
+         FROM products WHERE product_id IN (${placeholders})`,
         ids,
       ),
     );
-    const barcodeMap = new Map<number, string>();
+    const barcodeMap = new Map<string, ProductInfo>();
     for (const row of rows) {
-      if (row.product_barcode !== null) barcodeMap.set(row.product_id, row.product_barcode);
+      barcodeMap.set(row.product_id, {
+        id: row.product_id,
+        name: row.product_name,
+        capital: row.product_capital,
+        stock: row.product_stock,
+        barcode: row.product_barcode ?? undefined,
+        price: row.product_price,
+      });
     }
     return barcodeMap;
   });

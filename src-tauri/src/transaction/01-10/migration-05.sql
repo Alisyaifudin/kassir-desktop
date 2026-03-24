@@ -17,11 +17,9 @@ CREATE TABLE transactions (
   tx_product_name     TEXT NOT NULL DEFAULT (''),
   tx_product_price    REAL NOT NULL DEFAULT 0,
   tx_product_qty      INTEGER NOT NULL DEFAULT 0,
-  tx_product_stock    INTEGER NOT NULL DEFAULT 0,
   tx_extra_name       TEXT NOT NULL DEFAULT (''),
   tx_extra_value      REAL NOT NULL DEFAULT 0,
-  tx_extra_kind       TEXT NOT NULL DEFAULT 'percent' CHECK (tx_extra_kind IN ('percent', 'number')),
-  tx_extra_is_saved   INTEGER NOT NULL DEFAULT 0 CHECK (tx_extra_is_saved IN (0, 1))
+  tx_extra_kind       TEXT NOT NULL DEFAULT 'percent' CHECK (tx_extra_kind IN ('percent', 'number'))
 ) STRICT;
 
 INSERT INTO transactions (
@@ -38,11 +36,9 @@ INSERT INTO transactions (
   tx_product_name,
   tx_product_price,
   tx_product_qty,
-  tx_product_stock,
   tx_extra_name,
   tx_extra_value,
-  tx_extra_kind,
-  tx_extra_is_saved
+  tx_extra_kind
 )
 SELECT
   tab,
@@ -58,13 +54,10 @@ SELECT
   tx_product_name,
   tx_product_price,
   tx_product_qty,
-  tx_product_stock,
   tx_extra_name,
   tx_extra_value,
-  tx_extra_kind,
-  tx_extra_is_saved
+  tx_extra_kind
 FROM transactions_old;
-
 
 
 CREATE TABLE products (
@@ -79,17 +72,16 @@ CREATE TABLE products (
   product_name        TEXT NOT NULL,
   product_barcode     TEXT NOT NULL,
   product_price       REAL NOT NULL,
-  product_qty         INTEGER NOT NULL,
-  product_stock       INTEGER NOT NULL
+  product_qty         INTEGER NOT NULL
 ) STRICT;
 
 INSERT INTO products (
   product_id, tab, db_product_id, db_product_price, db_product_capital, db_product_stock, db_product_name,
-  product_name, product_barcode, product_price, product_qty, product_stock
+  product_name, product_barcode, product_price, product_qty
 )
 SELECT 
   product_id, tab, CAST(db_product_id AS TEXT), db_product_price, 0.0, 0, db_product_name,
-  product_name, product_barcode, product_price, product_qty, product_stock
+  product_name, product_barcode, product_price, product_qty 
 FROM products_old;
 
 CREATE TABLE discounts (
@@ -112,7 +104,6 @@ CREATE TABLE extras (
   extra_kind      TEXT NOT NULL CHECK (extra_kind IN ('percent', 'number')),
   extra_name      TEXT NOT NULL,
   extra_value     REAL NOT NULL,
-  extra_is_saved  INTEGER NOT NULL CHECK (extra_is_saved IN (0, 1))
 ) STRICT;
 
 INSERT INTO extras (
@@ -122,6 +113,10 @@ SELECT
   extra_id, tab, CAST(db_extra_id AS TEXT), extra_kind, extra_name, extra_value, extra_is_saved
 FROM extras_old;
 
+-- Create indexes for better query performance
+CREATE INDEX idx_extras_extra_id ON extras(extra_id);
+CREATE INDEX idx_products_product_id ON products(product_id);
+CREATE INDEX idx_discounts_disc_id ON discounts(disc_id);
 
 DROP TABLE transactions_old;
 DROP TABLE discounts_old;

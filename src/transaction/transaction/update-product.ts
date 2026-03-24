@@ -6,7 +6,6 @@ export const product = {
   barcode,
   price,
   qty,
-  stock,
   clear,
 };
 
@@ -34,16 +33,10 @@ function qty(tab: number, v: number) {
   ).pipe(Effect.asVoid);
 }
 
-function stock(tab: number, v: number) {
-  return TX.try((tx) =>
-    tx.execute(`UPDATE transactions SET tx_product_stock = $1 WHERE tab = $2`, [v, tab]),
-  ).pipe(Effect.asVoid);
-}
-
 function clear(tab: number) {
   return TX.try((tx) =>
     tx.execute(
-      `UPDATE transactions SET tx_product_stock = 0, tx_product_qty = 0, tx_product_price = 0,
+      `UPDATE transactions SET tx_product_qty = 0, tx_product_price = 0,
          tx_product_name = '', tx_product_barcode = '' WHERE tab = $1`,
       [tab],
     ),
