@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { ProductHistory } from "~/database/product/get-history";
+import { ProductHistory } from "~/database/product/get-history-before";
 
 export function History() {
   const id = useId();

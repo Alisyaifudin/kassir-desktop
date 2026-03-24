@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 
-export function getLast(timestamp: number, kindId: number) {
+export function getLast(timestamp: number, kindId: string) {
   return Effect.gen(function* () {
     const res = yield* DB.try((db) =>
       db.select<{ money_value: number }[]>(

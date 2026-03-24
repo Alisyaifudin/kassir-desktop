@@ -4,7 +4,7 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "../../hooks/use-get-methods";
 
-export function useUpdate(id: number, name: string) {
+export function useUpdate(id: string, name: string) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   const [input, setInput] = useState(name);
@@ -29,9 +29,9 @@ export function useUpdate(id: number, name: string) {
   };
 }
 
-function program(id: number, name: string) {
+function program(id: string, name: string) {
   return Effect.gen(function* () {
-    yield* db.method.update(id, name);
+    yield* db.method.update.one(id, name);
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

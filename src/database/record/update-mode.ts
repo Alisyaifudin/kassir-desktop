@@ -2,17 +2,16 @@ import { Effect } from "effect";
 import { DB } from "../instance";
 import { NotFound } from "~/lib/effect-error";
 
-export function updateMode(timestamp: number, mode: DB.Mode) {
+export function updateMode(recordId: string, mode: DB.Mode) {
   return Effect.gen(function* () {
-    // 1. Fetch current record products
     const recordProducts = yield* DB.try((db) =>
       db.select<{ id: number; qty: number; capital: number }[]>(
-        `SELECT product_id AS id, record_product_qty AS qty, record_product_capital_raw AS capital FROM record_products WHERE timestamp = $1 AND product_id IS NOT NULL`,
-        [timestamp],
+        `SELECT product_id AS id, record_product_qty AS qty, record_product_capital_raw AS capital 
+         FROM record_products WHERE record_id = $1 AND product_id IS NOT NULL`,
+        [recordId],
       ),
     );
 
-    // 2. Concurrently gather ALL necessary product data for calculations
     const productData = yield* Effect.all(
       recordProducts.map(({ id, qty, capital }) =>
         Effect.gen(function* () {
@@ -22,11 +21,11 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
                 db.select<{ record_product_capital: number }[]>(
                   `SELECT record_product_capital 
                    FROM record_products
-                   INNER JOIN records ON records.timestamp = record_products.timestamp
-                   WHERE record_mode = 'buy' AND product_id = $1 AND record_products.timestamp < $2
-                   ORDER BY record_products.timestamp DESC
+                   INNER JOIN records ON records.record_id = record_products.record_id
+                   WHERE record_mode = 'buy' AND product_id = $1 AND records.record_paid_at < $2
+                   ORDER BY records.record_paid_at DESC
                    LIMIT 1`,
-                  [id, timestamp],
+                  [id, recordId],
                 ),
               ).pipe(
                 Effect.map((r) => {
@@ -38,11 +37,11 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
                 db.select<{ record_product_price: number }[]>(
                   `SELECT record_product_price 
                    FROM record_products
-                   INNER JOIN records ON records.timestamp = record_products.timestamp
-                   WHERE record_mode = 'sell' AND product_id = $1 AND record_products.timestamp < $2
-                   ORDER BY record_products.timestamp DESC
+                   INNER JOIN records ON records.record_id = record_products.record_id
+                   WHERE record_mode = 'sell' AND product_id = $1 AND records.record_paid_at < $2
+                   ORDER BY records.record_paid_at DESC
                    LIMIT 1`,
-                  [id, timestamp],
+                  [id, recordId],
                 ),
               ).pipe(
                 Effect.map((r) => {
@@ -71,13 +70,14 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
       { concurrency: 5 },
     );
 
-    // 3. Assemble giant SQL script and bindings to execute atomically
-    let sql = `BEGIN;\n`;
-    const binds: unknown[] = [];
+    const now = Date.now();
+    let sql = "";
+    const binds: (string | number | null)[] = [];
     let bindIndex = 1;
 
-    sql += `UPDATE records SET record_mode = $${bindIndex++} WHERE timestamp = $${bindIndex++};\n`;
-    binds.push(mode, timestamp);
+    sql += `UPDATE records SET record_mode = $${bindIndex++}, record_updated_at = $${bindIndex++} 
+    record_sync_at = $${bindIndex++} WHERE record_id = $${bindIndex++};\n`;
+    binds.push(mode, now, null, recordId);
 
     for (const p of productData) {
       if (mode === "buy") {
@@ -88,20 +88,21 @@ export function updateMode(timestamp: number, mode: DB.Mode) {
 
         const updatedCapital = calcCombinedCapital(p.prevCapital, originalStock, p.capital, p.qty);
 
-        sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++}, product_price = $${bindIndex++} WHERE product_id = $${bindIndex++};\n`;
-        binds.push(finalStock, updatedCapital, p.prevPrice, p.id);
+        sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++}, 
+        product_price = $${bindIndex++}, product_updated_at = $${bindIndex++}, 
+        product_sync_at = $${bindIndex++} WHERE product_id = $${bindIndex++};\n`;
+        binds.push(finalStock, updatedCapital, p.prevPrice, now, null, p.id);
       } else if (mode === "sell") {
         let updatedStock = p.stock - 2 * p.qty;
         if (updatedStock < 0) updatedStock = 0;
 
-        sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++} WHERE product_id = $${bindIndex++};\n`;
-        binds.push(updatedStock, p.prevCapital, p.id);
+        sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++} 
+        product_updated_at = $${bindIndex++}, product_sync_at = $${bindIndex++} 
+        WHERE product_id = $${bindIndex++};\n`;
+        binds.push(updatedStock, p.prevCapital, now, null, p.id);
       }
     }
 
-    sql += `COMMIT;`;
-
-    // 4. Fire the monolithic query with bindings
     yield* DB.try((db) => db.execute(sql, binds));
   });
 }

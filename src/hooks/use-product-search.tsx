@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Product } from "~/database/product/caches";
+import { Product } from "~/database/product/cache";
 import createFuzzySearch from "@nozbe/microfuzz";
 
 export const useProductSearch = (products: Product[]) => {

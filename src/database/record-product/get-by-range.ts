@@ -2,16 +2,16 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 
 export type Discount = {
-  id: number;
+  id: string;
   kind: DB.DiscKind;
   value: number;
   eff: number;
 };
 
 export type RecordProduct = {
-  productId?: number;
-  id: number;
-  timestamp: number;
+  productId?: string;
+  id: string;
+  recordId: string;
   name: string;
   price: number;
   qty: number;
@@ -22,7 +22,7 @@ export type RecordProduct = {
 };
 
 type Output = DB.RecordProduct & {
-  discount_id: number | null;
+  discount_id: string | null;
   discount_kind: DB.DiscKind | null;
   discount_value: number | null;
   discount_eff: number | null;
@@ -32,17 +32,17 @@ export function getByRange(start: number, end: number) {
   return Effect.gen(function* () {
     const rows = yield* DB.try((db) =>
       db.select<Output[]>(
-        `SELECT record_products.timestamp, product_id, record_products.record_product_id, record_product_name, record_product_price,
-        record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
-        discount_id, discount_kind, discount_value, discount_eff
-        FROM record_products 
-        LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
-        INNER JOIN records ON records.timestamp = record_products.timestamp
-        WHERE record_paid_at BETWEEN $1 AND $2 ORDER BY discount_id`,
+        `SELECT record_products.record_id, product_id, record_products.record_product_id, record_product_name, 
+         record_product_price, record_product_qty, record_product_capital, record_product_capital_raw, 
+         record_product_total, discount_id, discount_kind, discount_value, discount_eff
+         FROM record_products 
+         LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
+         INNER JOIN records ON records.record_id = record_products.record_id
+         WHERE record_paid_at BETWEEN $1 AND $2 ORDER BY discount_id`,
         [start, end],
       ),
     );
-    const items: Map<number, RecordProduct> = new Map();
+    const items: Map<string, RecordProduct> = new Map();
     for (const row of rows) {
       const discount = collectDiscount(
         row.discount_id,
@@ -60,7 +60,7 @@ export function getByRange(start: number, end: number) {
           name: row.record_product_name,
           price: row.record_product_price,
           qty: row.record_product_qty,
-          timestamp: row.timestamp,
+          recordId: row.record_id,
           total: row.record_product_total,
           productId: row.product_id ?? undefined,
         });
@@ -73,7 +73,7 @@ export function getByRange(start: number, end: number) {
 }
 
 function collectDiscount(
-  id: number | null,
+  id: string | null,
   kind: DB.DiscKind | null,
   value: number | null,
   eff: number | null,

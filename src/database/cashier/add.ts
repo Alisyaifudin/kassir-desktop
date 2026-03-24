@@ -9,5 +9,5 @@ export function add({ name, role, hash }: { name: string; role: DB.Role; hash: s
       "INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash) VALUES ($1, $2, $3)",
       [id, name, role, hash],
     ),
-  ).pipe(Effect.asVoid);
+  ).pipe(Effect.as(id));
 }

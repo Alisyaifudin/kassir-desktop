@@ -1,7 +1,7 @@
 import { cn } from "~/lib/utils";
 import { Show } from "~/components/Show";
-import { Extra } from "~/database/extra/caches";
-import { Product } from "~/database/product/caches";
+import { Extra } from "~/database/extra/cache";
+import { Product } from "~/database/product/cache";
 import { FuzzyResult } from "@nozbe/microfuzz";
 import { useMode } from "../../use-transaction";
 
@@ -16,7 +16,7 @@ export function Output({
   handleClickProduct: (product: Product) => void;
   handleClickExtra: (extra: Extra) => void;
 }) {
-  const mode = useMode()
+  const mode = useMode();
   return (
     <output
       className={cn(

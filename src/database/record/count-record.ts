@@ -4,7 +4,8 @@ import { DB } from "../instance";
 export function countRecord(start: number, end: number) {
   return DB.try((db) =>
     db.select<{ count: number; record_mode: DB.Mode }[]>(
-      `SELECT COUNT(*) AS count, record_mode FROM records WHERE timestamp BETWEEN $1 AND $2 GROUP BY record_mode`,
+      `SELECT COUNT(*) AS count, record_mode FROM records WHERE record_paid_at BETWEEN $1 AND $2 
+       GROUP BY record_mode`,
       [start, end],
     ),
   ).pipe(

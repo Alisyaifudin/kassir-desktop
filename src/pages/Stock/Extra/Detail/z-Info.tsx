@@ -1,4 +1,4 @@
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 
 export function Info({ extra }: { extra: Extra }) {
   return (

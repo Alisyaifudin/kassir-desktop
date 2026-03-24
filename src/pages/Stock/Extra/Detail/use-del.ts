@@ -5,7 +5,7 @@ import { db } from "~/database";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { log } from "~/lib/log";
 
-export function useDel(id: number) {
+export function useDel(id: string) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,8 +20,8 @@ export function useDel(id: number) {
   return { error, loading, handleDelete };
 }
 
-function program(id: number) {
-  return db.extra.delById(id).pipe(
+function program(id: string) {
+  return db.extra.del.byId(id).pipe(
     Effect.as(null),
     Effect.catchAll(({ e }) => {
       log.error(e);

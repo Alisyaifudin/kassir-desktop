@@ -34,7 +34,7 @@ type Input = {
 };
 
 function program(extra: Input) {
-  return db.extra.add(extra).pipe(
+  return db.extra.add.one(extra).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

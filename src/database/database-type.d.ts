@@ -6,6 +6,23 @@ declare namespace DB {
   type MoneyType = "absolute" | "change";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";
+  type GraveKind =
+    | "customer"
+    | "money_kind"
+    | "money"
+    | "social"
+    | "product"
+    | "image"
+    | "extra"
+    | "method"
+    | "record";
+
+  interface Grave {
+    grave_id: string;
+    grave_item_id: string;
+    grave_kind: GraveKind;
+    grave_timestamp: number;
+  }
 
   interface Cashier {
     cashier_id: string;
@@ -17,6 +34,7 @@ declare namespace DB {
     image_id: string;
     image_name: string;
     image_mime: Mime;
+    image_order: number;
     product_id: string;
     image_updated_at: number;
     image_sync_at: number | null;

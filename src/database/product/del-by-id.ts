@@ -1,16 +1,23 @@
+import { generateId } from "~/lib/random";
 import { DB } from "../instance";
-import { getCache, setCache } from "./caches";
 import { Effect, pipe } from "effect";
+import { cache } from "./cache";
 
-export function delById(id: number) {
+export function delById(id: string) {
+  const now = Date.now();
+  const graveId = generateId();
   return pipe(
-    DB.try((db) => db.execute("DELETE FROM products WHERE product_id = $1", [id])),
-    Effect.asVoid,
+    DB.try((db) =>
+      db.execute(
+        `DELETE FROM products WHERE product_id = $1;
+         INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp) 
+         VALUES ($1, $2, 'product', $3);`,
+        [id, graveId, now],
+      ),
+    ),
     Effect.tap(() => {
-      const cache = getCache();
-      if (cache !== null) {
-        setCache((prev) => prev.filter((p) => p.id !== id));
-      }
+      cache.delete(id);
     }),
+    Effect.asVoid,
   );
 }

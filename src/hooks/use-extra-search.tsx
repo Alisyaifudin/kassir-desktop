@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import createFuzzySearch from "@nozbe/microfuzz";
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 // Fuse returns the original item nested within the result object
 
 export const useExtraSearch = (products: Extra[]) => {

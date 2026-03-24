@@ -3,7 +3,7 @@ import { TableBody, TableCell, TableRow } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
 import { Link } from "react-router";
 import { useInterval } from "../use-interval";
-import { Product } from "~/database/product/caches";
+import { Product } from "~/database/product/cache";
 import { cn, formatBarcode } from "~/lib/utils";
 import { useFilterProducts } from "./use-filter-products";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";

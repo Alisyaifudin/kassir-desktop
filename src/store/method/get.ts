@@ -2,12 +2,6 @@ import { getStore } from "../instance";
 import { z } from "zod";
 import { Effect } from "effect";
 
-// export type DefaultMeth = {
-//   transfer?: number;
-//   debit?: number;
-//   qris?: number;
-// };
-
 export function get() {
   return Effect.gen(function* () {
     const store = yield* getStore();
@@ -17,9 +11,9 @@ export function get() {
     );
     const parsed = z
       .object({
-        transfer: z.optional(z.number().int()),
-        debit: z.optional(z.number().int()),
-        qris: z.optional(z.number().int()),
+        transfer: z.optional(z.string().nonempty()),
+        debit: z.optional(z.string().nonempty()),
+        qris: z.optional(z.string().nonempty()),
       })
       .safeParse({
         transfer: res[0],

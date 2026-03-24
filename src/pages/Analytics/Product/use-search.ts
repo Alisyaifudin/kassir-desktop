@@ -1,6 +1,6 @@
 import createFuzzySearch from "@nozbe/microfuzz";
 import { useMemo } from "react";
-import { Item } from "~/database/product/get-by-range";
+import { Item } from "~/database/product/get-all-by-range";
 
 export const useItemSearch = (all: Item[], query: string) => {
   const fuzzy = useMemo(() => {

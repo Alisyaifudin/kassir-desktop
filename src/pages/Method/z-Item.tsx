@@ -3,18 +3,13 @@ import { Input } from "~/components/ui/input";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { Spinner } from "~/components/Spinner";
 import { memo } from "react";
-import { MethodKind } from "~/database/method/get-all";
 import { DefaultMethod } from "./z-DefaultMethod";
 import equal from "fast-deep-equal";
 import { useUpdate } from "./use-update";
+import { NonNullMethod } from "./use-select-default";
 
-export type Method = {
-  id: number;
-  kind: MethodKind;
-  name: string;
-};
 
-export const Item = memo(function Item({ method, defVal }: { method: Method; defVal?: number }) {
+export const Item = memo(function Item({ method, defVal }: { method: NonNullMethod; defVal?: string }) {
   const { handleSubmit, error, loading, name } = useUpdate(method.id, method.name);
   return (
     <>

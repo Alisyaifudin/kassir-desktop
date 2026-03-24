@@ -1,7 +1,8 @@
+import { DuplicateError } from "~/lib/effect-error";
 import { DB } from "../instance";
-import { getCache, setCache } from "./caches";
+import { cache } from "./cache";
 import { Effect } from "effect";
-import { DuplicateError } from "./update-info";
+import { generateId } from "~/lib/random";
 
 type Input = {
   name: string;
@@ -15,34 +16,49 @@ type Input = {
 export function add({ name, barcode, price, stock, capital, note }: Input) {
   return Effect.gen(function* () {
     if (barcode !== undefined) {
-      const product = yield* DB.try((db) =>
-        db.select<{ product_name: string }[]>(
-          "SELECT product_name FROM products WHERE product_barcode = $1",
-          [barcode],
-        ),
-      );
-      if (product.length > 0) {
-        return yield* Effect.fail(new DuplicateError(product[0].product_name));
-      }
+      yield* checkDuplicate(barcode);
     }
-    const res = yield* DB.try((db) =>
+    const id = generateId();
+    const now = Date.now();
+    yield* DB.try((db) =>
       db.execute(
-        `INSERT INTO products (product_name, product_barcode, product_price, product_stock, product_capital, product_note) 
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-        [name, barcode ?? null, price, stock, capital, note],
+        `INSERT INTO products (product_id, product_name, product_barcode, product_price, product_stock, 
+         product_capital, product_note, product_updated_at, product_sync_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, null)`,
+        [id, name, barcode ?? null, price, stock, capital, note, now],
       ),
     );
-    const id = res.lastInsertId;
-    if (id === undefined) {
-      setCache(null);
-    } else {
-      const cache = getCache();
-      if (cache !== null) {
-        setCache((prev) => [
-          ...prev,
-          { id, name, barcode: barcode ?? undefined, capital, price, stock },
-        ]);
+    cache.update(id, {
+      id,
+      name,
+      capital,
+      note,
+      price,
+      stock,
+      barcode,
+      syncAt: null,
+      updatedAt: now,
+    });
+  });
+}
+
+function checkDuplicate(barcode: string) {
+  return Effect.gen(function* () {
+    const products = cache.all();
+    if (products !== null) {
+      for (const p of products) {
+        if (p.barcode === barcode) return yield* Effect.fail(new DuplicateError(p.name));
       }
+      return yield* Effect.void;
+    }
+    const product = yield* DB.try((db) =>
+      db.select<{ product_name: string }[]>(
+        "SELECT product_name FROM products WHERE product_barcode = $1",
+        [barcode],
+      ),
+    );
+    if (product.length > 0) {
+      return yield* Effect.fail(new DuplicateError(product[0].product_name));
     }
   });
 }

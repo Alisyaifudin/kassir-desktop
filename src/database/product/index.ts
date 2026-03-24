@@ -1,37 +1,37 @@
 import { delById } from "./del-by-id";
-import { getHistory } from "./get-history";
 import { all } from "./get-all";
 import { getById } from "./get-by-id";
 import { updateInfo } from "./update-info";
 import { getHistoryRange } from "./get-history-range";
 import { add } from "./add";
-import { getByRange } from "./get-by-range";
+import { getAllByRange } from "./get-all-by-range";
 import { incStock } from "./inc-stock";
 import { decStock } from "./dec-stock";
-import { allFull } from "./get-all-full";
+import { getHistoryBefore } from "./get-history-before";
+import { upsert } from "./upsert";
+import { sync } from "./sync";
+import { getAllUnsync } from "../customer/get-all-unsync";
 
 export const product = {
   get: {
     all,
-    allFull,
+    unsync: getAllUnsync,
     byId: getById,
-    history: getHistory,
+    historyBefore: getHistoryBefore,
     historyRange: getHistoryRange,
-    byRange: getByRange,
-    // performance: getPerformance,
+    allRange: getAllByRange,
   },
-  delById,
+  del: {
+    byId: delById,
+  },
   update: {
+    sync,
     info: updateInfo,
     stock: {
       inc: incStock,
       dec: decStock,
     },
-    // stock: updateStock,
   },
-  // barcode: {
-  //   gen: generateBarcode,
-  //   propose: proposeBarcode,
-  // },
   add,
+  upsert,
 };

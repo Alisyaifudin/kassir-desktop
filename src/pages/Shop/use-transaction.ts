@@ -54,7 +54,7 @@ export const basicStore = createAtom<{
   note: "",
 });
 
-export const customerStore = createAtom<{ name: string; phone: string; id?: number }>({
+export const customerStore = createAtom<{ name: string; phone: string; id?: string }>({
   name: "",
   phone: "",
   id: undefined,

@@ -27,7 +27,7 @@ export function useNew(onClose: () => void) {
 
 function program(kind: "transfer" | "debit" | "qris", name: string) {
   return Effect.gen(function* () {
-    yield* db.method.add(name, kind);
+    yield* db.method.add.one(name, kind);
     return null;
   }).pipe(
     Effect.catchTag("DbError", ({ e }) => {

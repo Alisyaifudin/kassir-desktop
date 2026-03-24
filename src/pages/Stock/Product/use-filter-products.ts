@@ -1,6 +1,6 @@
 import { useProductSearch } from "~/hooks/use-product-search";
 import { sorting } from "./util-sorting";
-import { Product } from "~/database/product/caches";
+import { Product } from "~/database/product/cache";
 import { useQuery } from "../use-query";
 import { useSortBy } from "./use-sort-by";
 import { useSortDir } from "./use-sort-dir";

@@ -5,8 +5,13 @@ import { log } from "~/lib/log";
 import { toast } from "sonner";
 
 export type Kind = Exclude<DB.MethodEnum, "cash">;
+export type NonNullMethod = {
+  id: string;
+  name: string;
+  kind: Kind;
+};
 
-export function useClicked({ kind, id, defVal }: { kind: Kind; id: number; defVal?: number }) {
+export function useClicked({ kind, id, defVal }: { kind: Kind; id: string; defVal?: string }) {
   async function handleClick() {
     const error = await Effect.runPromise(program(kind, id, defVal));
     if (error === null) {
@@ -19,7 +24,7 @@ export function useClicked({ kind, id, defVal }: { kind: Kind; id: number; defVa
   return handleClick;
 }
 
-function program(kind: Kind, id: number, defVal?: number) {
+function program(kind: Kind, id: string, defVal?: string) {
   return Effect.gen(function* () {
     yield* store.method.set(kind, id === defVal ? undefined : id);
     return null;

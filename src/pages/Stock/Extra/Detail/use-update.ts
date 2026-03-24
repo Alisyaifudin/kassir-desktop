@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { db } from "~/database";
 import { log } from "~/lib/log";
 import { createExtraOptions } from "../util-extra-options";
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 import { useAppForm } from "../z-ExtraForm";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
 
@@ -30,7 +30,7 @@ export function useUpdate(extra: Extra) {
 }
 
 function program(extra: Extra) {
-  return db.extra.update(extra).pipe(
+  return db.extra.update.one(extra).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

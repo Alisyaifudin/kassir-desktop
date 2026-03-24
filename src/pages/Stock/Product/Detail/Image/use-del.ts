@@ -5,7 +5,7 @@ import { image } from "~/lib/image";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 
-export function useDel(id: number, onClose: () => void) {
+export function useDel(id: string, onClose: () => void) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   async function handleDelete() {
@@ -21,10 +21,10 @@ export function useDel(id: number, onClose: () => void) {
   return { handleDelete, loading, error };
 }
 
-function program(id: number) {
+function program(id: string) {
   return Effect.gen(function* () {
-    const name = yield* db.image.delById(id);
-    yield* image.del(name);
+    yield* db.image.del.byId(id);
+    yield* image.del(id);
     return null;
   }).pipe(
     Effect.catchAll((e) => {
@@ -33,9 +33,6 @@ function program(id: number) {
         case "IOError":
           log.error(e.e);
           return Effect.succeed(e.e.message);
-        case "NotFound":
-          log.error(e.msg);
-          return Effect.succeed(e.msg);
       }
     }),
   );

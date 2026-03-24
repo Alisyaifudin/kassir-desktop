@@ -11,7 +11,7 @@ import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { DialogDescription } from "@radix-ui/react-dialog";
 import { Spinner } from "~/components/Spinner";
-import { Method } from "~/database/method/get-all";
+import { Method } from "~/database/method/cache";
 import { useDelete } from "./use-delete";
 import equal from "fast-deep-equal";
 

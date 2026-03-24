@@ -13,9 +13,7 @@ export default function Page() {
         <h1 className="text-big font-bold text-foreground">Daftar Pelanggan</h1>
         <p className="text-muted-foreground text-normal">Kelola informasi pelanggan dan kontak</p>
       </div>
-
       <Customer />
-
       <NewCustomer />
     </div>
   );

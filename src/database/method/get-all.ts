@@ -1,31 +1,25 @@
 import { DB } from "../instance";
-import { Effect, pipe } from "effect";
-
-export type MethodKind = Exclude<DB.MethodEnum, "cash">;
-export type Method = { id: number; kind: MethodKind; name?: string };
-export type MethodFull = { id: number; kind: DB.MethodEnum; name?: string };
-
-type Output = {
-  method_id: number;
-  method_name: string | null;
-  method_kind: MethodKind;
-};
+import { Effect } from "effect";
+import { MethodFull, cache } from "./cache";
 
 export function getAll() {
-  return pipe(
-    DB.try((db) =>
-      db.select<Output[]>(
-        `SELECT method_id, method_kind, method_name FROM methods 
-         WHERE method_deleted_at is null AND method_kind != 'cash' 
-         ORDER BY method_id`,
-      ),
-    ),
-    Effect.map((res) =>
-      res.map((r) => ({
-        id: r.method_id,
-        kind: r.method_kind,
-        name: r.method_name ?? undefined,
-      })),
-    ),
-  );
+  return Effect.gen(function* () {
+    const methods = cache.all();
+    if (methods !== null) {
+      return methods;
+    }
+    const res = yield* DB.try((db) =>
+      db.select<DB.Method[]>(`SELECT * FROM methods ORDER BY method_id`),
+    );
+    const items: MethodFull[] = res.map((r) => ({
+      id: r.method_id,
+      kind: r.method_kind,
+      name: r.method_name ?? undefined,
+      deletedAt: r.method_deleted_at,
+      syncAt: r.method_sync_at,
+      updatedAt: r.method_updated_at,
+    }));
+    cache.set(items);
+    return items;
+  });
 }

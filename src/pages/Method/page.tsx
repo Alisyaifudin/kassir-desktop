@@ -1,4 +1,4 @@
-import { Item, Method } from "./z-Item";
+import { Item } from "./z-Item";
 import { NewBtn } from "./z-NewBtn";
 import { useMethod } from "./use-method";
 import { TabLink } from "./z-TabLink";
@@ -7,6 +7,7 @@ import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
+import { NonNullMethod } from "./use-select-default";
 
 export default function Page() {
   return (
@@ -20,7 +21,6 @@ export default function Page() {
         <TabLink />
         <Wrapper />
       </div>
-
       <NewBtn />
     </div>
   );
@@ -38,7 +38,9 @@ function Wrapper() {
       return <TextError>{e.message}</TextError>;
     },
     onSuccess([data, defaultMethod]) {
-      const methods = data.filter((d) => d.kind === method && d.name !== undefined) as Method[];
+      const methods = data.filter(
+        (d) => d.kind === method && d.name !== undefined,
+      ) as NonNullMethod[];
       return (
         <div className="flex flex-col gap-2 overflow-auto">
           {methods.map((m) => {

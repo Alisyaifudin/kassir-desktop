@@ -14,10 +14,10 @@ export type Money = {
 export type MoneyKind = {
   name: string;
   type: DB.MoneyType;
-  id: number;
+  id: string;
 };
 
-export function getByRange(kindId: number, start: number, end: number) {
+export function getByRange(kindId: string, start: number, end: number) {
   return Effect.gen(function* () {
     const [last, money, kind] = yield* Effect.all(
       [
@@ -25,7 +25,7 @@ export function getByRange(kindId: number, start: number, end: number) {
         DB.try((db) =>
           db.select<Omit<DB.Money, "money_kind">[]>(
             `SELECT timestamp, money_value, money_note FROM money WHERE timestamp BETWEEN $1 AND $2 AND money_kind_id = ?3 
-         ORDER BY timestamp DESC`,
+             ORDER BY timestamp DESC`,
             [start, end, kindId],
           ),
         ),

@@ -26,6 +26,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/transaction/01-10/migration-04.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "change method id and customer id to text",
+            sql: include_str!("../../src/transaction/01-10/migration-04.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

@@ -8,20 +8,48 @@ import { useSwap } from "./use-swap";
 
 export function ImageControl({ images }: { images: ImageResult[] }) {
   const [selected] = useSelected(images);
-  const index = images.findIndex((im) => im.id === selected?.id);
+  const prev = getPrev(images, selected);
+  const next = getNext(images, selected);
   return (
     <div className="flex gap-2 w-full justify-between">
-      <SwapLeft current={selected?.id} prev={index <= 0 ? undefined : images[index - 1].id} />
+      <SwapLeft current={selected?.id} prev={prev} />
       <ImageDialog />
-      <SwapRight
-        current={selected?.id}
-        next={index >= images.length - 1 ? undefined : images[index + 1].id}
-      />
+      <SwapRight current={selected?.id} next={next} />
     </div>
   );
 }
 
-function SwapLeft({ current, prev }: { current?: number; prev?: number }) {
+function getPrev(images: ImageResult[], selected: ImageResult | null) {
+  if (selected === null) return undefined;
+  const prevs = images.filter((img) => img.order < selected.order);
+  if (prevs.length === 0) return undefined;
+  let id = prevs[0].id;
+  let currentOrder = prevs[0].order;
+  for (const image of images) {
+    if (image.order > currentOrder) {
+      currentOrder = image.order;
+      id = image.id;
+    }
+  }
+  return id;
+}
+
+function getNext(images: ImageResult[], selected: ImageResult | null) {
+  if (selected === null) return undefined;
+  const nexts = images.filter((img) => img.order > selected.order);
+  if (nexts.length === 0) return undefined;
+  let id = nexts[0].id;
+  let currentOrder = nexts[0].order;
+  for (const image of images) {
+    if (image.order < currentOrder) {
+      currentOrder = image.order;
+      id = image.id;
+    }
+  }
+  return id;
+}
+
+function SwapLeft({ current, prev }: { current?: string; prev?: string }) {
   const { loading, handleSwap } = useSwap();
   return (
     <div className="flex items-center gap-1">
@@ -42,7 +70,7 @@ function SwapLeft({ current, prev }: { current?: number; prev?: number }) {
   );
 }
 
-function SwapRight({ current, next }: { current?: number; next?: number }) {
+function SwapRight({ current, next }: { current?: string; next?: string }) {
   const { handleSwap } = useSwap();
   return (
     <div className="flex items-center gap-1">

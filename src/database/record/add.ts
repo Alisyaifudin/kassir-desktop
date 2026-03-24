@@ -4,6 +4,8 @@ import { Extra as ExtraTx } from "~/transaction/extra/get-by-tab";
 import { DB } from "../instance";
 import Decimal from "decimal.js";
 import { calcCombinedCapital } from "./update-mode";
+import { generateId } from "~/lib/random";
+import { ManyDuplicateError } from "~/lib/effect-error";
 
 type Product = Omit<ProductTx, "discounts"> & {
   discounts: Discount[];
@@ -32,12 +34,12 @@ type Input = {
   pay: number;
   rounding: number;
   note: string;
-  methodId: number;
+  methodId: string;
   fix: number;
   customer: {
     name: string;
     phone: string;
-    id?: number;
+    id?: string;
   };
   subtotal: number;
   total: number;
@@ -62,18 +64,23 @@ export function add({
   products,
   extras,
 }: Input) {
-  const timestamp = Date.now();
+  const recordId = generateId();
+  const now = Date.now();
   return Effect.gen(function* () {
     const bindings: (number | string | null)[] = [];
+    yield* checkNewProducts(products);
     let bindingIndex = 1;
     let query = "";
-    query += `INSERT INTO records (timestamp, record_paid_at, record_rounding, record_is_credit, record_cashier, record_mode, record_pay, record_note, 
-        method_id, record_fix, record_customer_name, record_customer_phone, record_sub_total, record_total)
-        VALUES ($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
-        $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++});\n`;
+    query += `INSERT INTO records (record_id, record_paid_at, record_rounding, record_is_credit, 
+    record_cashier, record_mode, record_pay, record_note, method_id, record_fix, record_customer_name, 
+    record_customer_phone, record_sub_total, record_total, record_updated_at, record_sync_at)
+    VALUES ($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+    $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+    $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+    $${bindingIndex++}, $${bindingIndex++});\n`;
     bindings.push(
-      timestamp,
-      timestamp,
+      recordId,
+      now,
       rounding,
       isCredit ? 1 : 0,
       cashier,
@@ -86,18 +93,32 @@ export function add({
       customer.phone,
       subtotal,
       total,
+      now,
+      null,
     );
 
     if (customer.id === undefined && customer.name !== "") {
-      query += `INSERT INTO customers (customer_name, customer_phone) VALUES ($${bindingIndex++}, $${bindingIndex++});\n`;
-      bindings.push(customer.name, customer.phone);
+      const customerId = generateId();
+      query += `INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at, 
+      customer_sync_at) 
+      VALUES ($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+      $${bindingIndex++});\n`;
+      bindings.push(customerId, customer.name, customer.phone, now, null);
     }
 
     if (extras.length > 0) {
-      query += `INSERT INTO record_extras (record_extra_name, timestamp, record_extra_value, record_extra_eff, record_extra_kind)
-         VALUES ${extras.map(() => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`).join(", ")};\n`;
+      const extraPlaceholders = extras
+        .map(
+          () => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+         $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
+        )
+        .join(", ");
+      query += `INSERT INTO record_extras (record_extra_id, record_extra_name, record_id, 
+      record_extra_value, record_extra_eff, record_extra_kind)
+      VALUES ${extraPlaceholders};\n`;
       for (const extra of extras) {
-        bindings.push(extra.name, timestamp, extra.value, extra.eff, extra.kind);
+        const id = generateId();
+        bindings.push(id, extra.name, recordId, extra.value, extra.eff, extra.kind);
       }
     }
 
@@ -108,19 +129,94 @@ export function add({
         grandTotal,
         fix,
       });
-      query += `INSERT INTO record_products (product_id, timestamp, record_product_name, record_product_price,
-         record_product_qty, record_product_capital, record_product_capital_raw, record_product_total)
-         VALUES ${productFulls
-           .map(
-             () => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++},
-                     $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
-           )
-           .join(", ")};\n`;
 
+      const recordProducts: {
+        id: string;
+        productId: string;
+        isNew: boolean;
+      }[] = [];
       for (const product of productFulls) {
+        const recordProductId = generateId();
+        let productId: string;
+        if (product.product?.id !== undefined) {
+          productId = product.product.id;
+          if (mode === "buy") {
+            query += `UPDATE products SET product_stock = product_stock + $${bindingIndex++}, 
+            product_capital = $${bindingIndex++}, product_name = $${bindingIndex++},
+            product_updated_at = $${bindingIndex++}, product_sync_at = null 
+            WHERE product_id = $${bindingIndex++};\n`;
+            bindings.push(product.qty, product.capital, product.name, now, product.product.id);
+          } else {
+            query += `UPDATE products SET product_stock = product_stock - $${bindingIndex++}, 
+            product_price = $${bindingIndex++}, product_capital = $${bindingIndex++}, 
+            product_name = $${bindingIndex++}, product_updated_at = $${bindingIndex++}, 
+            product_sync_at = null 
+            WHERE product_id = $${bindingIndex++};\n`;
+            bindings.push(
+              product.qty,
+              product.price,
+              product.capital,
+              product.name,
+              now,
+              product.product.id,
+            );
+          }
+          recordProducts.push({
+            id: recordProductId,
+            productId,
+            isNew: false,
+          });
+        } else {
+          productId = generateId();
+          recordProducts.push({
+            id: recordProductId,
+            productId,
+            isNew: true,
+          });
+        }
+      }
+
+      const newProductsPlaceholders = recordProducts
+        .filter((r) => r.isNew)
+        .map(
+          () => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+          $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
+        )
+        .join(", ");
+      query += `INSERT INTO products (product_id, product_barcode, product_name, product_price,
+      product_stock, product_capital, product_note, product_updated_at, product_sync_at) VALUES 
+      ${newProductsPlaceholders};\n`;
+      for (let i = 0; i < products.length; i++) {
+        if (!recordProducts[i].isNew) continue;
+        const qty = mode === "buy" ? productFulls[i].qty : 0;
         bindings.push(
-          product.product?.id ?? null,
-          timestamp,
+          recordProducts[i].productId,
+          productFulls[i].barcode,
+          productFulls[i].name,
+          productFulls[i].price,
+          qty,
+          productFulls[i].capital,
+          "",
+          now,
+          null,
+        );
+      }
+      // insert record product
+      const recordProductPlaceholders = productFulls
+        .map(
+          () => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++},
+         $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
+        )
+        .join(", ");
+      query += `INSERT INTO record_products (record_product_id, product_id, record_id, record_product_name, 
+      record_product_price, record_product_qty, record_product_capital, record_product_capital_raw, 
+      record_product_total) VALUES ${recordProductPlaceholders};\n`;
+      for (let i = 0; i < products.length; i++) {
+        const product = productFulls[i];
+        bindings.push(
+          recordProducts[i].id,
+          recordProducts[i].productId,
+          recordId,
           product.name,
           product.price,
           product.qty,
@@ -129,35 +225,33 @@ export function add({
           product.total,
         );
       }
-
-      for (const product of productFulls) {
-        if (product.product?.id) {
-          if (mode === "buy") {
-            query += `UPDATE products SET product_stock = product_stock + $${bindingIndex++}, product_capital = $${bindingIndex++} WHERE product_id = $${bindingIndex++};\n`;
-            bindings.push(product.qty, product.capital, product.product.id);
-          } else {
-            query += `UPDATE products SET product_stock = product_stock - $${bindingIndex++} WHERE product_id = $${bindingIndex++};\n`;
-            bindings.push(product.qty, product.product.id);
-          }
-        }
-
+      for (let i = 0; i < products.length; i++) {
+        const product = productFulls[i];
         const filteredDiscounts = product.discounts.filter((d) => d.eff !== 0);
         if (filteredDiscounts.length > 0) {
-          const productIndex = productFulls.indexOf(product);
-          query += `INSERT INTO discounts (record_product_id, discount_value, discount_eff, discount_kind) VALUES ${filteredDiscounts
+          const placeholders = filteredDiscounts
             .map(
               () =>
-                `((SELECT record_product_id FROM record_products WHERE timestamp = $1 LIMIT 1 OFFSET ${productIndex}), $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
+                `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
             )
-            .join(", ")};\n`;
+            .join(", ");
+          query += `INSERT INTO discounts (discount_id, record_product_id, discount_value, 
+          discount_eff, discount_kind) VALUES ${placeholders};\n`;
           for (const discount of filteredDiscounts) {
-            bindings.push(discount.value, discount.eff, discount.kind);
+            const discountId = generateId();
+            bindings.push(
+              discountId,
+              recordProducts[i].id,
+              discount.value,
+              discount.eff,
+              discount.kind,
+            );
           }
         }
       }
     }
     yield* DB.try((db) => db.execute(query, bindings));
-    return timestamp;
+    return recordId;
   });
 }
 
@@ -235,5 +329,29 @@ function calcEffCapital({
       ),
     );
     return res;
+  });
+}
+
+function checkNewProducts(products: Product[]) {
+  const filtered = products.filter((p) => p.product === undefined && p.barcode.trim() !== "");
+  return Effect.gen(function* () {
+    const res = yield* Effect.all(
+      filtered.map((p) =>
+        DB.try((db) =>
+          db.select<{ product_name: string }[]>(
+            "SELECT product_name FROM products WHERE product_barcode = $1",
+            [p.barcode],
+          ),
+        ).pipe(
+          Effect.map((r) => {
+            if (r.length === 0) return null;
+            return { new: p.name, current: r[0].product_name };
+          }),
+        ),
+      ),
+      { concurrency: 10 },
+    );
+    const duplicates = res.filter((r) => r !== null);
+    if (duplicates.length > 0) return yield* Effect.fail(new ManyDuplicateError(duplicates));
   });
 }

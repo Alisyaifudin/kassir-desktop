@@ -3,9 +3,7 @@ import * as path from "@tauri-apps/api/path";
 import { Effect } from "effect";
 import { ArrayBufferError, IOError } from "./effect-error";
 
-type MimeType = "image/png" | "image/jpeg";
-
-function save(file: File, name: string) {
+function save(file: File, id: string) {
   return Effect.gen(function* () {
     const checkExist = yield* Effect.tryPromise({
       try: () =>
@@ -31,7 +29,7 @@ function save(file: File, name: string) {
     const data = new Uint8Array(arrayBuffer);
     yield* Effect.tryPromise({
       try: () =>
-        writeFile(`images/${name}`, data, {
+        writeFile(`images/${id}`, data, {
           baseDir: BaseDirectory.AppData,
         }),
       catch: (e) => new IOError(e, "Gagal menyimpan file"),
@@ -39,10 +37,10 @@ function save(file: File, name: string) {
   });
 }
 
-function load(name: string, mimeType: MimeType) {
+function load(id: string, mimeType: DB.Mime) {
   return Effect.gen(function* () {
     const pathname = yield* Effect.tryPromise({
-      try: () => path.join("images", name),
+      try: () => path.join("images", id),
       catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
     });
     const image = yield* Effect.tryPromise({
@@ -59,10 +57,10 @@ function load(name: string, mimeType: MimeType) {
   });
 }
 
-function del(name: string) {
+function del(id: string) {
   return Effect.gen(function* () {
     const pathname = yield* Effect.tryPromise({
-      try: () => path.join("images", name),
+      try: () => path.join("images", id),
       catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
     });
     yield* Effect.tryPromise({

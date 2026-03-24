@@ -12,7 +12,7 @@ export type Transaction = {
   customer: {
     name: string;
     phone: string;
-    id?: number;
+    id?: string;
   };
   product: {
     barcode: string;

@@ -3,7 +3,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useProductSearch } from "~/hooks/use-product-search";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { RecordData } from "../../use-data";
-import { Product } from "~/database/product/caches";
+import { Product } from "~/database/product/cache";
 
 export function useChange(product: RecordData["products"][number], products: Product[]) {
   const [query, setQuery] = useState("");

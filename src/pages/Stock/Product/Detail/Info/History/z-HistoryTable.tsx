@@ -8,7 +8,7 @@ import {
   TableRow,
   Table,
 } from "~/components/ui/table";
-import { ProductHistory } from "~/database/product/get-history";
+import { ProductHistory } from "~/database/product/get-history-before";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { formatDate, formatTime } from "~/lib/date";
 import { useId } from "../../use-id";

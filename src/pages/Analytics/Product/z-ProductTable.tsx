@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { Item } from "~/database/product/get-by-range";
+import { Item } from "~/database/product/get-all-by-range";
 import { cn } from "~/lib/utils";
 import { useSort } from "./use-sort";
 import { useCallback } from "react";

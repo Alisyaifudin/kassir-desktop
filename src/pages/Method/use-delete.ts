@@ -4,7 +4,7 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "../../hooks/use-get-methods";
 
-export function useDelete(id: number, onClose: () => void) {
+export function useDelete(id: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -22,9 +22,9 @@ export function useDelete(id: number, onClose: () => void) {
   return { error, loading, handleSubmit };
 }
 
-function program(id: number) {
+function program(id: string) {
   return Effect.gen(function* () {
-    yield* db.method.delById(id);
+    yield* db.method.del.byId(id);
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

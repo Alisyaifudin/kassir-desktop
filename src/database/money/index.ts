@@ -1,33 +1,25 @@
+import { add } from "./add";
 import { addExternal } from "./add-external";
-import { addKind } from "./add-kind";
-import { addRecord } from "./add-record";
-import { delByTimestamp } from "./del-by-timestamp";
-import { deleteKind } from "./del-kind";
+import { delById } from "./del-by-id";
+import { delSync } from "./del-sync";
 import { getAll } from "./get-all";
-import { getAllKind } from "./get-all-kind";
 import { getByRange } from "./get-by-range";
-import { getLast } from "./get-last";
-import { updateName } from "./update-name";
-import { updateType } from "./update-type";
+import { sync } from "./sync";
+import { upsert } from "./upsert";
 
 export const money = {
   get: {
     all: getAll,
     byRange: getByRange,
-    allKind: getAllKind,
-    last: getLast,
   },
   delete: {
-    byTimestamp: delByTimestamp,
-    kind: deleteKind,
+    byId: delById,
+    sync: delSync,
   },
   add: {
-    kind: addKind,
-    record: addRecord,
+    record: add,
     external: addExternal,
   },
-  update: {
-    type: updateType,
-    name: updateName,
-  },
+  update: { sync },
+  upsert,
 };

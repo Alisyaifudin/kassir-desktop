@@ -19,7 +19,7 @@ export const DeleteBtn = memo(function DeleteBtn({
   name,
   phone,
 }: {
-  id: number;
+  id: string;
   name: string;
   phone: string;
 }) {

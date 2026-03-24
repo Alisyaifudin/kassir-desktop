@@ -4,7 +4,7 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
-import { Customer } from "~/database/customer/get-all";
+import { Customer } from "~/database/customer/cache";
 import { revalidateCustomers } from "~/hooks/use-get-customer";
 
 const schema = z.object({
@@ -35,9 +35,9 @@ export function useUpdate({ id, name, phone }: Customer) {
   return { form, error };
 }
 
-function program(id: number, { name, phone }: Input) {
+function program(id: string, { name, phone }: Input) {
   return Effect.gen(function* () {
-    yield* db.customer.update(id, name, phone);
+    yield* db.customer.update.one({ id, name, phone });
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

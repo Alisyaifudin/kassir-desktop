@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Customer } from "~/database/customer/get-all";
+import { Customer } from "~/database/customer/cache";
 import { useAtom } from "@xstate/store/react";
 import { tx } from "~/transaction";
 import { Input } from "~/components/ui/input";
@@ -33,7 +33,7 @@ export function AutoCustomer({
       (c) => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q),
     );
   }
-  function handleSelect(name: string, phone: string, id: number) {
+  function handleSelect(name: string, phone: string, id: string) {
     return function () {
       const customer = { name, phone, id };
       setQuery("");

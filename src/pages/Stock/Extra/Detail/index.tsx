@@ -1,6 +1,5 @@
-import { LoaderFunctionArgs, redirect, RouteObject, useLoaderData } from "react-router";
+import { LoaderFunctionArgs, RouteObject, useLoaderData } from "react-router";
 import { lazy, Suspense } from "react";
-import { integer } from "~/lib/utils.ts";
 import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page.tsx"));
@@ -19,11 +18,7 @@ export const extraRoute: RouteObject = {
 };
 
 async function loader({ params }: LoaderFunctionArgs) {
-  const parsed = integer.safeParse(params.id);
-  if (!parsed.success) {
-    throw redirect("/stock?tab=extra");
-  }
-  const id = parsed.data;
+  const id = params.data!;
   return id;
 }
 

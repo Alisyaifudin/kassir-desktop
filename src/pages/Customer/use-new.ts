@@ -38,7 +38,7 @@ export function useNew(onClose: () => void) {
 
 function program(name: string, phone: string) {
   return Effect.gen(function* () {
-    yield* db.customer.add(name, phone);
+    yield* db.customer.add.one(name, phone);
     return null;
   }).pipe(
     Effect.catchTag("DbError", ({ e }) => {

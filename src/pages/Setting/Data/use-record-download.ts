@@ -72,15 +72,11 @@ function fetchRecord(start: number, end: number) {
       ],
       { concurrency: "unbounded" },
     );
-    return rs.map(({ timestamp, method, ...r }) => {
-      const products = ps.filter((p) => p.timestamp === timestamp);
+    return rs.map(({ timestamp, ...r }) => {
+      const products = ps.filter((p) => p.recordId === timestamp);
       const extras = es.filter((e) => e.timestamp === timestamp);
       return {
         ...r,
-        method: {
-          kind: method.kind,
-          name: method.name,
-        },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         products: products.map(({ timestamp, id, ...p }) => ({
           ...p,

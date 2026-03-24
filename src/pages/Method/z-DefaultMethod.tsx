@@ -1,6 +1,6 @@
 import { Kind, useClicked } from "./use-select-default";
 
-export function DefaultMethod({ kind, id, defVal }: { kind: Kind; id: number; defVal?: number }) {
+export function DefaultMethod({ kind, id, defVal }: { kind: Kind; id: string; defVal?: string }) {
   const handleClick = useClicked({ kind, id, defVal });
   return (
     <input

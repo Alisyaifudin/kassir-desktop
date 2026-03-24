@@ -1,5 +1,5 @@
 import { useExtraSearch } from "~/hooks/use-extra-search";
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 import { useQuery } from "../use-query";
 
 export function useFilterExtras(all: Extra[]) {

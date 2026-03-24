@@ -2,8 +2,8 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 
 export type RecordProduct = {
-  id: number;
-  timestamp: number;
+  id: string;
+  paidAt: number;
   name: string;
   price: number;
   qty: number;
@@ -11,8 +11,8 @@ export type RecordProduct = {
 };
 
 type Output = {
-  timestamp: number;
-  record_product_id: number;
+  record_paid_at: number;
+  record_product_id: string;
   record_product_name: string;
   record_product_qty: number;
   record_product_price: number;
@@ -22,10 +22,10 @@ type Output = {
 export function getHistory(start: number, end: number, query: string) {
   return DB.try((db) =>
     db.select<Output[]>(
-      `SELECT records.timestamp, record_product_id, record_product_name, record_product_qty, 
+      `SELECT records.paid_at, record_product_id, record_product_name, record_product_qty, 
          record_product_price, record_mode
          FROM record_products
-         INNER JOIN records ON records.timestamp = record_products.timestamp
+         INNER JOIN records ON records.record_id = record_products.record_id
          WHERE records.record_paid_at BETWEEN $1 AND $2 AND record_product_name LIKE '%' || LOWER($3) || '%'
          ORDER BY records.record_paid_at DESC`,
       [start, end, query.trim().toLowerCase()],
@@ -38,7 +38,7 @@ export function getHistory(start: number, end: number, query: string) {
         name: r.record_product_name,
         price: r.record_product_price,
         qty: r.record_product_qty,
-        timestamp: r.timestamp,
+        paidAt: r.record_paid_at,
       })),
     ),
   );

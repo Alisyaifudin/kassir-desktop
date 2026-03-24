@@ -1,7 +1,7 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
-import { Extra } from "~/database/extra/caches";
-import { Product } from "~/database/product/caches";
+import { Extra } from "~/database/extra/cache";
+import { Product } from "~/database/product/cache";
 
 export const dbItemsStore = createAtom({
   products: [] as Product[],

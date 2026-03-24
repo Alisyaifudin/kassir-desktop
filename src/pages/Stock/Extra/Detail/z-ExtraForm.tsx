@@ -2,7 +2,7 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { Spinner } from "~/components/Spinner";
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 import { ExtraForm as ExtraFormRoot } from "../z-ExtraForm";
 import { useUpdate } from "./use-update";
 

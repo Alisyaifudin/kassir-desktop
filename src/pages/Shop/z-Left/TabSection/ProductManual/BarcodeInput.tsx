@@ -3,7 +3,7 @@ import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { tx } from "~/transaction";
 import { Field } from "../z-Field";
-import { Product } from "~/database/product/caches";
+import { Product } from "~/database/product/cache";
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { forwardRef } from "react";

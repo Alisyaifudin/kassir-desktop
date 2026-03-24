@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Customer } from "~/database/customer/get-all";
+import { Customer } from "~/database/customer/cache";
 import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";
 import { TextError } from "~/components/TextError";

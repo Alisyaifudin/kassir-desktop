@@ -26,29 +26,38 @@ export type ImageResult =
   | {
       success: true;
       href: string;
-      id: number;
+      order: number;
+      id: string;
     }
   | {
       success: false;
+      order: number;
       href: undefined;
-      id: number;
+      id: string;
     };
 
+const HIGH_NUMBER = 10000;
 
-export function program(id: number) {
+export function program(id: string) {
   return Effect.gen(function* () {
     const imagesMeta = yield* db.image.get.byProductId(id);
     const images: ImageResult[] = yield* Effect.all(
-      imagesMeta.map((img) =>
-        image.load(img.name, img.mime).pipe(
+      imagesMeta.map((img, i) =>
+        image.load(img.id, img.mime).pipe(
           Effect.map((href) => ({
             success: true as const,
             href,
             id: img.id,
+            order: img.order,
           })),
           Effect.catchTag("IOError", (e) => {
             console.error(e);
-            return Effect.succeed({ success: false as const, href: undefined, id: img.id });
+            return Effect.succeed({
+              success: false as const,
+              order: HIGH_NUMBER + i,
+              href: undefined,
+              id: img.id,
+            });
           }),
         ),
       ),

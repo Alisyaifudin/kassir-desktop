@@ -7,7 +7,7 @@ import { image } from "~/lib/image";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 
-export function useAdd(id: number, onClose: () => void) {
+export function useAdd(productId: string, onClose: () => void) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -20,7 +20,7 @@ export function useAdd(id: number, onClose: () => void) {
   async function handleAdd() {
     if (file === null) return;
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(id, file));
+    const errMsg = await Effect.runPromise(program(productId, file));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -42,7 +42,7 @@ export function useAdd(id: number, onClose: () => void) {
   return { src, handleAdd, handleInput, loading, error, reset };
 }
 
-function program(id: number, file: File) {
+function program(productId: string, file: File) {
   return Effect.gen(function* () {
     if (file.size > 10 * 1e6) {
       return "Ukuran maksimum 10 MB";
@@ -56,7 +56,7 @@ function program(id: number, file: File) {
     }
     const mimeType = parsedMime.data;
     yield* image.save(file, name);
-    yield* db.image.add(name, mimeType, id);
+    yield* db.image.add.one({ name, mime: mimeType, productId });
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

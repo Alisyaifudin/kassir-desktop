@@ -70,7 +70,7 @@ function estCapital(capital: number, price: number, qty: number, total: number):
 }
 
 function program({ start, end, mode }: { start: number; end: number; mode: DB.Mode }) {
-  return db.product.get.byRange(start, end).pipe(
+  return db.product.get.allRange(start, end).pipe(
     Effect.map((products) => {
       let totalQty = 0;
       let profit = 0;

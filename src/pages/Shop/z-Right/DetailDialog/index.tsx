@@ -21,7 +21,7 @@ export function DetailDialog({
   index,
   name,
 }: {
-  productId: number;
+  productId: string;
   stock: number;
   name: string;
   index: number;

@@ -12,7 +12,7 @@ import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { useDel } from "./use-del";
 
-export function DeleteBtn({ name, id }: { name: string; id: number }) {
+export function DeleteBtn({ name, id }: { name: string; id: string }) {
   const { loading, handleDelete, error } = useDel(id);
   return (
     <Dialog>

@@ -1,15 +1,30 @@
+CREATE TABLE graves_kind (
+  v TEXT PRIMARY KEY
+) STRICT;
+
+INSERT INTO graves_kind (v) VALUES ('customer'), ('money_kind'), ('money'), 
+    ('social'), ('product'), ('image'), ('extra'), ('record');
+
+CREATE TABLE graves (
+  grave_id         TEXT PRIMARY KEY,
+  grave_item_id    TEXT NOT NULL,
+  grave_kind       TEXT NOT NULL REFERENCES graves_kind(v) ON DELETE CASCADE, 
+  grave_timestamp  INTEGER NOT NULL
+) STRICT;
+
 -----------------------------------------------------
 ALTER TABLE cashiers RENAME TO cashiers_old;
 ALTER TABLE money RENAME TO money_old;
 ALTER TABLE money_kind RENAME TO money_kind_old;
 ALTER TABLE socials RENAME TO socials_old;
 ALTER TABLE customers RENAME TO customers_old;
+ALTER TABLE methods RENAME TO methods_old;
 
 CREATE TABLE cashier_roles (
   v TEXT PRIMARY KEY
 ) STRICT;
 
-INSERT INTO cashier_roles (v) VALUES ("admin"), ("user");
+INSERT INTO cashier_roles (v) VALUES ('admin'), ('user');
 
 CREATE TABLE cashiers (
   cashier_id    TEXT PRIMARY KEY,
@@ -91,12 +106,30 @@ SELECT CAST(customer_id AS TEXT), customer_name, customer_phone,
        CAST(unixepoch('subsec') * 1000 AS INTEGER), null  
 FROM customers_old;
 
+CREATE TABLE methods (
+  method_id         TEXT PRIMARY KEY,
+  method_name       TEXT,
+  method_kind       TEXT NOT NULL REFERENCES method_enum(v),
+  method_deleted_at INTEGER,
+  method_updated_at INTEGER NOT NULL,
+  method_sync_at    INTEGER
+) STRICT;
+
+INSERT INTO methods (
+  method_id,
+  method_name,
+  method_kind,
+  method_updated_at,
+  method_sync_at
+)
+SELECT CAST(method_id AS TEXT), method_name, method_kind, CAST(unixepoch('subsec') * 1000 AS INTEGER), null
+FROM methods_old;
+
 -----------------------------------------------------
 ALTER TABLE record_extras RENAME TO record_extras_old;
 ALTER TABLE discounts RENAME TO discounts_old;
 ALTER TABLE record_products RENAME TO record_products_old;
 ALTER TABLE records RENAME TO records_old;
-ALTER TABLE methods RENAME TO methods_old;
 ALTER TABLE extras RENAME TO extras_old;
 ALTER TABLE images RENAME TO images_old;
 ALTER TABLE products RENAME TO products_old;
@@ -126,6 +159,7 @@ FROM products_old;
 -----------------------------------------------------
 CREATE TABLE images (
   image_id         TEXT PRIMARY KEY,
+  image_order      INTEGER NOT NULL,
   image_name       TEXT NOT NULL,
   image_mime       TEXT NOT NULL REFERENCES img_mimes(v),
   product_id       TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
@@ -135,6 +169,7 @@ CREATE TABLE images (
 
 INSERT INTO images (
   image_id, 
+  image_order,
   image_name, 
   image_mime, 
   product_id,
@@ -143,6 +178,7 @@ INSERT INTO images (
 )
 SELECT 
   CAST(img_id AS TEXT), 
+  image_id,-- use to be used as order also, because it was serial
   img_name, 
   img_mime, 
   CAST(product_id AS TEXT), 
@@ -171,27 +207,6 @@ INSERT INTO extras (
 SELECT CAST(extra_id AS TEXT), extra_name, extra_value, extra_kind, CAST(unixepoch('subsec') * 1000 AS INTEGER), null
 FROM extras_old;
 
-
------------------------------------------------------
-CREATE TABLE methods (
-  method_id         TEXT PRIMARY KEY,
-  method_name       TEXT,
-  method_kind       TEXT NOT NULL REFERENCES method_enum(v),
-  method_deleted_at INTEGER,
-  method_updated_at INTEGER NOT NULL,
-  method_sync_at    INTEGER
-) STRICT;
-
-INSERT INTO methods (
-  method_id,
-  method_name,
-  method_kind,
-  method_updated_at,
-  method_sync_at
-)
-SELECT CAST(method_id AS TEXT), method_name, method_kind, CAST(unixepoch('subsec') * 1000 AS INTEGER), null
-
-FROM methods_old;
 
 -----------------------------------------------------
 CREATE TABLE records (
@@ -342,8 +357,8 @@ DROP TABLE record_extras_old;
 DROP TABLE discounts_old;
 DROP TABLE record_products_old;
 DROP TABLE records_old;
-DROP TABLE methods_old;
 DROP TABLE extras_old;
+DROP TABLE methods_old;
 DROP TABLE images_old;
 DROP TABLE products_old;
 DROP TABLE customers_old;

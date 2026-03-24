@@ -91,3 +91,13 @@ export class InvalidCredential {
   readonly _tag = "InvalidCredential";
   constructor(readonly msg: string) {}
 }
+
+export class DuplicateError {
+  readonly _tag = "DuplicateError";
+  constructor(public name: string) {}
+}
+
+export class ManyDuplicateError {
+  readonly _tag = "ManyDuplicateError";
+  constructor(public products: { new: string; current: string }[]) {}
+}

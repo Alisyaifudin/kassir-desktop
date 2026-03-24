@@ -33,7 +33,7 @@ function loader({
   setPage: (page: number) => void;
 }) {
   return pipe(
-    db.product.get.history(id, (page - 1) * LIMIT, LIMIT, mode),
+    db.product.get.historyBefore(id, (page - 1) * LIMIT, LIMIT, mode),
     Effect.flatMap(({ histories, total }) => {
       const totalPage = Math.ceil(total / LIMIT);
       if (totalPage > 0 && page > totalPage) {

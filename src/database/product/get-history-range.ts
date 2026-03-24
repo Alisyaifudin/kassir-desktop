@@ -14,15 +14,15 @@ type Output = {
   record_mode: DB.Mode;
 };
 
-export function getHistoryRange(id: number, start: number, end: number) {
+export function getHistoryRange(id: string, start: number, end: number) {
   return DB.try((db) =>
     db.select<Output[]>(
       `SELECT records.record_paid_at, record_product_qty, record_mode
-					FROM record_products 
-          INNER JOIN records ON records.timestamp = record_products.timestamp
-					WHERE product_id = $1 AND records.record_paid_at BETWEEN $2 AND $3
-					ORDER BY records.record_paid_at DESC
-					`,
+       FROM record_products 
+       INNER JOIN records ON records.record_id = record_products.record_id
+       WHERE product_id = $1 AND records.record_paid_at BETWEEN $2 AND $3
+       ORDER BY records.record_paid_at DESC
+      `,
       [id, start, end],
     ),
   ).pipe(

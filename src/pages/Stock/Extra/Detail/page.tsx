@@ -1,6 +1,6 @@
 import { Info } from "./z-Info";
 import { ExtraForm } from "./z-ExtraForm";
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 import { useData } from "./use-data";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
@@ -9,7 +9,7 @@ import { NotFound } from "~/components/NotFound";
 import { useUser } from "~/hooks/use-user";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export default function Page({ id }: { id: number }) {
+export default function Page({ id }: { id: string }) {
   return (
     <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
       <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
@@ -19,7 +19,7 @@ export default function Page({ id }: { id: number }) {
   );
 }
 
-function Loader({ id }: { id: number }) {
+function Loader({ id }: { id: string }) {
   const res = useData(id);
   return Result.match(res, {
     onLoading() {

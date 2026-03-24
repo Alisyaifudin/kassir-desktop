@@ -1,6 +1,7 @@
-import { getCache, setCache } from "./caches";
+import { cache } from "./cache";
 import { DB } from "../instance";
 import { Effect } from "effect";
+import { generateId } from "~/lib/random";
 
 type Input = {
   name: string;
@@ -9,22 +10,24 @@ type Input = {
 };
 
 export function add({ name, value, kind }: Input) {
+  const now = Date.now();
+  const id = generateId();
   return Effect.gen(function* () {
-    const res = yield* DB.try((db) =>
-      db.execute(`INSERT INTO extras (extra_name, extra_value, extra_kind) VALUES ($1, $2, $3)`, [
-        name,
-        value,
-        kind,
-      ]),
+    yield* DB.try((db) =>
+      db.execute(
+        `INSERT INTO extras (extra_id, extra_name, extra_value, extra_kind, extra_update_at, extra_sync_at) 
+        VALUES ($1, $2, $3, $4, $5, null)`,
+        [id, name, value, kind, now],
+      ),
     );
-    const id = res.lastInsertId;
-    if (id === undefined) {
-      setCache(null);
-    } else {
-      const cache = getCache();
-      if (cache !== null) {
-        setCache((prev) => [...prev, { id, name, value, kind }]);
-      }
-    }
+    cache.update(id, {
+      id,
+      name,
+      value,
+      kind,
+      updatedAt: now,
+      syncAt: null,
+    });
+    return id;
   });
 }

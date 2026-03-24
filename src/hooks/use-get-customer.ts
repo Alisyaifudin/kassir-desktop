@@ -5,7 +5,7 @@ const KEY = "customers";
 
 export function useGetCustomers() {
   const res = Result.use({
-    fn: () => db.customer.getAll(),
+    fn: () => db.customer.get.all(),
     key: KEY,
   });
   return res;

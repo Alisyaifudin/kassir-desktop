@@ -1,7 +1,7 @@
 import { Input } from "~/components/ui/input";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { memo } from "react";
-import { Customer } from "~/database/customer/get-all";
+import { Customer } from "~/database/customer/cache";
 import { Show } from "~/components/Show";
 import { Loader2 } from "lucide-react";
 import { TextError } from "~/components/TextError";

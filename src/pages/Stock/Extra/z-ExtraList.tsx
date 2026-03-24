@@ -3,7 +3,7 @@ import { TableBody, TableCell, TableRow } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
 import { Link } from "react-router";
 import { useInterval } from "../use-interval";
-import { Extra } from "~/database/extra/caches";
+import { Extra } from "~/database/extra/cache";
 import { useFilterExtras } from "./use-filter-extras";
 import { cn } from "~/lib/utils";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";

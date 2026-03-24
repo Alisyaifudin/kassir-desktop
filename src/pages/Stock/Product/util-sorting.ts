@@ -1,4 +1,4 @@
-import { Product } from "~/database/product/caches";
+import { Product } from "~/database/product/cache";
 
 export function sorting(
   products: Product[],

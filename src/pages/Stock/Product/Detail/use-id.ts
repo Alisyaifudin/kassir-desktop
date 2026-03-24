@@ -6,7 +6,7 @@ export function useId() {
     typeof context === "object" &&
     context !== null &&
     "id" in context &&
-    typeof context.id === "number"
+    typeof context.id === "string"
   )
     return context.id;
   console.error(context);

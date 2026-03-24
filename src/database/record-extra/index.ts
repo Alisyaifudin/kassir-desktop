@@ -1,9 +1,9 @@
 import { getByRange } from "./get-by-range";
-import { getByTimestamp } from "./get-by-timestamp";
+import { getByRecordId } from "./get-by-record-id";
 
 export const recordExtra = {
   get: {
     byRange: getByRange,
-    byTimestamp: getByTimestamp,
+    ByRecordId: getByRecordId,
   },
 };
