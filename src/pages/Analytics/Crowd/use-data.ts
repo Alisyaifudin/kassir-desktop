@@ -56,7 +56,7 @@ function program({ start, end, time }: { time: number; start: number; end: numbe
       setSummary({
         loading: false,
         daily: daily.visitors.length === 0 ? 0 : Decimal.sum(...daily.visitors).toNumber(),
-        weekly: weekly.visitors.length === 0 ? 0 : Decimal.sum(...daily.visitors).toNumber(),
+        weekly: weekly.visitors.length === 0 ? 0 : Decimal.sum(...weekly.visitors).toNumber(),
       });
       return { daily, weekly };
     }),
