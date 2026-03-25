@@ -45,28 +45,46 @@ export function useSubmit() {
     setLoading(true);
     const either = await Effect.runPromise(
       submit(isCredit).pipe(
-        Effect.catchTag("NotEnoughError", (e) => Effect.fail(e.message)),
-        Effect.catchTag("DbError", ({ e }) => {
-          log.error(e);
-          return Effect.fail("Aplikasi bermasalah");
-        }),
         Effect.either,
       ),
     );
     setLoading(false);
     Either.match(either, {
       onLeft(left) {
-        toast.error(left);
+        switch (left._tag) {
+          case "DbError":
+            log.error(left.e);
+            toast.error(left.e.message);
+            break;
+          case "NotEnoughError":
+            log.error(left.message);
+            toast.error(left.message);
+            break;
+          case "ManyDuplicateError":
+            toast.error(formatDuplicates(left.products));
+            break;
+        }
       },
-      onRight({ change, grandTotal, timestamp }) {
+      onRight({ change, grandTotal, recordId }) {
         setComplete({
           open: true,
           grandTotal,
           change,
-          timestamp,
+          recordId,
         });
       },
     });
   }
   return { loading, handleSubmit };
+}
+
+function formatDuplicates(
+  errors: {
+    new: string;
+    current: string;
+  }[],
+) {
+  return errors
+    .map((error) => `Barang ${error.new} duplikat dengan ${error.current} di stok`)
+    .join("\n");
 }

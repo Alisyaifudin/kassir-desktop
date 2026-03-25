@@ -5,7 +5,7 @@ import { memo } from "react";
 import { cn } from "~/lib/utils";
 import { Show } from "~/components/Show";
 import { DeleteBtn } from "./z-DeleteBtn";
-import { Social } from "~/database/social/get-all";
+import { Social } from "~/database/social/cache";
 import { useUpdate } from "./use-update";
 import { Field, FieldError } from "~/components/ui/field";
 

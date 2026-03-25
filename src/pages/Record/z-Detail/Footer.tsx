@@ -8,8 +8,8 @@ import { METHOD_NAMES } from "~/lib/constants";
 export function Footer({ record, extras }: { record: Record; extras: RecordExtra[] }) {
   return (
     <div className="flex flex-col items-end">
-      <Show when={record.subTotal !== record.grandTotal && record.subTotal !== 0}>
-        <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
+      <Show when={record.subtotal !== record.grandTotal && record.subtotal !== 0}>
+        <p className="text-end">Rp{record.subtotal.toLocaleString("id-ID")}</p>
       </Show>
       <Show when={extras.length > 0}>
         <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>

@@ -7,10 +7,10 @@ export type Product = {
   name: string;
   stock: number;
   capital: number;
+  note: string;
 };
 
 export type ProductFull = Product & {
-  note: string;
   updatedAt: number;
   syncAt: number | null;
 };

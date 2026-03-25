@@ -37,22 +37,22 @@ export const Container = memo(function Container({
   );
 });
 const Wrapper = memo(function Wrapper({ index, id }: Props) {
-  const { name, stock, product } = useSelector(
+  const product = useSelector(
     productsStore,
-    (state) => state.context.find((c) => c.id === id)!,
+    (state) => state.context.find((c) => c.id === id)?.product,
   );
   return (
     <div className="flex flex-col items-center gap-2">
       <Show
-        value={product?.id}
+        value={product}
         fallback={
           <div className="w-8 h-8 rounded-full bg-muted/20 flex items-center justify-center text-small font-bold text-muted-foreground">
             {index + 1}
           </div>
         }
       >
-        {(productId) => (
-          <DetailDialog index={index} productId={productId} stock={stock} name={name} />
+        {(product) => (
+          <DetailDialog index={index} product={product} />
         )}
       </Show>
       <Move id={id} index={index} />

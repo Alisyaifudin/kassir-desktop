@@ -52,7 +52,7 @@ export function Selected({
       setError(null);
       setNames([]);
       for (const product of data.products) {
-        yield* db.product.add(product).pipe(
+        yield* db.product.add.external(product).pipe(
           Effect.catchTag("DuplicateError", (e) => {
             addDuplicate(e.name);
             return Effect.void;

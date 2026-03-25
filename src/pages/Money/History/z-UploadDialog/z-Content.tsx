@@ -9,7 +9,7 @@ import { Selected } from "./z-Selected";
 import { Show } from "~/components/Show";
 import { Loading } from "./z-Loading";
 
-export function Content({ kindId }: { kindId: number }) {
+export function Content({ kindId }: { kindId: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const [loading, setLoading] = useState(false);

@@ -4,7 +4,7 @@ import { History } from "./History";
 import { ProductForm } from "./ProductForm";
 import { useProduct } from "./use-product";
 import { UserInfo } from "./z-UserInfo";
-import { Product } from "~/database/product/get-by-id";
+import { Product } from "~/database/product/cache";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { NotFound } from "~/components/NotFound";

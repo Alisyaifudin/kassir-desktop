@@ -5,7 +5,7 @@ const KEY = "socials";
 
 export function useData() {
   const res = Result.use({
-    fn: () => db.social.getAll(),
+    fn: () => db.social.get.all(),
     key: KEY,
   });
   return res;

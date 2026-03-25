@@ -22,23 +22,29 @@ export function buildHeaderSection(info: Info, record: ReceiptData["record"]) {
     text: info.address,
   };
   const textData: TextData[] = [ownerTextData, headerTextData, addressTextData];
-  // Cashier info (if enabled)
+  // Order number
+  const orderNo = "No: " + record.id;
+  textData.push({
+    kind: "long",
+    text: orderNo,
+    size: "normal",
+  });
+  const datetime = formatDate(record.paidAt, "short") + ", " + formatTime(record.paidAt, "short");
+  // Cashier info (if enabled) and datetime
   if (info.showCashier) {
     const cashier = "Kasir: " + capitalize(record.cashier);
     textData.push({
-      text: cashier,
+      kind: "spacebetween",
       size: "normal",
-      kind: "long",
+      text: [cashier, datetime],
+    });
+  } else {
+    textData.push({
+      kind: "end",
+      text: datetime,
+      size: "normal",
     });
   }
 
-  // Order number and date
-  const orderNo = "No: " + record.timestamp.toString();
-  const datetime = formatDate(record.paidAt, "short") + ", " + formatTime(record.paidAt, "short");
-  textData.push({
-    kind: "spacebetween",
-    text: [orderNo, datetime],
-    size: "normal",
-  });
   return textData;
 }

@@ -18,9 +18,6 @@ export function useData() {
   const res = Result.use({
     fn: () => program({ start, end, mode }),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
     deps: [start, end, mode, interval],
   });
   return res;

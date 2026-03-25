@@ -51,8 +51,8 @@ export function useFreshForm() {
 function program(name: string, password: string) {
   return Effect.gen(function* () {
     const hash = yield* auth.hash(password);
-    yield* db.cashier.add({ name, role: "admin", hash });
-    return { name, role: "admin" } as const;
+    const id = yield* db.cashier.add({ name, role: "admin", hash });
+    return { id, name, role: "admin" } as const;
   }).pipe(
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

@@ -10,20 +10,19 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
 import { FilterBtn } from "./FilterBtn";
 import { Show } from "~/components/Show";
-import { MethodFull } from "~/database/method/get-all";
+import type { Method } from "~/database/method/cache";
 import { TextError } from "~/components/TextError";
 import { useGetMethods } from "~/hooks/use-get-methods";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
-import { DEFAULT_METHODS, METHOD_NAMES } from "~/lib/constants";
+import { METHOD_NAMES } from "~/lib/constants";
 import { setMethods, useMethod, useMethods } from "../use-method";
 import { cn } from "~/lib/utils";
 import { Skeleton } from "~/components/ui/skeleton";
 
 export function Filter() {
   const res = useGetMethods((methods) => {
-    const combined = [...methods, ...DEFAULT_METHODS];
-    setMethods(combined);
+    setMethods(methods);
   });
   return Result.match(res, {
     onLoading() {
@@ -51,7 +50,7 @@ function Loading() {
 function Wrapper() {
   const [method, setMethod] = useMethod();
   const methods = useMethods();
-  const handleClick = (id: number) => {
+  const handleClick = (id: string) => {
     setMethod(id);
   };
   const handleClear = () => {
@@ -124,7 +123,7 @@ function Wrapper() {
   );
 }
 
-function groupMethods(methods: MethodFull[]): { top: MethodFull; options: MethodFull[] }[] {
+function groupMethods(methods: Method[]): { top: Method; options: Method[] }[] {
   return [
     filterMethod("cash", methods),
     filterMethod("transfer", methods),
@@ -132,7 +131,7 @@ function groupMethods(methods: MethodFull[]): { top: MethodFull; options: Method
     filterMethod("qris", methods),
   ];
 }
-function filterMethod(name: DB.MethodEnum, methods: MethodFull[]) {
+function filterMethod(name: DB.MethodEnum, methods: Method[]) {
   const top = methods.find((m) => m.kind === name && m.name === undefined);
   if (top === undefined) throw new Error("No " + name);
   const options = methods.filter((m) => m.kind === name && m.name !== undefined);

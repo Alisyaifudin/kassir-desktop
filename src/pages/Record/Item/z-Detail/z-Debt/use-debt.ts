@@ -17,11 +17,11 @@ const schema = z.object({
 });
 
 export function useDebt({
-  timestamp,
+  recordId,
   onClose,
   grandTotal,
 }: {
-  timestamp: number;
+  recordId: string;
   grandTotal: number;
   onClose: () => void;
 }) {
@@ -42,7 +42,7 @@ export function useDebt({
         setError("Pembayaran tidak cukup, minimal " + totalPay.toNumber().toLocaleString("id-ID"));
         return;
       }
-      const errMsg = await Effect.runPromise(program({ timestamp, rounding, pay }));
+      const errMsg = await Effect.runPromise(program({ id: recordId, rounding, pay }));
       setError(errMsg);
       if (errMsg === null) {
         revalidate();
@@ -66,7 +66,7 @@ export function useDebt({
   return { error, form, loading, change, total };
 }
 
-function program(args: { pay: number; rounding: number; timestamp: number }) {
+function program(args: { pay: number; rounding: number; id: string }) {
   return db.record.update.payCredit(args).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {

@@ -8,13 +8,10 @@ import { Effect } from "effect";
 
 const KEY = "record-item";
 
-export function useData(timestamp: number) {
+export function useData(id: string) {
   const res = Result.use({
-    fn: () => loadDetailRecord(timestamp),
+    fn: () => loadDetailRecord(id),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }
@@ -34,13 +31,13 @@ export type RecordData = {
   extras: RecordExtra[];
 };
 
-export function loadDetailRecord(timestamp: number) {
+export function loadDetailRecord(id: string) {
   return Effect.gen(function* () {
     const [r, products, extras] = yield* Effect.all(
       [
-        db.record.get.byTimestamp(timestamp),
-        db.recordProduct.get.byTimestamp(timestamp),
-        db.recordExtra.get.byTimestamp(timestamp),
+        db.record.get.byId(id),
+        db.recordProduct.get.byRecordId(id),
+        db.recordExtra.get.ByRecordId(id),
       ],
       { concurrency: "unbounded" },
     );
@@ -49,7 +46,7 @@ export function loadDetailRecord(timestamp: number) {
     const data: RecordData = {
       record: {
         ...r,
-        subTotal: Number(r.subTotal.toFixed(r.fix)),
+        subtotal: Number(r.subtotal.toFixed(r.fix)),
         total: Number(r.total.toFixed(r.fix)),
         grandTotal: Number(grandTotal.toFixed(r.fix)),
         change: Number(change.toFixed(r.fix)),

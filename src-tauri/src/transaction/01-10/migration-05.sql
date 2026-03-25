@@ -103,14 +103,14 @@ CREATE TABLE extras (
   db_extra_id     TEXT,
   extra_kind      TEXT NOT NULL CHECK (extra_kind IN ('percent', 'number')),
   extra_name      TEXT NOT NULL,
-  extra_value     REAL NOT NULL,
+  extra_value     REAL NOT NULL
 ) STRICT;
 
 INSERT INTO extras (
-  extra_id, tab, db_extra_id, extra_kind, extra_name, extra_value, extra_is_saved
+  extra_id, tab, db_extra_id, extra_kind, extra_name, extra_value
 )
 SELECT 
-  extra_id, tab, CAST(db_extra_id AS TEXT), extra_kind, extra_name, extra_value, extra_is_saved
+  extra_id, tab, CAST(db_extra_id AS TEXT), extra_kind, extra_name, extra_value
 FROM extras_old;
 
 -- Create indexes for better query performance

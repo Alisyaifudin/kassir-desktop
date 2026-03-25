@@ -7,7 +7,7 @@ import { log } from "~/lib/log";
 export function useLinkProduct(product: RecordData["products"][number]) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
-  const handleClick = (productId: number) => async () => {
+  const handleClick = (productId: string) => async () => {
     const selected = product.productId === productId ? null : productId;
     setLoading(true);
     const errMsg = await Effect.runPromise(program(product.id, selected));
@@ -20,7 +20,7 @@ export function useLinkProduct(product: RecordData["products"][number]) {
   return { handleClick, loading, error };
 }
 
-function program(id: number, selected: number | null) {
+function program(id: string, selected: string | null) {
   return db.recordProduct.update.productId(id, selected).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {

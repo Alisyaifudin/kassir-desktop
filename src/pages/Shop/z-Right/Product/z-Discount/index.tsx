@@ -38,17 +38,17 @@ export const Discount = memo(function Discount({
           <Plus className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Kelola Diskon</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-4">
-          <div className="grid grid-cols-[1fr_110px_50px] gap-2 items-center font-semibold text-sm text-muted-foreground px-1">
+          <div className="grid grid-cols-[1fr_150px_50px] small:grid-cols-[1fr_110px_50px] gap-2 items-center font-semibold text-sm text-muted-foreground px-1">
             <span>Nilai</span>
             <span>Jenis</span>
             <span></span>
           </div>
-          <div className="gap-2 grid items-center grid-cols-[1fr_110px_50px] max-h-[40vh] overflow-y-auto p-1">
+          <div className="gap-2 grid items-center grid-cols-[1fr_150px_50px] small:grid-cols-[1fr_110px_50px] max-h-[40vh] overflow-y-auto p-1">
             <ForEach items={discounts}>{(disc) => <DiscForm id={id} discount={disc} />}</ForEach>
           </div>
           <Add productId={id} />

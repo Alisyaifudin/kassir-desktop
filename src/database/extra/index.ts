@@ -1,4 +1,5 @@
 import { add } from "./add";
+import { cache } from "./cache";
 import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
 import { all } from "./get-all";
@@ -25,5 +26,6 @@ export const extra = {
   add: {
     one: add,
   },
-  upsert
+  upsert,
+  revalidate: cache.revalidate,
 };

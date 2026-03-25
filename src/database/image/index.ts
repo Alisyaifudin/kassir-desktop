@@ -6,6 +6,7 @@ import { getByProductId } from "./get-by-product-id";
 import { swap } from "./swap";
 import { sync } from "./sync";
 import { getAllUnsync } from "./get-all-unsync";
+import { revalidateCache } from "./cache";
 
 export const image = {
   get: {
@@ -24,4 +25,5 @@ export const image = {
     swap,
   },
   upsert,
+  revalidate: revalidateCache,
 };

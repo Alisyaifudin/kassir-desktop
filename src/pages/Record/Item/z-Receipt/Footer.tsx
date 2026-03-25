@@ -1,6 +1,6 @@
 import { Show } from "~/components/Show";
-import {  MethodFull } from "~/database/method/get-all";
-import { Social } from "~/database/social/get-all";
+import { Method } from "~/database/method/cache";
+import { Social } from "~/database/social/cache";
 import { METHOD_NAMES } from "~/lib/constants";
 
 export function Footer({
@@ -15,7 +15,7 @@ export function Footer({
   socials: Social[];
   totalProductTypes: number;
   totalQty: number;
-  method: MethodFull;
+  method: Method;
   customer: { name: string; phone: string };
 }) {
   const phone = "xxxxxxx" + customer.phone.slice(-5, -1);
@@ -41,6 +41,8 @@ export function Footer({
             {h}
           </p>
         ))}
+      </div>
+      <div>
         {socials.map((s) => (
           <p key={s.id}>
             {s.name}: {s.value}

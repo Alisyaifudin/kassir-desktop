@@ -22,6 +22,7 @@ const productSchema = z.object({
   capital: z.number(),
   capitalRaw: z.number(),
   total: z.number(),
+  productId: z.string().optional(),
   discounts: z.array(discountSchema),
 });
 
@@ -35,16 +36,13 @@ const schema = z.object({
   mode: z.enum(["sell", "buy"]),
   pay: z.number(),
   note: z.string(),
-  method: z.object({
-    name: z.string().optional(),
-    kind: z.enum(["cash", "transfer", "debit", "qris"]),
-  }),
+  methodId: z.string().nonempty(),
   fix: z.number().int(),
   customer: z.object({
     name: z.string(),
     phone: z.string(),
   }),
-  subTotal: z.number(),
+  subtotal: z.number(),
   total: z.number(),
 });
 

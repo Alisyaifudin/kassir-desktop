@@ -5,7 +5,7 @@ import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
-import { Social } from "~/database/social/get-all";
+import { Social } from "~/database/social/cache";
 import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
 const schema = z.object({
@@ -38,9 +38,9 @@ export function useUpdate({ id, name, value }: Social) {
   };
 }
 
-function program(id: number, { name, value }: { name: string; value: string }) {
+function program(id: string, { name, value }: { name: string; value: string }) {
   return Effect.gen(function* () {
-    yield* db.social.update(id, name, value);
+    yield* db.social.update.one(id, name, value);
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

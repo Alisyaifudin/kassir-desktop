@@ -14,17 +14,17 @@ import { useDelete } from "./use-delete";
 import { DataRecord } from "../use-records";
 
 export function DeleteBtn({
-  timestamp,
+  recordId,
   mode,
   products,
 }: {
-  timestamp: number;
+  recordId: string;
   mode: DB.Mode;
   products: DataRecord["products"];
 }) {
   const [open, setOpen] = useState(false);
   const { error, loading, handleDelete } = useDelete({
-    timestamp,
+    id: recordId,
     mode,
     products,
     onClose: () => setOpen(false),

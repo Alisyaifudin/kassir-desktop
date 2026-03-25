@@ -18,7 +18,7 @@ export const DeleteBtn = memo(function DeleteBtn({
   name,
   value,
 }: {
-  id: number;
+  id: string;
   name: string;
   value: string;
 }) {

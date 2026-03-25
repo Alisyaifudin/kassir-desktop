@@ -15,8 +15,8 @@ export const Summary = memo(function Summary({
 }) {
   return (
     <div className="flex flex-col items-end">
-      <Show when={record.subTotal !== record.grandTotal && productLength > 0}>
-        <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
+      <Show when={record.subtotal !== record.grandTotal && productLength > 0}>
+        <p className="text-end">Rp{record.subtotal.toLocaleString("id-ID")}</p>
       </Show>
       <Show when={extras.length > 0}>
         <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>

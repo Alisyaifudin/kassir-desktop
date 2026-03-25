@@ -40,6 +40,7 @@ export class CacheItem<T extends { id: string }> {
     this._all = null;
   }
   revalidate() {
+    if (this._cache === undefined || this._all === undefined) return;
     this._cache.clear();
     this._all = null;
   }

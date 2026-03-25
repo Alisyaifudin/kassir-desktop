@@ -4,13 +4,15 @@ import { db } from "~/database";
 import { image } from "~/lib/image";
 import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
+import { useId } from "../use-id";
 
 export function useDel(id: string, onClose: () => void) {
   const [loading, setLoading] = useState(false);
+  const productId = useId()
   const [error, setError] = useState<null | string>(null);
   async function handleDelete() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(id));
+    const errMsg = await Effect.runPromise(program(productId, id));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -21,9 +23,9 @@ export function useDel(id: string, onClose: () => void) {
   return { handleDelete, loading, error };
 }
 
-function program(id: string) {
+function program(productId: string, id: string) {
   return Effect.gen(function* () {
-    yield* db.image.del.byId(id);
+    yield* db.image.del.byId(productId, id);
     yield* image.del(id);
     return null;
   }).pipe(

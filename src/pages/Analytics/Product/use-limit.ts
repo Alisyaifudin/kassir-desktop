@@ -5,10 +5,12 @@ export function useLimit() {
   const [search, setSearch] = useSearchParams();
   const limit = integer.catch(100).parse(search.get("limit"));
   const setLimit = (func: (limit: number) => number) => {
-    const l = func(limit);
-    const s = new URLSearchParams(window.location.search);
-    s.set("limit", l.toString());
-    setSearch(s);
+    setSearch((old) => {
+      const l = func(limit);
+      const s = new URLSearchParams(old);
+      s.set("limit", l.toString());
+      return s;
+    });
   };
   return [limit, setLimit] as const;
 }

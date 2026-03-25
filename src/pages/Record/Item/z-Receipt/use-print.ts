@@ -49,9 +49,5 @@ export function usePrint() {
       window.removeEventListener("keydown", printWebView);
     };
   }, [printRef]);
-  // const printWebView = () => {
-  //   document.documentElement.style.setProperty("--paper-width", `72`);
-  //   window.print();
-  // };
   return [printRef] as const;
 }

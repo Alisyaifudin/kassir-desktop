@@ -2,7 +2,7 @@ import { db } from "~/database";
 import { store } from "~/store";
 import { Result } from "~/lib/result";
 import { Effect } from "effect";
-import { Social } from "~/database/social/get-all";
+import { Social } from "~/database/social/cache";
 
 const KEY = "receipt-info";
 
@@ -29,7 +29,7 @@ export function revalidateInfo() {
 
 function loader() {
   return Effect.gen(function* () {
-    const [info, socials] = yield* Effect.all([store.info.get(), db.social.getAll()], {
+    const [info, socials] = yield* Effect.all([store.info.get(), db.social.get.all()], {
       concurrency: "unbounded",
     });
 

@@ -10,6 +10,7 @@ export type ImageFull = Image & {
   updatedAt: number;
   syncAt: number | null;
 };
+
 const cache: Map<string, ImageFull[]> = new Map();
 
 export function getCache(productId: string) {

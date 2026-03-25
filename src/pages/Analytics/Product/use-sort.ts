@@ -6,10 +6,12 @@ export function useSort() {
   const sortBy = z.enum(["name", "qty"]).catch("name").parse(search.get("sort-by"));
   const sortDir = z.enum(["asc", "desc"]).catch("asc").parse(search.get("sort-dir"));
   const setSort = (by: "name" | "qty", dir: "asc" | "desc") => {
-    const s = new URLSearchParams(window.location.search);
-    s.set("sort-by", by);
-    s.set("sort-dir", dir);
-    setSearch(s);
+    setSearch((old) => {
+      const s = new URLSearchParams(old);
+      s.set("sort-by", by);
+      s.set("sort-dir", dir);
+      return s;
+    });
   };
   return [{ sortBy, sortDir }, setSort] as const;
 }

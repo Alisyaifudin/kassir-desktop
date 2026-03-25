@@ -5,12 +5,12 @@ import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { revalidateMoney } from "../use-data";
 
-export function useDeleteRecord(timestamp: number, onClose: () => void) {
+export function useDeleteRecord(id: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   async function handleDelete() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp));
+    const errMsg = await Effect.runPromise(program(id));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -22,8 +22,8 @@ export function useDeleteRecord(timestamp: number, onClose: () => void) {
   return { loading, error, handleDelete };
 }
 
-function program(timestamp: number) {
-  return db.money.delete.byTimestamp(timestamp).pipe(
+function program(id: string) {
+  return db.money.delete.byId(id).pipe(
     Effect.as(null),
     Effect.catchAll(({ e }) => {
       log.error(e);

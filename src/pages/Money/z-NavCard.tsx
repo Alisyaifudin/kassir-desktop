@@ -4,10 +4,11 @@ import { Clock } from "lucide-react";
 import { Show } from "~/components/Show";
 
 interface NavCardProps {
-  kindId: number;
-  kind: string;
-  timestamp?: number;
-  value?: number;
+  timestamp: number | undefined;
+  value: number | undefined;
+  name: string;
+  id: string;
+  type: DB.MoneyType;
 }
 
 function formatCurrency(value: number): string {
@@ -31,16 +32,15 @@ function formatRelativeTime(timestamp: number): string {
   return `${days} hari yang lalu`;
 }
 
-export function NavCard({ kind, kindId, timestamp, value }: NavCardProps) {
+export function NavCard({ id, name, timestamp, value }: NavCardProps) {
   const urlBack = useGenerateUrlBack("/money");
-
   return (
     <Link
-      to={{ pathname: `/money/${kindId}`, search: `url_back=${encodeURIComponent(urlBack)}` }}
+      to={{ pathname: `/money/${id}`, search: `url_back=${encodeURIComponent(urlBack)}` }}
       className="group flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800/50"
     >
       <div className="flex flex-col gap-1.5">
-        <h3 className="font-medium text-slate-900 dark:text-slate-100">{kind}</h3>
+        <h3 className="font-medium text-slate-900 dark:text-slate-100">{name}</h3>
         <Show value={timestamp} fallback={<div>Masih kosong</div>}>
           {(timestamp) => (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">

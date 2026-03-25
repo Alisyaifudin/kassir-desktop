@@ -5,11 +5,8 @@ const KEY = "money";
 
 export function useData() {
   const res = Result.use({
-    fn: () => db.money.get.allKind(),
+    fn: () => db.moneyKind.get.all(),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }

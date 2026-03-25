@@ -28,8 +28,8 @@ pub fn generate_migration() -> Vec<Migration> {
         },
         Migration {
             version: 5,
-            description: "change method id and customer id to text",
-            sql: include_str!("../../src/transaction/01-10/migration-04.sql"),
+            description: "change_method_id_and_customer_id_to_text",
+            sql: include_str!("../../src/transaction/01-10/migration-05.sql"),
             kind: MigrationKind::Up,
         },
     ];

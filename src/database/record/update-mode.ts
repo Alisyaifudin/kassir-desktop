@@ -75,7 +75,7 @@ export function updateMode(recordId: string, mode: DB.Mode) {
     const binds: (string | number | null)[] = [];
     let bindIndex = 1;
 
-    sql += `UPDATE records SET record_mode = $${bindIndex++}, record_updated_at = $${bindIndex++} 
+    sql += `UPDATE records SET record_mode = $${bindIndex++}, record_updated_at = $${bindIndex++},
     record_sync_at = $${bindIndex++} WHERE record_id = $${bindIndex++};\n`;
     binds.push(mode, now, null, recordId);
 
@@ -96,7 +96,7 @@ export function updateMode(recordId: string, mode: DB.Mode) {
         let updatedStock = p.stock - 2 * p.qty;
         if (updatedStock < 0) updatedStock = 0;
 
-        sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++} 
+        sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++},
         product_updated_at = $${bindIndex++}, product_sync_at = $${bindIndex++} 
         WHERE product_id = $${bindIndex++};\n`;
         binds.push(updatedStock, p.prevCapital, now, null, p.id);

@@ -1,7 +1,7 @@
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
-import { Product } from "~/database/product/get-by-id";
+import { Product } from "~/database/product/cache";
 import { useUpdate } from "./use-update";
 import { ProductForm as ProductFormRoot } from "../../../z-ProductForm";
 import { DeleteBtn } from "./z-DeleteBtn";

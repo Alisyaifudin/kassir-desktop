@@ -18,11 +18,6 @@ import { db } from "~/database";
 import { useState } from "react";
 import { toast } from "sonner";
 import { programPrint } from "~/pages/setting/Printer/util-program-print";
-// import { useState } from "react";
-// import { Effect } from "effect";
-// import { db } from "~/database";
-// import { programPrint } from "~/pages/setting/Printer/use-test";
-// import { toast } from "sonner";
 
 export function Receipt({ data }: { data: RecordData }) {
   const res = useInfo();
@@ -47,7 +42,7 @@ function Wrapper({ data: { extras, products, record }, info }: { data: RecordDat
     setLoading(true);
     const errMsg = await Effect.runPromise(
       Effect.gen(function* () {
-        const socials = yield* db.social.getAll();
+        const socials = yield* db.social.get.all();
         yield* programPrint({
           record,
           products,
@@ -92,12 +87,13 @@ function Wrapper({ data: { extras, products, record }, info }: { data: RecordDat
       <div className="border pt-5">
         <div id="print-container" className="flex flex-col gap-2 px-2 pb-5">
           <Header
+            paidAt={record.paidAt}
             address={info.address}
             cashier={record.cashier}
             headers={headers}
             owner={info.owner}
             showCashier={info.showCashier}
-            timestamp={record.timestamp}
+            recordId={record.id}
           />
           <hr className="h-1 bg-transparent border-t-2 border-dashed border-black" />
           <Show when={products.length > 0}>

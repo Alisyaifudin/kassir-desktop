@@ -13,7 +13,7 @@ export function ExtraEntries() {
       <ExtraPanel />
       <div className="flex-1 overflow-hidden min-h-0 w-full">
         <div className="flex flex-col h-full overflow-hidden">
-          <Table className="text-normal flex-1 h-full" parentClass="h-full">
+          <Table className="text-normal">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]">No</TableHead>

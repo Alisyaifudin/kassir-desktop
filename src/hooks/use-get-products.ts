@@ -1,13 +1,13 @@
-import { Effect } from "effect";
+import { Effect, pipe } from "effect";
 import { db } from "~/database";
 import { Result } from "~/lib/result";
 import { setLength } from "../pages/Stock/Product/use-length";
-import { Product } from "~/database/product/cache";
+import { ProductFull } from "~/database/product/cache";
 import { useSyncExternalStore } from "react";
 
 const KEY = "products";
 
-let cache: Product[] | null = null;
+let cache: ProductFull[] | null = null;
 
 export function loadProducts() {
   if (cache === null) {
@@ -42,19 +42,17 @@ export function useProducts() {
   return products ?? [];
 }
 
+const program = pipe(
+  loadProducts(),
+  Effect.tap((r) => {
+    setLength(r.length);
+  }),
+);
+
 export function useGetProducts() {
   const res = Result.use({
-    fn: () =>
-      loadProducts().pipe(
-        Effect.tap((r) => {
-          setLength(r.length);
-          return r;
-        }),
-      ),
+    fn: () => program,
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }

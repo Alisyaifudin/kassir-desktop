@@ -52,7 +52,7 @@ function program({
   note,
 }: {
   value: number;
-  kindId: number;
+  kindId: string;
   type: DB.MoneyType;
   note: string;
 }) {
@@ -61,7 +61,7 @@ function program({
       ? calcValueAbsolute(value)
       : calcValueChange(value, kindId);
     yield* Effect.all(
-      [db.money.add.record(val, kindId, note), db.money.update.type(kindId, type)],
+      [db.money.add.record(val, kindId, note), db.moneyKind.update.type(kindId, type)],
       { concurrency: "unbounded" },
     );
     return null;
@@ -77,7 +77,7 @@ function calcValueAbsolute(value: number) {
   return Effect.succeed(value);
 }
 
-function calcValueChange(value: number, kindId: number) {
+function calcValueChange(value: number, kindId: string) {
   return Effect.gen(function* () {
     const money = yield* db.money.get.last(Date.now(), kindId);
     return new Decimal(money).plus(value).toNumber();

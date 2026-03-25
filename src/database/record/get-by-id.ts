@@ -34,7 +34,7 @@ export function getById(id: string) {
   return Effect.gen(function* () {
     const records = yield* DB.try((db) =>
       db.select<Output[]>(
-        `SELECT timestamp, record_paid_at, record_rounding, record_is_credit, record_cashier,
+        `SELECT record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
         record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone,
         record_sub_total, record_total, methods.method_id, method_name, method_kind 
         FROM records INNER JOIN methods ON records.method_id = methods.method_id

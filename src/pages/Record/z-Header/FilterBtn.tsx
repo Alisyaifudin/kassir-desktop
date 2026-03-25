@@ -1,6 +1,6 @@
 import { Banknote, CreditCard, QrCode, Send } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { MethodFull } from "~/database/method/get-all";
+import type { Method } from "~/database/method/cache";
 import { METHOD_NAMES } from "~/lib/constants";
 import { cn } from "~/lib/utils";
 
@@ -17,10 +17,10 @@ export function FilterBtn({
   options,
   top,
 }: {
-  onClick: (id: number) => void;
-  selected: number | null;
-  top: MethodFull;
-  options: MethodFull[];
+  onClick: (id: string) => void;
+  selected: string | null;
+  top: Method;
+  options: Method[];
 }) {
   const Icon = ICONS[top.kind];
   const isSelected = top.id === selected;

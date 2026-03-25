@@ -6,12 +6,12 @@ import { useToCredit } from "./use-to-credit";
 
 export const ToCreditBtn = memo(function ToCreditBtn({
   close,
-  timestamp,
+  recordId,
 }: {
-  timestamp: number;
+  recordId: string;
   close: () => void;
 }) {
-  const { error, handleClick, loading } = useToCredit(timestamp, close);
+  const { error, handleClick, loading } = useToCredit(recordId, close);
   return (
     <div className="flex flex-col gap-1">
       <Button onClick={handleClick} variant="destructive" className="w-fit">

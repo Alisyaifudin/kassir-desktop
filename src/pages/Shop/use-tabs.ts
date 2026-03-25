@@ -31,7 +31,6 @@ export function useGetTabs() {
         }),
       ),
     key: KEY,
-    revalidateOn: { unmount: true },
   });
   return res;
 }

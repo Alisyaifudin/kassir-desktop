@@ -9,8 +9,8 @@ import { ErrorComponent } from "~/components/ErrorComponent";
 import { NotFound } from "~/components/NotFound";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export default function Page({ timestamp }: { timestamp: number }) {
-  const res = useData(timestamp);
+export default function Page({ recordId }: { recordId: string }) {
+  const res = useData(recordId);
   return Result.match(res, {
     onLoading() {
       return <Loading />;
@@ -62,15 +62,13 @@ function Loading() {
 
 function Wrapper({ data }: { data: RecordData }) {
   const [tab, setTab] = useTab();
-  // const [search] = useSearchParams();
-  // const urlBack = getURLBack(data.record.timestamp, data.record.mode, search);
   return (
     <main className="flex flex-col gap-2 p-2 overflow-y-auto">
       <Tabs value={tab} onValueChange={(val) => setTab(val)}>
         <div className="flex justify-between items-center gap-2">
           <TabsList className="h-fit">
             <TabsTrigger className="text-normal" value="receipt">
-              Struk
+              Resi
             </TabsTrigger>
             <TabsTrigger className="text-normal" value="detail">
               Detail

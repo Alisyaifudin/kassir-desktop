@@ -41,11 +41,11 @@ export function submit(isCredit: boolean) {
       subtotal: Number(subtotal.toFixed(fix)),
       total: Number(total.toFixed(fix)),
     };
-    const timestamp = yield* db.record.add.one(record);
+    const recordId = yield* db.record.add.one(record);
     return {
       grandTotal: record.grandTotal,
       change,
-      timestamp,
+      recordId,
     };
   });
 }

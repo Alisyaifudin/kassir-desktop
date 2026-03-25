@@ -2,9 +2,9 @@ import { DuplicateError } from "~/lib/effect-error";
 import { DB } from "../instance";
 import { cache } from "./cache";
 import { Effect } from "effect";
-import { generateId } from "~/lib/random";
 
 type Input = {
+  id: string;
   name: string;
   barcode?: string;
   price: number;
@@ -13,12 +13,12 @@ type Input = {
   note: string;
 };
 
-export function add({ name, barcode, price, stock, capital, note }: Input) {
+export function addExternal({ id, name, barcode, price, stock, capital, note }: Input) {
   return Effect.gen(function* () {
     if (barcode !== undefined) {
       yield* checkDuplicateBarcode(barcode);
     }
-    const id = generateId();
+    yield* checkDuplicate(id);
     const now = Date.now();
     yield* DB.try((db) =>
       db.execute(
@@ -39,6 +39,27 @@ export function add({ name, barcode, price, stock, capital, note }: Input) {
       syncAt: null,
       updatedAt: now,
     });
+  });
+}
+
+function checkDuplicate(id: string) {
+  return Effect.gen(function* () {
+    const products = cache.all();
+    if (products !== null) {
+      for (const p of products) {
+        if (p.id === id) return yield* Effect.fail(new DuplicateError(p.name));
+      }
+      return yield* Effect.void;
+    }
+    const product = yield* DB.try((db) =>
+      db.select<{ product_name: string }[]>(
+        "SELECT product_name FROM products WHERE product_id = $1",
+        [id],
+      ),
+    );
+    if (product.length > 0) {
+      return yield* Effect.fail(new DuplicateError(product[0].product_name));
+    }
   });
 }
 

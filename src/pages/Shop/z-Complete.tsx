@@ -25,12 +25,13 @@ import { resetStore, useMode } from "./use-transaction";
 import { loadDetailRecord } from "../Record/Item/use-data";
 import { Spinner } from "~/components/Spinner";
 import { programPrint } from "../setting/Printer/util-program-print";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 const completeAtom = createAtom({
   open: false,
   grandTotal: 0,
   change: 0,
-  timestamp: undefined as number | undefined,
+  recordId: undefined as string | undefined,
 });
 
 function useComplete() {
@@ -47,10 +48,11 @@ export function Complete() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { open, grandTotal, change, timestamp } = useComplete();
+  const { open, grandTotal, change, recordId } = useComplete();
   const [tab] = useTab();
   const tabs = useTabs();
   const mode = useMode();
+  const urlBack = useGenerateUrlBack(`/shop`);
 
   useEffect(() => {
     if (open) {
@@ -59,7 +61,7 @@ export function Complete() {
   }, [open]);
 
   const resetCompleteState = () => {
-    setComplete({ open: false, grandTotal: 0, change: 0, timestamp: undefined });
+    setComplete({ open: false, grandTotal: 0, change: 0, recordId: undefined });
     cancelFlag.current = false;
     const searchbar = document.getElementById("searchbar") as HTMLInputElement | null;
     setTimeout(() => searchbar?.focus(), 300);
@@ -75,11 +77,11 @@ export function Complete() {
     return true;
   };
 
-  const handleRollback = async (ts: number) => {
+  const handleRollback = async (id: string) => {
     const errMsg = await Effect.runPromise(
       Effect.gen(function* () {
-        const products = yield* db.recordProduct.get.byTimestamp(ts);
-        yield* programDeleteRecord(ts, mode, products);
+        const products = yield* db.recordProduct.get.byRecordId(id);
+        yield* programDeleteRecord(id, mode, products);
         return null;
       }).pipe(
         Effect.catchTag("DbError", ({ e }) => {
@@ -97,29 +99,33 @@ export function Complete() {
   };
 
   const closeDialog = async () => {
-    const ts = completeAtom.get().timestamp;
+    const id = completeAtom.get().recordId;
 
     if (!cancelFlag.current) {
       if (!(await handleCommit())) return;
-    } else if (ts !== undefined) {
-      if (!(await handleRollback(ts))) return;
+    } else if (id !== undefined) {
+      if (!(await handleRollback(id))) return;
     }
 
     resetCompleteState();
   };
 
   const viewDetail = () => {
-    if (timestamp !== undefined) navigate(`/records/${timestamp}`);
+    if (recordId !== undefined)
+      navigate({
+        pathname: `/records/${recordId}`,
+        search: `url_back=${encodeURIComponent(urlBack)}`,
+      });
     closeDialog();
   };
 
   const printReceipt = async () => {
-    if (timestamp === undefined) return;
+    if (recordId === undefined) return;
     setLoading(true);
     const errMsg = await Effect.runPromise(
       Effect.gen(function* () {
-        const data = yield* loadDetailRecord(timestamp);
-        const socials = yield* db.social.getAll();
+        const data = yield* loadDetailRecord(recordId);
+        const socials = yield* db.social.get.all();
         yield* programPrint({
           record: data.record,
           products: data.products,

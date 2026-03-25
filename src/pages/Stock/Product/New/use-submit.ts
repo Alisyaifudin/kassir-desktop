@@ -6,7 +6,7 @@ import { log } from "~/lib/log";
 import { useAppForm } from "../z-ProductForm";
 import { createProductOptions } from "../util-product-options";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
-import { revalidateProducts } from "../../../../hooks/use-get-products";
+import { revalidateProducts } from "~/hooks/use-get-products";
 
 export function useSubmit() {
   const [error, setError] = useState<null | string>(null);
@@ -39,7 +39,7 @@ type Input = {
 };
 
 function program(product: Input) {
-  return db.product.add(product).pipe(
+  return db.product.add.new(product).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

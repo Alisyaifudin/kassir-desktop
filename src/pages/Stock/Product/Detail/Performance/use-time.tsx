@@ -5,9 +5,11 @@ export function useTime() {
   const [search, setSearch] = useSearchParams();
   const timestamp = integer.catch(Date.now()).parse(search.get("time"));
   function setTime(timestamp: number) {
-    const s = new URLSearchParams(window.location.search);
-    s.set("time", timestamp.toString());
-    setSearch(s);
+    setSearch((old) => {
+      const s = new URLSearchParams(old);
+      s.set("time", timestamp.toString());
+      return s;
+    });
   }
   return [timestamp, setTime] as const;
 }

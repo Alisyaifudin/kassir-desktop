@@ -16,7 +16,7 @@ import { NewCustomer } from "./z-NewCustomer";
 import { useGetCustomers } from "~/hooks/use-get-customer";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
-import { Customer } from "~/database/customer/get-all";
+import { Customer } from "~/database/customer/cache";
 
 export function CustomerDialog() {
   const res = useGetCustomers();

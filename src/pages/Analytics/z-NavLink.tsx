@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "~/components/ui/button";
 
 export type Option = "cashflow" | "net" | "crowd" | "products";
@@ -19,8 +19,8 @@ const path = {
 
 export function NavLink({ selected, to }: { to: Option; selected: Option }) {
   const navigate = useNavigate();
+  const [search] = useSearchParams()
   const handleClick = () => {
-    const search = new URLSearchParams(window.location.search);
     const interval = search.get("interval");
     switch (to) {
       case "crowd":

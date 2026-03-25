@@ -22,11 +22,10 @@ import { formatDate, formatTime } from "~/lib/date";
 
 export function Detail({ extras, products, record }: DataRecord) {
   const unselect = useUnselect();
-  console.log(products);
   return (
     <Show
       when={products.length !== 0 || extras.length !== 0}
-      fallback={<DeleteBtn mode={record.mode} products={products} timestamp={record.timestamp} />}
+      fallback={<DeleteBtn mode={record.mode} products={products} recordId={record.id} />}
     >
       <div className="flex flex-col gap-2 overflow-hidden h-full">
         <div className="flex items-center gap-2 justify-between shrink-0 py-1">
@@ -34,7 +33,7 @@ export function Detail({ extras, products, record }: DataRecord) {
             <button onClick={unselect} className="hover:bg-primary-foreground">
               <X />
             </button>
-            <p>No: {record.timestamp}</p>
+            <p>No: {record.id}</p>
           </div>
           <div className="flex items-center gap-5">
             <p>
@@ -112,7 +111,7 @@ function FooterBtn({ data }: { data: DataRecord }) {
       <Button asChild>
         <Link
           to={{
-            pathname: `/records/${data.record.timestamp}`,
+            pathname: `/records/${data.record.id}`,
             search: `?url_back=${path}`,
           }}
         >
@@ -123,7 +122,7 @@ function FooterBtn({ data }: { data: DataRecord }) {
         <ToTransaction data={data} />
         <Show when={role === "admin"}>
           <DeleteBtn
-            timestamp={data.record.timestamp}
+            recordId={data.record.id}
             mode={data.record.mode}
             products={data.products}
           />

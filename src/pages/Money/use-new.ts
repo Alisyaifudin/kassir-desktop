@@ -34,7 +34,7 @@ export function useNew(onClose: () => void) {
 }
 
 function program(name: string) {
-  return db.money.add.kind(name).pipe(
+  return db.moneyKind.add.one(name).pipe(
     Effect.as(null),
     Effect.catchAll(({ e }) => {
       log.error(e);

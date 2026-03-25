@@ -7,7 +7,7 @@ import { add } from "./add";
 import { sync } from "./sync";
 import { upsert } from "./upsert";
 
-export const money = {
+export const moneyKind = {
   get: {
     all: getAll,
   },

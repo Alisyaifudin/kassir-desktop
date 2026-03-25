@@ -8,7 +8,7 @@ import {
   TableRow,
   Table,
 } from "~/components/ui/table";
-import { ProductHistory } from "~/database/product/get-history-before";
+import { ProductHistory } from "~/database/product/get-history-offset";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { formatDate, formatTime } from "~/lib/date";
 import { useId } from "../../use-id";
@@ -39,10 +39,10 @@ export function HistoryTable({
           </TableHeader>
           <TableBody>
             {products.map((r, i) => (
-              <TableRow key={r.timestamp}>
+              <TableRow key={r.recordId}>
                 <TableCell className="font-medium">{i + 1}</TableCell>
-                <TableCell>{formatDate(r.timestamp).replace(/-/g, "/")}</TableCell>
-                <TableCell>{formatTime(r.timestamp, "long")}</TableCell>
+                <TableCell>{formatDate(r.paidAt).replace(/-/g, "/")}</TableCell>
+                <TableCell>{formatTime(r.paidAt, "long")}</TableCell>
                 <TableCell className="text-center">
                   {r.capitalRaw.toLocaleString("id-ID")}
                 </TableCell>
@@ -50,7 +50,7 @@ export function HistoryTable({
                 <TableCell className="text-center w-[50px] small:w-[45px]">{r.qty}</TableCell>
                 <TableCell>
                   <Link
-                    to={{ pathname: `/records/${r.timestamp}`, search: `?url_back=${urlBack}` }}
+                    to={{ pathname: `/records/${r.recordId}`, search: `?url_back=${urlBack}` }}
                   >
                     <ExternalLink className="icon" />
                   </Link>
@@ -77,16 +77,16 @@ export function HistoryTable({
             {products
               .filter((p) => p.mode === mode)
               .map((r, i) => (
-                <TableRow key={r.timestamp}>
+                <TableRow key={r.recordId}>
                   <TableCell className="font-medium">{i + 1}</TableCell>
-                  <TableCell>{formatDate(r.timestamp).replace(/-/g, "/")}</TableCell>
-                  <TableCell>{formatTime(r.timestamp, "long")}</TableCell>
+                  <TableCell>{formatDate(r.paidAt).replace(/-/g, "/")}</TableCell>
+                  <TableCell>{formatTime(r.paidAt, "long")}</TableCell>
                   <TableCell className="text-center">{r.price.toLocaleString("id-ID")}</TableCell>
                   <TableCell className="text-center">{r.qty}</TableCell>
                   <TableCell>
                     <Link
                       to={{
-                        pathname: `/records/${r.timestamp}`,
+                        pathname: `/records/${r.recordId}`,
                         search: `?url_back=${encodeURIComponent(urlBack)}`,
                       }}
                     >

@@ -7,11 +7,11 @@ import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { useNavigate } from "react-router";
 
 export function useDelete({
-  timestamp,
+  recordId,
   mode,
   products,
 }: {
-  timestamp: number;
+  recordId: string;
   mode: DB.Mode;
   products: RecordData["products"];
 }) {
@@ -21,7 +21,7 @@ export function useDelete({
   const navigate = useNavigate();
   async function handleDelete() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp, mode, products));
+    const errMsg = await Effect.runPromise(program(recordId, mode, products));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -31,13 +31,13 @@ export function useDelete({
   return { error, loading, handleDelete };
 }
 
-function program(timestamp: number, mode: DB.Mode, products: RecordData["products"]) {
+function program(recordId: string, mode: DB.Mode, products: RecordData["products"]) {
   return Effect.gen(function* () {
     const filtered = products.flatMap((p) =>
       p.productId === undefined ? [] : [{ id: p.productId, qty: p.qty }],
     );
     yield* Effect.all([
-      db.record.delByTimestamp(timestamp),
+      db.record.del.byId(recordId),
       ...(mode === "buy"
         ? filtered.map((p) => db.product.update.stock.dec(p.id, p.qty))
         : filtered.map((p) => db.product.update.stock.inc(p.id, p.qty))),

@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { GotoProductBtn } from "./z-GotoProductBtn";
-import { Header } from "./z-Header";
+import { Footer } from "./z-Footer";
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import { EditDialog } from "./z-Edit";
@@ -19,8 +19,6 @@ import { RecordData } from "../use-data";
 import Decimal from "decimal.js";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { useUser } from "~/hooks/use-user";
-import { formatDate, formatTime, getDayName } from "~/lib/date";
-import { METHOD_NAMES } from "~/lib/constants";
 import { useLoadProducts } from "./use-load-products";
 
 export function Detail({ data }: { data: RecordData }) {
@@ -28,12 +26,6 @@ export function Detail({ data }: { data: RecordData }) {
   useLoadProducts(role);
   return (
     <div className="flex flex-col gap-2 text-3xl">
-      <Header
-        cashier={data.record.cashier}
-        mode={data.record.mode}
-        timestamp={data.record.timestamp}
-        paidAt={data.record.paidAt}
-      />
       <Table className="text-normal">
         <TableHeader>
           <TableRow>
@@ -61,7 +53,7 @@ export function Detail({ data }: { data: RecordData }) {
                   </TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell className="text-end flex items-center gap-1 justify-end">
-                    <GotoProductBtn timestamp={data.record.timestamp} productId={product.productId} />
+                    <GotoProductBtn recordId={data.record.id} productId={product.productId} />
                     {product.price.toLocaleString("id-ID")}{" "}
                   </TableCell>
                   <Show when={data.record.mode === "buy"}>
@@ -105,11 +97,6 @@ export function Detail({ data }: { data: RecordData }) {
         </TableBody>
       </Table>
       <Summary extras={data.extras} record={data.record} productLength={data.products.length} />
-      <Show when={data.record.customer.name !== "" && data.record.customer.phone !== ""}>
-        <p>
-          Pelanggan: {data.record.customer.name} ({data.record.customer.phone})
-        </p>
-      </Show>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <EditDialog
@@ -117,28 +104,23 @@ export function Detail({ data }: { data: RecordData }) {
             mode={data.record.mode}
             note={data.record.note}
             method={data.record.method}
-            timestamp={data.record.timestamp}
+            recordId={data.record.id}
           />
           <Show when={data.record.isCredit && role === "admin"}>
-            <DebtDialog grandTotal={data.record.grandTotal} timestamp={data.record.timestamp} />
+            <DebtDialog grandTotal={data.record.grandTotal} recordId={data.record.id} />
           </Show>
         </div>
-        <DeleteBtn
-          timestamp={data.record.timestamp}
-          mode={data.record.mode}
-          products={data.products}
-        />
+        <DeleteBtn recordId={data.record.id} mode={data.record.mode} products={data.products} />
       </div>
-      <div className="flex flex-col gap-2">
-        <p>
-          Dibayar: {formatTime(data.record.paidAt, "long")} | {getDayName(data.record.paidAt)},{" "}
-          {formatDate(data.record.paidAt, "long")}
-        </p>
-        <p>
-          Metode: {METHOD_NAMES[data.record.method.kind]} {data.record.method.name}
-        </p>
-        <p>{data.record.note}</p>
-      </div>
+      <Footer
+        cashier={data.record.cashier}
+        mode={data.record.mode}
+        recordId={data.record.id}
+        paidAt={data.record.paidAt}
+        method={data.record.method}
+        note={data.record.note}
+        customer={data.record.customer}
+      />
     </div>
   );
 }

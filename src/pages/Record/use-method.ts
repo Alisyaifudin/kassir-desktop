@@ -1,17 +1,17 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
 import { useSearchParams } from "react-router";
-import { MethodFull } from "~/database/method/get-all";
+import { z } from "zod";
+import type { Method} from "~/database/method/cache";
 import { DEFAULT_METHODS } from "~/lib/constants";
-import { integer } from "~/lib/utils";
 
-function getMethod(methods: MethodFull[], search: URLSearchParams) {
-  const methodId = integer.nullable().catch(null).parse(search.get("method"));
+function getMethod(methods: Method[], search: URLSearchParams) {
+  const methodId = z.string().nullable().catch(null).parse(search.get("method"));
   const method = methods.find((m) => m.id === methodId) ?? null;
   return method;
 }
 
-const methodsAtom = createAtom<MethodFull[]>(DEFAULT_METHODS);
+const methodsAtom = createAtom<Method[]>(DEFAULT_METHODS);
 
 export const setMethods = methodsAtom.set;
 export function useMethods() {
@@ -22,7 +22,7 @@ export function useMethod() {
   const [search, setSearch] = useSearchParams();
   const methods = useAtom(methodsAtom);
   const method = getMethod(methods, search);
-  function setMethod(id: number | null) {
+  function setMethod(id: string | null) {
     setSearch((old) => {
       const search = new URLSearchParams(old);
       if (id === null) {

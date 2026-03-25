@@ -9,10 +9,12 @@ export function useRange() {
   const start = integer.catch(lastMonth.epochMilliseconds).parse(search.get("start"));
   const end = integer.catch(today.epochMilliseconds).parse(search.get("end"));
   function setRange(start: number, end: number) {
-    const s = new URLSearchParams(window.location.search);
-    s.set("start", start.toString());
-    s.set("end", end.toString());
-    setSearch(s);
+    setSearch((old) => {
+      const s = new URLSearchParams(old);
+      s.set("start", start.toString());
+      s.set("end", end.toString());
+      return s;
+    });
   }
   const range: [number, number] = [start, end];
   return [range, setRange] as const;

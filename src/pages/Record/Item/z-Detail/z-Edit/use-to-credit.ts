@@ -4,12 +4,12 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "../../use-data";
 
-export function useToCredit(timestamp: number, onClose: () => void) {
+export function useToCredit(recordId: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   async function handleClick() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp));
+    const errMsg = await Effect.runPromise(program(recordId));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -20,8 +20,8 @@ export function useToCredit(timestamp: number, onClose: () => void) {
   return { loading, error, handleClick };
 }
 
-function program(timestamp: number) {
-  return db.record.update.toCredit(timestamp).pipe(
+function program(recordId: string) {
+  return db.record.update.toCredit(recordId).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

@@ -49,7 +49,7 @@ export const Calendar = memo(function Calendar({
         setOpen(open);
       }}
     >
-      <Button asChild variant="ghost" className={cn("flex items-center gap-2 outline", className)}>
+      <Button asChild variant="ghost" className={cn("flex items-center gap-2 w-[320px] small:w-[230px] outline", className)}>
         <DialogTrigger>
           {children === undefined ? <CalendarLabel mode={modeInit} time={time} /> : children}
           <CalendarDays className="icon" />

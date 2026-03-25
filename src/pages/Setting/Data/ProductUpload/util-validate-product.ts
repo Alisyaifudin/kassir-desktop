@@ -4,6 +4,7 @@ import { JsonError, TooBigError } from "~/lib/effect-error";
 import { log } from "~/lib/log";
 
 const schema = z.object({
+  id: z.string().nonempty(),
   price: z.number(),
   barcode: z.string().optional(),
   name: z.string().nonempty(),

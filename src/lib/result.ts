@@ -40,9 +40,6 @@ export const Result = {
   use<T, E = never>({
     fn,
     key,
-    revalidateOn = {
-      unmount: false,
-    },
     deps = [],
   }: {
     readonly key?: string;
@@ -97,9 +94,9 @@ export const Result = {
 
       return () => {
         cancelled = true;
-        if (revalidateOn.unmount) cache.delete(key);
+        cache.delete(key);
       };
-    }, [key, query, revalidateOn.unmount]);
+    }, [key, query]);
 
     return query.result;
   },

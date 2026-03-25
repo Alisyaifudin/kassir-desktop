@@ -13,7 +13,7 @@ import { ToCreditBtn } from "./ToCreditBtn";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
-import { MethodFull } from "~/database/method/get-all";
+import { Method } from "~/database/method/cache";
 import { useNote } from "./use-note";
 import { Textarea } from "~/components/ui/textarea";
 
@@ -22,19 +22,19 @@ export function EditDialog({
   mode,
   note: noteRaw,
   isCredit,
-  timestamp,
+  recordId,
 }: {
-  timestamp: number;
+  recordId: string;
   mode: DB.Mode;
   note: string;
   isCredit: boolean;
-  method: MethodFull;
+  method: Method;
 }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => {
     setOpen(false);
   }, []);
-  const { loading, error, handleSubmit, note, setNote } = useNote(timestamp, noteRaw, close);
+  const { loading, error, handleSubmit, note, setNote } = useNote(recordId, noteRaw, close);
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button variant="outline" asChild className="w-fit">
@@ -46,9 +46,9 @@ export function EditDialog({
         </DialogHeader>
         <div className="flex flex-col gap-3 py-5">
           <Show when={!isCredit}>
-            <SelectMode close={close} mode={mode} timestamp={timestamp} />
+            <SelectMode close={close} mode={mode} recordId={recordId} />
           </Show>
-          <SelectMethod timestamp={timestamp} method={method} close={close} />
+          <SelectMethod recordId={recordId} method={method} close={close} />
           <form
             id="record-note"
             onSubmit={(e) => {
@@ -74,7 +74,7 @@ export function EditDialog({
           </form>
           <div className="flex items-center justify-between">
             <Show when={!isCredit && mode === "buy"} fallback={<div />}>
-              <ToCreditBtn close={close} timestamp={timestamp} />
+              <ToCreditBtn close={close} recordId={recordId} />
             </Show>
             <Button form="record-note">
               Simpan

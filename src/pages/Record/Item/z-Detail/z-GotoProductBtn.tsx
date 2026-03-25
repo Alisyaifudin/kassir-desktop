@@ -7,12 +7,12 @@ import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export const GotoProductBtn = memo(function GotoProductBtn({
   productId,
-  timestamp,
+  recordId,
 }: {
-  timestamp: number;
-  productId?: number;
+  recordId: string;
+  productId?: string;
 }) {
-  const backURL = useGenerateUrlBack(`/records/${timestamp}`);
+  const backURL = useGenerateUrlBack(`/records/${recordId}`);
   return (
     <Show value={productId}>
       {(productId) => (
@@ -21,7 +21,7 @@ export const GotoProductBtn = memo(function GotoProductBtn({
             <Link
               to={{
                 pathname: `/stock/product/${productId}`,
-                search: `?url_back=${encodeURI(backURL)}`,
+                search: `?url_back=${encodeURIComponent(backURL)}`,
               }}
             >
               <Pencil className="icon" />

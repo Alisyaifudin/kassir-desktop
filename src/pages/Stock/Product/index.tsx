@@ -14,7 +14,7 @@ export function ProductEntries() {
       <ProductPanel />
       <div className="flex-1 overflow-hidden min-h-0 w-full">
         <div className="flex flex-col h-full overflow-hidden">
-          <Table className="text-normal" parentClass="">
+          <Table className="text-normal">
             <TableHeader />
             <Loader />
           </Table>

@@ -11,9 +11,6 @@ export function useData() {
   const res = Result.use({
     fn: () => program(id),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }

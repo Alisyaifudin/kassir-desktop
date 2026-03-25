@@ -6,6 +6,7 @@ import { IOError } from "~/lib/effect-error";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { log } from "~/lib/log";
+import { RecordImport } from "./RecordUpload/util-validate-record";
 
 export function useRecord() {
   const defaultInterval = useMemo(() => {
@@ -72,20 +73,22 @@ function fetchRecord(start: number, end: number) {
       ],
       { concurrency: "unbounded" },
     );
-    return rs.map(({ timestamp, ...r }) => {
-      const products = ps.filter((p) => p.recordId === timestamp);
-      const extras = es.filter((e) => e.timestamp === timestamp);
-      return {
+    return rs.map(({ id, method, ...r }) => {
+      const products = ps.filter((p) => p.recordId === id);
+      const extras = es.filter((e) => e.recordId === id);
+      const record: RecordImport = {
         ...r,
+        methodId: method.id,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        products: products.map(({ timestamp, id, ...p }) => ({
+        products: products.map(({ recordId, id, discounts, ...p }) => ({
           ...p,
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          discounts: p.discounts.map(({ id, ...d }) => d),
+          discounts: discounts.map(({ id, ...d }) => d),
         })),
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        extras: extras.map(({ timestamp, id, ...e }) => e),
-      };
+        extras: extras.map(({ recordId, id, ...e }) => e),
+      }
+      return record;
     });
   });
 }

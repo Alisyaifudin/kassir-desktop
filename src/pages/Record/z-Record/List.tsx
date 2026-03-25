@@ -71,9 +71,9 @@ export function List({ records }: ListProps) {
         <ForEach items={records}>
           {(record, i) => (
             <TableRow
-              onClick={() => setSelected(record.timestamp)}
+              onClick={() => setSelected(record.id)}
               className={cn(
-                { "bg-sky-200 hover:bg-sky-100": selected === record.timestamp },
+                { "bg-sky-200 hover:bg-sky-100": selected === record.id },
                 { "bg-red-300": record.isCredit },
               )}
             >

@@ -1,13 +1,7 @@
-import { data, LoaderFunctionArgs, redirect } from "react-router";
-import { integer } from "~/lib/utils";
+import { LoaderFunctionArgs } from "react-router";
 
 export async function loader({ params }: LoaderFunctionArgs) {
-  const parsed = integer.safeParse(params.id);
-  if (!parsed.success) {
-    throw redirect("/stock");
-  }
-  const id = parsed.data;
-  return data(id)
+  return params.id!;
 }
 
 export type Loader = typeof loader;

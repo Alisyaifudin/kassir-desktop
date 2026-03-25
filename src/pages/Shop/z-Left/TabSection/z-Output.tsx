@@ -60,11 +60,12 @@ export function Output({
                 onClick={() =>
                   handleClickProduct({
                     id: product.item.id,
-                    stock: product.item.stock,
                     name: product.item.name,
                     price: product.item.price,
                     barcode: product.item.barcode ?? "",
                     capital: product.item.capital,
+                    note: product.item.note,
+                    stock: product.item.stock,
                   })
                 }
                 className={cn(

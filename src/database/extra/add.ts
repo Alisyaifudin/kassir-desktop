@@ -15,7 +15,7 @@ export function add({ name, value, kind }: Input) {
   return Effect.gen(function* () {
     yield* DB.try((db) =>
       db.execute(
-        `INSERT INTO extras (extra_id, extra_name, extra_value, extra_kind, extra_update_at, extra_sync_at) 
+        `INSERT INTO extras (extra_id, extra_name, extra_value, extra_kind, extra_updated_at, extra_sync_at) 
         VALUES ($1, $2, $3, $4, $5, null)`,
         [id, name, value, kind, now],
       ),

@@ -41,7 +41,7 @@ export function DiscKind({
   }
   return (
     <Select value={discount.kind} onValueChange={handleChange}>
-      <SelectTrigger className="w-[110px]">
+      <SelectTrigger className="w-[150px] small:w-[110px]">
         <SelectValue placeholder="Jenis" />
       </SelectTrigger>
       <SelectContent>

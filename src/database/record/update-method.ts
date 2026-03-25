@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 
-export function updateMethod(id: string, methodId: number) {
+export function updateMethod(id: string, methodId: string) {
   const now = Date.now();
   return DB.try((db) =>
     db.execute(

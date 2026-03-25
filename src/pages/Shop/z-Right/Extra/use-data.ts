@@ -15,9 +15,6 @@ export function useData() {
   const res = Result.use({
     fn: () => loader(subtotal, tab),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
     deps: [tab],
   });
   return res;

@@ -14,9 +14,6 @@ export function Content() {
   const res = Result.use({
     fn: () => loader(),
     key: "productAndExtra",
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return Result.match(res, {
     onLoading() {

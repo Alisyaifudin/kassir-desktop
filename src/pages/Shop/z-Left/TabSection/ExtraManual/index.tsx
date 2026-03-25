@@ -3,7 +3,6 @@ import { Label } from "~/components/ui/label";
 import { NameInput } from "./NameInput";
 import { ValueInput } from "./ValueInput";
 import { KindSelect } from "./KindSelect";
-import { SavedCheck } from "./SavedCheck";
 import { generateId } from "~/lib/random";
 import { tx } from "~/transaction";
 import { extrasStore } from "~/pages/Shop/store/extra";
@@ -21,7 +20,7 @@ export function ExtraManual() {
     e.preventDefault();
     const form = e.currentTarget;
     const id = generateId();
-    const { value, name, kind, saved } = manualStore.get().extra;
+    const { value, name, kind } = manualStore.get().extra;
     if (name.trim() === "" || value === 0) return;
     extrasStore.trigger.add({
       subtotal,
@@ -29,7 +28,6 @@ export function ExtraManual() {
         id,
         tab,
         kind,
-        saved,
         name,
         value,
       },
@@ -39,7 +37,6 @@ export function ExtraManual() {
         tab,
         id,
         kind,
-        saved,
         name,
         value,
       }),
@@ -58,14 +55,13 @@ export function ExtraManual() {
     queue.add(tx.transaction.update.extra.clear(tab));
   }
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-1 px-1">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-1 p-1">
       <NameInput ref={ref} />
       <Label htmlFor="extra-value">Nilai</Label>
       <div className="flex items-center gap-2 ">
         <ValueInput />
         <KindSelect />
       </div>
-      <SavedCheck />
       <Button>Tambahkan</Button>
     </form>
   );

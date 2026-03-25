@@ -83,10 +83,10 @@ export function getFlow({
     const intervalStart = edges[currentInterval];
     const intervalEnd = edges[currentInterval + 1];
     const record = records[recordIndex];
-    if (record.timestamp < intervalStart) {
+    if (record.paidAt < intervalStart) {
       // Record is before current interval, skip it
       recordIndex++;
-    } else if (record.timestamp > intervalEnd) {
+    } else if (record.paidAt > intervalEnd) {
       // Record is after current interval, move to next interval
       currentInterval++;
     } else {
@@ -127,10 +127,10 @@ export function getVisitors({
     const intervalStart = edges[currentInterval];
     const intervalEnd = edges[currentInterval + 1];
     const record = records[recordIndex];
-    if (record.timestamp < intervalStart) {
+    if (record.paidAt < intervalStart) {
       // Record is before current interval, skip it
       recordIndex++;
-    } else if (record.timestamp > intervalEnd) {
+    } else if (record.paidAt > intervalEnd) {
       // Record is after current interval, move to next interval
       currentInterval++;
     } else {

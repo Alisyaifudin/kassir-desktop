@@ -9,9 +9,6 @@ export function useData() {
   const res = Result.use({
     fn: () => Effect.all([printer.get(), getPrinters()], { concurrency: "unbounded" }),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }

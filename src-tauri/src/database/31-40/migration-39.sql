@@ -178,7 +178,7 @@ INSERT INTO images (
 )
 SELECT 
   CAST(img_id AS TEXT), 
-  image_id,-- use to be used as order also, because it was serial
+  img_id,-- use to be used as order also, because it was serial
   img_name, 
   img_mime, 
   CAST(product_id AS TEXT), 

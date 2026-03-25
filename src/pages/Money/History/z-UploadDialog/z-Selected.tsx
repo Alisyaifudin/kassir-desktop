@@ -16,7 +16,7 @@ export function Selected({
   data,
   kindId,
 }: {
-  kindId: number;
+  kindId: string;
   data?: {
     money: MoneyImport[];
     name: string;

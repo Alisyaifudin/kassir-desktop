@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FolderSearch, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { Filter } from "./FilterDialog";
@@ -7,11 +7,12 @@ import { ModeTab } from "./ModeTab";
 import { useNavigate } from "react-router";
 import { formatDate } from "~/lib/date";
 import { useTime } from "../use-time";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function Header() {
   const [{ yesterday, time, tomorrow }, setTime] = useTime();
   const navigate = useNavigate();
-
+  const urlBack = useGenerateUrlBack("/records");
   return (
     <div className="flex gap-2 items-center w-full justify-between bg-background/50 backdrop-blur-sm sticky top-0 z-10">
       <div className="flex gap-1.5 items-center">
@@ -24,8 +25,10 @@ export function Header() {
       <Button
         className="h-10 w-10 shrink-0 rounded-lg border border-primary/10 transition-all shadow-sm"
         onClick={() => {
-          const urlBack = encodeURIComponent(window.location.href);
-          navigate({ pathname: "/records/search", search: `?url_back=${urlBack}` });
+          navigate({
+            pathname: "/records/search",
+            search: `?url_back=${encodeURIComponent(urlBack)}`,
+          });
         }}
       >
         <FolderSearch size={16} strokeWidth={2.5} />
@@ -41,7 +44,6 @@ export function Header() {
         </Button>
 
         <Calendar time={time} setTime={(time) => setTime(time)}>
-          <CalendarIcon size={12} className="text-primary" strokeWidth={2.5} />
           {formatDate(time, "long")}
         </Calendar>
 

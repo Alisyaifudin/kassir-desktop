@@ -6,6 +6,7 @@ import { getAll } from "./get-all";
 import { getAllUnsync } from "./get-all-unsync";
 import { sync } from "./sync";
 import { update } from "./update";
+import { cache } from "./cache";
 
 export const customer = {
   get: {
@@ -24,4 +25,5 @@ export const customer = {
     one: add,
   },
   upsert,
+  revalidate: cache.revalidate,
 };

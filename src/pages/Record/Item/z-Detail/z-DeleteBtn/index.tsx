@@ -14,16 +14,16 @@ import { RecordData } from "../../use-data";
 import { useDelete } from "./use-delete";
 
 export function DeleteBtn({
-  timestamp,
+  recordId,
   mode,
   products,
 }: {
-  timestamp: number;
+  recordId: string;
   mode: DB.Mode;
   products: RecordData["products"];
 }) {
   const [open, setOpen] = useState(false);
-  const { error, handleDelete, loading } = useDelete({ timestamp, mode, products });
+  const { error, handleDelete, loading } = useDelete({ recordId, mode, products });
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild variant="destructive">

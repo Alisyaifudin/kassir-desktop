@@ -19,7 +19,7 @@ import { DeletePocketBtn } from "./z-DeletePocket";
 import { Download } from "./z-Download";
 import { UploadMoney } from "./z-UploadDialog";
 
-export default function Page({ kindId }: { kindId: number }) {
+export default function Page({ kindId }: { kindId: string }) {
   const res = useData(kindId);
   return Result.match(res, {
     onLoading() {

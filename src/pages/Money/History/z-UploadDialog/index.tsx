@@ -15,7 +15,7 @@ const moneySchemaFormat = `{
   timestamp: number;
 }[]`;
 
-export function UploadMoney({ kindId }: { kindId: number }) {
+export function UploadMoney({ kindId }: { kindId: string }) {
   return (
     <Dialog>
       <Button asChild variant="secondary">

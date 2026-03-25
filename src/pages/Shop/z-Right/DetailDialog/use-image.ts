@@ -8,9 +8,6 @@ export function useImage(productId: string) {
   const res = Result.use({
     fn: () => program(productId),
     key: `product-detail-${productId}`,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }

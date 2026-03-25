@@ -88,6 +88,8 @@ export function useSearch() {
             id: product.id,
             name: product.name,
             price: product.price,
+            stock: product.stock,
+            capital: product.capital,
           },
           barcode: product.barcode ?? "",
           discounts,
@@ -95,7 +97,6 @@ export function useSearch() {
           name: product.name,
           price: product.price,
           qty: 1,
-          stock: product.stock,
           tab,
           total: product.price,
         },
@@ -108,11 +109,12 @@ export function useSearch() {
           name: product.name,
           barcode: product.barcode ?? "",
           qty: 1,
-          stock: product.stock,
           product: {
             id: product.id,
             name: product.name,
             price: product.price,
+            stock: product.stock,
+            capital: product.capital,
           },
           discounts,
         }),
@@ -141,7 +143,6 @@ export function useSearch() {
         id,
         kind: extra.kind,
         name: extra.name,
-        saved: false,
         tab,
         value: extra.value,
         extraId: extra.id,
@@ -155,7 +156,6 @@ export function useSearch() {
         name: extra.name,
         value: extra.value,
         kind: extra.kind,
-        saved: false,
       }),
     );
   };
@@ -173,6 +173,7 @@ export function useSearch() {
         id: productWithBarcode.id,
         stock: productWithBarcode.stock,
         capital: productWithBarcode.capital,
+        note: productWithBarcode.note,
       });
       return;
     }
@@ -197,6 +198,7 @@ export function useSearch() {
           id: product.item.id,
           stock: product.item.stock,
           capital: product.item.capital,
+          note: product.item.note,
         });
         return;
       }
@@ -216,6 +218,7 @@ export function useSearch() {
         id: product.item.id,
         stock: product.item.stock,
         capital: product.item.capital,
+        note: product.item.note,
       });
       return;
     }

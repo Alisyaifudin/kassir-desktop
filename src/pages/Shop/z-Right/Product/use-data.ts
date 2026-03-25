@@ -10,9 +10,6 @@ export function useData() {
   const res = Result.use({
     fn: () => loader(tab),
     key: `product-list`,
-    revalidateOn: {
-      unmount: true,
-    },
     deps: [tab],
   });
   return res;

@@ -1,4 +1,5 @@
 import { add } from "./add";
+import { cache } from "./cache";
 import { delById } from "./del-by-id";
 import { getAll } from "./get-all";
 import { getAllUnsync } from "./get-all-unsync";
@@ -22,4 +23,5 @@ export const method = {
     sync,
   },
   upsert,
+  revalidate: cache.revalidate,
 };

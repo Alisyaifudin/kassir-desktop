@@ -4,6 +4,7 @@ import { extra } from "./extra";
 import { image } from "./image";
 import { method } from "./method";
 import { money } from "./money";
+import { moneyKind } from "./money-kind";
 import { product } from "./product";
 import { record } from "./record";
 import { recordExtra } from "./record-extra";
@@ -21,5 +22,6 @@ export const db = {
   recordExtra,
   recordProduct,
   image,
-  money
+  money,
+  moneyKind,
 };

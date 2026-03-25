@@ -7,17 +7,19 @@ import { add } from "./add";
 import { getAllByRange } from "./get-all-by-range";
 import { incStock } from "./inc-stock";
 import { decStock } from "./dec-stock";
-import { getHistoryBefore } from "./get-history-before";
+import { getHistoryOffset } from "./get-history-offset";
 import { upsert } from "./upsert";
 import { sync } from "./sync";
 import { getAllUnsync } from "../customer/get-all-unsync";
+import { addExternal } from "./add-external";
+import { cache } from "./cache";
 
 export const product = {
   get: {
     all,
     unsync: getAllUnsync,
     byId: getById,
-    historyBefore: getHistoryBefore,
+    historyOffset: getHistoryOffset,
     historyRange: getHistoryRange,
     allRange: getAllByRange,
   },
@@ -32,6 +34,10 @@ export const product = {
       dec: decStock,
     },
   },
-  add,
+  add: {
+    new: add,
+    external: addExternal,
+  },
   upsert,
+  revalidate: cache.revalidate,
 };

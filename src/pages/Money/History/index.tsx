@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { LoaderFunctionArgs, redirect, RouteObject, useLoaderData } from "react-router";
+import { LoaderFunctionArgs, RouteObject, useLoaderData } from "react-router";
 import { admin } from "~/middleware/admin";
 import { Loading } from "./z-Loading";
 
@@ -20,7 +20,5 @@ export const moneyDetailRoute: RouteObject = {
 };
 
 function loader({ params }: LoaderFunctionArgs) {
-  const kindId = Number(params.kindId!);
-  if (isNaN(kindId) || !isFinite(kindId)) throw redirect("/money");
-  return kindId;
+  return params.kindId!;
 }

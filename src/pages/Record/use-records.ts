@@ -30,7 +30,6 @@ export function useRecords() {
   const res = Result.use({
     fn: () => loader(time),
     key: KEY,
-    revalidateOn: { unmount: true },
     deps: [time],
   });
   return res;
@@ -55,14 +54,14 @@ function loader(timestamp: number | null) {
       { concurrency: "unbounded" },
     );
     const records: DataRecord[] = recordsRaw.map((r) => {
-      const ps = products.filter((p) => p.timestamp === r.timestamp);
-      const es = extras.filter((p) => p.timestamp === r.timestamp);
+      const ps = products.filter((p) => p.recordId === r.id);
+      const es = extras.filter((p) => p.recordId === r.id);
       const grandTotal = new Decimal(r.total).plus(r.rounding);
       const change = new Decimal(r.pay).minus(grandTotal);
       return {
         record: {
           ...r,
-          subTotal: Number(r.subTotal.toFixed(r.fix)),
+          subTotal: Number(r.subtotal.toFixed(r.fix)),
           total: Number(r.total.toFixed(r.fix)),
           grandTotal: Number(grandTotal.toFixed(r.fix)),
           change: Number(change.toFixed(r.fix)),

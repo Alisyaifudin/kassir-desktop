@@ -1,10 +1,10 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 
-export function getByRecordId(timestamp: number) {
+export function getByRecordId(recordId: string) {
   return Effect.gen(function* () {
     const res = yield* DB.try((db) =>
-      db.select<DB.RecordExtra[]>("SELECT * FROM record_extras WHERE timestamp = $1", [timestamp]),
+      db.select<DB.RecordExtra[]>("SELECT * FROM record_extras WHERE record_id = $1", [recordId]),
     );
     return res.map((r) => ({
       id: r.record_extra_id,

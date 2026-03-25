@@ -34,20 +34,16 @@ export function Method() {
     onSuccess([methods, defaultMethods]) {
       const transformed = methods.map((m) => ({
         ...m,
-        isDefault: defaultMethods[m.kind] === m.id,
+        isDefault: m.kind === "cash" ? true : defaultMethods[m.kind] === m.id,
       }));
-      return (
-        <Wrapper
-          methods={[{ kind: "cash", id: METHOD_BASE_ID.cash, isDefault: true }, ...transformed]}
-        />
-      );
+      return <Wrapper methods={transformed} />;
     },
   });
 }
 
 type MethodDB = {
   isDefault: boolean;
-  id: number;
+  id: string;
   name?: string;
   kind: "cash" | "transfer" | "debit" | "qris";
 };
@@ -130,11 +126,9 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
         <Select
           value={method.id.toString()}
           onValueChange={(val) => {
-            const num = Number(val);
-            if (isNaN(num)) return;
-            if (methods.find((m) => m.id === num) === undefined) return;
-            setMethod(num);
-            queue.add(tx.transaction.update.methodId(tab, num));
+            if (methods.find((m) => m.id === val) === undefined) return;
+            setMethod(val);
+            queue.add(tx.transaction.update.methodId(tab, val));
           }}
         >
           <SelectTrigger className="w-[200px] small:w-[140px]">
@@ -142,9 +136,9 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectGroup className="w-[200px] small:w-[140px]">
-              <SelectItem value={METHOD_BASE_ID[method.kind].toString()}>--Pilih--</SelectItem>
+              <SelectItem value={METHOD_BASE_ID[method.kind]}>--Pilih--</SelectItem>
               {suboption.map((m) => (
-                <SelectItem value={m.id.toString()} key={m.id}>
+                <SelectItem value={m.id} key={m.id}>
                   {m.name}
                 </SelectItem>
               ))}
@@ -169,7 +163,7 @@ function useMethod(methods: MethodDB[]): MethodDB | undefined {
   return find;
 }
 
-function setMethod(methodId: number) {
+function setMethod(methodId: string) {
   basicStore.set((prev) => ({ ...prev, methodId }));
 }
 

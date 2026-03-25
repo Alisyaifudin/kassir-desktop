@@ -7,9 +7,6 @@ export function useData(id: string) {
   const res = Result.use({
     fn: () => db.extra.get.byId(id),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }

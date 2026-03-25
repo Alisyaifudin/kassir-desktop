@@ -7,13 +7,13 @@ import { useChangePaidAt } from "./use-change-paid-at";
 
 export const CalendarController = memo(function CalendarController({
   paidAt,
-  timestamp,
+  recordId,
 }: {
   paidAt: number;
-  timestamp: number;
+  recordId: string;
 }) {
-  const name = getDayName(timestamp);
-  const { handleChange, loading, error } = useChangePaidAt(timestamp);
+  const name = getDayName(paidAt);
+  const { handleChange, loading, error } = useChangePaidAt(recordId);
 
   return (
     <div className="flex gap-1 flex-col justify-end">

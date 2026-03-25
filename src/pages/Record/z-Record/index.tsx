@@ -41,11 +41,11 @@ function calcTotal(records: DataRecord[]): number {
 
 function filterRecords(
   records: DataRecord[],
-  methodId: number | null,
+  methodId: string | null,
   query: string,
 ): DataRecord[] {
   if (methodId !== null) {
-    if (methodId === 1000 || methodId === 1001 || methodId === 1002 || methodId === 1003) {
+    if (methodId === "1000" || methodId === "1001" || methodId === "1002" || methodId === "1003") {
       records = records.filter((r) => r.record.method.kind === METHOD_BASE_KIND[methodId]);
     } else {
       records = records.filter((r) => r.record.method.id === methodId);

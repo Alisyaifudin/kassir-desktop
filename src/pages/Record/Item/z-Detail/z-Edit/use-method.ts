@@ -4,18 +4,18 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "../../use-data";
 import { METHOD_BASE_ID } from "~/lib/constants";
-import { MethodFull } from "~/database/method/get-all";
+import type { Method } from "~/database/method/cache";
 
 export function useMethod({
-  timestamp,
+  recordId,
   method,
   methods,
   onClose,
 }: {
-  timestamp: number;
-  method: MethodFull;
+  recordId: string;
+  method: Method;
   onClose: () => void;
-  methods: MethodFull[];
+  methods: Method[];
 }) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export function useMethod({
     const id = METHOD_BASE_ID[kind];
     setSelected({ id, kind });
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp, id));
+    const errMsg = await Effect.runPromise(program(recordId, id));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -35,14 +35,12 @@ export function useMethod({
       setSelected(selected);
     }
   }
-  async function handleChangeSuboption(v: string) {
-    const id = Number(v);
-    if (isNaN(id) || !isFinite(id)) return;
+  async function handleChangeSuboption(id: string) {
     const method = methods.find((m) => m.id === id);
     if (method === undefined) return;
     setSelected(method);
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp, id));
+    const errMsg = await Effect.runPromise(program(recordId, id));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -55,8 +53,8 @@ export function useMethod({
   return { loading, error, selected, handleChangeOption, handleChangeSuboption };
 }
 
-function program(timestamp: number, methodId: number) {
-  return db.record.update.method(timestamp, methodId).pipe(
+function program(recordId: string, methodId: string) {
+  return db.record.update.method(recordId, methodId).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

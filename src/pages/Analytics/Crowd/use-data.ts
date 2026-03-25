@@ -13,13 +13,11 @@ const KEY = "crowd";
 export function useData() {
   const [time] = useTime();
   const [start, end] = getRange(time);
+  console.log(time);
   const res = Result.use({
     fn: () => program({ start, end, time }),
     key: KEY,
-    revalidateOn: {
-      unmount: true,
-    },
-    deps: [start, end],
+    deps: [start, end, time],
   });
   return res;
 }

@@ -23,6 +23,7 @@ import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { formatDate, formatTime } from "~/lib/date";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function Search() {
   const [query, setQuery] = useQuery();
@@ -85,10 +86,13 @@ function Output() {
 function SearchTable({ histories }: { histories: RecordProduct[] }) {
   const [limit, setLimit] = useState(100);
   const navigate = useNavigate();
+  const urlBack = useGenerateUrlBack("/records/search");
   function handleClick(timestamp: number) {
     return function () {
-      const urlBack = encodeURIComponent(window.location.href);
-      navigate({ pathname: `/records/${timestamp}`, search: `?url_back=${urlBack}` });
+      navigate({
+        pathname: `/records/${timestamp}`,
+        search: `?url_back=${encodeURIComponent(urlBack)}`,
+      });
     };
   }
   const [mode] = useMode();
@@ -117,15 +121,15 @@ function SearchTable({ histories }: { histories: RecordProduct[] }) {
           <TableRow key={i} className={cn({ "bg-blue-50/50": i % 2 == 0 })}>
             <TableCell>{i + 1}</TableCell>
             <TableCell className="text-center">
-              {formatDate(history.timestamp).replaceAll("-", "/")}
+              {formatDate(history.paidAt).replaceAll("-", "/")}
             </TableCell>
-            <TableCell className="text-center">{formatTime(history.timestamp)}</TableCell>
+            <TableCell className="text-center">{formatTime(history.paidAt)}</TableCell>
             <TableCell>{history.name}</TableCell>
             <TableCell className="text-center">{history.qty}</TableCell>
             <TableCell className="text-right">{history.price.toLocaleString("id-ID")}</TableCell>
             <TableCell>
               <Button
-                onClick={handleClick(history.timestamp)}
+                onClick={handleClick(history.paidAt)}
                 variant="link"
                 className="p-0 cursor-pointer"
               >

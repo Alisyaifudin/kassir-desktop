@@ -16,17 +16,13 @@ import { Button } from "~/components/ui/button";
 import { Info } from "lucide-react";
 
 export function DetailDialog({
-  productId,
-  stock,
   index,
-  name,
+  product,
 }: {
-  productId: string;
-  stock: number;
-  name: string;
+  product: { id: string; price: number; name: string; capital: number; stock: number };
   index: number;
 }) {
-  const res = useImage(productId);
+  const res = useImage(product.id);
   return Result.match(res, {
     onLoading() {
       return (
@@ -57,18 +53,20 @@ export function DetailDialog({
                 </p>
                 <div className="h-px bg-border my-0.5" />
                 <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-muted-foreground">ID</span>
-                  <span className="text-sm font-mono font-medium">{productId}</span>
+                  <span className="text-xs text-muted-foreground">Modal</span>
+                  <span className="text-sm font-mono font-medium">
+                    Rp{product.capital.toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <div className="flex justify-between items-baseline">
                   <span className="text-xs text-muted-foreground">Stok</span>
                   <span
                     className={cn(
                       "text-sm font-bold",
-                      stock <= 0 ? "text-destructive" : "text-primary",
+                      product.stock <= 0 ? "text-destructive" : "text-primary",
                     )}
                   >
-                    {stock}
+                    {product.stock}
                   </span>
                 </div>
               </div>
@@ -81,7 +79,7 @@ export function DetailDialog({
           <DialogTrigger asChild>{trigger}</DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold">{name}</DialogTitle>
+              <DialogTitle className="text-xl font-bold">{product.name}</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-6 py-4">
               <div className="rounded-xl overflow-hidden border shadow-sm bg-muted/10">
@@ -90,9 +88,9 @@ export function DetailDialog({
               <div className="flex items-center justify-center gap-12 p-4 rounded-lg bg-muted/30">
                 <div className="flex flex-col items-center">
                   <span className="text-xs font-bold uppercase text-muted-foreground tracking-wide">
-                    Product ID
+                    Modal
                   </span>
-                  <span className="text-2xl font-mono font-bold">{productId}</span>
+                  <span className="text-2xl font-mono font-bold">{product.capital}</span>
                 </div>
                 <div className="h-10 w-px bg-border" />
                 <div className="flex flex-col items-center">
@@ -102,10 +100,10 @@ export function DetailDialog({
                   <span
                     className={cn(
                       "text-2xl font-bold",
-                      stock <= 0 ? "text-destructive" : "text-primary",
+                      product.stock <= 0 ? "text-destructive" : "text-primary",
                     )}
                   >
-                    {stock}
+                    {product.stock}
                   </span>
                 </div>
               </div>

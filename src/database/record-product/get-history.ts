@@ -22,7 +22,7 @@ type Output = {
 export function getHistory(start: number, end: number, query: string) {
   return DB.try((db) =>
     db.select<Output[]>(
-      `SELECT records.paid_at, record_product_id, record_product_name, record_product_qty, 
+      `SELECT records.record_paid_at, record_product_id, record_product_name, record_product_qty, 
          record_product_price, record_mode
          FROM record_products
          INNER JOIN records ON records.record_id = record_products.record_id

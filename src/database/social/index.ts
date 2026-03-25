@@ -1,4 +1,5 @@
 import { add } from "./add";
+import { cache } from "./cache";
 import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
 import { getAll } from "./get-all";
@@ -21,5 +22,6 @@ export const social = {
     sync: delSync,
   },
   add,
-  upsert
+  upsert,
+  revalidate: cache.revalidate,
 };

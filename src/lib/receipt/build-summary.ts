@@ -9,8 +9,8 @@ export function buildSummarySection(
   // Subtotal display (if different from total)
   const space = Math.min(MAXIMAL_SUMMARY_SPACE, paperWidth);
   const textData: TextData[] = [];
-  if (record.subTotal !== record.total) {
-    const text = `Rp${record.subTotal.toLocaleString("id-ID")}`;
+  if (record.subtotal !== record.total) {
+    const text = `Rp${record.subtotal.toLocaleString("id-ID")}`;
     textData.push({
       text: text,
       size: "normal",

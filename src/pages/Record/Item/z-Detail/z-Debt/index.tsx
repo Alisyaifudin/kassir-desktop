@@ -16,14 +16,14 @@ import { FieldError, FieldLabel } from "~/components/ui/field";
 
 export const DebtDialog = memo(function DebtDialog({
   grandTotal,
-  timestamp,
+  recordId
 }: {
   grandTotal: number;
-  timestamp: number;
+  recordId: string;
 }) {
   const [open, setOpen] = useState(false);
   const { form, error, loading, total, change } = useDebt({
-    timestamp,
+    recordId,
     grandTotal,
     onClose: () => setOpen(false),
   });

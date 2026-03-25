@@ -1,7 +1,7 @@
-import { Product } from "~/database/product/get-by-id";
+import { Product} from "~/database/product/cache";
 import { Package, StickyNote } from "lucide-react";
 
-export function UserInfo({ product }: { product: Product }) {
+export function UserInfo({ product }: { product: Product}) {
   return (
     <div className="h-full overflow-y-auto w-full pr-2 pb-4">
       <div className="flex items-center gap-3 mb-6">

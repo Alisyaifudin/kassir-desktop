@@ -2,7 +2,7 @@ import { ForEach } from "~/components/ForEach";
 import { TextError } from "~/components/TextError";
 import { Show } from "~/components/Show";
 import { METHOD_BASE_ID, METHOD_NAMES } from "~/lib/constants";
-import { MethodFull } from "~/database/method/get-all";
+import type { Method} from "~/database/method/cache";
 import { useMethod } from "./use-method";
 import {
   Select,
@@ -20,10 +20,10 @@ import { Skeleton } from "~/components/ui/skeleton";
 export function SelectMethod({
   method,
   close,
-  timestamp,
+  recordId,
 }: {
-  timestamp: number;
-  method: MethodFull;
+  recordId: string
+  method: Method;
   close: () => void;
 }) {
   const res = useGetMethods();
@@ -49,9 +49,9 @@ export function SelectMethod({
       return (
         <Wrapper
           method={method}
-          timestamp={timestamp}
+          recordId={recordId}
           close={close}
-          methods={[{ id: METHOD_BASE_ID["cash"], kind: "cash" }, ...methods]}
+          methods={methods}
         />
       );
     },
@@ -62,17 +62,17 @@ function Wrapper({
   method,
   methods,
   close,
-  timestamp,
+  recordId,
 }: {
-  timestamp: number;
-  method: MethodFull;
-  methods: MethodFull[];
+  recordId: string;
+  method: Method;
+  methods: Method[];
   close: () => void;
 }) {
   const option = methods.filter((m) => m.name === undefined);
   const suboption = methods.filter((m) => m.kind === method.kind && m.name !== undefined);
   const { error, handleChangeOption, handleChangeSuboption, loading, selected } = useMethod({
-    timestamp,
+    recordId,
     methods,
     method,
     onClose: close,

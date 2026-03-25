@@ -5,7 +5,7 @@ import { log } from "~/lib/log";
 import { revalidate } from "./use-data";
 import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
-export function useDelete(id: number, onClose: () => void) {
+export function useDelete(id: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -24,9 +24,9 @@ export function useDelete(id: number, onClose: () => void) {
   return { error, loading, handleSubmit };
 }
 
-function program(id: number) {
+function program(id: string) {
   return Effect.gen(function* () {
-    yield* db.social.delById(id);
+    yield* db.social.del.byId(id);
     return null;
   }).pipe(
     Effect.catchAll(({ e }) => {

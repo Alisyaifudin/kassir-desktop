@@ -1,19 +1,19 @@
-import { MethodFull } from "~/database/method/get-all";
+import { Method} from "~/database/method/cache";
 import { Info } from "~/store/info/get";
 
 export type ReceiptData = {
   record: {
     fix: number;
-    timestamp: number;
+    id: string;
     paidAt: number;
     cashier: string;
-    subTotal: number;
+    subtotal: number;
     total: number;
     grandTotal: number;
     change: number;
     pay: number;
     rounding: number;
-    method: MethodFull;
+    method: Method;
   };
   products: {
     name: string;
@@ -39,42 +39,14 @@ export type ReceiptData = {
   }[];
 };
 
-// type UserDefinedOption = {
-//   normal_line_height: number; // mm
-//   normal_font_size: number; // mm
-//   big_font_size: number; // mm
-//   big_line_height: number; // mm
-// };
-
 export type ReceiptOption = {
   paperWidth: number; // mm
   padding: number; // pt
-  // summarySpace: number; // mm
   size: {
     normal: number; //pt
     big: number; //pt
   };
-  // normal: {
-  //   lineHeight: number; //pt
-  //   fontSize: number; // pt
-  // };
-  // big: {
-  //   lineHeight: number; //pt
-  //   fontSize: number; // pt
-  // };
 };
-
-// export const FONT_SIZE_SCALE = 1.633625;
-// export const LINE_HEIHGT_SCALE = 1.633625;
-
-// export const option: Omit<ReceiptOption, "paper_height" | "paper_width"> = {
-//   normal_line_height: 2.0, // pt
-//   normal_font_size: 1.4, // pt
-//   big_font_size: 2.5, // pt
-//   big_line_height: 3, // pt
-//   padding: 2.0, // mm
-//   summary_space: 40, // mm
-// };
 
 export type TextData =
   | {

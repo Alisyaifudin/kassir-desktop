@@ -6,12 +6,12 @@ import { log } from "~/lib/log";
 import { useUnselect } from "../use-selected";
 
 export function useDelete({
-  timestamp,
+  id,
   mode,
   products,
   onClose,
 }: {
-  timestamp: number;
+  id: string;
   mode: DB.Mode;
   products: DataRecord["products"];
   onClose: () => void;
@@ -21,7 +21,7 @@ export function useDelete({
   const unselect = useUnselect();
   async function handleDelete() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(programDeleteRecord(timestamp, mode, products));
+    const errMsg = await Effect.runPromise(programDeleteRecord(id, mode, products));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -34,16 +34,16 @@ export function useDelete({
 }
 
 export function programDeleteRecord(
-  timestamp: number,
+  id: string,
   mode: DB.Mode,
-  productRecords: { id: number; productId?: number; qty: number }[],
+  productRecords: { id: string; productId?: string; qty: number }[],
 ) {
   return Effect.gen(function* () {
     const filtered = productRecords.flatMap((p) =>
       p.productId === undefined ? [] : [{ id: p.productId, qty: p.qty }],
     );
     yield* Effect.all([
-      db.record.delByTimestamp(timestamp),
+      db.record.del.byId(id),
       ...(mode === "buy"
         ? filtered.map((p) => db.product.update.stock.dec(p.id, p.qty))
         : filtered.map((p) => db.product.update.stock.inc(p.id, p.qty))),

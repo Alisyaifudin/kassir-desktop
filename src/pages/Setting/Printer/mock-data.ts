@@ -7,14 +7,14 @@ export const mockData: Omit<ReceiptData, "info"> = {
     fix: 0,
     grandTotal: 12010,
     method: {
-      id: 1000,
+      id: "1000",
       kind: "cash",
     },
     paidAt: Date.now(),
     pay: 1300,
     rounding: 10,
-    subTotal: 10000,
-    timestamp: Date.now(),
+    subtotal: 10000,
+    id: "123456",
     total: 12_000_000,
   },
   extras: [

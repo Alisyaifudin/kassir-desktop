@@ -2,12 +2,12 @@ import { Effect } from "effect";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { db } from "~/database";
-import { Product } from "~/database/product/get-by-id";
+import { Product } from "~/database/product/cache";
 import { log } from "~/lib/log";
 import { useAppForm } from "../../../z-ProductForm";
 import { createProductOptions } from "../../../util-product-options";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
-import { revalidateProducts } from "../../../../../../hooks/use-get-products";
+import { revalidateProducts } from "~/hooks/use-get-products";
 
 export function useUpdate(product: Product) {
   const [error, setError] = useState<null | string>(null);

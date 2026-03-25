@@ -20,8 +20,13 @@ export function useProduct() {
 }
 
 const program = Effect.gen(function* () {
-  const products = yield* db.product.get.allFull();
-  const json = JSON.stringify(products, null, 2);
+  const products = yield* db.product.get.all();
+  const json = JSON.stringify(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    products.map(({ updatedAt, syncAt, ...p }) => p),
+    null,
+    2,
+  );
   const blob = new Blob([json], { type: "application/json" });
   const data = yield* Effect.tryPromise({
     try: () => blob.bytes(),

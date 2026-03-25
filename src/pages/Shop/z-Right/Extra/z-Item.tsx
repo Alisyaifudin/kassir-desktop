@@ -13,12 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Checkbox } from "~/components/ui/checkbox";
 import { queue } from "../../util-queue";
 
 export const Item = memo(
   function Item({ extra }: { extra: Extra }) {
-    const { id, saved, name, kind, value } = extra;
+    const { id, name, kind, value } = extra;
     const fix = useFix();
     const [input, setInput] = useState(value === 0 ? "" : value.toString());
 
@@ -77,27 +76,7 @@ export const Item = memo(
               </div>
             </div>
 
-            <div className="grid grid-cols-[60px_140px_150px_110px_50px] gap-4 justify-end items-end w-full min-w-0">
-              <div className="shrink-0 p-1">
-                <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
-                  Simpan?
-                </div>
-                <div className="h-9 flex items-center justify-center">
-                  <Checkbox
-                    checked={saved}
-                    onCheckedChange={(checked) => {
-                      const isChecked = !!checked;
-                      extrasStore.trigger.update({
-                        id,
-                        recipe: (draft) => {
-                          draft.saved = isChecked;
-                        },
-                      });
-                      queue.add(tx.extra.update.saved(id, isChecked));
-                    }}
-                  />
-                </div>
-              </div>
+            <div className="grid grid-cols-[140px_150px_140px_50px] gap-4 justify-end items-end w-full min-w-0">
               <div className="shrink-0 p-1">
                 <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
                   Tipe
@@ -174,7 +153,6 @@ export const Item = memo(
       prev.extra.eff === next.extra.eff &&
       prev.extra.kind === next.extra.kind &&
       prev.extra.name === next.extra.name &&
-      prev.extra.saved === next.extra.saved &&
       prev.extra.value === next.extra.value
     );
   },

@@ -26,7 +26,7 @@ class Numeric {
   }
   set str(value: string) {
     const num = Number(value);
-    if (isNaN(num) || !isFinite(num)) return;
+    if (isNaN(num) || !isFinite(num) || num > 1e9) return;
     if (this.nonNegative && num < 0) return;
     this._str = value;
     this.num = num;
@@ -42,7 +42,7 @@ export const basicStore = createAtom<{
   rounding: Numeric;
   query: string;
   pay: Numeric;
-  methodId: number;
+  methodId: string;
   note: string;
 }>({
   fix: 0,
@@ -50,7 +50,7 @@ export const basicStore = createAtom<{
   pay: new Numeric("", true),
   mode: "sell",
   query: "",
-  methodId: 1000, //cash
+  methodId: "1000", //cash
   note: "",
 });
 
@@ -65,14 +65,12 @@ export const manualStore = createAtom({
     name: "",
     barcode: "",
     price: 0,
-    stock: 0,
     qty: 0,
   },
   extra: {
     name: "",
     value: 0,
     kind: "percent" as "percent" | "number",
-    saved: false,
   },
 });
 
@@ -105,7 +103,7 @@ export function initStore({
 export function resetStore(tab: number) {
   basicStore.set({
     fix: 0,
-    methodId: 1000,
+    methodId: "1000",
     mode: "sell",
     note: "",
     query: "",
@@ -118,14 +116,12 @@ export function resetStore(tab: number) {
       name: "",
       barcode: "",
       price: 0,
-      stock: 0,
       qty: 0,
     },
     extra: {
       name: "",
       value: 0,
       kind: "percent" as "percent" | "number",
-      saved: false,
     },
   });
   productsStore.trigger.clear();

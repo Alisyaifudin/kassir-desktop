@@ -96,8 +96,5 @@ function useData(mode: "sell" | "buy", queryKey: string) {
         db.record.count.total(yesterday.start, yesterday.end, mode),
       ]),
     key: queryKey,
-    revalidateOn: {
-      unmount: true,
-    },
   });
 }

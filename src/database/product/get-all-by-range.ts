@@ -60,7 +60,7 @@ export function getAllByRange(start: number, end: number) {
          FROM record_products
          INNER JOIN records ON records.record_id = record_products.record_id
          LEFT JOIN products ON products.product_id = record_products.product_id
-         WHERE record.record_paid_at BETWEEN $1 AND $2
+         WHERE records.record_paid_at BETWEEN $1 AND $2
          ORDER BY records.record_paid_at DESC`,
         [start, end],
       ),

@@ -9,7 +9,7 @@ export function Product({ name, price, qty, discounts, total }: RecordData["prod
       <div className="flex justify-between">
         <div className="flex gap-1 items-center">
           <p>{price.toLocaleString("id-ID")}</p>
-          <span>&#215;</span>
+          <p>&#215;</p>
           <p>{qty}</p>
         </div>
         <p>{total.toLocaleString("id-ID")}</p>

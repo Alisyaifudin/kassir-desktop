@@ -9,9 +9,11 @@ export function useInterval() {
   const [search, setSearch] = useSearchParams();
   const interval = intervalSchema.catch("month").parse(search.get("interval"));
   function setInterval(interval: Interval) {
-    const s = new URLSearchParams(window.location.search);
-    s.set("interval", interval);
-    setSearch(s);
+    setSearch((old) => {
+      const s = new URLSearchParams(old);
+      s.set("interval", interval);
+      return s;
+    });
   }
   return [interval, setInterval] as const;
 }

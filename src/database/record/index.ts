@@ -1,5 +1,4 @@
 import { add } from "./add";
-import { addExternal } from "./add-external-old";
 import { countRecord } from "./count-record";
 import { countTotal } from "./count-total";
 import { delById } from "./del-by-id";
@@ -13,6 +12,7 @@ import { updatePayCredit } from "./update-pay-credit";
 import { updateToCredit } from "./update-to-credit";
 import { delSync } from "./del-sync";
 import { upsert } from "./upsert";
+import { addExternal } from "./add-external";
 
 export const record = {
   get: {

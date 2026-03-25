@@ -24,20 +24,29 @@ export function useToTransaction(data: DataRecord) {
   return { error, loading, handleClick };
 }
 
-function program(data: DataRecord) {
-  return tx.transaction.add.one(data).pipe(
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(e);
-      return Effect.fail(e.message);
-    }),
-    Effect.catchTag("TooMany", (e) => {
-      log.error(e.msg);
-      return Effect.fail(e.msg);
-    }),
-    Effect.catchTag("TxError", ({ e }) => {
-      log.error(e);
-      return Effect.fail(e.message);
-    }),
-    Effect.either,
-  );
+function program({ extras, products, record }: DataRecord) {
+  return tx.transaction.add
+    .one({
+      extras,
+      products,
+      record: {
+        ...record,
+        methodId: record.method.id,
+      },
+    })
+    .pipe(
+      Effect.catchTag("DbError", ({ e }) => {
+        log.error(e);
+        return Effect.fail(e.message);
+      }),
+      Effect.catchTag("TooMany", (e) => {
+        log.error(e.msg);
+        return Effect.fail(e.msg);
+      }),
+      Effect.catchTag("TxError", ({ e }) => {
+        log.error(e);
+        return Effect.fail(e.message);
+      }),
+      Effect.either,
+    );
 }

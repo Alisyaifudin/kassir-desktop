@@ -8,7 +8,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { IOError } from "~/lib/effect-error";
 
-export function Download({ kindId, kind }: { kindId: number; kind: string }) {
+export function Download({ kindId, kind }: { kindId: string; kind: string }) {
   const [loading, setLoading] = useState(false);
   async function handleClick() {
     setLoading(true);
@@ -26,7 +26,7 @@ export function Download({ kindId, kind }: { kindId: number; kind: string }) {
   );
 }
 
-function program(kindId: number, kind: string) {
+function program(kindId: string, kind: string) {
   return Effect.gen(function* () {
     const money = yield* db.money.get.all(kindId);
     const json = JSON.stringify(money, null, 2);

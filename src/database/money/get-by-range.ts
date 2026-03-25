@@ -9,6 +9,7 @@ export type Money = {
   value: number;
   note: string;
   diff: number;
+  id: string;
 };
 
 export type MoneyKind = {
@@ -59,6 +60,7 @@ function collectMoney(money: Omit<DB.Money, "money_kind">[], last: number): Mone
       timestamp: money[i].timestamp,
       diff: new Decimal(money[i].money_value).minus(money[i + 1].money_value).toNumber(),
       note: money[i].money_note,
+      id: money[i].money_id,
     });
   }
   const lastDiff = new Decimal(money[n - 1].money_value).minus(last).toNumber();
@@ -67,6 +69,7 @@ function collectMoney(money: Omit<DB.Money, "money_kind">[], last: number): Mone
     timestamp: money[n - 1].timestamp,
     diff: lastDiff,
     note: money[n - 1].money_note,
+    id: money[n - 1].money_id,
   });
   return data;
 }

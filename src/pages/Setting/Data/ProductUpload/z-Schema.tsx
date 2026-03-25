@@ -10,6 +10,7 @@ import {
 } from "~/components/ui/dialog";
 
 const productSchema = `{
+    id: string;
     price: number;
     barcode?: string | undefined;
     name: string;

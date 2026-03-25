@@ -1,16 +1,16 @@
-import { LoaderFunctionArgs, redirect, useLoaderData, type RouteObject } from "react-router";
+import { LoaderFunctionArgs, useLoaderData, type RouteObject } from "react-router";
 import { lazy, Suspense } from "react";
 import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
 export const itemRoute: RouteObject = {
-  path: ":timestamp",
+  path: ":recordId",
   Component: () => {
-    const timestamp = useLoaderData<Loader>();
+    const recordId = useLoaderData<Loader>();
     return (
       <Suspense fallback={<Loading />}>
-        <Page timestamp={timestamp} />
+        <Page recordId={recordId} />
       </Suspense>
     );
   },
@@ -18,10 +18,7 @@ export const itemRoute: RouteObject = {
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {
-  const timestamp = params.timestamp;
-  const num = Number(timestamp);
-  if (isNaN(num) || !isFinite(num)) return redirect("/records");
-  return num;
+  return params.recordId!;
 }
 
 type Loader = typeof loader;

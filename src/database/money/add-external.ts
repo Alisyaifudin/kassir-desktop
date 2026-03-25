@@ -1,22 +1,22 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 import { DuplicateError } from "~/lib/effect-error";
+import { generateId } from "~/lib/random";
 
 export function addExternal(
   kindId: string,
   {
     timestamp,
     note,
-    id,
     value,
   }: {
     value: number;
     note: string;
     timestamp: number;
-    id: string;
   },
 ) {
   const now = Date.now();
+  const id = generateId();
   return Effect.gen(function* () {
     const check = yield* DB.try((db) =>
       db.select<{ timestamp: number }[]>("SELECT timestamp FROM money WHERE money_id = $1", [id]),

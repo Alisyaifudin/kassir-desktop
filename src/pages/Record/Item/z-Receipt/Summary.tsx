@@ -15,8 +15,8 @@ export function SummaryBody({
   return (
     <div className="flex justify-end">
       <div className="flex flex-col items-end">
-        <Show when={record.subTotal !== record.grandTotal && productLength > 0}>
-          <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
+        <Show when={record.subtotal !== record.grandTotal && productLength > 0}>
+          <p className="text-end">Rp{record.subtotal.toLocaleString("id-ID")}</p>
         </Show>
         <Show when={extras.length > 0}>
           <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>
@@ -35,12 +35,12 @@ export function SummaryBody({
           <p>Total</p>
           <p className="text-end">Rp{record.grandTotal.toLocaleString("id-ID")}</p>
         </div>
+        <hr className="h-2 bg-transparent border-t-2 border-dashed border-black w-full" />
         <div className="grid grid-cols-[100px_120px]">
           <p>Pembayaran</p>
           <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
         </div>
         <Show when={record.change !== 0}>
-          <hr className="h-2 bg-transparent border-t-2 border-dashed border-black w-full" />
           <div className="grid grid-cols-[100px_120px]">
             <p>Kembalian</p> <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
           </div>

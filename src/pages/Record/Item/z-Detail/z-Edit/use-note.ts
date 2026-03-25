@@ -4,13 +4,13 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { revalidate } from "../../use-data";
 
-export function useNote(timestamp: number, note: string, onClose: () => void) {
+export function useNote(recordId: string, note: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   const [value, setValue] = useState(note);
   async function handleSubmit() {
     setLoading(true);
-    const errMsg = await Effect.runPromise(program(timestamp, value));
+    const errMsg = await Effect.runPromise(program(recordId, value));
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
@@ -21,8 +21,8 @@ export function useNote(timestamp: number, note: string, onClose: () => void) {
   return { loading, error, note: value, setNote: setValue, handleSubmit };
 }
 
-function program(timestamp: number, note: string) {
-  return db.record.update.note(timestamp, note).pipe(
+function program(recordId: string, note: string) {
+  return db.record.update.note(recordId, note).pipe(
     Effect.as(null),
     Effect.catchTag("DbError", ({ e }) => {
       log.error(e);

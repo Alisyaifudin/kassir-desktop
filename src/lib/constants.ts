@@ -1,7 +1,7 @@
 import { Temporal } from "temporal-polyfill";
-import { MethodFull } from "~/database/method/get-all";
+import { Method } from "~/database/method/cache";
 
-export const version = "5.13.4";
+export const version = "5.15.3";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
@@ -14,42 +14,42 @@ export const METHOD_NAMES = {
 
 // (1000, 'cash'), (1001, 'transfer'), (1002, 'debit'), (1003, 'qris');
 export const METHOD_BASE_ID = {
-  cash: 1000,
-  transfer: 1001,
-  debit: 1002,
-  qris: 1003,
+  cash: "1000",
+  transfer: "1001",
+  debit: "1002",
+  qris: "1003",
 } as const;
 export const METHOD_BASE_KIND = {
-  1000: "cash",
-  1001: "transfer",
-  1002: "debit",
-  1003: "qris",
+  "1000": "cash",
+  "1001": "transfer",
+  "1002": "debit",
+  "1003": "qris",
 } as const;
 
 export const DEFAULT_METHOD = {
-  id: 1000,
+  id: "1000",
   method: "cash",
   name: null,
 } as const;
 
-export const DEFAULT_METHODS: MethodFull[] = [
+export const DEFAULT_METHODS = [
   {
-    id: 1000,
+    id: "1000",
     kind: "cash",
   },
   {
-    id: 1001,
+    id: "1001",
     kind: "transfer",
   },
   {
-    id: 1002,
+    id: "1002",
     kind: "debit",
   },
   {
-    id: 1003,
+    id: "1003",
     kind: "qris",
   },
-];
+] satisfies Method[];
 export const DEBOUNCE_DELAY = 200;
 
 export const tz = Temporal.Now.timeZoneId();

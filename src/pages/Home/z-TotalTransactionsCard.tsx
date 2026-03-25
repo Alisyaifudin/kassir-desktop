@@ -87,9 +87,6 @@ function useData() {
   const res = Result.use({
     fn: () => db.record.count.record(start, end),
     key: "total-transactions",
-    revalidateOn: {
-      unmount: true,
-    },
   });
   return res;
 }
