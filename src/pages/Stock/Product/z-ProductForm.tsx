@@ -16,7 +16,7 @@ function ShortField({ children, type }: { children: string; type: "number" | "te
         <FieldLabel htmlFor={field.name}>{children}</FieldLabel>
         <Input
           type={type}
-          className={cn("outline", type === "text" ? "w-full" : "w-32")}
+          className={cn("outline", type === "text" ? "w-full" : "w-40 small:w-32")}
           name={field.name}
           step="any"
           value={field.state.value}

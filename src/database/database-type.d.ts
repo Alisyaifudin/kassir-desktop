@@ -24,6 +24,16 @@ declare namespace DB {
     grave_timestamp: number;
   }
 
+  type ProductEventEnum = "manual" | "inc" | "dec";
+  interface ProductEvent {
+    id: string;
+    created_at: number;
+    sync_at: number | null;
+    type: ProductEventEnum;
+    value: number;
+    product_id: string;
+  }
+
   interface Cashier {
     cashier_id: string;
     cashier_name: string;

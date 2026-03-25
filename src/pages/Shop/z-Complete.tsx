@@ -21,7 +21,7 @@ import { TabInfo } from "~/transaction/transaction/get-all";
 import { programDeleteRecord } from "../Record/z-Detail/use-delete";
 import { useTab } from "./use-tab";
 import { revalidateTabs, useTabs } from "./use-tabs";
-import { resetStore, useMode } from "./use-transaction";
+import { resetStore } from "./use-transaction";
 import { loadDetailRecord } from "../Record/Item/use-data";
 import { Spinner } from "~/components/Spinner";
 import { programPrint } from "../setting/Printer/util-program-print";
@@ -51,7 +51,6 @@ export function Complete() {
   const { open, grandTotal, change, recordId } = useComplete();
   const [tab] = useTab();
   const tabs = useTabs();
-  const mode = useMode();
   const urlBack = useGenerateUrlBack(`/shop`);
 
   useEffect(() => {
@@ -78,19 +77,7 @@ export function Complete() {
   };
 
   const handleRollback = async (id: string) => {
-    const errMsg = await Effect.runPromise(
-      Effect.gen(function* () {
-        const products = yield* db.recordProduct.get.byRecordId(id);
-        yield* programDeleteRecord(id, mode, products);
-        return null;
-      }).pipe(
-        Effect.catchTag("DbError", ({ e }) => {
-          log.error(e);
-          return Effect.succeed(e.message);
-        }),
-      ),
-    );
-
+    const errMsg = await Effect.runPromise(programDeleteRecord(id));
     if (errMsg) {
       setError(errMsg);
       return false;

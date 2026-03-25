@@ -25,7 +25,7 @@ export function Detail({ extras, products, record }: DataRecord) {
   return (
     <Show
       when={products.length !== 0 || extras.length !== 0}
-      fallback={<DeleteBtn mode={record.mode} products={products} recordId={record.id} />}
+      fallback={<DeleteBtn recordId={record.id} />}
     >
       <div className="flex flex-col gap-2 overflow-hidden h-full">
         <div className="flex items-center gap-2 justify-between shrink-0 py-1">
@@ -121,11 +121,7 @@ function FooterBtn({ data }: { data: DataRecord }) {
       <div className="flex items-center gap-3">
         <ToTransaction data={data} />
         <Show when={role === "admin"}>
-          <DeleteBtn
-            recordId={data.record.id}
-            mode={data.record.mode}
-            products={data.products}
-          />
+          <DeleteBtn recordId={data.record.id} />
         </Show>
       </div>
     </div>

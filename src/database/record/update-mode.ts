@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 import { NotFound } from "~/lib/effect-error";
+import { generateId } from "~/lib/random";
 
 export function updateMode(recordId: string, mode: DB.Mode) {
   return Effect.gen(function* () {
@@ -81,10 +82,8 @@ export function updateMode(recordId: string, mode: DB.Mode) {
 
     for (const p of productData) {
       if (mode === "buy") {
-        let originalStock = p.stock + p.qty;
-        if (originalStock < 0) originalStock = 0;
-        let finalStock = p.stock + 2 * p.qty;
-        if (finalStock < 0) finalStock = 0;
+        const originalStock = p.stock + p.qty;
+        const finalStock = originalStock + p.qty;
 
         const updatedCapital = calcCombinedCapital(p.prevCapital, originalStock, p.capital, p.qty);
 
@@ -92,14 +91,23 @@ export function updateMode(recordId: string, mode: DB.Mode) {
         product_price = $${bindIndex++}, product_updated_at = $${bindIndex++}, 
         product_sync_at = $${bindIndex++} WHERE product_id = $${bindIndex++};\n`;
         binds.push(finalStock, updatedCapital, p.prevPrice, now, null, p.id);
+        const eventId = generateId();
+        sql += `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id)
+                VALUES (${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, 
+                ${bindIndex++});\n`;
+        binds.push(eventId, now, null, "inc", 2 * p.qty, p.id);
       } else if (mode === "sell") {
-        let updatedStock = p.stock - 2 * p.qty;
-        if (updatedStock < 0) updatedStock = 0;
+        const updatedStock = p.stock - 2 * p.qty;
 
         sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++},
         product_updated_at = $${bindIndex++}, product_sync_at = $${bindIndex++} 
         WHERE product_id = $${bindIndex++};\n`;
         binds.push(updatedStock, p.prevCapital, now, null, p.id);
+        const eventId = generateId();
+        sql += `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id)
+                VALUES (${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, 
+                ${bindIndex++});\n`;
+        binds.push(eventId, now, null, "dec", 2 * p.qty, p.id);
       }
     }
 
@@ -113,6 +121,9 @@ export function calcCombinedCapital(
   buyCapital: number,
   qty: number,
 ) {
+  if (prevStock < 0) {
+    return buyCapital;
+  }
   const weight = prevStock + qty;
   return weight === 0 ? prevCapital : (prevCapital * prevStock + buyCapital * qty) / weight;
 }

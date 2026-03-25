@@ -11,22 +11,15 @@ import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { useDelete } from "./use-delete";
-import { DataRecord } from "../use-records";
 
 export function DeleteBtn({
   recordId,
-  mode,
-  products,
 }: {
   recordId: string;
-  mode: DB.Mode;
-  products: DataRecord["products"];
 }) {
   const [open, setOpen] = useState(false);
   const { error, loading, handleDelete } = useDelete({
     id: recordId,
-    mode,
-    products,
     onClose: () => setOpen(false),
   });
   return (

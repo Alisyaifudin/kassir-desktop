@@ -7,13 +7,12 @@ type Input = {
   id: string;
   name: string;
   price: number;
-  stock: number;
   capital: number;
   barcode?: string;
   note: string;
 };
 
-export function updateInfo({ id, name, price, stock, capital, barcode, note }: Input) {
+export function updateInfo({ id, name, price, capital, barcode, note }: Input) {
   return Effect.gen(function* () {
     if (barcode !== undefined) {
       yield* checkDuplicate(barcode, id);
@@ -21,23 +20,23 @@ export function updateInfo({ id, name, price, stock, capital, barcode, note }: I
     const now = Date.now();
     yield* DB.try((db) =>
       db.execute(
-        `UPDATE products SET product_name = $1, product_price = $2, product_stock = $3, product_capital = $4,
-         product_barcode = $5, product_note = $6, product_updated_at = $7, product_sync_at = null
-         WHERE product_id = $8`,
-        [name, price, stock, capital, barcode ?? null, note, now, id],
+        `UPDATE products SET product_name = $1, product_price = $2, product_capital = $3,
+         product_barcode = $4, product_note = $5, product_updated_at = $6, product_sync_at = null
+         WHERE product_id = $7`,
+        [name, price, capital, barcode ?? null, note, now, id],
       ),
     );
-    cache.update(id, {
+    cache.update(id, (prev) => ({
+      ...prev,
       id,
       name,
       price,
-      stock,
       capital,
       note,
       barcode,
       syncAt: null,
       updatedAt: now,
-    });
+    }));
   });
 }
 

@@ -10,20 +10,11 @@ import {
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { RecordData } from "../../use-data";
 import { useDelete } from "./use-delete";
 
-export function DeleteBtn({
-  recordId,
-  mode,
-  products,
-}: {
-  recordId: string;
-  mode: DB.Mode;
-  products: RecordData["products"];
-}) {
+export function DeleteBtn({ recordId }: { recordId: string }) {
   const [open, setOpen] = useState(false);
-  const { error, handleDelete, loading } = useDelete({ recordId, mode, products });
+  const { error, handleDelete, loading } = useDelete({ recordId });
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild variant="destructive">

@@ -141,25 +141,50 @@ export function add({
         let productId: string;
         if (product.product?.id !== undefined) {
           productId = product.product.id;
+          const eventId = generateId();
           if (mode === "buy") {
             query += `UPDATE products SET product_stock = product_stock + $${bindingIndex++}, 
             product_capital = $${bindingIndex++}, product_name = $${bindingIndex++},
             product_updated_at = $${bindingIndex++}, product_sync_at = null 
-            WHERE product_id = $${bindingIndex++};\n`;
-            bindings.push(product.qty, product.capital, product.name, now, product.product.id);
+            WHERE product_id = $${bindingIndex++};\n
+            INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
+            VALUES ($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+            $${bindingIndex++}, $${bindingIndex++});\n`;
+            bindings.push(
+              product.qty,
+              product.capital,
+              product.name,
+              now,
+              productId,
+              eventId,
+              now,
+              null,
+              "inc",
+              product.qty,
+              productId,
+            );
           } else {
             query += `UPDATE products SET product_stock = product_stock - $${bindingIndex++}, 
             product_price = $${bindingIndex++}, product_capital = $${bindingIndex++}, 
             product_name = $${bindingIndex++}, product_updated_at = $${bindingIndex++}, 
             product_sync_at = null 
-            WHERE product_id = $${bindingIndex++};\n`;
+            WHERE product_id = $${bindingIndex++};\n
+            INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
+            VALUES ($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+            $${bindingIndex++}, $${bindingIndex++});\n`;
             bindings.push(
               product.qty,
               product.price,
               product.capital,
               product.name,
               now,
-              product.product.id,
+              productId,
+              eventId,
+              now,
+              null,
+              "dec",
+              product.qty,
+              productId,
             );
           }
           recordProducts.push({
@@ -184,24 +209,41 @@ export function add({
           $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
         )
         .join(", ");
+      const newEventsPlaceholders = recordProducts
+        .filter((r) => r.isNew)
+        .map(
+          () => `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, 
+          $${bindingIndex++})`,
+        )
+        .join(", ");
       if (newProductsPlaceholders.length > 0) {
         query += `INSERT INTO products (product_id, product_barcode, product_name, product_price,
         product_stock, product_capital, product_note, product_updated_at, product_sync_at) VALUES 
         ${newProductsPlaceholders};\n`;
         for (let i = 0; i < products.length; i++) {
           if (!recordProducts[i].isNew) continue;
-          const qty = mode === "buy" ? productFulls[i].qty : 0;
+          const product = productFulls[i];
+          const qty = mode === "buy" ? product.qty : 0;
           bindings.push(
             recordProducts[i].productId,
-            productFulls[i].barcode,
-            productFulls[i].name,
-            productFulls[i].price,
+            product.barcode,
+            product.name,
+            product.price,
             qty,
-            productFulls[i].capital,
+            product.capital,
             "",
             now,
             null,
           );
+        }
+        query += `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
+        VALUES ${newEventsPlaceholders};\n`;
+        for (let i = 0; i < products.length; i++) {
+          if (!recordProducts[i].isNew) continue;
+          const product = productFulls[i];
+          const eventId = generateId();
+          const qty = mode === "buy" ? product.qty : 0;
+          bindings.push(eventId, now, null, "manual", qty, recordProducts[i].productId);
         }
       }
       // insert record product
@@ -254,7 +296,7 @@ export function add({
       }
     }
     yield* DB.try((db) => db.execute(query, bindings));
-    cache.revalidate()
+    cache.revalidate();
     return recordId;
   });
 }

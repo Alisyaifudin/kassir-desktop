@@ -110,7 +110,7 @@ export function Detail({ data }: { data: RecordData }) {
             <DebtDialog grandTotal={data.record.grandTotal} recordId={data.record.id} />
           </Show>
         </div>
-        <DeleteBtn recordId={data.record.id} mode={data.record.mode} products={data.products} />
+        <DeleteBtn recordId={data.record.id} />
       </div>
       <Footer
         cashier={data.record.cashier}

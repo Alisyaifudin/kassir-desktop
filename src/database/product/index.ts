@@ -5,14 +5,16 @@ import { updateInfo } from "./update-info";
 import { getHistoryRange } from "./get-history-range";
 import { add } from "./add";
 import { getAllByRange } from "./get-all-by-range";
-import { incStock } from "./inc-stock";
-import { decStock } from "./dec-stock";
+// import { incStock } from "./inc-stock";
+// import { decStock } from "./dec-stock";
 import { getHistoryOffset } from "./get-history-offset";
 import { upsert } from "./upsert";
 import { sync } from "./sync";
 import { getAllUnsync } from "../customer/get-all-unsync";
 import { addExternal } from "./add-external";
 import { cache } from "./cache";
+import { updateStock } from "./update-stock";
+import { calcStock } from "./calc-stock";
 
 export const product = {
   get: {
@@ -29,10 +31,12 @@ export const product = {
   update: {
     sync,
     info: updateInfo,
-    stock: {
-      inc: incStock,
-      dec: decStock,
-    },
+    stock: updateStock,
+    calcStock,
+    // stock: {
+    //   inc: incStock,
+    //   dec: decStock,
+    // },
   },
   add: {
     new: add,
