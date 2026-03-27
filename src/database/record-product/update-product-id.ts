@@ -13,8 +13,10 @@ export function updateProductId(recordProductId: string, productId: string | nul
     const now = Date.now();
     yield* DB.try((db) =>
       db.execute(
-        `UPDATE record_products SET product_id = $1 WHERE record_product_id = $2;\n
-       UPDATE records SET record_updated_at = $3, record_sync_at = $4 WHERE record_id = $5`,
+        `BEGIN;
+       UPDATE record_products SET product_id = $1 WHERE record_product_id = $2;\n
+       UPDATE records SET record_updated_at = $3, record_sync_at = $4 WHERE record_id = $5;
+       COMMIT;`,
         [productId, recordProductId, now, null, records[0].record_id],
       ),
     );

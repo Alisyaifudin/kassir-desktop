@@ -6,8 +6,10 @@ export function delSync(id: string) {
   return pipe(
     DB.try((db) =>
       db.execute(
-        `DELETE FROM extras WHERE extra_id = $1;
-         DELETE FROM graves WHERE grave_item_id = $1 AND grave_kind = 'extra';`,
+        `BEGIN;
+         DELETE FROM extras WHERE extra_id = $1;
+         DELETE FROM graves WHERE grave_item_id = $1 AND grave_kind = 'extra';
+         COMMIT;`,
         [id],
       ),
     ),

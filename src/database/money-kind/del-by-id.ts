@@ -7,9 +7,11 @@ export function delById(id: string) {
   const now = Date.now();
   return DB.try((db) =>
     db.execute(
-      `DELETE FROM money WHERE money_id = $1;
+      `BEGIN;
+       DELETE FROM money WHERE money_id = $1;
        INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
        VALUES ($1, $2, 'money_kind', $3);
+       COMMIT;
     `,
       [id, graveId, now],
     ),

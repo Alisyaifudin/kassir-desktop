@@ -7,9 +7,11 @@ export function delById(id: string) {
   const graveId = generateId();
   return DB.try((db) =>
     db.execute(
-      `DELETE FROM socials WHERE social_id = $1;
+      `BEGIN;
+       DELETE FROM socials WHERE social_id = $1;
        INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp) 
-       VALUES ($1, $2, 'social', $3);`,
+       VALUES ($1, $2, 'social', $3);
+       COMMIT;`,
       [id, graveId, now],
     ),
   ).pipe(Effect.asVoid);

@@ -23,11 +23,13 @@ export function add({ name, barcode, price, stock, capital, note }: Input) {
     const now = Date.now();
     yield* DB.try((db) =>
       db.execute(
-        `INSERT INTO products (product_id, product_name, product_barcode, product_price, product_stock, 
+        `BEGIN;
+         INSERT INTO products (product_id, product_name, product_barcode, product_price, product_stock, 
          product_capital, product_note, product_updated_at, product_sync_at) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
          INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
-         VALUES ($10, $11, $12, $13, $14, $15);`,
+         VALUES ($10, $11, $12, $13, $14, $15);
+         COMMIT;`,
         [
           id,
           name,

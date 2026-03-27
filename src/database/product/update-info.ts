@@ -41,11 +41,13 @@ export function updateInfo({ id, name, stock, price, capital, barcode, note }: I
       const eventId = generateId();
       yield* DB.try((db) =>
         db.execute(
-          `UPDATE products SET product_name = $1, product_price = $2, product_capital = $3, product_stock = $4,
+          `BEGIN;
+           UPDATE products SET product_name = $1, product_price = $2, product_capital = $3, product_stock = $4,
            product_barcode = $5, product_note = $6, product_updated_at = $7, product_sync_at = $8
            WHERE product_id = $9;\n
            INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
-           VALUES ($10, $11, $12, $13, $14, $15);\n`,
+           VALUES ($10, $11, $12, $13, $14, $15);\n
+           COMMIT;`,
           [
             name,
             price,
@@ -69,11 +71,13 @@ export function updateInfo({ id, name, stock, price, capital, barcode, note }: I
       const eventId = generateId();
       yield* DB.try((db) =>
         db.execute(
-          `UPDATE products SET product_name = $1, product_price = $2, product_capital = $3, product_stock = $4,
+          `BEGIN;
+           UPDATE products SET product_name = $1, product_price = $2, product_capital = $3, product_stock = $4,
            product_barcode = $5, product_note = $6, product_updated_at = $7, product_sync_at = $8
            WHERE product_id = $9;\n
            INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
-           VALUES ($10, $11, $12, $13, $14, $15);\n`,
+           VALUES ($10, $11, $12, $13, $14, $15);\n
+           COMMIT;`,
           [
             name,
             price,

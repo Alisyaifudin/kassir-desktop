@@ -8,9 +8,11 @@ export function delById(id: string) {
   const now = Date.now();
   return DB.try((db) =>
     db.select<DB.Customer[]>(
-      `DELETE FROM customers WHERE customer_id = $1;
+      `BEGIN;
+       DELETE FROM customers WHERE customer_id = $1;
        INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
-       VALUES ($1, $2, 'customer', $3)
+       VALUES ($1, $2, 'customer', $3);
+       COMMIT;
       `,
       [id, graveId, now],
     ),

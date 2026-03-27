@@ -4,8 +4,10 @@ import { DB } from "../instance";
 export function delSync(id: string) {
   return DB.try((db) =>
     db.execute(
-      `DELETE FROM money WHERE money_id = $1;
+      `BEGIN;
+       DELETE FROM money WHERE money_id = $1;
        DELETE FROM graves WHERE grave_item_id = $1;
+       COMMIT;
       `,
       [id],
     ),

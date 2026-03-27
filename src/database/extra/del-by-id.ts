@@ -9,9 +9,11 @@ export function delById(id: string) {
   return pipe(
     DB.try((db) =>
       db.execute(
-        `DELETE FROM extras WHERE extra_id = $1;
+        `BEGIN;
+         DELETE FROM extras WHERE extra_id = $1;
          INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
-         VALUES ($1, $2, 'extra', $3)`,
+         VALUES ($1, $2, 'extra', $3);
+         COMMIT;`,
         [id, graveId, now],
       ),
     ),

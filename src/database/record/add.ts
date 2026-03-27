@@ -295,7 +295,8 @@ export function add({
         }
       }
     }
-    yield* DB.try((db) => db.execute(query, bindings));
+    const wrappedQuery = `BEGIN;\n${query}COMMIT;`;
+    yield* DB.try((db) => db.execute(wrappedQuery, bindings));
     cache.revalidate();
     return recordId;
   });

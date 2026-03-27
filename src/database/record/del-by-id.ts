@@ -36,7 +36,8 @@ export function delById(id: string) {
         bindings.push(product.qty, product.id)
       }
     }
-    yield* DB.try((db) => db.execute(query, bindings));
+    const wrappedQuery = `BEGIN;\n${query}COMMIT;`;
+    yield* DB.try((db) => db.execute(wrappedQuery, bindings));
   });
 
 }

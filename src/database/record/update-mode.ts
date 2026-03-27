@@ -79,7 +79,6 @@ export function updateMode(recordId: string, mode: DB.Mode) {
     sql += `UPDATE records SET record_mode = $${bindIndex++}, record_updated_at = $${bindIndex++},
     record_sync_at = $${bindIndex++} WHERE record_id = $${bindIndex++};\n`;
     binds.push(mode, now, null, recordId);
-
     for (const p of productData) {
       if (mode === "buy") {
         const originalStock = p.stock + p.qty;
@@ -93,8 +92,8 @@ export function updateMode(recordId: string, mode: DB.Mode) {
         binds.push(finalStock, updatedCapital, p.prevPrice, now, null, p.id);
         const eventId = generateId();
         sql += `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id)
-                VALUES (${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, 
-                ${bindIndex++});\n`;
+                VALUES ($${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, 
+                $${bindIndex++});\n`;
         binds.push(eventId, now, null, "inc", 2 * p.qty, p.id);
       } else if (mode === "sell") {
         const updatedStock = p.stock - 2 * p.qty;
@@ -105,13 +104,18 @@ export function updateMode(recordId: string, mode: DB.Mode) {
         binds.push(updatedStock, p.prevCapital, now, null, p.id);
         const eventId = generateId();
         sql += `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id)
-                VALUES (${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, ${bindIndex++}, 
-                ${bindIndex++});\n`;
+                VALUES ($${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, 
+                $${bindIndex++});\n`;
         binds.push(eventId, now, null, "dec", 2 * p.qty, p.id);
       }
     }
 
-    yield* DB.try((db) => db.execute(sql, binds));
+    const wrappedSql = `BEGIN;\n${sql}COMMIT;`;
+    yield* DB.try((db) => db.execute(wrappedSql, binds)).pipe(
+      Effect.catchAll((e) => {
+        return Effect.fail(e);
+      }),
+    );
   });
 }
 

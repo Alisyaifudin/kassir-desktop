@@ -175,6 +175,7 @@ export function upsert({
         }
       }
     }
-    yield* DB.try((db) => db.execute(query, bindings));
+    const wrappedQuery = `BEGIN;\n${query}COMMIT;`;
+    yield* DB.try((db) => db.execute(wrappedQuery, bindings));
   });
 }

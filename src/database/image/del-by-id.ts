@@ -8,9 +8,11 @@ export function delById(productId: string, id: string) {
   const graveId = generateId();
   return DB.try((db) =>
     db.execute(
-      `DELETE FROM images WHERE image_id = $1 AND product_id = $2;
+      `BEGIN;
+       DELETE FROM images WHERE image_id = $1 AND product_id = $2;
        INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
-       VALUES ($1, $3, 'image', $4)`,
+       VALUES ($1, $3, 'image', $4);
+       COMMIT;`,
       [id, productId, graveId, now],
     ),
   ).pipe(
