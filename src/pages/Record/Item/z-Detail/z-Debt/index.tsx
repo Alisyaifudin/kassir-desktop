@@ -16,7 +16,7 @@ import { FieldError, FieldLabel } from "~/components/ui/field";
 
 export const DebtDialog = memo(function DebtDialog({
   grandTotal,
-  recordId
+  recordId,
 }: {
   grandTotal: number;
   recordId: string;
@@ -80,11 +80,11 @@ export const DebtDialog = memo(function DebtDialog({
               </Field>
             )}
           </form.Field>
-          <div className="grid grid-cols-[150px_1fr]">
+          <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]">
             <span>Total</span>
             <span>: Rp{total.toLocaleString("id-ID")}</span>
           </div>
-          <div className="grid grid-cols-[150px_1fr]">
+          <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]">
             <span>Kembalian</span>
             <span className={cn({ "text-red-500": change < 0 })}>
               : Rp{change.toLocaleString("id-ID")}
@@ -107,7 +107,9 @@ export const DebtDialog = memo(function DebtDialog({
 function Field({ children, error }: { children: React.ReactNode; error: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="grid grid-cols-[150px_1fr] items-center">{children}</div>
+      <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr] items-center">
+        {children}
+      </div>
       {error}
     </div>
   );
