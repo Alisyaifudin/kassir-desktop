@@ -1,13 +1,13 @@
 import Decimal from "decimal.js";
 import { Temporal } from "temporal-polyfill";
 import { Record } from "~/database/record/get-by-range";
+import { tz } from "~/lib/constants";
 
 function getEdges(
   interval: "day" | "week" | "month" | "year",
   start: number,
   end: number,
 ): { edges: number[]; labels: string[] } {
-  const tz = Temporal.Now.timeZoneId();
   let date = Temporal.Instant.fromEpochMilliseconds(start).toZonedDateTimeISO(tz);
   switch (interval) {
     case "day": {
