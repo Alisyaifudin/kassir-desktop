@@ -54,7 +54,7 @@ function GenerateBarcode({
 function Field({ children, error }: { children: React.ReactNode; error?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="grid grid-cols-[120px_1fr_50px] small:grid-cols-[80px_1fr_50px] items-center">
+      <div className="grid grid-cols-[120px_1fr_60px] small:grid-cols-[80px_1fr_50px] items-center">
         {children}
       </div>
       {error}

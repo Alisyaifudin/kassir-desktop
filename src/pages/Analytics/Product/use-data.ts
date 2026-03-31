@@ -67,23 +67,25 @@ function estCapital(capital: number, price: number, qty: number, total: number):
 }
 
 function program({ start, end, mode }: { start: number; end: number; mode: DB.Mode }) {
-  return db.product.get.allRange(start, end).pipe(
-    Effect.map((products) => {
-      let totalQty = 0;
-      let profit = 0;
-      const items = products.filter((a) => a.mode === mode);
-      for (const item of items) {
-        totalQty += item.qty;
-        if (item.kind === "raw") {
-          profit += estCapital(item.capital, item.price, item.qty, item.total);
-          continue;
-        }
-        for (const it of item.items) {
-          profit += estCapital(item.capital, it.price, it.qty, it.total);
-        }
+  return Effect.gen(function* () {
+    const [products] = yield* Effect.all([
+      db.product.get.allRange(start, end),
+      db.product.get.all(),
+    ]);
+    let totalQty = 0;
+    let profit = 0;
+    const items = products.filter((a) => a.mode === mode);
+    for (const item of items) {
+      totalQty += item.qty;
+      if (item.kind === "raw") {
+        profit += estCapital(item.capital, item.price, item.qty, item.total);
+        continue;
       }
-      setSummary({ loading: false, product: totalQty, profit });
-      return items;
-    }),
-  );
+      for (const it of item.items) {
+        profit += estCapital(item.capital, it.price, it.qty, it.total);
+      }
+    }
+    setSummary({ loading: false, product: totalQty, profit });
+    return items;
+  });
 }

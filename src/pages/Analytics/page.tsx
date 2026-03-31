@@ -2,6 +2,7 @@ import { Outlet } from "react-router";
 import { cn } from "~/lib/utils";
 
 export default function Analytics() {
+  console.log("halllloooo");
   return (
     <main
       className={cn(
