@@ -165,7 +165,7 @@ export function add({
             );
           } else {
             query += `UPDATE products SET product_stock = product_stock - $${bindingIndex++}, 
-            product_price = $${bindingIndex++}, product_capital = $${bindingIndex++}, 
+            product_price = $${bindingIndex++}, 
             product_name = $${bindingIndex++}, product_updated_at = $${bindingIndex++}, 
             product_sync_at = null 
             WHERE product_id = $${bindingIndex++};\n
@@ -175,7 +175,6 @@ export function add({
             bindings.push(
               product.qty,
               product.price,
-              product.capital,
               product.name,
               now,
               productId,
