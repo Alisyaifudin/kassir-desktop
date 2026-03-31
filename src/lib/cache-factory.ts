@@ -29,15 +29,21 @@ export class CacheItem<T extends { id: string }> {
       if (item === undefined) return;
       const updated = second(item);
       this._cache.set(id, updated);
-      this._all = null;
+      if (this._all) {
+        this._all = this._all.map((v) => (v.id === id ? updated : v));
+      }
       return;
     }
     this._cache.set(id, second);
-    this._all = null;
+    if (this._all) {
+      this._all = this._all.map((v) => (v.id === id ? second : v));
+    }
   }
   delete(id: string) {
     this._cache.delete(id);
-    this._all = null;
+    if (this._all) {
+      this._all = this._all.filter((v) => v.id !== id);
+    }
   }
   revalidate() {
     if (this._cache === undefined || this._all === undefined) return;

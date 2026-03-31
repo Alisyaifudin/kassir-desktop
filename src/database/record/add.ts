@@ -3,7 +3,6 @@ import { Product as ProductTx } from "~/transaction/product/get-by-tab";
 import { Extra as ExtraTx } from "~/transaction/extra/get-by-tab";
 import { DB } from "../instance";
 import Decimal from "decimal.js";
-import { calcCombinedCapital } from "./update-mode";
 import { generateId } from "~/lib/random";
 import { ManyDuplicateError } from "~/lib/effect-error";
 import { cache } from "../product/cache";
@@ -363,7 +362,9 @@ function calcEffCapital({
             const capitalRaw = calcCapitalRaw({ product: p, subtotal, grandTotal, fix });
             const prevCapital = r?.capital ?? 0;
             const stock = r?.stock ?? 0;
-            const capital = calcCombinedCapital(prevCapital, stock, capitalRaw, p.qty);
+            const capital = Number(
+              calcCombinedCapital(prevCapital, stock, capitalRaw, p.qty).toFixed(fix),
+            );
             const prodEff: ProductFull = {
               ...p,
               capitalRaw,
@@ -376,6 +377,12 @@ function calcEffCapital({
     );
     return res;
   });
+}
+
+function calcCombinedCapital(prevCapital: number, stock: number, rawCapital: number, qty: number) {
+  const weight = stock + qty;
+  if (weight === 0) return rawCapital;
+  return (rawCapital * qty + prevCapital * stock) / weight;
 }
 
 function checkNewProducts(products: Product[]) {
