@@ -76,7 +76,7 @@ export const Item = memo(
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_150px_140px_50px] gap-4 justify-end items-end w-full min-w-0">
+            <div className="grid grid-cols-[150px_150px_1fr_50px] small:grid-cols-[140px_150px_1fr_50px] gap-4 justify-end items-end w-full min-w-0">
               <div className="shrink-0 p-1">
                 <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
                   Tipe

@@ -33,30 +33,13 @@ export const Basic = memo(function Basic({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_160px_160px_110px] small:grid-cols-[1fr_120px_120px_90px] gap-1 items-end">
+      <div className="grid grid-cols-[1fr_180px_180px_110px] small:grid-cols-[1fr_120px_120px_90px] gap-1 items-end">
         <div className="col-span-1">
           <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
             Kode
           </div>
           <BarcodeInput id={id} fix={fix} alreadyExist={alreadyExist} barcode={barcode} />
         </div>
-        {/* <div className="col-span-1 h-15 flex flex-col">
-          <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
-            Kode
-          </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <span className="w-full px-1 py-1 h-10 justify-start font-mono text-normal text-muted-foreground truncate border-dashed bg-muted/5 shadow-none">
-                {barcode}
-              </span>
-            </PopoverTrigger>
-            <Show when={barcode.trim() !== ""}>
-              <PopoverContent className="flex flex-col text-normal w-fit font-mono">
-                {barcode}
-              </PopoverContent>
-            </Show>
-          </Popover>
-        </div> */}
 
         <div className="col-span-1">
           <div className="text-tiny font-bold text-muted-foreground/70 uppercase mb-1.5 ml-0.5 tracking-wide">
