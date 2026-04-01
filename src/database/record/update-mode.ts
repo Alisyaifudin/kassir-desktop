@@ -7,21 +7,21 @@ import { cache } from "../product/cache";
 function toSell(recordId: string) {
   return Effect.gen(function* () {
     const recordProducts = yield* DB.try((db) =>
-      db.select<{ id: string; qty: number; capital: number }[]>(
-        `SELECT product_id AS id, record_product_qty AS qty, record_product_capital_raw AS capital 
+      db.select<{ id: string; qty: number }[]>(
+        `SELECT product_id AS id, record_product_qty AS qty 
          FROM record_products WHERE record_id = $1 AND product_id IS NOT NULL`,
         [recordId],
       ),
     );
 
     const productData = yield* Effect.all(
-      recordProducts.map(({ id, qty, capital }) =>
+      recordProducts.map(({ id, qty }) =>
         Effect.gen(function* () {
           const [prevBuyRecord, stock] = yield* Effect.all(
             [
               DB.try((db) =>
-                db.select<{ record_product_capital: number }[]>(
-                  `SELECT record_product_capital 
+                db.select<{ record_product_capital: number; record_product_price: number }[]>(
+                  `SELECT record_product_capital, record_product_price 
                    FROM record_products
                    INNER JOIN records ON records.record_id = record_products.record_id
                    WHERE record_mode = 'buy' AND product_id = $1 AND records.record_paid_at < $2
@@ -31,8 +31,9 @@ function toSell(recordId: string) {
                 ),
               ).pipe(
                 Effect.map((r) => {
-                  if (r.length !== 2) return { capital: 0 };
-                  return { capital: r[1].record_product_capital };
+                  const capital = r.length !== 2 ? 0 : r[1].record_product_capital;
+                  const price = r.length === 0 ? 0 : r[0].record_product_price;
+                  return { capital, price };
                 }),
               ),
               DB.try((db) =>
@@ -50,7 +51,7 @@ function toSell(recordId: string) {
             { concurrency: "unbounded" },
           );
 
-          return { id, qty, capital, prevBuyRecord, stock };
+          return { id, qty, prevBuyRecord, stock };
         }),
       ),
       { concurrency: 5 },
@@ -66,11 +67,11 @@ function toSell(recordId: string) {
     binds.push("sell", now, null, recordId);
     for (const p of productData) {
       const updatedStock = p.stock - 2 * p.qty;
-
-      sql += `UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++},
-        product_updated_at = $${bindIndex++}, product_sync_at = $${bindIndex++} 
-        WHERE product_id = $${bindIndex++};\n`;
-      binds.push(updatedStock, p.prevBuyRecord.capital, now, null, p.id);
+      sql += `
+      UPDATE products SET product_stock = $${bindIndex++}, product_capital = $${bindIndex++},
+      product_price = $${bindIndex++}, product_updated_at = $${bindIndex++}, 
+      product_sync_at = $${bindIndex++} WHERE product_id = $${bindIndex++};\n`;
+      binds.push(updatedStock, p.prevBuyRecord.capital, p.prevBuyRecord.price, now, null, p.id);
       const eventId = generateId();
       sql += `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id)
                 VALUES ($${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, 
@@ -80,6 +81,7 @@ function toSell(recordId: string) {
         ...prev,
         stock: updatedStock,
         capital: p.prevBuyRecord.capital,
+        price: p.prevBuyRecord.price,
         syncAt: null,
         updatedAt: now,
       }));
@@ -116,17 +118,14 @@ function toBuy(recordId: string) {
                    INNER JOIN records ON records.record_id = record_products.record_id
                    WHERE record_mode = 'sell' AND product_id = $1 AND records.record_paid_at < $2
                    ORDER BY records.record_paid_at DESC
-                   LIMIT 1`,
+                   LIMIT 2`,
                   [id, recordId],
                 ),
               ).pipe(
                 Effect.map((r) => {
-                  if (r.length === 0)
-                    return {
-                      capital: 0,
-                      price: 0,
-                    };
-                  return { capital: r[0].record_product_capital, price: r[0].record_product_price };
+                  const price = r.length !== 2 ? 0 : r[1].record_product_price;
+                  const capital = r.length === 0 ? 0 : r[0].record_product_capital;
+                  return { capital, price };
                 }),
               ),
               DB.try((db) =>
