@@ -1,18 +1,19 @@
 import Database from "@tauri-apps/plugin-sql";
 import { Effect, pipe } from "effect";
 
-let db: undefined | Database = undefined;
+let globalDB: undefined | Database = undefined;
 
 const DB_PATH = "sqlite:data.db";
 
 export function getDB() {
   return Effect.gen(function* () {
-    if (db !== undefined) return db;
-    db = yield* Effect.tryPromise({
+    if (globalDB !== undefined) return globalDB;
+    const loadedDb = yield* Effect.tryPromise({
       try: () => Database.load(DB_PATH),
       catch: (e) => DbError.new(e),
     });
-    return db;
+    globalDB = loadedDb;
+    return loadedDb;
   });
 }
 
@@ -22,7 +23,16 @@ export const DB = {
       getDB(),
       Effect.flatMap((db) =>
         Effect.tryPromise({
-          try: () => func(db),
+          try: async () => {
+            try {
+              const res = await func(db);
+              return res;
+            } catch (error) {
+              await db.close();
+              globalDB = undefined;
+              throw error;
+            }
+          },
           catch: (e) => {
             return DbError.new(e);
           },

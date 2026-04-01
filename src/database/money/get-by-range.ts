@@ -25,7 +25,7 @@ export function getByRange(kindId: string, start: number, end: number) {
         getLast(start, kindId),
         DB.try((db) =>
           db.select<Omit<DB.Money, "money_kind">[]>(
-            `SELECT timestamp, money_value, money_note FROM money WHERE timestamp BETWEEN $1 AND $2 AND money_kind_id = ?3 
+            `SELECT money_id, timestamp, money_value, money_note FROM money WHERE timestamp BETWEEN $1 AND $2 AND money_kind_id = ?3 
              ORDER BY timestamp DESC`,
             [start, end, kindId],
           ),
