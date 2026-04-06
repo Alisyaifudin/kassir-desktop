@@ -224,7 +224,7 @@ export function add({
           const qty = mode === "buy" ? product.qty : 0;
           bindings.push(
             recordProducts[i].productId,
-            product.barcode,
+            product.barcode.trim() === "" ? null : product.barcode.trim(),
             product.name,
             product.price,
             qty,
