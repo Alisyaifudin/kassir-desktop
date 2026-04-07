@@ -6,5 +6,4 @@ Aplikasi untuk kasir.
 
 # TODO
 
-- kembalikan update aplikasi otomatis
-- hapus stok pada sell manual
+- tambah extra baru harusnya revalidate cache

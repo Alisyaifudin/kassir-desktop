@@ -8,7 +8,7 @@ export function delById(id: string) {
   return DB.try((db) =>
     db.execute(
       `BEGIN;
-       DELETE FROM money WHERE money_id = $1;
+       DELETE FROM money_kind WHERE money_kind_id = $1;
        INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
        VALUES ($1, $2, 'money_kind', $3);
        COMMIT;
