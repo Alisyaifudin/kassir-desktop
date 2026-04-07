@@ -46,9 +46,9 @@ export function ProductTable({ items }: { items: Item[] }) {
       search: `?url_back=${encodeURIComponent(urlBack)}`,
     });
   };
-  const clickRecord = (timestamp: number) => () => {
+  const clickRecord = (id: string) => () => {
     navigate({
-      pathname: `/records/${timestamp}`,
+      pathname: `/records/${id}`,
       search: `?url_back=${encodeURIComponent(urlBack)}`,
     });
   };

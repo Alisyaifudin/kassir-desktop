@@ -6,10 +6,10 @@ export function RawRow({
   clickRecord,
 }: {
   i: number;
-  clickRecord: (timestamp: number) => () => void;
+  clickRecord: (recordId: string) => () => void;
   item: {
     name: string;
-    id: number;
+    id: string;
     price: number;
     capital: number;
     qty: number;
@@ -23,7 +23,7 @@ export function RawRow({
       <TableCell className="font-medium">{i + 1}</TableCell>
       <TableCell></TableCell>
       <TableCell className="text-normal">
-        <button className="cursor-pointer text-start" onClick={clickRecord(item.paidAt)}>
+        <button className="cursor-pointer text-start" onClick={clickRecord(item.id)}>
           {item.name}
         </button>
       </TableCell>

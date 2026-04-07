@@ -4,7 +4,7 @@ import { Effect } from "effect";
 type Raw = {
   kind: "raw";
   name: string;
-  id: number;
+  id: string;
   price: number;
   capital: number;
   qty: number;
@@ -23,7 +23,7 @@ type Prod = {
   qty: number;
   mode: DB.Mode;
   items: {
-    id: number;
+    id: string;
     paidAt: number;
     name: string;
     price: number;
@@ -41,7 +41,7 @@ type Input = {
   product_price: number | null;
   product_name: string | null;
   record_product_name: string;
-  record_product_id: number;
+  record_id: string;
   record_product_price: number;
   record_product_capital: number;
   record_product_total: number;
@@ -55,7 +55,7 @@ export function getAllByRange(start: number, end: number) {
     const res = yield* DB.try((db) =>
       db.select<Input[]>(
         `SELECT product_price, product_capital, product_barcode, products.product_id, product_name, 
-         record_product_name, record_product_id, record_product_price, record_product_capital, 
+         record_product_name, records.record_id, record_product_price, record_product_capital, 
          records.record_paid_at, record_product_qty, record_product_total, record_mode
          FROM record_products
          INNER JOIN records ON records.record_id = record_products.record_id
@@ -80,7 +80,7 @@ export function getAllByRange(start: number, end: number) {
           kind: "raw",
           mode: r.record_mode,
           capital: r.record_product_capital,
-          id: r.record_product_id,
+          id: r.record_id,
           name: r.record_product_name,
           price: r.record_product_price,
           qty: r.record_product_qty,
@@ -90,7 +90,7 @@ export function getAllByRange(start: number, end: number) {
       } else {
         const p = prods.get(`${product.id}-${r.record_mode}`);
         const item = {
-          id: r.record_product_id,
+          id: r.record_id,
           price: r.record_product_price,
           qty: r.record_product_qty,
           paidAt: r.record_paid_at,

@@ -16,7 +16,7 @@ type Prod = {
   qty: number;
   mode: DB.Mode;
   items: {
-    id: number;
+    id: string;
     paidAt: number;
     name: string;
     price: number;
@@ -32,7 +32,7 @@ export function ProductRow({
   clickProduct,
 }: {
   i: number;
-  clickRecord: (timestamp: number) => () => void;
+  clickRecord: (recordId: string) => () => void;
   clickProduct: (id: number) => () => void;
   item: Prod;
 }) {
@@ -49,7 +49,7 @@ function SingleRow({
   clickProduct,
 }: {
   i: number;
-  clickRecord: (timestamp: number) => () => void;
+  clickRecord: (recordId: string) => () => void;
   clickProduct: (id: number) => () => void;
   item: Prod;
 }) {
@@ -59,10 +59,7 @@ function SingleRow({
       <TableCell>{formatBarcode(item.barcode)}</TableCell>
       <TableCell>
         <div className="flex items-center justify-between h-full">
-          <button
-            className="cursor-pointer text-start"
-            onClick={clickRecord(item.items[0].paidAt)}
-          >
+          <button className="cursor-pointer text-start" onClick={clickRecord(item.items[0].id)}>
             {item.name}
           </button>
           <button className="cursor-pointer" onClick={clickProduct(item.id)}>
@@ -84,7 +81,7 @@ function MultiRow({
   clickProduct,
 }: {
   i: number;
-  clickRecord: (timestamp: number) => () => void;
+  clickRecord: (recordId: string) => () => void;
   clickProduct: (id: number) => () => void;
   item: Prod;
 }) {
@@ -139,7 +136,7 @@ function MultiRow({
                 {formatDate(it.paidAt).split("-").at(-1)} - {formatTime(it.paidAt)}
               </TableCell>
               <TableCell className="flex items-center justify-between">
-                <button className="cursor-pointer italic" onClick={clickRecord(it.paidAt)}>
+                <button className="cursor-pointer italic" onClick={clickRecord(it.id)}>
                   {it.name}
                 </button>
               </TableCell>
