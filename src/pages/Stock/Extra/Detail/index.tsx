@@ -18,7 +18,7 @@ export const extraRoute: RouteObject = {
 };
 
 async function loader({ params }: LoaderFunctionArgs) {
-  const id = params.data!;
+  const id = params.id!;
   return id;
 }
 

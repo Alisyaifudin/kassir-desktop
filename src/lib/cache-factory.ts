@@ -30,13 +30,13 @@ export class CacheItem<T extends { id: string }> {
       const updated = second(item);
       this._cache.set(id, updated);
       if (this._all) {
-        this._all = this._all.map((v) => (v.id === id ? updated : v));
+        this._all = Array.from(this._cache.values());
       }
       return;
     }
     this._cache.set(id, second);
     if (this._all) {
-      this._all = this._all.map((v) => (v.id === id ? second : v));
+      this._all = Array.from(this._cache.values());
     }
   }
   delete(id: string) {
