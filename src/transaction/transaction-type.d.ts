@@ -43,6 +43,7 @@ declare namespace TX {
     product_barcode: string;
     product_price: number;
     product_qty: number;
+    product_created_at: number;
   }
   interface Discount {
     disc_id: string;

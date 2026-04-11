@@ -32,6 +32,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/transaction/01-10/migration-05.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 6,
+            description: "change product order to created_at",
+            sql: include_str!("../../src/transaction/01-10/migration-06.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

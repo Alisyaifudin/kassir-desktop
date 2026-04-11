@@ -17,7 +17,6 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { tx } from "~/transaction";
 import { TabInfo } from "~/transaction/transaction/get-all";
-
 import { programDeleteRecord } from "../Record/z-Detail/use-delete";
 import { useTab } from "./use-tab";
 import { revalidateTabs, useTabs } from "./use-tabs";

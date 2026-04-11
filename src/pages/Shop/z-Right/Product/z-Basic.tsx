@@ -1,16 +1,15 @@
 import { Discount } from "./z-Discount";
 import { PriceInput } from "./z-PriceInput";
 import { QtyInput } from "./z-QtyInput";
-import { memo } from "react";
 import { Delete } from "./z-Delete";
 import { useFix } from "../../use-transaction";
-import { useProduct } from "../../store/product";
+import { Product } from "../../store/product";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { TextError } from "~/components/TextError";
 import { BarcodeInput } from "./z-BarcodeInput";
 
-export const Basic = memo(function Basic({ id }: { id: string }) {
-  const { name, error, barcode, discounts, price, qty, total, product } = useProduct(id);
+export function Basic({ item }: { item: Product }) {
+  const { name, error, barcode, discounts, price, qty, total, product, id } = item;
   const alreadyExist = product !== undefined;
   const fix = useFix();
   return (
@@ -71,4 +70,4 @@ export const Basic = memo(function Basic({ id }: { id: string }) {
       <TextError>{error}</TextError>
     </div>
   );
-});
+}

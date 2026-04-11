@@ -24,10 +24,11 @@ type Data = {
 
 export function add({ id, tab, price, product, name, barcode, qty, discounts }: Data) {
   return Effect.gen(function* () {
+    const now = Date.now();
     yield* TX.try((tx) =>
       tx.execute(
         `INSERT INTO products (product_id, tab, product_name, product_barcode, product_price, 
-         product_qty, db_product_id, db_product_name, db_product_price, db_product_stock,
+         product_qty, product_created_at, db_product_id, db_product_name, db_product_price, db_product_stock,
          db_product_capital) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
@@ -37,6 +38,7 @@ export function add({ id, tab, price, product, name, barcode, qty, discounts }: 
           barcode,
           price,
           qty,
+          now,
           product?.id ?? null,
           product?.name ?? null,
           product?.price ?? null,

@@ -48,7 +48,7 @@ export function getByTab(tab: number) {
          db_product_stock, db_product_name, product_name, product_barcode, product_price, 
          product_qty, disc_id, disc_value, disc_kind
          FROM products LEFT JOIN discounts ON products.product_id = discounts.product_id
-         WHERE tab = $1 ORDER BY product_order, disc_order`,
+         WHERE tab = $1 ORDER BY product_created_at, disc_order`,
         [tab],
       ),
     );

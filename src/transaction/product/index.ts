@@ -5,6 +5,7 @@ import { barcode } from "./update-barcode";
 import { name } from "./update-name";
 import { price } from "./update-price";
 import { qty } from "./update-qty";
+import { reorder } from "./update-reorder";
 
 export const product = {
   add: {
@@ -16,6 +17,7 @@ export const product = {
     qty,
     name,
     barcode,
+    reorder,
   },
   delById,
 };

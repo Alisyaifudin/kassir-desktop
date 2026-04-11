@@ -10,15 +10,15 @@ import { useDebouncedCallback } from "use-debounce";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { memo, useRef } from "react";
 import { useFix } from "../../use-transaction";
-import { productsStore, useProduct } from "../../store/product";
+import { Product, productsStore } from "../../store/product";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { TextError } from "~/components/TextError";
 import { BarcodeInput } from "./z-BarcodeInput";
 import { queue } from "../../util-queue";
 
-export const Editable = memo(function Editable({ id }: { id: string }) {
-  const { name, barcode, discounts, price, qty, total, product, error } = useProduct(id);
+export function Editable({ item }: { item: Product }) {
+  const { name, barcode, discounts, price, qty, total, product, error, id } = item;
   const fix = useFix();
   const alreadyExist = product !== undefined;
   return (
@@ -71,7 +71,7 @@ export const Editable = memo(function Editable({ id }: { id: string }) {
       <TextError>{error}</TextError>
     </div>
   );
-});
+}
 
 const NameInput = memo(function NameInput({
   id,
