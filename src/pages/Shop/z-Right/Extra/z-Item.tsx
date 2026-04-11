@@ -16,7 +16,7 @@ import {
 import { queue } from "../../util-queue";
 
 export const Item = memo(
-  function Item({ extra }: { extra: Extra }) {
+  function Item({ extra, no }: { extra: Extra; no: number }) {
     const { id, name, kind, value } = extra;
     const fix = useFix();
     const [input, setInput] = useState(value === 0 ? "" : value.toString());
@@ -51,12 +51,13 @@ export const Item = memo(
       });
       queue.add(tx.extra.update.kind(id, val));
     };
-
+    console.log(no);
     return (
       <div className="w-full max-w-full overflow-hidden shrink-0">
         <div className="flex gap-4 p-4 rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/30 group w-full max-w-full overflow-hidden min-w-0">
           <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-hidden">
-            <div className="flex items-start justify-between gap-4 w-full min-w-0 overflow-hidden">
+            <div className="flex items-center justify-between gap-4 w-full min-w-0 overflow-hidden">
+              <span>{no}.</span>
               <div className="flex-1 min-w-0">
                 <Input
                   className="text-normalbg-transparent shadow-none focus-visible:ring-0 truncate"

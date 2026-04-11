@@ -26,9 +26,9 @@ function Wrapper() {
   if (extras.length === 0) return;
 
   return (
-    <div className="flex flex-col w-full min-w-0">
+    <div className="flex flex-col-reverse gap-2 w-full min-w-0">
+      <ForEach items={extras}>{(extra, i) => <Item extra={extra} no={i + 1} />}</ForEach>
       <Subtotal />
-      <ForEach items={extras}>{(extra) => <Item extra={extra} />}</ForEach>
     </div>
   );
 }
