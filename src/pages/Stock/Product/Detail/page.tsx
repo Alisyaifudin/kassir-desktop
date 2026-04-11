@@ -46,7 +46,7 @@ function TabsTrigger({
 }) {
   const to = tabs(id)[tab];
   const active = useActive();
-  const urlBack = useGenerateUrlBack("/stock");
+  const urlBack = useGenerateUrlBack("/stock", true);
   return (
     <Link to={{ pathname: to, search: `url_back=${encodeURIComponent(urlBack)}` }}>
       <button
