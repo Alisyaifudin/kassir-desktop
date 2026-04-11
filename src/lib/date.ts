@@ -53,7 +53,7 @@ export function formatDate(epochMilli: number, type: "short" | "long" = "short")
   const { day, month, year } = date;
   switch (type) {
     case "short":
-      return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+      return `${day.toString().padStart(2, "0")}-${month.toString().padStart(2, "0")}-${year}`;
     case "long":
       return `${day} ${monthNames[month]} ${year}`;
   }

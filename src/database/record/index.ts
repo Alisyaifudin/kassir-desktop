@@ -13,11 +13,13 @@ import { updateToCredit } from "./update-to-credit";
 import { delSync } from "./del-sync";
 import { upsert } from "./upsert";
 import { addExternal } from "./add-external";
+import { getDebt } from "./get-debt";
 
 export const record = {
   get: {
     byRange: getByRange,
     byId: getById,
+    debt: getDebt,
   },
   count: {
     record: countRecord,

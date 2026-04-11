@@ -21,11 +21,11 @@ export function Summary() {
   if (summary.loading) return <Loading />;
   return (
     <div className="flex flex-col gap-2">
-      <p>Pemasukan Total:</p>
+      <p>Total Pemasukan:</p>
       <p className="text-end">Rp{summary.revenue.toLocaleString("id-ID")}</p>
-      <p>Pengeluaran Total:</p>
+      <p>Total Pengeluaran:</p>
       <p className="text-end">Rp{(summary.spending - summary.debt).toLocaleString("id-ID")}</p>
-      <p>Utang Total:</p>
+      <p>Total Utang:</p>
       <p className="text-end">Rp{summary.debt.toLocaleString("id-ID")}</p>
     </div>
   );

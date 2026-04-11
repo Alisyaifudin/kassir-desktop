@@ -6,6 +6,7 @@ export function NavList({ children, selected }: { selected: Option; children?: R
       <NavLink selected={selected} to="cashflow" />
       <NavLink selected={selected} to="net" />
       <NavLink selected={selected} to="crowd" />
+      <NavLink selected={selected} to="debt" />
       <NavLink selected={selected} to="products" />
       <hr />
       {children}
