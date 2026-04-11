@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database";
 import { log } from "~/lib/log";
-import { revalidate } from "../../use-data";
+import { recordMap, revalidate } from "../../use-data";
 import { METHOD_BASE_ID } from "~/lib/constants";
 import type { Method } from "~/database/method/cache";
 
@@ -30,6 +30,7 @@ export function useMethod({
     setError(errMsg);
     if (errMsg === null) {
       if (kind === "cash") onClose();
+      recordMap.delete(recordId);
       revalidate();
     } else {
       setSelected(selected);
@@ -45,6 +46,7 @@ export function useMethod({
     setError(errMsg);
     if (errMsg === null) {
       onClose();
+      recordMap.delete(recordId);
       revalidate();
     } else {
       setSelected(selected);

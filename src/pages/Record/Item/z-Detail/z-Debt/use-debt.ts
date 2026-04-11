@@ -5,7 +5,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { db } from "~/database";
 import { log } from "~/lib/log";
-import { revalidate } from "../../use-data";
+import { recordMap, revalidate } from "../../use-data";
 
 const numeric = z.string().refine((v) => {
   const num = Number(v);
@@ -45,6 +45,7 @@ export function useDebt({
       const errMsg = await Effect.runPromise(program({ id: recordId, rounding, pay }));
       setError(errMsg);
       if (errMsg === null) {
+        recordMap.delete(recordId);
         revalidate();
         onClose();
       }

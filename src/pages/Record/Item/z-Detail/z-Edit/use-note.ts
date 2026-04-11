@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { db } from "~/database";
 import { log } from "~/lib/log";
-import { revalidate } from "../../use-data";
+import { recordMap, revalidate } from "../../use-data";
 
 export function useNote(recordId: string, note: string, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
@@ -15,6 +15,7 @@ export function useNote(recordId: string, note: string, onClose: () => void) {
     setError(errMsg);
     if (errMsg === null) {
       onClose();
+      recordMap.delete(recordId);
       revalidate();
     }
   }

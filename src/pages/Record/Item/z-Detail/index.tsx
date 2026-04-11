@@ -48,7 +48,7 @@ export function Detail({ data }: { data: RecordData }) {
                   <TableCell className="flex items-center">
                     {i + 1}
                     <Show when={role === "admin"}>
-                      <LinkProductList product={product} />
+                      <LinkProductList recordId={data.record.id} product={product} />
                     </Show>
                   </TableCell>
                   <TableCell>{product.name}</TableCell>

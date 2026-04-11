@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { RecordData, revalidate } from "../../use-data";
+import { RecordData, recordMap, revalidate } from "../../use-data";
 import { db } from "~/database";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
 
-export function useLinkProduct(product: RecordData["products"][number]) {
+export function useLinkProduct(recordId: string, product: RecordData["products"][number]) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const handleClick = (productId: string) => async () => {
@@ -14,6 +14,7 @@ export function useLinkProduct(product: RecordData["products"][number]) {
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
+      recordMap.delete(recordId);
       revalidate();
     }
   };

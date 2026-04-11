@@ -2,7 +2,7 @@ import { useState } from "react";
 import { db } from "~/database";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
-import { revalidate } from "../../use-data";
+import { recordMap, revalidate } from "../../use-data";
 
 export function useChangePaidAt(recordId: string) {
   const [error, setError] = useState<null | string>(null);
@@ -14,6 +14,7 @@ export function useChangePaidAt(recordId: string) {
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
+      recordMap.delete(recordId);
       revalidate();
     }
   }

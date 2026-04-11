@@ -8,6 +8,8 @@ import { Effect } from "effect";
 
 const KEY = "record-item";
 
+export const recordMap = new Map<string, RecordData>();
+
 export function useData(id: string) {
   const res = Result.use({
     fn: () => loadDetailRecord(id),
@@ -33,6 +35,8 @@ export type RecordData = {
 
 export function loadDetailRecord(id: string) {
   return Effect.gen(function* () {
+    const cache = recordMap.get(id);
+    if (cache !== undefined) return cache;
     const [r, products, extras] = yield* Effect.all(
       [
         db.record.get.byId(id),
@@ -54,6 +58,7 @@ export function loadDetailRecord(id: string) {
       products,
       extras,
     };
+    recordMap.set(id, data);
     return data;
   });
 }

@@ -4,12 +4,9 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { useNavigate } from "react-router";
+import { recordMap } from "../../use-data";
 
-export function useDelete({
-  recordId,
-}: {
-  recordId: string;
-}) {
+export function useDelete({ recordId }: { recordId: string }) {
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
   const backUrl = useGetUrlBack("/records");
@@ -20,6 +17,7 @@ export function useDelete({
     setLoading(false);
     setError(errMsg);
     if (errMsg === null) {
+      recordMap.delete(recordId);
       navigate(backUrl);
     }
   }
