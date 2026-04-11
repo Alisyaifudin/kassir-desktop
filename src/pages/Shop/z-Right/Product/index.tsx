@@ -34,11 +34,10 @@ function handleReorder(products: Product[]) {
 
 function Wrapper() {
   const products = useSelector(productsStore, (state) => state.context);
-  const n = products.length;
   return (
-    <Reorder.Group values={products} onReorder={handleReorder}>
+    <Reorder.Group className="flex flex-col-reverse" values={products} onReorder={handleReorder}>
       <ForEach items={products} extractKey={(product) => product.id}>
-        {(product, i) => <Item product={product} index={n - i - 1} />}
+        {(product, i) => <Item product={product} index={i} />}
       </ForEach>
     </Reorder.Group>
   );

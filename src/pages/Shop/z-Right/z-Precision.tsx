@@ -15,7 +15,7 @@ export function Precision() {
   const fix = useFix();
   const [tab] = useTab();
   return (
-    <div>
+    <div className="z-10">
       <label htmlFor="precision" className="flex pr-1 gap-2 items-center">
         Presisi
         <Select

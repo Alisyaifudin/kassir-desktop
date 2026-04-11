@@ -51,7 +51,6 @@ export const Item = memo(
       });
       queue.add(tx.extra.update.kind(id, val));
     };
-    console.log(no);
     return (
       <div className="w-full max-w-full overflow-hidden shrink-0">
         <div className="flex gap-4 p-4 rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/30 group w-full max-w-full overflow-hidden min-w-0">

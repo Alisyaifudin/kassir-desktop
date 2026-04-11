@@ -72,7 +72,6 @@ export function addOne({ record, products, extras }: DataRecord) {
     const tab = res.lastInsertId;
     if (tab === undefined)
       return yield* Effect.fail(TxError.new(new Error("Failed to insert new transaction")));
-
     yield* Effect.all(
       products.map((p) => {
         const product = p.productId === undefined ? undefined : productsMap.get(p.productId);

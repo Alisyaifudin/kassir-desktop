@@ -30,7 +30,7 @@ export function add({ id, tab, price, product, name, barcode, qty, discounts }: 
         `INSERT INTO products (product_id, tab, product_name, product_barcode, product_price, 
          product_qty, product_created_at, db_product_id, db_product_name, db_product_price, db_product_stock,
          db_product_capital) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           id,
           tab,
