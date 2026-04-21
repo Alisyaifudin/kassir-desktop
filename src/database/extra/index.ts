@@ -7,7 +7,7 @@ import { allUnsync } from "./get-all-unsync";
 import { getById } from "./get-by-id";
 import { sync } from "./sync";
 import { update } from "./update";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 
 export const extra = {
   get: {
@@ -26,6 +26,6 @@ export const extra = {
   add: {
     one: add,
   },
-  upsert,
+  // upsert,
   revalidate: cache.revalidate,
 };

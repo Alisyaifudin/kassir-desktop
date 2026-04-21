@@ -5,7 +5,7 @@ import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
 import { add } from "./add";
 import { sync } from "./sync";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 
 export const moneyKind = {
   get: {
@@ -23,5 +23,5 @@ export const moneyKind = {
     name: updateName,
     sync,
   },
-  upsert,
+  // upsert,
 };

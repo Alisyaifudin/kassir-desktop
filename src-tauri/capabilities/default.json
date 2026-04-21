@@ -25,9 +25,13 @@
       "identifier": "fs:write-files",
       "allow": [{ "path": "$APPLOCALDATA/*" }, { "path": "$APPLOCALDATA/logs/*" }]
     },
+    "http:default",
     {
-      "identifier": "http:default",
-      "allow": [{ "url": "http://*:*" }]
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "http://192.168.225.187:8787/*" }, 
+        { "url": "https://*.workers.dev/*" }      
+      ]
     }
   ]
 }

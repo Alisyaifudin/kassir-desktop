@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { To } from "react-router";
+import { ZodError } from "zod";
 
 export class TooMany {
   readonly _tag = "TooMany";
@@ -100,4 +101,46 @@ export class DuplicateError {
 export class ManyDuplicateError {
   readonly _tag = "ManyDuplicateError";
   constructor(public products: { new: string; current: string }[]) {}
+}
+export class RequestError {
+  readonly _tag = "RequestError";
+  constructor(readonly error: Error) {}
+  static new(e: unknown) {
+    if (e instanceof Error) {
+      return new RequestError(e);
+    }
+    const unknown = new Error("Unknown Error", { cause: e });
+    return new RequestError(unknown);
+  }
+  static fail(e: unknown) {
+    return Effect.fail(RequestError.new(e));
+  }
+}
+
+export class ResponseError {
+  readonly _tag = "ResponseError";
+  constructor(readonly response: Response) {}
+  static fail(response: Response) {
+    return Effect.fail(new ResponseError(response));
+  }
+}
+
+export class BodyError {
+  readonly _tag = "BodyError";
+  constructor(readonly error: Error) {}
+  static new(e: unknown) {
+    if (e instanceof Error) {
+      return new BodyError(e);
+    }
+    const unknown = new Error("Unknown Error", { cause: e });
+    return new BodyError(unknown);
+  }
+  static fail(e: unknown) {
+    return Effect.fail(BodyError.new(e));
+  }
+}
+
+export class ZodSchemaError<Input> {
+  readonly _tag = "ZodSchemaError";
+  constructor(readonly error: ZodError<Input>) {} // Also properly typed here
 }

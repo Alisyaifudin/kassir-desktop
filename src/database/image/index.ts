@@ -1,5 +1,5 @@
 import { add } from "./add";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
 import { getByProductId } from "./get-by-product-id";
@@ -24,6 +24,6 @@ export const image = {
     sync,
     swap,
   },
-  upsert,
+  // upsert,
   revalidate: revalidateCache,
 };

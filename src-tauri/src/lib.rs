@@ -18,6 +18,7 @@ pub fn run() {
                 .level(LevelFilter::Info)
                 .build(),
         )
+        .plugin(tauri_plugin_http::init()) // Add this line
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -43,6 +44,7 @@ pub fn run() {
             .with_flags(tauri_plugin_prevent_default::Flags::all().difference(
                 tauri_plugin_prevent_default::Flags::CONTEXT_MENU
                     | tauri_plugin_prevent_default::Flags::RELOAD
+                    | tauri_plugin_prevent_default::Flags::FOCUS_MOVE
                     | tauri_plugin_prevent_default::Flags::PRINT,
             ))
             .build(),

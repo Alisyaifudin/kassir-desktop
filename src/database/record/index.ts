@@ -11,7 +11,7 @@ import { updatePaidAt } from "./update-paid-at";
 import { updatePayCredit } from "./update-pay-credit";
 import { updateToCredit } from "./update-to-credit";
 import { delSync } from "./del-sync";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 import { addExternal } from "./add-external";
 import { getDebt } from "./get-debt";
 
@@ -41,5 +41,5 @@ export const record = {
     mode: updateMode,
     method: updateMethod,
   },
-  upsert,
+  // upsert,
 };

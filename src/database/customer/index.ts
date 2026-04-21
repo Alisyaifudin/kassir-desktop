@@ -1,5 +1,5 @@
 import { add } from "./add";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
 import { getAll } from "./get-all";
@@ -24,6 +24,6 @@ export const customer = {
   add: {
     one: add,
   },
-  upsert,
+  // upsert,
   revalidate: cache.revalidate,
 };

@@ -6,7 +6,7 @@ import { getAll } from "./get-all";
 import { getAllUnsync } from "./get-all-unsync";
 import { sync } from "./sync";
 import { update } from "./update";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 
 export const social = {
   get: {
@@ -22,6 +22,6 @@ export const social = {
     sync: delSync,
   },
   add,
-  upsert,
+  // upsert,
   revalidate: cache.revalidate,
 };

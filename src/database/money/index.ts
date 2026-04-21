@@ -6,7 +6,7 @@ import { getAll } from "./get-all";
 import { getByRange } from "./get-by-range";
 import { getLast } from "./get-last";
 import { sync } from "./sync";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 
 export const money = {
   get: {
@@ -23,5 +23,5 @@ export const money = {
     external: addExternal,
   },
   update: { sync },
-  upsert,
+  // upsert,
 };

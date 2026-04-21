@@ -5,7 +5,7 @@ import { getAll } from "./get-all";
 import { getAllUnsync } from "./get-all-unsync";
 import { sync } from "./sync";
 import { update } from "./update";
-import { upsert } from "./upsert";
+// import { upsert } from "./upsert";
 
 export const method = {
   get: {
@@ -22,6 +22,6 @@ export const method = {
     one: update,
     sync,
   },
-  upsert,
+  // upsert,
   revalidate: cache.revalidate,
 };
