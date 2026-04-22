@@ -5,6 +5,7 @@ import {
   Printer,
   ScrollText,
   LogOut,
+  CloudUpload,
 } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useUser } from "~/hooks/use-user";
@@ -54,6 +55,13 @@ const adminCards: Card[] = [
     description: "Lihat log aplikasi",
     icon: ScrollText,
     color: "bg-red-100 text-red-700",
+  },
+  {
+    label: "Sinkronisasi",
+    path: "/setting/sync",
+    description: "Sinkronisasi data ke awan",
+    icon: CloudUpload,
+    color: "bg-green-100 text-slate-700",
   },
 ];
 

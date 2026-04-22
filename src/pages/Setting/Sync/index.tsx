@@ -5,12 +5,12 @@ import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
-export const logRoute: RouteObject = {
+export const syncRoute: RouteObject = {
   Component: () => (
     <Suspense fallback={<Loading />}>
       <Page />
     </Suspense>
   ),
   middleware: [admin],
-  path: "log",
+  path: "sync",
 };

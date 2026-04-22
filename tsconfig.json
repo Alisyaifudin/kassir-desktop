@@ -28,6 +28,6 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src", "test"],
+  "include": ["src", "test", "src/database/product-event/get-by-product-id/.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

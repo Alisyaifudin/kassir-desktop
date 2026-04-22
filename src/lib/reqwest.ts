@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { BodyError, RequestError, ResponseError, ZodSchemaError } from "./effect-error";
-import { ZodType, ZodTypeDef } from "zod";
+import { z } from "zod";
 import { fetch } from "@tauri-apps/plugin-http";
 
 export function reqwest(
@@ -13,26 +13,26 @@ export function reqwest(
   RequestError | ResponseError,
   never
 >;
-export function reqwest<Output, Def extends ZodTypeDef = ZodTypeDef, Input = Output>(
+export function reqwest<Output>(
   input: RequestInfo | URL,
-  schema: ZodType<Output, Def, Input>,
+  schema: z.ZodType<Output>,
   init?: RequestInit,
 ): Effect.Effect<
   {
     response: Response;
-    data: Output; // <-- Now properly typed!
+    data: Output;
   },
-  RequestError | BodyError | ResponseError | ZodSchemaError<Output>,
+  RequestError | BodyError | ResponseError | ZodSchemaError,
   never
 >;
-export function reqwest<Output, Def extends ZodTypeDef = ZodTypeDef, Input = Output>(
+export function reqwest<Output>(
   input: RequestInfo | URL,
-  second?: ZodType<Output, Def, Input> | RequestInit,
+  second?: z.ZodType<Output> | RequestInit,
   third?: RequestInit,
 ) {
   return Effect.gen(function* () {
-    const schema = second !== undefined && "parse" in second ? second : undefined;
-    const init = second === undefined ? undefined : "parse" in second ? third : second;
+    const schema = second !== undefined && "safeParse" in second ? second : undefined;
+    const init = second === undefined ? undefined : "safeParse" in second ? third : second;
     const response = yield* Effect.tryPromise({
       try: () => fetch(input, init),
       catch: (error) => RequestError.new(error),
@@ -50,6 +50,6 @@ export function reqwest<Output, Def extends ZodTypeDef = ZodTypeDef, Input = Out
 
     const parsed = schema.safeParse(json);
     if (!parsed.success) return yield* Effect.fail(new ZodSchemaError(parsed.error));
-    return { response, data: parsed.data }; // data is now typed as Output
+    return { response, data: parsed.data };
   });
 }

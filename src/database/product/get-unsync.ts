@@ -2,13 +2,13 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 import { ProductServer } from "~/server/product/get";
 
-const LIMIT_PRODUCT = 10_000;
+const LIMIT_PRODUCT = 1000;
 export function getUnsync(upto: number) {
   return Effect.gen(function* () {
     const res = yield* DB.try((db) =>
       db.select<DB.Product[]>(
         `SELECT * FROM products WHERE product_sync_at IS NULL AND product_updated_at < $1 
-        ORDER BY product_sync_at LIMIT $1`,
+        ORDER BY product_updated_at LIMIT $2`,
         [upto, LIMIT_PRODUCT],
       ),
     );

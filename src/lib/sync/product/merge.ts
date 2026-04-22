@@ -4,7 +4,7 @@ import { ProductServer } from "~/server/product/get";
 
 export function merge(products: ProductServer[]) {
   return Effect.gen(function* () {
-    if (products.length === 0) return undefined;
+    if (products.length === 0) return Date.now();
     const productMap = yield* db.product.get.updated(products.map((p) => p.id));
     const addProducts: ProductServer[] = [];
     const updateProducts: ProductServer[] = [];

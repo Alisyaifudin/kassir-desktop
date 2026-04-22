@@ -1,8 +1,5 @@
-import { Effect } from "effect";
 import { z } from "zod";
-import { log } from "~/lib/log";
 import { reqwest } from "~/lib/reqwest";
-import { responseError } from "~/lib/response";
 import { genURL } from "~/lib/url";
 
 const schema = z
@@ -15,18 +12,12 @@ const schema = z
   })
   .array();
 
-export function get(timestamp: number) {
-  return reqwest(genURL(`/api/product-event/${timestamp}`), schema).pipe(
-    Effect.catchAll((e) => {
-      switch (e._tag) {
-        case "BodyError":
-        case "RequestError":
-        case "ZodSchemaError":
-          log.error(e.error);
-          return Effect.fail(e.error.message);
-        case "ResponseError":
-          return responseError.failMsg(e);
-      }
-    }),
-  );
+export type ProductEventServer = z.infer<typeof schema>[number];
+
+export function get(productId: string, token: string) {
+  return reqwest(genURL(`/api/product-event/${productId}`), schema, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 }

@@ -10,8 +10,14 @@ const schema = z.object({
   records: z.string().nonempty().max(100).array(),
 });
 
-export function get(timestamp: number) {
-  return reqwest(genURL(`/api/grave/${timestamp}`), schema).pipe(
+export type GraveServer = z.infer<typeof schema>;
+
+export function get(timestamp: number, token: string) {
+  return reqwest(genURL(`/api/grave/${timestamp}`), schema, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }).pipe(
     Effect.catchAll((e) => {
       switch (e._tag) {
         case "BodyError":

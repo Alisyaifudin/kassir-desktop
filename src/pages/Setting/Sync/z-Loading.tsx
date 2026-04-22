@@ -12,7 +12,7 @@ export function Loading() {
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-8 w-20" />
         </div>
-        <div className="flex flex-col gap-2 bg-black rounded-xl p-4 h-full overflow-auto">
+        <div className="flex flex-col gap-2  rounded-xl p-4 h-full overflow-auto">
           {Array.from({ length: 15 }).map((_, i) => (
             <Skeleton
               key={i}

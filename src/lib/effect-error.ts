@@ -1,6 +1,5 @@
 import { Effect } from "effect";
 import { To } from "react-router";
-import { ZodError } from "zod";
 
 export class TooMany {
   readonly _tag = "TooMany";
@@ -140,7 +139,9 @@ export class BodyError {
   }
 }
 
-export class ZodSchemaError<Input> {
+import { z } from "zod";
+
+export class ZodSchemaError {
   readonly _tag = "ZodSchemaError";
-  constructor(readonly error: ZodError<Input>) {} // Also properly typed here
+  constructor(readonly error: z.ZodError) {}
 }

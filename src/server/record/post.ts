@@ -4,17 +4,20 @@ import { log } from "~/lib/log";
 import { reqwest } from "~/lib/reqwest";
 import { responseError } from "~/lib/response";
 import { genURL } from "~/lib/url";
-import { Record } from "./get";
+import { RecordServer } from "./get";
 
 const schema = z.object({
   timestamp: z.number().int().max(1e14).min(0),
   failed: z.string().nonempty().max(100).array(),
 });
 
-export function post(products: Record[]) {
+export function post(products: RecordServer[], token: string) {
   return reqwest(genURL("/api/record"), schema, {
     method: "POST",
     body: JSON.stringify(products),
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   }).pipe(
     Effect.catchAll((e) => {
       switch (e._tag) {

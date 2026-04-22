@@ -21,6 +21,15 @@ export class CacheItem<T extends { id: string }> {
     }
     return this._all;
   }
+  updateAll(cb: (item: T) => T) {
+    if (this._all === null) return;
+    for (let i = 0; i < this._all.length; i++) {
+      const item = this._all[i];
+      const updated = cb(item);
+      this._cache.set(item.id, updated);
+      this._all[i] = updated;
+    }
+  }
   update(id: string, item: T): void;
   update(id: string, cb: (item: T) => T): void;
   update(id: string, second: T | ((item: T) => T)) {

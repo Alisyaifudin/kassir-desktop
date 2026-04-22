@@ -16,6 +16,7 @@ import { addSync } from "./add-sync";
 import { getUnsync } from "./get-unsync";
 import { updateSyncAt } from "./update-sync-at";
 import { getCountUnsync } from "./get-count-unsync";
+import { updateUnsyncAll } from "./update-unsync-all";
 
 export const product = {
   get: {
@@ -34,6 +35,7 @@ export const product = {
   update: {
     sync,
     syncAt: updateSyncAt,
+    unsyncAll: updateUnsyncAll,
     info: updateInfo,
     calcStock,
   },

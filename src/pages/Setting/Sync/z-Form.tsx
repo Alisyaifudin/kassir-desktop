@@ -12,17 +12,25 @@ export function Form({ token }: { token?: string }) {
   const { value, error, handleChange, handleSubmit, loading } = useToken(token);
   return (
     <div className="flex justify-between items-center mb-4">
-      <form onSubmit={handleSubmit}>
-        <Field>
+      <form onSubmit={handleSubmit} className="flex w-full flex-col gap-1">
+        <Field className="w-full ">
           <FieldLabel htmlFor="sync-token" className="text-normal font-semibold text-foreground">
             Token
           </FieldLabel>
-          <Input id="sync-token" value={value} onChange={handleChange} placeholder="token..." />
+          <Input
+            id="sync-token"
+            value={value}
+            className="w-full"
+            onChange={handleChange}
+            placeholder="token..."
+          />
         </Field>
-        <Button disabled={loading}>
-          <Spinner when={loading} />
-          Simpan
-        </Button>
+        <div className="flex justify-end">
+          <Button disabled={loading}>
+            <Spinner when={loading} />
+            Simpan
+          </Button>
+        </div>
         <FieldError>{error}</FieldError>
       </form>
     </div>

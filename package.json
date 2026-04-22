@@ -1,7 +1,7 @@
 {
   "name": "kassir",
   "private": true,
-  "version": "5.17.0",
+  "version": "5.18.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -47,7 +47,7 @@
     "fuzzysort": "^3.1.0",
     "immer": "^10.1.1",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.523.0",
+    "lucide-react": "^1.8.0",
     "motion": "^12.38.0",
     "next-themes": "^0.4.6",
     "p-queue": "^9.0.1",
@@ -64,7 +64,7 @@
     "use-debounce": "^10.0.4",
     "valibot": "^1.2.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "zod": "^3.24.3"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "9",

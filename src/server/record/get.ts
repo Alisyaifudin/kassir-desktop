@@ -54,10 +54,14 @@ const recordSchema = z.object({
   extras: extraSchema.array(),
 });
 
-export type Record = z.infer<typeof recordSchema>;
+export type RecordServer = z.infer<typeof recordSchema>;
 
-export function get(timestamp: number) {
-  return reqwest(genURL(`/api/record/${timestamp}`), recordSchema.array()).pipe(
+export function get(timestamp: number, token: string) {
+  return reqwest(genURL(`/api/record/${timestamp}`), recordSchema.array(), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }).pipe(
     Effect.catchAll((e) => {
       switch (e._tag) {
         case "BodyError":

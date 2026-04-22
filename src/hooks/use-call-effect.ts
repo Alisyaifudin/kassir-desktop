@@ -1,7 +1,7 @@
 import { Effect, Either, pipe } from "effect";
 import { useCallback, useState } from "react";
 
-export function useCallServer<TInput, A, E>(cb: (input: TInput) => Effect.Effect<A, E>) {
+export function useCallEffect<TInput, A, E>(cb: (input: TInput) => Effect.Effect<A, E>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<E | null>(null);
   const [data, setData] = useState<A | null>(null);

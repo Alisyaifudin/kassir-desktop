@@ -7,3 +7,5 @@ Aplikasi untuk kasir.
 # TODO
 
 - tambah extra baru harusnya revalidate cache
+
+add indexing on product-events for performance

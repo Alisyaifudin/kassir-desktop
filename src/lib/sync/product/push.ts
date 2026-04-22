@@ -3,15 +3,15 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { server } from "~/server";
 
-export function push(upto?: number) {
+export function push(token: string, upto: number) {
   return Effect.gen(function* () {
-    const products = yield* db.product.get.unsync(upto ?? Date.now());
+    const products = yield* db.product.get.unsync(upto);
     if (products.length === 0) return 0;
-    const { data } = yield* server.product.post(products);
+    const { data } = yield* server.product.post(products, token);
     const { timestamp, failed } = data;
     const failedSet = new Set(failed);
-    const syncIds = products.flatMap((p) => (failedSet.has(p.id) ? [p.id] : []));
-    if (syncIds.length > 0)
+    const syncIds = products.flatMap((p) => (failedSet.has(p.id) ? [] : [p.id]));
+    if (syncIds.length > 0) {
       yield* Effect.all(
         syncIds.map((id) =>
           db.product.update.syncAt(id, timestamp).pipe(
@@ -21,8 +21,9 @@ export function push(upto?: number) {
             }),
           ),
         ),
-        { concurrency: 10 },
+        { concurrency: 50 },
       );
+    }
     const unsyncCount = yield* db.product.get.countUnsync();
     return unsyncCount;
   });

@@ -11,10 +11,13 @@ const schema = z.object({
   products: z.string().nonempty().max(100).array(),
 });
 
-export function del(graves: { products: string[]; records: string[] }) {
+export function del(graves: { products: string[]; records: string[] }, token: string) {
   return reqwest(genURL("/api/grave"), schema, {
     method: "DELETE",
     body: JSON.stringify(graves),
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   }).pipe(
     Effect.catchAll((e) => {
       switch (e._tag) {
