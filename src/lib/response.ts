@@ -24,11 +24,10 @@ export const responseError = {
       }
     });
   },
-  failMsg(e: ResponseError, kind: "text" | "json" = "text") {
+  failMsg(e: ResponseError) {
     return Effect.promise(async () => {
       try {
-        const errMsg = await e.response[kind]();
-        console.log("error message", errMsg);
+        const errMsg = await e.response.text();
         return errMsg;
       } catch (error) {
         console.error(error);

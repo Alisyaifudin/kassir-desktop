@@ -96,7 +96,6 @@ export function add({
       now,
       null,
     );
-
     if (customer.id === undefined && customer.name !== "") {
       const customerId = generateId();
       query += `INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at, 

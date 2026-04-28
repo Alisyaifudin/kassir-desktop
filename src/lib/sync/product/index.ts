@@ -7,8 +7,6 @@ import { log } from "~/lib/log";
 import { responseError } from "~/lib/response";
 import { z } from "zod";
 
-// todo: keep calling sync until unsync is zero
-
 export function product(
   token: string,
   stop: {
@@ -19,17 +17,19 @@ export function product(
   return Effect.gen(function* () {
     let upto = Date.now();
     let serverCount = 0;
+    let total = 0;
     if (!stop.pull) {
-      const products = yield* pull(token);
+      const { items: products, total: t } = yield* pull(token);
       upto = yield* merge(products);
       serverCount = products.length;
+      total = t;
     }
     let unsyncCount = 0;
-    if (!stop.push) {
+    if (!stop.push || !stop.pull) {
       unsyncCount = yield* push(token, upto);
     }
     yield* store.sync.product.set(upto);
-    return { unsync: unsyncCount, server: serverCount };
+    return { unsync: unsyncCount, server: serverCount, total };
   }).pipe(
     Effect.catchAll((e) => {
       switch (e._tag) {
@@ -44,9 +44,9 @@ export function product(
         case "ResponseError":
           return responseError.failMsg(e);
         case "ZodSchemaError": {
-          const error = z.treeifyError(e.error);
-          log.error(JSON.stringify(error.errors));
-          return Effect.fail(error.errors.join("; "));
+          const issues = e.error.issues.map((i) => i.message ?? i.code);
+          log.error(JSON.stringify(e.error.issues));
+          return Effect.fail(issues.join("; "));
         }
       }
     }),

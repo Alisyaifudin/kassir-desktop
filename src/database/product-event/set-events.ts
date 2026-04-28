@@ -7,9 +7,10 @@ type Input = {
   createdAt: number;
   type: DB.ProductEventEnum;
   value: number;
+  productId: string;
 };
 
-export function setEvents(productId: string, events: Input[]) {
+export function setEvents(events: Input[]) {
   const now = Date.now();
   if (events.length === 0) return Effect.void;
   let bindingIndex = 1;
@@ -19,7 +20,7 @@ export function setEvents(productId: string, events: Input[]) {
         `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
     )
     .join(", ");
-  const bindings = events.flatMap(({ createdAt, id, type, value }) => [
+  const bindings = events.flatMap(({ productId, createdAt, id, type, value }) => [
     id,
     createdAt,
     now,
@@ -31,10 +32,14 @@ export function setEvents(productId: string, events: Input[]) {
     yield* DB.try((db) =>
       db.execute(
         `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
-             VALUES ${placeholders} ON CONFLICT (id) DO NOTHING`,
+         VALUES ${placeholders} ON CONFLICT (id) DO NOTHING`,
         bindings,
       ),
     );
-    yield* calcStock(productId);
+    const ids = Array.from(new Set(events.map((e) => e.id)));
+    yield* Effect.all(
+      ids.map((id) => calcStock(id)),
+      { concurrency: 100 },
+    );
   });
 }

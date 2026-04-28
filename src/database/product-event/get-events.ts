@@ -11,12 +11,12 @@ export type ProductEvent = {
 
 const LIMIT = 1000;
 
-export function getEvents(productId: string) {
+export function getUnsync(upto: number) {
   return DB.try((db) =>
     db.select<Omit<DB.ProductEvent, "sync_at">[]>(
       `SELECT id, created_at, type, value, product_id FROM product_events 
-      WHERE product_id = $1 AND sync_at IS NULL LIMIT $2`,
-      [productId, LIMIT],
+      WHERE created_at < $1 AND sync_at IS NULL ORDER BY created_at LIMIT $2`,
+      [upto, LIMIT],
     ),
   ).pipe(
     Effect.map((res) =>

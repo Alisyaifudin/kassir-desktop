@@ -1,15 +1,17 @@
 import { countUnsync } from "./get-count-unsync";
-import { getEvents } from "./get-events";
+import { getUnsync } from "./get-events";
 import { setEvents } from "./set-events";
-import { setSyncAt } from "./set-sync-at";
+import { updateSyncAt } from "./set-sync-at";
+import { updateUnsyncAll } from "./update-unsync-all";
 
 export const productEvent = {
   get: {
-    unsync: getEvents,
+    unsync: getUnsync,
     countUnsync,
   },
-  set: {
+  update: {
+    unsyncAll: updateUnsyncAll,
+    syncAt: updateSyncAt,
     sync: setEvents,
-    syncAt: setSyncAt,
   },
 };

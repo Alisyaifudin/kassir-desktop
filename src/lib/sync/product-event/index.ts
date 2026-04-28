@@ -5,11 +5,9 @@ import { push } from "./push";
 import { log } from "~/lib/log";
 import { responseError } from "~/lib/response";
 import { z } from "zod";
+import { store } from "~/store";
 
-// todo: keep calling sync until unsync is zero
-
-export function product(
-  productId: string,
+export function productEvent(
   token: string,
   stop: {
     pull: boolean;
@@ -17,17 +15,22 @@ export function product(
   },
 ) {
   return Effect.gen(function* () {
+    let upto = Date.now();
     let serverCount = 0;
+    let total = 0;
     if (!stop.pull) {
-      const events = yield* pull(productId, token);
-      yield* merge(productId, events);
+      const { items: events, total: t } = yield* pull(token);
+      upto = yield* merge(events);
       serverCount = events.length;
+      total = t;
     }
     let unsyncCount = 0;
-    if (!stop.push) {
-      unsyncCount = yield* push(productId, token);
+
+    if (!stop.push || !stop.pull) {
+      unsyncCount = yield* push(token, upto);
     }
-    return { unsync: unsyncCount, server: serverCount };
+    yield* store.sync.productEvent.set(upto);
+    return { unsync: unsyncCount, server: serverCount, total };
   }).pipe(
     Effect.catchAll((e) => {
       switch (e._tag) {
@@ -38,14 +41,16 @@ export function product(
           log.error(e.error);
           return Effect.fail("Tidak bisa menghubugi server");
         case "DbError":
+        case "StoreError":
           log.error(e.e);
           return Effect.fail(e.e.message);
         case "ResponseError":
           return responseError.failMsg(e);
         case "ZodSchemaError": {
           const error = z.treeifyError(e.error);
+          console.error(error);
           log.error(JSON.stringify(error.errors));
-          return Effect.fail(error.errors.join("; "));
+          return Effect.fail("Data tidak valid");
         }
       }
     }),

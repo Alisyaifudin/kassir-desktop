@@ -1,0 +1,1425 @@
+openapi: "3.1.0"
+info:
+  title: Kassir API
+  description: |
+    ## Authentication
+    
+    Three auth mechanisms — **never mixed** on a single endpoint:
+    
+    | Scheme | Transport | Cookie / Header | Used by |
+    |--------|-----------|-----------------|---------|
+    | `cookieAdmin` | `Cookie: x-admin` | JWT (HS256, signed with `ADMIN_KEY`) | Admin dashboard |
+    | `cookieUser` | `Cookie: x-token` | JWT (HS256, signed with `ADMIN_KEY`) | Web frontend |
+    | `bearerApp` | `Authorization: Bearer <token>` | DB lookup (`tokens` table) | Mobile / desktop sync |
+    
+    ## Sync Protocol
+    
+    Sync endpoints use a **timestamp-based pull/push** model:
+    
+    1. **Pull** (`GET /{entity}/{timestamp}`) — fetch all records updated after `timestamp`
+    2. **Push** (`POST /{entity}`) — upload local changes; returns `{ timestamp, failed: id[] }`
+    3. **Delete tombstone** (`DELETE /grave`) — push IDs of deleted items for garbage collection
+    
+    ## Content-Type
+    
+    All request and response bodies are `application/json` unless stated otherwise.
+    
+    ## Error responses
+    
+    All endpoints may return:
+    - `400` — malformed input (body validation, missing headers, invalid params)
+    - `403` — unauthorized (invalid/expired token)
+    - `500` — server error (D1 database failure)
+    
+    Specific 4xx codes are documented per-endpoint.
+  version: "1.0.0"
+
+servers:
+  - url: https://kassir.example.com
+    description: Production
+
+# ──────────────────────────────────────────────
+# Security schemes
+# ──────────────────────────────────────────────
+components:
+  securitySchemes:
+    cookieAdmin:
+      type: apiKey
+      in: cookie
+      name: x-admin
+      description: JWT token set by POST /api/login/admin
+    cookieUser:
+      type: apiKey
+      in: cookie
+      name: x-token
+      description: JWT token set by POST /api/login/credential
+    bearerApp:
+      type: http
+      scheme: bearer
+      description: Token from the `tokens` table, created via POST /api/token
+
+  # ──────────────────────────────────────────────
+  # Reusable schemas
+  # ──────────────────────────────────────────────
+  schemas:
+    # ── Health ──
+    Health:
+      type: string
+      example: "ok"
+
+    # ── Auth ──
+    CredentialLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+          example: "user@example.com"
+        password:
+          type: string
+          maxLength: 200
+          example: "secret123"
+
+    # ── User ──
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "abc123"
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        provider:
+          type: object
+          properties:
+            name:
+              type: string
+              enum: [credential]
+              example: "credential"
+            value:
+              type: string
+              description: bcrypt hash for credential users
+        verifiedAt:
+          type: integer
+          nullable: true
+          description: Unix millisecond timestamp; null if not yet verified
+          example: 1714204800000
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+
+    CreateUser:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          example: "Jane Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 200
+          example: "jane@example.com"
+        password:
+          type: string
+          maxLength: 200
+          example: "s3cur3p4ss"
+
+    # ── Token ──
+    Token:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "tok_abc123def456"
+
+    # ── Standalone Product (sync body & response) ──
+    Product:
+      type: object
+      required: [id, name, price, stock, capital, note]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          example: "prod_001"
+        name:
+          type: string
+          maxLength: 100
+          example: "Coca Cola 330ml"
+        barcode:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "8991234567890"
+        price:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          example: 5000
+        stock:
+          type: integer
+          minimum: -1000000
+          maximum: 1000000
+          example: 42
+        capital:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          example: 4000
+        note:
+          type: string
+          maxLength: 1000
+          example: ""
+        updatedAt:
+          type: integer
+          description: Unix millisecond timestamp (response only, ignored on push)
+          example: 1714204800000
+
+    # ── Sync Response wrapper ──
+    SyncResponse:
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          description: Server-assigned timestamp (ms) for this batch
+          example: 1714204800000
+        failed:
+          type: array
+          items:
+            type: string
+          description: IDs that could not be synced (network/D1 failure)
+          example: ["prod_099"]
+
+    # ── Record (transaction) ──
+    Discount:
+      type: object
+      required: [id, value, eff, kind]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+        value:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        eff:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          description: Effective value in absolute currency units
+        kind:
+          type: string
+          enum: [number, percent, pcs]
+
+    RecordProduct:
+      type: object
+      required: [id, name, price, qty, capital, capitalRaw, total, discounts]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+        productId:
+          type: string
+          maxLength: 100
+          description: Linked standalone product ID (nullable)
+        name:
+          type: string
+          maxLength: 100
+        price:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        qty:
+          type: integer
+          minimum: -1000000
+          maximum: 1000000
+          description: Negative quantity = return/refund
+        capital:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        capitalRaw:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          description: Capital before discounts applied
+        total:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          description: (price × qty) - sum of discount eff
+        discounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Discount"
+
+    RecordExtra:
+      type: object
+      required: [id, name, value, eff, kind]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+        name:
+          type: string
+          maxLength: 100
+        value:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        eff:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          description: Effective value in absolute currency units
+        kind:
+          type: string
+          enum: [number, percent]
+
+    Record:
+      type: object
+      required:
+        [id, updatedAt, paidAt, rounding, isCredit, cashier,
+         mode, pay, methodId, note, fix, customer, subtotal, total,
+         products, extras]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          example: "rec_001"
+        updatedAt:
+          type: integer
+          minimum: 0
+          maximum: 100000000000000
+          description: Unix millisecond timestamp; used for conflict resolution
+          example: 1714204800000
+        paidAt:
+          type: integer
+          minimum: 0
+          maximum: 100000000000000
+          example: 1714204799000
+        rounding:
+          type: number
+          minimum: -1000000000
+          maximum: 1000000000
+          example: 0
+        isCredit:
+          type: boolean
+          example: false
+        cashier:
+          type: string
+          maxLength: 100
+          example: "Alice"
+        mode:
+          type: string
+          enum: [buy, sell]
+          example: "sell"
+        pay:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          example: 50000
+        methodId:
+          type: string
+          maxLength: 100
+          example: "method_cash"
+        note:
+          type: string
+          maxLength: 1000
+          description: Can be empty (unlike cashier/methodId which require non-empty)
+          example: ""
+        fix:
+          type: number
+          minimum: 0
+          maximum: 10
+          example: 0
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+              maxLength: 100
+              example: "Budi"
+            phone:
+              type: string
+              maxLength: 100
+              example: "08123456789"
+        subtotal:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          example: 45000
+        total:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+          example: 45000
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordProduct"
+        extras:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordExtra"
+
+    # ── Product Event ──
+    ProductEvent:
+      type: object
+      required: [id, createdAt, type, value, productId]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          example: "evt_001"
+        createdAt:
+          type: integer
+          minimum: 0
+          maximum: 100000000000000
+          example: 1714204800000
+        type:
+          type: string
+          enum: [manual, inc, dec]
+          description: |
+            - `manual` — manual stock adjustment
+            - `inc` — increase (e.g. restock / purchase)
+            - `dec` — decrease (e.g. sale)
+        value:
+          type: integer
+          minimum: -1000000
+          maximum: 1000000
+          example: -3
+        productId:
+          type: string
+          maxLength: 100
+          example: "prod_001"
+
+    ProductEventSyncResponse:
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          example: 1714204800000
+        failedIds:
+          type: array
+          items:
+            type: string
+          example: ["evt_099"]
+
+    # ── Grave (deleted-item tracking) ──
+    GraveBody:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            type: string
+          description: IDs of deleted products
+          example: ["prod_001"]
+        records:
+          type: array
+          items:
+            type: string
+          description: IDs of deleted records
+          example: ["rec_001"]
+
+    GraveResponse:
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          example: 1714204800000
+        records:
+          type: array
+          items:
+            type: string
+          description: IDs that failed to be tombstoned
+        products:
+          type: array
+          items:
+            type: string
+          description: IDs that failed to be tombstoned
+
+    GraveGetResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            type: string
+          description: Deleted product IDs since timestamp
+        records:
+          type: array
+          items:
+            type: string
+          description: Deleted record IDs since timestamp
+
+    # ── Method (payment method) ──
+    Method:
+      type: object
+      required: [id, kind]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          example: "method_001"
+        name:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: User-defined label; null for default methods (1000-1003)
+          example: "Tunai Toko"
+        kind:
+          type: string
+          enum: [cash, transfer, debit, qris]
+          example: "cash"
+        deletedAt:
+          type: integer
+          nullable: true
+          description: >
+            Unix millisecond timestamp. When set (non-null), the method
+            is soft-deleted at the server-assigned `now` timestamp.
+            When null, the method is active.
+            When absent from the JSON, treated as null (active).
+        updatedAt:
+          type: integer
+          description: Unix millisecond timestamp (response only, ignored on push)
+          example: 1714204800000
+    
+    # ── Product Event Get-All body ──
+    ProductEventGetBody:
+      type: array
+      items:
+        type: string
+      description: Array of product IDs to filter events for
+      example: ["prod_001", "prod_002"]
+
+    # ── Generic errors ──
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+# ──────────────────────────────────────────────
+# Paths
+# ──────────────────────────────────────────────
+paths:
+  # ═══════════════════════════════════════════
+  # Health
+  # ═══════════════════════════════════════════
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  # ═══════════════════════════════════════════
+  # Auth — Login
+  # ═══════════════════════════════════════════
+  /api/login/admin:
+    post:
+      tags: [Auth]
+      summary: Admin login
+      description: |
+        Authenticate as admin. On success, sets `x-admin` cookie containing a JWT.
+        Body is raw text (not JSON) — the admin password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              example: "super-secret-admin-key"
+      responses:
+        "204":
+          description: "Login successful; Set-Cookie: x-admin=<jwt>"
+        "403":
+          description: Wrong password
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: JWT signing or server error
+
+  /api/login/credential:
+    post:
+      tags: [Auth]
+      summary: User login (credential)
+      description: |
+        Authenticate as a user with email + password (bcrypt).
+        On success, sets `x-token` cookie containing a JWT.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialLogin"
+      responses:
+        "204":
+          description: "Login successful; Set-Cookie: x-token=<jwt>"
+        "400":
+          description: |
+            - Validation error (malformed body)
+            - Wrong email/password
+            - Wrong provider method (tried credential but user is not credential)
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: D1 error or JWT signing error
+
+  # ═══════════════════════════════════════════
+  # Auth — Logout
+  # ═══════════════════════════════════════════
+  /api/logout/admin:
+    post:
+      tags: [Auth]
+      summary: Admin logout
+      description: Clears the `x-admin` cookie.
+      security:
+        - cookieAdmin: []
+      responses:
+        "204":
+          description: Cookie cleared
+
+  /api/logout/user:
+    post:
+      tags: [Auth]
+      summary: User logout
+      description: Clears the `x-token` cookie.
+      security:
+        - cookieUser: []
+      responses:
+        "204":
+          description: Cookie cleared
+
+  # ═══════════════════════════════════════════
+  # Admin
+  # ═══════════════════════════════════════════
+  /api/admin:
+    get:
+      tags: [Admin]
+      summary: Verify admin session
+      description: Returns 204 if the `x-admin` cookie is valid.
+      security:
+        - cookieAdmin: []
+      responses:
+        "204":
+          description: Authenticated
+        "401":
+          description: Not authenticated
+        "500":
+          description: JWT or server error
+
+  /api/admin/user:
+    get:
+      tags: [Admin - Users]
+      summary: List all users
+      security:
+        - cookieAdmin: []
+      responses:
+        "200":
+          description: Array of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+        "500":
+          description: D1 error
+
+    post:
+      tags: [Admin - Users]
+      summary: Create a new user
+      security:
+        - cookieAdmin: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUser"
+      responses:
+        "204":
+          description: User created
+        "400":
+          description: Validation error
+        "401":
+          description: Not authenticated
+        "500":
+          description: D1 error
+
+  /api/admin/user/{id}:
+    get:
+      tags: [Admin - Users]
+      summary: Get user by ID
+      security:
+        - cookieAdmin: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+    delete:
+      tags: [Admin - Users]
+      summary: Delete user by ID
+      security:
+        - cookieAdmin: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /api/admin/user/{id}/verify:
+    put:
+      tags: [Admin - Users]
+      summary: Verify a user
+      description: Sets `verifiedAt` to the current timestamp.
+      security:
+        - cookieAdmin: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+  # ═══════════════════════════════════════════
+  # User (self-service)
+  # ═══════════════════════════════════════════
+  /api/user:
+    get:
+      tags: [User]
+      summary: Get current user profile
+      security:
+        - cookieUser: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+
+    delete:
+      tags: [User]
+      summary: Delete current user (self)
+      security:
+        - bearerApp: []
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Unauthorized (header or token invalid)
+
+  /api/user/name:
+    put:
+      tags: [User]
+      summary: Update current user's name
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              example: "New Name"
+      responses:
+        "204":
+          description: Name updated
+        "400":
+          description: Missing or invalid Authorization header
+        "500":
+          description: Body read error or D1 error
+
+  # ═══════════════════════════════════════════
+  # Token (bearer token management)
+  # ═══════════════════════════════════════════
+  /api/token:
+    get:
+      tags: [Token]
+      summary: List bearer tokens for current user
+      security:
+        - cookieUser: []
+      responses:
+        "200":
+          description: Array of tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Token"
+        "401":
+          description: Not authenticated
+
+    post:
+      tags: [Token]
+      summary: Create a new bearer token (for sync clients)
+      description: |
+        Creates a new entry in the `tokens` table. Use the returned token
+        value in `Authorization: Bearer <token>` for all sync endpoints.
+      security:
+        - bearerApp: []
+      responses:
+        "204":
+          description: Token created (retrieve it via GET /api/token)
+        "403":
+          description: Unauthorized
+
+    delete:
+      tags: [Token]
+      summary: Delete a bearer token
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              description: The token string to delete
+              example: "tok_abc123"
+      responses:
+        "204":
+          description: Token deleted
+        "400":
+          description: Empty body or missing header
+        "403":
+          description: Unauthorized
+
+  # ═══════════════════════════════════════════
+  # Product
+  # ═══════════════════════════════════════════
+  /api/product/count/{timestamp}:
+    get:
+      tags: [Product]
+      summary: Count products updated after timestamp
+      description: |
+        Returns the number of products with `updated_at > timestamp`.
+        Useful for sync clients to determine pull batch size before fetching.
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Product count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                example:
+                  count: 42
+        "400":
+          description: Invalid timestamp
+
+  /api/product/{timestamp}:
+    get:
+      tags: [Product]
+      summary: Pull products updated after timestamp
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          description: "Unix millisecond timestamp; only products with updatedAt > timestamp are returned"
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Array of products (max 1000)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid timestamp (not an integer)
+
+  /api/product:
+    get:
+      tags: [Product]
+      summary: Get all products (web)
+      description: Returns all products for the authenticated user.
+      security:
+        - cookieUser: []
+      responses:
+        "200":
+          description: Array of all products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+    post:
+      tags: [Product]
+      summary: Push (sync) products
+      description: |
+        Upload product changes. Uses `INSERT ... ON CONFLICT (id) DO UPDATE`
+        for idempotent upsert. Max 1,000,000 total products per user.
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/Product"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "400":
+          description: Body validation error
+        "500":
+          description: Over capacity or D1 error
+
+    delete:
+      tags: [Product]
+      summary: Delete all products (web)
+      security:
+        - cookieUser: []
+      responses:
+        "200":
+          description: Array of deleted products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  # ═══════════════════════════════════════════
+  # Record (transactions)
+  # ═══════════════════════════════════════════
+  /api/record/count/{timestamp}:
+    get:
+      tags: [Record]
+      summary: Count records updated after timestamp
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Record count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                example:
+                  count: 156
+        "400":
+          description: Invalid timestamp
+
+  /api/record/{timestamp}:
+    get:
+      tags: [Record]
+      summary: Pull records updated after timestamp
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Array of records with nested products, discounts, and extras (max 1000)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Record"
+        "400":
+          description: Invalid timestamp
+
+  /api/record/{start}/{end}:
+    get:
+      tags: [Record]
+      summary: Pull records between two timestamps (range query)
+      description: |
+        Returns records where `paid_at > start AND paid_at <= end`,
+        ordered by `paid_at`, limited to 1000.
+        Useful for paginated sync or fetching a specific time window.
+      security:
+        - cookieUser: []
+      parameters:
+        - name: start
+          in: path
+          required: true
+          description: Unix millisecond timestamp (exclusive lower bound)
+          schema:
+            type: integer
+          example: 1714204700000
+        - name: end
+          in: path
+          required: true
+          description: Unix millisecond timestamp (inclusive upper bound)
+          schema:
+            type: integer
+          example: 1714204800000
+      responses:
+        "200":
+          description: Array of records with nested products, discounts, and extras (max 1000)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Record"
+        "400":
+          description: Invalid timestamp
+        "401":
+          description: Not authenticated (missing or expired cookie)
+
+  /api/record:
+    post:
+      tags: [Record]
+      summary: Push (sync) records
+      description: |
+        Upload record changes. Determines insert vs update by checking
+        `updatedAt` against DB. Uses D1 batch batching (max 50 statements
+        per batch) with per-batch error isolation.
+        
+        Max 1,000,000 total records per user.
+        
+        Note: record updates only touch the `records` table row and
+        `record_products.product_id` references. Product, discount, and
+        extra changes are NOT applied on update (only on initial insert).
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/Record"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+
+    delete:
+      tags: [Record]
+      summary: Delete all records (web)
+      security:
+        - cookieUser: []
+      responses:
+        "200":
+          description: Array of deleted records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Record"
+
+  # ═══════════════════════════════════════════
+  # Grave (deleted-id tombstone sync)
+  # ═══════════════════════════════════════════
+  /api/grave/count/{timestamp}:
+    get:
+      tags: [Grave]
+      summary: Count tombstoned IDs since timestamp
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Grave counts per kind
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: integer
+                  records:
+                    type: integer
+                example:
+                  products: 12
+                  records: 5
+        "400":
+          description: Invalid timestamp
+
+  /api/grave/{timestamp}:
+    get:
+      tags: [Grave]
+      summary: Pull deleted IDs since timestamp
+      description: |
+        Returns product and record IDs that were deleted after the given
+        timestamp. The client should use this to garbage-collect local data.
+        Results are limited to 1000 per query.
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Deleted product and record IDs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraveGetResponse"
+
+  /api/grave:
+    delete:
+      tags: [Grave]
+      summary: Push deleted IDs (tombstones)
+      description: |
+        Register deleted product and record IDs and remove them from the
+        source tables. Two operations per ID: (1) INSERT into graves table,
+        (2) DELETE from the source table (products or records).
+        
+        Idempotent: re-submitting the same IDs is safe — the DELETE is
+        a no-op if the row is already gone, and graves may accumulate
+        duplicate entries (cleanup TTL is a pending feature).
+        
+        Max 1,000,000 total graves per user.
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraveBody"
+      responses:
+        "200":
+          description: IDs that failed to register
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraveResponse"
+
+  # ═══════════════════════════════════════════
+  # Method (payment methods)
+  # ═══════════════════════════════════════════
+  /api/method:
+    get:
+      tags: [Method]
+      summary: Get all methods (web)
+      description: |
+        Returns all methods for the authenticated user, including the four
+        default shared methods (1000-1003) whose `user_id` is NULL.
+      security:
+        - cookieUser: []
+      responses:
+        "200":
+          description: Array of methods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Method"
+        "401":
+          description: Not authenticated (missing or expired cookie)
+
+    post:
+      tags: [Method]
+      summary: Push (sync) payment methods
+      description: |
+        Upload payment method changes. Uses `INSERT ... ON CONFLICT (id) DO UPDATE`
+        for idempotent upsert. Max 100 total methods per user.
+        
+        Four default methods exist (1000=cash, 1001=transfer, 1002=debit, 1003=qris)
+        with `user_id = NULL`; they are shared across all users.
+        User-created methods have `user_id` set to the authenticated user.
+        
+        Soft-delete: set `deletedAt` to a non-null timestamp to mark as deleted.
+        The server replaces the client timestamp with its own `now`.
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/Method"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "400":
+          description: Body validation error
+        "500":
+          description: Over capacity or D1 error
+
+  /api/method/{timestamp}:
+    get:
+      tags: [Method]
+      summary: Pull methods updated after timestamp
+      description: |
+        Returns methods updated after the given timestamp. Includes both
+        user-owned methods and the four default shared methods (1000-1003)
+        whose `user_id` is NULL.
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          description: Unix millisecond timestamp; only methods with updatedAt > timestamp are returned
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Array of methods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Method"
+        "400":
+          description: Invalid timestamp (not an integer)
+
+  # ═══════════════════════════════════════════
+  # Product Event (stock change log)
+  # ═══════════════════════════════════════════
+  /api/product-event/count/{timestamp}:
+    get:
+      tags: [Product Event]
+      summary: Count product events created after timestamp
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      responses:
+        "200":
+          description: Event count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                example:
+                  count: 89
+        "400":
+          description: Invalid timestamp
+
+  /api/product-event/{timestamp}:
+    post:
+      tags: [Product Event]
+      summary: Pull events for given products after timestamp
+      description: |
+        Body must be a JSON array of product IDs to filter by.
+        Returns all events whose `createdAt > timestamp` AND `productId` is in the request body.
+      security:
+        - bearerApp: []
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1714204700000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductEventGetBody"
+      responses:
+        "200":
+          description: Array of matching events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductEvent"
+
+  /api/product-event:
+    post:
+      tags: [Product Event]
+      summary: Push (sync) product events
+      security:
+        - bearerApp: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProductEvent"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductEventSyncResponse"
+
+  /api/product-event/{productId}:
+    get:
+      tags: [Product Event]
+      summary: Get all events for a product (web)
+      security:
+        - cookieUser: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "prod_001"
+      responses:
+        "200":
+          description: Array of events for this product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductEvent"
+        "401":
+          description: Not authenticated or JWT expired
+        "500":
+          description: D1 error
+
+    delete:
+      tags: [Product Event]
+      summary: Delete all events for a product (web)
+      security:
+        - cookieUser: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Array of deleted events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductEvent"

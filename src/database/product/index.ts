@@ -1,4 +1,5 @@
 import { delById } from "./del-by-id";
+import { delSync } from "./del-sync";
 import { all } from "./get-all";
 import { getById } from "./get-by-id";
 import { updateInfo } from "./update-info";
@@ -31,6 +32,7 @@ export const product = {
   },
   del: {
     byId: delById,
+    sync: delSync,
   },
   update: {
     sync,

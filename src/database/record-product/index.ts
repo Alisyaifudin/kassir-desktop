@@ -1,3 +1,4 @@
+import { getByRecordIds } from "./get-by-by-record-ids";
 import { getByRange } from "./get-by-range";
 import { getByRecordId } from "./get-by-record-id";
 import { getHistory } from "./get-history";
@@ -8,6 +9,7 @@ export const recordProduct = {
     byRange: getByRange,
     byRecordId: getByRecordId,
     history: getHistory,
+    byRecordIds: getByRecordIds,
   },
   update: {
     productId: updateProductId,

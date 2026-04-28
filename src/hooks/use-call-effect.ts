@@ -7,6 +7,7 @@ export function useCallEffect<TInput, A, E>(cb: (input: TInput) => Effect.Effect
   const [data, setData] = useState<A | null>(null);
   const handler = useCallback(
     async (input: TInput) => {
+      setError(null);
       setLoading(true);
       const res = await Effect.runPromise(pipe(cb(input), Effect.either));
       Either.match(res, {

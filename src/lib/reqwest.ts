@@ -49,7 +49,10 @@ export function reqwest<Output>(
     });
 
     const parsed = schema.safeParse(json);
-    if (!parsed.success) return yield* Effect.fail(new ZodSchemaError(parsed.error));
+    if (!parsed.success) {
+      console.error(json);
+      return yield* Effect.fail(new ZodSchemaError(parsed.error));
+    }
     return { response, data: parsed.data };
   });
 }
