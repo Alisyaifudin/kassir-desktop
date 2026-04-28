@@ -26,4 +26,4 @@ dist-ssr
 .tauri
 .secrets
 .env
-.env-old
+.env-oldnul
