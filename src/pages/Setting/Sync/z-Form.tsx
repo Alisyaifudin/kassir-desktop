@@ -4,9 +4,9 @@ import { log } from "~/lib/log";
 import { store } from "~/store";
 import { revalidate } from "./use-data";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
-import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
+import { Password } from "~/components/Password";
 
 export function Form({ token }: { token?: string }) {
   const { value, error, handleChange, handleSubmit, loading } = useToken(token);
@@ -17,7 +17,7 @@ export function Form({ token }: { token?: string }) {
           <FieldLabel htmlFor="sync-token" className="text-normal font-semibold text-foreground">
             Token
           </FieldLabel>
-          <Input
+          <Password
             id="sync-token"
             value={value}
             className="w-full"

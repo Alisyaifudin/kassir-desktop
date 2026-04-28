@@ -1,7 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { Method } from "~/database/method/cache";
 
-export const version = "5.16.5";
+export const version = "5.19.0";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
