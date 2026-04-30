@@ -100,7 +100,7 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
           selectMethod(val, defVals, tab);
         }}
       >
-        <SelectTrigger className="w-[200px] small:w-[165px]">
+        <SelectTrigger className="max-w-[240px] small:w-[165px]">
           <SelectValue placeholder="Metode">
             {methodLabel[method.kind]} <Kbd>{methodKbd[method.kind]}</Kbd>
           </SelectValue>
