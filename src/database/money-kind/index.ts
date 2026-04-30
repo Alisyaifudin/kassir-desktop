@@ -1,5 +1,6 @@
 import { getAll } from "./get-all";
 import { updateName } from "./update-name";
+import { updateReorder } from "./update-reorder";
 import { updateType } from "./update-type";
 import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
@@ -21,7 +22,7 @@ export const moneyKind = {
   update: {
     type: updateType,
     name: updateName,
+    reorder: updateReorder,
     sync,
   },
-  // upsert,
 };

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { DB } from "../instance";
 
 export function getAll() {
-  return DB.try((db) => db.select<DB.MoneyKind[]>("SELECT * FROM money_kind")).pipe(
+  return DB.try((db) => db.select<DB.MoneyKind[]>("SELECT * FROM money_kind ORDER BY money_kind_ordering")).pipe(
     Effect.flatMap((res) => {
       return Effect.all(
         res.map((r) =>

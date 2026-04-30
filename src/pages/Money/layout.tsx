@@ -38,8 +38,8 @@ export function Wrapper() {
       log.error(e);
       return <ErrorComponent>{e.message}</ErrorComponent>;
     },
-    onSuccess(money) {
-      return <Outlet context={{ money }} />;
+    onSuccess() {
+      return <Outlet />;
     },
   });
 }

@@ -60,6 +60,7 @@ declare namespace DB {
     money_kind_id: string;
     money_kind_name: string;
     money_kind_type: MoneyType;
+    money_kind_ordering: number;
     money_kind_updated_at: number;
     money_kind_sync_at: number | null;
   }
