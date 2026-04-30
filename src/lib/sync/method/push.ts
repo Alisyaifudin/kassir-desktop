@@ -3,12 +3,12 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { server } from "~/server";
 
-export function push(token: string, upto: number) {
+export function push(token: string) {
   return Effect.gen(function* () {
     const methods = yield* db.method.get.unsync();
     if (methods.length === 0) return 0;
     const { data } = yield* server.method.post(methods, token);
-    const { timestamp, failed } = data;
+    const { failed } = data;
     const failedSet = new Set(failed);
     const syncIds = methods.flatMap((p) => (failedSet.has(p.id) ? [] : [p.id]));
     if (syncIds.length > 0) {

@@ -5,7 +5,6 @@ import { push } from "./push";
 import { store } from "~/store";
 import { log } from "~/lib/log";
 import { responseError } from "~/lib/response";
-import { z } from "zod";
 
 export function product(
   token: string,

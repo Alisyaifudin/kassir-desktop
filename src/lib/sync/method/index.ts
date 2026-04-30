@@ -5,7 +5,6 @@ import { push } from "./push";
 import { store } from "~/store";
 import { log } from "~/lib/log";
 import { responseError } from "~/lib/response";
-import { z } from "zod";
 
 export function method(
   token: string,
@@ -24,7 +23,7 @@ export function method(
     }
     let unsyncCount = 0;
     if (!stop.push || !stop.pull) {
-      unsyncCount = yield* push(token, upto);
+      unsyncCount = yield* push(token);
     }
     yield* store.sync.method.set(upto);
     return { unsync: unsyncCount, server: serverCount, total: 0 };

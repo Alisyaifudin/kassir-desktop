@@ -29,7 +29,7 @@ export function merge(methods: MethodServer[]) {
 function insert(methods: MethodServer[]) {
   return Effect.all(
     methods.map((method) =>
-      db.method.add.sync(method).pipe(
+      db.method.add.sync({ ...method, name: method.name ?? undefined, deletedAt: method.deletedAt ?? null }).pipe(
         Effect.as(null),
         Effect.catchAll((e) =>
           Effect.succeed({
@@ -46,7 +46,7 @@ function insert(methods: MethodServer[]) {
 function update(methods: MethodServer[]) {
   return Effect.all(
     methods.map((method) =>
-      db.method.update.syncFromServer(method).pipe(
+      db.method.update.syncFromServer({ ...method, name: method.name ?? undefined, deletedAt: method.deletedAt ?? null }).pipe(
         Effect.as(null),
         Effect.catchAll((e) =>
           Effect.succeed({
