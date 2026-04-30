@@ -7,9 +7,9 @@ import { Show } from "~/components/Show";
 import { Resync } from "./z-Resync";
 
 const ITEMS = [
+  { Syncer: GraveSync, icon: Trash2 },
   { Syncer: ProductSync, icon: Box },
   { Syncer: RecordSync, icon: ReceiptText },
-  { Syncer: GraveSync,   icon: Trash2 },
 ] as const;
 
 export function Sync({ token }: { token?: string }) {
