@@ -30,7 +30,7 @@
       "identifier": "http:allow-fetch",
       "allow": [
         { "url": "http://192.168.225.187:8787/**" }, 
-        { "url": "https://*.workers.dev/*" }      
+        { "url": "https://api.kassir.store/*" }      
       ]
     }
   ]
