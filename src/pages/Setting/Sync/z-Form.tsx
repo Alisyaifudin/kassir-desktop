@@ -23,6 +23,7 @@ export function Form({ token }: { token?: string }) {
             className="w-full"
             onChange={handleChange}
             placeholder="token..."
+            aria-autocomplete="list"
           />
         </Field>
         <div className="flex justify-end">
