@@ -17,13 +17,13 @@ import { db } from "~/database";
 import { log } from "~/lib/log";
 import { tx } from "~/transaction";
 import { TabInfo } from "~/transaction/transaction/get-all";
-import { programDeleteRecord } from "../Record/z-Detail/use-delete";
-import { useTab } from "./use-tab";
-import { revalidateTabs, useTabs } from "./use-tabs";
-import { resetStore } from "./use-transaction";
-import { loadDetailRecord } from "../Record/Item/use-data";
+import { programDeleteRecord } from "../../Record/z-Detail/use-delete";
+import { useTab } from "./../use-tab";
+import { revalidateTabs, useTabs } from "./../use-tabs";
+import { resetStore } from "./../use-transaction";
+import { loadDetailRecord } from "../../Record/Item/use-data";
 import { Spinner } from "~/components/Spinner";
-import { programPrint } from "../setting/Printer/util-program-print";
+import { programPrint } from "../../setting/Printer/util-program-print";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 const completeAtom = createAtom({
