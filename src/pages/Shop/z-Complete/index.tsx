@@ -1,157 +1,32 @@
-import { createAtom } from "@xstate/store";
-import { useAtom } from "@xstate/store/react";
-import { Effect } from "effect";
-import { Undo2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import { TextError } from "~/components/TextError";
-import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { db } from "~/database";
-import { log } from "~/lib/log";
-import { tx } from "~/transaction";
-import { TabInfo } from "~/transaction/transaction/get-all";
-import { programDeleteRecord } from "../../Record/z-Detail/use-delete";
-import { useTab } from "./../use-tab";
-import { revalidateTabs, useTabs } from "./../use-tabs";
-import { resetStore } from "./../use-transaction";
-import { loadDetailRecord } from "../../Record/Item/use-data";
-import { Spinner } from "~/components/Spinner";
-import { programPrint } from "../../setting/Printer/util-program-print";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
+import { useCompleteDialog } from "./use-complete-dialog";
+import { Summary } from "./z-Summary";
+import { Actions } from "./z-Actions";
 
-const completeAtom = createAtom({
-  open: false,
-  grandTotal: 0,
-  change: 0,
-  recordId: undefined as string | undefined,
-});
-
-function useComplete() {
-  const complete = useAtom(completeAtom);
-  return complete;
-}
-
-export const setComplete = completeAtom.set;
+export { setComplete } from "./use-complete-dialog";
 
 export function Complete() {
-  const navigate = useNavigate();
-  const cancelFlag = useRef(false);
-  const printButtonRef = useRef<HTMLButtonElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const { open, grandTotal, change, recordId } = useComplete();
-  const [tab] = useTab();
-  const tabs = useTabs();
-  const urlBack = useGenerateUrlBack(`/shop`);
-
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => printButtonRef.current?.focus(), 100);
-    }
-  }, [open]);
-
-  const resetCompleteState = () => {
-    setComplete({ open: false, grandTotal: 0, change: 0, recordId: undefined });
-    cancelFlag.current = false;
-    const searchbar = document.getElementById("searchbar") as HTMLInputElement | null;
-    setTimeout(() => searchbar?.focus(), 300);
-  };
-
-  const handleCommit = async () => {
-    resetStore(tab);
-    const errMsg = await Effect.runPromise(clearTab(tab, tabs));
-    if (errMsg) {
-      setError(errMsg);
-      return false;
-    }
-    return true;
-  };
-
-  const handleRollback = async (id: string) => {
-    const errMsg = await Effect.runPromise(programDeleteRecord(id));
-    if (errMsg) {
-      setError(errMsg);
-      return false;
-    }
-    return true;
-  };
-
-  const closeDialog = async () => {
-    const id = completeAtom.get().recordId;
-
-    if (!cancelFlag.current) {
-      if (!(await handleCommit())) return;
-    } else if (id !== undefined) {
-      if (!(await handleRollback(id))) return;
-    }
-
-    resetCompleteState();
-  };
-
-  const viewDetail = () => {
-    if (recordId !== undefined)
-      navigate({
-        pathname: `/records/${recordId}`,
-        search: `url_back=${encodeURIComponent(urlBack)}`,
-      });
-    closeDialog();
-  };
-
-  const printReceipt = async () => {
-    if (recordId === undefined) return;
-    setLoading(true);
-    const errMsg = await Effect.runPromise(
-      Effect.gen(function* () {
-        const data = yield* loadDetailRecord(recordId);
-        const socials = yield* db.social.get.all();
-        yield* programPrint({
-          record: data.record,
-          products: data.products,
-          extras: data.extras,
-          socials,
-        });
-        return null;
-      }).pipe(
-        Effect.catchAll((e) => {
-          switch (e._tag) {
-            case "DbError":
-              log.error(e.e);
-              return Effect.fail(e.e.message);
-            case "NotFound":
-              return Effect.fail("Transaksi tidak ditemukan");
-          }
-        }),
-      ),
-    );
-    setLoading(false);
-    if (errMsg) {
-      setError(errMsg);
-    } else {
-      closeDialog();
-    }
-  };
-
-  const cancelTransaction = () => {
-    cancelFlag.current = true;
-    closeDialog();
-  };
+  const {
+    open,
+    grandTotal,
+    change,
+    error,
+    loading,
+    printButtonRef,
+    handleOpenChange,
+    viewDetail,
+    handlePrint,
+    handleCancel,
+  } = useCompleteDialog();
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        if (!isOpen) closeDialog();
-        else setComplete((prev) => ({ ...prev, open: true }));
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl">
         <DialogHeader className="text-center">
           <DialogTitle className="text-big font-bold mb-4 text-center w-full">
@@ -165,83 +40,12 @@ export function Complete() {
 
         <Actions
           loading={loading}
-          onCancel={cancelTransaction}
+          onCancel={handleCancel}
           onViewDetail={viewDetail}
-          onPrint={printReceipt}
+          onPrint={handlePrint}
           printRef={printButtonRef}
         />
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Summary({ grandTotal, change }: { grandTotal: number; change: number }) {
-  return (
-    <div className="flex flex-col gap-6 py-8">
-      <div className="flex justify-between items-end border-b pb-4">
-        <span className="font-medium text-muted-foreground pb-2">Total</span>
-        <span className="text-big font-bold leading-none">
-          Rp{grandTotal.toLocaleString("id-ID")}
-        </span>
-      </div>
-      <div className="flex justify-between items-end">
-        <span className="font-medium text-muted-foreground pb-2">Kembalian</span>
-        <span className="text-grand-total font-bold text-primary leading-none">
-          Rp{change.toLocaleString("id-ID")}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function Actions({
-  onCancel,
-  onViewDetail,
-  onPrint,
-  printRef,
-  loading,
-}: {
-  loading: boolean;
-  onCancel: () => void;
-  onViewDetail: () => void;
-  onPrint: () => void;
-  printRef: React.RefObject<HTMLButtonElement | null>;
-}) {
-  return (
-    <DialogFooter className="sm:justify-center flex sm:flex-col gap-4 pt-4">
-      <div className="sm:justify-between flex flex-row gap-4 pt-4">
-        <Button variant="destructive" onClick={onCancel}>
-          Batalkan
-          <Undo2 />
-        </Button>
-        <Button variant="secondary" onClick={onViewDetail}>
-          Lihat Detail
-        </Button>
-      </div>
-      <Button ref={printRef} className="flex-1 h-20" onClick={onPrint}>
-        Cetak
-        <Spinner when={loading} />
-      </Button>
-    </DialogFooter>
-  );
-}
-
-function clearTab(tab: number, tabs: TabInfo[]) {
-  return Effect.gen(function* () {
-    yield* tx.transaction.delete(tab);
-    if (tabs.length === 1) {
-      yield* tx.transaction.add.new();
-    }
-    revalidateTabs();
-    return null;
-  }).pipe(
-    Effect.catchTag("TooMany", (e) => {
-      log.error(e.msg);
-      return Effect.succeed(e.msg);
-    }),
-    Effect.catchTag("TxError", ({ e }) => {
-      log.error(e);
-      return Effect.fail(e.message);
-    }),
   );
 }
