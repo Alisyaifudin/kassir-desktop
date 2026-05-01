@@ -3,7 +3,7 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { useFreshForm } from "./use-fresh-form";
-import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
+import { FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 import { Password } from "~/components/Password";
 
 export function FreshForm() {
@@ -22,7 +22,7 @@ export function FreshForm() {
         <FieldGroup>
           <form.Field name="name">
             {(field) => (
-              <Field orientation="horizontal">
+              <div className="grid grid-cols-[250px_1fr] small:grid-cols-[100px_1fr] items-center">
                 <FieldLabel htmlFor={`input-${field.name}`}>Nama</FieldLabel>
                 <Input
                   required
@@ -34,15 +34,14 @@ export function FreshForm() {
                   aria-autocomplete="list"
                 />
                 <FieldError errors={field.state.meta.errors}></FieldError>
-              </Field>
+              </div>
             )}
           </form.Field>
           <form.Field name="password">
             {(field) => (
-              <Field orientation="horizontal">
+              <div className="grid grid-cols-[250px_1fr] small:grid-cols-[100px_1fr] items-center">
                 <FieldLabel htmlFor={`input-${field.name}`}>Kata sandi</FieldLabel>
                 <Password
-                  required
                   type="password"
                   id={`input-${field.name}`}
                   name={field.name}
@@ -52,15 +51,14 @@ export function FreshForm() {
                   aria-autocomplete="list"
                 />
                 <FieldError errors={field.state.meta.errors}></FieldError>
-              </Field>
+              </div>
             )}
           </form.Field>
           <form.Field name="confirm">
             {(field) => (
-              <Field orientation="horizontal">
+              <div className="grid grid-cols-[250px_1fr] small:grid-cols-[100px_1fr] items-center">
                 <FieldLabel htmlFor={`input-${field.name}`}>Ulangi kata sandi</FieldLabel>
                 <Password
-                  required
                   type="password"
                   id={`input-${field.name}`}
                   name={field.name}
@@ -70,7 +68,7 @@ export function FreshForm() {
                   aria-autocomplete="list"
                 />
                 <FieldError errors={field.state.meta.errors}></FieldError>
-              </Field>
+              </div>
             )}
           </form.Field>
           <TextError>{error}</TextError>
