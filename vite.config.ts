@@ -35,6 +35,11 @@ export default defineConfig(({ command, mode }) => {
         },
       },
     ],
+    define: {
+      "import.meta.env.VITE_API_URL": JSON.stringify(
+        process.env.VITE_API_URL || "https://api.kassir.store",
+      ),
+    },
     base: "./",
     build: {
       chunkSizeWarningLimit: 2000,

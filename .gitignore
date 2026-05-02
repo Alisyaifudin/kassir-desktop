@@ -25,6 +25,7 @@ dist-ssr
 
 .tauri
 .secrets
-.env
+.env.local
+.env.*.local
 .env-old
-.env*
+.env.old
