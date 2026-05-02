@@ -20,6 +20,7 @@ export function addSync({
   total,
   products,
   extras,
+  paidAt,
 }: RecordServer) {
   const now = Date.now();
   return Effect.gen(function* () {
@@ -35,7 +36,7 @@ export function addSync({
     $${bindingIndex++}, $${bindingIndex++});\n`;
     bindings.push(
       recordId,
-      now,
+      paidAt,
       rounding,
       isCredit ? 1 : 0,
       cashier,
