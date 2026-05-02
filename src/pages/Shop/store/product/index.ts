@@ -58,6 +58,15 @@ export const productsStore = createStore({
         draft[index].error = event.message;
       });
     },
+    incQty(context, event: { id: string }) {
+      return produce(context, (draft) => {
+        const index = draft.findIndex((p) => p.id === event.id);
+        const last = draft.length - 1;
+        if (index === -1) return undefined;
+        draft[index].qty += 1;
+        [draft[index], draft[last]] = [draft[last], draft[index]];
+      });
+    },
     updateProduct(context, event: { id: string; recipe: (draft: WritableDraft<Product>) => void }) {
       const products = produce(context, (draft) => {
         const index = draft.findIndex((p) => p.id === event.id);

@@ -1,0 +1,4 @@
+# Migration 41 was authored with LF line endings. Force LF for 41+ to prevent
+# autocrlf from converting it to CRLF on Windows (which would break hash matching
+# on databases already migrated with the LF version).
+src-tauri/src/database/41-50/*.sql text eol=lf

@@ -120,13 +120,14 @@ export function useSearch() {
         }),
       );
     } else {
-      productsStore.trigger.updateProduct({
+      // inc qty
+      productsStore.trigger.incQty({
         id: found.id,
-        recipe: (draft) => {
-          draft.qty += 1;
-        },
       });
       queue.add(tx.product.update.qty(found.id, found.qty + 1));
+      // save reorder
+      const currentProducts = productsStore.get().context;
+      queue.add(tx.product.update.reorder(currentProducts.map((p) => p.id)));
     }
   };
   const handleClickExtra = (extra: Extra) => {

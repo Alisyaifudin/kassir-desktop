@@ -37,11 +37,7 @@ function useResync() {
       { concurrency: "unbounded" },
     ).pipe(
       Effect.tap(() => {
-        return db.productEvent.get.countUnsync().pipe(
-          Effect.tap((count) => {
-            console.log("count product event", count);
-          }),
-        );
+        return db.productEvent.get.countUnsync()
       }),
       Effect.catchAll((e) => {
         log.error(e.e);

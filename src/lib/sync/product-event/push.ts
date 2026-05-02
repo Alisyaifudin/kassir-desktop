@@ -6,7 +6,6 @@ import { server } from "~/server";
 export function push(token: string, upto: number) {
   return Effect.gen(function* () {
     const events = yield* db.productEvent.get.unsync(upto);
-    console.log(upto, events.slice(0, 5));
     if (events.length === 0) return 0;
     const { data } = yield* server.productEvent.post(events, token);
     const { timestamp, failedIds } = data;
