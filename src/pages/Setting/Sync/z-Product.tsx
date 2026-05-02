@@ -23,7 +23,9 @@ export function ProductSync({ token, icon: Icon }: { token: string; icon: Lucide
         <div className="flex flex-col gap-0.5 pl-6">
           <div className="flex items-center gap-2 text-muted-foreground text-small">
             {count.total > 0 ? (
-              <span>Mengunduh {count.server} dari {count.total}...</span>
+              <span>
+                Mengunduh {count.server} dari {count.total}...
+              </span>
             ) : count.server > 0 ? (
               <span>Unduh Data: {count.server}</span>
             ) : null}
@@ -67,5 +69,6 @@ function programSyncProduct(
       setCount(count);
       if (count.server === 0 && count.unsync === 0) break;
     }
+    setCount({ server: 0, total: 0, unsync: 0 });
   });
 }

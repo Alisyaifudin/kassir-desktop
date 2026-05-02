@@ -69,5 +69,6 @@ function programSyncRecord(
       setCount(count);
       if (count.server === 0 && count.unsync === 0) break;
     }
+    setCount({ server: 0, total: 0, unsync: 0 });
   });
 }

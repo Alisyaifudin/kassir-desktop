@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -15,6 +15,8 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   const isDev = command === "serve" || mode === "development";
+  // Load .env files with correct priority (.env.local > .env.development.local > .env.development > .env)
+  const env = loadEnv(mode, process.cwd(), "");
   return {
     plugins: [
       vanillaExtractPlugin(),
@@ -37,7 +39,7 @@ export default defineConfig(({ command, mode }) => {
     ],
     define: {
       "import.meta.env.VITE_API_URL": JSON.stringify(
-        process.env.VITE_API_URL || "https://api.kassir.store",
+        env.VITE_API_URL || "https://api.kassir.store",
       ),
     },
     base: "./",
