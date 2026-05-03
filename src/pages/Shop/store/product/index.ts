@@ -64,6 +64,10 @@ export const productsStore = createStore({
         const last = draft.length - 1;
         if (index === -1) return undefined;
         draft[index].qty += 1;
+        const discounts = draft[index].discounts;
+        const effDisc = discounts.length === 0 ? 0 : Decimal.sum(...discounts.map((d) => d.eff));
+        const total = new Decimal(draft[index].price).times(draft[index].qty).minus(effDisc);
+        draft[index].total = total.toNumber();
         [draft[index], draft[last]] = [draft[last], draft[index]];
       });
     },
