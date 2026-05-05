@@ -1,4 +1,4 @@
-import { Method} from "~/database/method/cache";
+import { Method } from "~/database/method/cache";
 import { Info } from "~/store/info/get";
 
 export type ReceiptData = {
@@ -79,6 +79,5 @@ export type TextData =
       kind: "line";
       x?: number;
     };
-
 
 export const MAXIMAL_SUMMARY_SPACE = 130; //pt

@@ -11,8 +11,7 @@ export function useHistory(id: string) {
   const [page, setPage] = usePage();
   const [mode] = useMode();
   const res = Result.use({
-    fn: () =>
-      loader({ id, page, mode, setPage }),
+    fn: () => loader({ id, page, mode, setPage }),
     key: KEY,
     deps: [mode, page],
   });
@@ -31,7 +30,7 @@ function loader({
   setPage: (page: number) => void;
 }) {
   return pipe(
-    db.product.get.historyOffset({id, page, limit: LIMIT, mode}),
+    db.product.get.historyOffset({ id, page, limit: LIMIT, mode }),
     Effect.flatMap(({ histories, totalPage }) => {
       if (totalPage > 0 && page > totalPage) {
         setPage(1);

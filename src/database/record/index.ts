@@ -1,4 +1,3 @@
-import { add } from "./add";
 import { countRecord } from "./count-record";
 import { countTotal } from "./count-total";
 import { delById } from "./del-by-id";
@@ -20,6 +19,7 @@ import { updateSyncAt } from "./update-sync-at";
 import { getUnsync } from "./get-unsync";
 import { getCountUnsync } from "./get-count-unsync";
 import { updateUnsyncAll } from "./update-unsync-all";
+import { addOne } from "./add/one";
 
 export const record = {
   get: {
@@ -35,7 +35,7 @@ export const record = {
     unsync: getCountUnsync,
   },
   add: {
-    one: add,
+    one: addOne,
     sync: addSync,
     external: addExternal,
   },
