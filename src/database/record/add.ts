@@ -5,7 +5,7 @@ import { DB } from "../instance";
 import Decimal from "decimal.js";
 import { generateId } from "~/lib/random";
 import { ManyDuplicateError } from "~/lib/effect-error";
-import { cache } from "../product/cache";
+import { productCache } from "../product/cache";
 
 type Product = Omit<ProductTx, "discounts"> & {
   discounts: Discount[];
@@ -294,7 +294,7 @@ export function add({
     }
     const wrappedQuery = `BEGIN;\n${query}COMMIT;`;
     yield* DB.try((db) => db.execute(wrappedQuery, bindings));
-    cache.revalidate();
+    productCache.revalidate();
     return recordId;
   });
 }

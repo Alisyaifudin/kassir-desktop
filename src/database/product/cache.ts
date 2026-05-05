@@ -15,4 +15,4 @@ export type ProductFull = Product & {
   syncAt: number | null;
 };
 
-export const cache = new CacheItem<ProductFull>();
+export const productCache = new CacheItem<ProductFull>();

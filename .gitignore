@@ -29,4 +29,5 @@ dist-ssr
 .env.*.local
 .env-old
 .env.old
+.secret
 pi-session*

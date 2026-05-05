@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { DB } from "../instance";
 import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
-import { cache } from "../product/cache";
+import { productCache } from "../product/cache";
 
 function toSell(recordId: string) {
   return Effect.gen(function* () {
@@ -77,7 +77,7 @@ function toSell(recordId: string) {
                 VALUES ($${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, 
                 $${bindIndex++});\n`;
       binds.push(eventId, now, null, "dec", 2 * p.qty, p.id);
-      cache.update(p.id, (prev) => ({
+      productCache.update(p.id, (prev) => ({
         ...prev,
         stock: updatedStock,
         capital: p.prevBuyRecord.capital,
@@ -169,7 +169,7 @@ function toBuy(recordId: string) {
                 VALUES ($${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, $${bindIndex++}, 
                 $${bindIndex++});\n`;
       binds.push(eventId, now, null, "inc", finalStock, p.id);
-      cache.update(p.id, (prev) => ({
+      productCache.update(p.id, (prev) => ({
         ...prev,
         stock: finalStock,
         capital: p.prevSellRecord.capital,

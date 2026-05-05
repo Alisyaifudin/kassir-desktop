@@ -1,7 +1,7 @@
 import { generateId } from "~/lib/random";
 import { DB } from "../instance";
 import { Effect, pipe } from "effect";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 
 export function delById(id: string) {
   const now = Date.now();
@@ -18,7 +18,7 @@ export function delById(id: string) {
       ),
     ),
     Effect.tap(() => {
-      cache.delete(id);
+      productCache.delete(id);
     }),
     Effect.asVoid,
   );

@@ -1,10 +1,10 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
-import { cache, ProductFull } from "./cache";
+import { productCache, ProductFull } from "./cache";
 
 export function all() {
   return Effect.gen(function* () {
-    const products = cache.all();
+    const products = productCache.all();
     if (products !== null) {
       return products;
     }
@@ -20,7 +20,7 @@ export function all() {
       updatedAt: r.product_updated_at,
       syncAt: r.product_sync_at,
     }));
-    cache.set(items);
+    productCache.set(items);
     return items;
   });
 }

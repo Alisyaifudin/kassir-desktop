@@ -1,6 +1,6 @@
 import { DuplicateError } from "~/lib/effect-error";
 import { DB } from "../instance";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 import { Effect } from "effect";
 import { ProductServer } from "~/server/product/get";
 
@@ -27,7 +27,7 @@ export function addSync({
         [id, name, barcode ?? null, price, stock, capital, note, updatedAt, now],
       ),
     );
-    cache.update(id, {
+    productCache.update(id, {
       id,
       name,
       capital,
@@ -43,7 +43,7 @@ export function addSync({
 
 function checkDuplicateBarcode(barcode: string) {
   return Effect.gen(function* () {
-    const products = cache.all();
+    const products = productCache.all();
     if (products !== null) {
       for (const p of products) {
         if (p.barcode === barcode) return yield* Effect.fail(new DuplicateError(p.name));

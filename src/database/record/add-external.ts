@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { DB } from "../instance";
 import { generateId } from "~/lib/random";
 import { RecordImport } from "~/pages/Setting/Data/RecordUpload/util-validate-record";
-import { cache } from "../product/cache";
+import { productCache } from "../product/cache";
 
 export function addExternal({
   cashier,
@@ -235,7 +235,7 @@ export function addExternal({
     }
     const wrappedQuery = `BEGIN;\n${query}COMMIT;`;
     yield* DB.try((db) => db.execute(wrappedQuery, bindings));
-    cache.revalidate();
+    productCache.revalidate();
     return recordId;
   });
 }

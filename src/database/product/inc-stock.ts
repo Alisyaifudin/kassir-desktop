@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 
 export function incStock(id: string, qty: number) {
   const now = Date.now();
@@ -12,7 +12,7 @@ export function incStock(id: string, qty: number) {
     ),
   ).pipe(
     Effect.tap(() => {
-      cache.update(id, (prev) => {
+      productCache.update(id, (prev) => {
         prev.stock -= qty;
         prev.updatedAt = now;
         prev.syncAt = null;

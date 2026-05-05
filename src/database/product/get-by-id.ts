@@ -1,12 +1,12 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
 import { NotFound } from "~/lib/effect-error";
-import { cache, type ProductFull } from "./cache";
+import { productCache, type ProductFull } from "./cache";
 
 export function getById(id: string) {
   return Effect.gen(function* () {
-    if (cache.size > 0) {
-      const product = cache.get(id);
+    if (productCache.size > 0) {
+      const product = productCache.get(id);
       if (product === undefined) return yield* NotFound.fail("Barang tidak ditemukan");
       return product;
     }
@@ -26,7 +26,7 @@ export function getById(id: string) {
       updatedAt: r.product_updated_at,
       syncAt: r.product_sync_at,
     };
-    cache.update(id, item);
+    productCache.update(id, item);
     return item;
   });
 }

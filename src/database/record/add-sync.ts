@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
 import { generateId } from "~/lib/random";
-import { cache } from "../product/cache";
+import { productCache } from "../product/cache";
 import { RecordServer } from "~/server/record/get";
 
 export function addSync({
@@ -115,7 +115,7 @@ export function addSync({
     }
     const wrappedQuery = `BEGIN;\n${query}COMMIT;`;
     yield* DB.try((db) => db.execute(wrappedQuery, bindings));
-    cache.revalidate();
+    productCache.revalidate();
     return recordId;
   });
 }

@@ -10,7 +10,7 @@ import { getHistoryOffset } from "./get-history-offset";
 // import { upsert } from "./upsert";
 import { sync } from "./update-sync";
 import { addExternal } from "./add-external";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 import { calcStock } from "./calc-stock";
 import { getAllUpdated } from "./get-all-updated";
 import { addSync } from "./add-sync";
@@ -47,5 +47,5 @@ export const product = {
     sync: addSync,
   },
   // upsert,
-  revalidate: cache.revalidate,
+  revalidate: productCache.revalidate,
 };

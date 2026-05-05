@@ -1,11 +1,11 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 
 export function getAllUpdated(ids: string[]) {
   return Effect.gen(function* () {
     if (ids.length === 0) return new Map<string, number>();
-    const products = cache.all();
+    const products = productCache.all();
     if (products !== null) {
       const set = new Set(ids);
       const filtered = products.filter((p) => set.has(p.id));

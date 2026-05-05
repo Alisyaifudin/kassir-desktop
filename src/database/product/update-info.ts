@@ -1,6 +1,6 @@
 import { DuplicateError } from "~/lib/effect-error";
 import { DB } from "../instance";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 import { Effect } from "effect";
 import { generateId } from "~/lib/random";
 
@@ -98,7 +98,7 @@ export function updateInfo({ id, name, stock, price, capital, barcode, note }: I
         ),
       );
     }
-    cache.update(id, {
+    productCache.update(id, {
       id,
       name,
       stock,
@@ -114,7 +114,7 @@ export function updateInfo({ id, name, stock, price, capital, barcode, note }: I
 
 function checkDuplicate(barcode: string, productId: string) {
   return Effect.gen(function* () {
-    const productCache = cache.get(productId);
+    const productCache = productCache.get(productId);
     if (productCache !== undefined) {
       if (productCache.barcode === barcode && productCache.id !== productId)
         return yield* Effect.fail(new DuplicateError(productCache.name));

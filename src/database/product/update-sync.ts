@@ -1,6 +1,6 @@
 import { ProductServer } from "~/server/product/get";
 import { DB } from "../instance";
-import { cache } from "./cache";
+import { productCache } from "./cache";
 import { Effect } from "effect";
 
 export function sync({ capital, id, name, note, price, stock, updatedAt, barcode }: ProductServer) {
@@ -14,7 +14,7 @@ export function sync({ capital, id, name, note, price, stock, updatedAt, barcode
         [barcode ?? null, name, price, stock, capital, note, updatedAt, now, id],
       ),
     );
-    cache.update(id, {
+    productCache.update(id, {
       capital,
       id,
       name,
