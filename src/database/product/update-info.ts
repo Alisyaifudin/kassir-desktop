@@ -114,10 +114,10 @@ export function updateInfo({ id, name, stock, price, capital, barcode, note }: I
 
 function checkDuplicate(barcode: string, productId: string) {
   return Effect.gen(function* () {
-    const productCache = productCache.get(productId);
-    if (productCache !== undefined) {
-      if (productCache.barcode === barcode && productCache.id !== productId)
-        return yield* Effect.fail(new DuplicateError(productCache.name));
+    const cached = productCache.get(productId);
+    if (cached !== undefined) {
+      if (cached.barcode === barcode && cached.id !== productId)
+        return yield* Effect.fail(new DuplicateError(cached.name));
 
       return yield* Effect.void;
     }

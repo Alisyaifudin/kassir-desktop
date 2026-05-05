@@ -59,7 +59,7 @@ export const productsStore = createStore({
       });
     },
     incQty(context, event: { id: string }) {
-      return produce(context, (draft) => {
+      const products = produce(context, (draft) => {
         const index = draft.findIndex((p) => p.id === event.id);
         const last = draft.length - 1;
         if (index === -1) return undefined;
@@ -70,6 +70,8 @@ export const productsStore = createStore({
         draft[index].total = total.toNumber();
         [draft[index], draft[last]] = [draft[last], draft[index]];
       });
+      setSubtotal(calcSubtotal(products));
+      return products;
     },
     updateProduct(context, event: { id: string; recipe: (draft: WritableDraft<Product>) => void }) {
       const products = produce(context, (draft) => {
