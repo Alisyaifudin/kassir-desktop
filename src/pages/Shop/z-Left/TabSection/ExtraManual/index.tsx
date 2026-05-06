@@ -48,6 +48,7 @@ export function ExtraManual() {
         name: "",
         saved: false,
         value: 0,
+        valueStr: "",
       },
     }));
     form.reset();
