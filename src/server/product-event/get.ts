@@ -7,7 +7,7 @@ const schema = z.object({
   createdAt: z.number().int().max(1e14).min(0),
   productId: z.string().nonempty().max(100),
   type: z.enum(["manual", "inc", "dec"]),
-  value: z.number().min(-1e6).max(1e6).int(),
+  value: z.number().min(-1e20).max(1e20).int(),
 });
 
 export type ProductEventServer = z.infer<typeof schema>;
