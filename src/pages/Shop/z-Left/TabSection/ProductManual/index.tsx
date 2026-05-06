@@ -27,6 +27,7 @@ export function ProductManual() {
       setError("Barang sudah ada");
       return;
     }
+    if (qty <= 0 || price <= 0) return;
     const id = generateId();
     const discounts = [
       {
@@ -66,8 +67,9 @@ export function ProductManual() {
         name: "",
         barcode: "",
         price: 0,
-        stock: 0,
+        priceStr: "",
         qty: 0,
+        qtyStr: "",
       },
     }));
     form.reset();

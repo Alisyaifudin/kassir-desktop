@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
@@ -11,19 +10,10 @@ import { useTab } from "~/pages/shop/use-tab";
 import { queue } from "~/pages/shop/util-queue";
 
 export function QtyInput() {
-  const qty = useAtom(manualStore, (state) => state.product.qty);
-  const [value, setValue] = useState(() => {
-    if (qty === 0) return "";
-    return qty.toString();
-  });
-  useEffect(() => {
-    if (qty === 0) {
-      setValue("");
-    }
-  }, [qty]);
+  const value = useAtom(manualStore, (state) => state.product.qtyStr);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
-    queue.add(tx.transaction.update.product.price(tab, v));
+    queue.add(tx.transaction.update.product.qty(tab, v));
   }, DEBOUNCE_DELAY);
   return (
     <Field label="Kuantitas*">
@@ -36,11 +26,11 @@ export function QtyInput() {
         onChange={(e) => {
           const v = e.currentTarget.value;
           const num = Number(v);
-          if (isNaN(num) || num <= 0) return;
-          setValue(v);
+          if (isNaN(num) || num < 0) return;
           manualStore.set(
             produce((draft) => {
               draft.product.qty = num;
+              draft.product.qtyStr = v;
             }),
           );
           save(num);

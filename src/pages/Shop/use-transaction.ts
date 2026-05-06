@@ -65,11 +65,14 @@ export const manualStore = createAtom({
     name: "",
     barcode: "",
     price: 0,
+    priceStr: "",
     qty: 0,
+    qtyStr: "",
   },
   extra: {
     name: "",
     value: 0,
+    valueStr: "",
     kind: "percent" as "percent" | "number",
   },
 });
@@ -95,8 +98,12 @@ export function initStore({
   });
   customerStore.set(customer);
   manualStore.set({
-    extra,
-    product,
+    extra: { ...extra, valueStr: extra.value === 0 ? "" : extra.value.toString() },
+    product: {
+      ...product,
+      qtyStr: product.qty === 0 ? "" : product.qty.toString(),
+      priceStr: product.price === 0 ? "" : product.price.toString(),
+    },
   });
 }
 
@@ -116,11 +123,14 @@ export function resetStore(tab: number) {
       name: "",
       barcode: "",
       price: 0,
+      priceStr: "",
       qty: 0,
+      qtyStr: "",
     },
     extra: {
       name: "",
       value: 0,
+      valueStr: "",
       kind: "percent" as "percent" | "number",
     },
   });

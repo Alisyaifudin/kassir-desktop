@@ -1,6 +1,5 @@
 import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
-import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
@@ -10,16 +9,7 @@ import { queue } from "~/pages/shop/util-queue";
 import { tx } from "~/transaction";
 
 export function ValueInput() {
-  const val = useAtom(manualStore, (state) => state.extra.value);
-  const [value, setValue] = useState(() => {
-    if (val === 0) return "";
-    return val.toString();
-  });
-  useEffect(() => {
-    if (val === 0) {
-      setValue("");
-    }
-  }, [val]);
+  const value = useAtom(manualStore, (state) => state.extra.valueStr);
   const [tab] = useTab();
   const save = useDebouncedCallback((v: number) => {
     queue.add(tx.transaction.update.extra.value(tab, v));
@@ -38,10 +28,10 @@ export function ValueInput() {
           if (num < -100) return;
           if (num > 100) return;
         }
-        setValue(val);
         manualStore.set(
           produce((draft) => {
             draft.extra.value = num;
+            draft.extra.valueStr = val;
           }),
         );
         save(num);
