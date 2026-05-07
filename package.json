@@ -1,7 +1,7 @@
 {
   "name": "kassir",
   "private": true,
-  "version": "5.19.17",
+  "version": "5.19.18",
   "type": "module",
   "scripts": {
     "dev": "vite",
