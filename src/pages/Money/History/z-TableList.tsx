@@ -48,7 +48,9 @@ export const TableList = memo(function TableListDebt({
             <TableCell className="text-right">Rp{m.value.toLocaleString("id-ID")}</TableCell>
             <TableCell className="text-center">{m.note}</TableCell>
             <TableCell>
-              <DeleteRecordBtn money={m} />
+              <Show when={i === 0}>
+                <DeleteRecordBtn money={m} />
+              </Show>
             </TableCell>
           </TableRow>
         ))}
