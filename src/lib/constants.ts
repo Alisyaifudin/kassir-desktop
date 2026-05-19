@@ -50,6 +50,6 @@ export const DEFAULT_METHODS = [
     kind: "qris",
   },
 ] satisfies Method[];
-export const DEBOUNCE_DELAY = 200;
+export const DEBOUNCE_DELAY = 100;
 
 export const tz = Temporal.Now.timeZoneId();

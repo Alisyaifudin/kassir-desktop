@@ -26,6 +26,7 @@ export function QtyInput() {
         onChange={(e) => {
           const v = e.currentTarget.value;
           const num = Number(v);
+          console.log("halooo", v, num);
           if (isNaN(num) || num < 0) return;
           manualStore.set(
             produce((draft) => {
