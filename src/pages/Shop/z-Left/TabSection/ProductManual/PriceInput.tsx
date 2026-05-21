@@ -21,9 +21,9 @@ export function PriceInput() {
       <div className="flex items-center gap-1">
         <p className="text-2xl">Rp</p>
         <Input
+          name="price"
           type="number"
           required
-          name="price"
           step="off"
           aria-autocomplete="list"
           value={value}

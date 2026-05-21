@@ -43,6 +43,7 @@ export const BarcodeInput = forwardRef<HTMLInputElement, Props>(
       <Field label="Kode" error={error}>
         <Input
           type="text"
+          name="barcode"
           ref={ref}
           value={value}
           onChange={handleBarcode}

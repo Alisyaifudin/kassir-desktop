@@ -13,6 +13,14 @@ import { productsStore } from "~/pages/shop/store/product";
 import { useTab } from "~/pages/shop/use-tab";
 import { queue } from "~/pages/shop/util-queue";
 
+function extractFormData(formdata: FormData) {
+  const barcode = (formdata.get("barcode") as string) ?? "";
+  const name = (formdata.get("name") as string) ?? "";
+  const price = Number(formdata.get("price")) || 0;
+  const qty = Number(formdata.get("qty")) || 0;
+  return { barcode, name, price, qty };
+}
+
 export function ProductManual() {
   const [error, setError] = useState("");
   const [tab] = useTab();
@@ -21,10 +29,15 @@ export function ProductManual() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
+    const formdata = new FormData(form);
     if (error !== "") return;
-    const { barcode, name, price, qty } = manualStore.get().product;
+    const { barcode, name, price, qty } = extractFormData(formdata);
     if (barcode !== "" && products.find((product) => product.barcode === barcode) !== undefined) {
       setError("Barang sudah ada");
+      return;
+    }
+    if (!Number.isInteger(qty)) {
+      setError("Kuantitas harus bulat");
       return;
     }
     if (qty <= 0 || price <= 0) return;

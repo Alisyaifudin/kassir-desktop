@@ -19,6 +19,7 @@ export function NameInput() {
     <Field label="Nama*">
       <Input
         type="text"
+        name="name"
         required
         value={value}
         onChange={(e) => {
