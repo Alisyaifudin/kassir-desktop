@@ -406,7 +406,7 @@ function programResync(setResult: (fn: (prev: SyncResult) => SyncResult) => void
 
 // ── Component ────────────────────────────────────────────────────────────
 
-type Phase = "idle" | "syncing" | "complete" | "error";
+type Phase = "idle" | "syncing" | "aborted" | "complete" | "error";
 
 export function UnifiedSync({ token }: { token: string }) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -440,6 +440,8 @@ export function UnifiedSync({ token }: { token: string }) {
         log.error(`[sync:global] ${msg}`);
         setGlobalError(msg);
         setPhase("error");
+      } else if (signalRef.current.aborted) {
+        setPhase("aborted");
       } else {
         setPhase("complete");
       }
@@ -455,6 +457,7 @@ export function UnifiedSync({ token }: { token: string }) {
 
   const isRunning = phase === "syncing";
   const isDone = phase === "complete" || phase === "error";
+  const isAborted = phase === "aborted";
 
   useEffect(() => {
     return () => {
@@ -487,8 +490,17 @@ export function UnifiedSync({ token }: { token: string }) {
 
       {globalError && <TextError>{globalError}</TextError>}
 
+      {isAborted && (
+        <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
+          <span className="text-normal text-muted-foreground">Sinkronisasi dibatalkan</span>
+          <Button variant="ghost" size="sm" onClick={() => setPhase("idle")}>
+            Tutup
+          </Button>
+        </div>
+      )}
+
       {/* Entity rows */}
-      {(isRunning || isDone) && (
+      {!isAborted && (isRunning || isDone) && (
         <ul className="flex flex-col divide-y rounded-xl border overflow-hidden">
           {ENTITY_CONFIG.map(({ id, label, icon: Icon }) => (
             <EntityRow key={id} label={label} icon={Icon} progress={result[id]} />
