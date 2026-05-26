@@ -1,0 +1,1117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<specification>
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 1: Project Identity & Build Configuration                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <title>Kassir</title>
+  <description>
+    A Tauri v2 desktop cashier application (Point of Sale) for Windows. Manages
+    products, transactions, customers, cash flow, and analytics. Offline-first with
+    bidirectional timestamp-based sync to a cloud backend. Includes thermal receipt
+    printing, role-based access (admin/user), and multi-cashier login.
+  </description>
+  <backend_docs href="backend-docs/openapi.yaml" />
+  <version>5.19.22</version>
+  <language>id</language>
+
+  <ui_notes>
+    <tech_stack>
+      <category name="frontend">
+        <item name="typescript">5.6 (strict mode, ES2021 target)</item>
+        <item name="react">19.2, React Router 7.9 (hash-based)</item>
+        <item name="styling">Tailwind CSS 4.1, vanilla-extract 1.17, class-variance-authority 0.7</item>
+        <item name="ui_primitives">Radix UI (accordion, checkbox, dialog, label, popover, radio-group, select, separator, slot, tabs), shadcn/ui new-york style, zinc base color, CSS variables enabled</item>
+        <item name="icons">Lucide React 1.8</item>
+        <item name="animation">Motion 12.38 (framer-motion successor)</item>
+        <item name="drag_drop">@dnd-kit/core 6, @dnd-kit/sortable 10, @dnd-kit/utilities 3</item>
+        <item name="forms">@tanstack/react-form 1.28</item>
+        <item name="validation">Zod 4.3, Valibot 1.2</item>
+        <item name="state">@xstate/store 3.13, Effect-TS 3.19 (structured errors), immer 10.1</item>
+        <item name="numeric">decimal.js 10.5, temporal-polyfill 0.3</item>
+        <item name="search">fuzzysort 3.1, @nozbe/microfuzz 1.0</item>
+        <item name="pdf">pdf-lib 1.17, @pdf-lib/fontkit 1.1</item>
+        <item name="id_generation">ulid 3.0</item>
+        <item name="queue">p-queue 9.0</item>
+        <item name="theme_switching">next-themes 0.4</item>
+        <item name="toasts">sonner 2.0</item>
+        <item name="debounce">use-debounce 10.0</item>
+        <item name="misc">eventemitter3 5.0, fast-deep-equal 3.1, jszip 3.10, clsx 2.1, tailwind-merge 3.3</item>
+      </category>
+      <category name="backend_rust">
+        <item name="framework">Tauri v2</item>
+        <item name="auth">bcrypt 0.17 (hash/verify), jsonwebtoken 8.0 (HS256)</item>
+        <item name="time">chrono 0.4</item>
+        <item name="serialization">serde 1, serde_json 1</item>
+        <item name="http">axum 0.7, tower 0.4, tower-http 0.5 (cors)</item>
+        <item name="database">sqlx 0.8 (sqlite, runtime-tokio-rustls)</item>
+        <item name="runtime">tokio 1.37 (full features), futures 0.3</item>
+        <item name="printing">winprint 0.2 (Windows PDF printing)</item>
+        <item name="temporary_files">tempfile 3</item>
+        <item name="env">dotenvy 0.15</item>
+        <item name="build">tauri-build 2</item>
+      </category>
+      <category name="tauri_plugins">
+        <item name="sql" version="2" features="sqlite">Database access with migrations</item>
+        <item name="store" version="2">Key-value persistent storage</item>
+        <item name="http" version="2">HTTP fetch client</item>
+        <item name="fs" version="2">Filesystem access</item>
+        <item name="dialog" version="2">Native file dialogs</item>
+        <item name="opener" version="2">Open URLs/files in default handler</item>
+        <item name="log" version="2">Structured logging</item>
+        <item name="process" version="2">Process management</item>
+        <item name="updater" version="2">Auto-updater</item>
+        <item name="prevent-default" version="4">Prevent default browser behaviors (prod only)</item>
+      </category>
+      <category name="dev_tools">
+        <item name="bundler">Vite 6.0</item>
+        <item name="package_manager">Bun (bunfig.toml configured, bun.lock)</item>
+        <item name="testing">@testing-library/react 16, @testing-library/dom 10, @testing-library/jest-dom 6, @happy-dom/global-registrator 18</item>
+        <item name="linting">ESLint 9 (flat config), typescript-eslint 8, eslint-plugin-react 7, eslint-plugin-react-hooks 5.1-rc, eslint-plugin-react-refresh 0.5, eslint-config-prettier 10</item>
+        <item name="formatting">Prettier 3.8 (tabWidth=2, useTabs=false, printWidth=100)</item>
+        <item name="react_compiler">babel-plugin-react-compiler 1.0 (included but commented out in vite.config)</item>
+        <item name="react_scan">Injected in dev mode via vite plugin (unpkg CDN)</item>
+        <item name="vite_plugins">@vanilla-extract/vite-plugin 5.1, @vitejs/plugin-react 4.3, vite-tsconfig-paths 5.1, vite-plugin-arraybuffer 0.1, @tailwindcss/vite 4.1</item>
+        <item name="type_definitions">@types/bun 1.2, @types/react 19.2, @types/react-dom 19.2</item>
+      </category>
+    </tech_stack>
+    <theme>
+      <description>shadcn/ui new-york style with zinc base color and CSS variables. Light and dark theme support via next-themes. Icons from Lucide React. Animation via Motion library.</description>
+    </theme>
+  </ui_notes>
+
+  <project_structure>
+    <config>
+      <file name="package.json">
+        <entry key="name">kassir</entry>
+        <entry key="private">true</entry>
+        <entry key="version">5.19.22</entry>
+        <entry key="type">module</entry>
+        <script name="dev" command="vite" />
+        <script name="build" command="tsc &amp;&amp; vite build" />
+        <script name="preview" command="vite preview" />
+        <script name="tauri" command="tauri" />
+        <script name="lint" command="eslint ." />
+        <script name="lint:fix" command="eslint . --fix" />
+      </file>
+      <file name="Cargo.toml">
+        <entry key="package.name">kassir</entry>
+        <entry key="package.version">5.19.22</entry>
+        <entry key="package.description">kassir-desktop</entry>
+        <entry key="package.authors">Muhammad Ali Syaifudin</entry>
+        <entry key="package.edition">2021</entry>
+        <entry key="lib.name">kassir_lib</entry>
+        <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
+      </file>
+      <file name="tauri.conf.json">
+        <entry key="productName">kassir</entry>
+        <entry key="identifier">com.kassir.app</entry>
+        <entry key="build.beforeDevCommand">bun run dev</entry>
+        <entry key="build.devUrl">http://localhost:1420</entry>
+        <entry key="build.beforeBuildCommand">bun run build</entry>
+        <entry key="build.frontendDist">../dist</entry>
+        <entry key="app.windows[0].title">kassir</entry>
+        <entry key="app.windows[0].width">800</entry>
+        <entry key="app.windows[0].height">600</entry>
+        <entry key="app.windows[0].resizable">true</entry>
+        <entry key="app.windows[0].maximized">true</entry>
+        <entry key="app.windows[0].dragDropEnabled">false</entry>
+        <entry key="app.security.csp">null (disabled)</entry>
+        <entry key="plugins.sql.preload">sqlite:data.db, sqlite:tx.db</entry>
+        <entry key="plugins.updater.windows.installMode">passive</entry>
+        <entry key="plugins.updater.endpoints[0]">https://github.com/Alisyaifudin/kassir-desktop/releases/latest/download/latest.json</entry>
+        <entry key="bundle.createUpdaterArtifacts">true</entry>
+        <entry key="bundle.active">true</entry>
+        <entry key="bundle.targets">msi</entry>
+        <entry key="bundle.icon">32x32.png, 128x128.png, 128x128@2x.png, icon.icns, icon.ico</entry>
+      </file>
+      <file name="vite.config.ts">
+        <entry key="port">1420 (strictPort)</entry>
+        <entry key="base">./ (relative for Tauri)</entry>
+        <entry key="chunkSizeWarningLimit">2000 KB</entry>
+        <entry key="plugins">vanillaExtractPlugin, react, arraybuffer, tailwindcss, tsconfigPaths, react-scan (dev only)</entry>
+        <entry key="env_prefix">VITE_API_URL (default: https://api.kassir.store)</entry>
+        <entry key="server.watch.ignored">**/src-tauri/**</entry>
+      </file>
+      <file name="tsconfig.json">
+        <entry key="target">ES2021</entry>
+        <entry key="module">ESNext</entry>
+        <entry key="moduleResolution">bundler</entry>
+        <entry key="jsx">react-jsx</entry>
+        <entry key="strict">true</entry>
+        <entry key="noUnusedLocals">true</entry>
+        <entry key="noUnusedParameters">true</entry>
+        <entry key="noFallthroughCasesInSwitch">true</entry>
+        <entry key="paths.~/*">./src/*</entry>
+        <entry key="types">bun-types, @testing-library/jest-dom, vite-plugin-arraybuffer</entry>
+      </file>
+      <file name=".env.development.local">
+        <entry key="VITE_API_URL">http://192.168.225.187:8787</entry>
+      </file>
+      <file name=".env.production">
+        <entry key="VITE_API_URL">https://api.kassir.store</entry>
+      </file>
+      <file name="bunfig.toml">
+        <entry key="test.preload">./test/happydom.ts, ./test/testing-library.ts</entry>
+      </file>
+      <file name="components.json">
+        <entry key="style">new-york</entry>
+        <entry key="rsc">false</entry>
+        <entry key="tsx">true</entry>
+        <entry key="tailwind.baseColor">zinc</entry>
+        <entry key="tailwind.cssVariables">true</entry>
+        <entry key="iconLibrary">lucide</entry>
+      </file>
+      <file name=".prettierrc">
+        <entry key="tabWidth">2</entry>
+        <entry key="useTabs">false</entry>
+        <entry key="printWidth">100</entry>
+      </file>
+      <file name="index.html">
+        <entry key="lang">id</entry>
+        <entry key="title">Kassir</entry>
+        <entry key="body_class">overflow-y-hidden</entry>
+        <entry key="root_element">&lt;div id="root" class="flex flex-col flex-1"&gt;</entry>
+      </file>
+      <file name="eslint.config.ts">
+        <entry key="format">Flat config (ESLint 9)</entry>
+        <entry key="plugins">react-hooks, react-refresh, react</entry>
+        <entry key="extends">js/recommended, tseslint/recommended, eslint-config-prettier</entry>
+        <entry key="ignores">dist, build, node_modules, .tauri, src-tauri, docs</entry>
+        <entry key="rules.react/prop-types">off (TypeScript handles it)</entry>
+        <entry key="rules.react-refresh/only-export-components">off</entry>
+      </file>
+      <file name=".gitignore">
+        <entry key="ignored">logs, node_modules, dist, dist-ssr, *.local, .vscode (except extensions.json), .idea, .DS_Store, .tauri, .secrets, .secret, pi-session*, .env-old, .env.old</entry>
+      </file>
+    </config>
+  </project_structure>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 2: Backend (Tauri/Rust)                                        -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <rust_backend>
+    <entry_point>
+      <file name="src-tauri/src/main.rs">
+        <description>Windows entry point with #[windows_subsystem = "windows"] in release mode (no console window). Calls kassir_lib::run().</description>
+      </file>
+      <file name="src-tauri/src/lib.rs">
+        <description>Plugin registration, migration setup, and command handler registration.</description>
+      </file>
+      <file name="src-tauri/build.rs">
+        <description>Standard tauri_build::build() for compile-time resource embedding.</description>
+      </file>
+    </entry_point>
+
+    <commands>
+      <command name="hash_password" module="auth">
+        <signature>async fn(password: String) → Result&lt;String, AuthError&gt;</signature>
+        <description>Hashes a plaintext password using bcrypt with DEFAULT_COST. Returns the hash string.</description>
+        <error message="Hashing error: {bcrypt_error}" />
+      </command>
+      <command name="verify_password" module="auth">
+        <signature>async fn(password: String, hash: String) → Result&lt;bool, AuthError&gt;</signature>
+        <description>Verifies a plaintext password against a bcrypt hash. Returns true if matching.</description>
+        <error message="Hashing error: {bcrypt_error}" />
+      </command>
+      <command name="encode_jwt" module="jwt">
+        <signature>fn(name: String, role: String) → Result&lt;String, JwtError&gt;</signature>
+        <description>Encodes a JWT (HS256) with UserClaims { name, role: Role, exp }. Expiry is 5 days from now. Secret key is hardcoded "super_secret_coy".</description>
+        <error name="InvalidRole">Role string is not "user" or "admin".</error>
+        <error name="InvalidToken">JWT encoding failed.</error>
+      </command>
+      <command name="decode_jwt" module="jwt">
+        <signature>fn(token: String) → Result&lt;UserClaims, JwtError&gt;</signature>
+        <description>Decodes and validates a JWT (HS256). Returns UserClaims { name, role, exp }.</description>
+        <error name="InvalidToken">JWT decoding/validation failed.</error>
+      </command>
+      <command name="get_printers" module="printer">
+        <signature>fn() → Result&lt;Vec&lt;PrinterInfo&gt;, String&gt;</signature>
+        <description>Enumerates all Windows printer devices via winprint::PrinterDevice::all(). Returns list of { name, status: "Ready" }. Returns error if no printers found.</description>
+      </command>
+      <command name="print_pdf" module="printer">
+        <signature>fn(printer_name: String, pdf_bytes: Vec&lt;u8&gt;) → Result&lt;String, String&gt;</signature>
+        <description>Prints raw PDF bytes to a named Windows printer. Validates PDF header (%PDF). Saves bytes to a NamedTempFile, prints via WinPdfPrinter with default PrintTicket, then deletes temp file.</description>
+        <error message="Invalid PDF: missing PDF header. First N bytes: {header}" />
+        <error message="Printer '{name}' not found. Available printers: [{list}]" />
+      </command>
+    </commands>
+
+    <jwt>
+      <description>HS256 JWT with 5-day expiry. Claims: { name: String, role: Role (admin|user), exp: i64 }. Secret key: hardcoded "super_secret_coy". Role enum serializes as lowercase strings. gen_new_token refreshes token if within 2 days of expiry.</description>
+    </jwt>
+
+    <tauri_plugins>
+      <plugin name="sql" version="2">
+        <description>SQLite database with migration support. Preloads two databases: "sqlite:data.db" (41 migrations) and "sqlite:tx.db" (6 migrations).</description>
+      </plugin>
+      <plugin name="store" version="2">
+        <description>Key-value persistent storage (used for sync token, app settings).</description>
+      </plugin>
+      <plugin name="http" version="2">
+        <description>HTTP fetch client scoped to http://192.168.225.187:8787/** and https://api.kassir.store/*.</description>
+      </plugin>
+      <plugin name="fs" version="2">
+        <description>Filesystem access restricted to $APPLOCALDATA/* and $APPLOCALDATA/logs/* (read and write).</description>
+      </plugin>
+      <plugin name="dialog" version="2">
+        <description>Native file open/save dialogs.</description>
+      </plugin>
+      <plugin name="opener" version="2">
+        <description>Opens URLs and files in the default system application.</description>
+      </plugin>
+      <plugin name="log" version="2">
+        <description>Structured logging at Info level via Rust log crate.</description>
+      </plugin>
+      <plugin name="process" version="2">
+        <description>Process management (restart, exit).</description>
+      </plugin>
+      <plugin name="updater" version="2">
+        <description>Auto-updater with passive install mode on Windows. Checks for updates at https://github.com/Alisyaifudin/kassir-desktop/releases/latest/download/latest.json.</description>
+      </plugin>
+      <plugin name="prevent-default" version="4">
+        <description>Prevents default browser behaviors in production. Allows: CONTEXT_MENU, RELOAD, FOCUS_MOVE, PRINT (all other defaults blocked).</description>
+      </plugin>
+    </tauri_plugins>
+
+    <capabilities>
+      <capability name="default" windows="main">
+        <permission>core:default</permission>
+        <permission>opener:default</permission>
+        <permission>sql:default, sql:allow-execute</permission>
+        <permission>dialog:default</permission>
+        <permission>store:default</permission>
+        <permission>log:default</permission>
+        <permission>fs:default, fs:allow-appdata-read-recursive, fs:allow-appdata-write-recursive, fs:read-dirs</permission>
+        <permission>fs:read-files → $APPLOCALDATA/*, $APPLOCALDATA/logs/*</permission>
+        <permission>fs:write-files → $APPLOCALDATA/*, $APPLOCALDATA/logs/*</permission>
+        <permission>http:default, http:allow-fetch → http://192.168.225.187:8787/**, https://api.kassir.store/*</permission>
+      </capability>
+      <capability name="desktop" platforms="macOS,windows,linux" windows="main">
+        <permission>updater:default</permission>
+      </capability>
+    </capabilities>
+
+    <migrations>
+      <database name="data.db" migration_count="41">
+        <description>
+          41 SQL migrations managed by tauri-plugin-sql. Schema evolved from simple INTEGER PK tables
+          to TEXT (ULID) primary keys with updated_at/sync_at timestamps for cloud sync. Key evolution:
+          - Migrations 1-10: Initial tables (products, records, record_items), add discount/credit/capital
+          - Migrations 11-20: Barcode to TEXT, capital fixes, cashier with password, records redesign
+          - Migrations 21-30: Price/capital to REAL, images, socials, money, payment methods
+          - Migrations 31-40: Refactor to TEXT PKs (ULID), product_events (event-sourced stock), sync columns
+          - Migration 41: Add money_kind_ordering column
+        </description>
+      </database>
+      <database name="tx.db" migration_count="6">
+        <description>
+          6 SQL migrations for transactional state (active POS transaction tabs). Schema:
+          - transactions: Active tabs with mode, query, fix, method, note, customer, product/extra input state
+          - products: Line items per tab (product_id, name, barcode, price, qty, created_at)
+          - extras: Extra charges per tab (extra_id, name, value, kind, is_saved flag)
+          - discounts: Per-product discounts (disc_id, disc_value, disc_kind: percent/number/pcs)
+          - Migration 6: Changed product_order to product_created_at (timestamp ordering)
+        </description>
+      </database>
+    </migrations>
+
+    <embedded_api>
+      <description>
+        Embedded Axum HTTP server on 0.0.0.0:3000 (not started by default in the main lib.rs;
+        the create_server function is defined in src/api/mod.rs but not called from run()).
+        Uses sqlx with SQLite pool. Provides internal REST API for session and product management.
+      </description>
+      <endpoint method="GET" path="/">Returns "Backend is alive!"</endpoint>
+      <endpoint method="GET" path="/check_health">Runs SELECT 1 against SQLite. Returns "OK" or "Database error".</endpoint>
+      <endpoint method="POST" path="/api/session">
+        <description>Authenticates with { name, password }. Queries cashiers table for user, verifies bcrypt hash. Returns JWT token on success, or { error: "Nama dan/atau kata sandi salah" } on failure.</description>
+        <body>{ name: String, password: String }</body>
+        <response success="{ token: String }" />
+        <response error="{ error: String }" />
+      </endpoint>
+      <endpoint method="GET" path="/api/session">
+        <description>Validates JWT from X-Header-Token header. Returns session { name, role } with refreshed token if needed. Returns null session if invalid/missing token.</description>
+        <headers>X-Header-Token: &lt;jwt&gt;</headers>
+        <response>{ token: String | null, session: { name: String, role: "admin"|"user" } | null }</response>
+      </endpoint>
+      <endpoint method="GET" path="/api/product">
+        <description>Lists products updated after ?timestamp (default 0). Requires X-Header-Token auth. Returns { token, products: Product[] }.</description>
+        <params>timestamp?: i64</params>
+        <response>{ token: String, products: [{ id, name, price, stock, stock_back, barcode?, capital, note, updated_at }] }</response>
+      </endpoint>
+      <endpoint method="POST" path="/api/product">
+        <description>Creates or updates a product. If id is provided, updates existing; otherwise inserts new. Checks barcode uniqueness (returns error if duplicate barcode). Requires X-Header-Token auth.</description>
+        <body>{ id?: i64, name: String, price: f64, stock: i64, stock_back: i64, barcode?: String, capital: f64, note: String }</body>
+        <response success="{ token: String }" />
+        <response error="{ error: "Barang sudah ada" }" />
+      </endpoint>
+      <token_refresh>
+        <description>gen_new_token() refreshes the JWT if the current token expires within 2 days (now + 2*24*3600 > claims.exp). Otherwise returns the existing token unchanged.</description>
+      </token_refresh>
+    </embedded_api>
+  </rust_backend>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 3: Frontend Architecture                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <frontend>
+    <entry>
+      <file name="src/main.tsx">
+        <description>Creates ReactDOM root on #root element, renders RouterProvider with the hash router from src/route.tsx. No StrictMode wrapper. Imports global.css for Tailwind.</description>
+      </file>
+      <file name="index.html">
+        <description>SPA entry. lang="id". &lt;body class="overflow-y-hidden"&gt; with &lt;div id="root" class="flex flex-col flex-1"&gt;. Loads /src/main.tsx as module.</description>
+      </file>
+    </entry>
+
+    <routing>
+      <description>Hash router (createHashRouter from react-router v7). All routes are lazy-loaded via React.lazy + Suspense.</description>
+      <route path="/" error_boundary="ErrorBoundary" layout="RootLayout">
+        <route path="login" page="Login" auth="public" loader="loginLoader" />
+        <route path="/" middleware="authentication" layout="AuthLayout">
+          <route index="true" page="Home" />
+          <route path="shop/:tab?" page="Shop" layout="ShopLayout" />
+          <route path="stock" page="Stock">
+            <route index="true" />
+            <route path="new-product" page="NewProduct" />
+            <route path="product/:id" page="ProductDetail" />
+            <route path="new-extra" page="NewExtra" />
+            <route path="extra/:id" page="ExtraDetail" />
+          </route>
+          <route path="records" page="Record">
+            <route index="true" />
+            <route path=":id" page="RecordItem" />
+            <route path="search" page="RecordSearch" />
+          </route>
+          <route path="money" page="Money" layout="MoneyLayout" middleware="admin">
+            <route index="true" />
+            <route path=":kind" page="MoneyHistory" />
+          </route>
+          <route path="analytics" page="Analytics">
+            <route path="cashflow" page="AnalyticsCashflow" />
+            <route path="debt" page="AnalyticsDebt" />
+            <route path="net" page="AnalyticsNet" />
+            <route path="crowd" page="AnalyticsCrowd" />
+            <route path="product" page="AnalyticsProduct" />
+          </route>
+          <route path="cashier" page="Cashier" middleware="admin" />
+          <route path="customer" page="Customer" middleware="admin" />
+          <route path="method" page="Method" middleware="admin" />
+          <route path="social" page="Social" middleware="admin" />
+          <route path="setting" page="Setting" layout="SettingLayout">
+            <route index="true" />
+            <route path="profile" page="SettingProfile" />
+            <route path="shop" page="SettingShop" />
+            <route path="data" page="SettingData" />
+            <route path="log" page="SettingLog" />
+            <route path="printer" page="SettingPrinter" />
+            <route path="sync" page="SettingSync" />
+          </route>
+        </route>
+      </route>
+    </routing>
+
+    <middleware>
+      <middleware name="authentication" file="src/middleware/authenticate.ts">
+        <description>Checks auth.get() for a stored user. If undefined, throws redirect("/login"). Applied to the authenticated layout (all routes except /login).</description>
+      </middleware>
+      <middleware name="admin" file="src/middleware/admin.ts">
+        <description>Checks auth.user().role === "admin". If not admin, throws redirect("/setting"). Applied to: cashier, customer, method, money, social routes.</description>
+      </middleware>
+    </middleware>
+
+    <layouts>
+      <layout name="RootLayout" file="src/layouts/root.tsx">
+        <description>Wraps entire app. On mount, loads store.size.get() via Effect and sets global size context. Shows loading skeleton while fetching. On success, renders Outlet.</description>
+      </layout>
+      <layout name="AuthLayout" file="src/layouts/authenticated/index.tsx">
+        <description>Authenticated layout wrapper. Activates navigation shortcuts via useNavigationShortcuts(). Renders: sticky Topbar (sky-300 background, h-16/h-12 responsive), main-body div (flex-1), Outlet, and Toaster (sonner) for notifications.</description>
+        <component name="Topbar" file="z-Topbar.tsx">
+          <description>Sticky header bar. Left: back button (when not on home), route title (h1, text-3xl), and dynamic Title component. Right: TopNavList (desktop tab navigation) and action buttons (settings gear, refresh). Route titles: Beranda, Toko, Stok, Riwayat, Uang, Analisis, Pengaturan, Metode, Pelanggan, Kasir, Kontak.</description>
+        </component>
+        <component name="TopNavList" file="z-TopNavList.tsx">
+          <description>Desktop-only (md:flex) tab bar navigation. Shows Toko (alt+0), Stok (alt+1), Riwayat (alt+2), and Uang (alt+3, admin only). Active tab gets white background with rounded top corners and border. Navigates with ?url_back=/ search param for back navigation context.</description>
+        </component>
+        <component name="Refresh" file="z-Refresh.tsx">
+          <description>Refresh button (RefreshCcw icon). Calls db.customer.revalidate(), db.extra.revalidate(), db.image.revalidate(), db.method.revalidate(), db.product.revalidate(), db.social.revalidate(), then window.location.reload().</description>
+        </component>
+        <component name="SettingLink" file="z-SettingLink.tsx">
+          <description>Settings gear icon button (alt+4 shortcut indicator). Navigates to /setting. Active state shows secondary variant.</description>
+        </component>
+      </layout>
+    </layouts>
+
+    <keyboard_shortcuts>
+      <description>Alt+number shortcuts for navigation (registered in useNavigationShortcuts). Pressing Alt toggles shortcut hint badges (Kbd components) visible for 5 seconds via @xstate/store atom.</description>
+      <shortcut key="Alt+0" action="Navigate to /shop" />
+      <shortcut key="Alt+1" action="Navigate to /stock" />
+      <shortcut key="Alt+2" action="Navigate to /records" />
+      <shortcut key="Alt+3" action="Navigate to /money" />
+      <shortcut key="Alt+4" action="Navigate to /setting" />
+    </keyboard_shortcuts>
+
+    <error_boundary>
+      <description>Global ErrorBoundary component catches route errors. Handles: Unauthenticated → redirect /login (hard). Route error responses (404, 403) with contextual icons (FileQuestion, ShieldAlert). Generic errors with stack trace display (DEV only). Provides Muat Ulang, Kembali, Home actions.</description>
+    </error_boundary>
+
+    <auth_module>
+      <description>Module at src/lib/auth.ts. Stores user { id, name, role } in localStorage as "user". In-memory cache via _user variable. auth.get() returns cached or parsed localStorage value. auth.set() updates both. auth.user() throws Unauthenticated if no user. auth.hash() and auth.verify() invoke Tauri Rust commands wrapped in Effect. User schema validated with Zod: { id: nonempty string, name: string, role: "admin"|"user" }.</description>
+    </auth_module>
+
+    <shared_components>
+      <component name="Protect">Role-based conditional render. If role !== "admin", shows Redirect to given path.</component>
+      <component name="Redirect">Redirect helper component.</component>
+      <component name="Show">Conditional render utility (when={condition}).</component>
+      <component name="ForEach">Array map utility component.</component>
+      <component name="NumberField">Numeric input field.</component>
+      <component name="Password">Password input with reveal toggle.</component>
+      <component name="NotFound">404 page component.</component>
+      <component name="Loading">Loading skeleton.</component>
+      <component name="Spinner">Spinning indicator component.</component>
+      <component name="TextError">Error text display.</component>
+      <component name="Tooltip">Tooltip wrapper component.</component>
+      <component name="Calendar">Calendar/date picker.</component>
+      <component name="DateRange">Date range picker.</component>
+      <component name="Notification">Toast notification wrapper.</component>
+      <component name="ErrorComponent">Inline error state display.</component>
+    </shared_components>
+
+    <ui_primitives>
+      <description>shadcn/ui primitives built on Radix UI, located in src/components/ui/. Style: new-york, baseColor: zinc, icons: lucide.</description>
+      <component name="button">Button variants (default, destructive, outline, secondary, ghost, link). Sizes: default, sm, lg, icon.</component>
+      <component name="input">Text input with styling.</component>
+      <component name="textarea">Multi-line text input.</component>
+      <component name="label">Form label (Radix).</component>
+      <component name="checkbox">Checkbox (Radix).</component>
+      <component name="radio-group">Radio group (Radix).</component>
+      <component name="select">Select dropdown (Radix).</component>
+      <component name="dialog">Modal dialog (Radix).</component>
+      <component name="popover">Popover (Radix).</component>
+      <component name="accordion">Accordion (Radix).</component>
+      <component name="tabs">Tabs (Radix).</component>
+      <component name="separator">Visual separator (Radix).</component>
+      <component name="breadcrumb">Breadcrumb navigation.</component>
+      <component name="table">Data table with header, body, row, cell.</component>
+      <component name="pagination">Pagination controls.</component>
+      <component name="skeleton">Loading skeleton placeholder.</component>
+      <component name="sonner">Sonner toast provider.</component>
+      <component name="field">Form field wrapper.</component>
+      <component name="kdb">Keyboard shortcut badge (Kbd).</component>
+    </ui_primitives>
+  </frontend>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 4: Database Layer (Frontend SQLite via @tauri-apps/plugin-sql) -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <database>
+    <connection>
+      <description>Singleton pattern via Effect-TS. Database.load("sqlite:data.db") on first access, cached globally. On query error, closes and resets connection. All operations wrapped in Effect for typed error handling (DbError). Uses raw SQL with parameterized queries (no ORM).</description>
+      <file name="src/database/instance.ts" />
+      <type name="DbError">Custom error class with _tag = "DbError" wrapping the underlying error.</type>
+    </connection>
+
+    <entities>
+      <entity name="product" module="src/database/product/">
+        <operations>
+          <get>
+            <method name="all" returns="Product[]">Get all products (uses in-memory cache).</method>
+            <method name="byId(id)" returns="Product | null">Get product by ID.</method>
+            <method name="unsync()" returns="Product[]">Get products where sync_at IS NULL.</method>
+            <method name="countUnsync()" returns="number">Count unsynced products.</method>
+            <method name="allRange({from,to})" returns="Product[]">Get products in ID range.</method>
+            <method name="updated()" returns="Product[]">Get products updated since last sync.</method>
+            <method name="historyOffset({id, offset})" returns="ProductEvent[]">Get paginated stock events.</method>
+            <method name="historyRange({id, from, to})" returns="ProductEvent[]">Get stock events in date range.</method>
+          </get>
+          <add>
+            <method name="new(Product)" returns="void">Insert new product.</method>
+            <method name="external(Product)" returns="void">Insert product with given ID (from sync).</method>
+            <method name="sync(Product[])" returns="void">Batch insert products from server sync.</method>
+          </add>
+          <update>
+            <method name="info({id, name?, barcode?, price?, capital?, note?})">Update product info fields.</method>
+            <method name="calcStock({mode: sell|buy})">Recalculate stock from product_events.</method>
+            <method name="sync(Product)">Update product from sync data.</method>
+            <method name="syncAt({ids, ts})">Mark products as synced at timestamp.</method>
+            <method name="unsyncAll()">Mark all products as unsynced.</method>
+          </update>
+          <del>
+            <method name="byId(id)">Delete product (adds grave tombstone for sync).</method>
+            <method name="sync({ids})">Delete products from sync tombstone processing.</method>
+          </del>
+          <method name="revalidate()">Invalidate in-memory product cache.</method>
+        </operations>
+      </entity>
+
+      <entity name="productEvent" module="src/database/product-event/">
+        <operations>
+          <get>
+            <method name="unsync()" returns="ProductEvent[]">Get unsynced product events.</method>
+            <method name="countUnsync()" returns="number">Count unsynced events.</method>
+          </get>
+          <update>
+            <method name="unsyncAll()">Mark all events as unsynced.</method>
+            <method name="syncAt({ids, ts})">Mark events as synced at timestamp.</method>
+            <method name="sync(ProductEvent[])">Batch insert/sync events from server.</method>
+          </update>
+        </operations>
+      </entity>
+
+      <entity name="record" module="src/database/record/">
+        <operations>
+          <get>
+            <method name="byRange({from,to,method?,mode?,customer_name?,customer_phone?,limit,offset})">Get records with filters and pagination.</method>
+            <method name="byId(id)" returns="Record with products and extras">Get full record detail.</method>
+            <method name="debt()">Get credit/debt records.</method>
+            <method name="updated()">Get records updated since last sync.</method>
+            <method name="unsync()">Get unsynced records.</method>
+          </get>
+          <count>
+            <method name="record()" returns="number">Total record count.</method>
+            <method name="total({from,to})" returns="number">Total sum in range.</method>
+            <method name="unsync()" returns="number">Count unsynced records.</method>
+          </count>
+          <add>
+            <method name="one(Record)" description="Single transaction commit: wrapped in BEGIN/COMMIT, inserts record + customer + extras + record_products, updates product stock and events, invalidates product cache. Returns recordId.">Insert full transaction (record + products + extras + discounts).</method>
+            <method name="sync(Record[])">Batch insert/update records from server sync.</method>
+            <method name="external(Record)">Insert record with given ID (from sync).</method>
+          </add>
+          <update>
+            <method name="paidAt({id, paidAt})">Update paid_at timestamp.</method>
+            <method name="toCredit({id})">Mark record as credit.</method>
+            <method name="payCredit({id, pay})">Pay credit amount.</method>
+            <method name="note({id, note})">Update record note.</method>
+            <method name="mode({id, mode})">Change sell/buy mode.</method>
+            <method name="method({id, methodId})">Change payment method.</method>
+            <method name="sync(Record)">Update record from sync data.</method>
+            <method name="syncAt({ids, ts})">Mark as synced.</method>
+            <method name="unsyncAll()">Mark all as unsynced.</method>
+          </update>
+          <del>
+            <method name="byId(id)">Delete record (adds grave).</method>
+            <method name="sync({ids})">Delete records from sync grave processing.</method>
+          </del>
+        </operations>
+      </entity>
+
+      <entity name="customer" module="src/database/customer/">
+        <operations>
+          <get><method name="all()">In-memory cached list.</method><method name="unsync()">Unsynced customers.</method></get>
+          <add><method name="one(Customer)">Add new customer.</method></add>
+          <update><method name="one(Customer)">Update customer.</method><method name="sync(Customer[])">Batch sync from server.</method></update>
+          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync grave.</method></del>
+          <method name="revalidate()">Invalidate cache.</method>
+        </operations>
+      </entity>
+
+      <entity name="method" module="src/database/method/">
+        <operations>
+          <get><method name="all()">In-memory cached list.</method><method name="unsync()">Unsynced methods.</method><method name="updated()">Methods updated since last sync.</method></get>
+          <add><method name="one(Method)">Add new.</method><method name="sync(Method[])">Batch sync.</method></add>
+          <update><method name="one(Method)">Update name/kind.</method><method name="sync(Method)">Update from server.</method><method name="syncFromServer(Method[])">Batch update from server sync.</method><method name="unsyncAll()">Mark all unsynced.</method></update>
+          <del><method name="byId(id)">Soft delete (sets deleted_at).</method></del>
+          <method name="revalidate()">Invalidate cache.</method>
+        </operations>
+      </entity>
+
+      <entity name="money" module="src/database/money/">
+        <operations>
+          <get><method name="all()">All entries.</method><method name="byRange({from,to,kindId})">Filtered by date + kind.</method><method name="last()">Last entry.</method></get>
+          <add><method name="record(Money)">Add entry.</method><method name="external(Money)">Add with given ID.</method></add>
+          <update><method name="sync(Money[])">Batch sync.</method></update>
+          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
+        </operations>
+      </entity>
+
+      <entity name="moneyKind" module="src/database/money-kind/">
+        <operations>
+          <get><method name="all()">All money kinds.</method></get>
+          <add><method name="one(MoneyKind)">Add new kind.</method></add>
+          <update><method name="type({id,type})">Change absolute/change type.</method><method name="name({id,name})">Rename.</method><method name="reorder({id,ordering})">Update display order.</method><method name="sync(MoneyKind[])">Batch sync.</method></update>
+          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
+        </operations>
+      </entity>
+
+      <entity name="extra" module="src/database/extra/">
+        <operations>
+          <get><method name="all()">In-memory cached list.</method><method name="unsync()">Unsynced extras.</method><method name="byId(id)">Get by ID.</method></get>
+          <add><method name="one(Extra)">Add new extra.</method></add>
+          <update><method name="one(Extra)">Update extra.</method><method name="sync(Extra[])">Batch sync.</method></update>
+          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
+          <method name="revalidate()">Invalidate cache.</method>
+        </operations>
+      </entity>
+
+      <entity name="cashier" module="src/database/cashier/">
+        <description>Local-only entity (no sync). Manages login accounts.</description>
+        <operations>
+          <get><method name="all()">All cashiers.</method><method name="byId(id)">By ID.</method></get>
+          <method name="add(Cashier)">Create cashier account.</method>
+          <update><method name="name({id,name})">Rename.</method><method name="hash({id,hash})">Update bcrypt hash.</method><method name="role({id,role})">Change role.</method></update>
+          <method name="delete(id)">Remove cashier.</method>
+        </operations>
+      </entity>
+
+      <entity name="image" module="src/database/image/">
+        <operations>
+          <get><method name="byProductId(productId)">Images for a product.</method><method name="unsync()">Unsynced images.</method></get>
+          <add><method name="one(Image)">Add image.</method></add>
+          <update><method name="swap({id1,id2})">Swap image order.</method><method name="sync(Image[])">Batch sync.</method></update>
+          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
+          <method name="revalidate()">Invalidate cache.</method>
+        </operations>
+      </entity>
+
+      <entity name="social" module="src/database/social/">
+        <operations>
+          <get><method name="all()">In-memory cached list.</method><method name="unsync()">Unsynced socials.</method></get>
+          <method name="add(Social)">Add social entry.</method>
+          <update><method name="one(Social)">Update entry.</method><method name="sync(Social[])">Batch sync.</method></update>
+          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
+          <method name="revalidate()">Invalidate cache.</method>
+        </operations>
+      </entity>
+
+      <entity name="grave" module="src/database/grave/">
+        <description>Deletion tombstone tracking for sync. Marks deleted items by kind and ID.</description>
+        <operations>
+          <get><method name="all()">All grave entries.</method></get>
+          <del><method name="byItemIds(ids)">Delete graves by item IDs.</method><method name="byIds(ids)">Delete graves by grave IDs.</method></del>
+        </operations>
+      </entity>
+
+      <entity name="recordProduct" module="src/database/record-product/">
+        <description>Read-only access to record line items.</description>
+        <operations>
+          <get>
+            <method name="byRange({from,to})">Line items in date range.</method>
+            <method name="byRecordId(id)">Items for a single record.</method>
+            <method name="byRecordIds(ids)">Batch lookup for multiple records.</method>
+            <method name="history(productId)">Sales history for a product.</method>
+          </get>
+          <update><method name="productId({recordProductId,productId})">Link line item to a product.</method></update>
+        </operations>
+      </entity>
+
+      <entity name="recordExtra" module="src/database/record-extra/">
+        <description>Read-only access to record extras.</description>
+        <operations>
+          <get>
+            <method name="byRange({from,to})">Extras in date range.</method>
+            <method name="ByRecordId(id)">Extras for a single record.</method>
+            <method name="byRecordIds(ids)">Batch lookup.</method>
+          </get>
+        </operations>
+      </entity>
+    </entities>
+
+    <caching>
+      <description>In-memory caching via cache-factory.ts. Entities with revalidate(): product, customer, method, extra, image, social. Cache is invalidated on mutations and on manual refresh (topbar Refresh button). Product cache is also invalidated after record commit.</description>
+    </caching>
+
+    <transaction_tx_db>
+      <description>Separate tx.db database for active POS transaction state (tab-based). Not synced.</description>
+      <table name="transactions">
+        <column name="tab" type="INTEGER" primary_key="true" />
+        <column name="tx_mode" type="TEXT" default="'sell'" />
+        <column name="tx_query" type="TEXT" default="''" />
+        <column name="tx_fix" type="INTEGER" default="0" />
+        <column name="tx_method_id" type="INTEGER" default="1000" />
+        <column name="tx_note" type="TEXT" default="''" />
+        <column name="tx_customer_name" type="TEXT" default="''" />
+        <column name="tx_customer_phone" type="TEXT" default="''" />
+        <column name="tx_customer_id" type="INTEGER" nullable="true" />
+        <column name="tx_product_barcode" type="TEXT" default="''" />
+        <column name="tx_product_name" type="TEXT" default="''" />
+        <column name="tx_product_price" type="REAL" default="0" />
+        <column name="tx_product_qty" type="INTEGER" default="0" />
+        <column name="tx_product_stock" type="INTEGER" default="0" />
+        <column name="tx_extra_name" type="TEXT" default="''" />
+        <column name="tx_extra_value" type="REAL" default="0" />
+        <column name="tx_extra_kind" type="TEXT" default="'percent'" />
+        <column name="tx_extra_is_saved" type="INTEGER" default="0" />
+      </table>
+      <table name="products">
+        <column name="product_id" type="TEXT" primary_key="true" />
+        <column name="tab" type="INTEGER" fk="transactions(tab) ON DELETE CASCADE" />
+        <column name="db_product_id" type="TEXT" nullable="true" />
+        <column name="db_product_price" type="REAL" nullable="true" />
+        <column name="db_product_capital" type="REAL" nullable="true" />
+        <column name="db_product_stock" type="INTEGER" nullable="true" />
+        <column name="db_product_name" type="TEXT" nullable="true" />
+        <column name="product_name" type="TEXT" />
+        <column name="product_barcode" type="TEXT" />
+        <column name="product_price" type="REAL" />
+        <column name="product_qty" type="INTEGER" />
+        <column name="product_created_at" type="INTEGER" />
+      </table>
+      <table name="discounts">
+        <column name="disc_order" type="INTEGER" primary_key="true" />
+        <column name="disc_id" type="TEXT" unique="true" />
+        <column name="product_id" type="TEXT" fk="products(product_id) ON DELETE CASCADE" />
+        <column name="disc_value" type="REAL" default="0" />
+        <column name="disc_kind" type="TEXT" default="'percent'" />
+      </table>
+      <table name="extras">
+        <column name="extra_id" type="TEXT" primary_key="true" />
+        <column name="tab" type="INTEGER" fk="transactions(tab) ON DELETE CASCADE" />
+        <column name="db_extra_id" type="INTEGER" nullable="true" />
+        <column name="extra_kind" type="TEXT" />
+        <column name="extra_name" type="TEXT" />
+        <column name="extra_value" type="REAL" />
+        <column name="extra_is_saved" type="INTEGER" />
+      </table>
+    </transaction_tx_db>
+
+    <record_commit>
+      <description>addOne() in src/database/record/add/one.ts commits a full transaction as a single BEGIN/COMMIT block. Steps: (1) get product stock data, (2) insert record row, (3) upsert customer, (4) insert extras, (5) calculate effective capital per product, (6) update product stock and create product_events, (7) insert new products if needed, (8) insert record_products and discounts. On success, invalidates product cache.</description>
+    </record_commit>
+  </database>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 5-8: API, State, Pages, Sync                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <cloud_api>
+    <description>
+      Effect-TS based HTTP client (src/lib/reqwest.ts) wrapping @tauri-apps/plugin-http fetch.
+      API base URL from VITE_API_URL env var (dev: http://192.168.225.187:8787, prod: https://api.kassir.store).
+      All requests use Authorization: Bearer &lt;token&gt; header. Responses validated with Zod schemas.
+      Error types: RequestError (network), ResponseError (non-2xx), BodyError (JSON parse), ZodSchemaError (validation).
+    </description>
+
+    <entity name="product" base="/api/product">
+      <endpoint method="GET" path="/api/product/{timestamp}">
+        <description>Pull products updated after timestamp. Response: ProductServer[] ({ id, name, barcode?, price, stock, capital, note, updatedAt }).</description>
+      </endpoint>
+      <endpoint method="POST" path="/api/product">
+        <description>Push local products. Body: Product[]. Response: { timestamp: number, failed: string[] }.</description>
+      </endpoint>
+      <endpoint method="GET" path="/api/product/count/{timestamp}">
+        <description>Count server products. Response: { count: number }.</description>
+      </endpoint>
+    </entity>
+
+    <entity name="product-event" base="/api/product-event">
+      <endpoint method="POST" path="/api/product-event/{timestamp}">
+        <description>Pull product events. Body: productIds[]. Response: ProductEventServer[] ({ id, createdAt, productId, type: manual|inc|dec, value }).</description>
+      </endpoint>
+      <endpoint method="POST" path="/api/product-event">
+        <description>Push local product events. Response: { timestamp, failedIds }.</description>
+      </endpoint>
+    </entity>
+
+    <entity name="record" base="/api/record">
+      <endpoint method="GET" path="/api/record/{timestamp}">
+        <description>Pull records updated after timestamp. Response: RecordServer[] with nested products (discounts), extras, customer.</description>
+      </endpoint>
+      <endpoint method="POST" path="/api/record">
+        <description>Push local records. Response: { timestamp, failed: string[] }.</description>
+      </endpoint>
+      <endpoint method="GET" path="/api/record/count/{timestamp}">
+        <description>Count server records. Response: { count: number }.</description>
+      </endpoint>
+    </entity>
+
+    <entity name="method" base="/api/method">
+      <endpoint method="GET" path="/api/method/{timestamp}">
+        <description>Pull payment methods. Response: MethodServer[] ({ id, name?, kind: cash|transfer|debit|qris, deletedAt?, updatedAt? }).</description>
+      </endpoint>
+      <endpoint method="POST" path="/api/method">
+        <description>Push local methods. Response: { timestamp, failed: string[] }.</description>
+      </endpoint>
+    </entity>
+
+    <entity name="grave" base="/api/grave">
+      <endpoint method="GET" path="/api/grave/{timestamp}">
+        <description>Pull server deletion tombstones. Response: { products: string[], records: string[] }.</description>
+      </endpoint>
+      <endpoint method="DELETE" path="/api/grave">
+        <description>Push local deletion tombstones. Body: { products: string[], records: string[] }. Response: { timestamp, records: string[], products: string[] }.</description>
+      </endpoint>
+    </entity>
+  </cloud_api>
+
+  <state_management>
+    <description>
+      Two storage layers: (1) @tauri-apps/plugin-store for persistent KV storage (store.json),
+      (2) @xstate/store for reactive in-memory atoms. Both wrapped in Effect-TS for typed error handling.
+    </description>
+
+    <persistent_store file="store.json">
+      <entry key="token">Cloud API sync token (string). Managed by store.sync.token.</entry>
+      <entry key="owner">Shop owner name (string, default "Toko").</entry>
+      <entry key="address">Shop address (string).</entry>
+      <entry key="footer">Receipt footer text (string).</entry>
+      <entry key="header">Receipt header text (string).</entry>
+      <entry key="show-cashier">Toggle cashier name display (boolean as string).</entry>
+      <entry key="printer-name">Selected printer name (string).</entry>
+      <entry key="printer-width">Receipt width in chars (number).</entry>
+      <entry key="method-id">Selected payment method ID (string).</entry>
+      <entry key="size">UI size preference ("big"|"small").</entry>
+      <entry key="product-last-pull">Last product sync timestamp (number).</entry>
+      <entry key="record-last-pull">Last record sync timestamp (number).</entry>
+      <entry key="method-last-pull">Last method sync timestamp (number).</entry>
+      <entry key="event-last-pull">Last product-event sync timestamp (number).</entry>
+      <entry key="grave-last-pull">Last grave sync timestamp (number).</entry>
+      <entry key="product-event-last-pull">Last product-event sync timestamp (number).</entry>
+    </persistent_store>
+
+    <store_modules>
+      <module name="store.info">Shop info: address, footer, header, owner, showCashier. get() reads all 5 keys concurrently. set.basic() and set.showCashier() update individual keys.</module>
+      <module name="store.owner">Shortcut for reading "owner" key (default "Toko").</module>
+      <module name="store.method">Selected payment method ID get/set.</module>
+      <module name="store.printer">Printer name and receipt width get/set.</module>
+      <module name="store.size">UI size preference get/set.</module>
+      <module name="store.sync.token">Cloud API token get/set.</module>
+      <module name="store.sync.product|record|method|grave|productEvent">Per-entity last-pull timestamp get/set.</module>
+      <module name="store.error">StoreError class with _tag = "StoreError".</module>
+    </store_modules>
+  </state_management>
+
+  <sync_system>
+    <description>
+      Timestamp-based bidirectional sync. Each entity (product, product-event, record, method, grave)
+      follows the same pattern: pull → merge → push. Uses stored last-pull timestamps to fetch only
+      delta changes. Pull fetches count + data concurrently. Merge compares server updatedAt vs local
+      updated_at to determine insert vs update. Push uploads unsynced items and marks them synced on
+      server confirmation. Grave sync handles deletion tombstones bidirectionally.
+      All sync operations are Effect-based with comprehensive error handling.
+    </description>
+
+    <sync_flow entity="product" order="1">
+      <stage name="pull">GET /api/product/count/{ts} + GET /api/product/{ts} concurrently. Fetches all server products updated after last known timestamp.</stage>
+      <stage name="merge">For each server product: if no local match → insert. If local updated_at &lt; server updatedAt → update. Tracks latest server updatedAt as new timestamp.</stage>
+      <stage name="push">Gets unsynced local products. POST /api/product. On response, marks non-failed IDs as synced (concurrency: 50). Returns remaining unsync count.</stage>
+      <stage name="store">Persists new last-pull timestamp via store.sync.product.set().</stage>
+    </sync_flow>
+
+    <sync_flow entity="product-event" order="1b">
+      <description>Syncs product_events after products (FK dependency). Posts product IDs to get relevant events.</description>
+      <stage name="pull">POST /api/product-event/{ts} with product IDs.</stage>
+      <stage name="push">POST /api/product-event with unsynced events.</stage>
+    </sync_flow>
+
+    <sync_flow entity="record" order="2">
+      <stage name="pull">GET /api/record/count/{ts} + GET /api/record/{ts}.</stage>
+      <stage name="merge">Insert/update records with nested products, extras, discounts.</stage>
+      <stage name="push">POST /api/record with unsynced records.</stage>
+    </sync_flow>
+
+    <sync_flow entity="method" order="3">
+      <stage name="pull">GET /api/method/{ts}.</stage>
+      <stage name="push">POST /api/method.</stage>
+    </sync_flow>
+
+    <sync_flow entity="grave" order="4">
+      <stage name="pull">GET /api/grave/{ts}. Returns products[] and records[] tombstone IDs.</stage>
+      <stage name="merge">Deletes local products and records matching tombstone IDs (db.product.del.sync, db.record.del.sync). Cleans up local grave entries for those IDs.</stage>
+      <stage name="push">Collects local grave entries, DELETEs to /api/grave.</stage>
+    </sync_flow>
+
+    <error_handling>
+      <case name="network">"Tidak bisa menghubungi server"</case>
+      <case name="db">Logs error via log.error(), returns error message.</case>
+      <case name="response">Uses responseError.failMsg() to extract server error.</case>
+      <case name="validation">ZodSchemaError: logs validation issues, returns first 10 issue messages.</case>
+    </error_handling>
+  </sync_system>
+
+  <pages>
+    <page name="login" path="/login">
+      <description>
+        Two-mode login page. On mount, checks if cashiers exist in local DB.
+        If none: shows FreshForm ("Buat Toko" — shop name, owner name, password).
+        If cashiers exist: shows LoginForm (username + password dropdown/input).
+        Loader checks auth.get() and redirects to /setting if already authenticated.
+        Background: bg-zinc-950.
+      </description>
+      <fresh_form>
+        <description>First-time setup. Creates first cashier (admin) and shop. On submit: invokes hash_password via Rust, encodes JWT, stores user in localStorage, navigates to home.</description>
+      </fresh_form>
+      <login_form>
+        <description>Returning user login. Dropdown list of cashier names. On submit: verifies password via Rust bcrypt, encodes JWT, stores user, navigates to /.</description>
+      </login_form>
+    </page>
+
+    <page name="home" path="/">
+      <description>
+        Dashboard landing page (index route). Shows:
+        - Header: shop name + date
+        - StatsGrid: summary statistics (today's sales, transaction count, etc.)
+        - NavGrid: icon navigation grid for main sections
+      </description>
+    </page>
+
+    <page name="shop" path="/shop/:tab">
+      <description>
+        Point of Sale — the primary transaction interface. Tab-based layout. Each tab is an
+        independent transaction stored in tx.db. Left panel shows product/extra list with
+        fuzzy search (fuzzysort). Right panel shows active tab's transaction: product line
+        items with qty/price/discount, extras, summary with totals, payment method selection,
+        pay amount with change calculation. Supports sell and buy modes.
+        Transaction state persists in tx.db across app restarts.
+        On first load, if no tabs exist, creates a default sell tab.
+      </description>
+      <modes>
+        <mode name="sell">Standard sales. Reduces product stock on commit.</mode>
+        <mode name="buy">Purchase/restock. Increases product stock on commit.</mode>
+      </modes>
+      <complete_flow>
+        <description>On payment: shows complete dialog with change amount. Option to print receipt (PDF generated via pdf-lib, printed via Windows printer). Clears tab after completion. Transaction committed as atomic BEGIN/COMMIT block (record.add.one).</description>
+      </complete_flow>
+      <receipt>
+        <description>PDF receipt generated with pdf-lib + @pdf-lib/fontkit. Contains: header (shop name, address, date), product table, extras, totals, payment info, footer (customizable text). Printed via winprint (Windows PDF printing).</description>
+      </receipt>
+      <drag_drop>
+        <description>Line items support drag-and-drop reordering via @dnd-kit (core, sortable, utilities).</description>
+      </drag_drop>
+    </page>
+
+    <page name="stock" path="/stock">
+      <description>
+        Inventory management. Tabbed view: Products + Extras. Searchable list with FAB for creating new.
+        Products have: name, barcode (auto-generated), price, capital, stock, note, images.
+        Product detail: edit form + stock history timeline (product_events) + image gallery (drag-drop upload, reorder).
+        Stock can be incremented/decremented manually (logs product_event).
+      </description>
+      <subpages>
+        <subpage path="/stock/new-product">Create product form.</subpage>
+        <subpage path="/stock/product/:id">Product detail: Info tab, Stock History tab, Images tab.</subpage>
+        <subpage path="/stock/new-extra">Create extra form (name, value, kind: number/percent).</subpage>
+        <subpage path="/stock/extra/:id">Extra detail/edit.</subpage>
+      </subpages>
+    </page>
+
+    <page name="records" path="/records">
+      <description>
+        Transaction history. Paginated list with filters: date range, method, customer name/phone, mode.
+        Each row shows: paid_at date, method badge, total, cashier name, mode indicator (sell/buy), credit status.
+        Record detail: full transaction view with line items, extras, payment info, customer info.
+        Actions: edit note, change mode, toggle credit, change payment method.
+      </description>
+      <subpages>
+        <subpage path="/records/:id">Record detail view.</subpage>
+        <subpage path="/records/search">Advanced search with filters.</subpage>
+      </subpages>
+    </page>
+
+    <page name="money" path="/money">
+      <description>
+        Cash flow tracking (admin only). Manages money kinds (categories) and money entries.
+        Each money kind has: name, type (absolute = manual entry, change = computed from others), ordering.
+        Money entries: value, timestamp, note. Linked to a money kind.
+        Layout: left panel (kinds list with add/edit/delete/reorder), right panel (entries grouped by kind).
+      </description>
+      <subpages>
+        <subpage path="/money/:kind">Money history for a specific kind.</subpage>
+      </subpages>
+    </page>
+
+    <page name="analytics" path="/analytics">
+      <description>
+        Reports dashboard with sub-navigation tabs. All sub-pages use shared interval picker (daily/weekly/monthly)
+        and date range picker for time-based filtering.
+      </description>
+      <subpages>
+        <subpage path="/analytics/cashflow">Income vs expense graph over time. Summary panel with totals.</subpage>
+        <subpage path="/analytics/net">Net profit/loss analysis. Revenue minus costs graph.</subpage>
+        <subpage path="/analytics/crowd">Sales distribution by hour/day. Bar chart with peak analysis.</subpage>
+        <subpage path="/analytics/product">Per-product sales table: name, qty sold, revenue, profit. Sortable, searchable, paginated.</subpage>
+        <subpage path="/analytics/debt">Credit/debt tracking table: customer, outstanding credit, total debt. Sortable.</subpage>
+      </subpages>
+    </page>
+
+    <page name="setting" path="/setting">
+      <description>Application settings with sub-navigation sidebar.</description>
+      <subpages>
+        <subpage path="/setting/profile">User profile: name display, password change.</subpage>
+        <subpage path="/setting/shop">Shop info: name, address, receipt header/footer, show cashier toggle.</subpage>
+        <subpage path="/setting/data">Data management: export, import, clear.</subpage>
+        <subpage path="/setting/log">App log viewer (reads from @tauri-apps/plugin-log files).</subpage>
+        <subpage path="/setting/printer">Printer selection (enumerate Windows printers) and receipt width.</subpage>
+        <subpage path="/setting/sync">Manual sync trigger with per-entity status display.</subpage>
+      </subpages>
+    </page>
+
+    <page name="cashier" path="/cashier">
+      <description>Cashier account management (admin only). CRUD for cashier accounts: name, role (admin/user), password.</description>
+    </page>
+
+    <page name="customer" path="/customer">
+      <description>Customer records (admin only). CRUD for customers: name, phone. Synced to cloud.</description>
+    </page>
+
+    <page name="method" path="/method">
+      <description>Payment method management (admin only). CRUD for methods: name, kind (cash/transfer/debit/qris). Supports soft delete. Synced to cloud.</description>
+    </page>
+
+    <page name="social" path="/social">
+      <description>Social/store profile (admin only). Key-value entries: name, value. Synced to cloud.</description>
+    </page>
+  </pages>
+
+  <utilities>
+    <module name="lib/utils.ts">
+      <function name="cn">Tailwind class merging (clsx + tailwind-merge).</function>
+      <function name="safeJSON">Safe JSON.parse returning [error, parsed] tuple.</function>
+      <function name="boolToNum">Boolean to 0|1 for SQLite.</function>
+      <function name="lazyLoader">React Router lazy loader utility.</function>
+      <function name="constructCSV">CSV builder with semicolon delimiter.</function>
+      <function name="capitalize">Capitalize each word.</function>
+      <function name="formatBarcode">Chunk barcode string into 14-char lines.</function>
+      <function name="getURLBack">Parse url_back from search params.</function>
+      <function name="numerish/numeric/integer">Zod schemas for number parsing.</function>
+    </module>
+    <module name="lib/effect-error.ts">
+      <type name="RequestError">Network-level fetch failure.</type>
+      <type name="ResponseError">Non-2xx HTTP response with status/body.</type>
+      <type name="BodyError">JSON parse failure.</type>
+      <type name="ZodSchemaError">Response validation failure.</type>
+      <type name="InvokeError">Tauri command invoke failure.</type>
+      <type name="InvalidCredential">Wrong password.</type>
+    </module>
+    <module name="lib/log.ts">Structured logging via @tauri-apps/plugin-log (Rust log crate, Info level).</module>
+    <module name="lib/random.ts">ULID-based ID generation via ulid package.</module>
+    <module name="lib/date.ts">Date/time formatting and manipulation utilities.</module>
+    <module name="lib/cache-factory.ts">Generic in-memory cache factory with revalidate() pattern.</module>
+    <module name="lib/image.ts">Image handling utilities (resize, convert).</module>
+    <module name="lib/validate.ts">Validation helper functions.</module>
+    <module name="lib/result.ts">Result type for async data fetching with loading/success/error states.</module>
+    <module name="lib/response.ts">Server response error extraction utilities.</module>
+    <module name="lib/receipt/">
+      <description>PDF receipt generation pipeline:
+        - create-receipt-data.ts: Orchestrates receipt data from transaction
+        - build-header.ts: Shop name, address, date
+        - product-text-data.ts: Line items with qty, price, discount, subtotal
+        - extras-text-data.ts: Extra charges
+        - build-summary.ts: Totals, payment, change
+        - build-transaction-summary.ts: Transaction mode, cashier, method
+        - build-footer.ts: Customizable thank-you message
+        - type.ts: Receipt TypeScript types
+      </description>
+    </module>
+    <module name="hooks/">
+      <hook name="useUser">Returns current auth user ({ id, name, role }).</hook>
+      <hook name="useProductSearch">Fuzzy product search (fuzzysort + microfuzz).</hook>
+      <hook name="useExtraSearch">Fuzzy extra search.</hook>
+      <hook name="useGetProducts">Fetch products from local DB.</hook>
+      <hook name="useGetCustomer">Fetch customer from local DB.</hook>
+      <hook name="useGetMethods">Fetch payment methods from local DB.</hook>
+      <hook name="useScreen">Screen size detection hook.</hook>
+      <hook name="useSize">Consumes global size context (big/small) from store.size.</hook>
+      <hook name="useScroll">Scroll position tracking.</hook>
+      <hook name="useSubmit">Form submission helper.</hook>
+      <hook name="useCallEffect">Effect-TS call wrapper for React components.</hook>
+      <hook name="useGetUrlBack">Get back navigation URL from search params.</hook>
+      <hook name="useGenerateUrlBack">Generate URL with url_back param.</hook>
+    </module>
+  </utilities>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 10: API Documentation                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- TODO: Phase 10 — Cloud API Documentation still pending -->
+
+</specification>
+</specification>

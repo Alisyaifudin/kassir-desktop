@@ -6,40 +6,49 @@ sidebar_position: 2
 
 ## Windows
 
+### Persyaratan
+- Windows 10 atau lebih baru
+- Tidak ada dependensi tambahan (aplikasi standalone)
+
 ### Unduh
 
-- Buka halaman github proyek di [Github](https://github.com/Alisyaifudin/kassir-desktop).
-- Buka halaman **releases**
+1. Buka halaman [GitHub Releases](https://github.com/Alisyaifudin/kassir-desktop/releases)
+2. Pilih versi terbaru (paling atas)
 
-![halaman github](./img/github-page.png)
+<!-- TODO: screenshot halaman releases -->
 
-- Pilih versi aplikasi (paling atas paling baru).
-- Unduh file `.msi`.
+3. Unduh file `.msi`
 
 ### Instalasi
 
-- *Double click* file `.msi`.
-- Jika pertama kali mencoba instalasi, akan muncul tampilan peringatan seperti ini.
+1. *Double click* file `.msi` yang sudah diunduh
+2. Jika muncul peringatan Windows SmartScreen:
 
-![peringatan 1](./img/warn1.png)
+<!-- TODO: screenshot peringatan SmartScreen 1 -->
 
-- Klik *More info*. Tampilannya akan berganti menjadi ini.
+- Klik **More info**
 
+<!-- TODO: screenshot peringatan SmartScreen 2 -->
 
-![peringatan 2](./img/warn2.png)
+- Klik **Run anyway**
 
-- Klik *Run anyway*.
+3. Ikuti wizard instalasi (klik Next)
 
-- Sisanya, tinggal klik *next* terus (tahulah ya gimana).
+<!-- TODO: screenshot wizard instalasi 1-5 -->
 
-![wizard 1](./img/install1.png)
+4. Klik **Finish** — aplikasi siap digunakan 🥳
 
-![wizard 2](./img/install2.png)
+### Update Otomatis
 
-![wizard 3](./img/install3.png)
+Aplikasi mendukung update otomatis via Tauri updater. Saat ada versi baru:
+- Aplikasi akan mendeteksi update secara otomatis
+- Update diinstal secara *passive* (tanpa mengganggu)
+- Restart aplikasi untuk menggunakan versi baru
 
-![wizard 4](./img/install4.png)
+### Lokasi Data
 
-![wizard 5](./img/install5.png)
-
-- Selesai. Tinggal buka aplikasi 🥳
+Semua data disimpan di:
+```
+%LOCALAPPDATA%/com.kassir.app/
+```
+Termasuk database SQLite (`data.db`, `tx.db`), file konfigurasi (`store.json`), dan log aplikasi.
