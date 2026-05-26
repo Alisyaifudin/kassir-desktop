@@ -35,6 +35,7 @@ export function productEvent(
     Effect.catchAll((e) => {
       switch (e._tag) {
         case "NotFound":
+          log.error(`[sync:product-event] Not found: ${e.msg}`);
           return Effect.fail("Produk tidak ditemukan");
         case "BodyError":
         case "RequestError":

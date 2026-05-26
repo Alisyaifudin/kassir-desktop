@@ -155,6 +155,7 @@ function runEntityLoop(
 
       const count = yield* syncFn(token, stop).pipe(
         Effect.catchAll((e) => {
+          log.error(`[sync:${entity}] ${e}`);
           setResult((prev) => ({
             ...prev,
             [entity]: { ...prev[entity], status: "error", error: e },
@@ -282,6 +283,7 @@ export function UnifiedSync({ token }: { token: string }) {
 
       if (res._tag === "Left") {
         const msg = typeof res.left === "string" ? res.left : res.left.e?.message ?? "Unknown error";
+        log.error(`[sync:global] ${msg}`);
         setGlobalError(msg);
         setPhase("error");
       } else {
