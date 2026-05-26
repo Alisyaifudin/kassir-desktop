@@ -36,7 +36,7 @@ export function setEvents(events: Input[]) {
         bindings,
       ),
     );
-    const ids = Array.from(new Set(events.map((e) => e.id)));
+    const ids = Array.from(new Set(events.map((e) => e.productId)));
     yield* Effect.all(
       ids.map((id) => calcStock(id)),
       { concurrency: 100 },
