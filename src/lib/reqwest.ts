@@ -39,6 +39,8 @@ export function reqwest<Output>(
     });
 
     if (!response.ok) {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : String(input);
+      console.error(`[reqwest] ${response.status} ${init?.method ?? "GET"} ${url}`);
       yield* ResponseError.fail(response);
     }
     if (schema === undefined) return { response };
