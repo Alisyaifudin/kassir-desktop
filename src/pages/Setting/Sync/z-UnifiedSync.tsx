@@ -13,13 +13,17 @@ import { log } from "~/lib/log";
 // ── Types ───────────────────────────────────────────────────────────────
 
 type EntityId = "grave" | "product" | "product-event" | "method" | "record";
-type EntityStatus = "waiting" | "pulling" | "pushing" | "done" | "error";
+type EntityStatus = "waiting" | "syncing" | "done" | "error";
 
 interface EntityProgress {
   status: EntityStatus;
+  /** Cumulative items downloaded across all iterations */
   pullDone: number;
+  /** Total items to pull (locked on first non-zero value from /count) */
   pullTotal: number;
-  pushDone: number;
+  /** Current iteration's unsync count */
+  pushCount: number;
+  /** Total unsync items (accumulated across iterations, for display) */
   pushTotal: number;
   error: string | null;
 }
@@ -41,7 +45,7 @@ const ENTITY_CONFIG: { id: EntityId; label: string; icon: LucideIcon; order: num
 ];
 
 function initialProgress(): EntityProgress {
-  return { status: "waiting", pullDone: 0, pullTotal: 0, pushDone: 0, pushTotal: 0, error: null };
+  return { status: "waiting", pullDone: 0, pullTotal: 0, pushCount: 0, pushTotal: 0, error: null };
 }
 
 function initialResult(): SyncResult {
@@ -65,30 +69,30 @@ function programFullSync(
 ) {
   return Effect.gen(function* () {
     // ── Grave ──────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, grave: { ...prev.grave, status: "pulling" } }));
+    setResult((prev) => ({ ...prev, grave: { ...prev.grave, status: "syncing" } }));
     yield* runEntityLoop("grave", token, sync.grave, setResult, signal);
     if (signal.aborted) return;
 
     // ── Product ────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, product: { ...prev.product, status: "pulling" } }));
+    setResult((prev) => ({ ...prev, product: { ...prev.product, status: "syncing" } }));
     yield* runEntityLoop("product", token, sync.product, setResult, signal);
     if (signal.aborted) return;
 
     // ── Product Event ──────────────────────────────────────────────
     setResult((prev) => ({
       ...prev,
-      "product-event": { ...prev["product-event"], status: "pulling" },
+      "product-event": { ...prev["product-event"], status: "syncing" },
     }));
     yield* runEntityLoop("product-event", token, sync.productEvent, setResult, signal);
     if (signal.aborted) return;
 
     // ── Method ─────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, method: { ...prev.method, status: "pulling" } }));
+    setResult((prev) => ({ ...prev, method: { ...prev.method, status: "syncing" } }));
     yield* runEntityLoop("method", token, sync.method, setResult, signal);
     if (signal.aborted) return;
 
     // ── Record ─────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, record: { ...prev.record, status: "pulling" } }));
+    setResult((prev) => ({ ...prev, record: { ...prev.record, status: "syncing" } }));
     yield* runEntityLoop("record", token, sync.record, setResult, signal);
   });
 }
@@ -105,6 +109,7 @@ function runEntityLoop(
 ) {
   return Effect.gen(function* () {
     const stop = { pull: false, push: false };
+    let lockedTotal: number | null = null;
 
     for (let i = 0; i < LOOP_LIMIT; i++) {
       if (signal.aborted) return;
@@ -121,59 +126,48 @@ function runEntityLoop(
 
       if (signal.aborted) return;
 
+      // Lock total on first non-zero value — never overwrite it again
+      if (lockedTotal === null && count.total > 0) {
+        lockedTotal = count.total;
+      }
+
       stop.pull = count.server === 0;
       stop.push = count.unsync === 0;
 
-      // Determine phase: if pull not stopped yet, we're pulling; otherwise pushing
-      const phase: EntityStatus = !stop.pull ? "pulling" : !stop.push ? "pushing" : "done";
-
-      if (phase === "pulling" || phase === "done") {
-        // Accumulate pull progress
+      if (count.server === 0 && count.unsync === 0) {
+        // Done
         setResult((prev) => {
-          const cur = prev[entity];
-          const total = count.total > 0 ? count.total : cur.pullTotal;
-          return {
-            ...prev,
-            [entity]: {
-              ...cur,
-              status: phase,
-              pullDone: count.server > 0 ? cur.pullDone + count.server : cur.pullDone,
-              pullTotal: total,
-              pushTotal: count.unsync,
-              pushDone: 0,
-            },
-          };
-        });
-      }
-
-      if (phase === "pushing") {
-        setResult((prev) => ({
-          ...prev,
-          [entity]: {
-            ...prev[entity],
-            status: "pushing",
-            pushTotal: count.unsync,
-            pushDone: 0,
-          },
-        }));
-      }
-
-      if (phase === "done") {
-        setResult((prev) => {
-          // Retain the final accumulated counts but mark done
           const cur = prev[entity];
           return {
             ...prev,
             [entity]: {
               ...cur,
               status: "done",
-              pushDone: 0,
-              pushTotal: 0,
+              pullDone: cur.pullDone,
+              pullTotal: lockedTotal ?? cur.pullTotal,
+              pushCount: 0,
+              pushTotal: cur.pushTotal,
             },
           };
         });
         break;
       }
+
+      // Update progress: accumulate pull done, show current push count
+      setResult((prev) => {
+        const cur = prev[entity];
+        return {
+          ...prev,
+          [entity]: {
+            ...cur,
+            status: "syncing",
+            pullDone: cur.pullDone + count.server,
+            pullTotal: lockedTotal ?? 0,
+            pushCount: count.unsync,
+            pushTotal: count.unsync > 0 ? cur.pushTotal + count.unsync : cur.pushTotal,
+          },
+        };
+      });
     }
   });
 }
@@ -312,38 +306,33 @@ function EntityRow({
   icon: LucideIcon;
   progress: EntityProgress;
 }) {
-  const { status, pullDone, pullTotal, pushTotal, error } = progress;
+  const { status, pullDone, pullTotal, pushCount, error } = progress;
 
-  const statusIcon = () => {
+  const statusContent = () => {
     switch (status) {
       case "waiting":
         return <span className="text-muted-foreground text-small">Menunggu...</span>;
-      case "pulling":
+      case "syncing": {
+        const hasPull = pullTotal > 0;
+        const pullFraction = hasPull ? `${pullDone}/${pullTotal}` : null;
         return (
           <div className="flex flex-col gap-1 flex-1 min-w-0">
-            <span className="text-small text-muted-foreground">
-              Unduh {pullTotal > 0 ? `${pullDone}/${pullTotal}` : "..."}
-            </span>
-            {pullTotal > 0 ? (
+            <div className="flex items-center gap-2 text-small text-muted-foreground">
+              <span>Unduh {pullFraction ?? "..."}</span>
+              {pushCount > 0 && <span>· Unggah {pushCount}</span>}
+            </div>
+            {hasPull ? (
               <Progress value={pullDone} max={pullTotal} />
             ) : (
               <ProgressIndeterminate />
             )}
           </div>
         );
-      case "pushing":
-        return (
-          <div className="flex items-center gap-1.5">
-            <Spinner when />
-            <span className="text-small text-muted-foreground">
-              Unggah {pushTotal > 0 ? pushTotal : ""}
-            </span>
-          </div>
-        );
+      }
       case "done":
         return (
           <span className="text-small text-emerald-600 font-medium">
-            ✓ Unduh {pullDone}, Unggah {pushTotal}
+            ✓ Unduh {pullDone}{pushCount > 0 ? `, Unggah ${pushCount}` : ""}
           </span>
         );
       case "error":
@@ -362,7 +351,7 @@ function EntityRow({
     <li className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
       <Icon className="size-4 text-muted-foreground shrink-0" />
       <span className="text-normal font-medium w-32 shrink-0">{label}</span>
-      <div className="flex-1 min-w-0">{statusIcon()}</div>
+      <div className="flex-1 min-w-0">{statusContent()}</div>
     </li>
   );
 }
