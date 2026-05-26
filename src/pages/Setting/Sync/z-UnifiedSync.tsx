@@ -112,7 +112,7 @@ function programFullSync(
       ...prev,
       "product-event": { ...prev["product-event"], status: "syncing", pushTotal: pePushTotal },
     }));
-    yield* runEntityLoop("product-event", token, sync.productEvent, pePushTotal, setResult, signal);
+    yield* runTwoPhase("product-event", token, sync.productEvent, pePushTotal, setResult, signal);
     if (signal.aborted) return;
 
     // ── Method ─────────────────────────────────────────────────────
@@ -215,6 +215,127 @@ function runEntityLoop(
   });
 }
 
+// ── Two-Phase Sync (pull loop → push) ───────────────────────────────────
+
+function runTwoPhase(
+  entity: EntityId,
+  token: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  module: { pullBatch: (token: string) => Effect.Effect<{ server: number; total: number }, any>; pushAll: (token: string) => Effect.Effect<number, any> },
+  initialUnsync: number,
+  setResult: (fn: (prev: SyncResult) => SyncResult) => void,
+  signal: { aborted: boolean },
+) {
+  return Effect.gen(function* () {
+    // ── Phase 1: Pull loop ───────────────────────────────────────
+    let lockedPullTotal: number | null = null;
+    for (let i = 0; i < LOOP_LIMIT; i++) {
+      if (signal.aborted) return;
+
+      const count = yield* module.pullBatch(token).pipe(
+        Effect.catchAll((e: unknown) => {
+          const msg = typeof e === "string" ? e : String((e as Record<string, unknown>)?.message ?? (e as Record<string, unknown>)?.msg ?? e);
+          log.error(`[sync:${entity}] pull error: ${msg}`);
+          setResult((prev) => ({
+            ...prev,
+            [entity]: { ...prev[entity], status: "error", error: msg },
+          }));
+          return Effect.fail(e);
+        }),
+      );
+
+      if (signal.aborted) return;
+
+      if (lockedPullTotal === null && count.total > 0) {
+        lockedPullTotal = count.total;
+      }
+
+      setResult((prev) => {
+        const cur = prev[entity];
+        return {
+          ...prev,
+          [entity]: {
+            ...cur,
+            status: "syncing",
+            pullDone: cur.pullDone + count.server,
+            pullTotal: lockedPullTotal ?? 0,
+          },
+        };
+      });
+
+      if (count.total === 0) break;
+    }
+
+    if (signal.aborted) return;
+
+    // ── Phase 2: Push ────────────────────────────────────────────
+    if (initialUnsync === 0) {
+      // Nothing to push, mark done
+      setResult((prev) => {
+        const cur = prev[entity];
+        return {
+          ...prev,
+          [entity]: {
+            ...cur,
+            status: "done",
+            pushDone: 0,
+            pushTotal: 0,
+          },
+        };
+      });
+      return;
+    }
+
+    for (let i = 0; i < LOOP_LIMIT; i++) {
+      if (signal.aborted) return;
+
+      const remaining = yield* module.pushAll(token).pipe(
+        Effect.catchAll((e: unknown) => {
+          const msg = typeof e === "string" ? e : String((e as Record<string, unknown>)?.message ?? (e as Record<string, unknown>)?.msg ?? e);
+          log.error(`[sync:${entity}] push error: ${msg}`);
+          setResult((prev) => ({
+            ...prev,
+            [entity]: { ...prev[entity], status: "error", error: msg },
+          }));
+          return Effect.fail(e);
+        }),
+      );
+
+      if (signal.aborted) return;
+
+      const pushDone = Math.max(0, initialUnsync - remaining);
+      setResult((prev) => {
+        const cur = prev[entity];
+        return {
+          ...prev,
+          [entity]: {
+            ...cur,
+            status: "syncing",
+            pushDone,
+            pushTotal: initialUnsync,
+          },
+        };
+      });
+
+      if (remaining === 0) {
+        setResult((prev) => {
+          const cur = prev[entity];
+          return {
+            ...prev,
+            [entity]: {
+              ...cur,
+              status: "done",
+              pushDone: initialUnsync,
+              pushTotal: initialUnsync,
+            },
+          };
+        });
+        break;
+      }
+    }
+  });
+}
+
 // ── Reset Program ────────────────────────────────────────────────────────
 
 function programResync(setResult: (fn: (prev: SyncResult) => SyncResult) => void) {
@@ -225,6 +346,7 @@ function programResync(setResult: (fn: (prev: SyncResult) => SyncResult) => void
         store.sync.grave.set(0),
         store.sync.product.set(0),
         store.sync.productEvent.set(0),
+        store.sync.productEvent.pushAt.set(0),
         store.sync.method.set(0),
         store.sync.record.set(0),
       ],
@@ -282,7 +404,7 @@ export function UnifiedSync({ token }: { token: string }) {
       );
 
       if (res._tag === "Left") {
-        const msg = typeof res.left === "string" ? res.left : res.left.e?.message ?? "Unknown error";
+        const msg = typeof res.left === "string" ? res.left : String((res.left as Record<string, unknown>)?.e ?? res.left);
         log.error(`[sync:global] ${msg}`);
         setGlobalError(msg);
         setPhase("error");
