@@ -1226,21 +1226,20 @@
   </sync_refactor>
 
   <next_features>
-    <feature name="background_sync" status="in_progress">
+    <feature name="background_sync" status="done">
       <description>
-        Detach sync from settings page into a floating UI at the AuthLayout level.
-        Sync state lives in @xstate/store atom, survives all route changes.
-        Floating pill in bottom-right corner shows current entity/phase.
-        Click to expand into overlay card with full progress bars.
+        Sync detached from settings page into a floating pill at the AuthLayout level.
+        State in @xstate/store atom (src/lib/sync/atom.ts), survives all route changes.
+        Floating pill in bottom-right shows current entity + phase. Click to expand into
+        overlay card with full progress bars. Success auto-dismisses after 5s.
       </description>
-      <decisions>
-        <decision name="state">@xstate/store atom (module-level), survives route changes</decision>
-        <decision name="trigger">Settings page calls shared sync program function directly, atom updates reactively</decision>
-        <decision name="floating_pill">Bottom-right corner, fixed position. Minimal: shows current entity + phase. Hidden when idle.</decision>
-        <decision name="expanded_panel">Overlay card on click, shows full progress bars + result. Dismiss on click-outside/Escape.</decision>
-        <decision name="idle_behavior">Success auto-dismisses after 5s. Error stays until clicked. Syncing stays until done/aborted.</decision>
-        <decision name="concurrency">Trust SQLite serialization. No conflict prevention needed at desktop scale.</decision>
-      </decisions>
+      <implementation>
+        <file name="src/lib/sync/atom.ts">Global syncAtom with phase/result/activeEntity/globalError + syncSignal ref</file>
+        <file name="src/lib/sync/program.ts">startSync(), startResync(), abortSync() — runs programFullSync, writes to atom</file>
+        <file name="src/layouts/authenticated/z-SyncFloating.tsx">Floating pill + expandable overlay card</file>
+        <file name="src/layouts/authenticated/index.tsx">Mounts SyncFloating alongside Outlet</file>
+        <file name="src/pages/Setting/Sync/z-Sync.tsx">Simplified to trigger buttons calling startSync/startResync</file>
+      </implementation>
     </feature>
     <feature name="product_event_pull_batching" status="planned">
       <description>Split product IDs into batches for product-event pull to reduce request payload size for stores with many products.</description>
