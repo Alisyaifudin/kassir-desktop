@@ -21,6 +21,8 @@ export function merge(products: ProductServer[]) {
       }
     }
     yield* Effect.all([insert(addProducts), update(updateProducts)], { concurrency: "unbounded" });
+    // Revalidate cache so product-event pull sees freshly synced product IDs
+    db.product.revalidate();
     return latestUpdatedAt;
   });
 }

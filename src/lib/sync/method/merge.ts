@@ -22,6 +22,7 @@ export function merge(methods: MethodServer[]) {
       }
     }
     yield* Effect.all([insert(addMethods), update(updateMethods)], { concurrency: "unbounded" });
+    db.method.revalidate();
     return latestUpdatedAt;
   });
 }

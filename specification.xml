@@ -1113,5 +1113,140 @@
 
   <!-- TODO: Phase 10 — Cloud API Documentation still pending -->
 
-</specification>
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Unified Sync Refactor (planned)                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <sync_refactor status="planned">
+    <description>
+      Replace 3 separate per-entity sync buttons with 1 unified "Sinkronisasi"
+      button that runs all 5 entities sequentially: grave → product →
+      product-event → method → record. Each entity shows pull/push progress
+      with determinate progress bars.
+    </description>
+
+    <decisions>
+      <decision name="sync_order">
+        <order>grave → product → product-event → method → record</order>
+        <rationale>Product-event depends on product (needs product IDs for pull). Records depend on product + method (FK references). Grave runs first to process deletions before pulling fresh data.</rationale>
+      </decision>
+
+      <decision name="error_handling">
+        <strategy>Stop on first failure (short-circuit)</strategy>
+        <rationale>Dependency chain means downstream entities can't work correctly after an upstream failure. Show which entity broke and the error message.</rationale>
+      </decision>
+
+      <decision name="method_progress">
+        <strategy>Indeterminate spinner (no count endpoint)</strategy>
+        <rationale>Methods are small (~10 items), no batched pull needed. Show spinner during pull, count after.</rationale>
+      </decision>
+
+      <decision name="progress_phases">
+        <strategy>Two-phase per entity: Unduh (pull+merge) then Unggah (push)</strategy>
+        <rationale>Matches the sync protocol's actual two phases. Gives granular feedback.</rationale>
+      </decision>
+
+      <decision name="push_progress">
+        <strategy>Show unsync count upfront, spinner during POST, result count after</strategy>
+        <rationale>User knows how many items will be pushed. POST is a single request — no streaming progress.</rationale>
+      </decision>
+
+      <decision name="resync">
+        <strategy>Separate "Sinkronisasi Ulang" button: resets all 5 sync timestamps + marks all unsynced + revalidates caches, then runs full sync</strategy>
+        <rationale>One-click full resync. User intent is clear — no need for two-step reset-then-sync.</rationale>
+      </decision>
+
+      <decision name="ui_layout">
+        <strategy>Rows reveal sequentially as each entity starts (Option A). All 5 rows show "Menunggu..." initially, then activate one by one.</strategy>
+      </decision>
+
+      <decision name="summary">
+        <strategy>Compact per-entity table after all complete, showing ✓/✗ with Unduh/Unggah counts</strategy>
+      </decision>
+
+      <decision name="progress_bar">
+        <strategy>Determinate horizontal bar for pull (total from /count endpoint). Fraction displayed: "150/300".</strategy>
+      </decision>
+
+      <decision name="zero_items">
+        <strategy>Still show the row with "Unduh 0" → "Unggah 0" → ✓</strategy>
+        <rationale>Consistency — user expects all 5 entities to show result. The /count HTTP call is cheap.</rationale>
+      </decision>
+
+      <decision name="navigation_during_sync">
+        <strategy>Accept partial state on unmount (Option A). Effect fiber cancels, sync timestamps not updated — next sync will re-pull incomplete entities.</strategy>
+      </decision>
+
+      <decision name="concurrent_clicks">
+        <strategy>Disable button during sync (disabled + spinner)</strategy>
+        <rationale>Prevents double-submit. Clear feedback.</rationale>
+      </decision>
+
+      <decision name="product_cache_invalidation">
+        <strategy>Revalidate product cache after product merge</strategy>
+        <rationale>Product-event pull needs fresh product IDs from db.product.get.all(). Cache must reflect newly synced products.</rationale>
+      </decision>
+
+      <decision name="sync_token">
+        <strategy>Opaque server-side token with no expiry. User enters/saves token via form before sync button is enabled.</strategy>
+      </decision>
+    </decisions>
+
+    <ui_spec>
+      <button label="Sinkronisasi" disabled_during_sync="true" />
+      <button label="Sinkronisasi Ulang" action="reset+sync" variant="destructive" />
+      <token_form>
+        <description>Existing Form component (z-Form.tsx) — input + save button for sync token. On save, stores via store.sync.token.set() and revalidates page data.</description>
+      </token_form>
+      <rows>
+        <row entity="grave" label="Sampah" icon="Trash2">
+          <pull label="Unduh" progress="determinate" source="/api/grave/count/{ts}" />
+          <push label="Unggah" progress="count_only" />
+        </row>
+        <row entity="product" label="Produk" icon="Box">
+          <pull label="Unduh" progress="determinate" source="/api/product/count/{ts}" />
+          <push label="Unggah" progress="count_only" />
+        </row>
+        <row entity="product-event" label="Produk Event" icon="Box">
+          <pull label="Unduh" progress="determinate" source="/api/product-event/count/{ts}" />
+          <push label="Unggah" progress="count_only" />
+        </row>
+        <row entity="method" label="Metode" icon="CreditCard">
+          <pull label="Unduh" progress="indeterminate" />
+          <push label="Unggah" progress="count_only" />
+        </row>
+        <row entity="record" label="Riwayat" icon="ReceiptText">
+          <pull label="Unduh" progress="determinate" source="/api/record/count/{ts}" />
+          <push label="Unggah" progress="count_only" />
+        </row>
+      </rows>
+      <summary>
+        <description>After all 5 entities complete, rows collapse. Compact table shows per-entity ✓/✗ with Unduh/Unggah counts.</description>
+      </summary>
+    </ui_spec>
+  </sync_refactor>
+
+  <next_features>
+    <feature name="background_sync" status="planned">
+      <description>Detach sync as a background task. User can navigate away during sync; progress shown in topbar indicator. Return to sync page to see full progress.</description>
+    </feature>
+    <feature name="product_event_pull_batching" status="planned">
+      <description>Split product IDs into batches for product-event pull to reduce request payload size for stores with many products.</description>
+    </feature>
+    <feature name="full_grave_kind_sync" status="planned">
+      <description>Extend grave sync to cover all GraveKind values (customer, money_kind, money, social, image, extra, method) — currently only product and record are synced. Requires server-side changes.</description>
+    </feature>
+  </next_features>
+
+  <open_questions>
+    <item name="grave_kind_coverage" status="TODO">
+      <description>Server grave sync currently only handles 'product' and 'record' kinds. customer, money_kind, money, social, image, extra, method tombstone sync not yet implemented on server.</description>
+    </item>
+    <item name="product_event_indexing" status="TODO">
+      <description>Add indexing on product_events table for performance.</description>
+    </item>
+    <item name="summary_persistence" status="OPEN">
+      <description>After sync completes, should the summary persist across page navigation or be ephemeral? Decision pending — likely store last sync result in persistent state.</description>
+    </item>
+  </open_questions>
+
 </specification>
