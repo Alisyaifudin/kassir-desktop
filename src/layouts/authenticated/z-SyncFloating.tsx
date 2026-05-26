@@ -1,6 +1,6 @@
 import { useAtom } from "@xstate/store/react";
-import { useState, useEffect, useCallback } from "react";
-import { X, ChevronUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { Progress, ProgressIndeterminate } from "~/components/ui/progress";
@@ -35,27 +35,19 @@ export function SyncFloating() {
     }
   }, [phase]);
 
-  const handleDismiss = useCallback(() => {
-    setVisible(false);
-    setExpanded(false);
-  }, []);
-
   if (!visible) return null;
 
   return (
     <>
       {/* Overlay — only when expanded */}
       {expanded && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20"
-          onClick={() => setExpanded(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setExpanded(false)} />
       )}
 
       {/* Card */}
       <div
-        className={`fixed bottom-4 right-4 z-50 bg-card border rounded-2xl shadow-lg transition-all duration-200 ${
-          expanded ? "w-[420px] p-4" : "p-3 cursor-pointer hover:shadow-xl"
+        className={`fixed z-50 bg-card border rounded-2xl shadow-lg transition-all duration-200 ${
+          expanded ? "inset-x-4 bottom-4 p-6" : "bottom-4 right-4 p-3 cursor-pointer hover:shadow-xl"
         }`}
         onClick={() => !expanded && setExpanded(true)}
       >
@@ -65,7 +57,6 @@ export function SyncFloating() {
             result={result}
             globalError={globalError}
             onClose={() => setExpanded(false)}
-            onDismiss={handleDismiss}
           />
         ) : (
           <MinimalPill phase={phase} activeEntity={activeEntity} />
@@ -82,7 +73,11 @@ function MinimalPill({
   activeEntity,
 }: {
   phase: string;
-  activeEntity: { id: string; label: string; icon: React.ComponentType<{ className?: string }> } | null;
+  activeEntity: {
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  } | null;
 }) {
   if (phase === "syncing" && activeEntity) {
     const Icon = activeEntity.icon;
@@ -132,33 +127,34 @@ function ExpandedPanel({
   result,
   globalError,
   onClose,
-  onDismiss,
 }: {
   phase: string;
   result: SyncResult;
   globalError: string | null;
   onClose: () => void;
-  onDismiss: () => void;
 }) {
   const isRunning = phase === "syncing";
 
   return (
-    <div className="flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+    <div className="flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-normal font-bold">
-          {isRunning ? "Sinkronisasi..." : phase === "complete" ? "Selesai" : phase === "error" ? "Gagal" : "Dibatalkan"}
+          {isRunning
+            ? "Sinkronisasi..."
+            : phase === "complete"
+              ? "Selesai"
+              : phase === "error"
+                ? "Gagal"
+                : "Dibatalkan"}
         </h3>
         <div className="flex items-center gap-1">
           {isRunning && (
-            <Button size="sm" variant="outline" onClick={abortSync}>
+            <Button variant="outline" onClick={abortSync}>
               Batalkan
             </Button>
           )}
           <Button size="icon" variant="ghost" className="size-8" onClick={onClose}>
-            <ChevronUp className="size-4" />
-          </Button>
-          <Button size="icon" variant="ghost" className="size-8" onClick={onDismiss}>
             <X className="size-4" />
           </Button>
         </div>
@@ -171,14 +167,12 @@ function ExpandedPanel({
       )}
 
       {/* Entity rows */}
-      <ul className="flex flex-col divide-y rounded-lg border overflow-hidden">
+      <ul className="flex flex-col divide-y rounded-lg border overflow-auto">
         {Object.entries(result).map(([key, prog]) => {
           const entityId = key as keyof typeof result;
           const cfg = ENTITY_CONFIG.find((e) => e.id === entityId);
           if (!cfg) return null;
-          return (
-            <ExpandedRow key={key} label={cfg.label} icon={cfg.icon} progress={prog} />
-          );
+          return <ExpandedRow key={key} label={cfg.label} icon={cfg.icon} progress={prog} />;
         })}
       </ul>
     </div>
@@ -224,9 +218,9 @@ function ExpandedRow({
   };
 
   return (
-    <li className="flex items-start gap-2 px-3 py-2">
-      <Icon className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
-      <span className="text-small font-medium w-24 shrink-0">{label}</span>
+    <li className="flex items-start gap-3 px-4 py-3">
+      <Icon className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+      <span className="text-small font-medium w-28 shrink-0">{label}</span>
       <div className="flex-1 min-w-0">{statusContent()}</div>
     </li>
   );
@@ -238,11 +232,11 @@ function PullBar({ done, total }: { done: number; total: number }) {
   const hasTotal = total > 0;
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-muted-foreground text-small w-10 shrink-0">Unduh</span>
+      <span className="text-muted-foreground text-small shrink-0">Unduh</span>
       <div className="flex-1 min-w-0">
         {hasTotal ? <Progress value={done} max={total} /> : <ProgressIndeterminate />}
       </div>
-      <span className="text-muted-foreground text-small w-16 shrink-0 text-right tabular-nums">
+      <span className="text-muted-foreground text-small shrink-0 text-right tabular-nums">
         {hasTotal ? `${done}/${total}` : "..."}
       </span>
     </div>
@@ -252,7 +246,7 @@ function PullBar({ done, total }: { done: number; total: number }) {
 function PushBar({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-muted-foreground text-small w-10 shrink-0">Unggah</span>
+      <span className="text-muted-foreground text-small shrink-0">Unggah</span>
       <div className="flex-1 min-w-0">
         {total > 0 ? (
           <Progress value={done} max={total} />
@@ -260,7 +254,7 @@ function PushBar({ done, total }: { done: number; total: number }) {
           <div className="h-1.5 w-full rounded-full bg-muted/50" />
         )}
       </div>
-      <span className="text-muted-foreground text-small w-16 shrink-0 text-right tabular-nums">
+      <span className="text-muted-foreground text-small shrink-0 text-right tabular-nums">
         {total > 0 ? `${done}/${total}` : "..."}
       </span>
     </div>
