@@ -9,6 +9,17 @@ import { sync } from "~/lib/sync";
 import { db } from "~/database";
 import { store } from "~/store";
 import { log } from "~/lib/log";
+import {
+  RequestError,
+  ResponseError,
+  BodyError,
+  ZodSchemaError,
+  NotFound,
+} from "~/lib/effect-error";
+import { DbError } from "~/database/instance";
+import { StoreError } from "~/store/error";
+
+type SyncError = RequestError | ResponseError | BodyError | ZodSchemaError | NotFound | DbError | StoreError | string;
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -215,15 +226,35 @@ function runEntityLoop(
   });
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function errorMessage(e: SyncError): string {
+  if (typeof e === "string") return e;
+  switch (e._tag) {
+    case "DbError":
+    case "StoreError":
+      return e.e.message;
+    case "RequestError":
+      return String(e.error);
+    case "ResponseError":
+      return `HTTP ${e.response.status}`;
+    case "NotFound":
+      return e.msg;
+    case "BodyError":
+      return String(e.error);
+    case "ZodSchemaError":
+      return e.error.issues.map((i) => i.message).join("; ");
+  }
+}
+
 // ── Two-Phase Sync (pull loop → push) ───────────────────────────────────
 
 function runTwoPhase(
   entity: EntityId,
   token: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   module: {
-    pullBatch: (token: string) => Effect.Effect<{ server: number; total: number }, any>;
-    pushAll: (token: string) => Effect.Effect<number, any>;
+    pullBatch: (token: string) => Effect.Effect<{ server: number; total: number }, SyncError>;
+    pushAll: (token: string) => Effect.Effect<number, SyncError>;
   },
   initialUnsync: number,
   setResult: (fn: (prev: SyncResult) => SyncResult) => void,
@@ -236,15 +267,8 @@ function runTwoPhase(
       if (signal.aborted) return;
 
       const count = yield* module.pullBatch(token).pipe(
-        Effect.catchAll((e: unknown) => {
-          const msg =
-            typeof e === "string"
-              ? e
-              : String(
-                  (e as Record<string, unknown>)?.message ??
-                    (e as Record<string, unknown>)?.msg ??
-                    e,
-                );
+        Effect.catchAll((e: SyncError) => {
+          const msg = errorMessage(e);
           log.error(`[sync:${entity}] pull error: ${msg}`);
           setResult((prev) => ({
             ...prev,
@@ -300,15 +324,8 @@ function runTwoPhase(
       if (signal.aborted) return;
 
       const remaining = yield* module.pushAll(token).pipe(
-        Effect.catchAll((e: unknown) => {
-          const msg =
-            typeof e === "string"
-              ? e
-              : String(
-                  (e as Record<string, unknown>)?.message ??
-                    (e as Record<string, unknown>)?.msg ??
-                    e,
-                );
+        Effect.catchAll((e: SyncError) => {
+          const msg = errorMessage(e);
           log.error(`[sync:${entity}] push error: ${msg}`);
           setResult((prev) => ({
             ...prev,
@@ -419,10 +436,7 @@ export function UnifiedSync({ token }: { token: string }) {
       );
 
       if (res._tag === "Left") {
-        const msg =
-          typeof res.left === "string"
-            ? res.left
-            : String((res.left as Record<string, unknown>)?.e ?? res.left);
+        const msg = errorMessage(res.left as SyncError);
         log.error(`[sync:global] ${msg}`);
         setGlobalError(msg);
         setPhase("error");
