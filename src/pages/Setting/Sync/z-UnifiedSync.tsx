@@ -221,7 +221,10 @@ function runTwoPhase(
   entity: EntityId,
   token: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  module: { pullBatch: (token: string) => Effect.Effect<{ server: number; total: number }, any>; pushAll: (token: string) => Effect.Effect<number, any> },
+  module: {
+    pullBatch: (token: string) => Effect.Effect<{ server: number; total: number }, any>;
+    pushAll: (token: string) => Effect.Effect<number, any>;
+  },
   initialUnsync: number,
   setResult: (fn: (prev: SyncResult) => SyncResult) => void,
   signal: { aborted: boolean },
@@ -234,7 +237,14 @@ function runTwoPhase(
 
       const count = yield* module.pullBatch(token).pipe(
         Effect.catchAll((e: unknown) => {
-          const msg = typeof e === "string" ? e : String((e as Record<string, unknown>)?.message ?? (e as Record<string, unknown>)?.msg ?? e);
+          const msg =
+            typeof e === "string"
+              ? e
+              : String(
+                  (e as Record<string, unknown>)?.message ??
+                    (e as Record<string, unknown>)?.msg ??
+                    e,
+                );
           log.error(`[sync:${entity}] pull error: ${msg}`);
           setResult((prev) => ({
             ...prev,
@@ -263,7 +273,20 @@ function runTwoPhase(
         };
       });
 
-      if (count.server === 0) break;
+      if (count.server === 0) {
+        // No more events returned — adjust total to actual pulled count
+        setResult((prev) => {
+          const cur = prev[entity];
+          return {
+            ...prev,
+            [entity]: {
+              ...cur,
+              pullTotal: cur.pullDone,
+            },
+          };
+        });
+        break;
+      }
     }
 
     if (signal.aborted) return;
@@ -291,7 +314,14 @@ function runTwoPhase(
 
       const remaining = yield* module.pushAll(token).pipe(
         Effect.catchAll((e: unknown) => {
-          const msg = typeof e === "string" ? e : String((e as Record<string, unknown>)?.message ?? (e as Record<string, unknown>)?.msg ?? e);
+          const msg =
+            typeof e === "string"
+              ? e
+              : String(
+                  (e as Record<string, unknown>)?.message ??
+                    (e as Record<string, unknown>)?.msg ??
+                    e,
+                );
           log.error(`[sync:${entity}] push error: ${msg}`);
           setResult((prev) => ({
             ...prev,
@@ -387,9 +417,7 @@ export function UnifiedSync({ token }: { token: string }) {
       setGlobalError(null);
 
       if (resync) {
-        const resetResult = await Effect.runPromise(
-          programResync(setResult).pipe(Effect.either),
-        );
+        const resetResult = await Effect.runPromise(programResync(setResult).pipe(Effect.either));
         if (resetResult._tag === "Left") {
           setGlobalError(resetResult.left);
           setPhase("error");
@@ -404,7 +432,10 @@ export function UnifiedSync({ token }: { token: string }) {
       );
 
       if (res._tag === "Left") {
-        const msg = typeof res.left === "string" ? res.left : String((res.left as Record<string, unknown>)?.e ?? res.left);
+        const msg =
+          typeof res.left === "string"
+            ? res.left
+            : String((res.left as Record<string, unknown>)?.e ?? res.left);
         log.error(`[sync:global] ${msg}`);
         setGlobalError(msg);
         setPhase("error");
@@ -521,11 +552,11 @@ function PullBar({ done, total }: { done: number; total: number }) {
   const hasTotal = total > 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="text-small text-muted-foreground w-12 shrink-0">Unduh</span>
+      <span className="text-small text-muted-foreground  shrink-0">Unduh</span>
       <div className="flex-1 min-w-0">
         {hasTotal ? <Progress value={done} max={total} /> : <ProgressIndeterminate />}
       </div>
-      <span className="text-small text-muted-foreground w-20 shrink-0 text-right tabular-nums">
+      <span className="text-small text-muted-foreground  shrink-0 text-right tabular-nums">
         {hasTotal ? `${done}/${total}` : "..."}
       </span>
     </div>
@@ -537,7 +568,7 @@ function PullBar({ done, total }: { done: number; total: number }) {
 function PushBar({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-small text-muted-foreground w-12 shrink-0">Unggah</span>
+      <span className="text-small text-muted-foreground shrink-0">Unggah</span>
       <div className="flex-1 min-w-0">
         {total > 0 ? (
           <Progress value={done} max={total} />
@@ -545,7 +576,7 @@ function PushBar({ done, total }: { done: number; total: number }) {
           <div className="h-2 w-full rounded-full bg-muted/50" />
         )}
       </div>
-      <span className="text-small text-muted-foreground w-20 shrink-0 text-right tabular-nums">
+      <span className="text-small text-muted-foreground shrink-0 text-right tabular-nums">
         {total > 0 ? `${done}/${total}` : "..."}
       </span>
     </div>
