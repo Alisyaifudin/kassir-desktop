@@ -19,11 +19,11 @@ interface EntityProgress {
   status: EntityStatus;
   /** Cumulative items downloaded across all iterations */
   pullDone: number;
-  /** Total items to pull (locked on first non-zero value from /count) */
+  /** Total items to pull (locked on first non-zero /count response) */
   pullTotal: number;
-  /** Current iteration's unsync count */
-  pushCount: number;
-  /** Total unsync items (accumulated across iterations, for display) */
+  /** Items pushed so far (cumulative: initialUnsync - currentRemaining) */
+  pushDone: number;
+  /** Total items to push (locked on first sync call: initial countUnsync) */
   pushTotal: number;
   error: string | null;
 }
@@ -45,7 +45,7 @@ const ENTITY_CONFIG: { id: EntityId; label: string; icon: LucideIcon; order: num
 ];
 
 function initialProgress(): EntityProgress {
-  return { status: "waiting", pullDone: 0, pullTotal: 0, pushCount: 0, pushTotal: 0, error: null };
+  return { status: "waiting", pullDone: 0, pullTotal: 0, pushDone: 0, pushTotal: 0, error: null };
 }
 
 function initialResult(): SyncResult {
@@ -56,6 +56,26 @@ function initialResult(): SyncResult {
     method: initialProgress(),
     record: initialProgress(),
   };
+}
+
+// ── Count Unsync Helpers ─────────────────────────────────────────────────
+
+function getUnsyncCount(entity: EntityId) {
+  switch (entity) {
+    case "grave":
+      return Effect.gen(function* () {
+        const entries = yield* db.grave.get.all();
+        return entries.length;
+      });
+    case "product":
+      return db.product.get.countUnsync();
+    case "product-event":
+      return db.productEvent.get.countUnsync();
+    case "method":
+      return db.method.get.unsync().pipe(Effect.map((m) => m.length));
+    case "record":
+      return db.record.count.unsync();
+  }
 }
 
 // ── Sync Program ─────────────────────────────────────────────────────────
@@ -69,31 +89,48 @@ function programFullSync(
 ) {
   return Effect.gen(function* () {
     // ── Grave ──────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, grave: { ...prev.grave, status: "syncing" } }));
-    yield* runEntityLoop("grave", token, sync.grave, setResult, signal);
+    const gravePushTotal = yield* getUnsyncCount("grave");
+    setResult((prev) => ({
+      ...prev,
+      grave: { ...prev.grave, status: "syncing", pushTotal: gravePushTotal },
+    }));
+    yield* runEntityLoop("grave", token, sync.grave, gravePushTotal, setResult, signal);
     if (signal.aborted) return;
 
     // ── Product ────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, product: { ...prev.product, status: "syncing" } }));
-    yield* runEntityLoop("product", token, sync.product, setResult, signal);
+    const productPushTotal = yield* getUnsyncCount("product");
+    setResult((prev) => ({
+      ...prev,
+      product: { ...prev.product, status: "syncing", pushTotal: productPushTotal },
+    }));
+    yield* runEntityLoop("product", token, sync.product, productPushTotal, setResult, signal);
     if (signal.aborted) return;
 
     // ── Product Event ──────────────────────────────────────────────
+    const pePushTotal = yield* getUnsyncCount("product-event");
     setResult((prev) => ({
       ...prev,
-      "product-event": { ...prev["product-event"], status: "syncing" },
+      "product-event": { ...prev["product-event"], status: "syncing", pushTotal: pePushTotal },
     }));
-    yield* runEntityLoop("product-event", token, sync.productEvent, setResult, signal);
+    yield* runEntityLoop("product-event", token, sync.productEvent, pePushTotal, setResult, signal);
     if (signal.aborted) return;
 
     // ── Method ─────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, method: { ...prev.method, status: "syncing" } }));
-    yield* runEntityLoop("method", token, sync.method, setResult, signal);
+    const methodPushTotal = yield* getUnsyncCount("method");
+    setResult((prev) => ({
+      ...prev,
+      method: { ...prev.method, status: "syncing", pushTotal: methodPushTotal },
+    }));
+    yield* runEntityLoop("method", token, sync.method, methodPushTotal, setResult, signal);
     if (signal.aborted) return;
 
     // ── Record ─────────────────────────────────────────────────────
-    setResult((prev) => ({ ...prev, record: { ...prev.record, status: "syncing" } }));
-    yield* runEntityLoop("record", token, sync.record, setResult, signal);
+    const recordPushTotal = yield* getUnsyncCount("record");
+    setResult((prev) => ({
+      ...prev,
+      record: { ...prev.record, status: "syncing", pushTotal: recordPushTotal },
+    }));
+    yield* runEntityLoop("record", token, sync.record, recordPushTotal, setResult, signal);
   });
 }
 
@@ -104,12 +141,14 @@ function runEntityLoop(
     token: string,
     stop: { pull: boolean; push: boolean },
   ) => Effect.Effect<{ unsync: number; server: number; total: number }, string>,
+  /** Total unsync items before sync starts (locked, for push progress bar) */
+  initialUnsync: number,
   setResult: (fn: (prev: SyncResult) => SyncResult) => void,
   signal: { aborted: boolean },
 ) {
   return Effect.gen(function* () {
     const stop = { pull: false, push: false };
-    let lockedTotal: number | null = null;
+    let lockedPullTotal: number | null = null;
 
     for (let i = 0; i < LOOP_LIMIT; i++) {
       if (signal.aborted) return;
@@ -126,9 +165,9 @@ function runEntityLoop(
 
       if (signal.aborted) return;
 
-      // Lock total on first non-zero value — never overwrite it again
-      if (lockedTotal === null && count.total > 0) {
-        lockedTotal = count.total;
+      // Lock pull total on first non-zero value — never overwrite
+      if (lockedPullTotal === null && count.total > 0) {
+        lockedPullTotal = count.total;
       }
 
       stop.pull = count.server === 0;
@@ -144,27 +183,30 @@ function runEntityLoop(
               ...cur,
               status: "done",
               pullDone: cur.pullDone,
-              pullTotal: lockedTotal ?? cur.pullTotal,
-              pushCount: 0,
-              pushTotal: cur.pushTotal,
+              pullTotal: lockedPullTotal ?? cur.pullTotal,
+              pushDone: initialUnsync,
+              pushTotal: initialUnsync,
             },
           };
         });
         break;
       }
 
-      // Update progress: accumulate pull done, show current push count
+      // Update progress:
+      //   pullDone = cumulative server items
+      //   pushDone = initialUnsync - remaining (so the bar fills as remaining decreases)
       setResult((prev) => {
         const cur = prev[entity];
+        const pushDone = Math.max(0, initialUnsync - count.unsync);
         return {
           ...prev,
           [entity]: {
             ...cur,
             status: "syncing",
             pullDone: cur.pullDone + count.server,
-            pullTotal: lockedTotal ?? 0,
-            pushCount: count.unsync,
-            pushTotal: count.unsync > 0 ? cur.pushTotal + count.unsync : cur.pushTotal,
+            pullTotal: lockedPullTotal ?? 0,
+            pushDone,
+            pushTotal: initialUnsync,
           },
         };
       });
@@ -198,8 +240,9 @@ function programResync(setResult: (fn: (prev: SyncResult) => SyncResult) => void
     );
   }).pipe(
     Effect.catchAll((e) => {
-      log.error(e.e ?? e);
-      return Effect.fail(e.e?.message ?? String(e));
+      const msg = e instanceof Error ? e.message : String(e?.e ?? e);
+      log.error(msg);
+      return Effect.fail(msg);
     }),
   );
 }
@@ -238,7 +281,8 @@ export function UnifiedSync({ token }: { token: string }) {
       );
 
       if (res._tag === "Left") {
-        setGlobalError(res.left);
+        const msg = typeof res.left === "string" ? res.left : res.left.e?.message ?? "Unknown error";
+        setGlobalError(msg);
         setPhase("error");
       } else {
         setPhase("complete");
@@ -253,7 +297,6 @@ export function UnifiedSync({ token }: { token: string }) {
   const isRunning = phase === "syncing";
   const isDone = phase === "complete" || phase === "error";
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       signalRef.current.aborted = true;
@@ -280,7 +323,7 @@ export function UnifiedSync({ token }: { token: string }) {
 
       {globalError && <TextError>{globalError}</TextError>}
 
-      {/* Entity rows — visible during sync and after */}
+      {/* Entity rows */}
       {(isRunning || isDone) && (
         <ul className="flex flex-col divide-y rounded-xl border overflow-hidden">
           {ENTITY_CONFIG.map(({ id, label, icon: Icon }) => (
@@ -289,7 +332,7 @@ export function UnifiedSync({ token }: { token: string }) {
         </ul>
       )}
 
-      {/* Summary — after all complete */}
+      {/* Summary */}
       {isDone && <SyncSummary result={result} />}
     </div>
   );
@@ -306,33 +349,25 @@ function EntityRow({
   icon: LucideIcon;
   progress: EntityProgress;
 }) {
-  const { status, pullDone, pullTotal, pushCount, error } = progress;
+  const { status, pullDone, pullTotal, pushDone, pushTotal, error } = progress;
 
   const statusContent = () => {
     switch (status) {
       case "waiting":
         return <span className="text-muted-foreground text-small">Menunggu...</span>;
-      case "syncing": {
-        const hasPull = pullTotal > 0;
-        const pullFraction = hasPull ? `${pullDone}/${pullTotal}` : null;
+      case "syncing":
         return (
           <div className="flex flex-col gap-1 flex-1 min-w-0">
-            <div className="flex items-center gap-2 text-small text-muted-foreground">
-              <span>Unduh {pullFraction ?? "..."}</span>
-              {pushCount > 0 && <span>· Unggah {pushCount}</span>}
-            </div>
-            {hasPull ? (
-              <Progress value={pullDone} max={pullTotal} />
-            ) : (
-              <ProgressIndeterminate />
-            )}
+            {/* Pull bar */}
+            <PullBar done={pullDone} total={pullTotal} />
+            {/* Push bar */}
+            <PushBar done={pushDone} total={pushTotal} />
           </div>
         );
-      }
       case "done":
         return (
           <span className="text-small text-emerald-600 font-medium">
-            ✓ Unduh {pullDone}{pushCount > 0 ? `, Unggah ${pushCount}` : ""}
+            ✓ Unduh {pullDone}, Unggah {pushTotal}
           </span>
         );
       case "error":
@@ -348,11 +383,48 @@ function EntityRow({
   };
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-      <Icon className="size-4 text-muted-foreground shrink-0" />
-      <span className="text-normal font-medium w-32 shrink-0">{label}</span>
+    <li className="flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+      <Icon className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+      <span className="text-normal font-medium w-28 shrink-0 leading-6">{label}</span>
       <div className="flex-1 min-w-0">{statusContent()}</div>
     </li>
+  );
+}
+
+// ── Pull Bar ─────────────────────────────────────────────────────────────
+
+function PullBar({ done, total }: { done: number; total: number }) {
+  const hasTotal = total > 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-small text-muted-foreground w-12 shrink-0">Unduh</span>
+      <div className="flex-1 min-w-0">
+        {hasTotal ? <Progress value={done} max={total} /> : <ProgressIndeterminate />}
+      </div>
+      <span className="text-small text-muted-foreground w-20 shrink-0 text-right tabular-nums">
+        {hasTotal ? `${done}/${total}` : "..."}
+      </span>
+    </div>
+  );
+}
+
+// ── Push Bar ─────────────────────────────────────────────────────────────
+
+function PushBar({ done, total }: { done: number; total: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-small text-muted-foreground w-12 shrink-0">Unggah</span>
+      <div className="flex-1 min-w-0">
+        {total > 0 ? (
+          <Progress value={done} max={total} />
+        ) : (
+          <div className="h-2 w-full rounded-full bg-muted/50" />
+        )}
+      </div>
+      <span className="text-small text-muted-foreground w-20 shrink-0 text-right tabular-nums">
+        {total > 0 ? `${done}/${total}` : "..."}
+      </span>
+    </div>
   );
 }
 
