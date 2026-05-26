@@ -14,7 +14,9 @@ export function pullBatch(token: string) {
       { concurrency: "unbounded" },
     );
     if (events.length === 0) {
-      return { server: 0, total: totalRes.count };
+      // No more events — advance timestamp to now so next pull gets 0
+      yield* store.sync.productEvent.pullAt.set(Date.now());
+      return { server: 0, total: 0 };
     }
     const latest = yield* merge(events);
     yield* store.sync.productEvent.pullAt.set(latest);

@@ -273,20 +273,7 @@ function runTwoPhase(
         };
       });
 
-      if (count.server === 0) {
-        // No more events returned — adjust total to actual pulled count
-        setResult((prev) => {
-          const cur = prev[entity];
-          return {
-            ...prev,
-            [entity]: {
-              ...cur,
-              pullTotal: cur.pullDone,
-            },
-          };
-        });
-        break;
-      }
+      if (count.server === 0) break;
     }
 
     if (signal.aborted) return;
