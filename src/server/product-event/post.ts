@@ -13,6 +13,7 @@ export function post(events: ProductEvent[], token: string) {
     method: "POST",
     body: JSON.stringify(events),
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   });

@@ -13,6 +13,7 @@ export function post(methods: MethodServer[], token: string) {
     method: "POST",
     body: JSON.stringify(methods),
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   });

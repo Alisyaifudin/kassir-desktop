@@ -13,6 +13,7 @@ export function post(records: RecordServer[], token: string) {
     method: "POST",
     body: JSON.stringify(records),
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   });
