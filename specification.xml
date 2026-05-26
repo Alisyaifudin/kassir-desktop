@@ -1226,8 +1226,21 @@
   </sync_refactor>
 
   <next_features>
-    <feature name="background_sync" status="planned">
-      <description>Detach sync as a background task. User can navigate away during sync; progress shown in topbar indicator. Return to sync page to see full progress.</description>
+    <feature name="background_sync" status="in_progress">
+      <description>
+        Detach sync from settings page into a floating UI at the AuthLayout level.
+        Sync state lives in @xstate/store atom, survives all route changes.
+        Floating pill in bottom-right corner shows current entity/phase.
+        Click to expand into overlay card with full progress bars.
+      </description>
+      <decisions>
+        <decision name="state">@xstate/store atom (module-level), survives route changes</decision>
+        <decision name="trigger">Settings page calls shared sync program function directly, atom updates reactively</decision>
+        <decision name="floating_pill">Bottom-right corner, fixed position. Minimal: shows current entity + phase. Hidden when idle.</decision>
+        <decision name="expanded_panel">Overlay card on click, shows full progress bars + result. Dismiss on click-outside/Escape.</decision>
+        <decision name="idle_behavior">Success auto-dismisses after 5s. Error stays until clicked. Syncing stays until done/aborted.</decision>
+        <decision name="concurrency">Trust SQLite serialization. No conflict prevention needed at desktop scale.</decision>
+      </decisions>
     </feature>
     <feature name="product_event_pull_batching" status="planned">
       <description>Split product IDs into batches for product-event pull to reduce request payload size for stores with many products.</description>
@@ -1243,9 +1256,6 @@
     </item>
     <item name="product_event_indexing" status="TODO">
       <description>Add indexing on product_events table for performance.</description>
-    </item>
-    <item name="summary_persistence" status="OPEN">
-      <description>After sync completes, should the summary persist across page navigation or be ephemeral? Decision pending — likely store last sync result in persistent state.</description>
     </item>
   </open_questions>
 
