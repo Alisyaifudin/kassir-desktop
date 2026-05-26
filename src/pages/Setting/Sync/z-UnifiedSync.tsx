@@ -435,6 +435,9 @@ export function UnifiedSync({ token }: { token: string }) {
 
   const handleSync = useCallback(() => runSync(false), [runSync]);
   const handleResync = useCallback(() => runSync(true), [runSync]);
+  const handleAbort = useCallback(() => {
+    signalRef.current.aborted = true;
+  }, []);
 
   const isRunning = phase === "syncing";
   const isDone = phase === "complete" || phase === "error";
@@ -461,6 +464,11 @@ export function UnifiedSync({ token }: { token: string }) {
         >
           Sinkronisasi Ulang
         </Button>
+        {isRunning && (
+          <Button onClick={handleAbort} variant="outline">
+            Batalkan
+          </Button>
+        )}
       </div>
 
       {globalError && <TextError>{globalError}</TextError>}
