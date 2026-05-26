@@ -18,26 +18,21 @@ export function productEvent(
     let upto = Date.now();
     let serverCount = 0;
     let total = 0;
-    console.log(`[pe:sync] ENTER stop.pull=${stop.pull} stop.push=${stop.push}`);
     if (!stop.pull) {
       const { items: events, total: t } = yield* pull(token);
       upto = yield* merge(events);
       serverCount = events.length;
       total = t;
-      console.log(`[pe:sync] PULL done server=${serverCount} total=${total} upto=${upto}`);
     }
     let unsyncCount = 0;
 
     if (!stop.push || !stop.pull) {
       unsyncCount = yield* push(token, upto);
-      console.log(`[pe:sync] PUSH done unsync=${unsyncCount}`);
     }
     yield* store.sync.productEvent.set(upto);
-    console.log(`[pe:sync] RETURN server=${serverCount} total=${total} unsync=${unsyncCount}`);
     return { unsync: unsyncCount, server: serverCount, total };
   }).pipe(
     Effect.catchAll((e) => {
-      console.error(`[pe:sync] ERROR _tag=${e._tag}`, e);
       switch (e._tag) {
         case "NotFound":
           log.error(`[sync:product-event] Not found: ${e.msg}`);
