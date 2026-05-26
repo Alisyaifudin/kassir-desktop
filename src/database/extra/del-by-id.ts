@@ -1,16 +1,25 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getCache, setCache } from "./caches";
-import { getDB } from "../instance";
+import { cache } from "./cache";
+import { DB } from "../instance";
+import { Effect, pipe } from "effect";
+import { generateId } from "~/lib/random";
 
-export async function delById(id: number): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () => db.execute("DELETE FROM extras WHERE extra_id = $1", [id]),
-  });
-  if (errMsg !== null) return errMsg;
-  const cache = getCache();
-  if (cache !== null) {
-    setCache((prev) => prev.filter((p) => p.id !== id));
-  }
-  return null;
+export function delById(id: string) {
+  const graveId = generateId();
+  const now = Date.now();
+  return pipe(
+    DB.try((db) =>
+      db.execute(
+        `BEGIN;
+         DELETE FROM extras WHERE extra_id = $1;
+         INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
+         VALUES ($1, $2, 'extra', $3);
+         COMMIT;`,
+        [id, graveId, now],
+      ),
+    ),
+    Effect.tap(() => {
+      cache.delete(id);
+    }),
+    Effect.asVoid,
+  );
 }

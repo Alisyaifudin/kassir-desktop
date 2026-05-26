@@ -1,16 +1,22 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
-export type Cashier = {
+export type CashierWithoutHash = {
   name: string;
   role: DB.Role;
+  id: string;
 };
 
-export async function all(): Promise<Result<DefaultError, Cashier[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () => db.select<DB.Cashier[]>("SELECT cashier_name, cashier_role FROM cashiers"),
+export function all() {
+  return Effect.gen(function* () {
+    const res = yield* DB.try((db) =>
+      db.select<DB.Cashier[]>("SELECT cashier_name, cashier_role, cashier_id FROM cashiers"),
+    );
+    const data: CashierWithoutHash[] = res.map((r) => ({
+      name: r.cashier_name,
+      role: r.cashier_role,
+      id: r.cashier_id,
+    }));
+    return data;
   });
-  if (errMsg) return err(errMsg);
-  return ok(res.map((r) => ({ name: r.cashier_name, role: r.cashier_role })));
 }

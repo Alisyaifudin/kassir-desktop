@@ -1,15 +1,16 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { loader } from "./loader";
-import { action } from "./action";
 import { admin } from "~/middleware/admin";
+import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
-	Component: Page,
-	middleware: [admin],
-	path: "log",
-	loader,
-	action
+export const logRoute: RouteObject = {
+  Component: () => (
+    <Suspense fallback={<Loading />}>
+      <Page />
+    </Suspense>
+  ),
+  middleware: [admin],
+  path: "log",
 };

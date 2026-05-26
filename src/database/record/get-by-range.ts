@@ -1,8 +1,8 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
 export type Record = {
-  timestamp: number;
+  id: string;
   paidAt: number;
   rounding: number;
   isCredit: boolean;
@@ -11,7 +11,7 @@ export type Record = {
   pay: number;
   note: string;
   method: {
-    id: number;
+    id: string;
     name?: string;
     kind: DB.MethodEnum;
   };
@@ -20,37 +20,32 @@ export type Record = {
     name: string;
     phone: string;
   };
-  subTotal: number;
+  subtotal: number;
   total: number;
 };
 
-export async function getByRange(
-  start: number,
-  end: number
-): Promise<Result<DefaultError, Record[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult<
-    (DB.Record & { method_name: string | null; method_kind: DB.MethodEnum })[]
-  >({
-    run: () =>
-      db.select(
-        `SELECT timestamp, record_paid_at, record_rounding, record_is_credit, record_cashier,
-      record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone,
-      record_sub_total, record_total, methods.method_id, method_name, method_kind 
-      FROM records INNER JOIN methods ON records.method_id = methods.method_id
-      WHERE timestamp BETWEEN $1 AND $2`,
-        [start, end]
+type Output = DB.Record & { method_name: string | null; method_kind: DB.MethodEnum };
+
+export function getByRange(start: number, end: number) {
+  return Effect.gen(function* () {
+    const res = yield* DB.try((db) =>
+      db.select<Output[]>(
+        `SELECT record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
+        record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone,
+        record_sub_total, record_total, methods.method_id, method_name, method_kind 
+        FROM records INNER JOIN methods ON records.method_id = methods.method_id
+        WHERE record_paid_at BETWEEN $1 AND $2
+        ORDER BY record_paid_at`,
+        [start, end],
       ),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
+    );
+    const data: Record[] = res.map((r) => ({
       customer: {
         name: r.record_customer_name,
         phone: r.record_customer_phone,
       },
       cashier: r.record_cashier,
-      fix: r.record_fix,
+      fix: isNaN(r.record_fix) || r.record_fix < 0 || r.record_fix > 5 ? 0 : r.record_fix,
       isCredit: Boolean(r.record_is_credit),
       method: {
         id: r.method_id,
@@ -62,9 +57,10 @@ export async function getByRange(
       paidAt: r.record_paid_at,
       pay: r.record_pay,
       rounding: r.record_rounding,
-      subTotal: r.record_sub_total,
-      timestamp: r.timestamp,
+      subtotal: r.record_sub_total,
+      id: r.record_id,
       total: r.record_total,
-    }))
-  );
+    }));
+    return data;
+  });
 }

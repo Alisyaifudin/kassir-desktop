@@ -1,0 +1,8 @@
+{
+  "label": "Manajemen",
+  "position": 7,
+  "link": {
+    "type": "generated-index",
+    "description": "Halaman manajemen (admin only): Kasir, Pelanggan, Metode Pembayaran, Kontak."
+  }
+}

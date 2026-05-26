@@ -1,26 +1,60 @@
 import { createAtom } from "@xstate/store";
 import { useAtom } from "@xstate/store/react";
-import { use, useEffect, useState } from "react";
-import { Result } from "~/lib/utils";
 import { Transaction } from "~/transaction/transaction/get-by-tab";
+import { productsStore } from "./store/product";
+import { extrasStore } from "./store/extra";
+import { tx } from "~/transaction";
+import { produce, immerable } from "immer";
+import { queue } from "./util-queue";
+
+class Numeric {
+  [immerable] = true;
+  num: number;
+  private _str: string;
+  constructor(
+    init: string,
+    private nonNegative: boolean = false,
+  ) {
+    const num = Number(init);
+    if (isNaN(num) || !isFinite(num)) {
+      this.num = 0;
+      this._str = "";
+    } else {
+      this.num = num;
+      this._str = init;
+    }
+  }
+  set str(value: string) {
+    const num = Number(value);
+    if (isNaN(num) || !isFinite(num) || num > 1e9) return;
+    if (this.nonNegative && num < 0) return;
+    this._str = value;
+    this.num = num;
+  }
+  get str() {
+    return this._str;
+  }
+}
 
 export const basicStore = createAtom<{
   fix: number;
   mode: TX.Mode;
-  rounding: number;
+  rounding: Numeric;
   query: string;
-  methodId: number;
+  pay: Numeric;
+  methodId: string;
   note: string;
 }>({
   fix: 0,
-  rounding: 0,
+  rounding: new Numeric(""),
+  pay: new Numeric("", true),
   mode: "sell",
   query: "",
-  methodId: 1000, //cash
+  methodId: "1000", //cash
   note: "",
 });
 
-export const customerStore = createAtom<{ name: string; phone: string; id?: number }>({
+export const customerStore = createAtom<{ name: string; phone: string; id?: string }>({
   name: "",
   phone: "",
   id: undefined,
@@ -31,39 +65,78 @@ export const manualStore = createAtom({
     name: "",
     barcode: "",
     price: 0,
-    stock: 0,
+    priceStr: "",
     qty: 0,
+    qtyStr: "",
   },
   extra: {
     name: "",
     value: 0,
+    valueStr: "",
     kind: "percent" as "percent" | "number",
-    saved: false,
   },
 });
 
-export function useInitTx(
-  promise: Promise<Result<"Aplikasi bermasalah" | "Tidak ditemukan", Transaction>>
-) {
-  const [loading, setLoading] = useState(true);
-  const [error, transaction] = use(promise);
-  useEffect(() => {
-    if (transaction === null) return;
-    const { customer, product, extra, ...basic } = transaction;
-    basicStore.set({ ...basic, rounding: 0 });
-    customerStore.set(customer);
-    const stock = Math.max(product.stock, product.qty);
-    manualStore.set({
-      product: { ...product, stock },
-      extra,
-    });
-    setLoading(false);
-  }, [transaction]);
-  useEffect(() => {
-    basicStore.set((prev) => ({ ...prev }));
-  }, []);
+export function initStore({
+  fix,
+  methodId,
+  mode,
+  query,
+  note,
+  customer,
+  extra,
+  product,
+}: Transaction) {
+  basicStore.set({
+    fix,
+    methodId,
+    mode,
+    note,
+    query,
+    pay: new Numeric("", true),
+    rounding: new Numeric(""),
+  });
+  customerStore.set(customer);
+  manualStore.set({
+    extra: { ...extra, valueStr: extra.value === 0 ? "" : extra.value.toString() },
+    product: {
+      ...product,
+      qtyStr: product.qty === 0 ? "" : product.qty.toString(),
+      priceStr: product.price === 0 ? "" : product.price.toString(),
+    },
+  });
+}
 
-  return [error, loading] as const;
+export function resetStore(tab: number) {
+  basicStore.set({
+    fix: 0,
+    methodId: "1000",
+    mode: "sell",
+    note: "",
+    query: "",
+    pay: new Numeric("", true),
+    rounding: new Numeric(""),
+  });
+  customerStore.set({ name: "", phone: "" });
+  manualStore.set({
+    product: {
+      name: "",
+      barcode: "",
+      price: 0,
+      priceStr: "",
+      qty: 0,
+      qtyStr: "",
+    },
+    extra: {
+      name: "",
+      value: 0,
+      valueStr: "",
+      kind: "percent" as "percent" | "number",
+    },
+  });
+  productsStore.trigger.clear();
+  extrasStore.trigger.clear();
+  queue.add(tx.clear(tab));
 }
 
 export function useFix() {
@@ -76,4 +149,25 @@ export function useMode() {
 
 export function useRounding() {
   return useAtom(basicStore, (state) => state.rounding);
+}
+
+export function setRounding(val: string) {
+  basicStore.set(
+    produce((r) => {
+      r.rounding.str = val;
+    }),
+  );
+}
+
+export function usePay() {
+  const pay = useAtom(basicStore, (state) => state.pay);
+  return { num: pay.num, str: pay.str };
+}
+
+export function setPay(val: string) {
+  basicStore.set(
+    produce((r) => {
+      r.pay.str = val;
+    }),
+  );
 }

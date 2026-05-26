@@ -1,7 +1,7 @@
 import { add } from "./add";
 import { del } from "./del";
 import { all } from "./get-all";
-import { byName } from "./get-by-name";
+import { byId } from "./get-by-id";
 import { updateHash } from "./update-hash";
 import { updateName } from "./update-name";
 import { updateRole } from "./update-role";
@@ -9,7 +9,7 @@ import { updateRole } from "./update-role";
 export const cashier = {
   get: {
     all,
-    byName,
+    byId,
   },
   add,
   update: {

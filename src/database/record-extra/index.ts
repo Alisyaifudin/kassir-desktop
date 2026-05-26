@@ -1,11 +1,11 @@
-import { add } from "./add";
 import { getByRange } from "./get-by-range";
-import { getByTimestamp } from "./get-by-timestamp";
+import { getByRecordId } from "./get-by-record-id";
+import { getByRecordIds } from "./get-by-record-ids";
 
 export const recordExtra = {
   get: {
     byRange: getByRange,
-    byTimestamp: getByTimestamp,
+    ByRecordId: getByRecordId,
+    byRecordIds: getByRecordIds
   },
-  add,
 };

@@ -25,3 +25,9 @@ dist-ssr
 
 .tauri
 .secrets
+.env.local
+.env.*.local
+.env-old
+.env.old
+.secret
+pi-session*

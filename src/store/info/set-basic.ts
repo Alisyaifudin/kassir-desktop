@@ -1,7 +1,7 @@
-import { DefaultError, tryResult } from "~/lib/utils";
+import { Effect } from "effect";
 import { getStore } from "../instance";
 
-export async function setBasic({
+export function setBasic({
   address,
   header,
   footer,
@@ -11,16 +11,17 @@ export async function setBasic({
   header: string;
   footer: string;
   owner: string;
-}): Promise<DefaultError | null> {
-  const store = await getStore();
-  const [errMsg] = await tryResult({
-    run: () =>
-      Promise.all([
+}) {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    yield* Effect.all(
+      [
         store.set("address", address),
         store.set("header", header),
         store.set("footer", footer),
         store.set("owner", owner),
-      ]),
+      ],
+      { concurrency: "unbounded" },
+    );
   });
-  return errMsg;
 }

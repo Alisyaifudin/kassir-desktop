@@ -1,27 +1,39 @@
-import Fuse, { IFuseOptions } from "fuse.js";
-import { useCallback, useMemo } from "react";
-import { Product } from "~/database/product/caches";
+import { useMemo } from "react";
+import { Product } from "~/database/product/cache";
+import createFuzzySearch from "@nozbe/microfuzz";
 
 export const useProductSearch = (products: Product[]) => {
-  const fuse = useMemo(() => {
-    const options: IFuseOptions<Product> = {
-      keys: ["name", "barcode"],
-      distance: 10,
-      includeScore: true,
-      includeMatches: true,
-      threshold: 0.2,
-      minMatchCharLength: 1,
-    };
-    return new Fuse<Product>(products, options);
+  const [fuzzyName, fuzzyBarcode] = useMemo(() => {
+    const fuzzyName = createFuzzySearch(products, {
+      key: "name",
+      strategy: "smart",
+    });
+    const fuzzyBarcode = createFuzzySearch(products, {
+      key: "barcode",
+      strategy: "smart",
+    });
+    return [fuzzyName, fuzzyBarcode] as const;
   }, [products]);
 
   // Typed search function
-  const search = useCallback(
-    (query: string) => {
-      return fuse.search(query).map((p) => p.item);
-    },
-    [products]
-  );
+  const search = (query: string) => {
+    const resNames = fuzzyName(query);
+    const resBarcode = fuzzyBarcode(query);
+    const map = new Map(resNames.map((p) => [p.item.id, p]));
+    for (const b of resBarcode) {
+      const item = map.get(b.item.id);
+      if (item === undefined) {
+        map.set(b.item.id, b);
+        continue;
+      }
+      if (b.score > item.score) {
+        map.set(b.item.id, b);
+      }
+    }
+    const res = Array.from(map.values());
+    res.sort((a, b) => a.score - b.score);
+    return res;
+  };
 
   return search;
 };

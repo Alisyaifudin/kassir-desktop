@@ -1,23 +1,17 @@
-import { DefaultError, err, ok, Result, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
+import { cache, type Social } from "./cache";
 
-export type Social = {
-  id: number;
-  name: string;
-  value: string;
-};
-
-export async function getAll(): Promise<Result<DefaultError, Social[]>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () => db.select<DB.Social[]>("SELECT * FROM socials"),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(
-    res.map((r) => ({
+export function getAll() {
+  return Effect.gen(function* () {
+    const socials = cache.all();
+    if (socials !== null) return socials;
+    const res = yield* DB.try((db) => db.select<DB.Social[]>("SELECT * FROM socials"));
+    const items: Social[] = res.map((r) => ({
       name: r.social_name,
       id: r.social_id,
       value: r.social_value,
-    }))
-  );
+    }));
+    return items;
+  });
 }

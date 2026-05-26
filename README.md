@@ -2,13 +2,10 @@
 
 Aplikasi untuk kasir.
 
-![beranda](images/beranda.png)
+![beranda](./docs/static/img/shop.png)
 
 # TODO
 
+- tambah extra baru harusnya revalidate cache
 
-- PROPER POPOVER src/pages/Shop/Right/DetailDialog/index.tsx
-- sonner tulisannya diperbesar
-- dari halaman riwayat, salin catatan ke toko
-- [low] fix image uploading
-- cari catatan dari no
+add indexing on product-events for performance

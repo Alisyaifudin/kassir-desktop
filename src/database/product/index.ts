@@ -1,27 +1,51 @@
-import { add } from "./add";
 import { delById } from "./del-by-id";
-import { generateBarcode } from "./generate-barcode";
+import { delSync } from "./del-sync";
 import { all } from "./get-all";
 import { getById } from "./get-by-id";
-import { getHistory } from "./history";
-import { proposeBarcode } from "./propose-barcode";
-import { updateDetail } from "./update";
-import { byRange } from "./get-by-range";
+import { updateInfo } from "./update-info";
+import { getHistoryRange } from "./get-history-range";
+import { add } from "./add";
+import { getAllByRange } from "./get-all-by-range";
+import { getHistoryOffset } from "./get-history-offset";
+// import { upsert } from "./upsert";
+import { sync } from "./update-sync";
+import { addExternal } from "./add-external";
+import { productCache } from "./cache";
+import { calcStock } from "./calc-stock";
+import { getAllUpdated } from "./get-all-updated";
+import { addSync } from "./add-sync";
+import { getUnsync } from "./get-unsync";
+import { updateSyncAt } from "./update-sync-at";
+import { getCountUnsync } from "./get-count-unsync";
+import { updateUnsyncAll } from "./update-unsync-all";
 
 export const product = {
   get: {
     all,
+    unsync: getUnsync,
+    countUnsync: getCountUnsync,
     byId: getById,
-    history: getHistory,
-    byRange: byRange,
+    historyOffset: getHistoryOffset,
+    historyRange: getHistoryRange,
+    allRange: getAllByRange,
+    updated: getAllUpdated,
   },
-  delById,
+  del: {
+    byId: delById,
+    sync: delSync,
+  },
   update: {
-    detail: updateDetail,
+    sync,
+    syncAt: updateSyncAt,
+    unsyncAll: updateUnsyncAll,
+    info: updateInfo,
+    calcStock,
   },
-  barcode: {
-    gen: generateBarcode,
-    propose: proposeBarcode,
+  add: {
+    new: add,
+    external: addExternal,
+    sync: addSync,
   },
-  add,
+  // upsert,
+  revalidate: productCache.revalidate,
 };

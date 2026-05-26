@@ -1,11 +1,10 @@
-import { DefaultError, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
 import { Size } from "./get";
+import { Effect } from "effect";
 
-export async function set(size: Size): Promise<DefaultError | null> {
-  const store = await getStore();
-  const [errMsg] = await tryResult({
-    run: () => store.set("size", size),
+export function set(size: Size) {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    yield* store.set("size", size);
   });
-  return errMsg;
 }

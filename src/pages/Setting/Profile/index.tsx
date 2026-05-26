@@ -1,11 +1,13 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { action } from "./action";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
-	Component: Page,
-	action,
-	index: true,
+export const profileRoute: RouteObject = {
+  Component: () => (
+    <Suspense>
+      <Page />
+    </Suspense>
+  ),
+  path: "profile",
 };

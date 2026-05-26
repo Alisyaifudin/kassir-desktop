@@ -1,15 +1,15 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
 import { admin } from "~/middleware/admin";
-import { loader } from "./loader";
-import { action } from "./action";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
+export const shopRoute: RouteObject = {
   middleware: [admin],
-  Component: Page,
-  loader,
-  action,
+  Component: () => (
+    <Suspense>
+      <Page />
+    </Suspense>
+  ),
   path: "shop",
 };

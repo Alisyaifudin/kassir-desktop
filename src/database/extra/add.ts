@@ -1,6 +1,7 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getCache, setCache } from "./caches";
-import { getDB } from "../instance";
+import { cache } from "./cache";
+import { DB } from "../instance";
+import { Effect } from "effect";
+import { generateId } from "~/lib/random";
 
 type Input = {
   name: string;
@@ -8,22 +9,25 @@ type Input = {
   kind: DB.ValueKind;
 };
 
-export async function add({ name, value, kind }: Input): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () =>
-      db.execute(`INSERT INTO extras (extra_name, extra_value, extra_kind) VALUES ($1, $2, $3)`, [
-        name,
-        value,
-        kind,
-      ]),
+export function add({ name, value, kind }: Input) {
+  const now = Date.now();
+  const id = generateId();
+  return Effect.gen(function* () {
+    yield* DB.try((db) =>
+      db.execute(
+        `INSERT INTO extras (extra_id, extra_name, extra_value, extra_kind, extra_updated_at, extra_sync_at) 
+        VALUES ($1, $2, $3, $4, $5, null)`,
+        [id, name, value, kind, now],
+      ),
+    );
+    cache.update(id, {
+      id,
+      name,
+      value,
+      kind,
+      updatedAt: now,
+      syncAt: null,
+    });
+    return id;
   });
-  if (errMsg !== null) return errMsg;
-  const id = res.lastInsertId;
-  if (id === undefined) return "Aplikasi bermasalah";
-  const cache = getCache();
-  if (cache !== null) {
-    setCache((prev) => [...prev, { id, name, value, kind }]);
-  }
-  return null;
 }

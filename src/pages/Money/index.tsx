@@ -1,20 +1,29 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
 import { admin } from "~/middleware/admin";
-import { action } from "./action";
-import { loader } from "./loader";
-import { LoadingBig } from "~/components/Loading";
+import { Loading } from "./z-Loading";
+import { moneyDetailRoute } from "./History";
 
+const Layout = lazy(() => import("./layout"));
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
+export const moneyRoute: RouteObject = {
   Component: () => (
-    <Suspense fallback={<LoadingBig />}>
-      <Page />
+    <Suspense fallback={<Loading />}>
+      <Layout />
     </Suspense>
   ),
   path: "money",
   middleware: [admin],
-  action,
-  loader,
+  children: [
+    {
+      index: true,
+      Component: () => (
+        <Suspense fallback={<Loading />}>
+          <Page />
+        </Suspense>
+      ),
+    },
+    moneyDetailRoute,
+  ],
 };

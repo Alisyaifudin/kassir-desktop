@@ -1,30 +1,32 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
+import { NotFound } from "~/lib/effect-error";
+import { productCache, type ProductFull } from "./cache";
 
-export type Product = {
-  id: number;
-  barcode?: string;
-  name: string;
-  price: number;
-  stock: number;
-  capital: number;
-  note: string;
-};
-
-export async function getById(id: number): Promise<Result<DefaultError | NotFound, Product>> {
-  const db = await getDB();
-  const [errMsg, res] = await tryResult({
-    run: () => db.select<DB.Product[]>("SELECT * FROM products WHERE product_id = $1", [id]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  if (res.length === 0) return err("Tidak ditemukan");
-  return ok({
-    id: res[0].product_id,
-    barcode: res[0].product_barcode ?? undefined,
-    name: res[0].product_name,
-    price: res[0].product_price,
-    stock: res[0].product_stock,
-    capital: res[0].product_capital,
-    note: res[0].product_note,
+export function getById(id: string) {
+  return Effect.gen(function* () {
+    if (productCache.size > 0) {
+      const product = productCache.get(id);
+      if (product === undefined) return yield* NotFound.fail("Barang tidak ditemukan");
+      return product;
+    }
+    const res = yield* DB.try((db) =>
+      db.select<DB.Product[]>("SELECT * FROM products WHERE product_id = $1", [id]),
+    );
+    if (res.length === 0) yield* NotFound.fail("Barang tidak ditemukan");
+    const r = res[0];
+    const item: ProductFull = {
+      id: r.product_id,
+      barcode: r.product_barcode ?? undefined,
+      name: r.product_name,
+      price: r.product_price,
+      stock: r.product_stock,
+      capital: r.product_capital,
+      note: r.product_note,
+      updatedAt: r.product_updated_at,
+      syncAt: r.product_sync_at,
+    };
+    productCache.update(id, item);
+    return item;
   });
 }

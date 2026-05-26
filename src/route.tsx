@@ -1,29 +1,47 @@
-import { createBrowserRouter } from "react-router";
-import { route as loginRoute } from "./pages/login";
-import { route as shopRoute } from "./pages/shop";
-import { route as stockRoute } from "./pages/stock";
-import { route as settingRoute } from "./pages/setting";
-import { route as recordsRoute } from "./pages/Record/index.tsx";
-import { route as moneyRoute } from "./pages/money";
-import { route as analRoute } from "./pages/analytics";
-import AuthLayout, { loader } from "./layouts/authenticated";
-import RootLayout, { ErrorBoundary, loader as rootLoader } from "./layouts/root";
+import { createHashRouter } from "react-router";
+import { loginRoute } from "./pages/login";
+import { shopRoute } from "./pages/shop";
+import { stockRoute } from "./pages/stock";
+import { settingRoute } from "./pages/setting";
+import { recordRoute } from "./pages/Record/index.tsx";
+import { moneyRoute } from "./pages/money";
+import { analRoute } from "./pages/analytics";
+import { cashierRoute } from "./pages/Cashier/index.tsx";
+import { customerRoute } from "./pages/Customer/index.tsx";
+import { methodRoute } from "./pages/Method/index.tsx";
+import { socialRoute } from "./pages/Social/index.tsx";
 import { authentication } from "./middleware/authenticate.ts";
+import { lazy } from "react";
+import { homeRoute } from "./pages/Home/index.ts";
 
-export const router = createBrowserRouter([
+const RootLayout = lazy(() => import("./layouts/root.tsx"));
+const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
+const AuthLayout = lazy(() => import("./layouts/authenticated"));
+
+export const router = createHashRouter([
   {
     path: "/",
     ErrorBoundary,
     Component: RootLayout,
-    loader: rootLoader,
     children: [
       loginRoute,
       {
         path: "/",
         middleware: [authentication],
         Component: AuthLayout,
-        loader,
-        children: [shopRoute, settingRoute, stockRoute, moneyRoute, recordsRoute, analRoute],
+        children: [
+          cashierRoute,
+          customerRoute,
+          methodRoute,
+          socialRoute,
+          homeRoute,
+          shopRoute,
+          settingRoute,
+          stockRoute,
+          moneyRoute,
+          recordRoute,
+          analRoute,
+        ],
       },
     ],
   },

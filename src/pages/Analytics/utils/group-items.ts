@@ -1,13 +1,13 @@
 import Decimal from "decimal.js";
 import { Temporal } from "temporal-polyfill";
 import { Record } from "~/database/record/get-by-range";
+import { tz } from "~/lib/constants";
 
 function getEdges(
   interval: "day" | "week" | "month" | "year",
   start: number,
-  end: number
+  end: number,
 ): { edges: number[]; labels: string[] } {
-  const tz = Temporal.Now.timeZoneId();
   let date = Temporal.Instant.fromEpochMilliseconds(start).toZonedDateTimeISO(tz);
   switch (interval) {
     case "day": {
@@ -25,27 +25,28 @@ function getEdges(
       const labels = Array.from({ length: date.daysInMonth }).map((_, i) => String(i + 1));
       return { edges, labels };
     }
-    case "year":
+    case "year": {
       const edges: number[] = [start];
       for (let i = 0; i < 12; i++) {
         date = date.add(Temporal.Duration.from({ months: 1 }));
         edges.push(date.epochMilliseconds);
       }
       const labels = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
         "Mei",
         "Juni",
         "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
+        "Agu",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Des",
       ];
       return { edges, labels };
+    }
   }
 }
 
@@ -82,16 +83,16 @@ export function getFlow({
     const intervalStart = edges[currentInterval];
     const intervalEnd = edges[currentInterval + 1];
     const record = records[recordIndex];
-    if (record.timestamp < intervalStart) {
+    if (record.paidAt < intervalStart) {
       // Record is before current interval, skip it
       recordIndex++;
-    } else if (record.timestamp > intervalEnd) {
+    } else if (record.paidAt > intervalEnd) {
       // Record is after current interval, move to next interval
       currentInterval++;
     } else {
       // Record belongs to current interval
       const grandTotal = Number(
-        new Decimal(record.total).plus(record.rounding).toFixed(record.fix)
+        new Decimal(record.total).plus(record.rounding).toFixed(record.fix),
       );
       if (record.mode === "sell") {
         revenues[currentInterval] += grandTotal;
@@ -126,10 +127,10 @@ export function getVisitors({
     const intervalStart = edges[currentInterval];
     const intervalEnd = edges[currentInterval + 1];
     const record = records[recordIndex];
-    if (record.timestamp < intervalStart) {
+    if (record.paidAt < intervalStart) {
       // Record is before current interval, skip it
       recordIndex++;
-    } else if (record.timestamp > intervalEnd) {
+    } else if (record.paidAt > intervalEnd) {
       // Record is after current interval, move to next interval
       currentInterval++;
     } else {

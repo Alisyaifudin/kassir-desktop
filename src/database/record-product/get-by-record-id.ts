@@ -1,0 +1,67 @@
+import { Effect } from "effect";
+import { Discount, RecordProduct } from "./get-by-range";
+import { DB } from "../instance";
+
+type Output = DB.RecordProduct & {
+  discount_id: string | null;
+  discount_kind: DB.DiscKind | null;
+  discount_value: number | null;
+  discount_eff: number | null;
+};
+
+export function getByRecordId(recordId: string) {
+  return Effect.gen(function* () {
+    const rows = yield* DB.try((db) =>
+      db.select<Output[]>(
+        `SELECT record_id, product_id, record_products.record_product_id, record_product_name, record_product_price,
+        record_product_qty, record_product_capital, record_product_capital_raw, record_product_total,
+        discount_id, discount_kind, discount_value, discount_eff
+        FROM record_products LEFT JOIN discounts ON record_products.record_product_id = discounts.record_product_id
+        WHERE record_id = $1 ORDER BY discount_id`,
+        [recordId],
+      ),
+    );
+    const items: Map<string, RecordProduct> = new Map();
+    for (const row of rows) {
+      const discount = collectDiscount(
+        row.discount_id,
+        row.discount_kind,
+        row.discount_value,
+        row.discount_eff,
+      );
+      const item = items.get(row.record_product_id);
+      if (item === undefined) {
+        items.set(row.record_product_id, {
+          id: row.record_product_id,
+          capital: row.record_product_capital,
+          capitalRaw: row.record_product_capital_raw,
+          discounts: discount === undefined ? [] : [discount],
+          name: row.record_product_name,
+          price: row.record_product_price,
+          qty: row.record_product_qty,
+          recordId: row.record_id,
+          total: row.record_product_total,
+          productId: row.product_id ?? undefined,
+        });
+      } else if (discount !== undefined) {
+        item.discounts.push(discount);
+      }
+    }
+    return Array.from(items.values());
+  });
+}
+
+function collectDiscount(
+  id: string | null,
+  kind: DB.DiscKind | null,
+  value: number | null,
+  eff: number | null,
+): Discount | undefined {
+  if (id === null || kind === null || value === null || eff === null) return undefined;
+  return {
+    eff,
+    id,
+    kind,
+    value,
+  };
+}

@@ -218,6 +218,36 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/31-40/migration-36.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 37,
+            description: "add_note_to_money",
+            sql: include_str!("../../src/database/31-40/migration-37.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 38,
+            description: "update_money_table",
+            sql: include_str!("../../src/database/31-40/migration-38.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 39,
+            description: "refactor_table_to_use_text_primary_key",
+            sql: include_str!("../../src/database/31-40/migration-39.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 40,
+            description: "add_product_events",
+            sql: include_str!("../../src/database/31-40/migration-40.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 41,
+            description: "add_ordering_to_money_kind",
+            sql: include_str!("../../src/database/41-50/migration-41.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

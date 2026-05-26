@@ -1,19 +1,25 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
+import { cache } from "./cache";
 
-export async function update(
-  id: number,
-  name: string,
-  value: string
-): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () =>
-      db.execute("UPDATE socials SET social_name = $1, social_value = $2 WHERE social_id = $3", [
+export function update(id: string, name: string, value: string) {
+  const now = Date.now();
+  return DB.try((db) =>
+    db.execute(
+      `UPDATE socials SET social_name = $1, social_value = $2, social_updated_at = $3, 
+       social_sync_at = null WHERE social_id = $4`,
+      [name, value, now, id],
+    ),
+  ).pipe(
+    Effect.tap(() => {
+      cache.update(id, {
         name,
         value,
+        syncAt: null,
+        updatedAt: now,
         id,
-      ]),
-  });
-  return errMsg;
+      });
+    }),
+    Effect.asVoid,
+  );
 }

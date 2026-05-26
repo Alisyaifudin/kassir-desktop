@@ -1,10 +1,9 @@
-import { DefaultError, tryResult } from "~/lib/utils";
 import { getStore } from "../instance";
+import { Effect } from "effect";
 
-export async function setShowCashier(show: boolean): Promise<DefaultError | null> {
-  const store = await getStore();
-  const [errMsg] = await tryResult({
-    run: () => store.set("show-cashier", String(show)),
+export function setShowCashier(show: boolean) {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    yield* store.set("show-cashier", String(show));
   });
-  return errMsg;
 }

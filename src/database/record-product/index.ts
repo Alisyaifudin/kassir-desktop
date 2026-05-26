@@ -1,14 +1,16 @@
-import { add } from "./add";
+import { getByRecordIds } from "./get-by-by-record-ids";
 import { getByRange } from "./get-by-range";
-import { getByTimestamp } from "./get-by-timestamp";
+import { getByRecordId } from "./get-by-record-id";
+import { getHistory } from "./get-history";
 import { updateProductId } from "./update-product-id";
 
 export const recordProduct = {
   get: {
     byRange: getByRange,
-    byTimestamp: getByTimestamp,
+    byRecordId: getByRecordId,
+    history: getHistory,
+    byRecordIds: getByRecordIds,
   },
-  add,
   update: {
     productId: updateProductId,
   },

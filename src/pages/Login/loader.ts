@@ -1,5 +1,4 @@
-import { data, redirect } from "react-router";
-import { db } from "~/database";
+import { redirect } from "react-router";
 import { auth } from "~/lib/auth";
 
 export async function loader() {
@@ -7,8 +6,4 @@ export async function loader() {
   if (user !== undefined) {
     throw redirect("/setting");
   }
-  const cashiers = db.cashier.get.all();
-  return data(cashiers);
 }
-
-export type Loader = typeof loader;

@@ -1,55 +1,71 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
-// @ts-expect-error process is a nodejs global
+import arraybuffer from "vite-plugin-arraybuffer";
+// process is a nodejs/bun global
 const host = process.env.TAURI_DEV_HOST;
 
+// react({
+//   babel: {
+//     plugins: ["babel-plugin-react-compiler"],
+//   },
+// }),
 // https://vitejs.dev/config/
-export default defineConfig(async ({ command, mode }) => {
-	const isDev = command === "serve" || mode === "development";
-	return {
-		plugins: [
-			vanillaExtractPlugin(),
-			react(),
-			tailwindcss(),
-			tsconfigPaths(),
-			{
-				name: "inject-react-scan",
-				transformIndexHtml(html) {
-					if (isDev) {
-						return html.replace(
-							"</head>",
-							'<script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js"></script></head>'
-						);
-					}
-					return html;
-				},
-			},
-		],
-		base: "./",
-
-		// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-		//
-		// 1. prevent vite from obscuring rust errors
-		clearScreen: false,
-		// 2. tauri expects a fixed port, fail if that port is not available
-		server: {
-			port: 1420,
-			strictPort: true,
-			host: host || false,
-			hmr: host
-				? {
-						protocol: "ws",
-						host,
-						port: 1421,
-					}
-				: undefined,
-			watch: {
-				// 3. tell vite to ignore watching `src-tauri`
-				ignored: ["**/src-tauri/**"],
-			},
-		},
-	};
+export default defineConfig(({ command, mode }) => {
+  const isDev = command === "serve" || mode === "development";
+  // Load .env files with correct priority (.env.local > .env.development.local > .env.development > .env)
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
+    plugins: [
+      vanillaExtractPlugin(),
+      react(),
+      arraybuffer(),
+      tailwindcss(),
+      tsconfigPaths(),
+      {
+        name: "inject-react-scan",
+        transformIndexHtml(html) {
+          if (isDev) {
+            return html.replace(
+              "</head>",
+              '<script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js"></script></head>',
+            );
+          }
+          return html;
+        },
+      },
+    ],
+    define: {
+      "import.meta.env.VITE_API_URL": JSON.stringify(
+        env.VITE_API_URL || "https://api.kassir.store",
+      ),
+    },
+    base: "./",
+    build: {
+      chunkSizeWarningLimit: 2000,
+    },
+    // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+    //
+    // 1. prevent vite from obscuring rust errors
+    clearScreen: false,
+    // 2. tauri expects a fixed port, fail if that port is not available
+    server: {
+      port: 1420,
+      strictPort: true,
+      host: host || false,
+      hmr: host
+        ? {
+            protocol: "ws",
+            host,
+            port: 1421,
+          }
+        : undefined,
+      watch: {
+        // 3. tell vite to ignore watching `src-tauri`
+        ignored: ["**/src-tauri/**"],
+      },
+    },
+  };
 });

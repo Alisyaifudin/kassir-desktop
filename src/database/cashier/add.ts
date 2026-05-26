@@ -1,22 +1,13 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { Effect } from "effect";
+import { DB } from "../instance";
+import { generateId } from "~/lib/random";
 
-export async function add({
-  name,
-  role,
-  hash,
-}: {
-  name: string;
-  role: DB.Role;
-  hash: string;
-}): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () =>
-      db.execute(
-        "INSERT INTO cashiers (cashier_name, cashier_role, cashier_hash) VALUES ($1, $2, $3)",
-        [name, role, hash],
-      ),
-  });
-  return errMsg;
+export function add({ name, role, hash }: { name: string; role: DB.Role; hash: string }) {
+  const id = generateId();
+  return DB.try((db) =>
+    db.execute(
+      "INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash) VALUES ($1, $2, $3, $4)",
+      [id, name, role, hash],
+    ),
+  ).pipe(Effect.as(id));
 }

@@ -9,11 +9,12 @@ import {
 } from "./ui/dialog";
 import { memo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn, formatDate, monthNames, numeric } from "~/lib/utils";
 import { Temporal } from "temporal-polyfill";
 import { Input } from "./ui/input";
+import { cn, numeric } from "~/lib/utils";
+import { formatDate, monthNames } from "~/lib/date";
 
-export const Calendar = memo(function ({
+export const Calendar = memo(function Calendar({
   time,
   setTime,
   mode: modeInit = "day",
@@ -48,7 +49,7 @@ export const Calendar = memo(function ({
         setOpen(open);
       }}
     >
-      <Button asChild variant="ghost" className={cn("flex items-center gap-2 outline", className)}>
+      <Button asChild variant="ghost" className={cn("flex items-center gap-2 w-[320px] small:w-[230px] outline", className)}>
         <DialogTrigger>
           {children === undefined ? <CalendarLabel mode={modeInit} time={time} /> : children}
           <CalendarDays className="icon" />

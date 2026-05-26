@@ -1,51 +1,66 @@
-import { Button } from "~/components/ui/button";
-import { Spinner } from "~/components/Spinner";
-import { Result } from "~/lib/utils";
-import { Form, useActionData, useLoaderData } from "react-router";
-import { Loader } from "./loader";
-import { Suspense, use } from "react";
+import { useData } from "./use-data";
 import { TextError } from "~/components/TextError";
-import { Loading } from "~/components/Loading";
-import { useLoading } from "~/hooks/use-loading";
-import { Action } from "./action";
+import { Clear } from "./z-Clear";
+import { Result } from "~/lib/result";
+import { log } from "~/lib/log";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export default function Page() {
-	const text = useLoaderData<Loader>();
-	const loading = useLoading();
-	const error = useActionData<Action>();
-	return (
-		<div className="flex flex-col gap-2 flex-1 text-3xl overflow-hidden">
-			<div className="flex justify-between items-center">
-				<h1 className="text-3xl font-bold">Log</h1>
-				<Form method="POST">
-					<TextError>{error}</TextError>
-					<Button variant="destructive">
-						<Spinner when={loading} />
-						Bersihkan
-					</Button>
-				</Form>
-			</div>
-			<div className="flex flex-col gap-1 bg-black h-full overflow-auto">
-				<Suspense fallback={<Loading />}>
-					<Log text={text} />
-				</Suspense>
-			</div>
-		</div>
-	);
+  return (
+    <div className="flex flex-col gap-4 p-6 flex-1 overflow-hidden">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Log Aplikasi</h1>
+        <p className="text-muted-foreground text-normal">Pantau aktivitas dan kesalahan sistem</p>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4 shadow-sm flex-1 flex flex-col">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-normal font-semibold text-foreground">Riwayat Log</h2>
+          <Clear />
+        </div>
+
+        <div className="flex flex-col gap-1 bg-black rounded-xl p-4 h-full overflow-auto">
+          <Log />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function Log({ text: promise }: { text: Promise<Result<"Aplikasi bermasalah", string[]>> }) {
-	const [errMsg, text] = use(promise);
-	if (errMsg !== null) {
-		return <TextError>{errMsg}</TextError>;
-	}
-	return (
-		<>
-			{text.map((t, i) => (
-				<p className="text-white text-small" key={i}>
-					{t}
-				</p>
-			))}
-		</>
-	);
+function Log() {
+  const res = useData();
+  return Result.match(res, {
+    onLoading() {
+      return <LoadingLines />;
+    },
+    onError({ e }) {
+      log.error(e);
+      return <TextError>{e.message}</TextError>;
+    },
+    onSuccess(text) {
+      return (
+        <>
+          {text.map((t, i) => (
+            <p className="text-white text-small" key={i}>
+              {t}
+            </p>
+          ))}
+        </>
+      );
+    },
+  });
+}
+
+function LoadingLines() {
+  return (
+    <div className="flex flex-col gap-2 p-2 w-full">
+      {Array.from({ length: 30 }).map((_, i) => (
+        <Skeleton
+          key={i}
+          className="h-3 bg-white/10 rounded animate-pulse"
+          style={{ width: `${60 + ((i * 7) % 40)}%` }}
+        />
+      ))}
+    </div>
+  );
 }

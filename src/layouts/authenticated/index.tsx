@@ -1,31 +1,18 @@
-import { data, Outlet, useLoaderData } from "react-router";
+import { Outlet } from "react-router";
 import { Toaster } from "~/components/ui/sonner";
-import { Suspense } from "react";
-import { Title } from "./Title";
-import { NavList } from "./NavList";
-import { store } from "~/store";
-import { Loader2 } from "lucide-react";
-
-export async function loader() {
-  const owner = store.owner();
-  return data(owner);
-}
+import { Topbar } from "./z-Topbar";
+import { useNavigationShortcuts } from "./use-navigation-shortcuts";
 
 export default function Layout() {
-  const owner = useLoaderData<typeof loader>();
+  useNavigationShortcuts();
+
   return (
-    <>
-      <header className="bg-sky-300 flex">
-        <nav className="flex px-3 justify-between w-full items-end">
-          <Suspense fallback={<Loader2 className="animate-spin" />}>
-            <Title>{owner}</Title>
-          </Suspense>
-          <NavList></NavList>
-        </nav>
-      </header>
-      <Outlet />
-      {/* <Notification>{notification}</Notification> */}
-      <Toaster />
-    </>
+    <div className="flex flex-col min-h-screen bg-background">
+      <Topbar />
+      <div id="main-body" className="flex-1">
+        <Outlet />
+      </div>
+      <Toaster className="toast" />
+    </div>
   );
 }

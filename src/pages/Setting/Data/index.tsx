@@ -1,13 +1,16 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { action } from "./action";
 import { admin } from "~/middleware/admin";
+import { Loading } from "./z-Loading";
 
-const Page = lazy(() => import("./Data"));
+const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
-	Component: Page,
-	path: "data",
-	middleware: [admin],
-	action,
+export const dataRoute: RouteObject = {
+  Component: () => (
+    <Suspense fallback={<Loading />}>
+      <Page />
+    </Suspense>
+  ),
+  path: "data",
+  middleware: [admin],
 };

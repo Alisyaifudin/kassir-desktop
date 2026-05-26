@@ -1,34 +1,22 @@
-import { useCallback, useMemo } from "react";
-import Fuse, { IFuseOptions } from "fuse.js";
-import { Item } from "~/database/product/get-by-range";
+import createFuzzySearch from "@nozbe/microfuzz";
+import { useMemo } from "react";
+import { Item } from "~/database/product/get-all-by-range";
 
-export const useItemSearch = (all: Item[], mode: "buy" | "sell", query: string) => {
-  const filtered = all.filter((a) => a.mode === mode);
-  const fuse = useMemo(() => {
-    const options: IFuseOptions<Item> = {
-      keys: ["name"],
-      distance: 10,
-      includeScore: true,
-      includeMatches: true,
-      threshold: 0.2,
-      minMatchCharLength: 1,
-    };
-    return new Fuse<Item>(filtered, options);
-  }, [filtered]);
+export const useItemSearch = (all: Item[], query: string) => {
+  const fuzzy = useMemo(() => {
+    const fuzzy = createFuzzySearch(all, {
+      key: "name",
+      strategy: "smart",
+    });
+    return fuzzy;
+  }, [all]);
 
-  // Typed search function
-  const search = useCallback(
-    (query: string) => {
-      return fuse.search(query);
-    },
-    [filtered]
-  );
   const searched = useMemo(() => {
     if (query.trim() === "") {
-      return filtered;
+      return all;
     }
-    const res = search(query);
+    const res = fuzzy(query);
     return res.map((r) => r.item);
-  }, [query, search, filtered]);
+  }, [query, fuzzy, all]);
   return searched;
 };

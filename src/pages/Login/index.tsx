@@ -1,13 +1,15 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { loader } from "./loader";
-import { action } from "./action";
+import { lazyLoader } from "~/lib/utils";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
-	path: "login",
-	loader,
-	action,
-	Component: Page,
+export const loginRoute: RouteObject = {
+  path: "login",
+  loader: lazyLoader(() => import("./loader")),
+  Component: () => (
+    <Suspense>
+      <Page />
+    </Suspense>
+  ),
 };

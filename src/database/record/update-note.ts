@@ -1,11 +1,13 @@
-import { DefaultError, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { DB } from "../instance";
+import { Effect } from "effect";
 
-export async function updateNote(timestamp: number, note: string): Promise<DefaultError | null> {
-  const db = await getDB();
-  const [errMsg] = await tryResult({
-    run: () =>
-      db.execute("UPDATE records SET record_note = $1 WHERE timestamp = $2", [note, timestamp]),
-  });
-  return errMsg;
+export function updateNote(id: string, note: string) {
+  const now = Date.now();
+  return DB.try((db) =>
+    db.execute(
+      `UPDATE records SET record_note = $1, record_updated_at = $2, record_sync_at = null
+       WHERE record_id = $3`,
+      [note, now, id],
+    ),
+  ).pipe(Effect.asVoid);
 }

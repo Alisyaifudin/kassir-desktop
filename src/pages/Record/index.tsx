@@ -1,22 +1,23 @@
 import { RouteObject } from "react-router";
-import { route as itemRoute } from "./Record-Item";
-// import { route as searchRoute } from "./search-record-by-no";
-import { lazy } from "react";
-import { loader } from "./loader";
-import { action } from "./action";
+import { itemRoute } from "./Item";
+import { lazy, Suspense } from "react";
+import { searchRoute } from "./Search";
+import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
-export const route: RouteObject = {
-	path: "records",
-	children: [
-		{
-			loader,
-			action,
-			Component: Page,
-			index: true,
-		},
-		itemRoute,
-		// searchRoute,
-	],
+export const recordRoute: RouteObject = {
+  path: "records",
+  children: [
+    {
+      Component: () => (
+        <Suspense fallback={<Loading />}>
+          <Page />
+        </Suspense>
+      ),
+      index: true,
+    },
+    itemRoute,
+    searchRoute,
+  ],
 };

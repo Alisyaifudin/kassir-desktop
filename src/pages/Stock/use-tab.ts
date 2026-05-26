@@ -7,13 +7,15 @@ export function useTab() {
   const tab = z.enum(["product", "extra"]).catch("product").parse(search.get("tab"));
   const set = useCallback(
     (tab: string) => {
-      const s = new URLSearchParams(window.location.search);
-      s.set("tab", tab);
-      s.set("page", "1");
-      s.set("query", "");
-      setSearch(s);
+      setSearch((old) => {
+        const s = new URLSearchParams(old);
+        s.set("tab", tab);
+        s.set("page", "1");
+        s.set("query", "");
+        return s;
+      });
     },
-    [tab]
+    [setSearch],
   );
   return [tab, set] as const;
 }

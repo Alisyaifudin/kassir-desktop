@@ -7,11 +7,11 @@ declare namespace TX {
     tx_mode: Mode;
     tx_query: string;
     tx_fix: number;
-    tx_method_id: number;
+    tx_method_id: string;
     tx_note: string;
     tx_customer_name: string;
     tx_customer_phone: string;
-    tx_customer_id: number | null;
+    tx_customer_id: string | null;
     tx_product_barcode: string;
     tx_product_name: string;
     tx_product_price: number;
@@ -24,27 +24,30 @@ declare namespace TX {
   }
   interface Extra {
     extra_id: string;
+    extra_order: number;
     tab: number;
-    db_extra_id: number | null;
+    db_extra_id: string | null;
     extra_name: string;
     extra_kind: ValueKind;
     extra_value: number;
-    extra_is_saved: 0 | 1;
   }
   interface Product {
     product_id: string;
     tab: number;
-    db_product_id: number | null;
+    db_product_id: string | null;
     db_product_price: number | null;
+    db_product_capital: number | null;
+    db_product_stock: number | null;
     db_product_name: string | null;
     product_name: string;
     product_barcode: string;
     product_price: number;
     product_qty: number;
-    product_stock: number;
+    product_created_at: number;
   }
   interface Discount {
     disc_id: string;
+    disc_order: number;
     product_id: string;
     disc_value: number;
     disc_kind: DiscKind;

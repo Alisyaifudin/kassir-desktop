@@ -1,19 +1,24 @@
-import { DefaultError, err, NotFound, ok, Result, tryResult } from "~/lib/utils";
-import { getDB } from "../instance";
+import { generateId } from "~/lib/random";
+import { DB } from "../instance";
+import { Effect } from "effect";
+import { updateCache } from "./cache";
 
-export async function delById(id: number): Promise<Result<DefaultError | NotFound, string>> {
-  const db = await getDB();
-  const [errSelect, res] = await tryResult({
-    run: () =>
-      db.select<{ name: string }[]>("SELECT img_name AS name FROM images WHERE img_id = $1", [id]),
-  });
-  if (errSelect !== null) {
-    return err(errSelect);
-  }
-  if (res.length === 0) return err("Tidak ditemukan");
-  const [errMsg] = await tryResult({
-    run: () => db.execute("DELETE FROM images WHERE img_id = $1", [id]),
-  });
-  if (errMsg !== null) return err(errMsg);
-  return ok(res[0].name);
+export function delById(productId: string, id: string) {
+  const now = Date.now();
+  const graveId = generateId();
+  return DB.try((db) =>
+    db.execute(
+      `BEGIN;
+       DELETE FROM images WHERE image_id = $1 AND product_id = $2;
+       INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
+       VALUES ($1, $3, 'image', $4);
+       COMMIT;`,
+      [id, productId, graveId, now],
+    ),
+  ).pipe(
+    Effect.tap(() => {
+      updateCache(productId, (prev) => prev.filter((p) => p.id !== id));
+    }),
+    Effect.asVoid,
+  );
 }
