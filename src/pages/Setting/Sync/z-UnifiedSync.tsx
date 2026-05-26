@@ -357,7 +357,7 @@ function EntityRow({
         return <span className="text-muted-foreground text-small">Menunggu...</span>;
       case "syncing":
         return (
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <div className="flex flex-col gap-2 flex-1 min-w-0 py-0.5">
             {/* Pull bar */}
             <PullBar done={pullDone} total={pullTotal} />
             {/* Push bar */}
@@ -383,7 +383,7 @@ function EntityRow({
   };
 
   return (
-    <li className="flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+    <li className="flex items-start gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
       <Icon className="size-4 text-muted-foreground shrink-0 mt-0.5" />
       <span className="text-normal font-medium w-28 shrink-0 leading-6">{label}</span>
       <div className="flex-1 min-w-0">{statusContent()}</div>
