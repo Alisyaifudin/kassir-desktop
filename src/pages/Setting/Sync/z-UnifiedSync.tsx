@@ -263,7 +263,7 @@ function runTwoPhase(
         };
       });
 
-      if (count.total === 0) break;
+      if (count.server === 0) break;
     }
 
     if (signal.aborted) return;
