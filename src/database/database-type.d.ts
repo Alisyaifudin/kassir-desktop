@@ -6,23 +6,6 @@ declare namespace DB {
   type MoneyType = "absolute" | "change";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";
-  type GraveKind =
-    | "customer"
-    | "money_kind"
-    | "money"
-    | "social"
-    | "product"
-    | "image"
-    | "extra"
-    | "method"
-    | "record";
-
-  interface Grave {
-    grave_id: string;
-    grave_item_id: string;
-    grave_kind: GraveKind;
-    grave_timestamp: number;
-  }
 
   type ProductEventEnum = "manual" | "inc" | "dec";
   interface ProductEvent {
@@ -56,19 +39,19 @@ declare namespace DB {
     social_updated_at: number;
     social_sync_at: number | null;
   }
-  interface MoneyKind {
-    money_kind_id: string;
-    money_kind_name: string;
-    money_kind_type: MoneyType;
-    money_kind_ordering: number;
-    money_kind_updated_at: number;
-    money_kind_sync_at: number | null;
+  interface Pocket {
+    pocket_id: string;
+    pocket_name: string;
+    pocket_type: MoneyType;
+    pocket_ordering: number;
+    pocket_updated_at: number;
+    pocket_sync_at: number | null;
   }
   interface Money {
     money_id: string;
     timestamp: number;
     money_value: number;
-    money_kind_id: string;
+    pocket_id: string;
     money_note: string;
     money_updated_at: number;
     money_sync_at: number | null;

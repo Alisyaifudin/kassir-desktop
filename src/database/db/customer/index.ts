@@ -1,4 +1,4 @@
-import { add } from "./add";
+import { addNewCustomer } from "./add";
 // import { upsert } from "./upsert";
 import { delById } from "./del-by-id";
 import { delSync } from "./del-sync";
@@ -22,7 +22,7 @@ export const customer = {
     sync: delSync,
   },
   add: {
-    one: add,
+    one: addNewCustomer,
   },
   // upsert,
   revalidate: cache.revalidate,

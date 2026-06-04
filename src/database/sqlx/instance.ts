@@ -5,7 +5,7 @@ let globalDB: undefined | Database = undefined;
 
 const DB_PATH = "sqlite:data.db";
 
-export function getDB() {
+function getDB() {
   return Effect.gen(function* () {
     if (globalDB !== undefined) return globalDB;
     const loadedDb = yield* Effect.tryPromise({
@@ -17,7 +17,7 @@ export function getDB() {
   });
 }
 
-export const DB = {
+const DBWrapper = {
   try: <A>(func: (db: Database) => Promise<A>) => {
     return pipe(
       getDB(),
@@ -55,4 +55,16 @@ export class DbError {
     const unknown = new Error("Unknown", { cause: e });
     return new DbError(unknown);
   }
+  static fail(e: unknown) {
+    return Effect.fail(DbError.new(e));
+  }
 }
+
+export const DB = {
+  execute(query: string, bindValues?: unknown[]) {
+    return DBWrapper.try((db) => db.execute(query, bindValues));
+  },
+  select<T>(query: string, bindValues?: unknown[]) {
+    return DBWrapper.try((db) => db.select<T>(query, bindValues));
+  },
+};

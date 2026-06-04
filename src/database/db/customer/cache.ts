@@ -11,7 +11,7 @@ export type CustomerFull = {
   name: string;
   id: string;
   updatedAt: number;
-  syncAt: null | number;
+  syncAt?: number;
 };
 
 export const cache = new CacheItem<CustomerFull>();

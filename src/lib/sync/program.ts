@@ -10,7 +10,7 @@ import {
   ZodSchemaError,
   NotFound,
 } from "~/lib/effect-error";
-import { DbError } from "~/database/instance";
+import { DbError } from "~/database/sqlx/instance";
 import { StoreError } from "~/store/error";
 import {
   syncAtom,
@@ -21,7 +21,15 @@ import {
   type SyncResult,
 } from "./atom";
 
-export type SyncError = RequestError | ResponseError | BodyError | ZodSchemaError | NotFound | DbError | StoreError | string;
+export type SyncError =
+  | RequestError
+  | ResponseError
+  | BodyError
+  | ZodSchemaError
+  | NotFound
+  | DbError
+  | StoreError
+  | string;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -93,7 +101,10 @@ function programFullSync(token: string) {
     // ── Product Event ──────────────────────────────────────────────
     setActiveEntity("product-event");
     const pePushTotal = yield* getUnsyncCount("product-event");
-    syncAtom.set((prev) => ({ ...prev, ...entityStart(prev.result, "product-event", pePushTotal) }));
+    syncAtom.set((prev) => ({
+      ...prev,
+      ...entityStart(prev.result, "product-event", pePushTotal),
+    }));
     yield* runTwoPhase("product-event", token, sync.productEvent, pePushTotal);
     if (syncSignal.aborted) return;
 
@@ -362,9 +373,7 @@ async function runFullSync(token: string) {
   await Effect.runPromise(programFullSync(token).pipe(Effect.either));
   syncAtom.set((prev) => ({
     ...prev,
-    phase: prev.phase === "syncing"
-      ? (syncSignal.aborted ? "aborted" : "complete")
-      : prev.phase,
+    phase: prev.phase === "syncing" ? (syncSignal.aborted ? "aborted" : "complete") : prev.phase,
   }));
 }
 

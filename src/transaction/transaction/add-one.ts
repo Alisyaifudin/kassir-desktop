@@ -6,7 +6,7 @@ import { generateId } from "~/lib/random";
 import { add as addProduct } from "../product/add";
 import { add as addExtra } from "../extra/add";
 import { TabInfo } from "./get-all";
-import { DB } from "~/database/instance";
+import { DBWrapper } from "~/database/sqlx/instance";
 
 type Record = {
   mode: "buy" | "sell";
@@ -126,7 +126,7 @@ function fetchProduct(productIds: string[]) {
     if (ids.length === 0) return new Map<string, ProductInfo>();
 
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
-    const rows = yield* DB.try((db) =>
+    const rows = yield* DBWrapper.try((db) =>
       db.select<
         {
           product_id: string;

@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { DB } from "~/database/instance";
+import { DBWrapper } from "~/database/sqlx/instance";
 import { ManyDuplicateError } from "~/lib/effect-error";
 import { RecordType } from "./type";
 
@@ -28,7 +28,7 @@ export function getProducts(products: RecordType.Product[]) {
   const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
 
   return Effect.gen(function* () {
-    const rows = yield* DB.try((db) =>
+    const rows = yield* DBWrapper.try((db) =>
       db.select<
         Pick<
           DB.Product,

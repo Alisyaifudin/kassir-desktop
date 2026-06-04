@@ -8,11 +8,11 @@ type Cashier = {
   hash: string;
   id: string;
 };
-export function byId(id: string) {
+export function getCashierById(id: string) {
   return Effect.gen(function* () {
-    const res = yield* DB.try((db) =>
-      db.select<DB.Cashier[]>("SELECT * FROM cashiers WHERE cashier_id = $1", [id]),
-    );
+    const res = yield* DB.select<DB.Cashier[]>("SELECT * FROM cashiers WHERE cashier_id = $1", [
+      id,
+    ]);
     if (res.length === 0) return yield* NotFound.fail("Kasir tidak ditemukan");
     const data: Cashier = {
       id: res[0].cashier_id,
