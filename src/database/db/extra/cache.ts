@@ -13,27 +13,7 @@ export type ExtraFull = {
   value: number;
   kind: DB.ValueKind;
   updatedAt: number;
-  syncAt: number | null;
+  syncAt?: number;
 };
 
 export const cache = new CacheItem<ExtraFull>();
-
-// let cache: ExtraFull[] | null = null;
-
-// export function getCache() {
-//   return cache;
-// }
-
-// export function setCache(extras: ExtraFull[]) {
-//   cache = extras;
-// }
-
-// export function updateCache(cb: (prev: ExtraFull[]) => ExtraFull[]) {
-//   if (cache !== null) {
-//     cache = cb(cache);
-//   }
-// }
-
-// export function revalidateCache() {
-//   cache = null;
-// }

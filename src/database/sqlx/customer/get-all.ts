@@ -2,7 +2,7 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 
 export function getAllCustomers() {
-  return DB.select<DB.Customer[]>("SELECT * FROM customers").pipe(
+  return DB.select<DB.Customer[]>("SELECT * FROM customers WHERE customer_deleted_at IS NULL").pipe(
     Effect.map((res) =>
       res.map((r) => ({
         name: r.customer_name,

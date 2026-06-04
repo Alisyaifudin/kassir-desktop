@@ -3,7 +3,7 @@ declare namespace DB {
   type ValueKind = "number" | "percent";
   type DiscKind = ValueKind | "pcs";
   type Mode = "sell" | "buy";
-  type MoneyType = "absolute" | "change";
+  type PocketType = "absolute" | "change";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";
 
@@ -31,6 +31,7 @@ declare namespace DB {
     product_id: string;
     image_updated_at: number;
     image_sync_at: number | null;
+    image_deleted_at: number | null;
   }
   interface Social {
     social_name: string;
@@ -38,11 +39,12 @@ declare namespace DB {
     social_value: string;
     social_updated_at: number;
     social_sync_at: number | null;
+    social_deleted_at: number | null;
   }
   interface Pocket {
     pocket_id: string;
     pocket_name: string;
-    pocket_type: MoneyType;
+    pocket_type: PocketType;
     pocket_ordering: number;
     pocket_updated_at: number;
     pocket_sync_at: number | null;
@@ -62,6 +64,7 @@ declare namespace DB {
     customer_name: string;
     customer_updated_at: number;
     customer_sync_at: number | null;
+    customer_deleted_at: number | null;
   }
   interface RecordExtra {
     record_extra_id: string;
@@ -93,8 +96,9 @@ declare namespace DB {
     record_id: string;
     method_id: string;
     record_paid_at: number;
+    record_created_at: number;
     record_rounding: number;
-    record_is_credit: 0 | 1;
+    record_credit_at: number | null;
     record_cashier: string;
     record_mode: Mode;
     record_pay: number;
@@ -106,6 +110,7 @@ declare namespace DB {
     record_total: number; // total after including extra
     record_updated_at: number;
     record_sync_at: number | null;
+    record_deleted_at: number | null;
   }
   interface Method {
     method_id: string;
@@ -129,10 +134,19 @@ declare namespace DB {
     product_barcode: string | null;
     product_name: string;
     product_price: number;
-    product_stock: number;
-    product_capital: number;
     product_note: string;
     product_updated_at: number;
     product_sync_at: number | null;
+  }
+  interface ProductCode {
+    product_code: string;
+    product_id: string;
+  }
+  interface Capital {
+    capital_id: string;
+    capital_stock: number;
+    capital_capital: number;
+    capital_updated_at: number;
+    product_id: string;
   }
 }

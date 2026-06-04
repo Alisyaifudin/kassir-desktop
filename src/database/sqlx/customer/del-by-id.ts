@@ -1,17 +1,11 @@
 import { Effect } from "effect";
 import { DB } from "../instance";
-import { generateId } from "~/lib/random";
 
-export function deleteCustomerById(id: string) {
-  const graveId = generateId();
-  const now = Date.now();
-  return DB.select<DB.Customer[]>(
-    `BEGIN;
-       DELETE FROM customers WHERE customer_id = $1;
-       INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
-       VALUES ($1, $2, 'customer', $3);
-       COMMIT;
-      `,
-    [id, graveId, now],
+export function deleteCustomerById(id: string, now: number) {
+  return DB.execute(
+    `UPDATE customers SET customer_deleted_at = $1, customer_updated_at = $2, 
+    customer_sync_at = null
+    WHERE customer_id = $3`,
+    [now, now, id],
   ).pipe(Effect.asVoid);
 }

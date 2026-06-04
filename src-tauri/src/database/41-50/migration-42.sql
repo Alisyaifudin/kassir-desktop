@@ -26,9 +26,9 @@ CREATE TABLE pockets (
     pocket_name       TEXT    NOT NULL,
     pocket_type       TEXT    NOT NULL DEFAULT 'absolute'
                               REFERENCES pocket_enum(v),
-    pocket_ordering   INTEGER NOT NULL
+    pocket_ordering   INTEGER NOT NULL,
     pocket_updated_at INTEGER NOT NULL,
-    pocket_sync_at    INTEGER,
+    pocket_sync_at    INTEGER
 ) STRICT;
 
 INSERT INTO pockets (
@@ -95,6 +95,7 @@ CREATE TABLE capitals (
   capital_id      TEXT    PRIMARY KEY,
   capital_stock   INTEGER NOT NULL,
   capital_capital REAL    NOT NULL,
+  capital_updated_at INTEGER NOT NULL,
   product_id      TEXT    NOT NULL
                           REFERENCES products(product_id) 
                           ON DELETE CASCADE
@@ -102,10 +103,10 @@ CREATE TABLE capitals (
 
 INSERT INTO capitals (
   capital_id,  -- for migration purpose, use product_id
-  capital_stock, capital_capital, product_id
+  capital_stock, capital_capital, capital_updated_at, product_id
 )
 SELECT
-  product_id, product_stock, product_capital, product_id
+  product_id, product_stock, product_capital, product_updated_at, product_id 
 FROM products_old;
 
 CREATE TABLE product_events (

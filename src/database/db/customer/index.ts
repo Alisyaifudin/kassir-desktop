@@ -1,5 +1,5 @@
 import { addNewCustomer } from "./add";
-import { delById } from "./del-by-id";
+import { deleteCustomerById } from "./del-by-id";
 import { getAll } from "./get-all";
 import { update } from "./update";
 import { cache } from "./cache";
@@ -11,8 +11,8 @@ export const customer = {
   update: {
     one: update,
   },
-  del: {
-    byId: delById,
+  delete: {
+    byId: deleteCustomerById,
   },
   add: {
     one: addNewCustomer,

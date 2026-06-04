@@ -1,13 +1,14 @@
 import { cashier } from "./cashier";
+import { extra } from "./extra";
 
 export const db = {
   cashier,
+  extra,
   // customer,
   // grave,
   // method,
   // product,
   // productEvent,
-  // extra,
   // social,
   // record,
   // recordExtra,
