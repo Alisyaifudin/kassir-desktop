@@ -53,7 +53,7 @@ function program({
 }: {
   value: number;
   kindId: string;
-  type: DB.MoneyType;
+  type: DB.PocketType;
   note: string;
 }) {
   return Effect.gen(function* () {

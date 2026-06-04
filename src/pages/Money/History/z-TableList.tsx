@@ -17,7 +17,7 @@ export const TableList = memo(function TableListDebt({
   type,
 }: {
   money: Money[];
-  type: DB.MoneyType;
+  type: DB.PocketType;
 }) {
   return (
     <Table className="text-normal">
