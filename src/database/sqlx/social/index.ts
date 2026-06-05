@@ -1,5 +1,4 @@
 import { addNewSocial } from "./add";
-import { cache } from "./cache";
 import { deleteSocialById } from "./del-by-id";
 import { deleteManySocialsSync } from "./del-many-sync";
 import { getAllSocials } from "./get-all";
@@ -27,5 +26,4 @@ export const social = {
   upsert: {
     many: upsertManySocials,
   },
-  revalidate: cache.revalidate,
 };

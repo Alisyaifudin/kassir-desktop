@@ -1,17 +1,9 @@
-import { DB } from "../instance";
 import { Effect } from "effect";
-import { cache, type Social } from "./cache";
+import { cache } from "./cache";
+import { sqlx } from "~/database/sqlx";
 
-export function getAll() {
-  return Effect.gen(function* () {
-    const socials = cache.all();
-    if (socials !== null) return socials;
-    const res = yield* DB.try((db) => db.select<DB.Social[]>("SELECT * FROM socials"));
-    const items: Social[] = res.map((r) => ({
-      name: r.social_name,
-      id: r.social_id,
-      value: r.social_value,
-    }));
-    return items;
-  });
+export function getAllSocials() {
+  const socials = cache.all();
+  if (socials !== null) return Effect.succeed(socials);
+  return sqlx.social.get.all().pipe(Effect.tap((items) => cache.set(items)));
 }

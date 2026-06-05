@@ -8,7 +8,7 @@ export type Social = {
 
 export type SocialFull = Social & {
   updatedAt: number;
-  syncAt: null | number;
+  syncAt?: number;
 };
 
 export const cache = new CacheItem<SocialFull>();

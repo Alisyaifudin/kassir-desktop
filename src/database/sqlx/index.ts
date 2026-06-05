@@ -3,6 +3,7 @@ import { customer } from "./customer";
 import { extra } from "./extra";
 import { image } from "./image";
 import { method } from "./method";
+import { social } from "./social";
 
 export const sqlx = {
   cashier,
@@ -10,4 +11,5 @@ export const sqlx = {
   extra,
   image,
   method,
+  social,
 };
