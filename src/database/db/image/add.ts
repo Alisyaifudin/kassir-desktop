@@ -1,21 +1,22 @@
 import { generateId } from "~/lib/random";
-import { DB } from "../instance";
 import { Effect } from "effect";
 import { getCache, updateCache } from "./cache";
+import { sqlx } from "~/database/sqlx";
 
-export function add({ name, mime, productId }: { name: string; mime: DB.Mime; productId: string }) {
+export function addNewImage({
+  name,
+  mime,
+  productId,
+}: {
+  name: string;
+  mime: DB.Mime;
+  productId: string;
+}) {
   const now = Date.now();
   const id = generateId();
   return Effect.gen(function* () {
     const maxOrder = yield* getMaxOrder(productId);
-    yield* DB.try((db) =>
-      db.execute(
-        `INSERT INTO images (image_id, image_name, image_mime, image_order, product_id, 
-         image_updated_at, image_sync_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, null)`,
-        [id, name, mime, productId, maxOrder + 1, now],
-      ),
-    );
+    yield* sqlx.image.add.one({ name, mime, productId, maxOrder, now });
     updateCache(productId, (prev) => [
       ...prev,
       {
@@ -23,7 +24,6 @@ export function add({ name, mime, productId }: { name: string; mime: DB.Mime; pr
         mime,
         name,
         productId,
-        syncAt: null,
         order: maxOrder + 1,
         updatedAt: now,
       },
@@ -39,15 +39,5 @@ function getMaxOrder(productId: string) {
     const maxOrder = Math.max(...cache.map((c) => c.order));
     return Effect.succeed(maxOrder);
   }
-  return DB.try((db) =>
-    db.select<{ image_order: number }[]>(`SELECT image_order FROM images WHERE product_id = $1`, [
-      productId,
-    ]),
-  ).pipe(
-    Effect.map((r) => {
-      if (r.length === 0) return 0;
-      const maxOrder = Math.max(...r.map((c) => c.image_order));
-      return maxOrder;
-    }),
-  );
+  return sqlx.image.get.maxOrder(productId);
 }

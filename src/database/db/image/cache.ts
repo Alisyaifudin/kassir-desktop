@@ -8,7 +8,8 @@ export type Image = {
 export type ImageFull = Image & {
   productId: string;
   updatedAt: number;
-  syncAt: number | null;
+  syncAt?: number;
+  hash?: string;
 };
 
 const cache: Map<string, ImageFull[]> = new Map();

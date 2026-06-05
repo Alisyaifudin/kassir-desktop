@@ -3,7 +3,7 @@ import { cache } from "./cache";
 import { deleteExtraById } from "./del-by-id";
 import { deleteManyExtrasSync } from "./del-sync";
 import { getAllExtras } from "./get-all";
-import { getAllExtrasUnsync } from "./get-all-unsync";
+import { getAllUnsyncExtra } from "./get-all-unsync";
 import { getExtraById } from "./get-by-id";
 import { updateSyncOneExtra } from "./update-sync-one";
 import { updateSyncManyExtras } from "./update-sync-many";
@@ -14,7 +14,7 @@ import { upsertMany } from "./upsert-many";
 export const extra = {
   get: {
     all: getAllExtras,
-    unsync: getAllExtrasUnsync,
+    unsync: getAllUnsyncExtra,
     byId: getExtraById,
   },
   delete: {

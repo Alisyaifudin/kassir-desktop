@@ -9,11 +9,36 @@ ALTER TABLE records RENAME TO records_old;
 ALTER TABLE record_extras RENAME TO record_extras_old;
 ALTER TABLE record_products RENAME TO record_products_old;
 ALTER TABLE discounts RENAME TO discounts_old;
+ALTER TABLE images RENAME TO images_old;
 
 ALTER TABLE customers ADD COLUMN customer_deleted_at INTEGER;
 ALTER TABLE socials ADD COLUMN social_deleted_at INTEGER;
-ALTER TABLE image ADD COLUMN image_deleted_at INTEGER;
 ALTER TABLE extra ADD COLUMN extra_deleted_at INTEGER;
+
+CREATE TABLE images (
+    image_id         TEXT    PRIMARY KEY,
+    image_order      INTEGER NOT NULL,
+    image_name       TEXT    NOT NULL,
+    image_mime       TEXT    NOT NULL
+                             REFERENCES img_mimes (v),
+    product_id       TEXT    NOT NULL
+                             REFERENCES products (product_id) ON DELETE CASCADE,
+    image_updated_at INTEGER NOT NULL,
+    image_sync_at    INTEGER,
+    image_deleted_at INTEGER,
+    image_hash       TEXT
+) STRICT;
+
+INSERT INTO images (
+  image_id, image_order, image_name, image_mime,
+  product_id, image_updated_at, image_sync_at,
+  image_deleted_at
+)
+SELECT
+  image_id, image_order, image_name, image_mime,
+  product_id, image_updated_at, image_sync_at,
+  image_deleted_at
+FROM images_old;
 
 CREATE TABLE pocket_enum (
   v TEXT PRIMARY KEY
@@ -212,6 +237,7 @@ SELECT
   discount_id, record_product_id, discount_kind, discount_value, discount_eff
 FROM discounts_old;
 
+DROP TABLE images_old;
 DROP TABLE discounts_old;
 DROP TABLE record_products_old;
 DROP TABLE record_extras_old;

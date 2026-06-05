@@ -1,29 +1,31 @@
-import { add } from "./add";
-// import { upsert } from "./upsert";
-import { delById } from "./del-by-id";
-import { delSync } from "./del-sync";
-import { getByProductId } from "./get-by-product-id";
-import { swap } from "./swap";
-import { sync } from "./sync";
-import { getAllUnsync } from "./get-all-unsync";
+import { addNewImage } from "./add";
+import { upsertManyImages } from "./upsert-many";
+import { deleteImageById } from "./del-by-id";
+import { deleteManyImagesSync } from "./del-many-sync";
+import { getImagesByProductId } from "./get-by-product-id";
+import { updateSwapImage } from "./update-swap";
+import { updateSyncManyImages } from "./update-sync-many";
+import { getAllUnsyncImages } from "./get-all-unsync";
 import { revalidateCache } from "./cache";
 
 export const image = {
   get: {
-    byProductId: getByProductId,
-    unsync: getAllUnsync,
+    byProductId: getImagesByProductId,
+    unsync: getAllUnsyncImages,
   },
   add: {
-    one: add,
+    one: addNewImage,
   },
-  del: {
-    byId: delById,
-    sync: delSync,
+  delete: {
+    byId: deleteImageById,
+    sync: deleteManyImagesSync,
   },
   update: {
-    sync,
-    swap,
+    sync: updateSyncManyImages,
+    swap: updateSwapImage,
   },
-  // upsert,
+  upsert: {
+    many: upsertManyImages,
+  },
   revalidate: revalidateCache,
 };

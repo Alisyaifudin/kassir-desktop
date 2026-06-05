@@ -8,7 +8,7 @@ import { update } from "./update";
 import { updateManyExtrasSync } from "./update-sync-many";
 import { updateSyncOneExtra } from "./update-sync-one";
 import { upsertManyExtras } from "./upsert-many";
-import { upsertOneExtra } from "./upsert-one";
+import { upsertOneExtra } from "./update-sync";
 
 export const extra = {
   get: {
@@ -18,7 +18,9 @@ export const extra = {
   },
   delete: {
     byId: deleteExtraById,
-    sync: deleteManyExtrasSync,
+    sync: {
+      many: deleteManyExtrasSync
+    },
   },
   update: {
     one: update,

@@ -32,6 +32,7 @@ declare namespace DB {
     image_updated_at: number;
     image_sync_at: number | null;
     image_deleted_at: number | null;
+    image_hash: string | null;
   }
   interface Social {
     social_name: string;
@@ -128,6 +129,7 @@ declare namespace DB {
     extra_kind: ValueKind;
     extra_updated_at: number;
     extra_sync_at: number | null;
+    extra_deleted_at: number | null;
   }
   interface Product {
     product_id: string;
