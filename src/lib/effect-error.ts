@@ -92,6 +92,17 @@ export class InvalidCredential {
   constructor(readonly msg: string) {}
 }
 
+export class InvalidOperation {
+  readonly _tag = "InvalidOperation";
+  constructor(readonly msg: string) {}
+  static new(msg: string) {
+    return new InvalidOperation(msg)
+  }
+  static fail(msg: string) {
+    return Effect.fail(InvalidOperation.new(msg))
+  }
+}
+
 export class DuplicateError {
   readonly _tag = "DuplicateError";
   constructor(public name: string) {}

@@ -349,6 +349,132 @@ export const cashier = {
 
 Even when there's no caching, **still wrap through `db/`** so all consumers have a single entry point and the cache can be added later without changing call sites.
 
+**Pattern — entity with composite-key cache (productId-keyed Map):**
+
+Some entities are not keyed by a single global `id` — instead, items belong to a parent. The `image` entity uses a `Map<productId, ImageFull[]>` cache:
+
+```ts
+// db/image/cache.ts — productId-keyed Map cache
+export type Image = {
+  order: number;
+  id: string;
+  name: string;
+  mime: DB.Mime;
+};
+
+export type ImageFull = Image & {
+  productId: string;
+  updatedAt: number;
+  syncAt?: number;
+  hash?: string;
+};
+
+const cache: Map<string, ImageFull[]> = new Map();
+
+export function getCache(productId: string) {
+  return cache.get(productId);
+}
+
+export function setCache(productId: string, images: ImageFull[]) {
+  cache.set(productId, images);
+}
+
+export function updateCache(productId: string, updater: (images: ImageFull[]) => ImageFull[]) {
+  const data = cache.get(productId);
+  if (data !== undefined) cache.set(productId, updater(data));
+}
+
+export function revalidateCache() {
+  cache.clear();
+}
+```
+
+**Get by product ID (cache-first):**
+
+```ts
+export function getImagesByProductId(productId: string) {
+  const cache = getCache(productId);
+  if (cache !== undefined) return Effect.succeed(cache);
+  return sqlx.image.get
+    .byProductId(productId)
+    .pipe(Effect.tap((images) => setCache(productId, images)));
+}
+```
+
+**Add (gets maxOrder from cache or sqlx, writes through):**
+
+```ts
+export function addNewImage({ name, mime, productId }: { ... }) {
+  const now = Date.now();
+  return Effect.gen(function* () {
+    const maxOrder = yield* getMaxOrder(productId);
+    const id = yield* sqlx.image.add.one({ name, mime, productId, maxOrder, now });
+    updateCache(productId, (prev) => [
+      ...prev, { id, name, mime, productId, order: maxOrder + 1, updatedAt: now },
+    ]);
+    return id;
+  });
+}
+```
+
+**Delete (fetches productId from sqlx, updates cache):**
+
+```ts
+export function deleteImageById(id: string) {
+  const now = Date.now();
+  return Effect.gen(function* () {
+    const productId = yield* sqlx.image.get.productId.one(id);
+    yield* sqlx.image.delete.byId(id, now);
+    updateCache(productId, (prev) => prev.filter((p) => p.id !== id));
+  });
+}
+```
+
+**Batch delete (resolve productIds, filter cache per product):**
+
+```ts
+export function deleteManyImagesSync(ids: string[], now: number) {
+  return Effect.gen(function* () {
+    const productIds = yield* sqlx.image.get.productId.many(ids);
+    yield* sqlx.image.delete.sync.many(ids, now);
+    productIds.forEach(({ productId, id }) =>
+      updateCache(productId, (prev) => prev.filter((p) => p.id !== id)),
+    );
+  });
+}
+```
+
+**Upsert (merge into productId-keyed cache):**
+
+```ts
+export function upsertManyImages({ images, now }: { images: {...}[], now: number }) {
+  return sqlx.image.upsert.many(images, now).pipe(
+    Effect.tap(() => {
+      const byProductId = new Map<string, ImageFull[]>();
+      for (const img of images) {
+        const group = byProductId.get(img.productId) ?? [];
+        group.push({ id: img.id, name: img.name, mime: img.mime, order: img.order,
+          productId: img.productId, updatedAt: img.updatedAt, syncAt: now, hash: img.hash });
+        byProductId.set(img.productId, group);
+      }
+      for (const [productId, imgs] of byProductId) {
+        const cached = getCache(productId);
+        if (cached !== undefined) {
+          const merged = [...cached];
+          for (const img of imgs) {
+            const idx = merged.findIndex((c) => c.id === img.id);
+            if (idx !== -1) merged[idx] = img; else merged.push(img);
+          }
+          setCache(productId, merged);
+        } else {
+          setCache(productId, imgs);
+        }
+      }
+    }),
+  );
+}
+```
+
 ---
 
 ## Cache Pattern
@@ -518,6 +644,17 @@ src/database/
 │   │   ├── update-sync-many.ts
 │   │   ├── upsert-one.ts
 │   │   └── upsert-many.ts
+│   ├── image/             ← composite-key cache (Map<productId, ImageFull[]>)
+│   │   ├── index.ts       ← barrel: mirrors sqlx shape + revalidate
+│   │   ├── cache.ts       ← ImageFull type + Map-based cache
+│   │   ├── add.ts
+│   │   ├── get-by-product-id.ts
+│   │   ├── get-all-unsync.ts
+│   │   ├── del-by-id.ts
+│   │   ├── del-many-sync.ts
+│   │   ├── update-swap.ts
+│   │   ├── update-sync-many.ts
+│   │   └── upsert-many.ts
 │   └── ...
 ├── sqlx/
 │   ├── index.ts           ← aggregates all sqlx/ exports
@@ -541,7 +678,20 @@ src/database/
 │   │   ├── update-sync-many.ts
 │   │   ├── upsert-one.ts
 │   │   └── upsert-many.ts
-│   └── ...
+│   ├── image/             ← full entity with all operations
+│   │   ├── index.ts       ← barrel: nested namespace
+│   │   ├── add.ts
+│   │   ├── get-by-product-id.ts
+│   │   ├── get-all-unsync.ts
+│   │   ├── get-order.ts
+│   │   ├── get-max-order.ts
+│   │   ├── get-product-id.ts
+│   │   ├── get-many-product-id.ts
+│   │   ├── del-by-id.ts
+│   │   ├── del-many-sync.ts
+│   │   ├── update-swap.ts
+│   │   ├── update-sync-many.ts
+│   │   └── upsert-many.ts
 │   └── ...
 └── migrations/            ← SQL migration files
 ```
@@ -558,3 +708,4 @@ src/database/
 8. **Batch operations** use dynamic `$${bindingIndex++}` placeholders wrapped in `BEGIN TRANSACTION;` / `COMMIT;` with a single flat bindings array via `flatMap`.
 9. **Operation variants are separate files.** For operations with single and batch variants, use `-one.ts` / `-many.ts` suffix (e.g., `upsert-one.ts`, `upsert-many.ts`, `update-sync-one.ts`, `update-sync-many.ts`).
 10. **Template files with commented-out code are intentional** — they serve as scaffolding for future operations. Do not delete them.
+11. **Composite-key caches use a raw `Map`.** For entities keyed by a parent (e.g., images belong to a product), use `Map<parentId, ItemFull[]>` with `getCache`/`setCache`/`updateCache` helpers instead of `CacheItem<T>`. The cache file should not import `CacheItem`.
