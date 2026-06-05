@@ -5,6 +5,7 @@ ALTER TABLE money_kind RENAME TO money_kind_old;
 ALTER TABLE money RENAME TO money_old;
 ALTER TABLE products RENAME TO products_old;
 ALTER TABLE product_events RENAME TO products_events_old;
+ALTER TABLE methods RENAME TO methods_old;
 ALTER TABLE records RENAME TO records_old;
 ALTER TABLE record_extras RENAME TO record_extras_old;
 ALTER TABLE record_products RENAME TO record_products_old;
@@ -152,6 +153,27 @@ SELECT
   id, created_at, sync_at, type, value, product_id
 FROM product_events_old;
 
+CREATE TABLE methods (
+    method_id         TEXT    PRIMARY KEY,
+    method_name       TEXT, -- public facing name
+    method_label      TEXT, -- internal name
+    method_kind       TEXT    NOT NULL
+                              REFERENCES method_enum (v),
+    method_deleted_at INTEGER,
+    method_updated_at INTEGER NOT NULL,
+    method_sync_at    INTEGER
+) STRICT;
+
+INSERT INTO methods (
+  method_id, method_name, method_label, method_kind, method_deleted_at, method_updated_at, method_sync_at
+)
+SELECT 
+  method_id, method_name, 
+  method_name, -- use name for label migration 
+  method_kind, method_deleted_at, method_updated_at, method_sync_at
+FROM methods_old;
+
+
 CREATE TABLE records (
     record_id             TEXT    PRIMARY KEY,
     record_created_at     INTEGER NOT NULL,
@@ -241,6 +263,7 @@ DROP TABLE images_old;
 DROP TABLE discounts_old;
 DROP TABLE record_products_old;
 DROP TABLE record_extras_old;
+DROP TABLE methods_old;
 DROP TABLE records_old;
 DROP TABLE product_events_old;
 DROP TABLE products_old;

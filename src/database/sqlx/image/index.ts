@@ -10,6 +10,7 @@ import { getImageOrder } from "./get-order";
 import { upsertManyImages } from "./upsert-many";
 import { getImageProductId } from "./get-product-id";
 import { getManyImageProductId } from "./get-many-product-id";
+import { updateUnsyncAllImages } from "./update-unsync-all";
 
 export const image = {
   get: {
@@ -36,6 +37,7 @@ export const image = {
       many: updateSyncManyImages,
     },
     swap: updateSwapImageOrder,
+    unsync: updateUnsyncAllImages
   },
   upsert: {
     many: upsertManyImages,
