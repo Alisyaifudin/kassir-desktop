@@ -116,6 +116,7 @@ declare namespace DB {
   interface Method {
     method_id: string;
     method_name: string | null;
+    method_label: string | null;
     method_kind: MethodEnum;
     // ("1000", 'cash'), ("1001", 'transfer'), ("1002", 'debit'), ("1003", 'qris');
     method_deleted_at: number | null;

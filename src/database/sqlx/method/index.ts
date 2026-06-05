@@ -1,12 +1,11 @@
 import { addNewMethod } from "./add";
-import { cache } from "./cache";
 import { deleteMethodById } from "./del-by-id";
 import { getAllMethods } from "./get-all";
 import { getAllUnsyncMethods } from "./get-all-unsync";
 import { updateMethodName } from "./update-name";
 import { updateSyncManyMethods } from "./update-sync-many";
 import { updateUnsyncAll } from "./update-unsync-all";
-import { upsert as upsertManyMethods } from "./upsert-many";
+import { upsertManyMethods } from "./upsert-many";
 
 export const method = {
   get: {
@@ -29,5 +28,4 @@ export const method = {
   upsert: {
     many: upsertManyMethods,
   },
-  revalidate: cache.revalidate,
 };

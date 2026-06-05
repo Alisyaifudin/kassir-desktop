@@ -1,19 +1,12 @@
 import { Effect } from "effect";
-import { DB } from "../instance";
 import { cache } from "./cache";
+import { sqlx } from "~/database/sqlx";
 
-export function delById(id: string) {
+export function deleteMethodById(id: string) {
   const now = Date.now();
-  return DB.try((db) =>
-    db.execute(
-      `UPDATE methods SET method_deleted_at = $1, method_updated_at = $1 
-       WHERE method_id = $2 AND method_name IS NOT NULL`,
-      [now, id],
-    ),
-  ).pipe(
+  return sqlx.method.delete.byId(id, now).pipe(
     Effect.tap(() => {
-      cache.update(id, (prev) => ({ ...prev, deletedAt: now, updatedAt: now }));
+      cache.delete(id);
     }),
-    Effect.asVoid,
   );
 }

@@ -1,8 +1,7 @@
-import { DB } from "../instance";
 import { Effect } from "effect";
+import { cache } from "./cache";
+import { sqlx } from "~/database/sqlx";
 
 export function updateUnsyncAll() {
-  return Effect.gen(function* () {
-    yield* DB.try((db) => db.execute(`UPDATE methods SET method_sync_at = null`));
-  });
+  return sqlx.method.update.unsync().pipe(Effect.tap(() => cache.revalidate()));
 }
