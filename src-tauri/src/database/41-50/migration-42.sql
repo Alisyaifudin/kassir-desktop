@@ -54,7 +54,8 @@ CREATE TABLE pockets (
                               REFERENCES pocket_enum(v),
     pocket_ordering   INTEGER NOT NULL,
     pocket_updated_at INTEGER NOT NULL,
-    pocket_sync_at    INTEGER
+    pocket_sync_at    INTEGER,
+    pocket_deleted_at INTEGER
 ) STRICT;
 
 INSERT INTO pockets (
@@ -73,7 +74,8 @@ CREATE TABLE money (
     money_note       TEXT    NOT NULL
                              DEFAULT (''),
     money_updated_at INTEGER NOT NULL,
-    money_sync_at    INTEGER
+    money_sync_at    INTEGER,
+    money_deleted_at INTEGER
 )
 STRICT;
 

@@ -49,6 +49,7 @@ declare namespace DB {
     pocket_ordering: number;
     pocket_updated_at: number;
     pocket_sync_at: number | null;
+    pocket_deleted_at: number | null;
   }
   interface Money {
     money_id: string;
@@ -58,6 +59,7 @@ declare namespace DB {
     money_note: string;
     money_updated_at: number;
     money_sync_at: number | null;
+    money_deleted_at: number | null;
   }
   interface Customer {
     customer_id: string;

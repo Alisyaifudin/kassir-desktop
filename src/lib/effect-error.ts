@@ -96,10 +96,10 @@ export class InvalidOperation {
   readonly _tag = "InvalidOperation";
   constructor(readonly msg: string) {}
   static new(msg: string) {
-    return new InvalidOperation(msg)
+    return new InvalidOperation(msg);
   }
   static fail(msg: string) {
-    return Effect.fail(InvalidOperation.new(msg))
+    return Effect.fail(InvalidOperation.new(msg));
   }
 }
 
@@ -150,9 +150,42 @@ export class BodyError {
   }
 }
 
+export class TextDecoderError {
+  readonly _tag = "TextDecoderError";
+  constructor(readonly error: Error) {}
+  static new(e: unknown) {
+    if (e instanceof Error) {
+      return new TextDecoderError(e);
+    }
+    const unknown = new Error("Unknown Error", { cause: e });
+    return new TextDecoderError(unknown);
+  }
+  static fail(e: unknown) {
+    return Effect.fail(TextDecoderError.new(e));
+  }
+}
+
+export class TextEncoderError {
+  readonly _tag = "TextEncoderError";
+  constructor(readonly error: Error) {}
+  static new(e: unknown) {
+    if (e instanceof Error) {
+      return new TextEncoderError(e);
+    }
+    const unknown = new Error("Unknown Error", { cause: e });
+    return new TextEncoderError(unknown);
+  }
+  static fail(e: unknown) {
+    return Effect.fail(TextEncoderError.new(e));
+  }
+}
+
 import { z } from "zod";
 
 export class ZodSchemaError {
   readonly _tag = "ZodSchemaError";
   constructor(readonly error: z.ZodError) {}
+  static fail(error: z.ZodError) {
+    return Effect.fail(new ZodSchemaError(error));
+  }
 }

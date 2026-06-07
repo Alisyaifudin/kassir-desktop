@@ -5,11 +5,15 @@ export const cashier = {
     all: sqlx.cashier.get.all,
     byId: sqlx.cashier.get.byId,
   },
-  add: sqlx.cashier.add,
+  add: {
+    new: sqlx.cashier.add.new,
+  },
   update: {
     name: sqlx.cashier.update.name,
     hash: sqlx.cashier.update.hash,
     role: sqlx.cashier.update.role,
   },
-  delete: sqlx.cashier.delete,
+  delete: {
+    byId: sqlx.cashier.delete.byId,
+  },
 };

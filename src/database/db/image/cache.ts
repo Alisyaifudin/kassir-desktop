@@ -12,23 +12,26 @@ export type ImageFull = Image & {
   hash?: string;
 };
 
-const cache: Map<string, ImageFull[]> = new Map();
+const _cache: Map<string, ImageFull[]> = new Map();
 
-export function getCache(productId: string) {
-  return cache.get(productId);
-}
-
-export function setCache(productId: string, images: ImageFull[]) {
-  cache.set(productId, images);
-}
-
-export function updateCache(productId: string, updater: (images: ImageFull[]) => ImageFull[]) {
-  const data = cache.get(productId);
-  if (data !== undefined) {
-    cache.set(productId, updater(data));
-  }
-}
-
-export function revalidateCache() {
-  cache.clear();
-}
+export const cache = {
+  getAll() {
+    const values = Array.from(_cache.values()).flat();
+    return values;
+  },
+  get(productId: string) {
+    return _cache.get(productId);
+  },
+  set(productId: string, images: ImageFull[]) {
+    _cache.set(productId, images);
+  },
+  update(productId: string, updater: (images: ImageFull[]) => ImageFull[]) {
+    const data = _cache.get(productId);
+    if (data !== undefined) {
+      _cache.set(productId, updater(data));
+    }
+  },
+  revalidate() {
+    _cache.clear();
+  },
+};

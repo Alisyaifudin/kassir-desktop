@@ -3,6 +3,8 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
 import { log } from "./log";
+import { Effect } from "effect";
+import { JsonError } from "./effect-error";
 
 export const numerish = z.string().refine((val) => val !== "" || !isNaN(Number(val)), {
   message: "Harus angka",
@@ -24,6 +26,16 @@ export function safeJSON(v: string) {
   } catch (error) {
     log.error(JSON.stringify(error));
     return ["Gagal parse json", null] as const;
+  }
+}
+
+export function parseJson(v: string) {
+  try {
+    const parsed = JSON.parse(v);
+    return Effect.succeed(parsed as unknown);
+  } catch (error) {
+    log.error(JSON.stringify(error));
+    return Effect.fail(new JsonError(error));
   }
 }
 

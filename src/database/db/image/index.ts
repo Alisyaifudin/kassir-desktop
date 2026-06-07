@@ -1,31 +1,43 @@
-import { addNewImage } from "./add";
-import { upsertManyImages } from "./upsert-many";
+import { addNewImage } from "./add-new";
+import { cache } from "./cache";
 import { deleteImageById } from "./del-by-id";
 import { deleteManyImagesSync } from "./del-many-sync";
+import { getUnsyncImagesAfter } from "./get-after";
 import { getImagesByProductId } from "./get-by-product-id";
 import { updateSwapImage } from "./update-swap";
 import { updateSyncManyImages } from "./update-sync-many";
-import { getAllUnsyncImages } from "./get-all-unsync";
-import { revalidateCache } from "./cache";
+import { updateUnsyncAllImages } from "./update-unsync-all";
+import { upsertManyImages } from "./upsert-many-sync";
 
 export const image = {
   get: {
     byProductId: getImagesByProductId,
-    unsync: getAllUnsyncImages,
+    unsync: {
+      after: getUnsyncImagesAfter,
+    },
   },
   add: {
-    one: addNewImage,
+    new: addNewImage,
   },
   delete: {
     byId: deleteImageById,
-    sync: deleteManyImagesSync,
   },
   update: {
-    sync: updateSyncManyImages,
     swap: updateSwapImage,
+    unsyncAll: updateUnsyncAllImages,
   },
-  upsert: {
-    many: upsertManyImages,
+  sync: {
+    delete: {
+      many: deleteManyImagesSync,
+    },
+    update: {
+      many: {
+        syncAt: updateSyncManyImages,
+      },
+    },
+    upsert: {
+      many: upsertManyImages,
+    },
   },
-  revalidate: revalidateCache,
+  revalidate: cache.revalidate,
 };

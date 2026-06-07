@@ -1,39 +1,47 @@
-import { addNewExtra } from "./add";
+import { addNewExtra } from "./add-new";
 import { cache } from "./cache";
 import { deleteExtraById } from "./del-by-id";
-import { deleteManyExtrasSync } from "./del-sync";
+import { deleteManyExtrasSync } from "./del-many-sync";
 import { getAllExtras } from "./get-all";
-import { getAllUnsyncExtra } from "./get-all-unsync";
 import { getExtraById } from "./get-by-id";
-import { updateSyncOneExtra } from "./update-sync-one";
-import { updateSyncManyExtras } from "./update-sync-many";
+import { getUnsyncExtrasAfter } from "./get-unsync-after";
+import { updateOneExtraSync } from "./update-one-sync";
+import { updateManyExtrasSyncAt } from "./update-many-sync-at";
 import { update } from "./update";
-import { upsert } from "./upsert-one";
-import { upsertMany } from "./upsert-many";
+import { updateUnsyncAllExtras } from "./update-unsync-all";
+import { upsertManyExtrasSync } from "./upsert-many-sync";
 
 export const extra = {
   get: {
     all: getAllExtras,
-    unsync: getAllUnsyncExtra,
+    unsync: {
+      after: getUnsyncExtrasAfter,
+    },
     byId: getExtraById,
   },
   delete: {
     byId: deleteExtraById,
-    sync: deleteManyExtrasSync,
   },
   update: {
     one: update,
-    sync: {
-      one: updateSyncOneExtra,
-      many: updateSyncManyExtras,
-    },
+    unsyncAll: updateUnsyncAllExtras,
   },
   add: {
-    one: addNewExtra,
+    new: addNewExtra,
   },
-  upsert: {
-    one: upsert,
-    many: upsertMany,
+  sync: {
+    delete: {
+      many: deleteManyExtrasSync,
+    },
+    update: {
+      one: updateOneExtraSync,
+      many: {
+        syncAt: updateManyExtrasSyncAt,
+      },
+    },
+    upsert: {
+      many: upsertManyExtrasSync,
+    },
   },
   revalidate: cache.revalidate,
 };

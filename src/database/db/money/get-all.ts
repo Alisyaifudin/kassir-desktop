@@ -1,19 +1,5 @@
-import { Effect } from "effect";
-import { DB } from "../instance";
+import { sqlx } from "~/database/sqlx";
 
-export function getAll(kindId: string) {
-  return DB.try((db) =>
-    db.select<Omit<DB.Money, "money_kind_id">[]>("SELECT * FROM money WHERE money_kind_id = $1", [
-      kindId,
-    ]),
-  ).pipe(
-    Effect.map((rows) =>
-      rows.map((r) => ({
-        value: r.money_value,
-        timestamp: r.timestamp,
-        note: r.money_note,
-        id: r.money_id,
-      })),
-    ),
-  );
+export function getAllMoney(pocketId: string) {
+  return sqlx.money.get.all(pocketId);
 }

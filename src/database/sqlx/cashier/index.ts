@@ -1,21 +1,25 @@
-import { addNewCashier } from "./add";
-import { deleteCashierById } from "./del";
-import { getAllCashier } from "./get-all";
+import { addNewCashier } from "./add-new";
+import { deleteCashierById } from "./del-by-id";
+import { getAllCashiers } from "./get-all";
 import { getCashierById } from "./get-by-id";
 import { updateCashierHash } from "./update-hash";
-import { updateName } from "./update-name";
-import { updateRole } from "./update-role";
+import { updateCashierName } from "./update-name";
+import { updateCashierRole } from "./update-role";
 
 export const cashier = {
   get: {
-    all: getAllCashier,
+    all: getAllCashiers,
     byId: getCashierById,
   },
-  add: addNewCashier,
-  update: {
-    name: updateName,
-    hash: updateCashierHash,
-    role: updateRole,
+  add: {
+    new: addNewCashier,
   },
-  delete: deleteCashierById,
+  update: {
+    name: updateCashierName,
+    hash: updateCashierHash,
+    role: updateCashierRole,
+  },
+  delete: {
+    byId: deleteCashierById,
+  },
 };

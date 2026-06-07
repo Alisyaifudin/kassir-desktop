@@ -1,45 +1,51 @@
-import { addNewImage } from "./add";
+import { addNewImage } from "./add-new";
 import { deleteImageById } from "./del-by-id";
 import { deleteManyImagesSync } from "./del-many-sync";
+import { getUnsyncImagesAfter } from "./get-unsync-after";
 import { getImagesByProductId } from "./get-by-product-id";
-import { updateSwapImageOrder } from "./update-swap";
-import { updateSyncManyImages } from "./update-sync-many";
-import { getAllUnsyncImages } from "./get-all-unsync";
 import { getImageMaxOrder } from "./get-max-order";
 import { getImageOrder } from "./get-order";
-import { upsertManyImages } from "./upsert-many";
 import { getImageProductId } from "./get-product-id";
-import { getManyImageProductId } from "./get-many-product-id";
+import { getManyImagesProductId } from "./get-many-product-id";
+import { updateSwapImageOrder } from "./update-swap";
+import { updateManyImagesSyncAt } from "./update-many-sync-at";
 import { updateUnsyncAllImages } from "./update-unsync-all";
+import { upsertManyImages } from "./upsert-many-sync";
 
 export const image = {
   get: {
     byProductId: getImagesByProductId,
-    unsync: getAllUnsyncImages,
+    unsync: {
+      after: getUnsyncImagesAfter,
+    },
     maxOrder: getImageMaxOrder,
     order: getImageOrder,
     productId: {
       one: getImageProductId,
-      many: getManyImageProductId,
+      many: getManyImagesProductId,
     },
   },
   add: {
-    one: addNewImage,
+    new: addNewImage,
   },
   delete: {
     byId: deleteImageById,
-    sync: {
-      many: deleteManyImagesSync,
-    },
   },
   update: {
-    sync: {
-      many: updateSyncManyImages,
-    },
     swap: updateSwapImageOrder,
-    unsync: updateUnsyncAllImages
+    unsyncAll: updateUnsyncAllImages,
   },
-  upsert: {
-    many: upsertManyImages,
+  sync: {
+    delete: {
+      many: deleteManyImagesSync,
+    },
+    update: {
+      many: {
+        syncAt: updateManyImagesSyncAt,
+      },
+    },
+    upsert: {
+      many: upsertManyImages,
+    },
   },
 };

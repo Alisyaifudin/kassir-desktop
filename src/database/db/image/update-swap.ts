@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { updateCache } from "./cache";
 import { InvalidOperation } from "~/lib/effect-error";
 import { produce } from "immer";
 import { sqlx } from "~/database/sqlx";
+import { cache } from "./cache";
 
 export function updateSwapImage(imageAId: string, imageBId: string) {
   const now = Date.now();
@@ -25,7 +25,7 @@ export function updateSwapImage(imageAId: string, imageBId: string) {
     };
     const productId = resA.productId;
     yield* sqlx.image.update.swap(imageA, imageB, now);
-    updateCache(
+    cache.update(
       productId,
       produce((draft) => {
         const idxA = draft.findIndex((d) => d.id === imageAId);

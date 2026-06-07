@@ -1,15 +1,15 @@
 import { Effect } from "effect";
-import { getCache, ImageFull, setCache } from "./cache";
 import { sqlx } from "~/database/sqlx";
+import { cache, ImageFull } from "./cache";
 
 export function getImagesByProductId(productId: string) {
-  const cache = getCache(productId);
-  if (cache !== undefined) {
-    return Effect.succeed(cache);
+  const images = cache.get(productId);
+  if (images !== undefined) {
+    return Effect.succeed(images);
   }
   return sqlx.image.get.byProductId(productId).pipe(
     Effect.map((images) => {
-      setCache(productId, images);
+      cache.set(productId, images);
       return images as ImageFull[];
     }),
   );
