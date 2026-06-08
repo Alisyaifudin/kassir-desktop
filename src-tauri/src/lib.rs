@@ -3,6 +3,7 @@ mod auth;
 mod database;
 mod jwt;
 mod printer;
+mod stream;
 mod transaction;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -37,6 +38,7 @@ pub fn run() {
             jwt::encode_jwt,
             printer::get_printers,
             printer::print_pdf,
+            stream::stream_fetch,
         ]);
     // Only enable the plugin in production
     #[cfg(not(debug_assertions))]

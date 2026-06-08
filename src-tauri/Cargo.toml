@@ -49,6 +49,7 @@ winprint = "0.2.0"
 tempfile = "3"
 tauri-plugin-dialog = "2"
 tauri-plugin-websocket = "2"
+reqwest = { version = "0.12", features = ["stream"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
