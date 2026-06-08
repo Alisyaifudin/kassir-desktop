@@ -31,6 +31,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .manage(stream::UploadState::default())
         .invoke_handler(tauri::generate_handler![
             auth::hash_password,
             auth::verify_password,
@@ -39,6 +40,9 @@ pub fn run() {
             printer::get_printers,
             printer::print_pdf,
             stream::stream_fetch,
+            stream::upload_start,
+            stream::upload_chunk,
+            stream::upload_end,
         ]);
     // Only enable the plugin in production
     #[cfg(not(debug_assertions))]

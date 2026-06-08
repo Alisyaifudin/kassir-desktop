@@ -1,5 +1,31 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
 use futures::StreamExt;
-use tauri::ipc::Channel;
+use tauri::{ipc::Channel, State};
+use tokio::sync::{mpsc, oneshot};
+use tokio_stream::wrappers::ReceiverStream;
+
+// ============================================================================
+// State
+// ============================================================================
+
+struct UploadSession {
+    tx: mpsc::Sender<Vec<u8>>,
+    response_rx: oneshot::Receiver<Result<reqwest::Response, String>>,
+}
+
+pub struct UploadState(Mutex<HashMap<String, UploadSession>>);
+
+impl Default for UploadState {
+    fn default() -> Self {
+        Self(Mutex::new(HashMap::new()))
+    }
+}
+
+// ============================================================================
+// Commands: Fetch
+// ============================================================================
 
 #[tauri::command]
 pub async fn stream_fetch(url: String, on_chunk: Channel<Vec<u8>>) -> Result<(), String> {
@@ -23,10 +49,107 @@ pub async fn stream_fetch(url: String, on_chunk: Channel<Vec<u8>>) -> Result<(),
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Stream error: {e}"))?;
         if on_chunk.send(chunk.to_vec()).is_err() {
-            // Frontend dropped the channel, stop streaming
             break;
         }
     }
 
     Ok(())
+}
+
+// ============================================================================
+// Commands: Upload
+// ============================================================================
+
+#[tauri::command]
+pub async fn upload_start(
+    state: State<'_, UploadState>,
+    url: String,
+) -> Result<String, String> {
+    let (tx, rx) = mpsc::channel::<Vec<u8>>(32);
+    let (resp_tx, resp_rx) = oneshot::channel();
+
+    let body_stream = ReceiverStream::new(rx).map(|chunk| {
+        Ok::<bytes::Bytes, reqwest::Error>(bytes::Bytes::from(chunk))
+    });
+
+    tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        let result = client
+            .post(&url)
+            .body(reqwest::Body::wrap_stream(body_stream))
+            .send()
+            .await
+            .map_err(|e| format!("Upload failed: {e}"));
+        let _ = resp_tx.send(result);
+    });
+
+    let handle = uuid::Uuid::new_v4().to_string();
+
+    state
+        .0
+        .lock()
+        .map_err(|e| format!("Lock error: {e}"))?
+        .insert(
+            handle.clone(),
+            UploadSession {
+                tx,
+                response_rx: resp_rx,
+            },
+        );
+
+    Ok(handle)
+}
+
+#[tauri::command]
+pub async fn upload_chunk(
+    state: State<'_, UploadState>,
+    handle: String,
+    chunk: Vec<u8>,
+) -> Result<(), String> {
+    let tx = {
+        let sessions = state.0.lock().map_err(|e| format!("Lock error: {e}"))?;
+        sessions
+            .get(&handle)
+            .ok_or_else(|| format!("Upload session {handle} not found"))?
+            .tx
+            .clone()
+    };
+    tx.send(chunk)
+        .await
+        .map_err(|e| format!("Failed to send chunk: {e}"))
+}
+
+#[tauri::command]
+pub async fn upload_end(
+    state: State<'_, UploadState>,
+    handle: String,
+    abort: Option<bool>,
+) -> Result<String, String> {
+    let session = {
+        let mut sessions = state.0.lock().map_err(|e| format!("Lock error: {e}"))?;
+        sessions
+            .remove(&handle)
+            .ok_or_else(|| format!("Upload session {handle} not found"))?
+    };
+
+    // tx dropped here — reqwest stream receives EOF
+
+    if abort.unwrap_or(false) {
+        // Don't await the response — the connection closes faster,
+        // signaling the server that the upload was aborted.
+        return Ok("aborted".into());
+    }
+
+    let response = session
+        .response_rx
+        .await
+        .map_err(|_| "Upload task panicked or was cancelled".to_string())??;
+
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {e}"))?;
+
+    Ok(format!("{status}: {body}"))
 }

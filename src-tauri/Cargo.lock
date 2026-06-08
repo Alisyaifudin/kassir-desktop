@@ -2526,6 +2526,7 @@ version = "5.19.26"
 dependencies = [
  "axum",
  "bcrypt",
+ "bytes",
  "chrono",
  "dotenvy",
  "futures",
@@ -2550,8 +2551,10 @@ dependencies = [
  "tauri-plugin-websocket",
  "tempfile",
  "tokio",
+ "tokio-stream",
  "tower 0.4.13",
  "tower-http 0.5.2",
+ "uuid",
  "winprint",
 ]
 
