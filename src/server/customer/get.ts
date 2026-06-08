@@ -2,6 +2,7 @@ import { Effect, Stream } from "effect";
 import z from "zod";
 import { HeaderError, TextDecoderError, ZodSchemaError } from "~/lib/effect-error";
 import { streamFetch } from "~/lib/stream";
+import { genURL } from "~/lib/url";
 import { parseJson } from "~/lib/utils";
 
 export const customerSchema = z.object({
@@ -12,9 +13,12 @@ export const customerSchema = z.object({
   deletedAt: z.number().optional(),
 });
 
-export function getCustomersFromServer(token: string, onProgress: (currentSize: number, totalSize: number) => void) {
+export function getCustomersFromServer(
+  token: string,
+  onProgress: (currentSize: number, totalSize: number) => void,
+) {
   return Effect.gen(function* () {
-    const { size, chunks } = yield* streamFetch("/api/v2/customer", {
+    const { size, chunks } = yield* streamFetch(genURL("/api/v2/customer").href, {
       Authorization: `Bearer ${token}`,
     });
     if (size === null) return yield* HeaderError.fail("Tidak ada header 'Kassir-File-Size'");

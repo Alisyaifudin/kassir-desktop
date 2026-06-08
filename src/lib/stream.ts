@@ -61,8 +61,11 @@ export function streamFetch(
 // ============================================================================
 
 /** Start an upload session. Returns a handle (UUID string). */
-function uploadStart(url: string): Promise<string> {
-  return invoke("upload_start", { url });
+function uploadStart(
+  url: string,
+  headers?: Record<string, string>,
+): Promise<string> {
+  return invoke("upload_start", { url, headers });
 }
 
 /** Send a chunk to an active upload session. */
@@ -98,12 +101,13 @@ function uploadEnd(handle: string, abort?: boolean): Promise<string> {
  */
 export function streamUpload(
   url: string,
+  headers?: Record<string, string>,
 ): Sink.Sink<string, Uint8Array, never, InvokeError> {
   return Sink.unwrapScoped(
     Effect.gen(function* () {
       const handle = yield* Effect.acquireRelease(
         Effect.tryPromise({
-          try: () => uploadStart(url),
+          try: () => uploadStart(url, headers),
           catch: (e) => InvokeError.new(e, "Upload start failed"),
         }),
         (h) =>

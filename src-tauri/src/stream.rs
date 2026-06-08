@@ -89,6 +89,7 @@ pub async fn stream_fetch(
 pub async fn upload_start(
     state: State<'_, UploadState>,
     url: String,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<String, String> {
     let (tx, rx) = mpsc::channel::<Vec<u8>>(32);
     let (resp_tx, resp_rx) = oneshot::channel();
@@ -99,8 +100,13 @@ pub async fn upload_start(
 
     tokio::spawn(async move {
         let client = reqwest::Client::new();
-        let result = client
-            .post(&url)
+        let mut req = client.post(&url);
+        if let Some(h) = &headers {
+            for (k, v) in h {
+                req = req.header(k.as_str(), v.as_str());
+            }
+        }
+        let result = req
             .body(reqwest::Body::wrap_stream(body_stream))
             .send()
             .await
