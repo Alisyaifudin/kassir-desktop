@@ -135,6 +135,17 @@ export class ResponseError {
   }
 }
 
+export class HeaderError {
+  readonly _tag = "HeaderError";
+  constructor(readonly error: string) {}
+  static new(e: string) {
+    return new HeaderError(e);
+  }
+  static fail(e: string) {
+    return Effect.fail(HeaderError.new(e));
+  }
+}
+
 export class BodyError {
   readonly _tag = "BodyError";
   constructor(readonly error: Error) {}

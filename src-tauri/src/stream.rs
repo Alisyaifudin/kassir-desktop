@@ -28,13 +28,38 @@ impl Default for UploadState {
 // ============================================================================
 
 #[tauri::command]
-pub async fn stream_fetch(url: String, on_chunk: Channel<Vec<u8>>) -> Result<(), String> {
+pub async fn stream_fetch(
+    url: String,
+    on_chunk: Channel<Vec<u8>>,
+    on_meta: Channel<Option<u64>>,
+    headers: Option<HashMap<String, String>>,
+) -> Result<(), String> {
     let client = reqwest::Client::new();
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch {url}: {e}"))?;
+    let mut req = client.get(&url);
+    if let Some(h) = &headers {
+        for (k, v) in h {
+            req = req.header(k.as_str(), v.as_str());
+        }
+    }
+    let response = match req.send().await {
+        Ok(r) => r,
+        Err(e) => {
+            // Always send meta — even on connection failure — so the
+            // frontend's metaPromise never hangs.
+            on_meta.send(None).ok();
+            return Err(format!("Failed to fetch {url}: {e}"));
+        }
+    };
+
+    // Extract file size from custom header, sent BEFORE body chunks.
+    // Even on error responses meta arrives so the frontend never hangs
+    // waiting for it.
+    let size = response
+        .headers()
+        .get("kassir-file-size")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok());
+    on_meta.send(size).ok();
 
     if !response.status().is_success() {
         return Err(format!(
