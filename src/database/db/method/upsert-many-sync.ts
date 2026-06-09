@@ -1,22 +1,16 @@
+import { Effect } from "effect";
 import { cache } from "./cache";
 import { sqlx } from "~/database/sqlx";
-import { Effect } from "effect";
 
 export function upsertManyMethodsSync(
-  methods: {
-    id: string;
-    name?: string;
-    label?: string;
-    kind: DB.MethodEnum;
-    updatedAt: number;
-  }[],
+  methods: { id: string; name?: string; kind: DB.MethodEnum; updatedAt: number }[],
   now: number,
 ) {
   return sqlx.method.sync.upsert.many(methods, now).pipe(
     Effect.tap(() => {
-      methods.forEach(({ id, kind, updatedAt, label, name }) =>
-        cache.update(id, { id, name, label, kind, updatedAt, syncAt: now }),
-      );
+      methods.forEach(({ id, name, kind, updatedAt }) => {
+        cache.update(id, { id, name, kind, updatedAt, syncAt: now });
+      });
     }),
   );
 }

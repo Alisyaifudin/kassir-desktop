@@ -3,18 +3,18 @@ import { cache } from "./cache";
 import { deleteMethodById } from "./del-by-id";
 import { deleteManyMethodsSync } from "./del-many-sync";
 import { getAllMethods } from "./get-all";
-import { getUnsyncMethodsAfter } from "./get-unsync-after";
+import { getAllUnsync } from "./get-all-unsync";
+import { getMethodsUpdatedAt } from "./get-updated-at";
 import { updateMethodName } from "./update-name";
 import { updateManyMethodsSyncAt } from "./update-many-sync-at";
 import { updateUnsyncAll } from "./update-unsync-all";
-import { upsertManyMethodsSync as upsertManyMethods } from "./upsert-many-sync";
+import { upsertManyMethodsSync } from "./upsert-many-sync";
 
 export const method = {
   get: {
     all: getAllMethods,
-    unsync: {
-      after: getUnsyncMethodsAfter,
-    },
+    updatedAt: getMethodsUpdatedAt,
+    allUnsync: getAllUnsync,
   },
   delete: {
     byId: deleteMethodById,
@@ -36,7 +36,7 @@ export const method = {
       },
     },
     upsert: {
-      many: upsertManyMethods,
+      many: upsertManyMethodsSync,
     },
   },
   revalidate: cache.revalidate,

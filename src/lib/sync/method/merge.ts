@@ -1,62 +1,51 @@
 import { Effect } from "effect";
-import { db } from "~/database";
 import { MethodServer } from "~/server/method/get";
+import { db } from "~/database/db";
+import { store } from "~/store";
 
-export function merge(methods: MethodServer[]) {
+export function merge({
+  exist,
+  deleted,
+  timestamp,
+}: {
+  exist: MethodServer[];
+  deleted: {
+    id: string;
+    deletedAt: number;
+  }[];
+  timestamp: number;
+}) {
   return Effect.gen(function* () {
-    if (methods.length === 0) return Date.now();
-    const methodMap = yield* db.method.get.updated(methods.map((p) => p.id));
-    const addMethods: MethodServer[] = [];
-    const updateMethods: MethodServer[] = [];
-    let latestUpdatedAt = 0;
-    for (const method of methods) {
-      const methodUpdatedAt = method.updatedAt ?? 0;
-      if (latestUpdatedAt < methodUpdatedAt) {
-        latestUpdatedAt = methodUpdatedAt;
-      }
-      const localUpdatedAt = methodMap.get(method.id);
+    const methodsInDb = yield* db.method.get.updatedAt(exist.map((m) => m.id));
+
+    const methods: {
+      id: string;
+      name?: string;
+      kind: typeof exist[number]["kind"];
+      updatedAt: number;
+    }[] = [];
+
+    for (const method of exist) {
+      const localUpdatedAt = methodsInDb.get(method.id);
       if (localUpdatedAt === undefined) {
-        addMethods.push(method);
-      } else if (localUpdatedAt < methodUpdatedAt) {
-        updateMethods.push(method);
+        methods.push({
+          id: method.id,
+          name: method.name ?? undefined,
+          kind: method.kind,
+          updatedAt: method.updatedAt ?? 0,
+        });
+      } else if (localUpdatedAt < (method.updatedAt ?? 0)) {
+        methods.push({
+          id: method.id,
+          name: method.name ?? undefined,
+          kind: method.kind,
+          updatedAt: method.updatedAt ?? 0,
+        });
       }
     }
-    yield* Effect.all([insert(addMethods), update(updateMethods)], { concurrency: "unbounded" });
-    db.method.revalidate();
-    return latestUpdatedAt;
+
+    yield* db.method.sync.delete.many(deleted, timestamp);
+    yield* db.method.sync.upsert.many(methods, timestamp);
+    yield* store.sync.method.set(timestamp);
   });
-}
-
-function insert(methods: MethodServer[]) {
-  return Effect.all(
-    methods.map((method) =>
-      db.method.add.sync({ ...method, name: method.name ?? undefined, deletedAt: method.deletedAt ?? null }).pipe(
-        Effect.as(null),
-        Effect.catchAll((e) =>
-          Effect.succeed({
-            error: e,
-            id: method.id,
-          }),
-        ),
-      ),
-    ),
-    { concurrency: 10 },
-  );
-}
-
-function update(methods: MethodServer[]) {
-  return Effect.all(
-    methods.map((method) =>
-      db.method.update.syncFromServer({ ...method, name: method.name ?? undefined, deletedAt: method.deletedAt ?? null }).pipe(
-        Effect.as(null),
-        Effect.catchAll((e) =>
-          Effect.succeed({
-            error: e,
-            id: method.id,
-          }),
-        ),
-      ),
-    ),
-    { concurrency: 10 },
-  );
 }

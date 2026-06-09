@@ -1,30 +1,37 @@
 import { Effect } from "effect";
-import { db } from "~/database";
-import { log } from "~/lib/log";
+import z from "zod";
 import { server } from "~/server";
+import { db } from "~/database/db";
+import { SimpleResponseError, ZodSchemaError } from "~/lib/effect-error";
+import { parseJson } from "~/lib/utils";
 
-export function push(token: string) {
+const responseBodySchema = z.object({
+  timestamp: z.number().min(0).max(1e16),
+  failedIds: z.string().nonempty().max(100).array(),
+});
+
+export function push(token: string, uploadCount: (currentSize: number, totalSize: number) => void) {
   return Effect.gen(function* () {
-    const methods = yield* db.method.get.unsync();
-    if (methods.length === 0) return 0;
-    const { data } = yield* server.method.post(methods, token);
-    const { failed } = data;
-    const failedSet = new Set(failed);
-    const syncIds = methods.flatMap((p) => (failedSet.has(p.id) ? [] : [p.id]));
-    if (syncIds.length > 0) {
-      yield* Effect.all(
-        syncIds.map((id) =>
-          db.method.update.sync(id).pipe(
-            Effect.tapError((e) => {
-              log.error(`Error: ${id}: ${e.e.message}`);
-              return Effect.fail(e);
-            }),
-          ),
-        ),
-        { concurrency: 50 },
-      );
+    const methods = yield* db.method.get.allUnsync();
+    const response = yield* server.method.post(token, methods, uploadCount);
+    if (response.status >= 400) {
+      return yield* SimpleResponseError.fail(response);
     }
-    const unsyncCount = (yield* db.method.get.unsync()).length;
-    return unsyncCount;
+    const json = yield* parseJson(response.body);
+    const parsed = z.safeParse(responseBodySchema, json);
+    if (!parsed.success) return yield* ZodSchemaError.fail(parsed.error);
+    const { timestamp, failedIds } = parsed.data;
+    const failedSet = new Set(failedIds);
+    const successDeletedIds = methods.deleted.flatMap(({ id }) =>
+      failedSet.has(id) ? [] : [id],
+    );
+    const successExistIds = methods.exist.flatMap(({ id }) => (failedSet.has(id) ? [] : [id]));
+    yield* Effect.all(
+      [
+        db.method.sync.update.many.syncAt(successDeletedIds, timestamp),
+        db.method.sync.update.many.syncAt(successExistIds, timestamp),
+      ],
+      { concurrency: "unbounded" },
+    );
   });
 }

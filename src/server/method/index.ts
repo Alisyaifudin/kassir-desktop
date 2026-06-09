@@ -1,7 +1,7 @@
-import { get } from "./get";
-import { post } from "./post";
+import { getMethodsFromServer } from "./get";
+import { postMethodsToServer } from "./post";
 
 export const method = {
-  get,
-  post,
+  get: getMethodsFromServer,
+  post: postMethodsToServer,
 };
