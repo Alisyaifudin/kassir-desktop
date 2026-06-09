@@ -1,14 +1,8 @@
-import { Effect } from "effect";
 import { store } from "~/store";
 import { server } from "~/server";
+import { makePull } from "../util";
 
-export function pull(
-  token: string,
-  downloadCount: (currentSize: number, totalSize: number) => void,
-) {
-  return Effect.gen(function* () {
-    const lastPullAt = yield* store.sync.method.get();
-    const pulledData = yield* server.method.get(token, lastPullAt, downloadCount);
-    return pulledData;
-  });
-}
+export const pull = makePull({
+  storeGet: () => store.sync.method.get(),
+  serverGet: (token, ts, cb) => server.method.get(token, ts, cb),
+});

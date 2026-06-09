@@ -11,7 +11,7 @@ export const methodSchema = z.object({
   name: z.string().max(100).nullable().optional(),
   kind: z.enum(["cash", "transfer", "debit", "qris"]),
   deletedAt: z.number().int().max(1e14).min(0).nullable().optional(),
-  updatedAt: z.number().int().max(1e14).min(0).optional(),
+  updatedAt: z.number().int().max(1e14).min(0),
 });
 
 export type MethodServer = z.infer<typeof methodSchema>;

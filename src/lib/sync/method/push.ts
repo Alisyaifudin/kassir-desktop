@@ -1,37 +1,9 @@
-import { Effect } from "effect";
-import z from "zod";
 import { server } from "~/server";
 import { db } from "~/database/db";
-import { SimpleResponseError, ZodSchemaError } from "~/lib/effect-error";
-import { parseJson } from "~/lib/utils";
+import { makePush } from "../util";
 
-const responseBodySchema = z.object({
-  timestamp: z.number().min(0).max(1e16),
-  failedIds: z.string().nonempty().max(100).array(),
+export const push = makePush({
+  allUnsync: () => db.method.get.allUnsync(),
+  upload: (token, payload, cb) => server.method.post(token, payload, cb),
+  markSynced: (ids, ts) => db.method.sync.update.many.syncAt(ids, ts),
 });
-
-export function push(token: string, uploadCount: (currentSize: number, totalSize: number) => void) {
-  return Effect.gen(function* () {
-    const methods = yield* db.method.get.allUnsync();
-    const response = yield* server.method.post(token, methods, uploadCount);
-    if (response.status >= 400) {
-      return yield* SimpleResponseError.fail(response);
-    }
-    const json = yield* parseJson(response.body);
-    const parsed = z.safeParse(responseBodySchema, json);
-    if (!parsed.success) return yield* ZodSchemaError.fail(parsed.error);
-    const { timestamp, failedIds } = parsed.data;
-    const failedSet = new Set(failedIds);
-    const successDeletedIds = methods.deleted.flatMap(({ id }) =>
-      failedSet.has(id) ? [] : [id],
-    );
-    const successExistIds = methods.exist.flatMap(({ id }) => (failedSet.has(id) ? [] : [id]));
-    yield* Effect.all(
-      [
-        db.method.sync.update.many.syncAt(successDeletedIds, timestamp),
-        db.method.sync.update.many.syncAt(successExistIds, timestamp),
-      ],
-      { concurrency: "unbounded" },
-    );
-  });
-}
