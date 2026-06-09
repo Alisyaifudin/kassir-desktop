@@ -4,15 +4,19 @@ import { TextEncoderError } from "~/lib/effect-error";
 import { streamUpload } from "~/lib/stream";
 import { customerSchema } from "./get";
 import { genURL } from "~/lib/url";
+import { deletedSchema } from "../schema";
 
 export function postCustomersToServer(
   token: string,
-  customers: z.infer<typeof customerSchema>[],
+  payload: {
+    exist: z.infer<typeof customerSchema>[];
+    deleted: z.infer<typeof deletedSchema>[];
+  },
   onProgress: (current: number, total: number) => void,
 ) {
   return Effect.gen(function* () {
     const encoder = new TextEncoder();
-    const json = JSON.stringify(customers);
+    const json = JSON.stringify(payload);
     const encoded = yield* Effect.try({
       try: () => encoder.encode(json),
       catch: (e) => TextEncoderError.new(e),
@@ -44,6 +48,7 @@ export function postCustomersToServer(
         }),
       ),
     );
+    
 
     return response;
   });

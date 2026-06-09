@@ -82,8 +82,14 @@ pub async fn stream_fetch(
 }
 
 // ============================================================================
-// Commands: Upload
+// Types
 // ============================================================================
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UploadResponse {
+    pub status: u16,
+    pub body: String,
+}
 
 #[tauri::command]
 pub async fn upload_start(
@@ -155,7 +161,7 @@ pub async fn upload_end(
     state: State<'_, UploadState>,
     handle: String,
     abort: Option<bool>,
-) -> Result<String, String> {
+) -> Result<UploadResponse, String> {
     let session = {
         let mut sessions = state.0.lock().map_err(|e| format!("Lock error: {e}"))?;
         sessions
@@ -166,9 +172,10 @@ pub async fn upload_end(
     // tx dropped here — reqwest stream receives EOF
 
     if abort.unwrap_or(false) {
-        // Don't await the response — the connection closes faster,
-        // signaling the server that the upload was aborted.
-        return Ok("aborted".into());
+        return Ok(UploadResponse {
+            status: 0,
+            body: "aborted".into(),
+        });
     }
 
     let response = session
@@ -182,5 +189,5 @@ pub async fn upload_end(
         .await
         .map_err(|e| format!("Failed to read response body: {e}"))?;
 
-    Ok(format!("{status}: {body}"))
+    Ok(UploadResponse { status, body })
 }

@@ -60,6 +60,11 @@ export function streamFetch(
 // Upload
 // ============================================================================
 
+export interface UploadResponse {
+  status: number;
+  body: string;
+}
+
 /** Start an upload session. Returns a handle (UUID string). */
 function uploadStart(
   url: string,
@@ -76,10 +81,10 @@ function uploadChunk(
   return invoke("upload_chunk", { handle, chunk });
 }
 
-/** End an upload session. Returns the server response as `"{status}: {body}"`.
+/** End an upload session. Returns the server HTTP status and body.
  * Pass `abort: true` to skip awaiting the response so the server sees a
  * broken connection — signalling the upload was cancelled. */
-function uploadEnd(handle: string, abort?: boolean): Promise<string> {
+function uploadEnd(handle: string, abort?: boolean): Promise<UploadResponse> {
   return invoke("upload_end", { handle, abort });
 }
 
@@ -102,7 +107,7 @@ function uploadEnd(handle: string, abort?: boolean): Promise<string> {
 export function streamUpload(
   url: string,
   headers?: Record<string, string>,
-): Sink.Sink<string, Uint8Array, never, InvokeError> {
+): Sink.Sink<UploadResponse, Uint8Array, never, InvokeError> {
   return Sink.unwrapScoped(
     Effect.gen(function* () {
       const handle = yield* Effect.acquireRelease(
