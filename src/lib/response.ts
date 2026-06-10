@@ -1,8 +1,12 @@
 import { Effect } from "effect";
-import { ResponseError } from "./effect-error";
+import { ResponseError, SimpleResponseError } from "./effect-error";
 
 export const responseError = {
-  withCode(e: ResponseError) {
+  withCode(e: ResponseError | SimpleResponseError) {
+    if (e instanceof SimpleResponseError) {
+      const errMsg = e.response.body;
+      return Effect.sync(() => ({ message: errMsg, code: e.response.status }));
+    }
     return Effect.promise(async () => {
       try {
         const errMsg = await e.response.text();
@@ -13,7 +17,11 @@ export const responseError = {
       }
     });
   },
-  text(e: ResponseError) {
+  text(e: ResponseError | SimpleResponseError) {
+    if (e instanceof SimpleResponseError) {
+      const errMsg = e.response.body;
+      return Effect.sync(() => errMsg);
+    }
     return Effect.promise(async () => {
       try {
         const errMsg = await e.response.text();
@@ -24,7 +32,11 @@ export const responseError = {
       }
     });
   },
-  failMsg(e: ResponseError) {
+  failMsg(e: ResponseError | SimpleResponseError) {
+    if (e instanceof SimpleResponseError) {
+      const errMsg = e.response.body;
+      return Effect.fail(errMsg);
+    }
     return Effect.promise(async () => {
       try {
         const errMsg = await e.response.text();
@@ -35,7 +47,11 @@ export const responseError = {
       }
     }).pipe(Effect.flatMap((res) => Effect.fail(res)));
   },
-  fail(e: ResponseError) {
+  fail(e: ResponseError | SimpleResponseError) {
+    if (e instanceof SimpleResponseError) {
+      const errMsg = e.response.body;
+      return Effect.fail({ message: errMsg, code: e.response.status });
+    }
     return Effect.promise(async () => {
       try {
         const errMsg = await e.response.text();

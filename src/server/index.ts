@@ -1,13 +1,7 @@
-import { grave } from "./grave";
+import { customer } from "./customer";
 import { method } from "./method";
-import { product } from "./product";
-import { productEvent } from "./product-event";
-import { record } from "./record";
 
 export const server = {
-  product,
-  productEvent,
-  record,
-  grave,
+  customer,
   method,
 };
