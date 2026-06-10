@@ -6,7 +6,7 @@ export function upsertManyExtrasSync(
   extras: { id: string; name: string; value: number; kind: DB.ValueKind; updatedAt: number }[],
   now: number,
 ) {
-  return sqlx.extra.sync.upsert.many({ extras, now }).pipe(
+  return sqlx.extra.sync.upsert.many(extras, now).pipe(
     Effect.tap(() => {
       extras.forEach(({ id, name, value, kind, updatedAt }) => {
         cache.update(id, { id, name, value, kind, updatedAt, syncAt: now });

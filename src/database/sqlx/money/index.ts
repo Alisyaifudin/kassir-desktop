@@ -3,7 +3,7 @@ import { addManyMoneyExternal } from "./add-many-external";
 import { deleteMoneyById } from "./del-by-id";
 import { getMoneyByRange } from "./get-by-range";
 import { getLastMoney } from "./get-last";
-import { getUnsyncMoneyAfter } from "./get-unsync-after";
+import { getAllUnsyncMoney } from "./get-all-unsync";
 import { updateMoneyNote } from "./update-note";
 import { deleteManyMoneySync } from "./del-many-sync";
 import { updateManyMoneySyncAt } from "./update-many-sync-at";
@@ -11,16 +11,16 @@ import { upsertManyMoney } from "./upsert-many-sync";
 import { updateUnsyncAllMoney } from "./update-unsync-all";
 import { getAllMoney } from "./get-all";
 import { getCurrentMoney } from "./get-current";
+import { getMoneyUpdatedAt } from "./get-updated-at";
 
 export const money = {
   get: {
     all: getAllMoney,
     byRange: getMoneyByRange,
+    updatedAt: getMoneyUpdatedAt,
     last: getLastMoney,
     current: getCurrentMoney,
-    unsync: {
-      after: getUnsyncMoneyAfter,
-    },
+    allUnsync: getAllUnsyncMoney,
   },
   delete: {
     byId: deleteMoneyById,

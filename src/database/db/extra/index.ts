@@ -10,11 +10,13 @@ import { updateManyExtrasSyncAt } from "./update-many-sync-at";
 import { updateExtra } from "./update";
 import { updateUnsyncAllExtras } from "./update-unsync-all";
 import { upsertManyExtrasSync } from "./upsert-many-sync";
+import { getExtrasUpdatedAt } from "./get-updated-at";
 
 export const extra = {
   get: {
     all: getAllExtras,
     allUnsync: getAllExtrasUnsync,
+    updatedAt: getExtrasUpdatedAt,
     byId: getExtraById,
   },
   delete: {

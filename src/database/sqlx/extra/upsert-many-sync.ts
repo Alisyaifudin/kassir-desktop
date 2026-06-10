@@ -1,19 +1,16 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
 
-export function upsertManyExtras({
-  extras,
-  now,
-}: {
+export function upsertManyExtras(
   extras: {
     id: string;
     name: string;
     value: number;
     kind: DB.ValueKind;
     updatedAt: number;
-  }[];
-  now: number;
-}) {
+  }[],
+  now: number,
+) {
   let bindingIndex = 1;
   const placeholders = extras
     .map(
