@@ -1,15 +1,13 @@
-import { grave } from "./grave";
-import { method } from "./method";
-import { product } from "./product";
-import { productEvent } from "./product-event";
-import { record } from "./record";
+import { makeLastPullAt } from "./factory";
 import { token } from "./token";
 
 export const sync = {
   token,
-  grave,
-  method,
-  product,
-  productEvent,
-  record,
+  method: makeLastPullAt("method-last-pull-at"),
+  product: makeLastPullAt("product-last-pull-at"),
+  extra: makeLastPullAt("extra-last-pull-at"),
+  record: makeLastPullAt("record-last-pull-at"),
+  customer: makeLastPullAt("customer-last-pull-at"),
+  social: makeLastPullAt("social-last-pull-at"),
+  money: makeLastPullAt("money-last-pull-at"),
 };

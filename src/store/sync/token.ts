@@ -1,7 +1,8 @@
-import { getStore } from "../../instance";
 import { Effect } from "effect";
+import { getStore } from "~/store/instance";
 
-export function get() {
+
+function get() {
   return Effect.gen(function* () {
     const store = yield* getStore();
     const res = yield* store.get("token");
@@ -18,3 +19,15 @@ function parseString(token: unknown) {
   }
   return undefined;
 }
+
+function set(token: string) {
+  return Effect.gen(function* () {
+    const store = yield* getStore();
+    yield* store.set("token", token);
+  });
+}
+
+export const token = {
+  get,
+  set,
+};
