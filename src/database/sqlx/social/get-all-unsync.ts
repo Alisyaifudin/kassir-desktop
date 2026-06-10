@@ -14,3 +14,9 @@ export function getAllUnsyncSocials() {
     ),
   );
 }
+
+export function getAllUnsync() {
+  return getAllUnsyncSocials().pipe(
+    Effect.map((exist) => ({ exist, deleted: [] })),
+  );
+}
