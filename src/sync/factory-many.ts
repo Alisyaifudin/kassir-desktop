@@ -109,29 +109,17 @@ class SyncPull<
       RPull
     >,
   ) {}
-
-  merge<E1, E2, E3, E4, R1, R2, R3, R4>(deps: {
-    localUpdatedAt: (ids: string[]) => Effect.Effect<Map<string, number>, E1, R1>;
-    deleteMany: (deleted: Deleted[], ts: number) => Effect.Effect<void, E2, R2>;
-    upsertMany: (items: Exist[], ts: number) => Effect.Effect<void, E3, R3>;
-    storeSet: (ts: number) => Effect.Effect<void, E4, R4>;
-  }) {
+  merge<E1, E2, E3, E4, R1, R2, R3, R4>(
+    mergeFn: (data: {
+      exist: Exist[];
+      deleted: Deleted[];
+      timestamp: number;
+    }) => Effect.Effect<void, E1, R1>,
+  ) {
     const pullEffect = this.effect;
     const effect = Effect.gen(function* () {
       const data = yield* pullEffect;
-      const local = yield* deps.localUpdatedAt(data.exist.map((e) => e.id));
-
-      const toUpsert: Exist[] = [];
-      for (const item of data.exist) {
-        const localTs = local.get(item.id);
-        if (localTs === undefined || localTs < item.updatedAt) {
-          toUpsert.push(item);
-        }
-      }
-
-      yield* deps.deleteMany(data.deleted, data.timestamp);
-      yield* deps.upsertMany(toUpsert, data.timestamp);
-      yield* deps.storeSet(data.timestamp);
+      yield* mergeFn(data);
     });
     return new SyncMerge<Exist, Deleted, EPull | E1 | E2 | E3 | E4, RPull | R1 | R2 | R3 | R4>(
       effect,
