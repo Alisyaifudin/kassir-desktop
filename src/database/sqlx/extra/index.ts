@@ -1,4 +1,4 @@
-import { addNewExtra } from "./add";
+import { addNewExtra } from "./add-new";
 import { deleteExtraById } from "./del-by-id";
 import { deleteManyExtrasSync } from "./del-many-sync";
 import { getAllExtra } from "./get-all";
@@ -7,15 +7,15 @@ import { updateExtra } from "./update";
 import { updateManyExtrasSyncAt } from "./update-many-sync-at";
 import { updateSyncOneExtra } from "./update-one-sync";
 import { upsertManyExtras } from "./upsert-many-sync";
-import { getUnsyncExtrasAfter } from "./get-unsync-after";
 import { updateUnsyncAllExtras } from "./update-unsync-all";
+import { getAllUnsync } from "./get-all-unsync";
+import { getExtrasUpdatedAt } from "./get-updated-at";
 
 export const extra = {
   get: {
     all: getAllExtra,
-    unsync: {
-      after: getUnsyncExtrasAfter,
-    },
+    allUnsync: getAllUnsync,
+    updatedAt: getExtrasUpdatedAt,
     byId: getExtraById,
   },
   delete: {
@@ -26,7 +26,7 @@ export const extra = {
     unsyncAll: updateUnsyncAllExtras,
   },
   add: {
-    one: addNewExtra,
+    new: addNewExtra,
   },
   sync: {
     delete: {

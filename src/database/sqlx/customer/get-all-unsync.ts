@@ -11,7 +11,6 @@ type ExistCustomer = {
 type DeletedCustomer = {
   id: string;
   deletedAt: number;
-  updatedAt: number;
 };
 
 type GetAfterResult = {
@@ -19,12 +18,9 @@ type GetAfterResult = {
   deleted: DeletedCustomer[];
 };
 
-const LIMIT = 1000;
-
-export function getUnsyncCustomersAfter(timestamp: number) {
+export function getAllUnsync() {
   return DB.select<DB.Customer[]>(
-    "SELECT * FROM customers WHERE customer_updated_at > $1 AND customer_sync_at IS NULL ORDER BY cusotmer_updated_at LIMIT $2",
-    [timestamp, LIMIT],
+    "SELECT * FROM customers WHERE customer_sync_at IS NULL ORDER BY customer_updated_at",
   ).pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
@@ -40,7 +36,6 @@ export function getUnsyncCustomersAfter(timestamp: number) {
             acc.deleted.push({
               id: r.customer_id,
               deletedAt: r.customer_deleted_at,
-              updatedAt: r.customer_updated_at,
             });
           }
           return acc;

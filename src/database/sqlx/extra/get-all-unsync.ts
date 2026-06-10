@@ -12,7 +12,6 @@ type ExistExtra = {
 type DeletedExtra = {
   id: string;
   deletedAt: number;
-  updatedAt: number;
 };
 
 type GetAfterResult = {
@@ -20,11 +19,8 @@ type GetAfterResult = {
   deleted: DeletedExtra[];
 };
 
-export function getUnsyncExtrasAfter(timestamp: number) {
-  return DB.select<DB.Extra[]>(
-    "SELECT * FROM extras WHERE extra_updated_at > $1 AND extra_sync_at IS NULL",
-    [timestamp],
-  ).pipe(
+export function getAllUnsync() {
+  return DB.select<DB.Extra[]>("SELECT * FROM extras WHERE extra_sync_at IS NULL").pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
         (acc, r) => {
@@ -40,7 +36,6 @@ export function getUnsyncExtrasAfter(timestamp: number) {
             acc.deleted.push({
               id: r.extra_id,
               deletedAt: r.extra_deleted_at,
-              updatedAt: r.extra_updated_at,
             });
           }
           return acc;

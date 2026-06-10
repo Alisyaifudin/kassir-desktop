@@ -1,6 +1,12 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
 
+/**
+ * 
+ * @param customers 
+ * @param now 
+ * @returns inserted ids
+ */
 export function upsertManyCustomersSync(
   customers: {
     id: string;

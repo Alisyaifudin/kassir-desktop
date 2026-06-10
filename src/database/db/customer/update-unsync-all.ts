@@ -3,5 +3,5 @@ import { Effect } from "effect";
 import { cache } from "./cache";
 
 export function updateUnsyncAllCustomers() {
-  return sqlx.customer.update.unsyncAll().pipe(Effect.tap(() => cache.revalidate()));
+  return sqlx.customer.update.allUnsync().pipe(Effect.tap(() => cache.revalidate()));
 }

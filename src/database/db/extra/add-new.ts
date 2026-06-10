@@ -10,7 +10,7 @@ type Input = {
 };
 
 export function addNewExtra({ name, value, kind, now }: Input) {
-  return sqlx.extra.add.one({ name, value, kind, now }).pipe(
+  return sqlx.extra.add.new({ name, value, kind, now }).pipe(
     Effect.tap((id) => {
       cache.update(id, { id, name, value, kind, updatedAt: now });
     }),

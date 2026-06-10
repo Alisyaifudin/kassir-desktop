@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { Extra, cache } from "./cache";
 import { sqlx } from "~/database/sqlx";
 
-export function update({ id, kind, name, value }: Extra) {
+export function updateExtra({ id, kind, name, value }: Extra) {
   const now = Date.now();
   return sqlx.extra.update.one(id, name, value, kind, now).pipe(
     Effect.tap(() => {
