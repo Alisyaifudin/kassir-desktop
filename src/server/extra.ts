@@ -12,14 +12,14 @@ const extraSchema = z.object({
 
 type Extra = z.infer<typeof extraSchema>;
 
-const getMethodsFromServer = makeGet({
+const getExtrasFromServer = makeGet({
   item: extraSchema,
   path: (ts) => `/api/v2/extra/${ts}`,
 });
 
-const postMethodsToServer = makePost<Extra>({ path: "/api/v2/extra" });
+const postExtrasToServer = makePost<Extra>({ path: "/api/v2/extra" });
 
-export const method = {
-  get: getMethodsFromServer,
-  post: postMethodsToServer,
+export const extra = {
+  get: getExtrasFromServer,
+  post: postExtrasToServer,
 };

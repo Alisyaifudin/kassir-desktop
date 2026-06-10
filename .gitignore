@@ -31,3 +31,4 @@ dist-ssr
 .env.old
 .secret
 pi-session*
+pi-*
