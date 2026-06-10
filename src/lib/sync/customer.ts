@@ -1,9 +1,9 @@
 import { store } from "~/store";
 import { server } from "~/server";
 import { db } from "~/database/db";
-import { Sync } from "./factory";
+import { SyncMany } from "./factory-many";
 
-export const customer = Sync.pull({
+export const customer = SyncMany.pull({
   storeGet: () => store.sync.customer.get(),
   serverGet: (token, ts, cb) => server.customer.get(token, ts, cb),
 })
@@ -17,4 +17,5 @@ export const customer = Sync.pull({
     allUnsync: () => db.customer.get.allUnsync(),
     upload: (token, payload, cb) => server.customer.post(token, payload, cb),
     markSynced: (ids, ts) => db.customer.sync.update.many.syncAt(ids, ts),
-  });
+  })
+  .build();
