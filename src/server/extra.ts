@@ -4,7 +4,7 @@ import { makePost } from "./server-post-factory";
 
 const extraSchema = z.object({
   id: z.string().nonempty().max(100),
-  name: z.string().max(100).nullable(),
+  name: z.string().max(100),
   value: z.number().min(-1e9).max(1e9),
   kind: z.enum(["percent", "number"]),
   updatedAt: z.number().int().max(1e14).min(0),

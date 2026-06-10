@@ -9,5 +9,5 @@ export const sync = {
   record: makeLastPullAt("record-last-pull-at"),
   customer: makeLastPullAt("customer-last-pull-at"),
   social: makeLastPullAt("social-last-pull-at"),
-  money: makeLastPullAt("money-last-pull-at"),
+  pocket: makeLastPullAt("pocket-last-pull-at"),
 };

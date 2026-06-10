@@ -4,7 +4,7 @@ import { makePost } from "./server-post-factory";
 
 const methodSchema = z.object({
   id: z.string().nonempty().max(100),
-  name: z.string().max(100).nullable().optional(),
+  name: z.string().max(100).optional(),
   kind: z.enum(["cash", "transfer", "debit", "qris"]),
   updatedAt: z.number().int().max(1e14).min(0),
 });
