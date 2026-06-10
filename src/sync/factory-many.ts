@@ -1,8 +1,8 @@
 import { Context, Effect } from "effect";
-import { UploadResponse } from "../stream";
-import { SimpleResponseError, ZodSchemaError } from "../effect-error";
-import { parseJson } from "../utils";
 import z from "zod";
+import { SimpleResponseError, ZodSchemaError } from "~/lib/effect-error";
+import { UploadResponse } from "~/lib/stream";
+import { parseJson } from "~/lib/utils";
 
 type ProgressCb = (currentSize: number, totalSize: number) => void;
 
