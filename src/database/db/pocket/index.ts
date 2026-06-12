@@ -3,28 +3,24 @@ import { deletePocketById } from "./del-by-id";
 import { deleteManyPocketSync } from "./del-many-sync";
 import { getAllPocket } from "./get-all";
 import { getPocketById } from "./get-by-id";
-import { getMaxPocketOrdering } from "./get-max-ordering";
-import { getUnsyncPocketAfter } from "./get-unsync-after";
+import { getAllUnsyncPocket } from "./get-all-unsync";
 import { updatePocketName } from "./update-name";
 import { updatePocketReorder } from "./update-reorder";
 import { updatePocketType } from "./update-type";
 import { updateManyPocketSyncAt } from "./update-many-sync-at";
+import { getMaxPocketOrdering } from "./get-max-ordering";
+import { upsertOnePocketSync } from "~/database/sqlx/pocket/upsert-one-sync";
 // import { upsertOnePocket } from "./upsert";
 
-export const moneyKind = {
+export const pocket = {
   get: {
     all: getAllPocket,
     maxOrdering: getMaxPocketOrdering,
     byId: getPocketById,
-    unsync: {
-      after: getUnsyncPocketAfter,
-    },
+    allUnsync: getAllUnsyncPocket,
   },
   delete: {
     byId: deletePocketById,
-    sync: {
-      many: deleteManyPocketSync,
-    },
   },
   add: {
     one: addNewPocket,
@@ -33,11 +29,18 @@ export const moneyKind = {
     type: updatePocketType,
     name: updatePocketName,
     reorder: updatePocketReorder,
-    sync: {
-      many: updateManyPocketSyncAt,
+  },
+  sync: {
+    update: {
+      many: {
+        updatedAt: updateManyPocketSyncAt,
+      },
+    },
+    delete: {
+      many: deleteManyPocketSync,
+    },
+    upsert: {
+      one: upsertOnePocketSync,
     },
   },
-  // upsert: {
-  //   one: upsertOnePocket,
-  // },
 };

@@ -1,6 +1,7 @@
 import z from "zod";
 import { makeGet } from "./server-get-factory";
 import { makePost } from "./server-post-factory";
+import { deletedSchema } from "./schema";
 
 const socialSchema = z.object({
   id: z.string().nonempty().max(100),
@@ -13,6 +14,7 @@ type Social = z.infer<typeof socialSchema>;
 
 const getSocialsFromServer = makeGet({
   item: socialSchema,
+  deleted: deletedSchema.array(),
   path: (ts) => `/api/v2/social/${ts}`,
 });
 

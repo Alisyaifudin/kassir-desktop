@@ -16,7 +16,6 @@ export function getPocketById(id: string) {
             type: r[0].pocket_type,
             ordering: r[0].pocket_ordering,
             updatedAt: r[0].pocket_updated_at,
-            syncAt: r[0].pocket_sync_at ?? undefined,
           }),
     ),
   );

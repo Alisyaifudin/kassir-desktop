@@ -1,5 +1,5 @@
 import { sqlx } from "~/database/sqlx";
 
-export function deleteManyMoneySync(ids: string[], now: number) {
-  return sqlx.money.sync.delete.many(ids, now);
+export function deleteManyMoneySync(money: { id: string; deletedAt: number }[], now: number) {
+  return sqlx.money.sync.delete.many(money, now);
 }

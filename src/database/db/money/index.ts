@@ -9,10 +9,12 @@ import { updateManyMoneySyncAt } from "./update-many-sync-at";
 import { updateUnsyncAllMoney } from "./update-unsync-all";
 import { upsertManyMoneySync } from "./upsert-many-sync";
 import { getMoneyUpdatedAt } from "./get-updated-at";
+import { getMoneyByRange } from "./get-by-range";
 
 export const money = {
   get: {
     all: getAllMoney,
+    byRange: getMoneyByRange,
     allUnsync: getAllUnsyncMoney,
     updatedAt: getMoneyUpdatedAt,
   },

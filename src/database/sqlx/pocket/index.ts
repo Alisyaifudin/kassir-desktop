@@ -1,7 +1,7 @@
 import { getAllPocket } from "./get-all";
 import { getPocketById } from "./get-by-id";
 import { getMaxPocketOrdering } from "./get-max-ordering";
-import { getUnsyncPocketAfter } from "./get-unsync-after";
+import { getAllUnsyncPocket } from "./get-all-unsync";
 import { updatePocketName } from "./update-name";
 import { updatePocketReorder } from "./update-reorder";
 import { updatePocketType } from "./update-type";
@@ -16,9 +16,7 @@ export const pocket = {
     all: getAllPocket,
     byId: getPocketById,
     maxOrdering: getMaxPocketOrdering,
-    unsync: {
-      after: getUnsyncPocketAfter,
-    },
+    allUnsync: getAllUnsyncPocket,
   },
   delete: {
     byId: deletePocketById,

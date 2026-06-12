@@ -4,6 +4,7 @@ import { Effect } from "effect";
 type ExistMoney = {
   id: string;
   note: string;
+  value: number;
   timestamp: number;
   pocketId: string;
   updatedAt: number;
@@ -19,14 +20,15 @@ type GetAfterResult = {
   deleted: DeletedMoney[];
 };
 
-export function getAllUnsyncMoney(timestamp: number) {
-  return DB.select<DB.Money[]>("SELECT * FROM money WHERE money_sync_at IS NULL", [timestamp]).pipe(
+export function getAllUnsyncMoney() {
+  return DB.select<DB.Money[]>("SELECT * FROM money WHERE money_sync_at IS NULL").pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
         (acc, r) => {
           if (r.money_deleted_at === null) {
             acc.exist.push({
               id: r.money_id,
+              value: r.money_value,
               note: r.money_note,
               timestamp: r.timestamp,
               pocketId: r.pocket_id,

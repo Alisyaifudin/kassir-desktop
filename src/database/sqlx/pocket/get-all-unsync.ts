@@ -12,7 +12,6 @@ type Exist = {
 type Deleted = {
   id: string;
   deletedAt: number;
-  updatedAt: number;
 };
 
 type GetAfterResult = {
@@ -20,11 +19,8 @@ type GetAfterResult = {
   deleted: Deleted[];
 };
 
-export function getUnsyncPocketAfter(timestamp: number) {
-  return DB.select<DB.Pocket[]>(
-    "SELECT * FROM pocket WHERE pocket_updated_at > $1 AND pocket_sync_at IS NULL",
-    [timestamp],
-  ).pipe(
+export function getAllUnsyncPocket() {
+  return DB.select<DB.Pocket[]>("SELECT * FROM pocket WHERE pocket_sync_at IS NULL").pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
         (acc, r) => {
@@ -40,7 +36,6 @@ export function getUnsyncPocketAfter(timestamp: number) {
             acc.deleted.push({
               id: r.pocket_id,
               deletedAt: r.pocket_deleted_at,
-              updatedAt: r.pocket_updated_at,
             });
           }
           return acc;

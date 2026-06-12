@@ -3,10 +3,12 @@ import { TextEncoderError } from "~/lib/effect-error";
 import { streamUpload } from "~/lib/stream";
 import { genURL } from "~/lib/url";
 
-export function makePost<TData>(config: { path: string }) {
+export function makePost<TData, TDeleted = { id: string; deletedAt: number }[]>(config: {
+  path: string;
+}) {
   return function post(
     token: string,
-    payload: { exist: TData[]; deleted: { id: string; deletedAt: number }[] },
+    payload: { exist: TData[]; deleted: TDeleted },
     onProgress: (current: number, total: number) => void,
   ) {
     return Effect.gen(function* () {

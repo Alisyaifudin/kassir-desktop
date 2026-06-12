@@ -4,7 +4,7 @@ import { extra } from "./extra";
 import { image } from "./image";
 import { method } from "./method";
 import { money } from "./money";
-import { moneyKind } from "./pocket";
+import { pocket } from "./pocket";
 import { social } from "./social";
 
 export const db = {
@@ -14,6 +14,6 @@ export const db = {
   image,
   method,
   money,
-  moneyKind,
+  pocket,
   social,
 };

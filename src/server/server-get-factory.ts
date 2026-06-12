@@ -4,15 +4,15 @@ import { HeaderError, TextDecoderError, ZodSchemaError } from "~/lib/effect-erro
 import { streamFetch } from "~/lib/stream";
 import { genURL } from "~/lib/url";
 import { parseJson } from "~/lib/utils";
-import { deletedSchema } from "./schema";
 
-export function makeGet<T extends z.ZodTypeAny>(config: {
-  item: T;
+export function makeGet<TData extends z.ZodType, TDeleted extends z.ZodType>(config: {
+  item: TData;
+  deleted: TDeleted;
   path: (timestamp: number) => string;
 }) {
   const schema = z.object({
     exist: config.item.array(),
-    deleted: deletedSchema.array(),
+    deleted: config.deleted,
     timestamp: z.number().min(0).max(1e16),
   });
 
@@ -22,10 +22,9 @@ export function makeGet<T extends z.ZodTypeAny>(config: {
     onProgress: (currentSize: number, totalSize: number) => void,
   ) {
     return Effect.gen(function* () {
-      const { size, chunks } = yield* streamFetch(
-        genURL(config.path(timestamp)).href,
-        { Authorization: `Bearer ${token}` },
-      );
+      const { size, chunks } = yield* streamFetch(genURL(config.path(timestamp)).href, {
+        Authorization: `Bearer ${token}`,
+      });
       if (size === null) return yield* HeaderError.fail("Tidak ada header 'Kassir-File-Size'");
 
       const joined = new Uint8Array(size);

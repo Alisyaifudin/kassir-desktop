@@ -1,6 +1,7 @@
 import z from "zod";
 import { makeGet } from "./server-get-factory";
 import { makePost } from "./server-post-factory";
+import { deletedSchema } from "./schema";
 
 const customerSchema = z.object({
   id: z.string().nonempty().max(100),
@@ -13,6 +14,7 @@ type Customer = z.infer<typeof customerSchema>;
 
 const getCustomersFromServer = makeGet({
   item: customerSchema,
+  deleted: deletedSchema.array(),
   path: (ts) => `/api/v2/customer/${ts}`,
 });
 

@@ -1,20 +1,17 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
 
-export function upsertManyMoney({
-  money,
-  now,
-}: {
+export function upsertManyMoney(
+  pocketId: string,
   money: {
     id: string;
     note: string;
     value: number;
     timestamp: number;
-    pocketId: string;
     updatedAt: number;
-  }[];
-  now: number;
-}) {
+  }[],
+  now: number,
+) {
   let bindingIndex = 1;
   const placeholders = money
     .map(
@@ -24,7 +21,7 @@ export function upsertManyMoney({
           $${bindingIndex++})`,
     )
     .join(", ");
-  const bindings = money.flatMap(({ id, value, note, pocketId, timestamp, updatedAt }) => [
+  const bindings = money.flatMap(({ id, value, note, timestamp, updatedAt }) => [
     id,
     timestamp,
     value,
