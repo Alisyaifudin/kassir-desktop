@@ -1,10 +1,5 @@
-import { DB } from "../instance";
-import { productCache } from "./cache";
-import { Effect } from "effect";
+import { sqlx } from "~/database/sqlx";
 
-export function updateUnsyncAll() {
-  return Effect.gen(function* () {
-    yield* DB.try((db) => db.execute(`UPDATE products SET product_sync_at = null`));
-    productCache.updateAll((prev) => ({ ...prev, syncAt: null }));
-  });
+export function updateUnsyncAllProducts() {
+  return sqlx.product.update.allUnsync();
 }

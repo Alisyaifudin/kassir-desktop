@@ -8,14 +8,14 @@ import { updateManyCustomersSyncAt } from "./update-many-sync-at";
 import { updateUnsyncAllCustomers } from "./update-unsync-all";
 import { upsertManyCustomersSync } from "./upsert-many-sync";
 import { getCustomersUpdatedAt } from "./get-updated-at";
-import { getAllUnsync } from "./get-all-unsync";
+import { getAllUnsyncCustomers } from "./get-all-unsync";
 // import { getCustomerLastSyncAt } from "./get-last-sync-at";
 
 export const customer = {
   get: {
     all: getAllCustomers,
     updatedAt: getCustomersUpdatedAt,
-    allUnsync: getAllUnsync,
+    allUnsync: getAllUnsyncCustomers,
     // lastSycnAt: getCustomerLastSyncAt,
     // unsync: {
     //   after: getUnsyncCustomersAfter,

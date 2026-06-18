@@ -106,10 +106,10 @@ FROM products_old;
 
 
 CREATE TABLE product_codes (
-  product_code  TEXT  PRIMARY KEY,
-  product_id    TEXT  NOT NULL
-                REFERENCES products(product_id)
-                ON DELETE CASCADE
+  product_code            TEXT  PRIMARY KEY,
+  product_id              TEXT  NOT NULL
+                          REFERENCES products(product_id)
+                          ON DELETE CASCADE
 ) STRICT;
 
 INSERT INTO product_codes (
@@ -120,13 +120,15 @@ SELECT
 FROM products_old;
 
 CREATE TABLE capitals (
-  capital_id      TEXT    PRIMARY KEY,
-  capital_stock   INTEGER NOT NULL,
-  capital_capital REAL    NOT NULL,
-  capital_updated_at INTEGER NOT NULL,
-  product_id      TEXT    NOT NULL
-                          REFERENCES products(product_id) 
-                          ON DELETE CASCADE
+  capital_id          TEXT    PRIMARY KEY,
+  capital_stock       INTEGER NOT NULL,
+  capital_capital     REAL    NOT NULL,
+  capital_deleted_at  INTEGER,
+  capital_updated_at  INTEGER NOT NULL,
+  capital_sync_at     INTEGER,
+  product_id          TEXT    NOT NULL
+                              REFERENCES products(product_id) 
+                              ON DELETE CASCADE
 ) STRICT;
 
 INSERT INTO capitals (
@@ -137,23 +139,20 @@ SELECT
   product_id, product_stock, product_capital, product_updated_at, product_id 
 FROM products_old;
 
+-- INSERT INTO product_event_enum (v) VALUES ('change'), ('absolute');
+
 CREATE TABLE product_events (
     product_event_id      TEXT    PRIMARY KEY,
     timestamp             INTEGER NOT NULL,
+    product_event_note    TEXT    NOT NULL,
     product_event_sync_at INTEGER,
-    product_event_type    TEXT    NOT NULL
-                                  REFERENCES product_event_enum (v),
+    -- product_event_type    TEXT    NOT NULL
+    --                               REFERENCES product_event_enum (v),
     product_event_value   INTEGER NOT NULL,
     capital_id            TEXT    NOT NULL
                                   REFERENCES capitals (capital_id) ON DELETE CASCADE
 ) STRICT;
 
-INSERT INTO product_events (
-  product_event_id, timestamp, product_event_sync_at, product_event_type, product_event_value, capital_id
-)
-SELECT 
-  id, created_at, sync_at, type, value, product_id
-FROM product_events_old;
 
 CREATE TABLE methods (
     method_id         TEXT    PRIMARY KEY,
@@ -216,7 +215,7 @@ FROM records_old;
 
 CREATE TABLE record_products (
     record_product_id          TEXT    PRIMARY KEY,
-    capital_id                 TEXT    REFERENCES capitals (capital_id) ON DELETE SET NULL,
+    product_event_id           TEXT    REFERENCES product_events (product_event_id) ON DELETE SET NULL,
     record_id                  TEXT    NOT NULL
                                        REFERENCES records (record_id) ON DELETE CASCADE,
     record_product_name        TEXT    NOT NULL,

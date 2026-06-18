@@ -7,14 +7,17 @@ declare namespace DB {
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";
 
-  type ProductEventEnum = "manual" | "inc" | "dec";
+  // type ProductEventEnum = "manual" | "inc" | "dec";
+  // type ProductEventEnum = "absolute" | "change";
+
   interface ProductEvent {
-    id: string;
-    created_at: number;
-    sync_at: number | null;
-    type: ProductEventEnum;
-    value: number;
-    product_id: string;
+    product_event_id: string;
+    timestamp: number;
+    product_event_sync_at: number | null;
+    // product_event_type: ProductEventEnum;
+    product_event_value: number;
+    product_event_note: string;
+    capital_id: string;
   }
 
   interface Cashier {
@@ -86,13 +89,12 @@ declare namespace DB {
   }
   interface RecordProduct {
     record_product_id: string;
-    product_id: string | null;
+    product_event_id: string | null;
     record_id: string;
     record_product_name: string;
     record_product_price: number;
     record_product_qty: number;
     record_product_capital: number;
-    record_product_capital_raw: number;
     record_product_total: number; // total including discount
   }
   interface Record {
@@ -136,7 +138,6 @@ declare namespace DB {
   }
   interface Product {
     product_id: string;
-    product_barcode: string | null;
     product_name: string;
     product_price: number;
     product_note: string;
@@ -150,8 +151,10 @@ declare namespace DB {
   interface Capital {
     capital_id: string;
     capital_stock: number;
-    capital_capital: number;
+    capital_deleted_at: number | null;
+    capital_sync_at: number | null;
     capital_updated_at: number;
+    capital_capital: number;
     product_id: string;
   }
 }

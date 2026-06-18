@@ -1,18 +1,29 @@
 import { CacheItem } from "~/lib/cache-factory";
 
-export type Product = {
+type Capital = {
   id: string;
-  price: number;
-  barcode?: string;
-  name: string;
   stock: number;
   capital: number;
+};
+
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
   note: string;
+  capitals: Capital[];
+  codes: string[];
+};
+
+type ProductEvent = {
+  id: string;
+  timestamp: number;
+  type: DB.ProductEventEnum;
+  value: number;
 };
 
 export type ProductFull = Product & {
-  updatedAt: number;
-  syncAt: number | null;
+  events: ProductEvent[];
 };
 
-export const productCache = new CacheItem<ProductFull>();
+export const cache = new CacheItem<Product>();

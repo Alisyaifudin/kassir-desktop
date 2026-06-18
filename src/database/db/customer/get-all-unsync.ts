@@ -1,5 +1,5 @@
 import { sqlx } from "~/database/sqlx";
 
-export function getAllUnsync() {
+export function getAllUnsyncCustomers() {
   return sqlx.customer.get.allUnsync();
 }

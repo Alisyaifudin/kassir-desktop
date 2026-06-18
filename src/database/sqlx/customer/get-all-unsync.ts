@@ -18,7 +18,7 @@ type GetAfterResult = {
   deleted: DeletedCustomer[];
 };
 
-export function getAllUnsync() {
+export function getAllUnsyncCustomers() {
   return DB.select<DB.Customer[]>(
     "SELECT * FROM customers WHERE customer_sync_at IS NULL ORDER BY customer_updated_at",
   ).pipe(

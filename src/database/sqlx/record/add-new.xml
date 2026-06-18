@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<specification feature="addNewRecord" started="2026-06-18">
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Pre-check Phase Decisions                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <decision topic="customer-upsert-timing" resolved="2026-06-18">
+    <question>Should customer upsert happen in pre-check phase or inside the main transaction?</question>
+    <answer>Inside the transaction</answer>
+    <rationale>Pre-check customer upsert would be a separate DB call. If the transaction later fails, the customer row is orphaned with no record pointing to it. Keeping it inside the transaction ensures atomicity — matching how del-by-id.ts handles everything in one COMMIT.</rationale>
+    <alternatives>Pre-check phase (separate DB call before transaction)</alternatives>
+  </decision>
+
+  <decision topic="customer-storage" resolved="2026-06-18">
+    <question>Migration-42 uses customer_id FK on records, but types have record_customer_name/record_customer_phone. Which approach?</question>
+    <answer>Upsert customers table, use customer_id FK</answer>
+    <rationale>Migration-42 is the authoritative schema. The type definition is outdated.</rationale>
+    <alternatives>Insert name/phone directly (matches old type definition)</alternatives>
+  </decision>
+
+  <decision topic="capital-stock-update" resolved="2026-06-18">
+    <question>When a capital row exists with matching capital_capital, how should stock be updated?</question>
+    <answer>Accumulate (capital_stock += product.qty)</answer>
+    <rationale>Standard inventory behavior. Matches how del-by-id.ts computes undo stock.</rationale>
+    <alternatives>Replace (capital_stock = product.qty)</alternatives>
+  </decision>
+
+  <decision topic="new-product-handling" resolved="2026-06-18">
+    <question>When product.id is undefined (new product), should we INSERT into products + product_codes?</question>
+    <answer>Yes — always INSERT into products and capitals. Only INSERT into product_codes if product.code.length > 0.</answer>
+    <rationale>Transaction should be self-contained. New products must be created before capitals and product_events can reference them. Codes are optional for new products.</rationale>
+    <alternatives>Require at least one code; Products always created elsewhere first</alternatives>
+  </decision>
+
+  <decision topic="product-event-type" resolved="2026-06-18">
+    <question>product_event_type is commented out in migration-42. Omit from INSERTs?</question>
+    <answer>Yes, omit</answer>
+    <rationale>Column was removed in migration-42. Confirmed commented out in schema and types.</rationale>
+    <alternatives>Keep including it</alternatives>
+  </decision>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Grill-me Session Decisions                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <decision topic="code-optional" resolved="2026-06-18">
+    <question>Must new products have at least one code? Can existing products have empty codes?</question>
+    <answer>Codes are always optional for both new and existing products.</answer>
+    <rationale>Product can exist without scannable codes. Product management screen can add codes later.</rationale>
+    <alternatives>Require at least one code for new products</alternatives>
+  </decision>
+
+  <decision topic="quantity-validation" resolved="2026-06-18">
+    <question>Should we validate product.qty > 0?</question>
+    <answer>Yes — yield InvalidQuantity error listing product indices with qty &lt;= 0.</answer>
+    <rationale>Zero or negative qty is meaningless; would create no-op product_event_value of 0.</rationale>
+    <alternatives>Allow zero/negative qty</alternatives>
+  </decision>
+
+  <decision topic="duplicate-codes" resolved="2026-06-18">
+    <question>What if a single product has duplicate codes (e.g., ["ABC", "ABC"])?</question>
+    <answer>Silently deduplicate per product before collision checks.</answer>
+    <rationale>Duplicate within same product is harmless for business logic but would hit PK constraint on INSERT. Better to fix silently.</rationale>
+    <alternatives>Yield validation error for duplicates</alternatives>
+  </decision>
+
+  <decision topic="error-types" resolved="2026-06-18">
+    <question>How should validation errors be structured?</question>
+    <answer>Five separate error classes with typed payloads: EmptyTransaction, InputCodeCollision, DbCodeCollision, CodeMismatch, InvalidQuantity.</answer>
+    <rationale>Each error carries distinct typed payload. Typed errors enable the UI to handle each case differently.</rationale>
+    <errors>
+      <error name="EmptyTransaction">products.length === 0 &amp;&amp; extras.length === 0. Payload: msg only.</error>
+      <error name="InputCodeCollision">Same code used by 2+ products within request. Payload: { code, fromIdx, toIdx }[].</error>
+      <error name="DbCodeCollision">Code exists in DB for different product. Payload: { code, incomingProductIdx, existingProductId }[].</error>
+      <error name="CodeMismatch">Existing product's incoming codes are NOT a subset of its DB codes. Payload: { productIdx, code }[].</error>
+      <error name="InvalidQuantity">product.qty &lt;= 0. Payload: number[] (product indices).</error>
+    </errors>
+    <alternatives>Single Validation class with generic msg/details payload</alternatives>
+  </decision>
+
+  <decision topic="code-mismatch-subset" resolved="2026-06-18">
+    <question>What exactly is a CodeMismatch?</question>
+    <answer>For existing products: incoming codes must be a SUBSET of the DB codes. If product has codes ["A","B"] in DB and incoming sends ["A","C"], then "C" is a mismatch. Incoming ["A"] alone is fine (subset). DbCodeCollision takes priority — check collision first, then mismatch.</answer>
+    <rationale>Allows partial code submission without requiring all codes to be present. Collision is the more serious error.</rationale>
+    <alternatives>Exact match required; all incoming codes must exist in DB</alternatives>
+  </decision>
+
+  <decision topic="product-note-new" resolved="2026-06-18">
+    <question>What product_note for newly created products?</question>
+    <answer>Empty string (''). Set later via product management screen.</answer>
+    <rationale>product_note is NOT NULL in schema but TxRecord input has no note field.</rationale>
+    <alternatives>Add note field to TxRecord input</alternatives>
+  </decision>
+
+  <decision topic="product-event-note" resolved="2026-06-18">
+    <question>What value for product_event_note?</question>
+    <answer>"Sell product" or "Buy product" (capitalized mode + " product")</answer>
+    <rationale>Simple, consistent, provides context without repeating product name (already in record_product).</rationale>
+    <alternatives>Empty string; "sell"/"buy" only; "${mode} ${product.name}"</alternatives>
+  </decision>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Implementation Checklist                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <checklist>
+
+    <step number="1" title="Add error types to effect-error.ts">
+      <task>Add EmptyTransaction class (msg only)</task>
+      <task>Add InputCodeCollision class (collisions: { code, fromIdx, toIdx }[])</task>
+      <task>Add DbCodeCollision class (collisions: { code, incomingProductIdx, existingProductId }[])</task>
+      <task>Add CodeMismatch class (mismatches: { productIdx, code }[])</task>
+      <task>Add InvalidQuantity class (productIndices: number[])</task>
+      <task>Each follows existing pattern: _tag, constructor, static fail() factory</task>
+      <ref>src/lib/effect-error.ts</ref>
+    </step>
+
+    <step number="2" title="Refine TxRecord types in add-new.ts">
+      <task>Add customer_id field (computed during SQL builder, not from input)</task>
+      <task>Ensure RecordProduct.product.code is string[] (already present)</task>
+      <task>Verify CapitalRow type for fetched capitals: { capital_id, capital_stock, capital_capital }</task>
+      <task>Add helper types: ProductCodeLookup (Map&lt;string, string&gt;), CapitalLookup (Map&lt;string, CapitalRow[]&gt;)</task>
+      <ref>src/database/sqlx/record/add-new.ts (existing types at top)</ref>
+    </step>
+
+    <step number="3" title="Implement pre-check — Step 1: Validate non-empty">
+      <task>If products.length === 0 &amp;&amp; extras.length === 0, yield EmptyTransaction</task>
+      <task>If any product.qty &lt;= 0, yield InvalidQuantity with indices</task>
+    </step>
+
+    <step number="4" title="Implement pre-check — Step 2: Input code collisions">
+      <task>For each product, deduplicate its codes via [...new Set(product.code)]</task>
+      <task>Build flattened list: { code, productIdx } for all products with codes</task>
+      <task>Group by code; if any code maps to 2+ distinct productIdx → yield InputCodeCollision</task>
+    </step>
+
+    <step number="5" title="Implement pre-check — Step 3: DB code checks">
+      <task>Collect all unique codes across all products (after dedup)</task>
+      <task>If any codes: query product_codes WHERE product_code IN (...)</task>
+      <task>Build map: code → product_id from DB results</task>
+      <task>3a: For each incoming code, if DB maps it to a different product_id → yield DbCodeCollision</task>
+      <task>3b: For existing products (id !== undefined) with codes: build DB code set for that product_id; if incoming codes ⊄ DB set → yield CodeMismatch</task>
+      <task>Skip mismatch for new products (id === undefined)</task>
+    </step>
+
+    <step number="6" title="Implement pre-check — Step 4: Fetch existing capitals">
+      <task>Collect unique product IDs from products where id !== undefined</task>
+      <task>If any: query capitals WHERE product_id IN (...) AND capital_deleted_at IS NULL</task>
+      <task>Build Map: productId → CapitalRow[]</task>
+    </step>
+
+    <step number="7" title="Implement SQL builder — createBindings setup">
+      <task>Create createBindings() instance at top of buildTransaction</task>
+      <task>Build queries array incrementally (push each SQL string)</task>
+    </step>
+
+    <step number="8" title="Implement SQL builder — UPSERT customer + INSERT record">
+      <task>If customer provided: generate customer_id, push INSERT ... ON CONFLICT DO UPDATE</task>
+      <task>Generate record_id, push INSERT INTO records (all fields including customer_id or null)</task>
+      <task>Fields: record_id, record_created_at=now, timestamp=paidAt, record_rounding, record_credit_at, record_cashier, record_mode, record_pay, record_note, method_id, record_fix, record_sub_total=subtotal, record_total=total, record_updated_at=now, record_sync_at=null, customer_id</task>
+    </step>
+
+    <step number="9" title="Implement SQL builder — INSERT record_extras">
+      <task>For each extra: generate record_extra_id, push INSERT INTO record_extras</task>
+      <task>Fields: record_extra_id, record_extra_name, record_id, record_extra_value, record_extra_eff, record_extra_kind</task>
+    </step>
+
+    <step number="10" title="Implement SQL builder — Per-product loop (new products)">
+      <task>For products with id === undefined: generate product_id</task>
+      <task>Push INSERT INTO products (name, price, note='', now, null)</task>
+      <task>If codes.length > 0: push INSERT INTO product_codes (code, product_id) pairs</task>
+      <task>Generate capital_id, push INSERT INTO capitals (stock=qty, capital=product.capital)</task>
+      <task>Generate event_id, push INSERT INTO product_events (value=mode==="buy"?qty:-qty, note="Sell product"|"Buy product")</task>
+      <task>Generate record_product_id, push INSERT INTO record_products</task>
+      <task>For each discount: generate discount_id, push INSERT INTO discounts</task>
+    </step>
+
+    <step number="11" title="Implement SQL builder — Per-product loop (existing products)">
+      <task>For products with id !== undefined: use existing product_id</task>
+      <task>Look up capitals from pre-check map; find matching capital_capital row</task>
+      <task>If matching capital found: push UPDATE capitals SET stock += qty</task>
+      <task>If no matching capital: generate capital_id, push INSERT INTO capitals</task>
+      <task>Generate event_id, push INSERT INTO product_events (value, note as above)</task>
+      <task>Generate record_product_id, push INSERT INTO record_products</task>
+      <task>For each discount: generate discount_id, push INSERT INTO discounts</task>
+    </step>
+
+    <step number="12" title="Implement SQL builder — Wrap and execute">
+      <task>Build final SQL: `BEGIN TRANSACTION;\n${queries.join("\n")}\nCOMMIT;`</task>
+      <task>Return { sql, bindings } from buildTransaction</task>
+    </step>
+
+    <step number="13" title="Wire up main addNewRecord function">
+      <task>Use Effect.gen(function* () { ... })</task>
+      <task>Run pre-checks sequentially (yield* each step, errors short-circuit)</task>
+      <task>Run parallel DB fetches: code lookup + capital lookup via Effect.all</task>
+      <task>Build transaction SQL</task>
+      <task>yield* DB.execute(sql, bindings).pipe(Effect.asVoid)</task>
+      <task>Return record_id on success</task>
+    </step>
+
+    <step number="14" title="Verify">
+      <task>TypeScript compiles with no errors (tsc --noEmit)</task>
+      <task>Lint passes (eslint)</task>
+      <task>Manual: sell with existing products → check records, product_events, capitals updated</task>
+      <task>Manual: buy with new product → check products, product_codes, capitals created</task>
+      <task>Manual: empty products+extras → EmptyTransaction error</task>
+      <task>Manual: duplicate codes across products → InputCodeCollision error</task>
+      <task>Manual: code belonging to different product → DbCodeCollision error</task>
+      <task>Manual: code not in product's DB set → CodeMismatch error</task>
+      <task>Manual: zero qty → InvalidQuantity error</task>
+    </step>
+
+  </checklist>
+
+</specification>

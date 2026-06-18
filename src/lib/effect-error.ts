@@ -199,6 +199,66 @@ export class TextEncoderError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// addNewRecord validation errors
+// ---------------------------------------------------------------------------
+
+export class EmptyTransaction {
+  readonly _tag = "EmptyTransaction";
+  constructor(readonly msg: string) {}
+  static fail(msg: string) {
+    return Effect.fail(new EmptyTransaction(msg));
+  }
+}
+
+export type InputCodeCollisionEntry = { code: string; fromIdx: number; toIdx: number };
+
+export class InputCodeCollision {
+  readonly _tag = "InputCodeCollision";
+  constructor(readonly collisions: InputCodeCollisionEntry[]) {}
+  static fail(collisions: InputCodeCollisionEntry[]) {
+    return Effect.fail(new InputCodeCollision(collisions));
+  }
+}
+
+export type DbCodeCollisionEntry = { code: string; incomingProductIdx: number; existingProductId: string };
+
+export class DbCodeCollision {
+  readonly _tag = "DbCodeCollision";
+  constructor(readonly collisions: DbCodeCollisionEntry[]) {}
+  static fail(collisions: DbCodeCollisionEntry[]) {
+    return Effect.fail(new DbCodeCollision(collisions));
+  }
+}
+
+export type CodeMismatchEntry = { productIdx: number; code: string };
+
+export class CodeMismatch {
+  readonly _tag = "CodeMismatch";
+  constructor(readonly mismatches: CodeMismatchEntry[]) {}
+  static fail(mismatches: CodeMismatchEntry[]) {
+    return Effect.fail(new CodeMismatch(mismatches));
+  }
+}
+
+export class InvalidQuantity {
+  readonly _tag = "InvalidQuantity";
+  constructor(readonly productIndices: number[]) {}
+  static fail(productIndices: number[]) {
+    return Effect.fail(new InvalidQuantity(productIndices));
+  }
+}
+    if (e instanceof Error) {
+      return new TextEncoderError(e);
+    }
+    const unknown = new Error("Unknown Error", { cause: e });
+    return new TextEncoderError(unknown);
+  }
+  static fail(e: unknown) {
+    return Effect.fail(TextEncoderError.new(e));
+  }
+}
+
 import { z } from "zod";
 
 export class ZodSchemaError {
