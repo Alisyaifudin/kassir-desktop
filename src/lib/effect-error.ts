@@ -211,7 +211,7 @@ export class EmptyTransaction {
   }
 }
 
-export type InputCodeCollisionEntry = { code: string; fromIdx: number; toIdx: number };
+export type InputCodeCollisionEntry = { code: string; fromId: string; toId: string };
 
 export class InputCodeCollision {
   readonly _tag = "InputCodeCollision";
@@ -221,7 +221,11 @@ export class InputCodeCollision {
   }
 }
 
-export type DbCodeCollisionEntry = { code: string; incomingProductIdx: number; existingProductId: string };
+export type DbCodeCollisionEntry = {
+  code: string;
+  incomingProductId: string;
+  existingProductName: string;
+};
 
 export class DbCodeCollision {
   readonly _tag = "DbCodeCollision";
@@ -231,15 +235,15 @@ export class DbCodeCollision {
   }
 }
 
-export type CodeMismatchEntry = { productIdx: number; code: string };
+// export type CodeMismatchEntry = { productIdx: number; code: string };
 
-export class CodeMismatch {
-  readonly _tag = "CodeMismatch";
-  constructor(readonly mismatches: CodeMismatchEntry[]) {}
-  static fail(mismatches: CodeMismatchEntry[]) {
-    return Effect.fail(new CodeMismatch(mismatches));
-  }
-}
+// export class CodeMismatch {
+//   readonly _tag = "CodeMismatch";
+//   constructor(readonly mismatches: CodeMismatchEntry[]) {}
+//   static fail(mismatches: CodeMismatchEntry[]) {
+//     return Effect.fail(new CodeMismatch(mismatches));
+//   }
+// }
 
 export class InvalidQuantity {
   readonly _tag = "InvalidQuantity";
@@ -248,14 +252,18 @@ export class InvalidQuantity {
     return Effect.fail(new InvalidQuantity(productIndices));
   }
 }
-    if (e instanceof Error) {
-      return new TextEncoderError(e);
-    }
-    const unknown = new Error("Unknown Error", { cause: e });
-    return new TextEncoderError(unknown);
-  }
-  static fail(e: unknown) {
-    return Effect.fail(TextEncoderError.new(e));
+
+export type DuplicateEntryType = "record_product" | "product" | "discount" | "extra";
+export type DuplicateIdEntry = { id: string; indices: number[] };
+
+export class DuplicateEntryId {
+  readonly _tag = "DuplicateEntryId";
+  constructor(
+    readonly type: DuplicateEntryType,
+    readonly duplicates: DuplicateIdEntry[],
+  ) {}
+  static fail(type: DuplicateEntryType, duplicates: DuplicateIdEntry[]) {
+    return Effect.fail(new DuplicateEntryId(type, duplicates));
   }
 }
 

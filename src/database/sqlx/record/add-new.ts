@@ -8,9 +8,9 @@ import {
   type InputCodeCollisionEntry,
   DbCodeCollision,
   type DbCodeCollisionEntry,
-  CodeMismatch,
-  type CodeMismatchEntry,
   InvalidQuantity,
+  DuplicateEntryId,
+  type DuplicateIdEntry,
 } from "~/lib/effect-error";
 
 // ---------------------------------------------------------------------------
@@ -26,6 +26,7 @@ type RecordExtra = {
 };
 
 type Discount = {
+  id: string;
   value: number;
   eff: number;
   kind: DB.DiscKind;
@@ -33,10 +34,15 @@ type Discount = {
 
 type RecordProduct = {
   id: string;
-  product: {
-    id?: string;
-    code: string[];
-  };
+  product:
+    | {
+        _tag: "update";
+        id: string;
+      }
+    | {
+        _tag: "new";
+        codes: string[];
+      };
   name: string;
   price: number;
   qty: number;
@@ -77,7 +83,7 @@ type CapitalRow = {
 // ---------------------------------------------------------------------------
 
 /** Step 1: Validate the transaction has content and quantities are valid. */
-function preCheckBasics(products: RecordProduct[], extras: RecordExtra[]) {
+function checkBasics(products: RecordProduct[], extras: RecordExtra[]) {
   return Effect.gen(function* () {
     if (products.length === 0 && extras.length === 0) {
       return yield* EmptyTransaction.fail(
@@ -91,20 +97,71 @@ function preCheckBasics(products: RecordProduct[], extras: RecordExtra[]) {
   });
 }
 
-/** Step 2: Check for duplicate codes across different products within the input. */
-function preCheckInputCodes(products: RecordProduct[]) {
+/** Pre-check: Validate that all entry IDs are unique across their respective domains. */
+function preCheckUniqueIds(products: RecordProduct[], extras: RecordExtra[]) {
   return Effect.gen(function* () {
-    const codeMap = new Map<string, number>(); // code → first productIdx
-    const collisions: InputCodeCollisionEntry[] = [];
+    // Check record_product_id (tx.products.id)
+    const rpDuplicates = findDuplicates(products.map((p) => p.id));
+    if (rpDuplicates.length > 0) {
+      return yield* DuplicateEntryId.fail("record_product", rpDuplicates);
+    }
 
-    for (let i = 0; i < products.length; i++) {
-      const deduped = [...new Set(products[i].product.code)];
+    // Check product.id for existing products (_tag === "update")
+    const updateProductIds = products.flatMap((p) =>
+      p.product._tag === "update" ? [p.product.id] : [],
+    );
+    const prodDuplicates = findDuplicates(updateProductIds);
+    if (prodDuplicates.length > 0) {
+      return yield* DuplicateEntryId.fail("product", prodDuplicates);
+    }
+
+    // Check discount IDs across all products
+    const discountDuplicates = findDuplicates(
+      products.flatMap((p) => p.discounts.map((d) => d.id)),
+    );
+    if (discountDuplicates.length > 0) {
+      return yield* DuplicateEntryId.fail("discount", discountDuplicates);
+    }
+
+    // Check extra IDs (tx.extras.id)
+    const extraDuplicates = findDuplicates(extras.map((e) => e.id));
+    if (extraDuplicates.length > 0) {
+      return yield* DuplicateEntryId.fail("extra", extraDuplicates);
+    }
+  });
+}
+
+/** Find duplicate IDs in a list, returning each ID with its duplicate indices. */
+function findDuplicates(ids: string[]): DuplicateIdEntry[] {
+  const idMap = new Map<string, number[]>();
+  for (let i = 0; i < ids.length; i++) {
+    const indices = idMap.get(ids[i]) ?? [];
+    indices.push(i);
+    idMap.set(ids[i], indices);
+  }
+  const duplicates: DuplicateIdEntry[] = [];
+  for (const [id, indices] of idMap) {
+    if (indices.length > 1) {
+      duplicates.push({ id, indices });
+    }
+  }
+  return duplicates;
+}
+
+/** Step 2: Check for duplicate codes across different products within the input. */
+function checkInputCodes(products: RecordProduct[]) {
+  return Effect.gen(function* () {
+    const codeMap = new Map<string, string>(); // code → first record productId
+    const collisions: InputCodeCollisionEntry[] = [];
+    for (const product of products) {
+      if (product.product._tag === "update") continue;
+      const deduped = [...new Set(product.product.codes)];
       for (const code of deduped) {
         const existing = codeMap.get(code);
-        if (existing !== undefined && existing !== i) {
-          collisions.push({ code, fromIdx: existing, toIdx: i });
+        if (existing !== undefined && existing !== product.id) {
+          collisions.push({ code, fromId: existing, toId: product.id });
         } else {
-          codeMap.set(code, i);
+          codeMap.set(code, product.id);
         }
       }
     }
@@ -116,64 +173,42 @@ function preCheckInputCodes(products: RecordProduct[]) {
 }
 
 /** Step 3: Check code collisions/mismatches against the database. */
-function preCheckDbCodes(products: RecordProduct[]) {
-  const allCodes = products.flatMap((p) => [...new Set(p.product.code)]);
+function checkDbCodes(products: RecordProduct[]) {
+  const allCodes = products.flatMap((p) =>
+    p.product._tag === "update" ? [] : [...new Set(p.product.codes)],
+  );
   if (allCodes.length === 0) return Effect.void;
 
   return Effect.gen(function* () {
     const { bind: bindCodes, bindings: codeBindings } = createBindings();
     const placeholders = allCodes.map((c) => bindCodes(c)).join(", ");
-    const dbRows = yield* DB.select<{ product_code: string; product_id: string }[]>(
-      `SELECT product_code, product_id FROM product_codes WHERE product_code IN (${placeholders})`,
+    const dbRows = yield* DB.select<{ product_code: string; product_name: string }[]>(
+      `SELECT product_code, product_name FROM product_codes WHERE product_code IN (${placeholders})
+      INNER JOIN products ON products.product_id = product_codes.product_id`,
       codeBindings,
     );
 
-    // Build map: code → product_id
-    const dbCodeMap = new Map(dbRows.map((r) => [r.product_code, r.product_id]));
+    // Build map: code → product_name
+    const dbCodeMap = new Map(dbRows.map((r) => [r.product_code, r.product_name]));
 
     // 3a: DbCodeCollision — code belongs to a different product
     const collisions: DbCodeCollisionEntry[] = [];
-    for (let i = 0; i < products.length; i++) {
-      const product = products[i];
-      const deduped = [...new Set(product.product.code)];
+    for (const product of products) {
+      if (product.product._tag === "update") continue;
+      const deduped = [...new Set(product.product.codes)];
       for (const code of deduped) {
-        const dbProductId = dbCodeMap.get(code);
-        if (dbProductId !== undefined && dbProductId !== product.product.id) {
+        const dbProductName = dbCodeMap.get(code);
+        if (dbProductName !== undefined) {
           collisions.push({
             code,
-            incomingProductIdx: i,
-            existingProductId: dbProductId,
+            incomingProductId: product.id,
+            existingProductName: dbProductName,
           });
         }
       }
     }
     if (collisions.length > 0) {
       return yield* DbCodeCollision.fail(collisions);
-    }
-
-    // 3b: CodeMismatch — for existing products, incoming codes must be subset of DB codes
-    const mismatches: CodeMismatchEntry[] = [];
-    for (let i = 0; i < products.length; i++) {
-      const product = products[i];
-      if (product.product.id === undefined) continue; // skip new products
-      const deduped = [...new Set(product.product.code)];
-      if (deduped.length === 0) continue;
-
-      // Build set of codes that DB says belong to this product
-      const dbCodesForProduct = new Set(
-        [...dbCodeMap.entries()]
-          .filter(([, pid]) => pid === product.product.id)
-          .map(([code]) => code),
-      );
-
-      for (const code of deduped) {
-        if (!dbCodesForProduct.has(code)) {
-          mismatches.push({ productIdx: i, code });
-        }
-      }
-    }
-    if (mismatches.length > 0) {
-      return yield* CodeMismatch.fail(mismatches);
     }
   });
 }
@@ -184,9 +219,7 @@ function preCheckDbCodes(products: RecordProduct[]) {
 
 function fetchExistingCapitals(products: RecordProduct[]) {
   return Effect.gen(function* () {
-    const productIds = [
-      ...new Set(products.filter((p) => p.product.id !== undefined).map((p) => p.product.id!)),
-    ];
+    const productIds = products.flatMap((p) => (p.product._tag === "new" ? [] : [p.product.id]));
     if (productIds.length === 0) return new Map<string, CapitalRow[]>();
 
     const { bind: b, bindings } = createBindings();
@@ -265,13 +298,13 @@ function buildTransaction(
 
   // --- Per product ---
   for (const product of tx.products) {
-    const eventNote = tx.mode === "buy" ? "Buy product" : "Sell product";
-    const eventValue = tx.mode === "buy" ? product.qty : -product.qty;
+    const eventNote = tx.mode === "in" ? "Buy product" : "Sell product";
+    const eventValue = tx.mode === "in" ? product.qty : -product.qty;
 
     let productId: string;
     let capitalId: string;
 
-    if (product.product.id === undefined) {
+    if (product.product._tag === "new") {
       // --- New product (Branch C from spec) ---
       productId = generateId();
 
@@ -282,7 +315,7 @@ function buildTransaction(
       );
 
       // INSERT product_codes (if any)
-      const dedupedCodes = [...new Set(product.product.code)];
+      const dedupedCodes = [...new Set(product.product.codes)];
       for (const code of dedupedCodes) {
         queries.push(
           `INSERT INTO product_codes (product_code, product_id) VALUES (${bind(code)}, ${bind(productId)});`,
@@ -298,6 +331,18 @@ function buildTransaction(
     } else {
       // --- Existing product ---
       productId = product.product.id;
+      // --- update the products
+      if (tx.mode === "in") {
+        queries.push(
+          `UPDATE products SET product_name = ${bind(product.name)}, product_price = ${bind(product.price)},
+          product_updated_at = ${bind(now)}, product_sync_at = null WHERE product_id = ${bind(productId)};`,
+        );
+      } else {
+        queries.push(
+          `UPDATE products SET product_name = ${bind(product.name)}, product_updated_at = ${bind(now)}, 
+          product_sync_at = null WHERE product_id = ${bind(productId)};`,
+        );
+      }
       const caps = capitalsByProduct.get(productId) ?? [];
 
       // Find matching capital (same capital_capital value)
@@ -356,13 +401,14 @@ function buildTransaction(
 
 export function addNewRecord(tx: TxRecord, now: number) {
   return Effect.gen(function* () {
-    // --- Pre-check + fetch all in parallel ---
+    yield* preCheckUniqueIds(tx.products, tx.extras);
+    // --- check + fetch all in parallel ---
     const [capitalsByProduct] = yield* Effect.all(
       [
         fetchExistingCapitals(tx.products),
-        preCheckBasics(tx.products, tx.extras),
-        preCheckInputCodes(tx.products),
-        preCheckDbCodes(tx.products),
+        checkBasics(tx.products, tx.extras),
+        checkInputCodes(tx.products),
+        checkDbCodes(tx.products),
       ],
       { concurrency: "unbounded" },
     );
