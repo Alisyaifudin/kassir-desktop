@@ -4,20 +4,20 @@ import { generateId } from "~/lib/random";
 
 export function addNewProductEvent({
   timestamp,
-  type,
   value,
   capitalId,
+  note,
 }: {
   timestamp: number;
-  type: DB.ProductEventEnum;
   value: number;
   capitalId: string;
+  note: string;
 }) {
   const id = generateId();
   return DB.execute(
     `INSERT INTO product_events (product_event_id, timestamp, 
-    product_event_type, product_event_value, capital_id) 
+    product_event_note, product_event_value, capital_id) 
     VALUES ($1, $2, $3, $4, $5)`,
-    [id, timestamp, type, value, capitalId],
+    [id, timestamp, note, value, capitalId],
   ).pipe(Effect.as(id));
 }

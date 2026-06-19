@@ -27,7 +27,7 @@ export function addNewProduct({ name, price, note, capital, codes, stock }: Inpu
   let query = [
     `INSERT INTO products (product_id, product_name, product_price, product_note, product_updated_at) VALUES ${bind(productId, name, price, note, now)};`,
     `INSERT INTO capitals (capital_id, capital_stock, capital_capital, capital_updated_at, product_id) VALUES ${bind(capitalId, stock, capital, now, productId)};`,
-    `INSERT INTO product_events (product_event_id, timestamp, product_event_type, product_event_value, capital_id) VALUES ${bind(eventId, now, "manual", stock, capitalId)};`,
+    `INSERT INTO product_events (product_event_id, timestamp, product_event_note, product_event_value, capital_id) VALUES ${bind(eventId, now, "New product", stock, capitalId)};`,
   ].join("\n");
 
   if (codes.length > 0) {

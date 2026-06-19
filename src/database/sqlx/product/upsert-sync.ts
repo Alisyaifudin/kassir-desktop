@@ -17,7 +17,7 @@ export function upsertProductsSync(
       events: {
         id: string;
         timestamp: number;
-        type: DB.ProductEventEnum;
+        note: string;
         value: number;
       }[];
     }[];
@@ -69,12 +69,12 @@ export function upsertProductsSync(
           .map(
             (event) =>
               `(${bind(event.id)}, ${bind(event.timestamp)}, ${bind(event.value)},
-            ${bind(now)}, ${bind(event.type)}, ${bind(capital.id)})`,
+            ${bind(now)}, ${bind(event.note)}, ${bind(capital.id)})`,
           )
           .join(", ");
         queries.push(
           `INSERT INTO product_events (product_event_id, timestamp, product_event_value,
-          product_event_sync_at, product_event_type, capital_id)
+          product_event_sync_at, product_event_note, capital_id)
           VALUES ${placeholderEvents}
           ON CONFLICT (product_event_id) DO NOTHING`,
         );

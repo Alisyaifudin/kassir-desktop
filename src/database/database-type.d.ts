@@ -2,7 +2,7 @@ declare namespace DB {
   type Role = "admin" | "user";
   type ValueKind = "number" | "percent";
   type DiscKind = ValueKind | "pcs";
-  type Mode = "sell" | "buy";
+  type Mode = "in" | "out";
   type PocketType = "absolute" | "change";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";

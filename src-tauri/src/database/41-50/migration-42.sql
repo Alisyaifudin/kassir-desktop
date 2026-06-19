@@ -139,15 +139,12 @@ SELECT
   product_id, product_stock, product_capital, product_updated_at, product_id 
 FROM products_old;
 
--- INSERT INTO product_event_enum (v) VALUES ('change'), ('absolute');
 
 CREATE TABLE product_events (
     product_event_id      TEXT    PRIMARY KEY,
     timestamp             INTEGER NOT NULL,
     product_event_note    TEXT    NOT NULL,
     product_event_sync_at INTEGER,
-    -- product_event_type    TEXT    NOT NULL
-    --                               REFERENCES product_event_enum (v),
     product_event_value   INTEGER NOT NULL,
     capital_id            TEXT    NOT NULL
                                   REFERENCES capitals (capital_id) ON DELETE CASCADE
@@ -173,6 +170,8 @@ SELECT
   method_name, -- use name for label migration 
   method_kind, method_deleted_at, method_updated_at, method_sync_at
 FROM methods_old;
+
+INSERT INTO mode_enum(v) VALUES ('in'), ('out');
 
 
 CREATE TABLE records (
@@ -208,7 +207,9 @@ INSERT INTO records (
 SELECT 
   record_id, record_paid_at, record_paid_at, record_rounding,
   CASE WHEN record_is_credit = 1 THEN record_paid_at END,
-  record_cashier, record_mode, record_pay, record_note,
+  record_cashier, 
+  CASE WHEN record_mode = 'buy' THEN 'out' ELSE 'in' END, 
+  record_pay, record_note,
   method_id, record_fix, record_sub_total, record_total,
   record_updated_at, record_sync_at
 FROM records_old;
@@ -270,3 +271,4 @@ DROP TABLE product_events_old;
 DROP TABLE products_old;
 DROP TABLE money_old;
 DROP TABLE money_kind_old;
+DELETE FROM mode_enum WHERE v = 'buy' OR v = 'sell';
