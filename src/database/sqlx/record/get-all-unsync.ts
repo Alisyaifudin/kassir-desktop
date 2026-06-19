@@ -30,7 +30,7 @@ type OutputDb = {
   timestamp: number;
 };
 
-export function getAllUnsyncProducts() {
+export function getAllUnsyncRecords() {
   return DB.select<OutputDb[]>(
     `SELECT products.product_id, product_name, product_price, product_note,
     product_updated_at, product_deleted_at, product_code, capital_id, 

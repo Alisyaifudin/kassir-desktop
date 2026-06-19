@@ -1,19 +1,14 @@
-import { addNewProduct } from "./add-new";
-import { deleteProductById } from "./del-by-id";
-import { deleteManyProductsSync } from "./del-many-sync";
-import { getAllProducts } from "./get-all";
-import { getAllUnsyncProducts } from "./get-all-unsync";
-import { getProductById } from "./get-by-id";
+import { getAllUnsyncRecords } from "./get-all-unsync";
+import { getRecordById } from "./get-by-id";
 import { updateProduct } from "./update";
 import { updateManyProductsSyncAt } from "./update-many-sync-at";
 import { updateUnsyncAllProducts } from "./update-unsync-all";
 import { upsertProductsSync } from "./upsert-sync";
 
-export const product = {
+export const record = {
   get: {
-    all: getAllProducts,
-    allUnsync: getAllUnsyncProducts,
-    byId: getProductById,
+    allUnsync: getAllUnsyncRecords,
+    byId: getRecordById,
   },
   update: {
     one: updateProduct,
