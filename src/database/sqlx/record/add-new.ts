@@ -298,8 +298,8 @@ function buildTransaction(
 
   // --- Per product ---
   for (const product of tx.products) {
-    const eventNote = tx.mode === "in" ? "Buy product" : "Sell product";
-    const eventValue = tx.mode === "in" ? product.qty : -product.qty;
+    const eventNote = tx.mode === "in" ? "Sell product" : "Buy product";
+    const eventValue = tx.mode === "in" ? -product.qty : product.qty;
 
     let productId: string;
     let capitalId: string;
