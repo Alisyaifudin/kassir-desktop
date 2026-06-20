@@ -1,6 +1,6 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
 
-export function updateUnsyncAllProducts() {
-  return DB.execute("UPDATE products SET product_sync_at = null").pipe(Effect.asVoid);
+export function updateUnsyncAllRecords() {
+  return DB.execute("UPDATE records SET record_sync_at = null").pipe(Effect.asVoid);
 }

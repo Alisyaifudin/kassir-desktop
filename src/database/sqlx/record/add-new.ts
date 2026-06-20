@@ -51,7 +51,7 @@ type RecordProduct = {
   discounts: Discount[];
 };
 
-type TxRecord = {
+export type TxRecord = {
   methodId: string;
   paidAt: number;
   createdAt: number;

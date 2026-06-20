@@ -86,7 +86,7 @@ type OutputDb = {
   record_extra_kind: DB.ValueKind | null;
 };
 
-export function getAllUnsyncRecords() {
+export function getRangeRecord(start: number, end: number) {
   return DB.select<OutputDb[]>(
     `SELECT
       r.record_id, r.record_created_at, r.timestamp, r.record_rounding,
@@ -106,8 +106,10 @@ export function getAllUnsyncRecords() {
     LEFT JOIN record_products rp ON r.record_id = rp.record_id
     LEFT JOIN discounts d ON rp.record_product_id = d.record_product_id
     LEFT JOIN record_extras re ON r.record_id = re.record_id
-    WHERE r.record_sync_at IS NULL
-    ORDER BY r.timestamp`,
+    WHERE r.timestamp BETWEEN $1 AND $2
+      AND r.record_deleted_at IS NULL
+    ORDER BY r.timestamp DESC`,
+    [start, end],
   ).pipe(
     Effect.map((res) =>
       res.map((r) => {
