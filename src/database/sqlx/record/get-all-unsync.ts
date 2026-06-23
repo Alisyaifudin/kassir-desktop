@@ -32,9 +32,10 @@ type RecordDb = {
     qty: number;
     capital: number;
     total: number;
+    eventId?: string;
   };
   discount?: {
-    productId: string;
+    recordProductId: string;
     id: string;
     value: number;
     eff: number;
@@ -69,6 +70,7 @@ type OutputDb = {
   customer_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
+  product_event_id: string | null;
   record_product_id: string | null;
   record_product_name: string | null;
   record_product_price: number | null;
@@ -79,6 +81,7 @@ type OutputDb = {
   discount_value: number | null;
   discount_eff: number | null;
   discount_kind: DB.DiscKind | null;
+  discount_record_product_id: string | null;
   record_extra_id: string | null;
   record_extra_name: string | null;
   record_extra_value: number | null;
@@ -97,7 +100,9 @@ export function getAllUnsyncRecords() {
       c.customer_id, c.customer_name, c.customer_phone,
       rp.record_product_id, rp.record_product_name, rp.record_product_price,
       rp.record_product_qty, rp.record_product_capital, rp.record_product_total,
+      rp.product_event_id,
       d.discount_id, d.discount_value, d.discount_eff, d.discount_kind,
+      d.record_product_id as discount_record_product_id,
       re.record_extra_id, re.record_extra_name, re.record_extra_value,
       re.record_extra_eff, re.record_extra_kind
     FROM records r
@@ -136,6 +141,7 @@ export function getAllUnsyncRecords() {
           product: r.record_product_id
             ? {
                 id: r.record_product_id,
+                eventId: r.product_event_id ?? undefined,
                 name: r.record_product_name!,
                 price: r.record_product_price!,
                 qty: r.record_product_qty!,
@@ -145,7 +151,7 @@ export function getAllUnsyncRecords() {
             : undefined,
           discount: r.discount_id
             ? {
-                productId: r.record_product_id!,
+                recordProductId: r.discount_record_product_id!,
                 id: r.discount_id,
                 value: r.discount_value!,
                 eff: r.discount_eff!,
