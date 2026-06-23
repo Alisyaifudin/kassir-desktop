@@ -33,7 +33,8 @@ type OutputDb = {
 export function getAllProducts() {
   return DB.select<OutputDb[]>(
     `SELECT products.product_id, product_name, product_price, product_note,
-    product_updated_at, product_deleted_at, product_code    
+    product_updated_at, product_deleted_at, product_code, capital_id, 
+    capital_stock, capital_capital
     FROM products 
     LEFT JOIN product_codes ON product_codes.product_id = products.product_id
     LEFT JOIN capitals ON capitals.product_id = products.product_id
