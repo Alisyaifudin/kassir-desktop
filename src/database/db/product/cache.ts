@@ -18,7 +18,6 @@ export type Product = {
 type ProductEvent = {
   id: string;
   timestamp: number;
-  type: DB.ProductEventEnum;
   value: number;
 };
 

@@ -1,12 +1,20 @@
 import { addNewProduct } from "./add-new";
 import { deleteProductById } from "./del-by-id";
 import { deleteManyProductsSync } from "./del-many-sync";
+import { getAllProducts } from "./get-all";
+import { getAllUnsyncProducts } from "./get-all-unsync";
+import { getProductById } from "./get-by-id";
 import { updateProduct } from "./update";
 import { updateManyProductsSyncAt } from "./update-many-sync-at";
 import { updateUnsyncAllProducts } from "./update-unsync-all";
 import { upsertProductsSync } from "./upsert-sync";
 
 export const product = {
+  get: {
+    all: getAllProducts,
+    allUnsync: getAllUnsyncProducts,
+    byId: getProductById,
+  },
   update: {
     one: updateProduct,
     allUnsync: updateUnsyncAllProducts,
