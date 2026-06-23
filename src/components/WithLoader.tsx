@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 type Props<T, E = never> = {
   loader: Loader<T, E>;
   loading?: React.ReactNode;
-  error?: React.ReactNode;
+  error?: (e: E) => React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -27,7 +27,25 @@ type Data<T, E> =
 
 type Listener = () => void;
 
-class Loader<T, E = never> {
+export class LoaderView<T> {
+  constructor(
+    private subscribe: (cb: Listener) => () => void,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private getSnapshot: () => Data<T, any>,
+  ) {}
+  use() {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const data = useSyncExternalStore(this.subscribe, this.getSnapshot);
+    if (data.state === "error" || data.state === "init") {
+      throw new Error(
+        "loader.use() was called before data was available. Wrap your component with <WithLoader> to ensure data is loaded first.",
+      );
+    }
+    return data;
+  }
+}
+
+export class Loader<T, E = never> {
   private data: Data<T, E> = { state: "init" };
   private listeners = new Set<Listener>();
 
@@ -40,7 +58,9 @@ class Loader<T, E = never> {
   getData() {
     return this.data;
   }
-
+  get view() {
+    return new LoaderView(this.subscribe, this.getSnapshot);
+  }
   setData(data: Data<T, E>) {
     this.data = data;
     this.listeners.forEach((l) => l());
@@ -125,7 +145,7 @@ export function WithLoader<T, E = never>({
     return fallback ?? null;
   }
   if (data.state === "error") {
-    return error ?? null;
+    return error === undefined ? null : error(data.error);
   }
   return children;
 }

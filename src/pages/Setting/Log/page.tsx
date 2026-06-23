@@ -1,9 +1,11 @@
-import { useData } from "./use-data";
+import { readLog } from "./use-data";
 import { TextError } from "~/components/TextError";
 import { Clear } from "./z-Clear";
-import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
+import { LoaderView, Loader, WithLoader } from "~/components/WithLoader";
+
+const loader = new Loader(readLog());
 
 export default function Page() {
   return (
@@ -20,35 +22,33 @@ export default function Page() {
         </div>
 
         <div className="flex flex-col gap-1 bg-black rounded-xl p-4 h-full overflow-auto">
-          <Log />
+          <WithLoader
+            loader={loader}
+            loading={<LoadingLines />}
+            error={({ e }) => {
+              log.error(e);
+              return <TextError>{e.message}</TextError>;
+            }}
+          >
+            <Log view={loader.view} />
+          </WithLoader>
         </div>
       </div>
     </div>
   );
 }
 
-function Log() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <LoadingLines />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <TextError>{e.message}</TextError>;
-    },
-    onSuccess(text) {
-      return (
-        <>
-          {text.map((t, i) => (
-            <p className="text-white text-small" key={i}>
-              {t}
-            </p>
-          ))}
-        </>
-      );
-    },
-  });
+function Log({ view }: { view: LoaderView<string[]> }) {
+  const { data } = view.use();
+  return (
+    <>
+      {data.map((t, i) => (
+        <p className="text-white text-small" key={i}>
+          {t}
+        </p>
+      ))}
+    </>
+  );
 }
 
 function LoadingLines() {
