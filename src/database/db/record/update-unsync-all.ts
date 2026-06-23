@@ -1,8 +1,5 @@
-import { DB } from "../instance";
-import { Effect } from "effect";
+import { sqlx } from "~/database/sqlx";
 
-export function updateUnsyncAll() {
-  return Effect.gen(function* () {
-    yield* DB.try((db) => db.execute(`UPDATE records SET record_sync_at = null`));
-  });
+export function updateUnsyncAllRecords() {
+  return sqlx.record.update.unsyncAll();
 }

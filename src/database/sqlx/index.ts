@@ -9,6 +9,7 @@ import { pocket } from "./pocket";
 import { product } from "./product";
 import { productCode } from "./product-code";
 import { productEvent } from "./product-event";
+import { record } from "./record";
 import { social } from "./social";
 
 export const sqlx = {
@@ -24,4 +25,5 @@ export const sqlx = {
   productCode,
   capital,
   productEvent,
+  record
 };

@@ -51,7 +51,7 @@ type RecordProduct = {
   discounts: Discount[];
 };
 
-export type TxRecord = {
+export type NewRecord = {
   methodId: string;
   paidAt: number;
   createdAt: number;
@@ -252,7 +252,7 @@ function fetchExistingCapitals(products: RecordProduct[]) {
 // ---------------------------------------------------------------------------
 
 function buildTransaction(
-  tx: TxRecord,
+  tx: NewRecord,
   now: number,
   recordId: string,
   capitalsByProduct: Map<string, CapitalRow[]>,
@@ -399,7 +399,8 @@ function buildTransaction(
 // Public API
 // ---------------------------------------------------------------------------
 
-export function addNewRecord(tx: TxRecord, now: number) {
+export function addNewRecord(tx: NewRecord) {
+  const now = Date.now();
   return Effect.gen(function* () {
     yield* preCheckUniqueIds(tx.products, tx.extras);
     // --- check + fetch all in parallel ---

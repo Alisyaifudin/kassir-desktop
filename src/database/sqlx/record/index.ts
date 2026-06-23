@@ -6,7 +6,8 @@ import { getRecordById } from "./get-by-id";
 import { getRangeRecord } from "./get-range";
 import { getRecordsUpdatedAt } from "./get-updated-at";
 import { updateManyRecordsSyncAt } from "./update-many-sync-at";
-import { upsertProductsSync } from "./upsert-sync";
+import { updateUnsyncAllRecords } from "./update-unsync-all";
+import { upsertRecordSync } from "./upsert-sync";
 
 export const record = {
   get: {
@@ -15,7 +16,9 @@ export const record = {
     byRange: getRangeRecord,
     updatedAt: getRecordsUpdatedAt,
   },
-  update: {},
+  update: {
+    unsyncAll: updateUnsyncAllRecords
+  },
   delete: {
     byId: deleteRecordById,
   },
@@ -32,7 +35,7 @@ export const record = {
       },
     },
     upsert: {
-      one: upsertProductsSync,
+      one: upsertRecordSync,
     },
   },
 };

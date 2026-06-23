@@ -1,58 +1,38 @@
-import { countRecord } from "./count-record";
-import { countTotal } from "./count-total";
-import { delById } from "./del-by-id";
-import { getByRange } from "./get-by-range";
-import { getById } from "./get-by-id";
-import { updateMethod } from "./update-method";
-import { updateMode } from "./update-mode";
-import { updateNote } from "./update-note";
-import { updatePaidAt } from "./update-paid-at";
-import { updatePayCredit } from "./update-pay-credit";
-import { updateToCredit } from "./update-to-credit";
-import { delSync } from "./del-sync";
-import { addExternal } from "./add-external";
-import { getDebt } from "./get-debt";
-import { getUpdated } from "./get-updated";
-import { updateSync } from "./update-sync";
-import { addSync } from "./add-sync";
-import { updateSyncAt } from "./update-sync-at";
-import { getUnsync } from "./get-unsync";
-import { getCountUnsync } from "./get-count-unsync";
-import { updateUnsyncAll } from "./update-unsync-all";
-import { addOne } from "./add/one";
+import { addNewRecord } from "./add-new";
+import { deleteRecordById } from "./del-by-id";
+import { deleteManyRecordsSync } from "./del-many-sync";
+import { getAllUnsyncRecords } from "./get-all-unsync";
+import { getRecordById } from "./get-by-id";
+import { getRangeRecord } from "./get-range";
+import { getRecordsUpdatedAt } from "./get-updated-at";
+import { updateManyRecordsSyncAt } from "./update-many-sync-at";
+import { upsertRecordSync } from "./upsert-sync";
 
 export const record = {
   get: {
-    byRange: getByRange,
-    byId: getById,
-    debt: getDebt,
-    updated: getUpdated,
-    unsync: getUnsync,
+    allUnsync: getAllUnsyncRecords,
+    byId: getRecordById,
+    byRange: getRangeRecord,
+    updatedAt: getRecordsUpdatedAt,
   },
-  count: {
-    record: countRecord,
-    total: countTotal,
-    unsync: getCountUnsync,
+  update: {},
+  delete: {
+    byId: deleteRecordById,
   },
   add: {
-    one: addOne,
-    sync: addSync,
-    external: addExternal,
+    new: addNewRecord,
   },
-  del: {
-    byId: delById,
-    sync: delSync,
+  sync: {
+    delete: {
+      many: deleteManyRecordsSync,
+    },
+    update: {
+      many: {
+        syncAt: updateManyRecordsSyncAt,
+      },
+    },
+    upsert: {
+      one: upsertRecordSync,
+    },
   },
-  update: {
-    sync: updateSync,
-    syncAt: updateSyncAt,
-    unsyncAll: updateUnsyncAll,
-    paidAt: updatePaidAt,
-    toCredit: updateToCredit,
-    payCredit: updatePayCredit,
-    note: updateNote,
-    mode: updateMode,
-    method: updateMethod,
-  },
-  // upsert,
 };
