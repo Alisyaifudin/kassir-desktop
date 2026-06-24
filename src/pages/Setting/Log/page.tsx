@@ -3,9 +3,9 @@ import { TextError } from "~/components/TextError";
 import { Clear } from "./z-Clear";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
-import { LoaderView, Loader, WithLoader } from "~/components/WithLoader";
+import { LoaderView, LoaderClass, WithLoader } from "~/components/WithLoader";
 
-const loader = new Loader(readLog());
+const loader = new LoaderClass(readLog());
 
 export default function Page() {
   return (

@@ -2,7 +2,7 @@ import { Effect, Either, pipe } from "effect";
 import { useEffect, useSyncExternalStore } from "react";
 
 type Props<T, E = never> = {
-  loader: Loader<T, E>;
+  loader: LoaderClass<T, E>;
   loading?: React.ReactNode;
   error?: (e: E) => React.ReactNode;
   children: React.ReactNode;
@@ -45,7 +45,7 @@ export class LoaderView<T> {
   }
 }
 
-export class Loader<T, E = never> {
+export class LoaderClass<T, E = never> {
   private data: Data<T, E> = { state: "init" };
   private listeners = new Set<Listener>();
 
@@ -111,12 +111,7 @@ export class Loader<T, E = never> {
   }
 }
 
-export function WithLoader<T, E = never>({
-  error,
-  loader,
-  children,
-  loading: fallback,
-}: Props<T, E>) {
+export function WithLoader<T, E = never>({ error, loader, children, loading }: Props<T, E>) {
   const data = loader.useDataState();
 
   useEffect(() => {
@@ -142,7 +137,7 @@ export function WithLoader<T, E = never>({
   }, [loader]);
 
   if (data.state === "init") {
-    return fallback ?? null;
+    return loading ?? null;
   }
   if (data.state === "error") {
     return error === undefined ? null : error(data.error);
