@@ -1,28 +1,21 @@
 import { Outlet } from "react-router";
 import { store } from "~/store";
-import { Result } from "~/lib/result";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Effect } from "effect";
-import { setSize } from "~/hooks/use-size";
+import { LoaderClass, WithLoader } from "~/components/WithLoader";
+import { ErrorComponent } from "~/components/ErrorComponent";
+
+const loader = new LoaderClass(store.size.get());
 
 export default function Layout() {
-  const res = Result.use({
-    fn: () =>
-      store.size.get().pipe(
-        Effect.tap((size) => {
-          setSize(size);
-        }),
-      ),
-    key: "root-layout",
-  });
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onSuccess() {
-      return <Outlet />;
-    },
-  });
+  return (
+    <WithLoader
+      loader={loader}
+      loading={<Loading />}
+      error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
+    >
+      <Outlet />
+    </WithLoader>
+  );
 }
 
 function Loading() {
