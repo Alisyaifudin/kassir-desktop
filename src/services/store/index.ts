@@ -1,5 +1,5 @@
 import { Context, Effect } from "effect";
-import { StoreError } from "~/lib/error-effect";
+import { BaseError } from "~/lib/error-effect";
 
 
 type Info = {
@@ -17,3 +17,5 @@ export type StoreType = {
 };
 
 export class StoreService extends Context.Tag("StoreService")<StoreService, StoreType>() {}
+
+export class StoreError extends BaseError("StoreError") {}

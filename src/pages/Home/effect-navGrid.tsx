@@ -13,12 +13,13 @@ import {
 import { NavCard } from "./z-NavCard";
 import { Show } from "~/components/Show";
 import { Effect } from "effect";
-import { UserService } from "~/services/user";
+import { CashierService } from "~/services/cashier";
 
 export const navGrid = Effect.gen(function* () {
-  const userService = yield* UserService;
+  const cashierService = yield* CashierService;
+  const useUser = cashierService.current.useUser;
   return function NavGrid() {
-    const user = userService.useUser();
+    const user = useUser();
     const isAdmin = user.role === "admin";
 
     return (

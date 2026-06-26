@@ -1,32 +1,39 @@
-import { LoginForm } from "./z-LoginForm";
-import { FreshForm } from "./z-FreshForm";
-import { Result } from "~/lib/result";
-import { db } from "~/database";
 import { ErrorComponent } from "~/components/ErrorComponent";
+import { CashierService } from "~/services/cashier";
+import { Effect } from "effect";
+import { createLoader, StaticLoader } from "~/components/Loader";
+import { LogPut, LogService } from "~/services/log";
+import { freshForm } from "./effect-freshForm";
+import { loginForm } from "./effect-loginForm";
 
-export default function Page() {
-  const res = Result.use({
-    fn: () => db.cashier.get.all(),
-    key: "cashiers",
-  });
-  return Result.match(res, {
-    onError(error) {
-      console.error(error.e);
-      return <ErrorComponent title="Aplikasi bermasalah ☠">{error.e.message}</ErrorComponent>;
-    },
-    onSuccess(cashiers) {
-      if (cashiers.length > 0) {
-        return (
-          <div className="flex flex-1 flex-col justify-center bg-zinc-950">
-            <LoginForm cashiers={cashiers} />
-          </div>
-        );
-      }
-      return (
-        <div className="flex flex-1 flex-col justify-center bg-zinc-950">
-          <FreshForm />;
-        </div>
-      );
-    },
-  });
-}
+export const page = Effect.gen(function* () {
+  const cashier = yield* CashierService;
+  const log = yield* LogService;
+  const loader = createLoader(
+    program.pipe(
+      Effect.provideService(CashierService, cashier),
+      Effect.provideService(LogService, log),
+    ),
+  );
+  const FreshForm = yield* freshForm;
+  const LoginForm = yield* loginForm;
+  return function Page() {
+    return (
+      <StaticLoader
+        loader={loader}
+        error={({ e }) => (
+          <ErrorComponent title="Aplikasi bermasalah ☠">{e.message}</ErrorComponent>
+        )}
+      >
+        {(cashiers) => (cashiers.length === 0 ? <FreshForm /> : <LoginForm cashiers={cashiers} />)}
+      </StaticLoader>
+    );
+  };
+});
+
+const program = Effect.gen(function* () {
+  const cashier = yield* CashierService;
+  return yield* cashier.get.all;
+}).pipe(Effect.tapError(LogPut));
+
+export default page;

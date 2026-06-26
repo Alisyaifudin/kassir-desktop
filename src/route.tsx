@@ -4,14 +4,15 @@ import { Effect } from "effect";
 import { lazyEffect } from "./lib/lazy";
 import { authMiddlewareEffect } from "./middleware/auth";
 import { homeRouteEffect } from "./pages/Home/index.tsx";
+import { loginRouteEffect } from "./pages/Login/index.tsx";
 
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
 
 export const routerEffect = Effect.gen(function* () {
-  // const RootLayout = yield* lazyEffect(() => import("./layouts/root.tsx"));
   const AuthLayout = yield* lazyEffect(() => import("./layouts/index.tsx"));
   const authMiddleware = yield* authMiddlewareEffect;
   const homeRoute = yield* homeRouteEffect;
+  const loginRoute = yield* loginRouteEffect;
   return createHashRouter([
     {
       path: "/",
@@ -20,10 +21,7 @@ export const routerEffect = Effect.gen(function* () {
       middleware: [authMiddleware],
       children: [homeRoute],
     },
-    {
-      path: "/login",
-      ErrorBoundary,
-    },
+    loginRoute,
   ]);
 });
 

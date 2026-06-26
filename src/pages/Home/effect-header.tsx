@@ -1,11 +1,12 @@
 import { Effect } from "effect";
 import { capitalize } from "~/lib/capitalize";
-import { UserService } from "~/services/user";
+import { CashierService } from "~/services/cashier";
 
 export const header = Effect.gen(function*() {
-  const userService = yield* UserService;
+  const cashierService = yield* CashierService;
+  const useUser = cashierService.current.useUser
   return function Header() {
-  const user = userService.useUser();
+  const user = useUser();
   const today = new Date().toLocaleDateString("id-ID", {
     weekday: "long",
     year: "numeric",

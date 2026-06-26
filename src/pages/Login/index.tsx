@@ -1,15 +1,23 @@
+import { Effect } from "effect";
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { lazyLoader } from "~/lib/utils";
+import { lazyEffect } from "~/lib/lazy";
+import { loginMiddlewareEffect } from "~/middleware/login";
 
-const Page = lazy(() => import("./page"));
+const ErrorBoundary = lazy(() => import("~/components/ErrorBoundary.tsx"));
 
-export const loginRoute: RouteObject = {
-  path: "login",
-  loader: lazyLoader(() => import("./loader")),
-  Component: () => (
-    <Suspense>
-      <Page />
-    </Suspense>
-  ),
-};
+export const loginRouteEffect = Effect.gen(function* () {
+  const Page = yield* lazyEffect(() => import("./page"));
+  const loginMiddleware = yield* loginMiddlewareEffect;
+  const route: RouteObject = {
+    path: "login",
+    middleware: [loginMiddleware],
+    ErrorBoundary,
+    Component: () => (
+      <Suspense>
+        <Page />
+      </Suspense>
+    ),
+  };
+  return route;
+});

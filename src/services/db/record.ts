@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { DbError } from "~/lib/error-effect";
+import type { DbError } from ".";
 
 export type RecordDb = {
   count: {

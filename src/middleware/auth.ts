@@ -1,9 +1,10 @@
 import { Effect } from "effect";
 import { MiddlewareFunction, redirect } from "react-router";
-import { UserService } from "~/services/user";
+import { CashierService } from "~/services/cashier";
 
 export const authMiddlewareEffect = Effect.gen(function* () {
-  const { user } = yield* UserService;
+  const cashier = yield* CashierService;
+  const user = cashier.current.user
   const middleware: MiddlewareFunction = async (_arg, next) => {
     if (user === undefined) {
       throw redirect("/login");

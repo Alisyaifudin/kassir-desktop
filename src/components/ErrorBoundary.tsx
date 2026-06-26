@@ -1,7 +1,5 @@
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { Button } from "./ui/button";
-import { Unauthenticated } from "~/lib/auth";
-import Redirect from "./Redirect";
 import { AlertTriangle, ArrowLeft, Home, Terminal, ShieldAlert, FileQuestion } from "lucide-react";
 import { cn } from "~/lib/utils";
 
@@ -9,10 +7,6 @@ export default function ErrorBoundary() {
   const env = import.meta.env.DEV;
   const error = useRouteError();
 
-  // Handle Unauthenticated error
-  if (error instanceof Unauthenticated) {
-    return <Redirect to="/login" hard />;
-  }
 
   const reloadPage = () => window.location.reload();
   const goBack = () => window.history.back();

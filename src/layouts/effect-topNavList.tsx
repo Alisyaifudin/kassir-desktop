@@ -4,26 +4,26 @@ import { Show } from "~/components/Show";
 import { Kbd } from "~/components/ui/kdb";
 import { useShortcut, showShortcut } from "./use-shortcut";
 import { Effect } from "effect";
-import { UserService } from "~/services/user";
+import { CashierService } from "~/services/cashier";
 
-export const topNavList = Effect.gen(function*(){
-  const user = yield* UserService;
-
+export const topNavList = Effect.gen(function* () {
+  const cashierService = yield* CashierService;
+  const useUser = cashierService.current.useUser;
   return function TopNavList() {
-  const role = user.useUser().role
+    const role = useUser().role;
 
-  return (
-    <div className="hidden md:flex items-end gap-1 h-full pt-2">
-      <TopNavLink path="/shop" label="Toko" alt="alt+0" root />
-      <TopNavLink path="/stock" label="Stok" alt="alt+1" />
-      <TopNavLink path="/records" label="Riwayat" alt="alt+2" />
-      <Show when={role === "admin"}>
-        <TopNavLink path="/money" label="Uang" alt="alt+3" />
-      </Show>
-    </div>
-  );
-}
-})
+    return (
+      <div className="hidden md:flex items-end gap-1 h-full pt-2">
+        <TopNavLink path="/shop" label="Toko" alt="alt+0" root />
+        <TopNavLink path="/stock" label="Stok" alt="alt+1" />
+        <TopNavLink path="/records" label="Riwayat" alt="alt+2" />
+        <Show when={role === "admin"}>
+          <TopNavLink path="/money" label="Uang" alt="alt+3" />
+        </Show>
+      </div>
+    );
+  };
+});
 
 interface TopNavLinkProps {
   path: string;
