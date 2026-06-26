@@ -1,10 +1,22 @@
 import { Context, Effect } from "effect";
-import { StoreError } from "~/store/error";
-import { Size } from "~/store/size/get";
+import { StoreError } from "~/lib/error-effect";
+
+type Size = "big" | "small";
+
+type Info = {
+  address: string;
+  footer: string;
+  header: string;
+  name: string;
+  showCashier: boolean;
+};
 
 export type StoreType = {
   size: {
-    get: () => Effect.Effect<Size, StoreError, never>;
+    get: Effect.Effect<Size, StoreError, never>;
+  };
+  info: {
+    get: Effect.Effect<Info, StoreError, never>;
   };
 };
 

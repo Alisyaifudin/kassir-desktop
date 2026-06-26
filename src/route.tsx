@@ -6,10 +6,10 @@ import { authMiddlewareEffect } from "./middleware/auth";
 import { homeRouteEffect } from "./pages/Home/index.tsx";
 
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
-const AuthLayout = lazy(() => import("./layouts/authenticated/index.tsx"));
 
 export const routerEffect = Effect.gen(function* () {
   const RootLayout = yield* lazyEffect(() => import("./layouts/root.tsx"));
+  const AuthLayout = yield* lazyEffect(() => import("./layouts/authenticated/index.tsx"));
   const authMiddleware = yield* authMiddlewareEffect;
   const homeRoute = yield* homeRouteEffect;
   return createHashRouter([

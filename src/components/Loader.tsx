@@ -181,12 +181,57 @@ export function WithLoader<T, E = never>({
   }
 }
 
+type TrackLoaderProps<T, E = never> = {
+  loader: LoaderClass<T, E>;
+  loading?: React.ReactNode;
+  error?: (e: E, retry: () => void) => React.ReactNode;
+  children: (data: T) => React.ReactNode;
+};
+export function TrackLoader<T, E = never>({
+  children,
+  error,
+  loading,
+  loader,
+}: TrackLoaderProps<T, E>) {
+  const state = loader.useState();
+
+  // on mount, run this
+  useEffect(() => {
+    async function init() {
+      if (state._tag !== "LoadingState") return;
+      await state.init();
+    }
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  switch (state._tag) {
+    case "ErrorState":
+      return error === undefined ? null : error(state.error, () => state.retry());
+    case "LoadingState":
+      return loading ?? null;
+    case "Settled":
+      return <TrackWrapper state={state}>{(data) => children(data)}</TrackWrapper>;
+  }
+}
+
+function TrackWrapper<T>({
+  state,
+  children,
+}: {
+  state: SettledState<T>;
+  children: (data: T) => React.ReactNode;
+}) {
+  const data = state.useData();
+  return children(data);
+}
+
 type StaticLoaderProps<T, E = never> = {
   loader: LoaderClass<T, E>;
   loading?: React.ReactNode;
   error?: (e: E, retry: () => void) => React.ReactNode;
   children: (data: T) => React.ReactNode;
 };
+
 export function StaticLoader<T, E = never>({
   children,
   error,

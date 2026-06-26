@@ -7,7 +7,7 @@ import { User, UserService } from "./services/user";
 import { LogService } from "./services/log";
 import { StoreService } from "./services/store";
 import { DBService } from "./services/db";
-import { DbError } from "./database/sqlx/instance";
+import { DbError, StoreError } from "./lib/error-effect";
 
 const user: User = {
   id: "1",
@@ -29,9 +29,18 @@ const userDummy = Layer.succeed(UserService, userResource);
 
 const storeResource = StoreService.of({
   size: {
-    get() {
-      return Effect.succeed("big" as const);
-    },
+    get: Effect.succeed("big" as const).pipe(
+      Effect.catchAll(() => StoreError.fail(new Error("uwu"))),
+    ),
+  },
+  info: {
+    get: Effect.succeed({
+      address: "",
+      footer: "",
+      header: "",
+      name: "",
+      showCashier: true,
+    }).pipe(Effect.catchAll(() => StoreError.fail(new Error("uwu")))),
   },
 });
 

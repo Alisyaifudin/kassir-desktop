@@ -7,7 +7,7 @@ import { StoreService } from "~/services/store";
 
 const layout = Effect.gen(function* () {
   const store = yield* StoreService;
-  const loader = new LoaderClass(store.size.get());
+  const loader = new LoaderClass(store.size.get);
   return function Layout() {
     return (
       <WithLoader

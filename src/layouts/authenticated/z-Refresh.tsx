@@ -1,16 +1,16 @@
 import { RefreshCcw } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "~/components/ui/button";
-import { db } from "~/database/db";
+// import { db } from "~/database/db";
 
 export function Refresh() {
   const refresh = useCallback(() => {
-    db.customer.revalidate();
-    db.extra.revalidate();
-    db.image.revalidate();
-    db.method.revalidate();
-    db.product.revalidate();
-    db.social.revalidate();
+    // db.customer.revalidate();
+    // db.extra.revalidate();
+    // db.image.revalidate();
+    // db.method.revalidate();
+    // db.product.revalidate();
+    // db.social.revalidate();
     window.location.reload();
   }, []);
   return (

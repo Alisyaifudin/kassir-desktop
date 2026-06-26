@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { capitalize } from "~/lib/utils";
+import { capitalize } from "~/lib/capitalize";
 import { UserService } from "~/services/user";
 
 export const header = Effect.gen(function*() {

@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { DbError } from "~/database/sqlx/instance";
+import { DbError } from "~/lib/error-effect";
 
 export type RecordDb = {
   count: {

@@ -1,6 +1,6 @@
 import { Store as StoreTauri } from "@tauri-apps/plugin-store";
 import { Effect } from "effect";
-import { StoreError } from "./error";
+import { StoreError } from "~/lib/error-effect";
 
 interface Store {
   get: (key: string) => Effect.Effect<unknown, StoreError>;

@@ -1,5 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { Effect, pipe } from "effect";
+import { DbError } from "~/lib/error-effect";
 
 let globalDB: undefined | Database = undefined;
 
@@ -41,24 +42,6 @@ const DBWrapper = {
     );
   },
 };
-
-export class DbError {
-  readonly _tag = "DbError";
-  constructor(readonly e: Error) {}
-  static new(e: unknown) {
-    if (e instanceof Error) {
-      return new DbError(e);
-    } else if (typeof e === "string") {
-      const error = new Error(e);
-      return new DbError(error);
-    }
-    const unknown = new Error("Unknown", { cause: e });
-    return new DbError(unknown);
-  }
-  static fail(e: unknown) {
-    return Effect.fail(DbError.new(e));
-  }
-}
 
 export const DB = {
   execute(query: string, bindValues?: unknown[]) {
