@@ -6,7 +6,7 @@ export function upsertManyExtras(
     id: string;
     name: string;
     value: number;
-    kind: DB.ValueKind;
+    kind: DBNamespace.ValueKind;
     updatedAt: number;
   }[],
   now: number,

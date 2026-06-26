@@ -10,7 +10,7 @@ export function addNewImage({
   now,
 }: {
   name: string;
-  mime: DB.Mime;
+  mime: DBNamespace.Mime;
   productId: string;
   maxOrder: number;
   now: number;

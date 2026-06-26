@@ -3,17 +3,10 @@ import { useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
 import { Kbd } from "~/components/ui/kdb";
 import { showShortcut, useShortcut } from "./use-shortcut";
-import { useSize } from "~/hooks/use-size";
 import { Button } from "~/components/ui/button";
-
-const iconSize = {
-  big: 24,
-  small: 20,
-};
 
 export function SettingLink() {
   const { pathname } = useLocation();
-  const size = useSize();
   const show = useShortcut();
   const navigate = useNavigate();
 
@@ -33,7 +26,7 @@ export function SettingLink() {
           pathname.includes("/setting") && "bg-white/80",
         )}
       >
-        <Settings size={iconSize[size]} />
+        <Settings className="small:w-5 small:h-5 w-6 h-6" />
       </Button>
     </div>
   );

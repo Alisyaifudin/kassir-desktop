@@ -131,7 +131,7 @@ function groupMethods(methods: Method[]): { top: Method; options: Method[] }[] {
     filterMethod("qris", methods),
   ];
 }
-function filterMethod(name: DB.MethodEnum, methods: Method[]) {
+function filterMethod(name: DBNamespace.MethodEnum, methods: Method[]) {
   const top = methods.find((m) => m.kind === name && m.name === undefined);
   if (top === undefined) throw new Error("No " + name);
   const options = methods.filter((m) => m.kind === name && m.name !== undefined);

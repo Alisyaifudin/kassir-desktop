@@ -6,5 +6,10 @@ export function set(size: Size) {
   return Effect.gen(function* () {
     const store = yield* getStore();
     yield* store.set("size", size);
+    if (size === "big") {
+      document.body.classList.remove("small");
+    } else {
+      document.body.classList.add("small");
+    }
   });
 }

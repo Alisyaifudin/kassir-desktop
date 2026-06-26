@@ -8,6 +8,11 @@ export function get() {
     const store = yield* getStore();
     const res = yield* store.get("size");
     const size = parseSize(res);
+    if (size === "big") {
+      document.body.classList.remove("small");
+    } else {
+      document.body.classList.add("small");
+    }
     return size;
   });
 }

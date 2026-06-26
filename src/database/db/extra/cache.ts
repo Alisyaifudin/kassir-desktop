@@ -4,14 +4,14 @@ export type Extra = {
   id: string;
   name: string;
   value: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
 };
 
 export type ExtraFull = {
   id: string;
   name: string;
   value: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
   updatedAt: number;
   syncAt?: number;
 };

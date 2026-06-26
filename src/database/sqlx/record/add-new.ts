@@ -22,14 +22,14 @@ type RecordExtra = {
   name: string;
   value: number;
   eff: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
 };
 
 type Discount = {
   id: string;
   value: number;
   eff: number;
-  kind: DB.DiscKind;
+  kind: DBNamespace.DiscKind;
 };
 
 type RecordProduct = {
@@ -58,7 +58,7 @@ export type NewRecord = {
   rounding: number;
   creditAt?: number;
   cashier: string;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   pay: number;
   note: string;
   fix: number;

@@ -8,7 +8,7 @@ export function addNewImage({
   productId,
 }: {
   name: string;
-  mime: DB.Mime;
+  mime: DBNamespace.Mime;
   productId: string;
 }) {
   const now = Date.now();

@@ -1,6 +1,6 @@
 import { LoaderFunctionArgs, RouteObject, useLoaderData } from "react-router";
 import { lazy, Suspense } from "react";
-import { Loading } from "./z-Loading";
+import { Loading } from "./z-Loading.tsx";
 
 const Page = lazy(() => import("./page.tsx"));
 

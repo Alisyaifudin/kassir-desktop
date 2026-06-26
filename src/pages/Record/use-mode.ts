@@ -10,7 +10,7 @@ function getMode(search: URLSearchParams) {
 export function useMode() {
   const [search, setSearch] = useSearchParams();
   const mode = getMode(search);
-  function setMode(mode: DB.Mode) {
+  function setMode(mode: DBNamespace.Mode) {
     setSearch((old) => {
       const search = new URLSearchParams(old);
       search.set("mode", mode);

@@ -1,4 +1,5 @@
 import { addNewProduct } from "./add-new";
+import { cache } from "./cache";
 import { deleteProductById } from "./del-by-id";
 import { deleteManyProductsSync } from "./del-many-sync";
 import { getAllProducts } from "./get-all";
@@ -38,4 +39,5 @@ export const product = {
       one: upsertProductsSync,
     },
   },
+  revalidate: cache.revalidate,
 };

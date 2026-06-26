@@ -37,7 +37,7 @@ export function SelectRole({ cashier }: { cashier: CashierWithoutHash }) {
   );
 }
 
-export function program(id: string, role: DB.Role) {
+export function program(id: string, role: DBNamespace.Role) {
   return pipe(
     db.cashier.update.role(id, role),
     Effect.as(null),

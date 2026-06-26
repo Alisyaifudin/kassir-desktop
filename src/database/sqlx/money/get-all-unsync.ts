@@ -21,7 +21,7 @@ type GetAfterResult = {
 };
 
 export function getAllUnsyncMoney() {
-  return DB.select<DB.Money[]>("SELECT * FROM money WHERE money_sync_at IS NULL").pipe(
+  return DB.select<DBNamespace.Money[]>("SELECT * FROM money WHERE money_sync_at IS NULL").pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
         (acc, r) => {

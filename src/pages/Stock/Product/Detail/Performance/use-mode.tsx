@@ -6,7 +6,7 @@ const modeSchema = z.enum(["sell", "buy"]);
 export function useMode() {
   const [search, setSearch] = useSearchParams();
   const mode = modeSchema.catch("sell").parse(search.get("mode"));
-  function setMode(mode: DB.Mode) {
+  function setMode(mode: DBNamespace.Mode) {
     setSearch((old) => {
       const s = new URLSearchParams(old);
       s.set("mode", mode);

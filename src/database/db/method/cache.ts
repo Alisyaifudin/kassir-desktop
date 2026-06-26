@@ -4,7 +4,7 @@ export type Method = {
   id: string;
   name?: string;
   label?: string;
-  kind: DB.MethodEnum;
+  kind: DBNamespace.MethodEnum;
 };
 
 export type MethodFull = Method & {

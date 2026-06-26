@@ -18,7 +18,7 @@ export function upsertProductsSync(
       events: {
         id: string;
         timestamp: number;
-        type: DB.ProductEventEnum;
+        type: DBNamespace.ProductEventEnum;
         value: number;
       }[];
     }[];

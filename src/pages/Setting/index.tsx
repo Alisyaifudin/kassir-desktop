@@ -14,6 +14,11 @@ const Page = lazy(() => import("./page"));
 
 export const settingRoute: RouteObject = {
   path: "setting",
+  Component: () => (
+    <Suspense fallback={<LoadingLayout />}>
+      <Layout />
+    </Suspense>
+  ),
   children: [
     profileRoute,
     shopRoute,
@@ -30,9 +35,4 @@ export const settingRoute: RouteObject = {
       ),
     },
   ],
-  Component: () => (
-    <Suspense fallback={<LoadingLayout />}>
-      <Layout />
-    </Suspense>
-  ),
 };

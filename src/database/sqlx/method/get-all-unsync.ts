@@ -4,7 +4,7 @@ import { Effect } from "effect";
 type ExistMethod = {
   id: string;
   name?: string;
-  kind: DB.MethodEnum;
+  kind: DBNamespace.MethodEnum;
   updatedAt: number;
 };
 
@@ -19,7 +19,7 @@ type GetAfterResult = {
 };
 
 export function getAllUnsync() {
-  return DB.select<DB.Method[]>(
+  return DB.select<DBNamespace.Method[]>(
     "SELECT * FROM methods WHERE method_sync_at IS NULL ORDER BY method_updated_at",
   ).pipe(
     Effect.map((res) =>

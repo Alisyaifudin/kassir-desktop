@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { loadProducts } from "~/hooks/use-get-products";
 import { log } from "~/lib/log";
 
-export function useLoadProducts(role: DB.Role) {
+export function useLoadProducts(role: DBNamespace.Role) {
   useEffect(() => {
     async function init() {
       const errMsg = await Effect.runPromise(

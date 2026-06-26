@@ -5,7 +5,7 @@ export function updateExtra(
   id: string,
   name: string,
   value: number,
-  kind: DB.ValueKind,
+  kind: DBNamespace.ValueKind,
   now: number,
 ) {
   return DB.execute(

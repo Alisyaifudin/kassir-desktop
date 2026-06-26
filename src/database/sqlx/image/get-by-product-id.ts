@@ -2,7 +2,7 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 
 export function getImagesByProductId(productId: string) {
-  return DB.select<DB.Image[]>(
+  return DB.select<DBNamespace.Image[]>(
     `SELECT * FROM images WHERE product_id = $1 AND image_deleted_at IS NULL
      ORDER BY image_order`,
     [productId],

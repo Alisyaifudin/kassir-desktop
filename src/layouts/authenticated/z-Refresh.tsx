@@ -1,16 +1,9 @@
 import { RefreshCcw } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "~/components/ui/button";
-import { db } from "~/database";
-import { useSize } from "~/hooks/use-size";
-
-const iconSize = {
-  big: 24,
-  small: 20,
-};
+import { db } from "~/database/db";
 
 export function Refresh() {
-  const size = useSize();
   const refresh = useCallback(() => {
     db.customer.revalidate();
     db.extra.revalidate();
@@ -27,7 +20,7 @@ export function Refresh() {
       onClick={refresh}
       variant="ghost"
     >
-      <RefreshCcw size={iconSize[size]} />
+      <RefreshCcw className="small:w-5 small:h-5 w-6 h-6" />
     </Button>
   );
 }

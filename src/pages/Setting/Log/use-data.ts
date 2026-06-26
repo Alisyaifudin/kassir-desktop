@@ -7,7 +7,7 @@ export const LOG_PATH = "logs/kassir.log";
 
 export function useData() {
   const res = Result.use({
-    fn: () => readLog(LOG_PATH),
+    fn: () => readLog(),
     key: LOG_PATH,
   });
   return res;
@@ -17,11 +17,11 @@ export function revalidate() {
   Result.revalidate(LOG_PATH);
 }
 
-function readLog(logPath: string) {
+export function readLog() {
   return Effect.gen(function* () {
     const buffer = yield* Effect.tryPromise({
       try: () =>
-        readTextFile(logPath, {
+        readTextFile(LOG_PATH, {
           baseDir: BaseDirectory.AppLocalData,
         }),
       catch: (e) => ReadError.new(e),

@@ -4,7 +4,7 @@ import { store } from "~/store";
 import { log } from "~/lib/log";
 import { toast } from "sonner";
 
-export type Kind = Exclude<DB.MethodEnum, "cash">;
+export type Kind = Exclude<DBNamespace.MethodEnum, "cash">;
 export type NonNullMethod = {
   id: string;
   name: string;

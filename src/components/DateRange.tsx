@@ -14,7 +14,6 @@ import { Temporal } from "temporal-polyfill";
 import { Input } from "~/components/ui/input";
 import { MONTHS, formatDate, monthNames } from "~/lib/date";
 import { tz } from "~/lib/constants";
-import { useSize } from "~/hooks/use-size";
 
 type Interval = "day" | "month" | "year";
 
@@ -138,7 +137,7 @@ function Content({
   setInterval: (interval: Interval) => void;
 }) {
   const [date, setDate] = useState(() =>
-    Temporal.Instant.fromEpochMilliseconds(range[mode]).toZonedDateTimeISO(tz).startOfDay()
+    Temporal.Instant.fromEpochMilliseconds(range[mode]).toZonedDateTimeISO(tz).startOfDay(),
   );
   switch (interval) {
     case "day":
@@ -172,15 +171,6 @@ type Day = {
   inside: boolean;
 };
 
-const style = {
-  big: {
-    width: "600px",
-  },
-  small: {
-    width: "400px",
-  },
-};
-
 function DayCalendar({
   setTime,
   range,
@@ -201,7 +191,6 @@ function DayCalendar({
     .toZonedDateTimeISO(tz)
     .startOfDay().epochMilliseconds;
   const today = Temporal.Now.zonedDateTimeISO().startOfDay();
-  const size = useSize();
   const { start, end, startOfMonth, endOfMonth } = useMemo(() => {
     const startOfMonth = Temporal.ZonedDateTime.from({
       timeZone: tz,
@@ -212,7 +201,7 @@ function DayCalendar({
     const deltaStart = startOfMonth.dayOfWeek - 1;
     const start = startOfMonth.subtract(Temporal.Duration.from({ days: deltaStart }));
     const endOfMonth = startOfMonth.add(
-      Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 })
+      Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 }),
     );
     const deltaEnd = 7 - endOfMonth.dayOfWeek;
     const end = endOfMonth.add(Temporal.Duration.from({ days: deltaEnd + 1 }));
@@ -241,7 +230,7 @@ function DayCalendar({
     setDate(t);
   };
   return (
-    <div style={style[size]} className="flex flex-col gap-2">
+    <div className="small:w-[400px] w-[600px] flex flex-col gap-2">
       <DialogHeader>
         <div className="flex flex-row items-center gap-2">
           <Button onClick={handlePrev} className="p-2">
@@ -282,7 +271,7 @@ function DayCalendar({
               onClick={() => {
                 const t = sanitizeTime(ms);
                 setDate(
-                  Temporal.Instant.fromEpochMilliseconds(t).toZonedDateTimeISO(tz).startOfDay()
+                  Temporal.Instant.fromEpochMilliseconds(t).toZonedDateTimeISO(tz).startOfDay(),
                 );
                 setTime(t);
               }}
@@ -333,7 +322,7 @@ function MonthCalendar({
   }).startOfDay();
   const handleClick = (month: number) => {
     const t = sanitizeTime(
-      Temporal.Instant.fromEpochMilliseconds(month).toZonedDateTimeISO(tz).startOfDay()
+      Temporal.Instant.fromEpochMilliseconds(month).toZonedDateTimeISO(tz).startOfDay(),
     );
     setDate(t);
     setInterval("day");
@@ -344,7 +333,6 @@ function MonthCalendar({
   const handleNext = () => {
     setDate(sanitizeTime(date.add(Temporal.Duration.from({ years: 1 }))));
   };
-  const size = useSize();
   const months = useMemo(() => {
     const months: { month: string; start: number; end: number }[] = new Array(12);
     let start = Temporal.ZonedDateTime.from(startOfYear);
@@ -356,7 +344,7 @@ function MonthCalendar({
     return months;
   }, [startOfYear]);
   return (
-    <div style={style[size]} className="flex flex-col gap-2">
+    <div className="small:w-[400px] w-[600px] flex flex-col gap-2">
       <DialogHeader>
         <div className="flex flex-row items-center gap-2">
           <Button onClick={handlePrev} className="p-2">
@@ -383,8 +371,8 @@ function MonthCalendar({
                 selectedTime.month === i + 1 && selectedTime.year === date.year
                   ? "default"
                   : today.month === i + 1 && today.year === date.year
-                  ? "outline"
-                  : "ghost"
+                    ? "outline"
+                    : "ghost"
               }
               onClick={() => handleClick(start)}
             >
@@ -416,7 +404,6 @@ function YearCalendar({
   date: Temporal.ZonedDateTime;
   setDate: (date: Temporal.ZonedDateTime) => void;
 }) {
-  const size = useSize();
   const today = Temporal.Now.zonedDateTimeISO().startOfDay();
   const [year, setYear] = useState(date.year);
   const handleSubmitYear = (e: React.FormEvent<HTMLFormElement>) => {
@@ -430,7 +417,7 @@ function YearCalendar({
         year,
         month: today.month,
         day: today.day,
-      })
+      }),
     ).startOfDay();
     setDate(t);
     setInterval("month");
@@ -450,7 +437,7 @@ function YearCalendar({
     setYear(t);
   }
   return (
-    <div style={style[size]} className="flex flex-col gap-2">
+    <div className="small:w-[400px] w-[600px] flex flex-col gap-2">
       <DialogHeader className="flex flex-row items-center gap-2">
         <Button onClick={handlePrev} className="p-2">
           <ChevronLeft className="icon" />

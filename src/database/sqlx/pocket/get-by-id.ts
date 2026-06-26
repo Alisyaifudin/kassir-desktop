@@ -3,7 +3,7 @@ import { DB } from "../instance";
 import { NotFound } from "~/lib/effect-error";
 
 export function getPocketById(id: string) {
-  return DB.select<DB.Pocket[]>(
+  return DB.select<DBNamespace.Pocket[]>(
     "SELECT * FROM pockets WHERE pocket_deleted_at IS NULL AND pocket_id = $1 ORDER BY pocket_ordering",
     [id],
   ).pipe(

@@ -1,6 +1,6 @@
-import { NavList } from "../z-NavList";
-import { useData } from "./use-data";
-import { Summary } from "./z-Summary";
+import { NavList } from "../z-NavList.tsx";
+import { useData } from "./use-data.ts";
+import { Summary } from "./z-Summary.tsx";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";

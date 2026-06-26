@@ -21,7 +21,7 @@ type Record = {
 };
 
 type Discount = {
-  kind: DB.DiscKind;
+  kind: DBNamespace.DiscKind;
   value: number;
   eff: number;
 };
@@ -38,7 +38,7 @@ type RecordExtra = {
   name: string;
   value: number;
   eff: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
 };
 
 type DataRecord = {

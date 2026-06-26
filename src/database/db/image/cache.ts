@@ -2,7 +2,7 @@ export type Image = {
   order: number;
   id: string;
   name: string;
-  mime: DB.Mime;
+  mime: DBNamespace.Mime;
 };
 
 export type ImageFull = Image & {

@@ -3,13 +3,13 @@ import { Effect } from "effect";
 
 export type CashierWithoutHash = {
   name: string;
-  role: DB.Role;
+  role: DBNamespace.Role;
   id: string;
 };
 
 export function getAllCashiers() {
   return Effect.gen(function* () {
-    const res = yield* DB.select<DB.Cashier[]>(
+    const res = yield* DB.select<DBNamespace.Cashier[]>(
       "SELECT cashier_name, cashier_role, cashier_id FROM cashiers",
     );
     const data: CashierWithoutHash[] = res.map((r) => ({

@@ -4,7 +4,7 @@ export function insertManyProductEventSync(
   productEvents: {
     id: string;
     capitalId: string;
-    type: DB.ProductEventEnum;
+    type: DBNamespace.ProductEventEnum;
     value: number;
     timestamp: number;
   }[],

@@ -14,7 +14,7 @@ type Prod = {
   price: number;
   capital: number;
   qty: number;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   items: {
     id: string;
     paidAt: number;

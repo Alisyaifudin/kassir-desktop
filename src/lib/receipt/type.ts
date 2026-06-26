@@ -21,7 +21,7 @@ export type ReceiptData = {
     qty: number;
     total: number;
     discounts: {
-      kind: DB.DiscKind;
+      kind: DBNamespace.DiscKind;
       value: number;
       eff: number;
     }[];
@@ -30,7 +30,7 @@ export type ReceiptData = {
     name: string;
     eff: number;
     value: number;
-    kind: DB.ValueKind;
+    kind: DBNamespace.ValueKind;
   }[];
   info: Info;
   socials: {

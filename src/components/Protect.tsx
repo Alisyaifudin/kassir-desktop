@@ -6,7 +6,7 @@ export function Protect({
   children,
 }: {
   redirect: string;
-  role: DB.Role;
+  role: DBNamespace.Role;
   children: React.ReactNode;
 }) {
   if (role !== "admin") {

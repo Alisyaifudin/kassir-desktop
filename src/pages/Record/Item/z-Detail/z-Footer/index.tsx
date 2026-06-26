@@ -18,7 +18,7 @@ export const Footer = memo(function Header({
   paidAt: number;
   recordId: string;
   cashier: string;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   customer: {
     name: string;
     phone: string;

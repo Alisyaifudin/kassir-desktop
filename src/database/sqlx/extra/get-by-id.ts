@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { NotFound } from "~/lib/effect-error";
 
 export function getExtraById(id: string) {
-  return DB.select<DB.Extra[]>(
+  return DB.select<DBNamespace.Extra[]>(
     "SELECT * FROM extras WHERE extra_id = $1 AND extra_deleted_at IS NULL",
     [id],
   ).pipe(

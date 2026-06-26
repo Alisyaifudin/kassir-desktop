@@ -37,7 +37,7 @@ function save(file: File, id: string) {
   });
 }
 
-function load(id: string, mimeType: DB.Mime) {
+function load(id: string, mimeType: DBNamespace.Mime) {
   return Effect.gen(function* () {
     const pathname = yield* Effect.tryPromise({
       try: () => path.join("images", id),

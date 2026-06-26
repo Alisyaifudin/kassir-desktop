@@ -1,4 +1,4 @@
-declare namespace DB {
+declare namespace DBNamespace {
   type Role = "admin" | "user";
   type ValueKind = "number" | "percent";
   type DiscKind = ValueKind | "pcs";

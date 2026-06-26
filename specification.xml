@@ -1225,6 +1225,168 @@
     </ui_spec>
   </sync_refactor>
 
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Loader State Machine (src/components/Loader.tsx)                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <loader_state_machine>
+    <description>
+      A two-level state machine for managing async data loading in React components.
+      Built on useSyncExternalStore for zero re-render overhead. Uses Effect-TS for
+      typed error handling. Loaders are created at module level and persist across
+      renders for caching.
+    </description>
+
+    <design>
+      <two_level_machine>
+        <outer name="Loader" states="LoadingInit | ErrorInit | Settled">
+          <description>Handles initial data load. WithLoader component subscribes to this level.</description>
+          <state name="LoadingInit" _tag="LoadingInit">Initial load in progress. No data yet.</state>
+          <state name="ErrorInit" _tag="ErrorInit">Initial load failed. Has error: EInit. Can retry.</state>
+          <state name="Settled" _tag="Settled">Initial load complete. Contains inner state machine.</state>
+        </outer>
+        <inner name="Settled" states="Success | LoadingUpdate | ErrorUpdate">
+          <description>Handles update/refresh lifecycle. Child components subscribe via settled.useState().</description>
+          <state name="Success" _tag="Success">Data loaded and idle. Has data: T. Can update() or retry().</state>
+          <state name="LoadingUpdate" _tag="LoadingUpdate">Update/refresh in progress. Has stale data: T.</state>
+          <state name="ErrorUpdate" _tag="ErrorUpdate">Update/refresh failed. Has stale data: T and error: EUpdate. Can retry().</state>
+        </inner>
+      </two_level_machine>
+
+      <transitions>
+        <outer_transitions>
+          <transition from="LoadingInit" to="ErrorInit | Settled" />
+          <transition from="ErrorInit" to="LoadingInit" />
+          <note>Settled has no outgoing transitions at the outer level.</note>
+        </outer_transitions>
+        <inner_transitions>
+          <transition from="Success" to="LoadingUpdate" />
+          <transition from="LoadingUpdate" to="Success | ErrorUpdate" />
+          <transition from="ErrorUpdate" to="LoadingUpdate" />
+        </inner_transitions>
+      </transitions>
+    </design>
+
+    <api>
+      <class name="Loader&lt;T, EInit, EUpdate&gt;">
+        <description>Top-level state machine. Created via createLoader().</description>
+        <constructor>
+          <param name="effect" type="{ init: Effect.Effect&lt;T, EInit&gt;, update: Effect.Effect&lt;T, EUpdate&gt; }">
+            Separate effects for initial load and subsequent updates.
+          </param>
+        </constructor>
+        <method name="useState()" returns="State&lt;T, EInit, EUpdate&gt;">
+          React hook. Subscribes to outer state changes via useSyncExternalStore.
+        </method>
+        <method name="transition(state, post?)">
+          Protected. Validates transition against LOADER_TRANSITIONS map. Rejects invalid transitions.
+          post callback runs after state is set but before listeners are notified.
+        </method>
+      </class>
+
+      <class name="Settled&lt;T, EUpdate&gt;">
+        <description>Inner state machine. Wraps Success | LoadingUpdate | ErrorUpdate.</description>
+        <property name="data" type="T">The initial data (frozen at construction). Not updated on inner transitions.</property>
+        <method name="useState()" returns="StateSettled&lt;T, EUpdate&gt;">
+          React hook. Subscribes to inner state changes via useSyncExternalStore.
+        </method>
+        <method name="transition(state, post?)">
+          Protected. Validates transition against SETTLED_TRANSITIONS map. Rejects invalid transitions.
+        </method>
+      </class>
+
+      <class name="Success&lt;T, EUpdate&gt;">
+        <state_method name="update(data)">Optimistic update with new data. Transitions to LoadingUpdate and runs the effect.</state_method>
+        <state_method name="retry()">Refresh with current data. Transitions to LoadingUpdate and runs the effect.</state_method>
+      </class>
+
+      <class name="LoadingUpdate&lt;T, EUpdate&gt;">
+        <state_method name="run()" access="internal">Executes the update effect. Transitions to Success or ErrorUpdate on completion.</state_method>
+      </class>
+
+      <class name="ErrorUpdate&lt;T, EUpdate&gt;">
+        <property name="data" type="T" access="readonly">Stale data visible during error state.</property>
+        <property name="error" type="EUpdate" access="readonly">The error that occurred.</property>
+        <state_method name="retry()">Retries the update. Transitions to LoadingUpdate and runs the effect.</state_method>
+      </class>
+
+      <class name="LoadingInit&lt;T, EInit, EUpdate&gt;">
+        <state_method name="init()" access="internal">Executes the init effect. Transitions to Settled or ErrorInit on completion.</state_method>
+      </class>
+
+      <class name="ErrorInit&lt;T, EInit, EUpdate&gt;">
+        <property name="error" type="EInit" access="readonly">The error that occurred during init.</property>
+        <state_method name="retry()">Retries the initial load. Transitions to LoadingInit and runs the effect.</state_method>
+      </class>
+    </api>
+
+    <props>
+      <component name="WithLoader&lt;T, EInit, EUpdate&gt;">
+        <description>
+          Handles the outer state machine (init lifecycle). Renders loading skeleton, error UI with retry,
+          or children with the Settled state. Creates loaders at module level — do NOT pass different loader
+          instances via props.
+        </description>
+        <prop name="loader" type="Loader&lt;T, EInit, EUpdate&gt;" required="true" />
+        <prop name="loading" type="React.ReactNode">Rendered during LoadingInit state.</prop>
+        <prop name="error" type="(error: EInit, retry: () =&gt; void) =&gt; React.ReactNode">
+          Rendered during ErrorInit state. Receives the error and a retry callback.
+        </prop>
+        <prop name="children" type="(state: Settled&lt;T, EUpdate&gt;) =&gt; React.ReactNode">
+          Render function receiving the Settled state. Called during Settled state only.
+        </prop>
+      </component>
+    </props>
+
+    <usage_example>
+      <description>
+        Loaders are created at module level. WithLoader handles init. Children handle updates.
+      </description>
+      <code>
+const loader = createLoader({\n  init: Effect.tryPromise(() =&gt; fetchUser()),\n  update: Effect.tryPromise(() =&gt; refreshUser()),\n});\n\nfunction App() {\n  return (\n    &lt;WithLoader\n      loader={loader}\n      loading={&lt;Spinner /&gt;}\n      error={(e, retry) =&gt; &lt;ErrorBanner error={e} onRetry={retry} /&gt;}\n    &gt;\n      {(settled) =&gt; &lt;UserProfile state={settled} /&gt;}\n    &lt;/WithLoader&gt;\n  );\n}\n\nfunction UserProfile({ state }: {{ state: Settled&lt;User, FetchError&gt; }}) {\n  const inner = state.useState();\n  switch (inner._tag) {\n    case "Success":\n      return &lt;div&gt;{inner.data.name}&lt;/div&gt;;\n    case "LoadingUpdate":\n      return &lt;div&gt;Updating...&lt;/div&gt;;\n    case "ErrorUpdate":\n      return &lt;div&gt;Error: {inner.error.message} &lt;button onClick={() =&gt; inner.retry()}&gt;Retry&lt;/button&gt;&lt;/div&gt;;\n  }\n}</code>
+    </usage_example>
+
+    <transition_validation>
+      <description>
+        Runtime validation via LOADER_TRANSITIONS and SETTLED_TRANSITIONS maps.
+        isValidTransition(current, next, map) checks map[current]?.includes(next).
+        Invalid transitions silently return (no-op).
+      </description>
+      <map name="LOADER_TRANSITIONS">
+        <entry from="LoadingInit" to="ErrorInit, Settled" />
+        <entry from="ErrorInit" to="LoadingInit" />
+      </map>
+      <map name="SETTLED_TRANSITIONS">
+        <entry from="Success" to="LoadingUpdate" />
+        <entry from="LoadingUpdate" to="Success, ErrorUpdate" />
+        <entry from="ErrorUpdate" to="LoadingUpdate" />
+      </map>
+    </transition_validation>
+
+    <design_decisions>
+      <decision name="two_level_machine">
+        <rationale>WithLoader only cares about init completion. Children handle updates. The nesting enforces this separation at the type level.</rationale>
+      </decision>
+      <decision name="separate_error_types">
+        <rationale>Init and update are different effects with potentially different error types (EInit vs EUpdate).</rationale>
+      </decision>
+      <decision name="class_based_states">
+        <rationale>Each state is a class with its own methods. The state machine owns its behavior (state.retry(), state.update()). Easier to reason about and maintain.</rationale>
+      </decision>
+      <decision name="transition_function_injection">
+        <rationale>Each state class receives the parent's transition function. States can transition themselves without a reference to the parent. Post-callback enables chaining (transition → run effect → transition result).</rationale>
+      </decision>
+      <decision name="useSyncExternalStore">
+        <rationale>Zero extra re-renders. Subscribe/unsubscribe handled by React. No context needed.</rationale>
+      </decision>
+      <decision name="module_level_loaders">
+        <rationale>Loaders persist across renders and navigation for caching. Do NOT pass different loader instances via props.</rationale>
+      </decision>
+      <decision name="effect_ts_integration">
+        <rationale>Uses Effect.Effect for typed errors and composability. Consistent with the rest of the codebase.</rationale>
+      </decision>
+    </design_decisions>
+  </loader_state_machine>
+
   <next_features>
     <feature name="background_sync" status="done">
       <description>

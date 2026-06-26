@@ -26,7 +26,7 @@ function loader({
 }: {
   id: string;
   page: number;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   setPage: (page: number) => void;
 }) {
   return pipe(

@@ -2,7 +2,7 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 
 export function getAllMethods() {
-  return DB.select<DB.Method[]>(
+  return DB.select<DBNamespace.Method[]>(
     "SELECT * FROM methods WHERE method_deleted_at IS NULL ORDER BY method_id",
   ).pipe(
     Effect.map((res) =>

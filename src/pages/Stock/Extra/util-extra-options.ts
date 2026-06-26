@@ -7,7 +7,7 @@ export const { fieldContext, formContext, useFieldContext } = createFormHookCont
 type Extra = {
   name: string;
   value: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
 };
 
 const numeric = z.string().refine((v) => {
@@ -48,7 +48,7 @@ export function createExtraOptions({
     defaultValues: {
       name: product?.name ?? "",
       value: product?.value.toString() ?? "",
-      kind: (product?.kind ?? "percent") as DB.ValueKind,
+      kind: (product?.kind ?? "percent") as DBNamespace.ValueKind,
     },
     validators: {
       onSubmit: schema,

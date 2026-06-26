@@ -16,7 +16,7 @@ export const SelectMode = memo(function SelectMode({
   mode,
   recordId,
 }: {
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   close: () => void;
   recordId: string;
 }) {

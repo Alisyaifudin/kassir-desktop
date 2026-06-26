@@ -10,7 +10,7 @@ export function addNewMethod({
 }: {
   name: string;
   label: string;
-  kind: Exclude<DB.MethodEnum, "cash">;
+  kind: Exclude<DBNamespace.MethodEnum, "cash">;
   now: number;
 }) {
   const id = generateId();

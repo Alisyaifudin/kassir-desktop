@@ -11,7 +11,7 @@ export function upsertOnePocketSync(
   }: {
     id: string;
     name: string;
-    type: DB.PocketType;
+    type: DBNamespace.PocketType;
     ordering: number;
     updatedAt: number;
   },

@@ -5,7 +5,7 @@ import { Effect } from "effect";
 type Input = {
   id: string;
   name: string;
-  type: DB.PocketType;
+  type: DBNamespace.PocketType;
   ordering: number;
   updatedAt: number;
   money: {
@@ -17,20 +17,10 @@ type Input = {
   }[];
 };
 
-export function upsertManyPocketSync(
-  pockets: Input[],
-  now: number,
-) {
-  return Effect.gen(function*(){
-
-  })
+export function upsertManyPocketSync(pockets: Input[], now: number) {
+  return Effect.gen(function* () {});
 }
 
-function upsertOnePocketSync(
-  pockets: Input,
-  now: number,
-) {
-  return Effect.gen(function*(){
-    
-  })
+function upsertOnePocketSync(pockets: Input, now: number) {
+  return Effect.gen(function* () {});
 }

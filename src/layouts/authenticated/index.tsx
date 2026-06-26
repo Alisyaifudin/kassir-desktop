@@ -2,7 +2,7 @@ import { Outlet } from "react-router";
 import { Toaster } from "~/components/ui/sonner";
 import { Topbar } from "./z-Topbar";
 import { useNavigationShortcuts } from "./use-navigation-shortcuts";
-import { SyncFloating } from "./z-SyncFloating";
+// import { SyncFloating } from "./z-SyncFloating";
 
 export default function Layout() {
   useNavigationShortcuts();
@@ -14,7 +14,7 @@ export default function Layout() {
         <Outlet />
       </div>
       <Toaster className="toast" />
-      <SyncFloating />
+      {/* <SyncFloating /> */}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { RouteObject } from "react-router";
 import { lazyEffect } from "~/lib/lazy";
 
-export const homeRoute = Effect.gen(function* () {
+export const homeRouteEffect = Effect.gen(function* () {
   const Page = yield* lazyEffect(() => import("./page"));
   const route: RouteObject = {
     index: true,

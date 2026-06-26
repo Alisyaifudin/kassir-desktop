@@ -18,7 +18,7 @@ export const ExtraForm = withForm({
   defaultValues: {
     name: "",
     value: "",
-    kind: "percent" as DB.ValueKind,
+    kind: "percent" as DBNamespace.ValueKind,
   },
   props: {
     children: <Fragment></Fragment>,

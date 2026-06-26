@@ -8,7 +8,7 @@ const title = {
 };
 
 type Props = {
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   isCredit: boolean;
   loading: boolean;
   print: () => void;

@@ -11,7 +11,7 @@ type UnsyncCapital = {
 };
 
 export function getAllUnsyncCapitals() {
-  return DB.select<Omit<DB.Capital, "capital_sync_at">[]>(
+  return DB.select<Omit<DBNamespace.Capital, "capital_sync_at">[]>(
     `SELECT capital_id, capital_stock, capital_deleted_at, capital_updated_at, 
     capital_capital, product_id FROM customers WHERE capital_sync_at IS NULL 
     ORDER BY capital_updated_at`,

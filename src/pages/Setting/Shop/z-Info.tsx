@@ -7,12 +7,15 @@ import { Textarea } from "~/components/ui/textarea";
 import { useUpdate } from "./use-update";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 
-export const Info = memo(function Info(props: {
-  owner: string;
+export type InfoProps = {
   address: string;
-  header: string;
   footer: string;
-}) {
+  header: string;
+  owner: string;
+  showCashier: boolean;
+};
+
+export const Info = memo(function Info(props: InfoProps) {
   const { form, error } = useUpdate(props);
   return (
     <form

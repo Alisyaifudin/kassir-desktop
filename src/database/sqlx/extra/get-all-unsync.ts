@@ -5,7 +5,7 @@ type ExistExtra = {
   id: string;
   name: string;
   value: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
   updatedAt: number;
 };
 
@@ -20,7 +20,7 @@ type GetAfterResult = {
 };
 
 export function getAllUnsync() {
-  return DB.select<DB.Extra[]>("SELECT * FROM extras WHERE extra_sync_at IS NULL").pipe(
+  return DB.select<DBNamespace.Extra[]>("SELECT * FROM extras WHERE extra_sync_at IS NULL").pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
         (acc, r) => {

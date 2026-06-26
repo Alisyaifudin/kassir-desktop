@@ -13,7 +13,7 @@ function getCurrents(
   pockets: {
     id: string;
     name: string;
-    type: DB.PocketType;
+    type: DBNamespace.PocketType;
     ordering: number;
     updatedAt: number;
     syncAt: number | undefined;

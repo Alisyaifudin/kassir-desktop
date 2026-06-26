@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 export function getExtrasUpdatedAt(ids: string[]) {
   const placeholders = ids.map(() => `$`).join(", ");
-  return DB.select<Pick<DB.Extra, "extra_updated_at" | "extra_id">[]>(
+  return DB.select<Pick<DBNamespace.Extra, "extra_updated_at" | "extra_id">[]>(
     `SELECT extra_updated_at, extra_id FROM extras 
     WHERE extra_deleted_at IS NULL AND extra_id IN (${placeholders})`,
   ).pipe(

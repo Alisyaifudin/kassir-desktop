@@ -9,7 +9,7 @@ export function getAllUnsyncProductEvent() {
         {
           id: string;
           value: number;
-          type: DB.ProductEventEnum;
+          type: DBNamespace.ProductEventEnum;
           timestamp: number;
         }[]
       >();

@@ -2,7 +2,7 @@ import { DB } from "../instance";
 import { Effect } from "effect";
 
 export function getAllExtra() {
-  return DB.select<DB.Extra[]>("SELECT * FROM extras WHERE extra_deleted_at IS NULL").pipe(
+  return DB.select<DBNamespace.Extra[]>("SELECT * FROM extras WHERE extra_deleted_at IS NULL").pipe(
     Effect.map((res) =>
       res.map((r) => ({
         id: r.extra_id,

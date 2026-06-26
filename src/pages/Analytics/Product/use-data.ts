@@ -66,7 +66,7 @@ function estCapital(capital: number, price: number, qty: number, total: number):
   return total - capital * qty;
 }
 
-function program({ start, end, mode }: { start: number; end: number; mode: DB.Mode }) {
+function program({ start, end, mode }: { start: number; end: number; mode: DBNamespace.Mode }) {
   return Effect.gen(function* () {
     const [products] = yield* Effect.all([
       db.product.get.allRange(start, end),

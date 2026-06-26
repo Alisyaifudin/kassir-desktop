@@ -8,7 +8,7 @@ type RecordDb = {
   rounding: number;
   creditAt?: number;
   cashier: string;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   pay: number;
   note: string;
   fix: number;
@@ -18,7 +18,7 @@ type RecordDb = {
   method: {
     id: string;
     name?: string;
-    kind: DB.MethodEnum;
+    kind: DBNamespace.MethodEnum;
   };
   customer?: {
     id: string;
@@ -39,14 +39,14 @@ type RecordDb = {
     id: string;
     value: number;
     eff: number;
-    kind: DB.DiscKind;
+    kind: DBNamespace.DiscKind;
   };
   extra?: {
     id: string;
     name: string;
     value: number;
     eff: number;
-    kind: DB.ValueKind;
+    kind: DBNamespace.ValueKind;
   };
 };
 
@@ -57,7 +57,7 @@ type OutputDb = {
   record_rounding: number;
   record_credit_at: number | null;
   record_cashier: string;
-  record_mode: DB.Mode;
+  record_mode: DBNamespace.Mode;
   record_pay: number;
   record_note: string;
   record_fix: number;
@@ -66,7 +66,7 @@ type OutputDb = {
   record_updated_at: number;
   method_id: string;
   method_name: string | null;
-  method_kind: DB.MethodEnum;
+  method_kind: DBNamespace.MethodEnum;
   customer_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -80,13 +80,13 @@ type OutputDb = {
   discount_id: string | null;
   discount_value: number | null;
   discount_eff: number | null;
-  discount_kind: DB.DiscKind | null;
+  discount_kind: DBNamespace.DiscKind | null;
   discount_record_product_id: string | null;
   record_extra_id: string | null;
   record_extra_name: string | null;
   record_extra_value: number | null;
   record_extra_eff: number | null;
-  record_extra_kind: DB.ValueKind | null;
+  record_extra_kind: DBNamespace.ValueKind | null;
 };
 
 export function getAllUnsyncRecords() {

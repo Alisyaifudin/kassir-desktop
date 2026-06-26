@@ -51,7 +51,7 @@ function TabBtn({
   isSelected,
 }: {
   tab: number;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   tabs: TabInfo[];
   setTab: (tab: number) => void;
   isSelected?: boolean;
@@ -86,7 +86,7 @@ function Selected({
 }: {
   tab: number;
   setTab: (tab: number) => void;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   tabs: [TabInfo, ...TabInfo[]];
 }) {
   useTransaction(tabs, tab);

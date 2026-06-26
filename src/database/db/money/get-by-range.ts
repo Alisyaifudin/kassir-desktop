@@ -22,7 +22,7 @@ export function getMoneyByRange(pocketId: string, start: number, end: number) {
 
 function collectMoney(
   last: number,
-  money: Pick<DB.Money, "money_id" | "timestamp" | "money_value" | "money_note">[],
+  money: Pick<DBNamespace.Money, "money_id" | "timestamp" | "money_value" | "money_note">[],
 ): Money[] {
   const n = money.length;
   const data: Money[] = [];

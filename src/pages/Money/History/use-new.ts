@@ -53,7 +53,7 @@ function program({
 }: {
   value: number;
   kindId: string;
-  type: DB.PocketType;
+  type: DBNamespace.PocketType;
   note: string;
 }) {
   return Effect.gen(function* () {

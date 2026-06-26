@@ -15,7 +15,7 @@ export function RawRow({
     qty: number;
     paidAt: number;
     total: number;
-    mode: DB.Mode;
+    mode: DBNamespace.Mode;
   };
 }) {
   return (

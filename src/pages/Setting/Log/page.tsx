@@ -3,7 +3,7 @@ import { TextError } from "~/components/TextError";
 import { Clear } from "./z-Clear";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
-import { LoaderView, LoaderClass, WithLoader } from "~/components/WithLoader";
+import { LoaderSettled, LoaderClass, WithLoader } from "~/components/Loader";
 
 const loader = new LoaderClass(readLog());
 
@@ -38,7 +38,7 @@ export default function Page() {
   );
 }
 
-function Log({ view }: { view: LoaderView<string[]> }) {
+function Log({ view }: { view: LoaderSettled<string[]> }) {
   const { data } = view.use();
   return (
     <>

@@ -5,7 +5,7 @@ type Row = {
   rounding: number;
   creditAt?: number;
   cashier: string;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   pay: number;
   note: string;
   fix: number;
@@ -15,7 +15,7 @@ type Row = {
   method: {
     id: string;
     name?: string;
-    kind: DB.MethodEnum;
+    kind: DBNamespace.MethodEnum;
   };
   customer?: {
     id: string;
@@ -36,14 +36,14 @@ type Row = {
     id: string;
     value: number;
     eff: number;
-    kind: DB.DiscKind;
+    kind: DBNamespace.DiscKind;
   };
   extra?: {
     id: string;
     name: string;
     value: number;
     eff: number;
-    kind: DB.ValueKind;
+    kind: DBNamespace.ValueKind;
   };
 };
 
@@ -54,7 +54,7 @@ export type Record = {
   rounding: number;
   creditAt?: number;
   cashier: string;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   pay: number;
   note: string;
   fix: number;
@@ -64,7 +64,7 @@ export type Record = {
   method: {
     id: string;
     name?: string;
-    kind: DB.MethodEnum;
+    kind: DBNamespace.MethodEnum;
   };
   customer?: {
     id: string;
@@ -83,7 +83,7 @@ export type Record = {
       id: string;
       value: number;
       eff: number;
-      kind: DB.DiscKind;
+      kind: DBNamespace.DiscKind;
     }[];
   }[];
   extras: {
@@ -91,7 +91,7 @@ export type Record = {
     name: string;
     value: number;
     eff: number;
-    kind: DB.ValueKind;
+    kind: DBNamespace.ValueKind;
   }[];
 };
 

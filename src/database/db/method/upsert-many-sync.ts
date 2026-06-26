@@ -6,7 +6,7 @@ export function upsertManyMethodsSync(
   methods: {
     id: string;
     name?: string;
-    kind: DB.MethodEnum;
+    kind: DBNamespace.MethodEnum;
     updatedAt: number;
   }[],
   now: number,

@@ -19,7 +19,7 @@ type GetAfterResult = {
 };
 
 export function getAllUnsyncCustomers() {
-  return DB.select<DB.Customer[]>(
+  return DB.select<DBNamespace.Customer[]>(
     "SELECT * FROM customers WHERE customer_sync_at IS NULL ORDER BY customer_updated_at",
   ).pipe(
     Effect.map((res) =>

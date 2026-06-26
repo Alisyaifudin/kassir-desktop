@@ -9,7 +9,7 @@ export function addNewMethod({
 }: {
   name: string;
   label: string;
-  kind: Exclude<DB.MethodEnum, "cash">;
+  kind: Exclude<DBNamespace.MethodEnum, "cash">;
 }) {
   const now = Date.now();
   return sqlx.method.add.new({ name, label, kind, now }).pipe(

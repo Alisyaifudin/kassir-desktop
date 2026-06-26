@@ -25,7 +25,7 @@ export function EditDialog({
   recordId,
 }: {
   recordId: string;
-  mode: DB.Mode;
+  mode: DBNamespace.Mode;
   note: string;
   isCredit: boolean;
   method: Method;

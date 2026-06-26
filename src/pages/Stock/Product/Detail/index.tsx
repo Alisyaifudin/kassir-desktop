@@ -4,7 +4,7 @@ import { loader } from "./loader.ts";
 import { imageRoute } from "./Image/index.tsx";
 import { detailRoute } from "./Info/index.tsx";
 import { perfRoute } from "./Performance/index.tsx";
-import { Loading } from "./z-Loading";
+import { Loading } from "./z-Loading.tsx";
 
 const Page = lazy(() => import("./page.tsx"));
 

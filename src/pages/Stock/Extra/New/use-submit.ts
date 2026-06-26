@@ -30,7 +30,7 @@ export function useSubmit() {
 type Input = {
   name: string;
   value: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
 };
 
 function program(extra: Input) {

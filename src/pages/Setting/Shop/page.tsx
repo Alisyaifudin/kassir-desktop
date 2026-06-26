@@ -1,13 +1,25 @@
 import { CashierCheckbox } from "./z-CashierCheckbox";
 import { SelectSize } from "./z-SelectSize";
-import { Info } from "./z-Info";
+import { Info, InfoProps } from "./z-Info";
 import { TextError } from "~/components/TextError";
 import { useData } from "./use-data";
 import { Result } from "~/lib/result";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
+import { LoaderClass, WithLoader } from "~/components/Loader";
+import { Size } from "~/store/size/get";
+import { StoreError } from "~/store/error";
+import { Effect } from "effect";
 
-export default function Page() {
+type Props = {
+  sizeLoader: LoaderClass<Size, StoreError>;
+  infoLoader: LoaderClass<InfoProps, StoreError>;
+  setSize: (size: Size) => Effect.Effect<void, StoreError>;
+  setInfo: (info: Omit<InfoProps, "showCashier">) => Effect.Effect<void, StoreError>;
+  setShowCashier: (showCashier: boolean) => Effect.Effect<void, StoreError>;
+};
+
+export default function Page({ sizeLoader, setSize }: Props) {
   return (
     <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
       <div className="flex flex-col gap-1">
@@ -16,36 +28,45 @@ export default function Page() {
       </div>
 
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
-        <Wrapper />
+        {/* <Wrapper /> */}
+        <InfoSection />
       </div>
 
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
-        <SelectSize />
+        <SelectSize loader={sizeLoader} setSize={setSize} />
       </div>
     </div>
   );
 }
 
-function Wrapper() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <TextError>{e.message}</TextError>;
-    },
-    onSuccess(info) {
-      const { owner, address, header, footer, showCashier } = info;
-      return (
-        <>
-          <Info owner={owner} address={address} header={header} footer={footer} />
-          <CashierCheckbox showCashier={showCashier} />
-        </>
-      );
-    },
-  });
+function InfoSection({loader, setInfo, setShowCashier}: {
+  loader: LoaderClass<InfoProps, StoreError>;
+  setInfo: (info: Omit<InfoProps, "showCashier">) => Effect.Effect<void, StoreError>;
+  setShowCashier: (showCashier: boolean) => Effect.Effect<void, StoreError>;
+}) {
+  return <WithLoader loader={loader}
+  loading={<Loading />}
+  error={}
+  />
+  // const res = useData();
+  // return Result.match(res, {
+  //   onLoading() {
+  //     return <Loading />;
+  //   },
+  //   onError({ e }) {
+  //     log.error(e);
+  //     return <TextError>{e.message}</TextError>;
+  //   },
+  //   onSuccess(info) {
+  //     const { owner, address, header, footer, showCashier } = info;
+  //     return (
+  //       <>
+  //         <Info owner={owner} address={address} header={header} footer={footer} />
+  //         <CashierCheckbox showCashier={showCashier} />
+  //       </>
+  //     );
+  //   },
+  // });
 }
 
 function Loading() {

@@ -4,7 +4,7 @@ import { Effect } from "effect";
 type Exist = {
   id: string;
   name: string;
-  type: DB.PocketType;
+  type: DBNamespace.PocketType;
   ordering: number;
   updatedAt: number;
 };
@@ -20,7 +20,7 @@ type GetAfterResult = {
 };
 
 export function getAllUnsyncPocket() {
-  return DB.select<DB.Pocket[]>("SELECT * FROM pocket WHERE pocket_sync_at IS NULL").pipe(
+  return DB.select<DBNamespace.Pocket[]>("SELECT * FROM pocket WHERE pocket_sync_at IS NULL").pipe(
     Effect.map((res) =>
       res.reduce<GetAfterResult>(
         (acc, r) => {

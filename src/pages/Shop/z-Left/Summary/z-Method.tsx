@@ -96,7 +96,7 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
       <Select
         value={method.kind}
         onValueChange={(e) => {
-          const val = e as DB.MethodEnum;
+          const val = e as DBNamespace.MethodEnum;
           selectMethod(val, defVals, tab);
         }}
       >
@@ -167,7 +167,7 @@ function setMethod(methodId: string) {
   basicStore.set((prev) => ({ ...prev, methodId }));
 }
 
-function selectMethod(val: DB.MethodEnum, defVals: MethodDB[], tab: number) {
+function selectMethod(val: DBNamespace.MethodEnum, defVals: MethodDB[], tab: number) {
   const defVal = defVals.find((m) => m.kind === val);
   if (defVal === undefined) {
     const methodId = METHOD_BASE_ID[val];

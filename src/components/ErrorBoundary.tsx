@@ -76,7 +76,7 @@ export default function ErrorBoundary() {
             <Button variant="ghost" asChild className="h-11 font-semibold">
               <a href="/">
                 <Home className="w-4 h-4 mr-2" />
-                Home
+                Beranda
               </a>
             </Button>
           </div>

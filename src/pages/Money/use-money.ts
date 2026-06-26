@@ -8,7 +8,7 @@ export type Money = {
   value: number | undefined;
   name: string;
   id: string;
-  type: DB.PocketType;
+  type: DBNamespace.PocketType;
 };
 export const moneyKindAtom = createAtom<Money[]>([]);
 

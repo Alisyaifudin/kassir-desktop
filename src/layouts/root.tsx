@@ -1,22 +1,25 @@
 import { Outlet } from "react-router";
-import { store } from "~/store";
 import { Skeleton } from "~/components/ui/skeleton";
-import { LoaderClass, WithLoader } from "~/components/WithLoader";
+import { LoaderClass, WithLoader } from "~/components/Loader";
 import { ErrorComponent } from "~/components/ErrorComponent";
+import { Effect } from "effect";
+import { StoreService } from "~/services/store";
 
-const loader = new LoaderClass(store.size.get());
-
-export default function Layout() {
-  return (
-    <WithLoader
-      loader={loader}
-      loading={<Loading />}
-      error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
-    >
-      <Outlet />
-    </WithLoader>
-  );
-}
+const layout = Effect.gen(function* () {
+  const store = yield* StoreService;
+  const loader = new LoaderClass(store.size.get());
+  return function Layout() {
+    return (
+      <WithLoader
+        loader={loader}
+        loading={<Loading />}
+        error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
+      >
+        {() => <Outlet />}
+      </WithLoader>
+    );
+  };
+});
 
 function Loading() {
   return (
@@ -30,3 +33,5 @@ function Loading() {
     </div>
   );
 }
+
+export default layout;

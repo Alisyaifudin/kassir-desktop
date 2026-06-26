@@ -1,4 +1,4 @@
-export function Discount({ kind: kind, value }: { kind: DB.DiscKind; value: number }) {
+export function Discount({ kind: kind, value }: { kind: DBNamespace.DiscKind; value: number }) {
   switch (kind) {
     case "number":
       return <div />;

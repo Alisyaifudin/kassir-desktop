@@ -5,7 +5,7 @@ import { sqlx } from "~/database/sqlx";
 type Input = {
   name: string;
   value: number;
-  kind: DB.ValueKind;
+  kind: DBNamespace.ValueKind;
   now: number;
 };
 

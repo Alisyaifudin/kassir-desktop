@@ -4,15 +4,16 @@ import { NotFound } from "~/lib/effect-error";
 
 type Cashier = {
   name: string;
-  role: DB.Role;
+  role: DBNamespace.Role;
   hash: string;
   id: string;
 };
 export function getCashierById(id: string) {
   return Effect.gen(function* () {
-    const res = yield* DB.select<DB.Cashier[]>("SELECT * FROM cashiers WHERE cashier_id = $1", [
-      id,
-    ]);
+    const res = yield* DB.select<DBNamespace.Cashier[]>(
+      "SELECT * FROM cashiers WHERE cashier_id = $1",
+      [id],
+    );
     if (res.length === 0) return yield* NotFound.fail("Kasir tidak ditemukan");
     const data: Cashier = {
       id: res[0].cashier_id,

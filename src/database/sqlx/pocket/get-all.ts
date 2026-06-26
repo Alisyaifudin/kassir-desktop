@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { DB } from "../instance";
 
 export function getAllPocket() {
-  return DB.select<DB.Pocket[]>(
+  return DB.select<DBNamespace.Pocket[]>(
     "SELECT * FROM pockets WHERE pocket_deleted_at IS NULL ORDER BY pocket_ordering",
   ).pipe(
     Effect.map((res) =>

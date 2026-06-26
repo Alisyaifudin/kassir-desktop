@@ -1,8 +1,11 @@
-import { useUser } from "~/hooks/use-user";
+import { Effect } from "effect";
 import { capitalize } from "~/lib/utils";
+import { UserService } from "~/services/user";
 
-export function Header() {
-  const user = useUser();
+export const header = Effect.gen(function*() {
+  const userService = yield* UserService;
+  return function Header() {
+  const user = userService.useUser();
   const today = new Date().toLocaleDateString("id-ID", {
     weekday: "long",
     year: "numeric",
@@ -19,3 +22,5 @@ export function Header() {
     </div>
   );
 }
+ 
+})

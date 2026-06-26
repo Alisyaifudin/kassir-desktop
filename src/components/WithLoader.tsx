@@ -1,165 +1,147 @@
-import { Effect, Either, pipe } from "effect";
-import { useEffect, useSyncExternalStore } from "react";
+// export class LoaderSettled<T> {
+//   constructor(
+//     private subscribe: (cb: Listener) => () => void,
+//     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+//     private getSnapshot: () => Data<T, any>,
+//   ) {}
+//   use() {
+//     // eslint-disable-next-line react-hooks/rules-of-hooks
+//     const data = useSyncExternalStore(this.subscribe, this.getSnapshot);
+//     if (data.state === "init-loading" || data.state === "init-error") {
+//       throw new Error(
+//         "loader.use() was called before data was available. Wrap your component with <WithLoader> to ensure data is loaded first.",
+//       );
+//     }
+//     return data;
+//   }
+// }
 
-type Props<T, E = never> = {
-  loader: LoaderClass<T, E>;
-  loading?: React.ReactNode;
-  error?: (e: E) => React.ReactNode;
-  children: React.ReactNode;
-};
+// class LoaderClass<T, E = never> {
+//   private data: Data<T, E> = { state: "init-loading" };
+//   private listeners = new Set<Listener>();
 
-type Data<T, E> =
-  | {
-      state: "init";
-    }
-  | {
-      state: "error";
-      error: E;
-    }
-  | {
-      state: "loading";
-      data: T;
-    }
-  | {
-      state: "idle";
-      data: T;
-    };
+//   constructor(private effect: Effect.Effect<T, E>) {}
 
-type Listener = () => void;
+//   async run() {
+//     return Effect.runPromise(pipe(this.effect, Effect.either));
+//   }
 
-export class LoaderView<T> {
-  constructor(
-    private subscribe: (cb: Listener) => () => void,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private getSnapshot: () => Data<T, any>,
-  ) {}
-  use() {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const data = useSyncExternalStore(this.subscribe, this.getSnapshot);
-    if (data.state === "error" || data.state === "init") {
-      throw new Error(
-        "loader.use() was called before data was available. Wrap your component with <WithLoader> to ensure data is loaded first.",
-      );
-    }
-    return data;
-  }
-}
+//   get view() {
+//     return new LoaderSettled(this.subscribe, this.getSnapshot);
+//   }
+//   private setDataRaw(updater: ((prev: Data<T, E>) => Data<T, E>) | Data<T, E>) {
+//     if (typeof updater === "function") {
+//       this.data = updater(this.data);
+//     } else {
+//       this.data = updater;
+//     }
+//     this.listeners.forEach((l) => l());
+//   }
+//   get setError() {
+//     const setDataRaw = this.setDataRaw;
+//     return {
+//       init(e: E) {
+//         setDataRaw((prev) => {
+//           if (prev.state !== "init-loading") return prev;
+//           return { state: "init-error", error: e };
+//         });
+//       },
+//       update(error: ErrorData) {
+//         setDataRaw((prev) => {
+//           if (prev.state !== "success") return prev;
+//           return { state: "update-error", error, data: prev.data };
+//         });
+//       },
+//     };
+//   }
+//   get setLoading() {
+//     const setDataRaw = this.setDataRaw;
+//     return {
+//       init() {
+//         setDataRaw((prev) => {
+//           if (prev.state !== "init-error") return prev;
+//           return { state: "init-loading" };
+//         });
+//       },
+//       update() {
+//         setDataRaw((prev) => {
+//           if (prev.state !== "success") return prev;
+//           return { state: "update-loading", data: prev.data };
+//         });
+//       },
+//     };
+//   }
+//   setData(data: T) {
+//     this.setDataRaw((prev) => {
+//       if (prev.state !== "init-loading" && prev.state !== "update-loading") return prev;
+//       return { state: "success", data };
+//     });
+//   }
 
-export class LoaderClass<T, E = never> {
-  private data: Data<T, E> = { state: "init" };
-  private listeners = new Set<Listener>();
+//   async refetch(onError: (e: E) => ErrorData) {
+//     if (this.data.state !== "success") return;
+//     this.setLoading.update();
+//     const either = await this.run();
+//     Either.match(either, {
+//       onLeft: (e) => {
+//         const error = onError(e);
+//         this.setError.update(error);
+//       },
+//       onRight: (data) => this.setData(data),
+//     });
+//   }
 
-  constructor(private effect: Effect.Effect<T, E>) {}
+//   cleanup() {
+//     this.listeners.clear();
+//   }
 
-  async run() {
-    return Effect.runPromise(pipe(this.effect, Effect.either));
-  }
+//   private subscribe(cb: Listener) {
+//     this.listeners.add(cb);
+//     return () => {
+//       this.listeners.delete(cb);
+//     };
+//   }
 
-  getData() {
-    return this.data;
-  }
-  get view() {
-    return new LoaderView(this.subscribe, this.getSnapshot);
-  }
-  setData(data: Data<T, E>) {
-    this.data = data;
-    this.listeners.forEach((l) => l());
-  }
+//   private getSnapshot() {
+//     return this.data;
+//   }
 
-  refetch() {
-    const current = this.getData();
-    if ("data" in current) {
-      this.setData({ state: "loading", data: current.data });
-    }
-    this.run().then((either) => {
-      Either.match(either, {
-        onLeft: (error) => this.setData({ state: "error", error }),
-        onRight: (data) => this.setData({ state: "idle", data }),
-      });
-    });
-  }
+//   useDataState() {
+//     // eslint-disable-next-line react-hooks/rules-of-hooks
+//     return useSyncExternalStore(this.subscribe, this.getSnapshot);
+//   }
+// }
 
-  cleanup() {
-    this.listeners.clear();
-  }
+// export function WithLoader<T, E = never>({ error, loader, children, loading }: Props<T, E>) {
+//   const data = loader.useDataState();
 
-  private subscribe(cb: Listener) {
-    this.listeners.add(cb);
-    return () => {
-      this.listeners.delete(cb);
-    };
-  }
+//   useEffect(() => {
+//     async function init() {
+//       const either = await loader.run();
+//       Either.match(either, {
+//         onLeft(error) {
+//           loader.setError.init(error);
+//         },
+//         onRight(data) {
+//           loader.setData(data);
+//         },
+//       });
+//     }
+//     init();
+//   }, [loader]);
 
-  private getSnapshot() {
-    return this.data;
-  }
+//   // Cleanup on unmount or when loader changes
+//   useEffect(() => {
+//     return () => {
+//       loader.cleanup();
+//     };
+//   }, [loader]);
 
-  useDataState() {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useSyncExternalStore(this.subscribe, this.getSnapshot);
-  }
-
-  use() {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const data = useSyncExternalStore(this.subscribe, this.getSnapshot);
-    if ("data" in data) {
-      return data;
-    }
-    throw new Error(
-      "loader.use() was called before data was available. Wrap your component with <WithLoader> to ensure data is loaded first.",
-    );
-  }
-}
-
-export function WithLoader<T, E = never>({ error, loader, children, loading }: Props<T, E>) {
-  const data = loader.useDataState();
-
-  useEffect(() => {
-    async function init() {
-      const either = await loader.run();
-      Either.match(either, {
-        onLeft(error) {
-          loader.setData({ state: "error", error });
-        },
-        onRight(data) {
-          loader.setData({ state: "idle", data });
-        },
-      });
-    }
-    init();
-  }, [loader]);
-
-  // Cleanup on unmount or when loader changes
-  useEffect(() => {
-    return () => {
-      loader.cleanup();
-    };
-  }, [loader]);
-
-  if (data.state === "init") {
-    return loading ?? null;
-  }
-  if (data.state === "error") {
-    return error === undefined ? null : error(data.error);
-  }
-  return children;
-}
-
-/**
-// example
-
-const loader = new Loader(Effect.succeed(0));
-
-function Child({ loader }: { loader: Loader<number> }) {
-  const { data } = loader.use();
-  return <p>uwu {data}</p>;
-}
-
-function Parent() {
-  return (
-    <WithLoader loader={loader}>
-      <Child loader={loader} />
-    </WithLoader>
-  );
-}
- */
+//   if (data.state === "init-loading") {
+//     return loading ?? null;
+//   }
+//   if (data.state === "init-error") {
+//     return error === undefined ? null : error(data.error);
+//   }
+//   return children;
+// }
