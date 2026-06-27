@@ -1,6 +1,6 @@
 import { Context, Effect } from "effect";
 import { BaseError } from "~/lib/error-effect";
-import { DataState, Status } from "~/lib/state";
+import { AsyncDataState, Status } from "~/lib/state";
 
 export type Info = {
   address: string;
@@ -22,7 +22,7 @@ export class InfoError extends BaseError("InfoError") {}
  *
  * Uses two reactive state machines backed by `useSyncExternalStore`:
  * - {@link StatusState} — tracks whether the initial load completed
- * - {@link DataState} — tracks each mutable field with optimistic writes
+ * - {@link AsyncDataState} — tracks each mutable field with optimistic writes
  *
  * ## Usage pattern
  *
@@ -89,8 +89,8 @@ export class InfoService extends Context.Tag("InfoService")<
   {
     load: Effect.Effect<void, InfoError>;
     useStatus: () => Status<InfoError>;
-    info: DataState<Info, string>;
-    showCashier: DataState<boolean, string>;
+    info: AsyncDataState<Info, string>;
+    showCashier: AsyncDataState<boolean, string>;
     set: {
       info: (info: Info) => Effect.Effect<Info, string>;
       showCashier: (showCashier: boolean) => Effect.Effect<boolean, string>;

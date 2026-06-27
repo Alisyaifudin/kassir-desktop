@@ -61,7 +61,7 @@ export class StatusState<E> {
       }
     }, [value.state]);
     return value;
-  }
+  };
   setSuccess() {
     this.state = { state: "success" };
     this.notify();
@@ -75,7 +75,6 @@ export class StatusState<E> {
     this.notify();
   }
 }
-
 
 export type Settled<T, E> =
   | { data: T; state: "success"; error?: undefined }
@@ -111,18 +110,17 @@ export type Settled<T, E> =
  * // setInfo(newData) — persists with optimistic update
  * ```
  */
-export class DataState<T, E> {
+export class AsyncDataState<T, E> {
   listeners = new Set<Listener>();
   state: Settled<T, E> | null = null;
   constructor(private setDataSource: (data: T) => Effect.Effect<void, E>) {}
-  // constructor(private setDataSource?: Effect.Effect<void, E>) {}
-  notify() {
+  private notify() {
     this.listeners.forEach((l) => l());
   }
-  getSnapshot() {
+  private getSnapshot() {
     return this.state;
   }
-  subscribe(cb: Listener) {
+  private subscribe(cb: Listener) {
     this.listeners.add(cb);
     return () => {
       this.listeners.delete(cb);
@@ -132,7 +130,7 @@ export class DataState<T, E> {
     const value = useSyncExternalStore(this.subscribe, this.getSnapshot);
     if (value === null) throw new Error("No value yet");
     return value;
-  }
+  };
   setData = async (data: T) => {
     if (this.state === null) return;
     const dataOld = this.state.data;
@@ -150,7 +148,7 @@ export class DataState<T, E> {
       this.state = { state: "success", data };
     }
     this.notify();
-  }
+  };
   setError(error: E) {
     if (this.state === null) return;
     this.state = { state: "error", error, data: this.state.data };
@@ -161,4 +159,33 @@ export class DataState<T, E> {
     this.state = { state: "loading", data: this.state.data };
     this.notify();
   }
+}
+
+export class DataState<T> {
+  listeners = new Set<Listener>();
+  constructor(
+    private data: T,
+    private setDataSource: (data: T) => void,
+  ) {}
+  private notify() {
+    this.listeners.forEach((l) => l());
+  }
+  getSnapshot() {
+    return this.data;
+  }
+  private subscribe(cb: Listener) {
+    this.listeners.add(cb);
+    return () => {
+      this.listeners.delete(cb);
+    };
+  }
+  useData = () => {
+    const value = useSyncExternalStore(this.subscribe, this.getSnapshot);
+    return value;
+  };
+  setData = (data: T) => {
+    this.setDataSource(data);
+    this.data = data;
+    this.notify();
+  };
 }
