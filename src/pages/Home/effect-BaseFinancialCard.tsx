@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import { Skeleton } from "~/components/ui/skeleton";
 import { tz } from "~/lib/constants";
 import { DBService } from "~/services/db";
-import { createLoader, StaticLoader } from "~/components/Loader";
+import { createLoader, StaticLoader } from "~/components/StateWrap";
 import { LogPut, LogService } from "~/services/log";
 
 interface BaseFinancialCardProps {

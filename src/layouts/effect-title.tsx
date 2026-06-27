@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Effect } from "effect";
 import { StoreService } from "~/services/store";
-import { createLoader, TrackLoader } from "~/components/Loader";
+import { createLoader, TrackLoader } from "~/components/StateWrap";
 import { LogPut, LogService } from "~/services/log";
 
 const program = StoreService.pipe(
@@ -41,4 +41,3 @@ export const title = Effect.gen(function* () {
     );
   };
 });
-

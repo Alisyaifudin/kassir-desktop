@@ -1,4 +1,4 @@
-import { Context, Effect } from "effect";
+import { Context } from "effect";
 
 export type Size = "big" | "small";
 export type Theme = "light" | "dark" | "system";
@@ -7,12 +7,14 @@ export class ConfigService extends Context.Tag("ConfigService")<
   ConfigService,
   {
     size: {
-      get: Effect.Effect<Size>;
-      set: (size: Size) => Effect.Effect<void>;
+      get: Size;
+      useSize: () => Size;
+      set: (size: Size) => void;
     };
     theme: {
-      get: Effect.Effect<Theme>;
-      set: (theme: Theme) => Effect.Effect<void>;
+      get: Theme;
+      set: (theme: Theme) => void;
+      useTheme: () => Theme;
     };
   }
 >() {}

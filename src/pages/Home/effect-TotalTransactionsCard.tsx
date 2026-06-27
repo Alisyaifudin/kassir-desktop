@@ -4,7 +4,7 @@ import { tz } from "~/lib/constants";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Effect } from "effect";
 import { DBService } from "~/services/db";
-import { createLoader, StaticLoader } from "~/components/Loader";
+import { createLoader, StaticLoader } from "~/components/StateWrap";
 
 export const totalTransactionsCard = Effect.gen(function* () {
   const db = yield* DBService;

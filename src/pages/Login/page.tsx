@@ -1,7 +1,7 @@
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { CashierService } from "~/services/cashier";
 import { Effect } from "effect";
-import { createLoader, StaticLoader } from "~/components/Loader";
+import { createLoader, StaticLoader } from "~/components/StateWrap";
 import { LogPut, LogService } from "~/services/log";
 import { freshForm } from "./effect-freshForm";
 import { loginForm } from "./effect-loginForm";
