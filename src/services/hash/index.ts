@@ -1,8 +1,6 @@
 import { Context, Effect } from "effect";
-import { BaseError } from "~/lib/error-effect";
-
-export class HashError extends BaseError("HashError") {}
-export class InvalidPassword extends BaseError("InvalidPassword") {}
+import { HashError, InvalidPassword } from "./error";
+export { HashError, InvalidPassword } from "./error";
 
 export class HashService extends Context.Tag("HashService")<
   HashService,

@@ -14,4 +14,3 @@ export function getDefaultInterval() {
     endOfMonth: endOfMonth.epochMilliseconds,
   };
 }
-// TODO: RECORD UPLOAD

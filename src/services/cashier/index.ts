@@ -1,5 +1,8 @@
 import { Context, Effect } from "effect";
-import { BaseError, NotFoundError } from "~/lib/error-effect";
+import { NotFoundError } from "~/lib/error-effect";
+import { CashierError } from "./error";
+
+export { CashierError } from "./error";
 
 export type Cashier = {
   name: string;
@@ -10,8 +13,6 @@ export type Cashier = {
 export type CashierFull = Cashier & {
   hash: string;
 };
-
-export class CashierError extends BaseError("CashierError") {}
 
 export class CashierService extends Context.Tag("CashierService")<
   CashierService,
