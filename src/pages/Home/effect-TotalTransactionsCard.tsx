@@ -1,18 +1,15 @@
 import { BarChart3, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
-import { Temporal } from "temporal-polyfill";
-import { tz } from "~/lib/constants";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Effect } from "effect";
-import { DBService } from "~/services/db";
-import { createLoader, StaticLoader } from "~/components/StateWrap";
+import { AggregateService } from "~/services/aggregate";
+import { WithLoader } from "~/components/WithLoader";
 
 export const totalTransactionsCard = Effect.gen(function* () {
-  const db = yield* DBService;
-  const loader = createLoader(program.pipe(Effect.provideService(DBService, db)));
+  const agg = yield* AggregateService;
   return function TotalTransactionsCard() {
     return (
-      <StaticLoader
-        loader={loader}
+      <WithLoader
+        loader={agg.count}
         loading={<Loading />}
         error={({ e }) => (
           <div className="flex flex-col gap-2 rounded-xl border border-destructive/50 bg-destructive/5 p-6 shadow-sm h-full justify-center">
@@ -55,7 +52,7 @@ export const totalTransactionsCard = Effect.gen(function* () {
             </div>
           </div>
         )}
-      </StaticLoader>
+      </WithLoader>
     );
   };
 });
@@ -81,14 +78,14 @@ function Loading() {
   );
 }
 
-const getTime = Effect.sync(() => {
-  const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
-  const endOfDay = today.add(Temporal.Duration.from({ days: 1 }));
-  return [today.epochMilliseconds, endOfDay.epochMilliseconds];
-});
+// const getTime = Effect.sync(() => {
+//   const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
+//   const endOfDay = today.add(Temporal.Duration.from({ days: 1 }));
+//   return [today.epochMilliseconds, endOfDay.epochMilliseconds];
+// });
 
-const program = Effect.gen(function* () {
-  const [start, end] = yield* getTime;
-  const db = yield* DBService;
-  return yield* db.record.count.record(start, end);
-});
+// const program = Effect.gen(function* () {
+//   const [start, end] = yield* getTime;
+//   const db = yield* DBService;
+//   return yield* db.record.count.record(start, end);
+// });

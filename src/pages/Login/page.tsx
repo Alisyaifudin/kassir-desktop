@@ -1,39 +1,26 @@
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { CashierService } from "~/services/cashier";
 import { Effect } from "effect";
-import { createLoader, StaticLoader } from "~/components/StateWrap";
-import { LogPut, LogService } from "~/services/log";
 import { freshForm } from "./effect-freshForm";
 import { loginForm } from "./effect-loginForm";
+import { WithLoader } from "~/components/WithLoader";
 
-export const page = Effect.gen(function* () {
+const page = Effect.gen(function* () {
   const cashier = yield* CashierService;
-  const log = yield* LogService;
-  const loader = createLoader(
-    program.pipe(
-      Effect.provideService(CashierService, cashier),
-      Effect.provideService(LogService, log),
-    ),
-  );
   const FreshForm = yield* freshForm;
   const LoginForm = yield* loginForm;
   return function Page() {
     return (
-      <StaticLoader
-        loader={loader}
+      <WithLoader
+        loader={cashier.get.all}
         error={({ e }) => (
           <ErrorComponent title="Aplikasi bermasalah ☠">{e.message}</ErrorComponent>
         )}
       >
         {(cashiers) => (cashiers.length === 0 ? <FreshForm /> : <LoginForm cashiers={cashiers} />)}
-      </StaticLoader>
+      </WithLoader>
     );
   };
 });
-
-const program = Effect.gen(function* () {
-  const cashier = yield* CashierService;
-  return yield* cashier.get.all;
-}).pipe(Effect.tapError(LogPut));
 
 export default page;
