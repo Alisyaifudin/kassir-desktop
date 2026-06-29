@@ -26,11 +26,14 @@ export function YearCalendar({
   yearClass?: (year: number) => string;
 }) {
   const today = Temporal.Now.plainDateISO();
-  const startYear = Math.max(YEAR_LOWEST, Math.floor(show.year / 5) * 5);
-  const endYear = startYear + PAGE_SIZE - 1;
+  const startYear = Math.max(
+    YEAR_LOWEST,
+    Math.floor((show.year - YEAR_LOWEST) / PAGE_SIZE) * PAGE_SIZE + YEAR_LOWEST,
+  );
+  const endYear = Math.min(startYear + PAGE_SIZE - 1, YEAR_HIGHEST);
   const years = useMemo(
-    () => Array.from({ length: PAGE_SIZE }).map((_, i) => startYear + i),
-    [startYear],
+    () => Array.from({ length: endYear - startYear + 1 }).map((_, i) => startYear + i),
+    [startYear, endYear],
   );
 
   const handleChangeYear = (year: number) => {
