@@ -99,7 +99,13 @@ function Content({
       );
     case "year":
       return (
-        <YearCalendar setInterval={setInterval} selected={selected} setSelected={setSelected} />
+        <YearCalendar
+          setInterval={setInterval}
+          show={show}
+          setShow={setShow}
+          selected={selected}
+          setSelected={setSelected}
+        />
       );
   }
 }

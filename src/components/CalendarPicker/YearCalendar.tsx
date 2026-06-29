@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { Interval } from "./type";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,28 +13,25 @@ const PAGE_SIZE = 15;
 export function YearCalendar({
   setInterval,
   selected,
+  show,
+  setShow,
   setSelected,
   yearClass,
 }: {
   setInterval: (interval: Interval) => void;
   selected: Temporal.PlainDate;
+  show: Temporal.PlainYearMonth;
+  setShow: (date: Temporal.PlainYearMonth) => void;
   setSelected: (date: Temporal.PlainDate) => void;
   yearClass?: (year: number) => string;
 }) {
   const today = Temporal.Now.plainDateISO();
-  const [startYear, setStartYear] = useState(() =>
-    Math.max(YEAR_LOWEST, selected.year - Math.floor(PAGE_SIZE / 2)),
+  const startYear = Math.max(YEAR_LOWEST, Math.floor(show.year / 5) * 5);
+  const endYear = startYear + PAGE_SIZE - 1;
+  const years = useMemo(
+    () => Array.from({ length: PAGE_SIZE }).map((_, i) => startYear + i),
+    [startYear],
   );
-
-  const endYear = Math.min(startYear + PAGE_SIZE - 1, YEAR_HIGHEST);
-
-  const years = useMemo(() => {
-    const arr: number[] = [];
-    for (let y = startYear; y <= endYear; y++) {
-      arr.push(y);
-    }
-    return arr;
-  }, [startYear, endYear]);
 
   const handleChangeYear = (year: number) => {
     if (year > YEAR_HIGHEST || year < YEAR_LOWEST) return;
@@ -46,10 +43,10 @@ export function YearCalendar({
   const canNext = endYear < YEAR_HIGHEST;
 
   const handlePrev = () => {
-    setStartYear(Math.max(YEAR_LOWEST, startYear - PAGE_SIZE));
+    setShow(show.subtract(Temporal.Duration.from({ years: PAGE_SIZE })));
   };
   const handleNext = () => {
-    setStartYear(Math.min(YEAR_HIGHEST - PAGE_SIZE + 1, startYear + PAGE_SIZE));
+    setShow(show.add(Temporal.Duration.from({ years: PAGE_SIZE })));
   };
 
   return (
@@ -88,7 +85,10 @@ export function YearCalendar({
         <Button
           variant="outline"
           onClick={() => {
-            setStartYear(Math.max(YEAR_LOWEST, today.year - Math.floor(PAGE_SIZE / 2)));
+            const targetShow = Temporal.PlainYearMonth.from(
+              new Temporal.PlainDate(today.year, today.month, 1),
+            );
+            setShow(targetShow);
             handleChangeYear(today.year);
           }}
         >

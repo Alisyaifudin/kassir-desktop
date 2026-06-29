@@ -118,6 +118,7 @@ export function DayCalendar({
         <Button
           variant="outline"
           onClick={() => {
+            setShow(Temporal.PlainYearMonth.from(today));
             setSelected(today);
           }}
         >
@@ -128,6 +129,3 @@ export function DayCalendar({
   );
 }
 
-// className={cn("p-1 flex justify-center items-center", {
-//   "bg-blue-100": ms <= range[1] && ms >= range[0],
-// })}
