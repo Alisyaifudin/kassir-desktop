@@ -4,17 +4,17 @@ import { dataRouteEffect } from "./data";
 import { profileRouteEffect } from "./profile";
 import { logRouteEffect } from "./log";
 import { Effect } from "effect";
-import { lazy, Suspense } from "react";
-import { printerRoute } from "./Printer";
+import { Suspense } from "react";
 import { LoadingLayout } from "./z-LoadingLayout";
 import { LoadingPage } from "./z-LoadingPage";
-import { syncRoute } from "./Sync-PENDING";
+import { lazyEffect } from "~/lib/lazy";
+import { configRouteEffect } from "./Config";
 
-const Layout = lazy(() => import("./layout"));
-const Page = lazy(() => import("./page"));
-
-export const settingRoute = Effect.gen(function* () {
+export const settingRouteEffect = Effect.gen(function* () {
+  const Layout = yield* lazyEffect(() => import("./layout"));
+  const SettingPage = yield* lazyEffect(() => import("./page"));
   const routes = yield* Effect.all([
+    configRouteEffect,
     profileRouteEffect,
     shopRouteEffect,
     dataRouteEffect,
@@ -29,13 +29,11 @@ export const settingRoute = Effect.gen(function* () {
     ),
     children: [
       ...routes,
-      printerRoute,
-      syncRoute,
       {
         index: true,
         Component: () => (
           <Suspense fallback={<LoadingPage />}>
-            <Page />
+            <SettingPage />
           </Suspense>
         ),
       },

@@ -33,6 +33,7 @@ export class CashierService extends Context.Tag("CashierService")<
     current: {
       readonly useUser: () => Cashier;
       readonly user?: Cashier;
+      logout: () => void;
       setUser: (user: Cashier) => void;
     };
   }

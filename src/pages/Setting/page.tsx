@@ -1,15 +1,9 @@
-import {
-  Building2,
-  User,
-  Database,
-  Printer,
-  ScrollText,
-  LogOut,
-} from "lucide-react";
+import { Building2, User, Database, Printer, ScrollText, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router";
-import { useUser } from "~/hooks/use-user";
-import { cn, capitalize } from "~/lib/utils";
-import { useLogout } from "./use-logout";
+import { cn } from "~/lib/utils";
+import { Effect } from "effect";
+import { CashierService } from "~/services/cashier";
+import { capitalize } from "~/lib/capitalize";
 
 type Card = {
   label: string;
@@ -55,13 +49,6 @@ const adminCards: Card[] = [
     icon: ScrollText,
     color: "bg-red-100 text-red-700",
   },
-  // {
-  //   label: "Sinkronisasi",
-  //   path: "/setting/sync",
-  //   description: "Sinkronisasi data ke awan",
-  //   icon: CloudUpload,
-  //   color: "bg-green-100 text-slate-700",
-  // },
 ];
 
 const userCards: Card[] = [
@@ -74,43 +61,50 @@ const userCards: Card[] = [
   },
 ];
 
-export default function Page() {
-  const user = useUser();
-  const handleLogout = useLogout();
-  const cards = user.role === "admin" ? adminCards : userCards;
+const page = Effect.gen(function* () {
+  const cashierService = yield* CashierService;
+  return function Page() {
+    const user = cashierService.current.useUser();
+    const handleLogout = () => {
+      cashierService.current.logout();
+    };
+    const cards = user.role === "admin" ? adminCards : userCards;
 
-  return (
-    <div className="flex flex-col gap-6 py-2">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold tracking-tight">Pengaturan</h1>
-          <p className="text-muted-foreground">
-            Masuk sebagai {capitalize(user.name)} ({user.role})
-          </p>
+    return (
+      <div className="flex flex-col gap-6 py-2">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-big font-bold tracking-tight">Pengaturan</h1>
+            <p className="text-muted-foreground">
+              Masuk sebagai {capitalize(user.name)} ({user.role})
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className={cn(
+              "group flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-all hover:bg-accent hover:shadow-md",
+              "text-destructive hover:text-destructive",
+            )}
+            type="button"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
+              <LogOut size={20} />
+            </div>
+            <div className="flex flex-col items-start leading-tight">
+              <span className="font-bold">Keluar</span>
+            </div>
+          </button>
         </div>
-        <button
-          onClick={handleLogout}
-          className={cn(
-            "group flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-all hover:bg-accent hover:shadow-md",
-            "text-destructive hover:text-destructive",
-          )}
-          type="button"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
-            <LogOut size={20} />
-          </div>
-          <div className="flex flex-col items-start leading-tight">
-            <span className="font-bold">Keluar</span>
-          </div>
-        </button>
-      </div>
 
-      <div className="grid sm:grid-cols-2 gap-4 grid-cols-1">
-        <Cards cards={cards} />
+        <div className="grid sm:grid-cols-2 gap-4 grid-cols-1">
+          <Cards cards={cards} />
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  };
+});
+
+export default page;
 
 function Cards({ cards }: { cards: Card[] }) {
   return (
