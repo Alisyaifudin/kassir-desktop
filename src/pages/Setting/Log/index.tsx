@@ -1,16 +1,21 @@
-import { lazy, Suspense } from "react";
+import { Effect } from "effect";
+import { Suspense } from "react";
 import { RouteObject } from "react-router";
-import { admin } from "~/middleware/admin";
+import { lazyEffect } from "~/lib/lazy";
+import { adminMiddlewareEffect } from "~/middleware/admin";
 import { Loading } from "./z-Loading";
 
-const Page = lazy(() => import("./page"));
-
-export const logRoute: RouteObject = {
-  Component: () => (
-    <Suspense fallback={<Loading />}>
-      <Page />
-    </Suspense>
-  ),
-  middleware: [admin],
-  path: "log",
-};
+export const logRouteEffect = Effect.gen(function* () {
+  const Page = yield* lazyEffect(() => import("./page"));
+  const adminMiddleware = yield* adminMiddlewareEffect;
+  const route: RouteObject = {
+    Component: () => (
+      <Suspense fallback={<Loading />}>
+        <Page />
+      </Suspense>
+    ),
+    middleware: [adminMiddleware],
+    path: "log",
+  };
+  return route;
+});
