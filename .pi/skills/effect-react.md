@@ -13,7 +13,7 @@ This project uses a disciplined integration of [Effect-TS](https://effect.websit
 5. [Pattern 3: Service-Backed Components](#pattern-3-service-backed-components-effect-tsx)
 6. [Pattern 4: Lazy Loading](#pattern-4-lazy-loading-lazyeffect)
 7. [Pattern 5: One-Shot Data Fetching](#pattern-5-one-shot-data-fetching-withloader)
-8. [Pattern 6: Reactive State with StateWrap + useStatus](#pattern-6-reactive-state-with-statewrap--usestatus)
+8. [Pattern 6: Reactive State with StateWrap + useLoad](#pattern-6-reactive-state-with-statewrap--useload)
 9. [Pattern 7: Mutable Data with AsyncDataState](#pattern-7-mutable-data-with-asyncdatastate)
 10. [File Naming Conventions](#file-naming-conventions)
 11. [Walkthrough: Adding a New Page](#walkthrough-adding-a-new-page)
@@ -27,7 +27,7 @@ This project uses a disciplined integration of [Effect-TS](https://effect.websit
 ```
 Route (index.tsx)
   └─ lazyEffect ──→ Page (page.tsx)
-                      ├─ yield* Service        → hooks (useStatus, useData)
+                      ├─ yield* Service        → hooks (useLoad, useData)
                       ├─ yield* effect-*.tsx   → React Component
                       └─ yield* effect-*.tsx   → React Component
 
@@ -67,7 +67,7 @@ export class InfoService extends Context.Tag("InfoService")<
   InfoService,
   {
     load: () => Effect.Effect<void, InfoError>;
-    useStatus: () => Status<InfoError>;
+    useLoad: () => Status<InfoError>;
     info: AsyncDataState<Info, string>;
     showCashier: AsyncDataState<boolean, string>;
     set: {
@@ -80,7 +80,7 @@ export class InfoService extends Context.Tag("InfoService")<
 
 **Key principles:**
 - `load()` — triggers fetch/population, called once automatically by `StatusState`
-- `useStatus()` — reactive hook returning `{ state: "loading" | "error" | "success", error? }`
+- `useLoad()` — reactive hook returning `{ state: "loading" | "error" | "success", error? }`
 - `AsyncDataState<T, E>` — reactive mutable data with optimistic writes (for forms, settings)
 - Keep the interface focused on _what_ the service does, not _how_
 
@@ -121,7 +121,7 @@ const InfoLayer = Layer.effect(
     // 4. Return the service implementation
     return InfoService.of({
       load,
-      useStatus: status.useStatus,
+      useLoad: status.useLoad,
       info: infoState,
       showCashier: showCashierState,
       set: { info: setInfo, showCashier: setShowCashier },
@@ -134,7 +134,7 @@ const InfoLayer = Layer.effect(
 
 #### `StatusState<E>`
 
-A one-shot state machine for async load operations. Exposes `useStatus()` React hook.
+A one-shot state machine for async load operations. Exposes `useLoad()` React hook.
 
 ```
 States: loading → success | error
@@ -143,7 +143,7 @@ States: loading → success | error
 | Method | Description |
 |---|---|
 | `new StatusState(loader)` | Create with an `Effect<void, E>` loader |
-| `.useStatus()` | React hook → `{ state, error? }` |
+| `.useLoad()` | React hook → `{ state, error? }` |
 | `.setLoading()` / `.setSuccess()` / `.setError(e)` | Transition state |
 | `.notify()` | Trigger React re-render |
 
@@ -228,11 +228,11 @@ Pages are `Effect.gen` functions that yield services and sub-components, then re
 // src/pages/Setting/Shop/page.tsx
 const page = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const useStatus = infoService.useStatus;
+  const useLoad = infoService.useLoad;
   const Info = yield* infoEffect;
   const CashierCheckbox = yield* cashierCheckbox;
   return function Page() {
-    const status = useStatus();
+    const status = useLoad();
     return (
       <StateWrap status={status} loading={<Loading />} error={({ e }) => <TextError>{e.message}</TextError>}>
         <Info />
@@ -454,7 +454,7 @@ export function WithLoader<T, E>({
 
 ---
 
-## Pattern 6: Reactive State with `StateWrap` + `useStatus`
+## Pattern 6: Reactive State with `StateWrap` + `useLoad`
 
 The primary pattern for read-heavy pages. The service manages loading state and data lifecycle.
 
@@ -473,11 +473,11 @@ Service.load() → StatusState.loader()
 ```tsx
 const page = Effect.gen(function* () {
   const service = yield* MyService;
-  const useStatus = service.useStatus;
+  const useLoad = service.useLoad;
   const ReadView = yield* readEffect;
   const WriteAction = yield* writeEffect;
   return function Page() {
-    const status = useStatus();
+    const status = useLoad();
     return (
       <StateWrap
         status={status}
@@ -499,7 +499,7 @@ export class MyService extends Context.Tag("MyService")<
   MyService,
   {
     load: () => Effect.Effect<void, MyError>;
-    useStatus: () => Status<MyError>;
+    useLoad: () => Status<MyError>;
     data: AsyncDataState<MyData, string>;
     mutate: () => Effect.Effect<void, MyError>;
   }
@@ -522,7 +522,7 @@ const MyLayer = Layer.effect(MyService, Effect.gen(function* () {
   const status = new StatusState<MyError>(load);
   return MyService.of({
     load,
-    useStatus: status.useStatus,
+    useLoad: status.useLoad,
     data: dataState,
     mutate: () => Effect.gen(function* () {
       yield* mutateEffect;
@@ -556,7 +556,7 @@ export class ConfigService extends Context.Tag("ConfigService")<
   ConfigService,
   {
     load: () => Effect.Effect<void, ConfigError>;
-    useStatus: () => Status<ConfigError>;
+    useLoad: () => Status<ConfigError>;
     theme: AsyncDataState<string, string>;
     size: AsyncDataState<string, string>;
   }
@@ -629,7 +629,7 @@ export class ExampleService extends Context.Tag("ExampleService")<
   ExampleService,
   {
     load: () => Effect.Effect<void, ExampleError>;
-    useStatus: () => Status<ExampleError>;
+    useLoad: () => Status<ExampleError>;
     items: AsyncDataState<string[], string>;
   }
 >() {}
@@ -664,7 +664,7 @@ export const ExampleLayer = Layer.effect(
     const status = new StatusState<ExampleError>(load);
     return ExampleService.of({
       load,
-      useStatus: status.useStatus,
+      useLoad: status.useLoad,
       items: itemsState,
     });
   }),
@@ -704,10 +704,10 @@ import { listEffect } from "./effect-list";
 
 const page = Effect.gen(function* () {
   const service = yield* ExampleService;
-  const useStatus = service.useStatus;
+  const useLoad = service.useLoad;
   const List = yield* listEffect;
   return function Page() {
-    const status = useStatus();
+    const status = useLoad();
     return (
       <StateWrap
         status={status}
@@ -752,7 +752,7 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 | Scenario | Pattern | Key Component |
 |---|---|---|
 | Page loads data once, no updates | `WithLoader` | `WithLoader` |
-| Page has multiple sub-views sharing data | `StateWrap` + `AsyncDataState` | `StateWrap`, `useStatus` |
+| Page has multiple sub-views sharing data | `StateWrap` + `AsyncDataState` | `StateWrap`, `useLoad` |
 | Form that persists on submit | `AsyncDataState` with form | `useData`, `setData` |
 | Button triggers action (delete, clear) | Lambda passed to hook | `useClearLog(clear)` |
 | Complex multi-step flow | Pre-bound runnable | `program(...).pipe(provideService(...))` |
@@ -769,4 +769,4 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 - **Don't skip the `Effect.gen` layer** — even simple pages should yield their sub-components
 - **Don't use `useState` for async data** — prefer `WithLoader` (one-shot) or `AsyncDataState` (reactive)
 - **Don't manage loading/error state manually** — let `StatusState` and `StateWrap` handle it
-- **Don't create a service without `useStatus`** — every data-loading service needs one
+- **Don't create a service without `useLoad`** — every data-loading service needs one

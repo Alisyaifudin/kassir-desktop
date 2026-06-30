@@ -6,8 +6,7 @@ export class LogService extends Context.Tag("LogService")<
   LogService,
   {
     put(e: unknown): Effect.Effect<void>;
-    load(): Effect.Effect<void, LogError>;
-    useStatus(): Status<LogError>;
+    useLoad(): Status<LogError>;
     log: AsyncDataState<string[], string>;
     clear(): Effect.Effect<void, LogError>;
   }

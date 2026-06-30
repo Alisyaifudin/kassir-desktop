@@ -18,8 +18,7 @@ export type InfoFull = Info & {
 export class InfoService extends Context.Tag("InfoService")<
   InfoService,
   {
-    load: Effect.Effect<void, InfoError>;
-    useStatus: () => Status<InfoError>;
+    useLoad: () => Status<InfoError>;
     info: AsyncDataState<Info, string>;
     showCashier: AsyncDataState<boolean, string>;
     useName: () => string;

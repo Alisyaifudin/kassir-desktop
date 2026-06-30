@@ -7,11 +7,11 @@ import { TextError } from "~/components/TextError";
 
 const page = Effect.gen(function* () {
   const logService = yield* LogService;
-  const useStatus = logService.useStatus;
+  const useLoad = logService.useLoad;
   const ReadLog = yield* readLogEffect;
   const ClearLog = yield* clearLogEffect;
   return function Page() {
-    const status = useStatus();
+    const status = useLoad();
     return (
       <div className="flex flex-col gap-4 p-6 flex-1 overflow-hidden">
         <div className="flex flex-col gap-1">
