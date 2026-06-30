@@ -1,13 +1,17 @@
-import { lazy, Suspense } from "react";
+import { Effect } from "effect";
+import { Suspense } from "react";
 import { RouteObject } from "react-router";
+import { lazyEffect } from "~/lib/lazy";
 
-const Page = lazy(() => import("./page"));
-
-export const profileRoute: RouteObject = {
-  Component: () => (
-    <Suspense>
-      <Page />
-    </Suspense>
-  ),
-  path: "profile",
-};
+export const profileRouteEffect = Effect.gen(function* () {
+  const Page = yield* lazyEffect(() => import("./page"));
+  const route: RouteObject = {
+    Component: () => (
+      <Suspense>
+        <Page />
+      </Suspense>
+    ),
+    path: "profile",
+  };
+  return route;
+});

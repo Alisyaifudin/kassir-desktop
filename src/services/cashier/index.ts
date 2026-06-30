@@ -18,7 +18,7 @@ export class CashierService extends Context.Tag("CashierService")<
   CashierService,
   {
     get: {
-      all: Effect.Effect<Cashier[], CashierError>;
+      all: () => Effect.Effect<Cashier[], CashierError>;
       byId: (id: string) => Effect.Effect<CashierFull, CashierError | NotFoundError>;
     };
     add: (user: {
@@ -26,6 +26,10 @@ export class CashierService extends Context.Tag("CashierService")<
       role: DBNamespace.Role;
       hash: string;
     }) => Effect.Effect<string, CashierError>;
+    update: {
+      name: (id: string, name: string) => Effect.Effect<void, CashierError>;
+      hash: (id: string, hash: string) => Effect.Effect<void, CashierError>;
+    };
     current: {
       readonly useUser: () => Cashier;
       readonly user?: Cashier;
