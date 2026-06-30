@@ -113,19 +113,19 @@ function UploadedEntries({
         return (
           <li key={item.id} className="flex flex-col gap-1 text-small">
             <div className="flex items-center gap-2">
-            <span>{i + 1}.</span>
-            {item.state === "success" ? (
-              <CheckCircle className="w-4 h-4 text-green-500" />
-            ) : item.state === "error" ? (
-              <XCircle className="w-4 h-4 text-destructive shrink-0" />
-            ) : (
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            )}
-            <span>
-              {item.id} - {item.name}
-            </span>
-          </div>
-          {item.state === "error" && <ErrorComp name={item.name} error={item.error} id={item.id} />}
+              <span>{i + 1}.</span>
+              {item.state === "success" ? (
+                <CheckCircle className="w-4 h-4 text-green-500" />
+              ) : item.state === "error" ? (
+                <XCircle className="w-4 h-4 text-destructive shrink-0" />
+              ) : (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+              <span>
+                {item.id} - {item.name}
+              </span>
+            </div>
+            {item.state === "error" && <ErrorComp error={item.error} />}
           </li>
         );
       })}
@@ -136,8 +136,6 @@ function UploadedEntries({
 function ErrorComp({
   error,
 }: {
-  id: string;
-  name: string;
   error: ProductError | UniqueCodeError | ProductAlreadyExistError | DuplicateError;
 }) {
   switch (error._tag) {

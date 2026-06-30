@@ -12,7 +12,7 @@ export function WithLoader<T, E>({
   loading,
   error,
 }: {
-  loader: Effect.Effect<T, E>;
+  loader: () => Effect.Effect<T, E>;
   children: (data: T) => React.ReactNode;
   error: (error: E, retry: () => void) => React.ReactNode;
   loading?: React.ReactNode;
@@ -21,7 +21,7 @@ export function WithLoader<T, E>({
 
   const fetchData = useCallback(async () => {
     setState({ state: "loading" });
-    const either = await Effect.runPromise(loader.pipe(Effect.either));
+    const either = await Effect.runPromise(loader().pipe(Effect.either));
     Either.match(either, {
       onLeft(error) {
         setState({ state: "error", error });

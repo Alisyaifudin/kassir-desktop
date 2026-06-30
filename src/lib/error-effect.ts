@@ -20,3 +20,7 @@ export function BaseError<const Tag extends string>(tag: Tag) {
 }
 
 export class NotFoundError extends BaseError("NotFoundError") {}
+export class JsonError extends BaseError("JsonError") {}
+export class TooBigError extends BaseError("TooBigError") {}
+export class DuplicateError extends BaseError("DuplicateError") {}
+export class InvalidShapeError extends BaseError("InvalidShapeError") {}

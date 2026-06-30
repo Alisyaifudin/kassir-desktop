@@ -1,11 +1,11 @@
 import { BarChart3, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Effect } from "effect";
-import { AggregateService } from "~/services/aggregate";
+import { DailySummaryService } from "~/services/daily-summary";
 import { WithLoader } from "~/components/WithLoader";
 
 export const totalTransactionsCard = Effect.gen(function* () {
-  const agg = yield* AggregateService;
+  const agg = yield* DailySummaryService;
   return function TotalTransactionsCard() {
     return (
       <WithLoader

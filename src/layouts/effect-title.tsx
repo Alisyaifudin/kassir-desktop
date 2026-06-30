@@ -8,7 +8,7 @@ import { StateWrap } from "~/components/StateWrap";
 export const title = Effect.gen(function* () {
   const info = yield* InfoService;
   return function Title() {
-    const status = info.useStatus();
+    const status = info.useLoad();
     return (
       <StateWrap
         status={status}

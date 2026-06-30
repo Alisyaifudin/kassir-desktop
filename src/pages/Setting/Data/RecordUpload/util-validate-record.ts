@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { z } from "zod";
 import { InvalidShapeError, JsonError, TooBigError } from "~/lib/error-effect";
-import { Record as RecordType } from "~/services/record/type";
+import { RecordFull as RecordType } from "~/services/record/type";
 
 const discountSchema = z.object({
   id: z.string(),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SchemaDialog } from "./z-Schema";
 import { UploadInput } from "~/components/UploadInput";
-import { Record } from "~/services/record/type";
+import { RecordFull } from "~/services/record/type";
 import { Effect } from "effect";
 import { RecordAlreadyExistError, RecordError } from "~/services/record/error";
 import { RecordService } from "~/services/record";
@@ -32,8 +32,8 @@ function UploadedEntries({
   records,
   add,
 }: {
-  records: Record[];
-  add: (record: Record) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
+  records: RecordFull[];
+  add: (record: RecordFull) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
 }) {
   const startedRef = useRef(false);
   const [progress, setProgress] = useState<

@@ -48,6 +48,9 @@ export type Record = {
     name: string;
     phone: string;
   };
+};
+
+export type RecordFull = Record & {
   products: RecordProduct[];
   extras: RecordExtra[];
 };

@@ -18,7 +18,6 @@ import { useForm } from "@tanstack/react-form";
 import { Effect } from "effect";
 import { Cashier, CashierService } from "~/services/cashier";
 import { HashService } from "~/services/hash";
-import { LogAnd, LogService } from "~/services/log";
 
 function program(id: string, password: string) {
   return Effect.gen(function* () {
@@ -29,24 +28,20 @@ function program(id: string, password: string) {
     cashierService.current.setUser(cashier);
     return null;
   }).pipe(
-    Effect.catchTag("CashierError", ({ e }) => LogAnd(e, Effect.succeed("Aplikasi bermasalah"))),
-    Effect.catchTag("NotFoundError", ({ e }) =>
-      LogAnd(e, Effect.succeed("Akun kasir tidak ditemukan")),
-    ),
-    Effect.catchTag("HashError", ({ e }) => LogAnd(e, Effect.succeed("Gagal mengecek kata sandi"))),
-    Effect.catchTag("InvalidPassword", ({ e }) => LogAnd(e, Effect.succeed("Kata sandi salah"))),
+    Effect.catchTag("CashierError", () => Effect.succeed("Aplikasi bermasalah")),
+    Effect.catchTag("NotFoundError", () => Effect.succeed("Akun kasir tidak ditemukan")),
+    Effect.catchTag("HashError", () => Effect.succeed("Gagal mengecek kata sandi")),
+    Effect.catchTag("InvalidPassword", () => Effect.succeed("Kata sandi salah")),
   );
 }
 
 export const loginForm = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const hashService = yield* HashService;
-  const log = yield* LogService;
   const runnable = (id: string, password: string) =>
     program(id, password).pipe(
       Effect.provideService(CashierService, cashierService),
       Effect.provideService(HashService, hashService),
-      Effect.provideService(LogService, log),
     );
   return function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
     const { form, error } = useLoginForm(runnable);

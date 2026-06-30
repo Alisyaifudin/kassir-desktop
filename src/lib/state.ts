@@ -37,7 +37,7 @@ export class StatusState<E> {
   listeners = new Set<Listener>();
   state: Status<E> = { state: "loading" };
   fetching = false;
-  constructor(private loader: Effect.Effect<void, E>) {}
+  constructor(private loader: () => Effect.Effect<void, E>) {}
   notify() {
     this.listeners.forEach((l) => l());
   }
@@ -55,7 +55,7 @@ export class StatusState<E> {
     useEffect(() => {
       if (!this.fetching && value.state === "loading") {
         this.fetching = true;
-        Effect.runPromise(this.loader).finally(() => {
+        Effect.runPromise(this.loader()).finally(() => {
           this.fetching = false;
         });
       }

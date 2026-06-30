@@ -11,7 +11,6 @@ import { useForm } from "@tanstack/react-form";
 import { Effect } from "effect";
 import { HashService } from "~/services/hash";
 import { CashierService } from "~/services/cashier";
-import { LogAnd, LogService } from "~/services/log";
 
 function program(name: string, password: string) {
   return Effect.gen(function* () {
@@ -23,24 +22,18 @@ function program(name: string, password: string) {
     cashierService.current.setUser({ id, role, name });
     return null;
   }).pipe(
-    Effect.catchTag("HashError", ({ e }) =>
-      LogAnd(e, Effect.succeed("Gagal meng-hash kata sandi")),
-    ),
-    Effect.catchTag("CashierError", ({ e }) =>
-      LogAnd(e, Effect.succeed("Gagal menyimpan di kasir baru")),
-    ),
+    Effect.catchTag("HashError", () => Effect.succeed("Gagal meng-hash kata sandi")),
+    Effect.catchTag("CashierError", () => Effect.succeed("Gagal menyimpan di kasir baru")),
   );
 }
 
 export const freshForm = Effect.gen(function* () {
   const hashService = yield* HashService;
   const cashierService = yield* CashierService;
-  const log = yield* LogService;
   const runnable = (name: string, password: string) =>
     program(name, password).pipe(
       Effect.provideService(HashService, hashService),
       Effect.provideService(CashierService, cashierService),
-      Effect.provideService(LogService, log),
     );
   return function FreshForm() {
     const { form, error } = useFreshForm(runnable);

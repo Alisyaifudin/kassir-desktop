@@ -1,10 +1,10 @@
 import { Context, Effect } from "effect";
-import { AggregateError } from "./error";
+import { DailySummaryError } from "./error";
 
 type Sign = "+" | "-";
 
-export class AggregateService extends Context.Tag("AggregateService")<
-  AggregateService,
+export class DailySummaryService extends Context.Tag("DailySummaryService")<
+  DailySummaryService,
   {
     total: (mode: DBNamespace.Mode) => Effect.Effect<
       {
@@ -12,14 +12,14 @@ export class AggregateService extends Context.Tag("AggregateService")<
         sign: Sign;
         todayValue: number;
       },
-      AggregateError
+      DailySummaryError
     >;
-    count: Effect.Effect<
+    count: () => Effect.Effect<
       {
         in: number;
         out: number;
       },
-      AggregateError
+      DailySummaryError
     >;
   }
 >() {}

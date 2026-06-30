@@ -36,28 +36,28 @@ const InfoLayer = Layer.effect(
       const info = infoState.useData();
       return info.data.name;
     }
-    const load = Effect.gen(function* () {
-      status.setLoading();
-      status.notify();
-      const { showCashier, ...info } = yield* getAll;
-      infoState.setData(info);
-      showCashierState.setData(showCashier);
-      status.setSuccess();
-    }).pipe(
-      Effect.tapError((e) => {
-        setFatal(e);
-        return LogPut(e);
-      }),
-      Effect.tapError(LogPut),
-      Effect.provideService(LogService, log),
-    );
+    const load = () =>
+      Effect.gen(function* () {
+        status.setLoading();
+        status.notify();
+        const { showCashier, ...info } = yield* getAll;
+        infoState.setData(info);
+        showCashierState.setData(showCashier);
+        status.setSuccess();
+      }).pipe(
+        Effect.tapError((e) => {
+          setFatal(e);
+          return LogPut(e);
+        }),
+        Effect.tapError(LogPut),
+        Effect.provideService(LogService, log),
+      );
     const status = new StatusState<InfoError>(load);
     function setFatal(value: InfoError) {
       status.setError(value);
     }
     return InfoService.of({
-      load,
-      useStatus: status.useStatus,
+      useLoad: status.useStatus,
       info: infoState,
       showCashier: showCashierState,
       useName,

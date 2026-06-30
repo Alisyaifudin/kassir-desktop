@@ -10,7 +10,7 @@ import { DayCalendar } from "./DayCalendar";
 import { MonthCalendar } from "./MonthCalendar";
 import { YearCalendar } from "./YearCalendar";
 
-export function RangePicker({
+export function DateRangePicker({
   range,
   setRange,
   label,

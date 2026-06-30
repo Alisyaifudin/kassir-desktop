@@ -2,7 +2,7 @@ import { LucideIcon, AlertCircle } from "lucide-react";
 import { StatsCard } from "./z-StatsCard";
 import { Effect } from "effect";
 import { Skeleton } from "~/components/ui/skeleton";
-import { AggregateService } from "~/services/aggregate";
+import { DailySummaryService } from "~/services/daily-summary";
 import { WithLoader } from "~/components/WithLoader";
 
 interface BaseFinancialCardProps {
@@ -26,7 +26,7 @@ function ErrorComp({ title, children }: { title: string; children: string }) {
 
 export const baseFinancialCard = (mode: DBNamespace.Mode) =>
   Effect.gen(function* () {
-    const agg = yield* AggregateService;
+    const agg = yield* DailySummaryService;
     const loader = agg.total(mode);
     return function BaseFinancialCard({ label, icon, color, errorTitle }: BaseFinancialCardProps) {
       return (

@@ -1,17 +1,15 @@
 import { Context, Effect } from "effect";
-import { Record } from "./type";
+import { RecordFull } from "./type";
 import { RecordAlreadyExistError, RecordError } from "./error";
 
 export class RecordService extends Context.Tag("RecordService")<
   RecordService,
   {
     get: {
-      range: (start: number, end: number) => Effect.Effect<Record[], RecordError>;
+      range: (start: number, end: number) => Effect.Effect<RecordFull[], RecordError>;
     };
     add: {
-      external: (
-        record: Record,
-      ) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
+      external: (record: RecordFull) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
     };
   }
 >() {}

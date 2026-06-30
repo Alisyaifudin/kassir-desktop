@@ -9,6 +9,7 @@ import { LoadingLayout } from "./z-LoadingLayout";
 import { LoadingPage } from "./z-LoadingPage";
 import { lazyEffect } from "~/lib/lazy";
 import { configRouteEffect } from "./Config";
+import { printerRouteEffect } from "./Printer";
 
 export const settingRouteEffect = Effect.gen(function* () {
   const Layout = yield* lazyEffect(() => import("./layout"));
@@ -19,6 +20,7 @@ export const settingRouteEffect = Effect.gen(function* () {
     shopRouteEffect,
     dataRouteEffect,
     logRouteEffect,
+    printerRouteEffect,
   ]);
   const route: RouteObject = {
     path: "setting",
