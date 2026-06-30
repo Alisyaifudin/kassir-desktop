@@ -754,7 +754,7 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 | Page loads data once, no updates | `WithLoader` | `WithLoader` |
 | Page has multiple sub-views sharing data | `StateWrap` + `AsyncDataState` | `StateWrap`, `useLoad` |
 | Form that persists on submit | `AsyncDataState` with form | `useData`, `setData` |
-| Button triggers action (delete, clear) | Lambda passed to hook | `useClearLog(clear)` |
+| Button triggers action (delete, clear) | Lambda passed to hook | `useClearLog(clear)` — pass method directly, not wrapped |
 | Complex multi-step flow | Pre-bound runnable | `program(...).pipe(provideService(...))` |
 | Lazy-loaded page | `lazyEffect` | `lazyEffect(() => import(...))` |
 
@@ -763,6 +763,7 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 ## Anti-Patterns
 
 - **Don't pass service objects to React land** — extract lambdas/hooks in Effect-land, pass only those
+- **Don't wrap service methods in unnecessary arrow functions** — pass them directly: `const del = service.delete` not `const del = (id) => service.delete(id)`
 - **Don't call `Effect.runPromise` inside render** — use `WithLoader`, `useEffect`, or service hooks
 - **Don't import services directly in pure components** — always go through `Effect.gen`
 - **Don't put business logic in `page.tsx`** — extract into `effect-*.tsx` files

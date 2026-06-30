@@ -1,6 +1,7 @@
 import { Context, Effect } from "effect";
 import { NotFoundError } from "~/lib/error-effect";
 import { CashierError } from "./error";
+import { AsyncDataState, Status } from "~/lib/state";
 
 export { CashierError } from "./error";
 
@@ -17,6 +18,8 @@ export type CashierFull = Cashier & {
 export class CashierService extends Context.Tag("CashierService")<
   CashierService,
   {
+    useLoad(): Status<CashierError>;
+    cashiers: AsyncDataState<Cashier[], string>;
     get: {
       all: () => Effect.Effect<Cashier[], CashierError>;
       byId: (id: string) => Effect.Effect<CashierFull, CashierError | NotFoundError>;
@@ -29,7 +32,9 @@ export class CashierService extends Context.Tag("CashierService")<
     update: {
       name: (id: string, name: string) => Effect.Effect<void, CashierError>;
       hash: (id: string, hash: string) => Effect.Effect<void, CashierError>;
+      role: (id: string, role: DBNamespace.Role) => Effect.Effect<void, CashierError>;
     };
+    delete(id: string): Effect.Effect<void, CashierError>;
     current: {
       readonly useUser: () => Cashier;
       readonly user?: Cashier;
