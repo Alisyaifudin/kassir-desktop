@@ -8,7 +8,7 @@ export function Loading() {
         <Loader2 className="icon absolute animate-spin text-primary" />
       </div>
       <div className="space-y-1">
-        <p className="font-semibold text-foreground">Memproses data produk</p>
+        <p className="font-semibold text-foreground">Memproses data riwayat</p>
         <p className="text-small text-muted-foreground">Validasi dan membaca berkas JSON.</p>
       </div>
     </div>

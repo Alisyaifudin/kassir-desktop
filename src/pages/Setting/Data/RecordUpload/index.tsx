@@ -1,160 +1,151 @@
-import { useState, useRef } from "react";
-import { Cloud } from "lucide-react";
-import { cn } from "~/lib/utils";
-import { Show } from "~/components/Show";
-import { Loading } from "./z-Loading";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SchemaDialog } from "./z-Schema";
-import { TextError } from "~/components/TextError";
-import { Selected } from "./z-Selected";
-import { extractRecord, MAXIMUM_SIZE, RecordImport } from "./util-validate-record";
-import { Effect, Either } from "effect";
-import { log } from "~/lib/log";
+import { UploadInput } from "~/components/UploadInput";
+import { Record } from "~/services/record/type";
+import { Effect } from "effect";
+import { RecordAlreadyExistError, RecordError } from "~/services/record/error";
+import { RecordService } from "~/services/record";
+import { extractRecord } from "./util-validate-record";
+import { DuplicateError } from "~/lib/error-effect";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { formatDate, formatEpochtime } from "~/lib/date";
+import { Temporal } from "temporal-polyfill";
 
-export function RecordUpload() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dragDepthRef = useRef(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [data, setData] = useState<{ name: string; records: RecordImport[] } | undefined>(
-    undefined,
-  );
-  const [isDragActive, setIsDragActive] = useState(false);
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    dragDepthRef.current += 1;
-    setIsDragActive(true);
+export const recordUpload = Effect.gen(function* () {
+  const recordService = yield* RecordService;
+  return function RecordUpload() {
+    return (
+      <div className="w-full space-y-6">
+        <div className="flex items-center gap-2">
+          <h3 className="text-normal font-bold mb-2">Riwayat</h3>
+          <SchemaDialog />
+        </div>
+        <UploadInput extract={extractRecord}>
+          {(records) => <UploadedEntries records={records} add={recordService.add.external} />}
+        </UploadInput>
+      </div>
+    );
   };
+});
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    dragDepthRef.current -= 1;
-
-    if (dragDepthRef.current <= 0) {
-      dragDepthRef.current = 0;
-      setIsDragActive(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "copy";
-
-    if (!isDragActive) {
-      setIsDragActive(true);
-    }
-  };
-
-  const processFiles = async (fileList: FileList | null) => {
-    if (!fileList) return;
-
-    const nextFile = fileList.item(0);
-
-    if (nextFile === null) return;
-    setLoading(true);
-    const either = await Effect.runPromise(Effect.either(extractRecord(nextFile)));
-    setLoading(false);
-    dragDepthRef.current = 0;
-    setIsDragActive(false);
-    Either.match(either, {
-      onLeft(e) {
-        switch (e._tag) {
-          case "JsonError":
-            log.error(e.e);
-            setError(e.e.message);
-            break;
-          case "TooBigError":
-            setError(`Berkas terlalu besar: ${e.size}B. Maksimum ${MAXIMUM_SIZE}B`);
+function UploadedEntries({
+  records,
+  add,
+}: {
+  records: Record[];
+  add: (record: Record) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
+}) {
+  const startedRef = useRef(false);
+  const [progress, setProgress] = useState<
+    (
+      | { state: "pending"; id: string; paidAt: number }
+      | {
+          state: "error";
+          id: string;
+          paidAt: number;
+          error: RecordError | RecordAlreadyExistError | DuplicateError;
         }
-      },
-      onRight(data) {
-        setError("");
-        setData(data);
-      },
-    });
-  };
+      | { state: "success"; id: string; paidAt: number }
+    )[]
+  >(() => records.map((r) => ({ state: "pending", id: r.id, paidAt: r.paidAt })));
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    dragDepthRef.current = 0;
-    setIsDragActive(false);
-    processFiles(e.dataTransfer.files);
-  };
-
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    processFiles(e.target.files);
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  const init = useCallback(async () => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    const insertedSet = new Set<string>();
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i];
+      if (insertedSet.has(record.id)) {
+        setProgress((prev) => {
+          const next = [...prev];
+          next[i] = {
+            state: "error",
+            id: record.id,
+            paidAt: record.paidAt,
+            error: DuplicateError.new(
+              `Duplikat. Riwayat dengan id: ${record.id} sudah dimasukkan.`,
+            ),
+          };
+          return next;
+        });
+        continue;
+      }
+      const error = await Effect.runPromise(
+        add(record).pipe(
+          Effect.as(null),
+          Effect.catchAll((e) => Effect.succeed(e)),
+        ),
+      );
+      setProgress((prev) => {
+        const next = [...prev];
+        if (error) {
+          next[i] = { state: "error", id: record.id, paidAt: record.paidAt, error };
+        } else {
+          insertedSet.add(record.id);
+          next[i] = { state: "success", id: record.id, paidAt: record.paidAt };
+        }
+        return next;
+      });
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const removeFile = () => {
-    dragDepthRef.current = 0;
-    setIsDragActive(false);
-    setData(undefined);
-  };
+  useEffect(() => {
+    init();
+  }, [init]);
+
+  if (records.length === 0) return null;
+
+  const firstPendingIndex = progress.findIndex((p) => p.state === "pending");
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center gap-2">
-        <h3 className="text-normal font-bold">Riwayat</h3>
-        <SchemaDialog />
-      </div>
-      <TextError>{error}</TextError>
-      <Selected data={data} onRemove={removeFile} />
-      <Show when={!loading && data === undefined} fallback={<Loading />}>
-        <div
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={handleClick}
-          className={cn(
-            "relative border-2 border-dashed rounded-lg p-8 transition-all cursor-pointer",
-            isDragActive
-              ? "border-primary bg-primary/5"
-              : "border-input hover:border-primary hover:bg-accent/50",
-          )}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
-          <div className="flex flex-col items-center justify-center gap-3">
-            <div
-              className={cn(
-                "p-3 rounded-full transition-colors",
-                isDragActive
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
+    <ol className="mt-4 space-y-2">
+      {progress.map((item, i) => {
+        if (item.state === "pending" && i !== firstPendingIndex) return null;
+        return (
+          <li key={item.id} className="flex flex-col gap-1 text-small">
+            <div className="flex items-center gap-2">
+              <span>{i + 1}.</span>
+              {item.state === "success" ? (
+                <CheckCircle className="w-4 h-4 text-green-500" />
+              ) : item.state === "error" ? (
+                <XCircle className="w-4 h-4 text-destructive shrink-0" />
+              ) : (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               )}
-            >
-              <Cloud className="w-8 h-8" />
+              <span>
+                {item.id} &mdash; {formatEpochtime(item.paidAt)}
+              </span>
             </div>
-            <div className="text-center">
-              <p className="font-semibold text-foreground">
-                {isDragActive ? "Jatuhkan berkas di sini" : "Jatuhkan berkas di sini atau klik"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </Show>
-    </div>
+            {item.state === "error" && <ErrorComp error={item.error} />}
+          </li>
+        );
+      })}
+    </ol>
   );
+}
+
+function ErrorComp({ error }: { error: RecordError | RecordAlreadyExistError | DuplicateError }) {
+  switch (error._tag) {
+    case "DuplicateError":
+      return <span className="text-destructive truncate">{error.e.message}</span>;
+    case "RecordAlreadyExistError":
+      return (
+        <span className="text-amber-600 truncate">
+          Sudah ada —{" "}
+          <span className="font-medium">
+            {formatDate(
+              new Temporal.PlainDate(
+                new Date(error.existing.paidAt).getFullYear(),
+                new Date(error.existing.paidAt).getMonth() + 1,
+                new Date(error.existing.paidAt).getDate(),
+              ),
+            )}
+          </span>{" "}
+          <span className="text-muted-foreground">({error.existing.id})</span> sudah terdaftar
+        </span>
+      );
+    case "RecordError":
+      return <span className="text-destructive truncate">{error.e.message}</span>;
+  }
 }

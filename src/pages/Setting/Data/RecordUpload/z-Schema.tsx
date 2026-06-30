@@ -10,43 +10,51 @@ import {
 } from "~/components/ui/dialog";
 
 const recordSchema = `{
+    id: string;
+    createdAt: number;
+    paidAt: number;
+    rounding: number;
+    creditAt?: number;
+    cashier: string;
+    mode: "in" | "out";
+    pay: number;
+    note: string;
+    fix: number;
+    subtotal: number;
+    total: number;
+    updatedAt: number;
+    method: {
+      id: string;
+      name?: string;
+      kind: "cash" | "transfer" | "debit" | "qris";
+    };
+    customer?: {
+      id: string;
+      name: string;
+      phone: string;
+    };
     products: {
+      id: string;
       name: string;
       price: number;
       qty: number;
       capital: number;
-      capitalRaw: number;
       total: number;
+      eventId?: string;
       discounts: {
-        kind: "percent" | "number" | "pcs";
+        id: string;
         value: number;
         eff: number;
-      }[]; 
+        kind: "percent" | "number" | "pcs";
+      }[];
     }[];
     extras: {
+      id: string;
       name: string;
       value: number;
       eff: number;
-      kind: "percent" | "number";
+      kind: "number" | "percent";
     }[];
-    paidAt: number;
-    rounding: number;
-    isCredit: boolean;
-    cashier: string;
-    mode: "buy" | "sell";
-    pay: number;
-    note: string;
-    method: {
-        name?: string;
-        kind: "cash" | "transfer" | "debit" | "qris";
-    };
-    fix: number;
-    customer: {
-        name: string;
-        phone: string;
-    };
-    subTotal: number;
-    total: number;
 }[]`;
 
 export function SchemaDialog() {
