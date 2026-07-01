@@ -330,7 +330,7 @@ export const clearLogEffect = Effect.gen(function* () {
 });
 ```
 
-**Critical rule:** Never pass the service object to React land. Extract the specific function/lambda in Effect-land and pass only that.
+**Critical rule:** Never pass the service object to React land. Extract the specific function/lambda in Effect-land and pass only that. When the live implementation uses a class, wrap methods in an arrow to preserve `this`: `const clear = () => logService.clear()`.
 
 ### Variant C: Form with reactive state (reads + writes)
 
@@ -754,7 +754,7 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 | Page loads data once, no updates | `WithLoader` | `WithLoader` |
 | Page has multiple sub-views sharing data | `StateWrap` + `AsyncDataState` | `StateWrap`, `useLoad` |
 | Form that persists on submit | `AsyncDataState` with form | `useData`, `setData` |
-| Button triggers action (delete, clear) | Lambda passed to hook | `useClearLog(clear)` — pass method directly, not wrapped |
+| Button triggers action (delete, clear) | Lambda passed to hook | `useClearLog(clear)` — use arrow wrapper if class-based: `() => service.clear()` |
 | Complex multi-step flow | Pre-bound runnable | `program(...).pipe(provideService(...))` |
 | Lazy-loaded page | `lazyEffect` | `lazyEffect(() => import(...))` |
 
@@ -763,7 +763,7 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 ## Anti-Patterns
 
 - **Don't pass service objects to React land** — extract lambdas/hooks in Effect-land, pass only those
-- **Don't wrap service methods in unnecessary arrow functions** — pass them directly: `const del = service.delete` not `const del = (id) => service.delete(id)`
+- **Be careful with `this` binding when extracting methods** — if the live implementation uses a class, `const m = service.method` loses `this`. Prefer the arrow wrapper: `const m = () => service.method()` or `const m = (id) => service.method(id)`. This is NOT unnecessary — it's defensive against class-based implementations.
 - **Don't call `Effect.runPromise` inside render** — use `WithLoader`, `useEffect`, or service hooks
 - **Don't import services directly in pure components** — always go through `Effect.gen`
 - **Don't put business logic in `page.tsx`** — extract into `effect-*.tsx` files

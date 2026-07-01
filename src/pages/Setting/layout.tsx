@@ -7,17 +7,16 @@ import { Show } from "~/components/Show";
 import { UserPanel } from "./z-UserPanel";
 import { AdminPanel } from "./z-AdminPanel";
 import { version } from "~/lib/constants";
-import { CashierService } from "~/services/cashier";
+import { UserService } from "~/services/user";
 
 const layout = Effect.gen(function* () {
-  const cashierService = yield* CashierService;
+  const userService = yield* UserService;
+  const useUser = userService.useUser;
+  const logout = () => userService.logout();
   return function Layout() {
     const { pathname } = useLocation();
     const hideSidebar = pathname === "/setting";
-    const role = cashierService.current.useUser().role;
-    const handleLogout = () => {
-      cashierService.current.logout();
-    };
+    const role = useUser().role;
     return (
       <main
         className={cn(
@@ -40,7 +39,7 @@ const layout = Effect.gen(function* () {
               </Show>
             </div>
             <div className="flex flex-col gap-1 mt-auto pb-4">
-              <Button onClick={handleLogout}>
+              <Button onClick={logout}>
                 Keluar
                 <LogOut />
               </Button>

@@ -46,13 +46,13 @@ export const recordDownload = Effect.gen(function* () {
 //========================================================
 //========================================================
 
-export function getDefaultInterval() {
+function getDefaultInterval() {
   const today = Temporal.Now.plainDateISO();
   const lastMonth = today.subtract(Temporal.Duration.from({ months: 1 }));
   return [lastMonth, today] as [Temporal.PlainDate, Temporal.PlainDate];
 }
 
-export function useRecord(save: (start: number, end: number) => Effect.Effect<string | null>) {
+function useRecord(save: (start: number, end: number) => Effect.Effect<string | null>) {
   const defaultInterval = useMemo(() => {
     return getDefaultInterval();
   }, []);

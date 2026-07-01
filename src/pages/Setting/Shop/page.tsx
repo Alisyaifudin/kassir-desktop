@@ -8,11 +8,10 @@ import { cashierCheckbox } from "./effect-cashierCheckbox";
 
 const page = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const useLoad = infoService.useLoad;
+  const loader = infoService.loader;
   const Info = yield* infoEffect;
   const CashierCheckbox = yield* cashierCheckbox;
   return function Page() {
-    const status = useLoad();
     return (
       <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
         <div className="flex flex-col gap-1">
@@ -21,7 +20,7 @@ const page = Effect.gen(function* () {
         </div>
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
           <StateWrap
-            status={status}
+            loader={loader}
             loading={<Loading />}
             error={({ e }) => <TextError>{e.message}</TextError>}
           >

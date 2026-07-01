@@ -3,7 +3,6 @@ import { CustomerService } from "~/services/customer";
 import { DeleteDialog } from "./z-DeleteDialog";
 import z from "zod";
 import { Customer } from "~/services/customer/type";
-import { CustomerError } from "~/services/customer/error";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { Field, FieldError, FieldGroup } from "~/components/ui/field";
@@ -14,11 +13,11 @@ import { Loader2 } from "lucide-react";
 
 export const customerListEffect = Effect.gen(function* () {
   const customerService = yield* CustomerService;
-  const useCustomers = customerService.customers.useData;
-  const onUpdate = customerService.update;
-  const onDelete = customerService.delete;
+  const useCustomers = customerService.useCustomers;
+  const onUpdate = (id: string, name: string, phone: string) => customerService.set(id, name, phone);
+  const onDelete = (id: string) => customerService.delete(id);
   return function CustomerList() {
-    const { data: customers } = useCustomers();
+    const customers = useCustomers();
     return (
       <div className="flex flex-col gap-3">
         {customers.map((customer) => (
@@ -35,14 +34,14 @@ export const customerListEffect = Effect.gen(function* () {
 });
 
 const schema = z.object({
-  name: z.string(),
+  name: z.string().nonempty(),
   phone: z.string(),
 });
 
 type ItemProps = {
   customer: Customer;
-  onUpdate: (id: string, name: string, phone: string) => Effect.Effect<void, CustomerError>;
-  onDelete: (id: string) => Effect.Effect<void, CustomerError>;
+  onUpdate: (id: string, name: string, phone: string) => Promise<string | null>;
+  onDelete: (id: string) => Promise<string | null>;
 };
 
 function CustomerItem({ customer, onUpdate, onDelete }: ItemProps) {
@@ -51,12 +50,7 @@ function CustomerItem({ customer, onUpdate, onDelete }: ItemProps) {
     defaultValues: { name: customer.name, phone: customer.phone },
     validators: { onSubmit: schema },
     async onSubmit({ value }) {
-      const errMsg = await Effect.runPromise(
-        onUpdate(customer.id, value.name, value.phone).pipe(
-          Effect.as(null),
-          Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-        ),
-      );
+      const errMsg = await onUpdate(customer.id, value.name, value.phone);
       setError(errMsg);
     },
   });

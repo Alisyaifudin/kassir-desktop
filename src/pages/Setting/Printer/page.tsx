@@ -9,11 +9,10 @@ import { printerWidth } from "./effect-printerWidth";
 
 const page = Effect.gen(function* () {
   const printerService = yield* PrinterService;
-  const useLoad = printerService.useLoad;
+  const loader = printerService.loader;
   const SelectPrinter = yield* selectPrinter;
   const PrinterWidth = yield* printerWidth;
   return function Page() {
-    const status = useLoad();
     return (
       <div className="flex flex-col gap-6 p-6 flex-1">
         <div className="flex flex-col gap-1">
@@ -21,13 +20,13 @@ const page = Effect.gen(function* () {
           <p className="text-muted-foreground text-normal">Konfigurasi printer untuk cetak struk</p>
         </div>
         <StateWrap
-          status={status}
+          loader={loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
           <SelectPrinter />
           <PrinterWidth />
-          <TestBtn print={printerService.testPrint} />
+          <TestBtn print={() => printerService.testPrint()} />
         </StateWrap>
       </div>
     );

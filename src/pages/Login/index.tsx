@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
 import { lazyEffect } from "~/lib/lazy";
 import { loginMiddlewareEffect } from "~/middleware/login";
+import { Loading } from "./z-Loading";
 
 const ErrorBoundary = lazy(() => import("~/components/ErrorBoundary.tsx"));
 
@@ -14,7 +15,7 @@ export const loginRouteEffect = Effect.gen(function* () {
     middleware: [loginMiddleware],
     ErrorBoundary,
     Component: () => (
-      <Suspense>
+      <Suspense fallback={<Loading />}>
         <Page />
       </Suspense>
     ),

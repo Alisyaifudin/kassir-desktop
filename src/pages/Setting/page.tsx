@@ -2,8 +2,8 @@ import { Building2, User, Database, Printer, ScrollText, LogOut } from "lucide-r
 import { Link, useLocation } from "react-router";
 import { cn } from "~/lib/utils";
 import { Effect } from "effect";
-import { CashierService } from "~/services/cashier";
 import { capitalize } from "~/lib/capitalize";
+import { UserService } from "~/services/user";
 
 type Card = {
   label: string;
@@ -62,12 +62,11 @@ const userCards: Card[] = [
 ];
 
 const page = Effect.gen(function* () {
-  const cashierService = yield* CashierService;
+  const userService = yield* UserService;
+  const useUser = userService.useUser;
+  const logout = () => userService.logout();
   return function Page() {
-    const user = cashierService.current.useUser();
-    const handleLogout = () => {
-      cashierService.current.logout();
-    };
+    const user = useUser();
     const cards = user.role === "admin" ? adminCards : userCards;
 
     return (
@@ -80,7 +79,7 @@ const page = Effect.gen(function* () {
             </p>
           </div>
           <button
-            onClick={handleLogout}
+            onClick={logout}
             className={cn(
               "group flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-all hover:bg-accent hover:shadow-md",
               "text-destructive hover:text-destructive",

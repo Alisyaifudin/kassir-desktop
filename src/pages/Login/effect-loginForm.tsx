@@ -18,14 +18,16 @@ import { useForm } from "@tanstack/react-form";
 import { Effect } from "effect";
 import { Cashier, CashierService } from "~/services/cashier";
 import { HashService } from "~/services/hash";
+import { UserService } from "~/services/user";
 
 function program(id: string, password: string) {
   return Effect.gen(function* () {
     const cashierService = yield* CashierService;
     const hashService = yield* HashService;
+    const userService = yield* UserService;
     const { hash, ...cashier } = yield* cashierService.get.byId(id);
     yield* hashService.verify(password, hash);
-    cashierService.current.setUser(cashier);
+    userService.setUser(cashier);
     return null;
   }).pipe(
     Effect.catchTag("CashierError", () => Effect.succeed("Aplikasi bermasalah")),
@@ -38,10 +40,12 @@ function program(id: string, password: string) {
 export const loginForm = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const hashService = yield* HashService;
+  const userService = yield* UserService;
   const runnable = (id: string, password: string) =>
     program(id, password).pipe(
       Effect.provideService(CashierService, cashierService),
       Effect.provideService(HashService, hashService),
+      Effect.provideService(UserService, userService),
     );
   return function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
     const { form, error } = useLoginForm(runnable);
@@ -132,7 +136,7 @@ type InputForm = z.infer<typeof schema>;
 
 const defaultValues: InputForm = { id: "", password: "" };
 
-export function useLoginForm(
+function useLoginForm(
   runnable: (id: string, password: string) => Effect.Effect<string | null>,
 ) {
   const navigate = useNavigate();

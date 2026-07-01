@@ -4,9 +4,9 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export const readLogEffect = Effect.gen(function* () {
   const logService = yield* LogService;
-  const useLogLines = logService.log.useData;
+  const useLogLines = logService.useLog;
   return function ReadLog() {
-    const { data: lines } = useLogLines();
+    const lines = useLogLines()
     return (
       <>
         {lines.map((t, i) => (

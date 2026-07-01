@@ -5,17 +5,23 @@ import { TextError } from "~/components/TextError";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { Effect } from "effect";
 import { InfoService } from "~/services/info";
+import { useState } from "react";
 
 export const cashierCheckbox = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const useShowCashier = infoService.showCashier.useData;
-  const setShowCashier = (state: CheckedState) => {
-    if (state === "indeterminate") return;
-    infoService.showCashier.setData(state);
-  };
+  const useShowCashier = infoService.showCashier.useShowCashier;
+  const set = (showCashier: boolean) => infoService.showCashier.set(showCashier);
   return function CashierCheckbox() {
-    const { data: showCashier, state, error } = useShowCashier();
-    const loading = state === "loading";
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<null | string>(null);
+    const showCashier = useShowCashier();
+    const setShowCashier = async (state: CheckedState) => {
+      if (state === "indeterminate") return;
+      setLoading(true);
+      const error = await set(state);
+      setLoading(false);
+      setError(error);
+    };
     return (
       <>
         <Label className="flex items-center gap-3">

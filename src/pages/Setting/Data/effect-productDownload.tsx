@@ -36,7 +36,7 @@ export const productDownload = Effect.gen(function* () {
 //========================================================
 //========================================================
 
-export function useProduct(save: Effect.Effect<string | null>) {
+function useProduct(save: Effect.Effect<string | null>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

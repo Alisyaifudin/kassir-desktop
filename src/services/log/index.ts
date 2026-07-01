@@ -1,14 +1,13 @@
 import { Context, Effect } from "effect";
-import { AsyncDataState, Status } from "~/lib/state";
 import { LogError } from "./error";
 
 export class LogService extends Context.Tag("LogService")<
   LogService,
   {
     put(e: unknown): Effect.Effect<void>;
-    useLoad(): Status<LogError>;
-    log: AsyncDataState<string[], string>;
-    clear(): Effect.Effect<void, LogError>;
+    loader(): Promise<LogError | null>;
+    useLog(): string[];
+    clear(): Promise<string | null>;
   }
 >() {}
 

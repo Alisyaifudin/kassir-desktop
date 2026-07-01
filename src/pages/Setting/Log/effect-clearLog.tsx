@@ -4,7 +4,6 @@ import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { LogService } from "~/services/log";
-import { LogError } from "~/services/log/error";
 
 export const clearLogEffect = Effect.gen(function* () {
   const logService = yield* LogService;
@@ -23,19 +22,14 @@ export const clearLogEffect = Effect.gen(function* () {
   };
 });
 
-function useClearLog(clear: () => Effect.Effect<void, LogError>) {
+function useClearLog(clear: () => Promise<string | null>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
 
   async function handleClear() {
     if (loading) return;
     setLoading(true);
-    const error = await Effect.runPromise(
-      clear().pipe(
-        Effect.map(() => null),
-        Effect.catchAll(() => Effect.succeed("Aplikasi bermasalah")),
-      ),
-    );
+    const error = await clear();
     setLoading(false);
     setError(error);
   }

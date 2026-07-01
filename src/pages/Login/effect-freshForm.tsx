@@ -9,31 +9,27 @@ import { useNavigate } from "react-router";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { Effect } from "effect";
-import { HashService } from "~/services/hash";
 import { CashierService } from "~/services/cashier";
+import { UserService } from "~/services/user";
 
 function program(name: string, password: string) {
   return Effect.gen(function* () {
-    const hashService = yield* HashService;
     const cashierService = yield* CashierService;
-    const hash = yield* hashService.hash(password);
+    const userService = yield* UserService;
     const role: DBNamespace.Role = "admin";
-    const id = yield* cashierService.add({ name, role, hash });
-    cashierService.current.setUser({ id, role, name });
+    const id = yield* cashierService.add({ name, role, password });
+    userService.setUser({ id, role, name });
     return null;
-  }).pipe(
-    Effect.catchTag("HashError", () => Effect.succeed("Gagal meng-hash kata sandi")),
-    Effect.catchTag("CashierError", () => Effect.succeed("Gagal menyimpan di kasir baru")),
-  );
+  }).pipe(Effect.catchAll((e) => Effect.succeed(e)));
 }
 
 export const freshForm = Effect.gen(function* () {
-  const hashService = yield* HashService;
   const cashierService = yield* CashierService;
+  const userService = yield* UserService;
   const runnable = (name: string, password: string) =>
     program(name, password).pipe(
-      Effect.provideService(HashService, hashService),
       Effect.provideService(CashierService, cashierService),
+      Effect.provideService(UserService, userService),
     );
   return function FreshForm() {
     const { form, error } = useFreshForm(runnable);
@@ -135,7 +131,7 @@ type InputForm = z.infer<typeof schema>;
 
 const defaultValues: InputForm = { name: "", password: "", confirm: "" };
 
-export function useFreshForm(
+function useFreshForm(
   program: (name: string, password: string) => Effect.Effect<string | null>,
 ) {
   const navigate = useNavigate();

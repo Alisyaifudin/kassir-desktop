@@ -5,13 +5,21 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Cashier, CashierService } from "~/services/cashier";
+import { UserService } from "~/services/user";
 
 export const nameFormEffect = Effect.gen(function* () {
+  const userService = yield* UserService;
   const cashierService = yield* CashierService;
   const update = (id: string, name: string) =>
-    program(id, name).pipe(Effect.provideService(CashierService, cashierService));
+    Effect.runPromise(
+      program(id, name).pipe(
+        Effect.provideService(CashierService, cashierService),
+        Effect.provideService(UserService, userService),
+      ),
+    );
+  const useUser = userService.useUser;
   return function NameForm() {
-    const user = cashierService.current.useUser();
+    const user = useUser();
     const { loading, error, input, handleInput, handleSubmit } = useNameForm(update, user);
     return (
       <form onSubmit={handleSubmit} className="flex-col gap-2 flex">
@@ -36,17 +44,20 @@ export const nameFormEffect = Effect.gen(function* () {
 
 function program(id: string, name: string) {
   return Effect.gen(function* () {
-    const service = yield* CashierService;
-    yield* service.update.name(id, name);
-    service.current.setUser({ ...service.current.user!, name });
+    const cashierService = yield* CashierService;
+    const userService = yield* UserService;
+    const error = yield* Effect.promise(() => cashierService.set.name(id, name));
+    if (error !== null) {
+      return error;
+    }
+    const currentUser = userService.user;
+    if (!currentUser) return "Pengguna tidak ditemukan";
+    userService.setUser({ ...currentUser, name });
     return null;
-  }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message)));
+  });
 }
 
-function useNameForm(
-  update: (id: string, name: string) => Effect.Effect<string | null>,
-  user: Cashier,
-) {
+function useNameForm(update: (id: string, name: string) => Promise<string | null>, user: Cashier) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [input, setInput] = useState(user.name);
@@ -55,7 +66,7 @@ function useNameForm(
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    const err = await Effect.runPromise(update(user.id, input));
+    const err = await update(user.id, input);
     setLoading(false);
     setError(err);
   }

@@ -25,7 +25,7 @@ const schema = z.object({
 
 export const newCustomerEffect = Effect.gen(function* () {
   const customerService = yield* CustomerService;
-  const add = customerService.add;
+  const add = (name: string, phone: string) => customerService.add(name, phone);
   return function NewCustomer() {
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<null | string>(null);
@@ -33,12 +33,7 @@ export const newCustomerEffect = Effect.gen(function* () {
       defaultValues: { name: "", phone: "" },
       validators: { onSubmit: schema },
       async onSubmit({ value }) {
-        const errMsg = await Effect.runPromise(
-          add(value.name, value.phone).pipe(
-            Effect.as(null),
-            Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-          ),
-        );
+        const errMsg = await add(value.name, value.phone);
         setError(errMsg);
         if (errMsg === null) {
           setOpen(false);

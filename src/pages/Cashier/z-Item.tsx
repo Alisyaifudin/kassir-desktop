@@ -21,18 +21,17 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Show } from "~/components/Show";
-import { Cashier, CashierError } from "~/services/cashier";
-import { Effect } from "effect";
+import { Cashier } from "~/services/cashier";
 
 type ItemProps = {
   cashier: Cashier;
   currentUserName: string;
-  onUpdateName: (id: string, name: string) => Effect.Effect<void, CashierError>;
-  onUpdateRole: (id: string, role: DBNamespace.Role) => Effect.Effect<void, CashierError>;
-  onDelete: (id: string) => Effect.Effect<void, CashierError>;
+  onUpdateName: (id: string, name: string) => Promise<string | null>;
+  onUpdateRole: (id: string, role: DBNamespace.Role) => Promise<string | null>;
+  onDelete: (id: string) => Promise<string | null>;
 };
 
-export const CashierItem = memo(function CashierItem({
+export function CashierItem({
   cashier,
   currentUserName,
   onUpdateName,
@@ -40,78 +39,84 @@ export const CashierItem = memo(function CashierItem({
   onDelete,
 }: ItemProps) {
   const isSelf = currentUserName === cashier.name;
-  const [nameLoading, setNameLoading] = useState(false);
-  const [nameError, setNameError] = useState<null | string>(null);
   const [name, setName] = useState(cashier.name);
+  const [error, setError] = useState<null | string>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleNameSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (nameLoading) return;
-    setNameLoading(true);
-    const err = await Effect.runPromise(
-      onUpdateName(cashier.id, name).pipe(
-        Effect.as(null),
-        Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-      ),
-    );
-    setNameLoading(false);
-    setNameError(err);
+    if (loading) return;
+    setLoading(true);
+    const error = await onUpdateName(cashier.id, name);
+    setLoading(false);
+    setError(error);
   }
 
   async function handleRoleChange(role: string) {
     if (role !== "admin" && role !== "user") return;
-    await Effect.runPromise(
-      onUpdateRole(cashier.id, role).pipe(Effect.catchAll(() => Effect.void)),
-    );
+    if (loading) return;
+    setLoading(true);
+    const error = await onUpdateRole(cashier.id, role);
+    setLoading(false);
+    setError(error);
   }
 
   return (
-    <form
-      onSubmit={handleNameSubmit}
-      className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center gap-3 rounded-xl transition-colors hover:bg-accent/50"
-    >
-      <div className="flex flex-col gap-1">
-        {isSelf ? (
-          <p className="pl-3 text-foreground font-medium">{cashier.name}</p>
-        ) : (
-          <>
-            <Input
-              type="text"
-              disabled={nameLoading}
-              value={name}
-              onChange={(e) => setName(e.currentTarget.value)}
-              name="name"
-              aria-autocomplete="list"
-              className="bg-background border-border"
-            />
-            <TextError>{nameError}</TextError>
-          </>
-        )}
-      </div>
-      <Select value={cashier.role} onValueChange={handleRoleChange} disabled={isSelf}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Peran" />
-        </SelectTrigger>
-        <SelectContent position="item-aligned">
-          <SelectItem value="admin">Admin</SelectItem>
-          <SelectItem value="user">User</SelectItem>
-        </SelectContent>
-      </Select>
-      <Show when={!nameLoading && !isSelf} fallback={<Spinner when />}>
-        <DeleteDialog name={cashier.name} id={cashier.id} onDelete={onDelete} />
-      </Show>
-    </form>
+    <div className="flex flex-col gap-1">
+      <form
+        onSubmit={handleNameSubmit}
+        className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center gap-3 rounded-xl transition-colors hover:bg-accent/50"
+      >
+        <div className="flex flex-col gap-1">
+          {isSelf ? (
+            <p className="pl-3 text-foreground font-medium">{cashier.name}</p>
+          ) : (
+            <div>
+              <Input
+                type="text"
+                disabled={loading}
+                value={name}
+                onChange={(e) => setName(e.currentTarget.value)}
+                name="name"
+                aria-autocomplete="list"
+                className="bg-background border-border"
+              />
+            </div>
+          )}
+        </div>
+        <Select value={cashier.role} onValueChange={handleRoleChange} disabled={isSelf}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Peran" />
+          </SelectTrigger>
+          <SelectContent position="item-aligned">
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="user">User</SelectItem>
+          </SelectContent>
+        </Select>
+        <Show when={!loading && !isSelf} fallback={<Spinner when />}>
+          <DeleteDialog
+            name={cashier.name}
+            id={cashier.id}
+            onDelete={onDelete}
+            isLoading={loading}
+          />
+        </Show>
+      </form>
+      <TextError>{error}</TextError>
+    </div>
   );
-});
+}
 
 const DeleteDialog = memo(function DeleteDialog({
   name,
   id,
   onDelete,
+  isLoading,
 }: {
   name: string;
   id: string;
-  onDelete: (id: string) => Effect.Effect<void, CashierError>;
+  onDelete: (id: string) => Promise<string | null>;
+  isLoading: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -119,14 +124,9 @@ const DeleteDialog = memo(function DeleteDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (loading) return;
+    if (loading || isLoading) return;
     setLoading(true);
-    const err = await Effect.runPromise(
-      onDelete(id).pipe(
-        Effect.as(null),
-        Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-      ),
-    );
+    const err = await onDelete(id);
     setLoading(false);
     setError(err);
     if (err === null) setOpen(false);
@@ -135,7 +135,7 @@ const DeleteDialog = memo(function DeleteDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Button className="rounded-full p-2" type="button" asChild variant="destructive">
-        <DialogTrigger>
+        <DialogTrigger disabled={loading || isLoading}>
           <X />
         </DialogTrigger>
       </Button>

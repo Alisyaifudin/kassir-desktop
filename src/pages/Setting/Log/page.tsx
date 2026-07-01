@@ -7,11 +7,10 @@ import { TextError } from "~/components/TextError";
 
 const page = Effect.gen(function* () {
   const logService = yield* LogService;
-  const useLoad = logService.useLoad;
+  const loader = logService.loader;
   const ReadLog = yield* readLogEffect;
   const ClearLog = yield* clearLogEffect;
   return function Page() {
-    const status = useLoad();
     return (
       <div className="flex flex-col gap-4 p-6 flex-1 overflow-hidden">
         <div className="flex flex-col gap-1">
@@ -21,7 +20,7 @@ const page = Effect.gen(function* () {
 
         <div className="rounded-2xl border bg-card p-4 shadow-sm flex-1 flex flex-col">
           <StateWrap
-            status={status}
+            loader={loader}
             loading={<LoadingLines />}
             error={({ e }) => <TextError>{e.message}</TextError>}
           >

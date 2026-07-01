@@ -8,7 +8,6 @@ import { Field, FieldError } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { Social } from "~/services/social/type";
-import { SocialError } from "~/services/social/error";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import z from "zod";
@@ -20,11 +19,11 @@ const schema = z.object({
 
 export const socialListEffect = Effect.gen(function* () {
   const socialService = yield* SocialService;
-  const useSocials = socialService.socials.useData;
-  const onUpdate = socialService.update;
-  const onDelete = socialService.delete;
+  const useSocials = socialService.useSocials;
+  const onUpdate = (social: { id: string; name: string; value: string }) => socialService.set(social);
+  const onDelete = (id: string) => socialService.delete(id);
   return function SocialList() {
-    const { data: socials } = useSocials();
+    const socials = useSocials();
     if (socials.length === 0) return <p className="text-big">---Belum Ada---</p>;
     return (
       <div className="flex flex-col gap-1 overflow-y-auto">
@@ -38,8 +37,8 @@ export const socialListEffect = Effect.gen(function* () {
 
 type ItemProps = {
   social: Social;
-  onUpdate: (id: string, name: string, value: string) => Effect.Effect<void, SocialError>;
-  onDelete: (id: string) => Effect.Effect<void, SocialError>;
+  onUpdate: (social: { id: string; name: string; value: string }) => Promise<string | null>;
+  onDelete: (id: string) => Promise<string | null>;
 };
 
 function SocialItem({ social, onUpdate, onDelete }: ItemProps) {
@@ -48,12 +47,7 @@ function SocialItem({ social, onUpdate, onDelete }: ItemProps) {
     defaultValues: { name: social.name, value: social.value },
     validators: { onSubmit: schema },
     async onSubmit({ value }) {
-      const errMsg = await Effect.runPromise(
-        onUpdate(social.id, value.name, value.value).pipe(
-          Effect.as(null),
-          Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-        ),
-      );
+      const errMsg = await onUpdate({ id: social.id, name: value.name, value: value.value })
       setError(errMsg);
     },
   });
@@ -114,7 +108,7 @@ function SocialItem({ social, onUpdate, onDelete }: ItemProps) {
           </Show>
         )}
       </form.Subscribe>
-      <TextError className="col-span-2">{error}</TextError>
+      <TextError className="col-span-3">{error}</TextError>
     </form>
   );
 }

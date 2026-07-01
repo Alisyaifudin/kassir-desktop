@@ -17,7 +17,6 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field
 import { useForm } from "@tanstack/react-form";
 import z from "zod";
 import { CashierService } from "~/services/cashier";
-import { HashService } from "~/services/hash";
 
 const schema = z.object({
   name: z.string().nonempty(),
@@ -25,12 +24,7 @@ const schema = z.object({
 
 export const newCashierEffect = Effect.gen(function* () {
   const cashierService = yield* CashierService;
-  const hashService = yield* HashService;
-  const add = (name: string) =>
-    program(name).pipe(
-      Effect.provideService(CashierService, cashierService),
-      Effect.provideService(HashService, hashService),
-    );
+  const add = (name: string) => cashierService.add({ name, role: "user", password: "" });
   return function NewCashier() {
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<null | string>(null);
@@ -38,12 +32,13 @@ export const newCashierEffect = Effect.gen(function* () {
       defaultValues: { name: "" },
       validators: { onSubmit: schema },
       async onSubmit({ value }) {
-        const errMsg = await Effect.runPromise(add(value.name));
-        setError(errMsg);
-        if (errMsg === null) {
-          setOpen(false);
-          form.reset();
-        }
+        const error = await Effect.runPromise(
+          add(value.name).pipe(
+            Effect.as(null),
+            Effect.catchAll((e) => Effect.succeed(e)),
+          ),
+        );
+        setError(error);
       },
     });
     return (
@@ -104,13 +99,3 @@ export const newCashierEffect = Effect.gen(function* () {
     );
   };
 });
-
-function program(name: string) {
-  return Effect.gen(function* () {
-    const cashierService = yield* CashierService;
-    const hashService = yield* HashService;
-    const hash = yield* hashService.hash("");
-    yield* cashierService.add({ name, role: "user", hash });
-    return null;
-  }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message)));
-}

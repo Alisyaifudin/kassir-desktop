@@ -4,14 +4,13 @@ import { Show } from "~/components/Show";
 import { Kbd } from "~/components/ui/kdb";
 import { useShortcut, showShortcut } from "./use-shortcut";
 import { Effect } from "effect";
-import { CashierService } from "~/services/cashier";
+import { UserService } from "~/services/user";
 
 export const topNavList = Effect.gen(function* () {
-  const cashierService = yield* CashierService;
-  const useUser = cashierService.current.useUser;
+  const userService = yield* UserService;
+  const useUser = userService.useUser;
   return function TopNavList() {
     const role = useUser().role;
-
     return (
       <div className="hidden md:flex items-end gap-1 h-full pt-2">
         <TopNavLink path="/shop" label="Toko" alt="alt+0" root />

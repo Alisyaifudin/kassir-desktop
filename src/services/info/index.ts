@@ -1,5 +1,4 @@
-import { Context, Effect } from "effect";
-import { AsyncDataState, Status } from "~/lib/state";
+import { Context } from "effect";
 import { InfoError } from "./error";
 
 export { InfoError } from "./error";
@@ -18,13 +17,15 @@ export type InfoFull = Info & {
 export class InfoService extends Context.Tag("InfoService")<
   InfoService,
   {
-    useLoad: () => Status<InfoError>;
-    info: AsyncDataState<Info, string>;
-    showCashier: AsyncDataState<boolean, string>;
-    useName: () => string;
-    set: {
-      info: (info: Info) => Effect.Effect<Info, string>;
-      showCashier: (showCashier: boolean) => Effect.Effect<boolean, string>;
+    loader: () => Promise<null | InfoError>;
+    info: {
+      useInfo(): Info;
+      set(info: Info): Promise<string | null>;
     };
+    showCashier: {
+      useShowCashier(): boolean;
+      set(showCashier: boolean): Promise<string | null>;
+    };
+    useName: () => string;
   }
 >() {}

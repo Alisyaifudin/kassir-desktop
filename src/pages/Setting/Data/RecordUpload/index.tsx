@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { SchemaDialog } from "./z-Schema";
 import { UploadInput } from "~/components/UploadInput";
 import { RecordFull } from "~/services/record/type";
@@ -10,6 +9,7 @@ import { DuplicateError } from "~/lib/error-effect";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { formatDate, formatEpochtime } from "~/lib/date";
 import { Temporal } from "temporal-polyfill";
+import { useUploadProgress } from "~/components/UploadProgress";
 
 export const recordUpload = Effect.gen(function* () {
   const recordService = yield* RecordService;
@@ -28,71 +28,20 @@ export const recordUpload = Effect.gen(function* () {
   };
 });
 
+type RecordError_ = RecordError | RecordAlreadyExistError;
+
 function UploadedEntries({
   records,
   add,
 }: {
   records: RecordFull[];
-  add: (record: RecordFull) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
+  add: (record: RecordFull) => Effect.Effect<void, RecordError_>;
 }) {
-  const startedRef = useRef(false);
-  const [progress, setProgress] = useState<
-    (
-      | { state: "pending"; id: string; paidAt: number }
-      | {
-          state: "error";
-          id: string;
-          paidAt: number;
-          error: RecordError | RecordAlreadyExistError | DuplicateError;
-        }
-      | { state: "success"; id: string; paidAt: number }
-    )[]
-  >(() => records.map((r) => ({ state: "pending", id: r.id, paidAt: r.paidAt })));
-
-  const init = useCallback(async () => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    const insertedSet = new Set<string>();
-    for (let i = 0; i < records.length; i++) {
-      const record = records[i];
-      if (insertedSet.has(record.id)) {
-        setProgress((prev) => {
-          const next = [...prev];
-          next[i] = {
-            state: "error",
-            id: record.id,
-            paidAt: record.paidAt,
-            error: DuplicateError.new(
-              `Duplikat. Riwayat dengan id: ${record.id} sudah dimasukkan.`,
-            ),
-          };
-          return next;
-        });
-        continue;
-      }
-      const error = await Effect.runPromise(
-        add(record).pipe(
-          Effect.as(null),
-          Effect.catchAll((e) => Effect.succeed(e)),
-        ),
-      );
-      setProgress((prev) => {
-        const next = [...prev];
-        if (error) {
-          next[i] = { state: "error", id: record.id, paidAt: record.paidAt, error };
-        } else {
-          insertedSet.add(record.id);
-          next[i] = { state: "success", id: record.id, paidAt: record.paidAt };
-        }
-        return next;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    init();
-  }, [init]);
+  const progress = useUploadProgress({
+    items: records,
+    getId: (r) => r.id,
+    add,
+  });
 
   if (records.length === 0) return null;
 
@@ -103,7 +52,7 @@ function UploadedEntries({
       {progress.map((item, i) => {
         if (item.state === "pending" && i !== firstPendingIndex) return null;
         return (
-          <li key={item.id} className="flex flex-col gap-1 text-small">
+          <li key={item.item.id} className="flex flex-col gap-1 text-small">
             <div className="flex items-center gap-2">
               <span>{i + 1}.</span>
               {item.state === "success" ? (
@@ -114,7 +63,7 @@ function UploadedEntries({
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               )}
               <span>
-                {item.id} &mdash; {formatEpochtime(item.paidAt)}
+                {item.item.id} &mdash; {formatEpochtime(item.item.paidAt)}
               </span>
             </div>
             {item.state === "error" && <ErrorComp error={item.error} />}

@@ -1,6 +1,6 @@
 import { TextError } from "~/components/TextError";
 import { X } from "lucide-react";
-import { memo, useState } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -12,10 +12,8 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Spinner } from "~/components/Spinner";
-import { CustomerError } from "~/services/customer/error";
-import { Effect } from "effect";
 
-export const DeleteDialog = memo(function DeleteDialog({
+export function DeleteDialog({
   id,
   name,
   phone,
@@ -24,7 +22,7 @@ export const DeleteDialog = memo(function DeleteDialog({
   id: string;
   name: string;
   phone: string;
-  onDelete: (id: string) => Effect.Effect<void, CustomerError>;
+  onDelete: (id: string) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,12 +32,7 @@ export const DeleteDialog = memo(function DeleteDialog({
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    const err = await Effect.runPromise(
-      onDelete(id).pipe(
-        Effect.as(null),
-        Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-      ),
-    );
+    const err = await onDelete(id);
     setLoading(false);
     setError(err);
     if (err === null) setOpen(false);
@@ -72,4 +65,4 @@ export const DeleteDialog = memo(function DeleteDialog({
       </DialogContent>
     </Dialog>
   );
-});
+}

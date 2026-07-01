@@ -14,17 +14,21 @@ import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { CashierService } from "~/services/cashier";
 import { HashService } from "~/services/hash";
+import { UserService } from "~/services/user";
 
 export const passwordFormEffect = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const hashService = yield* HashService;
+  const userService = yield* UserService;
   const update = (id: string, password: string) =>
-    program(id, password).pipe(
-      Effect.provideService(CashierService, cashierService),
-      Effect.provideService(HashService, hashService),
+    Effect.runPromise(
+      program(id, password).pipe(
+        Effect.provideService(CashierService, cashierService),
+        Effect.provideService(HashService, hashService),
+      ),
     );
   return function PasswordForm() {
-    const user = cashierService.current.useUser();
+    const user = userService.useUser();
     const { loading, error, input, handleInput, handleSubmit } = usePasswordForm(update, user.id);
     return (
       <Accordion type="single" collapsible className="text-white">
@@ -61,15 +65,18 @@ export const passwordFormEffect = Effect.gen(function* () {
 
 function program(id: string, password: string) {
   return Effect.gen(function* () {
-    const service = yield* CashierService;
+    const cashierService = yield* CashierService;
     const hashService = yield* HashService;
     const hash = yield* hashService.hash(password);
-    yield* service.update.hash(id, hash);
+    const error = yield* Effect.promise(() => cashierService.set.hash(id, hash));
+    if (error !== null) {
+      return error;
+    }
     return null;
   }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message)));
 }
 
-function usePasswordForm(update: (id: string, password: string) => Effect.Effect<string | null>, userId: string) {
+function usePasswordForm(update: (id: string, password: string) => Promise<string | null>, userId: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [input, setInput] = useState("");
@@ -78,7 +85,7 @@ function usePasswordForm(update: (id: string, password: string) => Effect.Effect
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    const err = await Effect.runPromise(update(userId, input));
+    const err = await update(userId, input);
     setLoading(false);
     setError(err);
     if (err === null) {

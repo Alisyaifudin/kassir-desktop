@@ -9,37 +9,42 @@ import {
 import { TextError } from "~/components/TextError";
 import { Effect } from "effect";
 import { PrinterService } from "~/services/print";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { FieldHeader } from "./z-FieldHeader";
 
 export const selectPrinter = Effect.gen(function* () {
   const printerService = yield* PrinterService;
-  const usePrinters = printerService.usePrinters;
-  const printer = printerService.printer;
+  const usePrinters = printerService.printer.usePrinters;
+  const usePrinter = printerService.printer.usePrinter;
   return function SelectPrinter() {
     const printers = usePrinters();
-    const state = printer.useData();
-    const current = state.data;
+    const printer = usePrinter();
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
     const selected =
       printers.length === 0
         ? undefined
-        : current !== null
-          ? printers.find((printer) => printer.id === current.id)
+        : printer !== null
+          ? printers.find((p) => p.id === printer.id)
           : printers[0];
     const handleChange = useCallback(
-      (id: string) => {
+      async (id: string) => {
+        if (loading) return;
         const selected = printers.find((p) => p.id === id);
         if (selected === undefined) return;
-        printer.setData(selected);
+        setLoading(true);
+        const error = await printerService.printer.set(selected);
+        setLoading(false);
+        setError(error);
       },
-      [printers],
+      [printers, loading],
     );
     return (
       <div className="flex flex-col gap-1">
         <FieldHeader
           id="default-printer"
           label="Printer Terpilih"
-          loading={state.state === "loading"}
+          loading={loading}
           description="Pilih printer yang akan digunakan untuk mencetak struk"
         />
 
@@ -57,7 +62,7 @@ export const selectPrinter = Effect.gen(function* () {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <TextError>{state?.error}</TextError>
+        <TextError>{error}</TextError>
       </div>
     );
   };

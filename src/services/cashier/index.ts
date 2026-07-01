@@ -1,7 +1,6 @@
 import { Context, Effect } from "effect";
-import { NotFoundError } from "~/lib/error-effect";
 import { CashierError } from "./error";
-import { AsyncDataState, Status } from "~/lib/state";
+import { NotFoundError } from "~/lib/error-effect";
 
 export { CashierError } from "./error";
 
@@ -18,28 +17,22 @@ export type CashierFull = Cashier & {
 export class CashierService extends Context.Tag("CashierService")<
   CashierService,
   {
-    useLoad(): Status<CashierError>;
-    cashiers: AsyncDataState<Cashier[], string>;
-    get: {
-      all: () => Effect.Effect<Cashier[], CashierError>;
-      byId: (id: string) => Effect.Effect<CashierFull, CashierError | NotFoundError>;
-    };
+    loader(): Promise<CashierError | null>; // load all cashiers
+    useCashiers(): Cashier[];
     add: (user: {
       name: string;
       role: DBNamespace.Role;
-      hash: string;
-    }) => Effect.Effect<string, CashierError>;
-    update: {
-      name: (id: string, name: string) => Effect.Effect<void, CashierError>;
-      hash: (id: string, hash: string) => Effect.Effect<void, CashierError>;
-      role: (id: string, role: DBNamespace.Role) => Effect.Effect<void, CashierError>;
+      password: string;
+    }) => Effect.Effect<string, string>;
+    delete(id: string): Promise<string | null>;
+    set: {
+      name(id: string, name: string): Promise<string | null>;
+      hash: (id: string, hash: string) => Promise<string | null>;
+      role: (id: string, role: DBNamespace.Role) => Promise<string | null>;
     };
-    delete(id: string): Effect.Effect<void, CashierError>;
-    current: {
-      readonly useUser: () => Cashier;
-      readonly user?: Cashier;
-      logout: () => void;
-      setUser: (user: Cashier) => void;
+    get: {
+      all(): Effect.Effect<Cashier[], CashierError>;
+      byId(id: string): Effect.Effect<CashierFull, CashierError | NotFoundError>;
     };
   }
 >() {}

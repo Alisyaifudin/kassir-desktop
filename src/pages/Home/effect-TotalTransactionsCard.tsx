@@ -78,14 +78,4 @@ function Loading() {
   );
 }
 
-// const getTime = Effect.sync(() => {
-//   const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
-//   const endOfDay = today.add(Temporal.Duration.from({ days: 1 }));
-//   return [today.epochMilliseconds, endOfDay.epochMilliseconds];
-// });
 
-// const program = Effect.gen(function* () {
-//   const [start, end] = yield* getTime;
-//   const db = yield* DBService;
-//   return yield* db.record.count.record(start, end);
-// });

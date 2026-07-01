@@ -8,11 +8,10 @@ import { newCustomerEffect } from "./effect-newCustomer";
 
 const page = Effect.gen(function* () {
   const customerService = yield* CustomerService;
-  const useLoad = customerService.useLoad;
+  const loader = customerService.loader;
   const CustomerList = yield* customerListEffect;
   const NewCustomer = yield* newCustomerEffect;
   return function Page() {
-    const status = useLoad();
     return (
       <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
         <div className="flex flex-col gap-1">
@@ -20,7 +19,7 @@ const page = Effect.gen(function* () {
           <p className="text-muted-foreground text-normal">Kelola informasi pelanggan dan kontak</p>
         </div>
         <StateWrap
-          status={status}
+          loader={loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >

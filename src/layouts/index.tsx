@@ -3,7 +3,6 @@ import { Toaster } from "~/components/ui/sonner";
 import { useNavigationShortcuts } from "./use-navigation-shortcuts";
 import { Effect } from "effect";
 import { topbar } from "./effect-topbar";
-// import { SyncFloating } from "./z-SyncFloating";
 
 const layout = Effect.gen(function* () {
   const Topbar = yield* topbar;

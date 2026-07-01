@@ -1,16 +1,29 @@
+import { useEffect, useState } from "react";
 import { Status } from "~/lib/state";
 
 export function StateWrap<E>({
-  status,
+  loader,
   children,
   loading,
   error,
 }: {
-  status: Status<E>;
+  loader: () => Promise<E | null>;
   children: React.ReactNode;
   error: (error: E) => React.ReactNode;
   loading?: React.ReactNode;
 }) {
+  const [status, setStatus] = useState<Status<E>>({ state: "loading" });
+  useEffect(() => {
+    async function init() {
+      const error = await loader();
+      if (error !== null) {
+        setStatus({ error, state: "error" });
+      } else {
+        setStatus({ state: "success" });
+      }
+    }
+    init()
+  }, [loader]);
   switch (status.state) {
     case "loading":
       return loading;

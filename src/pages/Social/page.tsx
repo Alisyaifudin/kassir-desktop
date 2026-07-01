@@ -9,11 +9,10 @@ import { cn } from "~/lib/utils";
 
 const page = Effect.gen(function* () {
   const socialService = yield* SocialService;
-  const useLoad = socialService.useLoad;
+  const loader = socialService.loader;
   const SocialList = yield* socialListEffect;
   const NewSocial = yield* newSocialEffect;
   return function Page() {
-    const status = useLoad();
     return (
       <div className="flex flex-col gap-4 p-6 w-full flex-1 overflow-hidden">
         <div className="flex flex-col gap-1">
@@ -32,7 +31,7 @@ const page = Effect.gen(function* () {
           <p className="font-semibold text-foreground">Isian</p>
         </div>
         <StateWrap
-          status={status}
+          loader={loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >

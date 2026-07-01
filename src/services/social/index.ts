@@ -1,15 +1,14 @@
-import { Context, Effect } from "effect";
-import { AsyncDataState, Status } from "~/lib/state";
+import { Context } from "effect";
 import { Social } from "./type";
 import { SocialError } from "./error";
 
 export class SocialService extends Context.Tag("SocialService")<
   SocialService,
   {
-    useLoad(): Status<SocialError>;
-    socials: AsyncDataState<Social[], string>;
-    add(name: string, value: string): Effect.Effect<string, SocialError>;
-    update(id: string, name: string, value: string): Effect.Effect<void, SocialError>;
-    delete(id: string): Effect.Effect<void, SocialError>;
+    loader(): Promise<SocialError | null>;
+    useSocials(): Social[];
+    set(social: { id: string; name: string; value: string }): Promise<string | null>;
+    add(name: string, value: string): Promise<string | null>;
+    delete(id: string): Promise<string | null>;
   }
 >() {}

@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -24,7 +25,7 @@ const schema = z.object({
 
 export const newSocialEffect = Effect.gen(function* () {
   const socialService = yield* SocialService;
-  const add = socialService.add;
+  const add = (name: string, value: string) => socialService.add(name, value);
   return function NewSocial() {
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<null | string>(null);
@@ -32,12 +33,7 @@ export const newSocialEffect = Effect.gen(function* () {
       defaultValues: { name: "", value: "" },
       validators: { onSubmit: schema },
       async onSubmit({ value }) {
-        const errMsg = await Effect.runPromise(
-          add(value.name, value.value).pipe(
-            Effect.as(null),
-            Effect.catchAll(({ e }) => Effect.succeed(e.message)),
-          ),
-        );
+        const errMsg = await add(value.name, value.value);
         setError(errMsg);
         if (errMsg === null) {
           setOpen(false);
@@ -53,62 +49,67 @@ export const newSocialEffect = Effect.gen(function* () {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle className="text-big">Tambah Kontak</DialogTitle>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                form.handleSubmit();
-              }}
-              className={cn(
-                "grid gap-2 items-center justify-end",
-                "grid-cols-[250px_1fr] small:grid-cols-[210px_1fr]",
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              form.handleSubmit();
+            }}
+            className={cn(
+              "grid gap-2 items-center justify-end",
+              "grid-cols-[250px_1fr] small:grid-cols-[210px_1fr]",
+            )}
+          >
+            <form.Field name="name">
+              {(field) => (
+                <Field>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.currentTarget.value)}
+                    disabled={field.form.state.isSubmitting}
+                    onBlur={field.handleBlur}
+                    placeholder="Nama Kontak"
+                    aria-autocomplete="list"
+                  />
+                  <FieldError errors={field.state.meta.errors} />
+                </Field>
               )}
-            >
-              <form.Field name="name">
-                {(field) => (
-                  <Field>
-                    <Input
-                      name={field.name}
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(e.currentTarget.value)}
-                      disabled={field.form.state.isSubmitting}
-                      onBlur={field.handleBlur}
-                      placeholder="Nama Kontak"
-                      aria-autocomplete="list"
-                    />
-                    <FieldError errors={field.state.meta.errors} />
-                  </Field>
-                )}
-              </form.Field>
-              <form.Field name="value">
-                {(field) => (
-                  <Field>
-                    <Input
-                      name={field.name}
-                      value={field.state.value}
-                      disabled={field.form.state.isSubmitting}
-                      onChange={(e) => field.handleChange(e.currentTarget.value)}
-                      onBlur={field.handleBlur}
-                      placeholder="Isian Kontak"
-                      aria-autocomplete="list"
-                    />
-                    <FieldError errors={field.state.meta.errors} />
-                  </Field>
-                )}
-              </form.Field>
-              <div className="col-span-2 flex flex-col items-end">
-                <TextError>{error}</TextError>
+            </form.Field>
+            <form.Field name="value">
+              {(field) => (
+                <Field>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    disabled={field.form.state.isSubmitting}
+                    onChange={(e) => field.handleChange(e.currentTarget.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="Isian Kontak"
+                    aria-autocomplete="list"
+                  />
+                  <FieldError errors={field.state.meta.errors} />
+                </Field>
+              )}
+            </form.Field>
+            <div className="col-span-2 flex flex-col items-end">
+              <TextError>{error}</TextError>
+              <div className="flex justify-between w-full mt-5">
+                <Button type="button" asChild variant="secondary">
+                  <DialogClose type="button">Batal</DialogClose>
+                </Button>
                 <form.Subscribe selector={(s) => s.isSubmitting}>
                   {(isSubmitting) => (
-                    <Button disabled={isSubmitting}>
+                    <Button type="submit" disabled={isSubmitting}>
                       Tambah
                       <Spinner when={isSubmitting} />
                     </Button>
                   )}
                 </form.Subscribe>
               </div>
-            </form>
-          </DialogHeader>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     );

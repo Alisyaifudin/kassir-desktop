@@ -7,11 +7,11 @@ import { StateWrap } from "~/components/StateWrap";
 
 export const title = Effect.gen(function* () {
   const info = yield* InfoService;
+  const loader = info.loader;
   return function Title() {
-    const status = info.useLoad();
     return (
       <StateWrap
-        status={status}
+        loader={loader}
         loading={
           <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
             <Skeleton className="h-5 w-24" />

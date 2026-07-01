@@ -5,9 +5,10 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import { Effect } from "effect";
-import { InfoService } from "~/services/info";
+import { InfoService, type Info } from "~/services/info";
 import z from "zod";
 import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
 
 const schema = z.object({
   name: z.string(),
@@ -18,18 +19,19 @@ const schema = z.object({
 
 export const infoEffect = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const state = infoService.info;
-  const useInfo = state.useData;
-  const setInfo = state.setData;
+  const useInfo = infoService.info.useInfo;
+  const set = (info: Info) => infoService.info.set(info);
   return function Info() {
     const info = useInfo();
+    const [error, setError] = useState<string | null>(null);
     const form = useForm({
-      defaultValues: info.data,
+      defaultValues: info,
       validators: {
         onSubmit: schema,
       },
-      onSubmit({ value }) {
-        return setInfo(value);
+      async onSubmit({ value }) {
+        const error = await set(value);
+        setError(error);
       },
     });
     return (
@@ -108,7 +110,7 @@ export const infoEffect = Effect.gen(function* () {
             </Field>
           )}
         </form.Field>
-        <TextError>{info.error}</TextError>
+        <TextError>{error}</TextError>
         <form.Subscribe selector={(e) => e.isSubmitting}>
           {(isSubmitting) => (
             <Button disabled={isSubmitting}>

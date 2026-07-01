@@ -26,8 +26,8 @@ function ErrorComp({ title, children }: { title: string; children: string }) {
 
 export const baseFinancialCard = (mode: DBNamespace.Mode) =>
   Effect.gen(function* () {
-    const agg = yield* DailySummaryService;
-    const loader = agg.total(mode);
+    const summary = yield* DailySummaryService;
+    const loader = () => summary.total(mode);
     return function BaseFinancialCard({ label, icon, color, errorTitle }: BaseFinancialCardProps) {
       return (
         <WithLoader
@@ -64,31 +64,4 @@ function Loading() {
   );
 }
 
-// const program = (mode: DBNamespace.Mode) =>
-//   Effect.gen(function* () {
-//     const db = yield* DBService;
-//     const time = yield* getTime;
-//     const [today, yesterday] = yield* Effect.all(
-//       [
-//         db.record.count.total(time.today.start, time.today.end, mode),
-//         db.record.count.total(time.yesterday.start, time.yesterday.end, mode),
-//       ],
-//       { concurrency: "unbounded" },
-//     );
-//     const todayValue = today.toLocaleString("id-ID");
-//     const diff = today - yesterday;
-//     const diffPercent = yesterday === 0 ? undefined : Math.abs((diff / yesterday) * 100).toFixed(1);
-//     const sign = diff >= 0 ? "+" : "-";
-//     return { todayValue, sign, diffPercent };
-//   }).pipe(Effect.tapError(LogPut));
 
-// const getTime = Effect.sync(() => {
-//   const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
-//   const endOfToday = today.add(Temporal.Duration.from({ days: 1 }));
-//   const startOfYesterday = today.subtract(Temporal.Duration.from({ days: 1 }));
-
-//   return {
-//     today: { start: today.epochMilliseconds, end: endOfToday.epochMilliseconds },
-//     yesterday: { start: startOfYesterday.epochMilliseconds, end: today.epochMilliseconds },
-//   };
-// });
