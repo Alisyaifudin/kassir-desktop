@@ -17,7 +17,7 @@ import { UserService } from "~/services/user";
 
 export const navGrid = Effect.gen(function* () {
   const userService = yield* UserService;
-  const useUser = userService.useUser;
+  const useUser = () => userService.useUser();
   return function NavGrid() {
     const user = useUser();
     const isAdmin = user.role === "admin";

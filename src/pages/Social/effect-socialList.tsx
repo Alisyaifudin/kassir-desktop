@@ -19,8 +19,9 @@ const schema = z.object({
 
 export const socialListEffect = Effect.gen(function* () {
   const socialService = yield* SocialService;
-  const useSocials = socialService.useSocials;
-  const onUpdate = (social: { id: string; name: string; value: string }) => socialService.set(social);
+  const useSocials = () => socialService.useSocials();
+  const onUpdate = (social: { id: string; name: string; value: string }) =>
+    socialService.set(social);
   const onDelete = (id: string) => socialService.delete(id);
   return function SocialList() {
     const socials = useSocials();
@@ -47,7 +48,7 @@ function SocialItem({ social, onUpdate, onDelete }: ItemProps) {
     defaultValues: { name: social.name, value: social.value },
     validators: { onSubmit: schema },
     async onSubmit({ value }) {
-      const errMsg = await onUpdate({ id: social.id, name: value.name, value: value.value })
+      const errMsg = await onUpdate({ id: social.id, name: value.name, value: value.value });
       setError(errMsg);
     },
   });

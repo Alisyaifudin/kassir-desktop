@@ -1,5 +1,5 @@
 import { User } from "lucide-react";
-import { NavLink } from "../z-NavLink";
+import { NavLink } from "./z-NavLink";
 
 export function UserPanel() {
   return (

@@ -6,7 +6,7 @@ import { Printer } from "./type";
 export class PrinterService extends Context.Tag("PrinterService")<
   PrinterService,
   {
-    testPrint(): Effect.Effect<void, PrintError>;
+    testPrint(): Promise<null | string>;
     print(record: RecordFull): Effect.Effect<void, PrintError>;
     loader(): Promise<PrintError | null>;
     size: {

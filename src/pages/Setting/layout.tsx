@@ -11,7 +11,7 @@ import { UserService } from "~/services/user";
 
 const layout = Effect.gen(function* () {
   const userService = yield* UserService;
-  const useUser = userService.useUser;
+  const useUser = () => userService.useUser();
   const logout = () => userService.logout();
   return function Layout() {
     const { pathname } = useLocation();

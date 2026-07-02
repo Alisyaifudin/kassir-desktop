@@ -12,6 +12,8 @@ import { MoneyError } from "~/services/money/error";
 
 export const uploadSelected = Effect.gen(function* () {
   const moneyService = yield* MoneyService;
+  const add = (pocketId: string, money: MoneyImport) =>
+    moneyService.money.add.external(pocketId, money);
   return function Selected({
     pocketId,
     data,
@@ -37,12 +39,7 @@ export const uploadSelected = Effect.gen(function* () {
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <UploadedEntries
-                pocketId={pocketId}
-                items={data.money}
-                add={(id, record) => moneyService.money.add.external(id, record)}
-                onDone={onRemove}
-              />
+              <UploadedEntries pocketId={pocketId} items={data.money} add={add} onDone={onRemove} />
             </>
           )}
         </Show>

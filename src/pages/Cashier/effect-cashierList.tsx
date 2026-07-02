@@ -6,8 +6,8 @@ import { UserService } from "~/services/user";
 export const cashierListEffect = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const userService = yield* UserService;
-  const useUser = userService.useUser;
-  const useCashiers = cashierService.useCashiers;
+  const useUser = () => userService.useUser();
+  const useCashiers = () => cashierService.useCashiers();
   const deleteCashier = (id: string) => cashierService.delete(id);
   const updateName = (id: string, name: string) => cashierService.set.name(id, name);
   const updateRole = (id: string, role: DBNamespace.Role) => cashierService.set.role(id, role);

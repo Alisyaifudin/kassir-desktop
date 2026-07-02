@@ -13,8 +13,9 @@ import { Loader2 } from "lucide-react";
 
 export const customerListEffect = Effect.gen(function* () {
   const customerService = yield* CustomerService;
-  const useCustomers = customerService.useCustomers;
-  const onUpdate = (id: string, name: string, phone: string) => customerService.set(id, name, phone);
+  const useCustomers = () => customerService.useCustomers();
+  const onUpdate = (id: string, name: string, phone: string) =>
+    customerService.set(id, name, phone);
   const onDelete = (id: string) => customerService.delete(id);
   return function CustomerList() {
     const customers = useCustomers();

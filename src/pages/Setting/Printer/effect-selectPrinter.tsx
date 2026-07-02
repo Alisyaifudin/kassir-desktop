@@ -14,8 +14,8 @@ import { FieldHeader } from "./z-FieldHeader";
 
 export const selectPrinter = Effect.gen(function* () {
   const printerService = yield* PrinterService;
-  const usePrinters = printerService.printer.usePrinters;
-  const usePrinter = printerService.printer.usePrinter;
+  const usePrinters = () => printerService.printer.usePrinters();
+  const usePrinter = () => printerService.printer.usePrinter();
   return function SelectPrinter() {
     const printers = usePrinters();
     const printer = usePrinter();

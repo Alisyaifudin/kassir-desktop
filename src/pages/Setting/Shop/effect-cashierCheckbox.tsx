@@ -9,7 +9,7 @@ import { useState } from "react";
 
 export const cashierCheckbox = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const useShowCashier = infoService.showCashier.useShowCashier;
+  const useShowCashier = () => infoService.showCashier.useShowCashier();
   const set = (showCashier: boolean) => infoService.showCashier.set(showCashier);
   return function CashierCheckbox() {
     const [loading, setLoading] = useState(false);

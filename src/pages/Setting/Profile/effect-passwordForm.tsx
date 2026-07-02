@@ -20,6 +20,7 @@ export const passwordFormEffect = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const hashService = yield* HashService;
   const userService = yield* UserService;
+  const useUser = () => userService.useUser();
   const update = (id: string, password: string) =>
     Effect.runPromise(
       program(id, password).pipe(
@@ -28,7 +29,7 @@ export const passwordFormEffect = Effect.gen(function* () {
       ),
     );
   return function PasswordForm() {
-    const user = userService.useUser();
+    const user = useUser();
     const { loading, error, input, handleInput, handleSubmit } = usePasswordForm(update, user.id);
     return (
       <Accordion type="single" collapsible className="text-white">
@@ -76,7 +77,10 @@ function program(id: string, password: string) {
   }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message)));
 }
 
-function usePasswordForm(update: (id: string, password: string) => Promise<string | null>, userId: string) {
+function usePasswordForm(
+  update: (id: string, password: string) => Promise<string | null>,
+  userId: string,
+) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [input, setInput] = useState("");

@@ -4,7 +4,7 @@ import { UserService } from "~/services/user";
 
 export const header = Effect.gen(function* () {
   const userService = yield* UserService;
-  const useUser = userService.useUser;
+  const useUser = () => userService.useUser();
   return function Header() {
     const user = useUser();
     const today = new Date().toLocaleDateString("id-ID", {

@@ -1,6 +1,6 @@
-import { selectSize } from "./z-SelectSize";
+import { selectSize } from "./effect-selectSize";
 import { Effect } from "effect";
-import { selectTheme } from "./z-SelectTheme";
+import { selectTheme } from "./effect-selectTheme";
 import { Separator } from "~/components/ui/separator";
 
 export const page = Effect.gen(function* () {

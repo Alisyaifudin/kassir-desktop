@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { newPocket } from "./z-NewPocket";
+import { newPocket } from "./effect-newPocket";
 import { MoneyService } from "~/services/money";
 import { StateWrap } from "~/components/StateWrap";
-import { navList } from "./z-NavList";
+import { navList } from "./effect-navList";
 import { TextError } from "~/components/TextError";
 import { Loading } from "./z-Loading";
 

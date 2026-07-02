@@ -63,7 +63,7 @@ const userCards: Card[] = [
 
 const page = Effect.gen(function* () {
   const userService = yield* UserService;
-  const useUser = userService.useUser;
+  const useUser = () => userService.useUser();
   const logout = () => userService.logout();
   return function Page() {
     const user = useUser();

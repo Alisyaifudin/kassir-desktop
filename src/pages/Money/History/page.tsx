@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { tableList } from "./z-TableList";
+import { tableList } from "./effect-tableList";
 import { deletePocket } from "./effect-deletePocket";
 import { download } from "./effect-download";
 import { uploadMoney } from "./effect-uploadMoney";
@@ -20,7 +20,7 @@ import { useRange } from "./use-range";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
 import { useMemo } from "react";
-import { header } from "./z-Header";
+import { header } from "./effect-header";
 
 const page = Effect.gen(function* () {
   const moneyService = yield* MoneyService;

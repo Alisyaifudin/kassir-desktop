@@ -19,7 +19,7 @@ const schema = z.object({
 
 export const infoEffect = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const useInfo = infoService.info.useInfo;
+  const useInfo = () => infoService.info.useInfo();
   const set = (info: Info) => infoService.info.set(info);
   return function Info() {
     const info = useInfo();

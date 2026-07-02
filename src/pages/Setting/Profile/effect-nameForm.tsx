@@ -17,7 +17,7 @@ export const nameFormEffect = Effect.gen(function* () {
         Effect.provideService(UserService, userService),
       ),
     );
-  const useUser = userService.useUser;
+  const useUser = () => userService.useUser();
   return function NameForm() {
     const user = useUser();
     const { loading, error, input, handleInput, handleSubmit } = useNameForm(update, user);

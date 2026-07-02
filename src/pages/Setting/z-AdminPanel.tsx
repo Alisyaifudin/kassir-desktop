@@ -1,5 +1,5 @@
 import { Building2, User, Database, ScrollText, Printer } from "lucide-react";
-import { NavLink } from "../z-NavLink";
+import { NavLink } from "./z-NavLink";
 
 export function AdminPanel() {
   const items = [

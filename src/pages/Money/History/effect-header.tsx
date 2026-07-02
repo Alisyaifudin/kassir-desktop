@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { MoneyService } from "~/services/money";
-import { newRecord } from "./z-NewRecord";
+import { newRecord } from "./effect-newRecord";
 import { nameForm } from "./effect-nameForm";
 
 export const header = Effect.gen(function* () {
