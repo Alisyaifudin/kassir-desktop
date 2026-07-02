@@ -1,10 +1,10 @@
 import { Link } from "react-router";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { Clock, GripVertical } from "lucide-react";
 import { Show } from "~/components/Show";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Money } from "./use-money";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
+import { PocketFull } from "~/services/money/type";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -27,18 +27,13 @@ function formatRelativeTime(timestamp: number): string {
   return `${days} hari yang lalu`;
 }
 
-export function NavCard({ money }: { money: Money }) {
-  const { id, name, timestamp, value } = money;
+export function NavCard({ pocket }: { pocket: PocketFull }) {
+  const { id, name, updatedAt, lastMoney } = pocket;
   const urlBack = useGenerateUrlBack("/money");
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -62,23 +57,20 @@ export function NavCard({ money }: { money: Money }) {
         >
           <div className="flex flex-col gap-1.5">
             <h3 className="font-medium text-slate-900 dark:text-slate-100">{name}</h3>
-            <Show value={timestamp} fallback={<div>Masih kosong</div>}>
-              {(timestamp) => (
+          </div>
+          <Show value={lastMoney} fallback={<div>Masih kosong</div>}>
+            {(value) => (
+              <>
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <Clock className="h-3 w-3" />
-                  <span>{formatRelativeTime(timestamp)}</span>
+                  <span>{formatRelativeTime(updatedAt)}</span>
                 </div>
-              )}
-            </Show>
-          </div>
-
-          <Show value={value}>
-            {(value) => (
-              <div className="flex items-center gap-3">
-                <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                  {formatCurrency(value)}
-                </span>
-              </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {formatCurrency(value)}
+                  </span>
+                </div>
+              </>
             )}
           </Show>
         </Link>

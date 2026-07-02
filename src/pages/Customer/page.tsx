@@ -8,7 +8,7 @@ import { newCustomerEffect } from "./effect-newCustomer";
 
 const page = Effect.gen(function* () {
   const customerService = yield* CustomerService;
-  const loader = customerService.loader;
+  const loader = () => customerService.loader();
   const CustomerList = yield* customerListEffect;
   const NewCustomer = yield* newCustomerEffect;
   return function Page() {

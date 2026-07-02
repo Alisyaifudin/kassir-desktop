@@ -7,7 +7,7 @@ import { TextError } from "~/components/TextError";
 
 const page = Effect.gen(function* () {
   const logService = yield* LogService;
-  const loader = logService.loader;
+  const loader = () => logService.loader();
   const ReadLog = yield* readLogEffect;
   const ClearLog = yield* clearLogEffect;
   return function Page() {

@@ -1,24 +1,28 @@
-import { lazy, Suspense } from "react";
-import { LoaderFunctionArgs, RouteObject, useLoaderData } from "react-router";
-import { admin } from "~/middleware/admin";
+import { Effect } from "effect";
+import { Suspense } from "react";
+import { RouteObject, useLoaderData } from "react-router";
+import { lazyEffect } from "~/lib/lazy";
+import { adminMiddlewareEffect } from "~/middleware/admin";
 import { Loading } from "./z-Loading";
+import type { LoaderFunctionArgs } from "react-router";
 
-const Page = lazy(() => import("./page"));
-
-export const moneyDetailRoute: RouteObject = {
-  Component: () => {
-    const kindId = useLoaderData<typeof loader>();
-    return (
-      <Suspense fallback={<Loading />}>
-        <Page kindId={kindId} />
-      </Suspense>
-    );
-  },
-  path: ":kindId",
-  loader,
-  middleware: [admin],
-};
-
-function loader({ params }: LoaderFunctionArgs) {
-  return params.kindId!;
-}
+export const moneyDetailRouteEffect = Effect.gen(function* () {
+  const Page = yield* lazyEffect(() => import("./page"));
+  const adminMiddleware = yield* adminMiddlewareEffect;
+  const route: RouteObject = {
+    path: ":pocketId",
+    loader({ params }: LoaderFunctionArgs) {
+      return params.pocketId!;
+    },
+    middleware: [adminMiddleware],
+    Component: () => {
+      const pocketId = useLoaderData<string>();
+      return (
+        <Suspense fallback={<Loading />}>
+          <Page pocketId={pocketId} />
+        </Suspense>
+      );
+    },
+  };
+  return route;
+});

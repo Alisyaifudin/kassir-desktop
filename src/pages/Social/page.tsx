@@ -9,7 +9,7 @@ import { cn } from "~/lib/utils";
 
 const page = Effect.gen(function* () {
   const socialService = yield* SocialService;
-  const loader = socialService.loader;
+  const loader = () => socialService.loader();
   const SocialList = yield* socialListEffect;
   const NewSocial = yield* newSocialEffect;
   return function Page() {

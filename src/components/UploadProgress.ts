@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Effect } from "effect";
 import { DuplicateError } from "~/lib/error-effect";
 
 export type ProgressEntry<T, E> =
@@ -11,10 +10,12 @@ export function useUploadProgress<T, E>({
   items,
   getId,
   add,
+  onDone,
 }: {
   items: T[];
   getId: (item: T) => string;
-  add: (item: T) => Effect.Effect<void, E>;
+  add: (item: T) => Promise<E | null>;
+  onDone?: () => void;
 }) {
   const startedRef = useRef(false);
   const [progress, setProgress] = useState<ProgressEntry<T, E>[]>(() =>
@@ -40,12 +41,7 @@ export function useUploadProgress<T, E>({
         });
         continue;
       }
-      const error = await Effect.runPromise(
-        add(item).pipe(
-          Effect.as(null),
-          Effect.catchAll((e) => Effect.succeed(e)),
-        ),
-      );
+      const error = await add(item);
       setProgress((prev) => {
         const next = [...prev];
         if (error) {
@@ -63,6 +59,13 @@ export function useUploadProgress<T, E>({
   useEffect(() => {
     init();
   }, [init]);
+
+  const isDone = progress.every((p) => p.state !== "pending");
+  const hasError = progress.some((p) => p.state === "error");
+
+  useEffect(() => {
+    if (isDone && !hasError && onDone) onDone();
+  }, [isDone, hasError, onDone]);
 
   return progress;
 }

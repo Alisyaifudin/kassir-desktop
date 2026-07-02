@@ -11,6 +11,7 @@ import { useUploadProgress } from "~/components/UploadProgress";
 
 export const productUpload = Effect.gen(function* () {
   const productService = yield* ProductService;
+  const add = (product: Product) => productService.add.external(product);
   return function ProductUpload() {
     return (
       <div className="w-full space-y-6">
@@ -19,7 +20,7 @@ export const productUpload = Effect.gen(function* () {
           <SchemaDialog />
         </div>
         <UploadInput extract={extractProduct}>
-          {(products) => <UploadedEntries products={products} add={productService.add.external} />}
+          {(products) => <UploadedEntries products={products} add={add} />}
         </UploadInput>
       </div>
     );
@@ -33,7 +34,7 @@ function UploadedEntries({
   add,
 }: {
   products: Product[];
-  add: (product: Product) => Effect.Effect<void, ProductError_>;
+  add: (product: Product) => Promise<ProductError_ | null>;
 }) {
   const progress = useUploadProgress({
     items: products,

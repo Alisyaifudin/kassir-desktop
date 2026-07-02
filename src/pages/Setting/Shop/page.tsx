@@ -8,7 +8,7 @@ import { cashierCheckbox } from "./effect-cashierCheckbox";
 
 const page = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const loader = infoService.loader;
+  const loader = () => infoService.loader();
   const Info = yield* infoEffect;
   const CashierCheckbox = yield* cashierCheckbox;
   return function Page() {

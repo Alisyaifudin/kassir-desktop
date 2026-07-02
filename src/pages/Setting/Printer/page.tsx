@@ -9,7 +9,7 @@ import { printerWidth } from "./effect-printerWidth";
 
 const page = Effect.gen(function* () {
   const printerService = yield* PrinterService;
-  const loader = printerService.loader;
+  const loader = () => printerService.loader();
   const SelectPrinter = yield* selectPrinter;
   const PrinterWidth = yield* printerWidth;
   return function Page() {

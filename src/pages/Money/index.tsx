@@ -1,29 +1,29 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { RouteObject } from "react-router";
-import { admin } from "~/middleware/admin";
+import { adminMiddlewareEffect } from "~/middleware/admin";
 import { Loading } from "./z-Loading";
-import { moneyDetailRoute } from "./History";
+import { Effect } from "effect";
+import { lazyEffect } from "~/lib/lazy";
+import { moneyDetailRouteEffect } from "./History";
 
-const Layout = lazy(() => import("./layout"));
-const Page = lazy(() => import("./page"));
-
-export const moneyRoute: RouteObject = {
-  Component: () => (
-    <Suspense fallback={<Loading />}>
-      <Layout />
-    </Suspense>
-  ),
-  path: "money",
-  middleware: [admin],
-  children: [
-    {
-      index: true,
-      Component: () => (
-        <Suspense fallback={<Loading />}>
-          <Page />
-        </Suspense>
-      ),
-    },
-    moneyDetailRoute,
-  ],
-};
+export const moneyRouteEffect = Effect.gen(function* () {
+  const Page = yield* lazyEffect(() => import("./page"));
+  const moneyDetailRoute = yield* moneyDetailRouteEffect;
+  const adminMiddleware = yield* adminMiddlewareEffect;
+  const route: RouteObject = {
+    path: "money",
+    middleware: [adminMiddleware],
+    children: [
+      {
+        index: true,
+        Component: () => (
+          <Suspense fallback={<Loading />}>
+            <Page />
+          </Suspense>
+        ),
+      },
+      moneyDetailRoute,
+    ],
+  };
+  return route;
+});

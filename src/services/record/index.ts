@@ -9,7 +9,7 @@ export class RecordService extends Context.Tag("RecordService")<
       range: (start: number, end: number) => Effect.Effect<RecordFull[], RecordError>;
     };
     add: {
-      external: (record: RecordFull) => Effect.Effect<void, RecordError | RecordAlreadyExistError>;
+      external: (record: RecordFull) => Promise<null | RecordError | RecordAlreadyExistError>;
     };
   }
 >() {}

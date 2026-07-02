@@ -11,7 +11,7 @@ export class ProductService extends Context.Tag("ProductService")<
     add: {
       external: (
         product: Product,
-      ) => Effect.Effect<void, ProductError | UniqueCodeError | ProductAlreadyExistError>;
+      ) => Promise<ProductError | UniqueCodeError | ProductAlreadyExistError|null>;
     };
   }
 >() {}

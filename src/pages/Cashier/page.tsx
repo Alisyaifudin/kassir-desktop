@@ -8,9 +8,9 @@ import { newCashierEffect } from "./effect-newCashier";
 
 const page = Effect.gen(function* () {
   const cashierService = yield* CashierService;
-  const loader = cashierService.loader;
   const CashierList = yield* cashierListEffect;
   const NewCashier = yield* newCashierEffect;
+  const loader = () => cashierService.loader();
   return function Page() {
     return (
       <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">

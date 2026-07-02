@@ -13,6 +13,7 @@ import { useUploadProgress } from "~/components/UploadProgress";
 
 export const recordUpload = Effect.gen(function* () {
   const recordService = yield* RecordService;
+  const add = (record: RecordFull) => recordService.add.external(record);
   return function RecordUpload() {
     return (
       <div className="w-full space-y-6">
@@ -21,7 +22,7 @@ export const recordUpload = Effect.gen(function* () {
           <SchemaDialog />
         </div>
         <UploadInput extract={extractRecord}>
-          {(records) => <UploadedEntries records={records} add={recordService.add.external} />}
+          {(records) => <UploadedEntries records={records} add={add} />}
         </UploadInput>
       </div>
     );
@@ -35,7 +36,7 @@ function UploadedEntries({
   add,
 }: {
   records: RecordFull[];
-  add: (record: RecordFull) => Effect.Effect<void, RecordError_>;
+  add: (record: RecordFull) => Promise<null | RecordError_>;
 }) {
   const progress = useUploadProgress({
     items: records,
@@ -63,7 +64,7 @@ function UploadedEntries({
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               )}
               <span>
-                {item.item.id} &mdash; {formatEpochtime(item.item.paidAt)}
+                {item.item.id} &mdash; {formatEpochtime(item.item.paidAt, {date: "long", time: "long"})}
               </span>
             </div>
             {item.state === "error" && <ErrorComp error={item.error} />}

@@ -1,6 +1,3 @@
-import { useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
@@ -11,50 +8,69 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { NotFound } from "~/components/NotFound";
-import { Money, MoneyKind } from "~/database/money/get-by-range";
-import { Header } from "./z-Header";
-import { TableList } from "./z-TableList";
-import { DeletePocketBtn } from "./z-DeletePocket";
-import { Download } from "./z-Download";
-import { UploadMoney } from "./z-UploadDialog";
+import { tableList } from "./z-TableList";
+import { deletePocket } from "./effect-deletePocket";
+import { download } from "./effect-download";
+import { uploadMoney } from "./effect-uploadMoney";
+import { Effect } from "effect";
+import { MoneyService } from "~/services/money";
+import { StateWrap } from "~/components/StateWrap";
+import { TimePicker } from "./z-TimePicker";
+import { useRange } from "./use-range";
+import { Temporal } from "temporal-polyfill";
+import { tz } from "~/lib/constants";
+import { useMemo } from "react";
+import { header } from "./z-Header";
 
-export default function Page({ kindId }: { kindId: string }) {
-  const res = useData(kindId);
-  return Result.match(res, {
-    onLoading() {
-      return <Loading cols={7} />;
-    },
-    onError(e) {
-      switch (e._tag) {
-        case "DbError":
-          log.error(e.e);
-          return <ErrorComponent>{e.e.message}</ErrorComponent>;
-        case "NotFound":
-          return <NotFound />;
-      }
-    },
-    onSuccess({ money, kind }) {
-      return <Wrapper money={money} kind={kind} />;
-    },
-  });
-}
-
-function Wrapper({ kind, money }: { kind: MoneyKind; money: Money[] }) {
-  return (
-    <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
-      <Header kind={kind} />
-      <TableList money={money} type={kind.type} />
-      <div className="flex items-center pb-1 justify-between">
-        <DeletePocketBtn kindId={kind.id} />
-        <div className="flex items-center gap-2">
-          <UploadMoney kindId={kind.id} />
-          <Download kind={kind.name} kindId={kind.id} />
-        </div>
-      </div>
-    </main>
-  );
-}
+const page = Effect.gen(function* () {
+  const moneyService = yield* MoneyService;
+  const loader = (pocketId: string, start: number, end: number) => () =>
+    moneyService.money.loader(pocketId, start, end);
+  const TableList = yield* tableList;
+  const Header = yield* header;
+  const DeletePocketBtn = yield* deletePocket;
+  const Download = yield* download;
+  const UploadMoney = yield* uploadMoney;
+  return function Page({ pocketId }: { pocketId: string }) {
+    const [range, setRange] = useRange();
+    const range0 = range[0];
+    const range1 = range[1];
+    const start = useMemo(
+      () => range0.toZonedDateTime(tz).startOfDay().epochMilliseconds,
+      [range0],
+    );
+    const end = useMemo(
+      () =>
+        range1
+          .add(Temporal.Duration.from({ days: 1 }))
+          .toZonedDateTime(tz)
+          .startOfDay().epochMilliseconds,
+      [range1],
+    );
+    return (
+      <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
+        <StateWrap
+          loader={loader(pocketId, start, end)}
+          loading={<Loading cols={7} />}
+          error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
+        >
+          <div className="flex items-center justify-between py-1 pr-1">
+            <Header />
+            <TimePicker range={range} setRange={setRange} />
+          </div>
+          <TableList start={start} end={end} />
+          <div className="flex items-center pb-1 justify-between">
+            <DeletePocketBtn pocketId={pocketId} />
+            <div className="flex items-center gap-2">
+              <UploadMoney pocketId={pocketId} />
+              <Download pocketId={pocketId} />
+            </div>
+          </div>
+        </StateWrap>
+      </main>
+    );
+  };
+});
 
 function Loading({ cols }: { cols: number }) {
   return (
@@ -82,3 +98,5 @@ function Loading({ cols }: { cols: number }) {
     </Table>
   );
 }
+
+export default page;
