@@ -5,7 +5,7 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import { Effect } from "effect";
-import { InfoService, type Info } from "~/services/info";
+import { InfoDetailService, type Info } from "~/services/info";
 import z from "zod";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
@@ -18,9 +18,9 @@ const schema = z.object({
 });
 
 export const infoEffect = Effect.gen(function* () {
-  const infoService = yield* InfoService;
-  const useInfo = () => infoService.info.useInfo();
-  const set = (info: Info) => infoService.info.set(info);
+  const infoService = yield* InfoDetailService;
+  const useInfo = () => infoService.useInfo();
+  const set = (info: Info) => infoService.set(info);
   return function Info() {
     const info = useInfo();
     const [error, setError] = useState<string | null>(null);

@@ -4,13 +4,13 @@ import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { Effect } from "effect";
-import { InfoService } from "~/services/info";
+import { ShowCashierService } from "~/services/info";
 import { useState } from "react";
 
 export const cashierCheckbox = Effect.gen(function* () {
-  const infoService = yield* InfoService;
-  const useShowCashier = () => infoService.showCashier.useShowCashier();
-  const set = (showCashier: boolean) => infoService.showCashier.set(showCashier);
+  const infoService = yield* ShowCashierService;
+  const useShowCashier = () => infoService.useShowCashier();
+  const set = (showCashier: boolean) => infoService.set(showCashier);
   return function CashierCheckbox() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<null | string>(null);

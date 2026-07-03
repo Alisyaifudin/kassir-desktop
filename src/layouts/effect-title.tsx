@@ -6,8 +6,9 @@ import { InfoService } from "~/services/info";
 import { StateWrap } from "~/components/StateWrap";
 
 export const title = Effect.gen(function* () {
-  const info = yield* InfoService;
-  const loader = info.loader;
+  const infoService = yield* InfoService;
+  const loader = () => infoService.loader();
+  const useName = () => infoService.info.useName();
   return function Title() {
     return (
       <StateWrap
@@ -19,7 +20,7 @@ export const title = Effect.gen(function* () {
         }
         error={(error) => <TextError>{error.e.message}</TextError>}
       >
-        <TitleText useName={info.useName} />
+        <TitleText useName={useName} />
       </StateWrap>
     );
   };

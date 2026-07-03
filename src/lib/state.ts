@@ -3,13 +3,13 @@
 
 export type Listener = () => void;
 
-// export type Status<E> =
-//   | {
-//       state: "loading";
-//       error?: undefined;
-//     }
-//   | { state: "error"; error: E }
-//   | { state: "success"; error?: undefined };
+export type Status<E> =
+  | {
+      state: "loading";
+      error?: undefined;
+    }
+  | { state: "error"; error: E }
+  | { state: "success"; error?: undefined };
 // /**
 //  * Reactive state machine for a one-shot async load (init → success/error).
 //  *

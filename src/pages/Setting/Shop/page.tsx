@@ -2,15 +2,17 @@ import { infoEffect } from "./effect-info";
 import { TextError } from "~/components/TextError";
 import { StateWrap } from "~/components/StateWrap";
 import { Effect } from "effect";
-import { InfoService } from "~/services/info";
+import { InfoDetailService, InfoService, ShowCashierService } from "~/services/info";
 import { Loading } from "./z-Loading";
 import { cashierCheckbox } from "./effect-cashierCheckbox";
 
 const page = Effect.gen(function* () {
   const infoService = yield* InfoService;
   const loader = () => infoService.loader();
-  const Info = yield* infoEffect;
-  const CashierCheckbox = yield* cashierCheckbox;
+  const Info = yield* infoEffect.pipe(Effect.provideService(InfoDetailService, infoService.info));
+  const CashierCheckbox = yield* cashierCheckbox.pipe(
+    Effect.provideService(ShowCashierService, infoService.showCashier),
+  );
   return function Page() {
     return (
       <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
