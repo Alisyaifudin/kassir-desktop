@@ -87,15 +87,15 @@ const mockItems: Item[] = [
 
 // 2. Mock service factory — plain object matching interface
 function makeExampleService(opts?: {
-  loader?: () => Promise<ExampleError | null>;
+  loader?: () => Effect.Effect<void, ExampleError>;
   items?: Item[];
 }): typeof ExampleService.Service {
   const items = opts?.items ?? mockItems;
   return {
-    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    loader: opts?.loader ?? (() => Effect.void),
     useItems: () => items,
-    add: () => Promise.resolve(null),
-    delete: () => Promise.resolve(null),
+    add: () => Effect.void,
+    delete: () => Effect.void,
   };
 }
 
@@ -230,21 +230,21 @@ Always accept optional overrides so individual tests can customize behavior:
 
 ```tsx
 function makeExampleService(opts?: {
-  loader?: () => Promise<ExampleError | null>;
+  loader?: () => Effect.Effect<void, ExampleError>;
   items?: Item[];
 }): typeof ExampleService.Service {
   const items = opts?.items ?? mockItems;
   return {
-    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    loader: opts?.loader ?? (() => Effect.void),
     useItems: () => items,
-    add: () => Promise.resolve(null),
-    delete: () => Promise.resolve(null),
+    add: () => Effect.void,
+    delete: () => Effect.void,
   };
 }
 ```
 
-- **Default: success** — callbacks return `Promise.resolve(null)`, loader resolves immediately
-- **Override for errors** — pass a custom loader/callback that returns an error
+- **Default: success** — callbacks return `Effect.void`, loader resolves immediately
+- **Override for errors** — pass a custom loader/callback that returns `Effect.fail(error)`
 - **Override for delay** — pass a pending Promise to test loading state
 
 ---
@@ -259,14 +259,14 @@ Use `Promise.withResolvers()` to create a Promise that never resolves (until we 
 
 ```tsx
 test("shows loading skeleton while loader is pending", async () => {
-  const deferred = Promise.withResolvers<null>();
-  renderPage({ loader: () => deferred.promise });
+  const deferred = Promise.withResolvers<void>();
+  renderPage({ loader: () => Effect.promise(() => deferred.promise) });
 
   const skeletons = document.querySelectorAll("[data-slot='skeleton']");
   expect(skeletons.length).toBeGreaterThan(0);
 
   // Resolve and flush to avoid act warnings during cleanup
-  deferred.resolve(null);
+  deferred.resolve();
   await waitFor(() => {
     expect(screen.queryByText(/expected heading/i)).toBeInTheDocument();
   });
@@ -281,7 +281,7 @@ test("shows loading skeleton while loader is pending", async () => {
 ```tsx
 test("shows error message when loader fails", async () => {
   renderPage({
-    loader: () => Promise.resolve(new ExampleError(new Error("Gagal memuat data"))),
+    loader: () => Effect.fail(new ExampleError(new Error("Gagal memuat data"))),
   });
   expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
 });
@@ -592,7 +592,8 @@ This is the #1 source of spurious `act(...)` warnings in `@tanstack/react-form` 
 - **Don't use `getBy*` for elements that appear asynchronously** — use `findBy*` or `waitFor`
 - **Don't assert negative with `getBy*`** — use `queryBy*` and `expect(...).not.toBeInTheDocument()`
 - **Don't forget to flush deferred promises** — always resolve and `await waitFor` after testing loading state
-- **Don't use `Promise.reject` for error mocks** — return `Promise.resolve(error)` (StateWrap's `loader` catches, doesn't throw)
+- **Don't use `Promise.reject` for error mocks** — `StateWrap`'s `loader` is passed through `promisify`, which catches Effect failures
+- **Don't pass raw `Promise.resolve(error)` as loader** — use `Effect.fail(error)` for error states
 - **Don't import `render` from `@testing-library/react`** — use `~/lib/render` which includes `MemoryRouter`
 - **Don't create `Layer.effect` for simple mocks** — `Layer.succeed` with a plain object is enough
 - **Don't test `@tanstack/react-form` internals** — test that callbacks are/aren't called, not that specific validation error messages render
@@ -626,8 +627,9 @@ src/pages/Example/
 When adding tests for a page, verify:
 
 - [ ] **`page.test.tsx`** — Effect resolution with all services provided
-- [ ] **`page.test.tsx`** — Loading skeleton while loader is pending (`Promise.withResolvers`)
-- [ ] **`page.test.tsx`** — Error message when loader fails
+- [ ] **`page.test.tsx`** — Loading skeleton while loader is pending (`Effect.promise(() => deferred.promise)`)
+- [ ] **`page.test.tsx`** — Error message when loader fails (`Effect.fail`)
+- [ ] **`page.test.tsx`** — Mock services return `Effect.void` for success, `Effect.fail(error)` for errors
 - [ ] **`page.test.tsx`** — Heading, description, and key elements visible on success
 - [ ] **`z-List.test.tsx`** — All items rendered with correct data
 - [ ] **`z-List.test.tsx`** — Empty list renders no children (not zero)

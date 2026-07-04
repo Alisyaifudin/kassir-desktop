@@ -71,7 +71,7 @@ Service injection boundary (Effect-land)
 
 ## The Service Layer
 
-Services define capabilities via `Context.Tag`. They expose **hooks** (for reading reactive state) and **callbacks** (for writing/mutating). Many methods return `Promise<E | null>` directly — the `null` means success, the `E` means the error.
+Services define capabilities via `Context.Tag`. They expose **hooks** (for reading reactive state) and **callbacks** (for writing/mutating). **All async methods return `Effect`** — the page bridges to Promise at the boundary via `promisify`.
 
 ### Service Definition (`index.ts`)
 
@@ -90,28 +90,28 @@ export type Cashier = {
 export class CashierService extends Context.Tag("CashierService")<
   CashierService,
   {
-    loader(): Promise<CashierError | null>;       // Promise-based: null = success, error = failure
-    useCashiers(): Cashier[];                      // reactive hook
+    loader(): Effect.Effect<void, CashierError>;       // Effect-based: void = success, CashierError = failure
+    useCashiers(): Cashier[];                            // reactive hook
     get: {
       all(): Effect.Effect<Cashier[], CashierError>;
       byId(id: string): Effect.Effect<CashierFull, CashierError | NotFoundError>;
     };
     add: (input: { name: string; role: DBNamespace.Role; password: string }) =>
-      Effect.Effect<string, CashierError>;
-    delete(id: string): Promise<string | null>;    // Promise-based
+      Effect.Effect<Cashier, CashierError>;
+    delete(id: string): Effect.Effect<void, CashierError>;
     set: {
-      name(id: string, name: string): Promise<string | null>;
-      role: (id: string, role: DBNamespace.Role) => Promise<string | null>;
+      name(id: string, name: string): Effect.Effect<void, CashierError>;
+      role: (id: string, role: DBNamespace.Role) => Effect.Effect<void, CashierError>;
     };
   }
 >() {}
 ```
 
 **Key principles:**
-- `loader()` — returns `Promise<E | null>`, called once by `StateWrap` on mount
+- `loader()` — returns `Effect<void, E>`, called once by `StateWrap` on mount
 - `use*()` hooks — reactive read hooks returning current state
-- Write methods (`delete`, `set.name`) — return `Promise<string | null>` for simple error handling
-- Effect-only methods (`get.all`, `add`) — used internally, bridged to Promises at page level
+- Write methods (`delete`, `set.name`) — return `Effect<void, E>` for consistent error handling
+- All async methods are Effect — bridged to Promises at page level via `promisify`
 - Keep the interface focused on _what_ the service does, not _how_
 
 ### Error File (`error.ts`)
@@ -175,19 +175,33 @@ import { TextError } from "~/components/TextError";
 import { CashierList } from "./z-CashierList";
 import { NewCashier } from "./z-NewCashier";
 import { UserService } from "~/services/user";
+import { promisify } from "~/lib/promisify";
 
 const page = Effect.gen(function* () {
   // 1. Yield all services needed by this page
   const cashierService = yield* CashierService;
   const userService = yield* UserService;
 
-  // 2. Bridge Effect → Promise for operations that cross the boundary
-  const add = (name: string) =>
-    Effect.runPromise(
-      cashierService.add({ name, role: "user", password: "" }).pipe(
-        Effect.as(null),
-        Effect.catchAll((e) => Effect.succeed(e.e.message)),
-      ),
+  // 2. Bridge Effect → Promise using promisify (extracts error message on failure)
+  const onAdd = (name: string) =>
+    promisify(
+      () => cashierService.add({ name, role: "user", password: "" }),
+      (e) => e.e.message,
+    );
+  const onDelete = (id: string) =>
+    promisify(
+      () => cashierService.delete(id),
+      (e) => e.e.message,
+    );
+  const onUpdateName = (id: string, name: string) =>
+    promisify(
+      () => cashierService.set.name(id, name),
+      (e) => e.e.message,
+    );
+  const onUpdateRole = (id: string, role: DBNamespace.Role) =>
+    promisify(
+      () => cashierService.set.role(id, role),
+      (e) => e.e.message,
     );
 
   // 3. Return a plain React component
@@ -198,20 +212,20 @@ const page = Effect.gen(function* () {
           <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
           <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
         </div>
-        {/* 4. Pass service methods/hooks as props to children */}
+        {/* 4. Pass bridged callbacks and hooks as props to children */}
         <StateWrap
           loader={cashierService.loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
           <CashierList
-            onDelete={cashierService.delete}
-            onUpdateName={cashierService.set.name}
-            onUpdateRole={cashierService.set.role}
+            onDelete={onDelete}
+            onUpdateName={onUpdateName}
+            onUpdateRole={onUpdateRole}
             useCashiers={cashierService.useCashiers}
             useUser={userService.useUser}
           />
-          <NewCashier onAdd={add} />
+          <NewCashier onAdd={onAdd} />
         </StateWrap>
       </main>
     );
@@ -224,29 +238,40 @@ export default page;
 **Key points:**
 - **Only yield services in `page.tsx`** — never in components
 - **Extract callbacks and hooks** from the service (don't pass the service itself)
-- **Use `Effect.runPromise`** at the page level to convert Effect operations to Promise-based callbacks
+- **Use `promisify`** at the page level to convert Effect operations to Promise-based callbacks (`(input) => Promise<string | null>`)
 - **Prop drill everything** — hooks and callbacks pass through props to `z-*` components
 - The page is a default export (for `lazyEffect`)
 
-### Bridging Effect → Promise
+### The `promisify` Bridge
 
-Some service methods return `Effect` (not `Promise`). These must be bridged at the page level:
+`promisify` converts an Effect into a Promise that resolves to `null` on success or an error value on failure:
 
-```tsx
-// Page-level bridge: Effect → Promise<string | null>
-const add = (name: string) =>
-  Effect.runPromise(
-    cashierService.add({ name, role: "user", password: "" }).pipe(
-      Effect.as(null),                                    // success → null
-      Effect.catchAll((e) => Effect.succeed(e.e.message)), // error → message string
-    ),
-  );
+```typescript
+// src/lib/promisify.ts
+import { Effect, pipe } from "effect";
 
-// Then pass to component as a Promise callback:
-<NewCashier onAdd={add} />
+export function promisify<T, E>(effect: () => Effect.Effect<T, E>): Promise<null | E>;
+export function promisify<T, E, E2>(
+  effect: () => Effect.Effect<T, E>,
+  transform: (e: E) => E2,
+): Promise<null | E2>;
 ```
 
-This wraps Effect operations so components receive simple `(input) => Promise<string | null>` callbacks that they already know how to handle.
+**Usage:**
+
+```tsx
+// Without transform — returns the raw error on failure
+const onDelete = (id: string) => promisify(() => service.delete(id));
+
+// With transform — maps the error to a user-friendly string
+const onAdd = (name: string) =>
+  promisify(
+    () => service.add(name),
+    (e) => e.e.message,  // CashierError → string
+  );
+```
+
+This wraps Effect operations so components receive simple `(input) => Promise<string | null>` callbacks.
 
 ---
 
@@ -413,7 +438,7 @@ import { useEffect, useState } from "react";
 import { Status } from "~/lib/state";
 
 export function StateWrap<E>({
-  loader,    // () => Promise<E | null>  — null = success, E = error
+  loader,    // () => Effect.Effect<T, E>  — bridged internally via promisify
   children,  // React.ReactNode
   error,     // (error: E) => React.ReactNode
   loading,   // React.ReactNode (optional)
@@ -421,7 +446,7 @@ export function StateWrap<E>({
   const [status, setStatus] = useState<Status<E>>({ state: "loading" });
   useEffect(() => {
     async function init() {
-      const err = await loader();
+      const err = await promisify(loader);
       if (err !== null) {
         setStatus({ error: err, state: "error" });
       } else {
@@ -440,26 +465,21 @@ export function StateWrap<E>({
 
 ### How it works
 
-1. `StateWrap` calls `loader()` (a Promise) on mount
-2. If `loader()` returns `null` → children render
-3. If `loader()` returns an error → error component renders
-4. The `loader` function originates from the service, which seeds reactive state before resolving
+1. `StateWrap` wraps `loader()` with `promisify` and calls it on mount
+2. If `loader()` succeeds → children render
+3. If `loader()` fails → error component renders
+4. The `loader` function originates from the service (an Effect), which seeds reactive state before resolving
 
 ### Service `loader()` implementation pattern
 
 ```tsx
 // In the service implementation, loader seeds reactive state then resolves:
-async function loader() {
-  const error = await Effect.runPromise(
-    Effect.gen(function* () {
-      const data = yield* fetchFromStore;
-      cashierState.setData(data);   // seed reactive state
-      return null;
-    }).pipe(
-      Effect.catchAll((e) => Effect.succeed(e)),  // return error, don't throw
-    ),
-  );
-  return error;
+function loader(): Effect.Effect<void, CashierError> {
+  return Effect.gen(function* () {
+    const data = yield* fetchFromStore;
+    cashierState.setData(data);   // seed reactive state
+    return;                        // void = success
+  });
 }
 ```
 
@@ -504,18 +524,18 @@ const mockCashiers = [
 
 // 2. Build mock service factories (plain objects matching the interface)
 function makeCashierService(opts?: {
-  loader?: () => Promise<CashierError | null>;
+  loader?: () => Effect.Effect<void, CashierError>;
   cashiers?: TestCashier[];
 }): typeof CashierService.Service {
   const cashiers = opts?.cashiers ?? mockCashiers;
   return {
-    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    loader: opts?.loader ?? (() => Effect.void),
     useCashiers: () => cashiers,
     add: (input) => Effect.succeed(input.name),
-    delete: () => Promise.resolve(null),
+    delete: () => Effect.void,
     set: {
-      name: () => Promise.resolve(null),
-      role: () => Promise.resolve(null),
+      name: () => Effect.void,
+      role: () => Effect.void,
     },
     get: {
       all: () => Effect.succeed(cashiers),
@@ -566,14 +586,14 @@ describe("Page component", () => {
   });
 
   test("shows loading when loader is pending", () => {
-    const deferred = Promise.withResolvers<null>();
-    renderPage({ loader: () => deferred.promise });
+    const deferred = Promise.withResolvers<void>();
+    renderPage({ loader: () => Effect.promise(() => deferred.promise) });
     expect(document.querySelectorAll("[data-slot='skeleton']").length).toBeGreaterThan(0);
-    deferred.resolve(null);
+    deferred.resolve();
   });
 
   test("shows error when loader fails", async () => {
-    renderPage({ loader: () => Promise.resolve(new CashierError(new Error("Gagal")) })});
+    renderPage({ loader: () => Effect.fail(new CashierError(new Error("Gagal"))) });
     expect(await screen.findByText(/Gagal/i)).toBeInTheDocument();
   });
 
@@ -589,10 +609,11 @@ describe("Page component", () => {
 
 **Key points:**
 - Mock services are **plain objects** (no `Layer.effect` needed for simple cases)
+- Mock service methods return `Effect.void` (success), `Effect.fail(error)` (failure), or `Effect.succeed(value)` (success with value)
 - Use `Effect.provideService` for per-test injection
 - Use `Layer.succeed` to wrap mock objects into layers
 - `Effect.runSync(page)` returns the React component, then render as usual
-- Test loading state with `Promise.withResolvers()` to control resolution timing
+- Test loading state with `Effect.promise(() => deferred.promise)` and `Promise.withResolvers()` to control resolution timing
 
 ---
 
@@ -628,10 +649,10 @@ import { ExampleError } from "./error";
 export class ExampleService extends Context.Tag("ExampleService")<
   ExampleService,
   {
-    loader(): Promise<ExampleError | null>;
+    loader(): Effect.Effect<void, ExampleError>;
     useItems(): Item[];
-    addItem(item: Item): Promise<string | null>;
-    deleteItem(id: string): Promise<string | null>;
+    addItem(item: Item): Effect.Effect<void, ExampleError>;
+    deleteItem(id: string): Effect.Effect<void, ExampleError>;
   }
 >() {}
 ```
@@ -726,6 +747,17 @@ import { Loading } from "./z-Loading";
 const page = Effect.gen(function* () {
   const service = yield* ExampleService;
 
+  const onAdd = (item: Item) =>
+    promisify(
+      () => service.addItem(item),
+      (e) => e.e.message,
+    );
+  const onDelete = (id: string) =>
+    promisify(
+      () => service.deleteItem(id),
+      (e) => e.e.message,
+    );
+
   return function Page() {
     return (
       <main className="flex flex-col gap-4 p-6">
@@ -735,8 +767,8 @@ const page = Effect.gen(function* () {
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
-          <List useItems={service.useItems} onDelete={service.deleteItem} />
-          <NewItem onAdd={service.addItem} />
+          <List useItems={service.useItems} onDelete={onDelete} />
+          <NewItem onAdd={onAdd} />
         </StateWrap>
       </main>
     );
@@ -789,7 +821,7 @@ const exampleRoute = yield* exampleRouteEffect;
 |---|---|---|
 | Page loads data before rendering children | `StateWrap` with `loader` prop | `StateWrap` |
 | Component needs to read reactive data | Pass `use*` hook as prop | `z-*` component |
-| Component triggers a mutation (create, update, delete) | Bridge at page level, pass callback as prop | `Effect.runPromise` at page level |
+| Component triggers a mutation (create, update, delete) | Bridge at page level with `promisify`, pass callback as prop | `promisify` at page level |
 | Simple one-shot fetch (no reactive updates) | `WithLoader` | `WithLoader` |
 | Lazy-loaded page | `lazyEffect` | `lazyEffect(() => import(...))` |
 | Form that persists on submit | Pass `onSubmit` callback as prop | Component manages local loading/error state |
@@ -802,7 +834,8 @@ const exampleRoute = yield* exampleRouteEffect;
 - **Don't inject services in `z-*` components** — they are pure React, no `Effect.gen`, no `yield*`
 - **Don't create `effect-*.tsx` files** — extract everything at the page level, prop drill to `z-*` components
 - **Don't pass service objects to React land** — extract specific hooks/callbacks in `Effect.gen` at page level
-- **Don't call `Effect.runPromise` inside `z-*` components** — bridge at page level, pass the resulting Promise as a prop
+- **Don't pass service methods directly to React components** — bridge with `promisify` at the page level
+- **Don't call `Effect.runPromise` inside pages** — use `promisify` for the standard `Promise<string | null>` bridge
 - **Don't import services directly in pure components** — they receive everything via props
 - **Don't put business logic in `z-*.tsx`** — they render UI and own local UI state only
 - **Don't manage loading/error state for page-level data in components** — let `StateWrap` handle it
