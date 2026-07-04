@@ -36,7 +36,7 @@ const InfoLayer = Layer.effect(
       );
     return InfoService.of({
       loader,
-      info: {
+      infoService: {
         useInfo: infoState.useData,
         set: async (info) => {
           const error = await store.info.set.info(info);
@@ -49,7 +49,7 @@ const InfoLayer = Layer.effect(
           }
         },
       },
-      showCashier: {
+      showCashierService: {
         useShowCashier: showCashierState.useData,
         set: async (showCashier) => {
           const error = await store.info.set.showCashier(showCashier);

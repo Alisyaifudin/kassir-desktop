@@ -19,20 +19,20 @@ export class CashierService extends Context.Tag("CashierService")<
   {
     loader(): Promise<CashierError | null>; // load all cashiers
     useCashiers(): Cashier[];
+    get: {
+      all(): Effect.Effect<Cashier[], CashierError>;
+      byId(id: string): Effect.Effect<CashierFull, CashierError | NotFoundError>;
+    };
     add: (user: {
       name: string;
       role: DBNamespace.Role;
       password: string;
-    }) => Effect.Effect<string, string>;
+    }) => Effect.Effect<string, CashierError>;
     delete(id: string): Promise<string | null>;
     set: {
       name(id: string, name: string): Promise<string | null>;
       hash: (id: string, hash: string) => Promise<string | null>;
       role: (id: string, role: DBNamespace.Role) => Promise<string | null>;
-    };
-    get: {
-      all(): Effect.Effect<Cashier[], CashierError>;
-      byId(id: string): Effect.Effect<CashierFull, CashierError | NotFoundError>;
     };
   }
 >() {}

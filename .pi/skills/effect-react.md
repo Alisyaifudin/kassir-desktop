@@ -7,14 +7,14 @@ This project uses a disciplined integration of [Effect-TS](https://effect.websit
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [The Service Layer (Deep Dive)](#the-service-layer-deep-dive)
+2. [The Service Layer](#the-service-layer)
 3. [Pattern 1: Route Definition](#pattern-1-route-definition-indextsx)
 4. [Pattern 2: Page Assembly](#pattern-2-page-assembly-pagetsx)
-5. [Pattern 3: Service-Backed Components](#pattern-3-service-backed-components-effect-tsx)
+5. [Pattern 3: Pure React Components](#pattern-3-pure-react-components-z-tsx)
 6. [Pattern 4: Lazy Loading](#pattern-4-lazy-loading-lazyeffect)
 7. [Pattern 5: One-Shot Data Fetching](#pattern-5-one-shot-data-fetching-withloader)
-8. [Pattern 6: Reactive State with StateWrap + useLoad](#pattern-6-reactive-state-with-statewrap--useload)
-9. [Pattern 7: Mutable Data with AsyncDataState](#pattern-7-mutable-data-with-asyncdatastate)
+8. [Pattern 6: StateWrap](#pattern-6-statewrap)
+9. [Pattern 7: Testing](#pattern-7-testing)
 10. [File Naming Conventions](#file-naming-conventions)
 11. [Walkthrough: Adding a New Page](#walkthrough-adding-a-new-page)
 12. [Deciding Which Pattern to Use](#deciding-which-pattern-to-use)
@@ -27,14 +27,35 @@ This project uses a disciplined integration of [Effect-TS](https://effect.websit
 ```
 Route (index.tsx)
   └─ lazyEffect ──→ Page (page.tsx)
-                      ├─ yield* Service        → hooks (useLoad, useData)
-                      ├─ yield* effect-*.tsx   → React Component
-                      └─ yield* effect-*.tsx   → React Component
+                      ├─ yield* Service        → extract hooks & callbacks
+                      ├─ Effect.runPromise     → bridge Effect → Promise
+                      └─ props ──→ z-*.tsx     → Pure React component
 
 Service (src/services/x/)
-  ├─ index.ts     → Context.Tag with interface
-  ├─ error.ts     → error types
-  └─ live.ts      → Layer implementation using StatusState / AsyncDataState
+  ├── index.ts     → Context.Tag with interface
+  └── error.ts     → error types
+```
+
+### Core Principle: Inject at Page Level Only
+
+Services are **only** injected in `page.tsx` via `Effect.gen`. The page extracts hooks and callbacks from the service, then **prop drills** them to pure React components (`z-*.tsx`). Components never touch Effect directly.
+
+```
+Service injection boundary (Effect-land)
+┌──────────────────────────────────────────────┐
+│  page.tsx                                    │
+│    yield* CashierService                     │
+│    extract: useCashiers, delete, set.name …  │
+│    Effect.runPromise(…) → bridge to async    │
+└──────────────┬───────────────────────────────┘
+               │ props (callbacks, hooks)
+               ▼
+┌──────────────────────────────────────────────┐
+│  z-CashierList.tsx  (Pure React)             │
+│  z-Item.tsx         (Pure React)             │
+│  z-NewCashier.tsx   (Pure React)             │
+│  z-Loading.tsx      (Pure React)             │
+└──────────────────────────────────────────────┘
 ```
 
 ### Three Layers
@@ -42,139 +63,64 @@ Service (src/services/x/)
 | Layer | File | Role |
 |---|---|---|
 | **Service Definition** | `src/services/*/index.ts` | Effect `Context.Tag` declaring capabilities |
-| **Service Implementation** | `src/services/*/live.ts` | `Layer` with reactive state primitives |
-| **Effect Component** | `effect-*.tsx` | `Effect.gen` yielding services, returning React component |
-| **Page** | `page.tsx` | `Effect.gen` composing sub-effects into a page |
+| **Page** | `page.tsx` | `Effect.gen` yielding services, extracting hooks/callbacks, composing pure components |
+| **Component** | `z-*.tsx` | Pure React — receives everything via props |
 | **Route** | `index.tsx` | `Effect.gen` assembling lazy-loaded page + middleware |
 
 ---
 
-## The Service Layer (Deep Dive)
+## The Service Layer
 
-Services are the backbone. They define capabilities via `Context.Tag` and provide reactive state primitives that React components consume through hooks.
+Services define capabilities via `Context.Tag`. They expose **hooks** (for reading reactive state) and **callbacks** (for writing/mutating). Many methods return `Promise<E | null>` directly — the `null` means success, the `E` means the error.
 
 ### Service Definition (`index.ts`)
 
 ```tsx
-// src/services/info/index.ts
+// src/services/cashier/index.ts
 import { Context, Effect } from "effect";
-import { AsyncDataState, Status } from "~/lib/state";
-import { InfoError } from "./error";
+import { CashierError } from "./error";
+import { NotFoundError } from "~/lib/error-effect";
 
-export type Info = { address: string; footer: string; header: string; name: string };
+export type Cashier = {
+  name: string;
+  role: DBNamespace.Role;
+  id: string;
+};
 
-export class InfoService extends Context.Tag("InfoService")<
-  InfoService,
+export class CashierService extends Context.Tag("CashierService")<
+  CashierService,
   {
-    load: () => Effect.Effect<void, InfoError>;
-    useLoad: () => Status<InfoError>;
-    info: AsyncDataState<Info, string>;
-    showCashier: AsyncDataState<boolean, string>;
+    loader(): Promise<CashierError | null>;       // Promise-based: null = success, error = failure
+    useCashiers(): Cashier[];                      // reactive hook
+    get: {
+      all(): Effect.Effect<Cashier[], CashierError>;
+      byId(id: string): Effect.Effect<CashierFull, CashierError | NotFoundError>;
+    };
+    add: (input: { name: string; role: DBNamespace.Role; password: string }) =>
+      Effect.Effect<string, CashierError>;
+    delete(id: string): Promise<string | null>;    // Promise-based
     set: {
-      info: (info: Info) => Effect.Effect<Info, string>;
-      showCashier: (show: boolean) => Effect.Effect<boolean, string>;
+      name(id: string, name: string): Promise<string | null>;
+      role: (id: string, role: DBNamespace.Role) => Promise<string | null>;
     };
   }
 >() {}
 ```
 
 **Key principles:**
-- `load()` — triggers fetch/population, called once automatically by `StatusState`
-- `useLoad()` — reactive hook returning `{ state: "loading" | "error" | "success", error? }`
-- `AsyncDataState<T, E>` — reactive mutable data with optimistic writes (for forms, settings)
+- `loader()` — returns `Promise<E | null>`, called once by `StateWrap` on mount
+- `use*()` hooks — reactive read hooks returning current state
+- Write methods (`delete`, `set.name`) — return `Promise<string | null>` for simple error handling
+- Effect-only methods (`get.all`, `add`) — used internally, bridged to Promises at page level
 - Keep the interface focused on _what_ the service does, not _how_
 
-### Service Implementation (`live.ts`)
-
-The live implementation uses two reactive primitives from `~/lib/state`:
+### Error File (`error.ts`)
 
 ```tsx
-// src/services/info/live.ts
-import { Effect, Layer } from "effect";
-import { InfoService, Info } from ".";
-import { InfoError } from "./error";
-import { AsyncDataState, StatusState } from "~/lib/state";
-
-const InfoLayer = Layer.effect(
-  InfoService,
-  Effect.gen(function* () {
-    // 1. Create data states with persistence functions
-    const infoState = new AsyncDataState<Info, string>((data) =>
-      store.info.set.info(data).pipe(
-        Effect.catchTag("StoreError", ({ e }) => Effect.fail(e.message)),
-      ),
-    );
-
-    // 2. Define the load logic
-    const load = () =>
-      Effect.gen(function* () {
-        status.setLoading();
-        status.notify();
-        const data = yield* fetchEffect;
-        infoState.setData(data);          // seed the AsyncDataState
-        status.setSuccess();
-      }).pipe(Effect.tapError((e) => status.setError(e)));
-
-    // 3. Create the status state with load as its effect
-    const status = new StatusState<InfoError>(load);
-
-    // 4. Return the service implementation
-    return InfoService.of({
-      load,
-      useLoad: status.useLoad,
-      info: infoState,
-      showCashier: showCashierState,
-      set: { info: setInfo, showCashier: setShowCashier },
-    });
-  }),
-);
+// src/services/cashier/error.ts
+import { BaseError } from "~/lib/error-effect";
+export class CashierError extends BaseError("CashierError") {}
 ```
-
-### Reactive Primitives Reference
-
-#### `StatusState<E>`
-
-A one-shot state machine for async load operations. Exposes `useLoad()` React hook.
-
-```
-States: loading → success | error
-```
-
-| Method | Description |
-|---|---|
-| `new StatusState(loader)` | Create with an `Effect<void, E>` loader |
-| `.useLoad()` | React hook → `{ state, error? }` |
-| `.setLoading()` / `.setSuccess()` / `.setError(e)` | Transition state |
-| `.notify()` | Trigger React re-render |
-
-**Behavior:** The loader runs once on first mount. Subsequent mounts see the cached result. To force reload, create a new `StatusState` instance.
-
-#### `AsyncDataState<T, E>`
-
-Reactive mutable data with optimistic writes. Exposes `useData()` React hook.
-
-```
-States: success | loading (write in progress) | error (write failed, shows stale data)
-```
-
-| Method | Description |
-|---|---|
-| `new AsyncDataState(persistFn)` | Create with `(data: T) => Effect<void, E>` |
-| `.useData()` | React hook → `{ data: T, state, error? }` |
-| `.setData(data)` | Optimistic write — immediately updates UI, then persists |
-| `.setError(e)` / `.setLoading()` | Manual state transitions |
-
-**Behavior:** Must be seeded via `setData()` during the load phase. Writes are optimistic — the UI updates instantly, then the persist function runs. If it fails, the UI reverts to the previous value.
-
-#### `DataState<T>`
-
-Simple mutable state (no async persistence). Exposes `useData()` React hook.
-
-| Method | Description |
-|---|---|
-| `new DataState(initial, setter)` | Create with initial value and setter function |
-| `.useData()` | React hook → `T` |
-| `.setData(data)` | Set value and notify listeners |
 
 ---
 
@@ -183,31 +129,27 @@ Simple mutable state (no async persistence). Exposes `useData()` React hook.
 Every route module exports an `Effect` that produces a React Router `RouteObject`.
 
 ```tsx
-// src/pages/Home/index.tsx
+// src/pages/Cashier/index.tsx
 import { Effect } from "effect";
 import { Suspense } from "react";
+import { RouteObject } from "react-router";
 import { lazyEffect } from "~/lib/lazy";
+import { adminMiddlewareEffect } from "~/middleware/admin";
+import { Loading } from "./z-Loading";
 
-export const homeRouteEffect = Effect.gen(function* () {
+export const cashierRouteEffect = Effect.gen(function* () {
   const Page = yield* lazyEffect(() => import("./page"));
-  return {
-    index: true,
-    Component: () => <Suspense><Page /></Suspense>,
+  const adminMiddleware = yield* adminMiddlewareEffect;
+  const route: RouteObject = {
+    middleware: [adminMiddleware],
+    Component: () => (
+      <Suspense fallback={<Loading />}>
+        <Page />
+      </Suspense>
+    ),
+    path: "cashier",
   };
-});
-```
-
-**With middleware:**
-
-```tsx
-export const loginRouteEffect = Effect.gen(function* () {
-  const Page = yield* lazyEffect(() => import("./page"));
-  const loginMiddleware = yield* loginMiddlewareEffect;
-  return {
-    path: "login",
-    middleware: [loginMiddleware],
-    Component: () => <Suspense><Page /></Suspense>,
-  };
+  return route;
 });
 ```
 
@@ -215,179 +157,212 @@ export const loginRouteEffect = Effect.gen(function* () {
 - Export name: `<name>RouteEffect` (distinguishes from plain `RouteObject` exports)
 - `lazyEffect` combines `React.lazy` with Effect dependency injection
 - Middleware services are yielded here, not in the page
+- Use the page's own `Loading` component as Suspense fallback
 
 ---
 
 ## Pattern 2: Page Assembly (`page.tsx`)
 
-Pages are `Effect.gen` functions that yield services and sub-components, then return a plain React component.
-
-### Variant A: StateWrap (reactive data — preferred for read-heavy pages)
+Pages are `Effect.gen` functions that yield services, extract hooks and callbacks, and return a plain React component that prop-drills everything to children.
 
 ```tsx
-// src/pages/Setting/Shop/page.tsx
+// src/pages/Cashier/page.tsx
+import { Loading } from "./z-Loading";
+import { Effect } from "effect";
+import { CashierService } from "~/services/cashier";
+import { StateWrap } from "~/components/StateWrap";
+import { TextError } from "~/components/TextError";
+import { CashierList } from "./z-CashierList";
+import { NewCashier } from "./z-NewCashier";
+import { UserService } from "~/services/user";
+
 const page = Effect.gen(function* () {
-  const infoService = yield* InfoService;
-  const useLoad = infoService.useLoad;
-  const Info = yield* infoEffect;
-  const CashierCheckbox = yield* cashierCheckbox;
+  // 1. Yield all services needed by this page
+  const cashierService = yield* CashierService;
+  const userService = yield* UserService;
+
+  // 2. Bridge Effect → Promise for operations that cross the boundary
+  const add = (name: string) =>
+    Effect.runPromise(
+      cashierService.add({ name, role: "user", password: "" }).pipe(
+        Effect.as(null),
+        Effect.catchAll((e) => Effect.succeed(e.e.message)),
+      ),
+    );
+
+  // 3. Return a plain React component
   return function Page() {
-    const status = useLoad();
     return (
-      <StateWrap status={status} loading={<Loading />} error={({ e }) => <TextError>{e.message}</TextError>}>
-        <Info />
-        <CashierCheckbox />
-      </StateWrap>
+      <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
+          <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
+        </div>
+        {/* 4. Pass service methods/hooks as props to children */}
+        <StateWrap
+          loader={cashierService.loader}
+          loading={<Loading />}
+          error={({ e }) => <TextError>{e.message}</TextError>}
+        >
+          <CashierList
+            onDelete={cashierService.delete}
+            onUpdateName={cashierService.set.name}
+            onUpdateRole={cashierService.set.role}
+            useCashiers={cashierService.useCashiers}
+            useUser={userService.useUser}
+          />
+          <NewCashier onAdd={add} />
+        </StateWrap>
+      </main>
     );
   };
 });
+
+export default page;
 ```
 
-### Variant B: Composing sub-effects (no shared reactive state)
+**Key points:**
+- **Only yield services in `page.tsx`** — never in components
+- **Extract callbacks and hooks** from the service (don't pass the service itself)
+- **Use `Effect.runPromise`** at the page level to convert Effect operations to Promise-based callbacks
+- **Prop drill everything** — hooks and callbacks pass through props to `z-*` components
+- The page is a default export (for `lazyEffect`)
+
+### Bridging Effect → Promise
+
+Some service methods return `Effect` (not `Promise`). These must be bridged at the page level:
 
 ```tsx
-// src/pages/Home/page.tsx
-const page = Effect.gen(function* () {
-  const NavGrid = yield* navGrid;
-  const Header = yield* header;
-  const StatsGrid = yield* statsGrid;
-  return function Page() {
-    return (
-      <div>
-        <Header />
-        <StatsGrid />
-        <NavGrid />
-      </div>
-    );
-  };
-});
+// Page-level bridge: Effect → Promise<string | null>
+const add = (name: string) =>
+  Effect.runPromise(
+    cashierService.add({ name, role: "user", password: "" }).pipe(
+      Effect.as(null),                                    // success → null
+      Effect.catchAll((e) => Effect.succeed(e.e.message)), // error → message string
+    ),
+  );
+
+// Then pass to component as a Promise callback:
+<NewCashier onAdd={add} />
 ```
 
-### Variant C: WithLoader (one-shot fetch with inline UI)
-
-```tsx
-// src/pages/Login/page.tsx
-const page = Effect.gen(function* () {
-  const cashier = yield* CashierService;
-  const FreshForm = yield* freshForm;
-  const LoginForm = yield* loginForm;
-  return function Page() {
-    return (
-      <WithLoader
-        loader={cashier.get.all}
-        error={({ e }) => <ErrorComponent title="Error">{e.message}</ErrorComponent>}
-      >
-        {(cashiers) => (cashiers.length === 0 ? <FreshForm /> : <LoginForm cashiers={cashiers} />)}
-      </WithLoader>
-    );
-  };
-});
-```
+This wraps Effect operations so components receive simple `(input) => Promise<string | null>` callbacks that they already know how to handle.
 
 ---
 
-## Pattern 3: Service-Backed Components (`effect-*.tsx`)
+## Pattern 3: Pure React Components (`z-*.tsx`)
 
-Each exports an `Effect.gen` that yields services, extracts hooks/lambdas, and returns a React component.
+Components with the `z-` prefix are **pure React** — they have no Effect dependencies. Everything they need arrives via props.
 
-### Variant A: Reactive data via service hook (most common)
+### Read component (receives hooks as props)
 
 ```tsx
-// src/pages/Setting/Log/effect-readLog.tsx
-export const readLogEffect = Effect.gen(function* () {
-  const logService = yield* LogService;
-  const useLogLines = logService.log.useData;
-  return function ReadLog() {
-    const { data: lines } = useLogLines();
-    return (
-      <>
-        {lines.map((t, i) => (
-          <p className="text-white text-small" key={i}>{t}</p>
-        ))}
-      </>
-    );
-  };
-});
+// src/pages/Cashier/z-CashierList.tsx
+import { Cashier } from "~/services/cashier";
+import { CashierItem } from "./z-Item";
+
+type Props = {
+  useUser: () => Cashier;
+  useCashiers: () => Cashier[];
+  onUpdateName: (id: string, name: string) => Promise<string | null>;
+  onUpdateRole: (id: string, role: DBNamespace.Role) => Promise<string | null>;
+  onDelete: (id: string) => Promise<string | null>;
+};
+
+export function CashierList({ useUser, useCashiers, onDelete, onUpdateName, onUpdateRole }: Props) {
+  const user = useUser();
+  const cashiers = useCashiers();
+  return (
+    <div className="flex flex-col gap-2">
+      {cashiers.map((cashier) => (
+        <CashierItem
+          key={cashier.id}
+          cashier={cashier}
+          currentUserName={user.name}
+          onUpdateName={onUpdateName}
+          onUpdateRole={onUpdateRole}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  );
+}
 ```
 
-The component receives the hook from the service (closed over in Effect-land) and calls it in React-land. When `logService.log.setData()` is called elsewhere (e.g., by `load()` or `clear()`), this component re-renders automatically.
-
-### Variant B: Action component via lambda (writes)
+### Action component (receives callbacks as props)
 
 ```tsx
-// src/pages/Setting/Log/effect-clearLog.tsx
-export const clearLogEffect = Effect.gen(function* () {
-  const logService = yield* LogService;
-  const clear = () => logService.clear();    // ← thunk, NOT the service object
-  return function ClearLog() {
-    const { loading, error, handleClear } = useClearLog(clear);
-    return (
-      <Button onClick={handleClear} variant="destructive">
-        <Spinner when={loading} /> Bersihkan
+// src/pages/Cashier/z-NewCashier.tsx
+import { useState } from "react";
+import { Dialog, DialogTrigger, DialogContent, /* ... */ } from "~/components/ui/dialog";
+import { Button } from "~/components/ui/button";
+import { Plus } from "lucide-react";
+
+type Props = {
+  onAdd: (name: string) => Promise<string | null>;
+};
+
+export function NewCashier({ onAdd }: Props) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<null | string>(null);
+  // Use standard React patterns (useState, useForm, etc.)
+  // Call onAdd when needed — it's already a Promise, no Effect knowledge needed
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button asChild>
+        <DialogTrigger>Tambah Kasir <Plus /></DialogTrigger>
       </Button>
-    );
-  };
-});
+      <DialogContent>
+        {/* form that calls onAdd on submit */}
+      </DialogContent>
+    </Dialog>
+  );
+}
 ```
 
-**Critical rule:** Never pass the service object to React land. Extract the specific function/lambda in Effect-land and pass only that. When the live implementation uses a class, wrap methods in an arrow to preserve `this`: `const clear = () => logService.clear()`.
-
-### Variant C: Form with reactive state (reads + writes)
+### Item component (receives data + callbacks as props)
 
 ```tsx
-// src/pages/Setting/Shop/effect-info.tsx
-export const infoEffect = Effect.gen(function* () {
-  const infoService = yield* InfoService;
-  const useInfo = infoService.info.useData;
-  const setInfo = infoService.info.setData;
-  return function Info() {
-    const info = useInfo();
-    const form = useForm({
-      defaultValues: info.data,
-      onSubmit({ value }) { return setInfo(value); },
-    });
-    return (
-      <form onSubmit={...}>
-        {/* fields bound to form, disabled when info.state === "loading" */}
-        <Button disabled={isSubmitting}>Simpan <Spinner when={isSubmitting} /></Button>
-        <TextError>{info.error}</TextError>
-      </form>
-    );
-  };
-});
+// src/pages/Cashier/z-Item.tsx
+import { Cashier } from "~/services/cashier";
+
+type ItemProps = {
+  cashier: Cashier;
+  currentUserName: string;
+  onUpdateName: (id: string, name: string) => Promise<string | null>;
+  onUpdateRole: (id: string, role: DBNamespace.Role) => Promise<string | null>;
+  onDelete: (id: string) => Promise<string | null>;
+};
+
+export function CashierItem({ cashier, currentUserName, onUpdateName, onUpdateRole, onDelete }: ItemProps) {
+  // Component manages its own local state (loading, error, form values)
+  // Calls onUpdateName / onDelete / onUpdateRole when user interacts
+}
 ```
 
-### Variant D: Pre-bound lambdas for user actions (complex flows)
+### Loading skeleton component
 
 ```tsx
-// src/pages/Login/effect-freshForm.tsx
-export const freshForm = Effect.gen(function* () {
-  const hashService = yield* HashService;
-  const cashierService = yield* CashierService;
-  const runnable = (name: string, password: string) =>
-    program(name, password).pipe(
-      Effect.provideService(HashService, hashService),
-      Effect.provideService(CashierService, cashierService),
-    );
-  return function FreshForm() {
-    const { form, error } = useFreshForm(runnable);
-    return <form>...</form>;
-  };
-});
+// src/pages/Cashier/z-Loading.tsx
+import { Skeleton } from "~/components/ui/skeleton";
+
+export function Loading() {
+  return (
+    <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-5 w-96" />
+      {/* skeleton rows matching the real layout */}
+    </div>
+  );
+}
 ```
 
-The `program` function (defined outside the Effect.gen) declares its dependencies abstractly. The Effect.gen yields concrete service instances and creates a "runnable" — a partially-applied closure with services baked in. Only this closure crosses into React land.
-
-### Variant E: Composable sub-effects
-
-```tsx
-export const incomeCard = Effect.gen(function* () {
-  const BaseFinancialCard = yield* baseFinancialCard("in");
-  return function IncomeCard() {
-    return <BaseFinancialCard label="Pendapatan Hari Ini" icon={Wallet} ... />;
-  };
-});
-```
+**Key principles for `z-*` components:**
+- **No `Effect.gen`** — they are plain functions
+- **No `yield*`** — no service injection
+- **No imports from `effect`** — no Effect types or utilities
+- **Receive everything via props** — typed with TypeScript interfaces
+- **Own their local UI state** — `useState` for form values, loading spinners, error messages, dialog open/close
 
 ---
 
@@ -395,30 +370,16 @@ export const incomeCard = Effect.gen(function* () {
 
 ```tsx
 // src/lib/lazy.ts
-export function lazyEffect<E, R>(
-  loader: () => Promise<{ default: Effect.Effect<() => JSX.Element, E, R> }>,
-): Effect.Effect<() => JSX.Element, E, R> {
-  return pipe(
-    Effect.runtime<R>(),
-    Effect.map((rt) => {
-      let page: (() => JSX.Element) | undefined;
-      let pending: Promise<void> | undefined;
-      return function Page() {
-        if (page) return page();
-        pending ??= Runtime.runPromise(rt)(
-          pipe(Effect.promise(loader), Effect.flatMap((m) => m.default)),
-        ).then((fn) => { page = fn; });
-        use(pending);  // React 19 use() — suspends on promise
-        return page!();
-      };
-    }),
-  );
+export function lazyEffect<E, R, Props>(
+  loader: () => Promise<{ default: Effect.Effect<(props: Props) => JSX.Element, E, R> }>,
+): Effect.Effect<(props: Props) => JSX.Element, E, R> {
+  // Combines React.lazy with Effect Runtime.runPromise
+  // The imported module's default export must be an Effect (i.e., page.tsx)
 }
 ```
 
 **Key points:**
 - The imported module's `default` export must be an `Effect` that yields a React component
-- `Runtime.runPromise` runs the Effect against the live service environment
 - React's `use()` hook suspends on the promise
 - The result is cached — subsequent renders return the cached component
 
@@ -433,164 +394,205 @@ For simple fetch-on-mount scenarios where reactive updates aren't needed.
 export function WithLoader<T, E>({
   loader,    // () => Effect.Effect<T, E>
   children,  // (data: T) => ReactNode
-  loading,   // ReactNode (optional)
   error,     // (error: E, retry: () => void) => ReactNode
-}) {
-  const [state, setState] = useState<State<T, E>>({ state: "loading" });
-  const fetchData = useCallback(async () => {
-    setState({ state: "loading" });
-    const either = await Effect.runPromise(loader().pipe(Effect.either));
-    Either.match(either, {
-      onLeft(error) { setState({ state: "error", error }); },
-      onRight(data)  { setState({ state: "success", data }); },
-    });
-  }, [loader]);
-  useEffect(() => { fetchData(); }, []);
-  // switch on state: loading → render loading, error → render error(retry), success → render children(data)
-}
+  loading,   // ReactNode (optional)
+}) { /* ... */ }
 ```
 
-**Use when:** Data is fetched once, displayed, and never updated while the component is mounted.
+**Use when:** Data is fetched once, displayed, and never updated while the component is mounted. The loader is an Effect, bridged inside `WithLoader` via `Effect.runPromise`.
 
 ---
 
-## Pattern 6: Reactive State with `StateWrap` + `useLoad`
+## Pattern 6: StateWrap
 
-The primary pattern for read-heavy pages. The service manages loading state and data lifecycle.
+`StateWrap` is the primary pattern for pages that need to load data before rendering children. It calls the service's `loader()` once on mount.
+
+```tsx
+// src/components/StateWrap.tsx
+import { useEffect, useState } from "react";
+import { Status } from "~/lib/state";
+
+export function StateWrap<E>({
+  loader,    // () => Promise<E | null>  — null = success, E = error
+  children,  // React.ReactNode
+  error,     // (error: E) => React.ReactNode
+  loading,   // React.ReactNode (optional)
+}) {
+  const [status, setStatus] = useState<Status<E>>({ state: "loading" });
+  useEffect(() => {
+    async function init() {
+      const err = await loader();
+      if (err !== null) {
+        setStatus({ error: err, state: "error" });
+      } else {
+        setStatus({ state: "success" });
+      }
+    }
+    init();
+  }, [loader]);
+  switch (status.state) {
+    case "loading": return loading;
+    case "error":   return error(status.error);
+  }
+  return children;
+}
+```
 
 ### How it works
 
-```
-Service.load() → StatusState.loader()
-  ├─ status.setLoading() → StateWrap shows <Loading />
-  ├─ fetch data
-  ├─ seed AsyncDataStates via setData()
-  └─ status.setSuccess() → StateWrap shows children
+1. `StateWrap` calls `loader()` (a Promise) on mount
+2. If `loader()` returns `null` → children render
+3. If `loader()` returns an error → error component renders
+4. The `loader` function originates from the service, which seeds reactive state before resolving
+
+### Service `loader()` implementation pattern
+
+```tsx
+// In the service implementation, loader seeds reactive state then resolves:
+async function loader() {
+  const error = await Effect.runPromise(
+    Effect.gen(function* () {
+      const data = yield* fetchFromStore;
+      cashierState.setData(data);   // seed reactive state
+      return null;
+    }).pipe(
+      Effect.catchAll((e) => Effect.succeed(e)),  // return error, don't throw
+    ),
+  );
+  return error;
+}
 ```
 
 ### Page usage
 
 ```tsx
-const page = Effect.gen(function* () {
-  const service = yield* MyService;
-  const useLoad = service.useLoad;
-  const ReadView = yield* readEffect;
-  const WriteAction = yield* writeEffect;
-  return function Page() {
-    const status = useLoad();
-    return (
-      <StateWrap
-        status={status}
-        loading={<Loading />}
-        error={({ e }) => <TextError>{e.message}</TextError>}
-      >
-        <ReadView />
-        <WriteAction />
-      </StateWrap>
-    );
-  };
-});
+<StateWrap
+  loader={cashierService.loader}
+  loading={<Loading />}
+  error={({ e }) => <TextError>{e.message}</TextError>}
+>
+  <CashierList useCashiers={cashierService.useCashiers} /* ... */ />
+  <NewCashier onAdd={add} />
+</StateWrap>
 ```
 
-### Service definition
-
-```tsx
-export class MyService extends Context.Tag("MyService")<
-  MyService,
-  {
-    load: () => Effect.Effect<void, MyError>;
-    useLoad: () => Status<MyError>;
-    data: AsyncDataState<MyData, string>;
-    mutate: () => Effect.Effect<void, MyError>;
-  }
->() {}
-```
-
-### Service live implementation
-
-```tsx
-const MyLayer = Layer.effect(MyService, Effect.gen(function* () {
-  const dataState = new AsyncDataState<MyData, string>((data) =>
-    persistEffect(data).pipe(Effect.catchTag("X", ({ e }) => Effect.fail(e.message))),
-  );
-  const load = () => Effect.gen(function* () {
-    status.setLoading(); status.notify();
-    const data = yield* fetchEffect;
-    dataState.setData(data);
-    status.setSuccess();
-  }).pipe(Effect.tapError((e) => status.setError(e)));
-  const status = new StatusState<MyError>(load);
-  return MyService.of({
-    load,
-    useLoad: status.useLoad,
-    data: dataState,
-    mutate: () => Effect.gen(function* () {
-      yield* mutateEffect;
-      dataState.setData(newData);  // triggers re-render in all useData() consumers
-    }),
-  });
-}));
-```
+**Important:** Pass `loader` (the function reference) to `StateWrap`, not the service object. The reactive hooks (`useCashiers`) are called **after** `StateWrap` succeeds, so the data is guaranteed to be seeded.
 
 ---
 
-## Pattern 7: Mutable Data with `AsyncDataState`
+## Pattern 7: Testing
 
-Used for forms and settings where the user edits data that must be persisted. Provides optimistic updates.
+Tests use `Effect.provideService` / `Layer.succeed` to inject mock services. Mock objects are plain JavaScript objects matching the service interface.
 
-### How it works
-
-```
-User edits form → form.onSubmit → service.data.setData(newValue)
-  ├─ UI updates immediately (optimistic)
-  ├─ persist function runs
-  │   ├─ success → state = "success", data = newValue
-  │   └─ failure → state = "error", data = oldValue (reverted)
-  └─ all useData() consumers re-render
-```
-
-### Service definition
+### Page-level test
 
 ```tsx
-export class ConfigService extends Context.Tag("ConfigService")<
-  ConfigService,
-  {
-    load: () => Effect.Effect<void, ConfigError>;
-    useLoad: () => Status<ConfigError>;
-    theme: AsyncDataState<string, string>;
-    size: AsyncDataState<string, string>;
-  }
->() {}
-```
+// src/pages/Cashier/__test/page.test.tsx
+import { describe, test, expect } from "bun:test";
+import { screen, waitFor } from "@testing-library/react";
+import { Effect, Layer } from "effect";
+import { CashierService, CashierError } from "~/services/cashier";
+import { UserService } from "~/services/user";
+import page from "../page";
+import { render } from "~/lib/render";
 
-### Component consuming the data
+// 1. Define mock cashiers
+const mockCashiers = [
+  { name: "Budi", role: "admin", id: "1" },
+  { name: "Ani", role: "user", id: "2" },
+];
 
-```tsx
-export const selectTheme = Effect.gen(function* () {
-  const config = yield* ConfigService;
-  const useTheme = config.theme.useData;
-  return function SelectTheme() {
-    const { data: theme, state, error } = useTheme();
-    const loading = state === "loading";
-    return (
-      <>
-        <Select value={theme} onValueChange={(v) => config.theme.setData(v)} disabled={loading}>
-          ...
-        </Select>
-        <TextError>{error}</TextError>
-      </>
-    );
+// 2. Build mock service factories (plain objects matching the interface)
+function makeCashierService(opts?: {
+  loader?: () => Promise<CashierError | null>;
+  cashiers?: TestCashier[];
+}): typeof CashierService.Service {
+  const cashiers = opts?.cashiers ?? mockCashiers;
+  return {
+    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    useCashiers: () => cashiers,
+    add: (input) => Effect.succeed(input.name),
+    delete: () => Promise.resolve(null),
+    set: {
+      name: () => Promise.resolve(null),
+      role: () => Promise.resolve(null),
+    },
+    get: {
+      all: () => Effect.succeed(cashiers),
+      byId: () => Effect.fail(new CashierError(new Error("not implemented"))),
+    },
   };
+}
+
+function makeUserService(opts?): typeof UserService.Service {
+  const user = opts?.user ?? mockCashiers[0];
+  return {
+    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    useUser: () => user,
+    user,
+    setUser: () => Promise.resolve(null),
+    logout: () => {},
+  };
+}
+
+// 3. Test that the Effect resolves
+describe("page (Effect)", () => {
+  test("resolves when all services are provided", () => {
+    const program = Effect.gen(function* () { yield* page; });
+    const layer = Layer.mergeAll(
+      Layer.succeed(CashierService, makeCashierService()),
+      Layer.succeed(UserService, makeUserService()),
+    );
+    expect(() => Effect.runSync(Effect.provide(program, layer))).not.toThrow();
+  });
+});
+
+// 4. Helper to render the page with mocks
+function renderPage(cashierOpts?, userOpts?) {
+  const Page = Effect.runSync(
+    page.pipe(
+      Effect.provideService(CashierService, makeCashierService(cashierOpts)),
+      Effect.provideService(UserService, makeUserService(userOpts)),
+    ),
+  );
+  return render(<Page />);
+}
+
+// 5. Test rendered output
+describe("Page component", () => {
+  test("renders heading", async () => {
+    renderPage();
+    expect(screen.getByRole("heading", { name: /daftar kasir/i })).toBeInTheDocument();
+  });
+
+  test("shows loading when loader is pending", () => {
+    const deferred = Promise.withResolvers<null>();
+    renderPage({ loader: () => deferred.promise });
+    expect(document.querySelectorAll("[data-slot='skeleton']").length).toBeGreaterThan(0);
+    deferred.resolve(null);
+  });
+
+  test("shows error when loader fails", async () => {
+    renderPage({ loader: () => Promise.resolve(new CashierError(new Error("Gagal")) })});
+    expect(await screen.findByText(/Gagal/i)).toBeInTheDocument();
+  });
+
+  test("renders cashier list on success", async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Budi")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Ani")).toBeInTheDocument();
+    });
+  });
 });
 ```
 
-### Checklist for adding a new `AsyncDataState` field
-
-1. Add field to service interface: `myField: AsyncDataState<T, E>`
-2. Create instance in `live.ts`: `new AsyncDataState<T, E>(persistFn)`
-3. Seed it during `load()`: `myField.setData(initialValue)`
-4. Consume in `effect-*.tsx`: `const { data, state, error } = service.myField.useData()`
-5. Write via: `service.myField.setData(newValue)`
+**Key points:**
+- Mock services are **plain objects** (no `Layer.effect` needed for simple cases)
+- Use `Effect.provideService` for per-test injection
+- Use `Layer.succeed` to wrap mock objects into layers
+- `Effect.runSync(page)` returns the React component, then render as usual
+- Test loading state with `Promise.withResolvers()` to control resolution timing
 
 ---
 
@@ -598,20 +600,19 @@ export const selectTheme = Effect.gen(function* () {
 
 | Prefix | Meaning | Example |
 |---|---|---|
-| `effect-` | Effect generator returning a React component | `effect-header.tsx`, `effect-loginForm.tsx` |
-| `z-` | Pure React component (no Effect deps) | `z-StatsCard.tsx`, `z-Loading.tsx` |
-| `page.tsx` | Page-level Effect.gen composing sub-effects | Every page directory |
+| `z-` | Pure React component (no Effect deps) | `z-CashierList.tsx`, `z-Loading.tsx` |
+| `page.tsx` | Page-level `Effect.gen` composing services + components | Every page directory |
 | `index.tsx` | Route definition with `lazyEffect` | Every page directory |
-| `util-` | Utility functions / schemas | `util-validate-product.ts` |
 
 ### Service file structure
 
 ```
 src/services/<name>/
   ├── index.ts      # Context.Tag with interface
-  ├── error.ts      # Error types (extend BaseError)
-  └── live.ts       # Layer implementation
+  └── error.ts      # Error types (extend BaseError)
 ```
+
+**Note:** Services may optionally have a `live.ts` for `Layer.effect` implementations with reactive state primitives, but many services can be implemented directly (e.g., backed by Tauri commands) without a separate live layer.
 
 ---
 
@@ -622,15 +623,15 @@ src/services/<name>/
 ```tsx
 // src/services/example/index.ts
 import { Context, Effect } from "effect";
-import { AsyncDataState, Status } from "~/lib/state";
 import { ExampleError } from "./error";
 
 export class ExampleService extends Context.Tag("ExampleService")<
   ExampleService,
   {
-    load: () => Effect.Effect<void, ExampleError>;
-    useLoad: () => Status<ExampleError>;
-    items: AsyncDataState<string[], string>;
+    loader(): Promise<ExampleError | null>;
+    useItems(): Item[];
+    addItem(item: Item): Promise<string | null>;
+    deleteItem(id: string): Promise<string | null>;
   }
 >() {}
 ```
@@ -641,55 +642,73 @@ import { BaseError } from "~/lib/error-effect";
 export class ExampleError extends BaseError("ExampleError") {}
 ```
 
-```tsx
-// src/services/example/live.ts
-import { Effect, Layer } from "effect";
-import { ExampleService } from ".";
-import { ExampleError } from "./error";
-import { AsyncDataState, StatusState } from "~/lib/state";
+### Step 2: Create pure React components
 
-export const ExampleLayer = Layer.effect(
-  ExampleService,
-  Effect.gen(function* () {
-    const itemsState = new AsyncDataState<string[], string>((data) =>
-      Effect.succeed(data),  // replace with actual persistence
-    );
-    const load = () =>
-      Effect.gen(function* () {
-        status.setLoading(); status.notify();
-        yield* Effect.sleep("1 second");  // simulate fetch
-        itemsState.setData(["item-1", "item-2"]);
-        status.setSuccess();
-      }).pipe(Effect.tapError((e) => status.setError(e)));
-    const status = new StatusState<ExampleError>(load);
-    return ExampleService.of({
-      load,
-      useLoad: status.useLoad,
-      items: itemsState,
-    });
-  }),
-);
+```tsx
+// src/pages/Example/z-List.tsx
+type Props = {
+  useItems: () => Item[];
+  onDelete: (id: string) => Promise<string | null>;
+};
+
+export function List({ useItems, onDelete }: Props) {
+  const items = useItems();
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>
+          {item.name}
+          <button onClick={() => onDelete(item.id)}>Delete</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
 ```
 
-### Step 2: Create effect components
+```tsx
+// src/pages/Example/z-NewItem.tsx
+type Props = {
+  onAdd: (name: string) => Promise<string | null>;
+};
+
+export function NewItem({ onAdd }: Props) {
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    const err = await onAdd(name);
+    setLoading(false);
+    setError(err);
+    if (!err) setName("");
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <button disabled={loading}>Add</button>
+      {error && <p className="text-red-500">{error}</p>}
+    </form>
+  );
+}
+```
 
 ```tsx
-// src/pages/Example/effect-list.tsx
-import { Effect } from "effect";
-import { ExampleService } from "~/services/example";
+// src/pages/Example/z-Loading.tsx
+import { Skeleton } from "~/components/ui/skeleton";
 
-export const listEffect = Effect.gen(function* () {
-  const service = yield* ExampleService;
-  const useItems = service.items.useData;
-  return function List() {
-    const { data: items } = useItems();
-    return (
-      <ul>
-        {items.map((item) => <li key={item}>{item}</li>)}
-      </ul>
-    );
-  };
-});
+export function Loading() {
+  return (
+    <div className="flex flex-col gap-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-8 w-full" />
+      <Skeleton className="h-8 w-full" />
+    </div>
+  );
+}
 ```
 
 ### Step 3: Create the page
@@ -700,23 +719,26 @@ import { Effect } from "effect";
 import { ExampleService } from "~/services/example";
 import { StateWrap } from "~/components/StateWrap";
 import { TextError } from "~/components/TextError";
-import { listEffect } from "./effect-list";
+import { List } from "./z-List";
+import { NewItem } from "./z-NewItem";
+import { Loading } from "./z-Loading";
 
 const page = Effect.gen(function* () {
   const service = yield* ExampleService;
-  const useLoad = service.useLoad;
-  const List = yield* listEffect;
+
   return function Page() {
-    const status = useLoad();
     return (
-      <StateWrap
-        status={status}
-        loading={<p>Loading...</p>}
-        error={({ e }) => <TextError>{e.message}</TextError>}
-      >
+      <main className="flex flex-col gap-4 p-6">
         <h1>Example Page</h1>
-        <List />
-      </StateWrap>
+        <StateWrap
+          loader={service.loader}
+          loading={<Loading />}
+          error={({ e }) => <TextError>{e.message}</TextError>}
+        >
+          <List useItems={service.useItems} onDelete={service.deleteItem} />
+          <NewItem onAdd={service.addItem} />
+        </StateWrap>
+      </main>
     );
   };
 });
@@ -730,20 +752,34 @@ export default page;
 // src/pages/Example/index.tsx
 import { Effect } from "effect";
 import { Suspense } from "react";
+import { RouteObject } from "react-router";
 import { lazyEffect } from "~/lib/lazy";
+import { Loading } from "./z-Loading";
 
 export const exampleRouteEffect = Effect.gen(function* () {
   const Page = yield* lazyEffect(() => import("./page"));
-  return {
+  const route: RouteObject = {
+    Component: () => (
+      <Suspense fallback={<Loading />}>
+        <Page />
+      </Suspense>
+    ),
     path: "example",
-    Component: () => <Suspense><Page /></Suspense>,
   };
+  return route;
 });
 ```
 
-### Step 5: Register and provide the Layer
+### Step 5: Register the route
 
-Register the route Effect in the parent router and provide the `ExampleLayer` at the application level so the runtime can satisfy the service dependency.
+Add the route Effect to `src/route.tsx`:
+
+```tsx
+import { exampleRouteEffect } from "./pages/Example/index.tsx";
+// ... and yield it in routerEffect
+const exampleRoute = yield* exampleRouteEffect;
+// ... add to children array
+```
 
 ---
 
@@ -751,23 +787,24 @@ Register the route Effect in the parent router and provide the `ExampleLayer` at
 
 | Scenario | Pattern | Key Component |
 |---|---|---|
-| Page loads data once, no updates | `WithLoader` | `WithLoader` |
-| Page has multiple sub-views sharing data | `StateWrap` + `AsyncDataState` | `StateWrap`, `useLoad` |
-| Form that persists on submit | `AsyncDataState` with form | `useData`, `setData` |
-| Button triggers action (delete, clear) | Lambda passed to hook | `useClearLog(clear)` — use arrow wrapper if class-based: `() => service.clear()` |
-| Complex multi-step flow | Pre-bound runnable | `program(...).pipe(provideService(...))` |
+| Page loads data before rendering children | `StateWrap` with `loader` prop | `StateWrap` |
+| Component needs to read reactive data | Pass `use*` hook as prop | `z-*` component |
+| Component triggers a mutation (create, update, delete) | Bridge at page level, pass callback as prop | `Effect.runPromise` at page level |
+| Simple one-shot fetch (no reactive updates) | `WithLoader` | `WithLoader` |
 | Lazy-loaded page | `lazyEffect` | `lazyEffect(() => import(...))` |
+| Form that persists on submit | Pass `onSubmit` callback as prop | Component manages local loading/error state |
+| User action with dialog (delete confirmation) | Pass callback, component manages dialog state | Component owns `useState` for `open` |
 
 ---
 
 ## Anti-Patterns
 
-- **Don't pass service objects to React land** — extract lambdas/hooks in Effect-land, pass only those
-- **Be careful with `this` binding when extracting methods** — if the live implementation uses a class, `const m = service.method` loses `this`. Prefer the arrow wrapper: `const m = () => service.method()` or `const m = (id) => service.method(id)`. This is NOT unnecessary — it's defensive against class-based implementations.
-- **Don't call `Effect.runPromise` inside render** — use `WithLoader`, `useEffect`, or service hooks
-- **Don't import services directly in pure components** — always go through `Effect.gen`
-- **Don't put business logic in `page.tsx`** — extract into `effect-*.tsx` files
-- **Don't skip the `Effect.gen` layer** — even simple pages should yield their sub-components
-- **Don't use `useState` for async data** — prefer `WithLoader` (one-shot) or `AsyncDataState` (reactive)
-- **Don't manage loading/error state manually** — let `StatusState` and `StateWrap` handle it
-- **Don't create a service without `useLoad`** — every data-loading service needs one
+- **Don't inject services in `z-*` components** — they are pure React, no `Effect.gen`, no `yield*`
+- **Don't create `effect-*.tsx` files** — extract everything at the page level, prop drill to `z-*` components
+- **Don't pass service objects to React land** — extract specific hooks/callbacks in `Effect.gen` at page level
+- **Don't call `Effect.runPromise` inside `z-*` components** — bridge at page level, pass the resulting Promise as a prop
+- **Don't import services directly in pure components** — they receive everything via props
+- **Don't put business logic in `z-*.tsx`** — they render UI and own local UI state only
+- **Don't manage loading/error state for page-level data in components** — let `StateWrap` handle it
+- **Don't use `useState` for cross-component shared data** — that's what service `use*` hooks are for
+- **Don't call service `use*` hooks before `StateWrap` succeeds** — wrap in `StateWrap` to guarantee data is loaded

@@ -13,22 +13,19 @@ export type Info = {
 export type InfoFull = Info & {
   showCashier: boolean;
 };
-
-export class ShowCashierService extends Context.Tag("ShowCashierService")<
-  ShowCashierService,
-  {
-    useShowCashier(): boolean;
-    set(showCashier: boolean): Promise<string | null>;
-  }
+export class UseShowCashier extends Context.Tag("UseShowCashier")<
+  UseShowCashier,
+  () => boolean
 >() {}
-
-export class InfoDetailService extends Context.Tag("InfoDetailService")<
-  InfoDetailService,
-  {
-    useName: () => string;
-    useInfo(): Info;
-    set(info: Info): Promise<string | null>;
-  }
+export class SetShowCashier extends Context.Tag("SetShowCashier")<
+  SetShowCashier,
+  (showCashier: boolean) => Promise<string | null>
+>() {}
+export class UseNameCashier extends Context.Tag("UseNameCashier")<UseNameCashier, () => string>() {}
+export class UseInfoCashier extends Context.Tag("UseInfoCashier")<UseInfoCashier, () => Info>() {}
+export class SetInfoCashier extends Context.Tag("SetInfoCashier")<
+  SetInfoCashier,
+  (info: Info) => Promise<string | null>
 >() {}
 
 export class InfoService extends Context.Tag("InfoService")<
@@ -36,13 +33,13 @@ export class InfoService extends Context.Tag("InfoService")<
   {
     loader: () => Promise<null | InfoError>;
     showCashier: {
-      useShowCashier(): boolean;
-      set(showCashier: boolean): Promise<string | null>;
+      useShowCashier: typeof UseShowCashier.Service;
+      set: typeof SetShowCashier.Service;
     };
     info: {
-      useName: () => string;
-      useInfo(): Info;
-      set(info: Info): Promise<string | null>;
+      useInfo: typeof UseInfoCashier.Service;
+      useName: typeof UseNameCashier.Service;
+      set: typeof SetInfoCashier.Service;
     };
   }
 >() {}
