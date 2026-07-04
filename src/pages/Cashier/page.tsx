@@ -6,17 +6,32 @@ import { TextError } from "~/components/TextError";
 import { CashierList } from "./z-CashierList";
 import { NewCashier } from "./z-NewCashier";
 import { UserService } from "~/services/user";
+import { promisify } from "~/lib/promisify";
 
 const page = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const userService = yield* UserService;
-  const add = (name: string) =>
-    Effect.runPromise(
-      cashierService.add({ name, role: "user", password: "" }).pipe(
-        Effect.as(null),
-        Effect.catchAll((e) => Effect.succeed(e.e.message)),
-      ),
+  const onAdd = (name: string) =>
+    promisify(
+      () => cashierService.add({ name, role: "user", password: "" }),
+      (e) => e.e.message,
     );
+  const onDelete = (id: string) =>
+    promisify(
+      () => cashierService.delete(id),
+      (e) => e.e.message,
+    );
+  const onUpdateName = (id: string, name: string) =>
+    promisify(
+      () => cashierService.set.name(id, name),
+      (e) => e.e.message,
+    );
+  const onUpdateRole = (id: string, role: DBNamespace.Role) =>
+    promisify(
+      () => cashierService.set.role(id, role),
+      (e) => e.e.message,
+    );
+
   return function Page() {
     return (
       <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
@@ -30,13 +45,13 @@ const page = Effect.gen(function* () {
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
           <CashierList
-            onDelete={cashierService.delete}
-            onUpdateName={cashierService.set.name}
-            onUpdateRole={cashierService.set.role}
+            onDelete={onDelete}
+            onUpdateName={onUpdateName}
+            onUpdateRole={onUpdateRole}
             useCashiers={cashierService.useCashiers}
             useUser={userService.useUser}
           />
-          <NewCashier onAdd={add} />
+          <NewCashier onAdd={onAdd} />
         </StateWrap>
       </main>
     );

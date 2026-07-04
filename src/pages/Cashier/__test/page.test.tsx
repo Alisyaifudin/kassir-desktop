@@ -27,19 +27,19 @@ const mockCashiers: TestCashier[] = [
 // ---------------------------------------------------------------------------
 
 function makeCashierService(opts?: {
-  loader?: () => Promise<CashierError | null>;
+  loader?: () => Effect.Effect<void, CashierError>;
   cashiers?: TestCashier[];
 }): typeof CashierService.Service {
   const cashiers = opts?.cashiers ?? mockCashiers;
   return {
-    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    loader: opts?.loader ?? (() => Effect.void),
     useCashiers: () => cashiers,
     add: (input) => Effect.succeed(input.name),
-    delete: () => Promise.resolve(null),
+    delete: () => Effect.void,
     set: {
-      name: () => Promise.resolve(null),
-      hash: () => Promise.resolve(null),
-      role: () => Promise.resolve(null),
+      name: () => Effect.void,
+      hash: () => Effect.void,
+      role: () => Effect.void,
     },
     get: {
       all: () => Effect.succeed(cashiers),
@@ -104,13 +104,12 @@ describe("Page component", () => {
   });
 
   test("shows loading skeleton while loader is pending", async () => {
-    const deferred = Promise.withResolvers<null>();
-    renderPage({ loader: () => deferred.promise });
+    const deferred = Promise.withResolvers<void>();
+    renderPage({ loader: () => Effect.promise(() => deferred.promise) });
     const skeletons = document.querySelectorAll("[data-slot='skeleton']");
     expect(skeletons.length).toBeGreaterThan(0);
-    // Resolve the pending promise to allow cleanup
-    deferred.resolve(null);
     // Flush the pending state update from StateWrap
+    deferred.resolve();
     await waitFor(() => {
       expect(screen.queryByText(/daftar kasir/i)).toBeInTheDocument();
     });
@@ -118,7 +117,7 @@ describe("Page component", () => {
 
   test("shows error message when loader fails", async () => {
     renderPage({
-      loader: () => Promise.resolve(new CashierError(new Error("Gagal memuat data"))),
+      loader: () => Effect.fail(new CashierError(new Error("Gagal memuat data"))),
     });
     expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
   });
