@@ -46,10 +46,10 @@ function makeHashService(): typeof HashService.Service {
 
 function makeUserService(): typeof UserService.Service {
   return {
-    loader: () => Promise.resolve(null),
+    loader: () => Effect.void,
     useUser: () => ({ name: "Budi", role: "admin", id: "1" }),
     user: undefined,
-    setUser: () => Promise.resolve(null),
+    setUser: () => Effect.void,
     logout: () => {},
     login: () => {},
   };

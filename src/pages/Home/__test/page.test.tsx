@@ -22,10 +22,10 @@ const today = "Senin, 1 Januari 2025";
 function makeUserService(opts?: { user?: Cashier }): typeof UserService.Service {
   const user = opts?.user ?? mockUser;
   return {
-    loader: () => Promise.resolve(null),
+    loader: () => Effect.void,
     useUser: () => user,
     user,
-    setUser: () => Promise.resolve(null),
+    setUser: () => Effect.void,
     logout: () => {},
   };
 }

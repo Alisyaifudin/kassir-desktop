@@ -34,7 +34,7 @@ function makeCashierService(opts?: {
   return {
     loader: opts?.loader ?? (() => Effect.void),
     useCashiers: () => cashiers,
-    add: (input) => Effect.succeed(input.name),
+    add: (input) => Effect.succeed({ name: input.name, id: "1", role: "user" }),
     delete: () => Effect.void,
     set: {
       name: () => Effect.void,
@@ -57,8 +57,9 @@ function makeUserService(opts?: {
     loader: opts?.loader ?? (() => Promise.resolve(null)),
     useUser: () => user,
     user,
-    setUser: () => Promise.resolve(null),
+    setUser: () => Effect.void,
     logout: () => {},
+    login: () => {},
   };
 }
 
