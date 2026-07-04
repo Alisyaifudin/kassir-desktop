@@ -1,18 +1,18 @@
+import { X } from "lucide-react";
+import { memo, useState } from "react";
 import { Button } from "~/components/ui/button";
+import { TextError } from "~/components/TextError";
+import { Spinner } from "~/components/Spinner";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { useState } from "react";
-import { X } from "lucide-react";
-import { TextError } from "~/components/TextError";
-import { cn } from "~/lib/utils";
-import { Spinner } from "~/components/Spinner";
 
-export function DeleteDialog({
+export const DeleteDialog = memo(function DeleteDialog({
   id,
   name,
   value,
@@ -39,12 +39,7 @@ export function DeleteDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        type="button"
-        asChild
-        className={cn("w-fit p-0 rounded-full", "p-1.5 small:p-1")}
-        variant="destructive"
-      >
+      <Button type="button" asChild className="p-1.5 rounded-full small:p-1" variant="destructive">
         <DialogTrigger>
           <X className="icon" />
         </DialogTrigger>
@@ -53,16 +48,19 @@ export function DeleteDialog({
         <DialogHeader>
           <DialogTitle className="text-big">Hapus Kontak</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-            <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
+            <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]">
               <span>Jenis Kontak</span>
               <span>: {name}</span>
             </div>
-            <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
+            <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]">
               <span>Isian Kontak</span>
               <span>: {value}</span>
             </div>
             <TextError>{error}</TextError>
-            <div className="col-span-2 flex flex-col items-end">
+            <div className="flex justify-between">
+              <Button type="button" asChild variant="secondary">
+                <DialogClose>Batal</DialogClose>
+              </Button>
               <Button disabled={loading} variant="destructive" type="submit">
                 Hapus
                 <Spinner when={loading} />
@@ -73,4 +71,4 @@ export function DeleteDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

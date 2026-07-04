@@ -2,16 +2,31 @@ import { Effect } from "effect";
 import { SocialService } from "~/services/social";
 import { StateWrap } from "~/components/StateWrap";
 import { TextError } from "~/components/TextError";
-import { socialListEffect } from "./effect-socialList";
-import { newSocialEffect } from "./effect-newSocial";
+import { SocialList } from "./z-SocialList";
+import { NewSocial } from "./z-NewSocial";
 import { Loading } from "./z-Loading";
+import { promisify } from "~/lib/promisify";
 import { cn } from "~/lib/utils";
 
 const page = Effect.gen(function* () {
   const socialService = yield* SocialService;
-  const loader = () => socialService.loader();
-  const SocialList = yield* socialListEffect;
-  const NewSocial = yield* newSocialEffect;
+
+  const onAdd = (name: string, value: string) =>
+    promisify(
+      () => socialService.add(name, value),
+      (e) => e.e.message,
+    );
+  const onUpdate = (id: string, name: string, value: string) =>
+    promisify(
+      () => socialService.update({ id, name, value }),
+      (e) => e.e.message,
+    );
+  const onDelete = (id: string) =>
+    promisify(
+      () => socialService.delete(id),
+      (e) => e.e.message,
+    );
+
   return function Page() {
     return (
       <div className="flex flex-col gap-4 p-6 w-full flex-1 overflow-hidden">
@@ -31,12 +46,16 @@ const page = Effect.gen(function* () {
           <p className="font-semibold text-foreground">Isian</p>
         </div>
         <StateWrap
-          loader={loader}
+          loader={socialService.loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
-          <SocialList />
-          <NewSocial />
+          <SocialList
+            useSocials={socialService.useSocials}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+          />
+          <NewSocial onAdd={onAdd} />
         </StateWrap>
       </div>
     );
