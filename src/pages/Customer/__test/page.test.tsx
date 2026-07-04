@@ -21,16 +21,16 @@ const mockCustomers: Customer[] = [
 // ---------------------------------------------------------------------------
 
 function makeCustomerService(opts?: {
-  loader?: () => Promise<CustomerError | null>;
+  loader?: () => Effect.Effect<void, CustomerError>;
   customers?: Customer[];
 }): typeof CustomerService.Service {
   const customers = opts?.customers ?? mockCustomers;
   return {
-    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    loader: opts?.loader ?? (() => Effect.void),
     useCustomers: () => customers,
-    add: () => Promise.resolve(null),
-    set: () => Promise.resolve(null),
-    delete: () => Promise.resolve(null),
+    add: () => Effect.void,
+    set: () => Effect.void,
+    delete: () => Effect.void,
   };
 }
 
@@ -67,11 +67,11 @@ describe("Page component", () => {
   });
 
   test("shows loading skeleton while loader is pending", async () => {
-    const deferred = Promise.withResolvers<null>();
-    renderPage({ loader: () => deferred.promise });
+    const deferred = Promise.withResolvers<void>();
+    renderPage({ loader: () => Effect.promise(() => deferred.promise) });
     const skeletons = document.querySelectorAll("[data-slot='skeleton']");
     expect(skeletons.length).toBeGreaterThan(0);
-    deferred.resolve(null);
+    deferred.resolve();
     // Flush the pending state update from StateWrap
     await waitFor(() => {
       expect(screen.queryByText(/daftar pelanggan/i)).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("Page component", () => {
 
   test("shows error message when loader fails", async () => {
     renderPage({
-      loader: () => Promise.resolve(new CustomerError(new Error("Gagal memuat data"))),
+      loader: () => Effect.fail(new CustomerError(new Error("Gagal memuat data"))),
     });
     expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
   });
