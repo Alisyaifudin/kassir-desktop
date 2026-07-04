@@ -1,7 +1,7 @@
 import { Context, Effect } from "effect";
 import { DailySummaryError } from "./error";
 
-type Sign = "+" | "-";
+export type Sign = "+" | "-";
 
 export class DailySummaryService extends Context.Tag("DailySummaryService")<
   DailySummaryService,

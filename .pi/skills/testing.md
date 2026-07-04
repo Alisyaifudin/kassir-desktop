@@ -307,6 +307,62 @@ describe("when loaded successfully", () => {
 
 ---
 
+## WithLoader Testing
+
+`WithLoader` components (`BaseFinancialCard`, `TotalTransactionsCard`) use `Effect.runPromise` internally, similar to `StateWrap`. The same patterns apply:
+
+### Loading state
+
+```tsx
+test("shows loading skeleton initially", () => {
+  renderCard({ loader: () => Effect.never });
+  const skeletons = document.querySelectorAll("[data-slot='skeleton']");
+  expect(skeletons.length).toBeGreaterThan(0);
+});
+```
+
+Use `Effect.never` to keep the loader permanently pending — no cleanup flush needed since it never resolves.
+
+### Success / Error state
+
+```tsx
+test("renders value on success", async () => {
+  renderCard({ loader: () => Effect.succeed({ todayValue: 150000, ... }) });
+  await waitFor(() => {
+    expect(screen.getByText("Rp 150000")).toBeInTheDocument();
+  });
+});
+
+test("shows error when loader fails", async () => {
+  renderCard({ loader: () => Effect.fail(new DailySummaryError(new Error("fail"))) });
+  await waitFor(() => {
+    expect(screen.getByText("fail")).toBeInTheDocument();
+  });
+});
+```
+
+### 🚨 Always `await` when the component tree contains WithLoader or StateWrap
+
+Even if the assertion target is synchronous (e.g., a `<Header>` that receives props), the presence of `WithLoader` / `StateWrap` siblings in the same render tree fires async state updates. Without `await` (via `findBy*` or `waitFor`), those updates leak past test completion and produce `act(...)` warnings.
+
+```tsx
+// ❌ No await — WithLoader state updates leak
+test("renders date", async () => {
+  renderPage();
+  expect(screen.getByText(today)).toBeInTheDocument();   // getBy*, no await
+});
+
+// ✅ Uses await — flushes WithLoader microtasks
+test("renders date", async () => {
+  renderPage();
+  expect(await screen.findByText(today)).toBeInTheDocument();  // findBy*, await
+});
+```
+
+**Rule:** When the component tree under test contains **any** `StateWrap` or `WithLoader`, every assertion must use `await` (either `findBy*` or `waitFor`).
+
+---
+
 ## User Interaction
 
 ### Always use `userEvent`
