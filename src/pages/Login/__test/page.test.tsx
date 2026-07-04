@@ -18,14 +18,14 @@ function makeCashierService(opts?: {
 }): typeof CashierService.Service {
   const cashiers = opts?.cashiers ?? [];
   return {
-    loader: () => Promise.resolve(null),
+    loader: () => Effect.void,
     useCashiers: () => cashiers,
     add: (input) => Effect.succeed({ ...input, id: "new-1" }),
-    delete: () => Promise.resolve(null),
+    delete: () => Effect.void,
     set: {
-      name: () => Promise.resolve(null),
-      hash: () => Promise.resolve(null),
-      role: () => Promise.resolve(null),
+      name: () => Effect.void,
+      hash: () => Effect.void,
+      role: () => Effect.void,
     },
     get: {
       all: () =>
