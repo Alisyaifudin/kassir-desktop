@@ -110,8 +110,9 @@ export class CashierService extends Context.Tag("CashierService")<
 **Key principles:**
 - `loader()` — returns `Effect<void, E>`, called once by `StateWrap` on mount
 - `use*()` hooks — reactive read hooks returning current state
-- Write methods (`delete`, `set.name`) — return `Effect<void, E>` for consistent error handling
+- Write methods (`delete`, `set.name`, `update`) — return `Effect<void, E>` for consistent error handling
 - All async methods are Effect — bridged to Promises at page level via `promisify`
+- **Flat service** — keep one `Context.Tag` per service. Don't split into sub-tags (e.g., `SocialAddService`, `SocialUpdateService`). Compose everything in a single interface
 - Keep the interface focused on _what_ the service does, not _how_
 
 ### Error File (`error.ts`)
@@ -629,11 +630,12 @@ describe("Page component", () => {
 
 ```
 src/services/<name>/
-  ├── index.ts      # Context.Tag with interface
-  └── error.ts      # Error types (extend BaseError)
+  ├── index.ts      # Context.Tag with interface (single flat tag)
+  ├── error.ts      # Error types (extend BaseError)
+  └── type.ts       # Shared types (optional)
 ```
 
-**Note:** Services may optionally have a `live.ts` for `Layer.effect` implementations with reactive state primitives, but many services can be implemented directly (e.g., backed by Tauri commands) without a separate live layer.
+**Note:** Services are **flat** — exactly one `Context.Tag` per service directory. Never split a service into multiple sub-tags (`SocialAddService`, `SocialUpdateService`, `UseSocials`). If you need to provide subsets of capabilities, extract at the page level — the page chooses which methods to bridge and pass down.
 
 ---
 
@@ -833,6 +835,7 @@ const exampleRoute = yield* exampleRouteEffect;
 
 - **Don't inject services in `z-*` components** — they are pure React, no `Effect.gen`, no `yield*`
 - **Don't create `effect-*.tsx` files** — extract everything at the page level, prop drill to `z-*` components
+- **Don't split a service into multiple `Context.Tag`s** — one flat tag per service directory. Use `SocialService` not `SocialAddService` + `SocialUpdateService` + `UseSocials`
 - **Don't pass service objects to React land** — extract specific hooks/callbacks in `Effect.gen` at page level
 - **Don't pass service methods directly to React components** — bridge with `promisify` at the page level
 - **Don't call `Effect.runPromise` inside pages** — use `promisify` for the standard `Promise<string | null>` bridge
