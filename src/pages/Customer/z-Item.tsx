@@ -1,38 +1,13 @@
-import { Effect } from "effect";
-import { CustomerService } from "~/services/customer";
-import { DeleteDialog } from "./z-DeleteDialog";
-import z from "zod";
-import { Customer } from "~/services/customer/type";
-import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
+import z from "zod";
+import { Show } from "~/components/Show";
+import { TextError } from "~/components/TextError";
 import { Field, FieldError, FieldGroup } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
-import { TextError } from "~/components/TextError";
-import { Show } from "~/components/Show";
+import { Customer } from "~/services/customer/type";
+import { DeleteDialog } from "./z-DeleteDialog";
 import { Loader2 } from "lucide-react";
-
-export const customerListEffect = Effect.gen(function* () {
-  const customerService = yield* CustomerService;
-  const useCustomers = () => customerService.useCustomers();
-  const onUpdate = (id: string, name: string, phone: string) =>
-    customerService.set(id, name, phone);
-  const onDelete = (id: string) => customerService.delete(id);
-  return function CustomerList() {
-    const customers = useCustomers();
-    return (
-      <div className="flex flex-col gap-3">
-        {customers.map((customer) => (
-          <CustomerItem
-            key={customer.id}
-            customer={customer}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-          />
-        ))}
-      </div>
-    );
-  };
-});
 
 const schema = z.object({
   name: z.string().nonempty(),
@@ -45,7 +20,7 @@ type ItemProps = {
   onDelete: (id: string) => Promise<string | null>;
 };
 
-function CustomerItem({ customer, onUpdate, onDelete }: ItemProps) {
+export function CustomerItem({ customer, onUpdate, onDelete }: ItemProps) {
   const [error, setError] = useState<null | string>(null);
   const form = useForm({
     defaultValues: { name: customer.name, phone: customer.phone },

@@ -1,6 +1,7 @@
 import { Context } from "effect";
 import { Customer } from "./type";
 import { CustomerError } from "./error";
+export { CustomerError } from "./error";
 
 export class CustomerService extends Context.Tag("CustomerService")<
   CustomerService,

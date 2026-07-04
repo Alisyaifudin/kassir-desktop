@@ -1,0 +1,511 @@
+# Testing Best Practices
+
+This project uses [Bun Test](https://bun.sh/docs/test/writing) with [Testing Library](https://testing-library.com/docs/react-testing-library/intro) for all React component and page tests.
+
+---
+
+## Table of Contents
+
+1. [Setup & Tooling](#setup--tooling)
+2. [Two-Tier Testing Strategy](#two-tier-testing-strategy)
+3. [Page-Level Tests](#page-level-tests)
+4. [z-* Component Tests](#z--component-tests)
+5. [Mock Services](#mock-services)
+6. [StateWrap Testing](#statewrap-testing)
+7. [User Interaction](#user-interaction)
+8. [Dialog Testing](#dialog-testing)
+9. [Query Patterns](#query-patterns)
+10. [Anti-Patterns](#anti-patterns)
+11. [Test File Structure](#test-file-structure)
+12. [Checklist](#checklist)
+
+---
+
+## Setup & Tooling
+
+| Tool | Role |
+|---|---|
+| `bun:test` | Test runner, assertions (`describe`, `test`, `expect`, `mock`) |
+| `@testing-library/react` | DOM queries (`screen`, `waitFor`, `within`) |
+| `@testing-library/user-event` | Simulate real user interactions (`user.click`, `user.type`, `user.keyboard`) |
+| `~/lib/render` | Custom render wrapping tested component in `MemoryRouter` for React Router context |
+
+```tsx
+// src/lib/render.tsx
+import { render as renderRaw } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+
+export function render(ui: React.ReactElement) {
+  return renderRaw(ui, { wrapper: MemoryRouter });
+}
+```
+
+**Always import `render` from `~/lib/render`** — never from `@testing-library/react` directly. Components using `<Link>`, `useNavigate`, or any React Router hook need `MemoryRouter` context.
+
+---
+
+## Two-Tier Testing Strategy
+
+Tests are split by the architecture boundary:
+
+```
+Page-level tests (page.test.tsx)
+  ├── Service injection via Effect.provideService
+  ├── Effect-runSync resolution
+  ├── StateWrap states (loading / error / success)
+  └── Integration: page → z-* children
+
+z-* component tests (z-*.test.tsx)
+  ├── Pure React — render with props directly
+  ├── Callback invocation (onAdd, onDelete, onUpdate)
+  ├── User interactions
+  └── No Effect, no service injection
+```
+
+**Rule:** If it requires `yield* Service`, it goes in `page.test.tsx`. If it renders a `z-*` component with props, it goes in `z-*.test.tsx`.
+
+---
+
+## Page-Level Tests
+
+### Structure
+
+```tsx
+// src/pages/Example/__test/page.test.tsx
+import { describe, test, expect } from "bun:test";
+import { screen, waitFor } from "@testing-library/react";
+import { Effect, Layer } from "effect";
+import { ExampleService, ExampleError } from "~/services/example";
+import page from "../page";
+import { render } from "~/lib/render";
+
+// 1. Mock data
+const mockItems: Item[] = [
+  { id: "1", name: "Foo" },
+  { id: "2", name: "Bar" },
+];
+
+// 2. Mock service factory — plain object matching interface
+function makeExampleService(opts?: {
+  loader?: () => Promise<ExampleError | null>;
+  items?: Item[];
+}): typeof ExampleService.Service {
+  const items = opts?.items ?? mockItems;
+  return {
+    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    useItems: () => items,
+    add: () => Promise.resolve(null),
+    delete: () => Promise.resolve(null),
+  };
+}
+
+// 3. Test: Effect resolves
+describe("page (Effect)", () => {
+  test("resolves when service is provided", () => {
+    const program = Effect.gen(function* () { yield* page; });
+    const layer = Layer.succeed(ExampleService, makeExampleService());
+    expect(() => Effect.runSync(Effect.provide(program, layer))).not.toThrow();
+  });
+});
+
+// 4. Test: rendered output
+describe("Page component", () => {
+  function renderPage(opts?: Parameters<typeof makeExampleService>[0]) {
+    const Page = Effect.runSync(
+      page.pipe(Effect.provideService(ExampleService, makeExampleService(opts))),
+    );
+    return render(<Page />);
+  }
+
+  test("renders heading", async () => {
+    renderPage();
+    expect(await screen.findByRole("heading", { name: /example/i })).toBeInTheDocument();
+  });
+});
+```
+
+### Key points
+
+- **`Effect.runSync(page)`** resolves the `Effect.gen` and returns the React component
+- **`Effect.provideService`** injects the mock at test time; for multiple services use `Layer.mergeAll`
+- **Two describe blocks**: one for Effect resolution (no DOM), one for component rendering
+- **`renderPage` helper** accepts optional overrides for the mock factory
+
+---
+
+## z-* Component Tests
+
+Pure React components receive everything via props. No Effect, no service injection.
+
+### Structure
+
+```tsx
+// src/pages/Example/__test/z-List.test.tsx
+import { describe, test, expect, mock } from "bun:test";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { List } from "../z-List";
+import { render } from "~/lib/render";
+
+const mockItems: Item[] = [
+  { id: "1", name: "Foo" },
+  { id: "2", name: "Bar" },
+];
+
+function renderList(opts?: {
+  items?: Item[];
+  onDelete?: (id: string) => Promise<string | null>;
+}) {
+  return render(
+    <List
+      useItems={() => opts?.items ?? mockItems}
+      onDelete={opts?.onDelete ?? (() => Promise.resolve(null))}
+    />,
+  );
+}
+
+describe("List", () => {
+  test("renders all items", async () => {
+    renderList();
+    await waitFor(() => {
+      expect(screen.getByText("Foo")).toBeInTheDocument();
+      expect(screen.getByText("Bar")).toBeInTheDocument();
+    });
+  });
+
+  test("calls onDelete when delete button clicked", async () => {
+    const onDelete = mock(async (_id: string) => null);
+    const user = userEvent.setup();
+    renderList({ onDelete });
+
+    await user.click(await screen.findByRole("button", { name: /delete 1/i }));
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith("1");
+    });
+  });
+});
+```
+
+### Key points
+
+- **`renderList` helper** renders the component with default props, accepts overrides
+- **`mock(async (...) => ...)` from bun** creates a callable mock that returns a Promise
+- **No `Effect.gen`, no `yield*`, no `Layer`** — just JSX with props
+- **Callbacks are `() => Promise.resolve(null)` by default** (success case)
+
+---
+
+## Mock Services
+
+Mock services are **plain objects** matching the `Service.Service` type. Use `Layer.succeed` to wrap them.
+
+### Single service
+
+```tsx
+const layer = Layer.succeed(ExampleService, makeExampleService());
+const Page = Effect.runSync(Effect.provide(page, layer));
+```
+
+Or inline with `effect.pipe(Effect.provideService(...))`:
+
+```tsx
+const Page = Effect.runSync(
+  page.pipe(Effect.provideService(ExampleService, makeExampleService())),
+);
+```
+
+### Multiple services
+
+```tsx
+const layer = Layer.mergeAll(
+  Layer.succeed(CashierService, makeCashierService()),
+  Layer.succeed(UserService, makeUserService()),
+);
+const Page = Effect.runSync(Effect.provide(page, layer));
+```
+
+### Mock factory pattern
+
+Always accept optional overrides so individual tests can customize behavior:
+
+```tsx
+function makeExampleService(opts?: {
+  loader?: () => Promise<ExampleError | null>;
+  items?: Item[];
+}): typeof ExampleService.Service {
+  const items = opts?.items ?? mockItems;
+  return {
+    loader: opts?.loader ?? (() => Promise.resolve(null)),
+    useItems: () => items,
+    add: () => Promise.resolve(null),
+    delete: () => Promise.resolve(null),
+  };
+}
+```
+
+- **Default: success** — callbacks return `Promise.resolve(null)`, loader resolves immediately
+- **Override for errors** — pass a custom loader/callback that returns an error
+- **Override for delay** — pass a pending Promise to test loading state
+
+---
+
+## StateWrap Testing
+
+Every page wraps its content in `<StateWrap loader={...}>`. Tests must cover all three states.
+
+### Loading state
+
+Use `Promise.withResolvers()` to create a Promise that never resolves (until we say so):
+
+```tsx
+test("shows loading skeleton while loader is pending", async () => {
+  const deferred = Promise.withResolvers<null>();
+  renderPage({ loader: () => deferred.promise });
+
+  const skeletons = document.querySelectorAll("[data-slot='skeleton']");
+  expect(skeletons.length).toBeGreaterThan(0);
+
+  // Resolve and flush to avoid act warnings during cleanup
+  deferred.resolve(null);
+  await waitFor(() => {
+    expect(screen.queryByText(/expected heading/i)).toBeInTheDocument();
+  });
+});
+```
+
+- **Assert on loading** before resolving the promise
+- **Always resolve the deferred** and **await a `waitFor`** to flush the state update — otherwise the pending microtask causes an `act(...)` warning during cleanup
+
+### Error state
+
+```tsx
+test("shows error message when loader fails", async () => {
+  renderPage({
+    loader: () => Promise.resolve(new ExampleError(new Error("Gagal memuat data"))),
+  });
+  expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
+});
+```
+
+- Loader returns `Promise.resolve(error)` (not `Promise.reject`)
+- Use `screen.findByText` to wait for the error to appear
+
+### Success state
+
+Wrap assertions in `waitFor` or use `screen.findBy*`:
+
+```tsx
+describe("when loaded successfully", () => {
+  test("renders list items", async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Foo")).toBeInTheDocument();
+    });
+  });
+});
+```
+
+---
+
+## User Interaction
+
+### Always use `userEvent`
+
+```tsx
+import userEvent from "@testing-library/user-event";
+
+const user = userEvent.setup();
+await user.click(button);
+await user.type(input, "text");
+await user.clear(input);
+await user.keyboard("{Enter}");
+```
+
+| Action | userEvent |
+|---|---|
+| Click a button | `await user.click(screen.getByRole("button", { name: /submit/i }))` |
+| Type in an input | `await user.type(screen.getByRole("textbox"), "value")` |
+| Clear an input | `await user.clear(screen.getByDisplayValue("old"))` |
+| Press Enter | `await user.keyboard("{Enter}")` |
+| Select an option | `await user.click(trigger); await user.click(option)` |
+
+### Never use raw DOM APIs
+
+| ❌ Don't | ✅ Do |
+|---|---|
+| `fireEvent.click(button)` | `await user.click(button)` |
+| `input.value = "x"` | `await user.type(input, "x")` |
+| `form.requestSubmit()` | `await user.keyboard("{Enter}")` |
+| `form.submit()` | `await user.click(submitButton)` |
+
+**Why:** `userEvent` wraps every interaction in `act()` and mimics real browser behavior (focus, blur, keydown, keyup sequences). Raw DOM APIs skip `act()` and cause spurious warnings.
+
+---
+
+## Dialog Testing
+
+### Opening a dialog
+
+```tsx
+test("opens dialog when trigger is clicked", async () => {
+  const user = userEvent.setup();
+  renderComponent();
+
+  // 1. Find the trigger button
+  const trigger = await screen.findByRole("button", { name: /tambah/i });
+  // 2. Click it
+  await user.click(trigger);
+  // 3. Assert dialog is in the DOM
+  expect(await screen.findByRole("dialog")).toBeInTheDocument();
+});
+```
+
+### Submitting inside a dialog
+
+```tsx
+test("submitting form calls onAdd", async () => {
+  const onAdd = mock(async (name: string) => null);
+  const user = userEvent.setup();
+  renderComponent({ onAdd });
+
+  // Open the dialog
+  await user.click(await screen.findByRole("button", { name: /tambah/i }));
+  // Fill the form
+  await user.type(screen.getByPlaceholderText("Nama"), "Dian");
+  // Submit
+  await user.click(screen.getByRole("button", { name: /tambahkan/i }));
+
+  await waitFor(() => {
+    expect(onAdd).toHaveBeenCalledWith("Dian");
+  });
+});
+```
+
+### Closing a dialog
+
+```tsx
+// Close with "Batal" button
+await user.click(screen.getByRole("button", { name: /batal/i }));
+await waitFor(() => {
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+```
+
+**Use `queryByRole` for assertions about absence** — `getByRole` throws if not found, `queryByRole` returns `null`.
+
+### Assert dialog content
+
+```tsx
+expect(screen.getByRole("heading", { name: /tambah/i })).toBeInTheDocument();
+expect(screen.getByRole("textbox")).toBeInTheDocument();
+```
+
+---
+
+## Query Patterns
+
+| Query | When to use | Behavior |
+|---|---|---|
+| `screen.findByRole(...)` | Element appears asynchronously | Waits, throws if not found |
+| `screen.getByRole(...)` | Element is already in DOM | Throws immediately if not found |
+| `screen.queryByRole(...)` | Asserting element is NOT present | Returns `null`, no throw |
+| `screen.getByText(...)` | Text content assertion | Exact/substring match |
+| `screen.getByDisplayValue(...)` | Input/textarea value assertion | Matches `value` attribute |
+| `screen.getByPlaceholderText(...)` | Assert input by placeholder | Matches `placeholder` attribute |
+| `await waitFor(() => { ... })` | Batch multiple async assertions | Retries until assertions pass |
+| `within(element).getByRole(...)` | Scope query to a subtree | Searches only children of `element` |
+
+### Prefer `findBy*` over `getBy*` + `waitFor`
+
+```tsx
+// ✅ Clean
+expect(await screen.findByText("Loaded")).toBeInTheDocument();
+
+// ❌ Verbose (same result, more code)
+await waitFor(() => {
+  expect(screen.getByText("Loaded")).toBeInTheDocument();
+});
+```
+
+Exception: use `waitFor` when asserting **multiple elements** from the same async source, to avoid interleaved `findBy*` calls.
+
+### Use `within` for scoped queries
+
+```tsx
+const row = screen.getByDisplayValue("Citra").closest("form")!;
+const deleteBtn = within(row).getAllByRole("button")[1];
+```
+
+---
+
+## Anti-Patterns
+
+### 🚨 Submitting forms via raw DOM APIs
+
+```tsx
+// ❌ Bypasses userEvent's act() wrapping — produces Field/LocalSubscribe act warnings
+const form = input.closest("form")!;
+form.requestSubmit();
+form.submit();
+
+// ✅ Goes through userEvent — properly wrapped in act()
+await user.keyboard("{Enter}");
+await user.click(screen.getByRole("button", { name: /submit/i }));
+```
+
+This is the #1 source of spurious `act(...)` warnings in `@tanstack/react-form` tests. Raw DOM form submission triggers `useSyncExternalStore` state updates that React's `act()` cannot capture. Always submit forms the way a real user would — pressing Enter or clicking a submit button.
+
+---
+
+- **Don't call raw DOM methods** — `form.requestSubmit()`, `form.submit()`, `fireEvent.*` — use `userEvent` which wraps in `act()`
+- **Don't wrap `render()` in `act()`** — `render` from testing-library already does this
+- **Don't use `getBy*` for elements that appear asynchronously** — use `findBy*` or `waitFor`
+- **Don't assert negative with `getBy*`** — use `queryBy*` and `expect(...).not.toBeInTheDocument()`
+- **Don't forget to flush deferred promises** — always resolve and `await waitFor` after testing loading state
+- **Don't use `Promise.reject` for error mocks** — return `Promise.resolve(error)` (StateWrap's `loader` catches, doesn't throw)
+- **Don't import `render` from `@testing-library/react`** — use `~/lib/render` which includes `MemoryRouter`
+- **Don't create `Layer.effect` for simple mocks** — `Layer.succeed` with a plain object is enough
+- **Don't test `@tanstack/react-form` internals** — test that callbacks are/aren't called, not that specific validation error messages render
+- **Don't pass service objects to React land in tests either** — mock services return the same interface but are plain objects
+
+---
+
+## Test File Structure
+
+```
+src/pages/Example/
+├── page.tsx
+├── index.tsx
+├── z-List.tsx
+├── z-NewItem.tsx
+├── z-Loading.tsx
+└── __test/
+    ├── page.test.tsx          ← page-level: Effect + StateWrap
+    ├── z-List.test.tsx        ← pure component: props → render → assert
+    └── z-NewItem.test.tsx     ← pure component: props → render → assert
+```
+
+- One test file per source file
+- Test file mirrors the source name: `z-Foo.tsx` → `z-Foo.test.tsx`
+- `page.test.tsx` covers the `Effect.gen` resolution AND the rendered page with mocked services
+
+---
+
+## Checklist
+
+When adding tests for a page, verify:
+
+- [ ] **`page.test.tsx`** — Effect resolution with all services provided
+- [ ] **`page.test.tsx`** — Loading skeleton while loader is pending (`Promise.withResolvers`)
+- [ ] **`page.test.tsx`** — Error message when loader fails
+- [ ] **`page.test.tsx`** — Heading, description, and key elements visible on success
+- [ ] **`z-List.test.tsx`** — All items rendered with correct data
+- [ ] **`z-List.test.tsx`** — Empty list renders no children (not zero)
+- [ ] **`z-List.test.tsx`** — Callbacks invoked with correct arguments on user interaction
+- [ ] **`z-NewItem.test.tsx`** — Dialog opens on trigger click
+- [ ] **`z-NewItem.test.tsx`** — Form submission calls callback with correct arguments
+- [ ] **`z-NewItem.test.tsx`** — Error message shown when callback returns error
+- [ ] **`z-NewItem.test.tsx`** — Dialog closes on cancel
+- [ ] **`z-NewItem.test.tsx`** — Dialog closes on success (if applicable)
+- [ ] All user interactions use `userEvent` — no `fireEvent`, `form.requestSubmit()`, or raw DOM
+- [ ] All async assertions use `findBy*` or `waitFor` — no bare `getBy*` for async content

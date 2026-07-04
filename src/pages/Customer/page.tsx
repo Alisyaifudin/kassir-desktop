@@ -3,14 +3,11 @@ import { Effect } from "effect";
 import { CustomerService } from "~/services/customer";
 import { StateWrap } from "~/components/StateWrap";
 import { TextError } from "~/components/TextError";
-import { customerListEffect } from "./effect-customerList";
-import { newCustomerEffect } from "./effect-newCustomer";
+import { CustomerList } from "./z-CustomerList";
+import { NewCustomer } from "./z-NewCustomer";
 
 const page = Effect.gen(function* () {
   const customerService = yield* CustomerService;
-  const loader = () => customerService.loader();
-  const CustomerList = yield* customerListEffect;
-  const NewCustomer = yield* newCustomerEffect;
   return function Page() {
     return (
       <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
@@ -19,12 +16,16 @@ const page = Effect.gen(function* () {
           <p className="text-muted-foreground text-normal">Kelola informasi pelanggan dan kontak</p>
         </div>
         <StateWrap
-          loader={loader}
+          loader={customerService.loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
-          <CustomerList />
-          <NewCustomer />
+          <CustomerList
+            onDelete={customerService.delete}
+            onUpdate={customerService.set}
+            useCustomers={customerService.useCustomers}
+          />
+          <NewCustomer onAdd={customerService.add} />
         </StateWrap>
       </div>
     );
