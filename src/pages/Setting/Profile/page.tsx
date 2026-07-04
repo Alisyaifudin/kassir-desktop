@@ -1,11 +1,38 @@
-import { nameFormEffect } from "./effect-nameForm";
-import { passwordFormEffect } from "./effect-passwordForm";
+import { NameForm } from "./z-NameForm";
+import { PasswordForm } from "./z-PasswordForm";
 import { Effect } from "effect";
+import { CashierService } from "~/services/cashier";
+import { UserService } from "~/services/user";
+import { HashService } from "~/services/hash";
 
 const page = Effect.gen(function* () {
-  const NameForm = yield* nameFormEffect;
-  const PasswordForm = yield* passwordFormEffect;
+  const userService = yield* UserService;
+  const cashierService = yield* CashierService;
+  const hashService = yield* HashService;
+
+  const onUpdateName = (id: string, name: string) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        yield* cashierService.set.name(id, name);
+        const currentUser = userService.user;
+        if (!currentUser) return "Pengguna tidak ditemukan";
+        yield* userService.setUser({ ...currentUser, name });
+        return null;
+      }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message))),
+    );
+
+  const onUpdatePassword = (id: string, password: string) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const hash = yield* hashService.hash(password);
+        yield* cashierService.set.hash(id, hash);
+        return null;
+      }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message))),
+    );
+
   return function Page() {
+    const user = userService.useUser();
+
     return (
       <div className="flex flex-col gap-6 p-6 flex-1">
         <div className="flex flex-col gap-1">
@@ -15,11 +42,11 @@ const page = Effect.gen(function* () {
 
         <div className="flex flex-col gap-4">
           <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <NameForm />
+            <NameForm user={user} onUpdateName={onUpdateName} />
           </div>
 
           <div className="rounded-2xl border bg-destructive p-6 shadow-sm">
-            <PasswordForm />
+            <PasswordForm userId={user.id} onUpdatePassword={onUpdatePassword} />
           </div>
         </div>
       </div>

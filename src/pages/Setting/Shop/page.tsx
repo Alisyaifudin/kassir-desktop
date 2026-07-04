@@ -1,18 +1,27 @@
-import { infoEffect } from "./effect-info";
+import { ShopInfo } from "./z-Info";
+import { CashierCheckbox } from "./z-CashierCheckbox";
 import { TextError } from "~/components/TextError";
 import { StateWrap } from "~/components/StateWrap";
 import { Effect } from "effect";
-import { InfoDetailService, InfoService, ShowCashierService } from "~/services/info";
+import { InfoService } from "~/services/info";
 import { Loading } from "./z-Loading";
-import { cashierCheckbox } from "./effect-cashierCheckbox";
+import { promisify } from "~/lib/promisify";
+import type { Info } from "~/services/info";
 
 const page = Effect.gen(function* () {
   const infoService = yield* InfoService;
-  const loader = () => infoService.loader();
-  const Info = yield* infoEffect.pipe(Effect.provideService(InfoDetailService, infoService.info));
-  const CashierCheckbox = yield* cashierCheckbox.pipe(
-    Effect.provideService(ShowCashierService, infoService.showCashier),
-  );
+
+  const onSetInfo = (info: Info) =>
+    promisify(
+      () => infoService.info.set(info),
+      (e) => e.e.message,
+    );
+  const onSetShowCashier = (showCashier: boolean) =>
+    promisify(
+      () => infoService.showCashier.set(showCashier),
+      (e) => e.e.message,
+    );
+
   return function Page() {
     return (
       <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
@@ -22,12 +31,15 @@ const page = Effect.gen(function* () {
         </div>
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
           <StateWrap
-            loader={loader}
+            loader={infoService.loader}
             loading={<Loading />}
             error={({ e }) => <TextError>{e.message}</TextError>}
           >
-            <Info />
-            <CashierCheckbox />
+            <ShopInfo info={infoService.info.useInfo()} onSetInfo={onSetInfo} />
+            <CashierCheckbox
+              showCashier={infoService.showCashier.useShowCashier()}
+              onSetShowCashier={onSetShowCashier}
+            />
           </StateWrap>
         </div>
       </div>

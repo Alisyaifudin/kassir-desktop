@@ -6,17 +6,17 @@ import { Printer } from "./type";
 export class PrinterService extends Context.Tag("PrinterService")<
   PrinterService,
   {
-    testPrint(): Promise<null | string>;
+    testPrint(): Effect.Effect<void, PrintError>;
     print(record: RecordFull): Effect.Effect<void, PrintError>;
-    loader(): Promise<PrintError | null>;
+    loader(): Effect.Effect<void, PrintError>;
     size: {
       useSize(): number;
-      set(size: number): Promise<string | null>;
+      set(size: number): Effect.Effect<void, PrintError>;
     };
     printer: {
       usePrinter(): Printer | null;
       usePrinters(): Printer[];
-      set(printer: Printer): Promise<string | null>;
+      set(printer: Printer): Effect.Effect<void, PrintError>;
     };
   }
 >() {}

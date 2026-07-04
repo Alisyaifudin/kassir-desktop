@@ -12,57 +12,57 @@ const InfoLayer = Layer.effect(
     const infoState = new DataStateUnsafe<Info>();
     const showCashierState = new DataStateUnsafe<boolean>();
     const getAll = store.info.get.pipe(Effect.catchTag("StoreError", ({ e }) => InfoError.fail(e)));
+
     function useName() {
       const info = infoState.useData();
       return info.name;
     }
-    const loader = () =>
-      Effect.runPromise(
-        Effect.gen(function* () {
-          const infoData = infoState.getSnapshot();
-          const showCashierData = showCashierState.getSnapshot();
-          if (infoData !== null && showCashierData !== null) {
-            return null;
-          }
-          const { showCashier, ...info } = yield* getAll;
-          infoState.setData(info);
-          showCashierState.setData(showCashier);
-          return null;
-        }).pipe(
-          Effect.tapError(LogPut),
-          Effect.catchAll((e) => Effect.succeed(e)),
-          Effect.provideService(LogService, log),
-        ),
+
+    function loader() {
+      return Effect.gen(function* () {
+        const infoData = infoState.getSnapshot();
+        const showCashierData = showCashierState.getSnapshot();
+        if (infoData !== null && showCashierData !== null) {
+          return;
+        }
+        const { showCashier, ...info } = yield* getAll;
+        infoState.setData(info);
+        showCashierState.setData(showCashier);
+      }).pipe(
+        Effect.tapError(LogPut),
+        Effect.provideService(LogService, log),
       );
+    }
+
     return InfoService.of({
       loader,
-      infoService: {
+      info: {
         useInfo: infoState.useData,
-        set: async (info) => {
-          const error = await store.info.set.info(info);
-          if (error === null) {
-            infoState.setData(info);
-            return null;
-          } else {
-            Effect.runFork(log.put(error.e));
-            return error.e.message;
-          }
-        },
+        useName,
+        set: (info) =>
+          Effect.gen(function* () {
+            const error = yield* store.info.set.info(info);
+            if (error === null) {
+              infoState.setData(info);
+            } else {
+              yield* LogPut(error.e);
+              return yield* Effect.fail(error.e);
+            }
+          }),
       },
-      showCashierService: {
+      showCashier: {
         useShowCashier: showCashierState.useData,
-        set: async (showCashier) => {
-          const error = await store.info.set.showCashier(showCashier);
-          if (error === null) {
-            showCashierState.setData(showCashier);
-            return null;
-          } else {
-            Effect.runFork(log.put(error.e));
-            return error.e.message;
-          }
-        },
+        set: (showCashier) =>
+          Effect.gen(function* () {
+            const error = yield* store.info.set.showCashier(showCashier);
+            if (error === null) {
+              showCashierState.setData(showCashier);
+            } else {
+              yield* LogPut(error.e);
+              return yield* Effect.fail(error.e);
+            }
+          }),
       },
-      useName,
     });
   }),
 );

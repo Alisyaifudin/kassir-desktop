@@ -4,14 +4,15 @@ import { LogError } from "./error";
 export class LogService extends Context.Tag("LogService")<
   LogService,
   {
-    put(e: unknown): Effect.Effect<void>;
-    loader(): Promise<LogError | null>;
+    put(e: unknown): void;
+    loader(): Effect.Effect<void, LogError>;
     useLog(): string[];
-    clear(): Promise<string | null>;
+    clear(): Effect.Effect<void, LogError>;
   }
 >() {}
 
-export const LogPut = (e: unknown) => LogService.pipe(Effect.flatMap((log) => log.put(e)));
+export const LogPut = (e: unknown) =>
+  LogService.pipe(Effect.flatMap((log) => Effect.sync(() => log.put(e))));
 export const LogAnd = <T, E, R>(e: unknown, effect: Effect.Effect<T, E, R>) =>
   Effect.gen(function* () {
     const log = yield* LogService;

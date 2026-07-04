@@ -1,4 +1,4 @@
-import { Context } from "effect";
+import { Context, Effect } from "effect";
 import { InfoError } from "./error";
 
 export { InfoError } from "./error";
@@ -13,33 +13,19 @@ export type Info = {
 export type InfoFull = Info & {
   showCashier: boolean;
 };
-export class UseShowCashier extends Context.Tag("UseShowCashier")<
-  UseShowCashier,
-  () => boolean
->() {}
-export class SetShowCashier extends Context.Tag("SetShowCashier")<
-  SetShowCashier,
-  (showCashier: boolean) => Promise<string | null>
->() {}
-export class UseNameCashier extends Context.Tag("UseNameCashier")<UseNameCashier, () => string>() {}
-export class UseInfoCashier extends Context.Tag("UseInfoCashier")<UseInfoCashier, () => Info>() {}
-export class SetInfoCashier extends Context.Tag("SetInfoCashier")<
-  SetInfoCashier,
-  (info: Info) => Promise<string | null>
->() {}
 
 export class InfoService extends Context.Tag("InfoService")<
   InfoService,
   {
-    loader: () => Promise<null | InfoError>;
+    loader(): Effect.Effect<void, InfoError>;
     showCashier: {
-      useShowCashier: typeof UseShowCashier.Service;
-      set: typeof SetShowCashier.Service;
+      useShowCashier(): boolean;
+      set(showCashier: boolean): Effect.Effect<void, InfoError>;
     };
     info: {
-      useInfo: typeof UseInfoCashier.Service;
-      useName: typeof UseNameCashier.Service;
-      set: typeof SetInfoCashier.Service;
+      useInfo(): Info;
+      useName(): string;
+      set(info: Info): Effect.Effect<void, InfoError>;
     };
   }
 >() {}
