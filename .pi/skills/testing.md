@@ -363,6 +363,80 @@ test("renders date", async () => {
 
 ---
 
+## Radix Select Testing
+
+`@radix-ui/react-select` relies on `PointerEvent` which neither `happy-dom` (bun test) nor `jsdom` (vitest) implement. Tests also need `scrollIntoView`, `releasePointerCapture`, and `hasPointerCapture` on `HTMLElement`.
+
+### Setup (one-time)
+
+In `test/happydom.ts` (bun test) or `test/setup.ts` (vitest):
+
+```tsx
+// Mock PointerEvent only if the DOM environment lacks it
+// (happy-dom's GlobalRegistrator may already provide one — don't override it)
+if (!window.PointerEvent) {
+  class MockPointerEvent extends Event {
+    button: number;
+    ctrlKey: boolean;
+    pointerType: string;
+
+    constructor(type: string, props: PointerEventInit) {
+      super(type, props);
+      this.button = props.button || 0;
+      this.ctrlKey = props.ctrlKey || false;
+      this.pointerType = props.pointerType || "mouse";
+    }
+  }
+  window.PointerEvent = MockPointerEvent as typeof PointerEvent;
+}
+
+// Polyfill missing DOM methods — don't clobber existing implementations
+window.HTMLElement.prototype.scrollIntoView =
+  window.HTMLElement.prototype.scrollIntoView || (() => {});
+window.HTMLElement.prototype.releasePointerCapture =
+  window.HTMLElement.prototype.releasePointerCapture || (() => {});
+window.HTMLElement.prototype.hasPointerCapture =
+  window.HTMLElement.prototype.hasPointerCapture || (() => false);
+```
+
+### Select + submit test
+
+```tsx
+test("selecting user, typing password, and submitting calls onCheck", async () => {
+  const onCheck = mock((_id: string, _password: string) => Effect.succeed({ ... }));
+  const user = userEvent.setup();
+  renderForm({ onCheck });
+
+  // 1. Open the select popover
+  await user.click(screen.getByRole("combobox"));
+
+  // 2. Click the option
+  await user.click(await screen.findByRole("option", { name: "Budi" }));
+
+  // 3. Type remaining fields
+  await user.type(screen.getByLabelText("Kata sandi"), "secret123");
+
+  // 4. Submit via fireEvent.submit on the <form> directly.
+  //    The submit button may still appear disabled because @tanstack/react-form
+  //    lags re-rendering in test DOMs, but the hidden native <select> proves
+  //    the form state IS updated.
+  fireEvent.submit(document.querySelector("form")!);
+
+  await waitFor(() => {
+    expect(onCheck).toHaveBeenCalledWith("1", "secret123");
+  });
+});
+```
+
+### Key points
+
+- **Click the combobox** (`role="combobox"`) to open the popover
+- **Find the option** with `screen.findByRole("option", { name })` — works even in portaled content
+- **Click the option** with `user.click()` — `PointerEvent` mock enables this
+- **Submit with `fireEvent.submit(form)`** — the button's visual `disabled` state may be stale in test DOMs, but the form state is correct (verify via `document.querySelector('select[name="…"]').value`)
+
+---
+
 ## User Interaction
 
 ### Always use `userEvent`

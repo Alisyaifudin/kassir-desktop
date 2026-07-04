@@ -11,5 +11,6 @@ export class UserService extends Context.Tag("UserService")<
     readonly user?: Cashier;
     setUser: (user: Cashier) => Promise<string | null>;
     logout: () => void;
+    login: (user: Cashier) => void;
   }
 >() {}

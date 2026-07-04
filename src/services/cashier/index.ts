@@ -27,7 +27,7 @@ export class CashierService extends Context.Tag("CashierService")<
       name: string;
       role: DBNamespace.Role;
       password: string;
-    }) => Effect.Effect<string, CashierError>;
+    }) => Effect.Effect<Cashier, CashierError>;
     delete(id: string): Promise<string | null>;
     set: {
       name(id: string, name: string): Promise<string | null>;
