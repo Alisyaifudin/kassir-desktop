@@ -22,6 +22,7 @@ import {
 } from "~/components/ui/select";
 import { Show } from "~/components/Show";
 import { Cashier } from "~/services/cashier";
+import z from "zod";
 
 type ItemProps = {
   cashier: Cashier;
@@ -39,13 +40,19 @@ export function CashierItem({
   onDelete,
 }: ItemProps) {
   const isSelf = currentUserName === cashier.name;
-  const [name, setName] = useState(cashier.name);
   const [error, setError] = useState<null | string>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleNameSubmit(e: React.FormEvent) {
+  async function handleNameSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (loading) return;
+    const formdata = new FormData(e.currentTarget);
+    const parsed = z.string().nonempty("Harus ada").safeParse(formdata.get("name"));
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Harus diisi");
+      return;
+    }
+    const name = parsed.data;
     setLoading(true);
     const error = await onUpdateName(cashier.id, name);
     setLoading(false);
@@ -71,17 +78,14 @@ export function CashierItem({
           {isSelf ? (
             <p className="pl-3 text-foreground font-medium">{cashier.name}</p>
           ) : (
-            <div>
-              <Input
-                type="text"
-                disabled={loading}
-                value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
-                name="name"
-                aria-autocomplete="list"
-                className="bg-background border-border"
-              />
-            </div>
+            <Input
+              type="text"
+              disabled={loading}
+              defaultValue={cashier.name}
+              name="name"
+              aria-autocomplete="list"
+              className="bg-background border-border"
+            />
           )}
         </div>
         <Select value={cashier.role} onValueChange={handleRoleChange} disabled={isSelf}>

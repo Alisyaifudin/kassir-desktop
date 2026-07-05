@@ -8,19 +8,25 @@ This project uses [Bun Test](https://bun.sh/docs/test/writing) with [Testing Lib
 
 1. [Setup & Tooling](#setup--tooling)
 2. [Two-Tier Testing Strategy](#two-tier-testing-strategy)
-3. [Page-Level Tests](#page-level-tests)
-4. [z-* Component Tests](#z--component-tests)
-5. [Mock Services](#mock-services)
-6. [Stateful Mocks for Page Tests](#stateful-mocks-for-page-tests)
-7. [StateWrap Testing](#statewrap-testing)
-8. [User Interaction](#user-interaction)
-9. [Dialog Testing](#dialog-testing)
-10. [Query Patterns](#query-patterns)
-11. [Test the UI, Not the Implementation](#test-the-ui-not-the-implementation)
-12. [Avoid jest-dom Matchers](#avoid-jest-dom-matchers)
-13. [Anti-Patterns](#anti-patterns)
-14. [Test File Structure](#test-file-structure)
-15. [Checklist](#checklist)
+3. [Analyze Before You Write](#analyze-before-you-write)
+4. [Shared Mock Module](#shared-mock-module)
+5. [Stateful Mocks](#stateful-mocks)
+6. [Page-Level Tests](#page-level-tests)
+7. [z-* Component Tests](#z--component-tests)
+8. [Mock Services](#mock-services)
+9. [StateWrap Testing](#statewrap-testing)
+10. [WithLoader Testing](#withloader-testing)
+11. [Accessibility Testing](#accessibility-testing)
+12. [Form Validation Testing](#form-validation-testing)
+13. [Radix Select Testing](#radix-select-testing)
+14. [User Interaction](#user-interaction)
+15. [Dialog Testing](#dialog-testing)
+16. [Query Patterns](#query-patterns)
+17. [Test the UI, Not the Implementation](#test-the-ui-not-the-implementation)
+18. [Avoid jest-dom Matchers](#avoid-jest-dom-matchers)
+19. [Anti-Patterns](#anti-patterns)
+20. [Test File Structure](#test-file-structure)
+21. [Checklist](#checklist)
 
 ---
 
@@ -66,6 +72,275 @@ z-* component tests (z-*.test.tsx)
 ```
 
 **Rule:** If it requires `yield* Service`, it goes in `page.test.tsx`. If it renders a `z-*` component with props, it goes in `z-*.test.tsx`.
+
+---
+
+## Analyze Before You Write
+
+**Before writing a single test**, read the component source and enumerate every interaction branch as a todo list. Only write tests after you've exhaustively mapped the decision tree.
+
+### Process
+
+1. **Read the component** — props, local state, conditional rendering, callbacks, edge cases
+2. **List every branch** — each `if`, ternary, `&&`, `switch`, callback variant (success/error), loading state, disabled state
+3. **Write the list as comments** inside the test file before any `test()` block
+4. **Tick them off** as you write each corresponding test
+
+### Example: CashierItem
+
+Read `z-Item.tsx` and enumerate every interaction:
+
+```tsx
+// === Interaction branches ===
+//
+// [ ] Self item — renders name as <p> text, not an <input>
+// [ ] Self item — role select is disabled
+// [ ] Self item — delete button is hidden
+//
+// [ ] Other item — renders name as <input> with defaultValue={cashier.name}
+// [ ] Other item — role select is enabled
+// [ ] Other item — delete button is visible
+//
+// [ ] Name input — submit with empty value → shows Zod validation error ("Harus ada")
+// [ ] Name input — submit with new value → calls onUpdateName(id, name)
+// [ ] Name input — onUpdateName returns error → shows error text
+// [ ] Name input — onUpdateName returns null → no error, store mutated
+//
+// [ ] Role select — click opens popover
+// [ ] Role select — select "Admin" → calls onUpdateRole(id, "admin")
+// [ ] Role select — select "User" → calls onUpdateRole(id, "user")
+// [ ] Role select — onUpdateRole returns error → shows error text
+// [ ] Role select — onUpdateRole returns null → select value updates (stateful re-render)
+//
+// [ ] Delete button — click opens confirmation dialog
+// [ ] Delete dialog — shows cashier name and "Yakin?" heading
+// [ ] Delete dialog — click "Hapus" → calls onDelete(id)
+// [ ] Delete dialog — onDelete returns null → dialog closes
+// [ ] Delete dialog — click "Batal" → dialog closes
+// [ ] Delete dialog — press Escape → dialog closes (accessibility)
+//
+// [ ] Accessibility — self item select is disabled
+// [ ] Accessibility — self item has no delete button
+//
+// [ ] Stateful round-trip — delete removes item from the list (when using StatefullCashiers)
+// [ ] Stateful round-trip — role change updates select display (when using StatefullCashiers)
+// [ ] Stateful round-trip — name change mutates store (when using StatefullCashiers)
+```
+
+```tsx
+// z-CashierList branches
+//
+// [ ] Renders all cashier items from useCashiers()
+// [ ] Empty list — renders container with zero children
+// [ ] Passes correct currentUserName to each CashierItem
+//
+// NewCashier branches
+//
+// [ ] Trigger button renders with "Tambah Kasir"
+// [ ] Click trigger → dialog opens with heading "Tambah Kasir"
+// [ ] Dialog contains name textbox
+// [ ] Submit with empty name → validation blocks, dialog stays open
+// [ ] Submit with name → calls onAdd(name)
+// [ ] onAdd returns error → shows error text
+// [ ] onAdd returns null → error cleared (success)
+// [ ] Click "Batal" → dialog closes
+// [ ] Subsequent success clears previous error
+```
+
+### Golden rule
+
+> If you haven't listed **all** the branches as a todo first, you haven't thought hard enough about what to test. Writing tests without the list leads to gaps — silent paths that break silently.
+
+Resist the urge to start writing `test()` immediately. The list IS the thinking. The tests are just the execution.
+
+---
+
+## Shared Mock Module
+
+When multiple test files share the same mock infrastructure (stateful stores, service factories), extract them into a **`__test/mock.ts`** file. This keeps tests focused on assertions while the mock logic lives in one place.
+
+### What goes in `mock.ts`
+
+```
+__test/
+├── mock.ts               ← shared mock infrastructure
+├── page.test.tsx          ← imports from ./mock
+├── z-List.test.tsx        ← imports from ./mock
+└── z-NewItem.test.tsx     ← may use mock if needed
+```
+
+**In `mock.ts`:**
+- `TestX` interfaces and default fixture data
+- Stateful store classes (`StatefullX`) with `useSyncExternalStore` hooks
+- Service factory functions (`makeXService`) wired to stateful stores
+
+**Exported for tests:**
+- `StatefullCashiers` / `StatefullUser` — create instances for tests that need shared state
+- `makeCashierService` / `makeUserService` — inject into `Effect.provideService`
+- `defaultCashiers` / `defaultUser` — default fixtures
+
+### Example: mock.ts
+
+```tsx
+// __test/mock.ts
+import { useSyncExternalStore } from "react";
+import { Effect } from "effect";
+import { CashierService, CashierError } from "~/services/cashier";
+import type { Cashier } from "~/services/cashier";
+import type { Listener } from "~/lib/state";
+
+export interface TestCashier {
+  name: string;
+  role: DBNamespace.Role;
+  id: string;
+}
+
+export const defaultCashiers: TestCashier[] = [
+  { name: "Budi", role: "admin", id: "1" },
+  { name: "Ani", role: "user", id: "2" },
+  { name: "Citra", role: "user", id: "3" },
+];
+
+export const defaultUser: TestCashier = { name: "Budi", role: "admin", id: "1" };
+
+export class StatefullCashiers {
+  cashiers: TestCashier[];
+  listeners = new Set<Listener>();
+
+  constructor(cashiers?: TestCashier[]) {
+    this.cashiers = cashiers ?? [...defaultCashiers];
+  }
+
+  getSnapshot(): TestCashier[] { return this.cashiers; }
+
+  subscribe(cb: Listener) {
+    this.listeners.add(cb);
+    return () => { this.listeners.delete(cb); };
+  }
+
+  notify() { this.listeners.forEach((l) => l()); }
+
+  useCashiers(): Cashier[] {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSyncExternalStore(
+      (cb) => this.subscribe(cb),
+      () => this.getSnapshot(),
+    );
+  }
+
+  add(c: TestCashier)  { this.cashiers = [...this.cashiers, c]; this.notify(); }
+  delete(id: string)   { this.cashiers = this.cashiers.filter(c => c.id !== id); this.notify(); }
+  setName(id: string, name: string) {
+    this.cashiers = this.cashiers.map(c => c.id === id ? { ...c, name } : c);
+    this.notify();
+  }
+  setRole(id: string, role: DBNamespace.Role) {
+    this.cashiers = this.cashiers.map(c => c.id === id ? { ...c, role } : c);
+    this.notify();
+  }
+}
+```
+
+---
+
+## Stateful Mocks
+
+Stateful mocks use `useSyncExternalStore` to make the mock store **reactive**. When a service callback mutates the store, components that call `useCashiers()` / `useUser()` automatically re-render with new data. This enables **full round-trip integration tests**: user interacts → service mutates → component re-renders → DOM updates.
+
+### When to use
+
+**Stateful mock:** The component receives a hook prop (`useCashiers: () => Cashier[]`) that calls `useSyncExternalStore` internally. A plain `() => [...]` mock passes the initial render but can't verify re-render after interaction.
+
+**Plain mock is enough:** The component receives a plain value or a simple callback (`onDelete: (id) => Promise<string | null>`). No reactive hook — a plain mock suffices.
+
+### Pattern: Class + Service Factory
+
+The factory accepts an optional `state` instance so tests can share state, and optional error flags to simulate service-layer failures.
+
+```tsx
+export function makeCashierService(opts?: {
+  loader?: () => Effect.Effect<void, CashierError>;
+  state?: StatefullCashiers;
+  addError?: string;       // if set, add() fails with this message
+  deleteError?: string;    // if set, delete() fails with this message
+  setNameError?: string;
+  setRoleError?: string;
+}): typeof CashierService.Service {
+  const state = opts?.state ?? new StatefullCashiers();
+  return {
+    loader: opts?.loader ?? (() => Effect.void),
+    useCashiers: () => state.useCashiers(),
+    add: (input) => {
+      if (opts?.addError) {
+        return Effect.fail(new CashierError(new Error(opts.addError)));
+      }
+      const newCashier = { name: input.name, id: randomId(), role: input.role ?? "user" };
+      state.add(newCashier);
+      return Effect.succeed(newCashier);
+    },
+    delete: (id) => {
+      if (opts?.deleteError) {
+        return Effect.fail(new CashierError(new Error(opts.deleteError)));
+      }
+      state.delete(id);
+      return Effect.void;
+    },
+    // ... set.name, set.role similarly
+  };
+}
+```
+
+### Using in page tests
+
+```tsx
+import { StatefullCashiers, makeCashierService } from "./mock";
+
+test("deleting a cashier removes it from the list", async () => {
+  const user = userEvent.setup();
+  const state = new StatefullCashiers();  // shared state instance
+  const Page = Effect.runSync(
+    page.pipe(
+      Effect.provideService(CashierService, makeCashierService({ state })),
+      Effect.provideService(UserService, makeUserService()),
+    ),
+  );
+  render(<Page />);
+
+  // ... click delete, confirm, assert item is gone ...
+});
+```
+
+### Using in z-* component tests
+
+Pass the stateful store's hook as `useCashiers` and wire callbacks to mutate the store by default:
+
+```tsx
+function renderList(opts?: {
+  state?: StatefullCashiers;
+  onDelete?: (id: string) => Promise<string | null>;
+}) {
+  const state = opts?.state ?? new StatefullCashiers();
+  return render(
+    <CashierList
+      useCashiers={() => state.useCashiers()}
+      // Default: mutate store + return null (success)
+      onDelete={opts?.onDelete ?? ((id) => { state.delete(id); return Promise.resolve(null); })}
+    />,
+  );
+}
+```
+
+### 🚨 Don't mutate the store in error callbacks
+
+When testing error paths, the callback should return an error string **without** mutating the store:
+
+```tsx
+// ❌ Mutates then returns error — item disappears before error is shown
+onDelete: async (id) => { state.delete(id); return "Gagal"; }
+
+// ✅ Error-only — no mutation, item stays in the list
+onDelete: async () => "Gagal"
+```
 
 ---
 
@@ -138,31 +413,34 @@ describe("Page component", () => {
 
 ## z-* Component Tests
 
-Pure React components receive everything via props. No Effect, no service injection.
+Pure React components receive everything via props. No Effect, no service injection. Use stateful mocks from `./mock` for reactive hook props.
 
 ### Structure
 
 ```tsx
 // src/pages/Example/__test/z-List.test.tsx
 import { describe, test, expect, mock } from "bun:test";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { List } from "../z-List";
 import { render } from "~/lib/render";
-
-const mockItems: Item[] = [
-  { id: "1", name: "Foo" },
-  { id: "2", name: "Bar" },
-];
+import { StatefullItems } from "./mock";
 
 function renderList(opts?: {
-  items?: Item[];
+  state?: StatefullItems;
   onDelete?: (id: string) => Promise<string | null>;
 }) {
+  const state = opts?.state ?? new StatefullItems();
   return render(
     <List
-      useItems={() => opts?.items ?? mockItems}
-      onDelete={opts?.onDelete ?? (() => Promise.resolve(null))}
+      useItems={() => state.useItems()}
+      onDelete={
+        opts?.onDelete ??
+        ((id) => {
+          state.delete(id);
+          return Promise.resolve(null);
+        })
+      }
     />,
   );
 }
@@ -176,22 +454,31 @@ describe("List", () => {
     });
   });
 
+  test("deleting an item removes it from the list", async () => {
+    const user = userEvent.setup();
+    renderList();
+
+    await waitFor(() => screen.getByText("Bar"));
+    // ... click delete, confirm, assert item is gone ...
+  });
+
   test("shows error when delete fails", async () => {
     const user = userEvent.setup();
+    // Error callback — does NOT mutate store
     renderList({ onDelete: async () => "Gagal menghapus" });
 
-    await user.click(screen.getAllByRole("button")[0]);
-    expect(await screen.findByText("Gagal menghapus")).not.toBeNull();
+    // ... assert error text appears ...
   });
 });
 ```
 
 ### Key points
 
-- **`renderList` helper** renders the component with default props, accepts overrides
+- **Import stateful mocks from `./mock`** — `StatefullCashiers`, `StatefullUser`
+- **Default callbacks mutate store + return `null`** — enables round-trip tests
+- **Override callbacks for error paths** — return error string without mutating
 - **No `Effect.gen`, no `yield*`, no `Layer`** — just JSX with props
-- **Callbacks are `() => Promise.resolve(null)` by default** (success case)
-- **Test the UI, not the callback** — error text in DOM proves the callback ran
+- **Use `within()` to scope queries** to a specific row/form within a list
 
 ---
 
@@ -246,61 +533,7 @@ function makeExampleService(opts?: {
 - **Default: success** — callbacks return `Effect.void`, loader resolves immediately
 - **Override for errors** — pass a custom loader/callback that returns `Effect.fail(error)`
 - **Override for delay** — pass a pending Promise to test loading state
-
-### Stateful Mocks for Page Tests
-
-When testing page-level service injection, use **stateful mocks** that mirror the real `DataState` pattern via `useSyncExternalStore`. This lets you verify the full round-trip: user interaction → service callback → state update → component re-render.
-
-```tsx
-import { useSyncExternalStore } from "react";
-import { Listener } from "~/lib/state";
-
-// Stateful mock mirroring the real DataState pattern
-class StatefullSize {
-  size: "big" | "small" = "big";
-  listeners = new Set<Listener>();
-  getSnapshot() { return this.size; }
-  subscribe(cb: Listener) {
-    this.listeners.add(cb);
-    return () => { this.listeners.delete(cb); };
-  }
-  notify() { this.listeners.forEach((l) => l()); }
-  set(s: "big" | "small") { this.size = s; this.notify(); }
-  useSize() {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useSyncExternalStore((cb) => this.subscribe(cb), () => this.getSnapshot());
-  }
-}
-
-// Wire into the mock service factory
-function makeConfigService(size: StatefullSize): typeof ConfigService.Service {
-  return {
-    size: {
-      useSize: () => size.useSize(),
-      set: (s) => size.set(s),
-    },
-  };
-}
-
-// Test verifies the full injection chain
-const size = new StatefullSize();
-renderPage({ size });
-
-const trigger = screen.getByRole("combobox", { name: "Ukuran" });
-expect(trigger.textContent).toContain("Besar");
-
-await user.click(trigger);
-await user.click(await screen.findByRole("option", { name: "Kecil" }));
-
-// useSyncExternalStore triggers re-render — component shows new value
-await waitFor(() => {
-  expect(screen.getByRole("combobox", { name: "Ukuran" }).textContent).toContain("Kecil");
-});
-```
-
-**When to use stateful mocks:** The component receives a hook prop (`useSize: () => Size`) that calls `useSyncExternalStore` internally. A plain `() => "big"` mock passes the initial render but can't verify re-render after interaction. A stateful mock proves the full cycle.
-
-**When a plain mock is enough:** The component receives a plain value prop (`size: Size`) or a simple callback (`onDelete: (id) => Promise<string | null>`). No reactive hook is involved — a plain mock suffices.
+- **For reactive state (useSyncExternalStore)** — use stateful mocks (see [Stateful Mocks](#stateful-mocks))
 
 ---
 
@@ -418,6 +651,82 @@ test("renders date", async () => {
 
 ---
 
+## Accessibility Testing
+
+### Dialog Escape key
+
+Radix `Dialog` closes on `Escape` by default. Always test this:
+
+```tsx
+test("pressing Escape closes the dialog", async () => {
+  const user = userEvent.setup();
+  renderComponent();
+
+  await user.click(await screen.findByRole("button", { name: /tambah/i }));
+  expect(await screen.findByRole("dialog")).not.toBeNull();
+
+  await user.keyboard("{Escape}");
+
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+```
+
+### Disabled states
+
+Test that self-referential items or unavailable actions are disabled/hidden:
+
+```tsx
+// Self-item select should be disabled
+test("self item has disabled role select", async () => {
+  renderList();
+  await waitFor(() => screen.getByText("Budi"));
+  const budiForm = screen.getByText("Budi").closest("form")!;
+  const combobox = within(budiForm).getByRole("combobox");
+  expect((combobox as HTMLButtonElement).disabled).toBe(true);
+});
+
+// Self-item delete button should not exist
+test("self item has no delete button", async () => {
+  renderList();
+  await waitFor(() => screen.getByText("Budi"));
+  const budiForm = screen.getByText("Budi").closest("form")!;
+  expect(within(budiForm).queryByRole("button")).toBeNull();
+});
+```
+
+---
+
+## Form Validation Testing
+
+### Zod validation with uncontrolled inputs
+
+When a component uses `<Input defaultValue={...} name="name" />` with Zod validation, test the validation branch before the callback is ever called:
+
+```tsx
+test("shows validation error when name is empty on submit", async () => {
+  const user = userEvent.setup();
+  renderList();
+
+  await waitFor(() => screen.getByDisplayValue("Ani"));
+  const input = screen.getByDisplayValue("Ani");
+
+  // Clear and submit with empty value
+  await user.clear(input);
+  await user.keyboard("{Enter}");
+
+  // Validation fires BEFORE the callback — Zod nonempty message appears
+  expect(await screen.findByText(/Harus ada/i)).not.toBeNull();
+});
+```
+
+**Key:** The `new FormData(e.currentTarget)` reads the form value at submit time. `z.string().nonempty()` validates before the async callback. The validation error never reaches the service layer.
+
+**For the prettified error message:** Use `parsed.error.issues[0]?.message ?? "Harus diisi"` instead of `parsed.error.message` (which dumps a JSON blob).
+
+---
+
 ## Radix Select Testing
 
 `@radix-ui/react-select` relies on `PointerEvent` which neither `happy-dom` (bun test) nor `jsdom` (vitest) implement. Tests also need `scrollIntoView`, `releasePointerCapture`, and `hasPointerCapture` on `HTMLElement`.
@@ -470,15 +779,41 @@ test("selecting user and submitting updates the UI", async () => {
   // 3. Type remaining fields
   await user.type(screen.getByLabelText("Kata sandi"), "secret123");
 
-  // 4. Submit via fireEvent.submit on the <form> directly.
-  //    The submit button may still appear disabled because @tanstack/react-form
-  //    lags re-rendering in test DOMs, but the hidden native <select> proves
-  //    the form state IS updated.
+  // 4. Submit — the button may appear disabled due to @tanstack/react-form lag
+  //    Use fireEvent.submit on the form directly (exception to userEvent rule)
   fireEvent.submit(document.querySelector("form")!);
 
   // 5. Assert the UI outcome, not callback arguments
   await waitFor(() => {
     expect(screen.getByText(/selamat datang/i)).not.toBeNull();
+  });
+});
+```
+
+### Stateful round-trip: select updates with re-render
+
+When the select's `value` is bound to a reactive prop (`value={cashier.role}`), use stateful mocks to verify the full cycle:
+
+```tsx
+test("changing role updates the select value", async () => {
+  const user = userEvent.setup();
+  const state = new StatefullCashiers();
+  renderList({ state });
+
+  await waitFor(() => screen.getByDisplayValue("Ani"));
+
+  // Scope to Ani's form row and find the role combobox
+  const aniForm = screen.getByDisplayValue("Ani").closest("form")!;
+  const roleTrigger = within(aniForm).getByRole("combobox");
+  expect(roleTrigger.textContent).toContain("User");
+
+  // Open the select and pick "Admin"
+  await user.click(roleTrigger);
+  await user.click(await screen.findByRole("option", { name: "Admin" }));
+
+  // The trigger re-renders with the new role from the stateful store
+  await waitFor(() => {
+    expect(roleTrigger.textContent).toContain("Admin");
   });
 });
 ```
@@ -512,6 +847,7 @@ await user.keyboard("{Enter}");
 | Type in an input | `await user.type(screen.getByRole("textbox"), "value")` |
 | Clear an input | `await user.clear(screen.getByDisplayValue("old"))` |
 | Press Enter | `await user.keyboard("{Enter}")` |
+| Press Escape | `await user.keyboard("{Escape}")` |
 | Select an option | `await user.click(trigger); await user.click(option)` |
 
 ### Never use raw DOM APIs
@@ -541,7 +877,23 @@ test("opens dialog when trigger is clicked", async () => {
   // 2. Click it
   await user.click(trigger);
   // 3. Assert dialog is in the DOM
-  expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  expect(await screen.findByRole("dialog")).not.toBeNull();
+});
+```
+
+### Assert dialog content
+
+```tsx
+// Heading, description, and specific content
+await waitFor(() => {
+  expect(screen.getByRole("heading", { name: /tambah/i })).not.toBeNull();
+  expect(screen.getByText(/buat akun baru/i)).not.toBeNull();
+});
+
+// For delete confirmations — check the item name is shown
+await waitFor(() => {
+  expect(screen.getByText(/yakin\?/i)).not.toBeNull();
+  expect(screen.getByText(/>Citra/i)).not.toBeNull();
 });
 ```
 
@@ -549,19 +901,19 @@ test("opens dialog when trigger is clicked", async () => {
 
 ```tsx
 test("submitting form calls onAdd", async () => {
-  const onAdd = mock(async (name: string) => null);
   const user = userEvent.setup();
-  renderComponent({ onAdd });
+  renderComponent({ onAdd: async (name) => null });
 
   // Open the dialog
   await user.click(await screen.findByRole("button", { name: /tambah/i }));
   // Fill the form
-  await user.type(screen.getByPlaceholderText("Nama"), "Dian");
+  await user.type(screen.getByRole("textbox"), "Dian");
   // Submit
   await user.click(screen.getByRole("button", { name: /tambahkan/i }));
 
+  // Assert UI outcome (e.g., error cleared, new item appears)
   await waitFor(() => {
-    expect(onAdd).toHaveBeenCalledWith("Dian");
+    expect(screen.queryByText(/gagal/i)).toBeNull();
   });
 });
 ```
@@ -572,18 +924,17 @@ test("submitting form calls onAdd", async () => {
 // Close with "Batal" button
 await user.click(screen.getByRole("button", { name: /batal/i }));
 await waitFor(() => {
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+// Close with Escape key (accessibility)
+await user.keyboard("{Escape}");
+await waitFor(() => {
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 ```
 
 **Use `queryByRole` for assertions about absence** — `getByRole` throws if not found, `queryByRole` returns `null`.
-
-### Assert dialog content
-
-```tsx
-expect(screen.getByRole("heading", { name: /tambah/i })).toBeInTheDocument();
-expect(screen.getByRole("textbox")).toBeInTheDocument();
-```
 
 ---
 
@@ -707,7 +1058,7 @@ This is the #1 source of spurious `act(...)` warnings in `@tanstack/react-form` 
 - **Don't call raw DOM methods** — `form.requestSubmit()`, `form.submit()`, `fireEvent.*` — use `userEvent` which wraps in `act()`
 - **Don't wrap `render()` in `act()`** — `render` from testing-library already does this
 - **Don't use `getBy*` for elements that appear asynchronously** — use `findBy*` or `waitFor`
-- **Don't assert negative with `getBy*`** — use `queryBy*` and `expect(...).not.toBeInTheDocument()`
+- **Don't assert negative with `getBy*`** — use `queryBy*` and `expect(...).not.toBeNull()`
 - **Don't forget to flush deferred promises** — always resolve and `await waitFor` after testing loading state
 - **Don't use `Promise.reject` for error mocks** — `StateWrap`'s `loader` is passed through `promisify`, which catches Effect failures
 - **Don't pass raw `Promise.resolve(error)` as loader** — use `Effect.fail(error)` for error states
@@ -716,8 +1067,15 @@ This is the #1 source of spurious `act(...)` warnings in `@tanstack/react-form` 
 - **Don't test `@tanstack/react-form` internals** — test that callbacks are/aren't called, not that specific validation error messages render
 - **Don't use `@testing-library/jest-dom` matchers** — `toHaveTextContent`, `toBeChecked`, `toBeInTheDocument` break in bun. Use `element.textContent`, `element.checked`, `.not.toBeNull()` instead
 - **Don't test mock callback invocation as the primary assertion** — test the resulting UI change. The error text appearing proves the callback was called
-- **Don't use `getByRole("combobox")` on pages with multiple selects** — add `aria-label` to each trigger and query by name
+- **Don't use `getByRole("combobox")` on pages with multiple selects** — scope with `within()` to a specific row's form
 - **Don't pass service objects to React land in tests either** — mock services return the same interface but are plain objects
+- **Don't mutate the stateful store in error callbacks** — the item disappears before the error appears, unmounting the dialog. Return the error without mutating:
+  ```tsx
+  // ❌ Mutates store → item removed → dialog unmounts
+  onDelete: async (id) => { state.delete(id); return "Gagal"; }
+  // ✅ Error-only, store untouched
+  onDelete: async () => "Gagal"
+  ```
 
 ---
 
@@ -731,6 +1089,7 @@ src/pages/Example/
 ├── z-NewItem.tsx
 ├── z-Loading.tsx
 └── __test/
+    ├── mock.ts               ← shared stateful mocks & factories
     ├── page.test.tsx          ← page-level: Effect + StateWrap
     ├── z-List.test.tsx        ← pure component: props → render → assert
     └── z-NewItem.test.tsx     ← pure component: props → render → assert
@@ -739,6 +1098,7 @@ src/pages/Example/
 - One test file per source file
 - Test file mirrors the source name: `z-Foo.tsx` → `z-Foo.test.tsx`
 - `page.test.tsx` covers the `Effect.gen` resolution AND the rendered page with mocked services
+- **`mock.ts`** contains all shared infrastructure: stateful store classes, service factory functions, default fixtures — imported by all test files
 
 ---
 
@@ -746,21 +1106,42 @@ src/pages/Example/
 
 When adding tests for a page, verify:
 
-- [ ] **`page.test.tsx`** — Effect resolution with all services provided
-- [ ] **`page.test.tsx`** — Loading skeleton while loader is pending (`Effect.promise(() => deferred.promise)`)
-- [ ] **`page.test.tsx`** — Error message when loader fails (`Effect.fail`)
-- [ ] **`page.test.tsx`** — Mock services return `Effect.void` for success, `Effect.fail(error)` for errors
-- [ ] **`page.test.tsx`** — Heading, description, and key elements visible on success
-- [ ] **`z-List.test.tsx`** — All items rendered with correct data
-- [ ] **`z-List.test.tsx`** — Empty list renders no children (not zero)
-- [ ] **`z-List.test.tsx`** — Callbacks invoked with correct arguments on user interaction
-- [ ] **`z-NewItem.test.tsx`** — Dialog opens on trigger click
-- [ ] **`z-NewItem.test.tsx`** — Form submission calls callback with correct arguments
-- [ ] **`z-NewItem.test.tsx`** — Error message shown when callback returns error
-- [ ] **`z-NewItem.test.tsx`** — Dialog closes on cancel
-- [ ] **`z-NewItem.test.tsx`** — Dialog closes on success (if applicable)
-- [ ] All user interactions use `userEvent` — no `fireEvent`, `form.requestSubmit()`, or raw DOM
-- [ ] All async assertions use `findBy*` or `waitFor` — no bare `getBy*` for async content
+### Branch analysis
+- [ ] **All interaction branches enumerated** — write the TODO list before any `test()`
+- [ ] Self-vs-other item cases covered (disabled states, hidden elements)
+- [ ] Every callback variant: success, error, validation-before-callback
+- [ ] Accessibility: Escape key for dialogs, disabled attributes
+
+### page.test.tsx
+- [ ] Effect resolution with all services provided
+- [ ] Loading skeleton while loader is pending (`Effect.promise(() => deferred.promise)`)
+- [ ] Error message when loader fails (`Effect.fail`)
+- [ ] Heading, description, and key elements visible on success
+- [ ] Stateful round-trip: **add** → new item appears in list
+- [ ] Stateful round-trip: **delete** → item removed from list
+- [ ] Stateful round-trip: **update** → changed value reflects in DOM (select, etc.)
+- [ ] Service-layer errors: `addError`, `deleteError` options → error shown in UI
+
+### z-*.test.tsx
+- [ ] All items rendered with correct data
+- [ ] Empty state renders container with no children
+- [ ] Self item: name renders as text (not input), select disabled, delete hidden
+- [ ] Name input: validation error on empty submit (`z.nonempty()`)
+- [ ] Name input: error displayed when callback fails
+- [ ] Role select: click opens popover, selecting option calls callback
+- [ ] Role select: error displayed when callback fails
+- [ ] Role select: stateful round-trip — value updates after callback
+- [ ] Delete dialog: opens on trigger click, shows item name and confirmation text
+- [ ] Delete dialog: "Batal" closes dialog
+- [ ] Delete dialog: Escape key closes dialog
+- [ ] Delete dialog: successful confirmation closes dialog
+
+### General
+- [ ] Stateful mocks in **shared `mock.ts`** — imported by all test files
+- [ ] Stateful store classes with `useSyncExternalStore` hooks
+- [ ] Service factories with `state?` option and per-method `*Error` options
+- [ ] All user interactions use `userEvent` — no `fireEvent`, `form.requestSubmit()`
+- [ ] All async assertions use `findBy*` or `waitFor`
 - [ ] Plain assertions only — no `toHaveTextContent`, `toBeChecked`, `toBeInTheDocument`
-- [ ] Stateful mocks for components using `useSyncExternalStore` hook props
 - [ ] UI assertions over callback-mock assertions — test what the user sees
+- [ ] Error callbacks do NOT mutate the stateful store (item stays visible)
