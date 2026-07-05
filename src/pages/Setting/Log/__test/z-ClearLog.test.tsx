@@ -5,19 +5,15 @@ import { ClearLog } from "../z-ClearLog";
 import { render } from "~/lib/render";
 
 describe("ClearLog", () => {
-  function renderBtn(onClear?: () => Promise<string | null>) {
-    return render(<ClearLog onClear={onClear ?? (() => Promise.resolve(null))} />);
-  }
-
   test("renders 'Bersihkan' button", () => {
-    renderBtn();
-    expect(screen.getByRole("button", { name: /bersihkan/i })).toBeInTheDocument();
+    render(<ClearLog onClear={async () => null} />);
+    expect(screen.getByRole("button", { name: /bersihkan/i })).not.toBeNull();
   });
 
   test("shows error when clear fails", async () => {
     const user = userEvent.setup();
-    renderBtn(async () => "Gagal membersihkan");
+    render(<ClearLog onClear={async () => "Gagal membersihkan"} />);
     await user.click(screen.getByRole("button", { name: /bersihkan/i }));
-    expect(await screen.findByText("Gagal membersihkan")).toBeInTheDocument();
+    expect(await screen.findByText("Gagal membersihkan")).not.toBeNull();
   });
 });

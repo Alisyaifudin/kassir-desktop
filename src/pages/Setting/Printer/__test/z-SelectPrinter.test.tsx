@@ -1,76 +1,75 @@
 import { describe, test, expect } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { SelectPrinter } from "../z-SelectPrinter";
-import { render } from "~/lib/render";
 import type { Printer } from "~/services/print/type";
+import { Listener } from "~/lib/state";
 
 const printers: Printer[] = [
   { id: "p1", name: "Printer A" },
   { id: "p2", name: "Printer B" },
 ];
 
-function StatefulSelectPrinter() {
-  const [printer, setPrinter] = useState<Printer | null>(printers[0]);
-  return (
-    <SelectPrinter
-      printers={printers}
-      printer={printer}
-      onSetPrinter={async (p) => { setPrinter(p); return null; }}
-    />
-  );
+class StatefullPrinter {
+  printer: Printer | null = printers[0];
+  listeners = new Set<Listener>();
+  getSnapshot() { return this.printer; }
+  subscribe(cb: Listener) {
+    this.listeners.add(cb);
+    return () => { this.listeners.delete(cb); };
+  }
+  notify() { this.listeners.forEach((l) => l()); }
+  setPrinter(p: Printer) { this.printer = p; this.notify(); }
+  usePrinter() {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSyncExternalStore((cb) => this.subscribe(cb), () => this.getSnapshot());
+  }
 }
 
 describe("SelectPrinter", () => {
-  function renderSelect(opts?: {
-    printers?: Printer[];
-    printer?: Printer | null;
-    onSetPrinter?: (p: Printer) => Promise<string | null>;
-  }) {
-    return render(
-      <SelectPrinter
-        printers={opts?.printers ?? printers}
-        printer={opts?.printer ?? printers[0]}
-        onSetPrinter={opts?.onSetPrinter ?? (() => Promise.resolve(null))}
-      />,
-    );
-  }
-
   test("renders label", () => {
-    renderSelect();
-    expect(screen.getByText("Printer Terpilih")).toBeInTheDocument();
+    render(
+      <SelectPrinter printers={printers} printer={printers[0]} onSetPrinter={async () => null} />,
+    );
+    expect(screen.getByText("Printer Terpilih")).not.toBeNull();
   });
 
   test("shows printer name", () => {
-    renderSelect({ printer: printers[1] });
-    expect(screen.getByRole("combobox")).toHaveTextContent("Printer B");
+    render(
+      <SelectPrinter printers={printers} printer={printers[1]} onSetPrinter={async () => null} />,
+    );
+    expect(screen.getByRole("combobox").textContent).toContain("Printer B");
   });
 
   test("updates displayed value after selection", async () => {
     const user = userEvent.setup();
-    render(<StatefulSelectPrinter />);
+    const state = new StatefullPrinter();
+    render(
+      <SelectPrinter
+        printers={printers}
+        printer={state.usePrinter()}
+        onSetPrinter={async (p) => { state.setPrinter(p); return null; }}
+      />,
+    );
 
-    expect(screen.getByRole("combobox")).toHaveTextContent("Printer A");
+    expect(screen.getByRole("combobox").textContent).toContain("Printer A");
 
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Printer B" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("Printer B");
+      expect(screen.getByRole("combobox").textContent).toContain("Printer B");
     });
   });
 
   test("shows error when set fails", async () => {
-    renderSelect({
-      printer: printers[0],
-      onSetPrinter: async () => "Gagal menyimpan",
-    });
     const user = userEvent.setup();
-
+    render(
+      <SelectPrinter printers={printers} printer={printers[0]} onSetPrinter={async () => "Gagal menyimpan"} />,
+    );
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Printer B" }));
-
-    expect(await screen.findByText("Gagal menyimpan")).toBeInTheDocument();
+    expect(await screen.findByText("Gagal menyimpan")).not.toBeNull();
   });
 });

@@ -7,14 +7,14 @@ import { render } from "~/lib/render";
 describe("ProductDownload", () => {
   test("renders 'Produk' heading and 'Unduh' button", () => {
     render(<ProductDownload onDownload={async () => null} />);
-    expect(screen.getByText("Produk")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /unduh/i })).toBeInTheDocument();
+    expect(screen.getByText("Produk")).not.toBeNull();
+    expect(screen.getByRole("button", { name: /unduh/i })).not.toBeNull();
   });
 
   test("shows error when download fails", async () => {
     const user = userEvent.setup();
     render(<ProductDownload onDownload={async () => "Gagal mengunduh"} />);
     await user.click(screen.getByRole("button", { name: /unduh/i }));
-    expect(await screen.findByText("Gagal mengunduh")).toBeInTheDocument();
+    expect(await screen.findByText("Gagal mengunduh")).not.toBeNull();
   });
 });

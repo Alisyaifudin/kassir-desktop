@@ -7,14 +7,14 @@ import { render } from "~/lib/render";
 describe("PasswordForm", () => {
   test("renders 'Ganti kata sandi' trigger", () => {
     render(<PasswordForm userId="1" onUpdatePassword={async () => null} />);
-    expect(screen.getByText(/ganti kata sandi/i)).toBeInTheDocument();
+    expect(screen.getByText(/ganti kata sandi/i)).not.toBeNull();
   });
 
   test("expands form and shows password input on click", async () => {
     const user = userEvent.setup();
     render(<PasswordForm userId="1" onUpdatePassword={async () => null} />);
     await user.click(screen.getByText(/ganti kata sandi/i));
-    expect(await screen.findByLabelText(/kata sandi baru/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/kata sandi baru/i)).not.toBeNull();
   });
 
   test("shows error when update fails", async () => {
@@ -26,6 +26,6 @@ describe("PasswordForm", () => {
     await user.type(input, "123");
     await user.click(screen.getByRole("button", { name: /simpan/i }));
 
-    expect(await screen.findByText("Kata sandi terlalu pendek")).toBeInTheDocument();
+    expect(await screen.findByText("Kata sandi terlalu pendek")).not.toBeNull();
   });
 });

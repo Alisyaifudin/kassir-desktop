@@ -15,21 +15,21 @@ const mockInfo: Info = {
 describe("ShopInfo", () => {
   test("renders form fields with current values", () => {
     render(<ShopInfo info={mockInfo} onSetInfo={async () => null} />);
-    expect(screen.getByDisplayValue("Toko Kita")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Jl. Merdeka 123")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Selamat Datang")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Terima Kasih")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Toko Kita")).not.toBeNull();
+    expect(screen.getByDisplayValue("Jl. Merdeka 123")).not.toBeNull();
+    expect(screen.getByDisplayValue("Selamat Datang")).not.toBeNull();
+    expect(screen.getByDisplayValue("Terima Kasih")).not.toBeNull();
   });
 
   test("renders 'Simpan' button", () => {
     render(<ShopInfo info={mockInfo} onSetInfo={async () => null} />);
-    expect(screen.getByRole("button", { name: /simpan/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /simpan/i })).not.toBeNull();
   });
 
   test("shows error when save fails", async () => {
     const user = userEvent.setup();
     render(<ShopInfo info={mockInfo} onSetInfo={async () => "Gagal menyimpan"} />);
     await user.click(screen.getByRole("button", { name: /simpan/i }));
-    expect(await screen.findByText("Gagal menyimpan")).toBeInTheDocument();
+    expect(await screen.findByText("Gagal menyimpan")).not.toBeNull();
   });
 });

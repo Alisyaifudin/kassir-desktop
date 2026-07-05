@@ -1,52 +1,61 @@
 import { describe, test, expect } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import type { Theme } from "~/services/config";
 import { SelectTheme } from "../z-SelectTheme";
-import { render } from "~/lib/render";
+import { Listener } from "~/lib/state";
 
-function StatefulSelectTheme() {
-  const [theme, setTheme] = useState<Theme>("light");
-  return <SelectTheme useTheme={() => theme} onSetTheme={setTheme} />;
+class StatefullTheme {
+  theme: Theme = "light";
+  listeners = new Set<Listener>();
+  getSnapshot() { return this.theme; }
+  subscribe(cb: Listener) {
+    this.listeners.add(cb);
+    return () => { this.listeners.delete(cb); };
+  }
+  notify() { this.listeners.forEach((l) => l()); }
+  setTheme(theme: Theme) { this.theme = theme; this.notify(); }
+  useTheme() {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSyncExternalStore((cb) => this.subscribe(cb), () => this.getSnapshot());
+  }
 }
 
 describe("SelectTheme", () => {
   function renderSelect(useTheme?: () => Theme, onSetTheme?: (t: Theme) => void) {
     return render(
-      <SelectTheme
-        useTheme={useTheme ?? (() => "light")}
-        onSetTheme={onSetTheme ?? (() => {})}
-      />,
+      <SelectTheme useTheme={useTheme ?? (() => "light")} onSetTheme={onSetTheme ?? (() => {})} />,
     );
   }
 
   test("renders 'Tema' label", () => {
     renderSelect();
-    expect(screen.getByText("Tema")).toBeInTheDocument();
+    expect(screen.getByText("Tema")).not.toBeNull();
   });
 
   test("shows 'Terang' when theme is light", () => {
     renderSelect(() => "light");
-    expect(screen.getByRole("combobox")).toHaveTextContent("Terang");
+    expect(screen.getByRole("combobox").textContent).toContain("Terang");
   });
 
   test("shows 'Gelap' when theme is dark", () => {
     renderSelect(() => "dark");
-    expect(screen.getByRole("combobox")).toHaveTextContent("Gelap");
+    expect(screen.getByRole("combobox").textContent).toContain("Gelap");
   });
 
   test("updates displayed value after selecting Gelap", async () => {
     const user = userEvent.setup();
-    render(<StatefulSelectTheme />);
+    const state = new StatefullTheme();
+    renderSelect(() => state.useTheme(), (t) => state.setTheme(t));
 
-    expect(screen.getByRole("combobox")).toHaveTextContent("Terang");
+    expect(screen.getByRole("combobox").textContent).toContain("Terang");
 
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Gelap" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("Gelap");
+      expect(screen.getByRole("combobox").textContent).toContain("Gelap");
     });
   });
 });

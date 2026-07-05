@@ -9,7 +9,7 @@ const mockUser = { name: "Budi", role: "admin" as const, id: "1" };
 describe("NameForm", () => {
   test("renders current user name in input", () => {
     render(<NameForm user={mockUser} onUpdateName={async () => null} />);
-    expect(screen.getByDisplayValue("Budi")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Budi")).not.toBeNull();
   });
 
   test("shows error when update fails", async () => {
@@ -21,6 +21,6 @@ describe("NameForm", () => {
     await user.type(input, "Budi Baru");
     await user.keyboard("{Enter}");
 
-    expect(await screen.findByText("Nama sudah dipakai")).toBeInTheDocument();
+    expect(await screen.findByText("Nama sudah dipakai")).not.toBeNull();
   });
 });
