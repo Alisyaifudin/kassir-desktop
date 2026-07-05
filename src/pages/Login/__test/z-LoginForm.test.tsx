@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Effect } from "effect";
@@ -15,17 +15,28 @@ const mockCashiers: Cashier[] = [
 
 describe("LoginForm", () => {
   function renderForm(opts?: {
-    onCheck?: (id: string, password: string) => Effect.Effect<Cashier, CashierError | InvalidPassword>;
+    onCheck?: (
+      id: string,
+      password: string,
+    ) => Effect.Effect<Cashier, CashierError | InvalidPassword>;
     login?: (user: Cashier) => void;
   }) {
     return render(
       <LoginForm
         cashiers={mockCashiers}
-        onCheck={opts?.onCheck ?? ((id) => Effect.succeed(mockCashiers.find((c) => c.id === id)!))}
+        onCheck={
+          opts?.onCheck ??
+          ((id) =>
+            Effect.succeed(mockCashiers.find((c) => c.id === id)!))
+        }
         login={opts?.login ?? (() => {})}
       />,
     );
   }
+
+  // -----------------------------------------------------------------------
+  // Rendering
+  // -----------------------------------------------------------------------
 
   test("renders heading 'Masuk'", () => {
     renderForm();
@@ -37,14 +48,37 @@ describe("LoginForm", () => {
     expect(screen.getByLabelText("Kata sandi")).not.toBeNull();
   });
 
+  test("select shows capitalized cashier names", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("combobox"));
+
+    // Options should show capitalized names
+    expect(
+      await screen.findByRole("option", { name: "Budi" }),
+    ).not.toBeNull();
+    expect(screen.getByRole("option", { name: "Ani" })).not.toBeNull();
+  });
+
   test("submit button starts disabled", () => {
     renderForm();
-    expect((screen.getByRole("button", { name: /masuk/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: /masuk/i }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
+
+  // -----------------------------------------------------------------------
+  // Error state
+  // -----------------------------------------------------------------------
 
   test("shows error when onCheck fails", async () => {
     const user = userEvent.setup();
-    renderForm({ onCheck: () => Effect.fail(new InvalidPassword(new Error("Kata sandi salah"))) });
+    renderForm({
+      onCheck: () =>
+        Effect.fail(new InvalidPassword(new Error("Kata sandi salah"))),
+    });
 
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Budi" }));
@@ -52,5 +86,32 @@ describe("LoginForm", () => {
     fireEvent.submit(document.querySelector("form")!);
 
     expect(await screen.findByText("Kata sandi salah")).not.toBeNull();
+  });
+
+  // -----------------------------------------------------------------------
+  // Success state
+  // -----------------------------------------------------------------------
+
+  test("calls login with correct user on success", async () => {
+    const user = userEvent.setup();
+    const login = mock((_user: Cashier) => {});
+    renderForm({ login });
+
+    // Select Ani
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Ani" }));
+
+    // Type password and submit
+    await user.type(screen.getByLabelText("Kata sandi"), "secret123");
+    fireEvent.submit(document.querySelector("form")!);
+
+    // login should be called with Ani's data
+    await waitFor(() => {
+      expect(login).toHaveBeenCalledWith({
+        name: "Ani",
+        role: "user",
+        id: "2",
+      });
+    });
   });
 });

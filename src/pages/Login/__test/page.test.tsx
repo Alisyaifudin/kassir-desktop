@@ -61,7 +61,9 @@ function makeUserService(): typeof UserService.Service {
 
 describe("page (Effect)", () => {
   test("resolves when all services are provided", () => {
-    const program = Effect.gen(function* () { yield* page; });
+    const program = Effect.gen(function* () {
+      yield* page;
+    });
     const layer = Layer.mergeAll(
       Layer.succeed(CashierService, makeCashierService()),
       Layer.succeed(HashService, makeHashService()),
@@ -90,9 +92,13 @@ describe("Page component", () => {
     return render(<Page />);
   }
 
+  // 🚨 WithLoader is in the tree — every assertion must use await
+
   test("shows FreshForm when no cashiers exist", async () => {
     renderPage({ cashiers: [] });
-    expect(await screen.findByText(/selamat datang/i)).not.toBeNull();
+    expect(
+      await screen.findByText(/selamat datang/i),
+    ).not.toBeNull();
     expect(screen.getByText(/silakan buat akun terlebih/i)).not.toBeNull();
   });
 
@@ -102,14 +108,18 @@ describe("Page component", () => {
       { name: "Ani", role: "user", id: "2" },
     ];
     renderPage({ cashiers });
-    expect(await screen.findByRole("heading", { name: "Masuk" })).not.toBeNull();
+    expect(
+      await screen.findByRole("heading", { name: "Masuk" }),
+    ).not.toBeNull();
   });
 
   test("shows error when loading cashiers fails", async () => {
     renderPage({
       allError: new CashierError(new Error("Gagal memuat data")),
     });
-    expect(await screen.findByText(/aplikasi bermasalah/i)).not.toBeNull();
+    expect(
+      await screen.findByText(/aplikasi bermasalah/i),
+    ).not.toBeNull();
     expect(screen.getByText("Gagal memuat data")).not.toBeNull();
   });
 });
