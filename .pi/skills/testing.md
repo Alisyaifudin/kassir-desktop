@@ -11,13 +11,16 @@ This project uses [Bun Test](https://bun.sh/docs/test/writing) with [Testing Lib
 3. [Page-Level Tests](#page-level-tests)
 4. [z-* Component Tests](#z--component-tests)
 5. [Mock Services](#mock-services)
-6. [StateWrap Testing](#statewrap-testing)
-7. [User Interaction](#user-interaction)
-8. [Dialog Testing](#dialog-testing)
-9. [Query Patterns](#query-patterns)
-10. [Anti-Patterns](#anti-patterns)
-11. [Test File Structure](#test-file-structure)
-12. [Checklist](#checklist)
+6. [Stateful Mocks for Page Tests](#stateful-mocks-for-page-tests)
+7. [StateWrap Testing](#statewrap-testing)
+8. [User Interaction](#user-interaction)
+9. [Dialog Testing](#dialog-testing)
+10. [Query Patterns](#query-patterns)
+11. [Test the UI, Not the Implementation](#test-the-ui-not-the-implementation)
+12. [Avoid jest-dom Matchers](#avoid-jest-dom-matchers)
+13. [Anti-Patterns](#anti-patterns)
+14. [Test File Structure](#test-file-structure)
+15. [Checklist](#checklist)
 
 ---
 
@@ -168,20 +171,17 @@ describe("List", () => {
   test("renders all items", async () => {
     renderList();
     await waitFor(() => {
-      expect(screen.getByText("Foo")).toBeInTheDocument();
-      expect(screen.getByText("Bar")).toBeInTheDocument();
+      expect(screen.getByText("Foo")).not.toBeNull();
+      expect(screen.getByText("Bar")).not.toBeNull();
     });
   });
 
-  test("calls onDelete when delete button clicked", async () => {
-    const onDelete = mock(async (_id: string) => null);
+  test("shows error when delete fails", async () => {
     const user = userEvent.setup();
-    renderList({ onDelete });
+    renderList({ onDelete: async () => "Gagal menghapus" });
 
-    await user.click(await screen.findByRole("button", { name: /delete 1/i }));
-    await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith("1");
-    });
+    await user.click(screen.getAllByRole("button")[0]);
+    expect(await screen.findByText("Gagal menghapus")).not.toBeNull();
   });
 });
 ```
@@ -189,9 +189,9 @@ describe("List", () => {
 ### Key points
 
 - **`renderList` helper** renders the component with default props, accepts overrides
-- **`mock(async (...) => ...)` from bun** creates a callable mock that returns a Promise
 - **No `Effect.gen`, no `yield*`, no `Layer`** — just JSX with props
 - **Callbacks are `() => Promise.resolve(null)` by default** (success case)
+- **Test the UI, not the callback** — error text in DOM proves the callback ran
 
 ---
 
@@ -246,6 +246,61 @@ function makeExampleService(opts?: {
 - **Default: success** — callbacks return `Effect.void`, loader resolves immediately
 - **Override for errors** — pass a custom loader/callback that returns `Effect.fail(error)`
 - **Override for delay** — pass a pending Promise to test loading state
+
+### Stateful Mocks for Page Tests
+
+When testing page-level service injection, use **stateful mocks** that mirror the real `DataState` pattern via `useSyncExternalStore`. This lets you verify the full round-trip: user interaction → service callback → state update → component re-render.
+
+```tsx
+import { useSyncExternalStore } from "react";
+import { Listener } from "~/lib/state";
+
+// Stateful mock mirroring the real DataState pattern
+class StatefullSize {
+  size: "big" | "small" = "big";
+  listeners = new Set<Listener>();
+  getSnapshot() { return this.size; }
+  subscribe(cb: Listener) {
+    this.listeners.add(cb);
+    return () => { this.listeners.delete(cb); };
+  }
+  notify() { this.listeners.forEach((l) => l()); }
+  set(s: "big" | "small") { this.size = s; this.notify(); }
+  useSize() {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSyncExternalStore((cb) => this.subscribe(cb), () => this.getSnapshot());
+  }
+}
+
+// Wire into the mock service factory
+function makeConfigService(size: StatefullSize): typeof ConfigService.Service {
+  return {
+    size: {
+      useSize: () => size.useSize(),
+      set: (s) => size.set(s),
+    },
+  };
+}
+
+// Test verifies the full injection chain
+const size = new StatefullSize();
+renderPage({ size });
+
+const trigger = screen.getByRole("combobox", { name: "Ukuran" });
+expect(trigger.textContent).toContain("Besar");
+
+await user.click(trigger);
+await user.click(await screen.findByRole("option", { name: "Kecil" }));
+
+// useSyncExternalStore triggers re-render — component shows new value
+await waitFor(() => {
+  expect(screen.getByRole("combobox", { name: "Ukuran" }).textContent).toContain("Kecil");
+});
+```
+
+**When to use stateful mocks:** The component receives a hook prop (`useSize: () => Size`) that calls `useSyncExternalStore` internally. A plain `() => "big"` mock passes the initial render but can't verify re-render after interaction. A stateful mock proves the full cycle.
+
+**When a plain mock is enough:** The component receives a plain value prop (`size: Size`) or a simple callback (`onDelete: (id) => Promise<string | null>`). No reactive hook is involved — a plain mock suffices.
 
 ---
 
@@ -402,10 +457,9 @@ window.HTMLElement.prototype.hasPointerCapture =
 ### Select + submit test
 
 ```tsx
-test("selecting user, typing password, and submitting calls onCheck", async () => {
-  const onCheck = mock((_id: string, _password: string) => Effect.succeed({ ... }));
+test("selecting user and submitting updates the UI", async () => {
   const user = userEvent.setup();
-  renderForm({ onCheck });
+  renderForm();
 
   // 1. Open the select popover
   await user.click(screen.getByRole("combobox"));
@@ -422,8 +476,9 @@ test("selecting user, typing password, and submitting calls onCheck", async () =
   //    the form state IS updated.
   fireEvent.submit(document.querySelector("form")!);
 
+  // 5. Assert the UI outcome, not callback arguments
   await waitFor(() => {
-    expect(onCheck).toHaveBeenCalledWith("1", "secret123");
+    expect(screen.getByText(/selamat datang/i)).not.toBeNull();
   });
 });
 ```
@@ -568,6 +623,68 @@ const deleteBtn = within(row).getAllByRole("button")[1];
 
 ---
 
+## Test the UI, Not the Implementation
+
+**Assert what the user sees**, not what callbacks were called with.
+
+```tsx
+// ❌ Tests implementation detail — callback argument
+const onSet = mock((s: string) => {});
+renderSelect({ onSetSize: onSet });
+await user.click(option);
+expect(onSet).toHaveBeenCalledWith("small");
+
+// ✅ Tests observable UI — the trigger shows the new value
+const state = new StatefullSize();
+renderSelect({ useSize: () => state.useSize(), onSetSize: (s) => state.set(s) });
+await user.click(option);
+await waitFor(() => {
+  expect(screen.getByRole("combobox", { name: "Ukuran" }).textContent).toContain("Kecil");
+});
+```
+
+**Principle:** If a callback fires but the component doesn't update, the user sees nothing. A test that only checks the mock passes but is a false positive. Always assert on rendered DOM.
+
+**Error states are the exception** — verifying that `"Gagal menyimpan"` appears in the DOM after a failed callback IS testing the UI. You don't need a separate test that the callback was invoked — the error text appearing proves it was.
+
+```tsx
+// ✅ Error text appearing proves the callback ran AND the component handled it
+render(<ClearLog onClear={async () => "Gagal membersihkan"} />);
+await user.click(screen.getByRole("button", { name: /bersihkan/i }));
+expect(await screen.findByText("Gagal membersihkan")).not.toBeNull();
+```
+
+---
+
+## Avoid jest-dom Matchers
+
+`@testing-library/jest-dom` matchers like `toHaveTextContent`, `toBeChecked`, and `toBeInTheDocument` depend on Jest's internal `context.utils` API which **bun does not provide**. Using them causes `TypeError: context.utils.EXPECTED_COLOR is not a function`.
+
+Replace them with plain assertions:
+
+| jest-dom matcher | Plain replacement |
+|---|---|
+| `expect(el).toHaveTextContent("X")` | `expect(el.textContent).toContain("X")` |
+| `expect(el).toBeInTheDocument()` | `expect(el).not.toBeNull()` |
+| `expect(el).toBeChecked()` | `expect((el as HTMLInputElement).checked).toBe(true)` |
+| `expect(el).toHaveValue(58)` | `expect((el as HTMLInputElement).value).toBe("58")` |
+
+```tsx
+// ❌ Breaks in bun — jest-dom matcher
+await waitFor(() => {
+  expect(screen.getByRole("combobox")).toHaveTextContent("Kecil");
+});
+
+// ✅ Works in any runner — plain assertion
+await waitFor(() => {
+  expect(screen.getByRole("combobox").textContent).toContain("Kecil");
+});
+```
+
+**Note:** `toBeInTheDocument()` sometimes works in bun for simple cases, but fails inside `waitFor` after `useSyncExternalStore` re-renders. Prefer `.not.toBeNull()` everywhere for consistency.
+
+---
+
 ## Anti-Patterns
 
 ### 🚨 Submitting forms via raw DOM APIs
@@ -597,6 +714,9 @@ This is the #1 source of spurious `act(...)` warnings in `@tanstack/react-form` 
 - **Don't import `render` from `@testing-library/react`** — use `~/lib/render` which includes `MemoryRouter`
 - **Don't create `Layer.effect` for simple mocks** — `Layer.succeed` with a plain object is enough
 - **Don't test `@tanstack/react-form` internals** — test that callbacks are/aren't called, not that specific validation error messages render
+- **Don't use `@testing-library/jest-dom` matchers** — `toHaveTextContent`, `toBeChecked`, `toBeInTheDocument` break in bun. Use `element.textContent`, `element.checked`, `.not.toBeNull()` instead
+- **Don't test mock callback invocation as the primary assertion** — test the resulting UI change. The error text appearing proves the callback was called
+- **Don't use `getByRole("combobox")` on pages with multiple selects** — add `aria-label` to each trigger and query by name
 - **Don't pass service objects to React land in tests either** — mock services return the same interface but are plain objects
 
 ---
@@ -641,3 +761,6 @@ When adding tests for a page, verify:
 - [ ] **`z-NewItem.test.tsx`** — Dialog closes on success (if applicable)
 - [ ] All user interactions use `userEvent` — no `fireEvent`, `form.requestSubmit()`, or raw DOM
 - [ ] All async assertions use `findBy*` or `waitFor` — no bare `getBy*` for async content
+- [ ] Plain assertions only — no `toHaveTextContent`, `toBeChecked`, `toBeInTheDocument`
+- [ ] Stateful mocks for components using `useSyncExternalStore` hook props
+- [ ] UI assertions over callback-mock assertions — test what the user sees
