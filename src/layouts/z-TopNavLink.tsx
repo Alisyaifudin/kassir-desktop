@@ -1,40 +1,20 @@
 import { useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
-import { Show } from "~/components/Show";
 import { Kbd } from "~/components/ui/kdb";
-import { useShortcut, showShortcut } from "./use-shortcut";
-import { Effect } from "effect";
-import { UserService } from "~/services/user";
-
-export const topNavList = Effect.gen(function* () {
-  const userService = yield* UserService;
-  const useUser = userService.useUser;
-  return function TopNavList() {
-    const role = useUser().role;
-    return (
-      <div className="hidden md:flex items-end gap-1 h-full pt-2">
-        <TopNavLink path="/shop" label="Toko" alt="alt+0" root />
-        <TopNavLink path="/stock" label="Stok" alt="alt+1" />
-        <TopNavLink path="/records" label="Riwayat" alt="alt+2" />
-        <Show when={role === "admin"}>
-          <TopNavLink path="/money" label="Uang" alt="alt+3" />
-        </Show>
-      </div>
-    );
-  };
-});
 
 interface TopNavLinkProps {
   path: string;
   label: string;
   alt: string;
   root?: boolean;
+  useShowShortcut: () => boolean;
+  hideShortcut: () => void;
 }
 
-function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
+export function TopNavLink({ path, label, alt, root = false, useShowShortcut, hideShortcut }: TopNavLinkProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const show = useShortcut();
+  const show = useShowShortcut();
   const isActive = root ? pathname.startsWith(path) : pathname.includes(path);
 
   return (
@@ -45,7 +25,7 @@ function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
           const search = new URLSearchParams();
           search.set("url_back", "/");
           navigate(`${path}?${search.toString()}`);
-          showShortcut(false);
+          hideShortcut();
         }}
         className={cn(
           "px-4 h-[56px] small:h-[44px] font-bold transition-all flex items-center justify-center text-3xl small:text-2xl",

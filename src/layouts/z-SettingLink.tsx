@@ -2,12 +2,16 @@ import { Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
 import { Kbd } from "~/components/ui/kdb";
-import { showShortcut, useShortcut } from "./use-shortcut";
 import { Button } from "~/components/ui/button";
 
-export function SettingLink() {
+type Props = {
+  useShowShortcut: () => boolean;
+  hideShortcut: () => void;
+};
+
+export function SettingLink({ useShowShortcut, hideShortcut }: Props) {
   const { pathname } = useLocation();
-  const show = useShortcut();
+  const show = useShowShortcut();
   const navigate = useNavigate();
 
   return (
@@ -19,7 +23,7 @@ export function SettingLink() {
         onClick={(e) => {
           e.preventDefault();
           navigate("/setting");
-          showShortcut(false);
+          hideShortcut();
         }}
         className={cn(
           "rounded-full h-10 w-10 small:h-8 small:w-8 transition-all hover:bg-sky-400/50",

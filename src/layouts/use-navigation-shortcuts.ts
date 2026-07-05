@@ -1,6 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
-import { showShortcut } from "./use-shortcut";
 
 const linkMap = {
   0: "/shop",
@@ -10,33 +9,35 @@ const linkMap = {
   4: "/setting",
 } as Record<string, string>;
 
-let press = false;
-
-export function useNavigationShortcuts() {
+export function useNavigationShortcuts(
+  hideShortcut: () => void,
+  toggleShortcut: () => void,
+) {
   const navigate = useNavigate();
+  const pressRef = useRef(false);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (!e.altKey) return;
       const link = linkMap[e.key] as string | undefined;
       if (link === undefined) return;
-      showShortcut(false);
+      hideShortcut();
       navigate(link);
     }
 
     function handleAltDown(e: KeyboardEvent) {
       if (e.altKey) {
         e.preventDefault();
-        if (press) return;
-        showShortcut((prev) => !prev);
-        press = true;
+        if (pressRef.current) return;
+        toggleShortcut();
+        pressRef.current = true;
       }
     }
 
     function handleAltUp(e: KeyboardEvent) {
       if (!e.altKey) {
         e.preventDefault();
-        press = false;
+        pressRef.current = false;
       }
     }
 
@@ -49,5 +50,5 @@ export function useNavigationShortcuts() {
       document.body.removeEventListener("keydown", handleAltDown);
       document.body.removeEventListener("keyup", handleAltUp);
     };
-  }, [navigate]);
+  }, [navigate, hideShortcut, toggleShortcut]);
 }
