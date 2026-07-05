@@ -1,6 +1,7 @@
 import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { SelectTheme } from "../z-SelectTheme";
 import { render } from "~/lib/render";
 
@@ -34,4 +35,26 @@ describe("SelectTheme", () => {
 
     await waitFor(() => expect(onSet).toHaveBeenCalledWith("light"));
   });
+
+  test("select updates displayed value after selection", async () => {
+    const user = userEvent.setup();
+    render(<StatefulSelectTheme />);
+
+    // Initially shows "Terang"
+    expect(screen.getByRole("combobox")).toHaveTextContent("Terang");
+
+    // Select "Gelap"
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Gelap" }));
+
+    // Trigger now shows "Gelap"
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toHaveTextContent("Gelap");
+    });
+  });
 });
+
+function StatefulSelectTheme() {
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
+  return <SelectTheme theme={theme} onSetTheme={setTheme} />;
+}

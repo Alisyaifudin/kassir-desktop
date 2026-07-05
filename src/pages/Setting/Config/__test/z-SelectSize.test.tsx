@@ -1,6 +1,7 @@
 import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { SelectSize } from "../z-SelectSize";
 import { render } from "~/lib/render";
 
@@ -31,4 +32,26 @@ describe("SelectSize", () => {
 
     await waitFor(() => expect(onSet).toHaveBeenCalledWith("small"));
   });
+
+  test("select updates displayed value after selection", async () => {
+    const user = userEvent.setup();
+    render(<StatefulSelectSize />);
+
+    // Initially shows "Besar"
+    expect(screen.getByRole("combobox")).toHaveTextContent("Besar");
+
+    // Select "Kecil"
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Kecil" }));
+
+    // Trigger now shows "Kecil"
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toHaveTextContent("Kecil");
+    });
+  });
 });
+
+function StatefulSelectSize() {
+  const [size, setSize] = useState<"big" | "small">("big");
+  return <SelectSize size={size} onSetSize={setSize} />;
+}

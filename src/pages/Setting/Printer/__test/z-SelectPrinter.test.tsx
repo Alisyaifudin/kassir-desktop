@@ -1,6 +1,7 @@
 import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { SelectPrinter } from "../z-SelectPrinter";
 import { render } from "~/lib/render";
 import type { Printer } from "~/services/print/type";
@@ -46,6 +47,23 @@ describe("SelectPrinter", () => {
     await waitFor(() => expect(onSet).toHaveBeenCalledWith(printers[1]));
   });
 
+  test("select updates displayed value after selection", async () => {
+    const user = userEvent.setup();
+    render(<StatefulSelectPrinter />);
+
+    // Initially shows "Printer A"
+    expect(screen.getByRole("combobox")).toHaveTextContent("Printer A");
+
+    // Select "Printer B"
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Printer B" }));
+
+    // Trigger now shows "Printer B"
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toHaveTextContent("Printer B");
+    });
+  });
+
   test("shows error when set fails", async () => {
     const onSet = mock(async () => "Gagal menyimpan");
     const user = userEvent.setup();
@@ -57,3 +75,14 @@ describe("SelectPrinter", () => {
     expect(await screen.findByText("Gagal menyimpan")).toBeInTheDocument();
   });
 });
+
+function StatefulSelectPrinter() {
+  const [printer, setPrinter] = useState<Printer | null>(printers[0]);
+  return (
+    <SelectPrinter
+      printers={printers}
+      printer={printer}
+      onSetPrinter={async (p) => { setPrinter(p); return null; }}
+    />
+  );
+}
