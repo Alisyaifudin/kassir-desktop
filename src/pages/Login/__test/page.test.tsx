@@ -92,8 +92,8 @@ describe("Page component", () => {
 
   test("shows FreshForm when no cashiers exist", async () => {
     renderPage({ cashiers: [] });
-    expect(await screen.findByText(/selamat datang/i)).toBeInTheDocument();
-    expect(screen.getByText(/silakan buat akun terlebih/i)).toBeInTheDocument();
+    expect(await screen.findByText(/selamat datang/i)).not.toBeNull();
+    expect(screen.getByText(/silakan buat akun terlebih/i)).not.toBeNull();
   });
 
   test("shows LoginForm when cashiers exist", async () => {
@@ -102,14 +102,14 @@ describe("Page component", () => {
       { name: "Ani", role: "user", id: "2" },
     ];
     renderPage({ cashiers });
-    expect(await screen.findByRole("heading", { name: "Masuk" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Masuk" })).not.toBeNull();
   });
 
   test("shows error when loading cashiers fails", async () => {
     renderPage({
       allError: new CashierError(new Error("Gagal memuat data")),
     });
-    expect(await screen.findByText(/aplikasi bermasalah/i)).toBeInTheDocument();
-    expect(screen.getByText("Gagal memuat data")).toBeInTheDocument();
+    expect(await screen.findByText(/aplikasi bermasalah/i)).not.toBeNull();
+    expect(screen.getByText("Gagal memuat data")).not.toBeNull();
   });
 });

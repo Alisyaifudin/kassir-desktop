@@ -15,9 +15,9 @@ describe("StatsCard", () => {
         color="text-green-500"
       />,
     );
-    expect(screen.getByText("Pendapatan Hari Ini")).toBeInTheDocument();
-    expect(screen.getByText("Rp 150.000")).toBeInTheDocument();
-    expect(screen.getByText("+5% dari kemarin")).toBeInTheDocument();
+    expect(screen.getByText("Pendapatan Hari Ini")).not.toBeNull();
+    expect(screen.getByText("Rp 150.000")).not.toBeNull();
+    expect(screen.getByText("+5% dari kemarin")).not.toBeNull();
   });
 
   test("renders empty description without error", () => {
@@ -29,8 +29,8 @@ describe("StatsCard", () => {
         icon={Wallet}
       />,
     );
-    expect(screen.getByText("Total")).toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("Total")).not.toBeNull();
+    expect(screen.getByText("0")).not.toBeNull();
   });
 
   test("applies custom className", () => {
@@ -43,6 +43,6 @@ describe("StatsCard", () => {
         className="custom-class"
       />,
     );
-    expect(container.querySelector(".custom-class")).toBeInTheDocument();
+    expect(container.querySelector(".custom-class")).not.toBeNull();
   });
 });

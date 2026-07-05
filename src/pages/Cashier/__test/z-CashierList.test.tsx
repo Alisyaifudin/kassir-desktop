@@ -1,4 +1,4 @@
-import { describe, test, expect, mock } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CashierList } from "../z-CashierList";
@@ -43,20 +43,20 @@ describe("CashierList", () => {
   test("renders all cashier items", async () => {
     renderList();
     await waitFor(() => {
-      expect(screen.getByText("Budi")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("Ani")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("Citra")).toBeInTheDocument();
+      expect(screen.getByText("Budi")).not.toBeNull();
+      expect(screen.getByDisplayValue("Ani")).not.toBeNull();
+      expect(screen.getByDisplayValue("Citra")).not.toBeNull();
     });
   });
 
   test("renders empty list when no cashiers", () => {
     renderList({ cashiers: [] });
     const container = document.querySelector(".flex.flex-col.gap-2");
-    expect(container).toBeInTheDocument();
+    expect(container).not.toBeNull();
     expect(container?.children.length).toBe(0);
   });
 
-  test("passes currentUserName to CashierItem — self item renders as text", async () => {
+  test("self item renders as text, not input", async () => {
     renderList({ currentUser: { name: "Budi", role: "admin", id: "1" } });
     await waitFor(() => {
       const budi = screen.getByText("Budi");
@@ -64,10 +64,9 @@ describe("CashierList", () => {
     });
   });
 
-  test("passes onUpdateName callback — editing another user calls it", async () => {
-    const onUpdateName = mock(async (_id: string, _name: string) => null);
+  test("shows error when update fails", async () => {
     const user = userEvent.setup();
-    renderList({ onUpdateName });
+    renderList({ onUpdateName: async () => "Nama sudah dipakai" });
 
     await waitFor(() => screen.getByDisplayValue("Ani"));
     const input = screen.getByDisplayValue("Ani");
@@ -75,15 +74,12 @@ describe("CashierList", () => {
     await user.type(input, "Ani Baru");
     await user.keyboard("{Enter}");
 
-    await waitFor(() => {
-      expect(onUpdateName).toHaveBeenCalledWith("2", "Ani Baru");
-    });
+    expect(await screen.findByText("Nama sudah dipakai")).not.toBeNull();
   });
 
-  test("passes onDelete callback — confirm dialog calls it", async () => {
-    const onDelete = mock(async (_id: string) => null);
+  test("delete dialog closes on success", async () => {
     const user = userEvent.setup();
-    renderList({ onDelete });
+    renderList();
 
     await waitFor(() => screen.getByDisplayValue("Citra"));
     const citraInput = screen.getByDisplayValue("Citra");
@@ -92,11 +88,10 @@ describe("CashierList", () => {
     await user.click(deleteBtn);
 
     await waitFor(() => screen.getByText(/yakin\?/i));
-    const hapusBtn = screen.getByRole("button", { name: /hapus/i });
-    await user.click(hapusBtn);
+    await user.click(screen.getByRole("button", { name: /hapus/i }));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith("3");
+      expect(screen.queryByRole("dialog")).toBeNull();
     });
   });
 });

@@ -1,6 +1,7 @@
 import { Context, Effect } from "effect";
 import { Social } from "./type";
 import { SocialError } from "./error";
+export { SocialError } from "./error";
 
 export class SocialService extends Context.Tag("SocialService")<
   SocialService,

@@ -62,15 +62,15 @@ describe("Page component", () => {
 
   test("renders heading and description", async () => {
     renderPage();
-    expect(await screen.findByRole("heading", { name: /kontak media sosial/i })).toBeInTheDocument();
-    expect(screen.getByText(/kelola kontak yang muncul di struk transaksi/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /kontak media sosial/i })).not.toBeNull();
+    expect(screen.getByText(/kelola kontak yang muncul di struk transaksi/i)).not.toBeNull();
   });
 
   test("renders column headers", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText("Kontak")).toBeInTheDocument();
-      expect(screen.getByText("Isian")).toBeInTheDocument();
+      expect(screen.getByText("Kontak")).not.toBeNull();
+      expect(screen.getByText("Isian")).not.toBeNull();
     });
   });
 
@@ -81,7 +81,7 @@ describe("Page component", () => {
     expect(skeletons.length).toBeGreaterThan(0);
     deferred.resolve();
     await waitFor(() => {
-      expect(screen.queryByText(/kontak media sosial/i)).toBeInTheDocument();
+      expect(screen.queryByText(/kontak media sosial/i)).not.toBeNull();
     });
   });
 
@@ -89,30 +89,30 @@ describe("Page component", () => {
     renderPage({
       loader: () => Effect.fail(new SocialError(new Error("Gagal memuat data"))),
     });
-    expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Gagal memuat data/i)).not.toBeNull();
   });
 
   describe("when loaded successfully", () => {
     test("renders social list items", async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByDisplayValue("Instagram")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("@tokokita")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("WhatsApp")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("08123456789")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("Instagram")).not.toBeNull();
+        expect(screen.getByDisplayValue("@tokokita")).not.toBeNull();
+        expect(screen.getByDisplayValue("WhatsApp")).not.toBeNull();
+        expect(screen.getByDisplayValue("08123456789")).not.toBeNull();
       });
     });
 
     test("renders empty state when no socials", async () => {
       renderPage({ socials: [] });
       await waitFor(() => {
-        expect(screen.getByText(/---belum ada---/i)).toBeInTheDocument();
+        expect(screen.getByText(/---belum ada---/i)).not.toBeNull();
       });
     });
 
     test("renders 'Tambah' button", async () => {
       renderPage();
-      expect(await screen.findByRole("button", { name: /tambah/i })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /tambah/i })).not.toBeNull();
     });
   });
 });

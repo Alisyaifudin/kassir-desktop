@@ -29,36 +29,36 @@ describe("StatisticsGrid", () => {
   test("renders income card with label and value", async () => {
     renderGrid();
     await waitFor(() => {
-      expect(screen.getByText("Pendapatan Hari Ini")).toBeInTheDocument();
-      expect(screen.getByText("Rp 500000")).toBeInTheDocument();
-      expect(screen.getByText("+10% dari kemarin")).toBeInTheDocument();
+      expect(screen.getByText("Pendapatan Hari Ini")).not.toBeNull();
+      expect(screen.getByText("Rp 500000")).not.toBeNull();
+      expect(screen.getByText("+10% dari kemarin")).not.toBeNull();
     });
   });
 
   test("renders expense card with label and value", async () => {
     renderGrid();
     await waitFor(() => {
-      expect(screen.getByText("Pengeluaran Hari Ini")).toBeInTheDocument();
-      expect(screen.getByText("Rp 120000")).toBeInTheDocument();
-      expect(screen.getByText("-5% dari kemarin")).toBeInTheDocument();
+      expect(screen.getByText("Pengeluaran Hari Ini")).not.toBeNull();
+      expect(screen.getByText("Rp 120000")).not.toBeNull();
+      expect(screen.getByText("-5% dari kemarin")).not.toBeNull();
     });
   });
 
   test("renders total transactions card with counts", async () => {
     renderGrid();
     await waitFor(() => {
-      expect(screen.getByText("Total Transaksi")).toBeInTheDocument();
-      expect(screen.getByText("42")).toBeInTheDocument();
-      expect(screen.getByText("18")).toBeInTheDocument();
+      expect(screen.getByText("Total Transaksi")).not.toBeNull();
+      expect(screen.getByText("42")).not.toBeNull();
+      expect(screen.getByText("18")).not.toBeNull();
     });
   });
 
   test("all three cards are rendered", async () => {
     renderGrid();
     await waitFor(() => {
-      expect(screen.getByText("Pendapatan Hari Ini")).toBeInTheDocument();
-      expect(screen.getByText("Pengeluaran Hari Ini")).toBeInTheDocument();
-      expect(screen.getByText("Total Transaksi")).toBeInTheDocument();
+      expect(screen.getByText("Pendapatan Hari Ini")).not.toBeNull();
+      expect(screen.getByText("Pengeluaran Hari Ini")).not.toBeNull();
+      expect(screen.getByText("Total Transaksi")).not.toBeNull();
     });
   });
 });

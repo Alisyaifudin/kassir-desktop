@@ -18,21 +18,21 @@ describe("Header", () => {
 
   test("renders greeting with capitalized user name", () => {
     renderHeader();
-    expect(screen.getByText(/selamat datang, budi!/i)).toBeInTheDocument();
+    expect(screen.getByText(/selamat datang, budi!/i)).not.toBeNull();
   });
 
   test("renders greeting with different user", () => {
     renderHeader({ user: { name: "ani", role: "user", id: "2" } });
-    expect(screen.getByText(/selamat datang, ani!/i)).toBeInTheDocument();
+    expect(screen.getByText(/selamat datang, ani!/i)).not.toBeNull();
   });
 
   test("renders today prop", () => {
     renderHeader();
-    expect(screen.getByText(today)).toBeInTheDocument();
+    expect(screen.getByText(today)).not.toBeNull();
   });
 
   test("renders custom today prop", () => {
     renderHeader({ today: "Rabu, 15 Maret 2025" });
-    expect(screen.getByText("Rabu, 15 Maret 2025")).toBeInTheDocument();
+    expect(screen.getByText("Rabu, 15 Maret 2025")).not.toBeNull();
   });
 });

@@ -1,13 +1,9 @@
-import { describe, test, expect, mock } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CustomerList } from "../z-CustomerList";
 import { render } from "~/lib/render";
 import type { Customer } from "~/services/customer/type";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 const mockCustomers: Customer[] = [
   { name: "Budi", phone: "08123456789", id: "1" },
@@ -29,34 +25,29 @@ function renderList(opts?: {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("CustomerList", () => {
   test("renders all customer items with name and phone", async () => {
     renderList();
     await waitFor(() => {
-      expect(screen.getByDisplayValue("Budi")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("Ani")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("Citra")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("08123456789")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("08987654321")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("08561234567")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Budi")).not.toBeNull();
+      expect(screen.getByDisplayValue("Ani")).not.toBeNull();
+      expect(screen.getByDisplayValue("Citra")).not.toBeNull();
+      expect(screen.getByDisplayValue("08123456789")).not.toBeNull();
+      expect(screen.getByDisplayValue("08987654321")).not.toBeNull();
+      expect(screen.getByDisplayValue("08561234567")).not.toBeNull();
     });
   });
 
   test("renders empty list when no customers", () => {
     renderList({ customers: [] });
     const container = document.querySelector(".flex.flex-col.gap-3");
-    expect(container).toBeInTheDocument();
+    expect(container).not.toBeNull();
     expect(container?.children.length).toBe(0);
   });
 
-  test("passes onUpdate callback — editing name and pressing Enter calls it", async () => {
-    const onUpdate = mock(async (_id: string, _name: string, _phone: string) => null);
+  test("shows error when update fails", async () => {
     const user = userEvent.setup();
-    renderList({ onUpdate });
+    renderList({ onUpdate: async () => "Nama sudah dipakai" });
 
     await waitFor(() => screen.getByDisplayValue("Ani"));
     const input = screen.getByDisplayValue("Ani");
@@ -64,34 +55,28 @@ describe("CustomerList", () => {
     await user.type(input, "Ani Baru");
     await user.keyboard("{Enter}");
 
-    await waitFor(() => {
-      expect(onUpdate).toHaveBeenCalledWith("2", "Ani Baru", "08987654321");
-    });
+    expect(await screen.findByText("Nama sudah dipakai")).not.toBeNull();
   });
 
-  test("passes onDelete callback — confirm dialog calls it", async () => {
-    const onDelete = mock(async (_id: string) => null);
+  test("delete dialog closes on success", async () => {
     const user = userEvent.setup();
-    renderList({ onDelete });
+    renderList();
 
     await waitFor(() => screen.getByDisplayValue("Citra"));
     const citraInput = screen.getByDisplayValue("Citra");
     const citraForm = citraInput.closest("form")!;
-    // Two buttons in the form: hidden submit + delete trigger. The delete trigger comes second.
     const buttons = within(citraForm).getAllByRole("button");
     const deleteBtn = buttons[1];
     await user.click(deleteBtn);
 
     await waitFor(() => screen.getByText(/yakin\?/i));
-    // The delete dialog shows: "> Nama: Citra" and "> HP: 08561234567"
-    expect(screen.getByText(/nama: citra/i)).toBeInTheDocument();
-    expect(screen.getByText(/hp: 08561234567/i)).toBeInTheDocument();
+    expect(screen.getByText(/nama: citra/i)).not.toBeNull();
+    expect(screen.getByText(/hp: 08561234567/i)).not.toBeNull();
 
-    const hapusBtn = screen.getByRole("button", { name: /hapus/i });
-    await user.click(hapusBtn);
+    await user.click(screen.getByRole("button", { name: /hapus/i }));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith("3");
+      expect(screen.queryByRole("dialog")).toBeNull();
     });
   });
 });

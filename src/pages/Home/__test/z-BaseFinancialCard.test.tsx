@@ -25,7 +25,7 @@ describe("BaseFinancialCard", () => {
   test("renders value on success", async () => {
     renderCard();
     await waitFor(() => {
-      expect(screen.getByText("Rp 150000")).toBeInTheDocument();
+      expect(screen.getByText("Rp 150000")).not.toBeNull();
     });
   });
 
@@ -34,7 +34,7 @@ describe("BaseFinancialCard", () => {
       loader: () => Effect.succeed({ diffPercent: 10, sign: "+" as Sign, todayValue: 200000 }),
     });
     await waitFor(() => {
-      expect(screen.getByText("+10% dari kemarin")).toBeInTheDocument();
+      expect(screen.getByText("+10% dari kemarin")).not.toBeNull();
     });
   });
 
@@ -43,7 +43,7 @@ describe("BaseFinancialCard", () => {
       loader: () => Effect.succeed({ diffPercent: 3, sign: "-" as Sign, todayValue: 100000 }),
     });
     await waitFor(() => {
-      expect(screen.getByText("-3% dari kemarin")).toBeInTheDocument();
+      expect(screen.getByText("-3% dari kemarin")).not.toBeNull();
     });
   });
 
@@ -52,7 +52,7 @@ describe("BaseFinancialCard", () => {
       loader: () => Effect.succeed({ sign: "+" as Sign, todayValue: 50000 }),
     });
     await waitFor(() => {
-      expect(screen.getByText("Rp 50000")).toBeInTheDocument();
+      expect(screen.getByText("Rp 50000")).not.toBeNull();
     });
     // Description <span> is the next sibling of the value <span>; should be empty
     const desc = screen.getByText("Rp 50000").nextElementSibling;
@@ -72,8 +72,8 @@ describe("BaseFinancialCard", () => {
       loader: () => Effect.fail(new DailySummaryError(new Error("Jaringan bermasalah"))),
     });
     await waitFor(() => {
-      expect(screen.getByText("Gagal memuat pendapatan")).toBeInTheDocument();
-      expect(screen.getByText("Jaringan bermasalah")).toBeInTheDocument();
+      expect(screen.getByText("Gagal memuat pendapatan")).not.toBeNull();
+      expect(screen.getByText("Jaringan bermasalah")).not.toBeNull();
     });
   });
 });

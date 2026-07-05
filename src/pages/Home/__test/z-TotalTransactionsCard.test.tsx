@@ -19,14 +19,14 @@ describe("TotalTransactionsCard", () => {
   test("renders transaction counts on success", async () => {
     renderCard();
     await waitFor(() => {
-      expect(screen.getByText("10")).toBeInTheDocument();
-      expect(screen.getByText("5")).toBeInTheDocument();
+      expect(screen.getByText("10")).not.toBeNull();
+      expect(screen.getByText("5")).not.toBeNull();
     });
   });
 
   test("renders 'Total Transaksi' label", async () => {
     renderCard();
-    expect(await screen.findByText("Total Transaksi")).toBeInTheDocument();
+    expect(await screen.findByText("Total Transaksi")).not.toBeNull();
   });
 
   test("shows loading skeleton initially", () => {
@@ -40,8 +40,8 @@ describe("TotalTransactionsCard", () => {
       loader: () => Effect.fail(new DailySummaryError(new Error("Server error"))),
     });
     await waitFor(() => {
-      expect(screen.getByText("Gagal memuat data")).toBeInTheDocument();
-      expect(screen.getByText("Server error")).toBeInTheDocument();
+      expect(screen.getByText("Gagal memuat data")).not.toBeNull();
+      expect(screen.getByText("Server error")).not.toBeNull();
     });
   });
 });

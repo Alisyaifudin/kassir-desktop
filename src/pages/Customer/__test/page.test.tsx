@@ -62,8 +62,8 @@ describe("Page component", () => {
 
   test("renders heading and description", async () => {
     renderPage();
-    expect(await screen.findByRole("heading", { name: /daftar pelanggan/i })).toBeInTheDocument();
-    expect(screen.getByText(/kelola informasi pelanggan dan kontak/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /daftar pelanggan/i })).not.toBeNull();
+    expect(screen.getByText(/kelola informasi pelanggan dan kontak/i)).not.toBeNull();
   });
 
   test("shows loading skeleton while loader is pending", async () => {
@@ -74,7 +74,7 @@ describe("Page component", () => {
     deferred.resolve();
     // Flush the pending state update from StateWrap
     await waitFor(() => {
-      expect(screen.queryByText(/daftar pelanggan/i)).toBeInTheDocument();
+      expect(screen.queryByText(/daftar pelanggan/i)).not.toBeNull();
     });
   });
 
@@ -82,31 +82,31 @@ describe("Page component", () => {
     renderPage({
       loader: () => Effect.fail(new CustomerError(new Error("Gagal memuat data"))),
     });
-    expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Gagal memuat data/i)).not.toBeNull();
   });
 
   describe("when loaded successfully", () => {
     test("renders customer list items", async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByDisplayValue("Budi")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("Ani")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("Citra")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("Budi")).not.toBeNull();
+        expect(screen.getByDisplayValue("Ani")).not.toBeNull();
+        expect(screen.getByDisplayValue("Citra")).not.toBeNull();
       });
     });
 
     test("renders phone numbers", async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByDisplayValue("08123456789")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("08987654321")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("08561234567")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("08123456789")).not.toBeNull();
+        expect(screen.getByDisplayValue("08987654321")).not.toBeNull();
+        expect(screen.getByDisplayValue("08561234567")).not.toBeNull();
       });
     });
 
     test("renders 'Tambah Pelanggan' button", async () => {
       renderPage();
-      expect(await screen.findByRole("button", { name: /tambah pelanggan/i })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /tambah pelanggan/i })).not.toBeNull();
     });
   });
 });

@@ -100,8 +100,8 @@ describe("Page component", () => {
 
   test("renders heading and description", async () => {
     renderPage();
-    expect(await screen.findByRole("heading", { name: /daftar kasir/i })).toBeInTheDocument();
-    expect(screen.getByText(/kelola akun kasir dan peran pengguna/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /daftar kasir/i })).not.toBeNull();
+    expect(screen.getByText(/kelola akun kasir dan peran pengguna/i)).not.toBeNull();
   });
 
   test("shows loading skeleton while loader is pending", async () => {
@@ -112,7 +112,7 @@ describe("Page component", () => {
     // Flush the pending state update from StateWrap
     deferred.resolve();
     await waitFor(() => {
-      expect(screen.queryByText(/daftar kasir/i)).toBeInTheDocument();
+      expect(screen.queryByText(/daftar kasir/i)).not.toBeNull();
     });
   });
 
@@ -120,22 +120,22 @@ describe("Page component", () => {
     renderPage({
       loader: () => Effect.fail(new CashierError(new Error("Gagal memuat data"))),
     });
-    expect(await screen.findByText(/Gagal memuat data/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Gagal memuat data/i)).not.toBeNull();
   });
 
   describe("when loaded successfully", () => {
     test("renders cashier list items", async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByText("Budi")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("Ani")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("Citra")).toBeInTheDocument();
+        expect(screen.getByText("Budi")).not.toBeNull();
+        expect(screen.getByDisplayValue("Ani")).not.toBeNull();
+        expect(screen.getByDisplayValue("Citra")).not.toBeNull();
       });
     });
 
     test("renders 'Tambah Kasir' button", async () => {
       renderPage();
-      expect(await screen.findByRole("button", { name: /tambah kasir/i })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /tambah kasir/i })).not.toBeNull();
     });
   });
 });

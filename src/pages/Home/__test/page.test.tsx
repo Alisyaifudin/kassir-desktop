@@ -81,26 +81,26 @@ describe("Page component", () => {
 
   test("renders greeting with user name", async () => {
     renderPage();
-    expect(await screen.findByText(/selamat datang, budi!/i)).toBeInTheDocument();
+    expect(await screen.findByText(/selamat datang, budi!/i)).not.toBeNull();
   });
 
   test("renders today's date", async () => {
     renderPage();
-    expect(await screen.findByText(today)).toBeInTheDocument();
+    expect(await screen.findByText(today)).not.toBeNull();
   });
 
   test("renders 'Navigasi Utama' heading", async () => {
     renderPage();
-    expect(await screen.findByText(/navigasi utama/i)).toBeInTheDocument();
+    expect(await screen.findByText(/navigasi utama/i)).not.toBeNull();
   });
 
   test("renders nav cards", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText("Toko")).toBeInTheDocument();
-      expect(screen.getByText("Stok")).toBeInTheDocument();
-      expect(screen.getByText("Riwayat")).toBeInTheDocument();
-      expect(screen.getByText("Pengaturan")).toBeInTheDocument();
+      expect(screen.getByText("Toko")).not.toBeNull();
+      expect(screen.getByText("Stok")).not.toBeNull();
+      expect(screen.getByText("Riwayat")).not.toBeNull();
+      expect(screen.getByText("Pengaturan")).not.toBeNull();
     });
   });
 
@@ -108,10 +108,10 @@ describe("Page component", () => {
     test("renders admin-only nav cards", async () => {
       renderPage({ user: { ...mockUser, role: "admin" } });
       await waitFor(() => {
-        expect(screen.getByText("Analisis")).toBeInTheDocument();
-        expect(screen.getByText("Uang")).toBeInTheDocument();
-        expect(screen.getByText("Kasir")).toBeInTheDocument();
-        expect(screen.getByText("Pelanggan")).toBeInTheDocument();
+        expect(screen.getByText("Analisis")).not.toBeNull();
+        expect(screen.getByText("Uang")).not.toBeNull();
+        expect(screen.getByText("Kasir")).not.toBeNull();
+        expect(screen.getByText("Pelanggan")).not.toBeNull();
       });
     });
   });
@@ -121,13 +121,13 @@ describe("Page component", () => {
       renderPage({ user: { ...mockUser, role: "user" } });
       await waitFor(() => {
         // Public cards visible
-        expect(screen.getByText("Toko")).toBeInTheDocument();
-        expect(screen.getByText("Stok")).toBeInTheDocument();
+        expect(screen.getByText("Toko")).not.toBeNull();
+        expect(screen.getByText("Stok")).not.toBeNull();
       });
-      expect(screen.queryByText("Analisis")).not.toBeInTheDocument();
-      expect(screen.queryByText("Uang")).not.toBeInTheDocument();
-      expect(screen.queryByText("Kasir")).not.toBeInTheDocument();
-      expect(screen.queryByText("Pelanggan")).not.toBeInTheDocument();
+      expect(screen.queryByText("Analisis")).not.not.toBeNull();
+      expect(screen.queryByText("Uang")).not.not.toBeNull();
+      expect(screen.queryByText("Kasir")).not.not.toBeNull();
+      expect(screen.queryByText("Pelanggan")).not.not.toBeNull();
     });
   });
 });
