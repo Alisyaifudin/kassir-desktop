@@ -31,6 +31,9 @@ const page = Effect.gen(function* () {
       () => cashierService.set.role(id, role),
       (e) => e.e.message,
     );
+  const loader = () => cashierService.loader();
+  const useCashiers = () => cashierService.useCashiers();
+  const useUser = () => userService.useUser();
 
   return function Page() {
     return (
@@ -40,7 +43,7 @@ const page = Effect.gen(function* () {
           <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
         </div>
         <StateWrap
-          loader={cashierService.loader}
+          loader={loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
@@ -48,8 +51,8 @@ const page = Effect.gen(function* () {
             onDelete={onDelete}
             onUpdateName={onUpdateName}
             onUpdateRole={onUpdateRole}
-            useCashiers={cashierService.useCashiers}
-            useUser={userService.useUser}
+            useCashiers={useCashiers}
+            useUser={useUser}
           />
           <NewCashier onAdd={onAdd} />
         </StateWrap>

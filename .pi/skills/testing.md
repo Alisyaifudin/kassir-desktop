@@ -151,6 +151,22 @@ Read `z-Item.tsx` and enumerate every interaction:
 
 > If you haven't listed **all** the branches as a todo first, you haven't thought hard enough about what to test. Writing tests without the list leads to gaps — silent paths that break silently.
 
+### 🚨 Only test what the user can actually do
+
+**Never test internal state mutations that are unreachable by the user.** Before writing a test, verify: is there a button, form, or interaction on the actual page that triggers this path? If not — skip it.
+
+```tsx
+// ❌ User can't delete pockets from the Money page — no delete button exists
+state.delete("1");
+await waitFor(() => expect(screen.queryByText("Penjualan")).toBeNull());
+
+// ✅ User CAN add pockets via the "Kantong Baru" button
+await user.click(screen.getByRole("button", { name: /kantong baru/i }));
+// ... fill form, submit, assert new item appears
+```
+
+This also means: don't test library internals (field-error slots, form subscription states), don't test implementation details (what callback was called with), and don't test paths that only exist in your mock but not in the real component.
+
 Resist the urge to start writing `test()` immediately. The list IS the thinking. The tests are just the execution.
 
 ---
@@ -249,9 +265,52 @@ Stateful mocks use `useSyncExternalStore` to make the mock store **reactive**. W
 
 ### When to use
 
-**Stateful mock:** The component receives a hook prop (`useCashiers: () => Cashier[]`) that calls `useSyncExternalStore` internally. A plain `() => [...]` mock passes the initial render but can't verify re-render after interaction.
+**✅ Stateful mock:** The component receives a **hook prop** (`useCashiers: () => Cashier[]`) that calls `useSyncExternalStore` internally. A plain `() => [...]` mock passes the initial render but can't verify re-render after interaction.
 
-**Plain mock is enough:** The component receives a plain value or a simple callback (`onDelete: (id) => Promise<string | null>`). No reactive hook — a plain mock suffices.
+**❌ Plain mock is enough:** The component receives a **plain value prop** (`cashiers: Cashier[]`) or a **simple callback** (`onDelete: (id) => Promise<string | null>`). No reactive hook involved — a plain mock suffices.
+
+### When NOT to use
+
+**Skip stateful mocks when the page is read-only** — no mutations happen while the user is on the page:
+
+- Data arrives via `<WithLoader loader={get.all}>` which calls the children with a plain value: `{(data) => <Component items={data} />}`
+- Components receive **plain props**, not hooks
+- Actions like `login()`, `onAdd()` are terminal — they navigate away, not mutate in-place state
+- There's no `useSyncExternalStore` anywhere in the component tree
+
+**Example — Login page:**
+
+```tsx
+// ❌ Don't create a StatefullLogin — nothing to observe reactively
+// ✅ Plain mock factories are sufficient
+
+function makeCashierService(opts?: { cashiers?: Cashier[]; allError?: CashierError }) {
+  return {
+    get: {
+      all: () => opts?.allError
+        ? Effect.fail(opts.allError)
+        : Effect.succeed(opts?.cashiers ?? []),
+    },
+    add: () => Effect.succeed({ ... }),    // plain mock
+    // ...
+  };
+}
+```
+
+**Decision flowchart:**
+
+```
+Does the component receive a use* hook prop? ──No──▶ Plain mock
+         │
+        Yes
+         │
+Does a user interaction mutate state that the
+component must re-render to reflect? ──No──▶ Plain mock
+         │
+        Yes
+         │
+      Stateful mock (class + useSyncExternalStore)
+```
 
 ### Pattern: Class + Service Factory
 
@@ -1137,8 +1196,9 @@ When adding tests for a page, verify:
 - [ ] Delete dialog: successful confirmation closes dialog
 
 ### General
-- [ ] Stateful mocks in **shared `mock.ts`** — imported by all test files
-- [ ] Stateful store classes with `useSyncExternalStore` hooks
+- [ ] Stateful mocks in **shared `mock.ts`** — imported by all test files (when page has reactive hooks)
+- [ ] Plain mock factories for **read-only pages** (WithLoader, no reactive hooks, no in-place mutations)
+- [ ] Stateful store classes with `useSyncExternalStore` hooks (only when needed)
 - [ ] Service factories with `state?` option and per-method `*Error` options
 - [ ] All user interactions use `userEvent` — no `fireEvent`, `form.requestSubmit()`
 - [ ] All async assertions use `findBy*` or `waitFor`

@@ -4,7 +4,7 @@ import { Show } from "~/components/Show";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
-import { PocketFull } from "~/services/money/type";
+import { PocketFull } from "~/services/pocket/type";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("id-ID", {

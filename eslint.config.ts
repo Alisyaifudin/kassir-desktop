@@ -26,6 +26,7 @@ export default tseslint.config(
       ...react.configs.recommended.rules,
       ...react.configs["jsx-runtime"].rules,
       "react/prop-types": "off", // Not needed with TypeScript
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     },
     settings: {
       react: {

@@ -1,33 +1,40 @@
 import { NameForm } from "./z-NameForm";
+import { SonnerService } from "~/services/sonner";
 import { PasswordForm } from "./z-PasswordForm";
 import { Effect } from "effect";
 import { CashierService } from "~/services/cashier";
 import { UserService } from "~/services/user";
 import { HashService } from "~/services/hash";
+import { promisify } from "~/lib/promisify";
 
 const page = Effect.gen(function* () {
   const userService = yield* UserService;
   const cashierService = yield* CashierService;
   const hashService = yield* HashService;
+  const sonner = yield* SonnerService;
 
   const onUpdateName = (id: string, name: string) =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        yield* cashierService.set.name(id, name);
-        const currentUser = userService.user;
-        if (!currentUser) return "Pengguna tidak ditemukan";
-        yield* userService.setUser({ ...currentUser, name });
-        return null;
-      }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message))),
+    promisify(
+      () =>
+        Effect.gen(function* () {
+          yield* cashierService.set.name(id, name);
+          const currentUser = userService.user;
+          if (!currentUser) return "Pengguna tidak ditemukan";
+          yield* userService.setUser({ ...currentUser, name });
+          return null;
+        }),
+      ({ e }) => e.message,
     );
 
   const onUpdatePassword = (id: string, password: string) =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const hash = yield* hashService.hash(password);
-        yield* cashierService.set.hash(id, hash);
-        return null;
-      }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message))),
+    promisify(
+      () =>
+        Effect.gen(function* () {
+          const hash = yield* hashService.hash(password);
+          yield* cashierService.set.hash(id, hash);
+          return null;
+        }),
+      ({ e }) => e.message,
     );
 
   return function Page() {
@@ -46,7 +53,11 @@ const page = Effect.gen(function* () {
           </div>
 
           <div className="rounded-2xl border bg-destructive p-6 shadow-sm">
-            <PasswordForm userId={user.id} onUpdatePassword={onUpdatePassword} />
+            <PasswordForm
+              userId={user.id}
+              sonner={sonner}
+              onUpdatePassword={onUpdatePassword}
+            />
           </div>
         </div>
       </div>

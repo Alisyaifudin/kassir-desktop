@@ -15,11 +15,12 @@ const options = [
 ] as const;
 
 type Props = {
-  theme: Theme;
+  useTheme: () => Theme;
   onSetTheme: (theme: Theme) => void;
 };
 
-export function SelectTheme({ theme, onSetTheme }: Props) {
+export function SelectTheme({ useTheme, onSetTheme }: Props) {
+  const theme = useTheme();
   const handleChange = useCallback(
     (newTheme: string) => {
       if (newTheme !== "system" && newTheme !== "light" && newTheme !== "dark") return;
@@ -31,7 +32,7 @@ export function SelectTheme({ theme, onSetTheme }: Props) {
     <div className="flex items-center gap-4">
       <label className="font-semibold text-normal w-24 shrink-0">Tema</label>
       <Select value={theme} onValueChange={handleChange}>
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-40" aria-label="Tema">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

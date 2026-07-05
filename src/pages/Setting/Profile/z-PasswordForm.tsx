@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { toast } from "sonner";
 import { Password } from "~/components/Password";
+import { SonnerService } from "~/services/sonner";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import {
@@ -14,6 +14,7 @@ import { cn } from "~/lib/utils";
 
 type Props = {
   userId: string;
+  sonner: typeof SonnerService.Type;
   onUpdatePassword: (id: string, password: string) => Promise<string | null>;
 };
 
@@ -31,7 +32,7 @@ export function PasswordForm({ userId, onUpdatePassword }: Props) {
     setError(err);
     if (err === null) {
       setInput("");
-      toast.success("Berhasil diperbarui");
+      sonner.success("Berhasil diperbarui");
     }
   }
 

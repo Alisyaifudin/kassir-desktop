@@ -844,3 +844,21 @@ const exampleRoute = yield* exampleRouteEffect;
 - **Don't manage loading/error state for page-level data in components** — let `StateWrap` handle it
 - **Don't use `useState` for cross-component shared data** — that's what service `use*` hooks are for
 - **Don't call service `use*` hooks before `StateWrap` succeeds** — wrap in `StateWrap` to guarantee data is loaded
+
+---
+
+## Pattern 8: TypeScript Checking
+
+**Never run `tsc --noEmit` on the entire codebase.** It's too slow (scans every file) and produces noise from unrelated pre-existing errors.
+
+### Fast alternatives
+
+```bash
+# Check only the files you changed (fastest)
+npx tsc --noEmit src/pages/Money/page.tsx src/pages/Money/z-NavList.tsx
+
+# Filter errors from incremental runs (cache makes subsequent runs instant)
+npx tsc --noEmit --incremental 2>&1 | grep "src/pages/Money/"
+```
+
+**Rule:** After changing a page or service, run `tsc` on just the files you touched. The `--incremental` flag builds a `.tsbuildinfo` cache so repeated runs are near-instant — combine with `grep` to filter to your module.

@@ -6,15 +6,8 @@ import { ConfigService } from "~/services/config";
 
 export const page = Effect.gen(function* () {
   const config = yield* ConfigService;
-  const useSize = () => config.size.useSize();
-  const useTheme = () => config.theme.useTheme();
-  const onSetSize = config.size.set;
-  const onSetTheme = config.theme.set;
 
   return function Page() {
-    const size = useSize();
-    const theme = useTheme();
-
     return (
       <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
         <div className="flex flex-col gap-1">
@@ -34,8 +27,8 @@ export const page = Effect.gen(function* () {
           </div>
           <Separator />
           <div className="p-6 grid grid-cols-1 gap-8">
-            <SelectSize size={size} onSetSize={onSetSize} />
-            <SelectTheme theme={theme} onSetTheme={onSetTheme} />
+            <SelectSize useSize={() => config.size.useSize()} onSetSize={(s) => config.size.set(s)} />
+            <SelectTheme useTheme={() => config.theme.useTheme()} onSetTheme={(t) => config.theme.set(t)} />
           </div>
         </div>
       </div>

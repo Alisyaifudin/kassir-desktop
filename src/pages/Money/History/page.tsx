@@ -1,4 +1,25 @@
 import { ErrorComponent } from "~/components/ErrorComponent";
+import { Effect } from "effect";
+import { MoneyService } from "~/services/money";
+import { PocketService } from "~/services/pocket";
+import { IoService } from "~/services/io";
+import { BlobService } from "~/services/blob";
+import { StateWrap } from "~/components/StateWrap";
+import { TableList } from "./z-TableList";
+import { Header } from "./z-Header";
+import { DeletePocket } from "./z-DeletePocket";
+import { Download } from "./z-Download";
+import { SonnerService } from "~/services/sonner";
+import { UploadMoney } from "./z-UploadMoney";
+import { NewRecord } from "./z-NewRecord";
+import { TimePicker } from "./z-TimePicker";
+import { useRange } from "./use-range";
+import { Temporal } from "temporal-polyfill";
+import { tz } from "~/lib/constants";
+import { useMemo } from "react";
+import { promisify } from "~/lib/promisify";
+import { downloadEffect } from "./effect-download-program";
+import type { MoneyImport } from "~/services/money/type";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
   Table,
@@ -8,29 +29,60 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { tableList } from "./effect-tableList";
-import { deletePocket } from "./effect-deletePocket";
-import { download } from "./effect-download";
-import { uploadMoney } from "./effect-uploadMoney";
-import { Effect } from "effect";
-import { MoneyService } from "~/services/money";
-import { StateWrap } from "~/components/StateWrap";
-import { TimePicker } from "./z-TimePicker";
-import { useRange } from "./use-range";
-import { Temporal } from "temporal-polyfill";
-import { tz } from "~/lib/constants";
-import { useMemo } from "react";
-import { header } from "./effect-header";
 
 const page = Effect.gen(function* () {
   const moneyService = yield* MoneyService;
+  const pocketService = yield* PocketService;
+  const ioService = yield* IoService;
+  const blobService = yield* BlobService;
+  const sonner = yield* SonnerService;
+
+  // --- Callbacks ---
+  const onDeleteRecord = (id: string) =>
+    promisify(
+      () => moneyService.delete(id),
+      (e) => e.e.message,
+    );
+  const onDeletePocket = (pocketId: string) =>
+    promisify(
+      () => pocketService.delete(pocketId),
+      (e) => e.e.message,
+    );
+  const onAddRecord = (args: {
+    pocketId: string;
+    value: number;
+    type: DBNamespace.PocketType;
+    note: string;
+  }) =>
+    promisify(
+      () => moneyService.add.local(args),
+      (e) => e.e.message,
+    );
+  const onUpdateName = (pocketId: string, name: string) =>
+    promisify(
+      () => pocketService.set.name(pocketId, name),
+      (e) => e.e.message,
+    );
+  const onAddExternal = (pocketId: string, record: MoneyImport) =>
+    promisify(
+      () => moneyService.add.external(pocketId, record),
+      (e) => e.e.message,
+    );
+  const onDownload = (pocketId: string, name: string) =>
+    promisify(
+      () =>
+        downloadEffect(pocketId, name).pipe(
+          Effect.provideService(MoneyService, moneyService),
+          Effect.provideService(IoService, ioService),
+          Effect.provideService(BlobService, blobService),
+        ),
+      (e) => e, // catchAll already returns string
+    );
+
   const loader = (pocketId: string, start: number, end: number) => () =>
-    moneyService.money.loader(pocketId, start, end);
-  const TableList = yield* tableList;
-  const Header = yield* header;
-  const DeletePocketBtn = yield* deletePocket;
-  const Download = yield* download;
-  const UploadMoney = yield* uploadMoney;
+    moneyService.loader(pocketId, start, end);
+  const usePocket = () => moneyService.usePocket();
+
   return function Page({ pocketId }: { pocketId: string }) {
     const [range, setRange] = useRange();
     const range0 = range[0];
@@ -47,23 +99,40 @@ const page = Effect.gen(function* () {
           .startOfDay().epochMilliseconds,
       [range1],
     );
+
     return (
       <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
         <StateWrap
           loader={loader(pocketId, start, end)}
-          loading={<Loading cols={7} />}
+          loading={<Loading />}
           error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
         >
+          <Header
+            usePocket={usePocket}
+            NewRecordSlot={<NewRecord usePocket={usePocket} onAdd={onAddRecord} />}
+            sonner={sonner}
+            onUpdateName={onUpdateName}
+          />
           <div className="flex items-center justify-between py-1 pr-1">
-            <Header />
             <TimePicker range={range} setRange={setRange} />
           </div>
-          <TableList start={start} end={end} />
+          <TableList
+            useMoney={(s, e) => moneyService.useMoney(s, e)}
+            usePocket={usePocket}
+            onDeleteRecord={onDeleteRecord}
+            start={start}
+            end={end}
+          />
           <div className="flex items-center pb-1 justify-between">
-            <DeletePocketBtn pocketId={pocketId} />
+            <DeletePocket pocketId={pocketId} onDelete={onDeletePocket} />
             <div className="flex items-center gap-2">
-              <UploadMoney pocketId={pocketId} />
-              <Download pocketId={pocketId} />
+              <UploadMoney pocketId={pocketId} onAddExternal={onAddExternal} />
+              <Download
+                pocketId={pocketId}
+                usePocket={() => moneyService.usePocket()}
+                sonner={sonner}
+                onDownload={onDownload}
+              />
             </div>
           </div>
         </StateWrap>
@@ -72,7 +141,8 @@ const page = Effect.gen(function* () {
   };
 });
 
-function Loading({ cols }: { cols: number }) {
+function Loading() {
+  const cols = 7;
   return (
     <Table className="text-normal">
       <TableHeader>
