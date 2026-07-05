@@ -2,13 +2,20 @@ import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import type { Size } from "~/services/config";
 import { SelectSize } from "../z-SelectSize";
 import { render } from "~/lib/render";
 
 describe("SelectSize", () => {
-  function renderSelect(opts?: { size?: "big" | "small"; onSetSize?: (s: "big" | "small") => void }) {
+  function renderSelect(opts?: {
+    useSize?: () => Size;
+    onSetSize?: (s: Size) => void;
+  }) {
     return render(
-      <SelectSize size={opts?.size ?? "big"} onSetSize={opts?.onSetSize ?? (() => {})} />,
+      <SelectSize
+        useSize={opts?.useSize ?? (() => "big")}
+        onSetSize={opts?.onSetSize ?? (() => {})}
+      />,
     );
   }
 
@@ -18,14 +25,14 @@ describe("SelectSize", () => {
   });
 
   test("shows current size value", () => {
-    renderSelect({ size: "small" });
+    renderSelect({ useSize: () => "small" });
     expect(screen.getByText("Kecil")).toBeInTheDocument();
   });
 
   test("calls onSetSize when selecting new size", async () => {
     const onSet = mock((_s: string) => {});
     const user = userEvent.setup();
-    renderSelect({ size: "big", onSetSize: onSet });
+    renderSelect({ useSize: () => "big", onSetSize: onSet });
 
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Kecil" }));
@@ -37,14 +44,11 @@ describe("SelectSize", () => {
     const user = userEvent.setup();
     render(<StatefulSelectSize />);
 
-    // Initially shows "Besar"
     expect(screen.getByRole("combobox")).toHaveTextContent("Besar");
 
-    // Select "Kecil"
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Kecil" }));
 
-    // Trigger now shows "Kecil"
     await waitFor(() => {
       expect(screen.getByRole("combobox")).toHaveTextContent("Kecil");
     });
@@ -52,6 +56,6 @@ describe("SelectSize", () => {
 });
 
 function StatefulSelectSize() {
-  const [size, setSize] = useState<"big" | "small">("big");
-  return <SelectSize size={size} onSetSize={setSize} />;
+  const [size, setSize] = useState<Size>("big");
+  return <SelectSize useSize={() => size} onSetSize={setSize} />;
 }
