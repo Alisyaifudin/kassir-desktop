@@ -24,7 +24,7 @@ export type ProductFilters = {
 /*  URL param <-> filter key mapping                                   */
 /* ------------------------------------------------------------------ */
 
-const KEY_MAP: Record<string, string> = {
+const KEY_MAP = {
   losing: "losing",
   emptyStock: "empty",
   priceMin: "price-min",
@@ -37,10 +37,7 @@ const KEY_MAP: Record<string, string> = {
 /*  Hook: read + write filters via URL search params                   */
 /* ------------------------------------------------------------------ */
 
-export function useFilters(): [
-  ProductFilters,
-  (patch: Partial<ProductFilters>) => void,
-] {
+export function useFilters(): [ProductFilters, (patch: Partial<ProductFilters>) => void] {
   const [search, setSearch] = useSearchParams();
 
   const filters: ProductFilters = {
@@ -56,9 +53,9 @@ export function useFilters(): [
     (patch: Partial<ProductFilters>) => {
       setSearch((old) => {
         const s = new URLSearchParams(old);
-        for (const [filterKey, value] of Object.entries(patch)) {
+        for (const filterKey of Object.keys(patch) as (keyof ProductFilters)[]) {
+          const value = patch[filterKey];
           const param = KEY_MAP[filterKey];
-          if (!param) continue;
           if (
             value === undefined ||
             value === false ||
