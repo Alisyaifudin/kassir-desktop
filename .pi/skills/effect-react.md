@@ -4,21 +4,106 @@ This project uses a disciplined integration of [Effect-TS](https://effect.websit
 
 ---
 
+## ⛔ CRITICAL: Guardrails Against Old-Code Poisoning
+
+**This section is the single source of truth. When in conflict with any existing code, the skill file wins.**
+
+### The Poisoning Problem
+
+Some pages in the codebase still use an OLD pre-service pattern. When you read those files, their structure can "anchor" your thinking and cause you to preserve old anti-patterns instead of replacing them. **The existing code tells you WHAT behavior is needed — the skill file tells you HOW to structure it.**
+
+### Forbidden Imports (instant audit)
+
+If ANY file under `src/pages/` contains these imports, the page is using the OLD pattern and must be fully rebuilt:
+
+| Forbidden import | Why it's wrong |
+|---|---|
+| `from "~/lib/result"` | `Result.use` / `Result.match` is the old data-fetching pattern. Use `StateWrap` + `service.loader()`. |
+| `Effect.runPromise` in any `use-*.ts` hook | Effect execution belongs in `promisify` at the `page.tsx` level, not in React hooks. |
+| `from "~/database"` in a page or hook | Raw DB access bypasses the service layer. Go through `Context.Tag`. |
+| `from "~/lib/image"` in a page or hook | Raw I/O bypasses the service layer. Go through `Context.Tag`. |
+| `from "~/lib/log"` in a page or hook | Logging belongs inside service implementations, not in pages. |
+| `from "~/hooks/use-user"` in a page or hook | `useUser` comes from `yield* UserService`, extracted via arrow function. |
+| `from "~/hooks/"` — ANY hook under `src/hooks/` | Hooks are extracted from services at the page level, never imported from `src/hooks/`. |
+
+### 🔴 THE ARROW-FUNCTION RULE (MOST COMMON SLIP-UP)
+
+**Every service hook/method passed to a React component MUST be wrapped in an arrow function.** Passing `service.useX` directly loses the `this` binding and will fail at runtime.
+
+```tsx
+// ❌ WRONG — loses `this`, will crash
+<CashierList useCashiers={cashierService.useCashiers} useUser={userService.useUser} />
+
+// ✅ CORRECT — preserves `this`
+const useCashiers = () => cashierService.useCashiers();
+const useUser = () => userService.useUser();
+<CashierList useCashiers={useCashiers} useUser={useUser} />
+```
+
+**This applies to ALL service methods passed as props** — `loader`, `use*` hooks, anything that will be called inside a child component. Extract it to an arrow-function variable first, then pass the variable.
+
+Also applies to `loader` passed to `StateWrap`:
+
+```tsx
+// ❌ WRONG
+<StateWrap loader={service.loader} ...>
+
+// ✅ CORRECT
+const load = () => service.loader();
+<StateWrap loader={load} ...>
+```
+
+### Refactoring Protocol (MUST FOLLOW EXACTLY)
+
+When asked to refactor/upgrade a page to the effect-react pattern:
+
+1. **Identify what the page DOES** — read the old code to understand the user-visible behavior (CRUD operations, data displayed, UI interactions). Make a list.
+2. **Check if a service exists** at `src/services/<name>/`. If not, CREATE IT using the exact `Context.Tag` pattern below.
+3. **Rewrite `page.tsx` from scratch** — do NOT edit the old file incrementally. Follow the [Walkthrough](#walkthrough-adding-a-new-page) as if this page never existed. The old file is only a spec for behavior.
+4. **Rewrite `z-*` components** to receive everything via props. Remove ALL Effect imports, ALL `db` imports, ALL `Result` imports.
+5. **DELETE old hooks** (`use-*.ts` files that contain Effect logic, DB calls, or `Result`). Pure React utilities (search params, resize observers) can stay.
+6. **Rewrite `index.tsx`** to use `Effect.gen` + `lazyEffect`.
+7. **Verify** — grep for the forbidden imports above. Zero matches.
+
+### Pure React Utilities That CAN Stay
+
+These are UI-only hooks with no Effect, no DB, no service dependency. They do NOT need a service wrapper:
+
+- `useSearchParams` wrappers (reading/writing URL query params)
+- Resize observers (`useContainerSize`, etc.)
+- `useState` / `useCallback` wrappers for UI state
+- Route param hooks (`useParams`, `useOutletContext`)
+
+### Pre-Flight Checklist for Any Page Change
+
+Before writing a single line, answer these:
+
+- [ ] Do I have a `Context.Tag` service for every data dependency?
+- [ ] Is `page.tsx` an `Effect.gen` that only yields services?
+- [ ] Are all mutations bridged with `promisify` (not `Effect.runPromise`)?
+- [ ] Do `z-*` components import NOTHING from `effect`, `~/database`, `~/lib/image`, `~/lib/log`, `~/lib/result`, `~/hooks/`?
+- [ ] Is every service hook/method extracted into an arrow-function variable before being passed as a prop? (Check: no `={service.useX}` or `={service.loader}` anywhere in JSX.)
+- [ ] Is `useUser` extracted from `yield* UserService` (not imported from `~/hooks/use-user`)?
+- [ ] Am I building from scratch, not incrementally editing old code?
+
+---
+
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [The Service Layer](#the-service-layer)
-3. [Pattern 1: Route Definition](#pattern-1-route-definition-indextsx)
-4. [Pattern 2: Page Assembly](#pattern-2-page-assembly-pagetsx)
-5. [Pattern 3: Pure React Components](#pattern-3-pure-react-components-z-tsx)
-6. [Pattern 4: Lazy Loading](#pattern-4-lazy-loading-lazyeffect)
-7. [Pattern 5: One-Shot Data Fetching](#pattern-5-one-shot-data-fetching-withloader)
-8. [Pattern 6: StateWrap](#pattern-6-statewrap)
-9. [Pattern 7: Testing](#pattern-7-testing)
-10. [File Naming Conventions](#file-naming-conventions)
-11. [Walkthrough: Adding a New Page](#walkthrough-adding-a-new-page)
-12. [Deciding Which Pattern to Use](#deciding-which-pattern-to-use)
-13. [Anti-Patterns](#anti-patterns)
+1. [Guardrails Against Old-Code Poisoning](#-critical-guardrails-against-old-code-poisoning)
+2. [Architecture Overview](#architecture-overview)
+3. [The Service Layer](#the-service-layer)
+4. [Pattern 1: Route Definition](#pattern-1-route-definition-indextsx)
+5. [Pattern 2: Page Assembly](#pattern-2-page-assembly-pagetsx)
+6. [Pattern 3: Pure React Components](#pattern-3-pure-react-components-z-tsx)
+7. [Pattern 4: Lazy Loading](#pattern-4-lazy-loading-lazyeffect)
+8. [Pattern 5: One-Shot Data Fetching](#pattern-5-one-shot-data-fetching-withloader)
+9. [Pattern 6: StateWrap](#pattern-6-statewrap)
+10. [Pattern 7: Testing](#pattern-7-testing)
+11. [File Naming Conventions](#file-naming-conventions)
+12. [Walkthrough: Adding a New Page](#walkthrough-adding-a-new-page)
+13. [Deciding Which Pattern to Use](#deciding-which-pattern-to-use)
+14. [Anti-Patterns](#anti-patterns)
 
 ---
 
@@ -183,7 +268,12 @@ const page = Effect.gen(function* () {
   const cashierService = yield* CashierService;
   const userService = yield* UserService;
 
-  // 2. Bridge Effect → Promise using promisify (extracts error message on failure)
+  // 2. Extract reactive hooks — MUST wrap in arrow functions to preserve `this`
+  const useCashiers = () => cashierService.useCashiers();
+  const useUser = () => userService.useUser();
+  const load = () => cashierService.loader();
+
+  // 3. Bridge Effect → Promise using promisify (extracts error message on failure)
   const onAdd = (name: string) =>
     promisify(
       () => cashierService.add({ name, role: "user", password: "" }),
@@ -205,7 +295,7 @@ const page = Effect.gen(function* () {
       (e) => e.e.message,
     );
 
-  // 3. Return a plain React component
+  // 4. Return a plain React component
   return function Page() {
     return (
       <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
@@ -213,18 +303,18 @@ const page = Effect.gen(function* () {
           <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
           <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
         </div>
-        {/* 4. Pass bridged callbacks and hooks as props to children */}
+        {/* 5. Pass arrow-function-wrapped hooks and callbacks as props */}
         <StateWrap
-          loader={cashierService.loader}
+          loader={load}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
           <CashierList
+            useCashiers={useCashiers}
+            useUser={useUser}
             onDelete={onDelete}
             onUpdateName={onUpdateName}
             onUpdateRole={onUpdateRole}
-            useCashiers={cashierService.useCashiers}
-            useUser={userService.useUser}
           />
           <NewCashier onAdd={onAdd} />
         </StateWrap>
@@ -238,8 +328,10 @@ export default page;
 
 **Key points:**
 - **Only yield services in `page.tsx`** — never in components
-- **Extract callbacks and hooks** from the service (don't pass the service itself)
-- **Use `promisify`** at the page level to convert Effect operations to Promise-based callbacks (`(input) => Promise<string | null>`)
+- **Extract hooks into arrow-function variables** — `const useX = () => service.useX()` — before passing as props. Never write `useX={service.useX}` in JSX.
+- **Extract `loader` into an arrow-function variable** — `const load = () => service.loader()` — before passing to `StateWrap`. Never write `loader={service.loader}`.
+- **`useUser` always comes from `yield* UserService`** — never from `~/hooks/use-user`.
+- **Bridge mutations with `promisify`** at the page level to convert Effect operations to Promise-based callbacks (`(input) => Promise<string | null>`)
 - **Prop drill everything** — hooks and callbacks pass through props to `z-*` components
 - The page is a default export (for `lazyEffect`)
 
@@ -832,6 +924,27 @@ const exampleRoute = yield* exampleRouteEffect;
 ---
 
 ## Anti-Patterns
+
+### Old → New Replacement Map
+
+If you see this old pattern in existing code, here is the exact replacement:
+
+| Old pattern (DELETE) | New pattern (USE) |
+|---|---|
+| `Result.use({ fn, key })` + `Result.match()` | `StateWrap` with `service.loader()` |
+| `Result.revalidate(KEY)` after mutation | Service handles state internally; `StateWrap` children re-render automatically |
+| `Effect.runPromise(program(...))` in a `use-*.ts` hook | `promisify(() => service.method(...), (e) => e.e.message)` at page level, pass as prop |
+| Direct `db.image.get.byProductId(id)` in a hook | `service.loader(productId)` — DB access is the service's job |
+| Direct `image.save(file, name)` in a hook | `service.add(productId, file)` — I/O is the service's job |
+| `log.error(e)` in a page or hook | Service logs internally via `Effect.catchAll`; page transforms errors to strings |
+| `import { db } from "~/database"` | `yield* YourService` — DB is never imported by pages |
+| `import { image } from "~/lib/image"` | `yield* YourService` — I/O is never imported by pages |
+| `import { log } from "~/lib/log"` | Service handles logging internally |
+| `import { Result } from "~/lib/result"` | `StateWrap` or `WithLoader` from `~/components/` |
+| Plain `React.lazy(() => import("./page"))` in `index.tsx` | `yield* lazyEffect(() => import("./page"))` in `Effect.gen` |
+| Exporting `RouteObject` directly from `index.tsx` | Export `<name>RouteEffect` (an `Effect`) |
+
+### General Anti-Patterns
 
 - **Don't inject services in `z-*` components** — they are pure React, no `Effect.gen`, no `yield*`
 - **Don't create `effect-*.tsx` files** — extract everything at the page level, prop drill to `z-*` components
