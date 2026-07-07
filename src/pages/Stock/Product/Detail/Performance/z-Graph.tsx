@@ -78,7 +78,7 @@ export function Graph({ data, delta }: Props) {
     return result;
   }, [maxQty]);
 
-  if (data.length === 0) {
+  if (data.length === 0 || data.every((d) => d.qty === 0)) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         Tidak ada data
