@@ -21,6 +21,8 @@ const page = Effect.gen(function* () {
   const imageService = yield* ImageService;
   const userService = yield* UserService;
 
+  const useUser = () => userService.useUser();
+
   const onAdd = (productId: string, file: File) =>
     promisify(
       () => imageService.add(productId, file),
@@ -48,7 +50,7 @@ const page = Effect.gen(function* () {
       >
         <ImageViewer
           useImages={imageService.useImages}
-          useUser={userService.useUser}
+          useUser={useUser}
           productId={id}
           onAdd={onAdd}
           onDelete={onDelete}
