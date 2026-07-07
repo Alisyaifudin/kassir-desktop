@@ -173,12 +173,12 @@ Resist the urge to start writing `test()` immediately. The list IS the thinking.
 
 ## Shared Mock Module
 
-When multiple test files share the same mock infrastructure (stateful stores, service factories), extract them into a **`__test/mock.ts`** file. This keeps tests focused on assertions while the mock logic lives in one place.
+When multiple test files share the same mock infrastructure (stateful stores, service factories), extract them into a **`__test__/mock.ts`** file. This keeps tests focused on assertions while the mock logic lives in one place.
 
 ### What goes in `mock.ts`
 
 ```
-__test/
+__test__/
 ├── mock.ts               ← shared mock infrastructure
 ├── page.test.tsx          ← imports from ./mock
 ├── z-List.test.tsx        ← imports from ./mock
@@ -198,7 +198,7 @@ __test/
 ### Example: mock.ts
 
 ```tsx
-// __test/mock.ts
+// __test__/mock.ts
 import { useSyncExternalStore } from "react";
 import { Effect } from "effect";
 import { CashierService, CashierError } from "~/services/cashier";
@@ -408,7 +408,7 @@ onDelete: async () => "Gagal"
 ### Structure
 
 ```tsx
-// src/pages/Example/__test/page.test.tsx
+// src/pages/Example/__test__/page.test.tsx
 import { describe, test, expect } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import { Effect, Layer } from "effect";
@@ -477,7 +477,7 @@ Pure React components receive everything via props. No Effect, no service inject
 ### Structure
 
 ```tsx
-// src/pages/Example/__test/z-List.test.tsx
+// src/pages/Example/__test__/z-List.test.tsx
 import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -1147,7 +1147,7 @@ src/pages/Example/
 ├── z-List.tsx
 ├── z-NewItem.tsx
 ├── z-Loading.tsx
-└── __test/
+└── __test__/
     ├── mock.ts               ← shared stateful mocks & factories
     ├── page.test.tsx          ← page-level: Effect + StateWrap
     ├── z-List.test.tsx        ← pure component: props → render → assert
