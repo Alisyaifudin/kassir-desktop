@@ -3,11 +3,12 @@ import { Button } from "~/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { promisify } from "~/lib/promisify";
-import { ImageService, type ImageResult } from "~/services/image";
+import { ImageService } from "~/services/image";
+import { ImageResult } from "~/services/image/type";
 import { ImageError } from "~/services/image/error";
+import { UserService } from "~/services/user";
 import { StateWrap } from "~/components/StateWrap";
 import { ErrorComponent } from "~/components/ErrorComponent";
-import { useUser } from "~/hooks/use-user";
 import { Loading } from "./z-Loading";
 import { DeleteImg } from "./z-DeleteImg";
 import { ImageControl } from "./z-ImageControl";
@@ -18,6 +19,7 @@ import { useId } from "../use-id";
 
 const page = Effect.gen(function* () {
   const imageService = yield* ImageService;
+  const userService = yield* UserService;
 
   const onAdd = (productId: string, file: File) =>
     promisify(
@@ -46,6 +48,7 @@ const page = Effect.gen(function* () {
       >
         <ImageViewer
           useImages={imageService.useImages}
+          useUser={userService.useUser}
           productId={id}
           onAdd={onAdd}
           onDelete={onDelete}
@@ -62,12 +65,14 @@ export default page;
 
 function ImageViewer({
   useImages,
+  useUser,
   productId,
   onAdd,
   onDelete,
   onSwap,
 }: {
   useImages: () => ImageResult[];
+  useUser: () => { role: string };
   productId: string;
   onAdd: (productId: string, file: File) => Promise<string | null>;
   onDelete: (productId: string, id: string) => Promise<string | null>;
