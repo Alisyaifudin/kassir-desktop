@@ -1,17 +1,18 @@
 import { useSearchParams } from "react-router";
 import { z } from "zod";
 
-const modeSchema = z.enum(["sell", "buy"]);
+const modeSchema = z.enum(["positive", "negative"]);
+export type DeltaFilter = z.infer<typeof modeSchema>;
 
-export function useMode() {
+export function useDeltaFilter() {
   const [search, setSearch] = useSearchParams();
-  const mode = modeSchema.catch("sell").parse(search.get("mode"));
-  function setMode(mode: DBNamespace.Mode) {
+  const delta = modeSchema.catch("positive").parse(search.get("delta"));
+  function setDelta(delta: DeltaFilter) {
     setSearch((old) => {
       const s = new URLSearchParams(old);
-      s.set("mode", mode);
+      s.set("delta", delta);
       return s;
     });
   }
-  return [mode, setMode] as const;
+  return [delta, setDelta] as const;
 }

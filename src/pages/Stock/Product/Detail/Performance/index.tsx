@@ -1,13 +1,17 @@
-import { RouteObject } from "react-router";
-import { lazy, Suspense } from "react";
+import { Effect } from "effect";
+import { Suspense } from "react";
+import { lazyEffect } from "~/lib/lazy";
+import { Loading } from "./z-Loading";
 
-const Page = lazy(() => import("./page.tsx"));
+export const perfRouteEffect = Effect.gen(function* () {
+  const Page = yield* lazyEffect(() => import("./page"));
 
-export const perfRoute: RouteObject = {
-  Component: () => (
-    <Suspense>
-      <Page />
-    </Suspense>
-  ),
-  path: "performance",
-};
+  return {
+    Component: () => (
+      <Suspense fallback={<Loading />}>
+        <Page />
+      </Suspense>
+    ),
+    path: "performance",
+  };
+});
