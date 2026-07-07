@@ -4,8 +4,7 @@ import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { ImageDialog } from "./z-ImageDialog";
-import { ImageResult } from "./use-data";
-import { revalidate } from "./use-data";
+import { ImageResult } from "~/services/image";
 
 type Props = {
   images: ImageResult[];
@@ -76,8 +75,6 @@ function SwapBtn({
     setLoading(false);
     if (err !== null) {
       toast.error(err);
-    } else {
-      revalidate();
     }
   }
 

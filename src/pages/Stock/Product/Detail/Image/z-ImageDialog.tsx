@@ -13,7 +13,6 @@ import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
-import { revalidate } from "./use-data";
 
 type Props = {
   productId: string;
@@ -42,7 +41,6 @@ export function ImageDialog({ productId, onAdd }: Props) {
     if (err === null) {
       reset();
       setOpen(false);
-      revalidate();
     }
   }
 

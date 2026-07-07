@@ -1,118 +1,58 @@
 import { Effect } from "effect";
-import { Temporal } from "temporal-polyfill";
-import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { promisify } from "~/lib/promisify";
+import { ImageService, type ImageResult } from "~/services/image";
+import { ImageError } from "~/services/image/error";
+import { StateWrap } from "~/components/StateWrap";
 import { ErrorComponent } from "~/components/ErrorComponent";
+import { useUser } from "~/hooks/use-user";
 import { Loading } from "./z-Loading";
 import { DeleteImg } from "./z-DeleteImg";
 import { ImageControl } from "./z-ImageControl";
 import { useSelected } from "./use-selected";
 import { useChange } from "./use-change";
 import { useContainerSize, useControlSize } from "./use-container-size";
-import { ImageResult, useData } from "./use-data";
 import { useId } from "../use-id";
 
-// ── Effect programs ──────────────────────────────────────────────
-
-function addProgram(productId: string, file: File) {
-  return Effect.gen(function* () {
-    if (file.size > 10 * 1e6) return yield* Effect.fail("Ukuran maksimum 10 MB");
-    const parsedMime = z.enum(["image/jpeg", "image/png"]).safeParse(file.type);
-    if (!parsedMime.success) return yield* Effect.fail("Format gambar tidak didukung");
-    const now = Temporal.Now.instant().epochMilliseconds;
-    const rawName = file.name.replace(/\s+/g, "-");
-    const name = `${now}-${rawName}`;
-    yield* image.save(file, name);
-    yield* db.image.add.one({ name, mime: parsedMime.data, productId });
-  }).pipe(
-    Effect.catchAll((e) => {
-      if (typeof e === "string") return Effect.fail(e);
-      log.error(e);
-      return Effect.fail("Terjadi kesalahan");
-    }),
-  );
-}
-
-function delProgram(productId: string, id: string) {
-  return Effect.gen(function* () {
-    yield* db.image.del.byId(productId, id);
-    yield* image.del(id);
-  }).pipe(
-    Effect.catchAll((e) => {
-      switch ((e as { _tag: string })._tag) {
-        case "DbError":
-        case "IOError":
-          log.error((e as { e: Error }).e);
-          return Effect.fail((e as { e: Error }).e.message);
-      }
-      log.error(e);
-      return Effect.fail("Terjadi kesalahan");
-    }),
-  );
-}
-
-function swapProgram(a: string, b: string) {
-  return db.image.update.swap(a, b).pipe(
-    Effect.catchAll((e) => {
-      switch ((e as { _tag: string })._tag) {
-        case "DbError":
-          log.error((e as { e: Error }).e);
-          return Effect.fail((e as { e: Error }).e.message);
-        case "NotFound":
-          log.error((e as { msg: string }).msg);
-          return Effect.fail((e as { msg: string }).msg);
-      }
-      log.error(e);
-      return Effect.fail("Terjadi kesalahan");
-    }),
-  );
-}
-
-// ── Page ─────────────────────────────────────────────────────────
-
 const page = Effect.gen(function* () {
+  const imageService = yield* ImageService;
+
   const onAdd = (productId: string, file: File) =>
     promisify(
-      () => addProgram(productId, file),
-      (e: string) => e,
+      () => imageService.add(productId, file),
+      (e: ImageError) => e.e.message,
     );
   const onDelete = (productId: string, id: string) =>
     promisify(
-      () => delProgram(productId, id),
-      (e: string) => e,
+      () => imageService.delete(productId, id),
+      (e: ImageError) => e.e.message,
     );
   const onSwap = (a: string, b: string) =>
     promisify(
-      () => swapProgram(a, b),
-      (e: string) => e,
+      () => imageService.swap(a, b),
+      (e: ImageError) => e.e.message,
     );
 
   return function Page() {
     const id = useId();
-    const res = useData();
-    return Result.match(res, {
-      onLoading() {
-        return <Loading />;
-      },
-      onError(error) {
-        log.error(error.e);
-        return <ErrorComponent>{error.e.message}</ErrorComponent>;
-      },
-      onSuccess(images) {
-        return (
-          <ImageViewer
-            images={images}
-            productId={id}
-            onAdd={onAdd}
-            onDelete={onDelete}
-            onSwap={onSwap}
-          />
-        );
-      },
-    });
+
+    return (
+      <StateWrap
+        loader={() => imageService.loader(id)}
+        loading={<Loading />}
+        error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
+      >
+        <ImageViewer
+          useImages={imageService.useImages}
+          productId={id}
+          onAdd={onAdd}
+          onDelete={onDelete}
+          onSwap={onSwap}
+        />
+      </StateWrap>
+    );
   };
 });
 
@@ -121,18 +61,19 @@ export default page;
 // ── Pure React component ─────────────────────────────────────────
 
 function ImageViewer({
-  images,
+  useImages,
   productId,
   onAdd,
   onDelete,
   onSwap,
 }: {
-  images: ImageResult[];
+  useImages: () => ImageResult[];
   productId: string;
   onAdd: (productId: string, file: File) => Promise<string | null>;
   onDelete: (productId: string, id: string) => Promise<string | null>;
   onSwap: (a: string, b: string) => Promise<string | null>;
 }) {
+  const images = useImages();
   const [selected, setSelected] = useSelected(images);
   const [index, handlePrev, handleNext] = useChange(images);
   const [refContainer, container] = useContainerSize();

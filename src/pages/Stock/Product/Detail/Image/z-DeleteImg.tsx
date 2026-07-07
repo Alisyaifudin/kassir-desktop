@@ -12,8 +12,7 @@ import {
 } from "~/components/ui/dialog";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { ImageResult } from "./use-data";
-import { revalidate } from "./use-data";
+import { ImageResult } from "~/services/image";
 
 type Props = {
   selected: ImageResult;
@@ -33,7 +32,6 @@ export function DeleteImg({ selected, productId, onDelete }: Props) {
     setError(err);
     if (err === null) {
       setOpen(false);
-      revalidate();
     }
   }
 
