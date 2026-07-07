@@ -44,7 +44,7 @@ export const DeleteDialog = memo(function DeleteDialog({
           <X className="icon" />
         </DialogTrigger>
       </Button>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-big">Hapus Kontak</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">

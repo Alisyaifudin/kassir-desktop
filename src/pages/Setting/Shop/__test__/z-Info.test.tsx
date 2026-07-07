@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ShopInfo } from "../z-Info";
 import { render } from "~/lib/render";
@@ -31,5 +31,14 @@ describe("ShopInfo", () => {
     render(<ShopInfo info={mockInfo} onSetInfo={async () => "Gagal menyimpan"} />);
     await user.click(screen.getByRole("button", { name: /simpan/i }));
     expect(await screen.findByText("Gagal menyimpan")).not.toBeNull();
+  });
+
+  test("saves successfully without error", async () => {
+    const user = userEvent.setup();
+    render(<ShopInfo info={mockInfo} onSetInfo={async () => null} />);
+    await user.click(screen.getByRole("button", { name: /simpan/i }));
+    await waitFor(() => {
+      expect(screen.queryByText(/gagal/i)).toBeNull();
+    });
   });
 });

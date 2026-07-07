@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CashierCheckbox } from "../z-CashierCheckbox";
 import { render } from "~/lib/render";
@@ -25,5 +25,14 @@ describe("CashierCheckbox", () => {
     render(<CashierCheckbox showCashier={true} onSetShowCashier={async () => "Gagal menyimpan"} />);
     await user.click(screen.getByRole("checkbox"));
     expect(await screen.findByText("Gagal menyimpan")).not.toBeNull();
+  });
+
+  test("successful toggle shows no error", async () => {
+    const user = userEvent.setup();
+    render(<CashierCheckbox showCashier={true} onSetShowCashier={async () => null} />);
+    await user.click(screen.getByRole("checkbox"));
+    await waitFor(() => {
+      expect(screen.queryByText(/gagal/i)).toBeNull();
+    });
   });
 });

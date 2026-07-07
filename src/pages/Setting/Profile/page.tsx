@@ -37,8 +37,9 @@ const page = Effect.gen(function* () {
       ({ e }) => e.message,
     );
 
+  const useUser = () => userService.useUser();
   return function Page() {
-    const user = userService.useUser();
+    const user = useUser();
 
     return (
       <div className="flex flex-col gap-6 p-6 flex-1">
@@ -53,11 +54,7 @@ const page = Effect.gen(function* () {
           </div>
 
           <div className="rounded-2xl border bg-destructive p-6 shadow-sm">
-            <PasswordForm
-              userId={user.id}
-              sonner={sonner}
-              onUpdatePassword={onUpdatePassword}
-            />
+            <PasswordForm userId={user.id} sonner={sonner} onUpdatePassword={onUpdatePassword} />
           </div>
         </div>
       </div>

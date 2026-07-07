@@ -18,7 +18,7 @@ type Props = {
   onUpdatePassword: (id: string, password: string) => Promise<string | null>;
 };
 
-export function PasswordForm({ userId, onUpdatePassword }: Props) {
+export function PasswordForm({ userId, sonner, onUpdatePassword }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
   const [input, setInput] = useState("");

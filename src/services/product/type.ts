@@ -11,3 +11,23 @@ export type Product = {
     capital: number;
   }[];
 };
+
+export type HistoryEvent = {
+  id: string;
+  timestamp: number;
+  note: string;
+  value: number;
+  record?: {
+    id: string;
+    price: number;
+    capital: number;
+  };
+};
+
+export type Image = {
+  id: string;
+  name: string;
+  mime: DBNamespace.Mime;
+  order: number;
+  hash?: string;
+};

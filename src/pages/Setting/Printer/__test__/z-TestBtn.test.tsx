@@ -10,6 +10,13 @@ describe("TestBtn", () => {
     expect(screen.getByRole("button", { name: /tes cetak/i })).not.toBeNull();
   });
 
+  test("shows no error on successful print", async () => {
+    const user = userEvent.setup();
+    render(<TestBtn print={async () => null} />);
+    await user.click(screen.getByRole("button", { name: /tes cetak/i }));
+    expect(screen.queryByText(/error/i)).toBeNull();
+  });
+
   test("shows error when print fails", async () => {
     const user = userEvent.setup();
     render(<TestBtn print={async () => "Printer error"} />);

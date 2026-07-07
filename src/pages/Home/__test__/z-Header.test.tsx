@@ -10,7 +10,7 @@ describe("Header", () => {
   function renderHeader(opts?: { user?: Cashier; today?: string }) {
     return render(
       <Header
-        today={opts?.today ?? today}
+        getToday={opts?.today ?? today}
         useUser={() => opts?.user ?? { name: "Budi", role: "admin", id: "1" }}
       />,
     );

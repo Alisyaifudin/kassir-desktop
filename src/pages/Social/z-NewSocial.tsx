@@ -45,7 +45,7 @@ export function NewSocial({ onAdd }: Props) {
       <Button asChild>
         <DialogTrigger>Tambah</DialogTrigger>
       </Button>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Kontak</DialogTitle>
         </DialogHeader>

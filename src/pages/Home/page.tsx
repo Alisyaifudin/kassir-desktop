@@ -12,12 +12,12 @@ const page = Effect.gen(function* () {
   const dateService = yield* DateService;
   const expenseLoader = () => dailySummaryService.total("out");
   const incomeLoader = () => dailySummaryService.total("in");
-  const today = dateService.today.str();
+  const getToday = () => dateService.today.str();
   return function Page() {
     return (
       <div className="h-[calc(100vh-64px)] small:h-[calc(100vh-48px)] overflow-y-auto overflow-x-hidden w-full">
         <div className="container mx-auto py-8 px-4 max-w-7xl animate-in fade-in duration-500 pb-20">
-          <Header today={today} useUser={userService.useUser} />
+          <Header getToday={getToday} useUser={userService.useUser} />
           <StatisticsGrid
             expenseLoader={expenseLoader}
             incomeLoader={incomeLoader}

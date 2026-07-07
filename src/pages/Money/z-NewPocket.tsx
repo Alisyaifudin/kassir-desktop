@@ -38,7 +38,7 @@ export function NewPocket({ onAdd }: Props) {
           Kantong Baru
         </DialogTrigger>
       </Button>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Kantong Keuangan Baru</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">

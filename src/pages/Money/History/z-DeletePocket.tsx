@@ -31,7 +31,7 @@ export function DeletePocket({ pocketId, onDelete }: Props) {
       <Button type="button" asChild variant="destructive">
         <DialogTrigger>Hapus Kantong</DialogTrigger>
       </Button>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-big">Hapus Kantong</DialogTitle>
           <div className="flex flex-col gap-2">

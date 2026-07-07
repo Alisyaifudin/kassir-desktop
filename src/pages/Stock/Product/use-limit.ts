@@ -14,6 +14,7 @@ export function useLimit() {
       setSearch((old) => {
         const s = new URLSearchParams(old);
         s.set("limit", limit.toString());
+        s.set("page", "1");
         return s;
       });
     },

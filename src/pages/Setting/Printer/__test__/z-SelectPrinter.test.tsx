@@ -51,4 +51,16 @@ describe("SelectPrinter", () => {
     await user.click(await screen.findByRole("option", { name: "Printer B" }));
     expect(await screen.findByText("Gagal menyimpan")).not.toBeNull();
   });
+
+  test("successful printer selection shows no error", async () => {
+    const user = userEvent.setup();
+    render(
+      <SelectPrinter printers={printers} printer={printers[0]} onSetPrinter={async () => null} />,
+    );
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Printer B" }));
+    await waitFor(() => {
+      expect(screen.queryByText(/gagal/i)).toBeNull();
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PrinterWidth } from "../z-PrinterWidth";
 import { render } from "~/lib/render";
@@ -20,5 +20,34 @@ describe("PrinterWidth", () => {
     render(<PrinterWidth size={80} onSetSize={async () => "Gagal menyimpan"} />);
     await user.click(screen.getByRole("button", { name: /simpan/i }));
     expect(await screen.findByText("Gagal menyimpan")).not.toBeNull();
+  });
+
+  test("saves successfully without error", async () => {
+    const user = userEvent.setup();
+    render(<PrinterWidth size={80} onSetSize={async () => null} />);
+    await user.click(screen.getByRole("button", { name: /simpan/i }));
+    await waitFor(() => {
+      expect(screen.queryByText(/gagal/i)).toBeNull();
+    });
+  });
+
+  test("shows validation error when width is below minimum", async () => {
+    const user = userEvent.setup();
+    render(<PrinterWidth size={80} onSetSize={async () => null} />);
+    const input = screen.getByRole("spinbutton");
+    await user.clear(input);
+    await user.type(input, "5");
+    await user.click(screen.getByRole("button", { name: /simpan/i }));
+    expect(await screen.findByText(/minimal 10mm/i)).not.toBeNull();
+  });
+
+  test("shows validation error when width exceeds maximum", async () => {
+    const user = userEvent.setup();
+    render(<PrinterWidth size={80} onSetSize={async () => null} />);
+    const input = screen.getByRole("spinbutton");
+    await user.clear(input);
+    await user.type(input, "300");
+    await user.click(screen.getByRole("button", { name: /simpan/i }));
+    expect(await screen.findByText(/maksimal 200mm/i)).not.toBeNull();
   });
 });

@@ -3,10 +3,10 @@ import { Cashier } from "~/services/cashier";
 
 type Props = {
   useUser: () => Cashier;
-  today: string
+  getToday: () => string;
 };
 
-export function Header({ useUser, today }: Props) {
+export function Header({ useUser, getToday }: Props) {
   const user = useUser();
 
   return (
@@ -14,7 +14,7 @@ export function Header({ useUser, today }: Props) {
       <h1 className="text-big font-bold tracking-tight">
         Selamat Datang, {capitalize(user.name)}!
       </h1>
-      <p className="text-muted-foreground">{today}</p>
+      <p className="text-muted-foreground">{getToday()}</p>
     </div>
   );
 }

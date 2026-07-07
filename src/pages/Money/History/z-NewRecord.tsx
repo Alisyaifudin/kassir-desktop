@@ -40,7 +40,7 @@ export function NewRecord({ usePocket, onAdd }: Props) {
           Catatan Baru
         </DialogTrigger>
       </Button>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Catatan Keuangan Baru</DialogTitle>
           <form

@@ -71,11 +71,13 @@ export function HistoryList({ events }: Props) {
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-sm text-muted-foreground">Filter:</span>
         <div className="flex rounded-md border border-input overflow-hidden">
-          {([
-            ["all", "Semua"],
-            ["positive", "Masuk"],
-            ["negative", "Keluar"],
-          ] as const).map(([mode, label]) => (
+          {(
+            [
+              ["all", "Semua"],
+              ["positive", "Masuk"],
+              ["negative", "Keluar"],
+            ] as const
+          ).map(([mode, label]) => (
             <button
               key={mode}
               onClick={() => setFilter(mode)}
@@ -94,9 +96,7 @@ export function HistoryList({ events }: Props) {
 
       <div className="flex-1 overflow-auto space-y-2">
         {filtered.length === 0 ? (
-          <p className="text-muted-foreground text-sm text-center py-8">
-            Tidak ada riwayat
-          </p>
+          <p className="text-muted-foreground text-sm text-center py-8">Tidak ada riwayat</p>
         ) : (
           paged.map((event) => <HistoryCard key={event.id} event={event} />)
         )}
@@ -125,9 +125,7 @@ export function HistoryList({ events }: Props) {
               <PaginationNext
                 to={pageUrl(safePage + 1)}
                 aria-disabled={safePage >= totalPages - 1}
-                className={
-                  safePage >= totalPages - 1 ? "pointer-events-none opacity-50" : ""
-                }
+                className={safePage >= totalPages - 1 ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
           </PaginationContent>
@@ -156,19 +154,35 @@ function HistoryCard({ event }: { event: HistoryEvent }) {
               isNegative && "text-red-600",
             )}
           >
-            {isPositive ? "+" : ""}{event.value}
+            {isPositive ? "+" : ""}
+            {event.value}
           </span>
-          <Show value={event.recordId}>
+          <Show value={event.record?.id}>
             {(recordId) => (
-              <Link
-                to={`/records/${recordId}`}
-                className="text-xs text-primary hover:underline"
-              >
+              <Link to={`/records/${recordId}`} className="text-xs text-primary hover:underline">
                 Lihat transaksi
               </Link>
             )}
           </Show>
         </div>
+        <Show value={event.record}>
+          {(record) => (
+            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <span className="tabular-nums">
+                Modal: {new Intl.NumberFormat("id-ID").format(record.capital)}
+              </span>
+              <Show when={event.value > 0}>
+                <span className="tabular-nums">
+                  Harga:{" "}
+                  {new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                  }).format(record.price)}
+                </span>
+              </Show>
+            </div>
+          )}
+        </Show>
         <p className="text-sm text-muted-foreground mt-0.5">{event.note}</p>
       </div>
       <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">

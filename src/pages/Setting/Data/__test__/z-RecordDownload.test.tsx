@@ -11,6 +11,13 @@ describe("RecordDownload", () => {
     expect(screen.getByRole("button", { name: /unduh/i })).not.toBeNull();
   });
 
+  test("shows no error on successful download", async () => {
+    const user = userEvent.setup();
+    render(<RecordDownload onDownload={async () => null} />);
+    await user.click(screen.getByRole("button", { name: /unduh/i }));
+    expect(screen.queryByText(/gagal/i)).toBeNull();
+  });
+
   test("shows error when download fails", async () => {
     const user = userEvent.setup();
     render(<RecordDownload onDownload={async () => "Gagal mengunduh"} />);
