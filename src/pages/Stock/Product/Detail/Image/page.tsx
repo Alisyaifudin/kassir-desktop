@@ -23,6 +23,7 @@ const page = Effect.gen(function* () {
   const userService = yield* UserService;
 
   const useUser = () => userService.useUser();
+  const useImages = () => imageService.useImages();
 
   const onAdd = (productId: string, file: File) =>
     promisify(
@@ -50,7 +51,7 @@ const page = Effect.gen(function* () {
         error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
       >
         <ImageViewer
-          useImages={imageService.useImages}
+          useImages={useImages}
           useUser={useUser}
           productId={id}
           onAdd={onAdd}

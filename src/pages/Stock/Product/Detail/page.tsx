@@ -30,7 +30,7 @@ export default function Page() {
   );
 }
 
-const tabs = (id: number) => ({
+const tabs = (id: string) => ({
   info: `/stock/product/${id}`,
   images: `/stock/product/${id}/images`,
   performance: `/stock/product/${id}/performance`,
@@ -42,7 +42,7 @@ function TabsTrigger({
   tab,
 }: {
   children: React.ReactNode;
-  id: number;
+  id: string;
   tab: "info" | "images" | "performance";
 }) {
   const to = tabs(id)[tab];

@@ -24,7 +24,7 @@ If ANY file under `src/pages/` contains these imports, the page is using the OLD
 | `from "~/lib/image"` in a page or hook | Raw I/O bypasses the service layer. Go through `Context.Tag`. |
 | `from "~/lib/log"` in a page or hook | Logging belongs inside service implementations, not in pages. |
 | `from "~/hooks/use-user"` in a page or hook | `useUser` comes from `yield* UserService`, extracted via arrow function. |
-| `from "~/hooks/"` — ANY hook under `src/hooks/` | Hooks are extracted from services at the page level, never imported from `src/hooks/`. |
+| `from "~/hooks/"` — ANY hook under `src/hooks/` | Hooks are extracted from services at the page level, never imported from `src/hooks/`. **Exception:** pure React utility hooks (see below) that ship no Effect, no DB, no service dependency MAY be imported from `~/hooks/` — prefer inlining or local copies in the page directory, but do not rewrite them into services when they have no service dependency. |
 
 ### 🔴 THE ARROW-FUNCTION RULE (MOST COMMON SLIP-UP)
 
@@ -65,14 +65,16 @@ When asked to refactor/upgrade a page to the effect-react pattern:
 6. **Rewrite `index.tsx`** to use `Effect.gen` + `lazyEffect`.
 7. **Verify** — grep for the forbidden imports above. Zero matches.
 
-### Pure React Utilities That CAN Stay
+### Pure React Utilities That CAN Stay (including from `~/hooks/`)
 
-These are UI-only hooks with no Effect, no DB, no service dependency. They do NOT need a service wrapper:
+These are UI-only hooks with no Effect, no DB, no service dependency. They do NOT need a service wrapper and MAY be imported from `~/hooks/` when they already exist there:
 
-- `useSearchParams` wrappers (reading/writing URL query params)
+- `useSearchParams` wrappers (reading/writing URL query params, e.g. `useGenerateUrlBack`)
 - Resize observers (`useContainerSize`, etc.)
 - `useState` / `useCallback` wrappers for UI state
 - Route param hooks (`useParams`, `useOutletContext`)
+
+**Prefer inlining or local copies in the page directory**, but do not rewrite these into services when they have zero service dependency.
 
 ### Pre-Flight Checklist for Any Page Change
 

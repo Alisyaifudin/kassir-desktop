@@ -1,12 +1,12 @@
 import { LoaderFunctionArgs, RouteObject } from "react-router";
 import { lazy, Suspense } from "react";
-import { imageRouteEffect } from "./Image/index.tsx";
-import { productInfoRouteEffect } from "./Info/index.tsx";
-import { perfRouteEffect } from "./Performance/index.tsx";
-import { Loading } from "./z-Loading.tsx";
+import { imageRouteEffect } from "./Image";
+import { productInfoRouteEffect } from "./Info";
+import { perfRouteEffect } from "./Performance";
+import { Loading } from "./z-Loading";
 import { Effect } from "effect";
 
-const Page = lazy(() => import("./page.tsx"));
+const Page = lazy(() => import("./page"));
 
 export const productRouteEffect = Effect.gen(function* () {
   const infoRoute = yield* productInfoRouteEffect;
