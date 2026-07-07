@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { ImageDialog } from "./z-ImageDialog";
-import { ImageResult } from "~/services/image";
+import { ImageResult } from "~/services/image/type";
 
 type Props = {
   images: ImageResult[];

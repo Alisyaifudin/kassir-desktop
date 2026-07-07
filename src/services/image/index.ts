@@ -1,19 +1,7 @@
 import { Context, Effect } from "effect";
 import { ImageError } from "./error";
+import { ImageResult } from "./type";
 
-export type ImageResult =
-  | {
-      success: true;
-      href: string;
-      order: number;
-      id: string;
-    }
-  | {
-      success: false;
-      order: number;
-      href: undefined;
-      id: string;
-    };
 
 export class ImageService extends Context.Tag("ImageService")<
   ImageService,

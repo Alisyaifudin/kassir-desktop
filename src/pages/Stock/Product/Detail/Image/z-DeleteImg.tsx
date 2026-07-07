@@ -12,7 +12,7 @@ import {
 } from "~/components/ui/dialog";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { ImageResult } from "~/services/image";
+import { ImageResult } from "~/services/image/type";
 
 type Props = {
   selected: ImageResult;

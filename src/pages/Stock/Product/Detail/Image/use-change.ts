@@ -1,4 +1,4 @@
-import { ImageResult } from "~/services/image";
+import { ImageResult } from "~/services/image/type";
 import { useSelected } from "./use-selected";
 
 export function useChange(images: ImageResult[]) {

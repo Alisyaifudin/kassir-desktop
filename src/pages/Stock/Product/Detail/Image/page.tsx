@@ -16,6 +16,7 @@ import { useSelected } from "./use-selected";
 import { useChange } from "./use-change";
 import { useContainerSize, useControlSize } from "./use-container-size";
 import { useId } from "../use-id";
+import { Show } from "~/components/Show";
 
 const page = Effect.gen(function* () {
   const imageService = yield* ImageService;
@@ -104,11 +105,7 @@ function ImageViewer({
         >
           <img className="max-w-full max-h-full object-contain" src={selected?.href} />
           {selected && role === "admin" ? (
-            <DeleteImg
-              selected={selected}
-              productId={productId}
-              onDelete={onDelete}
-            />
+            <DeleteImg selected={selected} productId={productId} onDelete={onDelete} />
           ) : null}
         </div>
         <Button
@@ -132,25 +129,21 @@ function ImageViewer({
             </button>
           ))}
         </div>
-        <ImageControl
-          images={images}
-          selected={selected}
-          productId={productId}
-          onAdd={onAdd}
-          onSwap={onSwap}
-        />
+        <Show when={role === "admin"}>
+          <ImageControl
+            images={images}
+            selected={selected}
+            productId={productId}
+            onAdd={onAdd}
+            onSwap={onSwap}
+          />
+        </Show>
       </div>
     </div>
   );
 }
 
-function Thumbnail({
-  image,
-  selected,
-}: {
-  image: ImageResult;
-  selected: ImageResult;
-}) {
+function Thumbnail({ image, selected }: { image: ImageResult; selected: ImageResult }) {
   return (
     <img
       className={cn("object-contain w-full h-full", {
