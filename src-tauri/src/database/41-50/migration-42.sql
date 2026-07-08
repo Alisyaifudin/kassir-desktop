@@ -181,7 +181,6 @@ CREATE TABLE records (
     record_created_at     INTEGER NOT NULL,
     record_paid_at        INTEGER,
     record_rounding       REAL    NOT NULL,
-    record_credit_at      INTEGER,
     record_cashier        TEXT    NOT NULL,
     record_mode           TEXT    NOT NULL
                                   REFERENCES mode_enum (v),
@@ -199,14 +198,14 @@ CREATE TABLE records (
 STRICT;
 
 INSERT INTO records (
-  record_id, record_created_at, record_paid_at, record_rounding,
-  record_credit_at, record_cashier, record_mode, record_pay, record_note,
+  record_id, record_created_at, record_rounding, record_paid_at,
+  record_cashier, record_mode, record_pay, record_note,
   record_fix, record_sub_total, record_total,
   record_updated_at, record_sync_at
 )
 SELECT 
-  record_id, record_paid_at, record_paid_at, record_rounding,
-  CASE WHEN record_is_credit = 1 THEN record_paid_at END,
+  record_id, record_paid_at, record_rounding,
+  CASE WHEN record_is_credit = 0 THEN record_paid_at END,
   record_cashier, 
   CASE WHEN record_mode = 'buy' THEN 'out' ELSE 'in' END, 
   record_pay, record_note,

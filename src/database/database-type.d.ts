@@ -103,7 +103,6 @@ declare namespace DBNamespace {
     record_paid_at: number | null;
     record_created_at: number;
     record_rounding: number;
-    record_credit_at: number | null;
     record_cashier: string;
     record_mode: Mode;
     record_pay: number;

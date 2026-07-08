@@ -64,7 +64,7 @@ function UploadedEntries({
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               )}
               <span>
-                {item.item.id} &mdash; {formatEpochtime(item.item.paidAt, {date: "long", time: "long"})}
+                {item.item.id} &mdash; {formatEpochtime(item.item.createdAt, {date: "long", time: "long"})}
               </span>
             </div>
             {item.state === "error" && <ErrorComp error={item.error} />}

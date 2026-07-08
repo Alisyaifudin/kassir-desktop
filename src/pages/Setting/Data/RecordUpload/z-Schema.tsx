@@ -12,9 +12,9 @@ import {
 const recordSchema = `{
     id: string;
     createdAt: number;
-    paidAt: number;
+    createdAt: number;
     rounding: number;
-    creditAt?: number;
+    paidAt?: number;
     cashier: string;
     mode: "in" | "out";
     pay: number;

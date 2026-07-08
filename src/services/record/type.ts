@@ -27,9 +27,8 @@ type RecordExtra = {
 export type Record = {
   id: string;
   createdAt: number;
-  paidAt: number;
   rounding: number;
-  creditAt?: number;
+  paidAt?: number;
   cashier: string;
   mode: DBNamespace.Mode;
   pay: number;
