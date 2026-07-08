@@ -2,23 +2,17 @@ import { Button } from "~/components/ui/button";
 import { Temporal } from "temporal-polyfill";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DateRangePicker } from "~/components/CalendarPicker/DateRangePicker";
 import { tz } from "~/lib/constants";
 
 type Props = {
   onDownload: (start: number, end: number) => Promise<string | null>;
+  defaultRange: [Temporal.PlainDate, Temporal.PlainDate];
 };
 
-function getDefaultInterval() {
-  const today = Temporal.Now.plainDateISO();
-  const lastMonth = today.subtract(Temporal.Duration.from({ months: 1 }));
-  return [lastMonth, today] as [Temporal.PlainDate, Temporal.PlainDate];
-}
-
-export function RecordDownload({ onDownload }: Props) {
-  const defaultInterval = useMemo(() => getDefaultInterval(), []);
-  const [range, setRange] = useState(defaultInterval);
+export function RecordDownload({ onDownload, defaultRange }: Props) {
+  const [range, setRange] = useState(defaultRange);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<null | string>(null);
 

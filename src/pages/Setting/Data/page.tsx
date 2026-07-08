@@ -1,4 +1,6 @@
 import { Effect } from "effect";
+import { promisify } from "~/lib/promisify";
+import { DateService } from "~/services/date";
 import { ProductDownload } from "./z-ProductDownload";
 import { RecordDownload } from "./z-RecordDownload";
 import { productUpload } from "./ProductUpload";
@@ -13,39 +15,42 @@ const page = Effect.gen(function* () {
   const recordService = yield* RecordService;
   const ioService = yield* IoService;
   const blobService = yield* BlobService;
+  const dateService = yield* DateService;
   const ProductUpload = yield* productUpload;
   const RecordUpload = yield* recordUpload;
 
   const onDownloadProduct = () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const products = yield* productService.get.all();
-        const data = yield* blobService.convert.fromObject(products);
-        const name = `${Date.now()}-products.json`;
-        const filePath = yield* ioService.dialog({
-          title: "Simpan Data Produk",
-          defaultPath: name,
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        });
-        yield* ioService.save(filePath, data);
-        return null;
-      }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message))),
+    promisify(
+      () =>
+        Effect.gen(function* () {
+          const products = yield* productService.get.all();
+          const data = yield* blobService.convert.fromObject(products);
+          const name = `${dateService.now()}-products.json`;
+          const filePath = yield* ioService.dialog({
+            title: "Simpan Data Produk",
+            defaultPath: name,
+            filters: [{ name: "JSON", extensions: ["json"] }],
+          });
+          yield* ioService.save(filePath, data);
+        }),
+      (e) => e.e.message,
     );
 
   const onDownloadRecord = (start: number, end: number) =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const records = yield* recordService.get.range(start, end);
-        const data = yield* blobService.convert.fromObject(records);
-        const name = `record_${start}_${end}.json`;
-        const filePath = yield* ioService.dialog({
-          title: "Simpan Data Riwayat",
-          defaultPath: name,
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        });
-        yield* ioService.save(filePath, data);
-        return null;
-      }).pipe(Effect.catchAll(({ e }) => Effect.succeed(e.message))),
+    promisify(
+      () =>
+        Effect.gen(function* () {
+          const records = yield* recordService.get.range(start, end);
+          const data = yield* blobService.convert.fromObject(records);
+          const name = `record_${start}_${end}.json`;
+          const filePath = yield* ioService.dialog({
+            title: "Simpan Data Riwayat",
+            defaultPath: name,
+            filters: [{ name: "JSON", extensions: ["json"] }],
+          });
+          yield* ioService.save(filePath, data);
+        }),
+      (e) => e.e.message,
     );
 
   return function Page() {
@@ -67,7 +72,13 @@ const page = Effect.gen(function* () {
             <p className="text-muted-foreground text-normal">Ekspor data produk dan transaksi</p>
           </div>
           <ProductDownload onDownload={onDownloadProduct} />
-          <RecordDownload onDownload={onDownloadRecord} />
+          <RecordDownload
+            onDownload={onDownloadRecord}
+            defaultRange={[
+              dateService.todayDate().subtract({ months: 1 }),
+              dateService.todayDate(),
+            ]}
+          />
         </section>
 
         <section

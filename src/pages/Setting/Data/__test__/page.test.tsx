@@ -1,10 +1,12 @@
 import { describe, test, expect } from "bun:test";
 import { screen } from "@testing-library/react";
 import { Effect, Layer } from "effect";
+import { Temporal } from "temporal-polyfill";
 import { ProductService } from "~/services/product";
 import { RecordService } from "~/services/record";
 import { IoService } from "~/services/io";
 import { BlobService } from "~/services/blob";
+import { DateService } from "~/services/date";
 import page from "../page";
 import { render } from "~/lib/render";
 
@@ -27,6 +29,15 @@ function makeBlobService(): typeof BlobService.Service {
   return { convert: { fromObject: () => Effect.succeed(new Uint8Array()) } } as typeof BlobService.Service;
 }
 
+function makeDateService(): typeof DateService.Service {
+  return {
+    now: () => Date.now(),
+    todayDate: () => Temporal.Now.plainDateISO(),
+    timeZoneId: () => Temporal.Now.timeZoneId(),
+    today: { str: () => "" },
+  };
+}
+
 describe("page (Effect)", () => {
   test("resolves when all services are provided", () => {
     const program = Effect.gen(function* () { yield* page; });
@@ -35,6 +46,7 @@ describe("page (Effect)", () => {
       Layer.succeed(RecordService, makeRecordService()),
       Layer.succeed(IoService, makeIoService()),
       Layer.succeed(BlobService, makeBlobService()),
+      Layer.succeed(DateService, makeDateService()),
     );
     expect(() => Effect.runSync(Effect.provide(program, layer))).not.toThrow();
   });
@@ -48,6 +60,7 @@ describe("Page component", () => {
         Effect.provideService(RecordService, makeRecordService()),
         Effect.provideService(IoService, makeIoService()),
         Effect.provideService(BlobService, makeBlobService()),
+        Effect.provideService(DateService, makeDateService()),
       ),
     );
     return render(<Page />);
