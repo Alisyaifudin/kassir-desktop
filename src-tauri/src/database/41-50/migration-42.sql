@@ -217,18 +217,17 @@ FROM records_old;
 CREATE TABLE record_methods (
   record_method_id        TEXT PRIMARY KEY,
   record_id               TEXT NOT NULL REFERENCES records(record_id) ON DELETE CASCADE,
-  record_method_label     TEXT,
-  record_method_kind      TEXT NOT NULL REFERENCES method_enum(v)
+  method_id               TEXT NOT NULL REFERENCES methods(method_id)
 ) STRICT;
 
 INSERT INTO record_methods (
-  record_method_id, record_id, record_method_label, record_method_kind
+  record_method_id, record_id, method_id
 )
 SELECT
-  -- seed record_method_id as record_id
-  records_old.record_id, records_old.record_id, method_label, method_kind
-FROM records_old
-INNER JOIN methods_old ON methods_old.record_id = records_old.record_id;
+  record_id, -- seed record_method_id as record_id
+  record_id, 
+  method_id 
+FROM records_old;
 
 
 CREATE TABLE record_products (
