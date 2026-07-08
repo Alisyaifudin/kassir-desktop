@@ -150,6 +150,7 @@ CREATE TABLE product_events (
                                   REFERENCES capitals (capital_id) ON DELETE CASCADE
 ) STRICT;
 
+-- TODO: migrate data from product_events_old
 
 CREATE TABLE methods (
     method_id         TEXT    PRIMARY KEY,
@@ -174,10 +175,11 @@ FROM methods_old;
 INSERT INTO mode_enum(v) VALUES ('in'), ('out');
 
 
+
 CREATE TABLE records (
     record_id             TEXT    PRIMARY KEY,
     record_created_at     INTEGER NOT NULL,
-    timestamp             INTEGER NOT NULL,
+    record_paid_at        INTEGER,
     record_rounding       REAL    NOT NULL,
     record_credit_at      INTEGER,
     record_cashier        TEXT    NOT NULL,
@@ -185,8 +187,6 @@ CREATE TABLE records (
                                   REFERENCES mode_enum (v),
     record_pay            REAL    NOT NULL,
     record_note           TEXT    NOT NULL,
-    method_id             TEXT    NOT NULL
-                                  REFERENCES methods (method_id),
     record_fix            INTEGER NOT NULL,
     customer_id           TEXT    REFERENCES customers (customer_id) ON DELETE SET NULL,
     record_sub_total      REAL    NOT NULL, -- total from items
@@ -199,9 +199,9 @@ CREATE TABLE records (
 STRICT;
 
 INSERT INTO records (
-  record_id, record_created_at, timestamp, record_rounding,
+  record_id, record_created_at, record_paid_at, record_rounding,
   record_credit_at, record_cashier, record_mode, record_pay, record_note,
-  method_id, record_fix, record_sub_total, record_total,
+  record_fix, record_sub_total, record_total,
   record_updated_at, record_sync_at
 )
 SELECT 
@@ -210,9 +210,26 @@ SELECT
   record_cashier, 
   CASE WHEN record_mode = 'buy' THEN 'out' ELSE 'in' END, 
   record_pay, record_note,
-  method_id, record_fix, record_sub_total, record_total,
+  record_fix, record_sub_total, record_total,
   record_updated_at, record_sync_at
 FROM records_old;
+
+CREATE TABLE record_methods (
+  record_method_id        TEXT PRIMARY KEY,
+  record_id               TEXT NOT NULL REFERENCES records(record_id) ON DELETE CASCADE,
+  record_method_label     TEXT,
+  record_method_kind      TEXT NOT NULL REFERENCES method_enum(v)
+) STRICT;
+
+INSERT INTO record_methods (
+  record_method_id, record_id, record_method_label, record_method_kind
+)
+SELECT
+  -- seed record_method_id as record_id
+  records_old.record_id, records_old.record_id, method_label, method_kind
+FROM records_old
+INNER JOIN methods_old ON methods_old.record_id = records_old.record_id;
+
 
 CREATE TABLE record_products (
     record_product_id          TEXT    PRIMARY KEY,
@@ -228,7 +245,7 @@ CREATE TABLE record_products (
 ) STRICT;
 
 INSERT INTO record_products (
-  record_product_id, capital_id, record_id, record_product_name,
+  record_product_id, product_event_id, record_id, record_product_name,
   record_product_price, record_product_qty, record_product_capital, 
   record_product_total
 )
@@ -264,10 +281,12 @@ FROM discounts_old;
 DROP TABLE images_old;
 DROP TABLE discounts_old;
 DROP TABLE record_products_old;
+-- TODO: create new record_extras table before dropping old one
 DROP TABLE record_extras_old;
 DROP TABLE methods_old;
 DROP TABLE records_old;
 DROP TABLE product_events_old;
+-- TODO: handle remaining products_old columns not yet migrated
 DROP TABLE products_old;
 DROP TABLE money_old;
 DROP TABLE money_kind_old;
