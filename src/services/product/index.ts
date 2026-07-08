@@ -1,5 +1,5 @@
 import { Context, Effect } from "effect";
-import { HistoryEvent, Image, Product } from "./type";
+import { HistoryEvent, Product } from "./type";
 export type { Product };
 import { ProductAlreadyExistError, ProductError, UniqueCodeError } from "./error";
 import { NotFoundError } from "~/lib/error-effect";
@@ -25,7 +25,6 @@ export class ProductService extends Context.Tag("ProductService")<
       all: () => Effect.Effect<Product[], ProductError>;
       byId: (id: string) => Effect.Effect<Product, ProductError | NotFoundError>;
       events: (id: string) => Effect.Effect<HistoryEvent[], ProductError>;
-      images: (id: string) => Effect.Effect<Image[], ProductError>;
     };
     add: {
       new: (input: ProductInput) => Effect.Effect<void, ProductError | UniqueCodeError>;

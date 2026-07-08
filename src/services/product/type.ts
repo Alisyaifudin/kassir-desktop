@@ -24,10 +24,3 @@ export type HistoryEvent = {
   };
 };
 
-export type Image = {
-  id: string;
-  name: string;
-  mime: DBNamespace.Mime;
-  order: number;
-  hash?: string;
-};

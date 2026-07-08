@@ -38,11 +38,11 @@ export type Record = {
   subtotal: number;
   total: number;
   updatedAt: number;
-  method: {
+  methods: {
     id: string;
     name?: string;
     kind: DBNamespace.MethodEnum;
-  };
+  }[];
   customer?: {
     id: string;
     name: string;

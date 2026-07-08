@@ -23,11 +23,11 @@ const recordSchema = `{
     subtotal: number;
     total: number;
     updatedAt: number;
-    method: {
+    methods: {
       id: string;
       name?: string;
       kind: "cash" | "transfer" | "debit" | "qris";
-    };
+    }[];
     customer?: {
       id: string;
       name: string;

@@ -100,7 +100,7 @@ declare namespace DBNamespace {
   interface Record {
     record_id: string;
     method_id: string;
-    record_paid_at: number;
+    record_paid_at: number | null;
     record_created_at: number;
     record_rounding: number;
     record_credit_at: number | null;
@@ -116,6 +116,11 @@ declare namespace DBNamespace {
     record_updated_at: number;
     record_sync_at: number | null;
     record_deleted_at: number | null;
+  }
+  interface RecordMethod {
+    id: string;
+    record_id: string;
+    method_id: string;
   }
   interface Method {
     method_id: string;
