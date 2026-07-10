@@ -5,8 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { Kbd } from "~/components/ui/kdb";
 import { Product } from "~/services/product";
 import { cn } from "~/lib/utils";
-import { searchProducts } from "./util-search";
-
+import { useBuildIndex } from "./use-build-index";
 
 type Props = {
   products: Product[];
@@ -21,7 +20,7 @@ export function Search({ products, onSelect }: Props) {
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [isFocused, setIsFocused] = useState(false);
   const [error, setError] = useState<null | string>(null);
-
+  const search = useBuildIndex(products);
   const open = filtered.length > 0 && isFocused;
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,11 +32,11 @@ export function Search({ products, onSelect }: Props) {
         setFiltered([]);
         return;
       }
-      const result = searchProducts(products, query);
+      const result = search(query);
       filteredRef.current = result;
       setFiltered(result);
     },
-    [products],
+    [search],
   );
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -84,8 +83,16 @@ export function Search({ products, onSelect }: Props) {
           <TextError>{error}</TextError>
         </label>
       </form>
-      <div className={cn("absolute inset-0 z-10", { hidden: !open })} onClick={() => inputRef.current?.blur()} />
-      <Output ref={outputRef} products={filtered} className={cn({ hidden: !open })} onClick={onSelect} />
+      <div
+        className={cn("absolute inset-0 z-10", { hidden: !open })}
+        onClick={() => inputRef.current?.blur()}
+      />
+      <Output
+        ref={outputRef}
+        products={filtered}
+        className={cn({ hidden: !open })}
+        onClick={onSelect}
+      />
     </div>
   );
 }

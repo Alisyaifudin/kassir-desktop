@@ -1,7 +1,7 @@
 import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Output, type OutputHandle } from "./z-Output";
+import { Output, type OutputHandle } from "../z-Output";
 import { render } from "~/lib/render";
 import type { Product } from "~/services/product";
 import { useRef } from "react";
@@ -16,7 +16,6 @@ function makeProduct(overrides?: Partial<Product>): Product {
     name: "Indomie Goreng",
     price: 3500,
     note: "",
-    updatedAt: 0,
     codes: [],
     capitals: [],
     ...overrides,
@@ -62,7 +61,6 @@ const fullProduct: Product = {
   name: "Telur Ayam 1kg",
   price: 29000,
   note: "Telur organik",
-  updatedAt: 0,
   codes: ["TELUR-1KG", "8991234567890"],
   capitals: [
     { id: "c1", stock: 100, capital: 25000 },
@@ -461,12 +459,7 @@ describe("Output", () => {
 
   test("resets activeIndex when products array reference changes", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(
-      <Output
-        products={[productWithCodes]}
-        onClick={() => {}}
-      />,
-    );
+    const { rerender } = render(<Output products={[productWithCodes]} onClick={() => {}} />);
 
     await waitFor(() => screen.getByText("Indomie Goreng"));
     const ol = document.querySelector("ol")!;
@@ -480,12 +473,7 @@ describe("Output", () => {
     });
 
     // Rerender with new products reference (same items)
-    rerender(
-      <Output
-        products={[{ ...productWithCodes }]}
-        onClick={() => {}}
-      />,
-    );
+    rerender(<Output products={[{ ...productWithCodes }]} onClick={() => {}} />);
 
     // Active highlight should be reset (no ring on any button)
     await waitFor(() => {
@@ -504,11 +492,7 @@ describe("Output", () => {
       return (
         <>
           <button onClick={() => ref.current?.focusFirst()}>Focus First</button>
-          <Output
-            ref={ref}
-            products={[productWithCodes, productWithCapitals]}
-            onClick={() => {}}
-          />
+          <Output ref={ref} products={[productWithCodes, productWithCapitals]} onClick={() => {}} />
         </>
       );
     };

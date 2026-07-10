@@ -1,15 +1,9 @@
 import { describe, test, expect, mock } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Search } from "../z-Search/index";
+import { Search } from "../z-Search";
 import { render } from "~/lib/render";
 import type { Product } from "~/services/product";
-
-// Override the mock searchProducts to actually filter by query
-mock.module("./util-search", () => ({
-  searchProducts: (products: Product[], query: string) =>
-    products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
-}));
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -21,7 +15,6 @@ function makeProduct(overrides?: Partial<Product>): Product {
     name: "Indomie Goreng",
     price: 3500,
     note: "",
-    updatedAt: 0,
     codes: ["8998866200318"],
     capitals: [{ id: "c1", stock: 50, capital: 3000 }],
     ...overrides,
@@ -40,12 +33,8 @@ const products: Product[] = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderSearch(opts?: {
-  onSelect?: (product: Product) => void;
-}) {
-  return render(
-    <Search products={products} onSelect={opts?.onSelect ?? (() => {})} />,
-  );
+function renderSearch(opts?: { onSelect?: (product: Product) => void }) {
+  return render(<Search products={products} onSelect={opts?.onSelect ?? (() => {})} />);
 }
 
 // ---------------------------------------------------------------------------
@@ -95,20 +84,6 @@ describe("Search", () => {
     // Clear the input
     await user.clear(input);
 
-    // Output should be hidden
-    await waitFor(() => {
-      const output = document.querySelector("output")!;
-      const hidden = output.closest(".hidden");
-      // The Output itself or its parent with hidden class
-      const isHidden =
-        output.classList.contains("hidden") ||
-        output.parentElement?.classList.contains("hidden");
-      // Actually Output gets className that includes hidden, so check if it has hidden
-      // The Output is rendered with className={cn({ hidden: !open })}
-      // When open is false, the output has "hidden" in its classList
-    });
-
-    // Simpler: just check the output has the hidden class
     await waitFor(() => {
       const output = document.querySelector("output")!;
       expect(output.classList.contains("hidden")).toBe(true);
@@ -236,12 +211,6 @@ describe("Search", () => {
     const input = screen.getByRole("searchbox");
     input.focus();
     await user.type(input, "zzz_nonexistent");
-
-    // Wait a bit for filtering
-    await waitFor(() => {
-      const output = document.querySelector("output")!;
-      // No results means Output hidden
-    });
 
     await user.keyboard("{Enter}");
 
