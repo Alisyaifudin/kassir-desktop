@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { render as renderRaw } from "@testing-library/react";
-import { Topbar } from "../z-Topbar";
+import { Topbar } from "../eff-Topbar";
 import { Cashier } from "~/services/cashier";
 
 const user: Cashier = { role: "admin", id: "1", name: "Budi" };
@@ -61,9 +61,7 @@ describe("Topbar", () => {
     renderTopbar("/");
     await waitFor(() => {
       const buttons = screen.getAllByRole("button");
-      const hasRefreshIcon = buttons.some(
-        (b) => b.querySelector("svg") !== null,
-      );
+      const hasRefreshIcon = buttons.some((b) => b.querySelector("svg") !== null);
       expect(hasRefreshIcon).toBe(true);
     });
   });

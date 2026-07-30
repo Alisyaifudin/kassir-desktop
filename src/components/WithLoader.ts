@@ -13,7 +13,7 @@ export function WithLoader<T, E>({
   error,
 }: {
   loader: () => Effect.Effect<T, E>;
-  children: (data: T) => React.ReactNode;
+  children: React.ReactNode | ((data: T) => React.ReactNode);
   error: (error: E, retry: () => void) => React.ReactNode;
   loading?: React.ReactNode;
 }) {
@@ -41,6 +41,9 @@ export function WithLoader<T, E>({
     case "error":
       return error(state.error, fetchData);
     case "success":
-      return children(state.data);
+      if (typeof children === "function") {
+        return children(state.data);
+      }
+      return children;
   }
 }

@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 
 type Props = {
   useProducts: () => Product[];
+  useIndex: () => (query: string) => Product[];
   useManual: () => {
     codes: string[];
     name: string;
@@ -24,7 +25,7 @@ type Props = {
   onSubmit: (product: Product) => void;
 };
 
-export function InputSection({ useProducts, onSubmit, set, useManual }: Props) {
+export function InputSection({ useProducts, onSubmit, set, useManual, useIndex }: Props) {
   const products = useProducts();
   const codeToProductName = useMemo(
     () => new Map(products.flatMap((product) => product.codes.map((c) => [c, product.name]))),
@@ -56,7 +57,7 @@ export function InputSection({ useProducts, onSubmit, set, useManual }: Props) {
   );
   return (
     <div className="flex flex-col gap-1">
-      <Search onSelect={handleSelect} products={products} />
+      <Search onSelect={handleSelect} useIndex={useIndex} />
       <hr />
       <Manual onSubmit={handleManualInput} set={set} useManual={useManual} />
     </div>

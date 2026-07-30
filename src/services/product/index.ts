@@ -1,5 +1,5 @@
 import { Context, Effect } from "effect";
-import { HistoryEvent, Product } from "./type";
+import { HistoryEvent, Product, ProductFull } from "./type";
 export type { Product };
 import { ProductAlreadyExistError, ProductError, UniqueCodeError } from "./error";
 import { NotFoundError } from "~/lib/error-effect";
@@ -23,13 +23,13 @@ export class ProductService extends Context.Tag("ProductService")<
   {
     get: {
       all: () => Effect.Effect<Product[], ProductError>;
-      byId: (id: string) => Effect.Effect<Product, ProductError | NotFoundError>;
+      byId: (id: string) => Effect.Effect<ProductFull, ProductError | NotFoundError>;
       events: (id: string) => Effect.Effect<HistoryEvent[], ProductError>;
     };
     add: {
       new: (input: ProductInput) => Effect.Effect<void, ProductError | UniqueCodeError>;
       external: (
-        product: Product,
+        product: ProductFull,
       ) => Promise<ProductError | UniqueCodeError | ProductAlreadyExistError | null>;
     };
     update: {
@@ -39,5 +39,7 @@ export class ProductService extends Context.Tag("ProductService")<
       ) => Effect.Effect<void, ProductError | UniqueCodeError>;
     };
     delete: (id: string) => Effect.Effect<void, ProductError>;
+    useProducts: () => Product[];
+    useIndex: () => (query: string) => Product[];
   }
 >() {}

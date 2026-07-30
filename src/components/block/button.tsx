@@ -7,19 +7,19 @@ type ButtonProps = {
   children?: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  cssVars?: Record<string, number | string>;
   ref?: React.Ref<HTMLButtonElement>;
 };
 
-export function ButtonBase({
-  style,
-  children,
-  onClick,
-  disabled,
-  ref,
-}: ButtonProps) {
+export function ButtonBase({ style, children, onClick, disabled, ref, cssVars }: ButtonProps) {
+  const { style: sxStyle, ...rest } = stylex.props(style);
   return (
     <button
-      {...stylex.props(style)}
+      {...rest}
+      style={{
+        ...cssVars,
+        ...sxStyle,
+      }}
       onClick={onClick}
       disabled={disabled}
       ref={ref}

@@ -3,7 +3,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { render as renderRaw } from "@testing-library/react";
-import { TopNavLink } from "../z-TopNavLink";
+import { TopNavLink } from "../eff-TopNavLink";
 
 function renderAt(path: string, showShortcut = false) {
   return renderRaw(

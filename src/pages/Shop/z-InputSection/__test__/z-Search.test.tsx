@@ -29,12 +29,27 @@ const products: Product[] = [
   makeProduct({ id: "5", name: "Gula Pasir 1kg", price: 16000 }),
 ];
 
+// Simple search that filters by name substring (case insensitive)
+function simpleSearch(query: string): Product[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  return products.filter((p) => p.name.toLowerCase().includes(q));
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderSearch(opts?: { onSelect?: (product: Product) => void }) {
-  return render(<Search products={products} onSelect={opts?.onSelect ?? (() => {})} />);
+function renderSearch(opts?: {
+  onSelect?: (product: Product) => void;
+  useIndex?: () => (query: string) => Product[];
+}) {
+  return render(
+    <Search
+      useIndex={opts?.useIndex ?? (() => simpleSearch)}
+      onSelect={opts?.onSelect ?? (() => {})}
+    />,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +96,6 @@ describe("Search", () => {
       expect(screen.getByText("Indomie Goreng")).not.toBeNull();
     });
 
-    // Clear the input
     await user.clear(input);
 
     await waitFor(() => {
@@ -97,9 +111,7 @@ describe("Search", () => {
     renderSearch();
 
     const input = screen.getByRole("searchbox");
-    // Focus first
     input.focus();
-    // Then type
     await user.type(input, "indomie");
 
     await waitFor(() => {
@@ -121,7 +133,6 @@ describe("Search", () => {
       expect(screen.getByText("Indomie Goreng")).not.toBeNull();
     });
 
-    // Blur the input
     await user.tab();
 
     await waitFor(() => {
@@ -138,19 +149,16 @@ describe("Search", () => {
     input.focus();
     await user.type(input, "indomie");
 
-    // Verify visible
     await waitFor(() => {
       expect(screen.getByText("Indomie Goreng")).not.toBeNull();
     });
 
-    // Blur → hidden
     await user.tab();
     await waitFor(() => {
       const output = document.querySelector("output")!;
       expect(output.classList.contains("hidden")).toBe(true);
     });
 
-    // Refocus → visible again
     input.focus();
     await waitFor(() => {
       const output = document.querySelector("output")!;
@@ -172,7 +180,6 @@ describe("Search", () => {
       expect(screen.getByText("Indomie Goreng")).not.toBeNull();
     });
 
-    // Click the backdrop div (z-10 inset-0)
     const backdrop = document.querySelector(".z-10")!;
     await user.click(backdrop);
 
@@ -232,12 +239,10 @@ describe("Search", () => {
 
     await user.keyboard("{Enter}");
 
-    // Query should be empty
     await waitFor(() => {
       expect(input.value).toBe("");
     });
 
-    // Output should be hidden
     await waitFor(() => {
       const output = document.querySelector("output")!;
       expect(output.classList.contains("hidden")).toBe(true);
@@ -254,15 +259,12 @@ describe("Search", () => {
     input.focus();
     await user.type(input, "zzz_nonexistent");
 
-    // No results, press Enter to get error
     await user.keyboard("{Enter}");
     expect(await screen.findByText("Barang tidak ditemukan")).not.toBeNull();
 
-    // Type a new query
     await user.clear(input);
     await user.type(input, "indomie");
 
-    // Error should be gone
     await waitFor(() => {
       expect(screen.queryByText("Barang tidak ditemukan")).toBeNull();
     });
@@ -282,10 +284,8 @@ describe("Search", () => {
       expect(screen.getByText("Indomie Goreng")).not.toBeNull();
     });
 
-    // Press ArrowDown on input
     await user.keyboard("{ArrowDown}");
 
-    // First button in Output should be focused
     await waitFor(() => {
       const outputButtons = document.querySelectorAll("ol > li > button");
       expect(document.activeElement).toBe(outputButtons[0]);
@@ -305,13 +305,26 @@ describe("Search", () => {
       expect(screen.getByText("Indomie Goreng")).not.toBeNull();
     });
 
-    // ArrowDown to focus first card
     await user.keyboard("{ArrowDown}");
-
-    // Enter on the focused card
     await user.keyboard("{Enter}");
 
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect.mock.calls[0][0].name).toBe("Indomie Goreng");
+  });
+
+  // --- useIndex is called correctly ---
+
+  test("search function from useIndex filters results correctly", async () => {
+    const user = userEvent.setup();
+    renderSearch();
+
+    const input = screen.getByRole("searchbox");
+    await user.type(input, "indomie");
+
+    // Should find Indomie Goreng but not Beras Premium
+    await waitFor(() => {
+      expect(screen.getByText("Indomie Goreng")).not.toBeNull();
+    });
+    expect(screen.queryByText("Beras Premium 5kg")).toBeNull();
   });
 });

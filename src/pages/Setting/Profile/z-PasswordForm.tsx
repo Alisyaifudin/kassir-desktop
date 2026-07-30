@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { Password } from "~/components/Password";
 import { SonnerService } from "~/services/sonner";
 import { Spinner } from "~/components/Spinner";
@@ -37,9 +38,9 @@ export function PasswordForm({ userId, sonner, onUpdatePassword }: Props) {
   }
 
   return (
-    <Accordion type="single" collapsible className="text-white">
+    <Accordion type="single" collapsible>
       <AccordionItem value="item-1">
-        <AccordionTrigger className="font-bold px-2">Ganti kata sandi</AccordionTrigger>
+        <AccordionTrigger style={styles.trigger}>Ganti kata sandi</AccordionTrigger>
         <AccordionContent>
           <form onSubmit={handleSubmit} className="flex-col gap-2 flex px-2">
             <label
@@ -67,3 +68,13 @@ export function PasswordForm({ userId, sonner, onUpdatePassword }: Props) {
     </Accordion>
   );
 }
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = stylex.create({
+  trigger: {
+    fontWeight: "bold",
+    paddingLeft: "0.5rem",
+    paddingRight: "0.5rem",
+  },
+});

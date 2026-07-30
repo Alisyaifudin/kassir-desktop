@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS graves;
 ALTER TABLE money_kind RENAME TO money_kind_old;
 ALTER TABLE money RENAME TO money_old;
 ALTER TABLE products RENAME TO products_old;
+ALTER TABLE extras RENAME TO extras_old;
 ALTER TABLE product_events RENAME TO products_events_old;
 ALTER TABLE methods RENAME TO methods_old;
 ALTER TABLE records RENAME TO records_old;
@@ -86,6 +87,24 @@ SELECT
   money_id, timestamp, money_value, pocket_id, money_note, money_updated_at, money_sync_at
 FROM money_old;
 
+CREATE TABLE extras (
+    extra_id         TEXT    PRIMARY KEY,
+    extra_name       TEXT    NOT NULL,
+    extra_value      REAL    NOT NULL,
+    extra_kind       TEXT    NOT NULL
+                             CHECK (extra_kind IN ('number', 'percent') ),
+    extra_flag       INTEGER NOT NULL DEFAULT 0, -- 1 means dual input, when there is an `in` tx, create an equivalent `out` tx
+    extra_updated_at INTEGER NOT NULL,
+    extra_sync_at    INTEGER
+)
+STRICT;
+
+INSERT INTO (
+  extra_id, extra_name, extra_value, extra_kind, extra_updated_at, extra_sync_at
+)
+SELECT 
+  extra_id, extra_name, extra_value, extra_kind, extra_updated_at, extra_sync_at
+FROM extras_old;
 
 CREATE TABLE products (
     product_id         TEXT    PRIMARY KEY,
@@ -139,6 +158,13 @@ SELECT
   product_id, product_stock, product_capital, product_updated_at, product_id 
 FROM products_old;
 
+CREATE TABLE properties (
+  property_id     TEXT  PRIMARY KEY,
+  product_id      TEXT  NOT NULL 
+                        REFERENCES products(product_id) ON DELETE CASCADE,
+  property_key    TEXT  NOT NULL,
+  property_value  TEXT NOT NULL
+) STRICT;
 
 CREATE TABLE product_events (
     product_event_id      TEXT    PRIMARY KEY,
@@ -285,6 +311,7 @@ DROP TABLE methods_old;
 DROP TABLE records_old;
 DROP TABLE product_events_old;
 -- TODO: handle remaining products_old columns not yet migrated
+DROP TABLE extras_old;
 DROP TABLE products_old;
 DROP TABLE money_old;
 DROP TABLE money_kind_old;

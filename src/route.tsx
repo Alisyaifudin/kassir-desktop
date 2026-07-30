@@ -1,4 +1,4 @@
-import { createHashRouter } from "react-router";
+import { createHashRouter, Outlet } from "react-router";
 import { lazy } from "react";
 import { Effect } from "effect";
 import { lazyEffect } from "./lib/lazy";
@@ -24,7 +24,11 @@ export const routerEffect = Effect.gen(function* () {
   return createHashRouter([
     {
       path: "/",
-      Component: AuthLayout,
+      Component: () => (
+        <AuthLayout>
+          <Outlet />
+        </AuthLayout>
+      ),
       ErrorBoundary,
       middleware: [authMiddleware],
       children: [homeRoute, settingRoute, cashierRoute, customerRoute, socialRoute],

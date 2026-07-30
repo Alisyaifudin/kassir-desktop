@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { render as renderRaw } from "@testing-library/react";
-import { TopNavList } from "../z-TopNavList";
+import { TopNavList } from "../eff-TopNavList";
 
 describe("TopNavList", () => {
   function renderNavList(role: "admin" | "user") {

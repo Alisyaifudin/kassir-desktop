@@ -8,6 +8,7 @@ export class UserService extends Context.Tag("UserService")<
   {
     loader(): Effect.Effect<void, UserError>;
     readonly useUser: () => Cashier;
+    readonly useAuth: () => Cashier | null;
     readonly user?: Cashier;
     setUser: (user: Cashier) => Effect.Effect<void, UserError>;
     logout: () => void;

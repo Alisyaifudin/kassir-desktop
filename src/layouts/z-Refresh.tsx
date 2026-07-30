@@ -1,10 +1,34 @@
 import { RefreshCcw } from "lucide-react";
 import { useCallback } from "react";
-import { Button } from "~/components/ui/button";
-// import { db } from "~/database/db";
+import * as stylex from "@stylexjs/stylex";
+import { Icon } from "~/components/ui/icon";
+import { colors, sizes } from "~/tokens.stylex";
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+const iconStyles = stylex.create({
+  base: {
+    borderRadius: sizes.radiusFull,
+    height: sizes.topnavIconSize,
+    width: sizes.topnavIconSize,
+    ":hover": {
+      backgroundColor: colors.hoverNav,
+    },
+  },
+});
+
+const refreshIconStyles = stylex.create({
+  base: {
+    width: sizes.topnavIconInner,
+    height: sizes.topnavIconInner,
+  },
+});
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export function Refresh() {
   const refresh = useCallback(() => {
+    // TODO: DO NOT DELETE
     // db.customer.revalidate();
     // db.extra.revalidate();
     // db.image.revalidate();
@@ -14,13 +38,8 @@ export function Refresh() {
     window.location.reload();
   }, []);
   return (
-    <Button
-      size="icon"
-      className="rounded-full h-10 w-10 small:h-8 small:w-8 hover:bg-sky-400/50"
-      onClick={refresh}
-      variant="ghost"
-    >
-      <RefreshCcw className="small:w-5 small:h-5 w-6 h-6" />
-    </Button>
+    <Icon style={iconStyles.base} onClick={refresh} variant="ghost">
+      <RefreshCcw {...stylex.props(refreshIconStyles.base)} />
+    </Icon>
   );
 }

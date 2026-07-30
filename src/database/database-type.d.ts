@@ -123,8 +123,8 @@ declare namespace DBNamespace {
   }
   interface Method {
     method_id: string;
-    method_name: string | null;
-    method_label: string | null;
+    method_name: string | null; // public facing
+    method_label: string | null; // internal name
     method_kind: MethodEnum;
     // ("1000", 'cash'), ("1001", 'transfer'), ("1002", 'debit'), ("1003", 'qris');
     method_deleted_at: number | null;
@@ -139,6 +139,7 @@ declare namespace DBNamespace {
     extra_updated_at: number;
     extra_sync_at: number | null;
     extra_deleted_at: number | null;
+    extra_flag: number;
   }
   interface Product {
     product_id: string;
@@ -147,6 +148,12 @@ declare namespace DBNamespace {
     product_note: string;
     product_updated_at: number;
     product_sync_at: number | null;
+  }
+  interface Property {
+    property_id: string;
+    product_id: string;
+    property_key: string;
+    property_value: string;
   }
   interface ProductCode {
     product_code: string;

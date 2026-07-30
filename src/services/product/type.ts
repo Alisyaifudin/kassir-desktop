@@ -3,7 +3,6 @@ export type Product = {
   name: string;
   price: number;
   note: string;
-  updatedAt: number;
   codes: string[];
   capitals: {
     id: string;
@@ -11,6 +10,10 @@ export type Product = {
     capital: number;
   }[];
 };
+
+export type ProductFull = {
+  updatedAt: number;
+} & Product;
 
 export type HistoryEvent = {
   id: string;
@@ -23,4 +26,3 @@ export type HistoryEvent = {
     capital: number;
   };
 };
-

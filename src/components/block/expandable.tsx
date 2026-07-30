@@ -7,12 +7,17 @@ type ExpandableProps = {
   children?: ReactNode;
   ref?: Ref<HTMLDivElement>;
   /** Proportional flex weight. */
-  weight: number;
+  weight?: number;
 };
 
 export function Expandable({ children, style, weight, ref }: ExpandableProps) {
+  const { style: sxStyle, ...rest } = stylex.props(styles.expandable, style);
   return (
-    <div ref={ref} {...stylex.props(styles.expandable, style)} style={{ "--flex-weight": weight } as React.CSSProperties}>
+    <div
+      ref={ref}
+      {...rest}
+      style={{ "--flex-weight": weight ?? 1, ...sxStyle } as React.CSSProperties}
+    >
       {children}
     </div>
   );

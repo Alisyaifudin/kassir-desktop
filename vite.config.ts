@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import stylex from "@stylexjs/unplugin";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import arraybuffer from "vite-plugin-arraybuffer";
 // process is a nodejs/bun global
@@ -20,6 +21,9 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       vanillaExtractPlugin(),
+      stylex.vite({
+        useCSSLayers: true,
+      }),
       react(),
       arraybuffer(),
       tailwindcss(),

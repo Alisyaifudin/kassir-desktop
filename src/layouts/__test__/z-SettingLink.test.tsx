@@ -3,17 +3,13 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { render as renderRaw } from "@testing-library/react";
-import { SettingLink } from "../z-SettingLink";
+import { SettingLink } from "../eff-SettingLink";
 
 describe("SettingLink", () => {
   function renderAt(path: string, showShortcut = false) {
-    return renderRaw(
-      <SettingLink
-        useShowShortcut={() => showShortcut}
-        hideShortcut={() => {}}
-      />,
-      { wrapper: ({ children }) => <MemoryRouter initialEntries={[path]}>{children}</MemoryRouter> },
-    );
+    return renderRaw(<SettingLink useShowShortcut={() => showShortcut} hideShortcut={() => {}} />, {
+      wrapper: ({ children }) => <MemoryRouter initialEntries={[path]}>{children}</MemoryRouter>,
+    });
   }
 
   test("renders a Settings button", async () => {
@@ -51,10 +47,9 @@ describe("SettingLink", () => {
   test("calls hideShortcut on click", async () => {
     const user = userEvent.setup();
     const hideShortcut = mock(() => {});
-    renderRaw(
-      <SettingLink useShowShortcut={() => false} hideShortcut={hideShortcut} />,
-      { wrapper: MemoryRouter },
-    );
+    renderRaw(<SettingLink useShowShortcut={() => false} hideShortcut={hideShortcut} />, {
+      wrapper: MemoryRouter,
+    });
 
     await user.click(await screen.findByRole("button"));
     expect(hideShortcut).toHaveBeenCalledTimes(1);

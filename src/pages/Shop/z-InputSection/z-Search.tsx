@@ -2,17 +2,16 @@ import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Output, type OutputHandle } from "./z-Output";
 import { useCallback, useRef, useState } from "react";
-import { Kbd } from "~/components/ui/kdb";
+import { Kbd } from "~/components/ui/kbd";
 import { Product } from "~/services/product";
 import { cn } from "~/lib/utils";
-import { useBuildIndex } from "./use-build-index";
 
 type Props = {
-  products: Product[];
   onSelect: (product: Product) => void;
+  useIndex: () => (query: string) => Product[];
 };
 
-export function Search({ products, onSelect }: Props) {
+export function Search({ useIndex, onSelect }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<OutputHandle>(null);
   const filteredRef = useRef<Product[]>([]);
@@ -20,7 +19,7 @@ export function Search({ products, onSelect }: Props) {
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [isFocused, setIsFocused] = useState(false);
   const [error, setError] = useState<null | string>(null);
-  const search = useBuildIndex(products);
+  const search = useIndex();
   const open = filtered.length > 0 && isFocused;
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

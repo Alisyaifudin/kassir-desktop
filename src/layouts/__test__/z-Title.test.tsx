@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { screen } from "@testing-library/react";
-import { TitleText } from "../z-Title";
+import { TitleText } from "../eff-Title";
 import { render } from "~/lib/render";
 
 describe("TitleText", () => {

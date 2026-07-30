@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { TextError } from "~/components/TextError";
 import { tx } from "~/transaction";
 import { useAtom } from "@xstate/store/react";
-import { Kbd } from "~/components/ui/kdb";
+import { Kbd } from "~/components/ui/kbd";
 import {
   Select,
   SelectContent,
@@ -17,7 +17,7 @@ import { basicStore } from "../../use-transaction";
 import { Result } from "~/lib/result";
 import { Skeleton } from "~/components/ui/skeleton";
 import { log } from "~/lib/log";
-import { Loading } from "~/components/Loading";
+import { Loading } from "~/layouts/Loading";
 import { useTab } from "../../use-tab";
 import { queue } from "../../util-queue";
 

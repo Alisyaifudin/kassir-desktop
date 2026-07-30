@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Kbd } from "~/components/ui/kdb";
+import { Kbd } from "~/components/ui/kbd";
 import { Show } from "~/components/Show";
 
 export type PayInfo = {

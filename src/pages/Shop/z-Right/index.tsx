@@ -3,7 +3,7 @@ import { ExtraList } from "./Extra";
 import { GrandTotal } from "./z-GrandTotal";
 import { capitalize } from "~/lib/utils";
 import { Customer } from "./z-Customer";
-import { Note } from "../z-Left/Summary/z-Note";
+import { Note } from "../z-Left/z-Summary/z-Note";
 import { CustomerDialog } from "./CustomerDialog";
 import { Watermark } from "./z-Watermark";
 import { Header } from "./Header";

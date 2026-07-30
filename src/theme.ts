@@ -31,4 +31,9 @@ export const bigTheme = stylex.createTheme(sizes, {
   radiusMd: "0.75rem",
   buttonPadY: "0.75rem",
   buttonPadX: "1.5rem",
+  accordionPadY: "1.25rem",
+  iconSize: "1.25rem",
+  checkboxSize: "1.75rem",
+  borderWidth: 1,
+  comboboxContentMaxH: "26rem",
 });

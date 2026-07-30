@@ -1,4 +1,4 @@
-import { Loading } from "~/components/Loading";
+import { Loading } from "~/layouts/Loading";
 import { TextError } from "~/components/TextError";
 import { log } from "~/lib/log";
 import { Result } from "~/lib/result";
@@ -10,9 +10,7 @@ export default function Page() {
     <div className="flex flex-col gap-4 p-6 flex-1 overflow-hidden">
       <div className="flex flex-col gap-1">
         <h1 className="text-big font-bold text-foreground">Sinkronisasi</h1>
-        <p className="text-muted-foreground text-normal">
-          Sinkronisasi data ke awan
-        </p>
+        <p className="text-muted-foreground text-normal">Sinkronisasi data ke awan</p>
       </div>
       <DataLoader />
     </div>

@@ -1,56 +1,68 @@
-import { Outlet } from "react-router";
 import { Toaster } from "~/components/ui/sonner";
-import { useNavigationShortcuts } from "./use-navigation-shortcuts";
 import { Effect } from "effect";
-import { InfoService } from "~/services/info";
 import { UserService } from "~/services/user";
 import { ShortcutService } from "~/services/shortcut";
-import { StateWrap } from "~/components/StateWrap";
-import { TextError } from "~/components/TextError";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Topbar } from "./z-Topbar";
-import { TitleText } from "./z-Title";
+import { topBar } from "./eff-Topbar";
+import { RouterService } from "~/services/router";
+import { VStack } from "~/components/block/stack";
+import { redirect } from "~/components/Redirect";
+import { Expandable } from "~/components/block/expandable";
+import { WithLoader } from "~/components/WithLoader";
+import { errorComponent } from "~/components/ErrorComponent";
+import { Loading } from "./Loading";
 
-const layout = Effect.gen(function* () {
-  const infoService = yield* InfoService;
+const page = Effect.gen(function* () {
   const userService = yield* UserService;
   const shortcutService = yield* ShortcutService;
+  const routerService = yield* RouterService;
+  const useAuth = () => userService.useAuth();
+  const useNavigationShortcuts = () => shortcutService.useNavigationShortcuts();
+  const useLocation = () => routerService.useLocation();
+  const Redirect = yield* redirect;
+  const Topbar = yield* topBar;
 
-  const infoLoader = () => infoService.loader();
-  const useName = () => infoService.info.useName();
-  const useUser = () => userService.useUser();
-  const useShowShortcut = () => shortcutService.useShowShortcut();
-  const hideShortcut = () => shortcutService.hideShortcut();
-  const toggleShortcut = () => shortcutService.toggleShortcut();
+  return function Page({ children }: { children: React.ReactNode }) {
+    useNavigationShortcuts();
+    const user = useAuth();
+    const { pathname } = useLocation();
+    const startWithLogin = pathname.startsWith("/login");
+    const userIsNull = user == null;
+    if (userIsNull) {
+      if (startWithLogin) {
+        return <>{children}</>;
+      } else {
+        return <Redirect to="/login" />;
+      }
+    } else {
+      if (startWithLogin) {
+        return <Redirect to="/" />;
+      } else {
+        return (
+          <VStack>
+            <Topbar />
+            <Expandable>{children}</Expandable>
+            <Toaster />
+          </VStack>
+        );
+      }
+    }
+  };
+});
 
-  return function Layout() {
-    useNavigationShortcuts(hideShortcut, toggleShortcut);
-
+const layout = Effect.gen(function* () {
+  const userService = yield* UserService;
+  const loader = () => userService.loader();
+  const Page = yield* page;
+  const ErrorComponent = yield* errorComponent;
+  return function Layout({ children }: { children: React.ReactNode }) {
     return (
-      <div className="flex flex-col min-h-screen bg-background">
-        <Topbar
-          useUser={useUser}
-          useShowShortcut={useShowShortcut}
-          hideShortcut={hideShortcut}
-          titleElement={
-            <StateWrap
-              loader={infoLoader}
-              loading={
-                <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
-                  <Skeleton className="h-5 w-24" />
-                </div>
-              }
-              error={(error) => <TextError>{error.e.message}</TextError>}
-            >
-              <TitleText useName={useName} />
-            </StateWrap>
-          }
-        />
-        <div id="main-body" className="flex-1">
-          <Outlet />
-        </div>
-        <Toaster className="toast" />
-      </div>
+      <WithLoader
+        loader={loader}
+        loading={<Loading />}
+        error={({ e }) => <ErrorComponent>{e.message}</ErrorComponent>}
+      >
+        <Page>{children}</Page>
+      </WithLoader>
     );
   };
 });
