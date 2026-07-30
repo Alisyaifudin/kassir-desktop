@@ -6,19 +6,17 @@ import type { ReactNode, Ref } from "react";
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-export const buttonBaseStyle = stylex.create({
+const baseStyle = stylex.create({
   base: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: sizes.gap,
-    whiteSpace: "nowrap",
+    width: sizes.iconButtonSize,
+    height: sizes.iconButtonSize,
     borderRadius: sizes.radiusSm,
-    fontWeight: 500,
-    height: "fit-content",
-    padding: `${sizes.buttonPadY} ${sizes.buttonPadX}`,
     transitionProperty: "color, background-color, border-color, box-shadow",
     transitionDuration: "150ms",
+    flexShrink: 0,
     ":focus-visible": {
       outline: "none",
       boxShadow: `0 0 0 1px ${colors.ring}`,
@@ -30,7 +28,7 @@ export const buttonBaseStyle = stylex.create({
   },
 });
 
-export const buttonColorVariants = stylex.create({
+const colorVariants = stylex.create({
   default: {
     color: colors.primaryForeground,
     backgroundColor: colors.primary,
@@ -79,8 +77,8 @@ export const buttonColorVariants = stylex.create({
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-type ButtonProps = {
-  variant?: keyof typeof buttonColorVariants;
+type IconButtonProps = {
+  variant?: keyof typeof colorVariants;
   style?: StyleXStyles;
   children?: ReactNode;
   onClick?: () => void;
@@ -88,15 +86,19 @@ type ButtonProps = {
   ref?: Ref<HTMLButtonElement>;
 };
 
-export function Button({
+export function Icon({
   variant = "default",
   style,
   children,
   onClick,
   disabled,
   ref,
-}: ButtonProps) {
-  const styles = [buttonBaseStyle.base, buttonColorVariants[variant], style] as StyleXStyles;
+}: IconButtonProps) {
+  const styles = [
+    baseStyle.base,
+    colorVariants[variant],
+    style,
+  ] as StyleXStyles;
   return (
     <ButtonBase style={styles} onClick={onClick} disabled={disabled} ref={ref}>
       {children}

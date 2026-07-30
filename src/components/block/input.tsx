@@ -7,6 +7,7 @@ type InputProps = {
   id?: string;
   onChange?: (value: string) => void;
   value?: string;
+  disabled?: boolean;
 };
 
 export function InputText({ style, ref, onChange, ...rest }: InputProps) {

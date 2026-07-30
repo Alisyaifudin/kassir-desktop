@@ -1,21 +1,48 @@
-import * as React from "react";
+import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
+import type { Ref } from "react";
+import { TextareaBase } from "../block/textarea";
+import { colors, sizes } from "~/tokens.stylex";
 
-import { cn } from "../../lib/utils";
+// ── Styles ───────────────────────────────────────────────────────────────────
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
-  ({ className, ...props }, ref) => {
-    return (
-      <textarea
-        className={cn(
-          "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-          className,
-        )}
-        ref={ref}
-        {...props}
-      />
-    );
+const styles = stylex.create({
+  base: {
+    display: "flex",
+    minHeight: sizes.textareaMinHeight,
+    width: "100%",
+    borderRadius: sizes.radiusMd,
+    borderWidth: sizes.borderWidth,
+    borderStyle: "solid",
+    borderColor: colors.inputBorder,
+    backgroundColor: "transparent",
+    paddingLeft: sizes.inputPadX,
+    paddingRight: sizes.inputPadX,
+    paddingTop: sizes.gap,
+    paddingBottom: sizes.gap,
+    boxShadow: colors.shadowSm,
+    fontSize: sizes.textSm,
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 1px ${colors.ring}`,
+    },
+    ":disabled": {
+      cursor: "not-allowed",
+      opacity: 0.5,
+    },
+    "::placeholder": {
+      color: colors.mutedForeground,
+    },
   },
-);
-Textarea.displayName = "Textarea";
+});
 
-export { Textarea };
+// ── Component ────────────────────────────────────────────────────────────────
+
+type TextareaProps = {
+  style?: StyleXStyles;
+  ref?: Ref<HTMLTextAreaElement>;
+};
+
+export function Textarea({ style, ref, ...props }: TextareaProps) {
+  return <TextareaBase ref={ref} style={[styles.base, style] as StyleXStyles} {...props} />;
+}

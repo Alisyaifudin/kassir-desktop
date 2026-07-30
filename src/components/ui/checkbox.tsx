@@ -1,26 +1,68 @@
-import * as React from "react";
+import type { ReactNode, Ref } from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
+import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
 import { Check } from "lucide-react";
+import { colors, sizes } from "~/tokens.stylex";
 
-import { cn } from "../../lib/utils";
+// ── Styles ───────────────────────────────────────────────────────────────────
 
-const Checkbox = React.forwardRef<
-	React.ElementRef<typeof CheckboxPrimitive.Root>,
-	React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
->(({ className, ...props }, ref) => (
-	<CheckboxPrimitive.Root
-		ref={ref}
-		className={cn(
-			"peer h-6 w-6 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
-			className
-		)}
-		{...props}
-	>
-		<CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
-			<Check className="h-6 w-6" />
-		</CheckboxPrimitive.Indicator>
-	</CheckboxPrimitive.Root>
-));
-Checkbox.displayName = CheckboxPrimitive.Root.displayName;
+const styles = stylex.create({
+  root: {
+    height: sizes.checkboxSize,
+    width: sizes.checkboxSize,
+    flexShrink: 0,
+    borderRadius: sizes.radiusSm,
+    borderWidth: sizes.borderWidth,
+    borderStyle: "solid",
+    borderColor: colors.primary,
+    boxShadow: colors.shadow,
+    background: "none",
+    padding: 0,
+    cursor: "pointer",
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 1px ${colors.ring}`,
+    },
+    ":disabled": {
+      cursor: "not-allowed",
+      opacity: 0.5,
+    },
+  },
+  indicator: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "currentColor",
+  },
+  check: {
+    height: sizes.checkboxSize,
+    width: sizes.checkboxSize,
+  },
+});
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+type CheckboxProps = {
+  ref?: Ref<HTMLButtonElement>;
+  style?: StyleXStyles;
+  children?: ReactNode;
+};
+
+const Checkbox = ({ style, ref, ...props }: CheckboxProps) => {
+  const merged = [styles.root, style] as StyleXStyles;
+  return (
+    <CheckboxPrimitive.Root
+      ref={ref}
+      {...stylex.props(merged)}
+      {...props}
+      data-checkbox-root=""
+    >
+      <CheckboxPrimitive.Indicator {...stylex.props(styles.indicator)}>
+        <Check {...stylex.props(styles.check)} />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  );
+};
 
 export { Checkbox };

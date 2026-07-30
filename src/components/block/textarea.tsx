@@ -7,6 +7,6 @@ type TextareaProps = {
   ref?: Ref<HTMLTextAreaElement>;
 };
 
-export function Textarea({ style, ref, ...rest }: TextareaProps) {
+export function TextareaBase({ style, ref, ...rest }: TextareaProps) {
   return <textarea ref={ref} {...stylex.props(style)} {...rest} />;
 }

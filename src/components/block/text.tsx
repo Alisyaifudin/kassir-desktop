@@ -20,11 +20,12 @@ type TextInlineProps = {
   style?: StyleXStyles;
   children?: ReactNode;
   ref?: Ref<HTMLSpanElement>;
+  "aria-hidden"?: boolean | "true" | "false";
 };
 
-export function TextInline({ style, children, ref, ...rest }: TextInlineProps) {
+export function Span({ style, children, ref, ...rest }: TextInlineProps) {
   return (
-    <span ref={ref} {...stylex.props(style)} {...rest}>
+    <span ref={ref} aria-hidden {...stylex.props(style)} {...rest}>
       {children}
     </span>
   );

@@ -1,47 +1,82 @@
-interface ProgressProps {
+import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
+
+import { colors, sizes } from "~/tokens.stylex";
+import { Block } from "../block/block";
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+const progressIndeterminate = stylex.keyframes({
+  from: { transform: "translateX(-100%)" },
+  to: { transform: "translateX(400%)" },
+});
+
+const styles = stylex.create({
+  track: {
+    height: sizes.gap,
+    width: "100%",
+    overflow: "hidden",
+    borderRadius: sizes.radiusFull,
+    backgroundColor: colors.muted,
+  },
+  fill: {
+    height: "100%",
+    width: "var(--progress-width)",
+    borderRadius: sizes.radiusFull,
+    backgroundColor: colors.primary,
+    transitionProperty: "all",
+    transitionDuration: "300ms",
+    transitionTimingFunction: "ease-out",
+  },
+  indeterminateFill: {
+    height: "100%",
+    width: "33.333%",
+    borderRadius: sizes.radiusFull,
+    backgroundColor: colors.primary,
+    animationName: progressIndeterminate,
+    animationDuration: "1.5s",
+    animationTimingFunction: "ease-in-out",
+    animationIterationCount: "infinite",
+  },
+});
+
+// ── Components ───────────────────────────────────────────────────────────────
+
+type ProgressProps = {
   value: number;
   max: number;
-  className?: string;
-}
+  style?: StyleXStyles;
+};
 
-export function Progress({ value, max, className = "" }: ProgressProps) {
+export function Progress({ value, max, style }: ProgressProps) {
   const pct = max === 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
 
   return (
-    <div
-      className={`h-2 w-full overflow-hidden rounded-full bg-muted ${className}`}
+    <Block
       role="progressbar"
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={max}
+      style={[styles.track, style] as StyleXStyles}
     >
-      <div
-        className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
-        style={{ width: `${pct}%` }}
+      <Block
+        style={styles.fill}
+        cssVars={{
+          "--progress-width": `${pct}%`,
+        }}
       />
-    </div>
+    </Block>
   );
 }
 
-export function ProgressIndeterminate({ className = "" }: { className?: string }) {
+type ProgressIndeterminateProps = {
+  style?: StyleXStyles;
+};
+
+export function ProgressIndeterminate({ style }: ProgressIndeterminateProps) {
   return (
-    <div
-      className={`h-2 w-full overflow-hidden rounded-full bg-muted ${className}`}
-      role="progressbar"
-      aria-label="Mengunduh"
-    >
-      <div
-        className="h-full w-1/3 rounded-full bg-primary animate-[progress-indeterminate_1.5s_ease-in-out_infinite]"
-        style={{
-          animation: "progress-indeterminate 1.5s ease-in-out infinite",
-        }}
-      />
-      <style>{`
-        @keyframes progress-indeterminate {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(400%); }
-        }
-      `}</style>
-    </div>
+    <Block role="progressbar" aria-label="Mengunduh" style={[styles.track, style] as StyleXStyles}>
+      <Block style={styles.indeterminateFill} />
+    </Block>
   );
 }

@@ -1,132 +1,209 @@
-import * as React from "react";
+import * as stylex from "@stylexjs/stylex"
+import type { StyleXStyles } from "@stylexjs/stylex"
+import type { Ref } from "react"
 
-import { cn } from "../../lib/utils";
-import { useScroll } from "~/hooks/use-scroll";
+import { colors, sizes } from "~/tokens.stylex"
+import { Block } from "../block/block"
 
-// const TableScrollable = React.forwardRef<
-//   HTMLTableElement,
-//   React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
-// >(({ className, parentClass, ...props }, ref) => {
-//   return (
-//     <div
-//       className={cn("relative w-full overflow-auto", parentClass)}
-//       onScroll={handleScroll}
-//       ref={parentRef}
-//     >
-//       <table ref={ref} className={cn("w-full caption-bottom", className)} {...props} />
-//     </div>
-//   );
-// });
-// TableScrollable.displayName = "TableScrollable";
+// ── Styles ───────────────────────────────────────────────────────────────────
 
-const Table = React.forwardRef<
-  HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
->(({ className, parentClass, ...props }, ref) => {
-  const [parentRef, handleScroll] = useScroll();
+const styles = stylex.create({
+  wrapper: {
+    position: "relative",
+    width: "100%",
+    overflowY: "auto",
+    maxHeight: "100%",
+    height: "auto",
+  },
+  table: {
+    width: "100%",
+    captionSide: "bottom",
+    borderCollapse: "collapse",
+    height: "auto",
+  },
+  header: {
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+    backgroundColor: colors.primaryForeground,
+  },
+  body: {
+    height: "auto",
+  },
+  footer: {
+    borderTopWidth: sizes.borderWidth,
+    borderTopStyle: "solid",
+    borderTopColor: colors.border,
+    backgroundColor: colors.muted,
+    fontWeight: 500,
+  },
+  row: {
+    height: "auto",
+    borderBottomWidth: sizes.borderWidth,
+    borderBottomStyle: "solid",
+    borderBottomColor: colors.border,
+    transitionProperty: "color",
+    ":hover": {
+      backgroundColor: colors.muted,
+    },
+  },
+  head: {
+    height: sizes.tableHeaderHeight,
+    paddingLeft: sizes.inputPadY,
+    paddingRight: sizes.inputPadY,
+    textAlign: "left",
+    verticalAlign: "middle",
+    fontWeight: 500,
+    color: colors.mutedForeground,
+  },
+  cell: {
+    paddingTop: sizes.gap,
+    paddingBottom: sizes.gap,
+    paddingLeft: sizes.inputPadY,
+    paddingRight: sizes.inputPadY,
+    verticalAlign: "middle",
+  },
+  caption: {
+    marginTop: sizes.buttonPadX,
+    fontSize: sizes.textSm,
+    color: colors.mutedForeground,
+  },
+})
+
+// ── Components ───────────────────────────────────────────────────────────────
+
+type TableProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableElement>
+}
+
+function Table({ style, ref, ...props }: TableProps) {
   return (
-    <div
-      ref={parentRef}
-      onScroll={handleScroll}
-      className={cn("relative w-full overflow-y-auto max-h-full h-auto", parentClass)}
-    >
+    <Block style={(styles.wrapper)}>
       <table
         ref={ref}
-        className={cn("w-full caption-bottom border-collapse h-auto", className)}
+        {...stylex.props([styles.table, style] as StyleXStyles)}
         {...props}
       />
-    </div>
-  );
-});
-Table.displayName = "Table";
+    </Block>
+  )
+}
+Table.displayName = "Table"
 
-const TableHeader = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <thead
-    ref={ref}
-    className={cn("[&_tr]:border-b sticky top-0 z-10 bg-primary-foreground", className)}
-    {...props}
-  />
-));
-TableHeader.displayName = "TableHeader";
+type TableHeaderProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableSectionElement>
+}
 
-const TableBody = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tbody ref={ref} className={cn("[&_tr:last-child]:border-0 h-auto", className)} {...props} />
-));
-TableBody.displayName = "TableBody";
-
-const TableFooter = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tfoot
-    ref={ref}
-    className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)}
-    {...props}
-  />
-));
-TableFooter.displayName = "TableFooter";
-
-const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
-  ({ className, ...props }, ref) => (
-    <tr
+function TableHeader({ style, ref, ...props }: TableHeaderProps) {
+  return (
+    <thead
       ref={ref}
-      className={cn(
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted h-auto",
-        className,
-      )}
+      {...stylex.props([styles.header, style] as StyleXStyles)}
       {...props}
     />
-  ),
-);
-TableRow.displayName = "TableRow";
+  )
+}
+TableHeader.displayName = "TableHeader"
 
-const TableHead = React.forwardRef<
-  HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-10 px-1 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className,
-    )}
-    {...props}
-  />
-));
-TableHead.displayName = "TableHead";
+type TableBodyProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableSectionElement>
+}
 
-const TableCell = React.forwardRef<
-  HTMLTableCellElement,
-  React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <td
-    ref={ref}
-    className={cn(
-      "py-2 px-1 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className,
-    )}
-    {...props}
-  />
-));
-TableCell.displayName = "TableCell";
+function TableBody({ style, ref, ...props }: TableBodyProps) {
+  return (
+    <tbody
+      ref={ref}
+      {...stylex.props([styles.body, style] as StyleXStyles)}
+      {...props}
+    />
+  )
+}
+TableBody.displayName = "TableBody"
 
-const TableCaption = React.forwardRef<
-  HTMLTableCaptionElement,
-  React.HTMLAttributes<HTMLTableCaptionElement>
->(({ className, ...props }, ref) => (
-  <caption ref={ref} className={cn("mt-4 text-sm text-muted-foreground", className)} {...props} />
-));
-TableCaption.displayName = "TableCaption";
+type TableFooterProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableSectionElement>
+}
+
+function TableFooter({ style, ref, ...props }: TableFooterProps) {
+  return (
+    <tfoot
+      ref={ref}
+      {...stylex.props([styles.footer, style] as StyleXStyles)}
+      {...props}
+    />
+  )
+}
+TableFooter.displayName = "TableFooter"
+
+type TableRowProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableRowElement>
+}
+
+function TableRow({ style, ref, ...props }: TableRowProps) {
+  return (
+    <tr
+      ref={ref}
+      {...stylex.props([styles.row, style] as StyleXStyles)}
+      {...props}
+    />
+  )
+}
+TableRow.displayName = "TableRow"
+
+type TableHeadProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableCellElement>
+}
+
+function TableHead({ style, ref, ...props }: TableHeadProps) {
+  return (
+    <th
+      ref={ref}
+      {...stylex.props([styles.head, style] as StyleXStyles)}
+      {...props}
+    />
+  )
+}
+TableHead.displayName = "TableHead"
+
+type TableCellProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableCellElement>
+}
+
+function TableCell({ style, ref, ...props }: TableCellProps) {
+  return (
+    <td
+      ref={ref}
+      {...stylex.props([styles.cell, style] as StyleXStyles)}
+      {...props}
+    />
+  )
+}
+TableCell.displayName = "TableCell"
+
+type TableCaptionProps = {
+  style?: StyleXStyles
+  ref?: Ref<HTMLTableCaptionElement>
+}
+
+function TableCaption({ style, ref, ...props }: TableCaptionProps) {
+  return (
+    <caption
+      ref={ref}
+      {...stylex.props([styles.caption, style] as StyleXStyles)}
+      {...props}
+    />
+  )
+}
+TableCaption.displayName = "TableCaption"
 
 export {
   Table,
-  // TableScrollable,
   TableHeader,
   TableBody,
   TableFooter,
@@ -134,4 +211,4 @@ export {
   TableRow,
   TableCell,
   TableCaption,
-};
+}

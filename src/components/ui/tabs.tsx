@@ -1,53 +1,121 @@
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
+import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
+import type { ReactNode, Ref } from "react";
 
-import { cn } from "../../lib/utils";
+import { colors, sizes } from "~/tokens.stylex";
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+const listStyles = stylex.create({
+  base: {
+    display: "inline-flex",
+    height: sizes.inputHeight,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: sizes.radiusLg,
+    backgroundColor: colors.muted,
+    padding: sizes.inputPadY,
+    color: colors.mutedForeground,
+  },
+});
+
+const triggerStyles = stylex.create({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    whiteSpace: "nowrap",
+    borderRadius: sizes.radiusMd,
+    paddingLeft: sizes.inputPadX,
+    paddingRight: sizes.inputPadX,
+    paddingTop: sizes.inputPadY,
+    paddingBottom: sizes.inputPadY,
+    fontWeight: 500,
+    transitionProperty: "all",
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 2px ${colors.ring}, 0 0 0 4px ${colors.background}`,
+    },
+    ":disabled": {
+      pointerEvents: "none",
+      opacity: 0.5,
+    },
+  },
+});
+
+const contentStyles = stylex.create({
+  base: {
+    marginTop: sizes.gap,
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 2px ${colors.ring}, 0 0 0 4px ${colors.background}`,
+    },
+  },
+});
+
+// ── Components ───────────────────────────────────────────────────────────────
 
 const Tabs = TabsPrimitive.Root;
 
-const TabsList = React.forwardRef<
-	React.ElementRef<typeof TabsPrimitive.List>,
-	React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
-	<TabsPrimitive.List
-		ref={ref}
-		className={cn(
-			"inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground",
-			className
-		)}
-		{...props}
-	/>
-));
+type TabsListProps = {
+  style?: StyleXStyles;
+  children?: ReactNode;
+  ref?: Ref<HTMLDivElement>;
+};
+
+function TabsList({ style, children, ref, ...props }: TabsListProps) {
+  return (
+    <TabsPrimitive.List
+      ref={ref}
+      {...stylex.props([listStyles.base, style] as StyleXStyles)}
+      {...props}
+    >
+      {children}
+    </TabsPrimitive.List>
+  );
+}
 TabsList.displayName = TabsPrimitive.List.displayName;
 
-const TabsTrigger = React.forwardRef<
-	React.ElementRef<typeof TabsPrimitive.Trigger>,
-	React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
-	<TabsPrimitive.Trigger
-		ref={ref}
-		className={cn(
-			"inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow",
-			className
-		)}
-		{...props}
-	/>
-));
+type TabsTriggerProps = {
+  style?: StyleXStyles;
+  children?: ReactNode;
+  ref?: Ref<HTMLButtonElement>;
+  value: string;
+};
+
+function TabsTrigger({ style, children, ref, ...props }: TabsTriggerProps) {
+  return (
+    <TabsPrimitive.Trigger
+      ref={ref}
+      {...stylex.props([triggerStyles.base, style] as StyleXStyles)}
+      {...props}
+    >
+      {children}
+    </TabsPrimitive.Trigger>
+  );
+}
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
-const TabsContent = React.forwardRef<
-	React.ElementRef<typeof TabsPrimitive.Content>,
-	React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
->(({ className, ...props }, ref) => (
-	<TabsPrimitive.Content
-		ref={ref}
-		className={cn(
-			"mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-			className
-		)}
-		{...props}
-	/>
-));
+type TabsContentProps = {
+  style?: StyleXStyles;
+  children?: ReactNode;
+  ref?: Ref<HTMLDivElement>;
+  value: string;
+};
+
+function TabsContent({ style, children, ref, ...props }: TabsContentProps) {
+  return (
+    <TabsPrimitive.Content
+      ref={ref}
+      {...stylex.props([contentStyles.base, style] as StyleXStyles)}
+      {...props}
+    >
+      {children}
+    </TabsPrimitive.Content>
+  );
+}
 TabsContent.displayName = TabsPrimitive.Content.displayName;
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };

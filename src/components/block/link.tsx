@@ -14,6 +14,17 @@ type LinkProps = {
         search?: string | undefined;
         hash?: string | undefined;
       };
+  "aria-current"?:
+    | boolean
+    | "false"
+    | "true"
+    | "page"
+    | "step"
+    | "location"
+    | "date"
+    | "time"
+    | undefined;
+  "aria-label"?: string;
 };
 
 export function Link({ style, children, ref, ...rest }: LinkProps) {

@@ -1,42 +1,95 @@
-import * as React from "react"
-import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"
-import { Circle } from "lucide-react"
+import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
+import { Circle } from "lucide-react";
+import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
+import type { Ref } from "react";
 
-import { cn } from "~/lib/utils"
+import { colors, sizes } from "~/tokens.stylex";
 
-const RadioGroup = React.forwardRef<
-  React.ElementRef<typeof RadioGroupPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Root>
->(({ className, ...props }, ref) => {
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+const groupStyles = stylex.create({
+  base: {
+    display: "grid",
+    gap: sizes.gap,
+  },
+});
+
+const itemStyles = stylex.create({
+  base: {
+    aspectRatio: 1,
+    height: sizes.iconSize,
+    width: sizes.iconSize,
+    borderRadius: sizes.radiusFull,
+    borderWidth: sizes.borderWidth,
+    borderStyle: "solid",
+    borderColor: colors.primary,
+    color: colors.primary,
+    boxShadow: colors.shadow,
+    background: "none",
+    padding: 0,
+    cursor: "pointer",
+    ":focus": {
+      outline: "none",
+    },
+    ":focus-visible": {
+      boxShadow: `0 0 0 1px ${colors.ring}`,
+    },
+    ":disabled": {
+      cursor: "not-allowed",
+      opacity: 0.5,
+    },
+  },
+  indicator: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: {
+    height: sizes.textSm,
+    width: sizes.textSm,
+    fill: colors.primary,
+    color: colors.primary,
+  },
+});
+
+// ── Components ───────────────────────────────────────────────────────────────
+
+type RadioGroupProps = {
+  style?: StyleXStyles;
+  ref?: Ref<HTMLDivElement>;
+};
+
+function RadioGroup({ style, ref, ...props }: RadioGroupProps) {
   return (
     <RadioGroupPrimitive.Root
-      className={cn("grid gap-2", className)}
-      {...props}
       ref={ref}
+      {...stylex.props([groupStyles.base, style] as StyleXStyles)}
+      {...props}
     />
-  )
-})
-RadioGroup.displayName = RadioGroupPrimitive.Root.displayName
+  );
+}
+RadioGroup.displayName = RadioGroupPrimitive.Root.displayName;
 
-const RadioGroupItem = React.forwardRef<
-  React.ElementRef<typeof RadioGroupPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item>
->(({ className, ...props }, ref) => {
+type RadioGroupItemProps = {
+  style?: StyleXStyles;
+  ref?: Ref<HTMLButtonElement>;
+  value: string;
+};
+
+function RadioGroupItem({ style, ref, ...props }: RadioGroupItemProps) {
   return (
     <RadioGroupPrimitive.Item
       ref={ref}
-      className={cn(
-        "aspect-square h-4 w-4 rounded-full border border-primary text-primary shadow focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
+      {...stylex.props([itemStyles.base, style] as StyleXStyles)}
       {...props}
     >
-      <RadioGroupPrimitive.Indicator className="flex items-center justify-center">
-        <Circle className="h-3.5 w-3.5 fill-primary" />
+      <RadioGroupPrimitive.Indicator {...stylex.props(itemStyles.indicator)}>
+        <Circle {...stylex.props(itemStyles.icon)} />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
-  )
-})
-RadioGroupItem.displayName = RadioGroupPrimitive.Item.displayName
+  );
+}
+RadioGroupItem.displayName = RadioGroupPrimitive.Item.displayName;
 
-export { RadioGroup, RadioGroupItem }
+export { RadioGroup, RadioGroupItem };
