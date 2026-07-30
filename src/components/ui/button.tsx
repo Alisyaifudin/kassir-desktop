@@ -1,48 +1,102 @@
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../lib/utils";
+import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
+import { ButtonBase } from "../block/button";
+import { colors, sizes } from "~/tokens.stylex";
+import type { ReactNode, Ref } from "react";
 
-const buttonVariants = cva(
-	"inline-flex items-center text-normal justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-	{
-		variants: {
-			variant: {
-				default: "text-primary-foreground bg-primary shadow hover:bg-primary/90",
-				destructive: "bg-destructive text-primary-foreground shadow-sm hover:bg-destructive/90",
-				outline:
-					"border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-				secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-				ghost: "hover:bg-accent hover:text-accent-foreground",
-				link: "text-primary underline-offset-4 hover:underline",
-			},
-			size: {
-				default: "h-fit px-4 py-2",
-				sm: "h-8 rounded-md px-3 text-xs",
-				lg: "h-10 rounded-md px-8",
-				icon: "h-9 w-9",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-			size: "default",
-		},
-	}
-);
+// ── Styles ───────────────────────────────────────────────────────────────────
 
-export interface ButtonProps
-	extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
-	asChild?: boolean;
+const baseStyle = stylex.create({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: sizes.gap,
+    whiteSpace: "nowrap",
+    borderRadius: sizes.radiusSm,
+    fontWeight: 500,
+    height: "fit-content",
+    padding: `${sizes.buttonPadY} ${sizes.buttonPadX}`,
+    transitionProperty: "color, background-color, border-color, box-shadow",
+    transitionDuration: "150ms",
+    ":focus-visible": {
+      outline: "none",
+      boxShadow: `0 0 0 1px ${colors.ring}`,
+    },
+    ":disabled": {
+      pointerEvents: "none",
+      opacity: 0.5,
+    },
+  },
+});
+
+const colorVariants = stylex.create({
+  default: {
+    color: colors.primaryForeground,
+    backgroundColor: colors.primary,
+    boxShadow: colors.shadow,
+    ":hover": {
+      backgroundColor: `color-mix(in oklch, ${colors.primary} 90%, transparent)`,
+    },
+  },
+  destructive: {
+    color: colors.destructiveForeground,
+    backgroundColor: colors.destructive,
+    boxShadow: colors.shadowSm,
+    ":hover": {
+      backgroundColor: `color-mix(in oklch, ${colors.destructive} 90%, transparent)`,
+    },
+  },
+  outline: {
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.background,
+    boxShadow: colors.shadowSm,
+    ":hover": {
+      backgroundColor: colors.accent,
+      color: colors.accentForeground,
+    },
+  },
+  secondary: {
+    backgroundColor: colors.secondary,
+    color: colors.secondaryForeground,
+    boxShadow: colors.shadowSm,
+    ":hover": {
+      backgroundColor: `color-mix(in oklch, ${colors.secondary} 80%, transparent)`,
+    },
+  },
+  ghost: {
+    ":hover": {
+      backgroundColor: colors.accent,
+      color: colors.accentForeground,
+    },
+  },
+});
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+type ButtonProps = {
+  variant?: keyof typeof colorVariants;
+  style?: StyleXStyles;
+  children?: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+};
+
+export function Button({
+  variant = "default",
+  style,
+  children,
+  onClick,
+  disabled,
+  ref,
+}: ButtonProps) {
+  const styles = [baseStyle.base, colorVariants[variant], style] as StyleXStyles;
+  return (
+    <ButtonBase style={styles} onClick={onClick} disabled={disabled} ref={ref}>
+      {children}
+    </ButtonBase>
+  );
 }
-
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-	({ className, variant, size, asChild = false, ...props }, ref) => {
-		const Comp = asChild ? Slot : "button";
-		return (
-			<Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
-		);
-	}
-);
-Button.displayName = "Button";
-
-export { Button, buttonVariants };
