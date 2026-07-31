@@ -18,8 +18,8 @@ const styles = stylex.create({
     backgroundColor: "transparent",
     paddingLeft: sizes.inputPadX,
     paddingRight: sizes.inputPadX,
-    paddingTop: sizes.gap,
-    paddingBottom: sizes.gap,
+    paddingTop: sizes.gapSm,
+    paddingBottom: sizes.gapSm,
     boxShadow: colors.shadowSm,
     fontSize: sizes.textSm,
     ":focus-visible": {

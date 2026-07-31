@@ -1,12 +1,16 @@
 import { Loading } from "./z-Loading";
 import { Effect } from "effect";
 import { CashierService } from "~/services/cashier";
-import { StateWrap } from "~/components/StateWrap";
 import { TextError } from "~/components/TextError";
-import { CashierList } from "./z-CashierList";
+import { CashierList } from "./eff-CashierList";
 import { NewCashier } from "./z-NewCashier";
 import { UserService } from "~/services/user";
 import { promisify } from "~/lib/promisify";
+import { WithLoader } from "~/components/WithLoader";
+import { VStack } from "~/components/block/stack";
+import { Block } from "~/components/block/block";
+import { H1 } from "~/components/block/heading";
+import { Text } from "~/components/block/text";
 
 const page = Effect.gen(function* () {
   const cashierService = yield* CashierService;
@@ -37,26 +41,22 @@ const page = Effect.gen(function* () {
 
   return function Page() {
     return (
-      <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
-          <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
-        </div>
-        <StateWrap
+      <VStack className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+        <Block className="flex flex-col gap-1">
+          <H1 className="text-big font-bold text-foreground">Daftar Kasir</H1>
+          <Text className="text-muted-foreground text-normal">
+            Kelola akun kasir dan peran pengguna
+          </Text>
+        </Block>
+        <WithLoader
           loader={loader}
           loading={<Loading />}
           error={({ e }) => <TextError>{e.message}</TextError>}
         >
-          <CashierList
-            onDelete={onDelete}
-            onUpdateName={onUpdateName}
-            onUpdateRole={onUpdateRole}
-            useCashiers={useCashiers}
-            useUser={useUser}
-          />
+          <CashierList />
           <NewCashier onAdd={onAdd} />
-        </StateWrap>
-      </main>
+        </WithLoader>
+      </VStack>
     );
   };
 });

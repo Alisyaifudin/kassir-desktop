@@ -3,10 +3,11 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ReactNode, Ref } from "react";
 
 type LiProps = {
+  id?: string;
   style?: StyleXStyles;
   children?: ReactNode;
   ref?: Ref<HTMLLIElement>;
-};
+} & React.AriaAttributes;
 
 export function Li({ style, children, ref, ...rest }: LiProps) {
   return (

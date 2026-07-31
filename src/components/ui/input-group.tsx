@@ -37,7 +37,7 @@ const addonStyles = stylex.create({
     cursor: "text",
     alignItems: "center",
     justifyContent: "center",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     paddingTop: sizes.inputPadY,
     paddingBottom: sizes.inputPadY,
     fontSize: sizes.textSm,
@@ -76,15 +76,15 @@ const buttonBase = stylex.create({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     fontSize: sizes.textSm,
     boxShadow: "none",
     borderRadius: sizes.radiusSm,
   },
   xs: {
     height: sizes.buttonXsHeight,
-    paddingLeft: sizes.gap,
-    paddingRight: sizes.gap,
+    paddingLeft: sizes.gapSm,
+    paddingRight: sizes.gapSm,
   },
   sm: {
     height: sizes.buttonSmHeight,
@@ -107,7 +107,7 @@ const textStyles = stylex.create({
   base: {
     display: "flex",
     alignItems: "center",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     fontSize: sizes.textSm,
     color: colors.mutedForeground,
   },
@@ -253,7 +253,7 @@ type InputGroupInputProps = {
   id?: string;
   onChange?: (value: string) => void;
   value?: string;
-  disabled?: boolean
+  disabled?: boolean;
 };
 
 function InputGroupInput({ style, ref, ...props }: InputGroupInputProps) {

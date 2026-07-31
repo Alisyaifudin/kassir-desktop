@@ -3,17 +3,26 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ReactNode, Ref } from "react";
 
 type StackProps = {
+  id?: string;
   style?: StyleXStyles;
   children?: ReactNode;
   ref?: Ref<HTMLDivElement>;
-};
+} & React.AriaAttributes;
 
-export function VStack({ children, style, ref }: StackProps) {
-  return <div ref={ref} {...stylex.props(styles.vstack, style)}>{children}</div>;
+export function VStack({ children, style, ref, ...rest }: StackProps) {
+  return (
+    <div ref={ref} {...stylex.props(styles.vstack, style)} {...rest}>
+      {children}
+    </div>
+  );
 }
 
-export function HStack({ children, style, ref }: StackProps) {
-  return <div ref={ref} {...stylex.props(styles.hstack, style)}>{children}</div>;
+export function HStack({ children, style, ref, ...rest }: StackProps) {
+  return (
+    <div ref={ref} {...stylex.props(styles.hstack, style)} {...rest}>
+      {children}
+    </div>
+  );
 }
 
 const styles = stylex.create({

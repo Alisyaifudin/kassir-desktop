@@ -8,16 +8,16 @@ type InputProps = {
   onChange?: (value: string) => void;
   value?: string;
   disabled?: boolean;
-};
+} & React.AriaAttributes;
 
-export function InputText({ style, ref, onChange, ...rest }: InputProps) {
+export function InputText({ style, ref, onChange, ...props }: InputProps) {
   return (
     <input
       type="text"
       ref={ref}
       {...stylex.props(style)}
       onChange={(e) => onChange?.(e.currentTarget.value)}
-      {...rest}
+      {...props}
     />
   );
 }
@@ -39,9 +39,9 @@ type InputFileProps = {
   ref?: React.Ref<HTMLInputElement>;
   id?: string;
   onChange?: (file?: File) => void;
-};
+} & React.AriaAttributes;
 
-export function InputFile({ style, ref, onChange, ...rest }: InputFileProps) {
+export function InputFile({ style, ref, onChange, ...props }: InputFileProps) {
   return (
     <input
       type="file"
@@ -51,7 +51,7 @@ export function InputFile({ style, ref, onChange, ...rest }: InputFileProps) {
         const file = e.currentTarget.files?.[0];
         onChange?.(file);
       }}
-      {...rest}
+      {...props}
     />
   );
 }

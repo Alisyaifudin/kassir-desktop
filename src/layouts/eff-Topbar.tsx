@@ -108,7 +108,7 @@ const separatorStyles = stylex.create({
   base: {
     display: "flex",
     alignItems: "center",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     paddingLeft: sizes.buttonPadX,
     borderLeftWidth: sizes.borderWidth,
     borderLeftStyle: "solid",

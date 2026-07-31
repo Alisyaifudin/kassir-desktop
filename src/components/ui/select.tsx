@@ -17,7 +17,7 @@ const triggerStyles = stylex.create({
     width: "fit-content",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     borderRadius: sizes.radiusMd,
     borderWidth: sizes.borderWidth,
     borderStyle: "solid",
@@ -25,8 +25,8 @@ const triggerStyles = stylex.create({
     backgroundColor: "transparent",
     paddingLeft: sizes.inputPadX,
     paddingRight: sizes.inputPadX,
-    paddingTop: sizes.gap,
-    paddingBottom: sizes.gap,
+    paddingTop: sizes.gapSm,
+    paddingBottom: sizes.gapSm,
     whiteSpace: "nowrap",
     boxShadow: colors.shadowSm,
     transitionProperty: "color, box-shadow",
@@ -74,8 +74,8 @@ const viewportStyles = stylex.create({
 
 const labelStyles = stylex.create({
   base: {
-    paddingLeft: sizes.gap,
-    paddingRight: sizes.gap,
+    paddingLeft: sizes.gapSm,
+    paddingRight: sizes.gapSm,
     paddingTop: sizes.selectPadY,
     paddingBottom: sizes.selectPadY,
     color: colors.mutedForeground,
@@ -89,12 +89,12 @@ const itemStyles = stylex.create({
     width: "100%",
     cursor: "default",
     alignItems: "center",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     borderRadius: sizes.radiusXs,
     paddingTop: sizes.selectPadY,
     paddingBottom: sizes.selectPadY,
     paddingRight: sizes.selectItemPadRight,
-    paddingLeft: sizes.gap,
+    paddingLeft: sizes.gapSm,
     outline: "none",
     userSelect: "none",
     ":focus": {
@@ -108,7 +108,7 @@ const itemStyles = stylex.create({
   },
   checkWrapper: {
     position: "absolute",
-    right: sizes.gap,
+    right: sizes.gapSm,
     display: "flex",
     width: sizes.iconSize,
     height: sizes.iconSize,
@@ -120,7 +120,7 @@ const itemStyles = stylex.create({
   },
   kbdWrapper: {
     position: "absolute",
-    right: sizes.gap,
+    right: sizes.gapSm,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

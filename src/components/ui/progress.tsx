@@ -13,7 +13,7 @@ const progressIndeterminate = stylex.keyframes({
 
 const styles = stylex.create({
   track: {
-    height: sizes.gap,
+    height: sizes.gapSm,
     width: "100%",
     overflow: "hidden",
     borderRadius: sizes.radiusFull,

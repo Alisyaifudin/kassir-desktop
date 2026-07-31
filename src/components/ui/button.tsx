@@ -11,7 +11,7 @@ export const buttonBaseStyle = stylex.create({
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
     whiteSpace: "nowrap",
     borderRadius: sizes.radiusSm,
     fontWeight: 500,

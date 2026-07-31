@@ -1,7 +1,7 @@
 import { describe, test, expect, mock } from "bun:test";
 import { screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CashierList } from "../z-CashierList";
+import { CashierList } from "../eff-CashierList";
 import { render } from "~/lib/render";
 import { StatefullCashiers, StatefullUser } from "./mock";
 
@@ -95,9 +95,7 @@ describe("CashierList", () => {
     const budiForm = screen.getByText("Budi").closest("form")!;
 
     // Self item should not have a delete button at all
-    expect(
-      within(budiForm).queryByRole("button"),
-    ).toBeNull();
+    expect(within(budiForm).queryByRole("button")).toBeNull();
   });
 
   test("shows error when name update fails", async () => {
@@ -280,9 +278,7 @@ describe("CashierList", () => {
     const aniForm = screen.getByDisplayValue("Ani").closest("form")!;
     const comboboxes = within(aniForm).getAllByRole("combobox");
     // The combobox element whose textContent starts with "User"
-    const roleTrigger = comboboxes.find(
-      (c) => c.textContent?.includes("User"),
-    )!;
+    const roleTrigger = comboboxes.find((c) => c.textContent?.includes("User"))!;
     expect(roleTrigger).not.toBeNull();
 
     // Open the select popover

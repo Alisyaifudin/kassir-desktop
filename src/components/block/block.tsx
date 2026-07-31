@@ -3,17 +3,14 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ReactNode } from "react";
 
 type BlockProps = {
+  id?: string;
   style?: StyleXStyles;
   children?: ReactNode;
   ref?: React.Ref<HTMLDivElement>;
   role?: "progressbar" | "group";
-  cssVars?: Record<string, string | number>;
-  "aria-valuenow"?: number;
-  "aria-valuemin"?: number;
-  "aria-valuemax"?: number;
-  "aria-label"?: string;
+  cssVars?: Record<string, string | number | undefined>;
   onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
-};
+} & React.AriaAttributes;
 
 export function Block({ children, ref, style, cssVars, ...props }: BlockProps) {
   const { style: sxStyle, ...rest } = stylex.props(style);

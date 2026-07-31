@@ -29,7 +29,6 @@ export const colors = stylex.defineVars({
 });
 
 export const sizes = stylex.defineVars({
-  gap: "0.5rem",
   radiusFull: "9999px",
   radiusXs: "0.125rem",
   radiusSm: "calc(0.625rem - 2px)",
@@ -37,6 +36,7 @@ export const sizes = stylex.defineVars({
   radiusMd: "0.625rem",
   kbdHeight: "1.25rem",
   headerHeight: "4rem",
+  gapSm: "0.5rem",
   gapMd: "0.75rem",
   gapLg: "1rem",
   skeletonWidth: "6rem",
@@ -45,6 +45,10 @@ export const sizes = stylex.defineVars({
   topnavIconSize: "2.5rem",
   topnavIconInner: "1.5rem",
   radiusXl: "1rem",
+  radiusXl2: "0.75rem",
+  cashierSelectWidth: "140px",
+  cashierDeleteWidth: "40px",
+  transitionDuration: "150ms",
   buttonPadY: "0.5rem",
   buttonPadX: "1rem",
   inputPadY: "0.25rem",

@@ -46,7 +46,7 @@ type InputProps = {
   onChange?: (value: string) => void;
   value?: string;
   disabled?: boolean
-};
+} & React.AriaAttributes;
 
 const Input = ({ style, ref, ...props }: InputProps) => {
   return <InputText ref={ref} style={[styles.base, style] as StyleXStyles} {...props} />;

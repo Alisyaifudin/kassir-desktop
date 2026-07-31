@@ -1,9 +1,11 @@
 import * as stylex from "@stylexjs/stylex";
 import type { StyleXStyles } from "@stylexjs/stylex";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useCallback, useMemo, useRef } from "react";
+import { Block } from "./block";
 
 type FlatListProps<T> = {
+  id?: string;
   data: T[];
   renderItem: (item: T, index: number) => ReactNode;
   /** Item size estimate for the virtualizer. Defaults to 50. */
@@ -13,7 +15,7 @@ type FlatListProps<T> = {
   style?: StyleXStyles;
   /** Number of items to render outside the visible area. @default 5 */
   overscan?: number;
-};
+} & React.AriaAttributes;
 
 export function FlatList<T>({
   data,
@@ -22,47 +24,61 @@ export function FlatList<T>({
   direction = "vertical",
   style,
   overscan = 5,
+  ...props
 }: FlatListProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const horizontal = direction === "horizontal";
-
+  const isHorizontal = direction === "horizontal";
   const virtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize:
-      typeof estimateSize === "function" ? estimateSize : () => estimateSize,
-    horizontal,
+    estimateSize: typeof estimateSize === "function" ? estimateSize : () => estimateSize,
+    horizontal: isHorizontal,
     overscan,
   });
 
   const items = virtualizer.getVirtualItems();
-
+  const containerVar = useMemo(
+    () =>
+      isHorizontal
+        ? {
+            "--flatlist-width": virtualizer.getTotalSize(),
+          }
+        : {
+            "--flatlist-height": virtualizer.getTotalSize(),
+          },
+    [isHorizontal, virtualizer],
+  );
+  const cellVar = useCallback(
+    (start: number) =>
+      isHorizontal
+        ? {
+            "--flatlist-cell-top": 0,
+            "--flatlist-cell-left": start,
+            "--flatlist-cell-height": "100%",
+          }
+        : {
+            "--flatlist-cell-top": start,
+            "--flatlist-cell-left": 0,
+            "--flatlist-cell-width": "100%",
+          },
+    [isHorizontal],
+  );
   return (
-    <div ref={scrollRef} {...stylex.props(styles.scroll, style)}>
-      <div
-        style={{
-          [horizontal ? "width" : "height"]: virtualizer.getTotalSize(),
-          position: "relative",
-        }}
-      >
+    <Block ref={scrollRef} style={[styles.scroll, style]} {...props}>
+      <Block style={styles.container} cssVars={containerVar}>
         {items.map((virtualItem) => (
-          <div
+          <Block
             key={virtualItem.key}
             data-index={virtualItem.index}
             ref={virtualizer.measureElement}
-            style={{
-              position: "absolute",
-              top: horizontal ? 0 : virtualItem.start,
-              left: horizontal ? virtualItem.start : 0,
-              [horizontal ? "height" : "width"]: "100%",
-            }}
+            cssVars={cellVar(virtualItem.start)}
+            style={styles.cell}
           >
             {renderItem(data[virtualItem.index], virtualItem.index)}
-          </div>
+          </Block>
         ))}
-      </div>
-    </div>
+      </Block>
+    </Block>
   );
 }
 
@@ -73,5 +89,17 @@ const styles = stylex.create({
     contain: "strict",
     width: "100%",
     height: "100%",
+  },
+  container: {
+    width: `var(--flatlist-width, 100%)`,
+    height: `var(--flatlist-height, 100%)`,
+    position: "relative",
+  },
+  cell: {
+    position: "absolute",
+    top: "var(--flatlist-cell-top)",
+    left: "var(--flatlist-cell-left)",
+    height: "var(--flatlist-cell-height)",
+    width: "var(--flatlist-cell-width)",
   },
 });

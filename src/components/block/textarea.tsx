@@ -3,10 +3,11 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { Ref } from "react";
 
 type TextareaProps = {
+  id?: string;
   style?: StyleXStyles;
   ref?: Ref<HTMLTextAreaElement>;
-};
+} & React.AriaAttributes;
 
-export function TextareaBase({ style, ref, ...rest }: TextareaProps) {
-  return <textarea ref={ref} {...stylex.props(style)} {...rest} />;
+export function TextareaBase({ style, ref, ...props }: TextareaProps) {
+  return <textarea ref={ref} {...stylex.props(style)} {...props} />;
 }

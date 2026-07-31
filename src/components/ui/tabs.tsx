@@ -47,7 +47,7 @@ const triggerStyles = stylex.create({
 
 const contentStyles = stylex.create({
   base: {
-    marginTop: sizes.gap,
+    marginTop: sizes.gapSm,
     ":focus-visible": {
       outline: "none",
       boxShadow: `0 0 0 2px ${colors.ring}, 0 0 0 4px ${colors.background}`,

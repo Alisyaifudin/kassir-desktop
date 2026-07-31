@@ -11,7 +11,7 @@ import { colors, sizes } from "~/tokens.stylex";
 const groupStyles = stylex.create({
   base: {
     display: "grid",
-    gap: sizes.gap,
+    gap: sizes.gapSm,
   },
 });
 

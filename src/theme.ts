@@ -26,7 +26,7 @@ export const darkTheme = stylex.createTheme(colors, {
 });
 
 export const bigTheme = stylex.createTheme(sizes, {
-  gap: "0.75rem",
+  gapSm: "0.75rem",
   radiusSm: "calc(0.75rem - 2px)",
   radiusMd: "0.75rem",
   buttonPadY: "0.75rem",

@@ -3,15 +3,24 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ReactNode } from "react";
 
 type ButtonProps = {
+  id?: string;
   style?: StyleXStyles;
   children?: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   cssVars?: Record<string, number | string>;
   ref?: React.Ref<HTMLButtonElement>;
-};
+} & React.AriaAttributes;
 
-export function ButtonBase({ style, children, onClick, disabled, ref, cssVars }: ButtonProps) {
+export function ButtonBase({
+  style,
+  children,
+  onClick,
+  disabled,
+  ref,
+  cssVars,
+  ...props
+}: ButtonProps) {
   const { style: sxStyle, ...rest } = stylex.props(style);
   return (
     <button
@@ -24,6 +33,7 @@ export function ButtonBase({ style, children, onClick, disabled, ref, cssVars }:
       disabled={disabled}
       ref={ref}
       type="button"
+      {...props}
     >
       {children}
     </button>

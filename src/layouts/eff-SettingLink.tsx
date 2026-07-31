@@ -24,7 +24,7 @@ const kbdStyles = stylex.create({
   base: {
     position: "absolute",
     bottom: `calc(-1 * ${sizes.kbdOffsetY})`,
-    left: `calc(-1 * ${sizes.gap})`,
+    left: `calc(-1 * ${sizes.gapSm})`,
     zIndex: 10,
   },
 });

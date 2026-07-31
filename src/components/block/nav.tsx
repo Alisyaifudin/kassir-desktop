@@ -3,15 +3,15 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ReactNode, Ref } from "react";
 
 type NavProps = {
+  id?: string;
   style?: StyleXStyles;
   children?: ReactNode;
   ref?: Ref<HTMLElement>;
-  "aria-label"?: string;
-};
+} & React.AriaAttributes;
 
-export function Nav({ style, children, ref, ...rest }: NavProps) {
+export function Nav({ style, children, ref, ...props }: NavProps) {
   return (
-    <nav ref={ref} role="navigation" {...stylex.props(style)} {...rest}>
+    <nav ref={ref} role="navigation" {...stylex.props(style)} {...props}>
       {children}
     </nav>
   );

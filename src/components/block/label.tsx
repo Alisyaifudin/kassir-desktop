@@ -3,11 +3,12 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ReactNode, Ref } from "react";
 
 type LabelProps = {
+  id?: string;
   style?: StyleXStyles;
   children?: ReactNode;
   ref?: Ref<HTMLLabelElement>;
   for?: string;
-};
+} & React.AriaAttributes;
 
 export function Label({ style, children, ref, for: f, ...rest }: LabelProps) {
   return (
