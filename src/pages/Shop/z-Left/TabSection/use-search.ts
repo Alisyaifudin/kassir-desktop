@@ -53,7 +53,8 @@ export function useSearch() {
     debounced(query);
   }, [query, debounced]);
   const handleChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.currentTarget.value.trimStart();
+    e.preventDefault();
+    const val = e.currentTarget.value.replace(/\t/g, "").trimStart();
     setQuery(val);
     setError("");
   };
