@@ -1,4 +1,4 @@
-import { Loading } from "~/layouts/Loading";
+import { DelayedLoading } from "~/components/DelayedLoading";
 import { TextError } from "~/components/TextError";
 import { log } from "~/lib/log";
 import { Result } from "~/lib/result";
@@ -21,7 +21,7 @@ function DataLoader() {
   const res = useData();
   return Result.match(res, {
     onLoading() {
-      return <Loading />;
+      return <DelayedLoading />;
     },
     onError({ e }) {
       log.error(e);

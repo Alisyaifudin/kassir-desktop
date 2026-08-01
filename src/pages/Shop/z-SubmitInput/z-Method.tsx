@@ -17,7 +17,7 @@ import { basicStore } from "../../use-transaction";
 import { Result } from "~/lib/result";
 import { Skeleton } from "~/components/ui/skeleton";
 import { log } from "~/lib/log";
-import { Loading } from "~/layouts/Loading";
+import { DelayedLoading } from "~/components/DelayedLoading";
 import { useTab } from "../../use-tab";
 import { queue } from "../../util-queue";
 
@@ -88,7 +88,7 @@ function Wrapper({ methods }: { methods: MethodDB[] }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  if (method === undefined) return <Loading />;
+  if (method === undefined) return <DelayedLoading />;
   const suboption = methods.filter((m) => m.kind === method.kind && m.name !== undefined);
   const defVals = methods.filter((m) => m.isDefault);
   return (

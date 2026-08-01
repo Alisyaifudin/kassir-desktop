@@ -11,6 +11,7 @@ import { customerRouteEffect } from "./pages/Customer/index.tsx";
 import { socialRouteEffect } from "./pages/Social/index.tsx";
 
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
+const ThemeProvider = lazy(() => import("./layouts/z-ThemeProvider.tsx"));
 
 export const routerEffect = Effect.gen(function* () {
   const AuthLayout = yield* lazyEffect(() => import("./layouts/index.tsx"));
@@ -25,9 +26,11 @@ export const routerEffect = Effect.gen(function* () {
     {
       path: "/",
       Component: () => (
-        <AuthLayout>
-          <Outlet />
-        </AuthLayout>
+        <ThemeProvider>
+          <AuthLayout>
+            <Outlet />
+          </AuthLayout>
+        </ThemeProvider>
       ),
       ErrorBoundary,
       middleware: [authMiddleware],

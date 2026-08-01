@@ -29,7 +29,7 @@ const styles = stylex.create({
 
 const DELAY = 500; // ms
 
-export function Loading() {
+export function DelayedLoading() {
   const [show, setShow] = useState(false);
   useEffect(() => {
     let unmount = false;
