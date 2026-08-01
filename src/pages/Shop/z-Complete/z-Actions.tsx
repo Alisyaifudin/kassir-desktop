@@ -27,7 +27,7 @@ export function Actions({
           Lihat Detail
         </Button>
       </div>
-      <Button ref={printRef} className="flex-1 h-20" onClick={onPrint}>
+      <Button ref={printRef} disabled={loading} className="flex-1 h-20" onClick={onPrint}>
         Cetak
         <Spinner when={loading} />
       </Button>

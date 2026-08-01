@@ -70,6 +70,7 @@ export function useCompleteDialog() {
   }
 
   async function handlePrint() {
+    
     if (recordId === undefined) return;
     const errMsg = await printReceipt(recordId);
     if (errMsg) {
