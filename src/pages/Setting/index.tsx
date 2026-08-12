@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 import { printerRoute } from "./Printer";
 import { LoadingLayout } from "./z-LoadingLayout";
 import { LoadingPage } from "./z-LoadingPage";
-import { syncRoute } from "./Sync";
+// import { syncRoute } from "./Sync_PENDING";
 
 const Layout = lazy(() => import("./layout"));
 const Page = lazy(() => import("./page"));
@@ -20,7 +20,7 @@ export const settingRoute: RouteObject = {
     dataRoute,
     logRoute,
     printerRoute,
-    syncRoute,
+    // syncRoute,
     {
       index: true,
       Component: () => (
