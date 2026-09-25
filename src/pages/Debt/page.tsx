@@ -1,4 +1,3 @@
-import { NavList } from "../z-NavList";
 import { useData } from "./use-data";
 import { Summary } from "./z-Summary";
 import { Result } from "~/lib/result";
@@ -9,14 +8,18 @@ import { DebtTable } from "./z-DebtTable.tsx";
 
 export default function Page() {
   return (
-    <>
-      <NavList selected="debt">
-        <Summary />
-      </NavList>
-      <div className="flex flex-col gap-2 py-1 w-full h-full overflow-hidden">
+    <div className="flex flex-col gap-4 p-6 h-full  overflow-hidden">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-big font-bold text-foreground">Utang</h1>
+        <p className="text-muted-foreground text-normal">
+          Pantau dan kelola catatan utang pelanggan
+        </p>
+      </div>
+      <Summary />
+      <div className="flex flex-col gap-2 py-1 flex-1  overflow-hidden">
         <Wrapper />
       </div>
-    </>
+    </div>
   );
 }
 

@@ -8,9 +8,9 @@ export default function Layout() {
   useNavigationShortcuts();
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background overflow-hidden">
       <Topbar />
-      <div id="main-body" className="flex-1">
+      <div id="main-body" className="flex-1 overflow-hidden">
         <Outlet />
       </div>
       <Toaster className="toast" />

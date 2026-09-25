@@ -18,7 +18,7 @@ import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function DebtTable({ records }: { records: RecordDebt[] }) {
   const [{ sortBy, sortDir }, setSort] = useSort();
-  const urlBack = useGenerateUrlBack("/analytics/debt");
+  const urlBack = useGenerateUrlBack("/debt");
   const sortedRecords = useMemo(() => {
     const list = [...records];
     const sign = sortDir === "asc" ? 1 : -1;
@@ -42,17 +42,17 @@ export function DebtTable({ records }: { records: RecordDebt[] }) {
   };
 
   return (
-    <Table className="text-normal" parentClass="rounded-md border">
+    <Table className="text-normal " parentClass="rounded-md border ">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">No</TableHead>
-          <TableHead className="w-[220px] small:w-[160px]">
+          <TableHead className="w-[250px] small:w-[190px]">
             <SortBtn sort={sortBy === "paidAt" ? sortDir : undefined} onClick={onSort("paidAt")}>
-              Waktu
+              Tanggal
             </SortBtn>
           </TableHead>
           <TableHead>Catatan</TableHead>
-          <TableHead className="w-[150px] text-right small:w-[110px]">
+          <TableHead className="w-[170px] text-right small:w-[150px]">
             <SortBtn
               sort={sortBy === "total" ? sortDir : undefined}
               onClick={onSort("total")}
@@ -61,14 +61,14 @@ export function DebtTable({ records }: { records: RecordDebt[] }) {
               Total
             </SortBtn>
           </TableHead>
-          <TableHead className="w-[90px] text-right"></TableHead>
+          <TableHead className="w-[120px] text-right"></TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <TableBody className="overflow-y-auto ">
         {sortedRecords.length === 0 ? (
           <TableRow>
             <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-              Tidak ada data hutang
+              Tidak ada data utang
             </TableCell>
           </TableRow>
         ) : (
@@ -129,8 +129,8 @@ function SortBtn({
 }
 
 function formatCurrency(value: number, fix: number) {
-  return value.toLocaleString("id-ID", {
+  return `Rp${value.toLocaleString("id-ID", {
     minimumFractionDigits: fix,
     maximumFractionDigits: fix,
-  });
+  })}`;
 }

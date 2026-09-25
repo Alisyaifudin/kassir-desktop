@@ -8,6 +8,7 @@ import {
   Phone,
   Users,
   CreditCard,
+  HandCoins,
   ReceiptText,
 } from "lucide-react";
 import { NavCard } from "./z-NavCard";
@@ -57,6 +58,13 @@ export function NavGrid() {
           color="bg-emerald-100 text-emerald-600"
         />
       </Show>
+      <NavCard
+        label="Utang"
+        path="/debt"
+        icon={HandCoins}
+        description="Kelola dan pantau catatan utang pelanggan"
+        color="bg-rose-100 text-rose-600"
+      />
       <NavCard
         label="Kontak"
         path="/social"
