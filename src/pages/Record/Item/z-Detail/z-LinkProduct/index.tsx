@@ -22,19 +22,23 @@ import { Show } from "~/components/Show";
 import { Spinner } from "~/components/Spinner";
 import { cn } from "~/lib/utils";
 import { RecordData } from "../../use-data";
-import { useProducts } from "~/hooks/use-get-products";
 import { useChange } from "./use-change";
+import { FuzzyResult } from "@nozbe/microfuzz";
+import { Product } from "~/database/product/cache";
 
 export function LinkProductList({
   product,
   recordId,
+  search,
+  products,
 }: {
   recordId: string;
   product: RecordData["products"][number];
+  search: (query: string) => FuzzyResult<Product>[];
+  products: Product[];
 }) {
-  const products = useProducts();
   const { handleClick, error, loading } = useLinkProduct(recordId, product);
-  const { handleChange, query, selected, shownProducts } = useChange(product, products);
+  const { handleChange, query, selected, shownProducts } = useChange(product, products, search);
   if (products.length === 0) return null;
   return (
     <Dialog>

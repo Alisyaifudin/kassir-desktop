@@ -20,10 +20,14 @@ import Decimal from "decimal.js";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { useUser } from "~/hooks/use-user";
 import { useLoadProducts } from "./use-load-products";
+import { useProducts } from "~/hooks/use-get-products";
+import { useProductSearch } from "~/hooks/use-product-search";
 
 export function Detail({ data }: { data: RecordData }) {
   const role = useUser().role;
   useLoadProducts(role);
+  const products = useProducts();
+  const search = useProductSearch(products)
   return (
     <div className="flex flex-col gap-2 text-3xl">
       <Table className="text-normal">
@@ -48,7 +52,7 @@ export function Detail({ data }: { data: RecordData }) {
                   <TableCell className="flex items-center">
                     {i + 1}
                     <Show when={role === "admin"}>
-                      <LinkProductList recordId={data.record.id} product={product} />
+                      <LinkProductList products={products} search={search} recordId={data.record.id} product={product} />
                     </Show>
                   </TableCell>
                   <TableCell>{product.name}</TableCell>

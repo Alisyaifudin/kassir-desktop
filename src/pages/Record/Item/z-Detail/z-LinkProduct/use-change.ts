@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { useProductSearch } from "~/hooks/use-product-search";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { RecordData } from "../../use-data";
 import { Product } from "~/database/product/cache";
+import { FuzzyResult } from "@nozbe/microfuzz";
 
-export function useChange(product: RecordData["products"][number], products: Product[]) {
+export function useChange(
+  product: RecordData["products"][number],
+  products: Product[],
+  search: (query: string) => FuzzyResult<Product>[],
+) {
   const [query, setQuery] = useState("");
-  const search = useProductSearch(products);
   const [shownProducts, setShown] = useState<Product[]>([]);
   const selected =
     product.productId === undefined ? undefined : products.find((p) => p.id === product.productId);
