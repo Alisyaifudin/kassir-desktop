@@ -4,6 +4,7 @@ export type Extra = {
   id: string;
   name: string;
   value: number;
+  flag: number;
   kind: DB.ValueKind;
 };
 
@@ -12,6 +13,7 @@ export type ExtraFull = {
   name: string;
   value: number;
   kind: DB.ValueKind;
+  flag: number;
   updatedAt: number;
   syncAt: number | null;
 };

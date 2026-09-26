@@ -181,12 +181,7 @@ export function useSearch() {
     }
     const extraMatch = allExtras.find((p) => p.name.toLowerCase() === query.toLowerCase().trim());
     if (extraMatch !== undefined) {
-      handleClickExtra({
-        kind: extraMatch.kind,
-        name: extraMatch.name,
-        value: extraMatch.value,
-        id: extraMatch.id,
-      });
+      handleClickExtra(extraMatch);
       return;
     }
     const product = products.at(0);
@@ -204,12 +199,7 @@ export function useSearch() {
         });
         return;
       }
-      handleClickExtra({
-        kind: extra.item.kind,
-        name: extra.item.name,
-        value: extra.item.value,
-        id: extra.item.id,
-      });
+      handleClickExtra(extra.item);
       return;
     }
     if (product !== undefined) {
@@ -225,12 +215,7 @@ export function useSearch() {
       return;
     }
     if (extra !== undefined) {
-      handleClickExtra({
-        kind: extra.item.kind,
-        name: extra.item.name,
-        value: extra.item.value,
-        id: extra.item.id,
-      });
+      handleClickExtra(extra.item);
       return;
     }
     setError("Barang tidak ditemukan");

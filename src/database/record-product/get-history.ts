@@ -1,7 +1,8 @@
 import { DB } from "../instance";
 import { Effect } from "effect";
 
-export type RecordProduct = {
+export type HistoryProduct = {
+  recordId: string;
   id: string;
   paidAt: number;
   name: string;
@@ -11,6 +12,7 @@ export type RecordProduct = {
 };
 
 type Output = {
+  record_id: string;
   record_paid_at: number;
   record_product_id: string;
   record_product_name: string;
@@ -22,7 +24,7 @@ type Output = {
 export function getHistory(start: number, end: number, query: string) {
   return DB.try((db) =>
     db.select<Output[]>(
-      `SELECT records.record_paid_at, record_product_id, record_product_name, record_product_qty, 
+      `SELECT records.record_id, records.record_paid_at, record_product_id, record_product_name, record_product_qty, 
          record_product_price, record_mode
          FROM record_products
          INNER JOIN records ON records.record_id = record_products.record_id
@@ -33,6 +35,7 @@ export function getHistory(start: number, end: number, query: string) {
   ).pipe(
     Effect.map((rows) =>
       rows.map((r) => ({
+        recordId: r.record_id,
         id: r.record_product_id,
         mode: r.record_mode,
         name: r.record_product_name,

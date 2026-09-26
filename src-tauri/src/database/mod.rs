@@ -248,6 +248,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-41.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 42,
+            description: "add_flag_to_extras",
+            sql: include_str!("../../src/database/41-50/migration-42.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

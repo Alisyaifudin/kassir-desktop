@@ -1,7 +1,7 @@
 import { Input } from "~/components/ui/input";
 import { useQuery } from "./use-query";
 import { cn } from "~/lib/utils";
-import { RecordProduct } from "~/database/record-product/get-history";
+import { HistoryProduct } from "~/database/record-product/get-history";
 import { useEffect, useRef, useState } from "react";
 import {
   Table,
@@ -83,14 +83,14 @@ function Output() {
   });
 }
 
-function SearchTable({ histories }: { histories: RecordProduct[] }) {
+function SearchTable({ histories }: { histories: HistoryProduct[] }) {
   const [limit, setLimit] = useState(100);
   const navigate = useNavigate();
   const urlBack = useGenerateUrlBack("/records/search");
-  function handleClick(timestamp: number) {
+  function handleClick(id: string) {
     return function () {
       navigate({
-        pathname: `/records/${timestamp}`,
+        pathname: `/records/${id}`,
         search: `?url_back=${encodeURIComponent(urlBack)}`,
       });
     };
@@ -129,7 +129,7 @@ function SearchTable({ histories }: { histories: RecordProduct[] }) {
             <TableCell className="text-right">{history.price.toLocaleString("id-ID")}</TableCell>
             <TableCell>
               <Button
-                onClick={handleClick(history.paidAt)}
+                onClick={handleClick(history.recordId)}
                 variant="link"
                 className="p-0 cursor-pointer"
               >

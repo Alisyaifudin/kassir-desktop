@@ -52,4 +52,7 @@ export const DEFAULT_METHODS = [
 ] satisfies Method[];
 export const DEBOUNCE_DELAY = 100;
 
+// extra_flag bitmask: 0b1 = dual
+export const DUAL_FLAG = 0b1;
+
 export const tz = Temporal.Now.timeZoneId();

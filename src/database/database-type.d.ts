@@ -140,6 +140,7 @@ declare namespace DB {
     extra_kind: ValueKind;
     extra_updated_at: number;
     extra_sync_at: number | null;
+    extra_flag: number;
   }
   interface Product {
     product_id: string;

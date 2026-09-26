@@ -3,6 +3,7 @@ import { Fragment } from "react/jsx-runtime";
 import { fieldContext, formContext } from "./util-extra-options";
 import { ShortField } from "./z-ShortField";
 import { SelectKind } from "./z-SelectKind";
+import { CheckDual } from "./z-CheckDual";
 
 export const { useAppForm, withForm } = createFormHook({
   fieldContext,
@@ -10,6 +11,7 @@ export const { useAppForm, withForm } = createFormHook({
   fieldComponents: {
     ShortField,
     SelectKind,
+    CheckDual,
   },
   formComponents: {},
 });
@@ -19,6 +21,7 @@ export const ExtraForm = withForm({
     name: "",
     value: "",
     kind: "percent" as DB.ValueKind,
+    dual: false,
   },
   props: {
     children: <Fragment></Fragment>,
@@ -39,6 +42,7 @@ export const ExtraForm = withForm({
           {(field) => <field.ShortField type="number">Nilai Awal</field.ShortField>}
         </form.AppField>
         <form.AppField name="kind">{(field) => <field.SelectKind />}</form.AppField>
+        <form.AppField name="dual">{(field) => <field.CheckDual />}</form.AppField>
         {children}
       </form>
     );

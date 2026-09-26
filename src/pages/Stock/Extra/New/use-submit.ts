@@ -31,6 +31,7 @@ type Input = {
   name: string;
   value: number;
   kind: DB.ValueKind;
+  flag: number;
 };
 
 function program(extra: Input) {

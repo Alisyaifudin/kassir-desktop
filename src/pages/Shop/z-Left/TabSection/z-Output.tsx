@@ -35,14 +35,7 @@ export function Output({
           <li key={i} className={i % 2 === 0 ? "bg-blue-50" : ""}>
             <button
               type="button"
-              onClick={() =>
-                handleClickExtra({
-                  name: extra.item.name,
-                  value: extra.item.value,
-                  kind: extra.item.kind,
-                  id: extra.item.id,
-                })
-              }
+              onClick={() => handleClickExtra(extra.item)}
               className={cn("cursor-pointer text-small w-full grid hover:bg-sky-100/50")}
             >
               <span className={cn("text-start text-wrap")}>{extra.item.name}</span>

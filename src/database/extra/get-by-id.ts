@@ -18,6 +18,7 @@ export function getById(id: string) {
     Effect.map((r) => ({
       id: r.extra_id,
       kind: r.extra_kind,
+      flag: r.extra_flag,
       name: r.extra_name,
       value: r.extra_value,
     })),

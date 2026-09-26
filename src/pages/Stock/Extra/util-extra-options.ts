@@ -1,6 +1,7 @@
 import { createFormHookContexts } from "@tanstack/react-form";
 import { Effect } from "effect";
 import { z } from "zod";
+import { DUAL_FLAG } from "~/lib/constants";
 
 export const { fieldContext, formContext, useFieldContext } = createFormHookContexts();
 
@@ -8,6 +9,7 @@ type Extra = {
   name: string;
   value: number;
   kind: DB.ValueKind;
+  flag: number;
 };
 
 const numeric = z.string().refine((v) => {
@@ -20,6 +22,7 @@ const schema = z
     name: z.string().trim().nonempty("Harus ada"),
     value: numeric, // assuming numeric is your custom schema
     kind: z.enum(["percent", "number"]),
+    dual: z.boolean(),
   })
   .refine(
     (data) => {
@@ -49,6 +52,7 @@ export function createExtraOptions({
       name: product?.name ?? "",
       value: product?.value.toString() ?? "",
       kind: (product?.kind ?? "percent") as DB.ValueKind,
+      dual: Boolean((product?.flag ?? 0) & DUAL_FLAG),
     },
     validators: {
       onSubmit: schema,
@@ -57,7 +61,8 @@ export function createExtraOptions({
       const value = Number(v.value);
       const name = v.name.trim();
       const kind = v.kind;
-      const errMsg = await Effect.runPromise(program({ value, name, kind }));
+      const flag = ((product?.flag ?? 0) & ~DUAL_FLAG) | (v.dual ? DUAL_FLAG : 0);
+      const errMsg = await Effect.runPromise(program({ value, name, kind, flag }));
       if (errMsg === null) {
         onSuccess();
       } else {

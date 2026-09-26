@@ -11,6 +11,7 @@ export function all() {
     const res = yield* DB.try((db) => db.select<DB.Extra[]>("SELECT * FROM extras"));
     const items: ExtraFull[] = res.map((r) => ({
       id: r.extra_id,
+      flag: r.extra_flag,
       kind: r.extra_kind,
       name: r.extra_name,
       value: r.extra_value,
