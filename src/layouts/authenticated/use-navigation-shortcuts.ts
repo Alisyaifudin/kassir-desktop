@@ -4,7 +4,7 @@ import { showShortcut } from "./use-shortcut";
 
 const linkMap = {
   0: "/shop",
-  1: "/stock",
+  1: "/products",
   2: "/records",
   3: "/money",
   4: "/setting",
@@ -18,6 +18,7 @@ export function useNavigationShortcuts() {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (!e.altKey) return;
+      e.preventDefault();
       const link = linkMap[e.key] as string | undefined;
       if (link === undefined) return;
       showShortcut(false);
