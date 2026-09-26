@@ -1,6 +1,7 @@
 import {
   Store,
   Package,
+  BadgePercent,
   History,
   BarChart3,
   Wallet,
@@ -38,7 +39,7 @@ export function NavGrid() {
       <NavCard
         label="Biaya Lainnya"
         path="/extras"
-        icon={Package}
+        icon={BadgePercent}
         description="Kelola biaya tambahan dan potongan transaksi"
         color="bg-orange-100 text-orange-600"
       />
