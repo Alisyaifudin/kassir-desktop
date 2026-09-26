@@ -41,7 +41,7 @@ export function NavGrid() {
         path="/extras"
         icon={BadgePercent}
         description="Kelola biaya tambahan dan potongan transaksi"
-        color="bg-orange-100 text-orange-600"
+        color="bg-cyan-100 text-cyan-600"
       />
       <NavCard
         label="Riwayat"
