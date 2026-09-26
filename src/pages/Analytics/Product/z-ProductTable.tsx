@@ -42,7 +42,7 @@ export function ProductTable({ items }: { items: Item[] }) {
   );
   const clickProduct = (id: number) => () => {
     navigate({
-      pathname: `/stock/product/${id}`,
+      pathname: `/products/${id}`,
       search: `?url_back=${encodeURIComponent(urlBack)}`,
     });
   };

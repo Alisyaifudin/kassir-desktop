@@ -15,7 +15,7 @@ const routeTitles: Record<string, string> = {
   "/customer": "Pelanggan",
   "/cashier": "Kasir",
   "/social": "Kontak",
-  "/stock": "Stok",
+  "/products": "Produk",
   "/records": "Riwayat",
   "/analytics": "Analisis",
   "/money": "Uang",

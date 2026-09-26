@@ -1,7 +1,7 @@
 import { createHashRouter } from "react-router";
 import { loginRoute } from "./pages/login";
 import { shopRoute } from "./pages/shop";
-import { stockRoute } from "./pages/stock";
+import { productRoute } from "./pages/Product/index.tsx";
 import { settingRoute } from "./pages/setting";
 import { recordRoute } from "./pages/Record/index.tsx";
 import { moneyRoute } from "./pages/money";
@@ -14,6 +14,7 @@ import { authentication } from "./middleware/authenticate.ts";
 import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
 import { debtRoute } from "./pages/Debt/index.tsx";
+import { extraRoute } from "./pages/Extra/index.tsx";
 
 const RootLayout = lazy(() => import("./layouts/root.tsx"));
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
@@ -35,11 +36,12 @@ export const router = createHashRouter([
           customerRoute,
           methodRoute,
           socialRoute,
+          extraRoute,
           homeRoute,
           debtRoute,
           shopRoute,
           settingRoute,
-          stockRoute,
+          productRoute,
           moneyRoute,
           recordRoute,
           analRoute,

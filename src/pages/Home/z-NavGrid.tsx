@@ -29,10 +29,17 @@ export function NavGrid() {
         color="bg-blue-100 text-blue-600"
       />
       <NavCard
-        label="Stok"
-        path="/stock"
+        label="Produk"
+        path="/products"
         icon={Package}
-        description="Kelola stok produk dan inventaris barang"
+        description="Kelola produk dan inventaris barang"
+        color="bg-orange-100 text-orange-600"
+      />
+      <NavCard
+        label="Biaya Lainnya"
+        path="/extras"
+        icon={Package}
+        description="Kelola biaya tambahan dan potongan transaksi"
         color="bg-orange-100 text-orange-600"
       />
       <NavCard

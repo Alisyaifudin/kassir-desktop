@@ -20,7 +20,7 @@ export const GotoProductBtn = memo(function GotoProductBtn({
           <Button asChild className="p-0" variant="link">
             <Link
               to={{
-                pathname: `/stock/product/${productId}`,
+                pathname: `/products/${productId}`,
                 search: `?url_back=${encodeURIComponent(backURL)}`,
               }}
             >

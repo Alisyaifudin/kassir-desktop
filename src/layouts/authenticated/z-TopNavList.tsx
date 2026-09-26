@@ -48,7 +48,7 @@ export function TopNavList() {
   return (
     <div className="hidden md:flex items-end gap-1 h-full pt-2">
       <TopNavLink path="/shop" label="Toko" alt="alt+0" root />
-      <TopNavLink path="/stock" label="Stok" alt="alt+1" />
+      <TopNavLink path="/products" label="Produk" alt="alt+1" />
       <TopNavLink path="/records" label="Riwayat" alt="alt+2" />
       <Show when={role === "admin"}>
         <TopNavLink path="/money" label="Uang" alt="alt+3" />
