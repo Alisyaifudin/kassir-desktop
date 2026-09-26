@@ -37,20 +37,24 @@ pub fn run() {
             printer::get_printers,
             printer::print_pdf,
         ]);
+    let prevent_default_plugin = tauri_plugin_prevent_default::Builder::new()
+        .with_flags(tauri_plugin_prevent_default::Flags::FIND);
     // Only enable the plugin in production
     #[cfg(not(debug_assertions))]
-    let builder = builder.plugin(
+    let prevent_default_plugin = builder.plugin(
         tauri_plugin_prevent_default::Builder::new()
             .with_flags(tauri_plugin_prevent_default::Flags::all().difference(
                 tauri_plugin_prevent_default::Flags::CONTEXT_MENU
                     | tauri_plugin_prevent_default::Flags::RELOAD
                     | tauri_plugin_prevent_default::Flags::FOCUS_MOVE
+                    | tauri_plugin_prevent_default::Flags::FIND
                     | tauri_plugin_prevent_default::Flags::PRINT,
             ))
             .build(),
     );
 
     builder
+        .plugin(prevent_default_plugin.build())
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
 }

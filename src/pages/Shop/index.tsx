@@ -15,7 +15,7 @@ export const shopRoute: RouteObject = {
   children: [
     {
       index: true,
-      Component: lazy(() => import("./z-Right/Header/z-NotFound")),
+      Component: lazy(() => import("./z-NotFound")),
     },
     {
       path: ":tab",

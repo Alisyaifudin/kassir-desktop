@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import { tx } from "~/transaction";
 import { Result } from "~/lib/result";
-import { TabInfo } from "~/transaction/transaction/get-all";
 import { useNavigate, useOutletContext } from "react-router";
 
 const KEY = "tabs";
@@ -25,6 +24,7 @@ export function useGetTabs() {
       programTabs.pipe(
         Effect.tap(() => {
           const tab = popNewTabBuffer();
+          console.log(tab)
           if (tab !== null) {
             navigate(`/shop/${tab}`, { replace: true });
           }
@@ -36,12 +36,12 @@ export function useGetTabs() {
 }
 
 const programTabs = Effect.gen(function* () {
-  const tabs = yield* tx.transaction.get.all();
+  const tabs = yield* tx.transaction.get.all("sell");
   if (tabs.length === 0) {
     const info = yield* tx.transaction.add.new();
-    return [info] as [TabInfo, ...TabInfo[]];
+    return [info] as [number, ...number[]];
   }
-  return tabs as [TabInfo, ...TabInfo[]];
+  return tabs as [number, ...number[]];
 });
 
 export function revalidateTabs() {
@@ -49,7 +49,7 @@ export function revalidateTabs() {
 }
 
 export function useTabs() {
-  const context = useOutletContext<{ tabs: [TabInfo, ...TabInfo[]] } | undefined>();
+  const context = useOutletContext<{ tabs: [number, ...number[]] } | undefined>();
   if (context?.tabs === undefined) throw new Error("Outside context");
   const tabs = context.tabs;
   return tabs;

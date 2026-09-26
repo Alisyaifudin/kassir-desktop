@@ -6,15 +6,9 @@ import { Button } from "~/components/ui/button";
 import { DeleteSheet } from "./z-DeleteSheet";
 import { useTabs } from "../../use-tabs";
 import { useTab } from "../../use-tab";
-import { TabInfo } from "~/transaction/transaction/get-all";
 import { useTransaction } from "./use-transaction";
 import { useAdd } from "./use-new-tab";
-import { NotFound } from "./z-NotFound";
-
-const label = {
-  sell: "J",
-  buy: "B",
-};
+import { NotFound } from "../../z-NotFound";
 
 export function SheetTab() {
   const tabs = useTabs();
@@ -28,15 +22,15 @@ export function SheetTab() {
         <Plus className="icon" />
       </Button>
       <ForEach items={tabs}>
-        {({ tab, mode }) =>
+        {(tab) =>
           tab === selected ? (
-            <Selected mode={mode} tab={tab} tabs={tabs} setTab={setTab} />
+            <Selected tab={tab} tabs={tabs} setTab={setTab} />
           ) : (
-            <TabBtn mode={mode} tab={tab} tabs={tabs} setTab={setTab} />
+            <TabBtn tab={tab} tabs={tabs} setTab={setTab} />
           )
         }
       </ForEach>
-      <Show when={tabs.find((t) => t.tab === selected) === undefined}>
+      <Show when={tabs.find((t) => t === selected) === undefined}>
         <NotFound />
       </Show>
     </div>
@@ -46,13 +40,11 @@ export function SheetTab() {
 function TabBtn({
   setTab,
   tab,
-  mode,
   tabs,
   isSelected,
 }: {
   tab: number;
-  mode: DB.Mode;
-  tabs: TabInfo[];
+  tabs: number[];
   setTab: (tab: number) => void;
   isSelected?: boolean;
 }) {
@@ -68,7 +60,6 @@ function TabBtn({
           setTab(tab);
         }}
       >
-        {label[mode]}
         {tab}
       </button>
       <Show when={tabs.length > 1}>
@@ -81,14 +72,12 @@ function TabBtn({
 function Selected({
   tab,
   setTab,
-  mode,
   tabs,
 }: {
   tab: number;
   setTab: (tab: number) => void;
-  mode: DB.Mode;
-  tabs: [TabInfo, ...TabInfo[]];
+  tabs: [number, ...number[]];
 }) {
   useTransaction(tabs, tab);
-  return <TabBtn mode={mode} tab={tab} tabs={tabs} setTab={setTab} isSelected />;
+  return <TabBtn tab={tab} tabs={tabs} setTab={setTab} isSelected />;
 }

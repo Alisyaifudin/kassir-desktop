@@ -5,25 +5,24 @@ import { tx } from "~/transaction";
 import { initStore } from "../../use-transaction";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { TabInfo } from "~/transaction/transaction/get-all";
 import { log } from "~/lib/log";
 import { toast } from "sonner";
 
 const KEY = "transaction";
 
-export function useTransaction(tabs: [TabInfo, ...TabInfo[]], tab: number) {
+export function useTransaction(tabs: [number, ...number[]], tab: number) {
   const navigate = useNavigate();
   useEffect(() => {
     async function init() {
       if (tab === undefined) return;
-      if (tabs.find((t) => t.tab === tab) === undefined) {
-        navigate(`/shop/${tabs[tabs.length - 1].tab}`, { replace: true });
+      if (tabs.find((t) => t === tab) === undefined) {
+        navigate(`/shop/${tabs[tabs.length - 1]}`, { replace: true });
         return;
       }
       const errMsg = await Effect.runPromise(loader(tab));
       if (errMsg !== null) {
         if (errMsg === "NotFound") {
-          navigate(`/shop/${tabs[tabs.length - 1].tab}`, { replace: true });
+          navigate(`/shop/${tabs[tabs.length - 1]}`, { replace: true });
           return;
         }
         toast.error(errMsg);

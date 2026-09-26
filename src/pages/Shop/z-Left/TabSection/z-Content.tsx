@@ -1,6 +1,6 @@
 import { TabsContent as TabsContentRaw } from "~/components/ui/tabs";
 import { Search } from "./z-SearchBar";
-import { ProductManual } from "./ProductManual";
+import { ProductManual } from "../ProductManual";
 import { ExtraManual } from "./ExtraManual";
 import { Effect } from "effect";
 import { db } from "~/database";

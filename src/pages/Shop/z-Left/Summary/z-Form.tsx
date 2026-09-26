@@ -23,6 +23,20 @@ export function Form() {
       className="flex-1 flex flex-col gap-1 h-fit"
     >
       <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
+        <span>Pembulatan</span>
+        :
+        <Input
+          type="number"
+          step="any"
+          value={rounding.str}
+          onChange={(e) => {
+            const val = e.currentTarget.value;
+            setRounding(val);
+          }}
+          aria-autocomplete="list"
+        />
+      </label>
+      <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>
           Bayar <Kbd>F2</Kbd>
         </span>
@@ -35,20 +49,6 @@ export function Form() {
           onChange={(e) => {
             const val = e.currentTarget.value;
             setPay(val);
-          }}
-          aria-autocomplete="list"
-        />
-      </label>
-      <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
-        <span>Pembulatan</span>
-        :
-        <Input
-          type="number"
-          step="any"
-          value={rounding.str}
-          onChange={(e) => {
-            const val = e.currentTarget.value;
-            setRounding(val);
           }}
           aria-autocomplete="list"
         />

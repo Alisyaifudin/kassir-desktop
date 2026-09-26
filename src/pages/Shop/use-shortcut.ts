@@ -14,6 +14,11 @@ export const useShortcut = () =>
           el?.focus();
           break;
         }
+        case "F3": {
+          const el = document.getElementById("manual-input-code");
+          el?.focus();
+          break;
+        }
       }
     }
     document.body.addEventListener("keydown", handleKey);
