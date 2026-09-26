@@ -9,9 +9,9 @@ import { QtyInput } from "./QtyInput";
 import Decimal from "decimal.js";
 import { useDBProducts } from "~/pages/Shop/store/db";
 import { manualStore } from "~/pages/Shop/use-transaction";
-import { productsStore } from "~/pages/shop/store/product";
-import { useTab } from "~/pages/shop/use-tab";
-import { queue } from "~/pages/shop/util-queue";
+import { productsStore } from "~/pages/Shop/store/product";
+import { useTab } from "~/pages/Shop/use-tab";
+import { queue } from "~/pages/Shop/util-queue";
 
 function extractFormData(formdata: FormData) {
   const barcode = (formdata.get("barcode") as string) ?? "";

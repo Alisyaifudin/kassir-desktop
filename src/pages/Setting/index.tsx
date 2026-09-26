@@ -1,8 +1,8 @@
 import { RouteObject } from "react-router";
-import { shopRoute } from "./shop";
-import { dataRoute } from "./data";
-import { profileRoute } from "./profile";
-import { logRoute } from "./log";
+import { shopRoute } from "./Shop";
+import { dataRoute } from "./Data";
+import { profileRoute } from "./Profile";
+import { logRoute } from "./Log";
 import { lazy, Suspense } from "react";
 import { printerRoute } from "./Printer";
 import { LoadingLayout } from "./z-LoadingLayout";

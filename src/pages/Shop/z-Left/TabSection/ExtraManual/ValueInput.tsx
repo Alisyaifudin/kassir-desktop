@@ -3,9 +3,9 @@ import { produce } from "immer";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { useTab } from "~/pages/shop/use-tab";
+import { useTab } from "~/pages/Shop/use-tab";
 import { manualStore } from "~/pages/Shop/use-transaction";
-import { queue } from "~/pages/shop/util-queue";
+import { queue } from "~/pages/Shop/util-queue";
 import { tx } from "~/transaction";
 
 export function ValueInput() {

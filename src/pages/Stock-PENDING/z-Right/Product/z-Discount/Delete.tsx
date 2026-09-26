@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { productsStore } from "~/pages/shop/store/product";
-import { queue } from "~/pages/shop/util-queue";
+import { productsStore } from "~/pages/Shop/store/product";
+import { queue } from "~/pages/Shop/util-queue";
 import { tx } from "~/transaction";
 
 export function Delete({ idDisc, id }: { id: string; idDisc: string }) {

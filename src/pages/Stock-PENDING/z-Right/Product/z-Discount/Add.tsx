@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Spinner } from "~/components/Spinner";
 import { Button } from "~/components/ui/button";
 import { generateId } from "~/lib/random";
-import { productsStore } from "~/pages/shop/store/product";
-import { queue } from "~/pages/shop/util-queue";
+import { productsStore } from "~/pages/Shop/store/product";
+import { queue } from "~/pages/Shop/util-queue";
 import { tx } from "~/transaction";
 
 export function Add({ productId }: { productId: string }) {

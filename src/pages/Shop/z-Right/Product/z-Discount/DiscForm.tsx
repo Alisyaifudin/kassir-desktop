@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Input } from "~/components/ui/input";
-import { productsStore } from "~/pages/shop/store/product";
+import { productsStore } from "~/pages/Shop/store/product";
 import { tx } from "~/transaction";
 import { Delete } from "./Delete";
 import { DiscKind } from "./DiscKind";
-import { queue } from "~/pages/shop/util-queue";
+import { queue } from "~/pages/Shop/util-queue";
 
 export function DiscForm({
   id,

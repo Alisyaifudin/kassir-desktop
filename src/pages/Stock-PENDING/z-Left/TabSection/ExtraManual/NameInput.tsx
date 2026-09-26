@@ -7,8 +7,8 @@ import { useAtom } from "@xstate/store/react";
 import { produce } from "immer";
 import { forwardRef } from "react";
 import { manualStore } from "~/pages/Shop/use-transaction";
-import { useTab } from "~/pages/shop/use-tab";
-import { queue } from "~/pages/shop/util-queue";
+import { useTab } from "~/pages/Shop/use-tab";
+import { queue } from "~/pages/Shop/util-queue";
 
 // eslint-disable-next-line react/display-name
 export const NameInput = forwardRef<HTMLInputElement>((_p, ref) => {

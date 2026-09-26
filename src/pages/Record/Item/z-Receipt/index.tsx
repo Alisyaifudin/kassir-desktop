@@ -17,7 +17,7 @@ import { Effect } from "effect";
 import { db } from "~/database";
 import { useState } from "react";
 import { toast } from "sonner";
-import { programPrint } from "~/pages/setting/Printer/util-program-print";
+import { programPrint } from "~/pages/Setting/Printer/util-program-print";
 
 export function Receipt({ data }: { data: RecordData }) {
   const res = useInfo();

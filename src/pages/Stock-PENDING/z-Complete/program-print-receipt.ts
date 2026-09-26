@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { db } from "~/database";
 import { log } from "~/lib/log";
 import { loadDetailRecord } from "../../Record/Item/use-data";
-import { programPrint } from "../../setting/Printer/util-program-print";
+import { programPrint } from "../../Setting/Printer/util-program-print";
 
 export function programPrintReceipt(recordId: string) {
   return Effect.gen(function* () {

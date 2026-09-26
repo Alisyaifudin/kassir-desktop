@@ -6,8 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { productsStore } from "~/pages/shop/store/product";
-import { queue } from "~/pages/shop/util-queue";
+import { productsStore } from "~/pages/Shop/store/product";
+import { queue } from "~/pages/Shop/util-queue";
 import { tx } from "~/transaction";
 
 export function DiscKind({

@@ -6,8 +6,8 @@ import { Field } from "../TabSection/z-Field";
 import { produce } from "immer";
 import { useAtom } from "@xstate/store/react";
 import { manualStore } from "~/pages/Shop/use-transaction";
-import { useTab } from "~/pages/shop/use-tab";
-import { queue } from "~/pages/shop/util-queue";
+import { useTab } from "~/pages/Shop/use-tab";
+import { queue } from "~/pages/Shop/util-queue";
 
 export function QtyInput() {
   const value = useAtom(manualStore, (state) => state.product.qtyStr);

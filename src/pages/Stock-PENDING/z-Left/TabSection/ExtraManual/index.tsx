@@ -8,9 +8,9 @@ import { tx } from "~/transaction";
 import { extrasStore } from "~/pages/Shop/store/extra";
 import { useRef } from "react";
 import { manualStore } from "~/pages/Shop/use-transaction";
-import { useSubtotal } from "~/pages/shop/store/product";
-import { useTab } from "~/pages/shop/use-tab";
-import { queue } from "~/pages/shop/util-queue";
+import { useSubtotal } from "~/pages/Shop/store/product";
+import { useTab } from "~/pages/Shop/use-tab";
+import { queue } from "~/pages/Shop/util-queue";
 
 export function ExtraManual() {
   const subtotal = useSubtotal();
