@@ -23,7 +23,12 @@ export default defineConfig(({ command, mode }) => {
       react(),
       arraybuffer(),
       tailwindcss(),
-      tsconfigPaths(),
+      // Only scan the app's own tsconfig files. Without this, the plugin also
+      // scans `docs/tsconfig.json` (a separate Docusaurus project) and warns
+      // because `@docusaurus/tsconfig` is not installed in the root.
+      tsconfigPaths({
+        projects: ["./tsconfig.json", "./tsconfig.node.json"],
+      }),
       {
         name: "inject-react-scan",
         transformIndexHtml(html) {

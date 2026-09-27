@@ -13,6 +13,7 @@ import { log } from "~/lib/log";
 import { Reorder } from "framer-motion";
 import { queue } from "../../util-queue";
 import { tx } from "~/transaction";
+import { Search } from "./z-Search";
 
 export function ProductList() {
   const res = useData();
@@ -35,11 +36,14 @@ function handleReorder(products: Product[]) {
 function Wrapper() {
   const products = useSelector(productsStore, (state) => state.context);
   return (
-    <Reorder.Group className="flex flex-col-reverse" values={products} onReorder={handleReorder}>
-      <ForEach items={products} extractKey={(product) => product.id}>
-        {(product, i) => <Item product={product} index={i} />}
-      </ForEach>
-    </Reorder.Group>
+    <div>
+      <Search />
+      <Reorder.Group className="flex flex-col-reverse" values={products} onReorder={handleReorder}>
+        <ForEach items={products} extractKey={(product) => product.id}>
+          {(product, i) => <Item product={product} index={i} />}
+        </ForEach>
+      </Reorder.Group>
+    </div>
   );
 }
 

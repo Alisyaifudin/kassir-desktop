@@ -9,7 +9,12 @@ export default function Page() {
         <Left />
         <Right />
       </div>
+      <OutputPortal />
       <Complete />
     </main>
   );
+}
+
+function OutputPortal() {
+  return <div id="output-portal" />;
 }

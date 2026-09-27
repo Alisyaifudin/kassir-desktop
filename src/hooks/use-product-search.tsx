@@ -3,6 +3,7 @@ import { Product } from "~/database/product/cache";
 import createFuzzySearch from "@nozbe/microfuzz";
 
 export const useProductSearch = (products: Product[]) => {
+  console.log("alll", products)
   const [fuzzyName, fuzzyBarcode] = useMemo(() => {
     const fuzzyName = createFuzzySearch(products, {
       key: "name",

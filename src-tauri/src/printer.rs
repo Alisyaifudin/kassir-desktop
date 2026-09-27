@@ -1,10 +1,6 @@
 use std::io::Write;
 use tauri::command;
 use tempfile::NamedTempFile;
-use winprint::{
-    printer::{FilePrinter, PrinterDevice, WinPdfPrinter},
-    ticket::PrintTicket,
-};
 
 // ============================================================================
 // Data Structures
@@ -23,38 +19,10 @@ pub struct PrintResult {
 }
 
 // ============================================================================
-// Error Helpers (No additional crates)
+// Shared PDF validation
 // ============================================================================
 
-// ============================================================================
-// Commands
-// ============================================================================
-
-#[command]
-pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
-    let devices =
-        PrinterDevice::all().map_err(|e| format!("Failed to enumerate printers: {:?}", e))?;
-
-    if devices.is_empty() {
-        return Err(
-            "No printers found on this system. Please install a printer first.".to_string(),
-        );
-    }
-
-    let printers: Vec<PrinterInfo> = devices
-        .into_iter()
-        .map(|device| PrinterInfo {
-            name: device.name().to_string(),
-            status: "Ready".to_string(),
-        })
-        .collect();
-
-    Ok(printers)
-}
-
-#[command]
-pub fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, String> {
-    // Validate PDF before doing anything else
+fn validate_pdf(pdf_bytes: &[u8]) -> Result<(), String> {
     if pdf_bytes.len() < 4 {
         return Err(format!(
             "Invalid PDF: file too small ({} bytes, expected at least 4 bytes for PDF header)",
@@ -73,64 +41,227 @@ pub fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, Str
         ));
     }
 
-    // Find the requested printer
-    let devices = PrinterDevice::all().map_err(|e| format!("Failed to list printers: {:?}", e))?;
+    Ok(())
+}
 
-    let device = devices
-        .into_iter()
-        .find(|p| p.name() == printer_name)
-        .ok_or_else(|| {
-            let available: Vec<String> = PrinterDevice::all()
-                .unwrap_or_default()
-                .into_iter()
-                .map(|p| format!("'{}'", p.name()))
+/// Write PDF bytes to a temporary file, returning its path.
+fn write_temp_pdf(pdf_bytes: &[u8]) -> Result<std::path::PathBuf, String> {
+    let mut temp = NamedTempFile::with_suffix(".pdf")
+        .map_err(|e| format!("Failed to create temp file: {}", e))?;
+
+    temp.write_all(pdf_bytes)
+        .map_err(|e| format!("Failed to write PDF: {}", e))?;
+    temp.flush()
+        .map_err(|e| format!("Failed to flush: {}", e))?;
+
+    // IMPORTANT: Close the file by persisting it
+    let (file, path) = temp
+        .keep()
+        .map_err(|e| format!("Failed to persist temp file: {}", e))?;
+    drop(file); // Explicitly close the handle
+
+    Ok(path)
+}
+
+// ============================================================================
+// Commands
+// ============================================================================
+
+#[command]
+pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
+    platform::get_printers()
+}
+
+#[command]
+pub fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, String> {
+    // Validate PDF before doing anything else
+    validate_pdf(&pdf_bytes)?;
+    platform::print_pdf(&printer_name, &pdf_bytes)
+}
+
+// ============================================================================
+// Windows implementation (winprint)
+// ============================================================================
+
+#[cfg(windows)]
+mod platform {
+    use super::*;
+    use winprint::{
+        printer::{FilePrinter, PrinterDevice, WinPdfPrinter},
+        ticket::PrintTicket,
+    };
+
+    pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
+        let devices =
+            PrinterDevice::all().map_err(|e| format!("Failed to enumerate printers: {:?}", e))?;
+
+        if devices.is_empty() {
+            return Err(
+                "No printers found on this system. Please install a printer first.".to_string(),
+            );
+        }
+
+        let printers: Vec<PrinterInfo> = devices
+            .into_iter()
+            .map(|device| PrinterInfo {
+                name: device.name().to_string(),
+                status: "Ready".to_string(),
+            })
+            .collect();
+
+        Ok(printers)
+    }
+
+    pub fn print_pdf(printer_name: &str, pdf_bytes: &[u8]) -> Result<String, String> {
+        // Find the requested printer
+        let devices =
+            PrinterDevice::all().map_err(|e| format!("Failed to list printers: {:?}", e))?;
+
+        let device = devices
+            .into_iter()
+            .find(|p| p.name() == printer_name)
+            .ok_or_else(|| {
+                let available: Vec<String> = PrinterDevice::all()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|p| format!("'{}'", p.name()))
+                    .collect();
+
+                format!(
+                    "Printer '{}' not found. Available printers: [{}]",
+                    printer_name,
+                    if available.is_empty() {
+                        "none".to_string()
+                    } else {
+                        available.join(", ")
+                    }
+                )
+            })?;
+
+        let temp_path = write_temp_pdf(pdf_bytes)?;
+
+        let printer = WinPdfPrinter::new(device);
+
+        // Now print - file is closed and accessible
+        printer
+            .print(&temp_path, PrintTicket::default())
+            .map_err(|e| {
+                let _ = std::fs::remove_file(&temp_path);
+                e.to_string()
+            })?;
+
+        let _ = std::fs::remove_file(&temp_path);
+
+        Ok(format!(
+            "Successfully sent {} byte PDF to printer '{}'",
+            pdf_bytes.len(),
+            printer_name
+        ))
+    }
+}
+
+// ============================================================================
+// Linux / Unix implementation (CUPS via lpstat + lp)
+// ============================================================================
+
+#[cfg(not(windows))]
+mod platform {
+    use super::*;
+    use std::process::Command;
+
+    pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
+        let output = Command::new("lpstat")
+            .arg("-p")
+            .output()
+            .map_err(|e| {
+                format!(
+                    "Failed to run 'lpstat' (is CUPS installed? e.g. 'sudo apt install cups-client'): {}",
+                    e
+                )
+            })?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        let printers: Vec<PrinterInfo> = stdout
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                // Example: "printer HP_LaserJet is idle.  enabled since ..."
+                let rest = line.strip_prefix("printer ")?;
+                let name = rest.split_whitespace().next()?.to_string();
+
+                let status = if rest.contains("is idle") {
+                    "Ready"
+                } else if rest.contains("disabled") {
+                    "Disabled"
+                } else if rest.contains("printing") {
+                    "Printing"
+                } else {
+                    "Unknown"
+                };
+
+                Some(PrinterInfo {
+                    name,
+                    status: status.to_string(),
+                })
+            })
+            .collect();
+
+        if printers.is_empty() {
+            return Err(
+                "No printers found on this system. Please install a printer first.".to_string(),
+            );
+        }
+
+        Ok(printers)
+    }
+
+    pub fn print_pdf(printer_name: &str, pdf_bytes: &[u8]) -> Result<String, String> {
+        // Ensure the requested printer exists
+        let available = get_printers()?;
+        if !available.iter().any(|p| p.name == printer_name) {
+            let names: Vec<String> = available
+                .iter()
+                .map(|p| format!("'{}'", p.name))
                 .collect();
-
-            format!(
+            return Err(format!(
                 "Printer '{}' not found. Available printers: [{}]",
                 printer_name,
-                if available.is_empty() {
-                    "none".to_string()
-                } else {
-                    available.join(", ")
-                }
+                names.join(", ")
+            ));
+        }
+
+        let temp_path = write_temp_pdf(pdf_bytes)?;
+
+        // `lp` sends the PDF to CUPS, which handles PDF rasterization.
+        let result = Command::new("lp")
+            .arg("-d")
+            .arg(printer_name)
+            .arg(&temp_path)
+            .output();
+
+        let _ = std::fs::remove_file(&temp_path);
+
+        let output = result.map_err(|e| {
+            format!(
+                "Failed to run 'lp' (is CUPS installed? e.g. 'sudo apt install cups-client'): {}",
+                e
             )
         })?;
 
-    // Write to temp file with detailed error context
-    let temp_path = {
-        let mut temp = NamedTempFile::with_suffix(".pdf")
-            .map_err(|e| format!("Failed to create temp file: {}", e))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!(
+                "Failed to print to '{}': {}",
+                printer_name,
+                stderr.trim()
+            ));
+        }
 
-        temp.write_all(&pdf_bytes)
-            .map_err(|e| format!("Failed to write PDF: {}", e))?;
-        temp.flush()
-            .map_err(|e| format!("Failed to flush: {}", e))?;
-
-        // IMPORTANT: Close the file by persisting it
-        let (file, path) = temp
-            .keep()
-            .map_err(|e| format!("Failed to persist temp file: {}", e))?;
-        drop(file); // Explicitly close the handle
-
-        path
-    };
-
-    let printer = WinPdfPrinter::new(device);
-
-    // Now print - file is closed and accessible
-    printer
-        .print(&temp_path, PrintTicket::default())
-        .map_err(|e| {
-            let _ = std::fs::remove_file(&temp_path);
-            e.to_string()
-        })?;
-
-    let _ = std::fs::remove_file(&temp_path);
-
-    Ok(format!(
-        "Successfully sent {} byte PDF to printer '{}'",
-        pdf_bytes.len(),
-        printer_name
-    ))
+        Ok(format!(
+            "Successfully sent {} byte PDF to printer '{}'",
+            pdf_bytes.len(),
+            printer_name
+        ))
+    }
 }

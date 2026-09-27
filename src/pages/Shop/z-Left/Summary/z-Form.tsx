@@ -1,13 +1,11 @@
-import { setPay, setRounding, useFix, useMode, usePay, useRounding } from "../../use-transaction";
+import { setPay, setRounding, useFix, usePay, useRounding } from "../../use-transaction";
 import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { Show } from "~/components/Show";
 import { useChange } from "./use-change";
 import { useSubmit } from "./use-submit";
 
 export function Form() {
-  const mode = useMode();
   const fix = useFix();
   const pay = usePay();
   const rounding = useRounding();
@@ -22,7 +20,7 @@ export function Form() {
       }}
       className="flex-1 flex flex-col gap-1 h-fit"
     >
-      <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
+      <label className="grid items-center grid-cols-[170px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>Pembulatan</span>
         :
         <Input
@@ -36,7 +34,7 @@ export function Form() {
           aria-autocomplete="list"
         />
       </label>
-      <label className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
+      <label className="grid items-center grid-cols-[170px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>
           Bayar <Kbd>F2</Kbd>
         </span>
@@ -53,7 +51,7 @@ export function Form() {
           aria-autocomplete="list"
         />
       </label>
-      <div className="grid items-center grid-cols-[160px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
+      <div className="grid items-center grid-cols-[170px_10px_1fr] small:grid-cols-[120px_10px_1fr]">
         <span>Kembalian</span>:
         <span
           style={
@@ -73,20 +71,6 @@ export function Form() {
         <Button className="flex-1" type="submit" disabled={disable || change < 0 || loading}>
           Bayar
         </Button>
-        <Show when={mode === "buy"}>
-          <Button
-            disabled={disable || loading}
-            className="flex-1"
-            onClick={(e) => {
-              e.preventDefault();
-              if (loading) return;
-              handleSubmit(true);
-            }}
-            type="button"
-          >
-            Kredit
-          </Button>
-        </Show>
       </div>
     </form>
   );
