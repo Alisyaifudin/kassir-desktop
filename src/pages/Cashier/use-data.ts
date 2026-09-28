@@ -1,16 +1,8 @@
 import { db } from "~/database";
-import { Result } from "~/lib/result";
+import { createLoader } from "~/components/Loader";
 
-const KEY = "cashiers";
-
-export function useData() {
-  const res = Result.use({
-    fn: () => db.cashier.get.all(),
-    key: KEY,
-  });
-  return res;
-}
+export const cashiersLoader = createLoader(db.cashier.get.all());
 
 export function revalidate() {
-  Result.revalidate(KEY);
+  void cashiersLoader.run();
 }
