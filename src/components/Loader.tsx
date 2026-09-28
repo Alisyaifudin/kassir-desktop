@@ -46,7 +46,7 @@ export type LoaderResult<T, E> = {
    * are re-thrown so React's error boundary handles them.
    */
   run(): Promise<void>;
-  setOptimistic(optimisticData: T, mutation?: OptimisticMutation<T, E>): Promise<void>;
+  setOptimistic(optimisticData: T, mutation?: OptimisticMutation<T, E>): Promise<null | E>;
 };
 
 export function createLoader<T, E>(effect: Effect.Effect<T, E>): LoaderResult<T, E> {
@@ -97,28 +97,33 @@ export function createLoader<T, E>(effect: Effect.Effect<T, E>): LoaderResult<T,
   async function setOptimistic(
     optimisticData: T,
     mutation?: OptimisticMutation<T, E>,
-  ): Promise<void> {
+  ): Promise<null | E> {
     const id = ++runId;
+    const previous = atom.get();
+
     atom.set({
       type: "success",
       data: optimisticData,
       isLoading: mutation !== undefined,
     });
 
-    if (mutation === undefined) return;
+    if (mutation === undefined) return null;
 
     // The mutation reports via its value (`null` = ok, `E` = failure); its
     // error channel is `never`, so only defects can reject here.
     const error = await Effect.runPromise(mutation(optimisticData));
+    if (id !== runId) return error;
 
-    if (id === runId) {
-      atom.set({
-        type: "success",
-        data: optimisticData,
-        isLoading: false,
-        error: error ?? undefined,
-      });
+    if (error === null) {
+      atom.set({ type: "success", data: optimisticData, isLoading: false });
+    } else if (previous.type === "success") {
+      // Roll back to the pre-optimistic snapshot, surfacing the failure.
+      atom.set({ ...previous, isLoading: false, error });
+    } else {
+      atom.set({ type: "success", data: optimisticData, isLoading: false, error });
     }
+
+    return error;
   }
 
   return { effect, atom, useData, useLoading, useResult, run, setOptimistic };
@@ -151,7 +156,7 @@ type ConsumerProps<T, E> = {
   loader: LoaderResult<T, E>;
   children: React.ReactNode;
   loading: React.ReactNode;
-  Error: (props: { error: E; isLoading: boolean; reload: () => void }) => React.JSX.Element;
+  Error: (props: { error: E; isLoading: boolean; reload: () => void }) => React.ReactNode;
 };
 
 /** How long to stay blank before falling back to the `loading` view. */
