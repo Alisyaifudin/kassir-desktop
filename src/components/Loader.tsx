@@ -154,12 +154,27 @@ type ConsumerProps<T, E> = {
   Error: (props: { error: E; isLoading: boolean; reload: () => void }) => React.JSX.Element;
 };
 
+/** How long to stay blank before falling back to the `loading` view. */
+const DELAY = 200;
+
 /** Renders the right view for the loader's current state. */
 export function Consumer<T, E>({ loader, Error, loading, children }: ConsumerProps<T, E>) {
   const state = useAtom(loader.atom);
+  const [showLoading, setShowLoading] = useState(false);
+
+  useEffect(() => {
+    if (state.type !== "init") {
+      setShowLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLoading(true), DELAY);
+    return () => clearTimeout(timer);
+  }, [state.type]);
+
   switch (state.type) {
     case "init":
-      return loading;
+      // Stay blank briefly so fast loads don't flash the loading view.
+      return showLoading ? loading : null;
     case "error":
       return <Error error={state.error} isLoading={state.isLoading} reload={loader.run} />;
     case "success":
