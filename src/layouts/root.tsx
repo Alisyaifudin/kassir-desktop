@@ -2,9 +2,8 @@ import { useEffect } from "react";
 import { Outlet } from "react-router";
 import { Skeleton } from "~/components/ui/skeleton";
 import type { Size } from "~/services/config";
-import type { StoreError } from "~/store/error";
 import { service } from "~/services";
-import { useStream } from "~/components/Loader";
+import { Loader, useStream } from "~/components/Loader";
 
 /** Applies a size to the DOM (`<body>` class drives the `small:` variants). */
 function applySize(size: Size) {
@@ -12,11 +11,12 @@ function applySize(size: Size) {
 }
 
 export default function Layout() {
+  const size = useStream(service.config.size.changes);
   return (
-    <>
+    <Loader res={size} fallback={<Loading />}>
       <ApplySize />
       <Outlet />
-    </>
+    </Loader>
   );
 }
 
@@ -42,11 +42,3 @@ function Loading() {
   );
 }
 
-/**
- * A `StoreError` is an expected, typed failure. Rather than swallow it, re-throw
- * the underlying error during render so the route-level ErrorBoundary renders
- * the standard error screen (with reload/back actions).
- */
-function Error({ error }: { error: StoreError }): never {
-  throw error.e;
-}

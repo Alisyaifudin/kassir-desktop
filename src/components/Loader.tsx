@@ -16,7 +16,7 @@ export type Result<T, E> = Data<T, E> | { type: "init" };
 type LoaderProps<T, E> = {
   res: Result<T, E>;
   fallback: React.ReactNode;
-  children: (props: { data: T }) => React.ReactNode;
+  children: React.ReactNode | ((props: { data: T }) => React.ReactNode);
 };
 
 export function Loader<T, E>({ res, children, fallback = null }: LoaderProps<T, E>) {
@@ -26,7 +26,8 @@ export function Loader<T, E>({ res, children, fallback = null }: LoaderProps<T, 
     case "error":
       throw res.error;
     case "success":
-      return children(res);
+      if (typeof children === "function") return children(res);
+      return children;
   }
 }
 
