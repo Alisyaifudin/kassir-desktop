@@ -45,6 +45,61 @@ export function Loader<T, E>({ res, children, fallback = null, delay = 200 }: Lo
   }
 }
 
+type DataOf<R> = R extends { type: "success"; data: infer T } ? T : never;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LoaderManyData<R extends Record<string, Result<any, any>>> = {
+  [K in keyof R]: DataOf<R[K]>;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LoaderManyProps<R extends Record<string, Result<any, any>>> = {
+  res: R;
+  fallback?: React.ReactNode;
+  children: (data: LoaderManyData<R>) => React.ReactNode;
+  /** How long to stay blank before showing `fallback` while any result is `init`. */
+  delay?: number;
+};
+
+/**
+ * Like `Loader`, but for several results at once: waits until every result is
+ * `success`, throws the first `error`, and hands the resolved data to
+ * `children` keyed by the same names.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function LoaderMany<R extends Record<string, Result<any, any>>>({
+  res,
+  children,
+  fallback = null,
+  delay = 200,
+}: LoaderManyProps<R>) {
+  const results = Object.values(res);
+  const isInit = results.some((result) => result.type === "init");
+
+  const [showFallback, setShowFallback] = useState(false);
+
+  useEffect(() => {
+    if (!isInit) {
+      setShowFallback(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowFallback(true), delay);
+    return () => clearTimeout(timer);
+  }, [isInit, delay]);
+
+  for (const result of results) {
+    if (result.type === "error") throw result.error;
+  }
+
+  if (isInit) return showFallback ? fallback : null;
+
+  const data = Object.fromEntries(
+    Object.entries(res).map(([key, result]) => [key, (result as { data: unknown }).data]),
+  ) as LoaderManyData<R>;
+
+  return children(data);
+}
+
 /**
  * Mirrors a hot stream's latest value into React state. Best for multicast
  * sources like `SubscriptionRef.changes`; wrap one-shot effects with

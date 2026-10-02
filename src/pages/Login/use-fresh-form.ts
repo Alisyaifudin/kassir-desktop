@@ -3,9 +3,10 @@ import { Effect, Either } from "effect";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import z from "zod";
-import { db } from "~/database";
-import { auth } from "~/lib/auth";
+import { hash } from "~/lib/auth";
 import { log } from "~/lib/log";
+import { generateId } from "~/lib/random";
+import { service } from "~/services";
 
 const schema = z
   .object({
@@ -37,9 +38,8 @@ export function useFreshForm() {
         onLeft(errMsg) {
           setError(errMsg);
         },
-        onRight(user) {
+        onRight() {
           setError(null);
-          auth.set(user);
           navigate("/setting");
         },
       });
@@ -50,17 +50,22 @@ export function useFreshForm() {
 
 function program(name: string, password: string) {
   return Effect.gen(function* () {
-    const hash = yield* auth.hash(password);
-    const id = yield* db.cashier.add({ name, role: "admin", hash });
-    return { id, name, role: "admin" } as const;
+    const id = generateId();
+    const passwordHash = yield* hash(password);
+    yield* service.cashier.add({ id, name, role: "admin", hash: passwordHash });
+    yield* service.auth.set({ id, name, role: "admin" });
   }).pipe(
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(e);
+    Effect.catchTag("CashierError", ({ message }) => {
+      log.error(message);
       return Effect.fail("Gagal menyimpan di database");
     }),
-    Effect.catchTag("InvokeError", ({ e }) => {
-      log.error(e);
-      return Effect.fail(e.message);
+    Effect.catchTag("InvokeError", ({ message }) => {
+      log.error(message);
+      return Effect.fail(message);
+    }),
+    Effect.catchTag("AuthError", ({ message }) => {
+      log.error(message);
+      return Effect.fail("Gagal menyimpan sesi");
     }),
     Effect.either,
   );

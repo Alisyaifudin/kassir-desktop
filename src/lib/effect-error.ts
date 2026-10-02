@@ -10,16 +10,8 @@ export class TooMany {
 }
 
 export class NotFound extends Data.TaggedError("NotFound")<{ message: string }> {}
-// export class NotFound {
-//   readonly _tag = "NotFound";
-//   constructor(readonly msg: string) {}
-//   static new(msg: string) {
-//     return new NotFound(msg);
-//   }
-//   static fail(msg: string) {
-//     return Effect.fail(new NotFound(msg));
-//   }
-// }
+export class InvokeError extends Data.TaggedError("InvokeError")<{ message: string }> {}
+export class InvalidCredential extends Data.TaggedError("InvalidCredential")<{ message: string }> {}
 
 export class RedirectError {
   readonly _tag = "RedirectError";
@@ -29,21 +21,6 @@ export class RedirectError {
   }
 }
 
-export class InvokeError {
-  readonly _tag = "InvokeError";
-  constructor(readonly e: Error) {}
-  static new(e: unknown, msg: string) {
-    if (e instanceof Error) {
-      e.message = msg;
-      return new InvokeError(e);
-    }
-    if (typeof e === "string") {
-      return new InvokeError(new Error(e));
-    }
-    const unknown = new Error(msg, { cause: e });
-    return new InvokeError(unknown);
-  }
-}
 
 export class IOError {
   readonly _tag = "IOError";
@@ -88,10 +65,6 @@ export class TooBigError {
   constructor(public size: number) {}
 }
 
-export class InvalidCredential {
-  readonly _tag = "InvalidCredential";
-  constructor(readonly msg: string) {}
-}
 
 export class DuplicateError {
   readonly _tag = "DuplicateError";
