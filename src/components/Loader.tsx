@@ -15,14 +15,28 @@ export type Result<T, E> = Data<T, E> | { type: "init" };
 
 type LoaderProps<T, E> = {
   res: Result<T, E>;
-  fallback: React.ReactNode;
+  fallback?: React.ReactNode;
   children: React.ReactNode | ((props: { data: T }) => React.ReactNode);
+  /** How long to stay blank before showing `fallback` while `init`. */
+  delay?: number;
 };
 
-export function Loader<T, E>({ res, children, fallback = null }: LoaderProps<T, E>) {
+export function Loader<T, E>({ res, children, fallback = null, delay = 200 }: LoaderProps<T, E>) {
+  const [showFallback, setShowFallback] = useState(false);
+
+  // Stay blank briefly so fast loads don't flash the fallback.
+  useEffect(() => {
+    if (res.type !== "init") {
+      setShowFallback(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowFallback(true), delay);
+    return () => clearTimeout(timer);
+  }, [res.type, delay]);
+
   switch (res.type) {
     case "init":
-      return fallback;
+      return showFallback ? fallback : null;
     case "error":
       throw res.error;
     case "success":
