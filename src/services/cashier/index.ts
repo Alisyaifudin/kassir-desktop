@@ -19,14 +19,9 @@ export class CashierService extends Context.Tag("CashierService")<
   CashierService,
   {
     get: {
-      /** One-shot list read; loads from the database on first use. */
       all: () => Effect.Effect<Cashier[], CashierError>;
-      /** One-shot full read of a single cashier (includes the password hash). */
       byId: (id: string) => Effect.Effect<CashierFull, CashierError | NotFound>;
-      /** Current list plus every subsequent change. */
       changes: Stream.Stream<Cashier[], CashierError>;
-      /** Reloads the list from the database. */
-      revalidate: () => Effect.Effect<void, CashierError>;
     };
     set: {
       name: (id: string, name: string) => Effect.Effect<void, CashierError>;

@@ -57,7 +57,7 @@ export const CashierLive = Layer.effect(
         );
     }
 
-    function revalidate(): Effect.Effect<void, CashierError> {
+    function hydrate(): Effect.Effect<void, CashierError> {
       return Effect.gen(function* () {
         const cashiers = yield* loadAll();
         yield* SubscriptionRef.set(cashiersRef, cashiers);
@@ -68,7 +68,7 @@ export const CashierLive = Layer.effect(
     function ensureLoaded(): Effect.Effect<void, CashierError> {
       return Effect.gen(function* () {
         if (loaded) return;
-        yield* revalidate();
+        yield* hydrate();
       });
     }
 
@@ -95,7 +95,6 @@ export const CashierLive = Layer.effect(
         // Hydrates on first subscribe (so `useStream` stays in `init` until the
         // rows arrive), then replays the current list and every change.
         changes: Stream.unwrap(ensureLoaded().pipe(Effect.as(cashiersRef.changes))),
-        revalidate,
       },
       set: {
         name(id, name) {

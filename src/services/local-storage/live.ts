@@ -37,4 +37,11 @@ export const LocalStorageLive = Layer.succeed(LocalStorageService, {
       });
     });
   },
+  remove(id: string) {
+    return Effect.try({
+      try: () => localStorage.removeItem(id),
+      catch: (e) =>
+        new LocalStorageError({ message: `Gagal menghapus local storage: \n${formatError(e)}` }),
+    });
+  },
 });
