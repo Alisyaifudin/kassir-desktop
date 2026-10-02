@@ -1,36 +1,36 @@
 import { Component, type ComponentType, type ReactNode } from "react";
 
+type AnyErrorConstructor = new (...args: never[]) => Error;
+
 export type ErrorBoundaryFallbackProps<E> = {
   error: E;
 };
 
 export type ErrorBoundaryProps<E> = {
   children: ReactNode;
-  /** Rendered when an error of the given type is thrown. Receives the typed error. */
+  /** Rendered when a matching error is thrown. Receives the typed error. */
   fallback: ComponentType<ErrorBoundaryFallbackProps<E>>;
 };
 
 /**
- * Builds a React error boundary for a specific `Data.TaggedError` subclass.
+ * Builds a React error boundary that catches any of the given
+ * `Data.TaggedError` subclasses. The fallback receives the union of their
+ * instance types.
  *
  * ```tsx
- * const CashierErrorBoundary = createErrorBoundary(CashierError);
+ * const LoginErrorBoundary = createManyErrorBoundary(AuthError, CashierError);
  *
- * function CashierErrorView({ error }: { error: CashierError }) {
- *   return <ErrorComponent title="Gagal memuat kasir">{error.message}</ErrorComponent>;
- * }
+ * function LoginError({ error }: { error: AuthError | CashierError }) { ... }
  *
- * <CashierErrorBoundary fallback={CashierErrorView}>
- *   <CashierList />
- * </CashierErrorBoundary>
+ * <LoginErrorBoundary fallback={LoginError}>{children}</LoginErrorBoundary>
  * ```
  *
- * The fallback is typed with the exact error class. Errors of any other type are
- * rethrown so an ancestor boundary can handle them.
+ * Errors of any other type are rethrown so an ancestor boundary can handle them.
  */
-export function createErrorBoundary<E extends Error>(
-  ErrorClass: new (...args: never[]) => E,
-): ComponentType<ErrorBoundaryProps<E>> {
+export function createManyErrorBoundary<const Classes extends readonly AnyErrorConstructor[]>(
+  ...classes: Classes
+): ComponentType<ErrorBoundaryProps<InstanceType<Classes[number]>>> {
+  type E = InstanceType<Classes[number]>;
   type State = { error: E | null };
 
   class ErrorBoundary extends Component<ErrorBoundaryProps<E>, State> {
@@ -46,7 +46,7 @@ export function createErrorBoundary<E extends Error>(
       if (error === null) return this.props.children;
 
       // Not our error — rethrow so an ancestor boundary can handle it.
-      if (!(error instanceof ErrorClass)) throw error;
+      if (!classes.some((ErrorClass) => error instanceof ErrorClass)) throw error;
 
       const Fallback = this.props.fallback;
       return <Fallback error={error} />;
@@ -54,4 +54,11 @@ export function createErrorBoundary<E extends Error>(
   }
 
   return ErrorBoundary;
+}
+
+/** Single-error convenience wrapper around {@link createManyErrorBoundary}. */
+export function createErrorBoundary<E extends Error>(
+  ErrorClass: new (...args: never[]) => E,
+): ComponentType<ErrorBoundaryProps<E>> {
+  return createManyErrorBoundary(ErrorClass);
 }
