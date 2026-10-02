@@ -8,7 +8,7 @@ export function useShortcut() {
   return v;
 }
 
-let timeoutId: null | NodeJS.Timeout = null;
+let timeoutId: null | ReturnType<typeof setTimeout> = null;
 const TIMEOUT = 5000;
 
 export function showShortcut(v: boolean | ((old: boolean) => boolean)) {

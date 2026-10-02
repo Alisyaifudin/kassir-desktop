@@ -5,7 +5,6 @@ import { revalidate } from "./use-data";
 import { z } from "zod";
 import { useForm } from "@tanstack/react-form";
 import { store } from "~/store";
-import { revalidateTitle } from "~/layouts/authenticated/z-Title";
 import { revalidateInfo } from "~/pages/Record/Item/z-Receipt/use-info";
 
 const schema = z.object({
@@ -29,7 +28,6 @@ export function useUpdate(values: InputValues) {
       setError(errMsg);
       if (errMsg === null) {
         revalidate();
-        revalidateTitle();
         revalidateInfo();
       }
     },

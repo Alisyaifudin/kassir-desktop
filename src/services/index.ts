@@ -6,6 +6,8 @@ import { CashierLive } from "./cashier/live";
 import { ConfigService } from "./config";
 import { ConfigLive } from "./config/live";
 import { DatabaseLive } from "./db/live";
+import { InfoService } from "./info";
+import { InfoLive } from "./info/live";
 import { LocalStorageLive } from "./local-storage/live";
 import { StoreLive } from "./store/live";
 
@@ -14,11 +16,12 @@ const hiddenLive = Layer.mergeAll(DatabaseLive, LocalStorageLive, StoreLive);
 
 const cashierLive = CashierLive.pipe(Layer.provide(hiddenLive));
 const configLive = ConfigLive.pipe(Layer.provide(hiddenLive));
+const infoLive = InfoLive.pipe(Layer.provide(hiddenLive));
 
 // Auth also needs the cashier service to verify the session's id.
 const authLive = AuthLive.pipe(Layer.provide(hiddenLive), Layer.provide(cashierLive));
 
-const appLive = Layer.mergeAll(configLive, cashierLive, authLive);
+const appLive = Layer.mergeAll(configLive, cashierLive, authLive, infoLive);
 
 export const service = Effect.runSync(
   Effect.gen(function* () {
@@ -26,6 +29,7 @@ export const service = Effect.runSync(
       config: yield* ConfigService,
       cashier: yield* CashierService,
       auth: yield* AuthService,
+      info: yield* InfoService,
     };
   }).pipe(Effect.provide(appLive)),
 );

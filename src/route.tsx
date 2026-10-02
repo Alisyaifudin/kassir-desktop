@@ -10,7 +10,6 @@ import { cashierRoute } from "./pages/Cashier/index.tsx";
 import { customerRoute } from "./pages/Customer/index.tsx";
 import { methodRoute } from "./pages/Method/index.tsx";
 import { socialRoute } from "./pages/Social/index.tsx";
-import { authentication } from "./middleware/authenticate.ts";
 import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
 import { debtRoute } from "./pages/Debt/index.tsx";
@@ -29,7 +28,6 @@ export const router = createHashRouter([
       loginRoute,
       {
         path: "/",
-        middleware: [authentication],
         Component: AuthLayout,
         children: [
           cashierRoute,

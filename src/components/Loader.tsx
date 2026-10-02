@@ -106,8 +106,13 @@ export function LoaderMany<R extends Record<string, Result<any, any>>>({
  * `Stream.fromEffect`. The subscription is torn down (fiber interrupted) on
  * unmount.
  */
-export function useStream<A, E>(stream: Stream.Stream<A, E, never>): Result<A, E> {
-  const [state, setState] = useState<Result<A, E>>({ type: "init" });
+export function useStream<A, E>(
+  stream: Stream.Stream<A, E, never>,
+  initial?: () => A,
+): Result<A, E> {
+  const [state, setState] = useState<Result<A, E>>(() =>
+    initial === undefined ? { type: "init" } : { type: "success", data: initial() },
+  );
 
   // Keep the latest stream without resubscribing on every render.
   const streamRef = useRef(stream);
