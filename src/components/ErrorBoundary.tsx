@@ -1,17 +1,52 @@
-import { isRouteErrorResponse, useRouteError } from "react-router";
+import { useEffect } from "react";
+import { isRouteErrorResponse, Link, useRouteError, type To } from "react-router";
 import { Button } from "./ui/button";
 import { Unauthenticated } from "~/lib/auth";
 import Redirect from "./Redirect";
 import { AlertTriangle, ArrowLeft, Home, Terminal, ShieldAlert, FileQuestion } from "lucide-react";
+import { log } from "~/lib/log";
 import { cn } from "~/lib/utils";
+
+/** Stringify even circular / BigInt values without throwing. */
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function logError(error: unknown) {
+  log.error(error instanceof Error ? error : safeStringify(error));
+}
+
+/** `effect-error.ts`'s `RedirectError` is a non-`Error` `_tag` value. */
+function isRedirectError(error: unknown): error is { _tag: "RedirectError"; to: To } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { _tag?: unknown })._tag === "RedirectError" &&
+    "to" in error
+  );
+}
 
 export default function ErrorBoundary() {
   const env = import.meta.env.DEV;
   const error = useRouteError();
 
-  // Handle Unauthenticated error
+  // Record failures once so production issues are diagnosable.
+  useEffect(() => {
+    logError(error);
+  }, [error]);
+
+  // Unauthenticated → login (hard reset clears the cached user).
   if (error instanceof Unauthenticated) {
     return <Redirect to="/login" hard />;
+  }
+
+  // Route redirect errors instead of rendering them as a crash.
+  if (isRedirectError(error)) {
+    return <Redirect to={error.to} />;
   }
 
   const reloadPage = () => window.location.reload();
@@ -19,14 +54,16 @@ export default function ErrorBoundary() {
 
   let errorTitle = "Terjadi Kesalahan";
   let errorMessage = "Aplikasi mengalami kendala yang tidak terduga.";
-  let errorStatus: string | number | null = null;
+  let errorStatus: number | null = null;
   let technicalDetails: string | null = null;
   let Icon = AlertTriangle;
   let iconColor = "text-destructive";
 
   if (isRouteErrorResponse(error)) {
     errorStatus = error.status;
-    errorMessage = error.data || error.statusText || errorMessage;
+    // `data` can be a non-string (e.g. `json({...})`) — never render objects.
+    errorMessage =
+      (typeof error.data === "string" && error.data) || error.statusText || errorMessage;
     if (error.status === 404) {
       errorTitle = "Halaman Tidak Ditemukan";
       errorMessage = "Maaf, halaman yang Anda cari tidak dapat ditemukan.";
@@ -41,7 +78,7 @@ export default function ErrorBoundary() {
     errorMessage = error.message;
     technicalDetails = error.stack || null;
   } else {
-    technicalDetails = JSON.stringify(error, null, 2);
+    technicalDetails = safeStringify(error);
   }
 
   return (
@@ -74,10 +111,10 @@ export default function ErrorBoundary() {
             </Button>
 
             <Button variant="ghost" asChild className="h-11 font-semibold">
-              <a href="/">
+              <Link to="/">
                 <Home className="w-4 h-4 mr-2" />
                 Home
-              </a>
+              </Link>
             </Button>
           </div>
         </div>

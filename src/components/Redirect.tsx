@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { To, useNavigate } from "react-router";
+import { createPath, useNavigate, type To } from "react-router";
 
 interface RedirectProps {
   to: To;
@@ -11,11 +11,18 @@ const Redirect = ({ to, replace = true, hard = false }: RedirectProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (hard) {
-      window.location.pathname = to.toString();
-    } else {
+    // Soft navigation works for both browser and hash routers.
+    if (!hard) {
       navigate(to, { replace });
+      return;
     }
+
+    // Hash router: the route lives in the fragment. `navigate` is async on data
+    // routers, so set the fragment directly (pathname + search + hash), then
+    // reload for a clean slate.
+    const path = typeof to === "string" ? to : createPath(to);
+    window.location.hash = path.startsWith("/") ? path : `/${path}`;
+    window.location.reload();
   }, [to, replace, navigate, hard]);
 
   return null;
