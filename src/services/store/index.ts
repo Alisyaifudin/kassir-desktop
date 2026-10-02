@@ -3,7 +3,6 @@ import { NotFound } from "~/lib/effect-error";
 
 export class StoreError extends Data.TaggedError("StoreError")<{ message: string }> {}
 
-
 export class StoreService extends Context.Tag("StoreService")<
   StoreService,
   {

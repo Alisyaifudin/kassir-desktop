@@ -105,3 +105,10 @@ function chunkSubstr(str: string, size: number): string[] {
 export function isString(v: unknown): v is string {
   return typeof v === "string";
 }
+
+export function formatError(e: unknown): string {
+  if (typeof e === "string") return e;
+  else if (e instanceof Error) return e.message;
+  console.error(e);
+  return "Error tidak dikenal";
+}

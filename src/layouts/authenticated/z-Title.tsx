@@ -2,7 +2,7 @@ import { store } from "~/store";
 import { TextError } from "~/components/TextError";
 import { Link } from "react-router";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Consumer, createLoader, Loader } from "~/components/Loader";
+import { Consumer, createLoader, Loader } from "~/components/Loader-old";
 import type { StoreError } from "~/store/error";
 
 export const titleLoader = createLoader(store.owner());

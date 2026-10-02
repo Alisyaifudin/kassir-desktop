@@ -2,7 +2,7 @@ import { LoginForm } from "./z-LoginForm";
 import { FreshForm } from "./z-FreshForm";
 import { db } from "~/database";
 import { ErrorComponent } from "~/components/ErrorComponent";
-import { Consumer, createLoader, Loader } from "~/components/Loader";
+import { Consumer, createLoader, Loader } from "~/components/Loader-old";
 import { Loading } from "~/components/Loading";
 import type { DbError } from "~/database/instance";
 

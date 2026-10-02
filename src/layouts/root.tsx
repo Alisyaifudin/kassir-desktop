@@ -1,44 +1,30 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router";
-import { Effect } from "effect";
-import { store } from "~/store";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Consumer, createLoader, Loader } from "~/components/Loader";
-import type { Size } from "~/store/size/get";
+import type { Size } from "~/services/config";
 import type { StoreError } from "~/store/error";
+import { service } from "~/services";
+import { useStream } from "~/components/Loader";
 
 /** Applies a size to the DOM (`<body>` class drives the `small:` variants). */
 function applySize(size: Size) {
   document.body.classList.toggle("small", size === "small");
 }
 
-/**
- * Reads the persisted UI size and applies it before the app renders, so we
- * never flash the wrong layout.
- */
-export const sizeLoader = createLoader(
-  store.size.get().pipe(Effect.tap((size) => Effect.sync(() => applySize(size)))),
-);
-
 export default function Layout() {
   return (
-    <Loader loader={sizeLoader}>
-      <Consumer Error={Error} loader={sizeLoader} loading={<Loading />}>
-        <ApplySize />
-        <Outlet />
-      </Consumer>
-    </Loader>
+    <>
+      <ApplySize />
+      <Outlet />
+    </>
   );
 }
 
-/**
- * Keeps the `<body>` class in sync with the loader, so optimistic updates and
- * rollbacks both reflect in the DOM.
- */
 function ApplySize() {
-  const size = sizeLoader.useData();
+  const res = useStream(service.config.size.changes);
+  const size = res.type === "success" ? res.data : null;
   useEffect(() => {
-    applySize(size);
+    if (size !== null) applySize(size);
   }, [size]);
   return null;
 }

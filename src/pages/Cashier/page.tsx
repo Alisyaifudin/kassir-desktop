@@ -4,7 +4,7 @@ import { NewCashier } from "./z-NewCashier";
 import { cashiersLoader } from "./use-data";
 import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Consumer, Loader } from "~/components/Loader";
+import { Consumer, Loader } from "~/components/Loader-old";
 import type { DbError } from "~/database/instance";
 
 export default function Page() {

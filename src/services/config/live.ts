@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, SubscriptionRef } from "effect";
 import { ConfigError, ConfigService, type Size } from ".";
 import { LocalStorageService } from "../local-storage";
 
@@ -13,37 +13,25 @@ export const ConfigLive = Layer.effect(
   ConfigService,
   Effect.gen(function* () {
     const storage = yield* LocalStorageService;
-    let cachedSize: Size | null = null;
+
+    // Hydrate once at build time so `changes` replays the real value first.
+    const initial = yield* storage.get<unknown>(SIZE_KEY).pipe(
+      Effect.map(parseSize),
+      Effect.catchTag("NotFound", () => Effect.succeed(DEFAULT_SIZE)),
+      Effect.catchTag("LocalStorageError", () => Effect.succeed(DEFAULT_SIZE)),
+    );
+
+    const sizeRef = yield* SubscriptionRef.make<Size>(initial);
 
     return {
       size: {
-        get() {
-          if (cachedSize !== null) {
-            return Effect.succeed(cachedSize);
-          }
-          return storage.get<unknown>(SIZE_KEY).pipe(
-            Effect.map(parseSize),
-            Effect.catchTag("NotFound", () => Effect.succeed(DEFAULT_SIZE)),
-            Effect.catchTag("LocalStorageError", (error) =>
-              Effect.fail(new ConfigError({ message: error.message })),
-            ),
-            Effect.tap((size) =>
-              Effect.sync(() => {
-                cachedSize = size;
-              }),
-            ),
-          );
-        },
-        set(size) {
-          return storage.set(SIZE_KEY, size).pipe(
+        get: () => SubscriptionRef.get(sizeRef),
+        set: (size) =>
+          storage.set(SIZE_KEY, size).pipe(
             Effect.mapError((error) => new ConfigError({ message: error.message })),
-            Effect.tap(() =>
-              Effect.sync(() => {
-                cachedSize = size;
-              }),
-            ),
-          );
-        },
+            Effect.zipRight(SubscriptionRef.set(sizeRef, size)),
+          ),
+        changes: sizeRef.changes,
       },
     };
   }),

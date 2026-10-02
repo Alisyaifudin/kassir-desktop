@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 import { To } from "react-router";
 
 export class TooMany {
@@ -9,16 +9,17 @@ export class TooMany {
   }
 }
 
-export class NotFound {
-  readonly _tag = "NotFound";
-  constructor(readonly msg: string) {}
-  static new(msg: string) {
-    return new NotFound(msg);
-  }
-  static fail(msg: string) {
-    return Effect.fail(new NotFound(msg));
-  }
-}
+export class NotFound extends Data.TaggedError("NotFound")<{ message: string }> {}
+// export class NotFound {
+//   readonly _tag = "NotFound";
+//   constructor(readonly msg: string) {}
+//   static new(msg: string) {
+//     return new NotFound(msg);
+//   }
+//   static fail(msg: string) {
+//     return Effect.fail(new NotFound(msg));
+//   }
+// }
 
 export class RedirectError {
   readonly _tag = "RedirectError";

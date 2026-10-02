@@ -1,5 +1,5 @@
 import { db } from "~/database";
-import { createLoader } from "~/components/Loader";
+import { createLoader } from "~/components/Loader-old";
 
 export const cashiersLoader = createLoader(db.cashier.get.all());
 

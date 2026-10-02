@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import { type Cashier, type CashierFull, CashierError, CashierService, type Role } from ".";
 import { type Binding, type DbError, DatabaseService } from "../db";
 
@@ -27,68 +27,60 @@ function rowToCashierFull(row: CashierWithHashRow): CashierFull {
   };
 }
 
-function compareByName(a: Cashier, b: Cashier): number {
-  return a.name.localeCompare(b.name);
+function sortByName(cashiers: readonly Cashier[]): Cashier[] {
+  return [...cashiers].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function dbErrorToCashierError(dbError: DbError): CashierError {
   return new CashierError({ message: dbError.message });
 }
 
+const SELECT_ALL =
+  "SELECT cashier_id, cashier_name, cashier_role FROM cashiers ORDER BY cashier_name COLLATE NOCASE ASC";
+
 export const CashierLive = Layer.effect(
   CashierService,
   Effect.gen(function* () {
     const db = yield* DatabaseService;
-    let cashiers: Cashier[] | null = null;
 
-    function updateCache(id: string, patch: Partial<Omit<Cashier, "id">>) {
-      if (cashiers === null) return;
-      cashiers = cashiers
-        .map((cashier) => (cashier.id === id ? { ...cashier, ...patch } : cashier))
-        .sort(compareByName);
+    // Single source of truth for the list. Seeded empty so layer construction
+    // stays synchronous; the first subscriber/read hydrates it.
+    const cashiersRef = yield* SubscriptionRef.make<Cashier[]>([]);
+    let loaded = false;
+
+    function loadAll(): Effect.Effect<Cashier[], CashierError> {
+      return db
+        .selectMany<CashierRow>(SELECT_ALL)
+        .pipe(
+          Effect.mapError(dbErrorToCashierError),
+          Effect.map((rows) => sortByName(rows.map(rowToCashier))),
+        );
     }
 
-    function removeFromCache(id: string) {
-      if (cashiers === null) return;
-      cashiers = cashiers.filter((cashier) => cashier.id !== id);
-    }
-
-    function addToCache(cashier: CashierFull) {
-      if (cashiers === null) return;
-      const entry: Cashier = { id: cashier.id, name: cashier.name, role: cashier.role };
-      cashiers = [...cashiers, entry].sort(compareByName);
-    }
-
-    function mutate(
-      query: string,
-      bindings: Binding[],
-      onSuccess?: () => void,
-    ): Effect.Effect<void, CashierError> {
-      return db.execute(query, bindings).pipe(
-        Effect.mapError(dbErrorToCashierError),
-        Effect.tap(() => Effect.sync(() => onSuccess?.())),
-      );
-    }
-
-    function getAll(): Effect.Effect<Cashier[], CashierError> {
+    function revalidate(): Effect.Effect<void, CashierError> {
       return Effect.gen(function* () {
-        if (cashiers !== null) {
-          return cashiers;
-        }
-        const rows = yield* db
-          .selectMany<CashierRow>(
-            "SELECT cashier_id, cashier_name, cashier_role FROM cashiers ORDER BY cashier_name COLLATE NOCASE ASC",
-          )
-          .pipe(Effect.mapError(dbErrorToCashierError));
-        const result = rows.map(rowToCashier).sort(compareByName);
-        cashiers = result;
-        return result;
+        const cashiers = yield* loadAll();
+        yield* SubscriptionRef.set(cashiersRef, cashiers);
+        loaded = true;
       });
+    }
+
+    function ensureLoaded(): Effect.Effect<void, CashierError> {
+      return Effect.gen(function* () {
+        if (loaded) return;
+        yield* revalidate();
+      });
+    }
+
+    function mutate(query: string, bindings: Binding[]): Effect.Effect<void, CashierError> {
+      return db.execute(query, bindings).pipe(Effect.mapError(dbErrorToCashierError));
     }
 
     return {
       get: {
-        all: getAll,
+        all() {
+          return ensureLoaded().pipe(Effect.zipRight(SubscriptionRef.get(cashiersRef)));
+        },
         byId(id) {
           return db
             .selectOne<CashierWithHashRow>(
@@ -96,20 +88,26 @@ export const CashierLive = Layer.effect(
               [id],
             )
             .pipe(
-              Effect.catchTag("DbError", (error) =>
-                Effect.fail(dbErrorToCashierError(error)),
-              ),
+              Effect.catchTag("DbError", (error) => Effect.fail(dbErrorToCashierError(error))),
               Effect.map(rowToCashierFull),
             );
         },
+        // Hydrates on first subscribe (so `useStream` stays in `init` until the
+        // rows arrive), then replays the current list and every change.
+        changes: Stream.unwrap(ensureLoaded().pipe(Effect.as(cashiersRef.changes))),
+        revalidate,
       },
       set: {
         name(id, name) {
-          return mutate(
-            "UPDATE cashiers SET cashier_name = $1 WHERE cashier_id = $2",
-            [name, id],
-            () => updateCache(id, { name }),
-          );
+          return Effect.gen(function* () {
+            yield* mutate("UPDATE cashiers SET cashier_name = $1 WHERE cashier_id = $2", [
+              name,
+              id,
+            ]);
+            yield* SubscriptionRef.update(cashiersRef, (cashiers) =>
+              sortByName(cashiers.map((c) => (c.id === id ? { ...c, name } : c))),
+            );
+          });
         },
         password(id, password) {
           return mutate("UPDATE cashiers SET cashier_hash = $1 WHERE cashier_id = $2", [
@@ -118,26 +116,35 @@ export const CashierLive = Layer.effect(
           ]);
         },
         role(id, role) {
-          return mutate(
-            "UPDATE cashiers SET cashier_role = $1 WHERE cashier_id = $2",
-            [role, id],
-            () => updateCache(id, { role }),
-          );
+          return Effect.gen(function* () {
+            yield* mutate("UPDATE cashiers SET cashier_role = $1 WHERE cashier_id = $2", [
+              role,
+              id,
+            ]);
+            yield* SubscriptionRef.update(cashiersRef, (cashiers) =>
+              cashiers.map((c) => (c.id === id ? { ...c, role } : c)),
+            );
+          });
         },
       },
       delete(id) {
-        return mutate(
-          "DELETE FROM cashiers WHERE cashier_id = $1",
-          [id],
-          () => removeFromCache(id),
-        );
+        return Effect.gen(function* () {
+          yield* mutate("DELETE FROM cashiers WHERE cashier_id = $1", [id]);
+          yield* SubscriptionRef.update(cashiersRef, (cashiers) =>
+            cashiers.filter((c) => c.id !== id),
+          );
+        });
       },
       add(cashier) {
-        return mutate(
-          "INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash) VALUES ($1, $2, $3, $4)",
-          [cashier.id, cashier.name, cashier.role, cashier.hash],
-          () => addToCache(cashier),
-        );
+        return Effect.gen(function* () {
+          yield* mutate(
+            "INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash) VALUES ($1, $2, $3, $4)",
+            [cashier.id, cashier.name, cashier.role, cashier.hash],
+          );
+          yield* SubscriptionRef.update(cashiersRef, (cashiers) =>
+            sortByName([...cashiers, { id: cashier.id, name: cashier.name, role: cashier.role }]),
+          );
+        });
       },
     };
   }),
