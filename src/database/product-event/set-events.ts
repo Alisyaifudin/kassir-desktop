@@ -5,8 +5,7 @@ import { calcStock } from "../product/calc-stock";
 type Input = {
   id: string;
   createdAt: number;
-  type: DB.ProductEventEnum;
-  value: number;
+  value: number; // signed delta (+/-/0)
   productId: string;
 };
 
@@ -17,21 +16,20 @@ export function setEvents(events: Input[]) {
   const placeholders = events
     .map(
       () =>
-        `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
+        `($${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++}, $${bindingIndex++})`,
     )
     .join(", ");
-  const bindings = events.flatMap(({ productId, createdAt, id, type, value }) => [
+  const bindings = events.flatMap(({ productId, createdAt, id, value }) => [
     id,
     createdAt,
     now,
-    type,
     value,
     productId,
   ]);
   return Effect.gen(function* () {
     yield* DB.try((db) =>
       db.execute(
-        `INSERT INTO product_events (id, created_at, sync_at, type, value, product_id) 
+        `INSERT INTO product_events (id, created_at, sync_at, value, product_id) 
          VALUES ${placeholders} ON CONFLICT (id) DO NOTHING`,
         bindings,
       ),

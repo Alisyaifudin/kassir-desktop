@@ -36,15 +36,15 @@ CREATE TABLE cashiers (
 INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash)
 SELECT cashier_name, cashier_name, cashier_role, cashier_hash FROM cashiers_old;
 
-CREATE TABLE money_kind (
-  money_kind_id    TEXT PRIMARY KEY,
-  money_kind_name  TEXT NOT NULL,
-  money_kind_type  TEXT NOT NULL DEFAULT 'absolute' CHECK (money_kind_type IN ('absolute', 'change')),
-  money_kind_updated_at INTEGER NOT NULL,
-  money_kind_sync_at    INTEGER
+CREATE TABLE pockets (
+  pocket_id    TEXT PRIMARY KEY,
+  pocket_name  TEXT NOT NULL,
+  pocket_type  TEXT NOT NULL DEFAULT 'absolute' CHECK (pocket_type IN ('absolute', 'change')),
+  pocket_updated_at INTEGER NOT NULL,
+  pocket_sync_at    INTEGER
 ) STRICT;
 
-INSERT INTO money_kind (money_kind_id, money_kind_name, money_kind_type, money_kind_updated_at, money_kind_sync_at)
+INSERT INTO pockets (pocket_id, pocket_name, pocket_type, pocket_updated_at, pocket_sync_at)
 SELECT CAST(money_kind_id AS TEXT), money_kind_name, money_kind_type, 
        CAST(unixepoch('subsec') * 1000 AS INTEGER), null  
 FROM money_kind_old;
@@ -53,7 +53,7 @@ CREATE TABLE money (
   money_id         TEXT PRIMARY KEY,
   timestamp        INTEGER NOT NULL,
   money_value      REAL NOT NULL,
-  money_kind_id    TEXT NOT NULL REFERENCES money_kind(money_kind_id) ON DELETE CASCADE,
+  pocket_id        TEXT NOT NULL REFERENCES pockets(pocket_id) ON DELETE CASCADE,
   money_note       TEXT NOT NULL DEFAULT (''),
   money_updated_at INTEGER NOT NULL,
   money_sync_at    INTEGER
@@ -63,7 +63,7 @@ INSERT INTO money (
   money_id,
   timestamp,
   money_value,
-  money_kind_id,
+  pocket_id,
   money_note,
   money_updated_at,
   money_sync_at

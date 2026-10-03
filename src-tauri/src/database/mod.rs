@@ -260,6 +260,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-43.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 44,
+            description: "add_tx_tables",
+            sql: include_str!("../../src/database/41-50/migration-44.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

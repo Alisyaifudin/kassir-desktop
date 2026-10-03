@@ -7,7 +7,6 @@ declare namespace DB {
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
   type Mime = "image/png" | "image/jpeg";
   type CodeKind = "barcode" | "qr";
-  type ProductEventEnum = "manual" | "inc" | "dec";
 
   interface Cashier {
     cashier_id: string;
@@ -33,20 +32,20 @@ declare namespace DB {
     social_sync_at: number | null;
     social_deleted_at: number | null;
   }
-  interface MoneyKind {
-    money_kind_id: string;
-    money_kind_name: string;
-    money_kind_type: MoneyType;
-    money_kind_ordering: number;
-    money_kind_updated_at: number;
-    money_kind_sync_at: number | null;
-    money_kind_deleted_at: number | null;
+  interface Pocket {
+    pocket_id: string;
+    pocket_name: string;
+    pocket_type: MoneyType;
+    pocket_ordering: number;
+    pocket_updated_at: number;
+    pocket_sync_at: number | null;
+    pocket_deleted_at: number | null;
   }
   interface Money {
     money_id: string;
     timestamp: number;
     money_value: number;
-    money_kind_id: string;
+    pocket_id: string;
     money_note: string;
     money_updated_at: number;
     money_sync_at: number | null;
@@ -81,7 +80,7 @@ declare namespace DB {
   }
 
   // --------------------------------------------------------------------------
-  // Product aggregate: products + stocks + listings + codes
+  // Product aggregate: products + stocks + listings
   // --------------------------------------------------------------------------
   interface Product {
     product_id: string;
@@ -98,6 +97,7 @@ declare namespace DB {
     stock_capital: number; // cost per base pc
     stock_created_at: number; // orders lots for FIFO
     stock_updated_at: number;
+    // local cache of `product_events`; NOT synced (no sync_at / deleted_at)
   }
   interface Listing {
     listing_id: string;
@@ -106,22 +106,19 @@ declare namespace DB {
     listing_price: number;
     listing_unit: number; // conversion to base pcs (1 pcs = 1, 1 dozen = 12)
     listing_kind: string; // user-defined label, e.g. "retail" | "wholesale"
+    listing_code: string | null; // at most one code per listing
+    listing_code_kind: CodeKind | null; // "barcode" | "qr"; null when no code
     listing_updated_at: number;
-  }
-  interface Code {
-    code_id: string;
-    product_id: string;
-    listing_id: string | null;
-    code_value: string;
-    code_kind: CodeKind;
-    code_updated_at: number;
+    listing_sync_at: number | null;
+    listing_deleted_at: number | null;
   }
   interface ProductEvent {
     product_event_id: string;
     product_event_created_at: number;
     product_event_sync_at: number | null;
-    product_event_type: ProductEventEnum;
-    product_event_value: number;
+    product_event_value: number; // signed delta (+/-/0)
+    product_event_capital: number; // the lot's capital as of this event (NOT NULL)
+    product_id: string;
     stock_id: string;
   }
 
@@ -178,5 +175,57 @@ declare namespace DB {
     record_extra_value: number;
     record_extra_eff: number;
     record_extra_kind: ValueKind;
+  }
+
+  // --------------------------------------------------------------------------
+  // Cart aggregate (ported from tx.db into data.db):
+  // tx_records + tx_methods + tx_listings + tx_discounts + tx_extras
+  // --------------------------------------------------------------------------
+  interface TxRecord {
+    tx_record_id: string;
+    tx_record_order: number; // user-controlled tab order; re-arrangeable, not unique
+    tx_record_flag: number; // local flag (role TBD)
+    tx_record_title: string;
+    tx_record_mode: Mode;
+    tx_record_query: string;
+    tx_record_fix: number;
+    tx_record_note: string;
+    tx_record_customer_id: string | null;
+    tx_record_manual_code: string;
+    tx_record_manual_name: string;
+    tx_record_manual_price: number;
+    tx_record_manual_qty: number;
+  }
+  interface TxMethod {
+    tx_record_id: string; // PK part 1
+    method_id: string; // PK part 2, references methods(method_id)
+    tx_method_value: number;
+  }
+  interface TxListing {
+    tx_listing_id: string;
+    tx_record_id: string;
+    listing_id: string | null; // live catalog ref (ON DELETE SET NULL)
+    tx_listing_name: string;
+    tx_listing_price: number;
+    tx_listing_unit: number; // conversion to base pcs
+    tx_listing_qty: number;
+    tx_listing_kind: string; // e.g. "retail" | "wholesale"
+  }
+  interface TxDiscount {
+    tx_disc_order: number;
+    tx_disc_id: string;
+    tx_listing_id: string;
+    tx_disc_value: number;
+    tx_disc_eff: number;
+    tx_disc_kind: DiscKind;
+  }
+  interface TxExtra {
+    tx_extra_order: number;
+    tx_extra_id: string;
+    tx_record_id: string;
+    tx_extra_kind: ValueKind;
+    tx_extra_name: string;
+    tx_extra_value: number;
+    tx_extra_eff: number;
   }
 }

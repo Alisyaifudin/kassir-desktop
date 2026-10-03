@@ -4,7 +4,7 @@
 -- Goals
 --   1. Replace the `graves` tombstone table with `*_deleted_at` soft-delete
 --      columns on top-level sync entities.
---   2. Decompose `products` into  stocks / listings / codes.
+--   2. Decompose `products` into  stocks / listings.
 --   3. Split record payment methods into a dedicated `record_methods` table.
 --   4. Replace `record_products` with `record_listings` (no product FK).
 --   5. Repoint `product_events` at `stocks` instead of `products`.
@@ -14,8 +14,17 @@
 --     referenced table (`product_id`, `record_id`, `listing_id`, ...).
 --   * Soft-delete name: `<singular_table>_deleted_at`.
 --   * Sync metadata: `<singular_table>_updated_at` / `<singular_table>_sync_at`.
---   * Child tables carry NO tombstones. They are synced as part of the parent
---     aggregate (delete + reinsert on the client). See "SYNC CONTRACT" below.
+--   * Mutable syncable rows carry the full sync trio:
+--     `<singular>_updated_at` + `<singular>_sync_at` + `<singular>_deleted_at`.
+--     This includes the product children that are edited directly
+--     (`listings`, `images`).
+--   * `stocks` is a LOCAL CACHE derived from the append-only `product_events`
+--     journal (stock is event-sourced). It is never synced on its own, so it
+--     carries `_updated_at` only — no `_sync_at` / `_deleted_at`.
+--   * Immutable aggregate members (record children) carry NO tombstones / sync
+--     metadata; they are rewritten with their parent (`records`).
+--     Append-only journals (`product_events`) carry `<x>_created_at` /
+--     `<x>_sync_at` and are never deleted.
 --   * `cashiers` is NOT sync-able.
 --
 -- Ground rules for this draft
@@ -54,7 +63,7 @@ ALTER TABLE extras      ADD COLUMN extra_deleted_at       INTEGER;
 ALTER TABLE customers   ADD COLUMN customer_deleted_at    INTEGER;
 ALTER TABLE socials     ADD COLUMN social_deleted_at      INTEGER;
 ALTER TABLE money       ADD COLUMN money_deleted_at       INTEGER;
-ALTER TABLE money_kind  ADD COLUMN money_kind_deleted_at  INTEGER;
+ALTER TABLE pockets     ADD COLUMN pocket_deleted_at     INTEGER;
 
 
 -- ----------------------------------------------------------------------------
@@ -78,7 +87,7 @@ INSERT INTO mode_enum (v) VALUES ('incoming'), ('outcoming');
 
 -- ----------------------------------------------------------------------------
 -- 4. `products` — slimmed down.
---    Removed: product_barcode (-> codes), product_price (-> listings),
+--    Removed: product_barcode (-> listings.listing_code), product_price (-> listings),
 --             product_stock (-> stocks), product_capital (-> stocks).
 -- ----------------------------------------------------------------------------
 CREATE TABLE products (
@@ -94,7 +103,9 @@ CREATE TABLE products (
 
 
 -- ----------------------------------------------------------------------------
--- 5. Product aggregate children (no tombstones by design).
+-- 5. Product children.
+--    `listings` is a syncable mutable row; `stocks` is a local cache of the
+--    event-sourced `product_events` journal (not synced).
 -- ----------------------------------------------------------------------------
 
 -- stocks: one row per cost lot; a product can carry several capital values.
@@ -118,6 +129,8 @@ CREATE INDEX stock_product_idx ON stocks (product_id);
 --   listing_kind  user-defined label to tell listings apart (e.g. "retail",
 --                 "wholesale", "marketplace"). Intentionally NOT an enum and
 --                 NOT validated by the DB. Normalize casing in app code.
+--   listing_code  the listing's single code value (barcode / qr), or NULL.
+--   listing_code_kind  'barcode' | 'qr'; NULL when listing_code is NULL.
 -- TODO(q1): default `retail` is a guess — keep or make it required input?
 CREATE TABLE listings (
   listing_id         TEXT PRIMARY KEY,
@@ -126,26 +139,19 @@ CREATE TABLE listings (
   listing_price      REAL NOT NULL,
   listing_unit       INTEGER NOT NULL DEFAULT 1,
   listing_kind       TEXT NOT NULL DEFAULT 'retail',
-  listing_updated_at INTEGER NOT NULL
+  listing_code       TEXT,                                 -- at most one code per listing
+  listing_code_kind  TEXT REFERENCES code_kind_enum(v),    -- 'barcode' | 'qr'
+  listing_updated_at INTEGER NOT NULL,
+  listing_sync_at    INTEGER,
+  listing_deleted_at INTEGER
 ) STRICT;
 
 CREATE INDEX listing_product_idx ON listings (product_id);
 
--- codes: a product can carry several codes (barcode / qr). A code may also be
--- scoped to a specific listing. Only `barcode` is globally unique.
-CREATE TABLE codes (
-  code_id         TEXT PRIMARY KEY,
-  product_id      TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
-  listing_id      TEXT REFERENCES listings(listing_id) ON DELETE CASCADE,
-  code_value      TEXT NOT NULL,
-  code_kind       TEXT NOT NULL REFERENCES code_kind_enum(v),
-  code_updated_at INTEGER NOT NULL
-) STRICT;
-
-CREATE UNIQUE INDEX code_barcode_unique ON codes (code_value) WHERE code_kind = 'barcode';
-CREATE INDEX code_value_idx   ON codes (code_value);
-CREATE INDEX code_product_idx ON codes (product_id);
-CREATE INDEX code_listing_idx ON codes (listing_id);
+-- The code now lives on its listing (at most one). As before, only `barcode`
+-- is globally unique; `listing_code_kind` is NULL whenever `listing_code` is.
+CREATE UNIQUE INDEX listing_barcode_unique ON listings (listing_code) WHERE listing_code_kind = 'barcode';
+CREATE INDEX listing_code_idx ON listings (listing_code);
 
 
 -- ----------------------------------------------------------------------------
@@ -165,20 +171,30 @@ CREATE TABLE images (
 
 
 -- ----------------------------------------------------------------------------
--- 7. `product_events` — now references a stock lot. This is the rollback log:
---    deleting a record replays events to recompute each stock lot's value.
---    Columns renamed to the `<singular>_*` convention.
+-- 7. `product_events` — the append-only stock journal and source of truth.
+--    Every row is a movement of one lot:
+--      * `product_event_value`   SIGNED delta (+/-/0) in base pcs;
+--      * `product_event_capital` the lot's capital as of this event (NOT NULL),
+--        so a capital correction is just another event with delta 0.
+--    There is no `type` column. Regenerating the local `stocks` cache is
+--    therefore total and needs no "creation marker": value = SUM(delta),
+--    capital = the newest event's capital, created_at = the oldest event's
+--    created_at. `product_id` keeps the journal self-sufficient on a fresh
+--    device; `stock_id` keys each event into the cache. Lots are never deleted,
+--    so the FK never costs us journal rows.
 -- ----------------------------------------------------------------------------
 CREATE TABLE product_events (
   product_event_id         TEXT PRIMARY KEY,
   product_event_created_at INTEGER NOT NULL,
   product_event_sync_at    INTEGER,
-  product_event_type       TEXT NOT NULL REFERENCES product_event_enum(v),
-  product_event_value      INTEGER NOT NULL,
+  product_event_value      INTEGER NOT NULL, -- signed delta (+/-/0)
+  product_event_capital    REAL NOT NULL,    -- the lot's capital as of this event
+  product_id               TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
   stock_id                 TEXT NOT NULL REFERENCES stocks(stock_id) ON DELETE CASCADE
 ) STRICT;
 
-CREATE INDEX product_event_stock_idx ON product_events (stock_id);
+CREATE INDEX product_event_product_idx ON product_events (product_id);
+CREATE INDEX product_event_stock_idx   ON product_events (stock_id);
 
 
 -- ----------------------------------------------------------------------------
@@ -264,7 +280,7 @@ CREATE TABLE record_extras (
 -- ============================================================================
 -- Why plain SQL works here: every new row maps 1:1 to an old row, so no new
 -- ids have to be minted — we REUSE the old primary keys:
---   products.product_id -> stocks.stock_id / listings.listing_id / codes.code_id
+--   products.product_id -> stocks.stock_id / listings.listing_id
 --   records.record_id   -> record_methods.record_method_id
 --   record_products.record_product_id -> record_listings.record_listing_id
 -- Existing ids are numeric strings (new app rows are ULIDs); both are fine
@@ -300,26 +316,35 @@ SELECT
   product_id, product_id, product_name, product_price, 1, 'retail', product_updated_at
 FROM products_old;
 
--- 10.4 codes — the old single barcode, when present and non-empty.
---      NOTE: do NOT trim() here; old UNIQUE compared raw values, so trimming
---      could collapse ' 123 ' and '123' into a unique-index violation.
-INSERT INTO codes (
-  code_id, product_id, listing_id, code_value, code_kind, code_updated_at
-)
-SELECT
-  product_id, product_id, product_id, product_barcode, 'barcode', product_updated_at
-FROM products_old
-WHERE product_barcode IS NOT NULL
-  AND product_barcode <> '';
+-- 10.4 code — attach the old single barcode to the seed retail listing.
+--      NOTE: do NOT trim() here; the old UNIQUE index compared raw values, so
+--      trimming could collapse ' 123 ' and '123' into a unique-index violation.
+UPDATE listings
+SET listing_code      = (SELECT p.product_barcode FROM products_old p
+                         WHERE p.product_id = listings.product_id),
+    listing_code_kind = 'barcode'
+WHERE EXISTS (
+  SELECT 1 FROM products_old p
+  WHERE p.product_id = listings.product_id
+    AND p.product_barcode IS NOT NULL
+    AND p.product_barcode <> ''
+);
 
 -- 10.5 product_events — repoint at the seed stock (stock_id = product_id).
+--      `type` is gone: the old positive `value` becomes a signed delta, so
+--      `dec` events are negated. Every event carries the lot's capital, so the
+--      seed lot's `product_capital` is written on all of its events.
 INSERT INTO product_events (
   product_event_id, product_event_created_at, product_event_sync_at,
-  product_event_type, product_event_value, stock_id
+  product_event_value, product_event_capital, product_id, stock_id
 )
 SELECT
-  id, created_at, sync_at, type, value, product_id
-FROM product_events_old;
+  pe.id, pe.created_at, pe.sync_at,
+  CASE WHEN pe.type = 'dec' THEN -pe.value ELSE pe.value END,
+  po.product_capital,
+  pe.product_id, pe.product_id
+FROM product_events_old pe
+JOIN products_old po ON po.product_id = pe.product_id;
 
 -- 10.6 records — drop method_id; rename the mode enum values.
 INSERT INTO records (
@@ -405,7 +430,7 @@ FROM images_old;
 --      from them would soft-delete a real record, so they are skipped;
 --      `graves_old` is retained for inspection. Product graves are valid and
 --      are re-materialized as soft-deleted stubs below. The money / extra /
---      money_kind tombstones were never synced server-side; left alone.
+--      pocket tombstones were never synced server-side; left alone.
 INSERT INTO products (
   product_id, product_name, product_note, product_updated_at, product_sync_at,
   product_deleted_at
@@ -418,7 +443,7 @@ WHERE g.grave_kind = 'product'
 GROUP BY g.grave_item_id;
 
 -- 10.13 Force the new aggregates to re-push (the server has never seen
---       stocks/listings/codes/record_methods/record_listings).
+--       stocks/listings/record_methods/record_listings).
 --       COMMENTED OUT until the server contract accepts the nested payload —
 --       pushing the new shape early will be rejected.
 -- UPDATE products SET product_sync_at = NULL;
@@ -440,11 +465,12 @@ GROUP BY g.grave_item_id;
 --   with the greater `_updated_at` and honors `_deleted_at`.
 --
 -- Aggregates
---   product  = products + stocks + listings + codes
+--   product  = products + listings + images
 --              keyed on product_updated_at. Any child change bumps
---              product_updated_at. Pull returns the FULL child set for a
---              changed product; the client replaces that product's children
---              (hence child tables carry no tombstones / sync_at).
+--              product_updated_at. These children are mutable rows carrying
+--              their own `_updated_at` / `_sync_at` / `_deleted_at`.
+--   stocks    = LOCAL CACHE, not synced. Rebuilt by replaying `product_events`
+--              (ordered by product_event_created_at).
 --   record   = records + record_listings + record_methods + record_extras
 --              + discounts, keyed on record_updated_at. Immutable snapshots.
 --              Deletion via record_deleted_at cascades locally.
@@ -452,7 +478,7 @@ GROUP BY g.grave_item_id;
 --   product_event_created_at / product_event_sync_at. Events are not deleted.
 --
 -- Server contract changes required (later, not in this file)
---   * POST/PULL product payload must be nested (stocks/listings/codes).
+--   * POST/PULL product payload must be nested (stocks/listings).
 --   * Record payload must carry methods + listings (renamed field names).
 --   * Retire /api/grave; add `<x>_deleted_at` to server rows.
 -- ============================================================================

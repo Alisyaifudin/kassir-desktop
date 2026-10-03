@@ -4,8 +4,7 @@ import { DB } from "../instance";
 export type ProductEvent = {
   id: string;
   createdAt: number;
-  type: DB.ProductEventEnum;
-  value: number;
+  value: number; // signed delta (+/-/0)
   productId: string;
 };
 
@@ -14,7 +13,7 @@ const LIMIT = 1000;
 export function getUnsync(upto: number) {
   return DB.try((db) =>
     db.select<Omit<DB.ProductEvent, "sync_at">[]>(
-      `SELECT id, created_at, type, value, product_id FROM product_events 
+      `SELECT id, created_at, value, product_id FROM product_events 
       WHERE created_at < $1 AND sync_at IS NULL ORDER BY created_at LIMIT $2`,
       [upto, LIMIT],
     ),

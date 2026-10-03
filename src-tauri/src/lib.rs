@@ -3,12 +3,10 @@ mod auth;
 mod database;
 mod jwt;
 mod printer;
-mod transaction;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let database_migs = database::generate_migration();
-    let transaction_migs = transaction::generate_migration();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
@@ -24,7 +22,6 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:tx.db", transaction_migs)
                 .add_migrations("sqlite:data.db", database_migs)
                 .build(),
         )
