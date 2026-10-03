@@ -80,7 +80,7 @@ declare namespace DB {
   }
 
   // --------------------------------------------------------------------------
-  // Product aggregate: products + stocks + listings
+  // Product aggregate: products + stocks + listings + properties
   // --------------------------------------------------------------------------
   interface Product {
     product_id: string;
@@ -111,6 +111,15 @@ declare namespace DB {
     listing_updated_at: number;
     listing_sync_at: number | null;
     listing_deleted_at: number | null;
+  }
+  interface Property {
+    property_id: string;
+    product_id: string;
+    property_key: string; // user-defined label, e.g. "origin" | "expiry"
+    property_value: string; // arbitrary text (JSON allowed); DB does not interpret
+    property_updated_at: number;
+    property_sync_at: number | null;
+    property_deleted_at: number | null;
   }
   interface ProductEvent {
     product_event_id: string;

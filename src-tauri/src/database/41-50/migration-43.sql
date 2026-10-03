@@ -153,6 +153,27 @@ CREATE INDEX listing_product_idx ON listings (product_id);
 CREATE UNIQUE INDEX listing_barcode_unique ON listings (listing_code) WHERE listing_code_kind = 'barcode';
 CREATE INDEX listing_code_idx ON listings (listing_code);
 
+-- properties: arbitrary key/value metadata attached to a product.
+--   property_key   user-defined label (e.g. 'origin', 'expiry', 'supplier').
+--   property_value arbitrary text; the DB does not interpret it, so store
+--                  JSON here when a value needs structure.
+--   At most one live value per key per product (the partial unique index lets
+--   a soft-deleted row be replaced by a new one with the same key).
+--   Syncable mutable child: carries the full sync trio like `listings`.
+CREATE TABLE properties (
+  property_id         TEXT PRIMARY KEY,
+  product_id          TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+  property_key        TEXT NOT NULL,
+  property_value      TEXT NOT NULL,
+  property_updated_at INTEGER NOT NULL,
+  property_sync_at    INTEGER,
+  property_deleted_at INTEGER
+) STRICT;
+
+CREATE UNIQUE INDEX property_product_key_unique
+  ON properties (product_id, property_key) WHERE property_deleted_at IS NULL;
+CREATE INDEX property_product_idx ON properties (product_id);
+
 
 -- ----------------------------------------------------------------------------
 -- 6. `images` — rebuilt to add `image_deleted_at` and to point at the new
@@ -465,7 +486,7 @@ GROUP BY g.grave_item_id;
 --   with the greater `_updated_at` and honors `_deleted_at`.
 --
 -- Aggregates
---   product  = products + listings + images
+--   product  = products + listings + properties + images
 --              keyed on product_updated_at. Any child change bumps
 --              product_updated_at. These children are mutable rows carrying
 --              their own `_updated_at` / `_sync_at` / `_deleted_at`.
