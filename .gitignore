@@ -33,3 +33,7 @@ dist-ssr
 pi-session*
 data.db
 tx.db
+
+# local dumps / backups
+src-old/
+tx.sql
