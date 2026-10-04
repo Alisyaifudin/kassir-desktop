@@ -135,6 +135,41 @@ export function useStream<A, E>(
 }
 
 /**
+ * Like `useStream`, but re-subscribes whenever `deps` change. Use for
+ * param-scoped queries (history, performance) wrapped in `Stream.fromEffect`.
+ */
+export function useQuery<A, E>(
+  factory: () => Stream.Stream<A, E, never>,
+  deps: React.DependencyList,
+  initial?: () => A,
+): Result<A, E> {
+  const [state, setState] = useState<Result<A, E>>(() =>
+    initial === undefined ? { type: "init" } : { type: "success", data: initial() },
+  );
+
+  const factoryRef = useRef(factory);
+  factoryRef.current = factory;
+
+  useEffect(() => {
+    setState(initial === undefined ? { type: "init" } : { type: "success", data: initial() });
+
+    const fiber = Effect.runFork(
+      factoryRef.current().pipe(
+        Stream.runForEach((data) => Effect.sync(() => setState({ type: "success", data }))),
+        Effect.catchAll((error) => Effect.sync(() => setState({ type: "error", error }))),
+      ),
+    );
+
+    return () => {
+      void Effect.runFork(Fiber.interrupt(fiber));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return state;
+}
+
+/**
  * Runs an Effect on demand (event handlers, submits) and tracks
  * pending/error/data. `mutate` resolves with an `Either` so callers can branch
  * without try/catch; defects still reject the promise.

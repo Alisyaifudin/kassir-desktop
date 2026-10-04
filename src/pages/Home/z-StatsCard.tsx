@@ -22,7 +22,7 @@ export function StatsCard({
     <div className={cn("flex flex-col gap-2 rounded-xl border bg-card p-6 shadow-sm", className)}>
       <div className="flex items-center justify-between">
         <span className="font-medium text-muted-foreground">{label}</span>
-        <Icon size={20} className={color} />
+        <Icon className={cn("size-5 shrink-0 small:size-4", color)} />
       </div>
       <div className="flex flex-col gap-0.5">
         <span className="font-bold tracking-tight">{value}</span>

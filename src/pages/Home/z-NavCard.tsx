@@ -34,11 +34,11 @@ export function NavCard({
     >
       <div
         className={cn(
-          "flex h-16 w-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-110",
+          "flex size-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-110 small:size-14",
           color,
         )}
       >
-        <Icon size={32} />
+        <Icon className="size-8 small:size-7" />
       </div>
       <div className="flex flex-col gap-1">
         <h3 className="text-big font-bold tracking-tight">{label}</h3>
