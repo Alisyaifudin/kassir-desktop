@@ -1,19 +1,19 @@
 import { createHashRouter } from "react-router";
 import { loginRoute } from "./pages/Login";
-import { shopRoute } from "./pages/Shop";
+// import { shopRoute } from "./pages/Shop";
 import { productRoute } from "./pages/Product";
-import { settingRoute } from "./pages/Setting";
-import { recordRoute } from "./pages/Record";
-import { moneyRoute } from "./pages/Money";
-import { analRoute } from "./pages/Analytics";
-import { cashierRoute } from "./pages/Cashier/index.tsx";
-import { customerRoute } from "./pages/Customer/index.tsx";
-import { methodRoute } from "./pages/Method/index.tsx";
-import { socialRoute } from "./pages/Social/index.tsx";
+// import { settingRoute } from "./pages/Setting";
+// import { recordRoute } from "./pages/Record";
+// import { moneyRoute } from "./pages/Money";
+// import { analRoute } from "./pages/Analytics";
+// import { cashierRoute } from "./pages/Cashier/index.tsx";
+// import { customerRoute } from "./pages/Customer/index.tsx";
+// import { methodRoute } from "./pages/Method/index.tsx";
+// import { socialRoute } from "./pages/Social/index.tsx";
 import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
-import { debtRoute } from "./pages/Debt/index.tsx";
-import { extraRoute } from "./pages/Extra/index.tsx";
+// import { debtRoute } from "./pages/Debt/index.tsx";
+// import { extraRoute } from "./pages/Extra/index.tsx";
 
 const RootLayout = lazy(() => import("./layouts/root.tsx"));
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
@@ -30,19 +30,19 @@ export const router = createHashRouter([
         path: "/",
         Component: AuthLayout,
         children: [
-          cashierRoute,
-          customerRoute,
-          methodRoute,
-          socialRoute,
-          extraRoute,
+          // cashierRoute,
+          // customerRoute,
+          // methodRoute,
+          // socialRoute,
+          // extraRoute,
           homeRoute,
-          debtRoute,
-          shopRoute,
-          settingRoute,
+          // debtRoute,
+          // shopRoute,
+          // settingRoute,
           productRoute,
-          moneyRoute,
-          recordRoute,
-          analRoute,
+          // moneyRoute,
+          // recordRoute,
+          // analRoute,
         ],
       },
     ],

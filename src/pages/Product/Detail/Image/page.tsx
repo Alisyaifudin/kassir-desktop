@@ -1,92 +1,140 @@
-import { Button } from "~/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "~/lib/utils";
-import { DeleteImg } from "./z-DeleteImg";
-import { ImageControl } from "./z-ImageControl";
-import { useSelected } from "./use-selected";
-import { useChange } from "./use-change";
-import { useContainerSize, useControlSize } from "./use-container-size";
-import { ImageResult, useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { ErrorComponent } from "~/components/ErrorComponent";
-import { log } from "~/lib/log";
+import { useEffect, useState } from "react";
+import { Effect } from "effect";
+import { ImageOff } from "lucide-react";
+import { Loader, useStream } from "~/components/Loader";
+import { NotFound } from "~/components/NotFound";
+import { TextError } from "~/components/TextError";
 import { useUser } from "~/hooks/use-user";
+import { image } from "~/lib/image";
+import { service } from "~/services";
+import type { ProductFull, ProductImage } from "~/services/product";
+import { useId } from "../use-id";
+import { AddButton } from "./z-AddButton";
 import { Loading } from "./z-Loading";
+import { Preview } from "./z-Preview";
+import { ThumbRail } from "./z-ThumbRail";
 
 export default function Page() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError(error) {
-      log.error(error.e);
-      return <ErrorComponent>{error.e.message}</ErrorComponent>;
-    },
-    onSuccess(images) {
-      return <Wrapper images={images} />;
-    },
-  });
-}
-
-function Wrapper({ images }: { images: ImageResult[] }) {
-  const [selected, setSelected] = useSelected(images);
-  const [index, handlePrev, handleNext] = useChange(images);
-  const [refContainer, container] = useContainerSize();
-  const [ref, control] = useControlSize();
+  const id = useId();
+  const res = useStream(service.product.get.changesFull);
   const role = useUser().role;
+
   return (
-    <div ref={refContainer} className="flex flex-col gap-1 flex-1 w-full min-h-0">
-      <div className="flex-1 min-h-0 justify-center  items-center flex">
-        <Button
-          className="h-full px-0"
-          variant="secondary"
-          onClick={handlePrev}
-          disabled={index <= 0}
-        >
-          <ChevronLeft />
-        </Button>
-        <div
-          style={{ height: container.height - control.height }}
-          className="relative flex-1 min-h-0  flex justify-center items-center overflow-hidden"
-        >
-          <img className="max-w-full max-h-full object-contain" src={selected?.href} />
-          {selected && role === "admin" ? <DeleteImg selected={selected} /> : null}
-        </div>
-        <Button
-          className="h-full px-0"
-          variant="secondary"
-          disabled={index === images.length - 1}
-          onClick={handleNext}
-        >
-          <ChevronRight />
-        </Button>
-      </div>
-      <div ref={ref} className="flex flex-col w-full min-h-0">
-        <div className="overflow-x-scroll flex items-center gap-1 h-36 overflow-y-hidden">
-          {images.map((image, i) => (
-            <button
-              key={i}
-              className="h-32 aspect-square p-0.5"
-              onClick={() => setSelected(image.id)}
-            >
-              <Image image={image} selected={selected!} />
-            </button>
-          ))}
-        </div>
-        <ImageControl images={images} />
-      </div>
-    </div>
+    <Loader res={res} fallback={<Loading />}>
+      {({ data: products }) => {
+        const product = products.find((item) => item.id === id);
+        if (product === undefined) return <NotFound />;
+        return <Manager product={product} canManage={role === "admin"} />;
+      }}
+    </Loader>
   );
 }
 
-function Image({ image, selected }: { image: ImageResult; selected: ImageResult }) {
+function Manager({ product, canManage }: { product: ProductFull; canManage: boolean }) {
+  const images = product.images;
+  const [selectedId, setSelectedId] = useState<string | null>(images[0]?.id ?? null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedId === null || !images.some((item) => item.id === selectedId)) {
+      setSelectedId(images[0]?.id ?? null);
+    }
+  }, [images, selectedId]);
+
+  const selectedIndex = Math.max(
+    0,
+    images.findIndex((item) => item.id === selectedId),
+  );
+  const selected = images[selectedIndex] ?? null;
+
+  async function reorder(ids: string[]) {
+    if (ids.length < 2) return;
+    setBusy(true);
+    setError(null);
+    const result = await Effect.runPromise(
+      service.product.set.image.reorder(product.id, ids).pipe(Effect.either),
+    );
+    setBusy(false);
+    if (result._tag === "Left") setError(result.left.message);
+  }
+
+  async function handleDelete(target: ProductImage) {
+    if (!window.confirm("Hapus gambar ini?")) return;
+    setBusy(true);
+    setError(null);
+    const removed = await Effect.runPromise(
+      service.product.set.image.remove(product.id, target.id).pipe(Effect.either),
+    );
+    if (removed._tag === "Left") {
+      setError(removed.left.message);
+      setBusy(false);
+      return;
+    }
+    const fileResult = await Effect.runPromise(image.del(target.name).pipe(Effect.either));
+    if (fileResult._tag === "Left") setError(fileResult.left.e.message);
+    setBusy(false);
+  }
+
+  function handleSetCover(target: ProductImage) {
+    const ids = [
+      target.id,
+      ...images.filter((item) => item.id !== target.id).map((item) => item.id),
+    ];
+    void reorder(ids);
+  }
+
   return (
-    <img
-      className={cn("object-contain w-full h-full", {
-        outline: selected.id === image.id,
-      })}
-      src={image.href}
-    />
+    <main className="flex h-full flex-col gap-3 p-4">
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex flex-col">
+          <h2 className="font-semibold">Gambar</h2>
+          <p className="text-normal text-muted-foreground">{images.length} gambar</p>
+        </div>
+        {canManage && images.length > 0 ? (
+          <AddButton
+            productId={product.id}
+            disabled={busy}
+            onAdded={(imageId) => setSelectedId(imageId)}
+          />
+        ) : null}
+      </header>
+
+      <TextError>{error}</TextError>
+
+      {images.length === 0 ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground">
+          <ImageOff className="size-12" />
+          <p className="text-normal">Belum ada gambar.</p>
+          {canManage ? (
+            <AddButton productId={product.id} onAdded={(imageId) => setSelectedId(imageId)} />
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <Preview
+            image={selected}
+            canManage={canManage}
+            hasPrev={selectedIndex > 0}
+            hasNext={selectedIndex < images.length - 1}
+            isCover={selectedIndex === 0}
+            disabled={busy}
+            onPrev={() => setSelectedId(images[selectedIndex - 1]?.id ?? selectedId)}
+            onNext={() => setSelectedId(images[selectedIndex + 1]?.id ?? selectedId)}
+            onSetCover={() => selected !== null && handleSetCover(selected)}
+            onDelete={() => selected !== null && void handleDelete(selected)}
+          />
+          <ThumbRail
+            images={images}
+            selectedId={selected?.id ?? null}
+            disabled={busy}
+            canManage={canManage}
+            onSelect={setSelectedId}
+            onDelete={(target) => void handleDelete(target)}
+            onReorder={(ids) => void reorder(ids)}
+          />
+        </>
+      )}
+    </main>
   );
 }

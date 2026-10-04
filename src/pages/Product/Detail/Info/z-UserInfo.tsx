@@ -1,48 +1,64 @@
-import { Product} from "~/database/product/cache";
 import { Package, StickyNote } from "lucide-react";
+import type { ProductFull } from "~/services/product";
+import { formatPrice, priceRange } from "../../z-ProductBits";
 
-export function UserInfo({ product }: { product: Product}) {
+export function UserInfo({ product }: { product: ProductFull }) {
   return (
-    <div className="h-full overflow-y-auto w-full pr-2 pb-4">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
-          <Package className="w-5 h-5" />
-        </div>
-        <h1 className="font-bold text-2xl tracking-tight text-foreground">Info Barang</h1>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Package className="size-5 text-primary" />
+        <h2 className="font-semibold">Info Barang</h2>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <DetailRow label="Nama" value={product.name} />
-        <DetailRow label="Harga" value={product.price} />
-        <DetailRow label="Modal" value={product.capital} />
-        <DetailRow label="Stok" value={product.stock} />
-        <DetailRow label="Barcode" value={product.barcode ?? ""} />
+      <Row label="Nama" value={product.name} />
+      <Row label="Harga" value={priceRange(product)} />
+      <Row label="Modal" value={formatPrice(product.capital)} />
+      <Row label="Stok" value={`${product.stock.toLocaleString("id-ID")} pcs`} />
 
-        {product.note !== "" ? (
-          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <StickyNote className="w-4 h-4" />
-              <span className="text-sm font-medium">Catatan</span>
-            </div>
-            <p className="text-sm font-medium text-foreground leading-relaxed">{product.note}</p>
+      <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
+        <span className="text-normal font-medium text-muted-foreground">Listing</span>
+        {product.listings.map((listing) => (
+          <div key={listing.id} className="flex items-center justify-between gap-2 text-normal">
+            <span>
+              {listing.name}{" "}
+              <span className="text-xs text-muted-foreground">
+                ({listing.kind} · ×{listing.unit})
+              </span>
+            </span>
+            <span className="tabular-nums">{formatPrice(listing.price)}</span>
           </div>
-        ) : null}
+        ))}
       </div>
+
+      {product.properties.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
+          <span className="text-normal font-medium text-muted-foreground">Properti</span>
+          {product.properties.map((property) => (
+            <div key={property.id} className="flex items-center justify-between gap-2 text-normal">
+              <span className="text-muted-foreground">{property.key}</span>
+              <span className="break-all text-right">{property.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {product.note !== "" ? (
+        <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
+          <span className="flex items-center gap-2 text-normal font-medium text-muted-foreground">
+            <StickyNote className="size-4" /> Catatan
+          </span>
+          <p className="text-normal leading-relaxed">{product.note}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string | number }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border duration-200">
-      <div className="flex items-center gap-3 text-muted-foreground w-1/3">
-        <span className="text-normal font-medium">{label}</span>
-      </div>
-      <div className="text-right w-2/3 flex justify-end">
-        <span className="text-normal text-foreground break-all text-right">
-          {value === "" ? "-" : value}
-        </span>
-      </div>
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-transparent p-3 transition-colors hover:border-border hover:bg-muted/50">
+      <span className="text-normal font-medium text-muted-foreground">{label}</span>
+      <span className="break-all text-right text-normal">{value === "" ? "-" : value}</span>
     </div>
   );
 }

@@ -1,10 +1,14 @@
 import { Temporal } from "temporal-polyfill";
-import { Method } from "~/database/method/cache";
 
 export const version = "5.19.29";
 
 export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
+export type MethodKind = (typeof METHODS)[number];
+
+/** Shape of the built-in method rows seeded below; the `method` service owns the domain type. */
+type Method = { id: string; name?: string; kind: MethodKind };
+
 export const METHOD_NAMES = {
   cash: "Tunai",
   transfer: "Transfer",

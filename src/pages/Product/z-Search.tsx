@@ -1,40 +1,46 @@
-import { SearchIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { useEffect, useRef, useState } from "react";
+import { SearchIcon, X } from "lucide-react";
 import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
-import { cn } from "~/lib/utils";
-import { useQuery } from "./use-query";
 
-export function Search({ className }: { className?: string }) {
-  const [query, setQuery] = useQuery();
-  const [value, setValue] = useState(query);
-  const ref = useRef<HTMLInputElement>(null);
+export function Search({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [local, setLocal] = useState(value);
+  const debounced = useDebouncedCallback(onChange, DEBOUNCE_DELAY);
+
   useEffect(() => {
-    if (ref.current === null) return;
-    ref.current.focus();
-  }, []);
-  const debounced = useDebouncedCallback((value: string) => {
-    setQuery(value);
-  }, DEBOUNCE_DELAY);
+    setLocal(value);
+  }, [value]);
+
   return (
-    <label className={cn("relative flex gap-2 items-center flex-1", className)}>
-      <SearchIcon className="absolute left-2" />
+    <div className="relative flex flex-1 min-w-[180px] items-center">
+      <SearchIcon className="absolute left-3 size-4 text-muted-foreground small:size-3.5" />
       <Input
-        ref={ref}
         type="search"
-        key="product"
-        id="product-search"
-        placeholder="Cari..."
-        className={cn("w-full pl-8", "pl-10 small:pl-8")}
-        value={value}
-        aria-autocomplete="list"
+        value={local}
+        placeholder="Cari produk, listing, atau kode..."
+        className="pl-9 pr-8"
         onChange={(e) => {
-          const val = e.currentTarget.value;
-          setValue(val.trimStart());
-          debounced(val);
+          const next = e.currentTarget.value;
+          setLocal(next);
+          debounced(next);
         }}
       />
-    </label>
+      {local !== "" ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-1 size-7"
+          onClick={() => {
+            setLocal("");
+            onChange("");
+          }}
+        >
+          <X className="size-4" />
+        </Button>
+      ) : null}
+    </div>
   );
 }

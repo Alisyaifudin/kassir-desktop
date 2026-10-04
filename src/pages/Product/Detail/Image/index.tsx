@@ -10,5 +10,5 @@ export const imageRoute: RouteObject = {
       <Page />
     </Suspense>
   ),
-  path: "images",
+  path: "image",
 };

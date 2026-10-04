@@ -4,7 +4,7 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { capitalize, cn } from "~/lib/utils";
-import { CashierWithoutHash } from "~/database/cashier/get-all";
+import type { Cashier } from "~/services/cashier";
 import { useLoginForm } from "./use-login-form";
 import { FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 
@@ -25,7 +25,7 @@ function avatarColor(id: string) {
   return AVATAR_COLORS[sum % AVATAR_COLORS.length];
 }
 
-export function LoginForm({ cashiers }: { cashiers: CashierWithoutHash[] }) {
+export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
   const { form, error } = useLoginForm();
   const passwordRef = useRef<HTMLInputElement>(null);
 

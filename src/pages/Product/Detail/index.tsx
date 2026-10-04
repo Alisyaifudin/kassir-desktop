@@ -1,6 +1,5 @@
 import { RouteObject } from "react-router";
 import { lazy, Suspense } from "react";
-import { loader } from "./loader.ts";
 import { imageRoute } from "./Image/index.tsx";
 import { detailRoute } from "./Info/index.tsx";
 import { perfRoute } from "./Performance/index.tsx";
@@ -14,7 +13,6 @@ export const productDetailRoute: RouteObject = {
       <Page />
     </Suspense>
   ),
-  loader,
   path: ":id",
   children: [imageRoute, detailRoute, perfRoute],
 };

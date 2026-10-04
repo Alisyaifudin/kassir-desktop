@@ -210,6 +210,7 @@ CREATE TABLE product_events (
   product_event_sync_at    INTEGER,
   product_event_value      INTEGER NOT NULL, -- signed delta (+/-/0)
   product_event_capital    REAL NOT NULL,    -- the lot's capital as of this event
+  product_event_note       TEXT NOT NULL DEFAULT (''), -- free text, e.g. manual stock-out reason
   product_id               TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
   stock_id                 TEXT NOT NULL REFERENCES stocks(stock_id) ON DELETE CASCADE
 ) STRICT;

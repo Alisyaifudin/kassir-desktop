@@ -1,71 +1,66 @@
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { PaginationContent, PaginationItem, Pagination as Root } from "~/components/ui/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
-import { usePage } from "./use-page";
-import { useSize } from "~/hooks/use-size";
+import { PAGE_SIZES, type ListStatePatch } from "./use-list-state";
 
-type Props = {
-  // pagination: { page: number; total: number } | { page: null; total: null };
-  // setPage: (page: number) => void;
+export function ListFooter({
+  page,
+  size,
+  total,
+  set,
+}: {
+  page: number;
+  size: number;
   total: number;
-};
+  set: (patch: ListStatePatch) => void;
+}) {
+  const totalPage = Math.max(1, Math.ceil(total / size));
+  const from = total === 0 ? 0 : (page - 1) * size + 1;
+  const to = Math.min(total, page * size);
 
-const style = {
-  small: {
-    left: "-35px",
-  },
-  big: {
-    left: "-40px",
-  },
-};
-
-export function Pagination({ total }: Props) {
-  const [page, setPage] = usePage();
-  const size = useSize();
-  if (page === null) {
-    return <Loader2 className="animate-spin" />;
-  }
-  const handlePrev = () => {
-    if (page > 1) {
-      setPage(page - 1);
-    }
-  };
-  const handleNext = () => {
-    if (total - page > 0) {
-      setPage(page + 1);
-    }
-  };
   return (
-    <Root className="w-fit pt-3">
-      <PaginationContent>
-        <PaginationItem>
+    <div className="flex items-center justify-between gap-3 border-t bg-background px-4 py-2">
+      <span className="text-normal tabular-nums text-muted-foreground">
+        {from}–{to} dari {total}
+      </span>
+      <div className="flex items-center gap-3">
+        <select
+          value={size}
+          onChange={(e) => set({ size: Number(e.currentTarget.value) })}
+          className="h-8 rounded-md border bg-transparent px-2 text-normal outline-none"
+          aria-label="Jumlah per halaman"
+        >
+          {PAGE_SIZES.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-1">
           <Button
+            type="button"
             variant="ghost"
-            onClick={handlePrev}
-            className={cn({ "text-muted-foreground/40": page === 1 })}
-            disabled={page === 1}
+            size="icon"
+            disabled={page <= 1}
+            onClick={() => set({ page: page - 1 })}
+            aria-label="Halaman sebelumnya"
           >
-            <ChevronLeft />
+            <ChevronLeft className="size-4" />
           </Button>
-        </PaginationItem>
-        <PaginationItem className="relative">
-          <span style={style[size]} className="absolute -top-6 text-small z-50 px-1">
-            Halaman
+          <span className="min-w-12 text-center text-normal tabular-nums">
+            {page}/{totalPage}
           </span>
-          <p>{page}</p>
-        </PaginationItem>
-        <PaginationItem>
           <Button
+            type="button"
             variant="ghost"
-            onClick={handleNext}
-            disabled={total - page <= 0}
-            className={cn({ "text-muted-foreground/40": total - page <= 0 })}
+            size="icon"
+            disabled={page >= totalPage}
+            onClick={() => set({ page: page + 1 })}
+            aria-label="Halaman berikutnya"
           >
-            <ChevronRight />
+            <ChevronRight className="size-4" />
           </Button>
-        </PaginationItem>
-      </PaginationContent>
-    </Root>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,41 +1,50 @@
-import { db } from "~/database";
-import { Result } from "~/lib/result";
-import { usePage } from "./use-page";
-import { useMode } from "./use-mode";
-import { Effect, pipe } from "effect";
+import { useCallback, useEffect, useState } from "react";
+import { Effect } from "effect";
+import { service } from "~/services";
+import type { ProductEvent } from "~/services/product";
 
-const KEY = "product-history";
-const LIMIT = 20;
+const PAGE = 20;
 
-export function useHistory(id: string) {
-  const [page, setPage] = usePage();
-  const [mode] = useMode();
-  const res = Result.use({
-    fn: () => loader({ id, page, mode, setPage }),
-    key: KEY,
-    deps: [mode, page],
-  });
-  return res;
-}
+export function useHistory(productId: string, revision: number) {
+  const [events, setEvents] = useState<ProductEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
-function loader({
-  id,
-  page,
-  mode,
-  setPage,
-}: {
-  id: string;
-  page: number;
-  mode: DB.Mode;
-  setPage: (page: number) => void;
-}) {
-  return pipe(
-    db.product.get.historyOffset({ id, page, limit: LIMIT, mode }),
-    Effect.flatMap(({ histories, totalPage }) => {
-      if (totalPage > 0 && page > totalPage) {
-        setPage(1);
+  const load = useCallback(
+    async (before: number | null, append: boolean) => {
+      setLoading(true);
+      setError(null);
+      const result = await Effect.runPromise(
+        service.product.stock
+          .history(productId, { before: before ?? undefined, limit: PAGE })
+          .pipe(Effect.either),
+      );
+      if (result._tag === "Left") {
+        setError(result.left.message);
+        setLoading(false);
+        return;
       }
-      return Effect.succeed({ histories, totalPage });
-    }),
+      const page = result.right;
+      setEvents((previous) => (append ? [...previous, ...page] : page));
+      setDone(page.length < PAGE);
+      setLoading(false);
+    },
+    [productId],
   );
+
+  useEffect(() => {
+    setEvents([]);
+    setDone(false);
+    void load(null, false);
+  }, [load, revision]);
+
+  const loadMore = useCallback(() => {
+    if (loading || done) return;
+    const last = events[events.length - 1];
+    if (last === undefined) return;
+    void load(last.createdAt, true);
+  }, [loading, done, events, load]);
+
+  return { events, loading, error, done, loadMore } as const;
 }
