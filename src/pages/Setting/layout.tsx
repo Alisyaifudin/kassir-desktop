@@ -2,12 +2,9 @@ import { Outlet, useLocation } from "react-router";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { LogOut } from "lucide-react";
-import { Show } from "~/components/Show";
-import { UserPanel } from "./z-UserPanel";
-import { AdminPanel } from "./z-AdminPanel";
+import { NavPanel } from "./z-NavPanel";
 import { version } from "~/lib/constants";
 import { useLogout } from "./use-logout";
-import { useUser } from "~/hooks/use-user";
 
 export default function Layout() {
   const { pathname } = useLocation();
@@ -30,7 +27,6 @@ export default function Layout() {
 }
 
 function Navigation() {
-  const role = useUser().role;
   const handleLogout = useLogout();
   return (
     <nav
@@ -40,9 +36,7 @@ function Navigation() {
       )}
     >
       <div className="flex flex-col gap-3">
-        <Show when={role === "admin"} fallback={<UserPanel />}>
-          <AdminPanel />
-        </Show>
+        <NavPanel />
       </div>
       <div className="flex flex-col gap-1 mt-auto pb-4">
         <Button onClick={handleLogout}>
