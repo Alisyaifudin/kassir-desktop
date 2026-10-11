@@ -1,13 +1,26 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { NumberField } from "~/components/NumberField";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { LISTING_KIND_SUGGESTIONS, type ListingDraft } from "./types";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
 import { Section } from "./z-Section";
 
 type ListingError = { name?: string; price?: string; unit?: string } | undefined;
+
+const CODE_KINDS: { value: ListingDraft["codeKind"]; label: string }[] = [
+  { value: "barcode", label: "Barcode" },
+  { value: "qr", label: "QR" },
+];
 
 export function ListingsFields({
   form,
@@ -27,12 +40,11 @@ export function ListingsFields({
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="gap-1"
+          className="h-11 gap-1 text-small small:h-9"
           disabled={disabled}
           onClick={form.addListing}
         >
-          <Plus className="size-4" /> Tambah
+          <Plus className="icon" /> Tambah
         </Button>
       }
     >
@@ -79,16 +91,16 @@ function ListingRow({
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-background/50 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-normal font-medium text-muted-foreground">Listing {index + 1}</span>
+        <span className="text-small font-medium text-muted-foreground">Listing {index + 1}</span>
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          className="size-11 small:size-9"
           disabled={disabled || !canRemove}
           onClick={onRemove}
           aria-label="Hapus listing"
         >
-          <Trash2 className="size-4" />
+          <Trash2 className="icon" />
         </Button>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -128,13 +140,11 @@ function ListingRow({
           />
         </Field>
         <div className="col-span-2 flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-normal">
-            <input
-              type="checkbox"
+          <label className="flex items-center gap-2 text-small">
+            <Checkbox
               checked={listing.hasCode}
               disabled={disabled}
-              onChange={(e) => onChange({ hasCode: e.currentTarget.checked })}
-              className="size-4"
+              onCheckedChange={(checked) => onChange({ hasCode: checked === true })}
             />
             Punya kode
           </label>
@@ -146,17 +156,24 @@ function ListingRow({
                 onChange={(e) => onChange({ code: e.currentTarget.value })}
                 placeholder="Barcode / QR"
               />
-              <select
+              <Select
                 value={listing.codeKind}
                 disabled={disabled}
-                onChange={(e) =>
-                  onChange({ codeKind: e.currentTarget.value as ListingDraft["codeKind"] })
+                onValueChange={(value) =>
+                  onChange({ codeKind: value as ListingDraft["codeKind"] })
                 }
-                className="h-9 rounded-md border bg-transparent px-2 text-normal"
               >
-                <option value="barcode">Barcode</option>
-                <option value="qr">QR</option>
-              </select>
+                <SelectTrigger className="w-[140px] text-small small:w-[110px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CODE_KINDS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
         </div>

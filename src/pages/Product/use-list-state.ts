@@ -23,7 +23,6 @@ export type ListState = {
   kinds: string[];
   stock: StockFilter;
   margin: MarginFilter;
-  attention: boolean;
   sort: SortBy;
   dir: SortDir;
   view: ViewMode;
@@ -47,7 +46,6 @@ export function useListState() {
       kinds: (params.get("kinds") ?? "").split(",").filter(Boolean),
       stock: oneOf(params.get("stock"), STOCK_FILTERS, "all"),
       margin: oneOf(params.get("margin"), MARGIN_FILTERS, "all"),
-      attention: params.get("attention") === "true",
       sort: oneOf(params.get("sort"), SORT_BY, "name"),
       dir: oneOf(params.get("dir"), SORT_DIRS, "asc"),
       view: oneOf(params.get("view"), VIEW_MODES, "grid"),
@@ -81,10 +79,6 @@ export function useListState() {
           }
           if (patch.margin !== undefined) {
             put("margin", patch.margin === "all" ? null : patch.margin);
-            resetPage = true;
-          }
-          if (patch.attention !== undefined) {
-            put("attention", patch.attention ? "true" : null);
             resetPage = true;
           }
           if (patch.sort !== undefined) {

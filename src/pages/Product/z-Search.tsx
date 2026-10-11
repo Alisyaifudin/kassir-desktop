@@ -14,13 +14,13 @@ export function Search({ value, onChange }: { value: string; onChange: (value: s
   }, [value]);
 
   return (
-    <div className="relative flex flex-1 min-w-[180px] items-center">
-      <SearchIcon className="absolute left-3 size-4 text-muted-foreground small:size-3.5" />
+    <div className="relative flex min-w-[180px] flex-1 items-center">
+      <SearchIcon className="absolute left-3 size-6 text-muted-foreground small:size-5" />
       <Input
         type="search"
         value={local}
         placeholder="Cari produk, listing, atau kode..."
-        className="pl-9 pr-8"
+        className="pl-11 pr-12"
         onChange={(e) => {
           const next = e.currentTarget.value;
           setLocal(next);
@@ -31,14 +31,13 @@ export function Search({ value, onChange }: { value: string; onChange: (value: s
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          className="absolute right-1 size-7"
+          className="absolute right-1.5 size-10 small:size-7"
           onClick={() => {
             setLocal("");
             onChange("");
           }}
         >
-          <X className="size-4" />
+          <X className="icon" />
         </Button>
       ) : null}
     </div>

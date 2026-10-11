@@ -3,10 +3,12 @@ import { Link } from "react-router";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Loader, useStream } from "~/components/Loader";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { useUser } from "~/hooks/use-user";
+import { getProductKind } from "~/lib/constants";
 import { service } from "~/services";
 import type { Product } from "~/services/product";
-import { filterProducts, needsAttention } from "./use-filtered";
+import { filterProducts } from "./use-filtered";
 import { useListState, type ListState, type ListStatePatch } from "./use-list-state";
 import { Empty } from "./z-Empty";
 import { ProductErrorBoundary, ProductErrorFallback } from "./z-Error";
@@ -29,9 +31,11 @@ function List() {
   const { state, set } = useListState();
 
   return (
-    <Loader res={res} fallback={<Loading view={state.view} />}>
-      {({ data: products }) => <Content products={products} state={state} set={set} />}
-    </Loader>
+    <main className="relative flex h-[calc(100vh-68px)] flex-col overflow-hidden small:h-[calc(100vh-44px)]">
+      <Loader res={res} fallback={<Loading view={state.view} />}>
+        {({ data: products }) => <Content products={products} state={state} set={set} />}
+      </Loader>
+    </main>
   );
 }
 
@@ -45,16 +49,18 @@ function Content({
   set: (patch: ListStatePatch) => void;
 }) {
   const role = useUser().role;
+  // Current list URL (`/products?stock=in&…`), so detail pages can come back to it.
+  const urlBack = useGenerateUrlBack("/products");
 
   const availableKinds = useMemo(() => {
     const kinds = new Set<string>();
     for (const product of products) {
       for (const listing of product.listings) kinds.add(listing.kind);
     }
-    return [...kinds].sort((a, b) => a.localeCompare(b));
+    // Sorted by display label, since the filter renders `getProductKind(kind)`.
+    return [...kinds].sort((a, b) => getProductKind(a).localeCompare(getProductKind(b)));
   }, [products]);
 
-  const attentionCount = useMemo(() => products.filter(needsAttention).length, [products]);
   const filtered = useMemo(() => filterProducts(products, state), [products, state]);
 
   const totalPage = Math.max(1, Math.ceil(filtered.length / state.size));
@@ -63,38 +69,42 @@ function Content({
   const items = filtered.slice(start, start + state.size);
 
   return (
-    <main className="relative flex h-[calc(100vh-64px)] flex-col overflow-hidden small:h-[calc(100vh-48px)]">
+    <>
       <Toolbar
         state={state}
         set={set}
         availableKinds={availableKinds}
         total={filtered.length}
-        attentionCount={attentionCount}
       />
 
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2 pt-2">
         {filtered.length === 0 ? (
           <Empty
-            onReset={() =>
-              set({ q: "", kinds: [], stock: "all", margin: "all", attention: false })
-            }
+            total={products.length}
+            onReset={() => set({ q: "", kinds: [], stock: "all", margin: "all" })}
           />
         ) : state.view === "table" ? (
-          <ProductTable items={items} start={start} />
+          <ProductTable items={items} start={start} urlBack={urlBack} />
         ) : (
-          <ProductGrid items={items} />
+          <ProductGrid items={items} urlBack={urlBack} />
         )}
       </div>
 
       <ListFooter page={page} size={state.size} total={filtered.length} set={set} />
 
       {role === "admin" ? (
-        <Link to="/products/new" className="absolute bottom-16 right-6 z-20">
-          <Button size="icon" className="size-12 rounded-full shadow-lg" aria-label="Tambah produk">
-            <Plus className="size-5" />
+        <Link
+          to={{
+            pathname: "/products/new",
+            search: `url_back=${encodeURIComponent(urlBack)}`,
+          }}
+          className="absolute bottom-16 right-6 z-20"
+        >
+          <Button className="size-12 rounded-full shadow-lg" aria-label="Tambah produk">
+            <Plus className="icon" />
           </Button>
         </Link>
       ) : null}
-    </main>
+    </>
   );
 }

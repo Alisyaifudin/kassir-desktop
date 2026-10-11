@@ -19,8 +19,8 @@ export default function Page() {
         const product = products.find((item) => item.id === id);
         if (product === undefined) return <NotFound />;
         return (
-          <div className="grid h-full grid-cols-1 gap-3 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
-            <div className="min-h-0 overflow-y-auto pr-1">
+          <div className="grid h-full grid-cols-1 gap-3 overflow-hidden p-4 lg:grid-cols-[1fr_560px]">
+            <div className="min-h-0 overflow-y-auto px-1">
               {role === "admin" ? (
                 <EditPane product={product} />
               ) : (
@@ -39,7 +39,7 @@ export default function Page() {
 
 function Loading() {
   return (
-    <div className="grid h-full grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_360px]">
+    <div className="grid h-full grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_560px]">
       <div className="flex flex-col gap-3">
         <Skeleton className="h-10 w-40" />
         <Skeleton className="h-10 w-full" />

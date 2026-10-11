@@ -18,13 +18,13 @@ export function Field({
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       {label ? (
-        <label htmlFor={htmlFor} className="text-normal font-medium">
+        <label htmlFor={htmlFor} className="text-small font-medium">
           {label}
         </label>
       ) : null}
       {children}
-      {hint && !error ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {hint && !error ? <p className="text-small text-muted-foreground">{hint}</p> : null}
+      {error ? <p className="text-small text-destructive">{error}</p> : null}
     </div>
   );
 }

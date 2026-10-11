@@ -5,6 +5,7 @@ import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { service } from "~/services";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import type {
   Listing,
   ListingInput,
@@ -18,6 +19,7 @@ import { InfoFields } from "../../Form/z-InfoFields";
 import { ListingsFields } from "../../Form/z-ListingsFields";
 import { PropertiesFields } from "../../Form/z-PropertiesFields";
 import { StocksFields } from "../../Form/z-StocksFields";
+import { ConfirmDelete } from "../z-ConfirmDelete";
 import { StockConsume } from "./z-StockConsume";
 
 type Op = Effect.Effect<unknown, ProductError | ProductDuplicateCode>;
@@ -36,8 +38,10 @@ function listingChanged(original: Listing, input: ListingInput): boolean {
 export function EditPane({ product }: { product: ProductFull }) {
   const form = useProductForm(draftFromProduct(product));
   const navigate = useNavigate();
+  const backUrl = useGetUrlBack("/products");
   const [pending, setPending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const lockedStockKeys = useMemo(
@@ -136,16 +140,16 @@ export function EditPane({ product }: { product: ProductFull }) {
     setPending(false);
   }
 
-  async function handleDelete() {
-    if (!window.confirm(`Hapus produk "${product.name}"?`)) return;
+  /** Returns an error message, or `null` on success (the dialog closes itself). */
+  async function performDelete(): Promise<string | null> {
     setDeleting(true);
-    setError(null);
-    const result = await Effect.runPromise(
-      service.product.delete(product.id).pipe(Effect.either),
-    );
+    const result = await Effect.runPromise(service.product.delete(product.id).pipe(Effect.either));
     setDeleting(false);
-    if (result._tag === "Right") navigate("/products");
-    else setError(result.left.message);
+    if (result._tag === "Right") {
+      navigate(backUrl);
+      return null;
+    }
+    return result.left.message;
   }
 
   const busy = pending || deleting;
@@ -155,14 +159,14 @@ export function EditPane({ product }: { product: ProductFull }) {
       <InfoFields form={form} disabled={busy} />
       <ListingsFields form={form} disabled={busy} />
       <StocksFields form={form} disabled={busy} lockedKeys={lockedStockKeys} />
-      <StockConsume product={product} />
       <PropertiesFields form={form} disabled={busy} />
+      <StockConsume product={product} />
       <TextError>{error}</TextError>
       <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-background/95 py-3 backdrop-blur">
         <Button
           type="button"
           variant="destructive"
-          onClick={() => void handleDelete()}
+          onClick={() => setConfirmOpen(true)}
           disabled={busy}
         >
           Hapus
@@ -172,6 +176,13 @@ export function EditPane({ product }: { product: ProductFull }) {
           <Spinner when={pending} />
         </Button>
       </div>
+      <ConfirmDelete
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Hapus produk?"
+        description={`"${product.name}" akan dihapus dan tidak muncul lagi di daftar produk.`}
+        onConfirm={performDelete}
+      />
     </div>
   );
 }

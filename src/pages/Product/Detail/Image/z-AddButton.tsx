@@ -77,14 +77,14 @@ export function AddButton({
       <Button
         type="button"
         variant="outline"
-        className="gap-1"
+        className="h-[54px] gap-1 text-small small:h-10"
         disabled={disabled || busy}
         onClick={() => inputRef.current?.click()}
       >
-        <ImagePlus className="size-4" />
+        <ImagePlus className="icon" />
         {busy ? "Menyimpan…" : "Tambah gambar"}
       </Button>
-      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+      {error ? <span className="text-small text-destructive">{error}</span> : null}
     </div>
   );
 }

@@ -8,19 +8,19 @@ export function HistoryTable({ events }: { events: ProductEvent[] }) {
       {events.map((event) => (
         <li key={event.id} className="flex items-center justify-between gap-2 py-2">
           <div className="flex min-w-0 flex-col">
-            <span className="text-normal tabular-nums">
-              {formatDate(event.createdAt)} {formatTime(event.createdAt)}
+            <span className="text-small tabular-nums">
+              {formatDate(event.createdAt, "long")} {formatTime(event.createdAt)}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-small text-muted-foreground">
               Modal {event.capital.toLocaleString("id-ID")} · Lot {event.stockId.slice(-6)}
               {event.note !== "" ? ` · ${event.note}` : ""}
             </span>
           </div>
           <span
             className={cn(
-              "text-normal font-medium tabular-nums",
+              "text-small font-medium tabular-nums",
               event.value > 0
-                ? "text-emerald-600"
+                ? "text-emerald-600 dark:text-emerald-400"
                 : event.value < 0
                   ? "text-destructive"
                   : "text-muted-foreground",

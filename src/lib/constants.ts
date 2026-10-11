@@ -9,6 +9,18 @@ export type MethodKind = (typeof METHODS)[number];
 /** Shape of the built-in method rows seeded below; the `method` service owns the domain type. */
 type Method = { id: string; name?: string; kind: MethodKind };
 
+const ProductKind = {
+  retail: "Ecer",
+  wholesale: "Grosir",
+  marketplace: "Online",
+};
+
+/** Display label for a listing `kind`. `kind` is free text (`retail`, `karton`, …),
+ *  so unknown values fall back to themselves rather than hiding the input. */
+export function getProductKind(v: string): string {
+  return (ProductKind as Record<string, string>)[v] ?? v;
+}
+
 export const METHOD_NAMES = {
   cash: "Tunai",
   transfer: "Transfer",

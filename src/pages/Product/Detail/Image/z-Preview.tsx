@@ -37,42 +37,46 @@ export function Preview({
       <Button
         type="button"
         variant="secondary"
-        size="icon"
-        className="absolute left-2"
+        className="absolute left-2 size-11 small:size-9"
         disabled={!hasPrev}
         onClick={onPrev}
         aria-label="Sebelumnya"
       >
-        <ChevronLeft className="size-4" />
+        <ChevronLeft className="icon" />
       </Button>
       <Button
         type="button"
         variant="secondary"
-        size="icon"
-        className="absolute right-2"
+        className="absolute right-2 size-11 small:size-9"
         disabled={!hasNext}
         onClick={onNext}
         aria-label="Berikutnya"
       >
-        <ChevronRight className="size-4" />
+        <ChevronRight className="icon" />
       </Button>
 
       {canManage && image !== null ? (
         <div className="absolute right-2 top-2 flex gap-2">
           {!isCover ? (
-            <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={onSetCover}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-11 text-small small:h-9"
+              disabled={disabled}
+              onClick={onSetCover}
+            >
               Jadikan cover
             </Button>
           ) : null}
           <Button
             type="button"
             variant="destructive"
-            size="icon"
+            className="size-11 small:size-9"
             disabled={disabled}
             onClick={onDelete}
             aria-label="Hapus gambar"
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="icon" />
           </Button>
         </div>
       ) : null}

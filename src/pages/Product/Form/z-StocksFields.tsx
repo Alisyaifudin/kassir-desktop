@@ -35,12 +35,11 @@ export function StocksFields({
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="gap-1"
+          className="h-11 gap-1 text-small small:h-9"
           disabled={disabled}
           onClick={form.addStock}
         >
-          <Plus className="size-4" /> Tambah lot
+          <Plus className="icon" /> Tambah lot
         </Button>
       }
     >
@@ -58,7 +57,7 @@ export function StocksFields({
           />
         ))}
       </div>
-      <p className="text-normal text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         Total {total.toLocaleString("id-ID")} pcs · Rata-rata modal{" "}
         {average.toLocaleString("id-ID")} · Nilai {totalValue.toLocaleString("id-ID")}
       </p>
@@ -104,12 +103,12 @@ function StockRow({
       <Button
         type="button"
         variant="ghost"
-        size="icon"
+        className="size-11 small:size-9"
         disabled={disabled || !canRemove}
         onClick={onRemove}
         aria-label="Hapus lot"
       >
-        <Trash2 className="size-4" />
+        <Trash2 className="icon" />
       </Button>
     </div>
   );

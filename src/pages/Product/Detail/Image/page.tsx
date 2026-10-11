@@ -9,6 +9,7 @@ import { image } from "~/lib/image";
 import { service } from "~/services";
 import type { ProductFull, ProductImage } from "~/services/product";
 import { useId } from "../use-id";
+import { ConfirmDelete } from "../z-ConfirmDelete";
 import { AddButton } from "./z-AddButton";
 import { Loading } from "./z-Loading";
 import { Preview } from "./z-Preview";
@@ -35,6 +36,7 @@ function Manager({ product, canManage }: { product: ProductFull; canManage: bool
   const [selectedId, setSelectedId] = useState<string | null>(images[0]?.id ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ProductImage | null>(null);
 
   useEffect(() => {
     if (selectedId === null || !images.some((item) => item.id === selectedId)) {
@@ -59,21 +61,27 @@ function Manager({ product, canManage }: { product: ProductFull; canManage: bool
     if (result._tag === "Left") setError(result.left.message);
   }
 
-  async function handleDelete(target: ProductImage) {
-    if (!window.confirm("Hapus gambar ini?")) return;
+  /** Returns an error message, or `null` on success (the dialog closes itself). */
+  async function performDelete(): Promise<string | null> {
+    const target = pendingDelete;
+    if (target === null) return null;
+
     setBusy(true);
     setError(null);
     const removed = await Effect.runPromise(
       service.product.set.image.remove(product.id, target.id).pipe(Effect.either),
     );
     if (removed._tag === "Left") {
-      setError(removed.left.message);
       setBusy(false);
-      return;
+      return removed.left.message;
     }
+
     const fileResult = await Effect.runPromise(image.del(target.name).pipe(Effect.either));
-    if (fileResult._tag === "Left") setError(fileResult.left.e.message);
     setBusy(false);
+    if (fileResult._tag === "Left") setError(fileResult.left.e.message);
+
+    setPendingDelete(null);
+    return null;
   }
 
   function handleSetCover(target: ProductImage) {
@@ -88,8 +96,8 @@ function Manager({ product, canManage }: { product: ProductFull; canManage: bool
     <main className="flex h-full flex-col gap-3 p-4">
       <header className="flex items-center justify-between gap-2">
         <div className="flex flex-col">
-          <h2 className="font-semibold">Gambar</h2>
-          <p className="text-normal text-muted-foreground">{images.length} gambar</p>
+          <h2 className="text-small font-semibold">Gambar</h2>
+          <p className="text-small text-muted-foreground">{images.length} gambar</p>
         </div>
         {canManage && images.length > 0 ? (
           <AddButton
@@ -104,8 +112,8 @@ function Manager({ product, canManage }: { product: ProductFull; canManage: bool
 
       {images.length === 0 ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground">
-          <ImageOff className="size-12" />
-          <p className="text-normal">Belum ada gambar.</p>
+          <ImageOff className="size-12 small:size-8" />
+          <p className="text-small">Belum ada gambar.</p>
           {canManage ? (
             <AddButton productId={product.id} onAdded={(imageId) => setSelectedId(imageId)} />
           ) : null}
@@ -122,7 +130,7 @@ function Manager({ product, canManage }: { product: ProductFull; canManage: bool
             onPrev={() => setSelectedId(images[selectedIndex - 1]?.id ?? selectedId)}
             onNext={() => setSelectedId(images[selectedIndex + 1]?.id ?? selectedId)}
             onSetCover={() => selected !== null && handleSetCover(selected)}
-            onDelete={() => selected !== null && void handleDelete(selected)}
+            onDelete={() => selected !== null && setPendingDelete(selected)}
           />
           <ThumbRail
             images={images}
@@ -130,11 +138,21 @@ function Manager({ product, canManage }: { product: ProductFull; canManage: bool
             disabled={busy}
             canManage={canManage}
             onSelect={setSelectedId}
-            onDelete={(target) => void handleDelete(target)}
+            onDelete={setPendingDelete}
             onReorder={(ids) => void reorder(ids)}
           />
         </>
       )}
+
+      <ConfirmDelete
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="Hapus gambar?"
+        description="Gambar akan dihapus dari produk ini dan berkasnya dibuang dari perangkat."
+        onConfirm={performDelete}
+      />
     </main>
   );
 }

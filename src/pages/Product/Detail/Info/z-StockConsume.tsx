@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Effect } from "effect";
+import { Spinner } from "~/components/Spinner";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { NumberField } from "~/components/NumberField";
@@ -45,8 +46,9 @@ export function StockConsume({ product }: { product: ProductFull }) {
   return (
     <Section
       title="Kurangi stok"
-      description="Catat stok keluar tanpa transaksi (rusak, hilang, koreksi)."
+      description="Catat stok keluar tanpa transaksi (rusak, hilang, koreksi). Langsung tersimpan, tidak menunggu Simpan."
       error={error ?? undefined}
+      className="border-dashed"
     >
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Jumlah (pcs)" className="w-40">
@@ -63,13 +65,15 @@ export function StockConsume({ product }: { product: ProductFull }) {
         <Button
           type="button"
           variant="outline"
+          className="h-[54px] text-small small:h-10"
           disabled={busy}
           onClick={() => void handleConsume()}
         >
           Kurangi
+          <Spinner when={busy} />
         </Button>
       </div>
-      <p className="text-normal text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         Stok tersedia: {product.stock.toLocaleString("id-ID")} pcs
       </p>
     </Section>

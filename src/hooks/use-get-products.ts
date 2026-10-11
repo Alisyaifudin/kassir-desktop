@@ -1,7 +1,6 @@
-import { Effect, pipe } from "effect";
+import { Effect } from "effect";
 import { db } from "~/database";
 import { Result } from "~/lib/result";
-import { setLength } from "../pages/Product/use-length";
 import { createAtom } from "@xstate/store";
 import { Product } from "~/database/product/cache";
 import { useAtom } from "@xstate/store/react";
@@ -36,12 +35,7 @@ export function useProducts() {
   return useAtom(productsAtom);
 }
 
-const program = pipe(
-  loadProducts(),
-  Effect.tap((r) => {
-    setLength(r.length);
-  }),
-);
+const program = loadProducts();
 
 const KEY = "products";
 

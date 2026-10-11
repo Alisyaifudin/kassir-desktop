@@ -11,26 +11,24 @@ export function ViewToggle({
   onChange: (view: ViewMode) => void;
 }) {
   return (
-    <div className="inline-flex items-center rounded-md border p-0.5">
+    <div className="inline-flex h-[54px] items-center rounded-md border p-0.5 small:h-10">
       <Button
         type="button"
         variant="ghost"
-        size="icon"
-        className={cn("size-8", view === "grid" && "bg-muted")}
+        className={cn("h-full w-12 px-0 small:w-9", view === "grid" && "bg-muted")}
         onClick={() => onChange("grid")}
         aria-label="Tampilan grid"
       >
-        <LayoutGrid className="size-4" />
+        <LayoutGrid className="icon" />
       </Button>
       <Button
         type="button"
         variant="ghost"
-        size="icon"
-        className={cn("size-8", view === "table" && "bg-muted")}
+        className={cn("h-full w-12 px-0 small:w-9", view === "table" && "bg-muted")}
         onClick={() => onChange("table")}
         aria-label="Tampilan tabel"
       >
-        <List className="size-4" />
+        <List className="icon" />
       </Button>
     </div>
   );

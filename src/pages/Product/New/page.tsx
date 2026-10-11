@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Either } from "effect";
 import Redirect from "~/components/Redirect";
 import { useMutation } from "~/components/Loader";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
 import type { ProductInput } from "~/services/product";
@@ -12,6 +13,7 @@ export default function Page() {
   const role = useUser().role;
   const navigate = useNavigate();
   const { pending, mutate } = useMutation(service.product.add);
+  const backUrl = useGetUrlBack("/products");
   const [error, setError] = useState<string | null>(null);
   const [duplicateCode, setDuplicateCode] = useState<string | null>(null);
 
@@ -22,7 +24,10 @@ export default function Page() {
     setDuplicateCode(null);
     const either = await mutate(input);
     if (Either.isRight(either)) {
-      navigate(`/products/${either.right}`, { replace: true });
+      // Forward `url_back` so the new product's detail page returns to the list too.
+      navigate(`/products/${either.right}?url_back=${encodeURIComponent(backUrl)}`, {
+        replace: true,
+      });
       return;
     }
     if (either.left._tag === "ProductDuplicateCode") setDuplicateCode(either.left.value);
@@ -30,14 +35,14 @@ export default function Page() {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-64px)] w-full max-w-3xl flex-col overflow-y-auto px-4 py-4 small:h-[calc(100vh-48px)]">
+    <main className="mx-auto flex h-[calc(100vh-68px)] w-full max-w-3xl flex-col overflow-y-auto px-4 py-4 small:h-[calc(100vh-44px)]">
       <h1 className="mb-4 text-big font-bold text-foreground">Tambah Produk</h1>
       <ProductForm
         pending={pending}
         error={error}
         duplicateCode={duplicateCode}
         onSubmit={(input) => void handleSubmit(input)}
-        onCancel={() => navigate("/products")}
+        onCancel={() => navigate(backUrl)}
       />
     </main>
   );

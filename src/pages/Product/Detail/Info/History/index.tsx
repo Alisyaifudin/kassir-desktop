@@ -24,8 +24,8 @@ export function History({ productId, revision }: { productId: string; revision: 
   return (
     <div className="flex h-full flex-col gap-2 rounded-xl border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">Riwayat</h2>
-        <div className="inline-flex rounded-md border p-0.5 text-normal">
+        <h2 className="text-small font-semibold">Riwayat</h2>
+        <div className="inline-flex rounded-md border p-0.5 text-small">
           {MODES.map((item) => (
             <button
               key={item.id}
@@ -46,7 +46,7 @@ export function History({ productId, revision }: { productId: string; revision: 
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="py-6 text-center text-normal text-muted-foreground">
+          <p className="py-6 text-center text-small text-muted-foreground">
             {loading ? "Memuat…" : "Belum ada pergerakan stok."}
           </p>
         ) : (
@@ -55,7 +55,12 @@ export function History({ productId, revision }: { productId: string; revision: 
       </div>
 
       {!done ? (
-        <Button variant="outline" size="sm" onClick={loadMore} disabled={loading}>
+        <Button
+          variant="outline"
+          className="h-11 text-small small:h-9"
+          onClick={loadMore}
+          disabled={loading}
+        >
           Muat lebih banyak
         </Button>
       ) : null}

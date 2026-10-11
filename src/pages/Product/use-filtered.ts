@@ -9,14 +9,16 @@ export function stockStatus(product: Product): StockStatus {
   return "in";
 }
 
-/** True when any listing is sold at or below the weighted-average capital. */
+/**
+ * True when any listing is sold at or below the weighted-average capital.
+ * `listing.price` is the price of a whole `unit` bundle while `product.capital`
+ * is per pcs, so both sides are normalised to per pcs before comparing.
+ */
 export function isLoss(product: Product): boolean {
   if (product.listings.length === 0) return false;
-  return product.listings.some((listing) => listing.price <= product.capital);
-}
-
-export function needsAttention(product: Product): boolean {
-  return isLoss(product) || stockStatus(product) !== "in";
+  return product.listings.some(
+    (listing) => listing.unit > 0 && listing.price / listing.unit <= product.capital,
+  );
 }
 
 export function minPrice(product: Product): number {
@@ -54,9 +56,6 @@ export function filterProducts(products: Product[], state: ListState): Product[]
   if (state.margin !== "all") {
     const wantLoss = state.margin === "loss";
     result = result.filter((product) => isLoss(product) === wantLoss);
-  }
-  if (state.attention) {
-    result = result.filter(needsAttention);
   }
   if (query !== "") {
     result = result.filter((product) => matches(product, query));

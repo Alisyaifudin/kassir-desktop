@@ -1,4 +1,5 @@
 import { Package, StickyNote } from "lucide-react";
+import { getProductKind } from "~/lib/constants";
 import type { ProductFull } from "~/services/product";
 import { formatPrice, priceRange } from "../../z-ProductBits";
 
@@ -6,8 +7,8 @@ export function UserInfo({ product }: { product: ProductFull }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Package className="size-5 text-primary" />
-        <h2 className="font-semibold">Info Barang</h2>
+        <Package className="icon text-primary" />
+        <h2 className="text-small font-semibold">Info Barang</h2>
       </div>
 
       <Row label="Nama" value={product.name} />
@@ -16,13 +17,13 @@ export function UserInfo({ product }: { product: ProductFull }) {
       <Row label="Stok" value={`${product.stock.toLocaleString("id-ID")} pcs`} />
 
       <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-        <span className="text-normal font-medium text-muted-foreground">Listing</span>
+        <span className="text-small font-medium text-muted-foreground">Listing</span>
         {product.listings.map((listing) => (
-          <div key={listing.id} className="flex items-center justify-between gap-2 text-normal">
+          <div key={listing.id} className="flex items-center justify-between gap-2 text-small">
             <span>
               {listing.name}{" "}
-              <span className="text-xs text-muted-foreground">
-                ({listing.kind} · ×{listing.unit})
+              <span className="text-small text-muted-foreground">
+                ({getProductKind(listing.kind)} · ×{listing.unit})
               </span>
             </span>
             <span className="tabular-nums">{formatPrice(listing.price)}</span>
@@ -32,9 +33,9 @@ export function UserInfo({ product }: { product: ProductFull }) {
 
       {product.properties.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-          <span className="text-normal font-medium text-muted-foreground">Properti</span>
+          <span className="text-small font-medium text-muted-foreground">Properti</span>
           {product.properties.map((property) => (
-            <div key={property.id} className="flex items-center justify-between gap-2 text-normal">
+            <div key={property.id} className="flex items-center justify-between gap-2 text-small">
               <span className="text-muted-foreground">{property.key}</span>
               <span className="break-all text-right">{property.value}</span>
             </div>
@@ -44,10 +45,10 @@ export function UserInfo({ product }: { product: ProductFull }) {
 
       {product.note !== "" ? (
         <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-          <span className="flex items-center gap-2 text-normal font-medium text-muted-foreground">
-            <StickyNote className="size-4" /> Catatan
+          <span className="flex items-center gap-2 text-small font-medium text-muted-foreground">
+            <StickyNote className="size-4 small:size-3" /> Catatan
           </span>
-          <p className="text-normal leading-relaxed">{product.note}</p>
+          <p className="text-small leading-relaxed">{product.note}</p>
         </div>
       ) : null}
     </div>
@@ -57,8 +58,8 @@ export function UserInfo({ product }: { product: ProductFull }) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-transparent p-3 transition-colors hover:border-border hover:bg-muted/50">
-      <span className="text-normal font-medium text-muted-foreground">{label}</span>
-      <span className="break-all text-right text-normal">{value === "" ? "-" : value}</span>
+      <span className="text-small font-medium text-muted-foreground">{label}</span>
+      <span className="break-all text-right text-small">{value === "" ? "-" : value}</span>
     </div>
   );
 }

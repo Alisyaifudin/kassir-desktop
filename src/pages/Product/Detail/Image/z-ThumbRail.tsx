@@ -99,14 +99,14 @@ function Thumb({
         type="button"
         onClick={() => onSelect(image.id)}
         className={cn(
-          "block size-20 overflow-hidden rounded-lg border-2 bg-muted/40",
+          "block size-20 overflow-hidden rounded-lg border-2 bg-muted/40 small:size-16",
           selected ? "border-primary" : "border-transparent",
         )}
       >
         {url !== null ? <img src={url} alt="" className="h-full w-full object-cover" /> : null}
       </button>
       {index === 0 ? (
-        <span className="absolute left-1 top-1 rounded bg-primary px-1 text-[10px] text-primary-foreground">
+        <span className="absolute left-1 top-1 rounded bg-primary px-1 text-small text-primary-foreground">
           Cover
         </span>
       ) : null}
@@ -120,7 +120,7 @@ function Thumb({
           }}
           aria-label="Hapus gambar"
         >
-          <X className="size-3" />
+          <X className="size-4" />
         </button>
       ) : null}
     </div>

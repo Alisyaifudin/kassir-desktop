@@ -22,17 +22,16 @@ export function PropertiesFields({
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="gap-1"
+          className="h-11 gap-1 text-small small:h-9"
           disabled={disabled}
           onClick={form.addProperty}
         >
-          <Plus className="size-4" /> Tambah
+          <Plus className="icon" /> Tambah
         </Button>
       }
     >
       {draft.properties.length === 0 ? (
-        <p className="text-normal text-muted-foreground">Belum ada properti.</p>
+        <p className="text-small text-muted-foreground">Belum ada properti.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {draft.properties.map((property) => (
@@ -62,12 +61,12 @@ export function PropertiesFields({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                className="size-11 small:size-9"
                 disabled={disabled}
                 onClick={() => form.removeProperty(property.key)}
                 aria-label="Hapus properti"
               >
-                <Trash2 className="size-4" />
+                <Trash2 className="icon" />
               </Button>
             </div>
           ))}

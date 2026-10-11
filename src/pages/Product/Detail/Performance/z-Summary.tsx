@@ -15,8 +15,14 @@ export function Summary({ totals }: { totals: ReturnType<typeof totalsFn> }) {
 function Card({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border bg-card p-3">
-      <span className="text-normal text-muted-foreground">{label}</span>
-      <span className={accent ? "font-semibold text-destructive" : "font-semibold"}>
+      <span className="text-small text-muted-foreground">{label}</span>
+      <span
+        className={
+          accent
+            ? "text-normal font-semibold tabular-nums text-destructive"
+            : "text-normal font-semibold tabular-nums"
+        }
+      >
         {value}
       </span>
     </div>

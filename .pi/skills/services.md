@@ -292,6 +292,33 @@ attributes:
 Reserve `useSize()` for logic that needs the actual value (e.g. the size select
 in `Setting/Shop/z-SelectSize.tsx`).
 
+### Text scale
+
+`src/global.css` defines four size tokens, re-resolved per app size:
+
+| token | class | `big` (default) | `small` |
+|---|---|---|---|
+| `--text-big` | `text-big` | 48px / 48 | 36px / 40 |
+| `--text-normal` | `text-normal` | 30px / 36 | 20px / 28 |
+| `--text-small` | `text-small` | 24px / 32 | 18px / 28 |
+| `--text-tiny` | `text-tiny` | 14px / 20 | 12px / 16 |
+
+Two things make this easy to get wrong:
+
+- `@layer base` force-applies `text-normal` to
+  `p, textarea, button, a, label, select, input, span`, so a `<span>`/`<p>` with
+  no size class renders at `text-normal` — not inherited.
+- Tailwind preflight zeroes `h1..h6` (`font-size: inherit`), so an `<h2>` with no
+  size class renders at **16px**, *smaller* than surrounding body copy.
+
+Rules:
+
+- **Do not use `text-tiny`.** It is reserved as a manual escape hatch for the
+  project owner. `text-small` is the smallest size an agent may apply.
+- **Never use raw `text-xs` / `text-sm` / `text-[Npx]`.** They are fixed px and
+  ignore the app size mode entirely, so they break under the `small:` toggle.
+  Always pick from the four tokens above and let `small:` do the scaling.
+
 ---
 
 ## 6. Effect essentials
