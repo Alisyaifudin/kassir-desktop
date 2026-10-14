@@ -1,42 +1,35 @@
-import { createAtom } from "@xstate/store";
-import { useAtom } from "@xstate/store/react";
 import { useSearchParams } from "react-router";
 import { z } from "zod";
-import type { Method} from "~/database/method/cache";
-import { DEFAULT_METHODS } from "~/lib/constants";
+import { useStream, type Result } from "~/components/Loader";
+import { service } from "~/services";
+import type { Method, MethodError } from "~/services/method";
 
-function getMethod(methods: Method[], search: URLSearchParams) {
-  const methodId = z.string().nullable().catch(null).parse(search.get("method"));
-  const method = methods.find((m) => m.id === methodId) ?? null;
-  return method;
+export function useMethods(): Result<Method[], MethodError> {
+  return useStream(service.method.get.changes);
 }
 
-const methodsAtom = createAtom<Method[]>(DEFAULT_METHODS);
-
-export const setMethods = methodsAtom.set;
-export function useMethods() {
-  return useAtom(methodsAtom);
-}
-
+/**
+ * The `method` param, resolved against the catalog. Selecting the id that is
+ * already selected clears the filter, so the button toggles.
+ */
 export function useMethod() {
   const [search, setSearch] = useSearchParams();
-  const methods = useAtom(methodsAtom);
-  const method = getMethod(methods, search);
+  const res = useMethods();
+  const methods = res.type === "success" ? res.data : [];
+  const methodId = z.string().nullable().catch(null).parse(search.get("method"));
+  const method = methods.find((item) => item.id === methodId) ?? null;
+
   function setMethod(id: string | null) {
     setSearch((old) => {
-      const search = new URLSearchParams(old);
-      if (id === null) {
-        search.delete("method");
+      const next = new URLSearchParams(old);
+      if (id === null || id === methodId) {
+        next.delete("method");
       } else {
-        const selected = method?.id;
-        if (selected === id) {
-          search.delete("method");
-        } else {
-          search.set("method", id.toString());
-        }
+        next.set("method", id);
       }
-      return search;
+      return next;
     });
   }
+
   return [method, setMethod] as const;
 }

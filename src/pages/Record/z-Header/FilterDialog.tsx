@@ -8,34 +8,25 @@ import {
 } from "~/components/ui/dialog";
 import { SlidersHorizontal, X } from "lucide-react";
 import { ForEach } from "~/components/ForEach";
-import { FilterBtn } from "./FilterBtn";
+import { Loader } from "~/components/Loader";
 import { Show } from "~/components/Show";
-import type { Method } from "~/database/method/cache";
-import { TextError } from "~/components/TextError";
-import { useGetMethods } from "~/hooks/use-get-methods";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { METHOD_NAMES } from "~/lib/constants";
-import { setMethods, useMethod, useMethods } from "../use-method";
-import { cn } from "~/lib/utils";
 import { Skeleton } from "~/components/ui/skeleton";
+import { METHODS, METHOD_NAMES } from "~/lib/constants";
+import { cn } from "~/lib/utils";
+import type { Method } from "~/services/method";
+import { useMethod, useMethods } from "../use-method";
+import { MethodErrorBoundary, MethodErrorFallback } from "../z-Error";
+import { FilterBtn } from "./FilterBtn";
 
 export function Filter() {
-  const res = useGetMethods((methods) => {
-    setMethods(methods);
-  });
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError(error) {
-      log.error(error.e);
-      return <TextError>{error.e.message}</TextError>;
-    },
-    onSuccess() {
-      return <Wrapper />;
-    },
-  });
+  const res = useMethods();
+  return (
+    <MethodErrorBoundary fallback={MethodErrorFallback}>
+      <Loader res={res} fallback={<Loading />}>
+        {({ data: methods }) => <Wrapper methods={methods} />}
+      </Loader>
+    </MethodErrorBoundary>
+  );
 }
 
 function Loading() {
@@ -47,15 +38,8 @@ function Loading() {
   );
 }
 
-function Wrapper() {
+function Wrapper({ methods }: { methods: Method[] }) {
   const [method, setMethod] = useMethod();
-  const methods = useMethods();
-  const handleClick = (id: string) => {
-    setMethod(id);
-  };
-  const handleClear = () => {
-    setMethod(null);
-  };
   const group = groupMethods(methods);
 
   return (
@@ -73,9 +57,11 @@ function Wrapper() {
           >
             <SlidersHorizontal size={16} strokeWidth={2.5} />
             <Show value={method} fallback={<span className="font-semibold">Filter</span>}>
-              {(v) => (
+              {(selected) => (
                 <span className="font-bold">
-                  {v.name ? `${METHOD_NAMES[v.kind]} ${v.name}` : METHOD_NAMES[v.kind]}
+                  {selected.name
+                    ? `${METHOD_NAMES[selected.kind]} ${selected.name}`
+                    : METHOD_NAMES[selected.kind]}
                 </span>
               )}
             </Show>
@@ -85,7 +71,7 @@ function Wrapper() {
           <Button
             size="icon"
             variant="secondary"
-            onClick={handleClear}
+            onClick={() => setMethod(null)}
             className="rounded-xl h-10 w-10 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
             title="Clear Filter"
           >
@@ -110,7 +96,7 @@ function Wrapper() {
                 <FilterBtn
                   key={top.id}
                   selected={method?.id ?? null}
-                  onClick={handleClick}
+                  onClick={setMethod}
                   options={options}
                   top={top}
                 />
@@ -123,17 +109,21 @@ function Wrapper() {
   );
 }
 
-function groupMethods(methods: Method[]): { top: Method; options: Method[] }[] {
-  return [
-    filterMethod("cash", methods),
-    filterMethod("transfer", methods),
-    filterMethod("debit", methods),
-    filterMethod("qris", methods),
-  ];
+type Group = { top: Method; options: Method[] };
+
+/** The base method has no name; every named method under a kind is a variant. */
+function isBase(method: Method): boolean {
+  return method.name === null || method.name === "";
 }
-function filterMethod(name: DB.MethodEnum, methods: Method[]) {
-  const top = methods.find((m) => m.kind === name && m.name === undefined);
-  if (top === undefined) throw new Error("No " + name);
-  const options = methods.filter((m) => m.kind === name && m.name !== undefined);
-  return { top, options };
+
+/**
+ * One group per built-in kind, in the canonical order. A kind with no base row
+ * is skipped rather than throwing, so a partial catalog still renders.
+ */
+function groupMethods(methods: Method[]): Group[] {
+  return METHODS.map((kind) => {
+    const top = methods.find((method) => method.kind === kind && isBase(method));
+    if (top === undefined) return null;
+    return { top, options: methods.filter((method) => method.kind === kind && !isBase(method)) };
+  }).filter((group): group is Group => group !== null);
 }

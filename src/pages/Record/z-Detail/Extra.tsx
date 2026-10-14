@@ -1,5 +1,5 @@
 import { Show } from "~/components/Show";
-import type { RecordExtra } from "~/database/record-extra/get-by-range";
+import type { RecordExtra } from "~/services/record";
 
 export function Extra({ extra }: { extra: RecordExtra }) {
   return (

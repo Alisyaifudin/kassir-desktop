@@ -1,15 +1,19 @@
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
-import { Extra } from "./Extra";
-import type { RecordExtra } from "~/database/record-extra/get-by-range";
-import type { Record } from "../use-records";
 import { METHOD_NAMES } from "~/lib/constants";
+import type { RecordExtra, Record } from "~/services/record";
+import { Extra } from "./Extra";
 
 export function Footer({ record, extras }: { record: Record; extras: RecordExtra[] }) {
+  // A record can carry several payments (split payment); list them all.
+  const methods = record.methods
+    .map((method) => `${METHOD_NAMES[method.kind]}${method.name ? ` ${method.name}` : ""}`)
+    .join(", ");
+
   return (
     <div className="flex flex-col items-end">
-      <Show when={record.subtotal !== record.grandTotal && record.subtotal !== 0}>
-        <p className="text-end">Rp{record.subtotal.toLocaleString("id-ID")}</p>
+      <Show when={record.subTotal !== record.grandTotal && record.subTotal !== 0}>
+        <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
       </Show>
       <Show when={extras.length > 0}>
         <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>
@@ -38,10 +42,7 @@ export function Footer({ record, extras }: { record: Record; extras: RecordExtra
           <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
         </div>
       </Show>
-      <p className="self-start">
-        Metode: {METHOD_NAMES[record.method.kind]}
-        {record.method.name === undefined ? "" : " " + record.method.name}
-      </p>
+      {methods === "" ? null : <p className="self-start">Metode: {methods}</p>}
     </div>
   );
 }

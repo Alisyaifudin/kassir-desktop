@@ -136,13 +136,19 @@ export function useStream<A, E>(
 
 /**
  * Like `useStream`, but re-subscribes whenever `deps` change. Use for
- * param-scoped queries (history, performance) wrapped in `Stream.fromEffect`.
+ * param-scoped queries (history, performance, list filters) wrapped in
+ * `Stream.fromEffect`.
+ *
+ * `keepPrevious` holds the last successful value while the new deps resolve.
+ * Reach for it when deps change on every keystroke or after a refetch, so the
+ * view doesn't blank between queries.
  */
 export function useQuery<A, E>(
   factory: () => Stream.Stream<A, E, never>,
   deps: React.DependencyList,
-  initial?: () => A,
+  options: { initial?: () => A; keepPrevious?: boolean } = {},
 ): Result<A, E> {
+  const { initial, keepPrevious = false } = options;
   const [state, setState] = useState<Result<A, E>>(() =>
     initial === undefined ? { type: "init" } : { type: "success", data: initial() },
   );
@@ -151,7 +157,9 @@ export function useQuery<A, E>(
   factoryRef.current = factory;
 
   useEffect(() => {
-    setState(initial === undefined ? { type: "init" } : { type: "success", data: initial() });
+    if (!keepPrevious) {
+      setState(initial === undefined ? { type: "init" } : { type: "success", data: initial() });
+    }
 
     const fiber = Effect.runFork(
       factoryRef.current().pipe(

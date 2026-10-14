@@ -3,7 +3,7 @@ import { loginRoute } from "./pages/Login";
 // import { shopRoute } from "./pages/Shop";
 import { productRoute } from "./pages/Product";
 // import { settingRoute } from "./pages/Setting";
-// import { recordRoute } from "./pages/Record";
+import { recordRoute } from "./pages/Record";
 // import { moneyRoute } from "./pages/Money";
 // import { analRoute } from "./pages/Analytics";
 // import { cashierRoute } from "./pages/Cashier/index.tsx";
@@ -41,7 +41,7 @@ export const router = createHashRouter([
           // settingRoute,
           productRoute,
           // moneyRoute,
-          // recordRoute,
+          recordRoute,
           // analRoute,
         ],
       },

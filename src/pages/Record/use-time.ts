@@ -1,42 +1,56 @@
 import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
+import { tz } from "~/lib/constants";
 
-function getTime(search: URLSearchParams): {
+/** Sanity bounds for a `time` param; anything outside falls back to today. */
+const EARLIEST = Temporal.ZonedDateTime.from({
+  timeZone: tz,
+  year: 1900,
+  month: 1,
+  day: 1,
+}).epochMilliseconds;
+const FURTHEST = Temporal.ZonedDateTime.from({
+  timeZone: tz,
+  year: 2101,
+  month: 1,
+  day: 1,
+}).epochMilliseconds;
+
+export type Day = {
+  /** Local midnight of the chosen day. */
   time: number;
   yesterday: number;
   tomorrow: number;
-} {
-  const time = getTimeBase(search);
-  const yesterday = time.subtract(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
-  const tomorrow = time.add(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
-  return {
-    time: time.epochMilliseconds,
-    yesterday,
-    tomorrow,
-  };
-}
+  /** Half-open `[start, end)` spanning the chosen local day. */
+  start: number;
+  end: number;
+};
 
-function getTimeBase(search: URLSearchParams): Temporal.ZonedDateTime {
-  const tz = Temporal.Now.timeZoneId();
-  const timeStr = search.get("time");
-  if (timeStr === null || Number.isNaN(timeStr)) {
-    const now = Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay();
-    return now;
-  }
-  return Temporal.Instant.fromEpochMilliseconds(Number(timeStr))
-    .toZonedDateTimeISO(tz)
-    .startOfDay();
+function getDay(search: URLSearchParams): Day {
+  const raw = search.get("time");
+  const parsed = raw === null ? Number.NaN : Number(raw);
+  const inRange = Number.isFinite(parsed) && parsed >= EARLIEST && parsed <= FURTHEST;
+  const day = inRange
+    ? Temporal.Instant.fromEpochMilliseconds(parsed).toZonedDateTimeISO(tz).startOfDay()
+    : Temporal.Now.zonedDateTimeISO(tz).startOfDay();
+  return {
+    time: day.epochMilliseconds,
+    yesterday: day.subtract({ days: 1 }).epochMilliseconds,
+    tomorrow: day.add({ days: 1 }).epochMilliseconds,
+    start: day.epochMilliseconds,
+    end: day.add({ days: 1 }).epochMilliseconds,
+  };
 }
 
 export function useTime() {
   const [search, setSearch] = useSearchParams();
-  const time = getTime(search);
+  const day = getDay(search);
   function setTime(time: number) {
     setSearch((old) => {
-      const search = new URLSearchParams(old);
-      search.set("time", time.toString());
-      return search;
+      const next = new URLSearchParams(old);
+      next.set("time", time.toString());
+      return next;
     });
   }
-  return [time, setTime] as const;
+  return [day, setTime] as const;
 }

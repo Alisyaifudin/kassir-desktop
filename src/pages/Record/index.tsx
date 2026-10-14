@@ -1,11 +1,12 @@
 import { RouteObject } from "react-router";
-import { itemRoute } from "./Item";
 import { lazy, Suspense } from "react";
-import { searchRoute } from "./Search";
 import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
+// `Item` and `Search` have not been moved onto the services layer yet, so only
+// the list route is wired up. The UI controls that led there are disabled until
+// they land.
 export const recordRoute: RouteObject = {
   path: "records",
   children: [
@@ -17,7 +18,5 @@ export const recordRoute: RouteObject = {
       ),
       index: true,
     },
-    itemRoute,
-    searchRoute,
   ],
 };

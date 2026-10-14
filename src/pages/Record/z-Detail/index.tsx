@@ -1,4 +1,5 @@
 import { Unlock, X } from "lucide-react";
+import { Link, useLocation } from "react-router";
 import {
   Table,
   TableBody,
@@ -7,24 +8,38 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { Link, useLocation } from "react-router";
-import { DeleteBtn } from "./DeleteBtn";
 import { Button } from "~/components/ui/button";
-import { capitalize, cn } from "~/lib/utils";
-import { Show } from "~/components/Show";
 import { ForEach } from "~/components/ForEach";
-import { Footer } from "./Footer";
-import { DataRecord } from "../use-records";
-import { ToTransaction } from "./ToTransaction";
-import { useUnselect } from "../use-selected";
-import { useUser } from "~/hooks/use-user";
+import { Loader } from "~/components/Loader";
+import { Show } from "~/components/Show";
+import { Skeleton } from "~/components/ui/skeleton";
+import { capitalize, cn } from "~/lib/utils";
 import { formatDate, formatTime } from "~/lib/date";
+import { useUser } from "~/hooks/use-user";
+import type { RecordFull } from "~/services/record";
+import { useUnselect } from "../use-selected";
+import { RecordsErrorBoundary, RecordsErrorFallback } from "../z-Error";
+import { DeleteBtn } from "./DeleteBtn";
+import { Footer } from "./Footer";
+import { ToTransaction } from "./ToTransaction";
+import { useRecordFull } from "./use-record-full";
 
-export function Detail({ extras, products, record }: DataRecord) {
+export function Detail({ recordId }: { recordId: string }) {
+  const res = useRecordFull(recordId);
+  return (
+    <RecordsErrorBoundary fallback={RecordsErrorFallback}>
+      <Loader res={res} fallback={<Loading />}>
+        {({ data: record }) => (record === null ? null : <Body record={record} />)}
+      </Loader>
+    </RecordsErrorBoundary>
+  );
+}
+
+function Body({ record }: { record: RecordFull }) {
   const unselect = useUnselect();
   return (
     <Show
-      when={products.length !== 0 || extras.length !== 0}
+      when={record.listings.length !== 0 || record.extras.length !== 0}
       fallback={<DeleteBtn recordId={record.id} />}
     >
       <div className="flex flex-col gap-2 overflow-hidden h-full">
@@ -43,7 +58,7 @@ export function Detail({ extras, products, record }: DataRecord) {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4">
-          <Show when={products.length > 0}>
+          <Show when={record.listings.length > 0}>
             <div className="shrink-0">
               <Table className="text-normal">
                 <TableHeader>
@@ -60,12 +75,12 @@ export function Detail({ extras, products, record }: DataRecord) {
                   </TableRow>
                 </TableHeader>
                 <TableBody className="border-b">
-                  <ForEach items={products}>
+                  <ForEach items={record.listings}>
                     {(item, i) => (
                       <TableRow>
                         <TableCell className="flex items-center">
                           {i + 1}
-                          {item.productId !== undefined ? <Unlock className="icon" /> : null}
+                          {item.listingId !== null ? <Unlock className="icon" /> : null}
                         </TableCell>
                         <TableCell>{item.name}</TableCell>
                         <TableCell className="text-end">
@@ -82,7 +97,7 @@ export function Detail({ extras, products, record }: DataRecord) {
               </Table>
             </div>
           </Show>
-          <Footer extras={extras} record={record} />
+          <Footer record={record} extras={record.extras} />
           <Show when={record.customer.name !== "" && record.customer.phone !== ""}>
             <p className="shrink-0">
               Pelanggan: {record.customer.name} ({record.customer.phone})
@@ -96,34 +111,38 @@ export function Detail({ extras, products, record }: DataRecord) {
           </Show>
         </div>
         <div className="shrink-0 pt-2 border-t mt-auto">
-          <FooterBtn data={{ extras, products, record }} />
+          <FooterBtn record={record} />
         </div>
       </div>
     </Show>
   );
 }
-function FooterBtn({ data }: { data: DataRecord }) {
+
+function FooterBtn({ record }: { record: RecordFull }) {
   const { pathname, search } = useLocation();
   const path = encodeURIComponent(`${pathname}${search}`);
   const role = useUser().role;
   return (
     <div className="pt-20 flex justify-between w-full">
       <Button asChild>
-        <Link
-          to={{
-            pathname: `/records/${data.record.id}`,
-            search: `?url_back=${path}`,
-          }}
-        >
-          Lihat
-        </Link>
+        <Link to={{ pathname: `/records/${record.id}`, search: `?url_back=${path}` }}>Lihat</Link>
       </Button>
       <div className="flex items-center gap-3">
-        <ToTransaction data={data} />
+        <ToTransaction />
         <Show when={role === "admin"}>
-          <DeleteBtn recordId={data.record.id} />
+          <DeleteBtn recordId={record.id} />
         </Show>
       </div>
+    </div>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="flex flex-col gap-2 p-2">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-32 w-full" />
     </div>
   );
 }

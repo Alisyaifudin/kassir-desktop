@@ -1,13 +1,6 @@
-import { Header } from "./z-Header";
-import { Record } from "./z-Record";
-import { DataRecord, useRecords } from "./use-records";
 import { cn } from "~/lib/utils";
-import { Detail } from "./z-Detail";
-import { Show } from "~/components/Show";
-import { useSelected } from "./use-selected";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { ErrorComponent } from "~/components/ErrorComponent";
+import type { Record as RecordModel } from "~/services/record";
+import { Loader } from "~/components/Loader";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
   Table,
@@ -17,38 +10,37 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { Header } from "./z-Header";
+import { Records } from "./z-Record";
+import { Detail } from "./z-Detail";
+import { useRecords } from "./use-records";
+import { useSelected } from "./use-selected";
+import { RecordsErrorBoundary, RecordsErrorFallback } from "./z-Error";
 
 export default function Page() {
   return (
-    <main className="flex flex-col gap-2 p-0.5 flex-1 text-3xl overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
+    <main className="flex flex-col gap-2 p-0.5 flex-1 overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
       <Header />
       <div className="flex-1 min-h-0">
-        <Loader />
+        <List />
       </div>
     </main>
   );
 }
 
-function Loader() {
+function List() {
   const res = useRecords();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <ErrorComponent>{e.message}</ErrorComponent>;
-    },
-    onSuccess(records) {
-      return <Wrapper records={records} />;
-    },
-  });
+  return (
+    <RecordsErrorBoundary fallback={RecordsErrorFallback}>
+      <Loader res={res} fallback={<Loading />}>
+        {({ data: records }) => <Workspace records={records} />}
+      </Loader>
+    </RecordsErrorBoundary>
+  );
 }
 
-function Wrapper({ records }: { records: DataRecord[] }) {
+function Workspace({ records }: { records: RecordModel[] }) {
   const [selected] = useSelected();
-  const record =
-    selected === null ? undefined : records.find((r) => r.record.id === selected);
   return (
     <div
       className={cn(
@@ -56,15 +48,11 @@ function Wrapper({ records }: { records: DataRecord[] }) {
       )}
     >
       <div className="h-full overflow-hidden">
-        <Record records={records} />
+        <Records records={records} />
       </div>
       <div className="border-l h-full" />
       <div className="h-full overflow-hidden">
-        <Show value={record}>
-          {({ record, extras, products }) => (
-            <Detail extras={extras} products={products} record={record} />
-          )}
-        </Show>
+        {selected === null ? null : <Detail recordId={selected} />}
       </div>
     </div>
   );

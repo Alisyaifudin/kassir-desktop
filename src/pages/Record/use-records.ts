@@ -1,99 +1,34 @@
-import { Temporal } from "temporal-polyfill";
+import { Stream } from "effect";
 import { useSearchParams } from "react-router";
-import { db } from "~/database";
-import { Record as RecordDB } from "~/database/record/get-by-range";
-import { RecordProduct } from "~/database/record-product/get-by-range";
-import { RecordExtra } from "~/database/record-extra/get-by-range";
-import Decimal from "decimal.js";
-import { tz } from "~/lib/constants";
-import { Result } from "~/lib/result";
-import { Effect } from "effect";
+import { useQuery, useStream, type Result } from "~/components/Loader";
+import { service } from "~/services";
+import type { Record as RecordModel, RecordError } from "~/services/record";
+import { useTime } from "./use-time";
 
-const earliest = Temporal.ZonedDateTime.from({
-  timeZone: tz,
-  year: 1900,
-  month: 1,
-  day: 1,
-}).startOfDay().epochMilliseconds;
-const furthest = Temporal.ZonedDateTime.from({
-  timeZone: tz,
-  year: 2101,
-  month: 1,
-  day: 1,
-}).startOfDay().epochMilliseconds;
+/**
+ * The service's write counter. Every commit and delete bumps it, so a queried
+ * page re-reads by putting it in the query's deps. Seeded at 0 so the first
+ * render already has a stable key instead of waiting on the stream.
+ */
+export function useRecordRevision(): number {
+  const res = useStream(service.record.get.revision, () => 0);
+  return res.type === "success" ? res.data : 0;
+}
 
-const KEY = "records";
-
-export function useRecords() {
+/**
+ * One local day of records, narrowed by the header's `query` param. The name
+ * match runs in SQL (`record_listings.record_listing_name`) rather than over
+ * every record's lines, so typing re-queries instead of re-filtering in memory.
+ */
+export function useRecords(): Result<RecordModel[], RecordError> {
   const [search] = useSearchParams();
-  const time = getTime(search);
-  const res = Result.use({
-    fn: () => loader(time),
-    key: KEY,
-    deps: [time],
-  });
-  return res;
-}
+  const [day] = useTime();
+  const query = search.get("query") ?? "";
+  const revision = useRecordRevision();
 
-export function revalidate() {
-  Result.revalidate(KEY);
-}
-
-function loader(timestamp: number | null) {
-  timestamp ??= Date.now();
-  return Effect.gen(function* () {
-    const date = Temporal.Instant.fromEpochMilliseconds(timestamp).toZonedDateTimeISO(tz);
-    const start = date.startOfDay().epochMilliseconds;
-    const end = date.startOfDay().add(Temporal.Duration.from({ days: 1 })).epochMilliseconds;
-    const [recordsRaw, products, extras] = yield* Effect.all(
-      [
-        db.record.get.byRange(start, end),
-        db.recordProduct.get.byRange(start, end),
-        db.recordExtra.get.byRange(start, end),
-      ],
-      { concurrency: "unbounded" },
-    );
-    const records: DataRecord[] = recordsRaw.map((r) => {
-      const ps = products.filter((p) => p.recordId === r.id);
-      const es = extras.filter((p) => p.recordId === r.id);
-      const grandTotal = new Decimal(r.total).plus(r.rounding);
-      const change = new Decimal(r.pay).minus(grandTotal);
-      return {
-        record: {
-          ...r,
-          subTotal: Number(r.subtotal.toFixed(r.fix)),
-          total: Number(r.total.toFixed(r.fix)),
-          grandTotal: Number(grandTotal.toFixed(r.fix)),
-          change: Number(change.toFixed(r.fix)),
-        },
-        products: ps,
-        extras: es,
-      };
-    });
-
-    return records;
-  });
-}
-
-export type Record = RecordDB & {
-  grandTotal: number;
-  change: number;
-};
-
-export type DataRecord = {
-  record: Record;
-  products: RecordProduct[];
-  extras: RecordExtra[];
-};
-
-function getTime(search: URLSearchParams): number | null {
-  const timeStr = search.get("time");
-  const timeNum = Number(timeStr);
-  if (timeStr === null || Number.isNaN(timeNum)) {
-    return null;
-  }
-  if (earliest > timeNum || furthest < timeNum) {
-    return null;
-  }
-  return timeNum;
+  return useQuery(
+    () => Stream.fromEffect(service.record.get.byRange(day.start, day.end, query)),
+    [day.start, day.end, query, revision],
+    { keepPrevious: true },
+  );
 }

@@ -1,10 +1,10 @@
 import { Banknote, CreditCard, QrCode, Send } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import type { Method } from "~/database/method/cache";
-import { METHOD_NAMES } from "~/lib/constants";
+import { METHOD_NAMES, type MethodKind } from "~/lib/constants";
 import { cn } from "~/lib/utils";
+import type { Method } from "~/services/method";
 
-const ICONS = {
+const ICONS: Record<MethodKind, typeof Banknote> = {
   cash: Banknote,
   transfer: Send,
   debit: CreditCard,
@@ -19,12 +19,14 @@ export function FilterBtn({
 }: {
   onClick: (id: string) => void;
   selected: string | null;
+  /** The kind's base method; matches every payment of that kind. */
   top: Method;
+  /** The kind's named variants; each matches only itself. */
   options: Method[];
 }) {
   const Icon = ICONS[top.kind];
   const isSelected = top.id === selected;
-  const isAnyOptionSelected = options.some((o) => o.id === selected);
+  const isAnyOptionSelected = options.some((option) => option.id === selected);
 
   return (
     <div
@@ -64,11 +66,11 @@ export function FilterBtn({
 
       {options.length > 0 && (
         <div className="flex flex-wrap gap-2 pl-2">
-          {options.map((m) => {
-            const isOptionSelected = m.id === selected;
+          {options.map((option) => {
+            const isOptionSelected = option.id === selected;
             return (
               <Button
-                key={m.id}
+                key={option.id}
                 variant={isOptionSelected ? "default" : "outline"}
                 className={cn(
                   "rounded-full h-10 px-3 text-normal font-medium transition-all duration-200",
@@ -76,9 +78,9 @@ export function FilterBtn({
                     ? "shadow-md scale-105 text-primary-foreground border-transparent"
                     : "hover:bg-accent/60 hover:border-accent",
                 )}
-                onClick={() => onClick(m.id)}
+                onClick={() => onClick(option.id)}
               >
-                {m.name}
+                {option.name}
               </Button>
             );
           })}

@@ -1,3 +1,5 @@
+import { useCallback, useMemo } from "react";
+import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -6,48 +8,43 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { capitalize, cn } from "~/lib/utils";
 import { ForEach } from "~/components/ForEach";
-import { Record } from "../use-records";
-import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
-import { useCallback } from "react";
+import { capitalize, cn } from "~/lib/utils";
 import { formatTime } from "~/lib/date";
+import type { Record as RecordModel } from "~/services/record";
 import { useSelected } from "../use-selected";
 import { useOrder } from "../use-order";
 
-type ListProps = {
-  records: Record[];
-};
-
-export function List({ records }: ListProps) {
+export function List({ records }: { records: RecordModel[] }) {
   const [selected, setSelected] = useSelected();
   const [{ order, sort }, setOrder] = useOrder();
+
   const handleClickSort = useCallback(
-    (o: "time" | "total") => {
-      let s = sort;
-      if (order === o) {
-        s = s === "asc" ? "desc" : "asc";
-      }
-      setOrder(o, s);
+    (next: "time" | "total") => {
+      const direction = order === next ? (sort === "asc" ? "desc" : "asc") : sort;
+      setOrder(next, direction);
     },
     [order, sort, setOrder],
   );
-  const sign = sort === "asc" ? 1 : -1;
-  switch (order) {
-    case "time":
-      records.sort((a, b) => sign * (a.paidAt - b.paidAt));
-      break;
-    case "total":
-      records.sort((a, b) => sign * (a.grandTotal - b.grandTotal));
-      break;
-  }
+
+  // Copy before sorting: `records` is a prop, and sorting it in place would
+  // mutate the parent's array during render.
+  const sorted = useMemo(() => {
+    const sign = sort === "asc" ? 1 : -1;
+    return [...records].sort((a, b) =>
+      order === "time" ? sign * (a.paidAt - b.paidAt) : sign * (a.grandTotal - b.grandTotal),
+    );
+  }, [records, order, sort]);
+
   return (
     <Table className="text-normal">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[30px] small:w-[10px]">No</TableHead>
-          <TableHead className={cn("text-center w-[150px] small:w-[90px]")}>Kasir</TableHead>
-          <TableHead className="w-[120px] small:w-[93px]">
+          <TableHead className="w-[30px] font-normal small:w-[10px]">No</TableHead>
+          <TableHead className={cn("text-center w-[150px] font-normal small:w-[90px]")}>
+            Kasir
+          </TableHead>
+          <TableHead className="w-[120px] font-normal small:w-[93px]">
             <SortBtn
               onClick={() => handleClickSort("time")}
               sort={order === "time" ? sort : undefined}
@@ -56,7 +53,7 @@ export function List({ records }: ListProps) {
               Waktu
             </SortBtn>
           </TableHead>
-          <TableHead>
+          <TableHead className="font-normal">
             <SortBtn
               onClick={() => handleClickSort("total")}
               sort={order === "total" ? sort : undefined}
@@ -67,14 +64,18 @@ export function List({ records }: ListProps) {
           </TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
-        <ForEach items={records}>
+      {/* Rows sit at the header's muted colour and one weight below it, so the
+          list doesn't out-shout its own column labels. Needs the shipped
+          variable face — the OS build of Noto Sans has no 300. The tinted
+          (selected / credit) rows keep full contrast against their background. */}
+      <TableBody className="text-muted-foreground font-light">
+        <ForEach items={sorted}>
           {(record, i) => (
             <TableRow
               onClick={() => setSelected(record.id)}
               className={cn(
-                { "bg-sky-200 hover:bg-sky-100": selected === record.id },
-                { "bg-red-300": record.isCredit },
+                { "bg-sky-200 hover:bg-sky-100 text-foreground": selected === record.id },
+                { "bg-red-300 text-foreground": record.isCredit },
               )}
             >
               <TableCell>{i + 1}</TableCell>

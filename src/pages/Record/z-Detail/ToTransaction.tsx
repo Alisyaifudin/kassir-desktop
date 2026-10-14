@@ -1,18 +1,19 @@
 import { Button } from "~/components/ui/button";
-import { TextError } from "~/components/TextError";
-import { DataRecord } from "../use-records";
-import { useToTransaction } from "./use-to-transaction";
-import { Spinner } from "~/components/Spinner";
 
-export function ToTransaction({ data }: { data: DataRecord }) {
-  const { error, loading, handleClick } = useToTransaction(data);
+/**
+ * Held rather than removed: pushing a past record back into the shop cart needs
+ * the cart (`tx.db`) rebuilt on the services layer, and `/shop` is not routed
+ * in the meantime.
+ */
+export function ToTransaction() {
   return (
-    <div className="flex flex-col gap-1">
-      <Button onClick={handleClick} variant="secondary">
+    <div className="flex flex-col items-end gap-1">
+      <Button disabled variant="secondary">
         Jadikan Transaksi
-        <Spinner when={loading} />
       </Button>
-      <TextError>{error}</TextError>
+      <p className="max-w-[220px] text-end text-small text-muted-foreground">
+        Belum tersedia — keranjang toko belum dipindahkan ke services.
+      </p>
     </div>
   );
 }

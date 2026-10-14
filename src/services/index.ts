@@ -11,6 +11,8 @@ import { DatabaseLive } from "./db/live";
 import { InfoService } from "./info";
 import { InfoLive } from "./info/live";
 import { LocalStorageLive } from "./local-storage/live";
+import { MethodService } from "./method";
+import { MethodLive } from "./method/live";
 import { ProductService } from "./product";
 import { ProductLive } from "./product/live";
 import { RecordService } from "./record";
@@ -24,8 +26,10 @@ const cashierLive = CashierLive.pipe(Layer.provide(hiddenLive));
 const configLive = ConfigLive.pipe(Layer.provide(hiddenLive));
 const customerLive = CustomerLive.pipe(Layer.provide(hiddenLive));
 const infoLive = InfoLive.pipe(Layer.provide(hiddenLive));
+const methodLive = MethodLive.pipe(Layer.provide(hiddenLive));
 const productLive = ProductLive.pipe(Layer.provide(hiddenLive));
-const recordLive = RecordLive.pipe(Layer.provide(hiddenLive));
+// `record` reverses a deleted record's stock movement, so it needs `product`.
+const recordLive = RecordLive.pipe(Layer.provide(hiddenLive), Layer.provide(productLive));
 
 // Auth also needs the cashier service to verify the session's id.
 const authLive = AuthLive.pipe(Layer.provide(hiddenLive), Layer.provide(cashierLive));
@@ -35,6 +39,7 @@ const appLive = Layer.mergeAll(
   cashierLive,
   customerLive,
   infoLive,
+  methodLive,
   productLive,
   recordLive,
   authLive,
@@ -47,6 +52,7 @@ export const service = Effect.runSync(
       cashier: yield* CashierService,
       customer: yield* CustomerService,
       info: yield* InfoService,
+      method: yield* MethodService,
       product: yield* ProductService,
       record: yield* RecordService,
       auth: yield* AuthService,
