@@ -8,8 +8,8 @@ export function IncomeCard({ stats }: { stats: Stats }) {
       label="Pendapatan Hari Ini"
       icon={Wallet}
       color="text-green-500"
-      value={stats.today.outcoming.total}
-      previous={stats.yesterday.outcoming.total}
+      value={stats.today.incoming.total}
+      previous={stats.yesterday.incoming.total}
     />
   );
 }

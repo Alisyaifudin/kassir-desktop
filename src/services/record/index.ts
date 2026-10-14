@@ -4,7 +4,12 @@ import type { MethodKind } from "~/lib/constants";
 
 export class RecordError extends Data.TaggedError("RecordError")<{ message: string }> {}
 
-/** `outcoming` = penjualan (income), `incoming` = pembelian (expense). */
+/**
+ * Which way money moved — the opposite of which way goods moved. `incoming` is a
+ * sale (penjualan: money in, stock consumed); `outcoming` is a purchase
+ * (pembelian: money out, stock received). Read stock code against that inversion,
+ * not against the names.
+ */
 export type RecordMode = "incoming" | "outcoming";
 
 /** Aggregates for one mode over a half-open range `[start, end)`. */

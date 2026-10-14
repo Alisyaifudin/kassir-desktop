@@ -10,11 +10,11 @@ export function ModeTab() {
         variant="ghost"
         className={cn(
           "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
-          mode === "outcoming"
+          mode === "incoming"
             ? "bg-background text-primary shadow-sm hover:bg-background"
             : "text-muted-foreground hover:text-foreground hover:bg-transparent",
         )}
-        onClick={() => setMode("outcoming")}
+        onClick={() => setMode("incoming")}
       >
         Masuk
       </Button>
@@ -22,11 +22,11 @@ export function ModeTab() {
         variant="ghost"
         className={cn(
           "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
-          mode === "incoming"
+          mode === "outcoming"
             ? "bg-background text-primary shadow-sm hover:bg-background"
             : "text-muted-foreground hover:text-foreground hover:bg-transparent",
         )}
-        onClick={() => setMode("incoming")}
+        onClick={() => setMode("outcoming")}
       >
         Keluar
       </Button>

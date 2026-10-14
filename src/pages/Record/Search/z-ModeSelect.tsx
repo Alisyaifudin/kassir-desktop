@@ -3,10 +3,10 @@ import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import type { RecordMode } from "~/services/record";
 import { useMode } from "../use-mode";
 
-/** `outcoming` is penjualan (money in); `incoming` is pembelian (money out). */
+/** `incoming` is a sale (money in); `outcoming` is a purchase (money out). */
 const MODES: { value: RecordMode; label: string }[] = [
-  { value: "outcoming", label: "Masuk" },
-  { value: "incoming", label: "Keluar" },
+  { value: "incoming", label: "Masuk" },
+  { value: "outcoming", label: "Keluar" },
 ];
 
 export function ModeSelect() {

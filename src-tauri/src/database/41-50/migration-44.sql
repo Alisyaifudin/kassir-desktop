@@ -36,6 +36,7 @@ CREATE TABLE tx_records (
   tx_record_order           INTEGER NOT NULL, -- user-controlled tab order (re-arrangeable; not unique by design)
   tx_record_flag            INTEGER NOT NULL DEFAULT 0, -- local flag (role TBD)
   tx_record_title           TEXT NOT NULL,
+  -- 'incoming' is a sale, which is what the legacy cart defaulted to ('sell').
   tx_record_mode            TEXT NOT NULL DEFAULT ('incoming') CHECK (tx_record_mode IN ('incoming', 'outcoming')),
   tx_record_query           TEXT NOT NULL DEFAULT (''),
   tx_record_fix             INTEGER NOT NULL DEFAULT 0,

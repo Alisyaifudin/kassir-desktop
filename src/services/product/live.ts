@@ -312,7 +312,8 @@ const SELECT_SALES = `
   FROM record_listings rl
   JOIN records r ON r.record_id = rl.record_id
   WHERE r.record_deleted_at IS NULL
-    AND r.record_mode = 'outcoming'
+    -- A sale is 'incoming': the enum follows the money, not the goods.
+    AND r.record_mode = 'incoming'
     AND rl.listing_id IN (SELECT listing_id FROM listings WHERE product_id = $1)
     AND r.record_paid_at >= $2 AND r.record_paid_at < $3
   ORDER BY r.record_paid_at ASC`;

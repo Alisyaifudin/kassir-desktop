@@ -12,10 +12,10 @@ export function TotalTransactionsCard({ stats }: { stats: Stats }) {
       </div>
 
       <div className="mt-auto grid grid-cols-2 gap-4 border-t pt-2">
-        <Total label="Penjualan" value={stats.today.outcoming.count} tone="text-green-600">
+        <Total label="Penjualan" value={stats.today.incoming.count} tone="text-green-600">
           <TrendingUp className="size-3.5 small:size-3" />
         </Total>
-        <Total label="Pembelian" value={stats.today.incoming.count} tone="text-amber-600">
+        <Total label="Pembelian" value={stats.today.outcoming.count} tone="text-amber-600">
           <TrendingDown className="size-3.5 small:size-3" />
         </Total>
       </div>

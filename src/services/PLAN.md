@@ -307,7 +307,7 @@ type CommitInput = {
 2. insert `record_listings` + `discounts`
 3. insert `record_extras`
 4. insert `record_methods`
-5. stock: for `outcoming` consume, for `incoming` receive; insert `product_events`
+5. stock: for `incoming` consume (a sale), for `outcoming` receive (a purchase); insert `product_events`
 6. bump `record.revision`
 7. `product.refresh()`
 

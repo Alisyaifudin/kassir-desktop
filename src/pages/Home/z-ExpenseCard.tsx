@@ -8,8 +8,8 @@ export function ExpenseCard({ stats }: { stats: Stats }) {
       label="Pengeluaran Hari Ini"
       icon={CreditCard}
       color="text-red-500"
-      value={stats.today.incoming.total}
-      previous={stats.yesterday.incoming.total}
+      value={stats.today.outcoming.total}
+      previous={stats.yesterday.outcoming.total}
     />
   );
 }

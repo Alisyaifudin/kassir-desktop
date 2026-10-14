@@ -2,10 +2,10 @@ import { useSearchParams } from "react-router";
 import { z } from "zod";
 import type { RecordMode } from "~/services/record";
 
-/** Defaults to `outcoming` (penjualan), which is what the page opens on. */
+/** Defaults to `incoming` (penjualan), which is what the page opens on. */
 function getMode(search: URLSearchParams): RecordMode {
   const parsed = z.enum(["incoming", "outcoming"]).safeParse(search.get("mode"));
-  return parsed.success ? parsed.data : "outcoming";
+  return parsed.success ? parsed.data : "incoming";
 }
 
 export function useMode() {

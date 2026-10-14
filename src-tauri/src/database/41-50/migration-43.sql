@@ -63,6 +63,10 @@ ALTER TABLE extras      ADD COLUMN extra_deleted_at       INTEGER;
 ALTER TABLE customers   ADD COLUMN customer_deleted_at    INTEGER;
 ALTER TABLE socials     ADD COLUMN social_deleted_at      INTEGER;
 ALTER TABLE money       ADD COLUMN money_deleted_at       INTEGER;
+-- ASSUMES the kind table is already named `pockets`. A database migrated before
+-- that rename still calls it `money_kind`, and this line then fails outright and
+-- takes the whole migration with it (one bad statement aborts the batch).
+-- `repair-money-kind-to-pocket.sql` does that rename and must run first.
 ALTER TABLE pockets     ADD COLUMN pocket_deleted_at     INTEGER;
 
 
@@ -75,9 +79,14 @@ CREATE TABLE code_kind_enum (
 
 INSERT INTO code_kind_enum (v) VALUES ('barcode'), ('qr');
 
--- Replaces the old ('sell', 'buy') enum. `records_old` still references
--- `mode_enum_old` (sell/buy); the new `records` uses these terms, which the
--- section 10.6 backfill maps: sell -> outcoming, buy -> incoming.
+-- Renames the old ('sell', 'buy') enum. The values describe the direction MONEY
+-- moved, which is the opposite of the goods: a sale takes money in, a purchase
+-- sends it out. `records_old` still references `mode_enum_old` (sell/buy); the
+-- section 10.6 backfill maps: sell -> incoming, buy -> outcoming.
+--
+-- Careful when reading stock code with these names: a sale (`incoming`) consumes
+-- stock, a purchase (`outcoming`) receives it. The enum follows the till, not the
+-- warehouse.
 CREATE TABLE mode_enum (
   v TEXT PRIMARY KEY
 ) STRICT;
@@ -378,8 +387,8 @@ INSERT INTO records (
 SELECT
   record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
   CASE record_mode
-    WHEN 'sell' THEN 'outcoming'
-    WHEN 'buy'  THEN 'incoming'
+    WHEN 'sell' THEN 'incoming'
+    WHEN 'buy'  THEN 'outcoming'
     ELSE record_mode
   END AS record_mode,
   record_pay, record_note, record_fix, record_customer_name,
