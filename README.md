@@ -32,9 +32,9 @@ build the NSIS installer instead (see below), never the MSI.
   installer for a branch that is not `master`:
 
 ```sh
-gh workflow run windows-release.yml --ref prod                    # draft, tag v5.19.28
+gh workflow run windows-release.yml --ref prod                    # draft, tag v5.19.30
 gh workflow run windows-release.yml --ref prod -f draft=false     # publish right away
-gh workflow run windows-release.yml --ref prod -f tag=v5.19.28-test  # custom tag
+gh workflow run windows-release.yml --ref prod -f tag=v5.19.30-test  # custom tag
 ```
 
 The manual trigger has to live on the default branch for GitHub to show it,
