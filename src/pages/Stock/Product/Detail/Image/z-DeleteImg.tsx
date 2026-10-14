@@ -17,7 +17,7 @@ import { useDel } from "./use-del";
 
 export function DeleteImg({ selected }: { selected: ImageResult }) {
   const [open, setOpen] = useState(false);
-  const { loading, error, handleDelete } = useDel(selected.id, () => setOpen(false));
+  const { loading, error, handleDelete } = useDel(selected.id, selected.file, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild variant="destructive" className="rounded-full absolute top-1 right-0 p-1">

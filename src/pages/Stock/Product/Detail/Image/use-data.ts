@@ -25,12 +25,15 @@ export type ImageResult =
       href: string;
       order: number;
       id: string;
+      /** key of the file on disk, i.e. `image_name` - not the row id */
+      file: string;
     }
   | {
       success: false;
       order: number;
       href: undefined;
       id: string;
+      file: string;
     };
 
 const HIGH_NUMBER = 10000;
@@ -40,11 +43,12 @@ export function program(id: string) {
     const imagesMeta = yield* db.image.get.byProductId(id);
     const images: ImageResult[] = yield* Effect.all(
       imagesMeta.map((img, i) =>
-        image.load(img.id, img.mime).pipe(
+        image.load(img.name, img.mime).pipe(
           Effect.map((href) => ({
             success: true as const,
             href,
             id: img.id,
+            file: img.name,
             order: img.order,
           })),
           Effect.catchTag("IOError", (e) => {
@@ -54,6 +58,7 @@ export function program(id: string) {
               order: HIGH_NUMBER + i,
               href: undefined,
               id: img.id,
+              file: img.name,
             });
           }),
         ),

@@ -16,7 +16,7 @@ function program(productId: string) {
   return Effect.gen(function* () {
     const res = yield* db.image.get.byProductId(productId);
     const urls = yield* Effect.all(
-      res.map((r) => image.load(r.id, r.mime)),
+      res.map((r) => image.load(r.name, r.mime)),
       { concurrency: 5 },
     );
     return urls;
