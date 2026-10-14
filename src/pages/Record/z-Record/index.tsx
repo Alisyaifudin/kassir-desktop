@@ -1,35 +1,20 @@
 import { useMemo } from "react";
 import Decimal from "decimal.js";
-import { METHOD_BASE_KIND } from "~/lib/constants";
 import type { Record as RecordModel } from "~/services/record";
-import { List } from "./List";
+import { matchesMethod } from "../method-filter";
 import { useMode } from "../use-mode";
-import { useMethod } from "../use-method";
-
-const BASE_KIND: Record<string, string | undefined> = METHOD_BASE_KIND;
-
-/**
- * A base filter (`1000`-`1003`) matches any payment of that kind; a custom one
- * matches the exact method. Records carry every payment applied (split payment),
- * so any match counts.
- */
-function matchesMethod(record: RecordModel, methodId: string | null): boolean {
-  if (methodId === null) return true;
-  const kind = BASE_KIND[methodId];
-  if (kind !== undefined) return record.methods.some((method) => method.kind === kind);
-  return record.methods.some((method) => method.methodId === methodId);
-}
+import { useMethodFilter } from "../use-method";
+import { List } from "./List";
 
 export function Records({ records }: { records: RecordModel[] }) {
   const [mode] = useMode();
-  const [method] = useMethod();
-  const methodId = method?.id ?? null;
+  const { selection } = useMethodFilter();
 
   // The name search already happened in SQL, so this only narrows by the two
   // controls the service doesn't know about.
   const filtered = useMemo(
-    () => records.filter((record) => record.mode === mode && matchesMethod(record, methodId)),
-    [records, mode, methodId],
+    () => records.filter((record) => record.mode === mode && matchesMethod(record, selection)),
+    [records, mode, selection],
   );
   const total = useMemo(
     () => (filtered.length === 0 ? 0 : Decimal.sum(...filtered.map((r) => r.grandTotal)).toNumber()),
