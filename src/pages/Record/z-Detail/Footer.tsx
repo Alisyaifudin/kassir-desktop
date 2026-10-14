@@ -1,10 +1,16 @@
-import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import { METHOD_NAMES } from "~/lib/constants";
-import type { RecordExtra, Record } from "~/services/record";
-import { Extra } from "./Extra";
+import type { RecordFull } from "~/services/record";
+import { rupiah } from "./extras";
 
-export function Footer({ record, extras }: { record: Record; extras: RecordExtra[] }) {
+/**
+ * The settlement — everything after the line items. Extras are their own table
+ * now, and it carries both the subtotal and the running total, so this only
+ * repeats the subtotal for records with no extras to show it in (720 records
+ * round without carrying any extras, and losing the pre-rounding figure there
+ * would be a real omission).
+ */
+export function Footer({ record }: { record: RecordFull }) {
   // A record can carry several payments (split payment); list them all.
   const methods = record.methods
     .map((method) => `${METHOD_NAMES[method.kind]}${method.name ? ` ${method.name}` : ""}`)
@@ -12,34 +18,33 @@ export function Footer({ record, extras }: { record: Record; extras: RecordExtra
 
   return (
     <div className="flex flex-col items-end">
-      <Show when={record.subTotal !== record.grandTotal && record.subTotal !== 0}>
-        <p className="text-end">Rp{record.subTotal.toLocaleString("id-ID")}</p>
-      </Show>
-      <Show when={extras.length > 0}>
-        <ForEach items={extras}>{(extra) => <Extra extra={extra} />}</ForEach>
-        <hr className="w-full" />
-        <Show when={record.total !== record.grandTotal}>
-          <p className="text-end">Rp{record.total.toLocaleString("id-ID")}</p>
-        </Show>
+      <Show
+        when={
+          record.extras.length === 0 &&
+          record.subTotal !== record.grandTotal &&
+          record.subTotal !== 0
+        }
+      >
+        <p className="text-end">{rupiah(record.subTotal, record.fix)}</p>
       </Show>
       <Show when={record.rounding !== 0}>
         <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
           <p className="text-end">Pembulatan:</p>
-          <p className="text-end">Rp{record.rounding.toLocaleString("id-ID")}</p>
+          <p className="text-end tabular-nums">{rupiah(record.rounding, record.fix)}</p>
         </div>
       </Show>
       <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
         <p className="text-end">Total:</p>
-        <p className="text-end">Rp{record.grandTotal.toLocaleString("id-ID")}</p>
+        <p className="text-end tabular-nums">{rupiah(record.grandTotal, record.fix)}</p>
       </div>
       <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
         <p className="text-end">Pembayaran:</p>
-        <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
+        <p className="text-end tabular-nums">{rupiah(record.pay, record.fix)}</p>
       </div>
       <Show when={record.change !== 0}>
         <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
           <p className="text-end">Kembalian:</p>{" "}
-          <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
+          <p className="text-end tabular-nums">{rupiah(record.change, record.fix)}</p>
         </div>
       </Show>
       {methods === "" ? null : <p className="self-start">Metode: {methods}</p>}

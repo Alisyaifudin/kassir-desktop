@@ -18,6 +18,7 @@ import type { DbError, Statement } from "../db";
 import { DatabaseService } from "../db";
 import { NotFound } from "~/lib/effect-error";
 import { ProductService } from "../product";
+import { roundToFix } from "./round";
 import { touchProduct } from "../product/stock-sql";
 
 type SummaryRow = {
@@ -136,12 +137,6 @@ function dbErrorToRecordError(error: DbError): RecordError {
   return new RecordError({ message: error.message });
 }
 
-/** `record_fix` is app-controlled; clamp so a bad row can't throw on `toFixed`. */
-function round(value: number, fix: number): number {
-  const digits = Number.isInteger(fix) && fix >= 0 && fix <= 100 ? fix : 0;
-  return Number(value.toFixed(digits));
-}
-
 function rowToMethod(row: MethodRow): RecordMethod {
   return {
     id: row.record_method_id,
@@ -167,10 +162,10 @@ function rowToRecord(row: RecordRow, methods: RecordMethod[]): Record {
     note: row.record_note,
     fix: row.record_fix,
     customer: { name: row.record_customer_name, phone: row.record_customer_phone },
-    subTotal: round(row.record_sub_total, row.record_fix),
-    total: round(row.record_total, row.record_fix),
-    grandTotal: round(grossTotal, row.record_fix),
-    change: round(row.record_pay - grossTotal, row.record_fix),
+    subTotal: roundToFix(row.record_sub_total, row.record_fix),
+    total: roundToFix(row.record_total, row.record_fix),
+    grandTotal: roundToFix(grossTotal, row.record_fix),
+    change: roundToFix(row.record_pay - grossTotal, row.record_fix),
     methods,
     updatedAt: row.record_updated_at,
     syncAt: row.record_sync_at,

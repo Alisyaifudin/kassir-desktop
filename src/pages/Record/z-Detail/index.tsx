@@ -20,6 +20,7 @@ import type { RecordFull } from "~/services/record";
 import { useUnselect } from "../use-selected";
 import { RecordsErrorBoundary, RecordsErrorFallback } from "../z-Error";
 import { DeleteBtn } from "./DeleteBtn";
+import { ExtrasTable } from "./ExtrasTable";
 import { Footer } from "./Footer";
 import { ToTransaction } from "./ToTransaction";
 import { useRecordFull } from "./use-record-full";
@@ -97,7 +98,12 @@ function Body({ record }: { record: RecordFull }) {
               </Table>
             </div>
           </Show>
-          <Footer record={record} extras={record.extras} />
+          <Show when={record.extras.length > 0}>
+            <div className="shrink-0">
+              <ExtrasTable record={record} />
+            </div>
+          </Show>
+          <Footer record={record} />
           <Show when={record.customer.name !== "" && record.customer.phone !== ""}>
             <p className="shrink-0">
               Pelanggan: {record.customer.name} ({record.customer.phone})
