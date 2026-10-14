@@ -9,7 +9,7 @@ import type { Mime } from "~/services/product";
 const MAX_SIZE = 10 * 1e6;
 
 function mimeOf(type: string): Mime | null {
-  if (type === "image/png" || type === "image/jpeg") return type;
+  if (type === "image/png" || type === "image/jpeg" || type === "image/webp") return type;
   return null;
 }
 
@@ -33,7 +33,7 @@ export function AddButton({
     }
     const mime = mimeOf(file.type);
     if (mime === null) {
-      setError("Format harus PNG atau JPEG.");
+      setError("Format harus PNG, JPEG, atau WebP.");
       return;
     }
 
@@ -66,7 +66,7 @@ export function AddButton({
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg"
+        accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(e) => {
           const file = e.currentTarget.files?.[0];

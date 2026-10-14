@@ -8,7 +8,7 @@ export class ProductDuplicateCode extends Data.TaggedError("ProductDuplicateCode
 }> {}
 
 export type CodeKind = "barcode" | "qr";
-export type Mime = "image/png" | "image/jpeg";
+export type Mime = "image/png" | "image/jpeg" | "image/webp";
 
 export type Listing = {
   id: string;
