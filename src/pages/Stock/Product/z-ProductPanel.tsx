@@ -10,16 +10,24 @@ import { Limit } from "../z-Limit";
 import { useLength } from "./use-length";
 import { useUser } from "~/hooks/use-user";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
+import { Sort } from "./z-Sort";
+import { useSortBy } from "./use-sort-by";
+import { useSortDir } from "./use-sort-dir";
 
 export function ProductPanel() {
   const urlBack = useGenerateUrlBack("/stock");
   const role = useUser().role;
   const length = useLength();
   const { totalPage } = useInterval(length);
+  const [sortBy, setSortBy] = useSortBy();
+  const [sortDir, setSortDir] = useSortDir();
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-1">
-        <Attention />
+        <div className="flex items-center gap-2">
+          <Attention />
+          <Sort sortBy={sortBy} setSortBy={setSortBy} sortDir={sortDir} setSortDir={setSortDir} />
+        </div>
         <Search className="flex-1" />
         <div className="flex items-center gap-2">
           <Pagination total={totalPage} />

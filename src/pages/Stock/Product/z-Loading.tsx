@@ -1,16 +1,19 @@
 import { Skeleton } from "~/components/ui/skeleton";
-import { TableBody, TableCell, TableRow } from "~/components/ui/table";
+import { cn } from "~/lib/utils";
+import { GRID_COLUMN_CLASS, useGridColumns } from "~/hooks/use-grid-columns";
 
 export function Loading() {
+  const columns = useGridColumns();
   return (
-    <TableBody>
-      {Array.from({ length: 20 }).map((_, i) => (
-        <TableRow key={i} className="h-11">
-          <TableCell colSpan={7} className="py-0">
-            <Skeleton className="h-8" />
-          </TableCell>
-        </TableRow>
+    <ul className={cn("grid gap-1.5 p-1", GRID_COLUMN_CLASS[columns])}>
+      {Array.from({ length: 10 }).map((_, i) => (
+        <li key={i} className="flex flex-col gap-1 rounded-lg border bg-card p-1.5">
+          <Skeleton className="aspect-square w-full rounded-md" />
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="h-6 w-1/2" />
+        </li>
       ))}
-    </TableBody>
+    </ul>
   );
 }

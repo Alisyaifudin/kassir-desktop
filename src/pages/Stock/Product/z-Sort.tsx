@@ -15,6 +15,7 @@ export function Sort({
     <div className="flex gap-2 items-center">
       <label htmlFor="sort-products">Urutkan</label>
       <select
+        id="sort-products"
         value={sortBy}
         onChange={(e) => {
           const parsed = z
@@ -26,7 +27,7 @@ export function Sort({
           const v = parsed.data;
           setSortBy(v);
         }}
-        className="h-[40px] w-fit outline"
+        className="text-small h-10 w-fit outline"
       >
         <option value="name">Nama</option>
         <option value="barcode">Barcode</option>
@@ -35,7 +36,6 @@ export function Sort({
         <option value="stock">Stok</option>
       </select>
       <select
-        id="sort-products"
         value={sortDir}
         onChange={(e) => {
           const v = e.currentTarget.value;
@@ -44,7 +44,7 @@ export function Sort({
           }
           setSortDir(v);
         }}
-        className="h-[40px] w-fit outline text-3xl"
+        className="text-small h-10 w-fit outline"
       >
         <option value="asc">A-Z</option>
         <option value="desc">Z-A</option>

@@ -4,21 +4,21 @@ import { log } from "~/lib/log";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { ProductPanel } from "./z-ProductPanel";
 import { ProductList } from "./z-ProductList";
-import { Table } from "~/components/ui/table";
-import { TableHeader } from "./z-TableHeader";
 import { Loading } from "./z-Loading";
+import { useScroll } from "~/hooks/use-scroll";
 
 export function ProductEntries() {
+  // keeps the ?scroll= restore/remember behaviour the table wrapper used to provide
+  const [ref, handleScroll] = useScroll();
   return (
     <>
       <ProductPanel />
-      <div className="flex-1 overflow-hidden min-h-0 w-full">
-        <div className="flex flex-col h-full overflow-hidden">
-          <Table className="text-normal">
-            <TableHeader />
-            <Loader />
-          </Table>
-        </div>
+      <div
+        ref={ref}
+        onScroll={handleScroll}
+        className="scroll-gutter relative h-auto max-h-full w-full flex-1 min-h-0 overflow-y-auto"
+      >
+        <Loader />
       </div>
     </>
   );
