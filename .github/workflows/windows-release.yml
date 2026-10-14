@@ -4,6 +4,29 @@ on:
   push:
     branches:
       - master
+    # A CI-config or docs-only push must not kick off a build: the version in
+    # package.json is already released, so tauri-action would target an existing
+    # tag/release. Installer builds should be deliberate (see workflow_dispatch).
+    paths-ignore:
+      - ".github/**"
+      - "**/*.md"
+  # Manual "Run workflow" button. GitHub only offers this trigger for workflows
+  # that exist on the default branch, so this file lives on master -- the ref
+  # dropdown can then build any branch, e.g. run it against `prod` to produce the
+  # installer for that branch's package.json version.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create/update. Empty = v<version from package.json>."
+        required: false
+        default: ""
+      draft:
+        description: "Create the release as a draft (safer: review before publishing)."
+        type: choice
+        options:
+          - "true"
+          - "false"
+        default: "true"
 
 jobs:
   publish:
@@ -39,8 +62,11 @@ jobs:
         with:
         # This forces the action to use Bun instead of pnpm
           tauriScript: bun tauri
-          tagName: v__VERSION__ # This automatically replaces with version from package.json
-          releaseName: "Release v__VERSION__"
+          # `v__VERSION__` is replaced by tauri-action with the version from
+          # package.json; an explicit input wins for manual runs.
+          tagName: ${{ inputs.tag || 'v__VERSION__' }}
+          releaseName: "Release ${{ inputs.tag || 'v__VERSION__' }}"
           releaseBody: "Windows version of the app"
-          releaseDraft: true
+          # push -> always draft (previous behaviour); dispatch -> as requested.
+          releaseDraft: ${{ github.event_name != 'workflow_dispatch' || inputs.draft == 'true' }}
           prerelease: false
