@@ -1,6 +1,7 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { NumberField } from "~/components/NumberField";
+import { cn } from "~/lib/utils";
 import type { StockDraft } from "./types";
 import { parseNumber } from "./types";
 import type { ProductFormController } from "./useProductForm";
@@ -11,11 +12,18 @@ export function StocksFields({
   form,
   disabled,
   lockedKeys,
+  onAdjustValue,
 }: {
   form: ProductFormController;
   disabled?: boolean;
   /** Stock ids that cannot be removed (already persisted lots in edit mode). */
   lockedKeys?: Set<string>;
+  /**
+   * Persisted lots render their quantity as plain, clickable text that opens the
+   * manual inc/dec dialog instead of an editable input. Unsaved lots ("Tambah
+   * lot") stay editable so their opening quantity can be entered.
+   */
+  onAdjustValue?: (stock: StockDraft, index: number) => void;
 }) {
   const { draft, errors } = form;
 
@@ -29,7 +37,7 @@ export function StocksFields({
   return (
     <Section
       title="Stok"
-      description="Minimal satu lot. Setiap lot punya jumlah dan modal per pcs sendiri."
+      description="Minimal satu lot. Setiap lot punya jumlah dan modal per pcs sendiri. Klik jumlah pada lot tersimpan untuk menambah atau mengurangi stok."
       error={errors.stocks}
       action={
         <Button
@@ -52,6 +60,8 @@ export function StocksFields({
             error={errors.stockErrors?.[stock.key]}
             disabled={disabled}
             canRemove={draft.stocks.length > 1 && !(lockedKeys?.has(stock.key) ?? false)}
+            adjustable={onAdjustValue !== undefined && (lockedKeys?.has(stock.key) ?? false)}
+            onAdjust={onAdjustValue ? () => onAdjustValue(stock, index) : undefined}
             onChange={(patch) => form.updateStock(stock.key, patch)}
             onRemove={() => form.removeStock(stock.key)}
           />
@@ -71,6 +81,8 @@ function StockRow({
   error,
   disabled,
   canRemove,
+  adjustable,
+  onAdjust,
   onChange,
   onRemove,
 }: {
@@ -79,18 +91,36 @@ function StockRow({
   error: { value?: string; capital?: string } | undefined;
   disabled?: boolean;
   canRemove: boolean;
+  adjustable: boolean;
+  onAdjust?: () => void;
   onChange: (patch: Partial<StockDraft>) => void;
   onRemove: () => void;
 }) {
   return (
     <div className="flex items-end gap-3 rounded-lg border bg-background/50 p-3">
       <Field label={`Jumlah lot ${index + 1} (pcs)`} error={error?.value} className="flex-1">
-        <NumberField
-          value={stock.value}
-          disabled={disabled}
-          onValueChange={(value) => onChange({ value })}
-          placeholder="0"
-        />
+        {adjustable ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onAdjust}
+            title="Sesuaikan stok (tambah / kurang)"
+            className={cn(
+              "flex w-full items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3 py-1 text-left text-normal tabular-nums shadow-sm transition-colors",
+              "hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            <span>{parseNumber(stock.value).toLocaleString("id-ID")}</span>
+            <Pencil className="icon shrink-0 text-muted-foreground" />
+          </button>
+        ) : (
+          <NumberField
+            value={stock.value}
+            disabled={disabled}
+            onValueChange={(value) => onChange({ value })}
+            placeholder="0"
+          />
+        )}
       </Field>
       <Field label="Modal / pcs" error={error?.capital} className="flex-1">
         <NumberField

@@ -12,7 +12,7 @@ export function HistoryTable({ events }: { events: ProductEvent[] }) {
               {formatDate(event.createdAt, "long")} {formatTime(event.createdAt)}
             </span>
             <span className="truncate text-small text-muted-foreground">
-              Modal {event.capital.toLocaleString("id-ID")} · Lot {event.stockId.slice(-6)}
+              Modal {event.capital.toLocaleString("id-ID")} 
               {event.note !== "" ? ` · ${event.note}` : ""}
             </span>
           </div>

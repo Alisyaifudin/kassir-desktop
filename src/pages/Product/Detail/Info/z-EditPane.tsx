@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Effect } from "effect";
+import { Redo2, Undo2 } from "lucide-react";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
@@ -12,6 +13,7 @@ import type {
   ProductDuplicateCode,
   ProductError,
   ProductFull,
+  Stock,
 } from "~/services/product";
 import { draftFromProduct, parseNumber, toListingInput } from "../../Form/types";
 import { useProductForm } from "../../Form/useProductForm";
@@ -20,7 +22,7 @@ import { ListingsFields } from "../../Form/z-ListingsFields";
 import { PropertiesFields } from "../../Form/z-PropertiesFields";
 import { StocksFields } from "../../Form/z-StocksFields";
 import { ConfirmDelete } from "../z-ConfirmDelete";
-import { StockConsume } from "./z-StockConsume";
+import { StockAdjust } from "./z-StockAdjust";
 
 type Op = Effect.Effect<unknown, ProductError | ProductDuplicateCode>;
 
@@ -42,12 +44,41 @@ export function EditPane({ product }: { product: ProductFull }) {
   const [pending, setPending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [adjustLot, setAdjustLot] = useState<Stock | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { undo, redo, canUndo, canRedo } = form;
+  const busy = pending || deleting;
 
   const lockedStockKeys = useMemo(
     () => new Set(product.stocks.map((stock) => stock.id)),
     [product.stocks],
   );
+
+  // Stock adjustments save immediately, so keep the persisted lots' quantities
+  // in the draft in sync (capital and unsaved lots are left alone).
+  const syncStockValues = form.syncStockValues;
+  useEffect(() => {
+    syncStockValues(product.stocks);
+  }, [product.stocks, syncStockValues]);
+
+  // Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) drive the form history. A dialog owns its
+  // own inputs, and a save in flight is not undoable, so stand down for both.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!event.ctrlKey && !event.metaKey) return;
+      if (event.altKey || busy || confirmOpen || adjustLot !== null) return;
+      const key = event.key.toLowerCase();
+      const wantsUndo = key === "z" && !event.shiftKey;
+      const wantsRedo = (key === "z" && event.shiftKey) || key === "y";
+      if (!wantsUndo && !wantsRedo) return;
+      event.preventDefault();
+      if (wantsUndo) undo();
+      else redo();
+    }
+    document.body.addEventListener("keydown", handleKeyDown);
+    return () => document.body.removeEventListener("keydown", handleKeyDown);
+  }, [busy, confirmOpen, adjustLot, undo, redo]);
 
   function buildOps(): Op[] {
     const { draft } = form;
@@ -101,14 +132,22 @@ export function EditPane({ product }: { product: ProductFull }) {
 
     const originalStockIds = new Set(product.stocks.map((stock) => stock.id));
     for (const stock of draft.stocks) {
-      const value = Math.max(0, Math.round(parseNumber(stock.value)));
       const capital = parseNumber(stock.capital);
       if (originalStockIds.has(stock.key)) {
         const original = product.stocks.find((item) => item.id === stock.key);
-        if (original !== undefined && (original.value !== value || original.capital !== capital)) {
-          ops.push(service.product.stock.adjust(product.id, stock.key, { value, capital }));
+        // Quantity is edited through the adjust dialog (saved immediately), so
+        // Simpan only carries capital changes and must not clobber the lot's
+        // current value with a stale draft value.
+        if (original !== undefined && original.capital !== capital) {
+          ops.push(
+            service.product.stock.adjust(product.id, stock.key, {
+              value: original.value,
+              capital,
+            }),
+          );
         }
       } else {
+        const value = Math.max(0, Math.round(parseNumber(stock.value)));
         ops.push(service.product.stock.receive(product.id, { value, capital }));
       }
     }
@@ -152,15 +191,20 @@ export function EditPane({ product }: { product: ProductFull }) {
     return result.left.message;
   }
 
-  const busy = pending || deleting;
-
   return (
     <div className="flex flex-col gap-4">
       <InfoFields form={form} disabled={busy} />
       <ListingsFields form={form} disabled={busy} />
-      <StocksFields form={form} disabled={busy} lockedKeys={lockedStockKeys} />
+      <StocksFields
+        form={form}
+        disabled={busy}
+        lockedKeys={lockedStockKeys}
+        onAdjustValue={(stock) => {
+          const lot = product.stocks.find((item) => item.id === stock.key);
+          if (lot !== undefined) setAdjustLot(lot);
+        }}
+      />
       <PropertiesFields form={form} disabled={busy} />
-      <StockConsume product={product} />
       <TextError>{error}</TextError>
       <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-background/95 py-3 backdrop-blur">
         <Button
@@ -171,10 +215,29 @@ export function EditPane({ product }: { product: ProductFull }) {
         >
           Hapus
         </Button>
-        <Button type="button" onClick={() => void handleSave()} disabled={busy}>
-          Simpan
-          <Spinner when={pending} />
-        </Button>
+        <div className="flex items-stretch gap-2">
+          <div className="flex items-stretch overflow-hidden rounded-md border border-input bg-background shadow-sm">
+            <HistoryButton
+              label="Urungkan"
+              hint="Ctrl+Z"
+              disabled={busy || !canUndo}
+              onClick={undo}
+              icon={<Undo2 className="icon" />}
+            />
+            <span className="w-px self-stretch bg-border" aria-hidden />
+            <HistoryButton
+              label="Ulangi"
+              hint="Ctrl+Shift+Z"
+              disabled={busy || !canRedo}
+              onClick={redo}
+              icon={<Redo2 className="icon" />}
+            />
+          </div>
+          <Button type="button" onClick={() => void handleSave()} disabled={busy}>
+            Simpan
+            <Spinner when={pending} />
+          </Button>
+        </div>
       </div>
       <ConfirmDelete
         open={confirmOpen}
@@ -183,6 +246,38 @@ export function EditPane({ product }: { product: ProductFull }) {
         description={`"${product.name}" akan dihapus dan tidak muncul lagi di daftar produk.`}
         onConfirm={performDelete}
       />
+      {adjustLot !== null ? (
+        <StockAdjust product={product} lot={adjustLot} onClose={() => setAdjustLot(null)} />
+      ) : null}
     </div>
+  );
+}
+
+/** One half of the undo/redo pair. Icon-only, so the label and shortcut live in
+ *  `aria-label`/`title` rather than the markup. */
+function HistoryButton({
+  label,
+  hint,
+  disabled,
+  onClick,
+  icon,
+}: {
+  label: string;
+  hint: string;
+  disabled: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-label={label}
+      title={`${label} (${hint})`}
+      onClick={onClick}
+      className="flex items-center px-3 text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+    >
+      {icon}
+    </button>
   );
 }

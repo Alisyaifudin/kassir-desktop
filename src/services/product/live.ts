@@ -700,6 +700,7 @@ export const ProductLive = Layer.effect(
                 { id: lot.id, value: lot.value, capital: lot.capital },
                 input,
                 Date.now(),
+                input.note ?? "",
               ),
             );
             yield* hydrate();

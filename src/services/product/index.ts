@@ -175,7 +175,7 @@ export class ProductService extends Context.Tag("ProductService")<
       adjust: (
         productId: string,
         stockId: string,
-        input: { value: number; capital: number },
+        input: { value: number; capital: number; note?: string },
       ) => Effect.Effect<void, ProductError>;
       history: (
         productId: string,

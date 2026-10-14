@@ -7,7 +7,6 @@ export type ListingDraft = {
   price: string;
   unit: string;
   kind: string;
-  hasCode: boolean;
   code: string;
   codeKind: CodeKind;
 };
@@ -41,7 +40,6 @@ export function newListing(): ListingDraft {
     price: "",
     unit: "1",
     kind: "retail",
-    hasCode: false,
     code: "",
     codeKind: "barcode",
   };
@@ -69,7 +67,6 @@ export function draftFromProduct(product: ProductFull): ProductDraft {
       price: String(listing.price),
       unit: String(listing.unit),
       kind: listing.kind,
-      hasCode: listing.code !== null,
       code: listing.code ?? "",
       codeKind: listing.codeKind ?? "barcode",
     })),
@@ -91,14 +88,16 @@ export function parseNumber(value: string): number {
   return Number.isFinite(number) ? number : 0;
 }
 
+/** A listing "has a code" exactly when the field is non-blank. */
 export function toListingInput(listing: ListingDraft): ListingInput {
+  const code = listing.code.trim();
   return {
     name: listing.name.trim(),
     price: parseNumber(listing.price),
     unit: Math.max(1, Math.trunc(parseNumber(listing.unit))),
     kind: listing.kind.trim() || "retail",
-    code: listing.hasCode && listing.code.trim() !== "" ? listing.code.trim() : null,
-    codeKind: listing.hasCode ? listing.codeKind : null,
+    code: code === "" ? null : code,
+    codeKind: code === "" ? null : listing.codeKind,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ProductInput } from "~/services/product";
 import {
   emptyDraft,
@@ -22,6 +22,45 @@ export type ProductFormErrors = {
   propertyErrors?: Record<string, { name?: string }>;
 };
 
+/** Same-field edits closer than this merge into one undo step. */
+const COALESCE_MS = 600;
+const HISTORY_LIMIT = 100;
+
+type FormState = {
+  draft: ProductDraft;
+  past: ProductDraft[];
+  future: ProductDraft[];
+  /** Field the last edit touched, or `null` when it must stand alone. */
+  lastKey: string | null;
+  lastAt: number;
+};
+
+/** Coalescing key for a patch — only a single-field write can merge. */
+function patchKey(prefix: string, patch: object): string | null {
+  const keys = Object.keys(patch);
+  return keys.length === 1 ? `${prefix}:${keys[0]}` : null;
+}
+
+/**
+ * Overlay the latest persisted-lot quantities onto a draft. Lots that are not in
+ * `lots` (unsaved "Tambah lot" rows) and every `capital` stay untouched.
+ */
+function applyStockSync(
+  draft: ProductDraft,
+  lots: readonly { id: string; value: number }[],
+): ProductDraft {
+  if (lots.length === 0) return draft;
+  const byId = new Map(lots.map((lot) => [lot.id, String(lot.value)]));
+  let changed = false;
+  const stocks = draft.stocks.map((stock) => {
+    const value = byId.get(stock.key);
+    if (value === undefined || value === stock.value) return stock;
+    changed = true;
+    return { ...stock, value };
+  });
+  return changed ? { ...draft, stocks } : draft;
+}
+
 function computeErrors(draft: ProductDraft): ProductFormErrors {
   const next: ProductFormErrors = {};
 
@@ -39,7 +78,6 @@ function computeErrors(draft: ProductDraft): ProductFormErrors {
       }
       const unit = parseNumber(listing.unit);
       if (!Number.isInteger(unit) || unit < 1) row.unit = "Satuan minimal 1.";
-      if (listing.hasCode && listing.code.trim() === "") row.name ??= "Kode wajib diisi.";
       if (Object.keys(row).length > 0) listingErrors[listing.key] = row;
     }
     if (Object.keys(listingErrors).length > 0) next.listingErrors = listingErrors;
@@ -102,70 +140,162 @@ export function buildProductInput(draft: ProductDraft): ProductInput {
   };
 }
 
+/**
+ * Product draft state with in-memory undo/redo.
+ *
+ * History lives entirely in this hook — nothing is persisted, and undoing only
+ * rolls the draft back. Edits to the same field inside `COALESCE_MS` collapse
+ * into one step, so a typed word costs one undo; adding or removing a row always
+ * stands alone.
+ */
 export function useProductForm(initial?: ProductDraft) {
-  const [draft, setDraft] = useState<ProductDraft>(() => initial ?? emptyDraft());
+  const [state, setState] = useState<FormState>(() => ({
+    draft: initial ?? emptyDraft(),
+    past: [],
+    future: [],
+    lastKey: null,
+    lastAt: 0,
+  }));
   const [errors, setErrors] = useState<ProductFormErrors>({});
 
-  const setName = useCallback((name: string) => setDraft((d) => ({ ...d, name })), []);
-  const setNote = useCallback((note: string) => setDraft((d) => ({ ...d, note })), []);
+  // Latest persisted-lot quantities (external truth). Re-applied on undo/redo so
+  // an immediate stock adjustment is never rolled back to a stale draft value —
+  // that write is not part of the draft history.
+  const syncedLots = useRef<readonly { id: string; value: number }[]>([]);
+
+  const { draft } = state;
+
+  /** Commit an edit; a non-null `key` lets a same-field burst merge into it. */
+  const edit = useCallback(
+    (key: string | null, updater: (draft: ProductDraft) => ProductDraft) => {
+      const at = Date.now();
+      setState((s) => {
+        const next = updater(s.draft);
+        if (next === s.draft) return s;
+        if (key !== null && s.lastKey === key && at - s.lastAt < COALESCE_MS) {
+          return { ...s, draft: next, lastAt: at };
+        }
+        return {
+          draft: next,
+          past: [...s.past, s.draft].slice(-HISTORY_LIMIT),
+          future: [],
+          lastKey: key,
+          lastAt: at,
+        };
+      });
+    },
+    [],
+  );
+
+  const setName = useCallback((name: string) => edit("name", (d) => ({ ...d, name })), [edit]);
+  const setNote = useCallback((note: string) => edit("note", (d) => ({ ...d, note })), [edit]);
 
   const addListing = useCallback(
-    () => setDraft((d) => ({ ...d, listings: [...d.listings, newListing()] })),
-    [],
+    () => edit(null, (d) => ({ ...d, listings: [...d.listings, newListing()] })),
+    [edit],
   );
   const removeListing = useCallback(
     (key: string) =>
-      setDraft((d) =>
+      edit(null, (d) =>
         d.listings.length <= 1 ? d : { ...d, listings: d.listings.filter((l) => l.key !== key) },
       ),
-    [],
+    [edit],
   );
   const updateListing = useCallback(
     (key: string, patch: Partial<ListingDraft>) =>
-      setDraft((d) => ({
+      edit(patchKey(`listing:${key}`, patch), (d) => ({
         ...d,
         listings: d.listings.map((l) => (l.key === key ? { ...l, ...patch } : l)),
       })),
-    [],
+    [edit],
   );
 
   const addStock = useCallback(
-    () => setDraft((d) => ({ ...d, stocks: [...d.stocks, newStock()] })),
-    [],
+    () => edit(null, (d) => ({ ...d, stocks: [...d.stocks, newStock()] })),
+    [edit],
   );
   const removeStock = useCallback(
     (key: string) =>
-      setDraft((d) =>
+      edit(null, (d) =>
         d.stocks.length <= 1 ? d : { ...d, stocks: d.stocks.filter((s) => s.key !== key) },
       ),
-    [],
+    [edit],
   );
   const updateStock = useCallback(
     (key: string, patch: Partial<StockDraft>) =>
-      setDraft((d) => ({
+      edit(patchKey(`stock:${key}`, patch), (d) => ({
         ...d,
         stocks: d.stocks.map((s) => (s.key === key ? { ...s, ...patch } : s)),
       })),
-    [],
+    [edit],
   );
 
+  /**
+   * Refresh persisted lots' quantities from the source of truth (e.g. after an
+   * immediate stock adjustment). Deliberately outside the history: it is not a
+   * user edit, so it must not become an undo step or be rolled back.
+   */
+  const syncStockValues = useCallback((lots: readonly { id: string; value: number }[]) => {
+    syncedLots.current = lots;
+    setState((s) => {
+      const draft = applyStockSync(s.draft, lots);
+      return draft === s.draft ? s : { ...s, draft };
+    });
+  }, []);
+
   const addProperty = useCallback(
-    () => setDraft((d) => ({ ...d, properties: [...d.properties, newProperty()] })),
-    [],
+    () => edit(null, (d) => ({ ...d, properties: [...d.properties, newProperty()] })),
+    [edit],
   );
   const removeProperty = useCallback(
     (key: string) =>
-      setDraft((d) => ({ ...d, properties: d.properties.filter((p) => p.key !== key) })),
-    [],
+      edit(null, (d) => ({ ...d, properties: d.properties.filter((p) => p.key !== key) })),
+    [edit],
   );
   const updateProperty = useCallback(
     (key: string, patch: Partial<PropertyDraft>) =>
-      setDraft((d) => ({
+      edit(patchKey(`property:${key}`, patch), (d) => ({
         ...d,
         properties: d.properties.map((p) => (p.key === key ? { ...p, ...patch } : p)),
       })),
-    [],
+    [edit],
   );
+
+  const undo = useCallback(() => {
+    setErrors({});
+    setState((s) => {
+      const previous = s.past[s.past.length - 1];
+      if (previous === undefined) return s;
+      return {
+        draft: applyStockSync(previous, syncedLots.current),
+        past: s.past.slice(0, -1),
+        future: [s.draft, ...s.future].slice(0, HISTORY_LIMIT),
+        lastKey: null,
+        lastAt: 0,
+      };
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setErrors({});
+    setState((s) => {
+      const next = s.future[0];
+      if (next === undefined) return s;
+      return {
+        draft: applyStockSync(next, syncedLots.current),
+        past: [...s.past, s.draft].slice(-HISTORY_LIMIT),
+        future: s.future.slice(1),
+        lastKey: null,
+        lastAt: 0,
+      };
+    });
+  }, []);
+
+  /** Replace the draft wholesale and start a fresh history (used after a save). */
+  const reset = useCallback((next: ProductDraft) => {
+    setErrors({});
+    setState({ draft: next, past: [], future: [], lastKey: null, lastAt: 0 });
+  }, []);
 
   const validate = useCallback((): boolean => {
     const next = computeErrors(draft);
@@ -178,11 +308,6 @@ export function useProductForm(initial?: ProductDraft) {
     return buildProductInput(draft);
   }, [draft, validate]);
 
-  const reset = useCallback((next: ProductDraft) => {
-    setDraft(next);
-    setErrors({});
-  }, []);
-
   return {
     draft,
     errors,
@@ -194,9 +319,14 @@ export function useProductForm(initial?: ProductDraft) {
     addStock,
     removeStock,
     updateStock,
+    syncStockValues,
     addProperty,
     removeProperty,
     updateProperty,
+    undo,
+    redo,
+    canUndo: state.past.length > 0,
+    canRedo: state.future.length > 0,
     validate,
     buildInput,
     reset,

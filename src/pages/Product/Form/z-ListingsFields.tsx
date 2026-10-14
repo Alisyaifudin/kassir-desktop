@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
+import { Combobox, type ComboboxOption } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
 import { NumberField } from "~/components/NumberField";
 import {
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { getProductKind } from "~/lib/constants";
 import { LISTING_KIND_SUGGESTIONS, type ListingDraft } from "./types";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
@@ -21,6 +22,11 @@ const CODE_KINDS: { value: ListingDraft["codeKind"]; label: string }[] = [
   { value: "barcode", label: "Barcode" },
   { value: "qr", label: "QR" },
 ];
+
+const KIND_OPTIONS: ComboboxOption[] = LISTING_KIND_SUGGESTIONS.map((kind) => ({
+  value: kind,
+  label: getProductKind(kind),
+}));
 
 export function ListingsFields({
   form,
@@ -48,11 +54,6 @@ export function ListingsFields({
         </Button>
       }
     >
-      <datalist id="listing-kind-suggestions">
-        {LISTING_KIND_SUGGESTIONS.map((kind) => (
-          <option key={kind} value={kind} />
-        ))}
-      </datalist>
       <div className="flex flex-col gap-3">
         {draft.listings.map((listing, index) => (
           <ListingRow
@@ -131,52 +132,44 @@ function ListingRow({
           />
         </Field>
         <Field label="Jenis" className="col-span-2">
-          <Input
-            list="listing-kind-suggestions"
+          <Combobox
             value={listing.kind}
             disabled={disabled}
-            onChange={(e) => onChange({ kind: e.currentTarget.value })}
-            placeholder="retail"
+            onValueChange={(kind) => onChange({ kind })}
+            options={KIND_OPTIONS}
+            placeholder="cth. Ecer, karton"
+            aria-label="Jenis listing"
           />
         </Field>
-        <div className="col-span-2 flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-small">
-            <Checkbox
-              checked={listing.hasCode}
+        <Field label="Kode" hint="Kosongkan bila tanpa kode" className="col-span-2">
+          <div className="flex gap-2">
+            <Input
+              value={listing.code}
               disabled={disabled}
-              onCheckedChange={(checked) => onChange({ hasCode: checked === true })}
+              onChange={(e) => onChange({ code: e.currentTarget.value })}
+              placeholder="Barcode / QR"
+              className="min-w-0 flex-1"
             />
-            Punya kode
-          </label>
-          {listing.hasCode ? (
-            <div className="flex gap-2">
-              <Input
-                value={listing.code}
-                disabled={disabled}
-                onChange={(e) => onChange({ code: e.currentTarget.value })}
-                placeholder="Barcode / QR"
-              />
-              <Select
-                value={listing.codeKind}
-                disabled={disabled}
-                onValueChange={(value) =>
-                  onChange({ codeKind: value as ListingDraft["codeKind"] })
-                }
-              >
-                <SelectTrigger className="w-[140px] text-small small:w-[110px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CODE_KINDS.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-        </div>
+            <Select
+              value={listing.codeKind}
+              disabled={disabled || listing.code.trim() === ""}
+              onValueChange={(value) =>
+                onChange({ codeKind: value as ListingDraft["codeKind"] })
+              }
+            >
+              <SelectTrigger className="w-[180px] text-small small:w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CODE_KINDS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Field>
       </div>
     </div>
   );

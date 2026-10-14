@@ -84,13 +84,14 @@ export function adjustStatements(
   lot: StockLot,
   next: { value: number; capital: number },
   now: number,
+  note = "",
 ): Statement[] {
   return [
     {
       sql: "UPDATE stocks SET stock_value = $1, stock_capital = $2, stock_updated_at = $3 WHERE stock_id = $4",
       bindings: [next.value, next.capital, now, lot.id],
     },
-    insertEvent(productId, lot.id, next.value - lot.value, next.capital, now),
+    insertEvent(productId, lot.id, next.value - lot.value, next.capital, now, note),
     touchProduct(productId, now),
   ];
 }
