@@ -16,7 +16,7 @@ export function ModeTab() {
         )}
         onClick={() => setMode("outcoming")}
       >
-        Jual
+        Masuk
       </Button>
       <Button
         variant="ghost"
@@ -28,7 +28,7 @@ export function ModeTab() {
         )}
         onClick={() => setMode("incoming")}
       >
-        Beli
+        Keluar
       </Button>
     </div>
   );

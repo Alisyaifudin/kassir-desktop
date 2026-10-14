@@ -11,9 +11,6 @@ export function ToTransaction() {
       <Button disabled variant="secondary">
         Jadikan Transaksi
       </Button>
-      <p className="max-w-[220px] text-end text-small text-muted-foreground">
-        Belum tersedia — keranjang toko belum dipindahkan ke services.
-      </p>
     </div>
   );
 }
