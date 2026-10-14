@@ -4,6 +4,8 @@ import {
   RecordService,
   type Discount,
   type DiscountKind,
+  type ListingHistoryEntry,
+  type ListingHistoryPage,
   type Record,
   type RecordExtra,
   type RecordFull,
@@ -53,6 +55,17 @@ type MethodRow = {
   record_method_pay: number;
   method_name: string | null;
   method_kind: MethodKind;
+};
+
+type ListingHistoryRow = {
+  record_id: string;
+  record_paid_at: number;
+  record_mode: RecordMode;
+  record_listing_id: string;
+  record_listing_name: string;
+  record_listing_price: number;
+  record_listing_qty: number;
+  total_count: number;
 };
 
 type ListingRow = {
@@ -132,6 +145,24 @@ const SELECT_METHODS_FOR = (placeholders: string) => `
   FROM record_methods rm
   JOIN methods m ON m.method_id = rm.method_id
   WHERE rm.record_id IN (${placeholders})`;
+
+// `COUNT(*) OVER ()` counts the whole match set before LIMIT trims the page, so a
+// single query answers both "here are the first N" and "there are M of them".
+// Without it the page would have to re-ask for the count on every fetch.
+const SELECT_LISTING_HISTORY = `
+  SELECT
+    r.record_id, r.record_paid_at, r.record_mode,
+    rl.record_listing_id, rl.record_listing_name, rl.record_listing_price,
+    rl.record_listing_qty,
+    COUNT(*) OVER () AS total_count
+  FROM record_listings rl
+  JOIN records r ON r.record_id = rl.record_id
+  WHERE r.record_deleted_at IS NULL
+    AND r.record_paid_at >= $1 AND r.record_paid_at < $2
+    AND r.record_mode = $3
+    AND rl.record_listing_name LIKE $4 ESCAPE '\\'
+  ORDER BY r.record_paid_at DESC
+  LIMIT $5`;
 
 function dbErrorToRecordError(error: DbError): RecordError {
   return new RecordError({ message: error.message });
@@ -304,6 +335,39 @@ export const RecordLive = Layer.effect(
       get: {
         byRange,
         byId,
+        listingHistory(input): Effect.Effect<ListingHistoryPage, RecordError> {
+          return Effect.gen(function* () {
+            const query = input.query.trim();
+            // A blank search means "nothing typed yet", not "every line in the
+            // range" — which for a month is ~137k rows.
+            if (query === "") return { entries: [], total: 0 };
+
+            const rows = yield* db
+              .selectMany<ListingHistoryRow>(SELECT_LISTING_HISTORY, [
+                input.start,
+                input.end,
+                input.mode,
+                `%${escapeLike(query)}%`,
+                Math.max(1, Math.trunc(input.limit)),
+              ])
+              .pipe(Effect.mapError(dbErrorToRecordError));
+
+            return {
+              entries: rows.map(
+                (row): ListingHistoryEntry => ({
+                  recordId: row.record_id,
+                  paidAt: row.record_paid_at,
+                  mode: row.record_mode,
+                  id: row.record_listing_id,
+                  name: row.record_listing_name,
+                  qty: row.record_listing_qty,
+                  price: row.record_listing_price,
+                }),
+              ),
+              total: rows.length === 0 ? 0 : rows[0].total_count,
+            };
+          });
+        },
         revision: revisionRef.changes,
       },
       count: {

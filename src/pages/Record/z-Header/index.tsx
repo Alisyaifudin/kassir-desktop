@@ -1,7 +1,9 @@
 import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { formatDate } from "~/lib/date";
+import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { Filter } from "./FilterDialog";
 import { SearchBars } from "./SearchBars";
 import { ModeTab } from "./ModeTab";
@@ -9,6 +11,8 @@ import { useTime } from "../use-time";
 
 export function Header() {
   const [{ yesterday, time, tomorrow }, setTime] = useTime();
+  const navigate = useNavigate();
+  const urlBack = useGenerateUrlBack("/records");
   return (
     <div className="flex gap-2 items-center w-full justify-between bg-background/50 backdrop-blur-sm sticky top-0 z-10">
       <div className="flex gap-1.5 items-center">
@@ -18,20 +22,18 @@ export function Header() {
 
       <SearchBars />
 
-      {/* `/records/search` is not routed yet, so this is held rather than
-          pointed at nothing. */}
-      <span
-        className="shrink-0"
-        title="Belum tersedia — halaman pencarian belum dipindahkan ke services."
+      <Button
+        className="h-10 w-10 shrink-0 rounded-lg border border-primary/10 transition-all shadow-sm"
+        aria-label="Pencarian komprehensif"
+        onClick={() => {
+          navigate({
+            pathname: "/records/search",
+            search: `?url_back=${encodeURIComponent(urlBack)}`,
+          });
+        }}
       >
-        <Button
-          disabled
-          className="h-10 w-10 rounded-lg border border-primary/10 shadow-sm"
-          aria-label="Pencarian lanjutan (belum tersedia)"
-        >
-          <FolderSearch size={16} strokeWidth={2.5} />
-        </Button>
-      </span>
+        <FolderSearch size={16} strokeWidth={2.5} />
+      </Button>
 
       <div className="flex items-center bg-muted/30 gap-1 p-0.5 rounded-lg">
         <Button

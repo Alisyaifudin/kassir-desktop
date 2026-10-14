@@ -1,7 +1,13 @@
-import { z } from "zod";
 import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { useMode } from "./use-mode";
+import type { RecordMode } from "~/services/record";
+import { useMode } from "../use-mode";
+
+/** `outcoming` is penjualan (money in); `incoming` is pembelian (money out). */
+const MODES: { value: RecordMode; label: string }[] = [
+  { value: "outcoming", label: "Masuk" },
+  { value: "incoming", label: "Keluar" },
+];
 
 export function ModeSelect() {
   const [mode, setMode] = useMode();
@@ -10,19 +16,17 @@ export function ModeSelect() {
       <RadioGroup
         value={mode}
         className="flex items-center gap-5"
-        onValueChange={(v) => {
-          const parsed = z.enum(["sell", "buy"]).safeParse(v);
-          setMode(parsed.success ? parsed.data : "sell");
+        onValueChange={(value) => {
+          const match = MODES.find((item) => item.value === value);
+          if (match !== undefined) setMode(match.value);
         }}
       >
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="sell" id="sell" />
-          <Label htmlFor="sell">Jual</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="buy" id="buy" />
-          <Label htmlFor="buy">Beli</Label>
-        </div>
+        {MODES.map((item) => (
+          <div key={item.value} className="flex items-center space-x-2">
+            <RadioGroupItem value={item.value} id={`search-mode-${item.value}`} />
+            <Label htmlFor={`search-mode-${item.value}`}>{item.label}</Label>
+          </div>
+        ))}
       </RadioGroup>
     </div>
   );

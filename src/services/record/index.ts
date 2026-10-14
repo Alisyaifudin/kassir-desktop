@@ -83,6 +83,28 @@ export type RecordFull = Record & {
   extras: RecordExtra[];
 };
 
+/**
+ * One listing line with the date and mode of the record it belongs to — the row
+ * shape behind the comprehensive search page.
+ */
+export type ListingHistoryEntry = {
+  /** Parent record. */
+  recordId: string;
+  paidAt: number;
+  mode: RecordMode;
+  /** The listing line itself. */
+  id: string;
+  name: string;
+  qty: number;
+  price: number;
+};
+
+/** A capped page of matches plus the full match count for the same filter. */
+export type ListingHistoryPage = {
+  entries: ListingHistoryEntry[];
+  total: number;
+};
+
 export class RecordService extends Context.Tag("RecordService")<
   RecordService,
   {
@@ -97,6 +119,21 @@ export class RecordService extends Context.Tag("RecordService")<
         query?: string,
       ) => Effect.Effect<Record[], RecordError>;
       byId: (id: string) => Effect.Effect<RecordFull, RecordError | NotFound>;
+      /**
+       * Listing lines matching a product-name search in `[start, end)` for one
+       * mode, newest first, capped at `limit` rows. The count of everything that
+       * matched comes back alongside, so the page can show progress without
+       * pulling the whole result set.
+       *
+       * A blank `query` returns nothing rather than every sale in the range.
+       */
+      listingHistory: (input: {
+        start: number;
+        end: number;
+        mode: RecordMode;
+        query: string;
+        limit: number;
+      }) => Effect.Effect<ListingHistoryPage, RecordError>;
       /** Bumps on every write; a queried page re-reads when it changes. */
       revision: Stream.Stream<number, RecordError>;
     };
