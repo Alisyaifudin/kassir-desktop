@@ -48,7 +48,7 @@ export function ImageDialog() {
           <Input
             type="file"
             onInput={handleInput}
-            accept="image/png, image/jpeg"
+            accept="image/png, image/jpeg, image/webp"
             aria-autocomplete="list"
           />
           <DialogFooter className="flex flex-col gap-1 w-full pt-5">

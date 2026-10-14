@@ -50,7 +50,7 @@ function program(productId: string, file: File) {
     const now = Temporal.Now.instant().epochMilliseconds;
     const rawName = file.name.replace(/\s+/g, "-");
     const name = `${now}-${rawName}`;
-    const parsedMime = z.enum(["image/jpeg", "image/png"]).safeParse(file.type);
+    const parsedMime = z.enum(["image/jpeg", "image/png", "image/webp"]).safeParse(file.type);
     if (!parsedMime.success) {
       return "Format gambar tidak didukung";
     }

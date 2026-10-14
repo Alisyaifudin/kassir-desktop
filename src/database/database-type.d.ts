@@ -5,7 +5,7 @@ declare namespace DB {
   type Mode = "sell" | "buy";
   type MoneyType = "absolute" | "change";
   type MethodEnum = "cash" | "transfer" | "debit" | "qris";
-  type Mime = "image/png" | "image/jpeg";
+  type Mime = "image/png" | "image/jpeg" | "image/webp";
   type GraveKind =
     | "customer"
     | "money_kind"
