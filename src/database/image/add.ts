@@ -13,7 +13,7 @@ export function add({ name, mime, productId }: { name: string; mime: DB.Mime; pr
         `INSERT INTO images (image_id, image_name, image_mime, image_order, product_id, 
          image_updated_at, image_sync_at) 
          VALUES ($1, $2, $3, $4, $5, $6, null)`,
-        [id, name, mime, productId, maxOrder + 1, now],
+        [id, name, mime, maxOrder + 1, productId, now],
       ),
     );
     updateCache(productId, (prev) => [
