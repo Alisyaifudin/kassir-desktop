@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Effect } from "effect";
 import { Package } from "lucide-react";
 import { image } from "~/lib/image";
@@ -24,9 +24,13 @@ const inflight = new Map<string, Promise<string | null>>();
 const failed = new Set<string>();
 
 const MAX_ENTRIES = 200;
+/** start reading slightly before a card scrolls into view, so it is ready by then. */
+const PREFETCH_MARGIN = "300px 0px";
 
 type Status =
   | { kind: "none" }
+  /** not read yet: only becomes visible when the card scrolls into view */
+  | { kind: "waiting" }
   | { kind: "loading" }
   | { kind: "ready"; url: string }
   | { kind: "failed" };
@@ -36,7 +40,7 @@ function initialStatus(file: string | null, mime: DB.Mime | null): Status {
   const url = cache.get(file);
   if (url !== undefined) return { kind: "ready", url };
   if (failed.has(file)) return { kind: "failed" };
-  return { kind: "loading" };
+  return { kind: "waiting" };
 }
 
 function touch(file: string) {
@@ -110,6 +114,8 @@ export function LazyImage({
   className?: string;
 }) {
   const [status, setStatus] = useState<Status>(() => initialStatus(file, mime));
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (file === null) return;
@@ -119,6 +125,31 @@ export function LazyImage({
       if (next <= 1) refs.delete(file);
       else refs.set(file, next - 1);
     };
+  }, [file]);
+
+  // wait for the element to come into view before reading its file; lists can hold
+  // dozens of cards and reading all of them up front is both slow and wasteful
+  useEffect(() => {
+    setVisible(false);
+    if (file === null) return;
+    // nothing to wait for when the read already happened (or is known to fail)
+    if (cache.has(file) || failed.has(file)) return;
+    const element = ref.current;
+    if (element === null) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setVisible(true);
+        observer.disconnect();
+      },
+      { rootMargin: PREFETCH_MARGIN },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
   }, [file]);
 
   useEffect(() => {
@@ -136,6 +167,10 @@ export function LazyImage({
       setStatus({ kind: "failed" });
       return;
     }
+    if (!visible) {
+      setStatus({ kind: "waiting" });
+      return;
+    }
     setStatus({ kind: "loading" });
     let alive = true;
     void load(file, mime).then((url) => {
@@ -146,29 +181,28 @@ export function LazyImage({
     return () => {
       alive = false;
     };
-  }, [file, mime]);
-
-  if (status.kind === "ready") {
-    return (
-      <img
-        src={status.url}
-        alt={alt}
-        draggable={false}
-        loading="lazy"
-        className={cn("size-full object-cover", className)}
-      />
-    );
-  }
+  }, [file, mime, visible]);
 
   return (
-    <div className={cn("flex size-full items-center justify-center gap-1", className)}>
-      <Package
-        className={cn(
-          "icon",
-          status.kind === "failed" ? "text-destructive/30" : "text-muted-foreground/40",
-        )}
-      />
-      <Spinner when={status.kind === "loading"} />
+    <div ref={ref} className={cn("flex size-full items-center justify-center gap-1", className)}>
+      {status.kind === "ready" ? (
+        <img
+          src={status.url}
+          alt={alt}
+          draggable={false}
+          className="size-full object-cover"
+        />
+      ) : (
+        <>
+          <Package
+            className={cn(
+              "icon",
+              status.kind === "failed" ? "text-destructive/30" : "text-muted-foreground/40",
+            )}
+          />
+          <Spinner when={status.kind === "loading"} />
+        </>
+      )}
     </div>
   );
 }
