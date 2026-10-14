@@ -4,13 +4,17 @@ import { ImageResult } from "./use-data";
 
 export function useSelected(images: ImageResult[]) {
   const [search, setSearch] = useSearchParams();
+  /**
+   * Never null while the product has images. The thumbnails compare
+   * `selected.id` and the preview/delete button expect a selection, so a missing
+   * or stale `selected-image` param must fall back to the first image instead of
+   * leaving the page without a selection.
+   */
   const selected = useMemo(() => {
     if (images.length === 0) return null;
-    const selected = search.get("selected-image");
-    if (selected === null) return null;
-    const image = images.find((image) => image.id === selected);
-    if (image !== undefined) return image;
-    return images[0];
+    const id = search.get("selected-image");
+    if (id === null) return images[0];
+    return images.find((image) => image.id === id) ?? images[0];
   }, [search, images]);
   const setSelected = useCallback(
     (id: string) => {

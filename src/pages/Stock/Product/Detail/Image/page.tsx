@@ -70,7 +70,7 @@ function Wrapper({ images }: { images: ImageResult[] }) {
               className="h-32 aspect-square p-0.5"
               onClick={() => setSelected(image.id)}
             >
-              <Image image={image} selected={selected!} />
+              <Image image={image} selected={selected} />
             </button>
           ))}
         </div>
@@ -80,11 +80,11 @@ function Wrapper({ images }: { images: ImageResult[] }) {
   );
 }
 
-function Image({ image, selected }: { image: ImageResult; selected: ImageResult }) {
+function Image({ image, selected }: { image: ImageResult; selected: ImageResult | null }) {
   return (
     <img
       className={cn("object-contain w-full h-full", {
-        outline: selected.id === image.id,
+        outline: selected?.id === image.id,
       })}
       src={image.href}
     />
