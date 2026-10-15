@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils";
-import type { Record as RecordModel } from "~/services/record";
-import { Loader } from "~/components/Loader";
+import type { Record as RecordModel, RecordError } from "~/services/record";
+import { isRefetching, Loader, useDelayedFlag, type Result } from "~/components/Loader";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
   Table,
@@ -18,33 +18,38 @@ import { useSelected } from "./use-selected";
 import { RecordsErrorBoundary, RecordsErrorFallback } from "./z-Error";
 
 export default function Page() {
+  const res = useRecords();
+  // A refetch keeps the previous day on screen; `busy` is what tells the header
+  // to lock and the panes to fade until the new day arrives.
+  const busy = useDelayedFlag(isRefetching(res));
   return (
     <main className="flex flex-col gap-2 p-0.5 flex-1 overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
-      <Header />
+      <Header busy={busy} />
       <div className="flex-1 min-h-0">
-        <List />
+        <List res={res} busy={busy} />
       </div>
     </main>
   );
 }
 
-function List() {
-  const res = useRecords();
+function List({ res, busy }: { res: Result<RecordModel[], RecordError>; busy: boolean }) {
   return (
     <RecordsErrorBoundary fallback={RecordsErrorFallback}>
       <Loader res={res} fallback={<Loading />}>
-        {({ data: records }) => <Workspace records={records} />}
+        {({ data: records }) => <Workspace records={records} busy={busy} />}
       </Loader>
     </RecordsErrorBoundary>
   );
 }
 
-function Workspace({ records }: { records: RecordModel[] }) {
+function Workspace({ records, busy }: { records: RecordModel[]; busy: boolean }) {
   const [selected] = useSelected();
   return (
     <div
+      aria-busy={busy}
       className={cn(
-        "grid gap-2 h-full overflow-hidden grid-cols-[490px_1px_1fr] small:grid-cols-[335px_1px_1fr]",
+        "grid gap-2 h-full overflow-hidden transition-opacity duration-200 grid-cols-[490px_1px_1fr] small:grid-cols-[335px_1px_1fr]",
+        busy && "opacity-50 pointer-events-none",
       )}
     >
       <div className="h-full overflow-hidden">

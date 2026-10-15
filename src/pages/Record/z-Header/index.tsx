@@ -9,12 +9,22 @@ import { SearchBars } from "./SearchBars";
 import { ModeTab } from "./ModeTab";
 import { useTime } from "../use-time";
 
-export function Header() {
+export function Header({ busy }: { busy: boolean }) {
   const [{ yesterday, time, tomorrow }, setTime] = useTime();
   const navigate = useNavigate();
   const urlBack = useGenerateUrlBack("/records");
   return (
-    <div className="flex gap-2 items-center w-full justify-between bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+    /*
+      A `fieldset` rather than a `div` so one `disabled` locks every control it
+      holds — mode tabs, filter, search box, calendar, day steppers — with the
+      fade coming from each control's own `disabled:` classes. Controls are
+      locked even for a refetch they did not trigger: acting on the previous
+      day's list is what we are preventing.
+    */
+    <fieldset
+      disabled={busy}
+      className="flex gap-2 items-center w-full justify-between bg-background/50 backdrop-blur-sm sticky top-0 z-10"
+    >
       <div className="flex gap-1.5 items-center">
         <ModeTab />
         <Filter />
@@ -58,6 +68,6 @@ export function Header() {
           <ChevronRight size={14} strokeWidth={2.5} />
         </Button>
       </div>
-    </div>
+    </fieldset>
   );
 }
