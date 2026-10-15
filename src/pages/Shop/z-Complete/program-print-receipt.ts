@@ -1,32 +1,26 @@
 import { Effect } from "effect";
-import { db } from "~/database";
 import { log } from "~/lib/log";
-import { loadDetailRecord } from "../../Record/Item/use-data";
+import { service } from "~/services";
 import { programPrint } from "../../Setting/Printer/util-program-print";
 
+/** Read a committed record from the service and print its receipt. */
 export function programPrintReceipt(recordId: string) {
   return Effect.gen(function* () {
-    const data = yield* loadDetailRecord(recordId);
-    const socials = yield* db.social.get.all();
-    yield* programPrint({
-      record: data.record,
-      products: data.products,
-      extras: data.extras,
+    const [record, socials] = yield* Effect.all([
+      service.record.get.byId(recordId),
+      service.social.get.all(),
+    ]);
+    return yield* programPrint({
+      record,
+      products: record.listings,
+      extras: record.extras,
       socials,
     });
-    return null;
   }).pipe(
-    Effect.catchAll((e) => {
-      switch (e._tag) {
-        case "DbError":
-          log.error(e.e);
-          return Effect.succeed(e.e.message);
-        case "NotFound":
-          return Effect.succeed("Transaksi tidak ditemukan");
-        default:
-          log.error("Unknown error in print receipt");
-          return Effect.succeed("Gagal mencetak");
-      }
+    Effect.catchTag("NotFound", () => Effect.succeed("Transaksi tidak ditemukan")),
+    Effect.catchAll((error) => {
+      log.error(error.message);
+      return Effect.succeed(error.message);
     }),
   );
 }

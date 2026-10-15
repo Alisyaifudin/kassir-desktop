@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { Loader } from "~/components/Loader";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -7,78 +8,73 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { SelectMethod } from "./SelectMethod";
-import { SelectMode } from "./SelectMode";
-import { ToCreditBtn } from "./ToCreditBtn";
-import { Show } from "~/components/Show";
-import { Spinner } from "~/components/Spinner";
-import { TextError } from "~/components/TextError";
-import { Method } from "~/database/method/cache";
-import { useNote } from "./use-note";
 import { Textarea } from "~/components/ui/textarea";
+import { Skeleton } from "~/components/ui/skeleton";
+import { TextError } from "~/components/TextError";
+import type { RecordFull } from "~/services/record";
+import { InlineError, MethodErrorBoundary } from "../../z-Error";
+import { groupMethods, useMethods, useSaveEdit } from "./use-edit";
+import { MethodRows } from "./z-MethodRows";
+import { ModeSelect } from "./z-Mode";
+import { ToCredit } from "./z-ToCredit";
 
-export function EditDialog({
-  method,
-  mode,
-  note: noteRaw,
-  isCredit,
-  recordId,
-}: {
-  recordId: string;
-  mode: DB.Mode;
-  note: string;
-  isCredit: boolean;
-  method: Method;
-}) {
+export function EditDialog({ record }: { record: RecordFull }) {
   const [open, setOpen] = useState(false);
-  const close = useCallback(() => {
-    setOpen(false);
-  }, []);
-  const { loading, error, handleSubmit, note, setNote } = useNote(recordId, noteRaw, close);
+  const close = () => setOpen(false);
+  const edit = useSaveEdit(record, close, open);
+  const methods = useMethods();
+
   return (
-    <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <Button variant="outline" asChild className="w-fit">
         <DialogTrigger type="button">Edit</DialogTrigger>
       </Button>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-5xl">Sunting catatan</DialogTitle>
+          <DialogTitle className="text-big">Sunting catatan</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-3 py-5">
-          <Show when={!isCredit}>
-            <SelectMode close={close} mode={mode} recordId={recordId} />
-          </Show>
-          <SelectMethod recordId={recordId} method={method} close={close} />
-          <form
-            id="record-note"
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleSubmit();
-            }}
-            className="flex flex-col gap-4"
-          >
-            <input type="hidden" name="action" value="edit-note"></input>
-            <label className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <p>Catatan:</p>
-              </div>
-              <Textarea
-                value={note}
-                onChange={(e) => setNote(e.currentTarget.value)}
-                name="note"
-                rows={3}
-              />
-            </label>
-            <TextError>{error}</TextError>
-          </form>
-          <div className="flex items-center justify-between">
-            <Show when={!isCredit && mode === "buy"} fallback={<div />}>
-              <ToCreditBtn close={close} recordId={recordId} />
-            </Show>
-            <Button form="record-note">
+        <div className="flex flex-col gap-4 py-2">
+          {!record.isCredit ? (
+            <ModeSelect mode={edit.mode} setMode={edit.setMode} disabled={edit.loading} />
+          ) : null}
+          <MethodErrorBoundary fallback={InlineError}>
+            <Loader res={methods} fallback={<Skeleton className="h-20 w-full" />}>
+              {({ data }) => (
+                <MethodRows
+                  rows={edit.rows}
+                  groups={groupMethods(data)}
+                  paid={edit.paid}
+                  disabled={edit.loading}
+                  lockAmounts={record.isCredit}
+                  canSplit={!record.isCredit}
+                  addRow={edit.addRow}
+                  removeRow={edit.removeRow}
+                  setRow={edit.setRow}
+                />
+              )}
+            </Loader>
+          </MethodErrorBoundary>
+          <label className="flex flex-col gap-1">
+            <span>Catatan</span>
+            <Textarea
+              value={edit.note}
+              onChange={(event) => edit.setNote(event.currentTarget.value)}
+              rows={3}
+              disabled={edit.loading}
+            />
+          </label>
+          <TextError>
+            {!record.isCredit && edit.shortfall > 0
+              ? `Pembayaran kurang Rp${edit.shortfall.toLocaleString("id-ID")}`
+              : null}
+          </TextError>
+          <TextError>{edit.error}</TextError>
+          <div className="flex items-center justify-between gap-3">
+            {!record.isCredit && edit.mode === "outcoming" ? (
+              <ToCredit id={record.id} onSuccess={close} />
+            ) : <span />}
+            <Button type="button" onClick={() => void edit.save()} disabled={edit.loading}>
               Simpan
-              <Spinner when={loading} />
             </Button>
           </div>
         </div>

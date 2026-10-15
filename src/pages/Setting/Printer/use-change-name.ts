@@ -1,37 +1,25 @@
-import { Effect } from "effect";
+import { Either } from "effect";
 import { useState } from "react";
-import { log } from "~/lib/log";
-import { store } from "~/store";
-import { revalidate } from "./use-data";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
+import type { Printer } from "~/services/printer";
 
-export function useChangePrinterName(init: string) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
-  const [name, setName] = useState(init);
-  async function handleChange(name: string) {
-    setName(name);
-    setLoading(true);
-    const errMsg = await Effect.runPromise(
-      store.printer.set.name(name).pipe(
-        Effect.as(null),
-        Effect.catchTag("StoreError", ({ e }) => {
-          log.error(e);
-          return Effect.succeed(e.message);
-        }),
-      ),
-    );
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      revalidate();
-    } else {
-      setName(init);
-    }
+/**
+ * Switching printer writes the whole setting, because the store holds the name
+ * and the width as two keys and the service is what keeps them together.
+ */
+export function useChangePrinterName(printer: Printer, initial: string = printer.name) {
+  const [name, setName] = useState(initial);
+  const { pending, error, mutate } = useMutation(service.printer.set);
+
+  async function handleChange(next: string) {
+    const previous = name;
+    setName(next);
+    const either = await mutate({ ...printer, name: next });
+    // The service is the source of truth, so a refused write rolls the select
+    // back rather than leaving it showing a printer nothing was written to.
+    if (Either.isLeft(either)) setName(previous);
   }
-  return {
-    loading,
-    name,
-    error,
-    handleChange,
-  };
+
+  return { loading: pending, name, error: error?.message ?? null, handleChange };
 }

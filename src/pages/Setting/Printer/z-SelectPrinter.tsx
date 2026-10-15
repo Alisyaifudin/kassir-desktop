@@ -10,10 +10,15 @@ import {
 } from "~/components/ui/select";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
+import type { Printer } from "~/services/printer";
 
-export function SelectPrinter({ name: init, printers }: { name: string; printers: string[] }) {
-  const selectedPrinter = printers.includes(init) ? init : printers.length > 0 ? printers[0] : "";
-  const { error, handleChange, loading, name } = useChangePrinterName(selectedPrinter);
+export function SelectPrinter({ printer, printers }: { printer: Printer; printers: string[] }) {
+  // The stored printer can be gone (unplugged, renamed): show the first one the
+  // system offers instead, without claiming it has been written yet.
+  const fallback = printers.includes(printer.name)
+    ? printer.name
+    : (printers.at(0) ?? printer.name);
+  const { error, handleChange, loading, name } = useChangePrinterName(printer, fallback);
   return (
     <div className="flex flex-col gap-1">
       <div className="flex gap-2">
@@ -27,13 +32,13 @@ export function SelectPrinter({ name: init, printers }: { name: string; printers
       </p>
       <Select value={name} onValueChange={handleChange}>
         <SelectTrigger id="default-printer" className="bg-background border-border mt-1">
-          <SelectValue placeholder={init} />
+          <SelectValue placeholder={printer.name} />
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {printers.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
+            {printers.map((it) => (
+              <SelectItem key={it} value={it}>
+                {it}
               </SelectItem>
             ))}
           </SelectGroup>

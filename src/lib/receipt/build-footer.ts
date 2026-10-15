@@ -1,7 +1,6 @@
-import { Info } from "~/store/info/get";
 import { ReceiptData, TextData } from "./type";
 
-export function buildFooterSection(info: Info, socials: ReceiptData["socials"]) {
+export function buildFooterSection(info: ReceiptData["info"], socials: ReceiptData["socials"]) {
   const textData: TextData[] = [];
 
   const footers = info.footer.split("\n");

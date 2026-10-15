@@ -2,7 +2,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export function Loading() {
   return (
-    <main className="flex flex-col gap-2 p-2 overflow-y-auto">
+    <div className="flex flex-col gap-2 p-2 h-full overflow-y-auto">
       <div className="flex justify-between items-center gap-2">
         <div className="flex gap-1">
           <Skeleton className="h-10 w-20" />
@@ -22,6 +22,6 @@ export function Loading() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

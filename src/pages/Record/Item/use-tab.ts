@@ -1,23 +1,23 @@
-import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { z } from "zod";
 
+/**
+ * Which face of the record is showing. Lives in the URL so a receipt can be
+ * linked to, and so going back returns to the tab you left.
+ */
 export function useTab() {
-	const [search, setSearch] = useSearchParams();
-	const tab = useMemo(() => {
-		const parsed = z.enum(["receipt", "detail"]).safeParse(search.get("tab"));
-		const tab = parsed.success ? parsed.data : "receipt";
-		return tab;
-	}, [search]);
-	const setTab = useCallback(
-		(tab: string) => {
-			setSearch((prev) => {
-				const search = new URLSearchParams(prev);
-				search.set("tab", tab);
-				return search;
-			});
-		},
-		[setSearch]
-	);
-	return [tab, setTab] as const;
+  const [search, setSearch] = useSearchParams();
+  const raw = search.get("tab");
+  // The ledger is the default face; the receipt is the printable one, reached
+  // via the Resi tab when someone wants the paper version.
+  const tab = raw === "receipt" ? "receipt" : "detail";
+
+  function setTab(next: string) {
+    setSearch((old) => {
+      const params = new URLSearchParams(old);
+      params.set("tab", next);
+      return params;
+    });
+  }
+
+  return [tab, setTab] as const;
 }

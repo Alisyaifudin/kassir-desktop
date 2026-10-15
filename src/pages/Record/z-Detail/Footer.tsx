@@ -37,15 +37,19 @@ export function Footer({ record }: { record: RecordFull }) {
         <p className="text-end">Total:</p>
         <p className="text-end tabular-nums">{rupiah(record.grandTotal, record.fix)}</p>
       </div>
-      <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
-        <p className="text-end">Pembayaran:</p>
-        <p className="text-end tabular-nums">{rupiah(record.pay, record.fix)}</p>
-      </div>
-      <Show when={record.change !== 0}>
+      {/* Credit is settled later, so there is no payment to show yet — and a
+          `pay` of 0 would otherwise read as a negative change. */}
+      <Show when={!record.isCredit}>
         <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
-          <p className="text-end">Kembalian:</p>{" "}
-          <p className="text-end tabular-nums">{rupiah(record.change, record.fix)}</p>
+          <p className="text-end">Pembayaran:</p>
+          <p className="text-end tabular-nums">{rupiah(record.pay, record.fix)}</p>
         </div>
+        <Show when={record.change !== 0}>
+          <div className="grid grid-cols-[1fr_220px] small:grid-cols-[1fr_170px]">
+            <p className="text-end">Kembalian:</p>{" "}
+            <p className="text-end tabular-nums">{rupiah(record.change, record.fix)}</p>
+          </div>
+        </Show>
       </Show>
       {methods === "" ? null : <p className="self-start">Metode: {methods}</p>}
     </div>

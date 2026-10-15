@@ -5,6 +5,7 @@ import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
+/** A linked line goes back to its product, not to an arbitrary listing. */
 export const GotoProductBtn = memo(function GotoProductBtn({
   productId,
   recordId,
@@ -15,14 +16,15 @@ export const GotoProductBtn = memo(function GotoProductBtn({
   const backURL = useGenerateUrlBack(`/records/${recordId}`);
   return (
     <Show value={productId}>
-      {(productId) => (
+      {(id) => (
         <>
           <Button asChild className="p-0" variant="link">
             <Link
               to={{
-                pathname: `/products/${productId}`,
+                pathname: `/products/${id}`,
                 search: `?url_back=${encodeURIComponent(backURL)}`,
               }}
+              aria-label="Buka produk"
             >
               <Pencil className="icon" />
             </Link>

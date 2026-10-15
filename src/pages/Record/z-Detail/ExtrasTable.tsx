@@ -16,11 +16,18 @@ import { extraAmount, extrasRunningTotals, rupiah } from "./extras";
  * as an unnumbered base row and each extra carries the running total it produces
  * in the last column, so the column ends on the record's total.
  */
-export function ExtrasTable({ record }: { record: RecordFull }) {
+export function ExtrasTable({
+  record,
+  parentClass,
+}: {
+  record: RecordFull;
+  /** Forwarded to the shared Table's wrapper, e.g. to lift its scroll cap. */
+  parentClass?: string;
+}) {
   const running = extrasRunningTotals(record);
 
   return (
-    <Table className="text-normal">
+    <Table className="text-normal" parentClass={parentClass}>
       <TableHeader>
         <TableRow>
           <TableHead className="w-[57px] font-normal small:w-[41px]">No</TableHead>

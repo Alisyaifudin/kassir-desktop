@@ -1,9 +1,8 @@
-import { Info } from "~/store/info/get";
 import { ReceiptData, TextData } from "./type";
 import { capitalize } from "../utils";
 import { formatDate, formatTime } from "../date";
 
-export function buildHeaderSection(info: Info, record: ReceiptData["record"]) {
+export function buildHeaderSection(info: ReceiptData["info"], record: ReceiptData["record"]) {
   const ownerTextData: TextData = {
     kind: "center",
     size: "big",

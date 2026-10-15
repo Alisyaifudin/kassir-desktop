@@ -4,6 +4,7 @@ import { StoreService } from "../store";
 
 const KEY = {
   name: "name",
+  owner: "owner",
   address: "address",
   footer: "footer",
   header: "header",
@@ -12,6 +13,7 @@ const KEY = {
 
 const DEFAULT_INFO: Info = {
   name: "Toko",
+  owner: "",
   address: "",
   footer: "",
   header: "",
@@ -52,8 +54,9 @@ export const InfoLive = Layer.effect(
 
     function load(): Effect.Effect<Info, InfoError> {
       return Effect.gen(function* () {
-        const [name, address, footer, header, showCashier] = yield* Effect.all([
+        const [name, owner, address, footer, header, showCashier] = yield* Effect.all([
           readField(KEY.name),
+          readField(KEY.owner),
           readField(KEY.address),
           readField(KEY.footer),
           readField(KEY.header),
@@ -61,6 +64,7 @@ export const InfoLive = Layer.effect(
         ]);
         return {
           name: toText(name, "Toko"),
+          owner: toText(owner),
           address: toText(address),
           footer: toText(footer),
           header: toText(header),
@@ -95,6 +99,7 @@ export const InfoLive = Layer.effect(
         Effect.gen(function* () {
           yield* Effect.all([
             writeField(KEY.name, info.name),
+            writeField(KEY.owner, info.owner),
             writeField(KEY.address, info.address),
             writeField(KEY.footer, info.footer),
             writeField(KEY.header, info.header),
@@ -103,6 +108,7 @@ export const InfoLive = Layer.effect(
           yield* SubscriptionRef.set(infoRef, info);
           loaded = true;
         }),
+      refresh: () => hydrate(),
       changes: Stream.unwrap(ensureLoaded().pipe(Effect.as(infoRef.changes))),
     };
   }),

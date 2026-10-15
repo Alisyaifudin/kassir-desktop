@@ -35,6 +35,8 @@ export type Discount = {
 export type RecordListing = {
   id: string;
   listingId: string | null;
+  /** The product behind the listing, when the line still points at one. */
+  productId: string | null;
   name: string;
   kind: string;
   price: number;
@@ -144,6 +146,49 @@ export class RecordService extends Context.Tag("RecordService")<
     };
     count: {
       summary: (start: number, end: number) => Effect.Effect<RecordSummary[], RecordError>;
+    };
+    /**
+     * Every write bumps the revision, so a queried page re-reads without being
+     * told to. `mode` and `delete` also move stock, which the product
+     * aggregate is then asked to re-read.
+     */
+    set: {
+      paidAt: (id: string, paidAt: number) => Effect.Effect<void, RecordError>;
+      note: (id: string, note: string) => Effect.Effect<void, RecordError>;
+      /**
+       * Flips the record between a sale and a purchase, moving stock with it:
+       * the movement the record had is undone, then the opposite one is applied.
+       * A sale consumes FIFO, a purchase arrives as its own cost lot. The write
+       * fails if a sale cannot be covered, rather than creating a negative lot.
+       */
+      mode: (id: string, mode: RecordMode) => Effect.Effect<void, RecordError>;
+      /**
+       * Replaces the record's payments. `record_pay` is a cache of their sum, so
+       * it is rewritten with them — pass the record's own `pay` when the only
+       * thing changing is which method paid it.
+       */
+      methods: (
+        id: string,
+        methods: { methodId: string; pay: number }[],
+      ) => Effect.Effect<void, RecordError>;
+      /** Turns a purchase into a credit one: nothing tendered, nothing rounded. */
+      toCredit: (id: string) => Effect.Effect<void, RecordError>;
+      /**
+       * Settles a credit record and stamps it as paid now. `rounding` is the
+       * rounding that goes with the settlement, not the purchase's own.
+       */
+      payCredit: (
+        id: string,
+        input: { pay: number; rounding: number },
+      ) => Effect.Effect<void, RecordError>;
+      /**
+       * Points a snapshotted line at a catalog listing, or back at nothing.
+       * Stock is left alone — relinking is a bookkeeping act, not a movement.
+       */
+      linkListing: (
+        recordListingId: string,
+        listingId: string | null,
+      ) => Effect.Effect<void, RecordError>;
     };
     delete: {
       /** Soft-deletes the record and removes the stock movement it caused. */

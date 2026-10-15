@@ -4,10 +4,15 @@ import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
+/**
+ * One record, in full: the receipt it prints and the ledger behind it. Mounted at
+ * `/records/:recordId`, which the records pane, the comprehensive search, the debt
+ * table and the analytics tables all link to.
+ */
 export const itemRoute: RouteObject = {
   path: ":recordId",
   Component: () => {
-    const recordId = useLoaderData<Loader>();
+    const recordId = useLoaderData<typeof loader>();
     return (
       <Suspense fallback={<Loading />}>
         <Page recordId={recordId} />
@@ -17,8 +22,6 @@ export const itemRoute: RouteObject = {
   loader,
 };
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export function loader({ params }: LoaderFunctionArgs) {
   return params.recordId!;
 }
-
-type Loader = typeof loader;

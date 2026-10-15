@@ -1,37 +1,19 @@
-import { Effect } from "effect";
-import { useState } from "react";
-import { db } from "~/database";
-import { log } from "~/lib/log";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
-import { useNavigate } from "react-router";
-import { recordMap } from "../../use-data";
+import { Either } from "effect";
+import { useNavigate, useSearchParams } from "react-router";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 
-export function useDelete({ recordId }: { recordId: string }) {
-  const [error, setError] = useState<null | string>(null);
-  const [loading, setLoading] = useState(false);
-  const backUrl = useGetUrlBack("/records");
+/** Soft-delete the record, then return to the page it was opened from. */
+export function useDelete(id: string) {
   const navigate = useNavigate();
-  async function handleDelete() {
-    setLoading(true);
-    const errMsg = await Effect.runPromise(program(recordId));
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      recordMap.delete(recordId);
-      navigate(backUrl);
-    }
-  }
-  return { error, loading, handleDelete };
-}
+  const [search] = useSearchParams();
+  const backUrl = search.get("url_back") ?? "/records";
+  const { pending, error, mutate } = useMutation(service.record.delete.byId);
 
-function program(recordId: string) {
-  return Effect.gen(function* () {
-    yield* db.record.del.byId(recordId);
-    return null;
-  }).pipe(
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  async function remove() {
+    const result = await mutate(id);
+    if (Either.isRight(result)) navigate(backUrl);
+  }
+
+  return { loading: pending, error: error?.message ?? null, remove };
 }

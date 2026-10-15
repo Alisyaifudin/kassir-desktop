@@ -1,11 +1,5 @@
+import { METHOD_NAMES } from "~/lib/constants";
 import { ReceiptData, TextData } from "./type";
-
-const methodLabel = {
-  cash: "Tunai",
-  transfer: "Transfer",
-  debit: "Debit",
-  qris: "QRIS",
-} as const;
 
 export function buildTransactionSummary(
   products: ReceiptData["products"],
@@ -14,8 +8,10 @@ export function buildTransactionSummary(
   const numOfSpecies = products.length;
   const numOfItems = products.length === 0 ? 0 : products.reduce((acc, cur) => acc + cur.qty, 0);
   const summaryNum = `${numOfSpecies} Jenis/${numOfItems} pcs`;
-  const methodName =
-    methodLabel[record.method.kind] + (record.method.name ? ` (${record.method.name})` : "");
+  // A record can carry several payments (split payment), so list them all.
+  const methodName = record.methods
+    .map((method) => METHOD_NAMES[method.kind] + (method.name ? ` (${method.name})` : ""))
+    .join(", ");
   return {
     kind: "spacebetween",
     size: "normal",

@@ -3,9 +3,10 @@ import { Label } from "~/components/ui/label";
 import { useChangePrinterWidth } from "./use-change-width";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
+import type { Printer } from "~/services/printer";
 
-export function PrinterWidth({ width: init }: { width: number }) {
-  const { width, error, handleChange, handleSubmit, loading } = useChangePrinterWidth(init);
+export function PrinterWidth({ printer }: { printer: Printer }) {
+  const { width, error, handleChange, handleSubmit, loading } = useChangePrinterWidth(printer);
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-1">
       <div className="flex gap-2">

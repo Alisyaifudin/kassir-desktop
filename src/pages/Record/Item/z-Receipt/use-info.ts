@@ -1,42 +1,22 @@
-import { db } from "~/database";
-import { store } from "~/store";
-import { Result } from "~/lib/result";
 import { Effect } from "effect";
-import { Social } from "~/database/social/cache";
+import { log } from "~/lib/log";
+import { service } from "~/services";
 
-const KEY = "receipt-info";
-
-export type Info = {
-  address: string;
-  footer: string;
-  header: string;
-  owner: string;
-  showCashier: boolean;
-  socials: Social[];
-};
-
-export function useInfo() {
-  const res = Result.use({
-    fn: loader,
-    key: KEY,
-  });
-  return res;
-}
-
+/**
+ * Compatibility bridge for the still-legacy Social and Shop settings pages.
+ * Their writes run outside the new services, so after a successful write they
+ * tell the service-backed receipt view to re-read the store/table.
+ */
 export function revalidateInfo() {
-  Result.revalidate(KEY);
-}
-
-function loader() {
-  return Effect.gen(function* () {
-    const [info, socials] = yield* Effect.all([store.info.get(), db.social.get.all()], {
+  void Effect.runPromise(
+    Effect.all([service.info.refresh(), service.social.get.refresh()], {
       concurrency: "unbounded",
-    });
-
-    const res: Info = {
-      ...info,
-      socials,
-    };
-    return res;
-  });
+    }).pipe(
+      Effect.catchAll((error) =>
+        Effect.sync(() => {
+          log.error(error.message);
+        }),
+      ),
+    ),
+  );
 }

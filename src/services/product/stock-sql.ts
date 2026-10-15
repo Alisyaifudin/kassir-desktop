@@ -3,6 +3,9 @@ import type { Statement } from "../db";
 
 export type StockLot = { id: string; value: number; capital: number };
 
+/** One lot's share of a FIFO consumption. */
+type Take = { lot: StockLot; take: number };
+
 /** Bump the aggregate timestamp and clear its sync flag. */
 export function touchProduct(productId: string, now: number): Statement {
   return {
@@ -18,13 +21,16 @@ function insertEvent(
   capital: number,
   now: number,
   note = "",
+  /** The record that caused the movement, when a record did — see `record/live.ts`. */
+  recordId: string | null = null,
 ): Statement {
   return {
     sql: `INSERT INTO product_events (
         product_event_id, product_event_created_at, product_event_sync_at,
-        product_event_value, product_event_capital, product_id, stock_id, product_event_note
-      ) VALUES ($1, $2, NULL, $3, $4, $5, $6, $7)`,
-    bindings: [generateId(), now, delta, capital, productId, stockId, note],
+        product_event_value, product_event_capital, product_id, stock_id, record_id,
+        product_event_note
+      ) VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)`,
+    bindings: [generateId(), now, delta, capital, productId, stockId, recordId, note],
   };
 }
 
@@ -33,6 +39,7 @@ export function receiveStatements(
   productId: string,
   input: { value: number; capital: number },
   now: number,
+  recordId: string | null = null,
 ): Statement[] {
   const stockId = generateId();
   return [
@@ -42,9 +49,40 @@ export function receiveStatements(
         ) VALUES ($1, $2, $3, $4, $5, $6)`,
       bindings: [stockId, productId, input.value, input.capital, now, now],
     },
-    insertEvent(productId, stockId, input.value, input.capital, now),
+    insertEvent(productId, stockId, input.value, input.capital, now, "", recordId),
     touchProduct(productId, now),
   ];
+}
+
+/**
+ * FIFO allocation across lots (oldest first), without touching the database.
+ * Exposed because callers that consume more than once before writing — a record's
+ * lines are one transaction, so a second line must not be offered stock the first
+ * one already took — need to keep the check and the movement in the same step.
+ */
+export function allocateFifo(
+  lots: readonly StockLot[],
+  pcs: number,
+): { takes: Take[]; shortage: number } {
+  const takes: Take[] = [];
+  let remaining = pcs;
+
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    if (lot.value <= 0) continue;
+
+    const take = Math.min(lot.value, remaining);
+    takes.push({ lot, take });
+    remaining -= take;
+  }
+
+  return { takes, shortage: remaining };
+}
+
+/** The same lots, as they stand once `pcs` have been taken out of them. */
+export function depleteLots(lots: readonly StockLot[], pcs: number): StockLot[] {
+  const taken = new Map(allocateFifo(lots, pcs).takes.map(({ lot, take }) => [lot.id, take]));
+  return lots.map((lot) => ({ ...lot, value: lot.value - (taken.get(lot.id) ?? 0) }));
 }
 
 /**
@@ -57,25 +95,21 @@ export function consumeStatements(
   pcs: number,
   now: number,
   note = "",
+  recordId: string | null = null,
 ): { statements: Statement[]; shortage: number } {
   const statements: Statement[] = [];
-  let remaining = pcs;
+  const { takes, shortage } = allocateFifo(lots, pcs);
 
-  for (const lot of lots) {
-    if (remaining <= 0) break;
-    if (lot.value <= 0) continue;
-
-    const take = Math.min(lot.value, remaining);
+  for (const { lot, take } of takes) {
     statements.push({
       sql: "UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2 WHERE stock_id = $3",
       bindings: [take, now, lot.id],
     });
-    statements.push(insertEvent(productId, lot.id, -take, lot.capital, now, note));
-    remaining -= take;
+    statements.push(insertEvent(productId, lot.id, -take, lot.capital, now, note, recordId));
   }
 
   if (statements.length > 0) statements.push(touchProduct(productId, now));
-  return { statements, shortage: remaining };
+  return { statements, shortage };
 }
 
 /** Manual correction of a lot; a capital-only change is a delta-0 event. */
