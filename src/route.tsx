@@ -6,7 +6,7 @@ import { settingRoute } from "./pages/Setting";
 import { recordRoute } from "./pages/Record";
 import { moneyRoute } from "./pages/Money";
 // import { analRoute } from "./pages/Analytics";
-// import { cashierRoute } from "./pages/Cashier/index.tsx";
+import { cashierRoute } from "./pages/Cashier/index.tsx";
 // import { customerRoute } from "./pages/Customer/index.tsx";
 // import { methodRoute } from "./pages/Method/index.tsx";
 import { socialRoute } from "./pages/Social/index.tsx";
@@ -30,7 +30,7 @@ export const router = createHashRouter([
         path: "/",
         Component: AuthLayout,
         children: [
-          // cashierRoute,
+          cashierRoute,
           // customerRoute,
           // methodRoute,
           socialRoute,

@@ -82,13 +82,15 @@ export function NavGrid() {
           color="bg-purple-100 text-purple-600"
         />
       </Show>
-      <NavCard
-        label="Kasir"
-        path="/cashier"
-        icon={Users}
-        description="Kelola akun kasir dan peran"
-        color="bg-emerald-100 text-emerald-700"
-      />
+      <Show when={isAdmin}>
+        <NavCard
+          label="Kasir"
+          path="/cashier"
+          icon={Users}
+          description="Kelola akun kasir dan peran"
+          color="bg-emerald-100 text-emerald-700"
+        />
+      </Show>
       <NavCard
         label="Metode"
         path="/method"

@@ -1,11 +1,9 @@
-import { TextError } from "~/components/TextError";
 import { Item } from "./z-Item";
 import { NewCashier } from "./z-NewCashier";
-import { cashiersLoader } from "./use-data";
-import { log } from "~/lib/log";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Consumer, Loader } from "~/components/Loader-old";
-import type { DbError } from "~/database/instance";
+import { Loader, useStream } from "~/components/Loader";
+import { service } from "~/services";
+import { CashierErrorBoundary, CashierErrorFallback } from "./z-Error";
 
 export default function Page() {
   return (
@@ -16,11 +14,7 @@ export default function Page() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Loader loader={cashiersLoader}>
-          <Consumer Error={Error} loader={cashiersLoader} loading={<LoadingList />}>
-            <CashierList />
-          </Consumer>
-        </Loader>
+        <CashierList />
       </div>
       <NewCashier />
     </main>
@@ -28,19 +22,20 @@ export default function Page() {
 }
 
 function CashierList() {
-  const cashiers = cashiersLoader.useData();
+  const res = useStream(service.cashier.get.changes);
   return (
-    <>
-      {cashiers.map((cashier) => (
-        <Item key={cashier.name} cashier={cashier} />
-      ))}
-    </>
+    <CashierErrorBoundary fallback={CashierErrorFallback}>
+      <Loader res={res} fallback={<LoadingList />}>
+        {({ data: cashiers }) => (
+          <>
+            {cashiers.map((cashier) => (
+              <Item key={cashier.id} cashier={cashier} />
+            ))}
+          </>
+        )}
+      </Loader>
+    </CashierErrorBoundary>
   );
-}
-
-function Error({ error }: { error: DbError }) {
-  log.error(error.e);
-  return <TextError>{error.e.message}</TextError>;
 }
 
 function LoadingList() {

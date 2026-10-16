@@ -71,23 +71,7 @@ export const NewCashier = memo(function NewCashier() {
             </form.Subscribe>
           </div>
         </form>
-        <TextError>{error}</TextError>
       </DialogContent>
     </Dialog>
   );
 });
-
-// function program(formdata: FormData) {
-//   return Effect.gen(function* () {
-//     const name = formdata.get("name");
-//     if (!isString(name)) return null;
-//     const hash = yield* auth.hash("");
-//     yield* db.cashier.add({ name, role: "user", hash });
-//     return null;
-//   }).pipe(
-//     Effect.catchAll(({ e }) => {
-//       logOld.error(e.message);
-//       return Effect.succeed(e.message);
-//     }),
-//   );
-// }
