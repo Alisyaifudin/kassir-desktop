@@ -12,10 +12,13 @@ import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { useState } from "react";
 import { Spinner } from "~/components/Spinner";
-import { ImageResult } from "./use-data";
 import { useDel } from "./use-del";
 
-export function DeleteImg({ selected }: { selected: ImageResult }) {
+export function DeleteImg({
+  selected,
+}: {
+  selected: { id: string; file: string; href: string | undefined };
+}) {
   const [open, setOpen] = useState(false);
   const { loading, error, handleDelete } = useDel(selected.id, selected.file, () => setOpen(false));
   return (

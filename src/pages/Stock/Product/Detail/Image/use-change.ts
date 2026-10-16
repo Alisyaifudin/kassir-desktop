@@ -1,7 +1,6 @@
-import { ImageResult } from "./use-data";
 import { useSelected } from "./use-selected";
 
-export function useChange(images: ImageResult[]) {
+export function useChange<T extends { id: string }>(images: T[]) {
   const [selected, setSelected] = useSelected(images);
   const index = images.findIndex((image) => image.id === selected?.id);
   function handleChangeNext() {

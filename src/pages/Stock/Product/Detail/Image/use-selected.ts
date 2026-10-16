@@ -1,8 +1,6 @@
 import { useSearchParams } from "react-router";
 import { useCallback, useMemo } from "react";
-import { ImageResult } from "./use-data";
-
-export function useSelected(images: ImageResult[]) {
+export function useSelected<T extends { id: string }>(images: T[]) {
   const [search, setSearch] = useSearchParams();
   /**
    * Never null while the product has images. The thumbnails compare

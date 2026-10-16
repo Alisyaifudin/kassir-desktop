@@ -16,7 +16,7 @@ export function useData() {
 }
 
 export function revalidate() {
-  Result.revalidate(KEY);
+  return Result.revalidate(KEY);
 }
 
 export type ImageResult =
