@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Spinner } from "~/components/Spinner";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { DeleteImg } from "./z-DeleteImg";
@@ -55,6 +55,22 @@ function Wrapper({ images }: { images: ImageResult[] }) {
   const drop = useFileDrop(addAndShow);
   const role = useUser().role;
   const draft = selected?.draft ?? null;
+  const pill = useRef<HTMLDivElement>(null);
+  const [reserve, setReserve] = useState(0);
+
+  /**
+   * The pill is fixed to the bottom right of the window, so it covers whatever the
+   * strip has under that corner. Keeping its width as room at the end of the strip
+   * means the tiles scroll clear of it instead of disappearing behind it - the `+`
+   * in particular still has to be visible and clickable.
+   */
+  useLayoutEffect(() => {
+    if (!gallery.dirty) {
+      setReserve(0);
+      return;
+    }
+    setReserve((pill.current?.offsetWidth ?? 0) + 8);
+  }, [gallery.dirty, gallery.saving]);
 
   function addAndShow(files: File[]) {
     const added = gallery.add(files);
@@ -110,22 +126,6 @@ function Wrapper({ images }: { images: ImageResult[] }) {
           ) : selected !== null && role === "admin" ? (
             <DeleteImg selected={selected} />
           ) : null}
-          {gallery.dirty ? (
-            <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2 rounded-xl border bg-background/95 px-3 py-1.5 shadow-lg backdrop-blur">
-              <span className="text-small text-destructive">Belum disimpan</span>
-              <Button size="sm" onClick={() => void gallery.save()} disabled={gallery.saving}>
-                Simpan <Spinner when={gallery.saving} />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={gallery.discardAll}
-                disabled={gallery.saving}
-              >
-                Batal
-              </Button>
-            </div>
-          ) : null}
         </div>
         <Button
           className="h-full px-0"
@@ -156,8 +156,24 @@ function Wrapper({ images }: { images: ImageResult[] }) {
             />
           ))}
           <AddTile onFiles={addAndShow} disabled={gallery.saving} />
+          {/* not an image: room for the floating pill, which sits over this corner */}
+          {reserve > 0 ? <li aria-hidden className="shrink-0" style={{ width: reserve }} /> : null}
         </Reorder.Group>
       </div>
+      {gallery.dirty ? (
+        <div
+          ref={pill}
+          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-2xl border bg-card px-4 py-2 shadow-lg"
+        >
+          <span className="text-normal text-destructive">Belum disimpan</span>
+          <Button onClick={() => void gallery.save()} disabled={gallery.saving}>
+            Simpan <Spinner when={gallery.saving} />
+          </Button>
+          <Button variant="ghost" onClick={gallery.discardAll} disabled={gallery.saving}>
+            Batal
+          </Button>
+        </div>
+      ) : null}
       <Dialog
         open={blocker.state === "blocked"}
         onOpenChange={(open) => {
