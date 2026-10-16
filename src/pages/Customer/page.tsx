@@ -1,10 +1,9 @@
-import { TextError } from "~/components/TextError";
 import { Item } from "./z-Item";
 import { NewCustomer } from "./z-NewCustomer";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { useGetCustomers } from "~/hooks/use-get-customer";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Loader, useStream } from "~/components/Loader";
+import { service } from "~/services";
+import { CustomerErrorBoundary, CustomerErrorFallback } from "./z-Error";
 
 export default function Page() {
   return (
@@ -13,32 +12,27 @@ export default function Page() {
         <h1 className="text-big font-bold text-foreground">Daftar Pelanggan</h1>
         <p className="text-muted-foreground text-normal">Kelola informasi pelanggan dan kontak</p>
       </div>
-      <Customer />
+      <Customers />
       <NewCustomer />
     </div>
   );
 }
 
-function Customer() {
-  const res = useGetCustomers();
-  return Result.match(res, {
-    onLoading() {
-      return <LoadingList />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <TextError>{e.message}</TextError>;
-    },
-    onSuccess(customers) {
-      return (
-        <>
-          {customers.map((customer) => (
-            <Item key={customer.id} customer={customer} />
-          ))}
-        </>
-      );
-    },
-  });
+function Customers() {
+  const res = useStream(service.customer.get.changes);
+  return (
+    <CustomerErrorBoundary fallback={CustomerErrorFallback}>
+      <Loader res={res} fallback={<LoadingList />}>
+        {({ data: customers }) => (
+          <>
+            {customers.map((customer) => (
+              <Item key={customer.id} customer={customer} />
+            ))}
+          </>
+        )}
+      </Loader>
+    </CustomerErrorBoundary>
+  );
 }
 
 function LoadingList() {

@@ -12,12 +12,12 @@ import { Plus } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
-import { useNew } from "./use-new";
+import { useCustomerForm } from "./use-customer-form";
 import { Field, FieldError, FieldGroup } from "~/components/ui/field";
 
 export const NewCustomer = memo(function NewCustomer() {
   const [open, setOpen] = useState(false);
-  const { form, error } = useNew(() => setOpen(false));
+  const { form, error } = useCustomerForm(undefined, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>

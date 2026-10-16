@@ -7,7 +7,7 @@ import { recordRoute } from "./pages/Record";
 import { moneyRoute } from "./pages/Money";
 // import { analRoute } from "./pages/Analytics";
 import { cashierRoute } from "./pages/Cashier/index.tsx";
-// import { customerRoute } from "./pages/Customer/index.tsx";
+import { customerRoute } from "./pages/Customer/index.tsx";
 import { methodRoute } from "./pages/Method/index.tsx";
 import { socialRoute } from "./pages/Social/index.tsx";
 import { lazy } from "react";
@@ -31,7 +31,7 @@ export const router = createHashRouter([
         Component: AuthLayout,
         children: [
           cashierRoute,
-          // customerRoute,
+          customerRoute,
           methodRoute,
           socialRoute,
           extraRoute,

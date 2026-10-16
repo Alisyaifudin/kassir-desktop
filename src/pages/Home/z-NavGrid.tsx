@@ -100,13 +100,15 @@ export function NavGrid() {
           color="bg-indigo-100 text-indigo-700"
         />
       </Show>
-      <NavCard
-        label="Pelanggan"
-        path="/customer"
-        icon={ReceiptText}
-        description="Kelola daftar pelanggan"
-        color="bg-teal-100 text-teal-700"
-      />
+      <Show when={isAdmin}>
+        <NavCard
+          label="Pelanggan"
+          path="/customer"
+          icon={ReceiptText}
+          description="Kelola daftar pelanggan"
+          color="bg-teal-100 text-teal-700"
+        />
+      </Show>
       <NavCard
         label="Pengaturan"
         path="/setting"

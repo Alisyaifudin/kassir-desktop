@@ -15,12 +15,12 @@ live in each service's `index.ts`; implementations in `live.ts` (see
 |---|---|
 | `src/services/db|store|local-storage` | hidden backends, unchanged |
 | `src/services/config|cashier|auth|info` | done |
-| `src/services/customer` | **stale**: still does `DELETE` + `graves` insert; migration-43 removes `graves`, adds `customer_deleted_at` |
-| `src/database/*` | legacy Effect-but-not-service data layer; ~all pages depend on it |
-| `src/lib/result.ts` | legacy `Result.use` hook; pages still use it |
-| `src/transaction/*` | separate `tx.db` POS cart persistence (not part of `data.db`) |
-| `src/lib/sync/*` | stale (imports removed `~/store`); needs rework after services |
-| Pages | nearly all still `~/database` + `Result`; not migrated |
+| `src/services/customer` | done (read, soft delete, add/update); `unsync` kept for the sync layer |
+| `src/database/*` | deleted; only `src/lib/sync/*`, `~/hooks`, Analytics, Shop and Stock-PENDING still import it |
+| `src/lib/result.ts` | legacy `Result.use` hook; only Analytics, Shop, Stock-PENDING and Setting/Sync_PENDING use it |
+| `src/transaction/*` | deleted. `tx.db` is still preloaded but has no migrations, so it is dormant |
+| `src/lib/sync/*` | stale (imports removed `~/database`, `~/store`, `~/server`); needs rework after services |
+| Pages | **migrated**: money, setting, extra, debt, social, cashier, method, customer, product, record, home, login. **Left**: Shop + Stock-PENDING (need a `record.add.one` commit), Analytics (needs a report service), Setting/Sync_PENDING |
 
 **Hard constraints discovered**
 
@@ -64,7 +64,7 @@ Legend: **owns** = tables the service is the only writer of.
 | 2 | `auth` | localStorage `user` | local-storage, cashier | keep |
 | 3 | `cashier` | `cashiers` | db | keep |
 | 4 | `info` | store keys | store | keep |
-| 5 | `customer` | `customers` | db | **update soft-delete** |
+| 5 | `customer` | `customers` | db | done |
 | 6 | `method` | `methods` | db | new |
 | 7 | `extra` | `extras` | db | new |
 | 8 | `social` | `socials` | db | new |
@@ -106,40 +106,51 @@ export class DatabaseService ... {
 statements into one `execute` string. Services that need atomic cross-table
 writes (record commit/rollback) use it and share pure SQL-builder helpers.
 
-### 3.2 `customer` (updated)
+### 3.2 `customer` — shipped
 
 ```ts
 export type Customer = { id: string; name: string; phone: string };
-export type CustomerFull = Customer & SyncMeta;
 
 CustomerService: {
-  get: { all(); unsync(); byId(id); changes: Stream<Customer[]> };
+  get: { all(); unsync(); changes: Stream<Customer[]> };
   add(name, phone) => string;
-  set: { info(id, {name, phone}); sync(id); syncMerge(c: CustomerFull) };
-  delete: { byId(id); sync(id) };  // sets customer_deleted_at, not DELETE
+  set: { info(id, {name, phone}) };
+  delete: { byId(id) };            // sets customer_deleted_at, not DELETE
 }
 ```
 
+`add` and `set.info` update the ref in place (they re-sort), rather than
+re-querying as `extra`/`social` do. The read filters `customer_deleted_at IS NULL`
+— it previously did not, so a soft-deleted customer would have stayed listed.
+
 ### 3.3 `method`, `extra`, `social`
 
-Same shape:
+Same shape — all three shipped. As built:
 
 ```ts
 type Method = { id; name: string | null; kind: MethodKind; deletedAt: number | null };
 
 MethodService: {
-  get: { all(); unsync(); changes };
-  add({ kind, name? }) => string;
-  set: { name(id, name); kind(id, kind); sync(id); syncMerge(m) };
-  delete: { byId(id); sync(id) };            // sets method_deleted_at
+  get: { all(); catalog(); changes; catalogChanges };  // catalog = methods + per-kind defaults
+  add({ kind, name }) => string;
+  set: { name(id, name); default(kind, id | null) };
+  delete: { byId(id) };            // sets method_deleted_at
 }
 
-type Extra = { id; name; value; kind: ValueKind; flag: number; deletedAt: number | null };
-ExtraService: { get:{all,unsync,byId,changes}; add(input); set:{info,sync,syncMerge}; delete:{byId,sync} }
+type Extra = { id; name; value; kind: ValueKind; flag: number; updatedAt; syncAt };
+ExtraService: { get:{all,changes}; add(input); set:{info}; delete:{byId} }
 
-type Social = { id; name; value; deletedAt: number | null };
-SocialService: { get:{all,unsync,changes}; add(name,value); set:{info,sync,syncMerge}; delete:{byId,sync} }
+type Social = { id; name; value; updatedAt; syncAt };
+SocialService: { get:{all,changes}; add(name,value); set:{info}; delete:{byId} }
 ```
+
+The `unsync` / `sync` / `syncMerge` members sketched here were not built: they
+belong to the sync rebuild, and `customer.get.unsync` (the one that survives, as
+on `product`) is the only read the sync layer will need to start from.
+
+`method` keeps the per-kind default method not in its table but in store.json
+(`default-transfer`, `default-debit`, `default-qris`), because it is a POS
+preference rather than a property of the method.
 
 `extra.flag` semantics TBD — carried through opaquely.
 

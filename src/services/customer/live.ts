@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
-import { CustomerError, CustomerService, type Customer } from ".";
+import { CustomerError, CustomerService, type Customer, type CustomerInput } from ".";
 import { type Binding, type DbError, DatabaseService } from "../db";
 import { generateId } from "~/lib/random";
 
@@ -38,7 +38,7 @@ function dbErrorToCustomerError(dbError: DbError): CustomerError {
 }
 
 const SELECT_ALL =
-  "SELECT customer_id, customer_name, customer_phone, customer_updated_at, customer_sync_at FROM customers ORDER BY customer_name COLLATE NOCASE ASC";
+  "SELECT customer_id, customer_name, customer_phone, customer_updated_at, customer_sync_at FROM customers WHERE customer_deleted_at IS NULL ORDER BY customer_name COLLATE NOCASE ASC";
 
 export const CustomerLive = Layer.effect(
   CustomerService,
@@ -89,9 +89,7 @@ export const CustomerLive = Layer.effect(
         unsync() {
           return ensureLoaded().pipe(
             Effect.zipRight(SubscriptionRef.get(customersRef)),
-            Effect.map((customers) =>
-              customers.filter((c) => c.syncAt === null).map(toCustomer),
-            ),
+            Effect.map((customers) => customers.filter((c) => c.syncAt === null).map(toCustomer)),
           );
         },
         // Hydrates on first subscribe (so `useStream` stays in `init` until the
@@ -109,8 +107,8 @@ export const CustomerLive = Layer.effect(
           const id = generateId();
           const now = Date.now();
           yield* mutate(
-            `INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at, customer_sync_at)
-             VALUES ($1, $2, $3, $4, null)`,
+            `INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at, customer_sync_at, customer_deleted_at)
+             VALUES ($1, $2, $3, $4, null, null)`,
             [id, name, phone, now],
           );
           yield* SubscriptionRef.update(customersRef, (customers) =>
@@ -120,7 +118,7 @@ export const CustomerLive = Layer.effect(
         });
       },
       set: {
-        info(id, info) {
+        info(id, info: CustomerInput) {
           return Effect.gen(function* () {
             const now = Date.now();
             yield* mutate(
@@ -140,45 +138,19 @@ export const CustomerLive = Layer.effect(
             );
           });
         },
-        sync(id) {
-          return Effect.gen(function* () {
-            const now = Date.now();
-            yield* mutate("UPDATE customers SET customer_sync_at = $1 WHERE customer_id = $2", [
-              now,
-              id,
-            ]);
-            yield* SubscriptionRef.update(customersRef, (customers) =>
-              customers.map((c) => (c.id === id ? { ...c, syncAt: now } : c)),
-            );
-          });
-        },
       },
       delete: {
         byId(id) {
           return Effect.gen(function* () {
-            const graveId = generateId();
             const now = Date.now();
+            // Soft delete, per migration-43: the old tombstone went into the
+            // `graves` table, which that migration renamed away, so this write
+            // used to fail outright.
             yield* mutate(
-              `BEGIN;
-               DELETE FROM customers WHERE customer_id = $1;
-               INSERT INTO graves (grave_item_id, grave_id, grave_kind, grave_timestamp)
-               VALUES ($1, $2, 'customer', $3);
-               COMMIT;`,
-              [id, graveId, now],
-            );
-            yield* SubscriptionRef.update(customersRef, (customers) =>
-              customers.filter((c) => c.id !== id),
-            );
-          });
-        },
-        sync(id) {
-          return Effect.gen(function* () {
-            yield* mutate(
-              `BEGIN;
-               DELETE FROM customers WHERE customer_id = $1;
-               DELETE FROM graves WHERE grave_item_id = $1 AND grave_kind = 'customer';
-               COMMIT;`,
-              [id],
+              `UPDATE customers SET customer_deleted_at = $1,
+               customer_updated_at = $1, customer_sync_at = null
+               WHERE customer_id = $2`,
+              [now, id],
             );
             yield* SubscriptionRef.update(customersRef, (customers) =>
               customers.filter((c) => c.id !== id),
