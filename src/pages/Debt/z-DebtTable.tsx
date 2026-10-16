@@ -38,7 +38,7 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">No</TableHead>
-          <TableHead className="w-[250px] small:w-[190px]">
+          <TableHead className="w-[300px] small:w-[240px]">
             <SortBtn sort={sortBy === "paidAt" ? sortDir : undefined} onClick={onSort("paidAt")}>
               Tanggal
             </SortBtn>
@@ -82,7 +82,7 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
                       search: `?tab=detail&url_back=${encodeURIComponent(urlBack)}`,
                     }}
                   >
-                    <ExternalLink />
+                    <ExternalLink className="size-8 small:size-6" />
                   </Link>
                 </Button>
               </TableCell>
