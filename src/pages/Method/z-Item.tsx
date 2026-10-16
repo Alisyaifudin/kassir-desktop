@@ -5,12 +5,17 @@ import { Spinner } from "~/components/Spinner";
 import { memo } from "react";
 import { DefaultMethod } from "./z-DefaultMethod";
 import equal from "fast-deep-equal";
-import { useUpdate } from "./use-update";
-import { NonNullMethod } from "./use-select-default";
+import { useRename } from "./use-rename";
+import type { NamedMethod } from "./util-method";
 
-
-export const Item = memo(function Item({ method, defVal }: { method: NonNullMethod; defVal?: string }) {
-  const { handleSubmit, error, loading, name } = useUpdate(method.id, method.name);
+export const Item = memo(function Item({
+  method,
+  defVal,
+}: {
+  method: NamedMethod;
+  defVal?: string;
+}) {
+  const { handleSubmit, error, loading, name } = useRename(method.id, method.name);
   return (
     <>
       <div className="flex items-center gap-1 p-0.5 w-full">
@@ -25,7 +30,7 @@ export const Item = memo(function Item({ method, defVal }: { method: NonNullMeth
           />
           <Spinner when={loading} />
         </form>
-        <DeleteBtn method={method} />
+        <DeleteBtn name={method.name} id={method.id} />
       </div>
       <TextError>{error}</TextError>
     </>

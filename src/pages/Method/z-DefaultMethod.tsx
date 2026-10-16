@@ -1,7 +1,16 @@
-import { Kind, useClicked } from "./use-select-default";
+import type { DefaultableKind } from "~/lib/constants";
+import { useSelectDefault } from "./use-select-default";
 
-export function DefaultMethod({ kind, id, defVal }: { kind: Kind; id: string; defVal?: string }) {
-  const handleClick = useClicked({ kind, id, defVal });
+export function DefaultMethod({
+  kind,
+  id,
+  defVal,
+}: {
+  kind: DefaultableKind;
+  id: string;
+  defVal?: string;
+}) {
+  const handleClick = useSelectDefault({ kind, id, defVal });
   return (
     <input
       type="radio"

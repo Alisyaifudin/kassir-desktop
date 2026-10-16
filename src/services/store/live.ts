@@ -40,4 +40,13 @@ export const StoreLive = Layer.succeed(StoreService, {
       });
     });
   },
+  remove(id: string) {
+    return Effect.gen(function* () {
+      const store = yield* getStore();
+      yield* Effect.tryPromise({
+        try: () => store.delete(id),
+        catch: (e) => new StoreError({ message: `Gagal menghapus store: \n${formatError(e)}` }),
+      });
+    });
+  },
 });

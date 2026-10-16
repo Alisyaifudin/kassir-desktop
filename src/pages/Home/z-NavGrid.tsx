@@ -91,13 +91,15 @@ export function NavGrid() {
           color="bg-emerald-100 text-emerald-700"
         />
       </Show>
-      <NavCard
-        label="Metode"
-        path="/method"
-        icon={CreditCard}
-        description="Konfigurasi metode pembayaran"
-        color="bg-indigo-100 text-indigo-700"
-      />
+      <Show when={isAdmin}>
+        <NavCard
+          label="Metode"
+          path="/method"
+          icon={CreditCard}
+          description="Konfigurasi metode pembayaran"
+          color="bg-indigo-100 text-indigo-700"
+        />
+      </Show>
       <NavCard
         label="Pelanggan"
         path="/customer"

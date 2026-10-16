@@ -2,22 +2,31 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { memo, useState } from "react";
 import { X } from "lucide-react";
+import { Either } from "effect";
 import { TextError } from "~/components/TextError";
-import { DialogDescription } from "@radix-ui/react-dialog";
 import { Spinner } from "~/components/Spinner";
-import { Method } from "~/database/method/cache";
-import { useDelete } from "./use-delete";
-import equal from "fast-deep-equal";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 
-export const DeleteBtn = memo(function DeleteBtn({ method }: { method: Method }) {
+export const DeleteBtn = memo(function DeleteBtn({ name, id }: { name: string; id: string }) {
   const [open, setOpen] = useState(false);
-  const { error, handleSubmit, loading } = useDelete(method.id, () => setOpen(false));
+  const { error, pending, mutate } = useMutation(service.method.delete.byId);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // The row wraps this dialog in its own form; a delete must not submit it.
+    e.stopPropagation();
+    const result = await mutate(id);
+    if (Either.isRight(result)) setOpen(false);
+  }
+
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button type="button" asChild className="rounded-full p-2" variant="destructive">
@@ -27,14 +36,14 @@ export const DeleteBtn = memo(function DeleteBtn({ method }: { method: Method })
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Hapus Catatan</DialogTitle>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2 text-3xl">
-            <DialogDescription>Hapus metode: {method.name}?</DialogDescription>
-            <TextError>{error}</TextError>
+          <DialogTitle className="text-big">Hapus Metode</DialogTitle>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+            <DialogDescription>Hapus metode: {name}?</DialogDescription>
+            <TextError>{error?.message}</TextError>
             <div className="col-span-2 flex flex-col items-end">
-              <Button disabled={loading} variant="destructive">
+              <Button disabled={pending} variant="destructive">
                 Hapus
-                <Spinner when={loading} />
+                <Spinner when={pending} />
               </Button>
             </div>
           </form>
@@ -42,4 +51,4 @@ export const DeleteBtn = memo(function DeleteBtn({ method }: { method: Method })
       </DialogContent>
     </Dialog>
   );
-}, equal);
+});

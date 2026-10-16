@@ -22,7 +22,7 @@ export const NewBtn = memo(function NewBtn() {
       </Button>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Tambahkan Jenis Pembayaran</DialogTitle>
+          <DialogTitle className="text-big">Tambahkan Jenis Pembayaran</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <Input
               name="name"

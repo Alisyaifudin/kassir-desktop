@@ -7,6 +7,13 @@ export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
 export type MethodKind = (typeof METHODS)[number];
 
 /**
+ * The kinds a default method can be set for. `cash` is excluded: it is what the
+ * others fall back to, so it is never itself a default.
+ */
+export const DEFAULTABLE_KINDS = ["transfer", "debit", "qris"] as const;
+export type DefaultableKind = (typeof DEFAULTABLE_KINDS)[number];
+
+/**
  * How an extra's `value` is read: a flat amount, or a percentage of the total.
  * Shared by the extra catalog and the records that snapshot it.
  */
