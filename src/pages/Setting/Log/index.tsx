@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { AdminOnly } from "../z-AdminOnly";
+import { AdminOnly } from "~/components/AdminOnly";
 import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));

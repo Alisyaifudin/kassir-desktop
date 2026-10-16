@@ -1,31 +1,24 @@
-import { Effect } from "effect";
-import { useState } from "react";
+import { Either } from "effect";
 import { useNavigate } from "react-router";
-import { db } from "~/database";
+import { useMutation } from "~/components/Loader";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { log } from "~/lib/log";
+import { service } from "~/services";
 
+/** Soft-deletes the extra, then returns to the list it was opened from. */
 export function useDel(id: string) {
-  const [error, setError] = useState<null | string>(null);
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const backUrl = useGetUrlBack("/extras");
-  async function handleDelete() {
-    setLoading(true);
-    const errMsg = await Effect.runPromise(program(id));
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) navigate(backUrl);
-  }
-  return { error, loading, handleDelete };
-}
+  const { pending, error, mutate } = useMutation(service.extra.delete.byId);
 
-function program(id: string) {
-  return db.extra.del.byId(id).pipe(
-    Effect.as(null),
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  async function handleDelete() {
+    const result = await mutate(id);
+    if (Either.isLeft(result)) {
+      log.error(result.left);
+      return;
+    }
+    navigate(backUrl);
+  }
+
+  return { error: error?.message ?? null, loading: pending, handleDelete };
 }

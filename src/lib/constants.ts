@@ -6,6 +6,12 @@ export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
 export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
 export type MethodKind = (typeof METHODS)[number];
 
+/**
+ * How an extra's `value` is read: a flat amount, or a percentage of the total.
+ * Shared by the extra catalog and the records that snapshot it.
+ */
+export type ValueKind = "number" | "percent";
+
 /** Shape of the built-in method rows seeded below; the `method` service owns the domain type. */
 type Method = { id: string; name?: string; kind: MethodKind };
 

@@ -1,6 +1,8 @@
 import { Effect, Context, Data, Stream } from "effect";
 import type { NotFound } from "~/lib/effect-error";
-import type { MethodKind } from "~/lib/constants";
+import type { MethodKind, ValueKind } from "~/lib/constants";
+
+export type { ValueKind };
 
 export class RecordError extends Data.TaggedError("RecordError")<{ message: string }> {}
 
@@ -22,7 +24,6 @@ export type RecordSummary = {
 };
 
 export type DiscountKind = "number" | "percent" | "pcs";
-export type ValueKind = "number" | "percent";
 
 export type Discount = {
   id: string;

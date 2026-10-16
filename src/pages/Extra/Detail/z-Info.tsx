@@ -1,4 +1,5 @@
-import { Extra } from "~/database/extra/cache";
+import { KIND_LABEL } from "../util-extra-options";
+import type { Extra } from "~/services/extra";
 
 export function Info({ extra }: { extra: Extra }) {
   return (
@@ -7,9 +8,9 @@ export function Info({ extra }: { extra: Extra }) {
       <span>Nama</span>
       <span>{extra.name}</span>
       <span>Jenis</span>
-      <span>{extra.kind}</span>
+      <span>{KIND_LABEL[extra.kind]}</span>
       <span>Nilai</span>
-      <span>{extra.value}</span>
+      <span>{extra.value.toLocaleString("id-ID")}</span>
     </div>
   );
 }

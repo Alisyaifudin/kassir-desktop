@@ -1,11 +1,17 @@
+import { useMemo } from "react";
 import { useExtraSearch } from "~/hooks/use-extra-search";
-import { Extra } from "~/database/extra/cache";
+import type { Extra } from "~/services/extra";
 import { useQuery } from "./use-query";
 
-export function useFilterExtras(all: Extra[]) {
+/**
+ * The catalog, narrowed by the `query` param. A blank query keeps the list as
+ * the service ordered it; otherwise the fuzzy ranking decides.
+ */
+export function useFilterExtras(all: Extra[]): Extra[] {
   const search = useExtraSearch(all);
   const [query] = useQuery();
-  const p = all.sort((a, b) => a.name.localeCompare(b.name));
-  const extras: Extra[] = query.trim() === "" ? p : search(query.trim()).map((a) => a.item);
-  return extras;
+  return useMemo(() => {
+    const trimmed = query.trim();
+    return trimmed === "" ? all : search(trimmed).map((result) => result.item);
+  }, [all, query, search]);
 }

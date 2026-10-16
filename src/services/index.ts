@@ -8,6 +8,8 @@ import { ConfigLive } from "./config/live";
 import { CustomerService } from "./customer";
 import { CustomerLive } from "./customer/live";
 import { DatabaseLive } from "./db/live";
+import { ExtraService } from "./extra";
+import { ExtraLive } from "./extra/live";
 import { InfoService } from "./info";
 import { InfoLive } from "./info/live";
 import { LocalStorageLive } from "./local-storage/live";
@@ -31,6 +33,7 @@ import { StoreLive } from "./store/live";
 const hiddenLive = Layer.mergeAll(DatabaseLive, LocalStorageLive, StoreLive);
 
 const cashierLive = CashierLive.pipe(Layer.provide(hiddenLive));
+const extraLive = ExtraLive.pipe(Layer.provide(hiddenLive));
 const configLive = ConfigLive.pipe(Layer.provide(hiddenLive));
 const customerLive = CustomerLive.pipe(Layer.provide(hiddenLive));
 const infoLive = InfoLive.pipe(Layer.provide(hiddenLive));
@@ -50,6 +53,7 @@ const appLive = Layer.mergeAll(
   configLive,
   cashierLive,
   customerLive,
+  extraLive,
   infoLive,
   logLive,
   methodLive,
@@ -67,6 +71,7 @@ export const service = Effect.runSync(
       config: yield* ConfigService,
       cashier: yield* CashierService,
       customer: yield* CustomerService,
+      extra: yield* ExtraService,
       info: yield* InfoService,
       logs: yield* LogService,
       method: yield* MethodService,

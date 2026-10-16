@@ -1,12 +1,11 @@
 import { Layout } from "./z-Layout";
 import { ExtraPanel } from "./z-ExtraPanel";
 import { Table, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { Loading } from "./z-LoadingTable";
-import { log } from "~/lib/log";
-import { ErrorComponent } from "~/components/ErrorComponent";
+import { Loader, useStream } from "~/components/Loader";
+import { service } from "~/services";
 import { ExtraList } from "./z-ExtraList";
+import { ExtraErrorBoundary, ExtraErrorFallback } from "./z-Error";
+import { Loading } from "./z-LoadingTable";
 
 export default function Page() {
   return (
@@ -24,7 +23,7 @@ export default function Page() {
                 <TableHead className="icon"></TableHead>
               </TableRow>
             </TableHeader>
-            <Loader />
+            <List />
           </Table>
         </div>
       </div>
@@ -32,18 +31,13 @@ export default function Page() {
   );
 }
 
-function Loader() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <ErrorComponent status={500}>{e.message}</ErrorComponent>;
-    },
-    onSuccess(extras) {
-      return <ExtraList all={extras} />;
-    },
-  });
+function List() {
+  const res = useStream(service.extra.get.changes);
+  return (
+    <ExtraErrorBoundary fallback={ExtraErrorFallback}>
+      <Loader res={res} fallback={<Loading />}>
+        {({ data: extras }) => <ExtraList all={extras} />}
+      </Loader>
+    </ExtraErrorBoundary>
+  );
 }

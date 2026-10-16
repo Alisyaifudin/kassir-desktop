@@ -1,21 +1,12 @@
 import { useMemo } from "react";
 import createFuzzySearch from "@nozbe/microfuzz";
-import { Extra } from "~/database/extra/cache";
-// Fuse returns the original item nested within the result object
 
-export const useExtraSearch = (products: Extra[]) => {
-  const fuzz = useMemo(() => {
-    const fuzzy = createFuzzySearch(products, {
-      key: "name",
-    });
-    return fuzzy;
-  }, [products]);
-
-  // Typed search function
-  const search = (query: string) => {
-    const res = fuzz(query);
-    return res;
-  };
-
+/**
+ * Fuzzy search over anything with a `name`, ranked by match quality. Generic so
+ * each caller keeps its own row type: the extra catalog here, the POS extra
+ * picker elsewhere.
+ */
+export function useExtraSearch<T extends { name: string }>(items: T[]) {
+  const search = useMemo(() => createFuzzySearch(items, { key: "name" }), [items]);
   return search;
-};
+}

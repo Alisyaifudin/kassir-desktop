@@ -1,6 +1,6 @@
 import { createFormHook } from "@tanstack/react-form";
 import { Fragment } from "react/jsx-runtime";
-import { fieldContext, formContext } from "./util-extra-options";
+import { fieldContext, formContext, type Kind } from "./util-extra-options";
 import { ShortField } from "./z-ShortField";
 import { SelectKind } from "./z-SelectKind";
 import { CheckDual } from "./z-CheckDual";
@@ -20,7 +20,7 @@ export const ExtraForm = withForm({
   defaultValues: {
     name: "",
     value: "",
-    kind: "percent" as DB.ValueKind,
+    kind: "percent" as Kind,
     dual: false,
   },
   props: {

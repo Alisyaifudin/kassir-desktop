@@ -6,7 +6,7 @@ const Page = lazy(() => import("./page.tsx"));
 
 export const extraDetailRoute: RouteObject = {
   Component: () => {
-    const id = useLoaderData<Loader>();
+    const id = useLoaderData<typeof loader>();
     return (
       <Suspense fallback={<Loading />}>
         <Page id={id} />
@@ -17,9 +17,6 @@ export const extraDetailRoute: RouteObject = {
   path: ":id",
 };
 
-async function loader({ params }: LoaderFunctionArgs) {
-  const id = params.id!;
-  return id;
+function loader({ params }: LoaderFunctionArgs) {
+  return params.id!;
 }
-
-type Loader = typeof loader;

@@ -1,43 +1,37 @@
 import { Info } from "./z-Info";
 import { ExtraForm } from "./z-ExtraForm";
-import { Extra } from "~/database/extra/cache";
-import { useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { ErrorComponent } from "~/components/ErrorComponent";
+import { Loader, useStream } from "~/components/Loader";
 import { NotFound } from "~/components/NotFound";
+import { service } from "~/services";
+import type { Extra } from "~/services/extra";
 import { useUser } from "~/hooks/use-user";
 import { Skeleton } from "~/components/ui/skeleton";
+import { ExtraErrorBoundary, ExtraErrorFallback } from "../z-Error";
 
 export default function Page({ id }: { id: string }) {
   return (
     <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
       <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
-        <Loader id={id} />
+        <ExtraErrorBoundary fallback={ExtraErrorFallback}>
+          <Finder id={id} />
+        </ExtraErrorBoundary>
       </div>
     </main>
   );
 }
 
-function Loader({ id }: { id: string }) {
-  const res = useData(id);
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError(error) {
-      switch (error._tag) {
-        case "DbError":
-          log.error(error.e);
-          return <ErrorComponent>{error.e.message}</ErrorComponent>;
-        case "NotFound":
-          return <NotFound />;
-      }
-    },
-    onSuccess(extra) {
-      return <Detail extra={extra} />;
-    },
-  });
+function Finder({ id }: { id: string }) {
+  const res = useStream(service.extra.get.changes);
+  return (
+    <Loader res={res} fallback={<Loading />}>
+      {({ data: extras }) => {
+        // The row can be deleted from elsewhere, or the id hand-edited.
+        const extra = extras.find((item) => item.id === id);
+        if (extra === undefined) return <NotFound />;
+        return <Detail extra={extra} />;
+      }}
+    </Loader>
+  );
 }
 
 function Loading() {
