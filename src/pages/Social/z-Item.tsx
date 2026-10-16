@@ -5,12 +5,24 @@ import { memo } from "react";
 import { cn } from "~/lib/utils";
 import { Show } from "~/components/Show";
 import { DeleteBtn } from "./z-DeleteBtn";
-import { Social } from "~/database/social/cache";
-import { useUpdate } from "./use-update";
+import { useSocialForm } from "./use-social-form";
 import { Field, FieldError } from "~/components/ui/field";
 
-export const Item = memo(function Item({ id, name, value }: Social) {
-  const { form, error } = useUpdate({ id, name, value });
+/**
+ * One contact, edited in place: the write runs on submit (Enter, or the hidden
+ * submit button), so there is no save button to reach for.
+ */
+export const Item = memo(function Item({
+  id,
+  name,
+  value,
+}: {
+  id: string;
+  name: string;
+  value: string;
+}) {
+  const { form, error } = useSocialForm({ id, name, value });
+
   return (
     <form
       onSubmit={(e) => {

@@ -108,7 +108,6 @@ export const InfoLive = Layer.effect(
           yield* SubscriptionRef.set(infoRef, info);
           loaded = true;
         }),
-      refresh: () => hydrate(),
       changes: Stream.unwrap(ensureLoaded().pipe(Effect.as(infoRef.changes))),
     };
   }),

@@ -1,16 +1,17 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { admin } from "~/middleware/admin";
+import { AdminOnly } from "~/components/AdminOnly";
 import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 
 export const socialRoute: RouteObject = {
-  middleware: [admin],
   Component: () => (
-    <Suspense fallback={<Loading />}>
-      <Page />
-    </Suspense>
+    <AdminOnly fallback="/setting">
+      <Suspense fallback={<Loading />}>
+        <Page />
+      </Suspense>
+    </AdminOnly>
   ),
   path: "social",
 };

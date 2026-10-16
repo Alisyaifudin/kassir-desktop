@@ -19,8 +19,6 @@ export class InfoService extends Context.Tag("InfoService")<
     name: () => Effect.Effect<string, InfoError>;
     info: () => Effect.Effect<Info, InfoError>;
     set: (info: Info) => Effect.Effect<void, InfoError>;
-    /** Re-read after an external store writer changes the shop identity. */
-    refresh: () => Effect.Effect<void, InfoError>;
     changes: Stream.Stream<Info, InfoError>;
   }
 >() {}

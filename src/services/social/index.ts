@@ -11,14 +11,23 @@ export type Social = {
   syncAt: number | null;
 };
 
+/** An editable contact line — everything but its id and sync bookkeeping. */
+export type SocialInput = {
+  name: string;
+  value: string;
+};
+
 export class SocialService extends Context.Tag("SocialService")<
   SocialService,
   {
     get: {
       all: () => Effect.Effect<Social[], SocialError>;
-      /** Re-read after an external writer changes the contact list. */
-      refresh: () => Effect.Effect<void, SocialError>;
+      /** Tracks the contact list, so a write reaches the receipt. */
       changes: Stream.Stream<Social[], SocialError>;
     };
+    add: (input: SocialInput) => Effect.Effect<string, SocialError>;
+    set: { info: (id: string, input: SocialInput) => Effect.Effect<void, SocialError> };
+    /** Soft-deletes the contact; the row stays for sync. */
+    delete: { byId: (id: string) => Effect.Effect<void, SocialError> };
   }
 >() {}

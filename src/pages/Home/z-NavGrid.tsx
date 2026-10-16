@@ -73,13 +73,15 @@ export function NavGrid() {
         description="Kelola dan pantau catatan utang pelanggan"
         color="bg-rose-100 text-rose-600"
       />
-      <NavCard
-        label="Kontak"
-        path="/social"
-        icon={Phone}
-        description="Kelola informasi media sosial dan kontak lainnya"
-        color="bg-purple-100 text-purple-600"
-      />
+      <Show when={isAdmin}>
+        <NavCard
+          label="Kontak"
+          path="/social"
+          icon={Phone}
+          description="Kelola informasi media sosial dan kontak lainnya"
+          color="bg-purple-100 text-purple-600"
+        />
+      </Show>
       <NavCard
         label="Kasir"
         path="/cashier"

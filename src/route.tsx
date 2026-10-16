@@ -9,7 +9,7 @@ import { moneyRoute } from "./pages/Money";
 // import { cashierRoute } from "./pages/Cashier/index.tsx";
 // import { customerRoute } from "./pages/Customer/index.tsx";
 // import { methodRoute } from "./pages/Method/index.tsx";
-// import { socialRoute } from "./pages/Social/index.tsx";
+import { socialRoute } from "./pages/Social/index.tsx";
 import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
 import { debtRoute } from "./pages/Debt/index.tsx";
@@ -33,7 +33,7 @@ export const router = createHashRouter([
           // cashierRoute,
           // customerRoute,
           // methodRoute,
-          // socialRoute,
+          socialRoute,
           extraRoute,
           homeRoute,
           debtRoute,
