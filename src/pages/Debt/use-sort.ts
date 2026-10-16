@@ -1,8 +1,8 @@
 import { useSearchParams } from "react-router";
 import { z } from "zod";
+import type { DebtSortBy, DebtSortDir } from "./util-debt";
 
-export type DebtSortBy = "paidAt" | "total";
-export type DebtSortDir = "asc" | "desc";
+export type { DebtSortBy, DebtSortDir };
 
 export function useSort() {
   const [search, setSearch] = useSearchParams();

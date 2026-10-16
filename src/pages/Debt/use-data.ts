@@ -1,26 +1,20 @@
-import Decimal from "decimal.js";
-import { Effect, pipe } from "effect";
-import { db } from "~/database";
-import { Result } from "~/lib/result";
-import { setSummary } from "./z-Summary";
+import { Stream } from "effect";
+import { useQuery, useStream, type Result } from "~/components/Loader";
+import { service } from "~/services";
+import type { DebtRecord, RecordError } from "~/services/record";
 
-const KEY = "record-debt";
-
-export function useData() {
-  const res = Result.use({
-    fn: () => program,
-    key: KEY,
-  });
-  return res;
+/**
+ * The service's write counter. Settling, deleting or re-crediting a record moves
+ * it in or out of this list, so the query re-reads on it. Seeded at 0 so the
+ * first render already has a stable key.
+ */
+function useRevision(): number {
+  const res = useStream(service.record.get.revision, () => 0);
+  return res.type === "success" ? res.data : 0;
 }
 
-const program = pipe(
-  db.record.get.debt(),
-  Effect.tap((records) => {
-    let total = new Decimal(0);
-    for (const record of records) {
-      total = total.plus(record.total);
-    }
-    setSummary(total.toNumber());
-  }),
-);
+/** Unsettled credit records, newest first. */
+export function useData(): Result<DebtRecord[], RecordError> {
+  const revision = useRevision();
+  return useQuery(() => Stream.fromEffect(service.record.get.debt()), [revision]);
+}

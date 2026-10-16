@@ -10,28 +10,20 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { RecordDebt } from "~/database/record/get-debt";
 import { formatDate } from "~/lib/date";
 import { cn } from "~/lib/utils";
+import type { DebtRecord } from "~/services/record";
 import { DebtSortBy, DebtSortDir, useSort } from "./use-sort";
+import { sortDebt } from "./util-debt";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
-export function DebtTable({ records }: { records: RecordDebt[] }) {
+export function DebtTable({ records }: { records: DebtRecord[] }) {
   const [{ sortBy, sortDir }, setSort] = useSort();
   const urlBack = useGenerateUrlBack("/debt");
-  const sortedRecords = useMemo(() => {
-    const list = [...records];
-    const sign = sortDir === "asc" ? 1 : -1;
-    switch (sortBy) {
-      case "paidAt":
-        list.sort((a, b) => sign * (a.paidAt - b.paidAt));
-        break;
-      case "total":
-        list.sort((a, b) => sign * (a.total - b.total));
-        break;
-    }
-    return list;
-  }, [records, sortBy, sortDir]);
+  const sortedRecords = useMemo(
+    () => sortDebt(records, sortBy, sortDir),
+    [records, sortBy, sortDir],
+  );
 
   const onSort = (by: DebtSortBy) => () => {
     if (sortBy === by) {

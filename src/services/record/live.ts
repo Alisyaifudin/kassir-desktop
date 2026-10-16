@@ -2,6 +2,7 @@ import { Effect, Layer, SubscriptionRef } from "effect";
 import {
   RecordError,
   RecordService,
+  type DebtRecord,
   type RecordImport,
   type Discount,
   type DiscountKind,
@@ -35,6 +36,14 @@ type SummaryRow = {
   mode: RecordMode;
   count: number;
   total: number;
+};
+
+type DebtRow = {
+  record_id: string;
+  record_paid_at: number;
+  record_note: string;
+  record_fix: number;
+  record_total: number;
 };
 
 type RecordRow = {
@@ -272,6 +281,14 @@ const SELECT_MOVES = `
   JOIN listings l ON l.listing_id = rl.listing_id
   WHERE rl.record_id = $1`;
 
+// A credit record is outstanding until `payCredit` clears its flag, so this is
+// the debt list. Legacy phrasing kept `record_total`, which is what is owed.
+const SELECT_DEBT = `
+  SELECT record_id, record_paid_at, record_note, record_fix, record_total
+  FROM records
+  WHERE record_is_credit = 1 AND record_deleted_at IS NULL
+  ORDER BY record_paid_at DESC`;
+
 const SELECT_LOTS = `
   SELECT stock_id, stock_value, stock_capital
   FROM stocks
@@ -369,6 +386,23 @@ export const RecordLive = Layer.effect(
             return grouped;
           }),
         );
+    }
+
+    function debt(): Effect.Effect<DebtRecord[], RecordError> {
+      return db.selectMany<DebtRow>(SELECT_DEBT).pipe(
+        Effect.mapError(dbErrorToRecordError),
+        Effect.map((rows) =>
+          rows.map(
+            (row): DebtRecord => ({
+              id: row.record_id,
+              paidAt: row.record_paid_at,
+              note: row.record_note,
+              fix: row.record_fix,
+              total: row.record_total,
+            }),
+          ),
+        ),
+      );
     }
 
     function byRange(
@@ -589,6 +623,7 @@ export const RecordLive = Layer.effect(
 
     return {
       get: {
+        debt,
         byRange,
         byId,
         listingHistory(input): Effect.Effect<ListingHistoryPage, RecordError> {

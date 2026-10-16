@@ -1,10 +1,10 @@
-import { useData } from "./use-data";
+import { Loader } from "~/components/Loader";
+import { Loading } from "~/components/Loading";
 import { Summary } from "./z-Summary";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { ErrorComponent } from "~/components/ErrorComponent";
-import { Loading as LoadingIndicator } from "~/components/Loading";
 import { DebtTable } from "./z-DebtTable.tsx";
+import { DebtErrorBoundary, DebtErrorFallback } from "./z-Error";
+import { useData } from "./use-data";
+import { totalDebt } from "./util-debt";
 
 export default function Page() {
   return (
@@ -15,30 +15,25 @@ export default function Page() {
           Pantau dan kelola catatan utang pelanggan
         </p>
       </div>
-      <Summary />
-      <div className="flex flex-col gap-2 py-1 flex-1  overflow-hidden">
-        <Wrapper />
-      </div>
+      <Content />
     </div>
   );
 }
 
-function Wrapper() {
+function Content() {
   const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <ErrorComponent>{e.message}</ErrorComponent>;
-    },
-    onSuccess(records) {
-      return <DebtTable records={records} />;
-    },
-  });
-}
-
-function Loading() {
-  return <LoadingIndicator />;
+  return (
+    <DebtErrorBoundary fallback={DebtErrorFallback}>
+      <Loader res={res} fallback={<Loading />}>
+        {({ data: records }) => (
+          <>
+            <Summary total={totalDebt(records)} />
+            <div className="flex flex-col gap-2 py-1 flex-1  overflow-hidden">
+              <DebtTable records={records} />
+            </div>
+          </>
+        )}
+      </Loader>
+    </DebtErrorBoundary>
+  );
 }

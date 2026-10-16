@@ -92,6 +92,19 @@ export type RecordFull = Record & {
 };
 
 /**
+ * An unsettled credit record. `payCredit` clears `is_credit`, so a record is
+ * outstanding exactly while that flag is set; `total` is what is owed.
+ */
+export type DebtRecord = {
+  id: string;
+  paidAt: number;
+  note: string;
+  /** Decimal places `total` is rendered with. */
+  fix: number;
+  total: number;
+};
+
+/**
  * One listing line with the date and mode of the record it belongs to — the row
  * shape behind the comprehensive search page.
  */
@@ -158,6 +171,8 @@ export class RecordService extends Context.Tag("RecordService")<
         query?: string,
       ) => Effect.Effect<Record[], RecordError>;
       byId: (id: string) => Effect.Effect<RecordFull, RecordError | NotFound>;
+      /** Unsettled credit records, newest first — the /debt table. */
+      debt: () => Effect.Effect<DebtRecord[], RecordError>;
       /**
        * Listing lines matching a product-name search in `[start, end)` for one
        * mode, newest first, capped at `limit` rows. The count of everything that
