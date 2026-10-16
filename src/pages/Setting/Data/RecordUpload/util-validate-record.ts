@@ -2,53 +2,54 @@ import { Effect } from "effect";
 import { z } from "zod";
 import { JsonError, TooBigError } from "~/lib/effect-error";
 import { log } from "~/lib/log";
+import type { RecordImport } from "~/services/record";
+
+export type { RecordImport } from "~/services/record";
+
+const discountSchema = z.object({
+  kind: z.enum(["number", "percent", "pcs"]),
+  value: z.number(),
+  eff: z.number(),
+});
+
+const listingSchema = z.object({
+  listingId: z.string().nullable(),
+  name: z.string(),
+  kind: z.string(),
+  price: z.number(),
+  qty: z.number().int(),
+  capital: z.number(),
+  total: z.number(),
+  discounts: z.array(discountSchema),
+});
 
 const extraSchema = z.object({
   name: z.string(),
   value: z.number(),
   eff: z.number(),
-  kind: z.enum(["percent", "number"]),
-});
-const discountSchema = z.object({
-  value: z.number(),
-  eff: z.number(),
-  kind: z.enum(["percent", "number", "pcs"]),
+  kind: z.enum(["number", "percent"]),
 });
 
-const productSchema = z.object({
-  name: z.string(),
-  price: z.number(),
-  qty: z.number().int(),
-  capital: z.number(),
-  capitalRaw: z.number(),
-  total: z.number(),
-  productId: z.string().optional(),
-  discounts: z.array(discountSchema),
-});
-
-const schema = z.object({
-  products: z.array(productSchema),
-  extras: z.array(extraSchema),
+const recordSchema: z.ZodType<RecordImport> = z.object({
   paidAt: z.number().int(),
   rounding: z.number(),
   isCredit: z.boolean(),
   cashier: z.string(),
-  mode: z.enum(["sell", "buy"]),
+  mode: z.enum(["incoming", "outcoming"]),
   pay: z.number(),
   note: z.string(),
-  methodId: z.string().nonempty(),
   fix: z.number().int(),
-  customer: z.object({
-    name: z.string(),
-    phone: z.string(),
-  }),
-  subtotal: z.number(),
+  customer: z.object({ name: z.string(), phone: z.string() }),
+  subTotal: z.number(),
   total: z.number(),
+  methods: z.array(z.object({ methodId: z.string().nonempty(), pay: z.number() })),
+  listings: z.array(listingSchema),
+  extras: z.array(extraSchema),
 });
 
-const recordsSchema = z.array(schema).min(1, { message: "Tidak boleh kosong" });
-
-export type RecordImport = z.infer<typeof schema>;
+const recordsSchema: z.ZodType<RecordImport[]> = z
+  .array(recordSchema)
+  .min(1, { message: "Tidak boleh kosong" });
 
 export const MAXIMUM_SIZE = 10e6; // 10 mb
 

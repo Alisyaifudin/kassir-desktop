@@ -2,6 +2,7 @@ import { Effect, Layer, SubscriptionRef } from "effect";
 import {
   RecordError,
   RecordService,
+  type RecordImport,
   type Discount,
   type DiscountKind,
   type ListingHistoryEntry,
@@ -302,6 +303,40 @@ const SELECT_TOUCHED_LOTS = `
 const SELECT_JOURNALED_PRODUCTS = `
   SELECT DISTINCT product_id FROM product_events WHERE record_id = $1`;
 
+// A catalog listing an imported line can still point at, with the product and
+// the unit that turn its qty into pcs. A deleted listing links to nothing.
+const SELECT_LISTING_LINK = `
+  SELECT listing_id, product_id, listing_unit
+  FROM listings
+  WHERE listing_id = $1 AND listing_deleted_at IS NULL`;
+
+function insertRecordStatement(id: string, input: RecordImport, now: number): Statement {
+  return {
+    sql: `INSERT INTO records (
+        record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
+        record_mode, record_pay, record_note, record_fix, record_customer_name,
+        record_customer_phone, record_sub_total, record_total, record_updated_at,
+        record_sync_at, record_deleted_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULL, NULL)`,
+    bindings: [
+      id,
+      input.paidAt,
+      input.rounding,
+      input.isCredit ? 1 : 0,
+      input.cashier,
+      input.mode,
+      input.pay,
+      input.note,
+      input.fix,
+      input.customer.name,
+      input.customer.phone,
+      input.subTotal,
+      input.total,
+      now,
+    ],
+  };
+}
+
 export const RecordLive = Layer.effect(
   RecordService,
   Effect.gen(function* () {
@@ -590,6 +625,112 @@ export const RecordLive = Layer.effect(
           });
         },
         revision: revisionRef.changes,
+      },
+      add: {
+        external(input) {
+          return Effect.gen(function* () {
+            const recordId = generateId();
+            const now = Date.now();
+            const statements: Statement[] = [insertRecordStatement(recordId, input, now)];
+            // Lots are read once per product and depleted as lines take from them,
+            // since the transaction has not run and a second read would hand out
+            // stock an earlier line already took.
+            const lotsByProduct = new Map<string, StockLot[]>();
+
+            for (const line of input.listings) {
+              const lineId = generateId();
+              const link = line.listingId === null
+                ? null
+                : ((yield* db
+                    .selectMany<{ listing_id: string; product_id: string; listing_unit: number }>(
+                      SELECT_LISTING_LINK,
+                      [line.listingId],
+                    )
+                    .pipe(Effect.mapError(dbErrorToRecordError)))[0] ?? null);
+
+              statements.push({
+                sql: `INSERT INTO record_listings (
+                    record_listing_id, listing_id, record_id, record_listing_name,
+                    record_listing_kind, record_listing_price, record_listing_qty,
+                    record_listing_capital, record_listing_total
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                bindings: [
+                  lineId,
+                  link?.listing_id ?? null,
+                  recordId,
+                  line.name,
+                  line.kind,
+                  line.price,
+                  line.qty,
+                  line.capital,
+                  line.total,
+                ],
+              });
+              for (const discount of line.discounts) {
+                statements.push({
+                  sql: `INSERT INTO discounts (
+                      discount_id, record_listing_id, discount_kind, discount_value, discount_eff
+                    ) VALUES ($1, $2, $3, $4, $5)`,
+                  bindings: [generateId(), lineId, discount.kind, discount.value, discount.eff],
+                });
+              }
+
+              if (link === null) continue;
+              const pcs = line.qty * link.listing_unit;
+              if (pcs === 0) continue;
+              if (input.mode === "outcoming") {
+                // Listing capital is per listing unit; a lot's capital is per pc.
+                statements.push(
+                  ...receiveStatements(
+                    link.product_id,
+                    { value: pcs, capital: line.capital / link.listing_unit },
+                    now,
+                    recordId,
+                  ),
+                );
+                continue;
+              }
+              let lots = lotsByProduct.get(link.product_id);
+              if (lots === undefined) {
+                lots = yield* readLots(link.product_id);
+              }
+              const { statements: consumed, shortage } = consumeStatements(
+                link.product_id,
+                lots,
+                pcs,
+                now,
+                "",
+                recordId,
+              );
+              if (shortage > 0) {
+                return yield* Effect.fail(
+                  new RecordError({ message: `Stok ${line.name} tidak mencukupi` }),
+                );
+              }
+              statements.push(...consumed);
+              lotsByProduct.set(link.product_id, depleteLots(lots, pcs));
+            }
+
+            for (const extra of input.extras) {
+              statements.push({
+                sql: `INSERT INTO record_extras (
+                    record_extra_id, record_extra_name, record_id,
+                    record_extra_value, record_extra_eff, record_extra_kind
+                  ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                bindings: [generateId(), extra.name, recordId, extra.value, extra.eff, extra.kind],
+              });
+            }
+            for (const method of input.methods) {
+              statements.push(insertMethod(recordId, method.methodId, method.pay));
+            }
+
+            yield* commit(statements);
+            yield* bumpRevision();
+            // Stock moved, so the product aggregate is stale; this runs after the
+            // commit, as it does for every other record write.
+            yield* refreshProducts();
+          });
+        },
       },
       count: {
         summary: (start, end) =>

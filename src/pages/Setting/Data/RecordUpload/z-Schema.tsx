@@ -10,43 +10,29 @@ import {
 } from "~/components/ui/dialog";
 
 const recordSchema = `{
-    products: {
-      name: string;
-      price: number;
-      qty: number;
-      capital: number;
-      capitalRaw: number;
-      total: number;
-      discounts: {
-        kind: "percent" | "number" | "pcs";
-        value: number;
-        eff: number;
-      }[]; 
-    }[];
-    extras: {
-      name: string;
-      value: number;
-      eff: number;
-      kind: "percent" | "number";
-    }[];
-    paidAt: number;
+    paidAt: number;               // ms since epoch
     rounding: number;
     isCredit: boolean;
     cashier: string;
-    mode: "buy" | "sell";
+    mode: "incoming" | "outcoming";  // incoming = sale, outcoming = purchase
     pay: number;
     note: string;
-    method: {
-        name?: string;
-        kind: "cash" | "transfer" | "debit" | "qris";
-    };
     fix: number;
-    customer: {
-        name: string;
-        phone: string;
-    };
+    customer: { name: string; phone: string };
     subTotal: number;
     total: number;
+    methods: { methodId: string; pay: number }[];
+    listings: {
+      listingId: string | null;      // catalog listing, or null for a manual line
+      name: string;
+      kind: string;
+      price: number;
+      qty: number;
+      capital: number;
+      total: number;
+      discounts: { kind: "number" | "percent" | "pcs"; value: number; eff: number }[];
+    }[];
+    extras: { name: string; value: number; eff: number; kind: "number" | "percent" }[];
 }[]`;
 
 export function SchemaDialog() {

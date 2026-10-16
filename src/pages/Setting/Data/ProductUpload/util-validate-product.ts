@@ -2,20 +2,33 @@ import { Effect } from "effect";
 import { z } from "zod";
 import { JsonError, TooBigError } from "~/lib/effect-error";
 import { log } from "~/lib/log";
+import type { ProductInput } from "~/services/product";
 
-const schema = z.object({
-  id: z.string().nonempty(),
-  price: z.number(),
-  barcode: z.string().optional(),
+const listingSchema = z.object({
   name: z.string().nonempty(),
-  note: z.string(),
-  stock: z.number().int(),
-  capital: z.number(),
+  price: z.number(),
+  unit: z.number().int().positive(),
+  kind: z.string().nonempty(),
+  code: z.string().nullable(),
+  codeKind: z.enum(["barcode", "qr"]).nullable(),
 });
 
-const productsSchema = z.array(schema).min(1, { message: "Tidak boleh kosong" });
+const productSchema = z.object({
+  name: z.string().nonempty(),
+  note: z.string(),
+  listings: z.array(listingSchema).min(1, { message: "Minimal satu listing" }),
+  stocks: z
+    .array(z.object({ value: z.number(), capital: z.number() }))
+    .min(1, { message: "Minimal satu stok" }),
+  properties: z.array(z.object({ key: z.string(), value: z.string() })),
+});
 
-export type ProductImport = z.infer<typeof schema>;
+const productsSchema: z.ZodType<ProductInput[]> = z
+  .array(productSchema)
+  .min(1, { message: "Tidak boleh kosong" });
+
+/** One product in the file: the shape `product.add` takes. */
+export type ProductImport = ProductInput;
 
 export const MAXIMUM_SIZE = 10e6; // 10 mb
 

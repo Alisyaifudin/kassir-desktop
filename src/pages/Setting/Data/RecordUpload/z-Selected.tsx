@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Effect, Fiber } from "effect";
 import { toast } from "sonner";
-import { db } from "~/database";
-import { log } from "~/lib/log";
-import { TextError } from "~/components/TextError";
+import { service } from "~/services";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
 import { Show } from "~/components/Show";
+import { formatDate, formatTime } from "~/lib/date";
+import { SkippedItems, type Skipped } from "../z-Skipped";
 import { RecordImport } from "./util-validate-record";
 
 export function Selected({
@@ -21,8 +21,8 @@ export function Selected({
 }) {
   const length = useMemo(() => (data === undefined ? 0 : data.records.length), [data]);
   const fiberRef = useRef<Fiber.RuntimeFiber<void, unknown> | null>(null);
+  const [skipped, setSkipped] = useState<Skipped[]>([]);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<null | string>(null);
 
   function interruptUpload() {
     const fiber = fiberRef.current;
@@ -42,26 +42,31 @@ export function Selected({
 
   useEffect(() => {
     const uploadEffect = Effect.gen(function* () {
-      let i = 1;
       if (data === undefined) return;
       setProgress(0);
-      setError(null);
-      for (const record of data.records) {
-        yield* db.record.add.external(record);
-        setProgress(i);
-        i++;
+      setSkipped([]);
+      // A record whose stock cannot cover it is skipped and reported; the rest of
+      // the file still goes in, one transaction per record.
+      for (const [index, record] of data.records.entries()) {
+        yield* service.record.add.external(record).pipe(
+          Effect.catchTag("RecordError", ({ message }) =>
+            Effect.sync(() =>
+              setSkipped((items) => [
+                ...items,
+                {
+                  key: `${index}`,
+                  name: `${formatDate(record.paidAt, "long")}, ${formatTime(record.paidAt, "long")}`,
+                  reason: message,
+                },
+              ]),
+            ),
+          ),
+        );
+        setProgress(index + 1);
       }
       onRemove();
-      setError(null);
       toast.success("Berhasil mengunggah");
-    }).pipe(
-      Effect.catchTag("DbError", ({ e }) => {
-        log.error(e);
-        setError(e.message);
-        onRemove();
-        return Effect.void;
-      }),
-    );
+    });
 
     const fiber = Effect.runFork(uploadEffect);
     fiberRef.current = fiber;
@@ -95,13 +100,17 @@ export function Selected({
                 />
               </div>
               <p className="text-small text-muted-foreground">
-                {progress}/{length} data tersimpan
+                {progress}/{length} data diproses
               </p>
             </div>
           </>
         )}
       </Show>
-      <TextError>{error}</TextError>
+      <SkippedItems
+        title="Catatan dilewati"
+        items={skipped}
+        dismiss={() => setSkipped([])}
+      />
     </div>
   );
 }

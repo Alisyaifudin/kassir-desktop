@@ -1,12 +1,26 @@
-import { TextError } from "~/components/TextError";
-import { Spinner } from "~/components/Spinner";
 import { toast } from "sonner";
-import { setSize, useSize } from "~/hooks/use-size";
-import { useState } from "react";
+import { Spinner } from "~/components/Spinner";
+import { TextError } from "~/components/TextError";
+import { useMutation } from "~/components/Loader";
+import { useSize, type Size } from "~/hooks/use-size";
+import { service } from "~/services";
+
+function isSize(value: string): value is Size {
+  return value === "big" || value === "small";
+}
 
 export function SelectSize() {
   const size = useSize();
-  const { loading, handleChange, error } = useChange();
+  const { pending, error, mutate } = useMutation(service.config.size.set);
+
+  function handleChange(value: string) {
+    if (!isSize(value)) {
+      toast.error("Pilihan tidak valid");
+      return;
+    }
+    void mutate(value);
+  }
+
   return (
     <div className="flex items-center gap-2">
       <label className="font-semibold text-normal">Ukuran</label>
@@ -18,25 +32,8 @@ export function SelectSize() {
         <option value="small">Kecil</option>
         <option value="big">Besar</option>
       </select>
-      <Spinner when={loading} />
-      <TextError>{error}</TextError>
+      <Spinner when={pending} />
+      <TextError>{error?.message ?? null}</TextError>
     </div>
   );
-}
-
-export function useChange() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
-  const handleChange = async (e: string) => {
-    if (e !== "big" && e !== "small") {
-      toast.error("Pilihan tidak valid");
-      return;
-    }
-    setSize(e);
-    setLoading(true);
-    const error = await setSize(e);
-    setLoading(false);
-    setError(error);
-  };
-  return { loading, error, handleChange };
 }

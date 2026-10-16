@@ -1,56 +1,49 @@
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
-import { Effect } from "effect";
-import { useState } from "react";
-import { db } from "~/database";
-import { IOError } from "~/lib/effect-error";
+import { Effect, Either, Option, Stream } from "effect";
+import { useMutation } from "~/components/Loader";
 import { log } from "~/lib/log";
+import { service } from "~/services";
+import type { ProductFull } from "~/services/product";
+import type { ProductImport } from "./ProductUpload/util-validate-product";
+import { messageOf, saveJson } from "./util-file";
 
-export function useProduct() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    const errMsg = await Effect.runPromise(program);
-    setLoading(false);
-    setError(errMsg);
-  }
-  return { handleSubmit, loading, error };
+/** A product as the upload accepts it: the same shape `product.add` takes. */
+function toProductImport(product: ProductFull): ProductImport {
+  return {
+    name: product.name,
+    note: product.note,
+    listings: product.listings.map(({ name, price, unit, kind, code, codeKind }) => ({
+      name,
+      price,
+      unit,
+      kind,
+      code,
+      codeKind,
+    })),
+    stocks: product.stocks.map(({ value, capital }) => ({ value, capital })),
+    properties: product.properties.map(({ key, value }) => ({ key, value })),
+  };
 }
 
-const program = Effect.gen(function* () {
-  const products = yield* db.product.get.all();
-  const json = JSON.stringify(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    products.map(({ updatedAt, syncAt, ...p }) => p),
-    null,
-    2,
-  );
-  const blob = new Blob([json], { type: "application/json" });
-  const data = yield* Effect.tryPromise({
-    try: () => blob.bytes(),
-    catch: (e) => new IOError(e),
+export function useProduct() {
+  const { pending, error, mutate } = useMutation(program);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const result = await mutate(undefined);
+    if (Either.isLeft(result)) log.error(messageOf(result.left));
+  }
+
+  return {
+    handleSubmit,
+    loading: pending,
+    error: error === null ? null : messageOf(error),
+  };
+}
+
+function program() {
+  return Effect.gen(function* () {
+    const snapshot = yield* Stream.runHead(service.product.get.changesFull);
+    const products = Option.getOrElse(snapshot, (): ProductFull[] => []);
+    yield* saveJson(`${Date.now()}-products.json`, products.map(toProductImport));
   });
-  const name = `${Date.now()}-products.json`;
-  const filePath = yield* Effect.tryPromise({
-    try: () =>
-      save({
-        title: "Simpan Data",
-        defaultPath: name,
-        filters: [{ name: "JSON", extensions: ["json"] }],
-      }),
-    catch: (e) => new IOError(e),
-  });
-  if (filePath === null) return null;
-  yield* Effect.tryPromise({
-    try: () => writeFile(filePath, data),
-    catch: (e) => new IOError(e),
-  });
-  return null;
-}).pipe(
-  Effect.catchTag("DbError", ({ e }) => {
-    log.error(e);
-    return Effect.succeed(e.message);
-  }),
-);
+}

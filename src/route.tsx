@@ -2,7 +2,7 @@ import { createHashRouter } from "react-router";
 import { loginRoute } from "./pages/Login";
 // import { shopRoute } from "./pages/Shop";
 import { productRoute } from "./pages/Product";
-// import { settingRoute } from "./pages/Setting";
+import { settingRoute } from "./pages/Setting";
 import { recordRoute } from "./pages/Record";
 import { moneyRoute } from "./pages/Money";
 // import { analRoute } from "./pages/Analytics";
@@ -38,7 +38,7 @@ export const router = createHashRouter([
           homeRoute,
           // debtRoute,
           // shopRoute,
-          // settingRoute,
+          settingRoute,
           productRoute,
           moneyRoute,
           recordRoute,

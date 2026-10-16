@@ -18,7 +18,7 @@ export type NavItem = {
   /** Icon tile colors, used by the card grid on `/setting`. */
   color: string;
   section: Section;
-  /** Roles allowed to open the page — mirrors the `admin` route middleware. */
+  /** Roles allowed to open the page — each route enforces this with `AdminOnly` (or not, as noted). */
   roles: Role[];
 };
 

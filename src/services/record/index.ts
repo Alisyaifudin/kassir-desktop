@@ -112,6 +112,37 @@ export type ListingHistoryPage = {
   total: number;
 };
 
+/**
+ * A record as the import file carries it: the full record with no ids of its
+ * own. Listings link to the catalog by `listingId`, which is null when the
+ * listing is gone (or was never catalogued), and such a line moves no stock.
+ */
+export type RecordImport = {
+  paidAt: number;
+  rounding: number;
+  isCredit: boolean;
+  cashier: string;
+  mode: RecordMode;
+  pay: number;
+  note: string;
+  fix: number;
+  customer: { name: string; phone: string };
+  subTotal: number;
+  total: number;
+  methods: { methodId: string; pay: number }[];
+  listings: {
+    listingId: string | null;
+    name: string;
+    kind: string;
+    price: number;
+    qty: number;
+    capital: number;
+    total: number;
+    discounts: { kind: DiscountKind; value: number; eff: number }[];
+  }[];
+  extras: { name: string; value: number; eff: number; kind: ValueKind }[];
+};
+
 export class RecordService extends Context.Tag("RecordService")<
   RecordService,
   {
@@ -143,6 +174,14 @@ export class RecordService extends Context.Tag("RecordService")<
       }) => Effect.Effect<ListingHistoryPage, RecordError>;
       /** Bumps on every write; a queried page re-reads when it changes. */
       revision: Stream.Stream<number, RecordError>;
+    };
+    add: {
+      /**
+       * Writes a record that was made elsewhere, under a new id. A sale takes its
+       * stock FIFO and a purchase arrives as a cost lot, exactly as a live record
+       * would. Fails, writing nothing, when a sale's stock cannot cover a line.
+       */
+      external: (input: RecordImport) => Effect.Effect<void, RecordError>;
     };
     count: {
       summary: (start: number, end: number) => Effect.Effect<RecordSummary[], RecordError>;

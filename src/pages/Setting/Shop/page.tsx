@@ -1,11 +1,10 @@
 import { CashierCheckbox } from "./z-CashierCheckbox";
 import { SelectSize } from "./z-SelectSize";
 import { Info } from "./z-Info";
-import { TextError } from "~/components/TextError";
-import { useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
+import { InfoErrorBoundary, InfoErrorFallback } from "./z-Error";
+import { Loader, useStream } from "~/components/Loader";
 import { Skeleton } from "~/components/ui/skeleton";
+import { service } from "~/services";
 
 export default function Page() {
   return (
@@ -27,25 +26,19 @@ export default function Page() {
 }
 
 function Wrapper() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <TextError>{e.message}</TextError>;
-    },
-    onSuccess(info) {
-      const { owner, address, header, footer, showCashier } = info;
-      return (
-        <>
-          <Info owner={owner} address={address} header={header} footer={footer} />
-          <CashierCheckbox showCashier={showCashier} />
-        </>
-      );
-    },
-  });
+  const res = useStream(service.info.changes);
+  return (
+    <InfoErrorBoundary fallback={InfoErrorFallback}>
+      <Loader res={res} fallback={<Loading />}>
+        {({ data: info }) => (
+          <>
+            <Info owner={info.owner} address={info.address} header={info.header} footer={info.footer} />
+            <CashierCheckbox showCashier={info.showCashier} />
+          </>
+        )}
+      </Loader>
+    </InfoErrorBoundary>
+  );
 }
 
 function Loading() {

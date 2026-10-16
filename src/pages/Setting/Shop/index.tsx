@@ -1,15 +1,16 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { admin } from "~/middleware/admin";
+import { AdminOnly } from "../z-AdminOnly";
 
 const Page = lazy(() => import("./page"));
 
 export const shopRoute: RouteObject = {
-  middleware: [admin],
   Component: () => (
-    <Suspense>
-      <Page />
-    </Suspense>
+    <AdminOnly>
+      <Suspense>
+        <Page />
+      </Suspense>
+    </AdminOnly>
   ),
   path: "shop",
 };

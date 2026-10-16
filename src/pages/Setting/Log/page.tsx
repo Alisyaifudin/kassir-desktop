@@ -1,9 +1,8 @@
-import { useData } from "./use-data";
-import { TextError } from "~/components/TextError";
-import { Clear } from "./z-Clear";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
+import { Loader, useStream } from "~/components/Loader";
 import { Skeleton } from "~/components/ui/skeleton";
+import { service } from "~/services";
+import { Clear } from "./z-Clear";
+import { LogErrorBoundary, LogErrorFallback } from "./z-Error";
 
 export default function Page() {
   return (
@@ -14,41 +13,34 @@ export default function Page() {
       </div>
 
       <div className="rounded-2xl border bg-card p-4 shadow-sm flex-1 flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-normal font-semibold text-foreground">Riwayat Log</h2>
-          <Clear />
-        </div>
+        <LogErrorBoundary fallback={LogErrorFallback}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-normal font-semibold text-foreground">Riwayat Log</h2>
+            <Clear />
+          </div>
 
-        <div className="flex flex-col gap-1 bg-black rounded-xl p-4 h-full overflow-auto">
-          <Log />
-        </div>
+          <div className="flex flex-col gap-1 bg-black rounded-xl p-4 h-full overflow-auto">
+            <Lines />
+          </div>
+        </LogErrorBoundary>
       </div>
     </div>
   );
 }
 
-function Log() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <LoadingLines />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <TextError>{e.message}</TextError>;
-    },
-    onSuccess(text) {
-      return (
-        <>
-          {text.map((t, i) => (
-            <p className="text-white text-small" key={i}>
-              {t}
-            </p>
-          ))}
-        </>
-      );
-    },
-  });
+function Lines() {
+  const res = useStream(service.logs.lines.changes);
+  return (
+    <Loader res={res} fallback={<LoadingLines />}>
+      {({ data: lines }) =>
+        lines.map((line, i) => (
+          <p className="text-white text-small" key={i}>
+            {line}
+          </p>
+        ))
+      }
+    </Loader>
+  );
 }
 
 function LoadingLines() {

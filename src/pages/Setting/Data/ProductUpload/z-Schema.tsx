@@ -10,13 +10,21 @@ import {
 } from "~/components/ui/dialog";
 
 const productSchema = `{
-    id: string;
-    price: number;
-    barcode?: string | undefined;
     name: string;
-    stock: number;
-    capital: number;
     note: string;
+    listings: {
+        name: string;
+        price: number;
+        unit: number;        // pcs per listing unit, at least 1
+        kind: string;        // e.g. "retail", "wholesale"
+        code: string | null;
+        codeKind: "barcode" | "qr" | null;
+    }[];                     // at least one
+    stocks: {
+        value: number;       // pcs
+        capital: number;     // per pc
+    }[];                     // at least one
+    properties: { key: string; value: string }[];
 }[]`;
 
 export function SchemaDialog() {
@@ -34,7 +42,7 @@ export function SchemaDialog() {
           <DialogDescription asChild>
             <div className="space-y-3">
               <p className="text-small!">File JSON harus mengikuti bentuk data berikut:</p>
-              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
+              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
                 <code>{productSchema}</code>
               </pre>
             </div>
