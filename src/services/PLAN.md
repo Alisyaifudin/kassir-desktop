@@ -68,7 +68,7 @@ Legend: **owns** = tables the service is the only writer of.
 | 6 | `method` | `methods` | db | new |
 | 7 | `extra` | `extras` | db | new |
 | 8 | `social` | `socials` | db | new |
-| 9 | `money` | `money`, `money_kind` | db | new |
+| 9 | `money` | `pockets`, `money` | db | done |
 | 10 | `product` | `products`, `stocks`, `listings`, `codes`, `images`, `product_events` | db | new (big) |
 | 11 | `record` | `records`, `record_methods`, `record_listings`, `discounts`, `record_extras` | db, product | new (big) |
 | 12 | `report` | — (read-only joins) | db | new |
@@ -143,31 +143,43 @@ SocialService: { get:{all,unsync,changes}; add(name,value); set:{info,sync,syncM
 
 `extra.flag` semantics TBD — carried through opaquely.
 
-### 3.4 `money` (owns kinds + entries)
+### 3.4 `money` (owns pockets + entries) — shipped
+
+The concept was renamed `money_kind` → `pocket` by migrations 39/41, so the
+table is `pockets` and the columns are `pocket_*`. The service keeps the
+`money` name (the route and this catalog).
 
 ```ts
-type MoneyKind = { id; name; type: "absolute" | "change"; ordering: number; deletedAt };
-type MoneyEntry = { id; timestamp; value; kindId; note; deletedAt };
-type Balance = { kindId; balance: number };
+type PocketType = "absolute" | "change";
+type Pocket = { id; name; type: PocketType; ordering; updatedAt; syncAt; deletedAt };
+type MoneyEntry = { id; pocketId; timestamp; value; note; updatedAt; syncAt; deletedAt };
+type PocketSummary = { pocket: Pocket; latest: { timestamp; value } | null };
 
 MoneyService: {
-  kinds: {
-    get: { all(); changes: Stream<MoneyKind[]> };
+  pockets: {
+    get: { summary(): Effect<PocketSummary[]>; changes: Stream<PocketSummary[]> };
     add({ name, type }) => string;
-    set: { name(id,name); type(id,type); ordering(id,n); sync(id); syncMerge(k) };
-    delete: { byId(id); sync(id) };
+    set: { name(id,name); type(id,type); ordering({ id, order }[]) };
+    delete: { byId(id) };            // soft-deletes the pocket and its entries
   };
   entries: {
-    get: { all(); byRange(start,end); last(); unsync(); changes: Stream<MoneyEntry[]> };
-    add({ timestamp, value, kindId, note }) => string;
-    set: { sync(id); syncMerge(e) };
-    delete: { byId(id); sync(id) };
+    get: {
+      byRange(pocketId, start, end): Effect<MoneyEntry[]>;   // [start, end)
+      all(pocketId): Effect<MoneyEntry[]>;
+      last(pocketId, timestamp): Effect<number>;
+      revision: Stream<number>;
+    };
+    add: { one(input) => string; imported(input) };  // imported fails DuplicateError(ts)
+    delete: { byId(id) };
   };
-  balances(): Effect<Balance[]>;   // derived from entries + kind.type
 }
 ```
 
-Open: keep `money_kind` as a sibling service instead? (see §6 Q1.)
+The ref holds `PocketSummary[]` — pockets joined to their latest entry — so the
+`/money` grid streams card balances as well as the catalog. Entry lists are
+queried, not held, and re-read on `entries.get.revision`.
+
+`sync` methods are still to come (§3.8).
 
 ### 3.5 `product` (aggregate)
 
@@ -409,8 +421,8 @@ Phases 1–3 are the core; 4–7 can proceed independently once interfaces freez
 
 ## 7. Open questions
 
-1. **`money`**: one service owning `money` + `money_kind` (proposed), or split
-   into `money` and `moneyKind`?
+1. **`money`**: one service owning `pockets` + `money` (shipped; `money_kind` →
+   `pockets` rename folded in). §3.4
 2. **Product list read model**: always include `listings` + `codes`, and load
    `images`/`stocks` only in `byId`? (proposed yes) — images are the heavy part.
 3. **Records size**: confirm the `revision` + query-Effect approach instead of a

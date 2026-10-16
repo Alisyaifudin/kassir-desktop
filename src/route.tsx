@@ -4,7 +4,7 @@ import { loginRoute } from "./pages/Login";
 import { productRoute } from "./pages/Product";
 // import { settingRoute } from "./pages/Setting";
 import { recordRoute } from "./pages/Record";
-// import { moneyRoute } from "./pages/Money";
+import { moneyRoute } from "./pages/Money";
 // import { analRoute } from "./pages/Analytics";
 // import { cashierRoute } from "./pages/Cashier/index.tsx";
 // import { customerRoute } from "./pages/Customer/index.tsx";
@@ -40,7 +40,7 @@ export const router = createHashRouter([
           // shopRoute,
           // settingRoute,
           productRoute,
-          // moneyRoute,
+          moneyRoute,
           recordRoute,
           // analRoute,
         ],

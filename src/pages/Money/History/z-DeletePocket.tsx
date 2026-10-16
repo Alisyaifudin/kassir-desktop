@@ -12,9 +12,9 @@ import { Spinner } from "~/components/Spinner";
 import { useDeletePocket } from "./use-delete-pocket";
 import { DialogClose } from "@radix-ui/react-dialog";
 
-export const DeletePocketBtn = memo(function DeleteBtn({ kindId }: { kindId: string }) {
+export const DeletePocketBtn = memo(function DeletePocketBtn({ pocketId }: { pocketId: string }) {
   const [open, setOpen] = useState(false);
-  const { loading, error, handleDelete } = useDeletePocket(kindId, () => setOpen(false));
+  const { loading, error, handleDelete } = useDeletePocket(pocketId, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button type="button" asChild variant="destructive">

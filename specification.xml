@@ -383,9 +383,9 @@
             <route path=":id" page="RecordItem" />
             <route path="search" page="RecordSearch" />
           </route>
-          <route path="money" page="Money" layout="MoneyLayout" middleware="admin">
+          <route path="money" page="Money">
             <route index="true" />
-            <route path=":kind" page="MoneyHistory" />
+            <route path=":pocketId" page="MoneyHistory" />
           </route>
           <route path="analytics" page="Analytics">
             <route path="cashflow" page="AnalyticsCashflow" />
@@ -416,7 +416,7 @@
         <description>Checks auth.get() for a stored user. If undefined, throws redirect("/login"). Applied to the authenticated layout (all routes except /login).</description>
       </middleware>
       <middleware name="admin" file="src/middleware/admin.ts">
-        <description>Checks auth.user().role === "admin". If not admin, throws redirect("/setting"). Applied to: cashier, customer, method, money, social routes.</description>
+        <description>Checks auth.user().role === "admin". If not admin, throws redirect("/setting"). Applied to: cashier, customer, method, social routes. The money pages gate on useUser().role themselves, because the admin middleware module is gone.</description>
       </middleware>
     </middleware>
 
@@ -614,24 +614,7 @@
         </operations>
       </entity>
 
-      <entity name="money" module="src/database/money/">
-        <operations>
-          <get><method name="all()">All entries.</method><method name="byRange({from,to,kindId})">Filtered by date + kind.</method><method name="last()">Last entry.</method></get>
-          <add><method name="record(Money)">Add entry.</method><method name="external(Money)">Add with given ID.</method></add>
-          <update><method name="sync(Money[])">Batch sync.</method></update>
-          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
-        </operations>
-      </entity>
-
-      <entity name="moneyKind" module="src/database/money-kind/">
-        <operations>
-          <get><method name="all()">All money kinds.</method></get>
-          <add><method name="one(MoneyKind)">Add new kind.</method></add>
-          <update><method name="type({id,type})">Change absolute/change type.</method><method name="name({id,name})">Rename.</method><method name="reorder({id,ordering})">Update display order.</method><method name="sync(MoneyKind[])">Batch sync.</method></update>
-          <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
-        </operations>
-      </entity>
-
+      <!-- money / money_kind migrated to the Effect service layer — see the <services> section. -->
       <entity name="extra" module="src/database/extra/">
         <operations>
           <get><method name="all()">In-memory cached list.</method><method name="unsync()">Unsynced extras.</method><method name="byId(id)">Get by ID.</method></get>
@@ -767,6 +750,66 @@
       <description>addOne() in src/database/record/add/one.ts commits a full transaction as a single BEGIN/COMMIT block. Steps: (1) get product stock data, (2) insert record row, (3) upsert customer, (4) insert extras, (5) calculate effective capital per product, (6) update product stock and create product_events, (7) insert new products if needed, (8) insert record_products and discounts. On success, invalidates product cache.</description>
     </record_commit>
   </database>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 4b: Effect Services (src/services/)                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <services>
+    <description>
+      Domain state lives in Effect services at src/services/&lt;name&gt;/ — index.ts is the interface only,
+      live.ts is the Layer. Each service owns a SubscriptionRef as its single source of truth and exposes reads as
+      Effects plus a changes Stream; a write goes to SQLite first and then the ref, so subscribers see it. Components
+      subscribe with useStream / useQuery from src/components/Loader.tsx and render through Loader / LoaderMany, with
+      typed errors caught by createErrorBoundary. src/services/index.ts composes the layers and exports the app-level
+      `service` object (no provider needed at call sites). Unbounded, always-queried domains (records, entry lists)
+      expose query Effects plus a `revision` counter instead of a full-list ref. Services: config, auth, cashier,
+      customer, info, method, money, printer, product, record, social.
+    </description>
+
+    <service name="money" module="src/services/money/">
+      <description>
+        Money pockets and their ledger, replacing the legacy ~/database money / money-kind modules. Owns the `pockets`
+        and `money` tables in data.db (the table is `pockets` and every column `pocket_*` since migrations 39 and 41).
+        Reads filter `*_deleted_at IS NULL`; deletes are soft (`pocket_deleted_at` / `money_deleted_at`), and deleting
+        a pocket soft-deletes its entries too, since the FK cascade only fires on a physical delete.
+      </description>
+      <error name="MoneyError" tag="MoneyError">Wraps DbError at the service boundary.</error>
+      <state>
+        One SubscriptionRef holding PocketSummary[] — each pocket joined to its most recent entry — so a reorder, a
+        rename and a new entry all reach subscribers through pockets.get.changes. A write folds the new entry into
+        the owning pocket's card in memory; a delete re-reads it. Entry lists are queried, driven by
+        entries.get.revision.
+      </state>
+      <interface>
+        <group name="pockets">
+          <read>
+            <method name="get.summary()">The catalog, each pocket with its latest entry.</method>
+            <method name="get.changes">Stream&lt;PocketSummary[]&gt; — catalog plus latest balances.</method>
+          </read>
+          <write>
+            <method name="add({name,type})">Insert at the end of the ordering; returns the new id.</method>
+            <method name="set.name(id,name)">Rename.</method>
+            <method name="set.type(id,type)">Set the absolute | change type.</method>
+            <method name="set.ordering([{id,order}])">Persist a drag reorder as one write.</method>
+            <method name="delete.byId(id)">Soft-delete the pocket and every entry it holds.</method>
+          </write>
+        </group>
+        <group name="entries">
+          <read>
+            <method name="get.byRange(pocketId,start,end)">Entries in [start,end), newest first.</method>
+            <method name="get.all(pocketId)">Every entry, newest first — the JSON export.</method>
+            <method name="get.last(pocketId,timestamp)">Balance before the range; 0 when nothing precedes it.</method>
+            <method name="get.revision">Write counter a queried history re-reads on.</method>
+          </read>
+          <write>
+            <method name="add.one({pocketId,timestamp,value,note})">Insert an absolute balance.</method>
+            <method name="add.imported({pocketId,timestamp,value,note})">Insert unless the pocket already holds an entry at that instant; fails with DuplicateError(timestamp).</method>
+            <method name="delete.byId(id)">Soft-delete one entry.</method>
+          </write>
+        </group>
+      </interface>
+    </service>
+  </services>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 5-8: API, State, Pages, Sync                                    -->
@@ -997,13 +1040,15 @@
 
     <page name="money" path="/money">
       <description>
-        Cash flow tracking (admin only). Manages money kinds (categories) and money entries.
-        Each money kind has: name, type (absolute = manual entry, change = computed from others), ordering.
-        Money entries: value, timestamp, note. Linked to a money kind.
-        Layout: left panel (kinds list with add/edit/delete/reorder), right panel (entries grouped by kind).
+        Cash-flow pockets ("kantong"), admin only. A pocket has a name, a type — `absolute` (each entry is the
+        balance as typed) or `change` (the page adds each entry's delta to the balance the ledger last held) — and a
+        drag order. Entries carry value, timestamp and note. Backed by the money service.
+        Index: a draggable grid of pocket cards (name, relative time, latest balance) with a Kantong Baru dialog.
+        Detail: an editable pocket name, a date-range picker, a ledger table (day, date, time, diff for `change`
+        pockets, value, note) and delete-pocket / JSON upload / JSON download actions.
       </description>
       <subpages>
-        <subpage path="/money/:kind">Money history for a specific kind.</subpage>
+        <subpage path="/money/:pocketId">One pocket's ledger, in the selected date range.</subpage>
       </subpages>
     </page>
 

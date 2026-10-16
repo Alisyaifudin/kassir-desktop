@@ -9,15 +9,16 @@ import {
 import { DeleteRecordBtn } from "./z-DeleteRecordBtn";
 import { memo } from "react";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
-import { Money } from "~/database/money/get-by-range";
 import { Show } from "~/components/Show";
+import type { PocketType } from "~/services/money";
+import type { MoneyRow } from "./use-data";
 
-export const TableList = memo(function TableListDebt({
+export const TableList = memo(function TableList({
   money,
   type,
 }: {
-  money: Money[];
-  type: DB.MoneyType;
+  money: MoneyRow[];
+  type: PocketType;
 }) {
   return (
     <Table className="text-normal">
@@ -37,7 +38,7 @@ export const TableList = memo(function TableListDebt({
       </TableHeader>
       <TableBody>
         {money.map((m, i) => (
-          <TableRow key={m.timestamp}>
+          <TableRow key={m.id}>
             <TableCell className="font-medium">{i + 1}</TableCell>
             <TableCell className="text-center">{getDayName(m.timestamp)}</TableCell>
             <TableCell className="text-center">{formatDate(m.timestamp, "long")}</TableCell>

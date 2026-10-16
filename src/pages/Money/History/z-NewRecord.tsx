@@ -14,12 +14,12 @@ import { Spinner } from "~/components/Spinner";
 import { Textarea } from "~/components/ui/textarea";
 import { useNew } from "./use-new";
 import { Plus } from "lucide-react";
-import { MoneyKind } from "~/database/money/get-by-range";
+import type { Pocket } from "~/services/money";
 import equal from "fast-deep-equal";
 
-export const NewRecord = memo(function NewItem({ kind }: { kind: MoneyKind }) {
+export const NewRecord = memo(function NewRecord({ pocket }: { pocket: Pocket }) {
   const [open, setOpen] = useState(false);
-  const { form, error } = useNew(kind, () => setOpen(false));
+  const { form, error } = useNew(pocket, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>

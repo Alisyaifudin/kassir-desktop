@@ -1,24 +1,22 @@
 import { lazy, Suspense } from "react";
 import { LoaderFunctionArgs, RouteObject, useLoaderData } from "react-router";
-import { admin } from "~/middleware/admin";
-import { Loading } from "./z-Loading";
+import { TableLoading } from "../z-Loading";
 
 const Page = lazy(() => import("./page"));
 
-export const moneyDetailRoute: RouteObject = {
+export const moneyHistoryRoute: RouteObject = {
+  path: ":pocketId",
   Component: () => {
-    const kindId = useLoaderData<typeof loader>();
+    const pocketId = useLoaderData<typeof loader>();
     return (
-      <Suspense fallback={<Loading />}>
-        <Page kindId={kindId} />
+      <Suspense fallback={<TableLoading />}>
+        <Page pocketId={pocketId} />
       </Suspense>
     );
   },
-  path: ":kindId",
   loader,
-  middleware: [admin],
 };
 
 function loader({ params }: LoaderFunctionArgs) {
-  return params.kindId!;
+  return params.pocketId!;
 }

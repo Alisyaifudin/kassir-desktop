@@ -9,7 +9,7 @@ import { Selected } from "./z-Selected";
 import { Show } from "~/components/Show";
 import { Loading } from "./z-Loading";
 
-export function Content({ kindId }: { kindId: string }) {
+export function Content({ pocketId }: { pocketId: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const [loading, setLoading] = useState(false);
@@ -109,7 +109,7 @@ export function Content({ kindId }: { kindId: string }) {
         <h3 className="text-normal font-bold mb-2">Catatan Keuangan</h3>
       </div>
       <TextError>{error}</TextError>
-      <Selected kindId={kindId} data={data} onRemove={removeFile} />
+      <Selected pocketId={pocketId} data={data} onRemove={removeFile} />
       <Show when={!loading && data === undefined} fallback={<Loading />}>
         <div
           onDragEnter={handleDragEnter}

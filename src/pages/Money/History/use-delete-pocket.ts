@@ -1,36 +1,22 @@
-import { useState } from "react";
-import { db } from "~/database";
-import { Effect } from "effect";
-import { log } from "~/lib/log";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
+import { Either } from "effect";
 import { useNavigate } from "react-router";
-import { revalidateMoney } from "../use-data";
+import { useMutation } from "~/components/Loader";
+import { useGetUrlBack } from "~/hooks/use-get-url-back";
+import { service } from "~/services";
 
-export function useDeletePocket(kindId: string, onClose: () => void) {
-  const [error, setError] = useState<null | string>(null);
-  const [loading, setLoading] = useState(false);
+/** Soft-delete the pocket (and its entries), then return to the grid. */
+export function useDeletePocket(pocketId: string, onClose: () => void) {
   const urlBack = useGetUrlBack("/money");
   const navigate = useNavigate();
+  const { pending, error, mutate } = useMutation(service.money.pockets.delete.byId);
+
   async function handleDelete() {
-    setLoading(true);
-    const errMsg = await Effect.runPromise(program(kindId));
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      revalidateMoney();
+    const result = await mutate(pocketId);
+    if (Either.isRight(result)) {
       onClose();
       navigate(urlBack);
     }
   }
-  return { loading, error, handleDelete };
-}
 
-function program(kindId: string) {
-  return db.moneyKind.delete.byId(kindId).pipe(
-    Effect.as(null),
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  return { loading: pending, error: error?.message ?? null, handleDelete };
 }

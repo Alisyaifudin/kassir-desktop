@@ -1,13 +1,11 @@
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { z } from "zod";
-import { db } from "~/database";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import Decimal from "decimal.js";
-import { log } from "~/lib/log";
-import { revalidate } from "./use-data";
-import { MoneyKind } from "~/database/money/get-by-range";
-import { revalidateMoney } from "../use-data";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
+import type { Pocket, PocketType } from "~/services/money";
 
 const schema = z.object({
   value: z.string().refine((r) => {
@@ -18,68 +16,66 @@ const schema = z.object({
   note: z.string(),
 });
 
-export function useNew(kind: MoneyKind, onClose: () => void) {
+type NewRecordInput = {
+  pocketId: string;
+  type: PocketType;
+  /** What the user typed: an absolute balance, or a delta when `change`. */
+  value: number;
+  note: string;
+};
+
+export function useNew(pocket: Pocket, onClose: () => void) {
   const [error, setError] = useState<null | string>(null);
+  const { mutate } = useMutation(program);
+
   const form = useForm({
     defaultValues: {
       value: "",
-      type: kind.type,
+      type: pocket.type,
       note: "",
     },
     validators: {
       onSubmit: schema,
     },
     async onSubmit({ value: v }) {
-      const value = Number(v.value);
-      const { note, type } = v;
-      const errMsg = await Effect.runPromise(program({ value, note, type, kindId: kind.id }));
-      setError(errMsg);
-      if (errMsg === null) {
-        onClose();
+      const result = await mutate({
+        pocketId: pocket.id,
+        type: v.type,
+        value: Number(v.value),
+        note: v.note,
+      });
+      if (Either.isRight(result)) {
+        setError(null);
         form.reset();
-        revalidate();
-        revalidateMoney();
+        onClose();
+        return;
       }
+      setError(result.left.message);
     },
   });
   return { error, form };
 }
 
-function program({
-  value,
-  kindId,
-  type,
-  note,
-}: {
-  value: number;
-  kindId: string;
-  type: DB.MoneyType;
-  note: string;
-}) {
+/**
+ * A `change` pocket stores a running balance, so the delta is added to whatever
+ * the ledger held the instant before. The pocket's own type follows the entry's,
+ * which is what the form's type selector is choosing.
+ */
+function program(input: NewRecordInput) {
   return Effect.gen(function* () {
-    const val = yield* type === "absolute"
-      ? calcValueAbsolute(value)
-      : calcValueChange(value, kindId);
-    yield* Effect.all(
-      [db.money.add.record(val, kindId, note), db.moneyKind.update.type(kindId, type)],
-      { concurrency: "unbounded" },
-    );
-    return null;
-  }).pipe(
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
-}
-
-function calcValueAbsolute(value: number) {
-  return Effect.succeed(value);
-}
-
-function calcValueChange(value: number, kindId: string) {
-  return Effect.gen(function* () {
-    const money = yield* db.money.get.last(Date.now(), kindId);
-    return new Decimal(money).plus(value).toNumber();
+    const timestamp = Date.now();
+    const value =
+      input.type === "absolute"
+        ? input.value
+        : new Decimal(yield* service.money.entries.get.last(input.pocketId, timestamp))
+            .plus(input.value)
+            .toNumber();
+    yield* service.money.pockets.set.type(input.pocketId, input.type);
+    yield* service.money.entries.add.one({
+      pocketId: input.pocketId,
+      timestamp,
+      value,
+      note: input.note,
+    });
   });
 }

@@ -2,21 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MoneyImport } from "./util-validate-money";
 import { Effect, Fiber } from "effect";
 import { toast } from "sonner";
-import { db } from "~/database";
+import { service } from "~/services";
 import { log } from "~/lib/log";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
 import { Show } from "~/components/Show";
 import { formatDate, formatTime } from "~/lib/date";
-import { revalidate } from "../use-data";
 
 export function Selected({
   onRemove,
   data,
-  kindId,
+  pocketId,
 }: {
-  kindId: string;
+  pocketId: string;
   data?: {
     money: MoneyImport[];
     name: string;
@@ -56,7 +55,12 @@ export function Selected({
       setError(null);
       setTimestamps([]);
       for (const money of data.money) {
-        yield* db.money.add.external(kindId, money).pipe(
+        yield* service.money.entries.add.imported({
+          pocketId,
+          timestamp: money.timestamp,
+          value: money.value,
+          note: money.note,
+        }).pipe(
           Effect.catchTag("DuplicateError", (e) => {
             addDuplicate(Number(e.name));
             return Effect.void;
@@ -68,11 +72,10 @@ export function Selected({
       onRemove();
       setError(null);
       toast.success("Berhasil mengunggah");
-      revalidate();
     }).pipe(
-      Effect.catchTag("DbError", ({ e }) => {
-        log.error(e);
-        setError(e.message);
+      Effect.catchTag("MoneyError", ({ message }) => {
+        log.error(message);
+        setError(message);
         onRemove();
         return Effect.void;
       }),
@@ -84,7 +87,7 @@ export function Selected({
     return () => {
       interruptUpload();
     };
-  }, [data, kindId, onRemove]);
+  }, [data, pocketId, onRemove]);
 
   return (
     <div className="space-y-3">

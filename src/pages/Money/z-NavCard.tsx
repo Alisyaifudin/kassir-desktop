@@ -4,7 +4,7 @@ import { Clock, GripVertical } from "lucide-react";
 import { Show } from "~/components/Show";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Money } from "./use-money";
+import type { PocketSummary } from "~/services/money";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -27,8 +27,9 @@ function formatRelativeTime(timestamp: number): string {
   return `${days} hari yang lalu`;
 }
 
-export function NavCard({ money }: { money: Money }) {
-  const { id, name, timestamp, value } = money;
+export function NavCard({ summary }: { summary: PocketSummary }) {
+  const { pocket, latest } = summary;
+  const { id, name } = pocket;
   const urlBack = useGenerateUrlBack("/money");
 
   const {
@@ -62,17 +63,17 @@ export function NavCard({ money }: { money: Money }) {
         >
           <div className="flex flex-col gap-1.5">
             <h3 className="font-medium text-slate-900 dark:text-slate-100">{name}</h3>
-            <Show value={timestamp} fallback={<div>Masih kosong</div>}>
+            <Show value={latest?.timestamp ?? null} fallback={<div>Masih kosong</div>}>
               {(timestamp) => (
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <Clock className="h-3 w-3" />
+                <div className="flex items-center gap-1.5 text-small text-slate-500 dark:text-slate-400">
+                  <Clock className="icon" />
                   <span>{formatRelativeTime(timestamp)}</span>
                 </div>
               )}
             </Show>
           </div>
 
-          <Show value={value}>
+          <Show value={latest?.value ?? null}>
             {(value) => (
               <div className="flex items-center gap-3">
                 <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">

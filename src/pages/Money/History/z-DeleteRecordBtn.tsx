@@ -12,9 +12,9 @@ import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 import { useDeleteRecord } from "./use-delete-record";
-import { Money } from "~/database/money/get-by-range";
+import type { MoneyRow } from "./use-data";
 
-export const DeleteRecordBtn = memo(function DeleteBtn({ money }: { money: Money }) {
+export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money: MoneyRow }) {
   const [open, setOpen] = useState(false);
   const { loading, error, handleDelete } = useDeleteRecord(money.id, () => setOpen(false));
   return (

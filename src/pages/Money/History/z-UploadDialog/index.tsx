@@ -15,7 +15,7 @@ const moneySchemaFormat = `{
   timestamp: number;
 }[]`;
 
-export function UploadMoney({ kindId }: { kindId: string }) {
+export function UploadMoney({ pocketId }: { pocketId: string }) {
   return (
     <Dialog>
       <Button asChild variant="secondary">
@@ -27,14 +27,14 @@ export function UploadMoney({ kindId }: { kindId: string }) {
           <DialogDescription asChild>
             <div className="space-y-3">
               <p className="text-small!">File JSON harus mengikuti bentuk data berikut:</p>
-              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
+              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
                 <code>{moneySchemaFormat}</code>
               </pre>
             </div>
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 px-6 pb-6">
-          <Content kindId={kindId} />
+          <Content pocketId={pocketId} />
         </div>
       </DialogContent>
     </Dialog>

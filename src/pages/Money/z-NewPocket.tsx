@@ -9,18 +9,14 @@ import {
 import { memo, useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
-import { useNew } from "./use-new";
+import { useNewPocket } from "./use-new";
 import { Plus } from "lucide-react";
 import { Field, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
-import { useLocation } from "react-router";
 
-export const NewPocket = memo(function NewItem() {
+export const NewPocket = memo(function NewPocket() {
   const [open, setOpen] = useState(false);
-  const { handleSubmit, loading, name, setName, error } = useNew(() => setOpen(false));
-  const { pathname } = useLocation();
-  const paths = pathname.split("/");
-  if (paths.length !== 2) return null;
+  const { handleSubmit, loading, name, setName, error } = useNewPocket(() => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>
