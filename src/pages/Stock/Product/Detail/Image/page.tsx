@@ -1,10 +1,12 @@
+import { Reorder } from "motion/react";
 import { Button } from "~/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "~/lib/utils";
 import { DeleteImg } from "./z-DeleteImg";
 import { ImageControl } from "./z-ImageControl";
+import { Thumb } from "./z-Thumb";
 import { useSelected } from "./use-selected";
 import { useChange } from "./use-change";
+import { useOrder } from "./use-order";
 import { useContainerSize, useControlSize } from "./use-container-size";
 import { ImageResult, useData } from "./use-data";
 import { Result } from "~/lib/result";
@@ -30,8 +32,9 @@ export default function Page() {
 }
 
 function Wrapper({ images }: { images: ImageResult[] }) {
-  const [selected, setSelected] = useSelected(images);
-  const [index, handlePrev, handleNext] = useChange(images);
+  const [order, move] = useOrder(images);
+  const [selected, setSelected] = useSelected(order);
+  const [index, handlePrev, handleNext] = useChange(order);
   const [refContainer, container] = useContainerSize();
   const [ref, control] = useControlSize();
   const role = useUser().role;
@@ -56,37 +59,30 @@ function Wrapper({ images }: { images: ImageResult[] }) {
         <Button
           className="h-full px-0"
           variant="secondary"
-          disabled={index === images.length - 1}
+          disabled={index === order.length - 1}
           onClick={handleNext}
         >
           <ChevronRight />
         </Button>
       </div>
       <div ref={ref} className="flex flex-col w-full min-h-0">
-        <div className="overflow-x-scroll flex items-center gap-1 h-36 overflow-y-hidden">
-          {images.map((image, i) => (
-            <button
-              key={i}
-              className="h-32 aspect-square p-0.5"
-              onClick={() => setSelected(image.id)}
-            >
-              <Image image={image} selected={selected} />
-            </button>
+        <Reorder.Group
+          axis="x"
+          values={order}
+          onReorder={move}
+          className="flex items-center gap-1 h-36 overflow-x-scroll overflow-y-hidden"
+        >
+          {order.map((image) => (
+            <Thumb
+              key={image.id}
+              image={image}
+              selected={selected}
+              onSelect={() => setSelected(image.id)}
+            />
           ))}
-        </div>
-        <ImageControl images={images} />
+        </Reorder.Group>
+        <ImageControl />
       </div>
     </div>
-  );
-}
-
-function Image({ image, selected }: { image: ImageResult; selected: ImageResult | null }) {
-  return (
-    <img
-      className={cn("object-contain w-full h-full", {
-        outline: selected?.id === image.id,
-      })}
-      src={image.href}
-    />
   );
 }

@@ -654,11 +654,12 @@
 
       <entity name="image" module="src/database/image/">
         <operations>
-          <get><method name="byProductId(productId)">Images for a product.</method><method name="unsync()">Unsynced images.</method></get>
+          <get><method name="byProductId(productId)">Images for a product.</method><method name="cachedByProductId(productId)">Cached rows only, no read.</method><method name="unsync()">Unsynced images.</method></get>
           <add><method name="one(Image)">Add image.</method></add>
-          <update><method name="swap({id1,id2})">Swap image order.</method><method name="sync(Image[])">Batch sync.</method></update>
+          <update><method name="reorder(productId, ids)">Rewrite image order.</method><method name="sync(Image[])">Batch sync.</method></update>
           <del><method name="byId(id)">Delete (adds grave).</method><method name="sync({ids})">Delete from sync.</method></del>
           <method name="revalidate()">Invalidate cache.</method>
+          <method name="subscribe(listener)">Notify on cache writes.</method>
         </operations>
       </entity>
 

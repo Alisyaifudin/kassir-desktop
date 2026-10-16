@@ -37,9 +37,13 @@ type Status =
 
 function initialStatus(file: string | null, mime: DB.Mime | null): Status {
   if (file === null || mime === null) return { kind: "none" };
+  // a failed key stays failed for the session: an image file is named after the
+  // upload that wrote it, so re-reading the same key cannot come back better.
+  // Checked before the url cache, otherwise a file that read fine but that no
+  // browser could decode would be handed to <img> again on every mount.
+  if (failed.has(file)) return { kind: "failed" };
   const url = cache.get(file);
   if (url !== undefined) return { kind: "ready", url };
-  if (failed.has(file)) return { kind: "failed" };
   return { kind: "waiting" };
 }
 
@@ -94,14 +98,6 @@ function toError(error: unknown): Error | string {
   return String(error);
 }
 
-/** Drops every cached object url, e.g. after an image was deleted or replaced. */
-export function clearImageCache() {
-  for (const url of cache.values()) URL.revokeObjectURL(url);
-  cache.clear();
-  inflight.clear();
-  failed.clear();
-}
-
 export function LazyImage({
   file,
   mime,
@@ -119,11 +115,15 @@ export function LazyImage({
 
   useEffect(() => {
     if (file === null) return;
-    const next = (refs.get(file) ?? 0) + 1;
-    refs.set(file, next);
+    refs.set(file, (refs.get(file) ?? 0) + 1);
     return () => {
-      if (next <= 1) refs.delete(file);
-      else refs.set(file, next - 1);
+      // read the count back at cleanup time instead of closing over the value at
+      // mount: two cards can show the same file, and the first one to unmount must
+      // not drop the reference the other one still holds - `evict` would then
+      // revoke a url an <img> is still displaying.
+      const left = (refs.get(file) ?? 1) - 1;
+      if (left <= 0) refs.delete(file);
+      else refs.set(file, left);
     };
   }, [file]);
 
@@ -157,14 +157,14 @@ export function LazyImage({
       setStatus({ kind: "none" });
       return;
     }
+    if (failed.has(file)) {
+      setStatus({ kind: "failed" });
+      return;
+    }
     const cached = cache.get(file);
     if (cached !== undefined) {
       touch(file);
       setStatus({ kind: "ready", url: cached });
-      return;
-    }
-    if (failed.has(file)) {
-      setStatus({ kind: "failed" });
       return;
     }
     if (!visible) {
@@ -191,6 +191,15 @@ export function LazyImage({
           alt={alt}
           draggable={false}
           className="size-full object-cover"
+          onError={() => {
+            // the read worked but nothing could decode the bytes: the url is dead, so
+            // remember the key as bad and show the placeholder rather than the
+            // browser's broken-image glyph. The url is left in the cache - another
+            // card may still be displaying it - but `initialStatus` checks `failed`
+            // first, so this never gets handed to <img> again.
+            if (file !== null) failed.add(file);
+            setStatus({ kind: "failed" });
+          }}
         />
       ) : (
         <>
