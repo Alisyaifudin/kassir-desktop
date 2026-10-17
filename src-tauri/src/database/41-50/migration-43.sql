@@ -17,6 +17,8 @@
 --      `customers` is the counterparty for a sale (incoming).
 --   7. Rename the money-kind table to `pockets`.
 --   8. Port the `tx.db` cart tables into `data.db` under the `tx_` namespace.
+--   9. Add `record_images` — the pictures attached to a record, mirroring the
+--      product `images` gallery.
 --
 -- Conventions (locked in this revision)
 --   * Column naming: `<singular_table>_<field>`; FK columns are named after the
@@ -382,6 +384,29 @@ CREATE TABLE record_extras (
 
 
 -- ----------------------------------------------------------------------------
+-- 9b. `record_images` — the pictures attached to a record.
+--
+--     Mirrors `images` (the product gallery) with `record_id` in place of
+--     `product_id`: the bytes live on disk under AppData/images/, keyed by the
+--     row id, and the row carries the original name, its mime and the order.
+--
+--     A record child, so no sync trio — like `record_extras` and
+--     `record_listings` it is an immutable part of the record aggregate and is
+--     rewritten with its parent. A record has zero or many. New table: nothing
+--     to park in §1 and nothing to copy in migration-44.
+-- ----------------------------------------------------------------------------
+CREATE TABLE record_images (
+  record_image_id    TEXT PRIMARY KEY,
+  record_image_order INTEGER NOT NULL,
+  record_image_name  TEXT NOT NULL,
+  record_image_mime  TEXT NOT NULL REFERENCES img_mimes(v),
+  record_id          TEXT NOT NULL REFERENCES records(record_id) ON DELETE CASCADE
+) STRICT;
+
+CREATE INDEX record_image_record_idx ON record_images (record_id);
+
+
+-- ----------------------------------------------------------------------------
 -- 10. `product_events` → the `records` row that produced it.
 --
 --     Deleting a record has to remove the stock movement it caused, and §7's
@@ -555,7 +580,8 @@ CREATE TABLE suppliers (
 --   stocks    = LOCAL CACHE, not synced. Rebuilt by replaying `product_events`
 --              (ordered by product_event_created_at).
 --   record   = records + record_listings + record_methods + record_extras
---              + discounts, keyed on record_updated_at. Immutable snapshots.
+--              + record_images + discounts, keyed on record_updated_at.
+--              Immutable snapshots.
 --              Deletion via record_deleted_at cascades locally.
 --   product_event is synced independently (append-only), keyed on
 --   product_event_created_at / product_event_sync_at. Events are not deleted.
