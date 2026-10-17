@@ -1,6 +1,8 @@
 import {
   Store,
+  ShoppingCart,
   Package,
+  PackagePlus,
   BadgePercent,
   History,
   BarChart3,
@@ -24,11 +26,32 @@ export function NavGrid() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       <NavCard
         label="Toko"
+        path="/pos"
+        icon={ShoppingCart}
+        description="Lakukan transaksi penjualan ke pelanggan"
+        color="bg-sky-100 text-sky-600"
+      />
+      <NavCard
+        label="Stok"
+        path="/restock"
+        icon={PackagePlus}
+        description="Catat pembelian barang dan tambah stok"
+        color="bg-amber-100 text-amber-600"
+      />
+      <NavCard
+        label="Riwayat"
+        path="/records"
+        icon={History}
+        description="Lihat riwayat transaksi dan catatan penjualan"
+        color="bg-purple-100 text-purple-600"
+      />
+      {/* <NavCard
+        label="Toko"
         path="/shop"
         icon={Store}
         description="Buka toko dan lakukan transaksi penjualan"
         color="bg-blue-100 text-blue-600"
-      />
+      /> */}
       <NavCard
         label="Produk"
         path="/products"
@@ -42,13 +65,6 @@ export function NavGrid() {
         icon={BadgePercent}
         description="Kelola biaya tambahan dan potongan transaksi"
         color="bg-cyan-100 text-cyan-600"
-      />
-      <NavCard
-        label="Riwayat"
-        path="/records"
-        icon={History}
-        description="Lihat riwayat transaksi dan catatan penjualan"
-        color="bg-purple-100 text-purple-600"
       />
       <NavCard
         label="Analisis"

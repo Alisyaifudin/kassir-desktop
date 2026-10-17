@@ -1,6 +1,8 @@
 import { createHashRouter } from "react-router";
 import { loginRoute } from "./pages/Login";
 // import { shopRoute } from "./pages/Shop";
+import { posRoute } from "./pages/Pos/index.tsx";
+import { restockRoute } from "./pages/Restock/index.tsx";
 import { productRoute } from "./pages/Product";
 import { settingRoute } from "./pages/Setting";
 import { recordRoute } from "./pages/Record";
@@ -38,6 +40,8 @@ export const router = createHashRouter([
           homeRoute,
           debtRoute,
           // shopRoute,
+          posRoute,
+          restockRoute,
           settingRoute,
           productRoute,
           moneyRoute,
