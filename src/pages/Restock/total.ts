@@ -1,29 +1,44 @@
-import { EXTRAS, LINES } from "./mock";
+import Decimal from "decimal.js";
+import { EXTRAS, LINES, type Line } from "./mock";
 
 /**
- * What the mocked listings come to, before extras and rounding. When the
- * listing stage is wired to real data this reads the draft's own lines instead.
+ * Money arithmetic for the restock screen. Everything is done on `Decimal` —
+ * float `+ - *` drift once a few rupiah totals carry cents, and a purchase is
+ * exactly where that shows up.
  */
-export function mockSubtotal(): number {
-  return LINES.reduce((sum, line) => sum + line.subtotal, 0);
+
+/** `price × qty × unit − discount`. */
+export function lineTotal(line: Pick<Line, "price" | "qty" | "unit" | "discount">): Decimal {
+  return new Decimal(line.price).times(line.qty).times(line.unit).minus(line.discount);
+}
+
+function sum(values: Iterable<number | Decimal>): Decimal {
+  let total = new Decimal(0);
+  for (const value of values) total = total.plus(value);
+  return total;
+}
+
+/** What the mocked listings come to, before extras and rounding. */
+export function mockSubtotal(): Decimal {
+  return sum(LINES.map((line) => lineTotal(line)));
 }
 
 /** What the mocked purchase-level extras come to. */
-export function mockExtras(): number {
-  return EXTRAS.reduce((sum, extra) => sum + extra.eff, 0);
+export function mockExtras(): Decimal {
+  return sum(EXTRAS.map((extra) => extra.eff));
 }
 
 /** The mocked goods and extras together, before rounding. */
-export function mockBase(): number {
-  return mockSubtotal() + mockExtras();
+export function mockBase(): Decimal {
+  return mockSubtotal().plus(mockExtras());
 }
 
 /** What the shop pays: the base plus the cashier's rounding. */
-export function grandTotal(rounding: number): number {
-  return mockBase() + rounding;
+export function grandTotal(rounding: number): Decimal {
+  return mockBase().plus(rounding);
 }
 
 /** The sum of a draft's payments. */
-export function paidTotal(methods: readonly { value: number }[]): number {
-  return methods.reduce((sum, method) => sum + method.value, 0);
+export function paidTotal(methods: readonly { value: number }[]): Decimal {
+  return sum(methods.map((method) => method.value));
 }

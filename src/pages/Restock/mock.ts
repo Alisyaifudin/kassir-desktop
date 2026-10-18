@@ -12,14 +12,24 @@ import type { ValueKind } from "~/lib/constants";
 export type Line = {
   id: string;
   name: string;
-  barcode: string;
+  code: string;
+  /** How many pieces make one unit of the line. */
+  unit: number;
   /** Harga beli — the cost on this purchase, not the catalog selling price. */
   price: number;
   qty: number;
   /** The summed effect of the line's discounts, as a rupiah amount. */
   discount: number;
-  /** `price * qty - discount`. */
-  subtotal: number;
+  /**
+   * The catalog values the line started from, for the dirty marker and its undo.
+   * Absent on a hand-entered (`+manual`) line, which has nothing to undo to.
+   */
+  base?: {
+    name: string;
+    code: string;
+    unit: number;
+    price: number;
+  };
 };
 
 /** A charge or deduction applied to the whole purchase, e.g. ongkos kirim. */
@@ -44,29 +54,32 @@ export const LINES: Line[] = [
   {
     id: "L1",
     name: "Beras Pandan Wangi 5kg",
-    barcode: "8991234567890",
+    code: "8991234567890",
+    unit: 1,
     price: 68000,
     qty: 10,
     discount: 0,
-    subtotal: 680000,
+    base: { name: "Beras Pandan Wangi 5kg", code: "8991234567890", unit: 1, price: 68000 },
   },
   {
     id: "L2",
     name: "Minyak Goreng 2L",
-    barcode: "8991234567891",
+    code: "8991234567891",
+    unit: 1,
     price: 32000,
     qty: 12,
     discount: 10000,
-    subtotal: 374000,
+    base: { name: "Minyak Goreng 2L", code: "8991234567891", unit: 1, price: 32000 },
   },
   {
     id: "L3",
     name: "Gula Pasir 1kg",
-    barcode: "",
+    code: "",
+    unit: 1,
     price: 15000,
     qty: 20,
     discount: 0,
-    subtotal: 300000,
+    base: { name: "Gula Pasir 1kg", code: "", unit: 1, price: 15000 },
   },
 ];
 

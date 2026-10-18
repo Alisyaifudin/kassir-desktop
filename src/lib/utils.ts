@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
 import { log } from "./log";
 
@@ -26,6 +26,21 @@ export function safeJSON(v: string) {
     return ["Gagal parse json", null] as const;
   }
 }
+
+/**
+ * The app sizes text with its own tokens — `--text-small`, `--text-big`, … —
+ * declared in global.css. tailwind-merge does not know them, so on its own it
+ * reads `text-small` as a colour and drops it the moment a real colour class is
+ * present. Declaring them as font sizes keeps `cn("text-small",
+ * "text-muted-foreground")` whole.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: ["tiny", "small", "normal", "big", "change", "grand-total"] }],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

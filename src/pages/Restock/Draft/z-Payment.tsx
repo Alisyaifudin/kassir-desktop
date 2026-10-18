@@ -1,5 +1,6 @@
 import { LoaderMany, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
+import type Decimal from "decimal.js";
 import {
   Accordion,
   AccordionContent,
@@ -29,7 +30,7 @@ import { Kredit } from "./z-Kredit";
  * accordion that stays out of the way of the two things that matter: what is
  * owed (the grand total below) and what has been paid.
  */
-export function Payment({ draft, grand }: { draft: Draft; grand: number }) {
+export function Payment({ draft, grand }: { draft: Draft; grand: Decimal }) {
   const res = {
     catalog: useStream(service.method.get.catalogChanges),
     suppliers: useStream(service.supplier.get.changes),
@@ -52,13 +53,13 @@ function Body({
   suppliers,
 }: {
   draft: Draft;
-  grand: number;
+  grand: Decimal;
   catalog: MethodCatalog;
   suppliers: { id: string; name: string }[];
 }) {
   const cashier = useUser().name ?? "admin";
   const paid = paidTotal(draft.methods);
-  const change = paid - grand;
+  const change = paid.minus(grand);
   const supplierName = suppliers.find((supplier) => supplier.id === draft.supplierId)?.name ?? "—";
 
   return (
@@ -112,11 +113,11 @@ function Body({
             Dibayar:{" "}
             <span className="font-bold text-big tabular-nums">{rupiah(paid, draft.fix)}</span>
           </span>
-          <span className={cn("text-big", change < 0 && "text-destructive")}>
-            {change < 0 ? "Sisa" : "Kembalian"}
+          <span className={cn("text-big", change.isNegative() && "text-destructive")}>
+            {change.isNegative() ? "Sisa" : "Kembalian"}
             {": "}
             <span className="font-bold text-change tabular-nums">
-              {rupiah(Math.abs(change), draft.fix)}
+              {rupiah(change.abs(), draft.fix)}
             </span>
           </span>
         </div>

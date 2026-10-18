@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type Decimal from "decimal.js";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { STAGES, type Stage } from "./Draft";
@@ -18,9 +19,9 @@ export function Bottom({
 }: {
   stage: Stage;
   onChange: (stage: Stage) => void;
-  grand: number;
+  grand: Decimal;
   fix: number;
-  change: number;
+  change: Decimal;
 }) {
   const index = STAGES.indexOf(stage);
   const prev = index > 0 ? STAGES[index - 1] : null;
@@ -43,7 +44,7 @@ export function Bottom({
       </div>
       {stage === "payment" ? (
         <Button
-          disabled={change < 0}
+          disabled={change.isNegative()}
           onClick={() => {
             // TODO(submit): write the draft into `records` (stock, payments,
             // rounding), then delete its `tx_records` row.

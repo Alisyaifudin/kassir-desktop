@@ -91,7 +91,7 @@ function Screen({
   if (active === null) return <Loading />;
 
   const grand = grandTotal(active.rounding);
-  const change = paidTotal(active.methods) - grand;
+  const change = paidTotal(active.methods).minus(grand);
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1">
       <Draft

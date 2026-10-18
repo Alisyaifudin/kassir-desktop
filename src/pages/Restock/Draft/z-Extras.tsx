@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import type Decimal from "decimal.js";
 import { Field } from "../z-Field";
 import { rupiah } from "../util-rupiah";
 import type { Extra } from "../mock";
@@ -54,7 +55,7 @@ function Row({ extra, no }: { extra: Extra; no: number }) {
 }
 
 /** What the lines come to before everything else. */
-export function Subtotal({ subtotal }: { subtotal: number }) {
+export function Subtotal({ subtotal }: { subtotal: Decimal }) {
   return (
     <div className="flex items-baseline justify-between self-end gap-2 px-2 py-1">
       <span className="text-big font-bold">Subtotal:</span>

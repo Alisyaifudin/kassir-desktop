@@ -1,3 +1,4 @@
+import type Decimal from "decimal.js";
 import { rupiah } from "../util-rupiah";
 
 /**
@@ -5,8 +6,6 @@ import { rupiah } from "../util-rupiah";
  * the draft is assembled. `fix` comes from the draft's precision so this and the
  * payment stage cannot disagree.
  */
-export function Total({ grand, fix }: { grand: number; fix: number }) {
-  return (
-    <p className="text-center text-grand-total tabular-nums">{rupiah(grand, fix)}</p>
-  );
+export function Total({ grand, fix }: { grand: Decimal; fix: number }) {
+  return <p className="text-center text-grand-total tabular-nums">{rupiah(grand, fix)}</p>;
 }
