@@ -53,14 +53,6 @@ export type Extra = {
   eff: number;
 };
 
-export type SearchResult = {
-  id: string;
-  name: string;
-  barcode: string;
-  price: number;
-  stock: number;
-};
-
 export const LINES: Line[] = [
   {
     id: "L1",
@@ -100,10 +92,4 @@ export const LINES: Line[] = [
 export const EXTRAS: Extra[] = [
   { id: "E1", name: "Ongkos Kirim", kind: "number", value: 50000, eff: 50000 },
   { id: "E2", name: "Diskon Grosir", kind: "percent", value: -3, eff: -40920 },
-];
-
-export const SEARCH_RESULTS: SearchResult[] = [
-  { id: "p1", name: "Beras Pandan Wangi 5kg", barcode: "8991234567890", price: 72000, stock: 24 },
-  { id: "p2", name: "Minyak Goreng 2L", barcode: "8991234567891", price: 35000, stock: 4 },
-  { id: "p3", name: "Gula Pasir 1kg", barcode: "8991234567892", price: 16500, stock: 0 },
 ];

@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Stream } from "effect";
 import { AnimatePresence, Reorder } from "motion/react";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
+import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
-import type { Line } from "../mock";
+import { service } from "~/services";
+import type { DiscountLine, Line } from "../mock";
+import { recalcDiscounts } from "../total";
+import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
 import { DiscountDialog } from "./z-Discount";
+import { SearchResults } from "./z-SearchResults";
 import {
   cellAt,
   columnIn,
@@ -66,12 +72,18 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   const [discountFor, setDiscountFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const hadDiscount = useRef(false);
 
   // While the search bar has text the cards make way for the future results.
   const hidden = query.trim() !== "";
   const ids = useMemo(() => lines.map((line) => line.id), [lines]);
   const rows = useMemo(() => rowsFor(hidden ? [] : ids), [hidden, ids]);
+  const results = useQuery(
+    () => Stream.fromEffect(service.listing.get.search(query)),
+    [query],
+    { keepPrevious: true },
+  );
 
   const active = cellAt(selection.row, selection.col);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -142,6 +154,34 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
     setEditing(false);
   }
 
+  /** Add a catalog listing to the draft as a new line, then clear the search. */
+  function addListing(listing: Listing) {
+    const blank: DiscountLine = { id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 };
+    const line: Line = {
+      id: generateId(),
+      name: listing.name,
+      code: listing.code ?? "",
+      unit: listing.unit,
+      price: listing.price,
+      qty: 1,
+      discounts: recalcDiscounts(listing.price, 1, [blank]),
+      base: {
+        name: listing.name,
+        code: listing.code ?? "",
+        unit: listing.unit,
+        price: listing.price,
+      },
+    };
+    onChange([line, ...lines]);
+    setQuery("");
+    searchRef.current?.focus();
+  }
+
+  /** Enter in the search field takes the first result. */
+  function pickFirst() {
+    if (results.type === "success" && results.data.length > 0) addListing(results.data[0]);
+  }
+
   function removeCard(cardId: string) {
     const index = lines.findIndex((line) => line.id === cardId);
     const remaining = lines.filter((line) => line.id !== cardId);
@@ -178,6 +218,9 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // The search-results grid lives inside this container; do not also move the
+    // listing selection for keys it already handled.
+    if (event.defaultPrevented) return;
     // F1 always jumps to the search bar, even out of an edit.
     if (event.key === "F1") {
       event.preventDefault();
@@ -195,6 +238,10 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
         return;
       case "ArrowDown":
         event.preventDefault();
+        if (isSearch && hidden) {
+          resultsRef.current?.focus();
+          return;
+        }
         moveVertical(1);
         return;
       case "ArrowLeft":
@@ -208,7 +255,13 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
         moveHorizontal(1);
         return;
       case "Enter":
-        if (isSearch) return;
+        if (isSearch) {
+          if (hidden) {
+            event.preventDefault();
+            pickFirst();
+          }
+          return;
+        }
         event.preventDefault();
         activate();
         return;
@@ -269,7 +322,14 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
         </div>
       </div>
 
-      {!hidden ? (
+      {hidden ? (
+        <SearchResults
+          res={results}
+          containerRef={resultsRef}
+          onPick={addListing}
+          onExit={() => searchRef.current?.focus()}
+        />
+      ) : (
         <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
           <Reorder.Group
             axis="y"
@@ -317,7 +377,7 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
             </AnimatePresence>
           </Reorder.Group>
         </div>
-      ) : null}
+      )}
 
       <DiscountDialog
         open={discountFor !== null}

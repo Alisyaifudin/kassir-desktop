@@ -29,6 +29,7 @@
     "@radix-ui/react-tabs": "^1.1.9",
     "@tailwindcss/vite": "^4.1.4",
     "@tanstack/react-form": "^1.28.3",
+    "@tanstack/react-virtual": "^3.14.21",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",
