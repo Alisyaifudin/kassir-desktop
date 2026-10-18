@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Stream } from "effect";
-import { AnimatePresence, Reorder } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
@@ -74,6 +83,7 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const hadDiscount = useRef(false);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // While the search bar has text the cards make way for the future results.
   const hidden = query.trim() !== "";
@@ -152,6 +162,15 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
     onChange([line, ...lines]);
     setSelection({ row: { kind: "card", cardId: line.id, part: "top" }, col: NAME_COLUMN });
     setEditing(false);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+    const from = lines.findIndex((line) => line.id === active.id);
+    const to = lines.findIndex((line) => line.id === over.id);
+    if (from === -1 || to === -1) return;
+    onChange(arrayMove(lines, from, to));
   }
 
   /** Add a listing to the draft, or bump the line that already holds it. */
@@ -347,51 +366,47 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
-          <Reorder.Group
-            axis="y"
-            values={ids}
-            onReorder={(next) => {
-              const byId = new Map(lines.map((line) => [line.id, line]));
-              onChange(next.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])));
-            }}
-            className="divide-y divide-border"
-          >
-            <AnimatePresence initial={false}>
-              {lines.map((line, index) => {
-                const cardSelected =
-                  selection.row.kind === "card" && selection.row.cardId === line.id;
-                return (
-                  <ListingCard
-                    key={line.id}
-                    line={line}
-                    number={lines.length - index}
-                    selected={cardSelected ? (active.field as Field) : null}
-                    editing={cardSelected && editing}
-                    onChange={(patch) =>
-                      onChange(lines.map((row) => (row.id === line.id ? { ...row, ...patch } : row)))
-                    }
-                    onRemove={() => removeCard(line.id)}
-                    onDiscount={() => setDiscountFor(line.id)}
-                    onSelect={(field) => {
-                      setSelection({
-                        row: { kind: "card", cardId: line.id, part: partOf(field) },
-                        col: startOf(field),
-                      });
-                      setEditing(false);
-                    }}
-                    onStartEdit={(field) => {
-                      setSelection({
-                        row: { kind: "card", cardId: line.id, part: partOf(field) },
-                        col: startOf(field),
-                      });
-                      setEditing(true);
-                    }}
-                    onEditingDone={() => setEditing(false)}
-                  />
-                );
-              })}
-            </AnimatePresence>
-          </Reorder.Group>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+              <div className="divide-y divide-border">
+                <AnimatePresence initial={false}>
+                  {lines.map((line, index) => {
+                  const cardSelected =
+                    selection.row.kind === "card" && selection.row.cardId === line.id;
+                  return (
+                    <ListingCard
+                      key={line.id}
+                      line={line}
+                      number={lines.length - index}
+                      selected={cardSelected ? (active.field as Field) : null}
+                      editing={cardSelected && editing}
+                      onChange={(patch) =>
+                        onChange(lines.map((row) => (row.id === line.id ? { ...row, ...patch } : row)))
+                      }
+                      onRemove={() => removeCard(line.id)}
+                      onDiscount={() => setDiscountFor(line.id)}
+                      onSelect={(field) => {
+                        setSelection({
+                          row: { kind: "card", cardId: line.id, part: partOf(field) },
+                          col: startOf(field),
+                        });
+                        setEditing(false);
+                      }}
+                      onStartEdit={(field) => {
+                        setSelection({
+                          row: { kind: "card", cardId: line.id, part: partOf(field) },
+                          col: startOf(field),
+                        });
+                        setEditing(true);
+                      }}
+                      onEditingDone={() => setEditing(false)}
+                    />
+                  );
+                })}
+                </AnimatePresence>
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 

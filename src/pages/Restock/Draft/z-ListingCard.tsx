@@ -1,5 +1,7 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { Reorder, useDragControls } from "motion/react";
+import { motion } from "motion/react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Undo2, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -52,18 +54,24 @@ export function ListingCard({
   onStartEdit: (field: Field) => void;
   onEditingDone: () => void;
 }) {
-  const controls = useDragControls();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: line.id,
+  });
   const grandTotal = lineGrandTotal(line);
   const discountTotal = lineDiscountTotal(line);
+
   return (
-    <Reorder.Item
-      value={line.id}
-      dragListener={false}
-      dragControls={controls}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="bg-card text-card-foreground"
+    <motion.div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+      className={cn(
+        "overflow-hidden bg-card text-card-foreground",
+        isDragging && "relative z-10 shadow-lg",
+      )}
     >
       <div className="grid grid-cols-12 items-stretch">
         <div className="col-span-1 flex items-center justify-center border-r text-normal text-muted-foreground tabular-nums select-none">
@@ -120,8 +128,9 @@ export function ListingCard({
 
       <div className="grid grid-cols-12 items-stretch border-t">
         <div
-          className="col-span-1 flex cursor-grab items-center justify-center border-r text-muted-foreground active:cursor-grabbing"
-          onPointerDown={(event) => controls.start(event)}
+          className="col-span-1 flex touch-none cursor-grab items-center justify-center border-r text-muted-foreground select-none active:cursor-grabbing"
+          {...listeners}
+          {...attributes}
           title="Geser untuk mengubah urutan"
         >
           <GripVertical className="icon" />
@@ -224,7 +233,7 @@ export function ListingCard({
           </Button>
         </div>
       </div>
-    </Reorder.Item>
+    </motion.div>
   );
 }
 
