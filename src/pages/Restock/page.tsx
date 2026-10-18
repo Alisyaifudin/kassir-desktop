@@ -6,7 +6,7 @@ import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import { grandTotal } from "./total";
+import { grandTotal, paidTotal } from "./total";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
 
@@ -91,6 +91,7 @@ function Screen({
   if (active === null) return <Loading />;
 
   const grand = grandTotal(active.rounding);
+  const change = paidTotal(active.methods) - grand;
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1">
       <Draft
@@ -100,7 +101,7 @@ function Screen({
         stage={stage}
         grand={grand}
       />
-      <Bottom stage={stage} onChange={onStage} grand={grand} fix={active.fix} />
+      <Bottom stage={stage} onChange={onStage} grand={grand} fix={active.fix} change={change} />
     </div>
   );
 }
