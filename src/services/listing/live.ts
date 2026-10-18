@@ -30,10 +30,15 @@ function toError(error: DbError): ListingError {
 function matching(listings: Listing[], query: string): Listing[] {
   const q = query.trim().toLowerCase();
   if (q === "") return listings;
-  return listings.filter(
+  const hits = listings.filter(
     (listing) =>
       listing.name.toLowerCase().includes(q) ||
       (listing.code?.toLowerCase().includes(q) ?? false),
+  );
+  // An exactly-typed code is a scan, so it leads the results and is what Enter
+  // picks.
+  return hits.sort(
+    (a, b) => Number(b.code?.toLowerCase() === q) - Number(a.code?.toLowerCase() === q),
   );
 }
 

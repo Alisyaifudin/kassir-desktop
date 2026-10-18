@@ -29,6 +29,8 @@ export type Line = {
   /** Harga beli — the cost on this purchase, not the catalog selling price. */
   price: number;
   qty: number;
+  /** The catalog listing this line came from, if any; a manual line has none. */
+  listingId?: string | null;
   /** The line's discount stack; the list always ends in one empty line. */
   discounts: DiscountLine[];
   /**

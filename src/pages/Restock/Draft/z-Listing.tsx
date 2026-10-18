@@ -154,32 +154,48 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
     setEditing(false);
   }
 
-  /** Add a catalog listing to the draft as a new line, then clear the search. */
+  /** Add a listing to the draft, or bump the line that already holds it. */
   function addListing(listing: Listing) {
-    const blank: DiscountLine = { id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 };
-    const line: Line = {
-      id: generateId(),
-      name: listing.name,
-      code: listing.code ?? "",
-      unit: listing.unit,
-      price: listing.price,
-      qty: 1,
-      discounts: recalcDiscounts(listing.price, 1, [blank]),
-      base: {
+    const existing = lines.find((line) => line.listingId === listing.id);
+    if (existing !== undefined) {
+      const qty = existing.qty + 1;
+      onChange(
+        lines.map((line) =>
+          line.id === existing.id
+            ? { ...line, qty, discounts: recalcDiscounts(line.price, qty, line.discounts) }
+            : line,
+        ),
+      );
+    } else {
+      const blank: DiscountLine = { id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 };
+      const line: Line = {
+        id: generateId(),
+        listingId: listing.id,
         name: listing.name,
         code: listing.code ?? "",
         unit: listing.unit,
         price: listing.price,
-      },
-    };
-    onChange([line, ...lines]);
+        qty: 1,
+        discounts: recalcDiscounts(listing.price, 1, [blank]),
+        base: {
+          name: listing.name,
+          code: listing.code ?? "",
+          unit: listing.unit,
+          price: listing.price,
+        },
+      };
+      onChange([line, ...lines]);
+    }
     setQuery("");
     searchRef.current?.focus();
   }
 
-  /** Enter in the search field takes the first result. */
+  /** Enter in the search field takes the exact code match, else the first result. */
   function pickFirst() {
-    if (results.type === "success" && results.data.length > 0) addListing(results.data[0]);
+    if (results.type !== "success" || results.data.length === 0) return;
+    const code = query.trim().toLowerCase();
+    const exact = results.data.find((listing) => listing.code?.toLowerCase() === code);
+    addListing(exact ?? results.data[0]);
   }
 
   function removeCard(cardId: string) {
