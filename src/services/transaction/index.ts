@@ -66,6 +66,7 @@ export class TransactionService extends Context.Tag("TransactionService")<
     set: {
       /** Marks this draft open and every other draft of the same mode closed. */
       active: (id: string) => Effect.Effect<void, TransactionError>;
+      title: (id: string, title: string) => Effect.Effect<void, TransactionError>;
       fix: (id: string, fix: number) => Effect.Effect<void, TransactionError>;
       note: (id: string, note: string) => Effect.Effect<void, TransactionError>;
       supplier: (id: string, supplierId: string | null) => Effect.Effect<void, TransactionError>;

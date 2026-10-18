@@ -327,6 +327,9 @@ export const TransactionLive = Layer.effect(
         fix(id, fix) {
           return update(id, (draft) => ({ ...draft, fix }));
         },
+        title(id, title) {
+          return update(id, (draft) => ({ ...draft, title }));
+        },
         note(id, note) {
           return update(id, (draft) => ({ ...draft, note }));
         },

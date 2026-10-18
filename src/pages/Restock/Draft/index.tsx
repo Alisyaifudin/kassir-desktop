@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Effect } from "effect";
 import type Decimal from "decimal.js";
+import { service } from "~/services";
 import { EXTRAS, LINES, type Line } from "../mock";
 import { mockSubtotal } from "../total";
 import { Extras, Subtotal } from "./z-Extras";
@@ -36,6 +38,15 @@ export function Draft({
 }) {
   // The rows are still mock state, held here so switching stages keeps them.
   const [lines, setLines] = useState<Line[]>(() => [...LINES]);
+
+  // The open purchase takes its name from its first listing.
+  useEffect(() => {
+    const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
+    if (title !== draft.title) {
+      void Effect.runFork(service.transaction.set.title(draft.id, title));
+    }
+  }, [lines, draft.id, draft.title]);
+
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
       <Tabs drafts={drafts} activeId={draft.id} onSelect={onSelect} />
