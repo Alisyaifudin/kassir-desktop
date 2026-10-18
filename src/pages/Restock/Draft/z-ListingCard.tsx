@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { Reorder, useDragControls } from "motion/react";
 import { GripVertical, Plus, Undo2, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -10,14 +10,22 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
+import { InputCurrency } from "~/components/ui/input-currency";
 import { cn } from "~/lib/utils";
-import { lineTotal } from "../total";
+import { lineGrandTotal } from "../total";
 import { rupiah } from "../util-rupiah";
 import type { Line } from "../mock";
 import type { Field } from "./listing-grid";
 
 const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 const EDITING_RING = "z-10 ring-2 ring-primary ring-inset";
+
+/** Keep only what a numeric field may hold; everything else is dropped as typed. */
+function sanitizeNumeric(raw: string, mode: "integer" | "decimal"): string {
+  if (mode === "integer") return raw.replace(/\D/g, "");
+  const [whole, ...fraction] = raw.replace(/[^\d.]/g, "").split(".");
+  return fraction.length === 0 ? whole : `${whole}.${fraction.join("")}`;
+}
 
 /**
  * One line of the purchase, laid out as a twelve-column block: who and how much
@@ -52,7 +60,7 @@ export function ListingCard({
   onEditingDone: () => void;
 }) {
   const controls = useDragControls();
-  const subtotal = lineTotal(line);
+  const grandTotal = lineGrandTotal(line);
   return (
     <Reorder.Item
       value={line.id}
@@ -84,14 +92,14 @@ export function ListingCard({
           onCommit={(raw) => onChange({ name: raw })}
         />
         <div
-          id={`cell-${line.id}-subtotal`}
-          onClick={() => onSelect("subtotal")}
+          id={`cell-${line.id}-grandTotal`}
+          onClick={() => onSelect("grandTotal")}
           className={cn(
             "col-span-2 flex items-center justify-end border-r px-2 text-big font-bold tabular-nums select-none",
-            selected === "subtotal" && SELECTED_RING,
+            selected === "grandTotal" && SELECTED_RING,
           )}
         >
-          {rupiah(subtotal)}
+          {rupiah(grandTotal)}
         </div>
         <div
           id={`cell-${line.id}-x`}
@@ -133,7 +141,7 @@ export function ListingCard({
           value={line.code}
           display={line.code}
           empty={line.code === ""}
-          placeholder="Kode"
+          placeholder="Kode barang"
           base={line.base?.code}
           onSelect={() => onSelect("code")}
           onStartEdit={() => onStartEdit("code")}
@@ -145,6 +153,7 @@ export function ListingCard({
           className="col-span-1 border-r"
           label="Kuantitas"
           align="center"
+          numeric="integer"
           selected={selected === "qty"}
           editing={editing && selected === "qty"}
           value={line.qty}
@@ -161,6 +170,7 @@ export function ListingCard({
           className="col-span-1 border-r"
           label="Satuan"
           align="center"
+          numeric="integer"
           selected={selected === "unit"}
           editing={editing && selected === "unit"}
           value={line.unit}
@@ -178,6 +188,7 @@ export function ListingCard({
           className="col-span-2 border-r"
           label="Harga Beli"
           align="right"
+          currency
           selected={selected === "price"}
           editing={editing && selected === "price"}
           value={line.price}
@@ -228,6 +239,8 @@ function Cell({
   empty,
   placeholder,
   base,
+  numeric,
+  currency,
   onCommit,
   onSelect,
   onStartEdit,
@@ -244,6 +257,8 @@ function Cell({
   empty: boolean;
   placeholder: string;
   base?: string | number;
+  numeric?: "integer" | "decimal";
+  currency?: boolean;
   onCommit: (raw: string) => void;
   onSelect: () => void;
   onStartEdit: () => void;
@@ -263,6 +278,31 @@ function Cell({
     align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
   const justifyClass =
     align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
+  const editClass =
+    "h-9 rounded-none border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7";
+
+  function handleEditKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      onCommit(draft);
+      onEditingDone();
+      return;
+    }
+    if (event.key === "Escape") {
+      onEditingDone();
+      return;
+    }
+    // Ctrl/Cmd+Z is the undo button, from the keyboard.
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && canUndo) {
+      event.preventDefault();
+      setDraft(String(base));
+      onCommit(String(base));
+    }
+  }
+
+  function handleEditBlur() {
+    onCommit(draft);
+    onEditingDone();
+  }
 
   return (
     <div
@@ -302,37 +342,33 @@ function Cell({
               <Undo2 className="icon" />
             </Button>
           ) : null}
-          <Input
-            autoFocus
-            value={draft}
-            placeholder={placeholder}
-            className={cn(
-              "h-9 rounded-none border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7",
-              alignClass,
-            )}
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            onBlur={() => {
-              onCommit(draft);
-              onEditingDone();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                onCommit(draft);
-                onEditingDone();
-                return;
+          {currency ? (
+            <InputCurrency
+              autoFocus
+              value={Number(draft) || 0}
+              onValueChange={(next) => setDraft(String(next))}
+              className={cn(editClass, alignClass)}
+              onBlur={handleEditBlur}
+              onKeyDown={handleEditKeyDown}
+            />
+          ) : (
+            <Input
+              autoFocus
+              value={draft}
+              placeholder={placeholder}
+              className={cn(editClass, alignClass, "placeholder:italic")}
+              onChange={(event) =>
+                setDraft(
+                  numeric === undefined
+                    ? event.currentTarget.value
+                    : sanitizeNumeric(event.currentTarget.value, numeric),
+                )
               }
-              if (event.key === "Escape") {
-                onEditingDone();
-                return;
-              }
-              // Ctrl/Cmd+Z is the undo button, from the keyboard.
-              if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && canUndo) {
-                event.preventDefault();
-                setDraft(String(base));
-                onCommit(String(base));
-              }
-            }}
-          />
+              inputMode={numeric === "integer" ? "numeric" : undefined}
+              onBlur={handleEditBlur}
+              onKeyDown={handleEditKeyDown}
+            />
+          )}
         </div>
       ) : (
         <button
@@ -343,7 +379,7 @@ function Cell({
             justifyClass,
           )}
         >
-          {empty ? <span className="text-muted-foreground">{placeholder}</span> : display}
+          {empty ? <span className="text-muted-foreground italic">{placeholder}</span> : display}
         </button>
       )}
     </div>

@@ -7,9 +7,18 @@ import { EXTRAS, LINES, type Line } from "./mock";
  * exactly where that shows up.
  */
 
-/** `price × qty × unit − discount`. */
-export function lineTotal(line: Pick<Line, "price" | "qty" | "unit" | "discount">): Decimal {
-  return new Decimal(line.price).times(line.qty).times(line.unit).minus(line.discount);
+/**
+ * The line before its discount: `price × qty`. The price is per `unit`, so the
+ * unit is folded into the price rather than multiplied again; it is kept on the
+ * line for the record.
+ */
+export function lineSubtotal(line: Pick<Line, "price" | "qty">): Decimal {
+  return new Decimal(line.price).times(line.qty);
+}
+
+/** The line's own total: `subtotal − effDiscount`. Not the transaction total. */
+export function lineGrandTotal(line: Pick<Line, "price" | "qty" | "discount">): Decimal {
+  return lineSubtotal(line).minus(line.discount);
 }
 
 function sum(values: Iterable<number | Decimal>): Decimal {
@@ -20,7 +29,7 @@ function sum(values: Iterable<number | Decimal>): Decimal {
 
 /** What the mocked listings come to, before extras and rounding. */
 export function mockSubtotal(): Decimal {
-  return sum(LINES.map((line) => lineTotal(line)));
+  return sum(LINES.map((line) => lineGrandTotal(line)));
 }
 
 /** What the mocked purchase-level extras come to. */
@@ -33,8 +42,11 @@ export function mockBase(): Decimal {
   return mockSubtotal().plus(mockExtras());
 }
 
-/** What the shop pays: the base plus the cashier's rounding. */
-export function grandTotal(rounding: number): Decimal {
+/**
+ * The whole transaction: the lines' grand totals, plus the purchase-level extras
+ * and the cashier's rounding. Distinct from `lineGrandTotal`.
+ */
+export function transactionGrandTotal(rounding: number): Decimal {
   return mockBase().plus(rounding);
 }
 

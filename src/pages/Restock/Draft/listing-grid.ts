@@ -1,6 +1,6 @@
 /**
  * The listing grid's geometry. Navigation keeps a column index and looks up the
- * cell that owns it, so a wide cell (`nama`, `subtotal`, `diskon`) behaves like
+ * cell that owns it, so a wide cell (`nama`, `grandTotal`, `diskon`) behaves like
  * a merged cell in a spreadsheet: moving up from `kuantitas` (col 5) lands in
  * `nama`, and moving up again uses the remembered column to land in the next
  * card's `kuantitas`.
@@ -9,7 +9,7 @@
  * and the drag handle are not selectable.
  */
 
-export type Field = "name" | "subtotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
+export type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
 
 /** Every cell, including the ones that only draw. */
 export type AnyField = Field | "search" | "manual" | "no" | "grip";
@@ -36,7 +36,7 @@ const HEADER_CELLS: CellDef[] = [
 const TOP_CELLS: CellDef[] = [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
   { field: "name", start: 1, end: 8, selectable: true, editable: true },
-  { field: "subtotal", start: 9, end: 10, selectable: true, editable: false },
+  { field: "grandTotal", start: 9, end: 10, selectable: true, editable: false },
   { field: "x", start: 11, end: 11, selectable: true, editable: false },
 ];
 

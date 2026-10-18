@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { AnimatePresence, Reorder } from "motion/react";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
@@ -156,11 +157,19 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
         if (selection.row.kind === "card") setDiscountFor(selection.row.cardId);
         return;
       default:
-        return; // subtotal is selectable but does nothing
+        return; // the listing's grandTotal is selectable but does nothing
     }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // F1 always jumps to the search bar, even out of an edit.
+    if (event.key === "F1") {
+      event.preventDefault();
+      searchRef.current?.focus();
+      setSelection({ row: HEADER, col: NAME_COLUMN });
+      setEditing(false);
+      return;
+    }
     if (editing) return;
     switch (event.key) {
       case "ArrowUp":
@@ -208,12 +217,13 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
             setSelection({ row: HEADER, col: NAME_COLUMN });
             setEditing(false);
           }}
-          className={cn("col-span-10 p-1", isSearch && SELECTED_RING)}
+          className={cn("col-span-10 flex items-center gap-2 p-1", isSearch && SELECTED_RING)}
         >
+          <Kbd className="py-5 small:py-4">F1</Kbd>
           <Input
             ref={searchRef}
             type="search"
-            className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+            className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
             placeholder="Cari barang untuk dibeli..."
             aria-autocomplete="list"
             value={query}
