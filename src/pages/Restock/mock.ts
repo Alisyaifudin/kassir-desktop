@@ -8,6 +8,17 @@
  */
 import type { ValueKind } from "~/lib/constants";
 
+export type DiscountKind = "number" | "percent" | "pcs";
+
+/** One discount on a line. `eff` is what it takes off; `total` is the running subtotal. */
+export type DiscountLine = {
+  id: string;
+  value: number;
+  kind: DiscountKind;
+  eff: number;
+  total: number;
+};
+
 /** One line of a purchase: goods, what they cost this time, how many. */
 export type Line = {
   id: string;
@@ -18,8 +29,8 @@ export type Line = {
   /** Harga beli — the cost on this purchase, not the catalog selling price. */
   price: number;
   qty: number;
-  /** The summed effect of the line's discounts, as a rupiah amount. */
-  discount: number;
+  /** The line's discount stack; the list always ends in one empty line. */
+  discounts: DiscountLine[];
   /**
    * The catalog values the line started from, for the dirty marker and its undo.
    * Absent on a hand-entered (`+manual`) line, which has nothing to undo to.
@@ -58,7 +69,7 @@ export const LINES: Line[] = [
     unit: 1,
     price: 68000,
     qty: 10,
-    discount: 0,
+    discounts: [{ id: "d-l1-0", value: 0, kind: "percent", eff: 0, total: 680000 }],
     base: { name: "Beras Pandan Wangi 5kg", code: "8991234567890", unit: 1, price: 68000 },
   },
   {
@@ -68,7 +79,10 @@ export const LINES: Line[] = [
     unit: 1,
     price: 32000,
     qty: 12,
-    discount: 10000,
+    discounts: [
+      { id: "d-l2-0", value: 10000, kind: "number", eff: 10000, total: 374000 },
+      { id: "d-l2-1", value: 0, kind: "percent", eff: 0, total: 374000 },
+    ],
     base: { name: "Minyak Goreng 2L", code: "8991234567891", unit: 1, price: 32000 },
   },
   {
@@ -78,7 +92,7 @@ export const LINES: Line[] = [
     unit: 1,
     price: 15000,
     qty: 20,
-    discount: 0,
+    discounts: [{ id: "d-l3-0", value: 0, kind: "percent", eff: 0, total: 300000 }],
     base: { name: "Gula Pasir 1kg", code: "", unit: 1, price: 15000 },
   },
 ];

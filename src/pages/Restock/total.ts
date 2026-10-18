@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { EXTRAS, LINES, type Line } from "./mock";
+import { EXTRAS, LINES, type DiscountLine, type Line } from "./mock";
 
 /**
  * Money arithmetic for the restock screen. Everything is done on `Decimal` —
@@ -16,9 +16,43 @@ export function lineSubtotal(line: Pick<Line, "price" | "qty">): Decimal {
   return new Decimal(line.price).times(line.qty);
 }
 
-/** The line's own total: `subtotal − effDiscount`. Not the transaction total. */
-export function lineGrandTotal(line: Pick<Line, "price" | "qty" | "discount">): Decimal {
-  return lineSubtotal(line).minus(line.discount);
+/** The line's own total: `subtotal − Σ eff`. Not the transaction total. */
+export function lineGrandTotal(line: Pick<Line, "price" | "qty" | "discounts">): Decimal {
+  return lineSubtotal(line).minus(lineDiscountTotal(line));
+}
+
+/** The rupiah the line's discount stack takes off, in total. */
+export function lineDiscountTotal(line: Pick<Line, "discounts">): Decimal {
+  return line.discounts.reduce((total, discount) => total.plus(discount.eff), new Decimal(0));
+}
+
+/**
+ * Recompute each discount in order: its `eff` (the rupiah it takes off) and the
+ * running `total` after it. A percent applies to the running total, so the
+ * stack is order-dependent.
+ */
+export function recalcDiscounts(
+  price: number,
+  qty: number,
+  lines: readonly DiscountLine[],
+): DiscountLine[] {
+  let running = new Decimal(price).times(qty);
+  return lines.map((line) => {
+    let eff: Decimal;
+    switch (line.kind) {
+      case "number":
+        eff = new Decimal(line.value);
+        break;
+      case "pcs":
+        eff = new Decimal(line.value).times(price);
+        break;
+      case "percent":
+        eff = new Decimal(line.value).div(100).times(running);
+        break;
+    }
+    running = running.minus(eff);
+    return { ...line, eff: eff.toNumber(), total: running.toNumber() };
+  });
 }
 
 function sum(values: Iterable<number | Decimal>): Decimal {

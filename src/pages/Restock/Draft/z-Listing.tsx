@@ -7,7 +7,8 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import type { Line } from "../mock";
-import { DiscountDialog, ListingCard } from "./z-ListingCard";
+import { ListingCard } from "./z-ListingCard";
+import { DiscountDialog } from "./z-Discount";
 import {
   cellAt,
   columnIn,
@@ -37,7 +38,7 @@ function blankLine(): Line {
     unit: 0,
     price: 0,
     qty: 0,
-    discount: 0,
+    discounts: [{ id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 }],
   };
 }
 
@@ -200,6 +201,7 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   }
 
   const manualSelected = selection.row.kind === "header" && active.field === "manual";
+  const discountLine = lines.find((line) => line.id === discountFor) ?? null;
 
   return (
     <div
@@ -307,6 +309,10 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
         onOpenChange={(open) => {
           if (!open) setDiscountFor(null);
         }}
+        line={discountLine}
+        onChange={(discounts) =>
+          onChange(lines.map((line) => (line.id === discountFor ? { ...line, discounts } : line)))
+        }
       />
     </div>
   );

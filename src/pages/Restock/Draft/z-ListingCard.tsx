@@ -2,17 +2,10 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Reorder, useDragControls } from "motion/react";
 import { GripVertical, Plus, Undo2, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { InputCurrency } from "~/components/ui/input-currency";
 import { cn } from "~/lib/utils";
-import { lineGrandTotal } from "../total";
+import { lineDiscountTotal, lineGrandTotal } from "../total";
 import { rupiah } from "../util-rupiah";
 import type { Line } from "../mock";
 import type { Field } from "./listing-grid";
@@ -61,6 +54,7 @@ export function ListingCard({
 }) {
   const controls = useDragControls();
   const grandTotal = lineGrandTotal(line);
+  const discountTotal = lineDiscountTotal(line);
   return (
     <Reorder.Item
       value={line.id}
@@ -218,8 +212,14 @@ export function ListingCard({
               onDiscount();
             }}
           >
-            <Plus className="icon" />
-            Tambah
+            {discountTotal.gt(0) ? (
+              `-${rupiah(discountTotal)}`
+            ) : (
+              <>
+                <Plus className="icon" />
+                Tambah
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -383,25 +383,5 @@ function Cell({
         </button>
       )}
     </div>
-  );
-}
-
-/** Where the line's discounts will be stacked and edited; empty for now. */
-export function DiscountDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-big">Diskon</DialogTitle>
-          <DialogDescription>Fitur diskon sedang dalam pengembangan.</DialogDescription>
-        </DialogHeader>
-      </DialogContent>
-    </Dialog>
   );
 }
