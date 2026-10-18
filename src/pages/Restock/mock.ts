@@ -57,9 +57,6 @@ export type SearchResult = {
   stock: number;
 };
 
-export const CASHIER = "Ali";
-export const PRECISION = 0;
-
 /** The draft the screen is showing. */
 export const DRAFT: Draft = {
   id: "01H",

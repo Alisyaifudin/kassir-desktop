@@ -5,7 +5,7 @@ import { rupiah } from "../util-rupiah";
 
 /**
  * Looks up a product to buy. Adding an existing product is the common case;
- * the manual form in the left column covers things the catalog has never seen.
+ * the search results cover things the catalog has never seen.
  */
 export function Search() {
   return (
