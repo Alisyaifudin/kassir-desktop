@@ -77,6 +77,7 @@ export function Methods({
             size="icon"
             className="rounded-full"
             title="Hapus pembayaran"
+            disabled={draft.methods.length <= 1}
             onClick={() => set(draft.methods.filter((row) => row.id !== method.id))}
           >
             <X className="icon" />
