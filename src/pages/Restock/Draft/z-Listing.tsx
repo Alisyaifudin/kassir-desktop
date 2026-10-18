@@ -1,4 +1,4 @@
-import { DRAFT } from "../mock";
+import { LINES } from "../mock";
 import { Line } from "./z-Line";
 import { Search } from "./z-Search";
 
@@ -12,7 +12,7 @@ export function Listing() {
     <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-1 scroll-gutter">
       <Search />
       <div className="flex flex-col gap-2">
-        {DRAFT.lines.map((line, i) => (
+        {LINES.map((line, i) => (
           <Line key={line.id} line={line} index={i} />
         ))}
       </div>

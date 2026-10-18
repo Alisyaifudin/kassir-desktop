@@ -1,8 +1,10 @@
-import { DRAFT, TOTALS } from "../mock";
+import { EXTRAS } from "../mock";
+import { mockSubtotal } from "../total";
 import { Extras, Subtotal } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Payment } from "./z-Payment";
 import { Tabs } from "./z-Tabs";
+import type { Draft as DraftModel } from "~/services/transaction";
 
 /**
  * The stages the panel walks through, in order: choose the goods, then the
@@ -16,30 +18,45 @@ export type Stage = (typeof STAGES)[number];
  * The purchase being assembled: which draft is open, and which stage of
  * building it is showing. What it costs lives in the bottom panel — see
  * page.tsx.
- *
- * The sale screen tints this whole region and stamps a "BELI" watermark on it,
- * because there one page served both directions. This page only ever buys, so
- * the watermark would be stating the obvious on every screen — dropped, and
- * the tint with it.
  */
-export function Draft({ stage }: { stage: Stage }) {
+export function Draft({
+  draft,
+  drafts,
+  onSelect,
+  stage,
+  grand,
+}: {
+  draft: DraftModel;
+  drafts: DraftModel[];
+  onSelect: (id: string) => void;
+  stage: Stage;
+  grand: number;
+}) {
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
-      <Tabs />
-      <StageBody stage={stage} />
+      <Tabs drafts={drafts} activeId={draft.id} onSelect={onSelect} />
+      <StageBody stage={stage} draft={draft} grand={grand} />
     </section>
   );
 }
 
-function StageBody({ stage }: { stage: Stage }) {
+function StageBody({
+  stage,
+  draft,
+  grand,
+}: {
+  stage: Stage;
+  draft: DraftModel;
+  grand: number;
+}) {
   if (stage === "listing") return <Listing />;
   if (stage === "extras") {
     return (
       <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-1 scroll-gutter">
-        <Subtotal subtotal={TOTALS.subtotal} />
-        <Extras extras={DRAFT.extras} />
+        <Subtotal subtotal={mockSubtotal()} />
+        <Extras extras={EXTRAS} />
       </div>
     );
   }
-  return <Payment />;
+  return <Payment draft={draft} grand={grand} />;
 }

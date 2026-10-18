@@ -28,6 +28,10 @@ import { RecordLive } from "./record/live";
 import { SocialService } from "./social";
 import { SocialLive } from "./social/live";
 import { StoreLive } from "./store/live";
+import { SupplierService } from "./supplier";
+import { SupplierLive } from "./supplier/live";
+import { TransactionService } from "./transaction";
+import { TransactionLive } from "./transaction/live";
 
 /** Layers that back the public services but are not exposed on `service`. */
 const hiddenLive = Layer.mergeAll(DatabaseLive, LocalStorageLive, StoreLive);
@@ -43,6 +47,8 @@ const moneyLive = MoneyLive.pipe(Layer.provide(hiddenLive));
 const productLive = ProductLive.pipe(Layer.provide(hiddenLive));
 const printerLive = PrinterLive.pipe(Layer.provide(hiddenLive));
 const socialLive = SocialLive.pipe(Layer.provide(hiddenLive));
+const supplierLive = SupplierLive.pipe(Layer.provide(hiddenLive));
+const transactionLive = TransactionLive.pipe(Layer.provide(hiddenLive));
 // `record` reverses a deleted record's stock movement, so it needs `product`.
 const recordLive = RecordLive.pipe(Layer.provide(hiddenLive), Layer.provide(productLive));
 
@@ -62,6 +68,8 @@ const appLive = Layer.mergeAll(
   productLive,
   recordLive,
   socialLive,
+  supplierLive,
+  transactionLive,
   authLive,
 );
 
@@ -80,6 +88,8 @@ export const service = Effect.runSync(
       product: yield* ProductService,
       record: yield* RecordService,
       social: yield* SocialService,
+      supplier: yield* SupplierService,
+      transaction: yield* TransactionService,
       auth: yield* AuthService,
     };
   }).pipe(Effect.provide(appLive)),

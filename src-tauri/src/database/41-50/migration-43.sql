@@ -446,7 +446,9 @@ CREATE INDEX product_event_record_idx ON product_events (record_id);
 --         `<singular>_<field>` convention used across data.db.
 --       * `transactions` -> `tx_records` (PK `tab` INTEGER -> `tx_record_id`
 --                           TEXT; adds `tx_record_order` / `tx_record_flag`,
---                           drops `tx_record_created_at`).
+--                           `tx_record_rounding` and `tx_record_supplier_id`,
+--                           drops `tx_record_created_at` and the
+--                           `tx_record_manual_*` columns).
 --       * `extras`       -> `tx_extras` (drops `db_extra_id`; adds
 --                           `tx_extra_eff`).
 --       * `products`     -> `tx_listings`: no longer denormalizes product data;
@@ -457,8 +459,12 @@ CREATE INDEX product_event_record_idx ON product_events (record_id);
 --         are now a CHECK on `tx_discounts.tx_disc_kind`).
 --
 --     New (not sourced from tx.db):
---       * `tx_methods` — the methods selected by a `tx_records` row
---         (`tx_record_id`, `method_id`, `tx_method_value`).
+--       * `tx_methods` — one row per payment on a `tx_records` row
+--         (`tx_method_id`, `tx_record_id`, `method_id`, `tx_method_value`).
+--         Its own id, not `(record, method)`, so a method can be paid twice.
+--
+--     The parked manual-line columns are gone: a hand-entered line is just a
+--     `tx_listings` row whose `listing_id` is NULL.
 --
 --     Deliberately NOT ported:
 --       * `_sqlx_migrations` — sqlx's own bookkeeping for tx.db, which data.db
@@ -470,18 +476,16 @@ CREATE INDEX product_event_record_idx ON product_events (record_id);
 CREATE TABLE tx_records (
   tx_record_id              TEXT PRIMARY KEY,
   tx_record_order           INTEGER NOT NULL, -- user-controlled tab order (re-arrangeable; not unique by design)
-  tx_record_flag            INTEGER NOT NULL DEFAULT 0, -- local flag (role TBD)
+  tx_record_flag            INTEGER NOT NULL DEFAULT 0, -- local flags; bit 0 = the active draft
   tx_record_title           TEXT NOT NULL,
   -- 'incoming' is a sale, which is what the legacy cart defaulted to ('sell').
   tx_record_mode            TEXT NOT NULL DEFAULT ('incoming') CHECK (tx_record_mode IN ('incoming', 'outcoming')),
   tx_record_query           TEXT NOT NULL DEFAULT (''),
   tx_record_fix             INTEGER NOT NULL DEFAULT 0,
   tx_record_note            TEXT NOT NULL DEFAULT (''),
+  tx_record_rounding        REAL NOT NULL DEFAULT 0,
   tx_record_customer_id     TEXT, -- change from INTEGER TO TEXT
-  tx_record_manual_code     TEXT NOT NULL DEFAULT (''),
-  tx_record_manual_name     TEXT NOT NULL DEFAULT (''),
-  tx_record_manual_price    REAL NOT NULL DEFAULT 0,
-  tx_record_manual_qty      INTEGER NOT NULL DEFAULT 0
+  tx_record_supplier_id     TEXT -- the counterparty for an outcoming (purchase) draft
 ) STRICT;
 
 
@@ -499,14 +503,17 @@ CREATE TABLE tx_extras (
 CREATE INDEX tx_idx_extras_extra_id ON tx_extras(tx_extra_id);
 
 
--- Not in tx.db: the methods selected by a `tx_records` row. One row per
--- selected method; `tx_method_value` is the amount applied to that method.
+-- Not in tx.db: the payments on a `tx_records` row. One row per payment;
+-- `tx_method_value` is the amount applied to that method. A row has its own id
+-- rather than `(record, method)`, so the same method can be paid twice.
 CREATE TABLE tx_methods (
+  tx_method_id          TEXT PRIMARY KEY,
   tx_record_id          TEXT NOT NULL REFERENCES tx_records(tx_record_id) ON DELETE CASCADE,
   method_id             TEXT NOT NULL REFERENCES methods(method_id) ON DELETE CASCADE,
-  tx_method_value       INTEGER NOT NULL,
-  PRIMARY KEY (tx_record_id, method_id)
+  tx_method_value       INTEGER NOT NULL
 ) STRICT;
+
+CREATE INDEX tx_idx_methods_record ON tx_methods(tx_record_id);
 
 
 -- Was `products` (now a listing snapshot referencing the live catalog).
@@ -533,6 +540,22 @@ CREATE TABLE tx_discounts (
   tx_disc_eff      REAL NOT NULL DEFAULT 0,
   tx_disc_kind     TEXT NOT NULL DEFAULT 'percent' CHECK (tx_disc_kind IN ('number', 'percent', 'pcs'))
 ) STRICT;
+
+
+-- Not in tx.db: the images attached to a `tx_records` row. A bridge only — the
+-- bytes live on disk under AppData/images/, keyed by `tx_image_name` (the same
+-- key the product gallery and `record_images` use); this row is the reference.
+-- On submit the references move to `record_images`; abandoning the draft deletes
+-- the rows and their files.
+CREATE TABLE tx_images (
+  tx_image_id    TEXT PRIMARY KEY,
+  tx_image_order INTEGER NOT NULL,
+  tx_image_name  TEXT NOT NULL,
+  tx_image_mime  TEXT NOT NULL REFERENCES img_mimes(v),
+  tx_record_id   TEXT NOT NULL REFERENCES tx_records(tx_record_id) ON DELETE CASCADE
+) STRICT;
+
+CREATE INDEX tx_idx_images_record ON tx_images(tx_record_id);
 
 
 -- ----------------------------------------------------------------------------

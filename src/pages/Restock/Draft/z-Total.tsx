@@ -1,10 +1,12 @@
-import { TOTALS } from "../mock";
 import { rupiah } from "../util-rupiah";
 
 /**
  * What the shop pays. Big, centred and alone — the one number that matters once
- * the draft is assembled.
+ * the draft is assembled. `fix` comes from the draft's precision so this and the
+ * payment stage cannot disagree.
  */
-export function Total() {
-  return <p className="text-center text-grand-total tabular-nums">{rupiah(TOTALS.total)}</p>;
+export function Total({ grand, fix }: { grand: number; fix: number }) {
+  return (
+    <p className="text-center text-grand-total tabular-nums">{rupiah(grand, fix)}</p>
+  );
 }
