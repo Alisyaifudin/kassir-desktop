@@ -20,10 +20,10 @@ export function Images({ draft }: { draft: Draft }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<DraftImage | null>(null);
 
-  async function handleFiles(files: FileList) {
+  async function handleFiles(files: File[]) {
     setBusy(true);
     setError(null);
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       const result = await Effect.runPromise(
         service.transaction.images.add(draft.id, file).pipe(Effect.either),
       );
@@ -64,9 +64,10 @@ export function Images({ draft }: { draft: Draft }) {
         multiple
         className="hidden"
         onChange={(event) => {
-          const files = event.currentTarget.files;
+          // Snapshot before resetting: clearing the input empties `files`.
+          const files = Array.from(event.currentTarget.files ?? []);
           event.currentTarget.value = "";
-          if (files !== null && files.length > 0) void handleFiles(files);
+          if (files.length > 0) void handleFiles(files);
         }}
       />
 
