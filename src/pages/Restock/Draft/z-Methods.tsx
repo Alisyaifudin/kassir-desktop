@@ -30,21 +30,17 @@ import { run } from "../run";
 export function Methods({
   draft,
   catalog,
-  grand,
 }: {
   draft: Draft;
   catalog: MethodCatalog;
-  grand: number;
 }) {
-  const paid = draft.methods.reduce((sum, method) => sum + method.value, 0);
-  const remaining = Math.max(grand - paid, 0);
   const set = (methods: DraftMethod[]) =>
     run(service.transaction.methods.set(draft.id, methods));
 
   function add() {
     set([
       ...draft.methods,
-      { id: generateId(), methodId: defaultMethodId(catalog, "cash"), value: remaining },
+      { id: generateId(), methodId: defaultMethodId(catalog, "cash"), value: 0 },
     ]);
   }
 

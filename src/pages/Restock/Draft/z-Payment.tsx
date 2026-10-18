@@ -106,14 +106,18 @@ function Body({
 
       <div className="mt-4 px-2 pb-4">
         <h3 className="mb-2 text-normal font-bold select-none">Pembayaran</h3>
-        <Methods draft={draft} catalog={catalog} grand={grand} />
-        <div className="mt-3 flex items-center justify-between border-t pt-2 select-none">
+        <Methods draft={draft} catalog={catalog} />
+        <div className="mt-3 flex items-center justify-between border-t pt-2 ">
           <span className="text-big">
-            Dibayar: <span className="font-bold text-big tabular-nums">{rupiah(paid, draft.fix)}</span>
+            Dibayar:{" "}
+            <span className="font-bold text-big tabular-nums">{rupiah(paid, draft.fix)}</span>
           </span>
-          <span className={cn("text-big",change < 0 && "text-destructive")}>
-            {change < 0 ? "Sisa" : "Kembalian"}{": "}
-            <span className="font-bold text-change tabular-nums">{rupiah(Math.abs(change), draft.fix)}</span>
+          <span className={cn("text-big", change < 0 && "text-destructive")}>
+            {change < 0 ? "Sisa" : "Kembalian"}
+            {": "}
+            <span className="font-bold text-change tabular-nums">
+              {rupiah(Math.abs(change), draft.fix)}
+            </span>
           </span>
         </div>
       </div>
