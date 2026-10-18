@@ -66,6 +66,7 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   const [discountFor, setDiscountFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const hadDiscount = useRef(false);
 
   // While the search bar has text the cards make way for the future results.
   const hidden = query.trim() !== "";
@@ -97,6 +98,20 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   useEffect(() => {
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
+
+  // The discount dialog traps focus while it is open; take it back for the grid
+  // once it closes, so the arrows keep working. Radix restores focus in a timer
+  // of its own, so wait one tick to run after it.
+  useEffect(() => {
+    if (discountFor !== null) {
+      hadDiscount.current = true;
+      return;
+    }
+    if (!hadDiscount.current) return;
+    hadDiscount.current = false;
+    const timer = setTimeout(() => containerRef.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [discountFor]);
 
   function moveVertical(delta: number) {
     const index = rows.findIndex((row) => sameRow(row, selection.row));

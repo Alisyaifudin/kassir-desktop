@@ -209,6 +209,7 @@ export function ListingCard({
             className="h-auto w-full justify-start p-0 text-normal"
             onClick={(event) => {
               event.stopPropagation();
+              onSelect("diskon");
               onDiscount();
             }}
           >

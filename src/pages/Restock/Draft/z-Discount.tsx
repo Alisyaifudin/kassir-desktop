@@ -74,9 +74,18 @@ export function DiscountDialog({
   line: Line | null;
   onChange: (discounts: DiscountLine[]) => void;
 }) {
+  const exitEditing = useRef<(() => void) | null>(null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent
+        className="max-w-5xl"
+        onEscapeKeyDown={(event) => {
+          if (exitEditing.current !== null) {
+            event.preventDefault();
+            exitEditing.current();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-big font-bold">Diskon</DialogTitle>
         </DialogHeader>
@@ -86,6 +95,7 @@ export function DiscountDialog({
             line={line}
             onChange={onChange}
             onClose={() => onOpenChange(false)}
+            exitEditing={exitEditing}
           />
         ) : null}
       </DialogContent>
@@ -97,10 +107,12 @@ function Body({
   line,
   onChange,
   onClose,
+  exitEditing,
 }: {
   line: Line;
   onChange: (discounts: DiscountLine[]) => void;
   onClose: () => void;
+  exitEditing: { current: (() => void) | null };
 }) {
   const [selection, setSelection] = useState(() => ({
     row: Math.max(0, line.discounts.length - 1),
@@ -118,6 +130,14 @@ function Body({
     if (editing) return;
     containerRef.current?.focus();
   }, [selection, editing]);
+
+  // Let the dialog's Escape handler know whether it should just leave the field.
+  useEffect(() => {
+    exitEditing.current = editing ? () => setEditing(false) : null;
+    return () => {
+      exitEditing.current = null;
+    };
+  }, [editing, exitEditing]);
 
   function commit(next: DiscountLine[]) {
     onChange(recalcDiscounts(line.price, line.qty, normalize(next)));
