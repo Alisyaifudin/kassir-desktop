@@ -95,6 +95,7 @@ type EventRow = {
   product_event_note: string;
   product_id: string;
   stock_id: string;
+  record_id: string | null;
 };
 
 type SaleRow = {
@@ -190,6 +191,7 @@ function rowToEvent(row: EventRow): ProductEvent {
     note: row.product_event_note,
     productId: row.product_id,
     stockId: row.stock_id,
+    recordId: row.record_id,
   };
 }
 
@@ -359,7 +361,7 @@ const SELECT_SALES = `
 const SELECT_STOCK_OPENING =
   "SELECT COALESCE(SUM(product_event_value), 0) AS delta FROM product_events WHERE product_id = $1 AND product_event_created_at < $2";
 const SELECT_STOCK_EVENTS =
-  "SELECT product_event_id, product_event_created_at, product_event_value, product_event_capital, product_event_note, product_id, stock_id FROM product_events WHERE product_id = $1 AND product_event_created_at >= $2 AND product_event_created_at < $3 ORDER BY product_event_created_at ASC";
+  "SELECT product_event_id, product_event_created_at, product_event_value, product_event_capital, product_event_note, product_id, stock_id, record_id FROM product_events WHERE product_id = $1 AND product_event_created_at >= $2 AND product_event_created_at < $3 ORDER BY product_event_created_at ASC";
 
 export const ProductLive = Layer.effect(
   ProductService,
@@ -827,7 +829,7 @@ export const ProductLive = Layer.effect(
             .selectMany<EventRow>(
               `SELECT
                   product_event_id, product_event_created_at, product_event_value,
-                  product_event_capital, product_event_note, product_id, stock_id
+                  product_event_capital, product_event_note, product_id, stock_id, record_id
                 FROM product_events
                 WHERE product_id = $1 AND ($2 IS NULL OR product_event_created_at < $2)
                 ORDER BY product_event_created_at DESC, product_event_id DESC

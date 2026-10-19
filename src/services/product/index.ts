@@ -67,6 +67,7 @@ export type ProductEvent = {
   note: string;
   productId: string;
   stockId: string;
+  recordId: string | null;
 };
 
 export type Product = {

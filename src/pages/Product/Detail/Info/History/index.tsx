@@ -44,7 +44,10 @@ export function History({ productId, revision }: { productId: string; revision: 
 
       <TextError>{error}</TextError>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* `-mr-3 pr-3` lets the scroll track sit on the card's edge instead of
+          butting against the right-most row item; the padding keeps the content
+          inset by the same 12px the card uses. */}
+      <div className="-mr-3 min-h-0 flex-1 overflow-y-auto pr-3">
         {filtered.length === 0 ? (
           <p className="py-6 text-center text-small text-muted-foreground">
             {loading ? "Memuat…" : "Belum ada pergerakan stok."}
