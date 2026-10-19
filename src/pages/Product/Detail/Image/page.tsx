@@ -1,158 +1,216 @@
-import { useEffect, useState } from "react";
-import { Effect } from "effect";
-import { ImageOff } from "lucide-react";
+import { Reorder } from "motion/react";
+import { useBlocker } from "react-router";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { Spinner } from "~/components/Spinner";
 import { Loader, useStream } from "~/components/Loader";
 import { NotFound } from "~/components/NotFound";
-import { TextError } from "~/components/TextError";
+import { cn } from "~/lib/utils";
 import { useUser } from "~/hooks/use-user";
-import { image } from "~/lib/image";
+import { useImageUrl } from "~/hooks/use-image";
 import { service } from "~/services";
-import type { ProductFull, ProductImage } from "~/services/product";
+import type { ProductImage } from "~/services/product";
 import { useId } from "../use-id";
-import { ConfirmDelete } from "../z-ConfirmDelete";
-import { AddButton } from "./z-AddButton";
+import { AddTile } from "./z-AddTile";
+import { DeleteImg } from "./z-DeleteImg";
+import { DiscardDraft } from "./z-DiscardDraft";
+import { Thumb } from "./z-Thumb";
 import { Loading } from "./z-Loading";
-import { Preview } from "./z-Preview";
-import { ThumbRail } from "./z-ThumbRail";
+import { useContainerSize, useControlSize } from "./use-container-size";
+import { useGallery, type GalleryItem } from "./use-gallery";
+import { useSelected } from "./use-selected";
+import { useChange } from "./use-change";
+import { useFileDrop } from "./use-file-drop";
 
 export default function Page() {
   const id = useId();
   const res = useStream(service.product.get.changesFull);
-  const role = useUser().role;
-
   return (
     <Loader res={res} fallback={<Loading />}>
       {({ data: products }) => {
         const product = products.find((item) => item.id === id);
         if (product === undefined) return <NotFound />;
-        return <Manager product={product} canManage={role === "admin"} />;
+        return <Wrapper productId={product.id} images={product.images} />;
       }}
     </Loader>
   );
 }
 
-function Manager({ product, canManage }: { product: ProductFull; canManage: boolean }) {
-  const images = product.images;
-  const [selectedId, setSelectedId] = useState<string | null>(images[0]?.id ?? null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<ProductImage | null>(null);
+function Wrapper({ productId, images }: { productId: string; images: ProductImage[] }) {
+  const gallery = useGallery(productId, images);
+  const [selected, setSelected] = useSelected(gallery.items);
+  const [index, handlePrev, handleNext] = useChange(gallery.items);
+  const [refContainer, container] = useContainerSize();
+  const [ref, control] = useControlSize();
+  const drop = useFileDrop(addAndShow);
+  const role = useUser().role;
+  const draft = selected?.draft ?? null;
+  const pill = useRef<HTMLDivElement>(null);
+  const [reserve, setReserve] = useState(0);
 
-  useEffect(() => {
-    if (selectedId === null || !images.some((item) => item.id === selectedId)) {
-      setSelectedId(images[0]?.id ?? null);
+  /**
+   * The pill is fixed to the bottom right of the window, so it covers whatever the
+   * strip has under that corner. Keeping its width as room at the end of the strip
+   * means the tiles scroll clear of it instead of disappearing behind it - the `+`
+   * in particular still has to be visible and clickable.
+   */
+  useLayoutEffect(() => {
+    if (!gallery.dirty) {
+      setReserve(0);
+      return;
     }
-  }, [images, selectedId]);
+    setReserve((pill.current?.offsetWidth ?? 0) + 8);
+  }, [gallery.dirty, gallery.saving]);
 
-  const selectedIndex = Math.max(
-    0,
-    images.findIndex((item) => item.id === selectedId),
+  function addAndShow(files: File[]) {
+    const added = gallery.add(files);
+    if (added.length > 0) setSelected(added[0]);
+  }
+
+  /**
+   * Drafts only exist in memory, so leaving the page loses them - but so does
+   * selecting a thumbnail, which writes the `selected-image` search param and is a
+   * navigation of its own. Only a different pathname is worth asking about.
+   */
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      gallery.dirty && currentLocation.pathname !== nextLocation.pathname,
   );
-  const selected = images[selectedIndex] ?? null;
 
-  async function reorder(ids: string[]) {
-    if (ids.length < 2) return;
-    setBusy(true);
-    setError(null);
-    const result = await Effect.runPromise(
-      service.product.set.image.reorder(product.id, ids).pipe(Effect.either),
-    );
-    setBusy(false);
-    if (result._tag === "Left") setError(result.left.message);
+  async function saveAndLeave() {
+    await gallery.save();
   }
 
-  /** Returns an error message, or `null` on success (the dialog closes itself). */
-  async function performDelete(): Promise<string | null> {
-    const target = pendingDelete;
-    if (target === null) return null;
-
-    setBusy(true);
-    setError(null);
-    const removed = await Effect.runPromise(
-      service.product.set.image.remove(product.id, target.id).pipe(Effect.either),
-    );
-    if (removed._tag === "Left") {
-      setBusy(false);
-      return removed.left.message;
-    }
-
-    const fileResult = await Effect.runPromise(image.del(target.name).pipe(Effect.either));
-    setBusy(false);
-    if (fileResult._tag === "Left") setError(fileResult.left.e.message);
-
-    setPendingDelete(null);
-    return null;
+  function discardAndLeave() {
+    gallery.discardAll();
   }
 
-  function handleSetCover(target: ProductImage) {
-    const ids = [
-      target.id,
-      ...images.filter((item) => item.id !== target.id).map((item) => item.id),
-    ];
-    void reorder(ids);
-  }
+  /**
+   * Once there is nothing left to lose - saved from the dialog or from the pill,
+   * or discarded - the navigation the user already started can finish. Doing it
+   * here rather than in the handlers keeps `proceed` from being called twice, which
+   * the router rejects.
+   */
+  useEffect(() => {
+    if (blocker.state === "blocked" && !gallery.dirty) blocker.proceed?.();
+  }, [blocker, gallery.dirty]);
 
   return (
-    <main className="flex h-full flex-col gap-3 p-4">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <h2 className="text-small font-semibold">Gambar</h2>
-          <p className="text-small text-muted-foreground">{images.length} gambar</p>
-        </div>
-        {canManage && images.length > 0 ? (
-          <AddButton
-            productId={product.id}
-            disabled={busy}
-            onAdded={(imageId) => setSelectedId(imageId)}
-          />
-        ) : null}
-      </header>
-
-      <TextError>{error}</TextError>
-
-      {images.length === 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground">
-          <ImageOff className="size-12 small:size-8" />
-          <p className="text-small">Belum ada gambar.</p>
-          {canManage ? (
-            <AddButton productId={product.id} onAdded={(imageId) => setSelectedId(imageId)} />
+    <div ref={refContainer} className="flex h-full min-h-0 w-full flex-col gap-1">
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Button
+          className="h-full px-0"
+          variant="secondary"
+          onClick={handlePrev}
+          disabled={index <= 0}
+        >
+          <ChevronLeft />
+        </Button>
+        <div
+          style={{ height: Math.max(0, container.height - control.height) }}
+          className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+        >
+          <PreviewImage item={selected} />
+          {draft !== null ? (
+            <DiscardDraft onDiscard={() => gallery.discard(draft)} />
+          ) : selected !== null && role === "admin" ? (
+            <DeleteImg productId={productId} item={selected} />
           ) : null}
         </div>
-      ) : (
-        <>
-          <Preview
-            image={selected}
-            canManage={canManage}
-            hasPrev={selectedIndex > 0}
-            hasNext={selectedIndex < images.length - 1}
-            isCover={selectedIndex === 0}
-            disabled={busy}
-            onPrev={() => setSelectedId(images[selectedIndex - 1]?.id ?? selectedId)}
-            onNext={() => setSelectedId(images[selectedIndex + 1]?.id ?? selectedId)}
-            onSetCover={() => selected !== null && handleSetCover(selected)}
-            onDelete={() => selected !== null && setPendingDelete(selected)}
-          />
-          <ThumbRail
-            images={images}
-            selectedId={selected?.id ?? null}
-            disabled={busy}
-            canManage={canManage}
-            onSelect={setSelectedId}
-            onDelete={setPendingDelete}
-            onReorder={(ids) => void reorder(ids)}
-          />
-        </>
-      )}
-
-      <ConfirmDelete
-        open={pendingDelete !== null}
+        <Button
+          className="h-full px-0"
+          variant="secondary"
+          disabled={index === gallery.items.length - 1}
+          onClick={handleNext}
+        >
+          <ChevronRight />
+        </Button>
+      </div>
+      <div ref={ref} className="flex min-h-0 w-full flex-col">
+        <Reorder.Group
+          axis="x"
+          values={gallery.items}
+          onReorder={gallery.move}
+          className={cn(
+            "flex h-36 items-center gap-1 overflow-x-scroll overflow-y-hidden rounded-lg px-1",
+            { "ring-2 ring-primary": drop.active },
+          )}
+          {...drop.handlers}
+        >
+          {gallery.items.map((item) => (
+            <Thumb
+              key={item.id}
+              item={item}
+              selected={selected?.id === item.id}
+              onSelect={() => setSelected(item.id)}
+            />
+          ))}
+          <AddTile onFiles={addAndShow} disabled={gallery.saving} />
+          {/* not an image: room for the floating pill, which sits over this corner */}
+          {reserve > 0 ? <li aria-hidden className="shrink-0" style={{ width: reserve }} /> : null}
+        </Reorder.Group>
+      </div>
+      {gallery.dirty ? (
+        <div
+          ref={pill}
+          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-2xl border bg-card px-4 py-2 shadow-lg"
+        >
+          <span className="text-normal text-destructive">Belum disimpan</span>
+          <Button onClick={() => void gallery.save()} disabled={gallery.saving}>
+            Simpan <Spinner when={gallery.saving} />
+          </Button>
+          <Button variant="ghost" onClick={gallery.discardAll} disabled={gallery.saving}>
+            Batal
+          </Button>
+        </div>
+      ) : null}
+      <Dialog
+        open={blocker.state === "blocked"}
         onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
+          if (!open) blocker.reset?.();
         }}
-        title="Hapus gambar?"
-        description="Gambar akan dihapus dari produk ini dan berkasnya dibuang dari perangkat."
-        onConfirm={performDelete}
-      />
-    </main>
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-normal">Gambar belum disimpan</DialogTitle>
+            <DialogDescription className="text-small">
+              {gallery.drafts.length} gambar belum disimpan. Simpan dulu sebelum pindah?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-5 flex justify-between gap-2">
+            <Button variant="secondary" onClick={() => blocker.reset?.()}>
+              Batal
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="destructive" onClick={discardAndLeave} disabled={gallery.saving}>
+                Buang
+              </Button>
+              <Button onClick={() => void saveAndLeave()}>
+                Simpan <Spinner when={gallery.saving} />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
+}
+
+/** The big preview: a draft has its object url, a saved row loads its file. */
+function PreviewImage({ item }: { item: GalleryItem | null }) {
+  const saved = useImageUrl(
+    item?.draft === null ? (item?.file ?? null) : null,
+    item?.draft === null ? (item?.mime ?? null) : null,
+  );
+  const href = item?.draft != null ? item.draft.href : saved;
+  if (href === null) return null;
+  return <img className="h-full w-full object-contain" src={href} alt="" />;
 }

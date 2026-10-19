@@ -179,6 +179,12 @@ export class ProductService extends Context.Tag("ProductService")<
       };
       image: {
         add: (productId: string, input: ImageInput) => Effect.Effect<string, ProductError>;
+        /** Insert the drafts and renumber the gallery in one transaction. */
+        commit: (
+          productId: string,
+          order: string[],
+          drafts: { id: string; name: string; mime: Mime }[],
+        ) => Effect.Effect<void, ProductError>;
         remove: (productId: string, imageId: string) => Effect.Effect<void, ProductError>;
         reorder: (productId: string, imageIds: string[]) => Effect.Effect<void, ProductError>;
       };

@@ -708,6 +708,33 @@ export const ProductLive = Layer.effect(
               return imageId;
             });
           },
+          commit(productId, order, drafts) {
+            return Effect.gen(function* () {
+              const now = Date.now();
+              const pending = new Map(drafts.map((draft) => [draft.id, draft]));
+              const statements: Statement[] = order.map((imageId, index) => {
+                const draft = pending.get(imageId);
+                if (draft !== undefined) {
+                  return {
+                    sql: `INSERT INTO images (
+                        image_id, image_order, image_name, image_mime, product_id,
+                        image_updated_at, image_sync_at, image_deleted_at
+                      ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)`,
+                    bindings: [imageId, index, draft.name, draft.mime, productId, now],
+                  };
+                }
+                return {
+                  sql: `UPDATE images SET
+                      image_order = $1, image_updated_at = $2, image_sync_at = NULL
+                    WHERE image_id = $3 AND product_id = $4`,
+                  bindings: [index, now, imageId, productId],
+                };
+              });
+              statements.push(touchProduct(productId, now));
+              yield* commit(statements);
+              yield* hydrate();
+            });
+          },
           remove(productId, imageId) {
             return Effect.gen(function* () {
               const now = Date.now();
