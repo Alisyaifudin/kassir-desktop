@@ -1,5 +1,6 @@
 import { Link } from "react-router";
-import { Package } from "lucide-react";
+import { ExternalLink, Package } from "lucide-react";
+import { Button } from "~/components/ui/button";
 import { useImageUrl } from "~/hooks/use-image";
 import type { Product } from "~/services/product";
 import { isLoss } from "./use-filtered";
@@ -22,16 +23,15 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
   const url = useImageUrl(cover?.name ?? null, cover?.mime ?? null);
 
   return (
-    <Link
-      to={{
-        pathname: `/products/${product.id}`,
-        search: `url_back=${encodeURIComponent(urlBack)}`,
-      }}
-      className="group flex flex-col overflow-hidden rounded-xl border bg-card transition hover:shadow-md"
-    >
+    <div className="flex flex-col overflow-hidden rounded-xl border bg-card">
       <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-muted/40">
         {url !== null ? (
-          <img src={url} alt={product.name} className="h-full w-full object-cover" />
+          <img
+            src={url}
+            alt={product.name}
+            draggable={false}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <Package className="size-10 text-muted-foreground/40 small:size-8" />
         )}
@@ -40,6 +40,23 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
             <LossBadge />
           </div>
         ) : null}
+        <Button
+          asChild
+          size="icon"
+          variant="secondary"
+          className="absolute right-2 top-2 size-12 rounded-full bg-background/85 shadow-sm backdrop-blur-sm hover:bg-background small:size-10"
+        >
+          <Link
+            to={{
+              pathname: `/products/${product.id}`,
+              search: `url_back=${encodeURIComponent(urlBack)}`,
+            }}
+            aria-label={`Buka ${product.name}`}
+            title="Buka produk"
+          >
+            <ExternalLink className="icon" />
+          </Link>
+        </Button>
       </div>
       <div className="flex flex-col gap-1.5 p-2.5">
         <span className="line-clamp-2 text-small font-medium leading-tight">{product.name}</span>
@@ -54,6 +71,6 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
           </span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
