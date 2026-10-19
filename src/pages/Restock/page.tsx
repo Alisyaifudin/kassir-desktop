@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Effect } from "effect";
 import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
@@ -6,7 +6,8 @@ import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import { paidTotal, transactionGrandTotal } from "./total";
+import { EXTRAS, LINES, type Extra, type Line } from "./mock";
+import { linesSubtotal, paidTotal, purchaseTotal, transactionGrandTotal } from "./total";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
 
@@ -60,6 +61,11 @@ function Screen({
   );
   const creating = useRef(false);
 
+  // The purchase's contents are still mock state, held here so the bottom panel
+  // and the extras stage read the same totals.
+  const [lines, setLines] = useState<Line[]>(() => [...LINES]);
+  const [extras, setExtras] = useState<Extra[]>(() => [...EXTRAS]);
+
   // The screen always has a purchase to show: an empty one is made for it.
   useEffect(() => {
     if (purchaseDrafts.length > 0 || creating.current) return;
@@ -90,7 +96,9 @@ function Screen({
 
   if (active === null) return <Loading />;
 
-  const grand = transactionGrandTotal(active.rounding);
+  const subtotal = linesSubtotal(lines);
+  const total = purchaseTotal(extras, subtotal);
+  const grand = transactionGrandTotal(total, active.rounding);
   const change = paidTotal(active.methods).minus(grand);
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1">
@@ -100,6 +108,10 @@ function Screen({
         onSelect={onDraft}
         stage={stage}
         grand={grand}
+        lines={lines}
+        onLines={setLines}
+        extras={extras}
+        onExtras={setExtras}
       />
       <Bottom stage={stage} onChange={onStage} grand={grand} fix={active.fix} change={change} />
     </div>

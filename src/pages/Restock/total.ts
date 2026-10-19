@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { EXTRAS, LINES, type DiscountLine, type Extra, type Line } from "./mock";
+import { type DiscountLine, type Extra, type Line } from "./mock";
 
 /**
  * Money arithmetic for the restock screen. Everything is done on `Decimal` —
@@ -66,45 +66,41 @@ export function linesSubtotal(lines: readonly Line[]): Decimal {
   return sum(lines.map((line) => lineGrandTotal(line)));
 }
 
+/** One extra's computed effect and the running total after it. */
+export type ExtraEffect = { id: string; eff: Decimal; total: Decimal };
+
 /**
- * An extra's rupiah effect on the purchase: a flat amount, or a percent of the
- * goods subtotal. Percent is on the goods alone, not on the other extras.
+ * Work through the extras in order. A percent applies to the running total —
+ * the goods subtotal plus whatever came before it — so the same extras in a
+ * different order do not add up to the same thing. A flat amount ignores the
+ * running total.
  */
-export function extraEffective(
-  extra: Pick<Extra, "kind" | "value">,
-  subtotal: Decimal,
-): Decimal {
-  return extra.kind === "percent"
-    ? subtotal.times(extra.value).div(100)
-    : new Decimal(extra.value);
+export function recalcExtras(extras: readonly Extra[], subtotal: Decimal): ExtraEffect[] {
+  let running = subtotal;
+  return extras.map((extra) => {
+    const eff =
+      extra.kind === "percent" ? running.times(extra.value).div(100) : new Decimal(extra.value);
+    running = running.plus(eff);
+    return { id: extra.id, eff, total: running };
+  });
 }
 
 /** The rupiah all the extras come to, given the goods subtotal. */
 export function extrasTotal(extras: readonly Extra[], subtotal: Decimal): Decimal {
-  return sum(extras.map((extra) => extraEffective(extra, subtotal)));
+  return sum(recalcExtras(extras, subtotal).map((effect) => effect.eff));
 }
 
-/** What the mocked listings come to, before extras and rounding. */
-export function mockSubtotal(): Decimal {
-  return linesSubtotal(LINES);
-}
-
-/** What the mocked purchase-level extras come to. */
-export function mockExtras(): Decimal {
-  return extrasTotal(EXTRAS, mockSubtotal());
-}
-
-/** The mocked goods and extras together, before rounding. */
-export function mockBase(): Decimal {
-  return mockSubtotal().plus(mockExtras());
+/** The purchase before rounding: the goods subtotal plus every extra. */
+export function purchaseTotal(extras: readonly Extra[], subtotal: Decimal): Decimal {
+  return subtotal.plus(extrasTotal(extras, subtotal));
 }
 
 /**
- * The whole transaction: the lines' grand totals, plus the purchase-level extras
- * and the cashier's rounding. Distinct from `lineGrandTotal`.
+ * The whole transaction: the goods and extras, plus the cashier's rounding.
+ * Distinct from `lineGrandTotal`.
  */
-export function transactionGrandTotal(rounding: number): Decimal {
-  return mockBase().plus(rounding);
+export function transactionGrandTotal(base: Decimal, rounding: number): Decimal {
+  return base.plus(rounding);
 }
 
 /** The sum of a draft's payments. */

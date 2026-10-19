@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Effect } from "effect";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
-import { EXTRAS, LINES, type Extra, type Line } from "../mock";
+import { type Extra, type Line } from "../mock";
 import { linesSubtotal } from "../total";
 import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
@@ -29,17 +29,21 @@ export function Draft({
   onSelect,
   stage,
   grand,
+  lines,
+  onLines,
+  extras,
+  onExtras,
 }: {
   draft: DraftModel;
   drafts: DraftModel[];
   onSelect: (id: string) => void;
   stage: Stage;
   grand: Decimal;
+  lines: Line[];
+  onLines: (lines: Line[]) => void;
+  extras: Extra[];
+  onExtras: (extras: Extra[]) => void;
 }) {
-  // The rows are still mock state, held here so switching stages keeps them.
-  const [lines, setLines] = useState<Line[]>(() => [...LINES]);
-  const [extras, setExtras] = useState<Extra[]>(() => [...EXTRAS]);
-
   // The open purchase takes its name from its first listing.
   useEffect(() => {
     const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
@@ -56,9 +60,9 @@ export function Draft({
         draft={draft}
         grand={grand}
         lines={lines}
-        onLines={setLines}
+        onLines={onLines}
         extras={extras}
-        onExtras={setExtras}
+        onExtras={onExtras}
       />
     </section>
   );

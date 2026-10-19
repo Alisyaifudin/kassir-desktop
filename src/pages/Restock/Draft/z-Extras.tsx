@@ -1,24 +1,26 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import type Decimal from "decimal.js";
+import { AnimatePresence } from "motion/react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
-import type { ValueKind } from "~/lib/constants";
 import { EXTRA_PRESETS, type Extra, type ExtraPreset } from "../mock";
-import { extraEffective } from "../total";
+import { recalcExtras } from "../total";
 import { rupiah } from "../util-rupiah";
-import { Cell, SELECTED_RING } from "./z-Cell";
+import { SELECTED_RING } from "./z-Cell";
+import { ExtraCard } from "./z-Extra";
 import { ExtraSearch } from "./z-ExtraSearch";
 import {
   extraCellAt,
@@ -37,8 +39,6 @@ const SUBTOTAL_ROW: ExtraRowRef = { kind: "subtotal" };
 const NAME_COLUMN = 1;
 const MANUAL_COLUMN = 10;
 
-const KIND_LABELS: Record<ValueKind, string> = { number: "Angka", percent: "Persen" };
-
 /** A blank extra for +manual: a flat amount with nothing filled in. */
 function blankExtra(): Extra {
   return { id: generateId(), name: "", kind: "number", value: 0 };
@@ -46,11 +46,6 @@ function blankExtra(): Extra {
 
 function caretAtEnd(input: HTMLInputElement | null): boolean {
   return input !== null && input.selectionStart === input.value.length;
-}
-
-/** Show an extra's rupiah effect with its sign in front, not inside. */
-function signedRupiah(value: Decimal): string {
-  return value.isNegative() ? `-${rupiah(value.abs())}` : rupiah(value);
 }
 
 /**
@@ -61,7 +56,8 @@ function signedRupiah(value: Decimal): string {
  * a glance.
  *
  * Unlike a line's discounts there is no trailing empty row; `+manual` or the
- * search add one, and a purchase with no extras at all is fine.
+ * search add one, and a purchase with no extras at all is fine. Each row's
+ * number is its drag handle, so the extras can be put in any order.
  */
 export function Extras({
   extras,
@@ -80,11 +76,17 @@ export function Extras({
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const kindWasOpen = useRef(false);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // While the search bar has text the rows make way for the future results.
   const hidden = query.trim() !== "";
   const ids = useMemo(() => extras.map((extra) => extra.id), [extras]);
   const rows = useMemo(() => extraRowsFor(hidden ? [] : ids), [hidden, ids]);
+  // The extras are a stack: a percent applies to the running total, so a
+  // reorder changes every percent that follows it.
+  const effects = useMemo(() => recalcExtras(extras, subtotal), [extras, subtotal]);
+  // What the purchase comes to before rounding: the goods, plus every extra.
+  const total = effects[effects.length - 1]?.total ?? subtotal;
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (needle === "") return [];
@@ -157,9 +159,7 @@ export function Extras({
   }
 
   function moveHorizontal(delta: number) {
-    const flat = rows.flatMap((row) =>
-      selectableExtraCells(row).map((cell) => ({ row, cell })),
-    );
+    const flat = rows.flatMap((row) => selectableExtraCells(row).map((cell) => ({ row, cell })));
     const index = flat.findIndex(
       (entry) => sameExtraRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
@@ -203,6 +203,15 @@ export function Extras({
     }
   }
 
+  function handleDragEnd(event: DragEndEvent) {
+    const { active: dragged, over } = event;
+    if (over === null || dragged.id === over.id) return;
+    const from = extras.findIndex((extra) => extra.id === dragged.id);
+    const to = extras.findIndex((extra) => extra.id === over.id);
+    if (from === -1 || to === -1) return;
+    onChange(arrayMove(extras, from, to));
+  }
+
   function activate() {
     if (active.editable) {
       setEditing(true);
@@ -227,7 +236,6 @@ export function Extras({
     // Portaled popups (the kind select) bubble their keys through the React
     // tree, not the DOM; ignore anything that did not start inside this grid.
     if (!event.currentTarget.contains(event.target as Node)) return;
-    if (event.defaultPrevented) return;
     // F1 always jumps to the search bar, even out of an edit.
     if (event.key === "F1") {
       event.preventDefault();
@@ -336,7 +344,8 @@ export function Extras({
           onExit={() => searchRef.current?.focus()}
         />
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
           <div className="grid grid-cols-12 border-b">
             <div
               id="cell-subtotal-subtotal"
@@ -357,118 +366,49 @@ export function Extras({
           {extras.length === 0 ? (
             <p className="p-4 text-muted-foreground select-none">Belum ada biaya tambahan.</p>
           ) : (
-            <div className="divide-y divide-border">
-              {extras.map((extra, index) => {
-                const onRow = selection.row.kind === "extra" && selection.row.extraId === extra.id;
-                const eff = extraEffective(extra, subtotal);
-                return (
-                  <div key={extra.id} className="grid grid-cols-12 items-stretch bg-card text-card-foreground">
-                    <div className="col-span-1 flex items-center justify-center text-normal text-muted-foreground tabular-nums select-none">
-                      {index + 1}
-                    </div>
-                    <Cell
-                      id={`extra-${extra.id}-name`}
-                      className="col-span-3 border-l"
-                      label="Nama"
-                      selected={onRow && active.field === "name"}
-                      editing={onRow && editing && active.field === "name"}
-                      value={extra.name}
-                      display={extra.name}
-                      empty={extra.name === ""}
-                      placeholder="Nama biaya"
-                      onSelect={() => selectExtra(extra.id, "name")}
-                      onStartEdit={() => startEditExtra(extra.id, "name")}
-                      onEditingDone={() => setEditing(false)}
-                      onCommit={(raw) => patchExtra(extra.id, { name: raw })}
-                    />
-                    <Cell
-                      id={`extra-${extra.id}-value`}
-                      className="col-span-3 border-l"
-                      label="Nilai"
-                      align="right"
-                      currency={extra.kind === "number"}
-                      percent={extra.kind === "percent"}
-                      selected={onRow && active.field === "value"}
-                      editing={onRow && editing && active.field === "value"}
-                      value={extra.value}
-                      display={extra.kind === "percent" ? `${extra.value}%` : rupiah(extra.value)}
-                      empty={extra.value === 0}
-                      placeholder="0"
-                      onSelect={() => selectExtra(extra.id, "value")}
-                      onStartEdit={() => startEditExtra(extra.id, "value")}
-                      onEditingDone={() => setEditing(false)}
-                      onCommit={(raw) => patchExtra(extra.id, { value: Number(raw) || 0 })}
-                    />
-                    <div
-                      id={`extra-${extra.id}-kind`}
-                      onClick={() => selectExtra(extra.id, "kind")}
-                      className={cn(
-                        "col-span-2 flex flex-col justify-center gap-0.5 border-l px-2 py-1",
-                        onRow && active.field === "kind" && SELECTED_RING,
-                      )}
-                    >
-                      <span className="text-small leading-none text-muted-foreground select-none">
-                        Tipe
-                      </span>
-                      <Select
-                        value={extra.kind}
-                        open={openKindFor === extra.id}
-                        onOpenChange={(open) => setOpenKindFor(open ? extra.id : null)}
-                        onValueChange={(kind) => patchExtra(extra.id, { kind: kind as ValueKind })}
-                      >
-                        <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7">
-                          <SelectValue>{KIND_LABELS[extra.kind]}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectItem value="number">Angka</SelectItem>
-                            <SelectItem value="percent">Persen</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div
-                      id={`extra-${extra.id}-eff`}
-                      onClick={() => selectExtra(extra.id, "eff")}
-                      className={cn(
-                        "col-span-2 flex flex-col justify-center gap-0.5 border-l px-2 py-1",
-                        onRow && active.field === "eff" && SELECTED_RING,
-                      )}
-                    >
-                      <span className="text-small leading-none text-muted-foreground select-none">
-                        Efektif
-                      </span>
-                      <span className="text-normal font-bold tabular-nums text-primary">
-                        {signedRupiah(eff)}
-                      </span>
-                    </div>
-                    <div
-                      id={`extra-${extra.id}-x`}
-                      onClick={() => selectExtra(extra.id, "x")}
-                      className={cn(
-                        "col-span-1 flex items-center justify-center border-l",
-                        onRow && active.field === "x" && SELECTED_RING,
-                      )}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full hover:bg-destructive hover:text-primary-foreground"
-                        title="Hapus biaya"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          removeExtra(extra.id);
-                        }}
-                      >
-                        <X className="icon" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                <div className="divide-y divide-border">
+                  <AnimatePresence initial={false}>
+                    {extras.map((extra, index) => {
+                      const onRow =
+                        selection.row.kind === "extra" && selection.row.extraId === extra.id;
+                      const effect = effects[index];
+                      if (effect === undefined) return null;
+                      return (
+                        <ExtraCard
+                          key={extra.id}
+                          extra={extra}
+                          number={index + 1}
+                          eff={effect.eff}
+                          selected={onRow ? (active.field as ExtraField) : null}
+                          editing={onRow && editing}
+                          kindOpen={openKindFor === extra.id}
+                          onChange={(patch) => patchExtra(extra.id, patch)}
+                          onRemove={() => removeExtra(extra.id)}
+                          onSelect={(field) => selectExtra(extra.id, field)}
+                          onStartEdit={(field) => startEditExtra(extra.id, field)}
+                          onEditingDone={() => setEditing(false)}
+                          onKindOpenChange={(open) => setOpenKindFor(open ? extra.id : null)}
+                        />
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
-        </div>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-card px-3 py-2 text-card-foreground">
+            <span className="text-normal text-muted-foreground select-none">Total</span>
+            <span className="text-big font-bold tabular-nums">{rupiah(total)}</span>
+          </div>
+        </>
       )}
     </div>
   );
