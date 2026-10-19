@@ -23,12 +23,18 @@ export type PropertyDraft = {
   value: string;
 };
 
+export type ProductNameDraft = {
+  key: string;
+  value: string;
+};
+
 export type ProductDraft = {
   name: string;
   note: string;
   listings: ListingDraft[];
   stocks: StockDraft[];
   properties: PropertyDraft[];
+  productNames: ProductNameDraft[];
 };
 
 export const LISTING_KIND_SUGGESTIONS = ["retail", "wholesale", "marketplace"] as const;
@@ -53,8 +59,19 @@ export function newProperty(): PropertyDraft {
   return { key: generateId(), name: "", value: "" };
 }
 
+export function newProductName(): ProductNameDraft {
+  return { key: generateId(), value: "" };
+}
+
 export function emptyDraft(): ProductDraft {
-  return { name: "", note: "", listings: [newListing()], stocks: [newStock()], properties: [] };
+  return {
+    name: "",
+    note: "",
+    listings: [newListing()],
+    stocks: [newStock()],
+    properties: [],
+    productNames: [],
+  };
 }
 
 export function draftFromProduct(product: ProductFull): ProductDraft {
@@ -79,6 +96,10 @@ export function draftFromProduct(product: ProductFull): ProductDraft {
       key: property.id,
       name: property.key,
       value: property.value,
+    })),
+    productNames: product.productNames.map((name) => ({
+      key: name.id,
+      value: name.value,
     })),
   };
 }

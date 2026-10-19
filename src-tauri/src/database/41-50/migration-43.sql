@@ -190,8 +190,9 @@ CREATE TABLE products (
 
 -- ----------------------------------------------------------------------------
 -- 5. Product children.
---    `listings` is a syncable mutable row; `stocks` is a local cache of the
---    event-sourced `product_events` journal (not synced).
+--    `listings`, `properties` and `product_names` are syncable mutable rows;
+--    `stocks` is a local cache of the event-sourced `product_events` journal
+--    (not synced).
 -- ----------------------------------------------------------------------------
 
 -- stocks: one row per cost lot; a product can carry several capital values.
@@ -259,6 +260,28 @@ CREATE TABLE properties (
 CREATE UNIQUE INDEX property_product_key_unique
   ON properties (product_id, property_key) WHERE property_deleted_at IS NULL;
 CREATE INDEX property_product_idx ON properties (product_id);
+
+-- product_names: alternative names a product can also be looked up under.
+--   Zero or more per product (the default); each row is one alias (e.g. "Coke"
+--   for "Coca-Cola"). Search matches any of them in addition to
+--   `products.product_name`.
+--   At most one live row per value per product (the partial unique index lets
+--   a soft-deleted name be re-added, but rejects a live duplicate). Comparison
+--   is exact — normalize casing/whitespace in app code before insert.
+--   Syncable mutable child: carries the full sync trio like `listings`.
+CREATE TABLE product_names (
+  product_name_id         TEXT PRIMARY KEY,
+  product_id              TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+  product_name_value      TEXT NOT NULL,
+  product_name_updated_at INTEGER NOT NULL,
+  product_name_sync_at    INTEGER,
+  product_name_deleted_at INTEGER
+) STRICT;
+
+CREATE UNIQUE INDEX product_name_product_value_unique
+  ON product_names (product_id, product_name_value) WHERE product_name_deleted_at IS NULL;
+CREATE INDEX product_name_product_idx ON product_names (product_id);
+CREATE INDEX product_name_value_idx   ON product_names (product_name_value);
 
 
 -- ----------------------------------------------------------------------------
@@ -596,7 +619,7 @@ CREATE TABLE suppliers (
 --   with the greater `_updated_at` and honors `_deleted_at`.
 --
 -- Aggregates
---   product  = products + listings + properties + images
+--   product  = products + listings + properties + product_names + images
 --              keyed on product_updated_at. Any child change bumps
 --              product_updated_at. These children are mutable rows carrying
 --              their own `_updated_at` / `_sync_at` / `_deleted_at`.

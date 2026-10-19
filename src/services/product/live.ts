@@ -12,6 +12,8 @@ import {
   type ProductEvent,
   type ProductFull,
   type ProductImage,
+  type ProductName,
+  type ProductNameInput,
   type Property,
   type PropertyInput,
   type ProductSale,
@@ -56,6 +58,14 @@ type PropertyRow = {
   property_value: string;
   property_updated_at: number;
   property_sync_at: number | null;
+};
+
+type ProductNameRow = {
+  product_name_id: string;
+  product_id: string;
+  product_name_value: string;
+  product_name_updated_at: number;
+  product_name_sync_at: number | null;
 };
 
 type ImageRow = {
@@ -108,6 +118,7 @@ type ProductState = {
   listings: Listing[];
   stocks: Stock[];
   properties: Property[];
+  productNames: ProductName[];
   images: ProductImage[];
 };
 
@@ -134,6 +145,16 @@ function rowToProperty(row: PropertyRow): Property {
     value: row.property_value,
     updatedAt: row.property_updated_at,
     syncAt: row.property_sync_at,
+  };
+}
+
+function rowToProductName(row: ProductNameRow): ProductName {
+  return {
+    id: row.product_name_id,
+    productId: row.product_id,
+    value: row.product_name_value,
+    updatedAt: row.product_name_updated_at,
+    syncAt: row.product_name_sync_at,
   };
 }
 
@@ -215,6 +236,7 @@ function toProductFull(state: ProductState): ProductFull {
     ...toProduct(state),
     stocks: state.stocks,
     properties: state.properties,
+    productNames: state.productNames,
     images: [...state.images].sort((a, b) => a.order - b.order),
   };
 }
@@ -294,12 +316,29 @@ function propertyInsert(
   };
 }
 
+function productNameInsert(
+  productId: string,
+  productNameId: string,
+  input: ProductNameInput,
+  now: number,
+): Statement {
+  return {
+    sql: `INSERT INTO product_names (
+        product_name_id, product_id, product_name_value,
+        product_name_updated_at, product_name_sync_at, product_name_deleted_at
+      ) VALUES ($1, $2, $3, $4, NULL, NULL)`,
+    bindings: [productNameId, productId, input.value, now],
+  };
+}
+
 const SELECT_PRODUCTS =
   "SELECT product_id, product_name, product_note, product_updated_at, product_sync_at FROM products WHERE product_deleted_at IS NULL";
 const SELECT_LISTINGS =
   "SELECT listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_code_kind, listing_updated_at, listing_sync_at FROM listings WHERE listing_deleted_at IS NULL";
 const SELECT_PROPERTIES =
   "SELECT property_id, product_id, property_key, property_value, property_updated_at, property_sync_at FROM properties WHERE property_deleted_at IS NULL";
+const SELECT_PRODUCT_NAMES =
+  "SELECT product_name_id, product_id, product_name_value, product_name_updated_at, product_name_sync_at FROM product_names WHERE product_name_deleted_at IS NULL";
 const SELECT_IMAGES =
   "SELECT image_id, product_id, image_order, image_name, image_mime, image_updated_at, image_sync_at FROM images WHERE image_deleted_at IS NULL";
 const SELECT_STOCKS =
@@ -332,13 +371,15 @@ export const ProductLive = Layer.effect(
 
     function loadAll(): Effect.Effect<ProductState[], ProductError> {
       return Effect.gen(function* () {
-        const [productRows, listingRows, propertyRows, imageRows, stockRows] = yield* Effect.all([
-          db.selectMany<ProductRow>(SELECT_PRODUCTS),
-          db.selectMany<ListingRow>(SELECT_LISTINGS),
-          db.selectMany<PropertyRow>(SELECT_PROPERTIES),
-          db.selectMany<ImageRow>(SELECT_IMAGES),
-          db.selectMany<StockRow>(SELECT_STOCKS),
-        ]).pipe(Effect.mapError(dbErrorToProductError));
+        const [productRows, listingRows, propertyRows, productNameRows, imageRows, stockRows] =
+          yield* Effect.all([
+            db.selectMany<ProductRow>(SELECT_PRODUCTS),
+            db.selectMany<ListingRow>(SELECT_LISTINGS),
+            db.selectMany<PropertyRow>(SELECT_PROPERTIES),
+            db.selectMany<ProductNameRow>(SELECT_PRODUCT_NAMES),
+            db.selectMany<ImageRow>(SELECT_IMAGES),
+            db.selectMany<StockRow>(SELECT_STOCKS),
+          ]).pipe(Effect.mapError(dbErrorToProductError));
 
         const byId = new Map<string, ProductState>();
         for (const row of productRows) {
@@ -351,11 +392,14 @@ export const ProductLive = Layer.effect(
             listings: [],
             stocks: [],
             properties: [],
+            productNames: [],
             images: [],
           });
         }
         for (const row of listingRows) byId.get(row.product_id)?.listings.push(rowToListing(row));
         for (const row of propertyRows) byId.get(row.product_id)?.properties.push(rowToProperty(row));
+        for (const row of productNameRows)
+          byId.get(row.product_id)?.productNames.push(rowToProductName(row));
         for (const row of imageRows) byId.get(row.product_id)?.images.push(rowToImage(row));
         for (const row of stockRows) byId.get(row.product_id)?.stocks.push(rowToStock(row));
 
@@ -363,6 +407,7 @@ export const ProductLive = Layer.effect(
         for (const state of states) {
           state.listings.sort((a, b) => a.name.localeCompare(b.name));
           state.properties.sort((a, b) => a.key.localeCompare(b.key));
+          state.productNames.sort((a, b) => a.value.localeCompare(b.value));
           state.images.sort((a, b) => a.order - b.order);
           state.stocks.sort((a, b) => a.createdAt - b.createdAt);
         }
@@ -589,6 +634,49 @@ export const ProductLive = Layer.effect(
                 {
                   sql: "UPDATE properties SET property_deleted_at = $1, property_sync_at = NULL WHERE property_id = $2",
                   bindings: [now, propertyId],
+                },
+                touchProduct(productId, now),
+              ]);
+              yield* hydrate();
+            });
+          },
+        },
+        productName: {
+          add(productId, input) {
+            return Effect.gen(function* () {
+              const productNameId = generateId();
+              const now = Date.now();
+              yield* commit([
+                productNameInsert(productId, productNameId, input, now),
+                touchProduct(productId, now),
+              ]);
+              yield* hydrate();
+              return productNameId;
+            });
+          },
+          update(productId, productNameId, input) {
+            return Effect.gen(function* () {
+              const now = Date.now();
+              yield* commit([
+                {
+                  sql: `UPDATE product_names SET
+                      product_name_value = $1,
+                      product_name_updated_at = $2, product_name_sync_at = NULL
+                    WHERE product_name_id = $3`,
+                  bindings: [input.value, now, productNameId],
+                },
+                touchProduct(productId, now),
+              ]);
+              yield* hydrate();
+            });
+          },
+          remove(productId, productNameId) {
+            return Effect.gen(function* () {
+              const now = Date.now();
+              yield* commit([
+                {
+                  sql: "UPDATE product_names SET product_name_deleted_at = $1, product_name_sync_at = NULL WHERE product_name_id = $2",
+                  bindings: [now, productNameId],
                 },
                 touchProduct(productId, now),
               ]);

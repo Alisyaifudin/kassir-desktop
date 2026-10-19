@@ -32,6 +32,14 @@ export type Property = {
   syncAt: number | null;
 };
 
+export type ProductName = {
+  id: string;
+  productId: string;
+  value: string;
+  updatedAt: number;
+  syncAt: number | null;
+};
+
 export type ProductImage = {
   id: string;
   productId: string;
@@ -76,6 +84,7 @@ export type Product = {
 export type ProductFull = Product & {
   stocks: Stock[];
   properties: Property[];
+  productNames: ProductName[];
   images: ProductImage[];
 };
 
@@ -107,6 +116,8 @@ export type ListingInput = {
 };
 
 export type PropertyInput = { key: string; value: string };
+
+export type ProductNameInput = { value: string };
 
 export type ImageInput = { name: string; mime: Mime };
 
@@ -156,6 +167,15 @@ export class ProductService extends Context.Tag("ProductService")<
           input: PropertyInput,
         ) => Effect.Effect<void, ProductError>;
         remove: (productId: string, propertyId: string) => Effect.Effect<void, ProductError>;
+      };
+      productName: {
+        add: (productId: string, input: ProductNameInput) => Effect.Effect<string, ProductError>;
+        update: (
+          productId: string,
+          productNameId: string,
+          input: ProductNameInput,
+        ) => Effect.Effect<void, ProductError>;
+        remove: (productId: string, productNameId: string) => Effect.Effect<void, ProductError>;
       };
       image: {
         add: (productId: string, input: ImageInput) => Effect.Effect<string, ProductError>;

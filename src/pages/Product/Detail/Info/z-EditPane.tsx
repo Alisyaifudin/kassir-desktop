@@ -19,6 +19,7 @@ import { draftFromProduct, parseNumber, toListingInput } from "../../Form/types"
 import { useProductForm } from "../../Form/useProductForm";
 import { InfoFields } from "../../Form/z-InfoFields";
 import { ListingsFields } from "../../Form/z-ListingsFields";
+import { ProductNamesFields } from "../../Form/z-ProductNamesFields";
 import { PropertiesFields } from "../../Form/z-PropertiesFields";
 import { StocksFields } from "../../Form/z-StocksFields";
 import { ConfirmDelete } from "../z-ConfirmDelete";
@@ -130,6 +131,25 @@ export function EditPane({ product }: { product: ProductFull }) {
       }
     }
 
+    const originalProductNameIds = new Set(product.productNames.map((name) => name.id));
+    const draftProductNameKeys = new Set(draft.productNames.map((name) => name.key));
+    for (const productName of draft.productNames) {
+      const input = { value: productName.value.trim() };
+      if (originalProductNameIds.has(productName.key)) {
+        const original = product.productNames.find((item) => item.id === productName.key);
+        if (original !== undefined && original.value !== input.value) {
+          ops.push(service.product.set.productName.update(product.id, productName.key, input));
+        }
+      } else {
+        ops.push(service.product.set.productName.add(product.id, input));
+      }
+    }
+    for (const productName of product.productNames) {
+      if (!draftProductNameKeys.has(productName.id)) {
+        ops.push(service.product.set.productName.remove(product.id, productName.id));
+      }
+    }
+
     const originalStockIds = new Set(product.stocks.map((stock) => stock.id));
     for (const stock of draft.stocks) {
       const capital = parseNumber(stock.capital);
@@ -194,6 +214,7 @@ export function EditPane({ product }: { product: ProductFull }) {
   return (
     <div className="flex flex-col gap-4">
       <InfoFields form={form} disabled={busy} />
+      <ProductNamesFields form={form} disabled={busy} />
       <ListingsFields form={form} disabled={busy} />
       <StocksFields
         form={form}

@@ -3,12 +3,14 @@ import type { ProductInput } from "~/services/product";
 import {
   emptyDraft,
   newListing,
+  newProductName,
   newProperty,
   newStock,
   parseNumber,
   toListingInput,
   type ListingDraft,
   type ProductDraft,
+  type ProductNameDraft,
   type PropertyDraft,
   type StockDraft,
 } from "./types";
@@ -20,6 +22,7 @@ export type ProductFormErrors = {
   stocks?: string;
   stockErrors?: Record<string, { value?: string; capital?: string }>;
   propertyErrors?: Record<string, { name?: string }>;
+  productNameErrors?: Record<string, { value?: string }>;
 };
 
 /** Same-field edits closer than this merge into one undo step. */
@@ -110,6 +113,18 @@ function computeErrors(draft: ProductDraft): ProductFormErrors {
   }
   if (Object.keys(propertyErrors).length > 0) next.propertyErrors = propertyErrors;
 
+  const productNameErrors: NonNullable<ProductFormErrors["productNameErrors"]> = {};
+  const seenNames = new Set<string>();
+  for (const productName of draft.productNames) {
+    const row: { value?: string } = {};
+    const value = productName.value.trim().toLowerCase();
+    if (value === "") row.value = "Nama alternatif wajib diisi.";
+    else if (seenNames.has(value)) row.value = "Nama alternatif sudah dipakai.";
+    else seenNames.add(value);
+    if (Object.keys(row).length > 0) productNameErrors[productName.key] = row;
+  }
+  if (Object.keys(productNameErrors).length > 0) next.productNameErrors = productNameErrors;
+
   return next;
 }
 
@@ -120,7 +135,8 @@ function hasErrors(errors: ProductFormErrors): boolean {
       errors.stocks ||
       errors.listingErrors ||
       errors.stockErrors ||
-      errors.propertyErrors,
+      errors.propertyErrors ||
+      errors.productNameErrors,
   );
 }
 
@@ -261,6 +277,27 @@ export function useProductForm(initial?: ProductDraft) {
     [edit],
   );
 
+  const addProductName = useCallback(
+    () => edit(null, (d) => ({ ...d, productNames: [...d.productNames, newProductName()] })),
+    [edit],
+  );
+  const removeProductName = useCallback(
+    (key: string) =>
+      edit(null, (d) => ({
+        ...d,
+        productNames: d.productNames.filter((n) => n.key !== key),
+      })),
+    [edit],
+  );
+  const updateProductName = useCallback(
+    (key: string, patch: Partial<ProductNameDraft>) =>
+      edit(patchKey(`productName:${key}`, patch), (d) => ({
+        ...d,
+        productNames: d.productNames.map((n) => (n.key === key ? { ...n, ...patch } : n)),
+      })),
+    [edit],
+  );
+
   const undo = useCallback(() => {
     setErrors({});
     setState((s) => {
@@ -323,6 +360,9 @@ export function useProductForm(initial?: ProductDraft) {
     addProperty,
     removeProperty,
     updateProperty,
+    addProductName,
+    removeProductName,
+    updateProductName,
     undo,
     redo,
     canUndo: state.past.length > 0,

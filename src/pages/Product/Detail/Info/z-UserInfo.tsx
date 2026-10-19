@@ -16,6 +16,17 @@ export function UserInfo({ product }: { product: ProductFull }) {
       <Row label="Modal" value={formatPrice(product.capital)} />
       <Row label="Stok" value={`${product.stock.toLocaleString("id-ID")} pcs`} />
 
+      {product.productNames.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
+          <span className="text-small font-medium text-muted-foreground">Nama Alternatif</span>
+          {product.productNames.map((name) => (
+            <span key={name.id} className="text-small">
+              {name.value}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
         <span className="text-small font-medium text-muted-foreground">Listing</span>
         {product.listings.map((listing) => (
