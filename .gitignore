@@ -37,3 +37,4 @@ tx.db
 # local dumps / backups
 src-old/
 tx.sql
+backup
