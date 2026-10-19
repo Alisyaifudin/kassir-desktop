@@ -41,8 +41,9 @@ export const mockData: Omit<ReceiptData, "info"> = {
   products: [
     {
       id: "mock-listing-1",
-      listingId: null,
       productId: null,
+      unit: 1,
+      portions: [],
       name: "Semangka",
       kind: "retail",
       price: 1000,
@@ -57,8 +58,9 @@ export const mockData: Omit<ReceiptData, "info"> = {
     },
     {
       id: "mock-listing-2",
-      listingId: null,
       productId: null,
+      unit: 1,
+      portions: [],
       name: "Gorengan",
       kind: "retail",
       price: 2000,
@@ -69,8 +71,9 @@ export const mockData: Omit<ReceiptData, "info"> = {
     },
     {
       id: "mock-listing-3",
-      listingId: null,
       productId: null,
+      unit: 1,
+      portions: [],
       name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed at congue massa, in pharetra diam.",
       kind: "retail",
       price: 2000,

@@ -272,6 +272,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-46.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 47,
+            description: "reconcile_stock_events",
+            sql: include_str!("../../src/database/41-50/migration-47.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

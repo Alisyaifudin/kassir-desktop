@@ -26,6 +26,7 @@ import { roundToFix } from "./round";
 import {
   consumeStatements,
   depleteLots,
+  receivePortion,
   receiveStatements,
   touchProduct,
   type StockLot,
@@ -87,10 +88,12 @@ type ListingHistoryRow = {
 
 type ListingRow = {
   record_listing_id: string;
-  listing_id: string | null;
+  record_listing_group_id: string;
+  product_event_id: string | null;
   product_id: string | null;
   record_listing_name: string;
   record_listing_kind: string;
+  record_listing_unit: number;
   record_listing_price: number;
   record_listing_qty: number;
   record_listing_capital: number;
@@ -99,7 +102,8 @@ type ListingRow = {
 
 type DiscountRow = {
   discount_id: string;
-  record_listing_id: string;
+  discount_group_id: string;
+  record_listing_group_id: string;
   discount_kind: DiscountKind;
   discount_value: number;
   discount_eff: number;
@@ -159,20 +163,21 @@ const RECORD_COLUMNS = `
   record_sync_at, record_deleted_at`;
 
 // `record_listings` has no ordering column; SQLite's implicit rowid order is
-// insertion order, which is what a receipt wants. Same for the other children.
-// The listing join is what carries the line's product, so a caller can offer
-// "go to product" without pulling the whole catalog.
+// insertion order, which is what a receipt wants. A line is stored as one row
+// per lot portion; the read model regroups them by `record_listing_group_id`.
 const SELECT_LISTINGS = `
   SELECT
-    rl.record_listing_id, rl.listing_id, l.product_id, rl.record_listing_name,
-    rl.record_listing_kind, rl.record_listing_price, rl.record_listing_qty,
+    rl.record_listing_id, rl.record_listing_group_id, rl.product_event_id,
+    rl.product_id, rl.record_listing_name, rl.record_listing_kind,
+    rl.record_listing_unit, rl.record_listing_price, rl.record_listing_qty,
     rl.record_listing_capital, rl.record_listing_total
   FROM record_listings rl
-  LEFT JOIN listings l ON l.listing_id = rl.listing_id
-  WHERE rl.record_id = $1`;
+  WHERE rl.record_id = $1
+  ORDER BY rl.rowid ASC`;
 
 const SELECT_DISCOUNTS = `
-  SELECT d.discount_id, d.record_listing_id, d.discount_kind, d.discount_value, d.discount_eff
+  SELECT d.discount_id, d.discount_group_id, rl.record_listing_group_id,
+         d.discount_kind, d.discount_value, d.discount_eff
   FROM discounts d
   JOIN record_listings rl ON rl.record_listing_id = d.record_listing_id
   WHERE rl.record_id = $1`;
@@ -254,14 +259,6 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-/** Bump the record's merge clock and clear its sync flag. */
-function touchRecord(id: string, now: number): Statement {
-  return {
-    sql: "UPDATE records SET record_updated_at = $1, record_sync_at = NULL WHERE record_id = $2",
-    bindings: [now, id],
-  };
-}
-
 function insertMethod(recordId: string, methodId: string, pay: number): Statement {
   return {
     sql: `INSERT INTO record_methods (
@@ -276,10 +273,9 @@ function insertMethod(recordId: string, methodId: string, pay: number): Statemen
 // which is the unit `stocks` counts in.
 const SELECT_MOVES = `
   SELECT rl.record_listing_name, rl.record_listing_qty, rl.record_listing_capital,
-         l.product_id, l.listing_unit
+         rl.product_id, rl.record_listing_unit AS listing_unit
   FROM record_listings rl
-  JOIN listings l ON l.listing_id = rl.listing_id
-  WHERE rl.record_id = $1`;
+  WHERE rl.record_id = $1 AND rl.product_id IS NOT NULL`;
 
 // A credit record is outstanding until `payCredit` clears its flag, so this is
 // the debt list. Legacy phrasing kept `record_total`, which is what is owed.
@@ -352,6 +348,129 @@ function insertRecordStatement(id: string, input: RecordImport, now: number): St
       now,
     ],
   };
+}
+
+/** A `record_listings` portion row. */
+function insertPortion(p: {
+  id: string;
+  groupId: string;
+  recordId: string;
+  productEventId: string | null;
+  productId: string | null;
+  name: string;
+  kind: string;
+  unit: number;
+  price: number;
+  qty: number;
+  capital: number;
+  total: number;
+}): Statement {
+  return {
+    sql: `INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    bindings: [
+      p.id,
+      p.groupId,
+      p.recordId,
+      p.productEventId,
+      p.productId,
+      p.name,
+      p.kind,
+      p.unit,
+      p.price,
+      p.qty,
+      p.capital,
+      p.total,
+    ],
+  };
+}
+
+/** One copy of each discount for a line that is a single portion. */
+function insertDiscounts(
+  portionId: string,
+  discounts: { kind: DiscountKind; value: number; eff: number }[],
+  share: number,
+): Statement[] {
+  return discounts.map((discount) => ({
+    sql: `INSERT INTO discounts (
+        discount_id, discount_group_id, record_listing_id, discount_kind,
+        discount_value, discount_eff
+      ) VALUES ($1, $2, $3, $4, $5, $6)`,
+    bindings: [
+      generateId(),
+      generateId(),
+      portionId,
+      discount.kind,
+      discount.value,
+      discount.eff * share,
+    ],
+  }));
+}
+
+/**
+ * Groups the per-portion rows back into the lines the UI and receipt show.
+ * `qty`/`total` sum, `capital` is qty-weighted, and the duplicated discounts are
+ * merged by `discount_group_id`.
+ */
+function regroupListings(
+  rows: ListingRow[],
+  discountById: Map<string, Discount>,
+  discountOrder: Map<string, string[]>,
+): RecordListing[] {
+  const groups = new Map<string, ListingRow[]>();
+  const order: string[] = [];
+  for (const row of rows) {
+    const group = row.record_listing_group_id;
+    const list = groups.get(group);
+    if (list === undefined) {
+      groups.set(group, [row]);
+      order.push(group);
+    } else {
+      list.push(row);
+    }
+  }
+
+  return order.map((id) => {
+    const portions = groups.get(id) ?? [];
+    const first = portions[0];
+    let qty = 0;
+    let total = 0;
+    let capitalValue = 0;
+    for (const portion of portions) {
+      qty += portion.record_listing_qty;
+      total += portion.record_listing_total;
+      capitalValue += portion.record_listing_capital * portion.record_listing_qty;
+    }
+    const discountIds = discountOrder.get(id) ?? [];
+    return {
+      id,
+      productId: portions.find((portion) => portion.product_id !== null)?.product_id ?? null,
+      name: first.record_listing_name,
+      kind: first.record_listing_kind,
+      unit: first.record_listing_unit,
+      price: first.record_listing_price,
+      qty,
+      capital: qty > 0 ? capitalValue / qty : first.record_listing_capital,
+      total,
+      discounts: discountIds.flatMap((discountId) => {
+        const discount = discountById.get(discountId);
+        return discount === undefined ? [] : [{ ...discount }];
+      }),
+      portions: portions.map((portion) => ({
+        id: portion.record_listing_id,
+        productEventId: portion.product_event_id,
+        productId: portion.product_id,
+        unit: portion.record_listing_unit,
+        qty: portion.record_listing_qty,
+        capital: portion.record_listing_capital,
+        total: portion.record_listing_total,
+      })),
+    };
+  });
 }
 
 export const RecordLive = Layer.effect(
@@ -454,30 +573,28 @@ export const RecordLive = Layer.effect(
           db.selectMany<DiscountRow>(SELECT_DISCOUNTS, [id]),
           db.selectMany<ExtraRow>(SELECT_EXTRAS, [id]),
         ]).pipe(Effect.mapError(dbErrorToRecordError));
-        const discountsByListing = new Map<string, Discount[]>();
+        const discountById = new Map<string, Discount>();
+        const discountOrder = new Map<string, string[]>();
         for (const discount of discountRows) {
-          const list: Discount[] = discountsByListing.get(discount.record_listing_id) ?? [];
-          list.push({
-            id: discount.discount_id,
-            kind: discount.discount_kind,
-            value: discount.discount_value,
-            eff: discount.discount_eff,
-          });
-          discountsByListing.set(discount.record_listing_id, list);
+          const group = discount.record_listing_group_id;
+          const order = discountOrder.get(group) ?? [];
+          const existing = discountById.get(discount.discount_group_id);
+          if (existing === undefined) {
+            discountById.set(discount.discount_group_id, {
+              id: discount.discount_group_id,
+              kind: discount.discount_kind,
+              value: discount.discount_value,
+              eff: discount.discount_eff,
+            });
+            order.push(discount.discount_group_id);
+          } else {
+            // The per-portion copies of one entered discount.
+            existing.eff += discount.discount_eff;
+          }
+          discountOrder.set(group, order);
         }
 
-        const listings: RecordListing[] = listingRows.map((listing) => ({
-          id: listing.record_listing_id,
-          listingId: listing.listing_id,
-          productId: listing.product_id,
-          name: listing.record_listing_name,
-          kind: listing.record_listing_kind,
-          price: listing.record_listing_price,
-          qty: listing.record_listing_qty,
-          capital: listing.record_listing_capital,
-          total: listing.record_listing_total,
-          discounts: discountsByListing.get(listing.record_listing_id) ?? [],
-        }));
+        const listings = regroupListings(listingRows, discountById, discountOrder);
 
         const extras: RecordExtra[] = extraRows.map((extra) => ({
           id: extra.record_extra_id,
@@ -673,7 +790,8 @@ export const RecordLive = Layer.effect(
             const lotsByProduct = new Map<string, StockLot[]>();
 
             for (const line of input.listings) {
-              const lineId = generateId();
+              // The entered line; its portions share this group id.
+              const groupId = generateId();
               const link = line.listingId === null
                 ? null
                 : ((yield* db
@@ -683,53 +801,67 @@ export const RecordLive = Layer.effect(
                     )
                     .pipe(Effect.mapError(dbErrorToRecordError)))[0] ?? null);
 
-              statements.push({
-                sql: `INSERT INTO record_listings (
-                    record_listing_id, listing_id, record_id, record_listing_name,
-                    record_listing_kind, record_listing_price, record_listing_qty,
-                    record_listing_capital, record_listing_total
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                bindings: [
-                  lineId,
-                  link?.listing_id ?? null,
-                  recordId,
-                  line.name,
-                  line.kind,
-                  line.price,
-                  line.qty,
-                  line.capital,
-                  line.total,
-                ],
-              });
-              for (const discount of line.discounts) {
-                statements.push({
-                  sql: `INSERT INTO discounts (
-                      discount_id, record_listing_id, discount_kind, discount_value, discount_eff
-                    ) VALUES ($1, $2, $3, $4, $5)`,
-                  bindings: [generateId(), lineId, discount.kind, discount.value, discount.eff],
-                });
-              }
-
-              if (link === null) continue;
-              const pcs = line.qty * link.listing_unit;
-              if (pcs === 0) continue;
-              if (input.mode === "outcoming") {
-                // Listing capital is per listing unit; a lot's capital is per pc.
+              // A line with no catalog link moves no stock: one portion, no event.
+              if (link === null || line.qty * (link?.listing_unit ?? 1) === 0) {
+                const portionId = generateId();
                 statements.push(
-                  ...receiveStatements(
-                    link.product_id,
-                    { value: pcs, capital: line.capital / link.listing_unit },
-                    now,
+                  insertPortion({
+                    id: portionId,
+                    groupId,
                     recordId,
-                  ),
+                    productEventId: null,
+                    productId: null,
+                    name: line.name,
+                    kind: line.kind,
+                    unit: 1,
+                    price: line.price,
+                    qty: line.qty,
+                    capital: line.capital,
+                    total: line.total,
+                  }),
                 );
+                statements.push(...insertDiscounts(portionId, line.discounts, 1));
                 continue;
               }
+
+              if (input.mode === "outcoming") {
+                // A purchase arrives as its own cost lot; one portion points at it.
+                // Listing capital is per listing unit; a lot's capital is per pc.
+                const received = receivePortion(
+                  link.product_id,
+                  { value: line.qty * link.listing_unit, capital: line.capital / link.listing_unit },
+                  now,
+                  recordId,
+                );
+                statements.push(...received.statements);
+                const portionId = generateId();
+                statements.push(
+                  insertPortion({
+                    id: portionId,
+                    groupId,
+                    recordId,
+                    productEventId: received.eventId,
+                    productId: link.product_id,
+                    name: line.name,
+                    kind: line.kind,
+                    unit: link.listing_unit,
+                    price: line.price,
+                    qty: line.qty,
+                    capital: line.capital,
+                    total: line.total,
+                  }),
+                );
+                statements.push(...insertDiscounts(portionId, line.discounts, 1));
+                continue;
+              }
+
+              // A sale consumes FIFO: one portion per lot it takes from.
+              const pcs = line.qty * link.listing_unit;
               let lots = lotsByProduct.get(link.product_id);
               if (lots === undefined) {
                 lots = yield* readLots(link.product_id);
               }
-              const { statements: consumed, shortage } = consumeStatements(
+              const { statements: consumed, shortage, portions } = consumeStatements(
                 link.product_id,
                 lots,
                 pcs,
@@ -743,6 +875,47 @@ export const RecordLive = Layer.effect(
                 );
               }
               statements.push(...consumed);
+              const parts = portions.map((portion) => {
+                const share = portion.pcs / pcs;
+                const qty = portion.pcs / link.listing_unit;
+                const id = generateId();
+                statements.push(
+                  insertPortion({
+                    id,
+                    groupId,
+                    recordId,
+                    productEventId: portion.eventId,
+                    productId: link.product_id,
+                    name: line.name,
+                    kind: line.kind,
+                    unit: link.listing_unit,
+                    price: line.price,
+                    qty,
+                    capital: portion.capital * link.listing_unit,
+                    total: line.total * share,
+                  }),
+                );
+                return { id, share };
+              });
+              for (const discount of line.discounts) {
+                const discountGroupId = generateId();
+                for (const part of parts) {
+                  statements.push({
+                    sql: `INSERT INTO discounts (
+                        discount_id, discount_group_id, record_listing_id,
+                        discount_kind, discount_value, discount_eff
+                      ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                    bindings: [
+                      generateId(),
+                      discountGroupId,
+                      part.id,
+                      discount.kind,
+                      discount.value,
+                      discount.eff * part.share,
+                    ],
+                  });
+                }
+              }
               lotsByProduct.set(link.product_id, depleteLots(lots, pcs));
             }
 
@@ -887,25 +1060,108 @@ export const RecordLive = Layer.effect(
             yield* bumpRevision();
           });
         },
-        linkListing(recordListingId, listingId) {
+        linkStock(recordListingId, stockId) {
           return Effect.gen(function* () {
-            const rows = yield* db
-              .selectMany<{ record_id: string }>(
-                "SELECT record_id FROM record_listings WHERE record_listing_id = $1",
+            const portions = yield* db
+              .selectMany<{
+                record_id: string;
+                product_event_id: string | null;
+                record_listing_unit: number;
+              }>(
+                `SELECT record_id, product_event_id, record_listing_unit
+                 FROM record_listings WHERE record_listing_id = $1`,
                 [recordListingId],
               )
               .pipe(Effect.mapError(dbErrorToRecordError));
-            if (rows.length === 0) return;
+            const portion = portions[0];
+            if (portion === undefined) return;
+            if (portion.product_event_id === null) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Baris ini tidak punya pergerakan stok" }),
+              );
+            }
+
+            const events = yield* db
+              .selectMany<{ stock_id: string; product_id: string; product_event_value: number }>(
+                `SELECT stock_id, product_id, product_event_value
+                 FROM product_events WHERE product_event_id = $1`,
+                [portion.product_event_id],
+              )
+              .pipe(Effect.mapError(dbErrorToRecordError));
+            const event = events[0];
+            if (event === undefined) return;
+            if (event.product_event_value >= 0) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Hanya baris penjualan yang bisa dipindah lotnya" }),
+              );
+            }
+            if (event.stock_id === stockId) return;
+
+            const lots = yield* db
+              .selectMany<{
+                stock_id: string;
+                product_id: string;
+                stock_value: number;
+                stock_capital: number;
+              }>(
+                `SELECT stock_id, product_id, stock_value, stock_capital
+                 FROM stocks WHERE stock_id IN ($1, $2)`,
+                [event.stock_id, stockId],
+              )
+              .pipe(Effect.mapError(dbErrorToRecordError));
+            const target = lots.find((lot) => lot.stock_id === stockId);
+            if (target === undefined) {
+              return yield* Effect.fail(new RecordError({ message: "Stok tujuan tidak ditemukan" }));
+            }
+
+            const pcs = -event.product_event_value;
+            if (target.stock_value < pcs) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Stok tujuan tidak mencukupi" }),
+              );
+            }
 
             const now = Date.now();
             yield* commit([
               {
-                sql: "UPDATE record_listings SET listing_id = $1 WHERE record_listing_id = $2",
-                bindings: [listingId, recordListingId],
+                sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
+                bindings: [pcs, now, event.stock_id],
               },
-              touchRecord(rows[0].record_id, now),
+              {
+                sql: "UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2 WHERE stock_id = $3",
+                bindings: [pcs, now, target.stock_id],
+              },
+              {
+                sql: `UPDATE product_events SET
+                    stock_id = $1, product_id = $2, product_event_capital = $3
+                  WHERE product_event_id = $4`,
+                bindings: [
+                  target.stock_id,
+                  target.product_id,
+                  target.stock_capital,
+                  portion.product_event_id,
+                ],
+              },
+              {
+                sql: `UPDATE record_listings SET
+                    product_id = $1, record_listing_capital = $2
+                  WHERE record_listing_id = $3`,
+                bindings: [
+                  target.product_id,
+                  target.stock_capital * portion.record_listing_unit,
+                  recordListingId,
+                ],
+              },
+              touchProduct(event.product_id, now),
+              touchProduct(target.product_id, now),
+              {
+                sql: `UPDATE records SET record_updated_at = $1, record_sync_at = NULL
+                  WHERE record_id = $2`,
+                bindings: [now, portion.record_id],
+              },
             ]);
             yield* bumpRevision();
+            yield* refreshProducts();
           });
         },
         mode(id, mode) {

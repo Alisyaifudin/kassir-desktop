@@ -301,31 +301,9 @@ CREATE TABLE images (
 
 
 -- ----------------------------------------------------------------------------
--- 7. `product_events` — the append-only stock journal and source of truth.
---    Every row is a movement of one lot:
---      * `product_event_value`   SIGNED delta (+/-/0) in base pcs;
---      * `product_event_capital` the lot's capital as of this event (NOT NULL),
---        so a capital correction is just another event with delta 0.
---    There is no `type` column. Regenerating the local `stocks` cache is
---    therefore total and needs no "creation marker": value = SUM(delta),
---    capital = the newest event's capital, created_at = the oldest event's
---    created_at. `product_id` keeps the journal self-sufficient on a fresh
---    device; `stock_id` keys each event into the cache. Lots are never deleted,
---    so the FK never costs us journal rows.
+-- 7. `product_events` — created in §8b, after `records`, because it references
+--    `records`; `record_listings` points back at it.
 -- ----------------------------------------------------------------------------
-CREATE TABLE product_events (
-  product_event_id         TEXT PRIMARY KEY,
-  product_event_created_at INTEGER NOT NULL,
-  product_event_sync_at    INTEGER,
-  product_event_value      INTEGER NOT NULL, -- signed delta (+/-/0)
-  product_event_capital    REAL NOT NULL,    -- the lot's capital as of this event
-  product_event_note       TEXT NOT NULL DEFAULT (''), -- free text, e.g. manual stock-out reason
-  product_id               TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
-  stock_id                 TEXT NOT NULL REFERENCES stocks(stock_id) ON DELETE CASCADE
-) STRICT;
-
-CREATE INDEX product_event_product_idx ON product_events (product_id);
-CREATE INDEX product_event_stock_idx   ON product_events (stock_id);
 
 
 -- ----------------------------------------------------------------------------
@@ -351,6 +329,49 @@ CREATE TABLE records (
   record_deleted_at     INTEGER
 ) STRICT;
 
+-- ----------------------------------------------------------------------------
+-- 8b. `product_events` — the append-only stock journal and source of truth.
+--     Every row is a movement of one lot:
+--       * `product_event_value`   SIGNED delta (+/-/0) in base pcs;
+--       * `product_event_capital` the lot's capital as of this event (NOT NULL),
+--         so a capital correction is just another event with delta 0.
+--     There is no `type` column. Regenerating the local `stocks` cache is
+--     therefore total and needs no "creation marker": value = SUM(delta),
+--     capital = the newest event's capital, created_at = the oldest event's
+--     created_at.
+--
+--     DENORMALIZATION (intentional): `product_id` is repeated on every event
+--     even though `stock_id -> stocks.product_id` already reaches it. It keeps
+--     the journal self-sufficient on a fresh device — `stocks` is only a local
+--     cache, and rebuilding it from the journal alone needs to know each
+--     event's product without relying on the rows being rebuilt. `stock_id`
+--     still keys every event into the cache, and lots are never deleted, so the
+--     FK never costs us journal rows.
+--
+--     `record_id` is nullable: manual corrections (`stock.adjust` /
+--     `stock.consume` from the UI) belong to no record, and pre-journal records
+--     have no link. The record commit path stamps it. `record_listings` also
+--     points at the exact event per sold portion (see §8c), so the two links are
+--     intentional: `record_id` finds and removes all movements of a record,
+--     while `record_listings.product_event_id` attributes one portion's move.
+--     Created here, after `records`, so `record_id` can be declared inline.
+-- ----------------------------------------------------------------------------
+CREATE TABLE product_events (
+  product_event_id         TEXT PRIMARY KEY,
+  product_event_created_at INTEGER NOT NULL,
+  product_event_sync_at    INTEGER,
+  product_event_value      INTEGER NOT NULL, -- signed delta (+/-/0)
+  product_event_capital    REAL NOT NULL,    -- the lot's capital as of this event
+  product_event_note       TEXT NOT NULL DEFAULT (''), -- free text, e.g. manual stock-out reason
+  product_id               TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+  stock_id                 TEXT NOT NULL REFERENCES stocks(stock_id) ON DELETE CASCADE,
+  record_id                TEXT REFERENCES records(record_id) ON DELETE SET NULL
+) STRICT;
+
+CREATE INDEX product_event_product_idx ON product_events (product_id);
+CREATE INDEX product_event_stock_idx   ON product_events (stock_id);
+CREATE INDEX product_event_record_idx  ON product_events (record_id);
+
 -- record_methods: one row per payment applied (split payment). `record_pay`
 -- on `records` is a cache of SUM(record_method_pay) and is intentionally not
 -- normalized away.
@@ -363,26 +384,47 @@ CREATE TABLE record_methods (
 
 CREATE INDEX record_method_record_idx ON record_methods (record_id);
 
--- record_listings: replaces `record_products`. References the listing, not the
--- product. `record_listing_capital` is the single capital snapshot (the old
--- `product_capital_raw` / `product_capital` split is gone).
--- TODO(q2): `record_listing_kind` is snapshotted because `listing_id` becomes
---   NULL if the listing is later deleted, which would lose retail/wholesale
---   history. Confirm you want the snapshot.
+-- 8c. record_listings: one row per *lot portion* of a sold line.
+--
+--     A line can consume from several lots (FIFO), so the line the cashier
+--     entered is split into portions here. `record_listing_group_id` is the
+--     entered line: the read model groups the portions back into one display
+--     line (receipt, record detail), so the split stays internal. `listing_id`
+--     is gone: the product is reached through the event's lot, and the
+--     `product_id` snapshot below keeps it available without a catalog row.
+--
+--       * `record_listing_group_id` — the entered line; portions share it.
+--       * `product_event_id` — the movement this portion caused; NULL for a
+--         manual line with no stock, or a pre-journal line.
+--       * `product_id` — snapshot replacing `listing_id`: display/link, and the
+--         mode-flip / delete compensation. Nullable, like the old
+--         `record_products.product_id`.
+--       * `record_listing_unit` — snapshot of `listings.listing_unit` (pcs per
+--         listing unit), so a qty still becomes pcs after `listing_id` is gone
+--         and history keeps the unit it was sold in.
+--       * `record_listing_qty` is REAL: a portion split at a lot boundary can be
+--         a fraction of a listing unit (1.5 kg) even though the pcs are whole.
+--       * `record_listing_capital` is the single capital snapshot (the old
+--         `product_capital_raw` / `product_capital` split is gone).
 CREATE TABLE record_listings (
-  record_listing_id      TEXT PRIMARY KEY,
-  listing_id             TEXT REFERENCES listings(listing_id) ON DELETE SET NULL,
-  record_id              TEXT NOT NULL REFERENCES records(record_id) ON DELETE CASCADE,
-  record_listing_name    TEXT NOT NULL,
-  record_listing_kind    TEXT NOT NULL DEFAULT 'retail',
-  record_listing_price   REAL NOT NULL,
-  record_listing_qty     INTEGER NOT NULL,
-  record_listing_capital REAL NOT NULL,
-  record_listing_total   REAL NOT NULL
+  record_listing_id       TEXT PRIMARY KEY,
+  record_listing_group_id TEXT NOT NULL,
+  record_id               TEXT NOT NULL REFERENCES records(record_id) ON DELETE CASCADE,
+  product_event_id        TEXT REFERENCES product_events(product_event_id) ON DELETE SET NULL,
+  product_id              TEXT REFERENCES products(product_id) ON DELETE SET NULL,
+  record_listing_name     TEXT NOT NULL,
+  record_listing_kind     TEXT NOT NULL DEFAULT 'retail',
+  record_listing_unit     INTEGER NOT NULL DEFAULT 1,
+  record_listing_price    REAL NOT NULL,
+  record_listing_qty      REAL NOT NULL,
+  record_listing_capital  REAL NOT NULL,
+  record_listing_total    REAL NOT NULL
 ) STRICT;
 
 CREATE INDEX record_listing_record_idx  ON record_listings (record_id);
-CREATE INDEX record_listing_listing_idx ON record_listings (listing_id);
+CREATE INDEX record_listing_group_idx   ON record_listings (record_listing_group_id);
+CREATE INDEX record_listing_event_idx   ON record_listings (product_event_id);
+CREATE INDEX record_listing_product_idx ON record_listings (product_id);
 
 
 -- ----------------------------------------------------------------------------
@@ -390,11 +432,17 @@ CREATE INDEX record_listing_listing_idx ON record_listings (listing_id);
 -- ----------------------------------------------------------------------------
 CREATE TABLE discounts (
   discount_id       TEXT PRIMARY KEY,
+  -- Shared by the per-portion copies of one entered discount, so the read model
+  -- can sum their `eff` and show the discount once for the line.
+  discount_group_id TEXT NOT NULL,
   record_listing_id TEXT NOT NULL REFERENCES record_listings(record_listing_id) ON DELETE CASCADE,
   discount_kind     TEXT NOT NULL CHECK (discount_kind IN ('number', 'percent', 'pcs')),
   discount_value    REAL NOT NULL,
   discount_eff      REAL NOT NULL
 ) STRICT;
+
+CREATE INDEX discount_listing_idx ON discounts (record_listing_id);
+CREATE INDEX discount_group_idx   ON discounts (discount_group_id);
 
 CREATE TABLE record_extras (
   record_extra_id    TEXT PRIMARY KEY,
@@ -430,15 +478,13 @@ CREATE INDEX record_image_record_idx ON record_images (record_id);
 
 
 -- ----------------------------------------------------------------------------
--- 10. `product_events` → the `records` row that produced it.
+-- 10. `product_events` -> the `records` row that produced it.
 --
---     Deleting a record has to remove the stock movement it caused, and §7's
---     `product_events` carries no back-reference to `records` to key that delete
---     on. Nullable by design: manual corrections (`stock.adjust` /
---     `stock.consume` from the UI) belong to no record, and records committed
---     before this migration have no link — deleting one of those finds no events
---     to remove and leaves stock as it stands. Only the commit path
---     (`record.add.one`) stamps it.
+--     Declared inline on the table (§8b) now that it is created after `records`,
+--     so there is no ADD COLUMN. Nullable by design: manual corrections belong
+--     to no record, and pre-journal records have no link. The per-portion link
+--     lives on `record_listings.product_event_id`; this one is for whole-record
+--     operations (delete / mode flip).
 --
 --     KNOWN DEVIATION from the sync contract at the foot of this file, which
 --     declares `product_event` append-only ("Events are not deleted") because its
@@ -446,15 +492,7 @@ CREATE INDEX record_image_record_idx ON record_images (record_id);
 --     `product_event_sync_at`. `record.delete.byId` deletes rows regardless, so a
 --     deleted record's stock effect can survive on a peer until it re-pulls the
 --     affected product.
---
---     SQLite permits ADD COLUMN with a REFERENCES clause as long as the default
---     is NULL, so this needs no table rebuild. It sits after §8 so the new
---     `records` exists when the reference is declared.
 -- ----------------------------------------------------------------------------
-ALTER TABLE product_events
-  ADD COLUMN record_id TEXT REFERENCES records(record_id) ON DELETE SET NULL;
-
-CREATE INDEX product_event_record_idx ON product_events (record_id);
 
 
 -- ----------------------------------------------------------------------------

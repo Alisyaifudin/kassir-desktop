@@ -116,32 +116,38 @@ SELECT
   record_id, record_id, method_id, record_pay
 FROM records_old;
 
--- 8 record_listings — from record_products. `product_capital_raw` is the
---      surviving capital snapshot. Historical listing = the seed retail
---      listing for that product.
+-- 8 record_listings — from record_products. One old line is one portion and
+--      one group; pre-journal records have no `product_event_id`. `product_id`
+--      used to be stored as the listing link; it is now the product snapshot.
 INSERT INTO record_listings (
-  record_listing_id, listing_id, record_id, record_listing_name,
-  record_listing_kind, record_listing_price, record_listing_qty,
-  record_listing_capital, record_listing_total
+  record_listing_id, record_listing_group_id, record_id, product_event_id,
+  product_id, record_listing_name, record_listing_kind, record_listing_unit,
+  record_listing_price, record_listing_qty, record_listing_capital,
+  record_listing_total
 )
 SELECT
   rp.record_product_id,
-  rp.product_id,                 -- may be NULL (old ON DELETE SET NULL)
+  rp.record_product_id,          -- one old line is its own group
   rp.record_id,
+  NULL,                          -- pre-journal lines have no event
+  rp.product_id,                 -- may be NULL (old ON DELETE SET NULL)
   rp.record_product_name,
   'retail',
+  1,                             -- seed listings are 1-pcs
   rp.record_product_price,
   rp.record_product_qty,
   rp.record_product_capital_raw,
   rp.record_product_total
 FROM record_products_old rp;
 
--- 9 discounts — record_product_id maps 1:1 to record_listing_id.
+-- 9 discounts — record_product_id maps 1:1 to record_listing_id. Each migrated
+--      discount is its own group (there are no per-portion copies yet).
 INSERT INTO discounts (
-  discount_id, record_listing_id, discount_kind, discount_value, discount_eff
+  discount_id, discount_group_id, record_listing_id, discount_kind,
+  discount_value, discount_eff
 )
 SELECT
-  discount_id, record_product_id, discount_kind, discount_value, discount_eff
+  discount_id, discount_id, record_product_id, discount_kind, discount_value, discount_eff
 FROM discounts_old;
 
 -- 10 record_extras — 1:1.

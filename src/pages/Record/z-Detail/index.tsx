@@ -81,7 +81,7 @@ function Body({ record }: { record: RecordFull }) {
                       <TableRow>
                         <TableCell className="flex items-center">
                           {i + 1}
-                          {item.listingId !== null ? <Unlock className="icon" /> : null}
+                          {item.productId !== null ? <Unlock className="icon" /> : null}
                         </TableCell>
                         <TableCell>{item.name}</TableCell>
                         <TableCell className="text-end">

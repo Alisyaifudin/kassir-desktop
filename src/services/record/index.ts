@@ -32,19 +32,36 @@ export type Discount = {
   eff: number;
 };
 
-/** A line snapshotted at commit time; `listingId` is null once the listing is gone. */
+/** One lot portion of a line — the internal split, never shown as its own row. */
+export type RecordListingPortion = {
+  id: string;
+  /** The journal movement this portion caused; null for a manual/pre-journal line. */
+  productEventId: string | null;
+  productId: string | null;
+  unit: number;
+  qty: number;
+  capital: number;
+  total: number;
+};
+
+/**
+ * A line as the receipt/detail sees it: the entered line, regrouped from its
+ * portions. `qty`/`total` are the sums, `capital` the qty-weighted average, and
+ * the discounts are the per-portion copies merged back into one each.
+ */
 export type RecordListing = {
   id: string;
-  listingId: string | null;
-  /** The product behind the listing, when the line still points at one. */
   productId: string | null;
   name: string;
   kind: string;
+  unit: number;
   price: number;
   qty: number;
   capital: number;
   total: number;
   discounts: Discount[];
+  /** The internal per-lot rows, oldest first. */
+  portions: RecordListingPortion[];
 };
 
 export type RecordExtra = {
@@ -237,13 +254,12 @@ export class RecordService extends Context.Tag("RecordService")<
         input: { pay: number; rounding: number },
       ) => Effect.Effect<void, RecordError>;
       /**
-       * Points a snapshotted line at a catalog listing, or back at nothing.
-       * Stock is left alone — relinking is a bookkeeping act, not a movement.
+       * Re-points a line portion at another stock lot: the movement is moved
+       * between the two lots (pcs and capital) and the event is re-stamped with
+       * the new lot's capital. The portion's product snapshot follows the lot.
+       * Only a consumption portion (a sale) can be re-pointed.
        */
-      linkListing: (
-        recordListingId: string,
-        listingId: string | null,
-      ) => Effect.Effect<void, RecordError>;
+      linkStock: (recordListingId: string, stockId: string) => Effect.Effect<void, RecordError>;
     };
     delete: {
       /** Soft-deletes the record and removes the stock movement it caused. */

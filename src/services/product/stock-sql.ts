@@ -6,6 +6,17 @@ export type StockLot = { id: string; value: number; capital: number };
 /** One lot's share of a FIFO consumption. */
 type Take = { lot: StockLot; take: number };
 
+/** A portion of a movement, keyed to the journal row it wrote. */
+export type StockPortion = {
+  /** The `product_events` row this portion caused. */
+  eventId: string;
+  stockId: string;
+  /** How many pcs moved (always positive here). */
+  pcs: number;
+  /** The lot's capital per pc. */
+  capital: number;
+};
+
 /** Bump the aggregate timestamp and clear its sync flag. */
 export function touchProduct(productId: string, now: number): Statement {
   return {
@@ -15,6 +26,7 @@ export function touchProduct(productId: string, now: number): Statement {
 }
 
 function insertEvent(
+  eventId: string,
   productId: string,
   stockId: string,
   delta: number,
@@ -30,8 +42,33 @@ function insertEvent(
         product_event_value, product_event_capital, product_id, stock_id, record_id,
         product_event_note
       ) VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)`,
-    bindings: [generateId(), now, delta, capital, productId, stockId, recordId, note],
+    bindings: [eventId, now, delta, capital, productId, stockId, recordId, note],
   };
+}
+
+/**
+ * A new cost lot plus its positive opening event, with the ids it minted so a
+ * caller can point a `record_listings` portion at the exact event.
+ */
+export function receivePortion(
+  productId: string,
+  input: { value: number; capital: number },
+  now: number,
+  recordId: string | null = null,
+) {
+  const stockId = generateId();
+  const eventId = generateId();
+  const statements: Statement[] = [
+    {
+      sql: `INSERT INTO stocks (
+          stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6)`,
+      bindings: [stockId, productId, input.value, input.capital, now, now],
+    },
+    insertEvent(eventId, productId, stockId, input.value, input.capital, now, "", recordId),
+    touchProduct(productId, now),
+  ];
+  return { statements, eventId, stockId };
 }
 
 /** A new cost lot plus its positive opening event. */
@@ -41,17 +78,7 @@ export function receiveStatements(
   now: number,
   recordId: string | null = null,
 ): Statement[] {
-  const stockId = generateId();
-  return [
-    {
-      sql: `INSERT INTO stocks (
-          stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6)`,
-      bindings: [stockId, productId, input.value, input.capital, now, now],
-    },
-    insertEvent(productId, stockId, input.value, input.capital, now, "", recordId),
-    touchProduct(productId, now),
-  ];
+  return receivePortion(productId, input, now, recordId).statements;
 }
 
 /**
@@ -87,7 +114,8 @@ export function depleteLots(lots: readonly StockLot[], pcs: number): StockLot[] 
 
 /**
  * FIFO consumption across lots (oldest first). Returns the statements plus any
- * remaining shortage; the caller must fail when `shortage > 0`.
+ * remaining shortage; the caller must fail when `shortage > 0`. Each take is
+ * also reported with its event id so a record line can be split into portions.
  */
 export function consumeStatements(
   productId: string,
@@ -96,20 +124,23 @@ export function consumeStatements(
   now: number,
   note = "",
   recordId: string | null = null,
-): { statements: Statement[]; shortage: number } {
+): { statements: Statement[]; shortage: number; portions: StockPortion[] } {
   const statements: Statement[] = [];
+  const portions: StockPortion[] = [];
   const { takes, shortage } = allocateFifo(lots, pcs);
 
   for (const { lot, take } of takes) {
+    const eventId = generateId();
     statements.push({
       sql: "UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2 WHERE stock_id = $3",
       bindings: [take, now, lot.id],
     });
-    statements.push(insertEvent(productId, lot.id, -take, lot.capital, now, note, recordId));
+    statements.push(insertEvent(eventId, productId, lot.id, -take, lot.capital, now, note, recordId));
+    portions.push({ eventId, stockId: lot.id, pcs: take, capital: lot.capital });
   }
 
   if (statements.length > 0) statements.push(touchProduct(productId, now));
-  return { statements, shortage };
+  return { statements, shortage, portions };
 }
 
 /** Manual correction of a lot; a capital-only change is a delta-0 event. */
@@ -125,7 +156,7 @@ export function adjustStatements(
       sql: "UPDATE stocks SET stock_value = $1, stock_capital = $2, stock_updated_at = $3 WHERE stock_id = $4",
       bindings: [next.value, next.capital, now, lot.id],
     },
-    insertEvent(productId, lot.id, next.value - lot.value, next.capital, now, note),
+    insertEvent(generateId(), productId, lot.id, next.value - lot.value, next.capital, now, note),
     touchProduct(productId, now),
   ];
 }

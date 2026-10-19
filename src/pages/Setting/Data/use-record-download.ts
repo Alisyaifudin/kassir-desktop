@@ -23,8 +23,10 @@ function toRecordImport(record: RecordFull): RecordImport {
     total: record.total,
     methods: record.methods.map(({ methodId, pay }) => ({ methodId, pay })),
     listings: record.listings.map(
-      ({ listingId, name, kind, price, qty, capital, total, discounts }) => ({
-        listingId,
+      ({ name, kind, price, qty, capital, total, discounts }) => ({
+        // The line no longer carries a catalog listing id; a download restores
+        // the line as a manual one (no stock movement).
+        listingId: null,
         name,
         kind,
         price,
