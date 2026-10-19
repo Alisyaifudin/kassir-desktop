@@ -5,12 +5,12 @@ import { integer } from "~/lib/utils";
 export type ViewMode = "table" | "grid";
 export type StockFilter = "all" | "in" | "low" | "out";
 export type MarginFilter = "all" | "profit" | "loss";
-export type SortBy = "name" | "price" | "capital" | "stock" | "updated";
+export type SortBy = "score" | "name" | "price" | "capital" | "stock" | "updated";
 export type SortDir = "asc" | "desc";
 
 export const STOCK_FILTERS = ["all", "in", "low", "out"] as const;
 export const MARGIN_FILTERS = ["all", "profit", "loss"] as const;
-export const SORT_BY = ["name", "price", "capital", "stock", "updated"] as const;
+export const SORT_BY = ["score", "name", "price", "capital", "stock", "updated"] as const;
 export const SORT_DIRS = ["asc", "desc"] as const;
 export const VIEW_MODES = ["table", "grid"] as const;
 export const PAGE_SIZES = [10, 20, 50, 100] as const;
@@ -41,12 +41,24 @@ export function useListState() {
 
   const state = useMemo<ListState>(() => {
     const sizeRaw = Number(params.get("size"));
+    const q = params.get("q") ?? "";
+    const sortRaw = params.get("sort");
+    // No `sort` param means "auto": relevance while searching, name otherwise.
+    // An explicit `sort=name` must survive a query (it is not the default any
+    // more), so only `score` is treated as the auto case when written back.
+    const explicitSort = sortRaw !== null && (SORT_BY as readonly string[]).includes(sortRaw);
+    const chosen = oneOf(sortRaw, SORT_BY, "name");
+    const sort = !explicitSort && q.trim() !== ""
+      ? "score"
+      : q.trim() === "" && chosen === "score"
+        ? "name"
+        : chosen;
     return {
-      q: params.get("q") ?? "",
+      q,
       kinds: (params.get("kinds") ?? "").split(",").filter(Boolean),
       stock: oneOf(params.get("stock"), STOCK_FILTERS, "all"),
       margin: oneOf(params.get("margin"), MARGIN_FILTERS, "all"),
-      sort: oneOf(params.get("sort"), SORT_BY, "name"),
+      sort,
       dir: oneOf(params.get("dir"), SORT_DIRS, "asc"),
       view: oneOf(params.get("view"), VIEW_MODES, "grid"),
       page: Math.max(1, integer.catch(1).parse(params.get("page"))),
@@ -82,7 +94,9 @@ export function useListState() {
             resetPage = true;
           }
           if (patch.sort !== undefined) {
-            put("sort", patch.sort === "name" ? null : patch.sort);
+            // `score` is the auto default while searching, so writing it back
+            // removes the param; every other choice must be stored explicitly.
+            put("sort", patch.sort === "score" ? null : patch.sort);
             resetPage = true;
           }
           if (patch.dir !== undefined) {

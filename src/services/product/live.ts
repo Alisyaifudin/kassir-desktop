@@ -224,6 +224,7 @@ function toProduct(state: ProductState): Product {
     id: state.id,
     name: state.name,
     note: state.note,
+    altNames: state.productNames.map((name) => name.value),
     listings: state.listings,
     stock,
     capital: stock > 0 ? capitalValue / stock : 0,

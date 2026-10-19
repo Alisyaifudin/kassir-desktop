@@ -1,5 +1,6 @@
 import type { Product } from "~/services/product";
-import { LOW_STOCK_THRESHOLD, type ListState } from "./use-list-state";
+import { LOW_STOCK_THRESHOLD, type ListState, type SortBy } from "./use-list-state";
+import { getIndex, search } from "./search";
 
 export type StockStatus = "in" | "low" | "out";
 
@@ -31,18 +32,30 @@ export function maxPrice(product: Product): number {
   return Math.max(...product.listings.map((listing) => listing.price));
 }
 
-function matches(product: Product, query: string): boolean {
-  if (product.name.toLowerCase().includes(query)) return true;
-  if (product.note.toLowerCase().includes(query)) return true;
-  return product.listings.some(
-    (listing) =>
-      listing.name.toLowerCase().includes(query) ||
-      (listing.code?.toLowerCase().includes(query) ?? false),
-  );
+function compare(a: Product, b: Product, sort: SortBy): number {
+  switch (sort) {
+    case "price":
+      return minPrice(a) - minPrice(b);
+    case "capital":
+      return a.capital - b.capital;
+    case "stock":
+      return a.stock - b.stock;
+    case "updated":
+      return a.updatedAt - b.updatedAt;
+    case "score":
+    case "name":
+    default:
+      return a.name.localeCompare(b.name);
+  }
+}
+
+function bySort(products: Product[], sort: SortBy, dir: ListState["dir"]): Product[] {
+  const sorted = [...products].sort((a, b) => compare(a, b, sort));
+  return dir === "desc" ? sorted.reverse() : sorted;
 }
 
 export function filterProducts(products: Product[], state: ListState): Product[] {
-  const query = state.q.trim().toLowerCase();
+  const query = state.q.trim();
   let result = products;
 
   if (state.kinds.length > 0) {
@@ -57,25 +70,19 @@ export function filterProducts(products: Product[], state: ListState): Product[]
     const wantLoss = state.margin === "loss";
     result = result.filter((product) => isLoss(product) === wantLoss);
   }
+
+  // A query ranks by relevance; the structured filters still narrow the set,
+  // and the index is reused until a product's searchable text changes.
   if (query !== "") {
-    result = result.filter((product) => matches(product, query));
+    const byId = new Map(result.map((product) => [product.id, product]));
+    const matched: Product[] = [];
+    for (const hit of search(getIndex(products), query)) {
+      const product = byId.get(hit.id);
+      if (product !== undefined) matched.push(product);
+    }
+    // `Skor` keeps the relevance order; any other choice re-sorts the same hits.
+    return state.sort === "score" ? matched : bySort(matched, state.sort, state.dir);
   }
 
-  const sorted = [...result].sort((a, b) => {
-    switch (state.sort) {
-      case "price":
-        return minPrice(a) - minPrice(b);
-      case "capital":
-        return a.capital - b.capital;
-      case "stock":
-        return a.stock - b.stock;
-      case "updated":
-        return a.updatedAt - b.updatedAt;
-      case "name":
-      default:
-        return a.name.localeCompare(b.name);
-    }
-  });
-
-  return state.dir === "desc" ? sorted.reverse() : sorted;
+  return bySort(result, state.sort, state.dir);
 }

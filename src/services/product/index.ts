@@ -74,6 +74,8 @@ export type Product = {
   id: string;
   name: string;
   note: string;
+  /** Alternative names (`product_names`), used by search only. */
+  altNames: string[];
   listings: Listing[];
   stock: number;
   capital: number;
