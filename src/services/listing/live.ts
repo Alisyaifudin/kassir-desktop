@@ -1,6 +1,7 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import { ListingError, ListingService, type CodeKind, type Listing, type Mime } from ".";
 import { DatabaseService, type DbError } from "../db";
+import { getListingIndex, searchListings } from "~/lib/search/listings";
 
 type ListingRow = {
   listing_id: string;
@@ -15,31 +16,36 @@ type ListingRow = {
 
 type StockRow = { product_id: string; stock_value: number };
 type ImageRow = { product_id: string; image_order: number; image_name: string; image_mime: Mime };
+type ProductRow = { product_id: string; product_name: string };
+type ProductNameRow = { product_id: string; product_name_value: string };
 
 const SELECT_LISTINGS =
-  "SELECT listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_code_kind FROM listings WHERE listing_deleted_at IS NULL";
+  "SELECT listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_code_kind FROM listings WHERE listing_deleted_at IS NULL AND product_id IN (SELECT product_id FROM products WHERE product_deleted_at IS NULL)";
 const SELECT_STOCKS = "SELECT product_id, stock_value FROM stocks";
 const SELECT_IMAGES =
   "SELECT product_id, image_order, image_name, image_mime FROM images WHERE image_deleted_at IS NULL";
+const SELECT_PRODUCTS = "SELECT product_id, product_name FROM products";
+const SELECT_PRODUCT_NAMES =
+  "SELECT product_id, product_name_value FROM product_names WHERE product_name_deleted_at IS NULL";
 
 function toError(error: DbError): ListingError {
   return new ListingError({ message: error.message });
 }
 
-/** Name or code contains the query. A real text index will replace this. */
+/**
+ * Relevance-ordered matches over the listing index: listing name, its code,
+ * the parent product name, and the product's alternative names. An empty query
+ * returns the whole (name-sorted) catalogue.
+ */
 function matching(listings: Listing[], query: string): Listing[] {
-  const q = query.trim().toLowerCase();
-  if (q === "") return listings;
-  const hits = listings.filter(
-    (listing) =>
-      listing.name.toLowerCase().includes(q) ||
-      (listing.code?.toLowerCase().includes(q) ?? false),
-  );
-  // An exactly-typed code is a scan, so it leads the results and is what Enter
-  // picks.
-  return hits.sort(
-    (a, b) => Number(b.code?.toLowerCase() === q) - Number(a.code?.toLowerCase() === q),
-  );
+  if (query.trim() === "") return listings;
+  const byId = new Map(listings.map((listing) => [listing.id, listing]));
+  const hits: Listing[] = [];
+  for (const hit of searchListings(getListingIndex(listings), query)) {
+    const listing = byId.get(hit.id);
+    if (listing !== undefined) hits.push(listing);
+  }
+  return hits;
 }
 
 export const ListingLive = Layer.effect(
@@ -53,10 +59,12 @@ export const ListingLive = Layer.effect(
 
     function load(): Effect.Effect<Listing[], ListingError> {
       return Effect.gen(function* () {
-        const [listingRows, stockRows, imageRows] = yield* Effect.all([
+        const [listingRows, stockRows, imageRows, productRows, nameRows] = yield* Effect.all([
           db.selectMany<ListingRow>(SELECT_LISTINGS),
           db.selectMany<StockRow>(SELECT_STOCKS),
           db.selectMany<ImageRow>(SELECT_IMAGES),
+          db.selectMany<ProductRow>(SELECT_PRODUCTS),
+          db.selectMany<ProductNameRow>(SELECT_PRODUCT_NAMES),
         ]).pipe(Effect.mapError(toError));
 
         const stockByProduct = new Map<string, number>();
@@ -80,6 +88,16 @@ export const ListingLive = Layer.effect(
           }
         }
 
+        const nameByProduct = new Map<string, string>();
+        for (const row of productRows) nameByProduct.set(row.product_id, row.product_name);
+
+        const altNamesByProduct = new Map<string, string[]>();
+        for (const row of nameRows) {
+          const names = altNamesByProduct.get(row.product_id);
+          if (names === undefined) altNamesByProduct.set(row.product_id, [row.product_name_value]);
+          else names.push(row.product_name_value);
+        }
+
         return listingRows
           .map((row): Listing => {
             const cover = coverByProduct.get(row.product_id);
@@ -94,6 +112,8 @@ export const ListingLive = Layer.effect(
               codeKind: row.listing_code_kind,
               cover: cover === undefined ? null : { name: cover.name, mime: cover.mime },
               stock: stockByProduct.get(row.product_id) ?? 0,
+              productName: nameByProduct.get(row.product_id) ?? "",
+              altNames: altNamesByProduct.get(row.product_id) ?? [],
             };
           })
           .sort((a, b) => a.name.localeCompare(b.name));

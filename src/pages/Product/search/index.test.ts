@@ -9,8 +9,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Product } from "~/services/product";
 import { buildIndex, getIndex, resetIndex, search } from "./index";
-import { norm } from "./normalize";
-import { TEXT, gradeCode, gradeText } from "./quality";
+import { norm } from "~/lib/search/normalize";
+import { TEXT, gradeCode, gradeText } from "~/lib/search/quality";
 
 function product(
   name: string,

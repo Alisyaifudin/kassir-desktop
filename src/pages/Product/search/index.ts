@@ -1,6 +1,6 @@
 import type { Product } from "~/services/product";
-import { analyze, compact, norm } from "./normalize";
-import { gradeCode, gradeText, type TextOptions } from "./quality";
+import { analyze, compact, norm } from "~/lib/search/normalize";
+import { gradeCode, gradeText, type TextOptions } from "~/lib/search/quality";
 
 /**
  * A reusable, signature-gated search index.

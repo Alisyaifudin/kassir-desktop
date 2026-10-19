@@ -148,7 +148,7 @@ function Grid({
       className="min-h-0 flex-1 overflow-y-auto outline-none"
     >
       {listings.length === 0 ? (
-        <p className="p-4 text-muted-foreground select-none">Tidak ada produk.</p>
+        <p className="p-4 text-muted-foreground select-none">Tidak ada listing.</p>
       ) : (
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualizer.getVirtualItems().map((row) => (

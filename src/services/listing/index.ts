@@ -22,6 +22,10 @@ export type Listing = {
   codeKind: CodeKind | null;
   cover: { name: string; mime: Mime } | null;
   stock: number;
+  /** Parent product's name, joined for search. */
+  productName: string;
+  /** Parent product's alternative names, joined for search. */
+  altNames: string[];
 };
 
 export class ListingService extends Context.Tag("ListingService")<
