@@ -37,7 +37,7 @@ export function Images({ draft }: { draft: Draft }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b px-2 py-2">
-      <span className="text-small text-muted-foreground select-none">Gambar nota</span>
+      <span className="text-normal text-muted-foreground select-none">Gambar nota</span>
 
       {draft.images.map((image) => (
         <Thumb

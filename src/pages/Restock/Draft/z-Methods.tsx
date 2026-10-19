@@ -1,6 +1,7 @@
+import { useEffect } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
+import { InputCurrency } from "~/components/ui/input-currency";
 import {
   Select,
   SelectContent,
@@ -17,10 +18,18 @@ import {
   type MethodKind,
 } from "~/lib/constants";
 import { generateId } from "~/lib/random";
+import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft, DraftMethod } from "~/services/transaction";
 import { run } from "../run";
+
+/** The default `Input` chrome, so a currency field sits in the row like one. */
+const AMOUNT_CLASS =
+  "flex w-full text-normal rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+
+/** The first amount field, so F2 (see Draft) can land on it. */
+const PAYMENT_AMOUNT_ID = "payment-amount-0";
 
 /**
  * The payments on the draft. A record has as many as the operator needs, so
@@ -30,12 +39,21 @@ import { run } from "../run";
 export function Methods({
   draft,
   catalog,
+  focusPayment,
 }: {
   draft: Draft;
   catalog: MethodCatalog;
+  focusPayment: number;
 }) {
   const set = (methods: DraftMethod[]) =>
     run(service.transaction.methods.set(draft.id, methods));
+
+  // F2 asked the payment stage to take the focus; put it on the first amount
+  // once this stage is actually on screen.
+  useEffect(() => {
+    if (focusPayment === 0) return;
+    document.getElementById(PAYMENT_AMOUNT_ID)?.focus();
+  }, [focusPayment]);
 
   function add() {
     set([
@@ -60,13 +78,12 @@ export function Methods({
             catalog={catalog}
             onChange={(methodId) => update(method.id, { methodId })}
           />
-          <Input
-            type="number"
-            step="any"
-            className="flex-1 text-right"
+          <InputCurrency
+            id={index === 0 ? PAYMENT_AMOUNT_ID : undefined}
+            className={cn(AMOUNT_CLASS, "flex-1 text-right")}
             placeholder="0"
-            value={method.value === 0 ? "" : method.value}
-            onChange={(event) => update(method.id, { value: Number(event.currentTarget.value) || 0 })}
+            value={method.value}
+            onValueChange={(value) => update(method.id, { value })}
           />
           <Button
             variant="destructive"
@@ -103,13 +120,19 @@ function MethodPicker({
   const accounts = catalog.methods.filter(
     (candidate) => candidate.kind === kind && candidate.name !== null,
   );
+  // "--Pilih--" is the kind's base method — no account chosen. The base id is
+  // not an account, so it doubles as the empty choice (Radix forbids an empty
+  // SelectItem value).
+  const accountId = accounts.some((account) => account.id === methodId)
+    ? methodId
+    : METHOD_BASE_ID[kind];
   return (
     <div className="flex shrink-0 items-center gap-2">
       <Select
         value={kind}
         onValueChange={(value) => onChange(defaultMethodId(catalog, value as MethodKind))}
       >
-        <SelectTrigger className="w-[150px]">
+        <SelectTrigger className="w-[180px] small:w-[150px]">
           <SelectValue>{METHOD_NAMES[kind]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -123,12 +146,13 @@ function MethodPicker({
         </SelectContent>
       </Select>
       {accounts.length > 0 ? (
-        <Select value={methodId} onValueChange={onChange}>
+        <Select value={accountId} onValueChange={onChange}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="--Pilih--" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
+              <SelectItem value={METHOD_BASE_ID[kind]}>--Pilih--</SelectItem>
               {accounts.map((account) => (
                 <SelectItem key={account.id} value={account.id}>
                   {account.name}

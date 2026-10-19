@@ -74,7 +74,15 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  * Listings are still mocked — the rows live in the panel's state and nothing is
  * written to `tx_listings` yet.
  */
-export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: Line[]) => void }) {
+export function Listing({
+  lines,
+  onChange,
+  focusSearch,
+}: {
+  lines: Line[];
+  onChange: (lines: Line[]) => void;
+  focusSearch: number;
+}) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<Selection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
@@ -116,6 +124,14 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
     if (isSearch) searchRef.current?.focus();
     else containerRef.current?.focus();
   }, [selection, editing, isSearch]);
+
+  // F1 from another stage lands here: put the cursor in the search bar.
+  useEffect(() => {
+    if (focusSearch === 0) return;
+    setSelection({ row: HEADER, col: NAME_COLUMN });
+    setEditing(false);
+    searchRef.current?.focus();
+  }, [focusSearch]);
 
   useEffect(() => {
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });

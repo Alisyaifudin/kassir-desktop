@@ -11,31 +11,40 @@ import { cn } from "~/lib/utils";
 const PREFIX = "Rp";
 
 /**
- * The amount as raw text: digits with at most one decimal comma and no grouping
- * (`68000` or `68000,5`). `.` is dropped because it is the grouping mark on
- * screen; the separator is always normalized to `,`.
+ * The amount as raw text: an optional leading minus, digits with at most one
+ * decimal comma and no grouping (`68000` or `68000,5`). `.` is dropped because
+ * it is the grouping mark on screen; the separator is always normalized to `,`.
  */
-function canonicalize(display: string): string {
+function canonicalize(display: string, allowNegative: boolean): string {
+  const negative = allowNegative && display.trimStart().startsWith("-");
   const cleaned = display.replace(PREFIX, "").replace(/\./g, "").replace(/[^\d,]/g, "");
   const [whole = "", ...rest] = cleaned.split(",");
   const trimmed = whole.replace(/^0+(?=\d)/, "");
-  return rest.length === 0 ? trimmed : `${trimmed},${rest.join("")}`;
+  const body = rest.length === 0 ? trimmed : `${trimmed},${rest.join("")}`;
+  if (!negative) return body;
+  // A lone minus is a valid in-progress value: the digits come after it.
+  return body === "" ? "-" : `-${body}`;
 }
 
-/** A number as raw text; a JS number's `.` is the decimal point. */
+/** A number as raw text; zero is blank, and a JS number's `.` is the decimal point. */
 function toRaw(value: number): string {
-  return String(value).replace(".", ",");
+  return value === 0 ? "" : String(value).replace(".", ",");
 }
 
 function toNumber(raw: string): number {
-  return raw === "" ? 0 : Number(raw.replace(",", "."));
+  if (raw === "" || raw === "-") return 0;
+  return Number(raw.replace(",", "."));
 }
 
-/** `Rp`, the integer grouped with dots, then an optional `,` and its decimals. */
+/** `-`, then `Rp`, the integer grouped with dots, then `,` and its decimals. */
 function format(raw: string): string {
-  const [whole = "", decimals] = raw.split(",");
+  // Empty, or a sign still waiting for its digits, stays as typed.
+  if (raw === "" || raw === "-") return raw;
+  const negative = raw.startsWith("-");
+  const [whole = "", decimals] = (negative ? raw.slice(1) : raw).split(",");
   const grouped = (whole === "" ? "0" : whole).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return decimals === undefined ? `Rp${grouped}` : `Rp${grouped},${decimals}`;
+  const body = decimals === undefined ? `${PREFIX}${grouped}` : `${PREFIX}${grouped},${decimals}`;
+  return negative ? `-${body}` : body;
 }
 
 /** How many raw characters sit before the display caret. */
@@ -44,19 +53,19 @@ function rawIndexAt(display: string, caret: number): number {
 }
 
 /**
- * Where the caret goes for raw index `index`. A separator is never sat in front
- * of, so a boundary that falls on one moves to just after it: `1|.000` is not a
- * caret position, `1.|000` is.
+ * Where the caret goes for raw index `index`, counting the raw characters
+ * (`-`, digits, `,`) and stepping over the `Rp` prefix and the grouping dots.
  */
 function displayIndexAt(display: string, index: number): number {
   let seen = 0;
   let pos = display.length;
-  for (let i = PREFIX.length; i < display.length; i++) {
+  for (let i = 0; i < display.length; i++) {
+    const ch = display[i];
+    if (ch === "." || ch === "R" || ch === "p") continue;
     if (seen === index) {
       pos = i;
       break;
     }
-    if (display[i] === ".") continue;
     seen++;
   }
   return display[pos] === "." ? pos + 1 : pos;
@@ -65,7 +74,8 @@ function displayIndexAt(display: string, index: number): number {
 /**
  * A plain `input` that shows and edits a rupiah amount. Thousands are dotted as
  * they are typed; `.` and `,` both begin the decimals, are shown as `,`, and a
- * second separator is refused.
+ * second separator is refused. A leading minus is kept only when the caller
+ * allows it.
  *
  * The caret is tracked by digit, not by display column, so it steps over the
  * separators: Left from `10.|000` lands on `1|0.000`, and Backspace there
@@ -78,10 +88,12 @@ export function InputCurrency({
   onValueChange,
   className,
   onKeyDown,
+  allowNegative = false,
   ...props
 }: Omit<ComponentProps<"input">, "value" | "onChange"> & {
   value: number;
   onValueChange: (value: number) => void;
+  allowNegative?: boolean;
 }) {
   const [raw, setRaw] = useState(() => toRaw(value));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,7 +103,11 @@ export function InputCurrency({
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (el === null) return;
-    const pos = displayIndexAt(format(raw), Math.min(caret.current, raw.length));
+    const display = format(raw);
+    // At the end, always land past the field — the placeholder `0` shown for an
+    // empty or sign-only value is not a raw character.
+    const pos =
+      caret.current >= raw.length ? display.length : displayIndexAt(display, caret.current);
     el.setSelectionRange(pos, pos);
   }, [raw]);
 
@@ -119,7 +135,9 @@ export function InputCurrency({
     caret.current = Math.max(0, Math.min(index, raw.length));
     const el = inputRef.current;
     if (el === null) return;
-    const pos = displayIndexAt(format(raw), caret.current);
+    const display = format(raw);
+    const pos =
+      caret.current >= raw.length ? display.length : displayIndexAt(display, caret.current);
     el.setSelectionRange(pos, pos);
   }
 
@@ -158,8 +176,10 @@ export function InputCurrency({
       case ",":
         event.preventDefault();
         if (!raw.includes(",")) {
-          const next = raw === "" ? "0," : raw.slice(0, index) + "," + raw.slice(index);
-          apply(next, index + 1);
+          // An empty or sign-only field gets its leading zero first.
+          const base = raw === "-" || raw === "" ? `${raw}0` : raw;
+          const at = raw === "-" || raw === "" ? base.length : index;
+          apply(`${base.slice(0, at)},${base.slice(at)}`, at + 1);
         }
         return;
     }
@@ -176,7 +196,7 @@ export function InputCurrency({
         const el = event.currentTarget;
         const display = el.value;
         const displayCaret = el.selectionStart ?? display.length;
-        apply(canonicalize(display), rawIndexAt(display, displayCaret));
+        apply(canonicalize(display, allowNegative), rawIndexAt(display, displayCaret));
       }}
       onKeyDown={handleKeyDown}
     />

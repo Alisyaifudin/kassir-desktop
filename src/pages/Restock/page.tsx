@@ -107,6 +107,7 @@ function Screen({
         drafts={purchaseDrafts}
         onSelect={onDraft}
         stage={stage}
+        onStage={onStage}
         grand={grand}
         lines={lines}
         onLines={setLines}

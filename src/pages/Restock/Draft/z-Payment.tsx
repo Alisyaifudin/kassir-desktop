@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
-import { Input } from "~/components/ui/input";
+import { InputCurrency } from "~/components/ui/input-currency";
 import { capitalize, cn } from "~/lib/utils";
 import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
@@ -23,6 +23,10 @@ import { Supplier } from "./z-Supplier";
 import { Images } from "./z-Images";
 import { Kredit } from "./z-Kredit";
 
+/** The default `Input` chrome, so a currency field sits in the row like one. */
+const AMOUNT_CLASS =
+  "flex w-full text-normal rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+
 /**
  * Stage three: settling the purchase.
  *
@@ -30,7 +34,15 @@ import { Kredit } from "./z-Kredit";
  * accordion that stays out of the way of the two things that matter: what is
  * owed (the grand total below) and what has been paid.
  */
-export function Payment({ draft, grand }: { draft: Draft; grand: Decimal }) {
+export function Payment({
+  draft,
+  grand,
+  focusPayment,
+}: {
+  draft: Draft;
+  grand: Decimal;
+  focusPayment: number;
+}) {
   const res = {
     catalog: useStream(service.method.get.catalogChanges),
     suppliers: useStream(service.supplier.get.changes),
@@ -39,7 +51,13 @@ export function Payment({ draft, grand }: { draft: Draft; grand: Decimal }) {
     <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-gutter">
       <LoaderMany res={res} fallback={<Loading />}>
         {({ catalog, suppliers }) => (
-          <Body draft={draft} grand={grand} catalog={catalog} suppliers={suppliers} />
+          <Body
+            draft={draft}
+            grand={grand}
+            catalog={catalog}
+            suppliers={suppliers}
+            focusPayment={focusPayment}
+          />
         )}
       </LoaderMany>
     </div>
@@ -51,11 +69,13 @@ function Body({
   grand,
   catalog,
   suppliers,
+  focusPayment,
 }: {
   draft: Draft;
   grand: Decimal;
   catalog: MethodCatalog;
   suppliers: { id: string; name: string }[];
+  focusPayment: number;
 }) {
   const cashier = useUser().name ?? "admin";
   const paid = paidTotal(draft.methods);
@@ -93,21 +113,18 @@ function Body({
 
       <label className="mt-3 grid grid-cols-[170px_1fr] items-center gap-2 px-2 small:grid-cols-[120px_1fr]">
         <span className="select-none">Pembulatan</span>
-        <Input
-          type="number"
-          step="any"
-          className="text-right"
+        <InputCurrency
+          className={cn(AMOUNT_CLASS, "text-right")}
           placeholder="0"
-          value={draft.rounding === 0 ? "" : draft.rounding}
-          onChange={(event) =>
-            run(service.transaction.set.rounding(draft.id, Number(event.currentTarget.value) || 0))
-          }
+          allowNegative
+          value={draft.rounding}
+          onValueChange={(rounding) => run(service.transaction.set.rounding(draft.id, rounding))}
         />
       </label>
 
       <div className="mt-4 px-2 pb-4">
         <h3 className="mb-2 text-normal font-bold select-none">Pembayaran</h3>
-        <Methods draft={draft} catalog={catalog} />
+        <Methods draft={draft} catalog={catalog} focusPayment={focusPayment} />
         <div className="mt-3 flex items-center justify-between border-t pt-2 ">
           <span className="text-big">
             Dibayar:{" "}

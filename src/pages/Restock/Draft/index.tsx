@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Effect } from "effect";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
@@ -28,6 +28,7 @@ export function Draft({
   drafts,
   onSelect,
   stage,
+  onStage,
   grand,
   lines,
   onLines,
@@ -38,12 +39,20 @@ export function Draft({
   drafts: DraftModel[];
   onSelect: (id: string) => void;
   stage: Stage;
+  onStage: (stage: Stage) => void;
   grand: Decimal;
   lines: Line[];
   onLines: (lines: Line[]) => void;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
 }) {
+  // Bumped by F2; the payment stage watches it to put the cursor on its first
+  // amount, even when it is already the open stage.
+  const [focusPayment, setFocusPayment] = useState(0);
+  // Bumped by F1 from the payment stage; the listing grid watches it to focus
+  // its search bar.
+  const [focusSearch, setFocusSearch] = useState(0);
+
   // The open purchase takes its name from its first listing.
   useEffect(() => {
     const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
@@ -51,6 +60,26 @@ export function Draft({
       void Effect.runFork(service.transaction.set.title(draft.id, title));
     }
   }, [lines, draft.id, draft.title]);
+
+  // The function keys cross stages: F2 settles the purchase, and F1 from the
+  // payment stage goes back to the goods and asks for the search bar.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "F2") {
+        event.preventDefault();
+        onStage("payment");
+        setFocusPayment((count) => count + 1);
+        return;
+      }
+      if (event.key === "F1" && stage === "payment") {
+        event.preventDefault();
+        onStage("listing");
+        setFocusSearch((count) => count + 1);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onStage, stage]);
 
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
@@ -63,6 +92,8 @@ export function Draft({
         onLines={onLines}
         extras={extras}
         onExtras={onExtras}
+        focusPayment={focusPayment}
+        focusSearch={focusSearch}
       />
     </section>
   );
@@ -76,6 +107,8 @@ function StageBody({
   onLines,
   extras,
   onExtras,
+  focusPayment,
+  focusSearch,
 }: {
   stage: Stage;
   draft: DraftModel;
@@ -84,10 +117,12 @@ function StageBody({
   onLines: (lines: Line[]) => void;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
+  focusPayment: number;
+  focusSearch: number;
 }) {
-  if (stage === "listing") return <Listing lines={lines} onChange={onLines} />;
+  if (stage === "listing") return <Listing lines={lines} onChange={onLines} focusSearch={focusSearch} />;
   if (stage === "extras") {
     return <Extras extras={extras} subtotal={linesSubtotal(lines)} onChange={onExtras} />;
   }
-  return <Payment draft={draft} grand={grand} />;
+  return <Payment draft={draft} grand={grand} focusPayment={focusPayment} />;
 }
