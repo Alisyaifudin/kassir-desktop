@@ -23,7 +23,7 @@ import type { RecordListing } from "~/services/record";
  * A line split across lots has one portion per lot; only a single-portion line
  * is offered here for now.
  */
-export function LinkListing({ listing }: { listing: RecordListing }) {
+export function LinkStock({ listing }: { listing: RecordListing }) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>

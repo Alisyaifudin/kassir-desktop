@@ -5,7 +5,7 @@ import { roundToFix } from "~/services/record/round";
 import type { RecordFull, RecordListing } from "~/services/record";
 import { discountLabel, discountTotals } from "./discounts";
 import { GotoProductBtn } from "./z-GotoProductBtn";
-import { LinkListing } from "./z-LinkListing";
+import { LinkStock } from "./z-LinkStock";
 
 export function ListingRow({
   listing,
@@ -25,7 +25,7 @@ export function ListingRow({
       <TableRow>
         <TableCell className="flex items-center">
           {index + 1}
-          {canLink ? <LinkListing listing={listing} /> : null}
+          {canLink ? <LinkStock listing={listing} /> : null}
         </TableCell>
         <TableCell>{listing.name}</TableCell>
         <TableCell className="text-end">

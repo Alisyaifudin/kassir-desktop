@@ -73,21 +73,13 @@ WHERE EXISTS (
     AND p.product_barcode <> ''
 );
 
--- 5 product_events — repoint at the seed stock (stock_id = product_id).
---      `type` is gone: the old positive `value` becomes a signed delta, so
---      `dec` events are negated. Every event carries the lot's capital, so the
---      seed lot's `product_capital` is written on all of its events.
-INSERT INTO product_events (
-  product_event_id, product_event_created_at, product_event_sync_at,
-  product_event_value, product_event_capital, product_id, stock_id
-)
-SELECT
-  pe.id, pe.created_at, pe.sync_at,
-  CASE WHEN pe.type = 'dec' THEN -pe.value ELSE pe.value END,
-  po.product_capital,
-  pe.product_id, pe.product_id
-FROM product_events_old pe
-JOIN products_old po ON po.product_id = pe.product_id;
+-- 5 product_events — DISCARDED, then rebuilt from the records.
+--      The old journal never recorded which record produced a movement (its
+--      `product_events_old` has no record/line column), so it cannot be
+--      attributed. Instead the new journal is derived from the record lines
+--      after they are copied (step 6b), which gives every event its `record_id`
+--      and lets `record_listings` point at the exact event. `product_events_old`
+--      is left parked for inspection; nothing reads it again.
 
 -- 6 records — drop method_id; rename the mode enum values.
 INSERT INTO records (
@@ -107,6 +99,32 @@ SELECT
   record_customer_phone, record_sub_total, record_total,
   record_updated_at, record_sync_at
 FROM records_old;
+
+-- 6b product_events — rebuilt from the record lines. One event per line:
+--      `record_product_id` doubles as the event id, so a line can point at it.
+--      A sale (`sell`) consumes (negative), a purchase (`buy`) receives; the
+--      line's capital snapshot is the lot's capital at that moment. The stock
+--      the old db already carried is reconciled later by migration-47, which
+--      journals the opening balance as one adjustment per lot.
+INSERT INTO product_events (
+  product_event_id, product_event_created_at, product_event_sync_at,
+  product_event_value, product_event_capital, product_event_note,
+  product_id, stock_id, record_id
+)
+SELECT
+  rp.record_product_id,
+  r.record_paid_at,
+  r.record_sync_at,
+  CASE WHEN r.record_mode = 'sell' THEN -rp.record_product_qty
+       ELSE rp.record_product_qty END,
+  rp.record_product_capital_raw,
+  '',
+  po.product_id,
+  po.product_id,               -- the seed lot id is the product id
+  rp.record_id
+FROM record_products_old rp
+JOIN records_old r ON r.record_id = rp.record_id
+JOIN products_old po ON po.product_id = rp.product_id;
 
 -- 7 record_methods — the old single method paid the whole `record_pay`.
 INSERT INTO record_methods (
@@ -129,7 +147,10 @@ SELECT
   rp.record_product_id,
   rp.record_product_id,          -- one old line is its own group
   rp.record_id,
-  NULL,                          -- pre-journal lines have no event
+  -- the event rebuilt in step 6b, when the product still had a lot
+  CASE WHEN EXISTS (
+    SELECT 1 FROM product_events pe WHERE pe.product_event_id = rp.record_product_id
+  ) THEN rp.record_product_id ELSE NULL END,
   rp.product_id,                 -- may be NULL (old ON DELETE SET NULL)
   rp.record_product_name,
   'retail',
