@@ -51,8 +51,15 @@ export type Extra = {
   name: string;
   kind: ValueKind;
   value: number;
-  /** The rupiah amount it works out to. */
-  eff: number;
+};
+
+/** A charge the shop reaches for often; the extras search picks from these. */
+export type ExtraPreset = {
+  id: string;
+  name: string;
+  kind: ValueKind;
+  /** The value a fresh extra starts at; usually left at zero to be filled in. */
+  value: number;
 };
 
 export const LINES: Line[] = [
@@ -92,6 +99,17 @@ export const LINES: Line[] = [
 ];
 
 export const EXTRAS: Extra[] = [
-  { id: "E1", name: "Ongkos Kirim", kind: "number", value: 50000, eff: 50000 },
-  { id: "E2", name: "Diskon Grosir", kind: "percent", value: -3, eff: -40920 },
+  { id: "E1", name: "Ongkos Kirim", kind: "number", value: 50000 },
+  { id: "E2", name: "Diskon Grosir", kind: "percent", value: -3 },
+];
+
+export const EXTRA_PRESETS: ExtraPreset[] = [
+  { id: "P1", name: "Ongkos Kirim", kind: "number", value: 0 },
+  { id: "P2", name: "Biaya Packing", kind: "number", value: 0 },
+  { id: "P3", name: "Biaya Kartu", kind: "percent", value: 0 },
+  { id: "P4", name: "Biaya Layanan", kind: "percent", value: 0 },
+  { id: "P5", name: "Diskon Grosir", kind: "percent", value: 0 },
+  { id: "P6", name: "Diskon Kuantitas", kind: "percent", value: 0 },
+  { id: "P7", name: "Pembulatan", kind: "number", value: 0 },
+  { id: "P8", name: "Biaya Antar", kind: "number", value: 0 },
 ];

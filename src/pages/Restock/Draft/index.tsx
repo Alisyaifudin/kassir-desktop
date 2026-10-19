@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Effect } from "effect";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
-import { EXTRAS, LINES, type Line } from "../mock";
-import { mockSubtotal } from "../total";
-import { Extras, Subtotal } from "./z-Extras";
+import { EXTRAS, LINES, type Extra, type Line } from "../mock";
+import { linesSubtotal } from "../total";
+import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Payment } from "./z-Payment";
 import { Tabs } from "./z-Tabs";
@@ -38,6 +38,7 @@ export function Draft({
 }) {
   // The rows are still mock state, held here so switching stages keeps them.
   const [lines, setLines] = useState<Line[]>(() => [...LINES]);
+  const [extras, setExtras] = useState<Extra[]>(() => [...EXTRAS]);
 
   // The open purchase takes its name from its first listing.
   useEffect(() => {
@@ -50,7 +51,15 @@ export function Draft({
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
       <Tabs drafts={drafts} activeId={draft.id} onSelect={onSelect} />
-      <StageBody stage={stage} draft={draft} grand={grand} lines={lines} onLines={setLines} />
+      <StageBody
+        stage={stage}
+        draft={draft}
+        grand={grand}
+        lines={lines}
+        onLines={setLines}
+        extras={extras}
+        onExtras={setExtras}
+      />
     </section>
   );
 }
@@ -61,21 +70,20 @@ function StageBody({
   grand,
   lines,
   onLines,
+  extras,
+  onExtras,
 }: {
   stage: Stage;
   draft: DraftModel;
   grand: Decimal;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  extras: Extra[];
+  onExtras: (extras: Extra[]) => void;
 }) {
   if (stage === "listing") return <Listing lines={lines} onChange={onLines} />;
   if (stage === "extras") {
-    return (
-      <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-1 scroll-gutter">
-        <Subtotal subtotal={mockSubtotal()} />
-        <Extras extras={EXTRAS} />
-      </div>
-    );
+    return <Extras extras={extras} subtotal={linesSubtotal(lines)} onChange={onExtras} />;
   }
   return <Payment draft={draft} grand={grand} />;
 }

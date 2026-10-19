@@ -9,7 +9,9 @@ function canonicalize(raw: string, allowNegative: boolean): string {
   const [whole = "", ...rest] = cleaned.split(",");
   const trimmed = whole.replace(/^0+(?=\d)/, "");
   const body = rest.length === 0 ? trimmed : `${trimmed},${rest.join("")}`;
-  return negative && body !== "" ? `-${body}` : body;
+  if (!negative) return body;
+  // A lone minus is a valid in-progress value: the digits come after it.
+  return body === "" ? "-" : `-${body}`;
 }
 
 function toNumber(raw: string): number {

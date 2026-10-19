@@ -253,6 +253,9 @@ export function Listing({ lines, onChange }: { lines: Line[]; onChange: (lines: 
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // The discount dialog and its select portal to the body; their keys still
+    // bubble here through the React tree. Ignore anything not inside this grid.
+    if (!event.currentTarget.contains(event.target as Node)) return;
     // The search-results grid lives inside this container; do not also move the
     // listing selection for keys it already handled.
     if (event.defaultPrevented) return;

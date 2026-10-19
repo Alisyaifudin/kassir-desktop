@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
@@ -76,7 +77,18 @@ export function DiscountDialog({
 }) {
   const exitEditing = useRef<(() => void) | null>(null);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // `modal={false}` is a workaround for a known Radix bug: with a trapped
+    // Dialog (React 19), the Dialog's FocusScope reclaims focus from the kind
+    // Select's portal, so the list never focuses. Radix's fix is unmerged, so
+    // we drop the trap for this editor; the overlay still blocks and dismisses.
+    <Dialog modal={false} open={open} onOpenChange={onOpenChange}>
+      {/* Radix drops its own overlay when the Dialog is not modal, so draw one. */}
+      <DialogPortal>
+        <div
+          className="fixed inset-0 z-50 bg-black/80"
+          onClick={() => onOpenChange(false)}
+        />
+      </DialogPortal>
       <DialogContent
         className="max-w-5xl"
         onEscapeKeyDown={(event) => {
@@ -119,8 +131,9 @@ function Body({
     col: COLUMNS[0],
   }));
   const [editing, setEditing] = useState(true);
+  const [openKind, setOpenKind] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const kindRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const kindWasOpen = useRef(false);
 
   const row = Math.min(selection.row, line.discounts.length - 1);
   const cell = cellIndexOf(selection.col);
@@ -130,6 +143,19 @@ function Body({
     if (editing) return;
     containerRef.current?.focus();
   }, [selection, editing]);
+
+  // Radix hands focus back to the trigger when the select closes; take it back
+  // for the grid, after Radix's own focus restore has run.
+  useEffect(() => {
+    if (openKind !== null) {
+      kindWasOpen.current = true;
+      return;
+    }
+    if (!kindWasOpen.current) return;
+    kindWasOpen.current = false;
+    const timer = setTimeout(() => containerRef.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [openKind]);
 
   // Let the dialog's Escape handler know whether it should just leave the field.
   useEffect(() => {
@@ -153,6 +179,7 @@ function Body({
 
   function remove(index: number) {
     if (!canDelete) return;
+    setOpenKind(null);
     commit(line.discounts.filter((_, i) => i !== index));
   }
 
@@ -173,7 +200,7 @@ function Body({
       return;
     }
     if (cell === 1) {
-      kindRefs.current[row]?.click();
+      setOpenKind(row);
       return;
     }
     if (cell === 3) remove(row);
@@ -188,6 +215,9 @@ function Body({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // The kind select portals its content to the body; its keys still bubble
+    // here through the React tree. Ignore anything not inside this grid.
+    if (!event.currentTarget.contains(event.target as Node)) return;
     if (editing) return;
     switch (event.key) {
       case "ArrowUp":
@@ -305,17 +335,14 @@ function Body({
               >
                 <Select
                   value={discount.kind}
+                  open={openKind === index}
+                  onOpenChange={(open) => setOpenKind(open ? index : null)}
                   onValueChange={(kind) => {
                     setKind(index, kind as DiscountKind);
                     setEditing(false);
                   }}
                 >
-                  <SelectTrigger
-                    ref={(el) => {
-                      kindRefs.current[index] = el;
-                    }}
-                    className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7"
-                  >
+                  <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7">
                     <SelectValue>{KIND_LABELS[discount.kind]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
