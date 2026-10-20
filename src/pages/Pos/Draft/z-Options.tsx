@@ -2,7 +2,9 @@ import { SlidersHorizontal } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -19,7 +21,7 @@ import { Precision } from "./z-Precision";
  * button at the top of the grand-total panel, so they stay out of the settle
  * strip until the operator asks for them.
  */
-export function Options({ draft }: { draft: Draft }) {
+export function Options({ draft, onStore }: { draft: Draft; onStore: () => void }) {
   return (
     <Dialog>
       <Button asChild variant="ghost" size="icon" title="Opsi transaksi">
@@ -46,6 +48,13 @@ export function Options({ draft }: { draft: Draft }) {
             />
           </label>
         </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="secondary" type="button" onClick={onStore}>
+              Simpan keranjang
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

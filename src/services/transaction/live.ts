@@ -1,6 +1,7 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import Decimal from "decimal.js";
 import {
+  STORED_FLAG,
   TransactionError,
   TransactionService,
   type Draft,
@@ -16,9 +17,6 @@ import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
 import { image } from "~/lib/image";
 import { DEBOUNCE_DELAY, METHOD_BASE_ID } from "~/lib/constants";
-
-/** `tx_record_flag` bit 0: the draft that is open. */
-const ACTIVE_BIT = 0b1;
 
 /** The same limits the product gallery enforces. */
 const MAX_IMAGE_SIZE = 10 * 1e6;
@@ -377,16 +375,6 @@ export const TransactionLive = Layer.effect(
       });
     }
 
-    function updateMany(ids: string[], change: (draft: Draft) => Draft): Effect.Effect<void, TransactionError> {
-      return Effect.gen(function* () {
-        const wanted = new Set(ids);
-        yield* SubscriptionRef.update(draftsRef, (drafts) =>
-          drafts.map((draft) => (wanted.has(draft.id) ? change(draft) : draft)),
-        );
-        for (const id of wanted) schedule(id);
-      });
-    }
-
     return {
       get: {
         drafts(mode) {
@@ -466,20 +454,6 @@ export const TransactionLive = Layer.effect(
         },
       },
       set: {
-        active(id) {
-          return Effect.gen(function* () {
-            const drafts = yield* SubscriptionRef.get(draftsRef);
-            const target = drafts.find((draft) => draft.id === id);
-            if (target === undefined) return;
-            const siblings = drafts
-              .filter((draft) => draft.mode === target.mode)
-              .map((draft) => draft.id);
-            yield* updateMany(siblings, (draft) => ({
-              ...draft,
-              flag: draft.id === id ? draft.flag | ACTIVE_BIT : draft.flag & ~ACTIVE_BIT,
-            }));
-          });
-        },
         fix(id, fix) {
           return update(id, (draft) => ({ ...draft, fix }));
         },
@@ -497,6 +471,12 @@ export const TransactionLive = Layer.effect(
         },
         rounding(id, rounding) {
           return update(id, (draft) => ({ ...draft, rounding }));
+        },
+        store(id) {
+          return update(id, (draft) => ({ ...draft, flag: draft.flag | STORED_FLAG }));
+        },
+        restore(id) {
+          return update(id, (draft) => ({ ...draft, flag: draft.flag & ~STORED_FLAG }));
         },
       },
       listings: {

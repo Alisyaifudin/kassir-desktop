@@ -8,6 +8,9 @@ export class TransactionError extends Data.TaggedError("TransactionError")<{
 /** Which way goods move: `incoming` is a sale, `outcoming` a purchase. */
 export type DraftMode = "incoming" | "outcoming";
 
+/** `tx_record_flag` bit 0: a stored (pending) cart, not an active tab. */
+export const STORED_FLAG = 0b01;
+
 /** One payment applied to a draft; a draft may have several. */
 export type DraftMethod = {
   id: string;
@@ -73,7 +76,7 @@ export type Draft = {
   id: string;
   /** Tab position; not unique by design (users reorder). */
   order: number;
-  /** Local flag bitfield; bit 0 marks the open draft. */
+  /** Local flag bitfield; bit 0 marks a stored (pending) cart. */
   flag: number;
   title: string;
   mode: DraftMode;
@@ -101,14 +104,16 @@ export class TransactionService extends Context.Tag("TransactionService")<
     /** Hard delete: a cart is transient working state, not synced history. */
     delete: { byId: (id: string) => Effect.Effect<void, TransactionError> };
     set: {
-      /** Marks this draft open and every other draft of the same mode closed. */
-      active: (id: string) => Effect.Effect<void, TransactionError>;
       title: (id: string, title: string) => Effect.Effect<void, TransactionError>;
       fix: (id: string, fix: number) => Effect.Effect<void, TransactionError>;
       note: (id: string, note: string) => Effect.Effect<void, TransactionError>;
       customer: (id: string, customerId: string | null) => Effect.Effect<void, TransactionError>;
       supplier: (id: string, supplierId: string | null) => Effect.Effect<void, TransactionError>;
       rounding: (id: string, rounding: number) => Effect.Effect<void, TransactionError>;
+      /** Parks the cart: it leaves the active tabs but stays in the list. */
+      store: (id: string) => Effect.Effect<void, TransactionError>;
+      /** Pulls a parked cart back into the active tabs. */
+      restore: (id: string) => Effect.Effect<void, TransactionError>;
     };
     listings: {
       set: (id: string, listings: DraftListing[]) => Effect.Effect<void, TransactionError>;

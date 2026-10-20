@@ -13,7 +13,7 @@ import {
 } from "~/components/ui/dialog";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
-import type { Draft as DraftModel } from "~/services/transaction";
+import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { run } from "../run";
 import { Kbd } from "~/components/ui/kdb";
 
@@ -108,6 +108,44 @@ function Tab({
   onSelect: () => void;
   onClose: () => void;
 }) {
+  // A stored cart collapses to its number; clicking it restores it.
+  if ((draft.flag & STORED_FLAG) !== 0) {
+    return (
+      <div
+        onClick={onSelect}
+        title={`Transaksi tersimpan ${number}`}
+        className={cn(
+          "flex shrink-0 cursor-pointer items-center gap-1 rounded-t-md border border-b-0 py-1 pl-2 pr-1 transition-colors",
+          selected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
+        )}
+      >
+        <span
+          className={cn(
+            "rounded-full px-1.5 text-small font-bold tabular-nums",
+            selected ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {number}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          title={`Hapus transaksi tersimpan ${number}`}
+          className={cn(
+            "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",
+            selected ? "text-primary-foreground" : "text-muted-foreground",
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+        >
+          <X className="icon" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={onSelect}

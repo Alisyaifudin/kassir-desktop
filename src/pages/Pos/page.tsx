@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
 import { service } from "~/services";
-import type { Draft as DraftModel } from "~/services/transaction";
+import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
 import type { Extra, Line } from "./mock";
@@ -61,6 +61,21 @@ function Screen({
     () => drafts.filter((draft) => draft.mode === "incoming").sort((a, b) => a.order - b.order),
     [drafts],
   );
+  // Stored carts are parked: never the active tab, never in Ctrl+Arrow order.
+  const normalDrafts = useMemo(
+    () => saleDrafts.filter((draft) => (draft.flag & STORED_FLAG) === 0),
+    [saleDrafts],
+  );
+  // The tab strip puts the parked carts first, as number-only chips.
+  const tabs = useMemo(
+    () =>
+      [...saleDrafts].sort((a, b) => {
+        const aStored = (a.flag & STORED_FLAG) === 0 ? 1 : 0;
+        const bStored = (b.flag & STORED_FLAG) === 0 ? 1 : 0;
+        return aStored - bStored || a.order - b.order;
+      }),
+    [saleDrafts],
+  );
   const creating = useRef(false);
 
   // Bumped by F2; the payment rows in the bottom panel watch it to put the
@@ -101,7 +116,7 @@ function Screen({
 
   // The screen always has a sale to show: an empty one is made for it.
   useEffect(() => {
-    if (saleDrafts.length > 0 || creating.current) return;
+    if (normalDrafts.length > 0 || creating.current) return;
     creating.current = true;
     void Effect.runPromise(service.transaction.add.new("incoming")).then(
       (id) => {
@@ -112,20 +127,10 @@ function Screen({
         creating.current = false;
       },
     );
-  }, [saleDrafts.length, onDraft]);
+  }, [normalDrafts.length, onDraft]);
 
-  const active =
-    saleDrafts.find((draft) => draft.id === draftId) ??
-    saleDrafts.find((draft) => (draft.flag & 1) === 1) ??
-    saleDrafts[0] ??
-    null;
+  const active = normalDrafts.find((draft) => draft.id === draftId) ?? normalDrafts[0] ?? null;
   const activeId = active?.id ?? null;
-
-  // Remember the open tab so a relaunch returns to it.
-  useEffect(() => {
-    if (activeId === null) return;
-    void Effect.runFork(service.transaction.set.active(activeId));
-  }, [activeId]);
 
   // Switching tabs (click, Ctrl+Arrow, F12) returns to the goods with the
   // search ready. The focus token is bumped a tick later so the listing grid is
@@ -156,18 +161,41 @@ function Screen({
       if (editor != null && !(editor instanceof HTMLInputElement && editor.type === "search")) {
         return;
       }
-      const index = saleDrafts.findIndex((draft) => draft.id === activeId);
+      const index = normalDrafts.findIndex((draft) => draft.id === activeId);
       if (index === -1) return;
-      const next = saleDrafts[index + (event.key === "ArrowLeft" ? -1 : 1)];
+      const next = normalDrafts[index + (event.key === "ArrowLeft" ? -1 : 1)];
       if (next === undefined) return;
       event.preventDefault();
       onDraft(next.id);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [saleDrafts, activeId, onDraft]);
+  }, [normalDrafts, activeId, onDraft]);
 
   if (active === null) return <Loading />;
+
+  /** Park this cart, then jump to another open one (or let the effect make one). */
+  function storeCart() {
+    const id = active.id;
+    const next = normalDrafts.find((draft) => draft.id !== id);
+    void Effect.runPromise(service.transaction.set.store(id)).then(() => {
+      if (next !== undefined) onDraft(next.id);
+      else onDraft(null);
+    }, () => {});
+  }
+
+  /** A parked tab expands back into a normal one when clicked. */
+  function openDraft(id: string) {
+    const draft = saleDrafts.find((candidate) => candidate.id === id);
+    if (draft !== undefined && (draft.flag & STORED_FLAG) !== 0) {
+      void Effect.runPromise(service.transaction.set.restore(id)).then(
+        () => onDraft(id),
+        () => {},
+      );
+      return;
+    }
+    onDraft(id);
+  }
 
   // The cart lives in the transaction service; these are its `tx_listings` and
   // `tx_extras` rows, written back on every edit.
@@ -186,8 +214,8 @@ function Screen({
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1">
       <Draft
         draft={active}
-        drafts={saleDrafts}
-        onSelect={onDraft}
+        drafts={tabs}
+        onSelect={openDraft}
         stage={stage}
         onStage={onStage}
         focusSearch={focusSearch}
@@ -209,6 +237,7 @@ function Screen({
         onExitUp={() => setFocusLast((count) => count + 1)}
         focused={area === "bottom"}
         onActivate={() => setArea("bottom")}
+        onStore={storeCart}
       />
     </div>
   );

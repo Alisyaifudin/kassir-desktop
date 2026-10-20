@@ -284,6 +284,12 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-48.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 49,
+            description: "clear_legacy_active_flag",
+            sql: include_str!("../../src/database/41-50/migration-49.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     return migrations;
 }

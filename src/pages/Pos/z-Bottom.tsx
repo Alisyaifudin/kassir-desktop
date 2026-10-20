@@ -28,6 +28,7 @@ export function Bottom({
   onExitUp,
   focused,
   onActivate,
+  onStore,
 }: {
   draft: Draft;
   grand: Decimal;
@@ -37,6 +38,7 @@ export function Bottom({
   onExitUp: () => void;
   focused: boolean;
   onActivate: () => void;
+  onStore: () => void;
 }) {
   const payRef = useRef<HTMLButtonElement>(null);
   const [focusRounding, setFocusRounding] = useState(0);
@@ -91,7 +93,7 @@ export function Bottom({
           </Button>
           <div className="flex items-center gap-2">
             <CashierName />
-            <Options draft={draft} />
+            <Options draft={draft} onStore={onStore} />
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center">
