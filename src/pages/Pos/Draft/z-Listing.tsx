@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import type Decimal from "decimal.js";
 import { Stream } from "effect";
 import { AnimatePresence } from "motion/react";
 import {
@@ -20,6 +21,7 @@ import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "../mock";
 import { recalcDiscounts } from "../total";
+import { rupiah } from "../util-rupiah";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
 import { DiscountDialog } from "./z-Discount";
@@ -77,6 +79,7 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  */
 export function Listing({
   lines,
+  extraTotal,
   onChange,
   onToggle,
   focusSearch,
@@ -86,6 +89,8 @@ export function Listing({
   onActivate,
 }: {
   lines: Line[];
+  /** The rupiah all extras come to, or null when there are none. */
+  extraTotal: Decimal | null;
   onChange: (lines: Line[]) => void;
   onToggle: () => void;
   focusSearch: number;
@@ -423,6 +428,8 @@ export function Listing({
 
   const manualSelected = selection.row.kind === "header" && active.field === "manual";
   const toggleSelected = selection.row.kind === "header" && active.field === "toggle";
+  // A zero extra total is not worth breaking the button into two lines.
+  const showExtraTotal = extraTotal !== null && !extraTotal.isZero();
   const discountLine = lines.find((line) => line.id === discountFor) ?? null;
 
   return (
@@ -462,7 +469,7 @@ export function Listing({
             setSelection({ row: HEADER, col: MANUAL_COLUMN });
             setEditing(false);
           }}
-          className={cn("col-span-2 border-l p-1", focused && manualSelected && SELECTED_RING)}
+          className={cn("col-span-2 flex items-center border-l p-1", focused && manualSelected && SELECTED_RING)}
         >
           <Button
             variant="ghost"
@@ -484,17 +491,36 @@ export function Listing({
           }}
           className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
         >
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-          >
-            Tambahan
-            <ArrowRight />
-          </Button>
+          {!showExtraTotal ? (
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+            >
+              Tambahan
+              <ArrowRight />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+            >
+              <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
+                Tambahan
+                <ArrowRight className="icon" />
+              </span>
+              <span className="w-full truncate text-normal font-bold tabular-nums">
+                {rupiah(extraTotal)}
+              </span>
+            </Button>
+          )}
         </div>
       </div>
 

@@ -35,7 +35,6 @@ import {
 } from "./extra-grid";
 
 const HEADER: ExtraRowRef = { kind: "header" };
-const SUBTOTAL_ROW: ExtraRowRef = { kind: "subtotal" };
 const NAME_COLUMN = 1;
 const MANUAL_COLUMN = 8;
 const TOGGLE_COLUMN = 10;
@@ -119,9 +118,7 @@ export function Extras({
   const activeId =
     selection.row.kind === "header"
       ? `cell-header-${active.field}`
-      : selection.row.kind === "subtotal"
-        ? "cell-subtotal-subtotal"
-        : `extra-${selection.row.extraId}-${active.field}`;
+      : `extra-${selection.row.extraId}-${active.field}`;
 
   // A row that was deleted or hidden must not keep the selection.
   useEffect(() => {
@@ -247,7 +244,7 @@ export function Extras({
       const next = remaining[index] ?? remaining[index - 1];
       setSelection(
         next === undefined
-          ? { row: SUBTOTAL_ROW, col: 0 }
+          ? { row: HEADER, col: NAME_COLUMN }
           : { row: { kind: "extra", extraId: next.id }, col: NAME_COLUMN },
       );
       setEditing(false);
@@ -282,7 +279,7 @@ export function Extras({
         if (selection.row.kind === "extra") removeExtra(selection.row.extraId);
         return;
       default:
-        return; // the subtotal, eff and value-as-display do nothing on their own
+        return; // eff and value-as-display do nothing on their own
     }
   }
 
@@ -333,6 +330,8 @@ export function Extras({
 
   const manualSelected = selection.row.kind === "header" && active.field === "manual";
   const toggleSelected = selection.row.kind === "header" && active.field === "toggle";
+  // A zero subtotal is not worth breaking the button into two lines.
+  const showSubtotal = !subtotal.isZero();
 
   return (
     <div
@@ -371,7 +370,7 @@ export function Extras({
             setSelection({ row: HEADER, col: MANUAL_COLUMN });
             setEditing(false);
           }}
-          className={cn("col-span-2 border-l p-1", focused && manualSelected && SELECTED_RING)}
+          className={cn("col-span-2 flex items-center border-l p-1", focused && manualSelected && SELECTED_RING)}
         >
           <Button
             variant="ghost"
@@ -393,17 +392,36 @@ export function Extras({
           }}
           className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
         >
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-          >
-            <ArrowLeft />
-            Produk
-          </Button>
+          {showSubtotal ? (
+            <Button
+              variant="ghost"
+              className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+            >
+              <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
+                <ArrowLeft className="icon" />
+                Produk
+              </span>
+              <span className="w-full truncate text-normal font-bold tabular-nums">
+                {rupiah(subtotal)}
+              </span>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+            >
+              <ArrowLeft />
+              Produk
+            </Button>
+          )}
         </div>
       </div>
 
@@ -417,62 +435,45 @@ export function Extras({
       ) : (
         <>
           <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
-          <div className="grid grid-cols-12 border-b">
-            <div
-              id="cell-subtotal-subtotal"
-              onClick={() => {
-                setSelection({ row: SUBTOTAL_ROW, col: 0 });
-                setEditing(false);
-              }}
-              className={cn(
-                "col-span-12 flex items-center justify-between gap-2 bg-card px-3 py-2 text-card-foreground",
-                focused && selection.row.kind === "subtotal" && SELECTED_RING,
-              )}
-            >
-              <span className="text-normal text-muted-foreground select-none">Subtotal Barang</span>
-              <span className="text-big font-bold tabular-nums">{rupiah(subtotal)}</span>
-            </div>
-          </div>
-
-          {extras.length === 0 ? (
-            <p className="p-4 text-muted-foreground select-none">Belum ada biaya tambahan.</p>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                <div className="divide-y divide-border">
-                  <AnimatePresence initial={false}>
-                    {extras.map((extra, index) => {
-                      const onRow =
-                        selection.row.kind === "extra" && selection.row.extraId === extra.id;
-                      const effect = effects[index];
-                      if (effect === undefined) return null;
-                      return (
-                        <ExtraCard
-                          key={extra.id}
-                          extra={extra}
-                          number={index + 1}
-                          eff={effect.eff}
-                          selected={onRow && focused ? (active.field as ExtraField) : null}
-                          editing={onRow && editing}
-                          kindOpen={openKindFor === extra.id}
-                          onChange={(patch) => patchExtra(extra.id, patch)}
-                          onRemove={() => removeExtra(extra.id)}
-                          onSelect={(field) => selectExtra(extra.id, field)}
-                          onStartEdit={(field) => startEditExtra(extra.id, field)}
-                          onEditingDone={() => setEditing(false)}
-                          onKindOpenChange={(open) => setOpenKindFor(open ? extra.id : null)}
-                        />
-                      );
-                    })}
-                  </AnimatePresence>
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
+            {extras.length === 0 ? (
+              <p className="p-4 text-muted-foreground select-none">Belum ada biaya tambahan.</p>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                  <div className="divide-y divide-border">
+                    <AnimatePresence initial={false}>
+                      {extras.map((extra, index) => {
+                        const onRow =
+                          selection.row.kind === "extra" && selection.row.extraId === extra.id;
+                        const effect = effects[index];
+                        if (effect === undefined) return null;
+                        return (
+                          <ExtraCard
+                            key={extra.id}
+                            extra={extra}
+                            number={index + 1}
+                            eff={effect.eff}
+                            selected={onRow && focused ? (active.field as ExtraField) : null}
+                            editing={onRow && editing}
+                            kindOpen={openKindFor === extra.id}
+                            onChange={(patch) => patchExtra(extra.id, patch)}
+                            onRemove={() => removeExtra(extra.id)}
+                            onSelect={(field) => selectExtra(extra.id, field)}
+                            onStartEdit={(field) => startEditExtra(extra.id, field)}
+                            onEditingDone={() => setEditing(false)}
+                            onKindOpenChange={(open) => setOpenKindFor(open ? extra.id : null)}
+                          />
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
           </div>
 
           {/* No rounding means the settle strip already shows this number, so

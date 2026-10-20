@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Effect } from "effect";
 import { service } from "~/services";
 import { type Extra, type Line } from "../mock";
-import { linesSubtotal } from "../total";
+import { extrasTotal, linesSubtotal } from "../total";
 import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Tabs } from "./z-Tabs";
@@ -109,10 +109,12 @@ function StageBody({
   onExtras: (extras: Extra[]) => void;
   onToggle: () => void;
 }) {
+  const subtotal = linesSubtotal(lines);
   if (stage === "listing") {
     return (
       <Listing
         lines={lines}
+        extraTotal={extras.length === 0 ? null : extrasTotal(extras, subtotal)}
         onChange={onLines}
         onToggle={onToggle}
         focusSearch={focusSearch}

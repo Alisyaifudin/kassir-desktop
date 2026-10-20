@@ -1,7 +1,7 @@
 /**
  * The extras grid's geometry — the listing grid's rules, one row shorter. A
  * selection keeps a column index and looks up the cell that owns it, so a wide
- * cell (`subtotal`) behaves like a merged one across rows.
+ * cell (`name`) behaves like a merged one across rows.
  *
  * Columns are 0-indexed, twelve wide. `no#` is not selectable, `eff` and `x`
  * are selectable but not editable.
@@ -10,12 +10,9 @@
 export type ExtraField = "name" | "value" | "kind" | "eff" | "x";
 
 /** Every cell, including the ones that only draw. */
-export type AnyExtraField = ExtraField | "search" | "manual" | "toggle" | "no" | "subtotal";
+export type AnyExtraField = ExtraField | "search" | "manual" | "toggle" | "no";
 
-export type ExtraRowRef =
-  | { kind: "header" }
-  | { kind: "subtotal" }
-  | { kind: "extra"; extraId: string };
+export type ExtraRowRef = { kind: "header" } | { kind: "extra"; extraId: string };
 
 export type ExtraSelection = { row: ExtraRowRef; col: number };
 
@@ -33,10 +30,6 @@ const HEADER_CELLS: ExtraCellDef[] = [
   { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
 ];
 
-const SUBTOTAL_CELLS: ExtraCellDef[] = [
-  { field: "subtotal", start: 0, end: 11, selectable: true, editable: false },
-];
-
 const EXTRA_CELLS: ExtraCellDef[] = [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
   { field: "name", start: 1, end: 3, selectable: true, editable: true },
@@ -47,9 +40,7 @@ const EXTRA_CELLS: ExtraCellDef[] = [
 ];
 
 export function extraCellsForRow(row: ExtraRowRef): ExtraCellDef[] {
-  if (row.kind === "header") return HEADER_CELLS;
-  if (row.kind === "subtotal") return SUBTOTAL_CELLS;
-  return EXTRA_CELLS;
+  return row.kind === "header" ? HEADER_CELLS : EXTRA_CELLS;
 }
 
 export function selectableExtraCells(row: ExtraRowRef): ExtraCellDef[] {
@@ -81,13 +72,9 @@ export function sameExtraRow(a: ExtraRowRef, b: ExtraRowRef): boolean {
   return true;
 }
 
-/** The vertical order: header, the subtotal, then each extra. */
+/** The vertical order: the header, then each extra. */
 export function extraRowsFor(extraIds: string[]): ExtraRowRef[] {
-  return [
-    { kind: "header" },
-    { kind: "subtotal" },
-    ...extraIds.map((extraId): ExtraRowRef => ({ kind: "extra", extraId })),
-  ];
+  return [{ kind: "header" }, ...extraIds.map((extraId): ExtraRowRef => ({ kind: "extra", extraId }))];
 }
 
 /** The column a field's cell starts at. */
