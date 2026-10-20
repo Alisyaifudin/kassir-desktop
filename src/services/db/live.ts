@@ -2,6 +2,7 @@ import Database from "@tauri-apps/plugin-sql";
 import { Effect, Layer } from "effect";
 import { NotFound } from "~/lib/effect-error";
 import { Binding, DatabaseService, DbError, Statement } from ".";
+import { flattenTransaction } from "./transaction";
 import { formatError } from "~/lib/utils";
 
 
@@ -50,14 +51,14 @@ export const DatabaseLive = Layer.succeed(DatabaseService, {
     });
   },
   // plugin-sql exposes no transaction API, but a single `execute` call is itself
-  // atomic. So a transaction is just the statements joined with `;`, their
-  // bindings flattened in statement order. Each statement keeps its own local
-  // `$1..$n` numbering. No BEGIN/COMMIT — that would nest inside execute.
+  // atomic. Statements are joined with `;`; sqlx numbers `$N` across the whole
+  // batch, so `flattenTransaction` shifts each statement's placeholders and
+  // flattens the bindings in statement order. No BEGIN/COMMIT — that would nest
+  // inside execute.
   transaction(statements: Statement[]) {
     return Effect.gen(function* () {
       const db = yield* getDb();
-      const query = statements.map((s) => s.sql).join(";\n");
-      const bindings = statements.flatMap((s) => s.bindings ?? []);
+      const { query, bindings } = flattenTransaction(statements);
       yield* Effect.tryPromise({
         try: () => db.execute(query, bindings),
         catch: (e) => new DbError({ message: `Gagal mengeksekusi transaksi: \n${formatError(e)}` }),
