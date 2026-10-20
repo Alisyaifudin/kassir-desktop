@@ -127,6 +127,46 @@ function Screen({
     void Effect.runFork(service.transaction.set.active(activeId));
   }, [activeId]);
 
+  // Switching tabs (click, Ctrl+Arrow, F12) returns to the goods with the
+  // search ready. The focus token is bumped a tick later so the listing grid is
+  // already mounted when it sees the change.
+  const previousActive = useRef<string | null>(null);
+  const handleStage = useRef(onStage);
+  handleStage.current = onStage;
+  useEffect(() => {
+    if (activeId === null) return;
+    const previous = previousActive.current;
+    previousActive.current = activeId;
+    if (previous === null || previous === activeId) return;
+    handleStage.current("listing");
+    const timer = setTimeout(() => setFocusSearch((count) => count + 1), 0);
+    return () => clearTimeout(timer);
+  }, [activeId]);
+
+  // Ctrl/Cmd+Left/Right walks the open transaction tabs. Text fields keep their
+  // own word-jump, so only act when the target is not an editor.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const target = event.target as HTMLElement | null;
+      // Editors keep their own keys, except the search field: tab switching is
+      // still useful from there.
+      const editor = target?.closest("input, textarea, [contenteditable='true']");
+      if (editor != null && !(editor instanceof HTMLInputElement && editor.type === "search")) {
+        return;
+      }
+      const index = saleDrafts.findIndex((draft) => draft.id === activeId);
+      if (index === -1) return;
+      const next = saleDrafts[index + (event.key === "ArrowLeft" ? -1 : 1)];
+      if (next === undefined) return;
+      event.preventDefault();
+      onDraft(next.id);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [saleDrafts, activeId, onDraft]);
+
   if (active === null) return <Loading />;
 
   // The cart lives in the transaction service; these are its `tx_listings` and

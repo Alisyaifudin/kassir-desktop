@@ -287,6 +287,8 @@ export function Methods({
     // Select menus portal out; their keys bubble through React, not the DOM.
     if (!event.currentTarget.contains(event.target as Node)) return;
     if (editing) return;
+    // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
+    if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
     switch (event.key) {
       case "ArrowUp":
         event.preventDefault();

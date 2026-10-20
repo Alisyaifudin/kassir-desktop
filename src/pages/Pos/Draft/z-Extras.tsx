@@ -291,6 +291,8 @@ export function Extras({
     // tree, not the DOM; ignore anything that did not start inside this grid.
     if (!event.currentTarget.contains(event.target as Node)) return;
     if (editing) return;
+    // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
+    if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;

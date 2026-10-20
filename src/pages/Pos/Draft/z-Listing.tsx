@@ -381,6 +381,8 @@ export function Listing({
     // listing selection for keys it already handled.
     if (event.defaultPrevented) return;
     if (editing) return;
+    // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
+    if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;
