@@ -46,6 +46,7 @@ export type Draft = {
   /** Decimal places money is shown with — presentation only. */
   fix: number;
   note: string;
+  customerId: string | null;
   supplierId: string | null;
   rounding: number;
   methods: DraftMethod[];
@@ -69,6 +70,7 @@ export class TransactionService extends Context.Tag("TransactionService")<
       title: (id: string, title: string) => Effect.Effect<void, TransactionError>;
       fix: (id: string, fix: number) => Effect.Effect<void, TransactionError>;
       note: (id: string, note: string) => Effect.Effect<void, TransactionError>;
+      customer: (id: string, customerId: string | null) => Effect.Effect<void, TransactionError>;
       supplier: (id: string, supplierId: string | null) => Effect.Effect<void, TransactionError>;
       rounding: (id: string, rounding: number) => Effect.Effect<void, TransactionError>;
     };

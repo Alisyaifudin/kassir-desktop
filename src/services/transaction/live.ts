@@ -26,6 +26,7 @@ type RecordRow = {
   tx_record_fix: number;
   tx_record_note: string;
   tx_record_rounding: number;
+  tx_record_customer_id: string | null;
   tx_record_supplier_id: string | null;
 };
 
@@ -47,7 +48,7 @@ type ImageRow = {
 const SELECT_RECORDS = `
   SELECT tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
          tx_record_mode, tx_record_fix, tx_record_note, tx_record_rounding,
-         tx_record_supplier_id
+         tx_record_customer_id, tx_record_supplier_id
   FROM tx_records
   ORDER BY tx_record_order`;
 
@@ -74,6 +75,7 @@ function rowToDraft(row: RecordRow, methods: DraftMethod[], images: DraftImage[]
     fix: row.tx_record_fix,
     note: row.tx_record_note,
     rounding: row.tx_record_rounding,
+    customerId: row.tx_record_customer_id,
     supplierId: row.tx_record_supplier_id,
     methods,
     images,
@@ -88,7 +90,7 @@ function statementsFor(draft: Draft): Statement[] {
           tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
           tx_record_mode, tx_record_query, tx_record_fix, tx_record_note,
           tx_record_rounding, tx_record_customer_id, tx_record_supplier_id
-        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, NULL, $9)
+        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10)
         ON CONFLICT(tx_record_id) DO UPDATE SET
           tx_record_order = excluded.tx_record_order,
           tx_record_flag = excluded.tx_record_flag,
@@ -97,6 +99,7 @@ function statementsFor(draft: Draft): Statement[] {
           tx_record_fix = excluded.tx_record_fix,
           tx_record_note = excluded.tx_record_note,
           tx_record_rounding = excluded.tx_record_rounding,
+          tx_record_customer_id = excluded.tx_record_customer_id,
           tx_record_supplier_id = excluded.tx_record_supplier_id`,
       bindings: [
         draft.id,
@@ -107,6 +110,7 @@ function statementsFor(draft: Draft): Statement[] {
         draft.fix,
         draft.note,
         draft.rounding,
+        draft.customerId,
         draft.supplierId,
       ],
     },
@@ -270,6 +274,7 @@ export const TransactionLive = Layer.effect(
               mode,
               fix: 0,
               note: "",
+              customerId: null,
               supplierId: null,
               rounding: 0,
               // A fresh draft opens with one cash payment ready to fill in.
@@ -332,6 +337,9 @@ export const TransactionLive = Layer.effect(
         },
         note(id, note) {
           return update(id, (draft) => ({ ...draft, note }));
+        },
+        customer(id, customerId) {
+          return update(id, (draft) => ({ ...draft, customerId }));
         },
         supplier(id, supplierId) {
           return update(id, (draft) => ({ ...draft, supplierId }));
