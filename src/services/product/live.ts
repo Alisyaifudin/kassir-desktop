@@ -94,7 +94,7 @@ type EventRow = {
   product_event_capital: number;
   product_event_note: string;
   product_id: string;
-  stock_id: string;
+  stock_id: string | null;
   record_id: string | null;
 };
 

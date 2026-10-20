@@ -90,6 +90,7 @@ type ListingRow = {
   record_listing_id: string;
   record_listing_group_id: string;
   product_event_id: string | null;
+  stock_id: string | null;
   product_id: string | null;
   record_listing_name: string;
   record_listing_kind: string;
@@ -168,10 +169,12 @@ const RECORD_COLUMNS = `
 const SELECT_LISTINGS = `
   SELECT
     rl.record_listing_id, rl.record_listing_group_id, rl.product_event_id,
+    pe.stock_id,
     rl.product_id, rl.record_listing_name, rl.record_listing_kind,
     rl.record_listing_unit, rl.record_listing_price, rl.record_listing_qty,
     rl.record_listing_capital, rl.record_listing_total
   FROM record_listings rl
+  LEFT JOIN product_events pe ON pe.product_event_id = rl.product_event_id
   WHERE rl.record_id = $1
   ORDER BY rl.rowid ASC`;
 
@@ -463,6 +466,7 @@ function regroupListings(
       portions: portions.map((portion) => ({
         id: portion.record_listing_id,
         productEventId: portion.product_event_id,
+        stockId: portion.stock_id,
         productId: portion.product_id,
         unit: portion.record_listing_unit,
         qty: portion.record_listing_qty,
@@ -1066,9 +1070,8 @@ export const RecordLive = Layer.effect(
               .selectMany<{
                 record_id: string;
                 product_event_id: string | null;
-                record_listing_unit: number;
               }>(
-                `SELECT record_id, product_event_id, record_listing_unit
+                `SELECT record_id, product_event_id
                  FROM record_listings WHERE record_listing_id = $1`,
                 [recordListingId],
               )
@@ -1082,7 +1085,11 @@ export const RecordLive = Layer.effect(
             }
 
             const events = yield* db
-              .selectMany<{ stock_id: string; product_id: string; product_event_value: number }>(
+              .selectMany<{
+                stock_id: string | null;
+                product_id: string;
+                product_event_value: number;
+              }>(
                 `SELECT stock_id, product_id, product_event_value
                  FROM product_events WHERE product_event_id = $1`,
                 [portion.product_event_id],
@@ -1097,14 +1104,41 @@ export const RecordLive = Layer.effect(
             }
             if (event.stock_id === stockId) return;
 
+            const pcs = -event.product_event_value;
+            const now = Date.now();
+
+            // Unlink: the event stays in the journal but no longer consumes from
+            // a lot, so the pcs go back to the lot they used to come from.
+            if (stockId === null) {
+              if (event.stock_id === null) return;
+              yield* commit([
+                {
+                  sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
+                  bindings: [pcs, now, event.stock_id],
+                },
+                {
+                  sql: "UPDATE product_events SET stock_id = NULL WHERE product_event_id = $1",
+                  bindings: [portion.product_event_id],
+                },
+                touchProduct(event.product_id, now),
+                {
+                  sql: `UPDATE records SET record_updated_at = $1, record_sync_at = NULL
+                    WHERE record_id = $2`,
+                  bindings: [now, portion.record_id],
+                },
+              ]);
+              yield* bumpRevision();
+              yield* refreshProducts();
+              return;
+            }
+
             const lots = yield* db
               .selectMany<{
                 stock_id: string;
                 product_id: string;
-                stock_value: number;
                 stock_capital: number;
               }>(
-                `SELECT stock_id, product_id, stock_value, stock_capital
+                `SELECT stock_id, product_id, stock_capital
                  FROM stocks WHERE stock_id IN ($1, $2)`,
                 [event.stock_id, stockId],
               )
@@ -1114,19 +1148,15 @@ export const RecordLive = Layer.effect(
               return yield* Effect.fail(new RecordError({ message: "Stok tujuan tidak ditemukan" }));
             }
 
-            const pcs = -event.product_event_value;
-            if (target.stock_value < pcs) {
-              return yield* Effect.fail(
-                new RecordError({ message: "Stok tujuan tidak mencukupi" }),
-              );
-            }
-
-            const now = Date.now();
-            yield* commit([
-              {
+            const statements: Statement[] = [];
+            // A previously dangling event has no lot to give the pcs back to.
+            if (event.stock_id !== null) {
+              statements.push({
                 sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
                 bindings: [pcs, now, event.stock_id],
-              },
+              });
+            }
+            statements.push(
               {
                 sql: "UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2 WHERE stock_id = $3",
                 bindings: [pcs, now, target.stock_id],
@@ -1143,14 +1173,11 @@ export const RecordLive = Layer.effect(
                 ],
               },
               {
-                sql: `UPDATE record_listings SET
-                    product_id = $1, record_listing_capital = $2
-                  WHERE record_listing_id = $3`,
-                bindings: [
-                  target.product_id,
-                  target.stock_capital * portion.record_listing_unit,
-                  recordListingId,
-                ],
+                // Only the attribution moves: the line keeps the modal it was
+                // recorded with, so the receipt's cost basis stays historical.
+                sql: `UPDATE record_listings SET product_id = $1
+                  WHERE record_listing_id = $2`,
+                bindings: [target.product_id, recordListingId],
               },
               touchProduct(event.product_id, now),
               touchProduct(target.product_id, now),
@@ -1159,7 +1186,8 @@ export const RecordLive = Layer.effect(
                   WHERE record_id = $2`,
                 bindings: [now, portion.record_id],
               },
-            ]);
+            );
+            yield* commit(statements);
             yield* bumpRevision();
             yield* refreshProducts();
           });

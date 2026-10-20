@@ -364,7 +364,7 @@ CREATE TABLE product_events (
   product_event_capital    REAL NOT NULL,    -- the lot's capital as of this event
   product_event_note       TEXT NOT NULL DEFAULT (''), -- free text, e.g. manual stock-out reason
   product_id               TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
-  stock_id                 TEXT NOT NULL REFERENCES stocks(stock_id) ON DELETE CASCADE,
+  stock_id                 TEXT REFERENCES stocks(stock_id) ON DELETE CASCADE, -- NULL = dangling (unlinked) event
   record_id                TEXT REFERENCES records(record_id) ON DELETE SET NULL
 ) STRICT;
 

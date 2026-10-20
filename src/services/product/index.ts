@@ -66,7 +66,7 @@ export type ProductEvent = {
   capital: number;
   note: string;
   productId: string;
-  stockId: string;
+  stockId: string | null;
   recordId: string | null;
 };
 

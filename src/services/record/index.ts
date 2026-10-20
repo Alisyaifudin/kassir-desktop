@@ -37,6 +37,8 @@ export type RecordListingPortion = {
   id: string;
   /** The journal movement this portion caused; null for a manual/pre-journal line. */
   productEventId: string | null;
+  /** The lot the event currently points at; null when unlinked (dangling). */
+  stockId: string | null;
   productId: string | null;
   unit: number;
   qty: number;
@@ -259,7 +261,10 @@ export class RecordService extends Context.Tag("RecordService")<
        * the new lot's capital. The portion's product snapshot follows the lot.
        * Only a consumption portion (a sale) can be re-pointed.
        */
-      linkStock: (recordListingId: string, stockId: string) => Effect.Effect<void, RecordError>;
+      linkStock: (
+        recordListingId: string,
+        stockId: string | null,
+      ) => Effect.Effect<void, RecordError>;
     };
     delete: {
       /** Soft-deletes the record and removes the stock movement it caused. */
