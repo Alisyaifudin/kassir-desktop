@@ -18,7 +18,10 @@ export type RowRef =
   | { kind: "header" }
   | { kind: "card"; cardId: string; part: "top" | "bottom" };
 
-export type Selection = { row: RowRef; col: number };
+/** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
+export type QtySub = "left" | "value" | "right";
+
+export type Selection = { row: RowRef; col: number; qtySub?: QtySub };
 
 export type CellDef = {
   field: AnyField;

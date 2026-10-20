@@ -194,19 +194,54 @@ export function Listing({
     if (next === undefined) return false;
     const col = next.kind === "card" && selection.col === 0 ? NAME_COLUMN : selection.col;
     const cell = cellAt(next, col);
-    setSelection({ row: next, col: columnIn(cell, col) });
+    setSelection({
+      row: next,
+      col: columnIn(cell, col),
+      qtySub: cell.field === "qty" ? "value" : undefined,
+    });
     setEditing(false);
     return true;
   }
 
   function moveHorizontal(delta: number) {
+    // Inside Kuantitas the three sub-cells walk before leaving the cell.
+    if (active.field === "qty" && selection.row.kind === "card") {
+      const sub = selection.qtySub ?? "value";
+      if (delta < 0) {
+        if (sub === "right") {
+          setSelection({ ...selection, qtySub: "value" });
+          setEditing(false);
+          return;
+        }
+        if (sub === "value") {
+          setSelection({ ...selection, qtySub: "left" });
+          setEditing(false);
+          return;
+        }
+      } else {
+        if (sub === "left") {
+          setSelection({ ...selection, qtySub: "value" });
+          setEditing(false);
+          return;
+        }
+        if (sub === "value") {
+          setSelection({ ...selection, qtySub: "right" });
+          setEditing(false);
+          return;
+        }
+      }
+    }
     const flat = rows.flatMap((row) => selectableCells(row).map((cell) => ({ row, cell })));
     const index = flat.findIndex(
       (entry) => sameRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
     const next = flat[index + delta];
     if (next === undefined) return;
-    setSelection({ row: next.row, col: next.cell.start });
+    setSelection({
+      row: next.row,
+      col: next.cell.start,
+      qtySub: next.cell.field === "qty" ? (delta > 0 ? "left" : "right") : undefined,
+    });
     setEditing(false);
   }
 
@@ -285,7 +320,37 @@ export function Listing({
     }
   }
 
+  function bumpQty(delta: number) {
+    const row = selection.row;
+    if (row.kind !== "card") return;
+    const line = lines.find((candidate) => candidate.id === row.cardId);
+    if (line === undefined) return;
+    const qty = Math.max(0, line.qty + delta);
+    onChange(
+      lines.map((candidate) =>
+        candidate.id === line.id
+          ? {
+              ...candidate,
+              qty,
+              discounts: recalcDiscounts(candidate.price, qty, candidate.discounts),
+            }
+          : candidate,
+      ),
+    );
+  }
+
   function activate() {
+    if (active.field === "qty") {
+      const sub = selection.qtySub ?? "value";
+      if (sub === "left") {
+        bumpQty(-1);
+        return;
+      }
+      if (sub === "right") {
+        bumpQty(1);
+        return;
+      }
+    }
     if (active.editable) {
       setEditing(true);
       return;
@@ -457,6 +522,11 @@ export function Listing({
                         line={line}
                         number={lines.length - index}
                         selected={cardSelected && focused ? (active.field as Field) : null}
+                        selectedSub={
+                          cardSelected && active.field === "qty"
+                            ? (selection.qtySub ?? "value")
+                            : undefined
+                        }
                         editing={cardSelected && editing}
                         onChange={(patch) =>
                           onChange(
@@ -465,10 +535,11 @@ export function Listing({
                         }
                         onRemove={() => removeCard(line.id)}
                         onDiscount={() => setDiscountFor(line.id)}
-                        onSelect={(field) => {
+                        onSelect={(field, sub) => {
                           setSelection({
                             row: { kind: "card", cardId: line.id, part: partOf(field) },
                             col: startOf(field),
+                            qtySub: field === "qty" ? (sub ?? "value") : undefined,
                           });
                           setEditing(false);
                         }}
