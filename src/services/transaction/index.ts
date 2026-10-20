@@ -15,6 +15,40 @@ export type DraftMethod = {
   value: number;
 };
 
+/** One discount on a draft listing; `eff` is what it takes off the running total. */
+export type DraftDiscount = {
+  id: string;
+  value: number;
+  kind: "number" | "percent" | "pcs";
+  eff: number;
+  total: number;
+};
+
+/**
+ * A line in the draft cart. The catalog values are snapshotted here, so a
+ * later price change does not rewrite a draft that is already open.
+ */
+export type DraftListing = {
+  id: string;
+  listingId?: string | null;
+  name: string;
+  code: string;
+  unit: number;
+  price: number;
+  qty: number;
+  discounts: DraftDiscount[];
+  /** Catalog values the line started from (UI-only, not persisted). */
+  base?: { name: string; code: string; unit: number; price: number };
+};
+
+/** A charge or deduction on the draft as a whole. */
+export type DraftExtra = {
+  id: string;
+  name: string;
+  kind: "number" | "percent";
+  value: number;
+};
+
 /** The mime types an image may carry — the values in `img_mimes`. */
 export type DraftImageMime = "image/png" | "image/jpeg" | "image/webp";
 
@@ -49,6 +83,8 @@ export type Draft = {
   customerId: string | null;
   supplierId: string | null;
   rounding: number;
+  listings: DraftListing[];
+  extras: DraftExtra[];
   methods: DraftMethod[];
   images: DraftImage[];
 };
@@ -73,6 +109,12 @@ export class TransactionService extends Context.Tag("TransactionService")<
       customer: (id: string, customerId: string | null) => Effect.Effect<void, TransactionError>;
       supplier: (id: string, supplierId: string | null) => Effect.Effect<void, TransactionError>;
       rounding: (id: string, rounding: number) => Effect.Effect<void, TransactionError>;
+    };
+    listings: {
+      set: (id: string, listings: DraftListing[]) => Effect.Effect<void, TransactionError>;
+    };
+    extras: {
+      set: (id: string, extras: DraftExtra[]) => Effect.Effect<void, TransactionError>;
     };
     methods: {
       set: (id: string, methods: DraftMethod[]) => Effect.Effect<void, TransactionError>;

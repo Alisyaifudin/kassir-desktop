@@ -1,10 +1,8 @@
 /**
- * Placeholder data for the Pos listing stage.
+ * UI shapes for the Pos cart and the extra presets the search offers.
  *
- * The draft's money settings and payments are real (see `services/transaction`);
- * only the listings, their extras, and the catalog search hits are still mocked,
- * until the product service is wired into the listing stage. Delete this file
- * when it is.
+ * The cart itself now lives in `services/transaction` (`tx_listings` and
+ * `tx_extras`); this file only keeps the types and the preset catalogue.
  */
 import type { ValueKind } from "~/lib/constants";
 
@@ -61,46 +59,6 @@ export type ExtraPreset = {
   /** The value a fresh extra starts at; usually left at zero to be filled in. */
   value: number;
 };
-
-export const LINES: Line[] = [
-  {
-    id: "L1",
-    name: "Beras Pandan Wangi 5kg",
-    code: "8991234567890",
-    unit: 1,
-    price: 75000,
-    qty: 2,
-    discounts: [{ id: "d-l1-0", value: 0, kind: "percent", eff: 0, total: 150000 }],
-    base: { name: "Beras Pandan Wangi 5kg", code: "8991234567890", unit: 1, price: 75000 },
-  },
-  {
-    id: "L2",
-    name: "Minyak Goreng 2L",
-    code: "8991234567891",
-    unit: 1,
-    price: 35000,
-    qty: 1,
-    discounts: [
-      { id: "d-l2-0", value: 10000, kind: "number", eff: 10000, total: 25000 },
-      { id: "d-l2-1", value: 0, kind: "percent", eff: 0, total: 25000 },
-    ],
-    base: { name: "Minyak Goreng 2L", code: "8991234567891", unit: 1, price: 35000 },
-  },
-  {
-    id: "L3",
-    name: "Gula Pasir 1kg",
-    code: "",
-    unit: 1,
-    price: 18000,
-    qty: 3,
-    discounts: [{ id: "d-l3-0", value: 0, kind: "percent", eff: 0, total: 54000 }],
-    base: { name: "Gula Pasir 1kg", code: "", unit: 1, price: 18000 },
-  },
-];
-
-export const EXTRAS: Extra[] = [
-  { id: "E1", name: "Biaya Kartu", kind: "percent", value: 2 },
-];
 
 export const EXTRA_PRESETS: ExtraPreset[] = [
   { id: "P1", name: "Ongkos Kirim", kind: "number", value: 0 },

@@ -6,7 +6,7 @@ import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import { EXTRAS, LINES, type Extra, type Line } from "./mock";
+import type { Extra, Line } from "./mock";
 import { linesSubtotal, paidTotal, purchaseTotal, transactionGrandTotal } from "./total";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
@@ -62,11 +62,6 @@ function Screen({
     [drafts],
   );
   const creating = useRef(false);
-
-  // The sale's contents are still mock state, held here so the bottom panel and
-  // the extras stage read the same totals.
-  const [lines, setLines] = useState<Line[]>(() => [...LINES]);
-  const [extras, setExtras] = useState<Extra[]>(() => [...EXTRAS]);
 
   // Bumped by F2; the payment rows in the bottom panel watch it to put the
   // cursor on the first amount, so a sale can be settled from any stage.
@@ -133,6 +128,15 @@ function Screen({
   }, [activeId]);
 
   if (active === null) return <Loading />;
+
+  // The cart lives in the transaction service; these are its `tx_listings` and
+  // `tx_extras` rows, written back on every edit.
+  const lines: Line[] = active.listings;
+  const extras: Extra[] = active.extras;
+  const setLines = (next: Line[]) =>
+    void Effect.runFork(service.transaction.listings.set(active.id, next));
+  const setExtras = (next: Extra[]) =>
+    void Effect.runFork(service.transaction.extras.set(active.id, next));
 
   const subtotal = linesSubtotal(lines);
   const total = purchaseTotal(extras, subtotal);

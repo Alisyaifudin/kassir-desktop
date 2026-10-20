@@ -72,8 +72,8 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  * and only enters edit mode on Enter or a double-click. See `listing-grid.ts`
  * for the geometry.
  *
- * Listings are still mocked — the rows live in the panel's state and nothing is
- * written to `tx_listings` yet.
+ * The lines are the draft's `tx_listings` rows; the parent writes each edit
+ * back through the transaction service.
  */
 export function Listing({
   lines,

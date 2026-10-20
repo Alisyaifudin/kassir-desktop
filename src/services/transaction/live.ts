@@ -1,5 +1,16 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
-import { TransactionError, TransactionService, type Draft, type DraftImage, type DraftImageMime, type DraftMethod, type DraftMode } from ".";
+import Decimal from "decimal.js";
+import {
+  TransactionError,
+  TransactionService,
+  type Draft,
+  type DraftExtra,
+  type DraftImage,
+  type DraftImageMime,
+  type DraftListing,
+  type DraftMethod,
+  type DraftMode,
+} from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
 import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
@@ -45,6 +56,33 @@ type ImageRow = {
   tx_image_mime: DraftImageMime;
 };
 
+type ListingRow = {
+  tx_listing_id: string;
+  tx_record_id: string;
+  listing_id: string | null;
+  tx_listing_name: string;
+  tx_listing_code: string;
+  tx_listing_price: number;
+  tx_listing_unit: number;
+  tx_listing_qty: number;
+};
+
+type DiscountRow = {
+  tx_disc_id: string;
+  tx_listing_id: string;
+  tx_disc_value: number;
+  tx_disc_eff: number;
+  tx_disc_kind: "number" | "percent" | "pcs";
+};
+
+type ExtraRow = {
+  tx_extra_id: string;
+  tx_record_id: string;
+  tx_extra_kind: "number" | "percent";
+  tx_extra_name: string;
+  tx_extra_value: number;
+};
+
 const SELECT_RECORDS = `
   SELECT tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
          tx_record_mode, tx_record_fix, tx_record_note, tx_record_rounding,
@@ -61,11 +99,33 @@ const SELECT_IMAGES = `
   FROM tx_images
   ORDER BY tx_image_order`;
 
+const SELECT_LISTINGS = `
+  SELECT tx_listing_id, tx_record_id, listing_id, tx_listing_name, tx_listing_code,
+         tx_listing_price, tx_listing_unit, tx_listing_qty
+  FROM tx_listings
+  ORDER BY rowid`;
+
+const SELECT_DISCOUNTS = `
+  SELECT tx_disc_id, tx_listing_id, tx_disc_value, tx_disc_eff, tx_disc_kind
+  FROM tx_discounts
+  ORDER BY tx_disc_order`;
+
+const SELECT_EXTRAS = `
+  SELECT tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value
+  FROM tx_extras
+  ORDER BY tx_extra_order`;
+
 function toError(error: DbError): TransactionError {
   return new TransactionError({ message: error.message });
 }
 
-function rowToDraft(row: RecordRow, methods: DraftMethod[], images: DraftImage[]): Draft {
+function rowToDraft(
+  row: RecordRow,
+  methods: DraftMethod[],
+  images: DraftImage[],
+  listings: DraftListing[],
+  extras: DraftExtra[],
+): Draft {
   return {
     id: row.tx_record_id,
     order: row.tx_record_order,
@@ -77,6 +137,8 @@ function rowToDraft(row: RecordRow, methods: DraftMethod[], images: DraftImage[]
     rounding: row.tx_record_rounding,
     customerId: row.tx_record_customer_id,
     supplierId: row.tx_record_supplier_id,
+    listings,
+    extras,
     methods,
     images,
   };
@@ -114,6 +176,38 @@ function statementsFor(draft: Draft): Statement[] {
         draft.supplierId,
       ],
     },
+    { sql: `DELETE FROM tx_listings WHERE tx_record_id = $1`, bindings: [draft.id] },
+    ...draft.listings.map((listing) => ({
+      sql: `INSERT INTO tx_listings (
+          tx_listing_id, tx_record_id, listing_id, tx_listing_name, tx_listing_code,
+          tx_listing_price, tx_listing_unit, tx_listing_qty, tx_listing_kind
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'retail')`,
+      bindings: [
+        listing.id,
+        draft.id,
+        listing.listingId ?? null,
+        listing.name,
+        listing.code,
+        listing.price,
+        listing.unit,
+        listing.qty,
+      ],
+    })),
+    ...draft.listings.flatMap((listing) =>
+      listing.discounts.map((discount) => ({
+        sql: `INSERT INTO tx_discounts (
+            tx_disc_id, tx_listing_id, tx_disc_value, tx_disc_eff, tx_disc_kind
+          ) VALUES ($1, $2, $3, $4, $5)`,
+        bindings: [discount.id, listing.id, discount.value, discount.eff, discount.kind],
+      })),
+    ),
+    { sql: `DELETE FROM tx_extras WHERE tx_record_id = $1`, bindings: [draft.id] },
+    ...draft.extras.map((extra) => ({
+      sql: `INSERT INTO tx_extras (
+          tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value, tx_extra_eff
+        ) VALUES ($1, $2, $3, $4, $5, 0)`,
+      bindings: [extra.id, draft.id, extra.kind, extra.name, extra.value],
+    })),
     { sql: `DELETE FROM tx_methods WHERE tx_record_id = $1`, bindings: [draft.id] },
     ...draft.methods.map((method) => ({
       sql: `INSERT INTO tx_methods (tx_method_id, tx_record_id, method_id, tx_method_value)
@@ -151,6 +245,15 @@ export const TransactionLive = Layer.effect(
         const imageRows = yield* db
           .selectMany<ImageRow>(SELECT_IMAGES)
           .pipe(Effect.mapError(toError));
+        const listingRows = yield* db
+          .selectMany<ListingRow>(SELECT_LISTINGS)
+          .pipe(Effect.mapError(toError));
+        const discountRows = yield* db
+          .selectMany<DiscountRow>(SELECT_DISCOUNTS)
+          .pipe(Effect.mapError(toError));
+        const extraRows = yield* db
+          .selectMany<ExtraRow>(SELECT_EXTRAS)
+          .pipe(Effect.mapError(toError));
 
         const byRecord = new Map<string, DraftMethod[]>();
         for (const row of methodRows) {
@@ -169,11 +272,57 @@ export const TransactionLive = Layer.effect(
           });
           imagesByRecord.set(row.tx_record_id, list);
         }
+
+        const discountsByListing = new Map<string, DiscountRow[]>();
+        for (const row of discountRows) {
+          const list = discountsByListing.get(row.tx_listing_id) ?? [];
+          list.push(row);
+          discountsByListing.set(row.tx_listing_id, list);
+        }
+        const listingsByRecord = new Map<string, DraftListing[]>();
+        for (const row of listingRows) {
+          let running = new Decimal(row.tx_listing_price).times(row.tx_listing_qty);
+          const discounts = (discountsByListing.get(row.tx_listing_id) ?? []).map((discount) => {
+            running = running.minus(discount.tx_disc_eff);
+            return {
+              id: discount.tx_disc_id,
+              value: discount.tx_disc_value,
+              kind: discount.tx_disc_kind,
+              eff: discount.tx_disc_eff,
+              total: running.toNumber(),
+            };
+          });
+          const list = listingsByRecord.get(row.tx_record_id) ?? [];
+          list.push({
+            id: row.tx_listing_id,
+            listingId: row.listing_id,
+            name: row.tx_listing_name,
+            code: row.tx_listing_code,
+            unit: row.tx_listing_unit,
+            price: row.tx_listing_price,
+            qty: row.tx_listing_qty,
+            discounts,
+          });
+          listingsByRecord.set(row.tx_record_id, list);
+        }
+        const extrasByRecord = new Map<string, DraftExtra[]>();
+        for (const row of extraRows) {
+          const list = extrasByRecord.get(row.tx_record_id) ?? [];
+          list.push({
+            id: row.tx_extra_id,
+            name: row.tx_extra_name,
+            kind: row.tx_extra_kind,
+            value: row.tx_extra_value,
+          });
+          extrasByRecord.set(row.tx_record_id, list);
+        }
         return records.map((row) =>
           rowToDraft(
             row,
             byRecord.get(row.tx_record_id) ?? [],
             imagesByRecord.get(row.tx_record_id) ?? [],
+            listingsByRecord.get(row.tx_record_id) ?? [],
+            extrasByRecord.get(row.tx_record_id) ?? [],
           ),
         );
       });
@@ -277,6 +426,8 @@ export const TransactionLive = Layer.effect(
               customerId: null,
               supplierId: null,
               rounding: 0,
+              listings: [],
+              extras: [],
               // A fresh draft opens with one cash payment ready to fill in.
               methods: [{ id: generateId(), methodId: METHOD_BASE_ID.cash, value: 0 }],
               images: [],
@@ -346,6 +497,16 @@ export const TransactionLive = Layer.effect(
         },
         rounding(id, rounding) {
           return update(id, (draft) => ({ ...draft, rounding }));
+        },
+      },
+      listings: {
+        set(id, listings) {
+          return update(id, (draft) => ({ ...draft, listings }));
+        },
+      },
+      extras: {
+        set(id, extras) {
+          return update(id, (draft) => ({ ...draft, extras }));
         },
       },
       methods: {
