@@ -81,7 +81,8 @@ function Screen({
   // Which panel owns the selection, so only one cell is highlighted at a time.
   const [area, setArea] = useState<"main" | "bottom">("main");
 
-  // F1 searches, F2 settles — from anywhere on the screen, not just a panel.
+  // F1 searches, F2 settles, F12 opens a new tab — from anywhere on the
+  // screen, not just a panel.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "F1") {
@@ -92,11 +93,16 @@ function Screen({
       if (event.key === "F2") {
         event.preventDefault();
         setFocusPayment((count) => count + 1);
+        return;
+      }
+      if (event.key === "F12") {
+        event.preventDefault();
+        void Effect.runPromise(service.transaction.add.new("incoming")).then(onDraft, () => {});
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [onDraft]);
 
   // The screen always has a sale to show: an empty one is made for it.
   useEffect(() => {

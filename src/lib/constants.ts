@@ -2,7 +2,7 @@ import { Temporal } from "temporal-polyfill";
 
 export const version = "5.19.38";
 
-export const METHODS = ["cash", "transfer", "debit", "qris"] as const;
+export const METHODS = ["cash", "qris", "transfer", "debit"] as const;
 export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
 export type MethodKind = (typeof METHODS)[number];
 
@@ -36,23 +36,30 @@ export function getProductKind(v: string): string {
 
 export const METHOD_NAMES = {
   cash: "Tunai",
+  qris: "QRIS",
   transfer: "Transfer",
   debit: "Debit",
-  qris: "QRIS",
+} as const;
+
+export const METHOD_KBD = {
+  cash: "Ctrl+0",
+  qris: "Ctrl+1",
+  transfer: "Ctrl+2",
+  debit: "Ctrl+3",
 } as const;
 
 // (1000, 'cash'), (1001, 'transfer'), (1002, 'debit'), (1003, 'qris');
 export const METHOD_BASE_ID = {
   cash: "1000",
+  qris: "1003",
   transfer: "1001",
   debit: "1002",
-  qris: "1003",
 } as const;
 export const METHOD_BASE_KIND = {
   "1000": "cash",
+  "1003": "qris",
   "1001": "transfer",
   "1002": "debit",
-  "1003": "qris",
 } as const;
 
 export const DEFAULT_METHOD = {
@@ -67,16 +74,16 @@ export const DEFAULT_METHODS = [
     kind: "cash",
   },
   {
+    id: "1003",
+    kind: "qris",
+  },
+  {
     id: "1001",
     kind: "transfer",
   },
   {
     id: "1002",
     kind: "debit",
-  },
-  {
-    id: "1003",
-    kind: "qris",
   },
 ] satisfies Method[];
 export const DEBOUNCE_DELAY = 100;

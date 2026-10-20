@@ -26,6 +26,7 @@ import {
   METHOD_NAMES,
   type DefaultableKind,
   type MethodKind,
+  METHOD_KBD,
 } from "~/lib/constants";
 import { generateId } from "~/lib/random";
 import { cn } from "~/lib/utils";
@@ -43,6 +44,14 @@ const AMOUNT_CLASS =
 
 /** The first amount field, so F2 (see page) can land on it. */
 const PAYMENT_AMOUNT_ID = "payment-amount-0";
+
+/** Ctrl+0..3 pick the method kind, in `METHODS` order. */
+const METHOD_BY_KEY: Record<string, MethodKind> = {
+  "0": "cash",
+  "1": "qris",
+  "2": "transfer",
+  "3": "debit",
+};
 
 /** The cells of the settle grid, in navigation order. */
 type PayField = "rounding" | "kind" | "account" | "amount" | "add" | "summary" | "pay";
@@ -84,6 +93,10 @@ export function Methods({
   const [editing, setEditing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasEditing = useRef(false);
+  // The shortcut handler lives in an effect; keep the latest draft reachable
+  // without re-registering on every keystroke.
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
   // The main grid's hand-off downward; skip the value at mount.
   const seenFocusTop = useRef(focusTop);
   // Bayar's hand-off back to Pembulatan.
@@ -117,10 +130,7 @@ export function Methods({
             : ["kind", "amount", "add"],
     [multiple, first, accounts.length],
   );
-  const rows: PayField[][] = [
-    ["rounding"],
-    methodRow,
-  ];
+  const rows: PayField[][] = [["rounding"], methodRow];
 
   // F2 asked for the first amount; in a multi-method draft that lives in the
   // editor, so open it and reach for the field there.
@@ -159,6 +169,30 @@ export function Methods({
     setEditing(false);
     containerRef.current?.focus();
   }, [focusRounding]);
+
+  // With a single method, Ctrl+0..3 swap its kind (and default account).
+  useEffect(() => {
+    if (multiple || first === null) return;
+    const firstMethodId = first.id;
+    function onKeyDown(event: globalThis.KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      const kind = METHOD_BY_KEY[event.key];
+      if (kind === undefined) return;
+      event.preventDefault();
+      const methodId = defaultMethodId(catalog, kind);
+      const current = latestDraft.current;
+      run(
+        service.transaction.methods.set(
+          current.id,
+          current.methods.map((method) =>
+            method.id === firstMethodId ? { ...method, methodId } : method,
+          ),
+        ),
+      );
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [multiple, first, catalog]);
 
   // Hand focus back to the grid once an editor or a select closes, so the
   // arrows keep working.
@@ -347,9 +381,7 @@ export function Methods({
                   {firstLabel}
                   <Plus className="icon shrink-0" />
                 </span>
-                <span className="shrink-0 font-bold tabular-nums">
-                  {rupiah(total, draft.fix)}
-                </span>
+                <span className="shrink-0 font-bold tabular-nums">{rupiah(total, draft.fix)}</span>
                 <span className="shrink-0 rounded-full bg-muted px-1.5 text-small font-bold tabular-nums text-muted-foreground">
                   {draft.methods.length}
                 </span>
@@ -381,6 +413,7 @@ export function Methods({
                 options={METHODS.map((candidate) => ({
                   value: candidate,
                   label: METHOD_NAMES[candidate],
+                  kbd: METHOD_KBD[candidate],
                 }))}
                 onSelect={() => activate("kind")}
                 onEditingDone={() => setEditing(false)}
@@ -573,7 +606,7 @@ function SelectCell({
   selected: boolean;
   editing: boolean;
   value: string;
-  options: readonly { value: string; label: string }[];
+  options: readonly { value: string; label: string; kbd?: string }[];
   onSelect: () => void;
   onEditingDone: () => void;
   onChange: (value: string) => void;
@@ -612,7 +645,12 @@ function SelectCell({
         <SelectContent>
           <SelectGroup>
             {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
+              <SelectItem
+                className="small:w-[220px] w-[250px]"
+                key={option.value}
+                value={option.value}
+                kbd={option.kbd === undefined ? undefined : <Kbd>{option.kbd}</Kbd>}
+              >
                 {option.label}
               </SelectItem>
             ))}
