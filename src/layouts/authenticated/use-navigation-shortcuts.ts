@@ -3,11 +3,12 @@ import { useNavigate } from "react-router";
 import { showShortcut } from "./use-shortcut";
 
 const linkMap = {
-  0: "/shop",
-  1: "/products",
-  2: "/records",
-  3: "/money",
-  4: "/setting",
+  0: "/pos",
+  1: "/restock",
+  2: "/products",
+  3: "/records",
+  4: "/money",
+  5: "/setting",
 } as Record<string, string>;
 
 let press = false;

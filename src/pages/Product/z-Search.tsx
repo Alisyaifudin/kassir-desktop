@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { SearchIcon, X } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { Input } from "~/components/ui/input";
-import { Button } from "~/components/ui/button";
 import { DEBOUNCE_DELAY } from "~/lib/constants";
 
 export function Search({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -27,19 +26,6 @@ export function Search({ value, onChange }: { value: string; onChange: (value: s
           debounced(next);
         }}
       />
-      {local !== "" ? (
-        <Button
-          type="button"
-          variant="ghost"
-          className="absolute right-1.5 size-10 small:size-7"
-          onClick={() => {
-            setLocal("");
-            onChange("");
-          }}
-        >
-          <X className="icon" />
-        </Button>
-      ) : null}
     </div>
   );
 }
