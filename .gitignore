@@ -38,3 +38,5 @@ tx.db
 src-old/
 tx.sql
 backup
+# audit loop agent transcripts (reports and state are committed)
+audit/logs/

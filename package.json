@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "audit:loop": "bun scripts/audit-loop/index.ts",
+    "audit:once": "bun scripts/audit-loop/index.ts --dry-run --max-iterations 1000"
   },
   "dependencies": {
     "@dnd-kit/core": "^6",
@@ -72,6 +74,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.3.0",
     "@eslint/js": "9",
     "@happy-dom/global-registrator": "^18.0.1",
     "@tauri-apps/cli": "^2",
