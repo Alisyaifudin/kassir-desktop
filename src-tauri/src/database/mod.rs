@@ -256,8 +256,50 @@ pub fn generate_migration() -> Vec<Migration> {
         },
         Migration {
             version: 43,
-            description: "decompose_products_and_rebuild_records",
+            description: "decompose_products_and_soft_delete",
             sql: include_str!("../../src/database/41-50/migration-43.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 44,
+            description: "backfill_new_schema",
+            sql: include_str!("../../src/database/41-50/migration-44.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 45,
+            description: "reserved_bridge",
+            sql: include_str!("../../src/database/41-50/migration-45.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 46,
+            description: "allow_webp_images",
+            sql: include_str!("../../src/database/41-50/migration-46.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 47,
+            description: "reconcile_stock_events",
+            sql: include_str!("../../src/database/41-50/migration-47.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 48,
+            description: "add_code_to_tx_listings",
+            sql: include_str!("../../src/database/41-50/migration-48.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 49,
+            description: "clear_legacy_active_flag",
+            sql: include_str!("../../src/database/41-50/migration-49.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 50,
+            description: "add_submit_columns",
+            sql: include_str!("../../src/database/41-50/migration-50.sql"),
             kind: MigrationKind::Up,
         },
     ];
