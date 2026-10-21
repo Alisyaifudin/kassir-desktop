@@ -110,10 +110,80 @@ Notes that save time:
 
 This is an interactive/exploratory loop for a human-in-the-loop agent, not a
 regression suite. It has an LLM in the loop, no assertions, and it mutates the
-dev database. For deterministic CI coverage use
-`@wdio/tauri-service` (embedded WebDriver provider), which needs
-`tauri-plugin-wdio` + `tauri-plugin-wdio-webdriver` and a release binary. For
-fast pre-commit UI coverage, prefer running the frontend in Chrome against
-`vite` with the `live.ts` layers under `src/services/*/` and
-`src/lib/{printer,auth,reqwest,image,log}.ts` swapped for fakes — that seam is
-the only place `@tauri-apps/*` is imported.
+dev database. For deterministic CI coverage use `@wdio/tauri-service` (embedded
+WebDriver provider), which needs `tauri-plugin-wdio` +
+`tauri-plugin-wdio-webdriver` and a release binary. For fast pre-commit UI
+coverage, use the Tier-0 harness below.
+
+---
+
+# Tier 0 — Playwright on an in-browser backend
+
+`bun run test:e2e` runs the **real app** in Chromium against **real SQLite**, with
+no Tauri binary and no Rust build. A full 4-test suite takes ~5 s and runs in
+parallel.
+
+## Why it exists
+
+WebView2 (what Windows users run) is Chromium, while this box runs WebKitGTK.
+For renderer bugs, Chrome is *closer* to production than a local native run.
+What this tier cannot see is anything that needs the Rust process: ACL
+permissions, migrations against `plugin-sql`, `plugin-fs` path scoping,
+dialogs, the updater, printing, and `tauri-plugin-prevent-default`.
+
+## How it works
+
+| File | Role |
+|---|---|
+| `e2e.html` | Entry point; loads `src/e2e/main.tsx` instead of `src/main.tsx` |
+| `src/services/wiring.ts` | `hiddenLive`, `buildAppLive(hidden)`, `makeService(live)` — the backend is a parameter |
+| `src/services/index.ts` | Exports `service`; picks up an injected instance in dev only |
+| `src/e2e/sqljs.ts` | `DatabaseService` on sql.js, running every `src-tauri/src/database/**/migration-*.sql` |
+| `src/e2e/store-browser.ts` | `StoreService` on `localStorage` |
+| `src/e2e/tauri-shim.ts` | Minimal `window.__TAURI_INTERNALS__`; handles `hash_password` / `verify_password` only |
+| `src/e2e/main.tsx` | Migrates, seeds, injects the service, then dynamically imports `~/route` |
+| `playwright.config.ts` | Starts `bun run dev`, `testMatch: **/*.e2e.ts` |
+
+The seam is `hiddenLive`, which is only `DatabaseLive`, `LocalStorageLive`, and
+`StoreLive`. `LocalStorageLive` works in the browser unchanged, so only two
+layers are swapped.
+
+Import order is load-bearing: `~/route` must be a **dynamic** import, because
+`~/services` resolves the injected instance the first time it is evaluated.
+Importing the router statically captures the real (Tauri) service and every
+command fails.
+
+## Writing a test
+
+```ts
+import { expect, test } from "@playwright/test";
+
+test("adds a line to the cart", async ({ page }) => {
+  await page.addInitScript((sql) => { window.__E2E_SEED_SQL__ = sql; }, [seed]);
+  await page.goto("/e2e.html");
+  // ...
+});
+```
+
+Seeds run after the migrations and before first render. Useful facts learned
+the hard way:
+
+- Name specs `*.e2e.ts`. `bun test` globs `*.spec.ts` and would run them without
+  Playwright.
+- `cashiers` requires an explicit `cashier_id` (migration-39); omitting the PK
+  silently fails the seed.
+- The seeded hash must be `plain:<password>` to match the e2e
+  `verify_password` shim. This is not bcrypt — that is Rust-side and belongs in
+  the native suite.
+- `foreign_keys` is ON before migrations, matching sqlx.
+- To debug a boot failure, read the `#root` text — `main.tsx` renders the boot
+  error there instead of leaving a blank page.
+- `npx tsc --noEmit` reports ~439 pre-existing errors project-wide, so it is not
+  a usable gate here. Vite + the tests themselves are.
+
+## Not yet covered
+
+The suite covers boot, seeding, login, and the wrong-password path. The cart,
+POS grid, DnD, and printing have no Tier-0 tests yet; a cart test needs the
+`methods`/`products`/`listings`/`stocks` seed from
+`src/services/record/draft.test.ts`.

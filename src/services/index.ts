@@ -1,105 +1,19 @@
-import { Effect, Layer } from "effect";
-import { AuthService } from "./auth";
-import { AuthLive } from "./auth/live";
-import { CashierService } from "./cashier";
-import { CashierLive } from "./cashier/live";
-import { ConfigService } from "./config";
-import { ConfigLive } from "./config/live";
-import { CustomerService } from "./customer";
-import { CustomerLive } from "./customer/live";
-import { DatabaseLive } from "./db/live";
-import { ExtraService } from "./extra";
-import { ExtraLive } from "./extra/live";
-import { InfoService } from "./info";
-import { InfoLive } from "./info/live";
-import { LocalStorageLive } from "./local-storage/live";
-import { MethodService } from "./method";
-import { MethodLive } from "./method/live";
-import { LogService } from "./log";
-import { LogLive } from "./log/live";
-import { ListingService } from "./listing";
-import { ListingLive } from "./listing/live";
-import { MoneyService } from "./money";
-import { MoneyLive } from "./money/live";
-import { ProductService } from "./product";
-import { ProductLive } from "./product/live";
-import { PrinterService } from "./printer";
-import { PrinterLive } from "./printer/live";
-import { RecordService } from "./record";
-import { RecordLive } from "./record/live";
-import { SocialService } from "./social";
-import { SocialLive } from "./social/live";
-import { StoreLive } from "./store/live";
-import { SupplierService } from "./supplier";
-import { SupplierLive } from "./supplier/live";
-import { TransactionService } from "./transaction";
-import { TransactionLive } from "./transaction/live";
+import { appLive, makeService, type AppService } from "./wiring";
 
-/** Layers that back the public services but are not exposed on `service`. */
-const hiddenLive = Layer.mergeAll(DatabaseLive, LocalStorageLive, StoreLive);
+export { buildAppLive, hiddenLive, makeService } from "./wiring";
+export type { AppService, HiddenLive } from "./wiring";
 
-const cashierLive = CashierLive.pipe(Layer.provide(hiddenLive));
-const extraLive = ExtraLive.pipe(Layer.provide(hiddenLive));
-const configLive = ConfigLive.pipe(Layer.provide(hiddenLive));
-const customerLive = CustomerLive.pipe(Layer.provide(hiddenLive));
-const infoLive = InfoLive.pipe(Layer.provide(hiddenLive));
-const methodLive = MethodLive.pipe(Layer.provide(hiddenLive));
-const logLive = LogLive;
-const listingLive = ListingLive.pipe(Layer.provide(hiddenLive));
-const moneyLive = MoneyLive.pipe(Layer.provide(hiddenLive));
-const productLive = ProductLive.pipe(Layer.provide(hiddenLive));
-const printerLive = PrinterLive.pipe(Layer.provide(hiddenLive));
-const socialLive = SocialLive.pipe(Layer.provide(hiddenLive));
-const supplierLive = SupplierLive.pipe(Layer.provide(hiddenLive));
-// `record` reverses a deleted record's stock movement, so it needs `product`.
-const recordLive = RecordLive.pipe(Layer.provide(hiddenLive), Layer.provide(productLive));
-// `transaction` commits a cart through `record` and restores one from it.
-const transactionLive = TransactionLive.pipe(
-  Layer.provide(hiddenLive),
-  Layer.provide(recordLive),
-);
+/**
+ * The app reads `service` as a module singleton.
+ *
+ * The end-to-end harness (`src/e2e/`) swaps the SQLite backend for an in-browser
+ * one, but it cannot hand us a layer: components resolve this module directly,
+ * so the instance has to be replaced at boot. It sets `globalThis.__KASSIR_SERVICE__`
+ * before the router is imported and we pick it up here. Gated on
+ * `import.meta.env.DEV` so the branch is dead code in a production build.
+ */
+const injected = import.meta.env.DEV
+  ? (globalThis as { __KASSIR_SERVICE__?: AppService }).__KASSIR_SERVICE__
+  : undefined;
 
-// Auth also needs the cashier service to verify the session's id.
-const authLive = AuthLive.pipe(Layer.provide(hiddenLive), Layer.provide(cashierLive));
-
-const appLive = Layer.mergeAll(
-  configLive,
-  cashierLive,
-  customerLive,
-  extraLive,
-  infoLive,
-  logLive,
-  listingLive,
-  methodLive,
-  moneyLive,
-  printerLive,
-  productLive,
-  recordLive,
-  socialLive,
-  supplierLive,
-  transactionLive,
-  authLive,
-);
-
-export const service = Effect.runSync(
-  Effect.gen(function* () {
-    return {
-      config: yield* ConfigService,
-      cashier: yield* CashierService,
-      customer: yield* CustomerService,
-      extra: yield* ExtraService,
-      info: yield* InfoService,
-      listing: yield* ListingService,
-      logs: yield* LogService,
-      method: yield* MethodService,
-      money: yield* MoneyService,
-      printer: yield* PrinterService,
-      product: yield* ProductService,
-      record: yield* RecordService,
-      social: yield* SocialService,
-      supplier: yield* SupplierService,
-      transaction: yield* TransactionService,
-      auth: yield* AuthService,
-    };
-  }).pipe(Effect.provide(appLive)),
-);
+export const service: AppService = injected ?? makeService(appLive);
