@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
 import { run } from "~/components/cart/run";
@@ -29,7 +29,6 @@ export function Draft({
   drafts,
   onSelect,
   stage,
-  onStage,
   grand,
   lines,
   onLines,
@@ -37,6 +36,7 @@ export function Draft({
   extras,
   onExtras,
   focusSearch,
+  focusPayment,
   focusRounding,
   focusLast,
   onFocusPay,
@@ -48,7 +48,6 @@ export function Draft({
   drafts: DraftModel[];
   onSelect: (id: string) => void;
   stage: Stage;
-  onStage: (stage: Stage) => void;
   grand: Decimal;
   lines: Line[];
   onLines: (lines: Line[]) => void;
@@ -56,6 +55,8 @@ export function Draft({
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
   focusSearch: number;
+  /** F2's token: the payment stage puts its cursor on the first amount. */
+  focusPayment: number;
   focusRounding: number;
   focusLast: number;
   onFocusPay: () => void;
@@ -63,10 +64,6 @@ export function Draft({
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
-  // Bumped by F2; the payment stage watches it to put the cursor on its first
-  // amount, even when it is already the open stage.
-  const [focusPayment, setFocusPayment] = useState(0);
-
   // The open purchase takes its name from its first listing.
   useEffect(() => {
     const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
@@ -74,20 +71,6 @@ export function Draft({
       run(service.transaction.set.title(draft.id, title));
     }
   }, [lines, draft.id, draft.title]);
-
-  // F2 settles the purchase from anywhere; F1 is handled by the page because
-  // it has to reach the search bar of whichever grid is on screen.
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "F2") {
-        event.preventDefault();
-        onStage("payment");
-        setFocusPayment((count) => count + 1);
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onStage]);
 
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
@@ -174,6 +157,10 @@ function StageBody({
   }
   return (
     <Payment
+      // Keyed by draft: the payment stage holds dialog state (`Kredit`), amounts
+      // and detail fields that belong to one purchase. Remounting on a tab
+      // switch means nothing dialog-shaped can outlive the cart it describes.
+      key={draft.id}
       draft={draft}
       grand={grand}
       focusPayment={focusPayment}

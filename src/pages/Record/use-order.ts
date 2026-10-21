@@ -20,16 +20,25 @@ function getOrder(search: URLSearchParams): {
   return parsed.data;
 }
 
+/**
+ * The sort column and direction, kept in the URL.
+ *
+ * The write **replaces** the history entry: clicking a column header must not
+ * push a history entry, or Back would undo the sort before leaving the screen.
+ */
 export function useOrder() {
   const [search, setSearch] = useSearchParams();
   const order = getOrder(search);
   function setOrder(order: "total" | "time", sort: "asc" | "desc") {
-    setSearch((old) => {
-      const search = new URLSearchParams(old);
-      search.set("order", order);
-      search.set("sort", sort);
-      return search;
-    });
+    setSearch(
+      (old) => {
+        const search = new URLSearchParams(old);
+        search.set("order", order);
+        search.set("sort", sort);
+        return search;
+      },
+      { replace: true },
+    );
   }
   return [order, setOrder] as const;
 }

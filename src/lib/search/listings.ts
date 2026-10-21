@@ -1,5 +1,13 @@
-import { analyze, compact, norm } from "./normalize";
-import { gradeCode, gradeText, type TextOptions } from "./quality";
+import { analyze, compact } from "./normalize";
+import { gradeCode, gradeText } from "./quality";
+import {
+  createIndexCache,
+  parseQuery,
+  sortHits,
+  toHit,
+  type Hit,
+  type Index,
+} from "./index-cache";
 
 /**
  * The restock listing index. Unlike the product index, the unit is a *listing*:
@@ -7,11 +15,9 @@ import { gradeCode, gradeText, type TextOptions } from "./quality";
  * still reaches into the parent product, but the listing's own name outranks it.
  *
  * Field order: code (a scanned identifier) > listing name > product name >
- * alternative name. Text scores reuse the same ladder as product search, so the
- * same query behaves consistently across both pages.
+ * alternative name. The query ladder, the score scale and the cache live in
+ * `./index-cache`; only the weights below are this unit's own.
  */
-
-const SCALE = 9999;
 
 const FIELD = {
   code: 1,
@@ -40,12 +46,9 @@ type Entry = {
   altNames: AltEntry[];
 };
 
-export type ListingIndex = {
-  signature: string;
-  entries: Entry[];
-};
+export type ListingIndex = Index<Entry>;
 
-export type ListingHit = { id: string; score: number };
+export type ListingHit = Hit;
 
 function toEntry(listing: SearchableListing): Entry {
   const name = analyze(listing.name);
@@ -64,12 +67,8 @@ function toEntry(listing: SearchableListing): Entry {
   };
 }
 
-let signatures = new WeakMap<SearchableListing[], string>();
-
+/** The fields that affect matching — not stock, price, or `updated_at`. */
 function signatureOf(listings: SearchableListing[]): string {
-  const cached = signatures.get(listings);
-  if (cached !== undefined) return cached;
-
   const parts: string[] = [];
   for (const listing of listings) {
     parts.push(
@@ -85,70 +84,60 @@ function signatureOf(listings: SearchableListing[]): string {
       "\u0002",
     );
   }
-
-  const signature = parts.join("");
-  signatures.set(listings, signature);
-  return signature;
+  return parts.join("");
 }
 
+const cache = createIndexCache<SearchableListing, Entry>(signatureOf, toEntry);
+
+/** Build a fresh index. Exported for tests; the app calls `getListingIndex`. */
 export function buildListingIndex(listings: SearchableListing[]): ListingIndex {
-  return { signature: signatureOf(listings), entries: listings.map(toEntry) };
+  return cache.build(listings);
 }
-
-let cache: { signature: string; index: ListingIndex } | null = null;
 
 /** Rebuilds only when a listing name/code, product name, or alias changes. */
 export function getListingIndex(listings: SearchableListing[]): ListingIndex {
-  const signature = signatureOf(listings);
-  if (cache !== null && cache.signature === signature) return cache.index;
-  const index = buildListingIndex(listings);
-  cache = { signature, index };
-  return index;
+  return cache.get(listings);
 }
 
 export function resetListingIndex(): void {
-  cache = null;
-  signatures = new WeakMap();
+  cache.reset();
 }
 
 /** Score every listing against `rawQuery`, highest first. */
 export function searchListings(index: ListingIndex, rawQuery: string): ListingHit[] {
-  const query = norm(rawQuery);
-  if (query === "") return [];
-
-  const queryWords = query.split(" ");
-  const queryCode = compact(rawQuery);
-  const length = queryCode.length;
-  const options: TextOptions = { tokenPrefix: length >= 2, weak: length >= 3 };
-  const minimum = length <= 1 ? 7000 : length === 2 ? 5000 : 1500;
+  const query = parseQuery(rawQuery);
+  if (query === null) return [];
 
   const hits: ListingHit[] = [];
   for (const entry of index.entries) {
     let best = 0;
 
     if (entry.codeCompact !== null) {
-      const quality = gradeCode(entry.codeCompact, queryCode);
+      const quality = gradeCode(entry.codeCompact, query.code);
       if (quality > 0) best = Math.max(best, quality * FIELD.code);
     }
 
     best = Math.max(
       best,
-      gradeText(entry.nameNorm, entry.nameWords, query, queryWords, options) * FIELD.listing,
+      gradeText(entry.nameNorm, entry.nameWords, query.norm, query.words, query.options) *
+        FIELD.listing,
     );
     best = Math.max(
       best,
-      gradeText(entry.productNorm, entry.productWords, query, queryWords, options) * FIELD.product,
+      gradeText(entry.productNorm, entry.productWords, query.norm, query.words, query.options) *
+        FIELD.product,
     );
 
     for (const alt of entry.altNames) {
-      best = Math.max(best, gradeText(alt.norm, alt.words, query, queryWords, options) * FIELD.alt);
+      best = Math.max(
+        best,
+        gradeText(alt.norm, alt.words, query.norm, query.words, query.options) * FIELD.alt,
+      );
     }
 
-    if (best <= 0) continue;
-    const score = Math.round(SCALE * best);
-    if (score >= minimum) hits.push({ id: entry.id, score });
+    const result = toHit(entry.id, best, query);
+    if (result !== null) hits.push(result);
   }
 
-  hits.sort((a, b) => b.score - a.score);
-  return hits;
+  return sortHits(hits);
 }

@@ -134,3 +134,34 @@ describe("product catalogue identity", () => {
     }
   });
 });
+
+describe("product.add value boundary", () => {
+  test("a negative price is refused and nothing is written", async () => {
+    const { layer } = setup();
+
+    const result = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const invalid = {
+          ...input("Kopi"),
+          listings: [{ ...input("Kopi").listings[0], price: -1000 }],
+        };
+        const outcome = yield* Effect.either(product.add(invalid));
+        const all = yield* product.get.all();
+        return { outcome, count: all.length };
+      }),
+    );
+
+    expect(result.outcome._tag).toBe("Left");
+    expect(result.count).toBe(0);
+  });
+
+  test("a negative stock capital is refused", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.either(product.add({ ...input("Kopi"), stocks: [{ value: 5, capital: -500 }] })),
+    );
+
+    expect(outcome._tag).toBe("Left");
+  });
+});

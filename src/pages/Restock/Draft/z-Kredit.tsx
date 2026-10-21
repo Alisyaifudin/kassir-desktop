@@ -33,7 +33,15 @@ export function Kredit({
     setError(null);
     const failure = await onCredit();
     setBusy(false);
-    if (failure !== null) setError(failure);
+    if (failure !== null) {
+      setError(failure);
+      return;
+    }
+    // The commit succeeded and the page has mounted its own completion dialog;
+    // this confirmation must not stay open underneath it, still bound to a
+    // purchase that no longer exists. Closing also runs on the next tick of the
+    // shop's workflow: dialog gone, `Complete` in front, one modal at a time.
+    setOpen(false);
   }
 
   return (

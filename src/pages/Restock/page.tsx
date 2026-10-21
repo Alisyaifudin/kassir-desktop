@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import type Decimal from "decimal.js";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
@@ -9,7 +9,6 @@ import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { Draft, STAGES, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import type { Extra, Line } from "~/components/cart/types";
 import {
   linesSubtotal,
   paidTotal,
@@ -20,10 +19,18 @@ import {
 import { useUser } from "~/hooks/use-user";
 import { useStage } from "~/pages/cart/use-stage";
 import { useDraftId } from "~/pages/cart/use-draft";
-import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
-import { cartErrorMessage, run } from "~/components/cart/run";
+import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { CartStartError } from "~/components/cart/z-StartError";
-import { Complete } from "./z-Complete";
+import { Complete } from "~/components/cart/z-Complete";
+
+/** A committed purchase, plus how it was settled — the receipt needs to know. */
+type CreditComplete = {
+  recordId: string;
+  total: Decimal;
+  change: Decimal;
+  fix: number;
+  credit: boolean;
+};
 
 /**
  * The restock screen: the sale screen's shape, buying instead of selling.
@@ -33,7 +40,9 @@ import { Complete } from "./z-Complete";
  * one carries the grand total and the moves between those stages.
  *
  * The open draft and the stage both live in the URL, so refresh, back and a
- * shared link all land where they should.
+ * shared link all land where they should. Everything the screen shares with Pos
+ * — the draft lifecycle, the tab walker, the shortcuts — lives in
+ * `useCartScreen`; what is left here is the purchase's own three-stage layout.
  */
 export default function Page() {
   const [stage, setStage] = useStage(STAGES);
@@ -69,229 +78,57 @@ function Screen({
   draftId: string | null;
   onDraft: (id: string | null) => void;
 }) {
-  const purchaseDrafts = useMemo(
-    () => drafts.filter((draft) => draft.mode === "outcoming").sort((a, b) => a.order - b.order),
-    [drafts],
-  );
-  const creating = useRef(false);
-  const listingRes = useStream(service.listing.get.changes);
-
-  // Bumped by F1; whichever grid is on screen watches it to focus its search
-  // bar. Page-level so F1 works from the payment stage too.
-  const [focusSearch, setFocusSearch] = useState(0);
+  const user = useUser();
+  // Bumped by F2; the payment stage watches it to put the cursor on its first
+  // amount, even when it is already the open stage.
+  const [focusPayment, setFocusPayment] = useState(0);
   // Bayar's hand-off back to the payment grid's rounding cell.
   const [focusRounding, setFocusRounding] = useState(0);
   // The payment grid's hand-off to the Bayar button.
   const [focusPay, setFocusPay] = useState(0);
   // Bayar's Up / the payment grid's top: return to the last listing row.
   const [focusLast, setFocusLast] = useState(0);
-  const user = useUser();
-  const [submitting, setSubmitting] = useState(false);
-  const [complete, setComplete] = useState<{
-    recordId: string;
-    total: Decimal;
-    change: Decimal;
-    fix: number;
-    credit: boolean;
-  } | null>(null);
-  // Batalkan rebuilds the cart asynchronously; hold the no-tabs effect until
-  // the restored draft reaches the stream.
-  const [restoring, setRestoring] = useState(false);
-  const [restoredId, setRestoredId] = useState<string | null>(null);
-  // Why the screen has no cart to show. A rejected `add.new` writes no state, so
-  // the effect below would never re-run: without this the operator got a spinner
-  // that never ends instead of a message and a retry.
-  const [startError, setStartError] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
 
-  // F1 searches; F12 starts another purchase draft.
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (submitting) return;
-      if (event.key === "F1") {
-        event.preventDefault();
-        if (stage === "payment") {
-          onStage("listing");
-          // Let the listing grid mount before the token lands on it.
-          setTimeout(() => setFocusSearch((count) => count + 1), 0);
-        } else {
-          setFocusSearch((count) => count + 1);
-        }
-        return;
+  const cart = useCartScreen<Stage, CreditComplete>({
+    mode: "outcoming",
+    drafts,
+    firstStage: "listing",
+    onStage,
+    draftId,
+    onDraft,
+    // F1 from the payment stage has to leave it first, and the listing grid only
+    // takes the cursor once it is mounted — hence the deferred bump.
+    onF1: (focusSearch) => {
+      if (stage === "payment") {
+        onStage("listing");
+        setTimeout(focusSearch, 0);
+      } else {
+        focusSearch();
       }
-      if (event.key === "F12") {
-        event.preventDefault();
-        void Effect.runPromise(service.transaction.add.new("outcoming")).then(onDraft, (error) => {
-          setStartError(cartErrorMessage(error));
-        });
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onDraft, onStage, stage, submitting]);
+    },
+    // F2 settles from anywhere: open the payment stage and put the cursor on its
+    // first amount — the same meaning it has on Pos, where the rows are inline.
+    onF2: () => {
+      onStage("payment");
+      setFocusPayment((count) => count + 1);
+    },
+  });
+  const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
 
-  // The screen always has a purchase to show: an empty one is made for it.
-  useEffect(() => {
-    if (
-      purchaseDrafts.length > 0 ||
-      creating.current ||
-      complete !== null ||
-      submitting ||
-      restoring
-    ) {
-      return;
-    }
-    creating.current = true;
-    void Effect.runPromise(service.transaction.add.new("outcoming")).then(
-      (id) => {
-        creating.current = false;
-        setStartError(null);
-        onDraft(id);
-      },
-      (error) => {
-        creating.current = false;
-        setStartError(cartErrorMessage(error));
-      },
-    );
-  }, [purchaseDrafts.length, onDraft, complete, submitting, restoring, retry]);
-
-  // Once the rebuilt draft reaches the stream, the normal no-tabs guard can take
-  // over again. The timeout is a safety net for a stream that never delivers.
-  useEffect(() => {
-    if (!restoring) return;
-    if (restoredId === null) return;
-    if (purchaseDrafts.some((draft) => draft.id === restoredId)) {
-      setRestoring(false);
-      setRestoredId(null);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setRestoring(false);
-      setRestoredId(null);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [restoring, restoredId, purchaseDrafts]);
-
-  // A `?draft=` that is no longer open — submitted, deleted, or a link from
-  // another machine — is repaired, not honoured blindly: the address bar must
-  // name the cart that is actually under the cursor. (It never *changes* the
-  // cart on its own: the write below replaces the history entry.)
-  const active =
-    (draftId !== null ? purchaseDrafts.find((draft) => draft.id === draftId) : undefined) ??
-    purchaseDrafts[0] ??
-    null;
-  const activeId = active?.id ?? null;
-  useEffect(() => {
-    if (activeId === null || draftId === activeId) return;
-    onDraft(activeId);
-  }, [activeId, draftId, onDraft]);
-  const issues = useMemo(
-    () =>
-      findLineIssues(
-        active?.listings ?? [],
-        listingRes.type === "success" ? listingRes.data : [],
-      ),
-    [active?.listings, listingRes],
-  );
-  const hardIssue = hasHardIssue(issues);
-
-  // Switching tabs (click, Ctrl+Arrow, F12) returns to the goods with the
-  // search ready. The focus token is bumped a tick later so the listing grid is
-  // already mounted when it sees the change.
-  const previousActive = useRef<string | null>(null);
-  const handleStage = useRef(onStage);
-  handleStage.current = onStage;
-  useEffect(() => {
-    if (activeId === null) return;
-    const previous = previousActive.current;
-    previousActive.current = activeId;
-    if (previous === null || previous === activeId) return;
-    handleStage.current("listing");
-    const timer = setTimeout(() => setFocusSearch((count) => count + 1), 0);
-    return () => clearTimeout(timer);
-  }, [activeId]);
-
-  // Ctrl/Cmd+Left/Right walks the open purchase tabs. Text fields keep their
-  // own word-jump, so only act when the target is not an editor.
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (submitting) return;
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      const target = event.target as HTMLElement | null;
-      // Editors keep their own keys, except the search field: tab switching is
-      // still useful from there.
-      const editor = target?.closest("input, textarea, [contenteditable='true']");
-      if (editor != null && !(editor instanceof HTMLInputElement && editor.type === "search")) {
-        return;
-      }
-      const index = purchaseDrafts.findIndex((draft) => draft.id === activeId);
-      if (index === -1) return;
-      const next = purchaseDrafts[index + (event.key === "ArrowLeft" ? -1 : 1)];
-      if (next === undefined) return;
-      event.preventDefault();
-      onDraft(next.id);
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [purchaseDrafts, activeId, onDraft, submitting]);
-
-  const completeDialog =
-    complete === null ? null : (
-      <Complete
-        recordId={complete.recordId}
-        total={complete.total}
-        change={complete.change}
-        fix={complete.fix}
-        credit={complete.credit}
-        onRestoreStart={() => {
-          setRestoring(true);
-          setRestoredId(null);
-        }}
-        onRestoreEnd={() => {
-          setRestoring(false);
-          setRestoredId(null);
-        }}
-        onRestored={(id) => {
-          setRestoredId(id);
-          onDraft(id);
-        }}
-        onClose={() => setComplete(null)}
-      />
-    );
-
-  // Keep the dialog at the same sibling position as the main return so it does
-  // not remount when a cancelled purchase restores a draft.
   if (active === null) {
     return (
       <>
-        {startError === null ? (
+        {cart.startError === null ? (
           <Loading />
         ) : (
-          <CartStartError
-            message={startError}
-            onRetry={() => {
-              setStartError(null);
-              setRetry((count) => count + 1);
-            }}
-          />
+          <CartStartError message={cart.startError} onRetry={cart.retryStart} />
         )}
-        {completeDialog}
+        {completeDialog()}
       </>
     );
   }
 
-  // The cart lives in the transaction service; these are its `tx_listings` and
-  // `tx_extras` rows, written back on every edit.
-  const lines: Line[] = active.listings;
-  const extras: Extra[] = active.extras;
-  const setLines = (next: Line[]) =>
-    run(service.transaction.listings.set(active.id, next));
-  const setExtras = (next: Extra[]) =>
-    run(service.transaction.extras.set(active.id, next));
-
-  const subtotal = linesSubtotal(lines);
-  const total = purchaseTotal(extras, subtotal);
+  const total = purchaseTotal(extras, linesSubtotal(lines));
   const grand = roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
   const creditGrand = roundMoney(total, active.fix);
   const change = roundMoney(paidTotal(active.methods), active.fix).minus(grand);
@@ -316,11 +153,11 @@ function Screen({
   async function runSubmit(credit: boolean): Promise<string | null> {
     if (!canSubmit(credit)) return "Transaksi belum siap untuk disimpan.";
     (document.activeElement as HTMLElement | null)?.blur();
-    setSubmitting(true);
+    cart.setSubmitting(true);
     const result = await Effect.runPromise(
       Effect.either(service.transaction.submit(active.id, { cashier: user.name, credit })),
     );
-    setSubmitting(false);
+    cart.setSubmitting(false);
     if (Either.isLeft(result)) {
       toast.error(result.left.message);
       return result.left.message;
@@ -342,6 +179,28 @@ function Screen({
     return true;
   }
 
+  /**
+   * Rendered at the same child position in both returns so restoring a draft
+   * does not remount the dialog mid-restore.
+   */
+  function completeDialog() {
+    if (complete === null) return null;
+    return (
+      <Complete
+        mode="purchase"
+        recordId={complete.recordId}
+        total={complete.total}
+        change={complete.change}
+        fix={complete.fix}
+        credit={complete.credit}
+        onRestoreStart={cart.restore.onStart}
+        onRestoreEnd={cart.restore.onEnd}
+        onRestored={cart.restore.onRestored}
+        onClose={() => setComplete(null)}
+      />
+    );
+  }
+
   return (
     <>
       <div
@@ -350,17 +209,17 @@ function Screen({
       >
         <Draft
           draft={active}
-          drafts={purchaseDrafts}
-          onSelect={onDraft}
+          drafts={cart.tabs}
+          onSelect={cart.openDraft}
           stage={stage}
-          onStage={onStage}
           grand={grand}
           lines={lines}
-          onLines={setLines}
-          issues={issues}
+          onLines={cart.setLines}
+          issues={cart.issues}
           extras={extras}
-          onExtras={setExtras}
-          focusSearch={focusSearch}
+          onExtras={cart.setExtras}
+          focusSearch={cart.focusSearch}
+          focusPayment={focusPayment}
           focusRounding={focusRounding}
           onFocusPay={() => setFocusPay((count) => count + 1)}
           focusLast={focusLast}
@@ -387,7 +246,7 @@ function Screen({
           </div>
         ) : null}
       </div>
-      {completeDialog}
+      {completeDialog()}
     </>
   );
 }

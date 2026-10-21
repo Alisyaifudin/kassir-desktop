@@ -22,6 +22,7 @@ import {
 import { type DbError, type Statement, DatabaseService } from "../db";
 import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
+import { validateProductInput } from "./validate-input";
 import {
   adjustStatements,
   consumeStatements,
@@ -629,15 +630,12 @@ export const ProductLive = Layer.effect(
       },
       add(input) {
         return Effect.gen(function* () {
-          if (input.listings.length === 0) {
-            return yield* Effect.fail(
-              new ProductError({ message: "Minimal satu listing diperlukan" }),
-            );
-          }
-          if (input.stocks.length === 0) {
-            return yield* Effect.fail(
-              new ProductError({ message: "Minimal satu stok diperlukan" }),
-            );
+          // The one place the *values* are checked: a negative price or a
+          // negative cost basis must never reach `listings`/`stocks`, whichever
+          // writer asked for the insert (form or JSON import).
+          const invalid = validateProductInput(input);
+          if (invalid !== null) {
+            return yield* Effect.fail(new ProductError({ message: invalid }));
           }
 
           const productId = generateId();

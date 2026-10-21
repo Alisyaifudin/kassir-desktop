@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type KeyboardEvent } from "react";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import {
   Table,
@@ -18,6 +18,7 @@ import { useOrder } from "../use-order";
 export function List({ records }: { records: RecordModel[] }) {
   const [selected, setSelected] = useSelected();
   const [{ order, sort }, setOrder] = useOrder();
+  const sorted = useSorted(records, order, sort);
 
   const handleClickSort = useCallback(
     (next: "time" | "total") => {
@@ -27,14 +28,27 @@ export function List({ records }: { records: RecordModel[] }) {
     [order, sort, setOrder],
   );
 
-  // Copy before sorting: `records` is a prop, and sorting it in place would
-  // mutate the parent's array during render.
-  const sorted = useMemo(() => {
-    const sign = sort === "asc" ? 1 : -1;
-    return [...records].sort((a, b) =>
-      order === "time" ? sign * (a.date - b.date) : sign * (a.grandTotal - b.grandTotal),
-    );
-  }, [records, order, sort]);
+  // Up/Down move the *focus* (so Tab does not have to walk every row); Enter or
+  // Space then selects. Same mental model as the POS grids.
+  const handleRowKeyDown = useCallback(
+    (index: number) => (event: KeyboardEvent<HTMLTableRowElement>) => {
+      const record = sorted[index];
+      if (record === undefined) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        setSelected(record.id);
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const rows = event.currentTarget
+        .closest("tbody")
+        ?.querySelectorAll<HTMLTableRowElement>("tr:not([aria-hidden='true'])");
+      const next = index + (event.key === "ArrowDown" ? 1 : -1);
+      rows?.[next]?.focus();
+    },
+    [sorted, setSelected],
+  );
 
   return (
     <Table className="text-normal">
@@ -72,9 +86,19 @@ export function List({ records }: { records: RecordModel[] }) {
         <ForEach items={sorted}>
           {(record, i) => (
             <TableRow
+              // The list is the only way to open a record's detail pane, so it
+              // has to work without a mouse: Tab reaches a row, Up/Down walk the
+              // list, Enter (or Space) opens the one under the cursor.
+              tabIndex={0}
+              aria-selected={selected === record.id}
+              onKeyDown={handleRowKeyDown(i)}
               onClick={() => setSelected(record.id)}
               className={cn(
-                { "bg-sky-200 hover:bg-sky-100 text-foreground": selected === record.id },
+                "cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary focus-visible:outline-none",
+                {
+                  "bg-sky-200 hover:bg-sky-100 text-foreground font-semibold ring-1 ring-inset ring-primary":
+                    selected === record.id,
+                },
                 { "bg-red-300 text-foreground": record.isCredit },
               )}
             >
@@ -90,6 +114,21 @@ export function List({ records }: { records: RecordModel[] }) {
       </TableBody>
     </Table>
   );
+}
+
+function useSorted(
+  records: RecordModel[],
+  order: "time" | "total",
+  sort: "asc" | "desc",
+): RecordModel[] {
+  // Copy before sorting: `records` is a prop, and sorting it in place would
+  // mutate the parent's array during render.
+  return useMemo(() => {
+    const sign = sort === "asc" ? 1 : -1;
+    return [...records].sort((a, b) =>
+      order === "time" ? sign * (a.date - b.date) : sign * (a.grandTotal - b.grandTotal),
+    );
+  }, [records, order, sort]);
 }
 
 function SortBtn({

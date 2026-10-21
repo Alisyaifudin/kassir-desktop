@@ -46,17 +46,22 @@ export function useTime() {
   const [search, setSearch] = useSearchParams();
   const day = getDay(search);
   function setTime(time: number) {
-    setSearch((old) => {
-      const next = new URLSearchParams(old);
-      // The selection belongs to the day it was picked in, so it goes with the
-      // day — same navigation, so the right pane never shows a record from the
-      // day we just left. A re-pick of the same day leaves it alone.
-      if (time !== day.time) {
-        next.delete("selected");
-      }
-      next.set("time", time.toString());
-      return next;
-    });
+    setSearch(
+      (old) => {
+        const next = new URLSearchParams(old);
+        // The selection belongs to the day it was picked in, so it goes with the
+        // day — same navigation, so the right pane never shows a record from the
+        // day we just left. A re-pick of the same day leaves it alone.
+        if (time !== day.time) {
+          next.delete("selected");
+        }
+        next.set("time", time.toString());
+        return next;
+      },
+      // Stepping the day or picking one on the calendar replaces the entry: the
+      // day is a filter, so Back must leave Records rather than walk the days.
+      { replace: true },
+    );
   }
   return [day, setTime] as const;
 }

@@ -16,8 +16,10 @@ import { programPrintReceipt } from "~/pages/Record/Item/z-Receipt/program-print
 import { rupiah } from "~/components/cart/util-rupiah";
 
 /**
- * The moment after a purchase is committed. The record is already in `records`; the
- * three exits are deliberate:
+ * The moment after a transaction is committed — the sale's or the purchase's,
+ * one component because the exits, the restore latch and the print countdown
+ * are the same on both screens. The record is already in `records`; the three
+ * exits are deliberate:
  *
  *  - `Batal` turns it back into a draft (and undoes the stock movement), so a
  *    mistake stays editable instead of becoming history;
@@ -25,6 +27,7 @@ import { rupiah } from "~/components/cart/util-rupiah";
  *  - `Cetak` prints the receipt, then counts down and closes by itself.
  */
 export function Complete({
+  mode,
   recordId,
   total,
   change,
@@ -35,10 +38,13 @@ export function Complete({
   onRestored,
   onClose,
 }: {
+  /** Which screen committed: only the wording and the record's back-link differ. */
+  mode: "sale" | "purchase";
   recordId: string;
   total: Decimal;
   change: Decimal;
   fix: number;
+  /** A purchase can be recorded as debt, with no payment at all. */
   credit?: boolean;
   onRestoreStart: () => void;
   onRestoreEnd: () => void;
@@ -104,6 +110,14 @@ export function Complete({
   }
 
   const locked = busy !== null || countdown !== null;
+  const title =
+    mode === "sale" ? "Pembayaran berhasil" : credit ? "Kredit berhasil" : "Pembelian berhasil";
+  const description =
+    mode === "sale"
+      ? "Transaksi sudah tersimpan."
+      : credit
+        ? "Pembelian sudah dicatat sebagai kredit."
+        : "Transaksi pembelian sudah tersimpan.";
 
   return (
     <Dialog
@@ -133,14 +147,8 @@ export function Complete({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-big">
-            {credit ? "Kredit berhasil" : "Pembelian berhasil"}
-          </DialogTitle>
-          <DialogDescription>
-            {credit
-              ? "Pembelian sudah dicatat sebagai kredit."
-              : "Transaksi pembelian sudah tersimpan."}
-          </DialogDescription>
+          <DialogTitle className="text-big">{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         {credit ? (
@@ -172,7 +180,7 @@ export function Complete({
             </Button>
             <Button asChild variant="secondary" disabled={locked}>
               <Link
-                to={`/records/${recordId}?url_back=${encodeURIComponent("/restock")}`}
+                to={`/records/${recordId}?url_back=${encodeURIComponent(mode === "sale" ? "/pos" : "/restock")}`}
                 aria-disabled={locked}
                 className={locked ? "pointer-events-none opacity-50" : undefined}
                 onClick={(event) => {

@@ -34,20 +34,35 @@ fn validate_pdf(pdf_bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// One sentence the cashier can act on. The OS error behind it is a developer
+/// detail: it goes to the app log (Setting > Log), never to the dialog.
+const TEMP_FILE_FAILED: &str = "Gagal menyiapkan berkas cetak.";
+
 /// Write PDF bytes to a temporary file, returning its path.
 fn write_temp_pdf(pdf_bytes: &[u8]) -> Result<std::path::PathBuf, String> {
-    let mut temp = NamedTempFile::with_suffix(".pdf")
-        .map_err(|e| format!("Failed to create temp file: {}", e))?;
+    let mut temp = NamedTempFile::with_suffix(".pdf").map_err(|e| {
+        log::error!("print_pdf could not create a temp file: {}", e);
+        TEMP_FILE_FAILED.to_string()
+    })?;
 
-    temp.write_all(pdf_bytes)
-        .map_err(|e| format!("Failed to write PDF: {}", e))?;
-    temp.flush()
-        .map_err(|e| format!("Failed to flush: {}", e))?;
+    temp.write_all(pdf_bytes).map_err(|e| {
+        log::error!(
+            "print_pdf could not write the PDF to {}: {}",
+            temp.path().display(),
+            e
+        );
+        TEMP_FILE_FAILED.to_string()
+    })?;
+    temp.flush().map_err(|e| {
+        log::error!("print_pdf could not flush {}: {}", temp.path().display(), e);
+        TEMP_FILE_FAILED.to_string()
+    })?;
 
     // IMPORTANT: Close the file by persisting it
-    let (file, path) = temp
-        .keep()
-        .map_err(|e| format!("Failed to persist temp file: {}", e))?;
+    let (file, path) = temp.keep().map_err(|e| {
+        log::error!("print_pdf could not persist the temp file: {}", e.error);
+        TEMP_FILE_FAILED.to_string()
+    })?;
     drop(file); // Explicitly close the handle
 
     Ok(path)
@@ -68,7 +83,10 @@ fn write_temp_pdf(pdf_bytes: &[u8]) -> Result<std::path::PathBuf, String> {
 pub async fn get_printers() -> Result<Vec<PrinterInfo>, String> {
     tauri::async_runtime::spawn_blocking(platform::get_printers)
         .await
-        .map_err(|e| format!("Gagal membaca daftar printer: {}", e))?
+        .map_err(|e| {
+            log::error!("get_printers task failed: {}", e);
+            "Gagal membaca daftar printer. Coba lagi.".to_string()
+        })?
 }
 
 #[command]
@@ -78,7 +96,10 @@ pub async fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<Strin
     validate_pdf(&pdf_bytes)?;
     tauri::async_runtime::spawn_blocking(move || platform::print_pdf(&printer_name, &pdf_bytes))
         .await
-        .map_err(|e| format!("Gagal menjalankan pencetakan: {}", e))?
+        .map_err(|e| {
+            log::error!("print_pdf task failed: {}", e);
+            "Gagal menjalankan pencetakan. Coba lagi.".to_string()
+        })?
 }
 
 // ============================================================================
@@ -94,12 +115,15 @@ mod platform {
     };
 
     pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
-        let devices =
-            PrinterDevice::all().map_err(|e| format!("Gagal membaca daftar printer: {}", e))?;
+        let devices = PrinterDevice::all().map_err(|e| {
+            log::error!("get_printers could not enumerate the spooler: {}", e);
+            "Gagal membaca daftar printer. Coba lagi.".to_string()
+        })?;
 
         if devices.is_empty() {
+            log::error!("get_printers found no devices in the spooler");
             return Err(
-                "No printers found on this system. Please install a printer first.".to_string(),
+                "Tidak ada printer terpasang. Pasang printer dulu, lalu coba lagi.".to_string(),
             );
         }
 
@@ -117,22 +141,26 @@ mod platform {
     pub fn print_pdf(printer_name: &str, pdf_bytes: &[u8]) -> Result<String, String> {
         // Enumerate the spooler once: the device and the "available printers"
         // message both come from this single (slow) call.
-        let devices =
-            PrinterDevice::all().map_err(|e| format!("Gagal membaca daftar printer: {}", e))?;
-        let available: Vec<String> = devices.iter().map(|p| format!("'{}'", p.name())).collect();
+        let devices = PrinterDevice::all().map_err(|e| {
+            log::error!("print_pdf could not enumerate the spooler: {}", e);
+            "Gagal membaca daftar printer. Coba lagi.".to_string()
+        })?;
+        let available: Vec<String> = devices.iter().map(|p| p.name().to_string()).collect();
 
         let device = devices
             .into_iter()
             .find(|p| p.name() == printer_name)
             .ok_or_else(|| {
-                format!(
-                    "Printer '{}' not found. Available printers: [{}]",
+                // The device list is useful to us and useless (and unreadable) in
+                // a 40-column dialog: the log keeps it, the cashier gets a pointer.
+                log::error!(
+                    "print_pdf: printer '{}' is not installed. Available: [{}]",
                     printer_name,
-                    if available.is_empty() {
-                        "none".to_string()
-                    } else {
-                        available.join(", ")
-                    }
+                    available.join(", ")
+                );
+                format!(
+                    "Printer '{}' tidak ditemukan. Pilih printer lain di Pengaturan > Printer.",
+                    printer_name
                 )
             })?;
 
@@ -145,7 +173,8 @@ mod platform {
             .print(&temp_path, PrintTicket::default())
             .map_err(|e| {
                 let _ = std::fs::remove_file(&temp_path);
-                e.to_string()
+                log::error!("print_pdf: the spooler rejected the job: {:?}", e);
+                format!("Gagal mengirim ke printer '{}'. Coba lagi.", printer_name)
             })?;
 
         let _ = std::fs::remove_file(&temp_path);
@@ -170,15 +199,11 @@ mod platform {
     use std::process::Command;
 
     pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
-        let output = Command::new("lpstat")
-            .arg("-p")
-            .output()
-            .map_err(|e| {
-                format!(
-                    "Failed to run 'lpstat' (is CUPS installed? e.g. 'sudo apt install cups-client'): {}",
-                    e
-                )
-            })?;
+        let output = Command::new("lpstat").arg("-p").output().map_err(|e| {
+            log::error!("get_printers could not run lpstat: {}", e);
+            "Tidak bisa membaca daftar printer. Pastikan layanan cetak (CUPS) terpasang."
+                .to_string()
+        })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -208,8 +233,9 @@ mod platform {
             .collect();
 
         if printers.is_empty() {
+            log::error!("get_printers found no CUPS queues");
             return Err(
-                "No printers found on this system. Please install a printer first.".to_string(),
+                "Tidak ada printer terpasang. Pasang printer dulu, lalu coba lagi.".to_string(),
             );
         }
 
@@ -220,11 +246,15 @@ mod platform {
         // Ensure the requested printer exists
         let available = get_printers()?;
         if !available.iter().any(|p| p.name == printer_name) {
-            let names: Vec<String> = available.iter().map(|p| format!("'{}'", p.name)).collect();
-            return Err(format!(
-                "Printer '{}' not found. Available printers: [{}]",
+            let names: Vec<String> = available.iter().map(|p| p.name.to_string()).collect();
+            log::error!(
+                "print_pdf: printer '{}' is not installed. Available: [{}]",
                 printer_name,
                 names.join(", ")
+            );
+            return Err(format!(
+                "Printer '{}' tidak ditemukan. Pilih printer lain di Pengaturan > Printer.",
+                printer_name
             ));
         }
 
@@ -240,18 +270,17 @@ mod platform {
         let _ = std::fs::remove_file(&temp_path);
 
         let output = result.map_err(|e| {
-            format!(
-                "Failed to run 'lp' (is CUPS installed? e.g. 'sudo apt install cups-client'): {}",
-                e
-            )
+            log::error!("print_pdf could not run lp: {}", e);
+            "Tidak bisa menjalankan perintah cetak. Pastikan layanan cetak (CUPS) terpasang."
+                .to_string()
         })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
+            log::error!("print_pdf: lp refused the job: {}", stderr.trim());
             return Err(format!(
-                "Failed to print to '{}': {}",
-                printer_name,
-                stderr.trim()
+                "Gagal mengirim ke printer '{}'. Coba lagi.",
+                printer_name
             ));
         }
 

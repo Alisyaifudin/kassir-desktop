@@ -1,19 +1,25 @@
 import type { Product } from "~/services/product";
-import { analyze, compact, norm } from "~/lib/search/normalize";
-import { gradeCode, gradeText, type TextOptions } from "~/lib/search/quality";
+import { analyze, compact } from "~/lib/search/normalize";
+import { gradeCode, gradeText } from "~/lib/search/quality";
+import {
+  createIndexCache,
+  parseQuery,
+  sortHits,
+  toHit,
+  type Hit,
+  type Index,
+} from "~/lib/search/index-cache";
 
 /**
- * A reusable, signature-gated search index.
+ * The product index: the unit is a product, but a code lives on its listings, so
+ * a scanned code still finds the product it belongs to.
  *
- * The product stream re-emits a fresh `Product[]` on every hydrate — including
- * stock and price changes — so the array identity is not a useful cache key.
- * Instead the index is keyed by a *text signature* of the fields that actually
- * affect matching (id, product name, alternative names, listing name/code).
- * Editing a product, adding one, or deleting one changes the signature and
- * rebuilds; a sale or a price edit does not.
+ * The query ladder, the score scale and the signature cache live in
+ * `~/lib/search/index-cache`; only the weights below are this unit's own. The
+ * product stream re-emits a fresh `Product[]` on every hydrate, so the cache is
+ * keyed by a text signature instead of by array identity: editing a product
+ * rebuilds, a sale does not.
  */
-
-const SCALE = 9999;
 
 const FIELD = {
   code: 1,
@@ -38,12 +44,10 @@ type Entry = {
   listings: ListingEntry[];
 };
 
-export type SearchIndex = {
-  signature: string;
-  entries: Entry[];
-};
+export type SearchIndex = Index<Entry>;
 
-export type Hit = { id: string; score: number };
+/** A scored match: the product id and its score. */
+export type { Hit };
 
 function toEntry(product: Product): Entry {
   const name = analyze(product.name);
@@ -66,16 +70,11 @@ function toEntry(product: Product): Entry {
   };
 }
 
-let signatures = new WeakMap<Product[], string>();
-
 /**
  * A cheap, collision-free fingerprint of the indexed text. Control characters
  * are safe separators because names cannot contain them.
  */
 function signatureOf(products: Product[]): string {
-  const cached = signatures.get(products);
-  if (cached !== undefined) return cached;
-
   const parts: string[] = [];
   for (const product of products) {
     parts.push(product.id, "\u0000", product.name, "\u0000");
@@ -85,47 +84,33 @@ function signatureOf(products: Product[]): string {
     }
     parts.push("\u0003");
   }
-
-  const signature = parts.join("");
-  signatures.set(products, signature);
-  return signature;
+  return parts.join("");
 }
+
+const cache = createIndexCache<Product, Entry>(signatureOf, toEntry);
 
 /** Build a fresh index. Exported for tests; the app should call `getIndex`. */
 export function buildIndex(products: Product[]): SearchIndex {
-  return { signature: signatureOf(products), entries: products.map(toEntry) };
+  return cache.build(products);
 }
-
-let cache: { signature: string; index: SearchIndex } | null = null;
 
 /**
  * Return the cached index while the indexed text is unchanged, rebuilding only
  * when a product is added, removed, or has a name/code/alias edited.
  */
 export function getIndex(products: Product[]): SearchIndex {
-  const signature = signatureOf(products);
-  if (cache !== null && cache.signature === signature) return cache.index;
-  const index = buildIndex(products);
-  cache = { signature, index };
-  return index;
+  return cache.get(products);
 }
 
 /** Drop the cached index (tests). */
 export function resetIndex(): void {
-  cache = null;
-  signatures = new WeakMap();
+  cache.reset();
 }
 
 /** Score every product against `rawQuery`, highest first. */
 export function search(index: SearchIndex, rawQuery: string): Hit[] {
-  const query = norm(rawQuery);
-  if (query === "") return [];
-
-  const queryWords = query.split(" ");
-  const queryCode = compact(rawQuery);
-  const length = queryCode.length;
-  const options: TextOptions = { tokenPrefix: length >= 2, weak: length >= 3 };
-  const minimum = length <= 1 ? 7000 : length === 2 ? 5000 : 1500;
+  const query = parseQuery(rawQuery);
+  if (query === null) return [];
 
   const hits: Hit[] = [];
   for (const entry of index.entries) {
@@ -133,34 +118,34 @@ export function search(index: SearchIndex, rawQuery: string): Hit[] {
 
     for (const listing of entry.listings) {
       if (listing.codeCompact === null) continue;
-      const quality = gradeCode(listing.codeCompact, queryCode);
+      const quality = gradeCode(listing.codeCompact, query.code);
       if (quality > 0) best = Math.max(best, quality * FIELD.code);
     }
 
     best = Math.max(
       best,
-      gradeText(entry.nameNorm, entry.nameWords, query, queryWords, options) * FIELD.product,
+      gradeText(entry.nameNorm, entry.nameWords, query.norm, query.words, query.options) *
+        FIELD.product,
     );
 
     for (const listing of entry.listings) {
       best = Math.max(
         best,
-        gradeText(listing.nameNorm, listing.nameWords, query, queryWords, options) * FIELD.listing,
+        gradeText(listing.nameNorm, listing.nameWords, query.norm, query.words, query.options) *
+          FIELD.listing,
       );
     }
 
     for (const alt of entry.altNames) {
       best = Math.max(
         best,
-        gradeText(alt.norm, alt.words, query, queryWords, options) * FIELD.alt,
+        gradeText(alt.norm, alt.words, query.norm, query.words, query.options) * FIELD.alt,
       );
     }
 
-    if (best <= 0) continue;
-    const score = Math.round(SCALE * best);
-    if (score >= minimum) hits.push({ id: entry.id, score });
+    const result = toHit(entry.id, best, query);
+    if (result !== null) hits.push(result);
   }
 
-  hits.sort((a, b) => b.score - a.score);
-  return hits;
+  return sortHits(hits);
 }

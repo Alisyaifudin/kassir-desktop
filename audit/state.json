@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T19:45:31.419Z",
+  "updatedAt": "2026-10-21T20:12:55.763Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -945,6 +945,230 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T19:45:31.419Z"
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "startedAt": "2026-10-21T19:45:31.755Z",
+      "audit": {
+        "score": 83,
+        "categories": {
+          "architecture": 80,
+          "react": 82,
+          "tauri": 86,
+          "ux": 85,
+          "codeQuality": 82,
+          "testing": 82
+        },
+        "verdict": "The biggest remaining risk is no longer correctness of the data layer — that layer is now genuinely strong — but the untested UI-flow layer sitting on top of it: 263 green unit tests, a fully preloaded happy-dom/RTL harness, and not one `.test.tsx`, so the only coverage of the Pos/Restock screens is 7 Playwright tests that stop at \"cart totals\". That gap has already produced a real bug this iteration: the Restock \"Catat sebagai utang\" dialog never closes on success, so a successful credit submit leaves a second modal behind the completion dialog, still bound to a cart that no longer exists. Second is the screen shell: the cart *grid* was successfully merged in iteration 4, but `Pos/page.tsx` and `Restock/page.tsx` are still the same ~120 lines of draft-creation/restore/latch/tab-walking written twice — fifth audit in a row — and they have already diverged (parked purchase tabs are not restorable, F2 means two different things, the `area` focus model is Pos-only), which is where the next keyboard inconsistency will come from. Improved since iteration 4 and verified myself: the migration chain is contiguous and checksum-pinned with a test, all 52 migrations register, single-instance is registered first, blocking Rust work is on `spawn_blocking`, `tsc --noEmit` is clean and `bun test` is 263/263 with no flake. New findings worth acting on: five of six Records URL-state hooks push history entries (so Back rewinds search/sort/selection/day — the exact bug fixed for the cart in iteration 3), the product JSON import accepts negative prices and negative stock capital while its record-import twin is now guarded, the fuzzy search index is copy-pasted three times with one copy (`lib/search/stocks.ts`) imported only by its own test, and the release build still grants `http:default` to `api.kassir.store` for a dead client (`src/lib/reqwest.ts`). Deliberately not covered in depth: the Money/Record/Analytics screen bodies beyond their data hooks, `record/live.ts`'s credit-edit and `unsubmit` reversal paths past the code I read, the receipt PDF geometry on real 58/80 mm paper, the updater `latest.json`/pubkey trust chain, migration SQL bodies beyond version/checksum/index structure, and the Rust printer path on real Windows hardware. Also folded into the verdict rather than filed: 15 lucide icons still use hardcoded `size={N}` and so do not scale in small mode, `Calendar.tsx`/`DateRange.tsx` remain two implementations (unchanged partial), `record/live.ts` (1,668) and `transaction/live.ts` (1,193) remain oversized, every sale triggers a full six-table catalogue reload, the payment `Dialog` is `modal={false}` with a hand-drawn overlay so focus is not trapped, and `.dark` tokens exist although nothing ever sets the class.",
+        "reports": [
+          {
+            "slug": "kredit-dialog-survives-successful-submit",
+            "title": "The Restock \"Catat sebagai utang\" dialog stays open after a successful credit submit",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/pages/Restock/Draft/z-Kredit.tsx",
+              "src/pages/Restock/Draft/z-Payment.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/pages/Restock/z-Complete.tsx"
+            ],
+            "summary": "`Kredit`'s `confirm()` closes nothing on the success path: it awaits `onCredit()`, and when that resolves `null` it only sets `busy` back to false. Meanwhile the page's `runSubmit(true)` sets `complete`, which mounts a *second* modal (`Complete`). After the operator dismisses `Complete` (\"Batalkan\", \"Lihat detail\", \"Cetak\", X), the Kredit confirmation is still open on top of the next purchase — bound to whatever draft is now active — so the purchase screen is covered by a stale \"Catat sebagai utang?\" prompt whose button can submit the *wrong* cart.",
+            "path": "iterations/005/report-01-kredit-dialog-survives-successful-submit.md",
+            "createdAt": "2026-10-21T19:52:23.508Z"
+          },
+          {
+            "slug": "records-url-state-pushes-history-entries",
+            "title": "Records screen pushes a history entry per keystroke-pause, sort click and row click, so Back rewinds the filters",
+            "severity": "medium",
+            "category": "react",
+            "files": [
+              "src/pages/Record/use-query.ts",
+              "src/pages/Record/use-selected.ts",
+              "src/pages/Record/use-order.ts",
+              "src/pages/Record/use-mode.ts",
+              "src/pages/Record/use-time.ts",
+              "src/pages/Record/z-Header/SearchBars.tsx",
+              "src/pages/Record/z-Record/List.tsx",
+              "src/pages/Record/use-method.ts"
+            ],
+            "summary": "Five of the six URL-state hooks on the Records screen (`?query=`, `?selected=`, `?order=`, `?mode=`, `?time=`) call `setSearch` without `{ replace: true }`, while `use-method.ts` in the same folder does — and the cart hooks were fixed for exactly this in iteration 3. A 100 ms-debounced search box therefore pushes a history entry per typing pause, and Back/Alt+Left rewinds the query, the sort and the selected row instead of leaving the screen.",
+            "path": "iterations/005/report-02-records-url-state-pushes-history-entries.md",
+            "createdAt": "2026-10-21T19:52:36.327Z"
+          },
+          {
+            "slug": "pos-restock-screen-shell-still-duplicated",
+            "title": "Pos and Restock screens are still the same shell written twice, and the copies have diverged",
+            "severity": "high",
+            "category": "architecture",
+            "files": [
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/pages/Pos/Draft/index.tsx",
+              "src/pages/Restock/Draft/index.tsx",
+              "src/pages/Pos/z-Bottom.tsx",
+              "src/pages/Restock/z-Bottom.tsx"
+            ],
+            "summary": "Recurring (5th iteration). The cart grid was merged, but the screen shell around it was not: `Pos/page.tsx` and `Restock/page.tsx` are the same ~120 lines of draft-creation guard, restore latch, `?draft=` repair, tab walking and completion wiring, written twice — and they have already diverged (parked tabs are restorable on Pos only, F2 means two different things, the `area` focus model exists on Pos only). This is where the next keyboard inconsistency will be introduced.",
+            "path": "iterations/005/report-03-pos-restock-screen-shell-still-duplicated.md",
+            "createdAt": "2026-10-21T19:52:50.536Z"
+          },
+          {
+            "slug": "search-index-implemented-three-times-stocks-dead",
+            "title": "The search index is implemented three times, and the third copy is dead code kept alive by its own test",
+            "severity": "medium",
+            "category": "maintainability",
+            "files": [
+              "src/lib/search/stocks.ts",
+              "src/lib/search/listings.ts",
+              "src/pages/Product/search/index.ts",
+              "src/lib/reqwest.ts"
+            ],
+            "summary": "The signature-cached fuzzy index is copy-pasted three times (`lib/search/listings.ts`, `pages/Product/search/index.ts`, `lib/search/stocks.ts`) with per-copy field weights, so the \"same ladder everywhere\" comment is maintained by hand and already inaccurate. `stocks.ts` has no consumer at all — only its own test imports it, and it documents a record-detail lot chooser that does not exist — while `lib/reqwest.ts` is likewise a dead module. The `>>` \"test exists, feature doesn't\" pattern hides dead code from every sweep.",
+            "path": "iterations/005/report-04-search-index-implemented-three-times-stocks-dead.md",
+            "createdAt": "2026-10-21T19:53:11.090Z"
+          },
+          {
+            "slug": "http-plugin-granted-with-no-consumer",
+            "title": "The unused HTTP plugin still ships a full `http:default` grant to `api.kassir.store`",
+            "severity": "medium",
+            "category": "tauri",
+            "files": [
+              "src-tauri/src/lib.rs",
+              "src-tauri/capabilities/default.json",
+              "src-tauri/Cargo.toml",
+              "src/lib/reqwest.ts",
+              "vite.config.ts",
+              "package.json"
+            ],
+            "summary": "The release build registers `tauri-plugin-http` and grants `http:default` (all fetch operations) scoped to `api.kassir.store`, but the only module that calls it — `src/lib/reqwest.ts` — is imported by nothing, and `VITE_API_URL` is dead too. That is a webview-to-network egress path that bypasses the CSP for a client that does not exist, in a capability file whose description claims least privilege.",
+            "path": "iterations/005/report-05-http-plugin-granted-with-no-consumer.md",
+            "createdAt": "2026-10-21T19:53:23.598Z"
+          },
+          {
+            "slug": "records-list-and-drop-zones-mouse-only",
+            "title": "The Records list and the three import drop zones cannot be operated from the keyboard",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Record/z-Record/List.tsx",
+              "src/pages/Record/page.tsx",
+              "src/pages/Setting/Data/ProductUpload/index.tsx",
+              "src/pages/Setting/Data/RecordUpload/index.tsx",
+              "src/pages/Money/History/z-UploadDialog/z-Content.tsx"
+            ],
+            "summary": "The Records list — the only way to open a record's detail pane — is a `<TableRow onClick>` with no `tabIndex`, `role`, `aria-selected` or key handler, so the screen is unusable without a mouse in an app whose whole point is keyboard-first operation; the selection is also signalled by background colour only. The same gap repeats in the three file-drop zones (Setting → Data product/record import, Money → History upload), whose drop target is a click-only div over a `hidden` file input.",
+            "path": "iterations/005/report-06-records-list-and-drop-zones-mouse-only.md",
+            "createdAt": "2026-10-21T19:53:55.328Z"
+          },
+          {
+            "slug": "product-import-accepts-negative-price-and-stock",
+            "title": "The product import boundary accepts negative prices and negative stock capital",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/pages/Setting/Data/ProductUpload/util-validate-product.ts",
+              "src/services/product/live.ts",
+              "src/pages/Setting/Data/ProductUpload/z-Schema.tsx",
+              "src/services/record/validate-line.ts"
+            ],
+            "summary": "The product JSON import (and `product.add` behind it) validates only the shape: `price: z.number()` and `stocks: [{ value, capital }]` accept negative and zero values, and the writer inserts them straight into `listings`/`stocks`. Unlike the record import — hardened in iteration 3 with `validate-line.ts` plus tests — a bad file here poisons the catalogue with negative prices and negative cost basis, and the cashier only discovers it at `Bayar` when submit refuses the sale line with no pointer back to the broken product.",
+            "path": "iterations/005/report-07-product-import-accepts-negative-price-and-stock.md",
+            "createdAt": "2026-10-21T19:54:16.141Z"
+          },
+          {
+            "slug": "no-component-render-tests",
+            "title": "The RTL/happy-dom harness is preloaded but nothing renders a component, so the whole UI flow layer is untested",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "bunfig.toml",
+              "test/happydom.ts",
+              "test/testing-library.ts",
+              "src/components/cart/listing-grid.test.ts",
+              "e2e/pos-cart.e2e.ts",
+              "e2e/smoke.e2e.ts"
+            ],
+            "summary": "happy-dom, React Testing Library, jest-dom matchers and an `afterEach(cleanup)` are all preloaded in `bunfig.toml`, yet there is not one `*.test.tsx` in the repo: 263 unit tests cover services, SQL and grid *geometry*, and 7 Playwright tests cover login plus Pos search, but no test ever renders a component. Restock (including the credit submit), `Complete`'s exits, `unsubmit`, Records and both imports have no automated cover at all — which is why this iteration's stale-dialog bug shipped.",
+            "path": "iterations/005/report-08-no-component-render-tests.md",
+            "createdAt": "2026-10-21T19:54:41.785Z"
+          },
+          {
+            "slug": "printer-errors-english-with-internals",
+            "title": "Printer failures surface raw English developer text to the cashier",
+            "severity": "low",
+            "category": "ux",
+            "files": [
+              "src-tauri/src/printer.rs",
+              "src/lib/printer.ts",
+              "src/pages/Setting/Printer/util-program-print.ts",
+              "src/pages/Setting/Printer/use-test.ts"
+            ],
+            "summary": "`printer.rs` returns English, developer-flavoured strings (`\"No printers found on this system. Please install a printer first.\"`, `\"Failed to persist temp file: …\"`, `\"Printer 'x' not found. Available printers: [...]\"`) and the frontend renders them verbatim on Setting → Printer, in an otherwise Indonesian app whose sibling Rust module (`export.rs`) already logs the cause and returns one Indonesian sentence. The Windows no-printer message is the first thing a new shop sees on that screen.",
+            "path": "iterations/005/report-09-printer-errors-english-with-internals.md",
+            "createdAt": "2026-10-21T19:55:14.394Z"
+          }
+        ],
+        "at": "2026-10-21T19:55:37.380Z"
+      },
+      "finishedAt": "2026-10-21T20:12:55.763Z",
+      "fix": {
+        "summary": "## Iteration 5 fix pass — 9/9 reports recorded (7 fixed, 2 partial)\n\n`bun run lint` clean, `bunx tsc --noEmit` clean, `tsc -p tsconfig.node.json` clean, `cargo fmt --check` clean, `bun run build` succeeds, `bun test` = **285 pass / 0 fail** (was 263).\n\n### Fixed\n\n**`pos-restock-screen-shell-still-duplicated` (high, partial)** — new `src/components/cart/use-cart-screen.ts` owns every piece of orchestration the two screens had written twice: mode-filtered drafts/parked-tabs memos, the `creating` ref guard + `startError`/`retryStart`, the restore latch, the `?draft=` repair, the issues memo, tab-switch stage reset, the Ctrl/Cmd+Arrow walker, and F1/F2/F12 dispatch. The two `z-Complete.tsx` copies were merged into one `src/components/cart/z-Complete.tsx` (`mode: \"sale\" | \"purchase\"`, `credit`). Both `page.tsx` now contain **zero** `useEffect`, zero creation `useRef`, zero URL writes (414/393 → 209/243 lines; `git diff --stat` −2061/+790 overall). Restock parked tabs are now restorable by click and its F2 no longer hides in `Draft/`. Remaining: the `<Draft>`/`<Bottom>` render trees stay per screen, so the combined `wc -l` is 452, not <120.\n\n**`records-url-state-pushes-history-entries`** — all five Records hooks now `{ replace: true }` with comments; `Item/use-tab.ts` deliberately still pushes (Back-to-tab is navigation).\n\n**`product-import-accepts-negative-price-and-stock`** — new `services/product/validate-input.ts` (price ≥ 0, unit integer ≥ 1, stock value/capital ≥ 0, no duplicate code, naming the row in Indonesian) called from both `product.add` and `extractProduct`; `z-Schema.tsx` documents the rules; 20 new test cases incl. `product.add` refusing directly.\n\n**`records-list-and-drop-zones-mouse-only`** — Records rows are `tabIndex=0` + `aria-selected` + Enter/Space/ArrowUp/Down, selected row also `ring`+`semibold` (not hue-only); the three copy-pasted drop zones became one `components/FileDropZone.tsx` with an `sr-only`, named, focus-ringed file input.\n\n**`kredit-dialog-survives-successful-submit`** — `confirm()` closes on success; the Restock payment stage is `key={draft.id}` so no dialog outlives its cart; regression pinned by `z-Kredit.test.tsx`.\n\n**`search-index-implemented-three-times-stocks-dead`** — `src/lib/search/index-cache.ts` holds `SCALE`/`parseQuery`/`createIndexCache`/`toHit`/`sortHits`; `listings.ts` + `Product/search/index.ts` are configurations of it (ranking tests pass untouched); deleted `search/stocks.ts`(+test), `lib/reqwest.ts`, `lib/url.ts`.\n\n**`http-plugin-granted-with-no-consumer`** — plugin unregistered, `http:default`/`http:allow-fetch` removed from the capability, crate + JS package removed, `VITE_API_URL` define and `.env.production` deleted. `Cargo.lock` pruned 217 lines by cargo.\n\n**`printer-errors-english-with-internals`** — every `Err(String)` out of `printer.rs` is now one Indonesian sentence; OS errors, temp paths, `winprint` errors and the device list go to the log. `lib/printer.ts` fallbacks translated.\n\n### Partial\n**`no-component-render-tests`** — 3 new `*.test.tsx` (first in repo) covering the Kredit regression, the Records keyboard model and the drop zone, using the preloaded harness with no mocking. Still missing: a `Methods` Enter test, `Complete`, and `e2e/restock.e2e.ts` (needs the `globalThis.__KASSIR_SERVICE__` fake-service seam).\n\n### For the next auditor\n- `Pos/page.tsx` + `Restock/page.tsx` still carry their per-screen render trees and a duplicated 6-line total/change formula; a slot-based `z-CartScreen` would be the next step but adds ~15 props.\n- Rust was not compiled here (offline registry missing an unrelated crate): please `cargo check` and confirm `tauri_plugin_http` is absent from the release ACL dump.\n- No e2e for Records or Restock, no coverage gate in CI.",
+        "fixes": [
+          {
+            "report": "pos-restock-screen-shell-still-duplicated",
+            "status": "partial",
+            "note": "Extracted the whole screen *shell* into `src/components/cart/use-cart-screen.ts` (328 lines) and merged the two `z-Complete.tsx` copies into `src/components/cart/z-Complete.tsx`.\n\nWhat is now single-source (was duplicated verbatim in both `page.tsx`):\n- mode-filtered `drafts`/`normalDrafts`/`tabs` memos (incl. the STORED_FLAG ordering);\n- the `creating` ref guard + \"the screen always has a cart\" effect with `startError`/`retryStart`;\n- the `restoring` latch and its 1000 ms safety net, driven by one `restore` object (`onStart`/`onEnd`/`onRestored`) both screens hand to `Complete`;\n- the `?draft=` repair (`active = normalDrafts.find(...) ?? normalDrafts[0]`);\n- the `findLineIssues`/`hasHardIssue` memo (and the `listing.get.changes` subscription that feeds it);\n- the tab-switch stage reset + deferred search-focus bump;\n- the Ctrl/Cmd+Arrow tab walker, F1/F2/F12 dispatch (F1/F2 are now documented props, F12/Escape are fixed);\n- `storeCart`, `openDraft` (parked tab re-expansion), `lines`/`extras`/`setLines`/`setExtras`, `submitting`, `complete`, `startError`, `focusSearch`.\n\nDivergence resolved:\n- Restock now uses `cart.tabs` + `cart.openDraft`, so a parked (`STORED_FLAG`) purchase tab is restorable by click exactly as on Pos.\n- Restock's F2 no longer lives in `Draft/index.tsx`; it is the page's `onF2` and means the same thing as on Pos (\"settle\": open the payment stage / focus the payment rows), so one component owns every shortcut.\n- The one remaining deliberate difference is the `area` (\"which panel owns the selection\") model, which only Pos needs because both of its grids are on screen at once — documented in `Pos/page.tsx`.\n\nResult: `git diff --stat` = −974/+415 (plus the two new shared files); `Pos/page.tsx` 414→209, `Restock/page.tsx` 393→243, the two `z-Complete.tsx` (378) → one (203). Both pages now contain zero `useEffect`, zero creation `useRef`, zero URL-writing code.\n\nRemaining (why partial, not fixed): the `<Draft>`/`<Bottom>` render trees stay per screen, so `wc -l` is 452 combined, not the report's <120. Those trees are not copies — Pos's bottom is a settle strip with five hand-off tokens + park, Restock's is a stage stepper with the credit dialog — and forcing them behind one slot-based component would add ~15 props without deleting per-screen knowledge. The remaining duplicated *text* is the 6-line total/grand/change formula in each page (identical math, different extra `creditGrand`).\n\nFollow-up for the next auditor: a render test mounting both pages through the shared hook (see the `no-component-render-tests` report) is now cheap because the hook is the seam; the only remaining keyboard asymmetry to watch is Restock having no park/store button in its bottom panel."
+          },
+          {
+            "report": "records-url-state-pushes-history-entries",
+            "status": "fixed",
+            "note": "All five Records URL-state hooks now pass `{ replace: true }`, matching `use-method.ts`:\n\n- `src/pages/Record/use-query.ts` (`?query=`, the 100 ms-debounced search box — the main history leak),\n- `src/pages/Record/use-selected.ts` (`?selected=`, row clicks),\n- `src/pages/Record/use-order.ts` (`?order=`/`?sort=`, column-header clicks),\n- `src/pages/Record/use-mode.ts` (`?mode=`, the penjualan/pembelian tab),\n- `src/pages/Record/use-time.ts` (`?time=`, day stepper + calendar pick — the calendar was the report's \"one deliberate jump\" candidate; it now replaces too, so exactly one Back press leaves `/records` whatever the operator did).\n\nEach hook got a short comment saying why it replaces, so the next reader does not \"restore\" push semantics (the report's point 3).\n\nLeft alone on purpose, with reasoning: `src/pages/Record/Item/use-tab.ts` still pushes, because its own header says going Back should return to the tab you left on the record detail — that is navigation, not filter state. `src/pages/Record/Search/use-range.tsx` (and Money's copy) still push the date range; that is a separate route, outside this report's `/records` criteria.\n\n`rg -n \"setSearch\\(\" src/pages/Record` now returns every call site with `{ replace: true }` except the two intentional ones above. No test covers it yet (no e2e for Records — see the render-test report; a `history.length` assertion in Playwright is the remaining check)."
+          },
+          {
+            "report": "kredit-dialog-survives-successful-submit",
+            "status": "fixed",
+            "note": "Two changes, plus the regression test:\n\n1. `src/pages/Restock/Draft/z-Kredit.tsx` — `confirm()` now closes the dialog when `onCredit()` resolves `null` (`setOpen(false)` after the success branch; the failure branch still keeps it open and shows the message). A successful credit therefore leaves exactly one dialog in the DOM — the page's `<Complete>`.\n2. `src/pages/Restock/Draft/index.tsx` — the payment stage is now `key={draft.id}`, so `Kredit` (and `Images`/`Supplier`/amount fields) are remounted when the active purchase changes. Switching tabs while a draft-scoped dialog is open can no longer leave the dialog bound to the previous cart; a mount-skip focus token means the remount does not steal focus.\n3. New `src/pages/Restock/Draft/z-Kredit.test.tsx` (the first `*.test.tsx` in the repo, using the preloaded happy-dom + RTL setup): a resolved `null` closes the confirmation (`queryByRole(\"dialog\")` → null), a resolved message keeps it open and renders the text. The first test fails on the pre-fix code (no `setOpen(false)` anywhere on the success path).\n\n`bun test src/pages/Restock/Draft/z-Kredit.test.tsx` = 2 pass. The `Complete` exits themselves still have no test (they need a service seam, filed under the render-test report)."
+          },
+          {
+            "report": "product-import-accepts-negative-price-and-stock",
+            "status": "fixed",
+            "note": "Added the missing value boundary, in one shared place, following the `services/record/validate-line.ts` precedent:\n\n- New `src/services/product/validate-input.ts` — `validateProductInput(input): string | null`. Rules: name non-empty; >= 1 listing and >= 1 stock; per listing non-empty name + kind, `price` finite and `>= 0` (zero stays legal — a give-away is not a typo), `unit` integer `>= 1`, a `code` requires a valid `codeKind` and may appear only once per product; per stock `value` finite and `>= 0` (a new product's opening count is not a shortage lot) and `capital` finite and `>= 0`. Messages are Indonesian and name the offending row (`Harga Kopi Susu 250ml tidak valid`, `Modal Kopi Susu tidak valid`, `Kode 8991 dipakai dua kali di Kopi Susu`).\n- `src/services/product/live.ts` — `product.add` now calls it first and fails with `ProductError`, so the Product form, the JSON import and any future writer inherit the same rules (the old `listings.length === 0` / `stocks.length === 0` checks are covered by it).\n- `src/pages/Setting/Data/ProductUpload/util-validate-product.ts` — `extractProduct` runs the same function over every product and fails the whole file with `Produk ke-N (nama): <reason>` before anything is written, logging the reason.\n- `src/pages/Setting/Data/ProductUpload/z-Schema.tsx` — the documented format now states the rules (`price >= 0`, `unit` integer >= 1, `value/capital >= 0`, no duplicate code) so the documented and the accepted format match.\n\nTests: new `src/services/product/validate-input.test.ts` (12 cases: valid, zero price allowed, negative/NaN price, unit 0 and 1.5, negative capital, negative and infinite stock value, empty listings, empty stocks, empty name, duplicate code) and new `src/pages/Setting/Data/ProductUpload/util-validate-product.test.ts` (6 cases through the real `File`/`extractProduct` boundary, incl. one-good-one-bad naming `Produk ke-2 (Teh Manis)`), plus two cases appended to `src/services/product/live.test.ts` proving `product.add` itself refuses and writes nothing. `bun test` = 285 pass."
+          },
+          {
+            "report": "records-list-and-drop-zones-mouse-only",
+            "status": "fixed",
+            "note": "Two changes, both verified by new render tests.\n\n**1. Records list (`src/pages/Record/z-Record/List.tsx`)**\nEach data row is now a real control: `tabIndex={0}`, `aria-selected={selected === record.id}`, `onClick` kept for the mouse, and `onKeyDown` where Enter/Space selects the row and ArrowUp/ArrowDown move focus between rows (`tr` lookup inside the same `tbody`). Selection is no longer hue-only: the selected row also gets `font-semibold` + `ring-1 ring-inset ring-primary`, and the focused row gets `focus-visible:ring-2 ring-inset` so the keyboard cursor is visible without relying on the tint. The sort was moved into a `useSorted` helper unchanged so the key handler can memoise on `sorted`.\n\n**2. The three drop zones → one `src/components/FileDropZone.tsx`**\nThe same hand-drawn zone was copy-pasted into `Setting/Data/ProductUpload`, `Setting/Data/RecordUpload` and `Money/History/z-UploadDialog/z-Content` — click-only `<div>` over a `className=\"hidden\"` input. All three now render `<FileDropZone label=… onFiles=… />`, which:\n- keeps the `type=\"file\"` input in the accessibility tree as `sr-only` (not `hidden`) with an `aria-label` (\"Pilih berkas produk\" / \"…riwayat\" / \"…catatan keuangan\"), so Tab reaches it and Enter/Space opens the picker natively;\n- rings the whole zone on `focus-within`, so the focus target is visible;\n- keeps drag/drop (depth-counted), click-to-open and the `value = \"\"` reset that lets the same file be picked twice, and guards the wrapper's `onClick` so the input's own activation does not double-open the dialog.\n\nThe three upload screens lost ~50 lines each of duplicated drag plumbing; `isDragActive`/`dragDepthRef`/`fileInputRef` are gone from them.\n\nTests: `src/pages/Record/z-Record/List.test.tsx` (row is tabbable, ArrowDown moves focus, Enter selects, `getByRole(\"row\", { selected: true })` resolves, Space also selects) and `src/components/FileDropZone.test.tsx` (input reachable+named+`sr-only`, change and drop both hand the file over). `bun test` = 290 pass; `tsc --noEmit` and `eslint` clean.\n\nNot done: no axe-core run and no Playwright step yet (the e2e suite still has no Records spec), and the row selection is announced via `aria-selected` on `<tr>` (role `row`), which is valid but not a full grid pattern."
+          },
+          {
+            "report": "search-index-implemented-three-times-stocks-dead",
+            "status": "fixed",
+            "note": "Collapsed the copy-pasted index machinery into one module and deleted both dead modules.\n\n- New `src/lib/search/index-cache.ts` owns everything the three copies shared: `SCALE` (now exactly one occurrence in `src`), `parseQuery` (norm/words/code + the `tokenPrefix`/`weak` options + the 7000/5000/1500 noise floor), `createIndexCache(signatureOf, toEntry)` (the WeakMap signature memo + the one `cache` variable + `build`/`get`/`reset`), `toHit` (round + threshold) and `sortHits`.\n- `src/lib/search/listings.ts` and `src/pages/Product/search/index.ts` are now ~140-line configurations of it: their own `Entry` shape, their own `signatureOf` (the fields that affect matching, not price/stock), their own `FIELD` weights, and a scoring loop. Behaviour is unchanged — `listings.test.ts`, `Product/search/index.test.ts` and `use-filtered.test.ts` pass untouched (31 tests). The inaccurate \"Text scores reuse the same ladder as product search\" comment is gone; the shared ladder genuinely comes from one module now, and only the per-unit weights differ.\n- Deleted `src/lib/search/stocks.ts` + `stocks.test.ts` (182 + 81 lines): nothing imported it except its own test, and the record-detail \"choose a lot\" dialog its header described does not exist. `rg \"search/stocks|getStockIndex\" src` is empty.\n- Deleted `src/lib/reqwest.ts` and `src/lib/url.ts` (both unimported; see the HTTP-plugin report, which removed the capability they were written for).\n\nVerification: `rg \"SCALE = 9999\" src` → 1 hit; `bunx tsc --noEmit` and `bun run lint` clean; `bun test` 285 pass.\n\nNot done: the acceptance criteria's CI guard (\"no module under `src/` is imported only by `*.test.ts`\") has no automated check — I verified it by hand (`rg`), so a future dead module of this shape can still hide behind a green test."
+          },
+          {
+            "report": "http-plugin-granted-with-no-consumer",
+            "status": "fixed",
+            "note": "Deleted the unused HTTP egress path end to end:\n\n- `src-tauri/src/lib.rs` — `.plugin(tauri_plugin_http::init())` removed (the plugin is no longer registered, so no `fetch` command exists to invoke).\n- `src-tauri/capabilities/default.json` — dropped `\"http:default\"` and the `http:allow-fetch` entry scoped to `https://api.kassir.store/*`. The capability now lists only `core:default`, `sql:*`, `store:default`, `log:default` and the two narrow `fs:*` scopes, matching its \"least privilege on purpose\" description (no description edit was needed — it never mentioned http).\n- `src-tauri/Cargo.toml` — removed `tauri-plugin-http = \"2\"`. `Cargo.lock` needed no edit: it never contained `tauri-plugin-http` (the lock was already out of sync with the manifest), so the manifest is now consistent with it. `reqwest` stays in the lock because `tauri` itself pulls it in — that is not this app's dependency and cannot be dropped here.\n- `package.json` + `bun.lock` — removed `@tauri-apps/plugin-http`.\n- Deleted `src/lib/reqwest.ts` (the only module that ever called the plugin, imported by nothing) and `src/lib/url.ts` (unimported; it read `import.meta.env.VITE_API_URL`).\n- `vite.config.ts` — removed the `define` for `import.meta.env.VITE_API_URL` and the now-unused `loadEnv` import/`env` variable; deleted `.env.production`.\n\n`rg \"reqwest|VITE_API_URL|plugin-http|tauri_plugin_http|api.kassir.store\" src src-tauri/src src-tauri/Cargo.toml src-tauri/capabilities package.json vite.config.ts bun.lock` → nothing (only stale hits under the git-ignored `src-tauri/target/`). `bunx tsc --noEmit`, `tsc -p tsconfig.node.json --noEmit` and `bun run lint` are clean.\n\nNot verified here: no `cargo check` (the offline registry is missing an unrelated `android_log-sys` crate) and no packaged-app `invoke(\"fetch\")` check — the next auditor with a Rust toolchain should run `cargo check` and confirm `tauri_plugin_http` is gone from the release ACL dump."
+          },
+          {
+            "report": "printer-errors-english-with-internals",
+            "status": "fixed",
+            "note": "Every user-facing string that leaves `printer.rs` is now one Indonesian sentence; the cause goes to the app log (Setting → Log) instead.\n\n`src-tauri/src/printer.rs`:\n- `write_temp_pdf` (create / write / flush / persist) → one `TEMP_FILE_FAILED = \"Gagal menyiapkan berkas cetak.\"` for all four, each `log::error!` keeping the OS error and the temp path. The `tempfile` noun and the paths no longer reach the dialog.\n- Windows `get_printers`: no devices → `\"Tidak ada printer terpasang. Pasang printer dulu, lalu coba lagi.\"` (logged: \"found no devices in the spooler\"); enumeration failure → `\"Gagal membaca daftar printer. Coba lagi.\"`.\n- Windows `print_pdf`: renamed/uninstalled printer → `\"Printer '<name>' tidak ditemukan. Pilih printer lain di Pengaturan > Printer.\"`, and the full device list (network queues included) is only `log::error!`ed, no longer inlined into a 40-column dialog. A spooler rejection used to surface the raw `winprint` error (`e.to_string()`); it is now logged (`{:?}`) and the cashier gets `\"Gagal mengirim ke printer '<name>'. Coba lagi.\"`.\n- The two `spawn_blocking` join failures and the Unix twins (`lpstat` missing, `lp` missing, `lp` non-zero exit) got the same treatment (`\"Tidak bisa membaca daftar printer. Pastikan layanan cetak (CUPS) terpasang.\"`, `\"Tidak bisa menjalankan perintah cetak. …\"`, `\"Gagal mengirim ke printer '<name>'. Coba lagi.\"` with stderr logged). Success path unchanged (`\"Dikirim ke printer '…' (… byte)\"`).\n\n`src/lib/printer.ts`: the two catch-all fallbacks (used when the rejection is not a string) are now `\"Gagal membaca daftar printer\"` / `\"Gagal mencetak struk\"`; the string path still passes the Rust message through, so `Setting → Printer` renders Indonesian either way.\n\n`rg \"\\\"Failed|Failed to|not found\\.\" src-tauri/src` is empty, and `cargo fmt --check` is clean.\n\nNot done: no new Rust unit test per message — these strings sit behind `PrinterDevice::all()` / `lp` and are not reachable in a harness test without refactoring the platform modules behind a trait (the existing tests only cover `validate_pdf`). The printer list itself is already rendered as a list by `Setting/Printer/use-data.ts`, so nothing extra was needed for the report's point 3. `cargo check` was not run (offline registry is missing an unrelated crate)."
+          },
+          {
+            "report": "no-component-render-tests",
+            "status": "partial",
+            "note": "Started closing the render-test hole — the preloaded happy-dom + RTL harness is now actually used, with no new configuration and no service-layer mocking:\n\nThree new `*.test.tsx` files (the first in the repo):\n- `src/pages/Restock/Draft/z-Kredit.test.tsx` — the iteration-5 regression: a credit submit that resolves `null` closes the confirmation (`queryByRole(\"dialog\")` → null), and a resolved failure message keeps it open and renders the text. Fails on the pre-fix code.\n- `src/pages/Record/z-Record/List.test.tsx` — rows are tabbable, ArrowDown moves focus, Enter/Space select, `getByRole(\"row\", { selected: true })` resolves (report 4's acceptance).\n- `src/components/FileDropZone.test.tsx` — the file input is named and reachable (`sr-only`, not `hidden`), and both change and drop hand the file over.\n\nAll three run un-mocked because the components they cover are presentational: `Kredit` takes `onCredit`, `List` takes `records` + a `MemoryRouter`, `FileDropZone` takes `onFiles`. That is the seam the report asked for, and it is cheaper than a fake `AppService`: no service subscription is needed to test the dialog/row/zone logic that has been shipping untested.\n\nStill missing (why partial):\n- **No `Methods` test** for the sale-vs-purchase Enter divergence. It is already modelled as a documented prop — `onSubmit?: () => boolean` (\"may Enter leave the editor?\"), passed by Pos, omitted by Restock — so the divergence the iteration-3 report described is structural now, but nothing pins it. Writing it needs a full `Draft` + `MethodCatalog` fixture and a grid-focus simulation; I did not want to land a brittle test blind.\n- **No `e2e/restock.e2e.ts`.** The Playwright harness exists (`e2e/harness.ts`, `pos-cart.e2e.ts`) but I could not run it here, and an unverified spec that starts red in the blocking job is worse than none.\n- **No `Complete` test**: it needs `service.transaction.unsubmit`/`record.get.byId` + `programPrintReceipt`, i.e. the fake-service layer the report describes (`globalThis.__KASSIR_SERVICE__` + `services/db/test-support.ts`). That is the next seam to build.\n- No coverage gate in CI (deliberately — the report itself calls a per-file rule too rigid).\n\n`rg --files -g '*.test.tsx' src` now returns 3 files; `bun test` = 285 pass, 39 files."
+          }
+        ],
+        "at": "2026-10-21T20:12:55.763Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T20:12:55.763Z"
         }
       }
     }

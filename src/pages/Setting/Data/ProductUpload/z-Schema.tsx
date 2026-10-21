@@ -10,20 +10,20 @@ import {
 } from "~/components/ui/dialog";
 
 const productSchema = `{
-    name: string;
+    name: string;            // wajib diisi
     note: string;
     listings: {
         name: string;
-        price: number;
-        unit: number;        // pcs per listing unit, at least 1
+        price: number;       // >= 0 (boleh 0 untuk bonus)
+        unit: number;        // pcs per listing unit, bilangan bulat >= 1
         kind: string;        // e.g. "retail", "wholesale"
-        code: string | null;
+        code: string | null; // tidak boleh sama dalam satu produk
         codeKind: "barcode" | "qr" | null;
-    }[];                     // at least one
+    }[];                     // minimal satu
     stocks: {
-        value: number;       // pcs
-        capital: number;     // per pc
-    }[];                     // at least one
+        value: number;       // pcs, >= 0
+        capital: number;     // modal per pc, >= 0
+    }[];                     // minimal satu
     properties: { key: string; value: string }[];
 }[]`;
 
@@ -45,6 +45,11 @@ export function SchemaDialog() {
               <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
                 <code>{productSchema}</code>
               </pre>
+              <p className="text-small!">
+                Angka negatif ditolak: harga, jumlah stok dan modal tidak boleh kurang dari nol,
+                dan satu kode tidak boleh dipakai dua kali. Baris yang salah dilaporkan sebelum
+                data disimpan.
+              </p>
             </div>
           </DialogDescription>
         </DialogHeader>

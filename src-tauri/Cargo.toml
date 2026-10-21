@@ -38,7 +38,6 @@ tauri-plugin-process = "2"
 tauri-plugin-log = "2"
 log = "0.4"
 tauri-plugin-fs = "2"
-tauri-plugin-http = "2"
 tempfile = "3"
 tauri-plugin-dialog = "2"
 # One process per machine: the app preloads a fixed `sqlite:data.db` and keeps the

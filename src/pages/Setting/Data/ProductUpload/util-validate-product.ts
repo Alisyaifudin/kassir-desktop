@@ -3,6 +3,7 @@ import { z } from "zod";
 import { JsonError, TooBigError } from "~/lib/effect-error";
 import { log } from "~/lib/log";
 import type { ProductInput } from "~/services/product";
+import { validateProductInput } from "~/services/product/validate-input";
 
 const listingSchema = z.object({
   name: z.string().nonempty(),
@@ -57,6 +58,19 @@ export function extractProduct(file: File) {
     if (!parsed.success) {
       log.error(parsed.error);
       return yield* Effect.fail(new JsonError("Format data tidak sah. Cek lagi."));
+    }
+
+    // The schema above checks the shape; these check the numbers, with the same
+    // rules `product.add` enforces, so a file the dialog accepts is a file the
+    // writer accepts — and the message names the row before "Impor" is pressed.
+    for (const [index, product] of parsed.data.entries()) {
+      const invalid = validateProductInput(product);
+      if (invalid !== null) {
+        log.error(invalid);
+        return yield* Effect.fail(
+          new JsonError(`Produk ke-${index + 1} (${product.name}): ${invalid}`),
+        );
+      }
     }
 
     return { products: parsed.data, name: file.name };

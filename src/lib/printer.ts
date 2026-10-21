@@ -12,7 +12,7 @@ export function getPrinters() {
     catch: (e) =>
       typeof e === "string"
         ? new InvokeError(new Error(e))
-        : new InvokeError(new Error("Failed to get printers", { cause: e })),
+        : new InvokeError(new Error("Gagal membaca daftar printer", { cause: e })),
   });
 }
 
@@ -22,6 +22,6 @@ export function printPdf(printerName: string, pdfBytes: Uint8Array) {
     catch: (e) =>
       typeof e === "string"
         ? new InvokeError(new Error(e))
-        : new InvokeError(new Error("Failed to print PDF", { cause: e })),
+        : new InvokeError(new Error("Gagal mencetak struk", { cause: e })),
   });
 }
