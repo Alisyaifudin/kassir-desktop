@@ -29,6 +29,8 @@ export function Complete({
   total,
   change,
   fix,
+  onRestoreStart,
+  onRestoreEnd,
   onRestored,
   onClose,
 }: {
@@ -36,6 +38,8 @@ export function Complete({
   total: Decimal;
   change: Decimal;
   fix: number;
+  onRestoreStart: () => void;
+  onRestoreEnd: () => void;
   onRestored: (draftId: string) => void;
   onClose: () => void;
 }) {
@@ -62,14 +66,18 @@ export function Complete({
   async function cancel() {
     setBusy("cancel");
     setError(null);
+    onRestoreStart();
     const result = await Effect.runPromise(Effect.either(service.transaction.unsubmit(recordId)));
     if (Either.isLeft(result)) {
+      onRestoreEnd();
       setBusy(null);
       setError(result.left.message);
       return;
     }
-    onRestored(result.right);
+    // Close first: selecting the restored draft while the dialog still owns
+    // `complete` would re-render it over the transaction for a frame.
     onClose();
+    onRestored(result.right);
   }
 
   async function print() {
@@ -107,6 +115,11 @@ export function Complete({
       <DialogContent
         className="max-w-5xl"
         showCloseButton={!locked}
+        onCloseAutoFocus={(event) => {
+          // Do not hand focus back to Bayar: Enter/Space on it would submit the
+          // restored draft immediately after Batalkan.
+          event.preventDefault();
+        }}
         onEscapeKeyDown={(event) => {
           if (locked) event.preventDefault();
         }}
@@ -142,8 +155,8 @@ export function Complete({
 
         <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
           <div className="flex justify-between gap-2">
-            <Button variant="outline" disabled={locked} onClick={() => void cancel()}>
-              {busy === "cancel" ? "Membatalkan..." : "Batal"}
+            <Button variant="destructive" disabled={locked} onClick={() => void cancel()}>
+              {busy === "cancel" ? "Membatalkan..." : "Batalkan"}
             </Button>
             <Button asChild variant="secondary" disabled={locked}>
               <Link

@@ -96,6 +96,11 @@ function Screen({
     change: Decimal;
     fix: number;
   } | null>(null);
+  // Batalkan rebuilds the cart asynchronously. Hold the "no tabs, make one"
+  // effect until the rebuilt draft is actually in the stream, so it cannot
+  // race a second empty tab into existence.
+  const [restoring, setRestoring] = useState(false);
+  const [restoredId, setRestoredId] = useState<string | null>(null);
   const listingRes = useStream(service.listing.get.changes);
 
   // Bumped by F2; the payment rows in the bottom panel watch it to put the
@@ -137,7 +142,13 @@ function Screen({
 
   // The screen always has a sale to show: an empty one is made for it.
   useEffect(() => {
-    if (normalDrafts.length > 0 || creating.current || complete !== null || submitting) {
+    if (
+      normalDrafts.length > 0 ||
+      creating.current ||
+      complete !== null ||
+      submitting ||
+      restoring
+    ) {
       return;
     }
     creating.current = true;
@@ -150,7 +161,24 @@ function Screen({
         creating.current = false;
       },
     );
-  }, [normalDrafts.length, onDraft, complete, submitting]);
+  }, [normalDrafts.length, onDraft, complete, submitting, restoring]);
+
+  // Once the rebuilt draft reaches the stream, the normal no-tabs guard can take
+  // over again. The timeout is a safety net for a stream that never delivers.
+  useEffect(() => {
+    if (!restoring) return;
+    if (restoredId === null) return;
+    if (normalDrafts.some((draft) => draft.id === restoredId)) {
+      setRestoring(false);
+      setRestoredId(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRestoring(false);
+      setRestoredId(null);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [restoring, restoredId, normalDrafts]);
 
   const active = normalDrafts.find((draft) => draft.id === draftId) ?? normalDrafts[0] ?? null;
   const activeId = active?.id ?? null;
@@ -212,12 +240,27 @@ function Screen({
         total={complete.total}
         change={complete.change}
         fix={complete.fix}
-        onRestored={(id) => onDraft(id)}
+        onRestoreStart={() => {
+          setRestoring(true);
+          setRestoredId(null);
+        }}
+        onRestoreEnd={() => {
+          setRestoring(false);
+          setRestoredId(null);
+        }}
+        onRestored={(id) => {
+          setRestoredId(id);
+          onDraft(id);
+        }}
         onClose={() => setComplete(null)}
       />
     );
 
-  if (active === null) return <>{completeDialog ?? <Loading />}</>;
+  // Keep the dialog at the same child position as the main return. Without
+  // this, restoring a draft flips `active` from null to a draft while
+  // `complete` is still set, React remounts the dialog, and the operator sees
+  // a close → open → close flash.
+  if (active === null) return <><Loading />{completeDialog}</>;
 
   /** Park this cart, then jump to another open one (or let the effect make one). */
   function storeCart() {
@@ -258,7 +301,9 @@ function Screen({
 
   /** Start the commit; returns whether the click/key should be swallowed. */
   function submitDraft(): boolean {
-    if (submitting || hardIssue || grand.isZero() || change.isNegative()) return false;
+    if (complete !== null || submitting || hardIssue || grand.isZero() || change.isNegative()) {
+      return false;
+    }
     (document.activeElement as HTMLElement | null)?.blur();
     setSubmitting(true);
     void Effect.runPromise(
