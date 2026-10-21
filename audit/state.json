@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T22:08:12.085Z",
+  "updatedAt": "2026-10-21T22:18:11.483Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -2127,6 +2127,112 @@
           "at": "2026-10-21T22:08:12.085Z"
         }
       }
+    },
+    {
+      "iteration": 11,
+      "startedAt": "2026-10-21T22:08:12.226Z",
+      "audit": {
+        "score": 89,
+        "categories": {
+          "architecture": 91,
+          "react": 89,
+          "tauri": 91,
+          "ux": 86,
+          "codeQuality": 88,
+          "testing": 90
+        },
+        "verdict": "I re-read every iteration-10 fix rather than trusting the changelog and they all hold: `use-scroll.ts` is gone with a regression test on `Table`, `Calendar` has the `granularity` prop with three tests including the hour/minute case, the updater surface and its eleven dependencies are gone (no `updater:*` permission, `createUpdaterArtifacts: false`), `lib/upload.ts` centralises the result→message rule, all 21 dialogs now describe themselves behind a guard test, the expanded design-token test catches `text-mormal`/`text-smallall` and `w-/h-` icon sizes, and the three drifted helpers are consolidated; `tsc --noEmit`, `eslint --max-warnings 0` and `bun test` (59 test files) are clean. The biggest remaining risk is a commit-boundary inversion I have not seen filed before: `record.add.external`, `set.mode` and `delete.byId` run the catalogue re-read *inside* their result, so a read error after the commit is reported as \"the write failed\" — and `transaction.unsubmit` (the completion dialog's \"Batalkan\") reacts to that false failure by deleting the restored cart, so the sale ends up in neither history nor a draft, while the record importer counts an already-written row as skipped. The rest is UI/AT polish that the project's own patterns already solved elsewhere: four of six list surfaces never adopted the roving-tabindex model (Debt/Product/Extra/Money rows are one anonymous icon link per tab stop), `aria-autocomplete=\"list\"` is pasted onto 34 non-combobox fields including password and number inputs, bulk imports die silently when the panel unmounts, and the performance charts build an unbounded bucket per day. Deliberately not covered in depth: the migration SQL bodies and index plan beyond the checksum/contiguity test, the Rust printer on real Windows hardware, the packaged MSI against the release CSP, the contents of the two Playwright specs (137 lines), the receipt PDF geometry on real 58/80 mm paper, and an actual `tauri build`; also folded into the verdict rather than filed — `record/live.ts` (1,727) and `transaction/live.ts` (1,212) remain the two oversized files (fourth audit), `table.tsx` still carries a commented-out `TableScrollable` whose `handleScroll`/`parentRef` were deleted last iteration, `global.css:203-224` has the same shape of dead commented block, `aggregate`/`totals` in the performance module accumulate rupiah in floats, and `useInertApp` refcounts `#root`'s `inert` in a way that could drop it while a second stacked editor is open.",
+        "reports": [
+          {
+            "slug": "post-commit-refresh-failure-reported-as-write-failure",
+            "title": "Three record writes run the catalogue refresh inside their own result, so a post-commit read error is reported as \"nothing happened\" — and `unsubmit` then throws the sale away",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/services/record/live.ts",
+              "src/services/transaction/live.ts",
+              "src/pages/Setting/Data/RecordUpload/z-Selected.tsx",
+              "src/components/cart/z-Complete.tsx"
+            ],
+            "summary": "`RecordService` re-reads the product aggregate after the record transaction commits. The submit path already knows this is a *post*-commit step and catches the failure (`record/live.ts:1409-1413`, with a comment saying the record is already committed); `add.external` (`:974-978`), `set.mode` (`:1629-1631`) and `delete.byId` (`:1716-1721`) do not, so a failed re-read is returned as a failed operation. The consequences are worse than a misleading message: `transaction.unsubmit` (the completion dialog's \"Batalkan\") rolls the restored cart back when `delete.byId` reports a failure — but the soft delete has already committed, so the sale disappears from both history and the cart; and the record importer maps the same error to \"skipped\", so a row that was written is reported as not written.",
+            "path": "iterations/011/report-01-post-commit-refresh-failure-reported-as-write-failure.md",
+            "createdAt": "2026-10-21T22:16:24.990Z"
+          },
+          {
+            "slug": "list-surfaces-missing-roving-tabindex",
+            "title": "Four of six list surfaces never adopted the roving-tabindex model, so Tab crawls them row by row through unnamed icon links",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Debt/z-DebtTable.tsx",
+              "src/pages/Product/z-ProductTable.tsx",
+              "src/pages/Extra/z-ExtraList.tsx",
+              "src/pages/Money/History/z-TableList.tsx",
+              "src/pages/Record/z-Record/List.tsx",
+              "src/pages/Record/Search/z-Search.tsx",
+              "src/components/ui/icon-buttons.test.ts"
+            ],
+            "summary": "The project's roving-tabindex model (\"the list is one tab stop, arrows move inside it\") is implemented in only two of the six list surfaces. The Debt, Product, Extra and Money-history tables make every row its own tab stop whose only content is an icon link — and in the Extra list that link has no accessible name at all, because the `icon-buttons` guard only inspects `<Button>`s that contain the icon directly, not the `asChild`-wrapped `<Link>` shapes these tables use.",
+            "path": "iterations/011/report-02-list-surfaces-missing-roving-tabindex.md",
+            "createdAt": "2026-10-21T22:16:39.123Z"
+          },
+          {
+            "slug": "aria-autocomplete-on-non-combobox-fields",
+            "title": "`aria-autocomplete=\"list\"` copy-pasted onto 34 non-combobox fields, including password and number inputs where it is invalid ARIA",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Record/Item/z-Detail/z-Debt/index.tsx",
+              "src/pages/Setting/Profile/z-PasswordForm.tsx",
+              "src/pages/Money/History/z-NewRecord.tsx",
+              "src/components/Calendar.tsx",
+              "src/components/DateRange.tsx",
+              "src/pages/Customer/z-Item.tsx",
+              "src/components/ui/combobox.tsx"
+            ],
+            "summary": "`aria-autocomplete=\"list\"` is a combobox-only attribute but appears on 34 fields with no popup — including `type=\"number\"` money/settlement inputs and a password field, where the attribute is flat-out invalid ARIA, and on plain text inputs where it announces an autocomplete suggestion list that will never open. Only `ui/combobox.tsx:149` uses it correctly; the money fields it appears on are the worst place to promise fuzzy suggestions.",
+            "path": "iterations/011/report-03-aria-autocomplete-on-non-combobox-fields.md",
+            "createdAt": "2026-10-21T22:16:52.163Z"
+          },
+          {
+            "slug": "bulk-import-interrupted-without-a-record",
+            "title": "Bulk imports are owned by the panel's effect: navigating away silently leaves a half-imported file, and the money panel discards the file on a hard error",
+            "severity": "medium",
+            "category": "ux",
+            "files": [
+              "src/pages/Setting/Data/ProductUpload/z-Selected.tsx",
+              "src/pages/Setting/Data/RecordUpload/z-Selected.tsx",
+              "src/pages/Money/History/z-UploadDialog/z-Selected.tsx",
+              "src/lib/upload.ts"
+            ],
+            "summary": "The three bulk-import panels run their file loop inside a component effect and interrupt the fiber on unmount, so leaving the screen halfway through a file leaves a partially imported catalogue/ledger with no toast, no skipped list, no log line and no selection left to retry — while the money panel additionally deletes the file on a hard error even though rows before it were written, contradicting the rule `src/lib/upload.ts` documents.",
+            "path": "iterations/011/report-04-bulk-import-interrupted-without-a-record.md",
+            "createdAt": "2026-10-21T22:17:12.919Z"
+          },
+          {
+            "slug": "performance-bucket-count-unbounded",
+            "title": "The performance charts build an unbounded bucket per day (46k buckets for a 1900→today range) and render it on the main thread",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/pages/Product/Detail/Performance/use-performance.ts",
+              "src/pages/Product/Detail/Performance/page.tsx",
+              "src/pages/Product/Detail/Performance/z-Charts.tsx",
+              "src/components/DateRange.tsx"
+            ],
+            "summary": "The product-performance screen builds one chart bucket per day/week/month with no cap and no memoisation, and its date picker accepts any year from 1900 to 2100 — so \"Dari 2000, interval Hari\" builds tens of thousands of Temporal dates and ~3× that many chart points inside four fixed-height charts on the main thread. The same module trusts `?from`/`?to` without clamping or ordering, so an inverted range renders four silently empty charts instead of a message.",
+            "path": "iterations/011/report-05-performance-bucket-count-unbounded.md",
+            "createdAt": "2026-10-21T22:17:33.280Z"
+          }
+        ],
+        "at": "2026-10-21T22:18:11.424Z"
+      }
     }
-  ]
+  ],
+  "finished": {
+    "reason": "converged",
+    "at": "2026-10-21T22:18:11.483Z",
+    "score": 89,
+    "detail": "last 5 scores: 89, 88, 89, 87, 89 (spread 2, epsilon 2)"
+  }
 }
