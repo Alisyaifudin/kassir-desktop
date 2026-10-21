@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type Decimal from "decimal.js";
 import { Effect, Either } from "effect";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -39,7 +39,6 @@ export function Complete({
   onRestored: (draftId: string) => void;
   onClose: () => void;
 }) {
-  const navigate = useNavigate();
   const [busy, setBusy] = useState<"cancel" | "print" | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,11 +72,6 @@ export function Complete({
     onClose();
   }
 
-  function detail() {
-    onClose();
-    void navigate(`/records/${recordId}`);
-  }
-
   async function print() {
     setBusy("print");
     setError(null);
@@ -102,45 +96,68 @@ export function Complete({
   const locked = busy !== null || countdown !== null;
 
   return (
-    <Dialog open onOpenChange={() => {}}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        // X and the backdrop both mean "continue": the record is already
+        // committed, so closing only drops the dialog and starts the next sale.
+        if (!open && !locked) onClose();
+      }}
+    >
       <DialogContent
-        showCloseButton={false}
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onPointerDownOutside={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
+        className="max-w-5xl"
+        showCloseButton={!locked}
+        onEscapeKeyDown={(event) => {
+          if (locked) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (locked) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (locked) event.preventDefault();
+        }}
       >
         <DialogHeader>
           <DialogTitle className="text-big">Pembayaran berhasil</DialogTitle>
           <DialogDescription>
-            Transaksi sudah tersimpan. Pilih salah satu langkah di bawah.
+            Transaksi sudah tersimpan.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 p-3">
+        <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-10">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-normal text-muted-foreground">Total pembayaran</span>
+            <span className="text-normal text-muted-foreground">Pembayaran</span>
             <span className="text-big font-bold tabular-nums">{rupiah(total, fix)}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-normal text-muted-foreground">Kembalian</span>
-            <span className="text-big font-bold tabular-nums">{rupiah(change, fix)}</span>
+            <span className="text-big text-muted-foreground">Kembalian</span>
+            <span className="text-grand-total font-bold tabular-nums">{rupiah(change, fix)}</span>
           </div>
         </div>
 
         {error === null ? null : <p className="text-small text-destructive">{error}</p>}
         {countdown === null ? null : (
-          <p className="text-small text-muted-foreground">
-            Menutup dalam {countdown} detik...
-          </p>
+          <p className="text-small text-muted-foreground">Menutup dalam {countdown} detik...</p>
         )}
 
         <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex justify-between gap-2">
             <Button variant="outline" disabled={locked} onClick={() => void cancel()}>
               {busy === "cancel" ? "Membatalkan..." : "Batal"}
             </Button>
-            <Button variant="secondary" disabled={locked} onClick={detail}>
-              Lihat detail
+            <Button asChild variant="secondary" disabled={locked}>
+              <Link
+                to={`/records/${recordId}?url_back=${encodeURIComponent("/pos")}`}
+                aria-disabled={locked}
+                className={locked ? "pointer-events-none opacity-50" : undefined}
+                onClick={(event) => {
+                  // The anchor owns the navigation, so the dialog closes by the
+                  // route change instead of racing a state update.
+                  if (locked) event.preventDefault();
+                }}
+              >
+                Lihat detail
+              </Link>
             </Button>
           </div>
           <Button className="w-full" disabled={locked} onClick={() => void print()}>
