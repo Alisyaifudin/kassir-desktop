@@ -262,37 +262,43 @@ function Screen({
     setTimeout(() => setFocusLast((count) => count + 1), 0);
   }
 
-  /** Start the commit; returns whether the click/key should be swallowed. */
-  function submitDraft(credit = false): boolean {
-    if (
-      complete !== null ||
-      submitting ||
-      hardIssue ||
-      (credit ? creditGrand.isZero() : grand.isZero())
-    ) {
-      return false;
-    }
-    if (!credit && change.isNegative()) {
-      return false;
-    }
+  function canSubmit(credit: boolean): boolean {
+    return (
+      complete === null &&
+      !submitting &&
+      !hardIssue &&
+      !(credit ? creditGrand.isZero() : grand.isZero()) &&
+      (credit || !change.isNegative())
+    );
+  }
+
+  /** Start the commit; returns the failure message for the credit dialog. */
+  async function runSubmit(credit: boolean): Promise<string | null> {
+    if (!canSubmit(credit)) return "Transaksi belum siap untuk disimpan.";
     (document.activeElement as HTMLElement | null)?.blur();
     setSubmitting(true);
-    void Effect.runPromise(
+    const result = await Effect.runPromise(
       Effect.either(service.transaction.submit(active.id, { cashier: user.name, credit })),
-    ).then((result) => {
-      setSubmitting(false);
-      if (Either.isLeft(result)) {
-        toast.error(result.left.message);
-        return;
-      }
-      setComplete({
-        recordId: result.right,
-        total: credit ? creditGrand : grand,
-        change,
-        fix: active.fix,
-        credit,
-      });
+    );
+    setSubmitting(false);
+    if (Either.isLeft(result)) {
+      toast.error(result.left.message);
+      return result.left.message;
+    }
+    setComplete({
+      recordId: result.right,
+      total: credit ? creditGrand : grand,
+      change,
+      fix: active.fix,
+      credit,
     });
+    return null;
+  }
+
+  /** Start the commit; returns whether the click/key should be swallowed. */
+  function submitDraft(credit = false): boolean {
+    if (!canSubmit(credit)) return false;
+    void runSubmit(credit);
     return true;
   }
 
@@ -319,9 +325,7 @@ function Screen({
           onFocusPay={() => setFocusPay((count) => count + 1)}
           focusLast={focusLast}
           onExitUp={exitUp}
-          onCredit={() => {
-            void submitDraft(true);
-          }}
+          onCredit={() => runSubmit(true)}
           creditDisabled={hardIssue || creditGrand.isZero()}
         />
         <Bottom

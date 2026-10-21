@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
+import { Spinner } from "~/components/Spinner";
+import { TextError } from "~/components/TextError";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -15,9 +17,34 @@ import {
  * top of the payment stage, away from `Bayar` at the bottom, and asks first —
  * a credit purchase is not a partial payment, it is a different kind of record.
  */
-export function Kredit({ onCredit, disabled }: { onCredit: () => void; disabled: boolean }) {
+export function Kredit({
+  onCredit,
+  disabled,
+}: {
+  onCredit: () => Promise<string | null>;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirm() {
+    setBusy(true);
+    setError(null);
+    const failure = await onCredit();
+    setBusy(false);
+    if (failure !== null) setError(failure);
+  }
+
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (busy) return;
+        setOpen(next);
+        if (next) setError(null);
+      }}
+    >
       <Button asChild variant="outline" disabled={disabled}>
         <DialogTrigger type="button">Kredit</DialogTrigger>
       </Button>
@@ -29,17 +56,19 @@ export function Kredit({ onCredit, disabled }: { onCredit: () => void; disabled:
             lewat halaman Utang.
           </DialogDescription>
         </DialogHeader>
+        <TextError>{error}</TextError>
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary" type="button">
-              Batal
-            </Button>
-          </DialogClose>
           <Button
-            variant="destructive"
-            onClick={onCredit}
+            variant="secondary"
+            type="button"
+            disabled={busy}
+            onClick={() => setOpen(false)}
           >
-            Kredit
+            Batal
+          </Button>
+          <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>
+            {busy ? "Menyimpan..." : "Kredit"}
+            <Spinner when={busy} />
           </Button>
         </DialogFooter>
       </DialogContent>

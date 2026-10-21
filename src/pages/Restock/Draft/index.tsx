@@ -60,7 +60,7 @@ export function Draft({
   focusLast: number;
   onFocusPay: () => void;
   onExitUp: () => void;
-  onCredit: () => void;
+  onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
   // Bumped by F2; the payment stage watches it to put the cursor on its first
@@ -146,7 +146,7 @@ function StageBody({
   focusLast: number;
   onFocusPay: () => void;
   onExitUp: () => void;
-  onCredit: () => void;
+  onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
   if (stage === "listing") {

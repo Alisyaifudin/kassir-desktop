@@ -275,7 +275,8 @@ const SELECT_METHODS_FOR = (placeholders: string) => `
     m.method_name, m.method_kind
   FROM record_methods rm
   JOIN methods m ON m.method_id = rm.method_id
-  WHERE rm.record_id IN (${placeholders})`;
+  WHERE rm.record_id IN (${placeholders})
+  ORDER BY rm.rowid`;
 
 // `COUNT(*) OVER ()` counts the whole match set before LIMIT trims the page, so a
 // single query answers both "here are the first N" and "there are M of them".
@@ -826,14 +827,6 @@ export const RecordLive = Layer.effect(
       return product
         .refresh()
         .pipe(Effect.mapError((error) => new RecordError({ message: error.message })));
-    }
-
-    /** The method a record was paid by, if it has one on file. */
-    function currentMethodId(id: string): Effect.Effect<string | null, RecordError> {
-      return db.selectMany<MethodRow>(SELECT_METHODS_FOR("$1"), [id]).pipe(
-        Effect.mapError(dbErrorToRecordError),
-        Effect.map((rows) => rows[0]?.method_id ?? null),
-      );
     }
 
     return {
@@ -1581,14 +1574,18 @@ export const RecordLive = Layer.effect(
                 new RecordError({ message: "Pembayaran atau pembulatan tidak valid" }),
               );
             }
-            const methodId = yield* currentMethodId(id);
+            const methods = yield* db
+              .selectMany<MethodRow>(SELECT_METHODS_FOR("$1"), [id])
+              .pipe(Effect.mapError(dbErrorToRecordError));
             const now = Date.now();
-            const statements: Statement[] = [
-              { sql: "DELETE FROM record_methods WHERE record_id = $1", bindings: [id] },
-            ];
-            if (methodId !== null) {
-              statements.push(insertMethod(id, methodId, input.pay));
-            }
+            // Keep every method row: a credit can be split, and settlement must
+            // not collapse the many-to-one relation. Without a per-method split
+            // in the debt dialog, the first method carries the whole payment and
+            // the others stay at zero.
+            const statements: Statement[] = methods.map((method, index) => ({
+              sql: "UPDATE record_methods SET record_method_pay = $1 WHERE record_method_id = $2",
+              bindings: [index === 0 ? input.pay : 0, method.record_method_id],
+            }));
             statements.push({
               sql: `UPDATE records SET
                   record_pay = $1, record_rounding = $2,

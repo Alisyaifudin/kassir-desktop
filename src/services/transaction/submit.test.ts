@@ -1269,7 +1269,10 @@ describe("TransactionService.submit — lifecycle", () => {
         const record = yield* RecordService;
         const id = yield* tx.add.new("outcoming");
         yield* tx.listings.set(id, [makeLine()]);
-        yield* tx.methods.set(id, [makeMethod(40000)]);
+        yield* tx.methods.set(id, [
+          makeMethod(10000),
+          makeMethod(30000, "qris"),
+        ]);
         const recordId = yield* tx.submit(id, { cashier: "Kasir", credit: true });
         yield* record.set.payCredit(recordId, { pay: 40000, rounding: 0 });
         return yield* record.get.byId(recordId);
@@ -1278,8 +1281,8 @@ describe("TransactionService.submit — lifecycle", () => {
     expect(outcome.paidAt).not.toBeNull();
     expect(outcome.creditAt).not.toBeNull();
     expect(outcome.pay).toBe(40000);
-    expect(outcome.methods).toHaveLength(1);
-    expect(outcome.methods[0].pay).toBe(40000);
+    expect(outcome.methods).toHaveLength(2);
+    expect(outcome.methods.map((method) => method.pay)).toEqual([40000, 0]);
   });
 
   test("still commits when the post-commit product refresh fails", async () => {

@@ -44,7 +44,7 @@ export function Payment({
   focusRounding: number;
   onFocusPay: () => void;
   onExitUp: () => void;
-  onCredit: () => void;
+  onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
   const res = {
@@ -93,7 +93,7 @@ function Body({
   focusRounding: number;
   onFocusPay: () => void;
   onExitUp: () => void;
-  onCredit: () => void;
+  onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
   const paid = roundMoney(paidTotal(draft.methods), draft.fix);

@@ -143,20 +143,22 @@ export function Complete({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-10">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-normal text-muted-foreground">
-              {credit ? "Total kredit" : "Pembayaran"}
-            </span>
-            <span className="text-big font-bold tabular-nums">{rupiah(total, fix)}</span>
-          </div>
-          {credit ? null : (
+        {credit ? (
+          <p className="rounded-lg border bg-muted/30 px-3 py-6 text-small text-muted-foreground">
+            Tidak ada pembayaran pada transaksi ini. Kredit dibayar lewat halaman Utang.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-10">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-normal text-muted-foreground">Pembayaran</span>
+              <span className="text-big font-bold tabular-nums">{rupiah(total, fix)}</span>
+            </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-big text-muted-foreground">Kembalian</span>
               <span className="text-grand-total font-bold tabular-nums">{rupiah(change, fix)}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {error === null ? null : <p className="text-small text-destructive">{error}</p>}
         {countdown === null ? null : (
