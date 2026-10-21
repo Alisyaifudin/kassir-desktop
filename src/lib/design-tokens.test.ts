@@ -18,6 +18,19 @@ import { readFileSync } from "node:fs";
 /** Raw text-size utilities: `text-sm`, `text-3xl`, `text-[14px]`, … */
 const FORBIDDEN = /(?<![\w-])text-(?:xs|sm|base|lg|xl|[2-9]xl|\[[^\]]+\])(?![\w-])/g;
 
+/**
+ * A lucide `size={N}` writes `width`/`height` **attributes**, which no `.small`
+ * rule can override — so the icon keeps its pixel size while every other icon on
+ * the screen drops from 30px to 20px. `className="icon"` is the convention
+ * (`@utility icon` in global.css, re-resolved per app size) and is used ~90
+ * times; fifteen call sites had drifted to a numeric `size`, the two most-clicked
+ * ones being the Records day steppers.
+ *
+ * A deliberately larger glyph uses a size class instead (`size-16`,
+ * `size-[100px]`), never the attribute.
+ */
+const SIZE_ATTRIBUTE = /(?<![\w-])size=\{\s*\d+\s*\}/g;
+
 function sources(): string[] {
   return [...new Glob("src/**/*.tsx").scanSync(process.cwd())];
 }
@@ -28,6 +41,15 @@ describe("design tokens", () => {
     for (const path of sources()) {
       const content = readFileSync(path, "utf8");
       for (const match of content.matchAll(FORBIDDEN)) offenders.push(`${path}: ${match[0]}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("no icon ships a numeric `size` attribute instead of the `icon` utility", () => {
+    const offenders: string[] = [];
+    for (const path of sources()) {
+      const content = readFileSync(path, "utf8");
+      for (const match of content.matchAll(SIZE_ATTRIBUTE)) offenders.push(`${path}: ${match[0]}`);
     }
     expect(offenders).toEqual([]);
   });

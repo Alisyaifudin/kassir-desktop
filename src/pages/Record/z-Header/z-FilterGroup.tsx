@@ -90,7 +90,7 @@ export function FilterGroup({
     >
       <Badge
         checked={state === "indeterminate" ? "mixed" : state}
-        icon={<Icon size={20} strokeWidth={2.5} className="shrink-0" />}
+        icon={<Icon strokeWidth={2.5} className="icon shrink-0" />}
         onClick={onToggleKind}
         className="h-12 w-fit px-4 font-medium [font-size:var(--text-normal)]"
       >

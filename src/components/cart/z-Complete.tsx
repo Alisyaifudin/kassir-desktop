@@ -14,6 +14,7 @@ import {
 import { service } from "~/services";
 import { programPrintReceipt } from "~/pages/Record/Item/z-Receipt/program-print-receipt";
 import { rupiah } from "~/components/cart/util-rupiah";
+import { useDialogLock } from "~/components/cart/use-inert-app";
 
 /**
  * The moment after a transaction is committed — the sale's or the purchase's,
@@ -56,6 +57,10 @@ export function Complete({
   const [error, setError] = useState<string | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // This is a real Radix modal, so the focus trap holds Tab in — but the cart's
+  // F1/F2/F12 listener lives on `window` and would still fire behind it (F12
+  // used to insert an extra empty draft here). Register it as the screen owner.
+  useDialogLock(true);
 
   // A successful print runs this down; at zero the dialog gets out of the way.
   useEffect(() => {

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T20:32:41.444Z",
+  "updatedAt": "2026-10-21T21:00:33.545Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -1358,6 +1358,231 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T20:32:41.444Z"
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "startedAt": "2026-10-21T20:32:41.512Z",
+      "audit": {
+        "score": 89,
+        "categories": {
+          "architecture": 89,
+          "react": 88,
+          "tauri": 92,
+          "ux": 87,
+          "codeQuality": 88,
+          "testing": 88
+        },
+        "verdict": "The data layer is now genuinely strong and I verified the iteration-6 claims rather than trusting them: `tsc --noEmit` and `eslint` are clean, `bun test` is 304/304 with no flake, the extra-search Enter bug is fixed with a test, `record.submit` really does only refresh the products its lines touched, the Records list has a roving tabindex, the money dialogs are keyboard-contained via `useInertApp`, and the Pos/Restock duplication is finally resolved — both screens are ~170-200 lines over one shared `useCartScreen` + `z-CartFrame` + a single-source cart component set, which is the first time in seven audits that this is true. The biggest remaining risk is that the keyboard model is complete but not *contained*: F1/F2/F12 are registered on `window` and only guard `submitting`, so they keep firing while a cart dialog owns the screen — F12 writes a new draft to SQLite behind the \"Pembayaran berhasil\" dialog and strands an empty \"Diskon\" modal over a different cart — while the tab strip and the comprehensive record search are the two list surfaces still operable only by mouse. Next in line is a money boundary that only the client checks (`record.set.payCredit` settles any amount on any record) and a pair of shared zod helpers (`integer`, `numerish`) whose refines are written with `||`, so a malformed `?start=` crashes `/records/search` and `/money` with a `RangeError` instead of falling back. Tauri stays the strongest area (narrow scoped ACL with a real CSP, `spawn_blocking` on every blocking command, validated PDF bytes, single-instance first, rustfmt/clippy/tests in CI) and is capped at 92 only because `fs:default` still grants recursive read over the app dirs — making the capability description overstate its own narrowness — and because I did not verify the updater `latest.json`/pubkey trust chain or run a release build against the CSP. Deliberately not covered in depth: `record/live.ts`'s credit-edit and `unsubmit` reversal paths past the code I read, the Money/Debt screen bodies beyond their data hooks, the receipt PDF geometry on real 58/80 mm paper, migration SQL bodies beyond version/checksum/index structure, and the Rust printer path on real Windows hardware; also folded into this verdict rather than filed — `useCartScreen` re-registers two window listeners on every render of a component that re-renders per keystroke, `z-Methods`' `Ctrl+0..3` handler does the same, `PayStrip` renders `<Loading/>` instead of `<Loader>`, `Restock/Draft/z-Payment` passes `focused={true}`/`onActivate={() => {}}` so only Pos has a real panel focus model, `record/live.ts` (1,683) and `transaction/live.ts` (1,193) remain oversized, and `printer.rs`'s success message still shows a byte count to the cashier.",
+        "reports": [
+          {
+            "slug": "paycredit-has-no-amount-or-state-guard",
+            "title": "`record.set.payCredit` settles a debt with no amount and no state check — the only money write in `record` with no server-side guard",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/services/record/live.ts",
+              "src/pages/Record/Item/z-Detail/z-Debt/use-debt.ts",
+              "src/pages/Record/Item/z-Detail/z-Debt/index.tsx",
+              "src/services/record/index.ts"
+            ],
+            "summary": "`payCredit` writes `record_pay`, `record_rounding` and `record_paid_at` from caller input, checking only that the numbers are finite and that `pay >= 0`. Settling is what removes a record from the debt list (`WHERE record_credit_at IS NOT NULL AND record_paid_at IS NULL`), so an underpayment clears the debt with the shop short, and a call on a cash sale silently rewrites that sale's payment and re-stamps its paid date. Every other write path in `record/live.ts` validates its boundary (`price < 0`, `unit`, `qty`, `NaN`, blank name); this one is enforced only by the dialog's own `required.gt(pay)` check.",
+            "path": "iterations/007/report-01-paycredit-has-no-amount-or-state-guard.md",
+            "createdAt": "2026-10-21T20:42:11.296Z"
+          },
+          {
+            "slug": "catalogue-writes-still-reload-everything",
+            "title": "Every catalogue write still re-reads the whole catalogue, though the narrow refresh path already exists",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/services/product/live.ts",
+              "src/services/extra/live.ts",
+              "src/services/method/live.ts",
+              "src/services/money/live.ts",
+              "src/services/transaction/live.ts",
+              "src/services/cashier/live.ts"
+            ],
+            "summary": "Recurring (iteration 1, still `partial`): every product write re-reads the entire catalogue through six unfiltered `SELECT`s — 20 `hydrate()` call sites in `product/live.ts`, including a rename of two columns. The narrow `hydrateMany(ids)` path that iteration 6 added for `submit` is exactly the fix and is simply not used by the edit paths. Same pattern in `extra`, `method`, `money`. Identity preservation removed the re-render cost; the read cost still scales with the catalogue and is paid inside the same Effect as the save.",
+            "path": "iterations/007/report-02-catalogue-writes-still-reload-everything.md",
+            "createdAt": "2026-10-21T20:42:25.666Z"
+          },
+          {
+            "slug": "cart-stream-errors-swallowed-beside-loader",
+            "title": "Service failures are swallowed in three cart components: an endless spinner for the settle strip, a silently missing customer/supplier field",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/pages/Pos/z-Bottom.tsx",
+              "src/pages/Pos/Draft/z-Customer.tsx",
+              "src/pages/Restock/Draft/z-Supplier.tsx",
+              "src/components/Loader.tsx",
+              "src/pages/Restock/Draft/z-Payment.tsx"
+            ],
+            "summary": "Three components read a service stream by hand instead of through `<Loader>`, so a failed read is indistinguishable from a pending one: `Pos/z-Bottom.tsx` renders `<Loading />` forever when the method catalogue fails (the sale can never be paid, with no message), and `z-Customer.tsx` / `z-Supplier.tsx` return `null`, so the customer/supplier field silently disappears and the sale is committed without it. `Restock/Draft/z-Payment.tsx` does the same read correctly via `<LoaderMany>` one file away.",
+            "path": "iterations/007/report-03-cart-stream-errors-swallowed-beside-loader.md",
+            "createdAt": "2026-10-21T20:42:39.291Z"
+          },
+          {
+            "slug": "integer-and-numerish-zod-helpers-never-reject",
+            "title": "`integer` / `numerish` can never reject, so a malformed `?page=` renders an empty list and a malformed `?start=` crashes the screen",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/lib/utils.ts",
+              "src/pages/Product/use-list-state.ts",
+              "src/pages/Product/page.tsx",
+              "src/pages/Record/Search/use-range.tsx",
+              "src/pages/Money/use-range.tsx",
+              "src/components/Calendar.tsx",
+              "src/hooks/use-scroll.ts"
+            ],
+            "summary": "`integer` and `numerish` in `src/lib/utils.ts` are written with `||` instead of `&&`, so the \"must be a number / a whole number\" rule is unreachable: `integer.parse(\"abc\")` succeeds and yields `NaN`, and `numerish` accepts `\"\"` as `0`. Five URL parsers trust them, and the result is observable: `#/products?page=abc` renders an empty list with a `NaN/NaN` footer and a live \"previous page\" button, and `#/records/search?start=3.7` throws `RangeError` out of `Temporal.Instant.fromEpochMilliseconds` into the route error boundary — the `.catch(default)` fallback was written for exactly this and never fires.",
+            "path": "iterations/007/report-04-integer-and-numerish-zod-helpers-never-reject.md",
+            "createdAt": "2026-10-21T20:42:53.624Z"
+          },
+          {
+            "slug": "record-search-list-mouse-only-unnamed-icons",
+            "title": "The record search results are mouse-only, and the icon-button guard can't see the project's own icon-button spelling",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Record/Search/z-Search.tsx",
+              "src/components/ui/icon-buttons.test.ts",
+              "src/pages/Record/z-Record/List.tsx"
+            ],
+            "summary": "The comprehensive record search renders up to 100 rows whose only control is an unnamed icon button, with no roving tabindex and no keyboard activation — while the sibling day list (`Record/z-Record/List.tsx`) got exactly that treatment in iteration 6. The regression guard that exists for this (`icon-buttons.test.ts`) only matches `size=\"icon\"`, so every icon button written with the project's own `className=\"icon\"` ships unnamed and untested.",
+            "path": "iterations/007/report-05-record-search-list-mouse-only-unnamed-icons.md",
+            "createdAt": "2026-10-21T20:43:06.917Z"
+          },
+          {
+            "slug": "cart-tab-strip-mouse-only",
+            "title": "The cart tab strip is mouse-only: tabs aren't focusable, and the `Ctrl+Arrow` that is the only keyboard path is never shown",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/components/cart/z-Tabs.tsx",
+              "src/components/cart/use-cart-screen.ts",
+              "src/pages/Pos/Draft/index.tsx"
+            ],
+            "summary": "Recurring (noted in iteration 6's verdict, never filed): the cart tab strip's tabs are plain `<div onClick>` with no `tabIndex`, no `role=\"tab\"`/`tablist`, no `aria-selected` and no key handler; the only focusable descendants are their `X` close buttons, so Tabbing the POS cart walks a row of delete buttons. The only keyboard way to switch carts is `Ctrl+Arrow`, which is implemented but shown nowhere — the strip advertises `F12` and nothing else, on the screen where switching carts is a daily action.",
+            "path": "iterations/007/report-06-cart-tab-strip-mouse-only.md",
+            "createdAt": "2026-10-21T20:43:20.028Z"
+          },
+          {
+            "slug": "hardcoded-icon-sizes-ignore-app-size-mode",
+            "title": "Fifteen lucide icons hardcode `size={N}` and so ignore the app's Besar/Kecil mode, with no test enforcing the `icon` utility",
+            "severity": "low",
+            "category": "ux",
+            "files": [
+              "src/pages/Record/z-Header/index.tsx",
+              "src/pages/Record/z-Header/SearchBars.tsx",
+              "src/pages/Record/z-Header/FilterDialog.tsx",
+              "src/pages/Record/z-Header/z-FilterGroup.tsx",
+              "src/components/Loading.tsx",
+              "src/components/NotFound.tsx",
+              "src/components/FileDropZone.tsx",
+              "src/components/ui/pagination.tsx",
+              "src/lib/design-tokens.test.ts"
+            ],
+            "summary": "Recurring (in iteration 5's and 6's verdicts, never filed): `className=\"icon\"` is the scaling convention (30px → 20px when the app switches to Kecil) and is used 75 times, but 15 call sites still pass a numeric `size={14|16|18|20|22|30|64|100}` to lucide, which writes width/height attributes that no `.small` rule can override. The worst of them are the Records day steppers and the search magnifier — the most-clicked controls on that screen — plus the shared `Loading` and empty states. No test enforces the convention, unlike text sizes.",
+            "path": "iterations/007/report-07-hardcoded-icon-sizes-ignore-app-size-mode.md",
+            "createdAt": "2026-10-21T20:43:49.828Z"
+          },
+          {
+            "slug": "use-cart-screen-has-no-tests",
+            "title": "`useCartScreen` — the shared cart lifecycle both screens now depend on — still has no test at all",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "src/components/cart/use-cart-screen.ts",
+              "src/components/cart/z-Listing.tsx",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/components/cart/z-Extras.test.tsx"
+            ],
+            "summary": "Partial recurrence of iteration 5/6's \"the cart has no render tests\": the three modules the de-duplication extracted — `useCartScreen` (343 lines: draft lifecycle, restore latch, `?draft=` repair, `Ctrl+Arrow` tab walker, `F12`) plus `z-Tabs`/`z-CartFrame` — are exactly the ones with no test, while the components that stayed in place (`useSubmitCart`, `z-Extras`, `z-Discount`) got them. Both of the last two iterations' real cart bugs were found by reading; this hook contains the same class of timer/guard logic, and the e2e suite is the only thing standing behind it.",
+            "path": "iterations/007/report-08-use-cart-screen-has-no-tests.md",
+            "createdAt": "2026-10-21T20:44:05.194Z"
+          },
+          {
+            "slug": "cart-shortcuts-fire-behind-open-dialogs",
+            "title": "F1/F2/F12 keep firing while a cart dialog is open, so F12 writes a new draft behind the completion dialog and strands modals over a different cart",
+            "severity": "medium",
+            "category": "react",
+            "files": [
+              "src/components/cart/use-cart-screen.ts",
+              "src/components/cart/z-Complete.tsx",
+              "src/components/cart/z-Discount.tsx",
+              "src/components/cart/z-Methods.tsx",
+              "src/components/cart/use-inert-app.ts",
+              "src/components/cart/z-Listing.tsx"
+            ],
+            "summary": "The page-level F1/F2/F12 handler in `useCartScreen` is registered on `window` and guarded only by `submitting`, so it keeps firing while a cart dialog owns the screen — `inert` on `#root` does not stop window listeners, and the dialogs are portaled outside it. F12 during the \"Pembayaran berhasil\" dialog writes an extra empty draft to SQLite; F12 with the discount editor open replaces the cart under it and strands an empty \"Diskon\" modal; F1 resets the grid selection behind the overlay. The adjacent \"always one cart\" effect guards on `complete !== null`, so the intent exists — the shortcut was just left out of it.",
+            "path": "iterations/007/report-09-cart-shortcuts-fire-behind-open-dialogs.md",
+            "createdAt": "2026-10-21T20:44:47.717Z"
+          }
+        ],
+        "at": "2026-10-21T20:45:13.047Z"
+      },
+      "finishedAt": "2026-10-21T21:00:33.545Z",
+      "fix": {
+        "summary": "Iteration 7 fix pass — all 9 reports addressed as `fixed`; `bun run lint`, `tsc --noEmit` and `bun test` (364 pass, up from 304) are green.\n\n## Correctness\n- **`integer`/`numerish` never rejected** (`src/lib/utils.ts`): rewrote both as conjunctions (trim → non-empty → `Number.isFinite` / `Number.isSafeInteger`). Added `src/lib/range.ts` (`parseRange` + EARLIEST/FURTHEST bounds) and routed both `use-range` hooks (Record/Search, Money) through it, so `?page=abc` renders page 1 and `?start=3.7` / out-of-`Temporal`-range values fall back to the default month instead of throwing `RangeError` into the route boundary. Tests: new `src/lib/utils.test.ts`.\n- **`payCredit` had no state/amount guard** (`src/services/record/live.ts`): reads the record first and refuses a cash sale, a deleted row, an already-settled credit, and an underpayment (`roundToFix(total + record_rounding + rounding, fix)`), and the `UPDATE` now carries `AND record_credit_at IS NOT NULL AND record_paid_at IS NULL`. Five new cases in `credit.test.ts` including \"an explicit negative-rounding write-off still settles\".\n- **Stream errors swallowed** (`Pos/z-Bottom.tsx`, `Pos/Draft/z-Customer.tsx`, `Restock/Draft/z-Supplier.tsx`): the settle strip goes through `<Loader>` + a `MethodError` boundary with a retry (no more endless spinner); the customer/supplier fields stay usable with an inline `role=\"alert\"` message instead of vanishing. New `z-Customer.test.tsx`.\n\n## React / a11y\n- **Shortcuts fired behind dialogs**: `use-inert-app.ts` now publishes a module-level dialog lock (`useDialogLock` / `isScreenOwnedByDialog`, with an `[aria-modal]` DOM fallback); `useInertApp` and `z-Complete` register, and F1/F2/F12 plus the `Ctrl+Arrow` walker bail out — no more extra draft behind \"Pembayaran berhasil\".\n- **Cart tab strip was mouse-only**: full ARIA tabs pattern (tablist, `role=\"tab\"`, `aria-selected`, roving tabindex, Enter/Space/arrows/Home/End/Delete), X buttons out of the tab order, and a `Ctrl+←/→` Kbd chip. New `z-Tabs.test.tsx`.\n- **Record search results were mouse-only**: roving-tabindex rows with `aria-label`, Arrow/Home/End, Enter/Space to open, decorative arrow icon, named magnifier. New `z-Search.test.tsx`. `icon-buttons.test.ts` now also recognises the project's `className=\"icon\"` spelling.\n\n## Performance / UX / testing\n- **Catalogue writes**: all 19 single-product mutation sites use `hydrateMany([id])`; money patches pocket cards locally and re-reads one pocket; method writes refresh only the methods slice; extra writes re-read one row. New statement-count tests in `product/live.test.ts` and `extra/live.test.ts`.\n- **Hardcoded icon sizes**: all 15 numeric `size={N}` replaced (`className=\"icon\"`, or `size-16`/`size-[100px]` for the intentionally large ones); `design-tokens.test.ts` gained a `size={<digits>}` guard. Last two `bg-blue-50/50` stripes in `z-Search` moved to `bg-muted/50`.\n- **`useCartScreen` had no tests**: new `use-cart-screen.test.ts` (14 cases) covering one-cart-at-a-time, restore latch, `?draft=` repair, store/open, Ctrl+Arrow, F12/F1/F2, stage reset, and the dialog-lock guard.\n\n## Follow-ups for the next auditor\n- The smaller `z-Listing.test.tsx` case (\"Enter before the debounce fired\") is still unwritten — it needs the listing service plus dnd-kit/motion mocked to render.\n- `src/pages/Extra/z-ExtraList.tsx` and `src/pages/Home/z-TotalTransactionsCard.tsx` still use literal Tailwind palette colours (`bg-blue-50/50`, `bg-blue-500/10`) for the same zebra/accent role.\n- `record/live.ts` (~1.7k) and `transaction/live.ts` (~1.2k) remain oversized, and `PayStrip`'s retry remounts the subscription (cheap, but not a shared primitive yet).",
+        "fixes": [
+          {
+            "report": "integer-and-numerish-zod-helpers-never-reject",
+            "status": "fixed",
+            "note": "Rewrote `numerish`/`integer` in src/lib/utils.ts as conjunctions (trim, non-empty, `Number.isFinite` / `Number.isSafeInteger`) — `\"abc\"`, `\"3.7\"`, `\"\"`, `\"NaN\"`, `\"1e999\"` now all fail and `.catch(1)` in `Product/use-list-state.ts` fires, so `?page=abc` renders page 1 with a working footer. Added `src/lib/range.ts` (`parseRange` + EARLIEST/FURTHEST epoch bounds shared with Record/use-time's window) and routed both `use-range` hooks (Record/Search and Money) through it, so a malformed/out-of-`Temporal`-range `?start=`/`?end=` falls back to the default month instead of throwing `RangeError` during render. New `src/lib/utils.test.ts` covers the rejection table, `catch()`, and `parseRange` (valid, abc, 3.7, empty, MAX_SAFE_INTEGER, negative-out-of-range, missing). Full suite 331 pass."
+          },
+          {
+            "report": "paycredit-has-no-amount-or-state-guard",
+            "status": "fixed",
+            "note": "`record.set.payCredit` now reads the record before writing (existing `readRecord`, so a deleted row fails too) and refuses: not a credit (`record_credit_at IS NULL`), already settled (`record_paid_at !== null`), and underpaid — `roundToFix(total + record_rounding + input.rounding, record_fix)` is compared against `pay` with the same Indonesian sentence the dialog shows. The `UPDATE records` also carries `AND record_credit_at IS NOT NULL AND record_paid_at IS NULL`, so a concurrent settle no-ops instead of double-writing. The dialog's `required.gt(pay)` check stays as fast UX feedback. Five new cases in src/services/record/credit.test.ts: cash sale refused, deleted record refused, underpayment refused (debt stays), second settlement refused, and an explicit negative-rounding write-off still settling — each asserts the row snapshot is unchanged afterwards. `submit.test.ts`'s split-method settlement case still green."
+          },
+          {
+            "report": "use-cart-screen-has-no-tests",
+            "status": "fixed",
+            "note": "Added src/components/cart/use-cart-screen.test.ts (14 cases, stubbed at the service boundary as use-submit-cart.test.ts does): exactly one `transaction.add.new` when the screen has no draft and none while one exists, none while `complete !== null`, a failed `add.new` sets `startError` and `retryStart` re-runs it, `?draft=` naming a closed cart is repaired via `onDraft(firstOpen)` without creating another, `storeCart` parks and clears the selection when it was the last cart, `openDraft` calls `set.restore` then `onDraft` for a parked cart, `Ctrl+ArrowRight` walks past parked carts and is inert inside a text input, F12/F1/F2 reach the right effects, and switching carts returns the stage to `firstStage`. `bun test` is 345 pass / 0 fail. Remaining (follow-up): the smaller `z-Listing.test.tsx` case for \"Enter before the debounce fired\", which z-Listing already handles in `pickFirst` but nothing pins — it needs the listing service + dnd-kit/motion mocked to render."
+          },
+          {
+            "report": "cart-shortcuts-fire-behind-open-dialogs",
+            "status": "fixed",
+            "note": "`use-inert-app.ts` now owns a module-level \"a dialog owns the screen\" counter: new `useDialogLock(open)` + `isScreenOwnedByDialog()` (counter, plus a DOM fallback for `[aria-modal=\"true\"]` so a Radix modal that never registered is still seen). `useInertApp` calls `useDialogLock`, so both money editors register; `z-Complete` calls `useDialogLock(true)` because its Radix trap holds focus but not the `window` listener. `useCartScreen`'s F1/F2/F12 handler and the `Ctrl+Arrow` tab walker both bail out when `isScreenOwnedByDialog()` — F12 can no longer write a draft behind \"Pembayaran berhasil\", F12/F1 no longer act behind the discount/payment editors. Covered by two new cases in use-cart-screen.test.ts (registered lock blocks all four shortcuts; a portaled `aria-modal` div blocks F2 until removed)."
+          },
+          {
+            "report": "catalogue-writes-still-reload-everything",
+            "status": "fixed",
+            "note": "Converted the write paths to the narrow read instead of the full catalogue: all 19 single-product mutation sites in `product/live.ts` (`add.new`, `set.info`, `listing.*`, `property.*`, `productName.*`, `image.*`, `stock.receive/consume/adjust`, `delete`) now call `hydrateMany([productId|id])`; only the first read (`ensureLoaded`) and `refresh()` still load everything. `money/live.ts` patches the pocket card locally for `pockets.add/name/type/ordering/delete` (`notePocket`/`patchPocket`, mirroring the ref's ordering), and `refreshPocket` now reads one pocket (`SELECT_SUMMARY_ONE`) instead of every pocket. `method/live.ts` writes use `refreshMethods()` (one SELECT, keeps the store.json defaults the write did not touch). `extra/live.ts` writes use `refreshExtra(id)` — one row plus a local re-sort with a NOCASE comparator matching the SQL order. New tests: `product/live.test.ts` \"product writes read narrowly\" asserts every re-read after `set.info`/`delete`/`stock.receive` carries `product_id IN` (6 bounded SELECTs, zero full loads), and new `extra/live.test.ts` pins the narrow refresh's ordering (rename re-sorts) and delete. 351 pass."
+          },
+          {
+            "report": "cart-tab-strip-mouse-only",
+            "status": "fixed",
+            "note": "`z-Tabs.tsx` now implements the ARIA tabs pattern: the strip is `role=\"tablist\"` with `aria-label=\"Transaksi terbuka\"`, each cart is `role=\"tab\"` with `aria-selected`, an `aria-label` (\"Transaksi <title> (2 dari 3)\") and a roving `tabIndex` (selected ? 0 : -1), and one `onKeyDown` per tab handles Enter/Space (select), ArrowLeft/Right (select + move focus, wrapping), Home/End and Delete (opens the same confirm dialog, never destroys silently). The parked-tab branch was merged into the same Tab so it is reachable and restores on Enter too. The X buttons are now `tabIndex={-1}` so Tabbing never walks a row of delete buttons. The strip advertises the second keyboard path with a `Ctrl+←/→` Kbd chip next to F12. New `z-Tabs.test.tsx` (7 cases): one tab stop, aria-selected/roving tabindex, X not focusable, ArrowRight/Left (with wrap), Enter, parked cart by keyboard, Delete → confirm dialog."
+          },
+          {
+            "report": "record-search-list-mouse-only-unnamed-icons",
+            "status": "fixed",
+            "note": "`Record/Search/z-Search.tsx` now uses the roving-tabindex model its sibling `Record/z-Record/List.tsx` got in iteration 6: each result row is `tabIndex={focused === index ? 0 : -1}`, carries `aria-label=\"<date> <name>\"`, has an onClick and an onKeyDown (Enter/Space open, ArrowUp/Down/Home/End move the cursor with clamping), and the trailing arrow icon is now decorative (`aria-hidden`, no Button) so the list is one tab stop instead of 100 unnamed buttons. The magnifier submit button got `aria-label=\"Cari transaksi\"`. The zebra stripe moved from `bg-blue-50/50` to `bg-muted/50` here and in the skeleton rows (theme palette, per report 7's related note). `icon-buttons.test.ts` now treats a Button as icon-only if it is `size=\"icon\"` **or** `className` contains the `icon` token and its only child is an element/expression (the project's own spelling); verified it currently finds 25 icon-only buttons, 1 of them via the new path, none unnamed, and that it rejects a synthetic unnamed `<Button className=\"icon\"><SearchIcon /></Button>`. New `z-Search.test.tsx` (5 cases): one tab stop, ArrowDown moves focus, Enter navigates to the record, row accessible name, magnifier named."
+          },
+          {
+            "report": "hardcoded-icon-sizes-ignore-app-size-mode",
+            "status": "fixed",
+            "note": "All 15 hardcoded lucide `size={N}` call sites now use the scaling convention: `className=\"icon\"` for normal icons (Records header day steppers + FolderSearch, SearchBars magnifier, FilterDialog SlidersHorizontal/X, z-FilterGroup Icon, Debt/z-Summary HandCoins, NotFound MoveLeft/Home, pagination ChevronLeft/Right, FileDropZone Cloud), and a size *class* for the two deliberately larger glyphs (`Loading`'s 100px spinner → `size-[100px]`, `NotFound`'s TriangleAlert → `size-16`). Added a third guard to `src/lib/design-tokens.test.ts`: \"no icon ships a numeric `size` attribute instead of the `icon` utility\" (scans all `src/**/*.tsx` for `size={<digits>}` and requires an empty list — an intentional size is expressed as a class). Also moved the last two `bg-blue-50/50` zebra stripes in `Record/Search/z-Search.tsx` (rows + skeletons) to `bg-muted/50`, per the report's related note. `rg 'size=\\{[0-9]' src` now returns nothing; typecheck, lint and 364 tests pass."
+          },
+          {
+            "report": "cart-stream-errors-swallowed-beside-loader",
+            "status": "fixed",
+            "note": "All three hand-rolled stream reads are gone. `Pos/z-Bottom.tsx`'s `PayStrip` now reads `method.get.catalogChanges` through `<Loader>` inside a `MethodErrorBoundary` (`createErrorBoundary(MethodError)`) whose fallback is a `role=\"alert\"` message plus a \"Coba lagi\" button that remounts the subscription — a failed method catalogue says so instead of spinning forever on the one screen where the sale can never be paid. `Pos/Draft/z-Customer.tsx` and `Restock/Draft/z-Supplier.tsx` no longer `return null` on a failed read: the combobox stays mounted with an empty list (a new customer/supplier can still be typed) and an inline `role=\"alert\"` explains the failure (\"Daftar pelanggan gagal dimuat (…). Penjualan tetap bisa disimpan, tetapi pelanggan harus diketik sebagai pelanggan baru.\"). New `src/pages/Pos/Draft/z-Customer.test.tsx` renders the customer field with `customer.get.changes` failing and asserts the alert text plus the still-present input. `rg 'type !== \"success\"' src` now returns only the deliberate `pickFirst` \"not loaded yet\" guard in `z-Listing.tsx`. Deliberate deviation from \"always `<Loader>`\": the customer/supplier read is optional to the sale, so throwing it into a route boundary would kill the sale for a non-essential field; the explicit error branch is the report's own second option."
+          }
+        ],
+        "at": "2026-10-21T21:00:33.545Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T21:00:33.545Z"
         }
       }
     }

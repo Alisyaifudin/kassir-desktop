@@ -22,7 +22,7 @@ export function SearchBars() {
           "absolute left-2.5 transition-colors duration-200",
           isFocused ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
         )}>
-          <SearchIcon size={16} strokeWidth={2.5} />
+          <SearchIcon className="icon" strokeWidth={2.5} />
         </div>
         
         <Input

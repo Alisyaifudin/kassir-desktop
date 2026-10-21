@@ -9,7 +9,7 @@ export function Summary({ total }: { total: number }) {
     <div className="flex items-center justify-between gap-4 rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
-          <HandCoins size={22} />
+          <HandCoins className="icon" />
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="font-medium text-muted-foreground">Total Utang</span>

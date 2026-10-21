@@ -34,13 +34,34 @@ function sources(): string[] {
   return [...new Glob("src/**/*.tsx").scanSync(process.cwd())];
 }
 
+/**
+ * True when the button's only content is an icon.
+ *
+ * Two spellings ship here: the shadcn `size="icon"` and the project's own
+ * `className="icon"` (the size utility that scales with Besar/Kecil). The guard
+ * used to know only the first, so every `className="icon"` button shipped
+ * unnamed and untested. `title` is deliberately *not* counted as a name.
+ */
+function isIconOnly(source: string): boolean {
+  if (source.includes('size="icon"')) return true;
+  const openTag = source.slice(0, source.indexOf(">"));
+  if (!/(?<![\w-])icon(?![\w-])/.test(openTag)) return false;
+  const inner = source.slice(source.indexOf(">") + 1, source.lastIndexOf("</Button>"));
+  // Strip every element and every JSX expression; text is what is left over.
+  const stripped = inner
+    .replace(/<[A-Za-z][\s\S]*?\/>/g, " ")
+    .replace(/\{[\s\S]*?\}/g, " ")
+    .trim();
+  return stripped === "";
+}
+
 describe("icon buttons", () => {
   test("no icon-only button ships without an accessible name", () => {
     const offenders: Offender[] = [];
     for (const file of sources()) {
       const content = readFileSync(file, "utf8");
       for (const { source, line } of buttons(content)) {
-        if (!source.includes('size="icon"')) continue;
+        if (!isIconOnly(source)) continue;
         if (source.includes("aria-label") || source.includes("aria-labelledby")) continue;
         // A screen-reader-only span inside the button is a name too.
         if (source.includes("sr-only")) continue;

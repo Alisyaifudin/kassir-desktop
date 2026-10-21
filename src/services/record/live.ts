@@ -1483,6 +1483,33 @@ export const RecordLive = Layer.effect(
                 new RecordError({ message: "Pembayaran atau pembulatan tidak valid" }),
               );
             }
+            // Settling is what removes the record from the debt list, so the
+            // state check has to live here and not only in the dialog: a call on
+            // a cash sale used to rewrite its payment, a second call on an
+            // already-settled credit re-stamped `paid_at`, and an underpayment
+            // cleared the debt while leaving the shop short.
+            const record = yield* readRecord(id);
+            if (record.record_credit_at === null) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Catatan ini bukan transaksi kredit" }),
+              );
+            }
+            if (record.record_paid_at !== null) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Kredit ini sudah dibayar" }),
+              );
+            }
+            const owed = roundToFix(
+              record.record_total + record.record_rounding + input.rounding,
+              record.record_fix,
+            );
+            if (input.pay < owed) {
+              return yield* Effect.fail(
+                new RecordError({
+                  message: `Pembayaran tidak cukup, minimal ${owed.toLocaleString("id-ID")}`,
+                }),
+              );
+            }
             const methods = yield* db
               .selectMany<MethodRow>(SELECT_METHODS_FOR("$1"), [id])
               .pipe(Effect.mapError(dbErrorToRecordError));
@@ -1496,10 +1523,13 @@ export const RecordLive = Layer.effect(
               bindings: [index === 0 ? input.pay : 0, method.record_method_id],
             }));
             statements.push({
+              // The unsettled-credit condition is repeated in the write so a
+              // concurrent settlement fails instead of overwriting the first.
               sql: `UPDATE records SET
                   record_pay = $1, record_rounding = $2,
                   record_paid_at = $3, record_updated_at = $3, record_sync_at = NULL
-                WHERE record_id = $4`,
+                WHERE record_id = $4
+                  AND record_credit_at IS NOT NULL AND record_paid_at IS NULL`,
               bindings: [input.pay, input.rounding, now, id],
             });
             yield* commit(statements);

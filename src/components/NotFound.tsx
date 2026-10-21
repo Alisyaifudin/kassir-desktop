@@ -12,7 +12,7 @@ export function NotFound() {
             404
           </span>
           <div className="absolute inset-0 flex items-center justify-center">
-            <TriangleAlert size={64} className="text-zinc-400 dark:text-zinc-600" />
+            <TriangleAlert className="size-16 text-zinc-400 dark:text-zinc-600" />
           </div>
         </div>
 
@@ -30,7 +30,7 @@ export function NotFound() {
             className="gap-2 border-zinc-300 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900"
             onClick={() => navigate(-1)}
           >
-            <MoveLeft size={18} />
+            <MoveLeft className="icon" />
             Kembali
           </Button>
 
@@ -39,7 +39,7 @@ export function NotFound() {
             asChild
           >
             <Link to="/">
-              <Home size={18} />
+              <Home className="icon" />
               Halaman Beranda
             </Link>
           </Button>

@@ -4,17 +4,28 @@ import { extendTailwindMerge } from "tailwind-merge";
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
 import { log } from "./log";
 
-export const numerish = z.string().refine((val) => val !== "" || !isNaN(Number(val)), {
-  message: "Harus angka",
-});
+/**
+ * A non-empty string that reads as a finite number.
+ *
+ * The "must be a number" rule is a conjunction, not a disjunction: with `||`
+ * every non-empty string passed and `integer.parse("abc")` produced `NaN`,
+ * so the five URL parsers built on these helpers believed a malformed `?page=`
+ * had already been rejected. The empty string is rejected too — it is "no
+ * value", not zero; a caller that wants zero says so.
+ */
+export const numerish = z
+  .string()
+  .trim()
+  .min(1, { message: "Harus angka" })
+  .refine((val) => Number.isFinite(Number(val)), { message: "Harus angka" });
 
 export const numeric = numerish.transform((val) => Number(val));
 
 export const integer = z
   .string()
-  .refine((val) => val !== "" || !isNaN(Number(val)) || !Number.isInteger(Number(val)), {
-    message: "Harus angka bulat",
-  })
+  .trim()
+  .min(1, { message: "Harus angka bulat" })
+  .refine((val) => Number.isSafeInteger(Number(val)), { message: "Harus angka bulat" })
   .transform((v) => Number(v));
 
 export function safeJSON(v: string) {

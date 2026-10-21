@@ -51,7 +51,7 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
                 : "hover:border-primary/50",
             )}
           >
-            <SlidersHorizontal size={16} strokeWidth={2.5} />
+            <SlidersHorizontal className="icon" strokeWidth={2.5} />
             <span className="font-semibold">Filter</span>
             {activeCount > 0 ? (
               <span className="rounded-full bg-background/25 px-1.5 text-small tabular-nums">
@@ -69,7 +69,7 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
             aria-label="Hapus filter"
             title="Hapus filter"
           >
-            <X size={18} />
+            <X className="icon" />
           </Button>
         ) : null}
 

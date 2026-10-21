@@ -42,7 +42,7 @@ export function Header({ busy }: { busy: boolean }) {
           });
         }}
       >
-        <FolderSearch size={16} strokeWidth={2.5} />
+        <FolderSearch className="icon" strokeWidth={2.5} />
       </Button>
 
       <div className="flex items-center bg-muted/30 gap-1 p-0.5 rounded-lg">
@@ -54,7 +54,7 @@ export function Header({ busy }: { busy: boolean }) {
           onClick={() => setTime(yesterday)}
           className="rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-all"
         >
-          <ChevronLeft size={14} strokeWidth={2.5} />
+          <ChevronLeft className="icon" strokeWidth={2.5} />
         </Button>
 
         <Calendar time={time} setTime={(time) => setTime(time)}>
@@ -69,7 +69,7 @@ export function Header({ busy }: { busy: boolean }) {
           onClick={() => setTime(tomorrow)}
           className="rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-all"
         >
-          <ChevronRight size={14} strokeWidth={2.5} />
+          <ChevronRight className="icon" strokeWidth={2.5} />
         </Button>
       </div>
     </fieldset>

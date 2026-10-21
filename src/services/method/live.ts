@@ -97,6 +97,18 @@ export const MethodLive = Layer.effect(
       });
     }
 
+    /**
+     * Re-reads only the `methods` slice. The defaults live in store.json and are
+     * only written by `set.default`, which patches the ref itself — so a rename
+     * or a delete has no reason to re-read every default key.
+     */
+    function refreshMethods(): Effect.Effect<void, MethodError> {
+      return Effect.gen(function* () {
+        const methods = yield* loadMethods();
+        yield* SubscriptionRef.update(ref, (catalog) => ({ ...catalog, methods }));
+      });
+    }
+
     function ensureLoaded(): Effect.Effect<void, MethodError> {
       return Effect.gen(function* () {
         if (loaded) return;
@@ -133,7 +145,7 @@ export const MethodLive = Layer.effect(
               bindings: [id, input.name, input.kind, now],
             },
           ]);
-          yield* hydrate();
+          yield* refreshMethods();
           return id;
         });
       },
@@ -149,7 +161,7 @@ export const MethodLive = Layer.effect(
                 bindings: [name, now, id],
               },
             ]);
-            yield* hydrate();
+            yield* refreshMethods();
           });
         },
         default(kind, id) {
@@ -180,7 +192,7 @@ export const MethodLive = Layer.effect(
                 bindings: [now, id],
               },
             ]);
-            yield* hydrate();
+            yield* refreshMethods();
           });
         },
       },

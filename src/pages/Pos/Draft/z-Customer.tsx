@@ -13,8 +13,22 @@ import { run } from "~/components/cart/run";
  */
 export function Customer({ draft }: { draft: Draft }) {
   const res = useStream(service.customer.get.changes);
-  if (res.type !== "success") return null;
-  return <Field draft={draft} customers={res.data} />;
+  // A failed read must not delete the field. Returning `null` made the failure
+  // indistinguishable from "still loading": the combobox vanished and the sale
+  // was committed with no customer and no message anywhere. The list falls back
+  // to empty (a new name can still be typed), and the failure is said out loud.
+  const customers = res.type === "success" ? res.data : [];
+  return (
+    <div className="flex flex-col gap-2">
+      <Field draft={draft} customers={customers} />
+      {res.type === "error" ? (
+        <p role="alert" className="text-small text-destructive">
+          Daftar pelanggan gagal dimuat ({res.error.message}). Penjualan tetap bisa disimpan,
+          tetapi pelanggan harus diketik sebagai pelanggan baru.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function Field({

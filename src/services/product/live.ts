@@ -759,7 +759,7 @@ export const ProductLive = Layer.effect(
           yield* db
             .transaction(statements)
             .pipe(Effect.mapError((error) => codeErrorToProductError(error, code)));
-          yield* hydrate();
+          yield* hydrateMany([productId]);
           return productId;
         });
       },
@@ -776,7 +776,7 @@ export const ProductLive = Layer.effect(
                 bindings: [info.name, info.note, now, id],
               },
             ]);
-            yield* hydrate();
+            yield* hydrateMany([id]);
           });
         },
         listing: {
@@ -790,7 +790,7 @@ export const ProductLive = Layer.effect(
                   touchProduct(productId, now),
                 ])
                 .pipe(Effect.mapError((error) => codeErrorToProductError(error, input.code)));
-              yield* hydrate();
+              yield* hydrateMany([productId]);
               return listingId;
             });
           },
@@ -800,7 +800,7 @@ export const ProductLive = Layer.effect(
               yield* db
                 .transaction([listingUpdate(input, listingId, now), touchProduct(productId, now)])
                 .pipe(Effect.mapError((error) => codeErrorToProductError(error, input.code)));
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
           remove(productId, listingId) {
@@ -813,7 +813,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
         },
@@ -826,7 +826,7 @@ export const ProductLive = Layer.effect(
                 propertyInsert(productId, propertyId, input, now),
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
               return propertyId;
             });
           },
@@ -843,7 +843,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
           remove(productId, propertyId) {
@@ -856,7 +856,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
         },
@@ -869,7 +869,7 @@ export const ProductLive = Layer.effect(
                 productNameInsert(productId, productNameId, input, now),
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
               return productNameId;
             });
           },
@@ -886,7 +886,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
           remove(productId, productNameId) {
@@ -899,7 +899,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
         },
@@ -923,7 +923,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
               return imageId;
             });
           },
@@ -951,7 +951,7 @@ export const ProductLive = Layer.effect(
               });
               statements.push(touchProduct(productId, now));
               yield* commit(statements);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
           remove(productId, imageId) {
@@ -964,7 +964,7 @@ export const ProductLive = Layer.effect(
                 },
                 touchProduct(productId, now),
               ]);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
           reorder(productId, imageIds) {
@@ -978,7 +978,7 @@ export const ProductLive = Layer.effect(
               }));
               statements.push(touchProduct(productId, now));
               yield* commit(statements);
-              yield* hydrate();
+              yield* hydrateMany([productId]);
             });
           },
         },
@@ -987,7 +987,7 @@ export const ProductLive = Layer.effect(
         receive(productId, input) {
           return Effect.gen(function* () {
             yield* commit(receiveStatements(productId, input, Date.now()));
-            yield* hydrate();
+            yield* hydrateMany([productId]);
           });
         },
         consume(productId, input) {
@@ -1014,7 +1014,7 @@ export const ProductLive = Layer.effect(
               return yield* Effect.fail(new ProductError({ message: "Stok tidak mencukupi" }));
             }
             yield* commit(statements);
-            yield* hydrate();
+            yield* hydrateMany([productId]);
           });
         },
         adjust(productId, stockId, input) {
@@ -1038,7 +1038,7 @@ export const ProductLive = Layer.effect(
                 input.note ?? "",
               ),
             );
-            yield* hydrate();
+            yield* hydrateMany([productId]);
           });
         },
         history(productId, input) {
@@ -1070,7 +1070,7 @@ export const ProductLive = Layer.effect(
               bindings: [now, now, id],
             },
           ]);
-          yield* hydrate();
+          yield* hydrateMany([id]);
         });
       },
       refresh: () => hydrate(),

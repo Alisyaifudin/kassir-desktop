@@ -11,8 +11,21 @@ import { run } from "~/components/cart/run";
  */
 export function Supplier({ draft }: { draft: Draft }) {
   const res = useStream(service.supplier.get.changes);
-  if (res.type !== "success") return null;
-  return <Field draft={draft} suppliers={res.data} />;
+  // Same rule as the customer field: a failed read is reported, not rendered as
+  // an absent field ("Pemasok: —" read as "none chosen", and the purchase was
+  // committed without one). An empty list still allows typing a new supplier.
+  const suppliers = res.type === "success" ? res.data : [];
+  return (
+    <div className="flex flex-col gap-2">
+      <Field draft={draft} suppliers={suppliers} />
+      {res.type === "error" ? (
+        <p role="alert" className="text-small text-destructive">
+          Daftar pemasok gagal dimuat ({res.error.message}). Pembelian tetap bisa disimpan,
+          tetapi pemasok harus diketik sebagai pemasok baru.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function Field({

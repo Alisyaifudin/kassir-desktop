@@ -43,7 +43,7 @@ type EntryRow = {
 // `timestamp DESC, money_id DESC` is the tiebreak the in-memory patch below
 // mirrors: entries can share an instant (an import), and the card must show the
 // same row the next hydrate will.
-const SELECT_SUMMARY = `
+const SUMMARY_COLUMNS = `
   SELECT
     p.pocket_id, p.pocket_name, p.pocket_type, p.pocket_ordering,
     p.pocket_updated_at, p.pocket_sync_at, p.pocket_deleted_at,
@@ -56,8 +56,19 @@ const SELECT_SUMMARY = `
     ORDER BY timestamp DESC, money_id DESC
     LIMIT 1
   )
-  WHERE p.pocket_deleted_at IS NULL
+  WHERE p.pocket_deleted_at IS NULL`;
+
+/** Every pocket's card — the first read, and an explicit refresh. */
+const SELECT_SUMMARY = `${SUMMARY_COLUMNS}
   ORDER BY p.pocket_ordering ASC, p.pocket_id ASC`;
+
+/** One pocket's card, for the write paths that only moved one pocket. */
+const SELECT_SUMMARY_ONE = `${SUMMARY_COLUMNS} AND p.pocket_id = $1`;
+
+/** The ref's order, mirrored locally so a patch cannot reorder the screen. */
+function byPocketOrder(a: PocketSummary, b: PocketSummary): number {
+  return a.pocket.ordering - b.pocket.ordering || a.pocket.id.localeCompare(b.pocket.id);
+}
 
 const ENTRY_COLUMNS = `
   money_id, pocket_id, timestamp, money_value, money_note,
@@ -192,16 +203,41 @@ export const MoneyLive = Layer.effect(
       );
     }
 
-    /** Re-reads one pocket's card — a delete can promote an older entry. */
+    /**
+     * Re-reads one pocket's card — a deleted entry can promote an older one, so
+     * the answer cannot be patched from the write. Narrow on purpose: one pocket
+     * with its latest entry, not the whole journal, which only grows.
+     */
     function refreshPocket(pocketId: string): Effect.Effect<void, MoneyError> {
       return Effect.gen(function* () {
-        const summaries = yield* load();
-        const next = summaries.find((summary) => summary.pocket.id === pocketId);
+        const rows = yield* db
+          .selectMany<SummaryRow>(SELECT_SUMMARY_ONE, [pocketId])
+          .pipe(Effect.mapError(dbErrorToMoneyError));
+        const next = rows[0] === undefined ? undefined : rowToSummary(rows[0]);
         if (next === undefined) return;
         yield* SubscriptionRef.update(ref, (current) =>
-          current.map((summary) => (summary.pocket.id === pocketId ? next : summary)),
+          current
+            .map((summary) => (summary.pocket.id === pocketId ? next : summary))
+            .sort(byPocketOrder),
         );
       });
+    }
+
+    /** Append a pocket created by this write, in the ref's order. */
+    function notePocket(summary: PocketSummary): Effect.Effect<void> {
+      return SubscriptionRef.update(ref, (current) => [...current, summary].sort(byPocketOrder));
+    }
+
+    /** Patch one pocket's card from what the write already knows. */
+    function patchPocket(
+      pocketId: string,
+      patch: (summary: PocketSummary) => PocketSummary,
+    ): Effect.Effect<void> {
+      return SubscriptionRef.update(ref, (current) =>
+        current
+          .map((summary) => (summary.pocket.id === pocketId ? patch(summary) : summary))
+          .sort(byPocketOrder),
+      );
     }
 
     return {
@@ -229,7 +265,10 @@ export const MoneyLive = Layer.effect(
                 bindings: [id, name, type, count, now],
               },
             ]);
-            yield* hydrate();
+            yield* notePocket({
+              pocket: { id, name, type, ordering: count, updatedAt: now, syncAt: null, deletedAt: null },
+              latest: null,
+            });
             return id;
           });
         },
@@ -245,7 +284,10 @@ export const MoneyLive = Layer.effect(
                   bindings: [name, now, id],
                 },
               ]);
-              yield* hydrate();
+              yield* patchPocket(id, (summary) => ({
+                ...summary,
+                pocket: { ...summary.pocket, name, updatedAt: now, syncAt: null },
+              }));
             });
           },
           type(id, type) {
@@ -259,7 +301,10 @@ export const MoneyLive = Layer.effect(
                   bindings: [type, now, id],
                 },
               ]);
-              yield* hydrate();
+              yield* patchPocket(id, (summary) => ({
+                ...summary,
+                pocket: { ...summary.pocket, type, updatedAt: now, syncAt: null },
+              }));
             });
           },
           ordering(items) {
@@ -274,7 +319,19 @@ export const MoneyLive = Layer.effect(
                   bindings: [order, now, id],
                 })),
               );
-              yield* hydrate();
+              const next = new Map(items.map(({ id, order }) => [id, order]));
+              yield* SubscriptionRef.update(ref, (current) =>
+                current
+                  .map((summary) => {
+                    const order = next.get(summary.pocket.id);
+                    if (order === undefined) return summary;
+                    return {
+                      ...summary,
+                      pocket: { ...summary.pocket, ordering: order, updatedAt: now, syncAt: null },
+                    };
+                  })
+                  .sort(byPocketOrder),
+              );
             });
           },
         },
@@ -298,7 +355,9 @@ export const MoneyLive = Layer.effect(
                   bindings: [now, id],
                 },
               ]);
-              yield* hydrate();
+              yield* SubscriptionRef.update(ref, (current) =>
+                current.filter((summary) => summary.pocket.id !== id),
+              );
               yield* bumpRevision();
             });
           },

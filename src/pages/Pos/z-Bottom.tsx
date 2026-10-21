@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import Decimal from "decimal.js";
-import { useStream } from "~/components/Loader";
+import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
+import { createErrorBoundary } from "~/components/createErrorBoundary";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
-import type { MethodCatalog } from "~/services/method";
+import { MethodError, type MethodCatalog } from "~/services/method";
 import type { Draft } from "~/services/transaction";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Methods } from "~/components/cart/z-Methods";
@@ -112,19 +113,13 @@ export function Bottom({
  * The payment rows and the money readouts — the part of the purchase that used
  * to take a stage, tucked into the strip so the main panel never leaves the
  * goods. `focusPayment` counts F2 presses; the first amount field watches it.
+ *
+ * The catalogue read goes through `<Loader>`, so a failed read is a `MethodError`
+ * — caught by the boundary below and reported with a retry — instead of the
+ * endless spinner this strip used to show, which read as "the app is thinking"
+ * on the one screen where the sale could never be paid.
  */
-function PayStrip({
-  draft,
-  change,
-  focusPayment,
-  focusTop,
-  onExitUp,
-  focused,
-  onActivate,
-  onFocusPay,
-  focusRounding,
-  onSubmit,
-}: {
+type PayStripProps = {
   draft: Draft;
   change: Decimal;
   focusPayment: number;
@@ -135,23 +130,42 @@ function PayStrip({
   onFocusPay: () => void;
   focusRounding: number;
   onSubmit: () => boolean;
-}) {
-  const res = useStream(service.method.get.catalogChanges);
-  if (res.type !== "success") return <Loading />;
+};
+
+const MethodErrorBoundary = createErrorBoundary(MethodError);
+
+function PayStrip(props: PayStripProps) {
+  // Remounting re-subscribes the stream, which is the cheapest retry there is.
+  const [attempt, setAttempt] = useState(0);
   return (
-    <Body
-      draft={draft}
-      catalog={res.data}
-      change={change}
-      focusPayment={focusPayment}
-      focusTop={focusTop}
-      onExitUp={onExitUp}
-      focused={focused}
-      onActivate={onActivate}
-      onFocusPay={onFocusPay}
-      focusRounding={focusRounding}
-      onSubmit={onSubmit}
-    />
+    <MethodErrorBoundary
+      key={attempt}
+      fallback={({ error }) => (
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-2 border-b border-destructive/40 bg-destructive/10 p-3 text-small"
+        >
+          <span>Daftar metode pembayaran gagal dimuat: {error.message}</span>
+          <span className="text-muted-foreground">
+            Penjualan belum bisa dibayar sampai metode pembayaran terbaca.
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setAttempt((count) => count + 1)}>
+            Coba lagi
+          </Button>
+        </div>
+      )}
+    >
+      <PayStripView {...props} />
+    </MethodErrorBoundary>
+  );
+}
+
+function PayStripView(props: PayStripProps) {
+  const res = useStream(service.method.get.catalogChanges);
+  return (
+    <Loader res={res} fallback={<Loading />}>
+      {({ data }) => <Body {...props} catalog={data} />}
+    </Loader>
   );
 }
 

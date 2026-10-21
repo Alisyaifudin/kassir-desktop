@@ -8,6 +8,7 @@ import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import type { Extra, Line } from "~/components/cart/types";
 import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
 import { cartErrorMessage, run } from "~/components/cart/run";
+import { isScreenOwnedByDialog } from "~/components/cart/use-inert-app";
 
 /** The fields every cart screen's completion dialog needs to be rendered. */
 export type Completed = {
@@ -112,6 +113,12 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (submitting) return;
+      // A dialog owns the screen: the completion dialog, or either money editor.
+      // `inert` on `#root` and the focus trap hold the pointer in, but neither
+      // stops a listener on `window`, so F12 could add an empty draft behind the
+      // "Pembayaran berhasil" dialog and F1 could reset the grid selection under
+      // an open editor.
+      if (isScreenOwnedByDialog()) return;
       if (event.key === "F1") {
         event.preventDefault();
         if (onF1 === undefined) focusSearchNow();
@@ -220,7 +227,7 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   // word-jump, so only act when the target is not an editor.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (submitting) return;
+      if (submitting || isScreenOwnedByDialog()) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const target = event.target as HTMLElement | null;

@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { Context, Effect, Layer } from "effect";
+import { DatabaseService, type Binding } from "../db";
 import { makeTestDatabase } from "../db/test-support";
 import { ProductService } from ".";
 import { ProductLive } from "./live";
@@ -163,5 +164,84 @@ describe("product.add value boundary", () => {
     );
 
     expect(outcome._tag).toBe("Left");
+  });
+});
+
+describe("product writes read narrowly", () => {
+  /**
+   * A shop's catalogue is thousands of rows and six tables wide. Re-reading all
+   * of it after renaming one product is the read cost iteration 1 filed; the
+   * bounded `loadMany` path already existed for record commits and is what the
+   * edit paths must use too.
+   *
+   * The whole flow runs inside one program: each `run` builds a fresh
+   * `ProductLive`, and a fresh service has to read the catalogue once anyway.
+   */
+  function recordingSetup() {
+    const { db, layer } = makeTestDatabase();
+    const reads: string[] = [];
+    const recording = Layer.effect(
+      DatabaseService,
+      Effect.map(DatabaseService, (service) => ({
+        ...service,
+        selectMany: <T>(query: string, bindings?: Binding[]) => {
+          reads.push(query);
+          return service.selectMany<T>(query, bindings);
+        },
+      })),
+    ).pipe(Layer.provide(layer));
+    return { db, reads, layer: ProductLive.pipe(Layer.provide(recording)) };
+  }
+
+  test("a product edit re-reads only that product", async () => {
+    const { reads, layer } = recordingSetup();
+    const queries = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const kopi = yield* product.add(input("Kopi"));
+        yield* product.add(input("Teh"));
+        yield* product.add(input("Gula"));
+        reads.length = 0;
+        yield* product.set.info(kopi, { name: "Kopi Susu", note: "" });
+        return [...reads];
+      }),
+    );
+
+    expect(queries).toHaveLength(6);
+    for (const query of queries) expect(query).toContain("product_id IN");
+  });
+
+  test("deleting a product drops it without re-reading the catalogue", async () => {
+    const { reads, layer } = recordingSetup();
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const kopi = yield* product.add(input("Kopi"));
+        yield* product.add(input("Teh"));
+        reads.length = 0;
+        yield* product.delete(kopi);
+        const names = yield* Effect.map(product.get.all(), (items) =>
+          items.map((item) => item.name),
+        );
+        return { queries: [...reads], names };
+      }),
+    );
+
+    for (const query of outcome.queries) expect(query).toContain("product_id IN");
+    expect(outcome.names).toEqual(["Teh"]);
+  });
+
+  test("a stock adjustment re-reads only that product", async () => {
+    const { reads, layer } = recordingSetup();
+    const queries = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const kopi = yield* product.add(input("Kopi"));
+        yield* product.add(input("Teh"));
+        reads.length = 0;
+        yield* product.stock.receive(kopi, { value: 2, capital: 200 });
+        return [...reads];
+      }),
+    );
+
+    expect(queries.length).toBeGreaterThan(0);
+    for (const query of queries) expect(query).toContain("product_id IN");
   });
 });

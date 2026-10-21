@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
@@ -41,6 +41,54 @@ export function Tabs({
   onSelect: (id: string) => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<DraftModel | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * The ARIA tabs pattern, automatic activation: the arrows both select and move
+   * focus, so a keyboard user reaches every cart with one Tab stop and never
+   * lands on a row of delete buttons. `Delete` opens the same confirm dialog the
+   * X does instead of destroying a cart silently.
+   */
+  function handleTabKeyDown(event: KeyboardEvent<HTMLDivElement>, index: number) {
+    const last = drafts.length - 1;
+    const select = (next: number) => {
+      const draft = drafts[next];
+      if (draft === undefined) return;
+      onSelect(draft.id);
+      listRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
+    };
+    switch (event.key) {
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        select(index);
+        return;
+      case "ArrowLeft":
+        event.preventDefault();
+        select(index === 0 ? last : index - 1);
+        return;
+      case "ArrowRight":
+        event.preventDefault();
+        select(index === last ? 0 : index + 1);
+        return;
+      case "Home":
+        event.preventDefault();
+        select(0);
+        return;
+      case "End":
+        event.preventDefault();
+        select(last);
+        return;
+      case "Delete": {
+        const draft = drafts[index];
+        if (draft === undefined) return;
+        event.preventDefault();
+        setPendingDelete(draft);
+        return;
+      }
+      default:
+    }
+  }
 
   function create() {
     void Effect.runPromise(
@@ -72,14 +120,22 @@ export function Tabs({
         >
           <Plus className="icon" />
         </Button>
-        <div className="flex flex-1 items-center gap-1 overflow-x-auto">
+        <Kbd className="py-4 mb-1">Ctrl+←/→</Kbd>
+        <div
+          ref={listRef}
+          role="tablist"
+          aria-label="Transaksi terbuka"
+          className="flex flex-1 items-center gap-1 overflow-x-auto"
+        >
           {drafts.map((draft, index) => (
             <Tab
               key={draft.id}
               draft={draft}
               number={index + 1}
+              total={drafts.length}
               selected={draft.id === activeId}
               onSelect={() => onSelect(draft.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
               onClose={() => setPendingDelete(draft)}
             />
           ))}
@@ -117,69 +173,48 @@ export function Tabs({
 function Tab({
   draft,
   number,
+  total,
   selected,
   onSelect,
+  onKeyDown,
   onClose,
 }: {
   draft: DraftModel;
   number: number;
+  total: number;
   selected: boolean;
   onSelect: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onClose: () => void;
 }) {
-  // A stored cart collapses to its number; clicking it restores it.
-  if ((draft.flag & STORED_FLAG) !== 0) {
-    return (
-      <div
-        onClick={onSelect}
-        title={`Transaksi tersimpan ${number}`}
-        className={cn(
-          "flex shrink-0 cursor-pointer items-center gap-1 rounded-t-md border border-b-0 py-1 pl-2 pr-1 transition-colors",
-          selected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
-        )}
-      >
-        <span
-          className={cn(
-            "rounded-full px-1.5 text-small font-bold tabular-nums",
-            selected ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
-          )}
-        >
-          {number}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Hapus transaksi tersimpan ${number}`}
-          title={`Hapus transaksi tersimpan ${number}`}
-          className={cn(
-            "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",
-            selected ? "text-primary-foreground" : "text-muted-foreground",
-          )}
-          onClick={(event) => {
-            event.stopPropagation();
-            onClose();
-          }}
-        >
-          <X className="icon" />
-        </Button>
-      </div>
-    );
-  }
-
+  const stored = (draft.flag & STORED_FLAG) !== 0;
+  const title = stored ? `Transaksi tersimpan ${number}` : draft.title;
+  // One tab stop for the whole strip; the arrows move between carts. The X stays
+  // in the accessibility tree but out of the tab order (Delete does the same
+  // thing from the tab), so Tabbing never walks a row of delete buttons.
   return (
     <div
+      role="tab"
+      aria-selected={selected}
+      aria-label={`Transaksi ${title} (${number} dari ${total})`}
+      tabIndex={selected ? 0 : -1}
       onClick={onSelect}
+      onKeyDown={onKeyDown}
+      title={stored ? title : undefined}
       className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-2 rounded-t-md border border-b-0 py-1 pl-3 pr-1.5 transition-colors",
+        "flex shrink-0 cursor-pointer items-center gap-1 rounded-t-md border border-b-0 py-1 pl-2 pr-1 transition-colors",
+        "focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
         selected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
       )}
     >
-      <span className="max-w-[160px] truncate text-small font-medium select-none">
-        {draft.title}
-      </span>
+      {stored ? null : (
+        <span className="max-w-[160px] truncate text-small font-medium select-none">
+          {draft.title}
+        </span>
+      )}
       <span
         className={cn(
-          "rounded-full px-1.5 text-small font-bold tabular-nums",
+          "rounded-full px-1.5 text-small font-bold tabular-nums select-none",
           selected ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
         )}
       >
@@ -188,8 +223,9 @@ function Tab({
       <Button
         variant="ghost"
         size="icon"
-        aria-label={`Tutup ${draft.title}`}
-        title={`Tutup ${draft.title}`}
+        tabIndex={-1}
+        aria-label={`Hapus ${title}`}
+        title={`Hapus ${title}`}
         className={cn(
           "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",
           selected ? "text-primary-foreground" : "text-muted-foreground",

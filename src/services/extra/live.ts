@@ -23,6 +23,18 @@ const SELECT_EXTRAS = `
   WHERE extra_deleted_at IS NULL
   ORDER BY extra_name COLLATE NOCASE ASC, extra_id ASC`;
 
+const SELECT_EXTRA_ONE = `
+  SELECT extra_id, extra_name, extra_value, extra_kind, extra_flag,
+         extra_updated_at, extra_sync_at
+  FROM extras
+  WHERE extra_deleted_at IS NULL AND extra_id = $1`;
+
+/** Mirrors `ORDER BY extra_name COLLATE NOCASE ASC, extra_id ASC`. */
+function byExtraOrder(a: Extra, b: Extra): number {
+  const byName = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  return byName !== 0 ? byName : a.id.localeCompare(b.id);
+}
+
 function dbErrorToExtraError(error: DbError): ExtraError {
   return new ExtraError({ message: error.message });
 }
@@ -63,6 +75,24 @@ export const ExtraLive = Layer.effect(
       });
     }
 
+    /**
+     * Re-reads one charge after a write and folds it into the ref — a rename can
+     * move it, so the list is re-sorted with the same rule SQL uses.
+     */
+    function refreshExtra(id: string): Effect.Effect<void, ExtraError> {
+      return Effect.gen(function* () {
+        const rows = yield* db
+          .selectMany<ExtraRow>(SELECT_EXTRA_ONE, [id])
+          .pipe(Effect.mapError(dbErrorToExtraError));
+        const next = rows[0] === undefined ? undefined : rowToExtra(rows[0]);
+        yield* SubscriptionRef.update(extrasRef, (current) => {
+          const others = current.filter((extra) => extra.id !== id);
+          if (next === undefined) return others;
+          return [...others, next].sort(byExtraOrder);
+        });
+      });
+    }
+
     function ensureLoaded(): Effect.Effect<void, ExtraError> {
       return Effect.gen(function* () {
         if (loaded) return;
@@ -94,7 +124,7 @@ export const ExtraLive = Layer.effect(
               bindings: [id, input.name, input.value, input.kind, input.flag, now],
             },
           ]);
-          yield* hydrate();
+          yield* refreshExtra(id);
           return id;
         });
       },
@@ -111,7 +141,7 @@ export const ExtraLive = Layer.effect(
                 bindings: [input.name, input.value, input.kind, input.flag, now, id],
               },
             ]);
-            yield* hydrate();
+            yield* refreshExtra(id);
           });
         },
       },
@@ -127,7 +157,7 @@ export const ExtraLive = Layer.effect(
                 bindings: [now, id],
               },
             ]);
-            yield* hydrate();
+            yield* refreshExtra(id);
           });
         },
       },

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -45,7 +45,7 @@ export function Search() {
     <div className="flex flex-col gap-2 flex-1 overflow-hidden">
       <div className="flex items-center gap-2">
         <form className="flex flex-1 items-center py-0.5 gap-2" onSubmit={handleSubmit}>
-          <Button className="icon" variant="ghost">
+          <Button className="icon" variant="ghost" aria-label="Cari transaksi" type="submit">
             <SearchIcon />
           </Button>
           <Input
@@ -84,15 +84,22 @@ function Output({ limit, onMore }: { limit: number; onMore: () => void }) {
 function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () => void }) {
   const navigate = useNavigate();
   const urlBack = useGenerateUrlBack("/records/search");
+  // Roving tabindex, the same model the day list and the POS grids use: the
+  // result list is one tab stop, arrows move inside it, Enter opens the record.
+  // Before this, the only focusable thing per row was an unnamed icon button, so
+  // a keyboard user could search and then not open anything.
+  const [focused, setFocused] = useState(0);
+  const tabStop = Math.min(focused, Math.max(0, page.entries.length - 1));
 
-  function handleClick(id: string) {
-    return function () {
+  const open = useCallback(
+    (id: string) => {
       navigate({
         pathname: `/records/${id}`,
         search: `?url_back=${encodeURIComponent(urlBack)}`,
       });
-    };
-  }
+    },
+    [navigate, urlBack],
+  );
 
   return (
     <Table className="text-normal flex-1">
@@ -110,7 +117,7 @@ function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () =>
         </TableRow>
       </TableHeader>
       <TableBody className="overflow-auto flex-1 w-full">
-        <ForEachRow page={page} onClick={handleClick} />
+        <ForEachRow page={page} tabStop={tabStop} onFocusRow={setFocused} onOpen={open} />
         <Show when={page.entries.length < page.total}>
           <TableRow>
             <TableCell colSpan={7} className="text-end">
@@ -128,10 +135,15 @@ function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () =>
 
 function ForEachRow({
   page,
-  onClick,
+  tabStop,
+  onFocusRow,
+  onOpen,
 }: {
   page: ListingHistoryPage;
-  onClick: (id: string) => () => void;
+  /** The row that carries the list's single tab stop. */
+  tabStop: number;
+  onFocusRow: (index: number) => void;
+  onOpen: (id: string) => void;
 }) {
   if (page.total === 0) {
     return (
@@ -143,10 +155,49 @@ function ForEachRow({
     );
   }
 
+  /** Enter/Space opens the row under the cursor; arrows move the cursor. */
+  function handleKeyDown(index: number, recordId: string) {
+    return (event: KeyboardEvent<HTMLTableRowElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onOpen(recordId);
+        return;
+      }
+      if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const rows = event.currentTarget
+        .closest("tbody")
+        ?.querySelectorAll<HTMLTableRowElement>("tr[tabindex]");
+      if (rows === undefined || rows.length === 0) return;
+      const last = rows.length - 1;
+      const target =
+        event.key === "ArrowDown"
+          ? index + 1
+          : event.key === "ArrowUp"
+            ? index - 1
+            : event.key === "Home"
+              ? 0
+              : last;
+      const next = Math.min(Math.max(target, 0), last);
+      onFocusRow(next);
+      rows[next]?.focus();
+    };
+  }
+
   return (
     <>
       {page.entries.map((entry, index) => (
-        <TableRow key={entry.id} className={cn({ "bg-blue-50/50": index % 2 === 0 })}>
+        <TableRow
+          key={entry.id}
+          tabIndex={index === tabStop ? 0 : -1}
+          aria-label={`${formatDate(entry.paidAt)} ${entry.name}`}
+          onClick={() => onOpen(entry.recordId)}
+          onKeyDown={handleKeyDown(index, entry.recordId)}
+          className={cn(
+            "cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary focus-visible:outline-none",
+            { "bg-muted/50": index % 2 === 0 },
+          )}
+        >
           <TableCell>{index + 1}</TableCell>
           <TableCell className="text-center">
             {formatDate(entry.paidAt).replaceAll("-", "/")}
@@ -156,13 +207,8 @@ function ForEachRow({
           <TableCell className="text-center">{entry.qty}</TableCell>
           <TableCell className="text-right">{entry.price.toLocaleString("id-ID")}</TableCell>
           <TableCell>
-            <Button
-              onClick={onClick(entry.recordId)}
-              variant="link"
-              className="p-0 cursor-pointer"
-            >
-              <SquareArrowOutUpRight className="icon" />
-            </Button>
+            {/* The row is the control now; the icon is a hint, not a button. */}
+            <SquareArrowOutUpRight className="icon text-muted-foreground" aria-hidden="true" />
           </TableCell>
         </TableRow>
       ))}
@@ -192,7 +238,7 @@ function LoadingTable() {
           </TableHeader>
           <TableBody className="overflow-auto flex-1 w-full">
             {Array.from({ length: 12 }).map((_, i) => (
-              <TableRow key={i} className={cn({ "bg-blue-50/50": i % 2 === 0 })}>
+              <TableRow key={i} className={cn({ "bg-muted/50": i % 2 === 0 })}>
                 <TableCell>
                   <Skeleton className="h-4 w-6" />
                 </TableCell>

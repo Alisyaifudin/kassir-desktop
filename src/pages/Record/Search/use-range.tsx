@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
-import { integer } from "~/lib/utils";
+import { parseRange } from "~/lib/range";
 
 export type SearchRange = {
   /** First day of the range, local midnight. */
@@ -33,8 +33,7 @@ export function useRange(): SearchRange {
     };
   }, []);
 
-  const start = integer.catch(defaults.start).parse(search.get("start"));
-  const end = integer.catch(defaults.end).parse(search.get("end"));
+  const { start, end } = parseRange(search, defaults);
   const endExclusive = Temporal.Instant.fromEpochMilliseconds(end)
     .toZonedDateTimeISO(tz)
     .add({ days: 1 }).epochMilliseconds;

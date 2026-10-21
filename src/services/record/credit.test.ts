@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { makeTestDatabase } from "../db/test-support";
 import { ProductLive } from "../product/live";
 import { RecordLive } from "./live";
-import { RecordService } from ".";
+import { RecordError, RecordService } from ".";
 
 function setup() {
   const { db, layer } = makeTestDatabase();
@@ -69,5 +69,98 @@ describe("record credit dates", () => {
     row = db.query("SELECT * FROM records WHERE record_id = 'r1'").get() as typeof row;
     expect(row.record_credit_at).toBe(99);
     expect(row.record_paid_at).not.toBeNull();
+  });
+});
+
+describe("record credit settle guards", () => {
+  type Snapshot = {
+    record_paid_at: number | null;
+    record_pay: number;
+    record_rounding: number;
+  };
+
+  function snapshot(db: ReturnType<typeof setup>["db"]): Snapshot {
+    return db.query("SELECT * FROM records WHERE record_id = 'r1'").get() as Snapshot;
+  }
+
+  test("refuses to settle a cash sale", async () => {
+    const { db, recordLayer } = setup();
+    const before = snapshot(db);
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        Effect.gen(function* () {
+          const record = yield* RecordService;
+          return yield* record.set.payCredit("r1", { pay: 10000, rounding: 0 });
+        }).pipe(Effect.provide(recordLayer)),
+      ),
+    );
+    expect(failure).toBeInstanceOf(RecordError);
+    expect(failure.message).toBe("Catatan ini bukan transaksi kredit");
+    expect(snapshot(db)).toEqual(before);
+  });
+
+  test("refuses a deleted record", async () => {
+    const { db, recordLayer } = setup();
+    await run(recordLayer, (record) => record.set.toCredit("r1"));
+    db.exec("UPDATE records SET record_deleted_at = 50 WHERE record_id = 'r1'");
+    const before = snapshot(db);
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        Effect.gen(function* () {
+          const record = yield* RecordService;
+          return yield* record.set.payCredit("r1", { pay: 10000, rounding: 0 });
+        }).pipe(Effect.provide(recordLayer)),
+      ),
+    );
+    expect(failure).toBeInstanceOf(RecordError);
+    expect(snapshot(db)).toEqual(before);
+  });
+
+  test("refuses an underpayment and leaves the debt outstanding", async () => {
+    const { db, recordLayer } = setup();
+    await run(recordLayer, (record) => record.set.toCredit("r1"));
+    const before = snapshot(db);
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        Effect.gen(function* () {
+          const record = yield* RecordService;
+          return yield* record.set.payCredit("r1", { pay: 9000, rounding: 0 });
+        }).pipe(Effect.provide(recordLayer)),
+      ),
+    );
+    expect(failure).toBeInstanceOf(RecordError);
+    expect(failure.message).toContain("minimal");
+    expect(snapshot(db)).toEqual(before);
+    expect(await run(recordLayer, (record) => record.get.debt())).toHaveLength(1);
+  });
+
+  test("refuses a second settlement of the same credit", async () => {
+    const { db, recordLayer } = setup();
+    await run(recordLayer, (record) => record.set.toCredit("r1"));
+    await run(recordLayer, (record) =>
+      record.set.payCredit("r1", { pay: 10000, rounding: 0 }),
+    );
+    const settled = snapshot(db);
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        Effect.gen(function* () {
+          const record = yield* RecordService;
+          return yield* record.set.payCredit("r1", { pay: 20000, rounding: 0 });
+        }).pipe(Effect.provide(recordLayer)),
+      ),
+    );
+    expect(failure).toBeInstanceOf(RecordError);
+    expect(failure.message).toBe("Kredit ini sudah dibayar");
+    expect(snapshot(db)).toEqual(settled);
+  });
+
+  test("an explicit rounding write-off still settles", async () => {
+    const { db, recordLayer } = setup();
+    await run(recordLayer, (record) => record.set.toCredit("r1"));
+    await run(recordLayer, (record) =>
+      record.set.payCredit("r1", { pay: 9500, rounding: -500 }),
+    );
+    expect(snapshot(db).record_paid_at).not.toBeNull();
+    expect(await run(recordLayer, (record) => record.get.debt())).toHaveLength(0);
   });
 });
