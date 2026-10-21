@@ -17,7 +17,7 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { EXTRA_PRESETS, type Extra, type ExtraPreset } from "../mock";
-import { recalcExtras } from "../total";
+import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import { SELECTED_RING } from "./z-Cell";
 import { ExtraCard } from "./z-Extra";

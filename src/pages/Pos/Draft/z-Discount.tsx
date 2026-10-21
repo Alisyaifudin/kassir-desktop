@@ -21,7 +21,7 @@ import {
 } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
-import { lineSubtotal, recalcDiscounts } from "../total";
+import { lineSubtotal, recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import type { DiscountKind, DiscountLine, Line } from "../mock";
 

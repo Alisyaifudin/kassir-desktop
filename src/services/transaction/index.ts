@@ -5,6 +5,15 @@ export class TransactionError extends Data.TaggedError("TransactionError")<{
   message: string;
 }> {}
 
+/**
+ * A refused submission that the cashier can act on. `kind` lets the page route
+ * it: the listing-side problems are shown inline, everything else as a toast.
+ */
+export class SubmitError extends Data.TaggedError("SubmitError")<{
+  kind: "empty" | "stored" | "payment" | "name" | "code" | "outcoming";
+  message: string;
+}> {}
+
 /** Which way goods move: `incoming` is a sale, `outcoming` a purchase. */
 export type DraftMode = "incoming" | "outcoming";
 
@@ -69,8 +78,8 @@ export type DraftImage = {
 
 /**
  * The in-progress cart being assembled: the counterparty, the money settings,
- * and the payments. `tx_*` in the database; `records` is only written when the
- * draft is submitted, which is not implemented yet.
+ * and the payments. `tx_*` in the database; `records` is written by `submit`,
+ * which commits the cart and removes its `tx_records` row in one transaction.
  */
 export type Draft = {
   id: string;
@@ -84,6 +93,10 @@ export type Draft = {
   fix: number;
   note: string;
   customerId: string | null;
+  /** A new customer's typed name, used when `customerId` is null. */
+  customerName: string;
+  /** A new customer's typed phone; optional. */
+  customerPhone: string;
   supplierId: string | null;
   rounding: number;
   listings: DraftListing[];
@@ -101,6 +114,20 @@ export class TransactionService extends Context.Tag("TransactionService")<
       changes: Stream.Stream<Draft[], TransactionError>;
     };
     add: { new: (mode: DraftMode) => Effect.Effect<string, TransactionError> };
+    /**
+     * Commit the draft as a record, in one transaction: the record and its
+     * lines, the stock movements, and the `tx_*` deletion. Returns the record id.
+     * The cashier is the only thing the draft cannot know.
+     */
+    submit: (
+      id: string,
+      input: { cashier: string },
+    ) => Effect.Effect<string, TransactionError | SubmitError>;
+    /**
+     * Undo a submission: write the record back as a draft, then delete the
+     * record (which reverses its stock movement). Returns the new draft id.
+     */
+    unsubmit: (recordId: string) => Effect.Effect<string, TransactionError>;
     /** Hard delete: a cart is transient working state, not synced history. */
     delete: { byId: (id: string) => Effect.Effect<void, TransactionError> };
     set: {
@@ -108,6 +135,8 @@ export class TransactionService extends Context.Tag("TransactionService")<
       fix: (id: string, fix: number) => Effect.Effect<void, TransactionError>;
       note: (id: string, note: string) => Effect.Effect<void, TransactionError>;
       customer: (id: string, customerId: string | null) => Effect.Effect<void, TransactionError>;
+      customerName: (id: string, name: string) => Effect.Effect<void, TransactionError>;
+      customerPhone: (id: string, phone: string) => Effect.Effect<void, TransactionError>;
       supplier: (id: string, supplierId: string | null) => Effect.Effect<void, TransactionError>;
       rounding: (id: string, rounding: number) => Effect.Effect<void, TransactionError>;
       /** Parks the cart: it leaves the active tabs but stays in the list. */

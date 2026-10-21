@@ -19,7 +19,7 @@ import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "../mock";
-import { recalcDiscounts } from "../total";
+import { recalcDiscounts } from "~/lib/purchase";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
 import { DiscountDialog } from "./z-Discount";

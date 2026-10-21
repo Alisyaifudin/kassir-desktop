@@ -7,7 +7,7 @@ import type { Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
 import { EXTRAS, LINES, type Extra, type Line } from "./mock";
-import { linesSubtotal, paidTotal, purchaseTotal, transactionGrandTotal } from "./total";
+import { linesSubtotal, paidTotal, purchaseTotal, transactionGrandTotal } from "~/lib/purchase";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
 
@@ -81,18 +81,7 @@ function Screen({
     );
   }, [purchaseDrafts.length, onDraft]);
 
-  const active =
-    purchaseDrafts.find((draft) => draft.id === draftId) ??
-    purchaseDrafts.find((draft) => (draft.flag & 1) === 1) ??
-    purchaseDrafts[0] ??
-    null;
-  const activeId = active?.id ?? null;
-
-  // Remember the open tab so a relaunch returns to it.
-  useEffect(() => {
-    if (activeId === null) return;
-    void Effect.runFork(service.transaction.set.active(activeId));
-  }, [activeId]);
+  const active = purchaseDrafts.find((draft) => draft.id === draftId) ?? purchaseDrafts[0] ?? null;
 
   if (active === null) return <Loading />;
 

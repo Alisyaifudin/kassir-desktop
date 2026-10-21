@@ -1,11 +1,35 @@
 import Decimal from "decimal.js";
-import { type DiscountLine, type Extra, type Line } from "./mock";
 
 /**
- * Money arithmetic for the restock screen. Everything is done on `Decimal` —
+ * Money arithmetic for a cart, shared by the Pos and Restock screens and by the
+ * transaction service that commits them. Everything is done on `Decimal` —
  * float `+ - *` drift once a few rupiah totals carry cents, and a purchase is
  * exactly where that shows up.
+ *
+ * The shapes are structural on purpose: the screens keep their own draft types
+ * (the round-trip fields, the undo base), and only the money-bearing fields are
+ * required here.
  */
+
+export type DiscountKind = "number" | "percent" | "pcs";
+
+export type DiscountLine = {
+  value: number;
+  kind: DiscountKind;
+  eff: number;
+  total: number;
+};
+
+export type Line = {
+  price: number;
+  qty: number;
+  discounts: readonly DiscountLine[];
+};
+
+export type Extra = {
+  kind: "number" | "percent";
+  value: number;
+};
 
 /**
  * The line before its discount: `price × qty`. The price is per `unit`, so the
@@ -31,11 +55,11 @@ export function lineDiscountTotal(line: Pick<Line, "discounts">): Decimal {
  * running `total` after it. A percent applies to the running total, so the
  * stack is order-dependent.
  */
-export function recalcDiscounts(
+export function recalcDiscounts<T extends DiscountLine>(
   price: number,
   qty: number,
-  lines: readonly DiscountLine[],
-): DiscountLine[] {
+  lines: readonly T[],
+): (T & { eff: number; total: number })[] {
   let running = new Decimal(price).times(qty);
   return lines.map((line) => {
     let eff: Decimal;
@@ -67,7 +91,7 @@ export function linesSubtotal(lines: readonly Line[]): Decimal {
 }
 
 /** One extra's computed effect and the running total after it. */
-export type ExtraEffect = { id: string; eff: Decimal; total: Decimal };
+export type ExtraEffect = { eff: Decimal; total: Decimal };
 
 /**
  * Work through the extras in order. A percent applies to the running total —
@@ -81,7 +105,7 @@ export function recalcExtras(extras: readonly Extra[], subtotal: Decimal): Extra
     const eff =
       extra.kind === "percent" ? running.times(extra.value).div(100) : new Decimal(extra.value);
     running = running.plus(eff);
-    return { id: extra.id, eff, total: running };
+    return { eff, total: running };
   });
 }
 
@@ -106,4 +130,14 @@ export function transactionGrandTotal(base: Decimal, rounding: number): Decimal 
 /** The sum of a draft's payments. */
 export function paidTotal(methods: readonly { value: number }[]): Decimal {
   return sum(methods.map((method) => method.value));
+}
+
+/**
+ * Round money to the record's precision (`record_fix`). Only the derived
+ * figures — pay, grand total, change — use this; the stored line amounts stay
+ * at full precision.
+ */
+export function roundMoney(value: Decimal, fix: number): Decimal {
+  const digits = Number.isInteger(fix) && fix >= 0 && fix <= 100 ? fix : 0;
+  return new Decimal(value.toFixed(digits));
 }

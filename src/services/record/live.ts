@@ -1,9 +1,9 @@
 import { Effect, Layer, SubscriptionRef } from "effect";
+import Decimal from "decimal.js";
 import {
   RecordError,
   RecordService,
   type DebtRecord,
-  type RecordImport,
   type Discount,
   type DiscountKind,
   type ListingHistoryEntry,
@@ -26,6 +26,7 @@ import { roundToFix } from "./round";
 import {
   consumeStatements,
   depleteLots,
+  drainStatements,
   receivePortion,
   receiveStatements,
   touchProduct,
@@ -132,6 +133,66 @@ type LotRow = {
   stock_capital: number;
 };
 
+type CustomerRow = {
+  customer_name: string;
+  customer_phone: string;
+};
+
+type ListingLinkRow = {
+  listing_id: string;
+  product_id: string;
+  listing_unit: number;
+};
+
+/** The fields `insertRecordStatement` needs; `RecordImport` is a superset. */
+type RecordHeader = {
+  paidAt: number;
+  rounding: number;
+  isCredit: boolean;
+  cashier: string;
+  mode: RecordMode;
+  pay: number;
+  note: string;
+  fix: number;
+  customer: { name: string; phone: string };
+  subTotal: number;
+  total: number;
+};
+
+function insertProductRow(productId: string, name: string, now: number): Statement {
+  return {
+    sql: `INSERT INTO products (
+        product_id, product_name, product_note, product_updated_at, product_sync_at
+      ) VALUES ($1, $2, '', $3, NULL)`,
+    bindings: [productId, name, now],
+  };
+}
+
+function insertListingRow(
+  listingId: string,
+  productId: string,
+  input: { name: string; price: number; unit: number; kind: string; code: string | null },
+  now: number,
+): Statement {
+  return {
+    sql: `INSERT INTO listings (
+        listing_id, product_id, listing_name, listing_price, listing_unit,
+        listing_kind, listing_code, listing_code_kind, listing_updated_at, listing_sync_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL)`,
+    bindings: [
+      listingId,
+      productId,
+      input.name,
+      input.price,
+      input.unit,
+      input.kind,
+      input.code,
+      input.code === null ? null : "barcode",
+      now,
+    ],
+  };
+}
+
 type TouchedLot = {
   stockId: string;
   productId: string;
@@ -233,9 +294,9 @@ function rowToMethod(row: MethodRow): RecordMethod {
 }
 
 function rowToRecord(row: RecordRow, methods: RecordMethod[]): Record {
-  // `change` and `subTotal` round like the legacy JS did: from the unrounded
-  // gross, not from an already-rounded grand total.
-  const grossTotal = row.record_total + row.record_rounding;
+  // Pay and the grand total are the fix-rounded figures the cashier saw; the
+  // change is taken between them, so it cannot disagree with the receipt.
+  const grandTotal = roundToFix(row.record_total + row.record_rounding, row.record_fix);
   return {
     id: row.record_id,
     paidAt: row.record_paid_at,
@@ -249,8 +310,8 @@ function rowToRecord(row: RecordRow, methods: RecordMethod[]): Record {
     customer: { name: row.record_customer_name, phone: row.record_customer_phone },
     subTotal: roundToFix(row.record_sub_total, row.record_fix),
     total: roundToFix(row.record_total, row.record_fix),
-    grandTotal: roundToFix(grossTotal, row.record_fix),
-    change: roundToFix(row.record_pay - grossTotal, row.record_fix),
+    grandTotal,
+    change: roundToFix(row.record_pay - grandTotal, row.record_fix),
     methods,
     updatedAt: row.record_updated_at,
     syncAt: row.record_sync_at,
@@ -326,7 +387,7 @@ const SELECT_LISTING_LINK = `
   FROM listings
   WHERE listing_id = $1 AND listing_deleted_at IS NULL`;
 
-function insertRecordStatement(id: string, input: RecordImport, now: number): Statement {
+function insertRecordStatement(id: string, input: RecordHeader, now: number): Statement {
   return {
     sql: `INSERT INTO records (
         record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
@@ -941,6 +1002,333 @@ export const RecordLive = Layer.effect(
             // Stock moved, so the product aggregate is stale; this runs after the
             // commit, as it does for every other record write.
             yield* refreshProducts();
+          });
+        },
+        draft(input) {
+          return Effect.gen(function* () {
+            if (input.mode !== "incoming") {
+              return yield* Effect.fail(
+                new RecordError({ message: "Mode pembelian belum didukung" }),
+              );
+            }
+            const lines = input.listings.filter((line) => line.qty > 0);
+            if (lines.length === 0) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Transaksi harus punya minimal satu barang" }),
+              );
+            }
+            for (const line of lines) {
+              if (!Number.isFinite(line.qty) || line.qty <= 0) {
+                return yield* Effect.fail(
+                  new RecordError({ message: "Jumlah barang tidak valid" }),
+                );
+              }
+              if (!Number.isInteger(line.unit) || line.unit < 1) {
+                return yield* Effect.fail(
+                  new RecordError({ message: `Satuan ${line.name || "barang"} tidak valid` }),
+                );
+              }
+              if (line.listingId === null && line.name.trim() === "") {
+                return yield* Effect.fail(
+                  new RecordError({ message: "Nama barang manual harus diisi" }),
+                );
+              }
+            }
+
+            // A new listing's code is a barcode; two of them in one cart, or one
+            // that collides with an existing barcode, is refused. A collision
+            // with a QR listing is allowed — the cashier saw the warning.
+            const manualCodes = new Map<string, string>();
+            for (const line of lines) {
+              if (line.listingId !== null) continue;
+              const code = line.code.trim().toLowerCase();
+              if (code === "") continue;
+              const previous = manualCodes.get(code);
+              if (previous !== undefined) {
+                return yield* Effect.fail(
+                  new RecordError({
+                    message: `Kode ${code} dipakai lebih dari satu barang (${previous} dan ${line.name})`,
+                  }),
+                );
+              }
+              manualCodes.set(code, line.name);
+            }
+            if (manualCodes.size > 0) {
+              const codes = [...manualCodes.keys()];
+              const placeholders = codes.map((_, index) => `$${index + 1}`).join(", ");
+              const taken = yield* db
+                .selectMany<{ listing_code: string; listing_name: string }>(
+                  `SELECT listing_code, listing_name FROM listings
+                   WHERE listing_deleted_at IS NULL
+                     AND listing_code_kind = 'barcode'
+                     AND lower(listing_code) IN (${placeholders})`,
+                  codes,
+                )
+                .pipe(Effect.mapError(dbErrorToRecordError));
+              if (taken.length > 0) {
+                const first = taken[0];
+                return yield* Effect.fail(
+                  new RecordError({
+                    message: `Kode ${first.listing_code} sudah dipakai oleh ${first.listing_name}`,
+                  }),
+                );
+              }
+            }
+
+            const recordId = generateId();
+            const now = Date.now();
+            const statements: Statement[] = [];
+
+            // The customer is a name/phone snapshot on the record. A new typed
+            // customer is matched by name first, then created in the transaction.
+            const wantedName = input.customer.name.trim();
+            const wantedPhone = input.customer.phone.trim();
+            let customerName = "";
+            let customerPhone = "";
+            if (input.customer.id !== null && input.customer.id !== "") {
+              const rows = yield* db
+                .selectMany<CustomerRow>(
+                  `SELECT customer_name, customer_phone FROM customers
+                   WHERE customer_id = $1 AND customer_deleted_at IS NULL`,
+                  [input.customer.id],
+                )
+                .pipe(Effect.mapError(dbErrorToRecordError));
+              const found = rows[0];
+              // A set id wins; if the row vanished, the record carries no
+              // customer rather than resurrecting half-typed text.
+              customerName = found?.customer_name ?? "";
+              customerPhone = found?.customer_phone ?? "";
+            } else if (wantedName !== "") {
+              const rows = yield* db
+                .selectMany<CustomerRow>(
+                  `SELECT customer_name, customer_phone FROM customers
+                   WHERE customer_deleted_at IS NULL AND lower(customer_name) = lower($1)
+                   ORDER BY customer_updated_at DESC LIMIT 1`,
+                  [wantedName],
+                )
+                .pipe(Effect.mapError(dbErrorToRecordError));
+              const found = rows[0];
+              if (found !== undefined) {
+                customerName = found.customer_name;
+                customerPhone = found.customer_phone;
+              } else {
+                customerName = wantedName;
+                customerPhone = wantedPhone;
+                statements.push({
+                  sql: `INSERT INTO customers (
+                      customer_id, customer_name, customer_phone,
+                      customer_updated_at, customer_sync_at
+                    ) VALUES ($1, $2, $3, $4, NULL)`,
+                  bindings: [generateId(), customerName, customerPhone, now],
+                });
+              }
+            }
+
+            statements.push(
+              insertRecordStatement(
+                recordId,
+                {
+                  paidAt: input.paidAt,
+                  rounding: input.rounding,
+                  isCredit: false,
+                  cashier: input.cashier,
+                  mode: input.mode,
+                  pay: input.pay,
+                  note: input.note,
+                  fix: input.fix,
+                  customer: { name: customerName, phone: customerPhone },
+                  subTotal: input.subTotal,
+                  total: input.total,
+                },
+                now,
+              ),
+            );
+
+            const lotsByProduct = new Map<string, StockLot[]>();
+            for (const line of lines) {
+              const groupId = generateId();
+              const pcs = line.qty * line.unit;
+              const lineTotal = new Decimal(line.price)
+                .times(line.qty)
+                .minus(
+                  line.discounts.reduce(
+                    (total, discount) => total.plus(discount.eff),
+                    new Decimal(0),
+                  ),
+                );
+              // Choice (a) from the design: the record keeps qty in pcs and the
+              // price per pc, so `price × qty` is still the line total.
+              const pricePerPcs = new Decimal(line.price).div(line.unit).toNumber();
+
+              let productId: string | null = null;
+              if (line.listingId !== null) {
+                const rows = yield* db
+                  .selectMany<ListingLinkRow>(SELECT_LISTING_LINK, [line.listingId])
+                  .pipe(Effect.mapError(dbErrorToRecordError));
+                productId = rows[0]?.product_id ?? null;
+              } else {
+                // A hand-entered line becomes a real product and listing.
+                productId = generateId();
+                const listingId = generateId();
+                const code = line.code.trim().toLowerCase();
+                statements.push(insertProductRow(productId, line.name.trim(), now));
+                statements.push(
+                  insertListingRow(
+                    listingId,
+                    productId,
+                    {
+                      name: line.name.trim(),
+                      price: line.price,
+                      unit: line.unit,
+                      kind: line.kind,
+                      code: code === "" ? null : code,
+                    },
+                    now,
+                  ),
+                );
+              }
+
+              // A catalog line whose listing disappeared still belongs on the
+              // record; it just moves no stock.
+              if (productId === null) {
+                const portionId = generateId();
+                statements.push(
+                  insertPortion({
+                    id: portionId,
+                    groupId,
+                    recordId,
+                    productEventId: null,
+                    productId: null,
+                    name: line.name,
+                    kind: line.kind,
+                    unit: line.unit,
+                    price: pricePerPcs,
+                    qty: pcs,
+                    capital: 0,
+                    total: lineTotal.toNumber(),
+                  }),
+                );
+                statements.push(
+                  ...insertDiscounts(
+                    portionId,
+                    line.discounts.filter((discount) => discount.eff !== 0),
+                    1,
+                  ),
+                );
+                continue;
+              }
+
+              let lots = lotsByProduct.get(productId);
+              if (lots === undefined) lots = yield* readLots(productId);
+
+              let portions: { eventId: string; stockId: string; take: number; capital: number }[];
+              if (lots.length === 0) {
+                // No lot at all: open one that already carries the oversold
+                // quantity, with no capital to copy.
+                const received = receivePortion(
+                  productId,
+                  { value: -pcs, capital: 0 },
+                  now,
+                  recordId,
+                );
+                statements.push(...received.statements);
+                portions = [
+                  { eventId: received.eventId, stockId: received.stockId, take: pcs, capital: 0 },
+                ];
+                lotsByProduct.set(productId, [
+                  { id: received.stockId, value: -pcs, capital: 0 },
+                ]);
+              } else {
+                const drained = drainStatements(productId, lots, pcs, now, "", recordId);
+                statements.push(...drained.statements);
+                portions = drained.portions;
+                lotsByProduct.set(productId, drained.lots);
+              }
+
+              const parts = portions.map((portion) => {
+                const share = new Decimal(portion.take).div(pcs);
+                const id = generateId();
+                statements.push(
+                  insertPortion({
+                    id,
+                    groupId,
+                    recordId,
+                    productEventId: portion.eventId,
+                    productId,
+                    name: line.name,
+                    kind: line.kind,
+                    unit: line.unit,
+                    price: pricePerPcs,
+                    qty: portion.take,
+                    capital: portion.capital,
+                    total: lineTotal.times(share).toNumber(),
+                  }),
+                );
+                return { id, share: share.toNumber() };
+              });
+
+              for (const discount of line.discounts) {
+                if (discount.eff === 0) continue;
+                const discountGroupId = generateId();
+                for (const part of parts) {
+                  statements.push({
+                    sql: `INSERT INTO discounts (
+                        discount_id, discount_group_id, record_listing_id,
+                        discount_kind, discount_value, discount_eff
+                      ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                    bindings: [
+                      generateId(),
+                      discountGroupId,
+                      part.id,
+                      discount.kind,
+                      discount.value,
+                      new Decimal(discount.eff).times(part.share).toNumber(),
+                    ],
+                  });
+                }
+              }
+            }
+
+            for (const extra of input.extras) {
+              if (extra.eff === 0) continue;
+              statements.push({
+                sql: `INSERT INTO record_extras (
+                    record_extra_id, record_extra_name, record_id,
+                    record_extra_value, record_extra_eff, record_extra_kind
+                  ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                bindings: [generateId(), extra.name, recordId, extra.value, extra.eff, extra.kind],
+              });
+            }
+            for (const method of input.methods) {
+              if (method.pay === 0) continue;
+              statements.push(insertMethod(recordId, method.methodId, method.pay));
+            }
+            for (const picture of input.images) {
+              statements.push({
+                sql: `INSERT INTO record_images (
+                    record_image_id, record_image_order, record_image_name,
+                    record_image_mime, record_id
+                  ) VALUES ($1, $2, $3, $4, $5)`,
+                bindings: [generateId(), picture.order, picture.name, picture.mime, recordId],
+              });
+            }
+
+            // The cart has become a record; remove it in the same transaction.
+            statements.push({
+              sql: "DELETE FROM tx_records WHERE tx_record_id = $1",
+              bindings: [input.draftId],
+            });
+
+            yield* commit(statements);
+            yield* bumpRevision();
+            // Stock moved, so the product aggregate is stale. A failure here must
+            // not fail the submit: the record is already committed.
+            yield* refreshProducts().pipe(
+              Effect.catchAll((error) =>
+                Effect.logError(`product refresh after submit failed: ${error.message}`),
+              ),
+            );
+            return recordId;
           });
         },
       },

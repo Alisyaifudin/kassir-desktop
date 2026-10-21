@@ -1,7 +1,8 @@
-import { Effect, Layer, Stream, SubscriptionRef } from "effect";
+import { Effect, Either, Layer, Stream, SubscriptionRef } from "effect";
 import Decimal from "decimal.js";
 import {
   STORED_FLAG,
+  SubmitError,
   TransactionError,
   TransactionService,
   type Draft,
@@ -13,6 +14,15 @@ import {
   type DraftMode,
 } from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
+import { RecordService, type RecordDraftInput } from "../record";
+import {
+  linesSubtotal,
+  paidTotal,
+  recalcDiscounts,
+  recalcExtras,
+  roundMoney,
+  transactionGrandTotal,
+} from "~/lib/purchase";
 import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
 import { image } from "~/lib/image";
@@ -36,6 +46,8 @@ type RecordRow = {
   tx_record_note: string;
   tx_record_rounding: number;
   tx_record_customer_id: string | null;
+  tx_record_customer_name: string;
+  tx_record_customer_phone: string;
   tx_record_supplier_id: string | null;
 };
 
@@ -84,7 +96,8 @@ type ExtraRow = {
 const SELECT_RECORDS = `
   SELECT tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
          tx_record_mode, tx_record_fix, tx_record_note, tx_record_rounding,
-         tx_record_customer_id, tx_record_supplier_id
+         tx_record_customer_id, tx_record_customer_name, tx_record_customer_phone,
+         tx_record_supplier_id
   FROM tx_records
   ORDER BY tx_record_order`;
 
@@ -134,6 +147,8 @@ function rowToDraft(
     note: row.tx_record_note,
     rounding: row.tx_record_rounding,
     customerId: row.tx_record_customer_id,
+    customerName: row.tx_record_customer_name,
+    customerPhone: row.tx_record_customer_phone,
     supplierId: row.tx_record_supplier_id,
     listings,
     extras,
@@ -149,8 +164,9 @@ function statementsFor(draft: Draft): Statement[] {
       sql: `INSERT INTO tx_records (
           tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
           tx_record_mode, tx_record_query, tx_record_fix, tx_record_note,
-          tx_record_rounding, tx_record_customer_id, tx_record_supplier_id
-        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10)
+          tx_record_rounding, tx_record_customer_id, tx_record_customer_name,
+          tx_record_customer_phone, tx_record_supplier_id
+        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT(tx_record_id) DO UPDATE SET
           tx_record_order = excluded.tx_record_order,
           tx_record_flag = excluded.tx_record_flag,
@@ -160,6 +176,8 @@ function statementsFor(draft: Draft): Statement[] {
           tx_record_note = excluded.tx_record_note,
           tx_record_rounding = excluded.tx_record_rounding,
           tx_record_customer_id = excluded.tx_record_customer_id,
+          tx_record_customer_name = excluded.tx_record_customer_name,
+          tx_record_customer_phone = excluded.tx_record_customer_phone,
           tx_record_supplier_id = excluded.tx_record_supplier_id`,
       bindings: [
         draft.id,
@@ -171,6 +189,8 @@ function statementsFor(draft: Draft): Statement[] {
         draft.note,
         draft.rounding,
         draft.customerId,
+        draft.customerName,
+        draft.customerPhone,
         draft.supplierId,
       ],
     },
@@ -225,6 +245,7 @@ export const TransactionLive = Layer.effect(
   TransactionService,
   Effect.gen(function* () {
     const db = yield* DatabaseService;
+    const record = yield* RecordService;
 
     // The live cart, seeded empty so layer construction stays synchronous. A
     // change updates the ref right away; the database write is coalesced below.
@@ -397,6 +418,296 @@ export const TransactionLive = Layer.effect(
         // Hydrates on first subscribe, then replays the cart and every change.
         changes: Stream.unwrap(ensureLoaded().pipe(Effect.as(draftsRef.changes))),
       },
+      submit(id, input) {
+        return Effect.gen(function* () {
+          yield* ensureLoaded();
+          const drafts = yield* SubscriptionRef.get(draftsRef);
+          const draft = drafts.find((candidate) => candidate.id === id);
+          if (draft === undefined) {
+            return yield* Effect.fail(
+              new SubmitError({ kind: "empty", message: "Transaksi tidak ditemukan" }),
+            );
+          }
+          if ((draft.flag & STORED_FLAG) !== 0) {
+            return yield* Effect.fail(
+              new SubmitError({
+                kind: "stored",
+                message: "Transaksi tersimpan tidak bisa dibayar",
+              }),
+            );
+          }
+          if (draft.mode !== "incoming") {
+            return yield* Effect.fail(
+              new SubmitError({ kind: "outcoming", message: "Mode pembelian belum didukung" }),
+            );
+          }
+
+          const lines = draft.listings.filter((line) => line.qty > 0);
+          if (lines.length === 0) {
+            return yield* Effect.fail(
+              new SubmitError({
+                kind: "empty",
+                message: "Transaksi harus punya minimal satu barang",
+              }),
+            );
+          }
+          for (const line of lines) {
+            if (line.listingId === null && line.name.trim() === "") {
+              return yield* Effect.fail(
+                new SubmitError({ kind: "name", message: "Nama barang manual harus diisi" }),
+              );
+            }
+            if (!Number.isInteger(line.unit) || line.unit < 1) {
+              return yield* Effect.fail(
+                new SubmitError({
+                  kind: "code",
+                  message: `Satuan ${line.name || "barang"} tidak valid`,
+                }),
+              );
+            }
+          }
+
+          const subtotal = linesSubtotal(lines);
+          const effects = recalcExtras(draft.extras, subtotal);
+          const total = effects.reduce(
+            (running, effect) => running.plus(effect.eff),
+            subtotal,
+          );
+          const grand = roundMoney(transactionGrandTotal(total, draft.rounding), draft.fix);
+          if (grand.isZero()) {
+            return yield* Effect.fail(
+              new SubmitError({ kind: "payment", message: "Total transaksi tidak boleh nol" }),
+            );
+          }
+          const pay = roundMoney(paidTotal(draft.methods), draft.fix);
+          if (pay.lessThan(grand)) {
+            return yield* Effect.fail(
+              new SubmitError({ kind: "payment", message: "Pembayaran belum mencukupi" }),
+            );
+          }
+
+          const methods = draft.methods
+            .filter((method) => method.value !== 0)
+            .map((method) => ({ methodId: method.methodId, pay: method.value }));
+          if (methods.length === 0) {
+            return yield* Effect.fail(
+              new SubmitError({ kind: "payment", message: "Metode pembayaran harus diisi" }),
+            );
+          }
+
+          const extraInputs = draft.extras.flatMap((extra, index) => {
+            const effect = effects[index];
+            if (effect === undefined || effect.eff.isZero()) return [];
+            return [{ name: extra.name, value: extra.value, eff: effect.eff.toNumber(), kind: extra.kind }];
+          });
+
+          const payload: RecordDraftInput = {
+            draftId: draft.id,
+            paidAt: Date.now(),
+            rounding: draft.rounding,
+            cashier: input.cashier,
+            mode: "incoming",
+            pay: pay.toNumber(),
+            note: draft.note,
+            fix: draft.fix,
+            customer: {
+              id: draft.customerId,
+              name: draft.customerName,
+              phone: draft.customerPhone,
+            },
+            subTotal: subtotal.toNumber(),
+            total: total.toNumber(),
+            methods,
+            listings: lines.map((line) => ({
+              listingId: line.listingId ?? null,
+              name: line.name,
+              code: line.code,
+              kind: "retail",
+              unit: line.unit,
+              price: line.price,
+              qty: line.qty,
+              discounts: line.discounts
+                .filter((discount) => discount.eff !== 0)
+                .map((discount) => ({
+                  kind: discount.kind,
+                  value: discount.value,
+                  eff: discount.eff,
+                })),
+            })),
+            extras: extraInputs,
+            images: draft.images.map((image) => ({
+              order: image.order,
+              name: image.name,
+              mime: image.mime,
+            })),
+          };
+
+          // The cart is about to become a record; no debounced rewrite may fire
+          // after the record transaction deletes its row.
+          const timer = timers.get(id);
+          if (timer !== undefined) {
+            clearTimeout(timer);
+            timers.delete(id);
+          }
+
+          const recordId = yield* record.add.draft(payload).pipe(
+            Effect.mapError((error) => new TransactionError({ message: error.message })),
+            Effect.catchAll((error) => {
+              schedule(id);
+              return Effect.fail(error);
+            }),
+          );
+          yield* SubscriptionRef.update(draftsRef, (list) =>
+            list.filter((candidate) => candidate.id !== id),
+          );
+          return recordId;
+        });
+      },
+      unsubmit(recordId) {
+        return Effect.gen(function* () {
+          const saved = yield* record.get.byId(recordId).pipe(
+            Effect.mapError((error) => new TransactionError({ message: error.message })),
+          );
+          yield* ensureLoaded();
+          const drafts = yield* SubscriptionRef.get(draftsRef);
+          const order = drafts.reduce((max, draft) => Math.max(max, draft.order), -1) + 1;
+
+          const listings: DraftListing[] = [];
+          for (const line of saved.listings) {
+            let catalog:
+              | {
+                  listing_id: string;
+                  listing_code: string | null;
+                  listing_name: string;
+                  listing_price: number;
+                  listing_unit: number;
+                }
+              | null = null;
+            if (line.productId !== null) {
+              const rows = yield* db
+                .selectMany<{
+                  listing_id: string;
+                  listing_code: string | null;
+                  listing_name: string;
+                  listing_price: number;
+                  listing_unit: number;
+                }>(
+                  `SELECT listing_id, listing_code, listing_name, listing_price, listing_unit
+                   FROM listings
+                   WHERE product_id = $1
+                     AND listing_deleted_at IS NULL
+                     AND listing_unit = $2
+                   ORDER BY abs(listing_price - $3) ASC, listing_updated_at DESC
+                   LIMIT 1`,
+                  [line.productId, line.unit, line.price * line.unit],
+                )
+                .pipe(Effect.mapError(toError));
+              catalog = rows[0] ?? null;
+            }
+            // The record's qty is in pcs and its price is per pc; the draft
+            // works in listing units.
+            const price = catalog?.listing_price ?? line.price * line.unit;
+            const qty =
+              line.unit > 0 ? Math.max(0, Math.round(line.qty / line.unit)) : line.qty;
+            const discounts = recalcDiscounts(
+              price,
+              qty,
+              line.discounts.map((discount) => ({
+                id: generateId(),
+                value: discount.value,
+                kind: discount.kind,
+                eff: 0,
+                total: 0,
+              })),
+            );
+            listings.push({
+              id: generateId(),
+              listingId: catalog?.listing_id ?? null,
+              name: line.name,
+              code: catalog?.listing_code ?? "",
+              unit: line.unit,
+              price,
+              qty,
+              discounts,
+              base:
+                catalog === null
+                  ? undefined
+                  : {
+                      name: catalog.listing_name,
+                      code: catalog.listing_code ?? "",
+                      unit: catalog.listing_unit,
+                      price: catalog.listing_price,
+                    },
+            });
+          }
+
+          // Prefer the customer row that was written at submit; a customer that
+          // has since been deleted falls back to the name/phone text.
+          let customerId: string | null = null;
+          if (saved.customer.name.trim() !== "") {
+            const rows = yield* db
+              .selectMany<{ customer_id: string }>(
+                `SELECT customer_id FROM customers
+                 WHERE customer_deleted_at IS NULL AND lower(customer_name) = lower($1)
+                 ORDER BY customer_updated_at DESC LIMIT 1`,
+                [saved.customer.name],
+              )
+              .pipe(Effect.mapError(toError));
+            customerId = rows[0]?.customer_id ?? null;
+          }
+
+          const draft: Draft = {
+            id: generateId(),
+            order,
+            flag: 0,
+            title: listings.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru",
+            mode: saved.mode,
+            fix: saved.fix,
+            note: saved.note,
+            customerId,
+            customerName: customerId === null ? saved.customer.name : "",
+            customerPhone: customerId === null ? saved.customer.phone : "",
+            supplierId: null,
+            rounding: saved.rounding,
+            listings,
+            extras: saved.extras.map((extra) => ({
+              id: generateId(),
+              name: extra.name,
+              kind: extra.kind,
+              value: extra.value,
+            })),
+            methods: saved.methods.map((method) => ({
+              id: generateId(),
+              methodId: method.methodId,
+              value: method.pay,
+            })),
+            images: [],
+          };
+
+          // Persist the restored cart first, then undo the record. If the second
+          // step fails the cashier has both, which is recoverable; the reverse
+          // would lose the sale.
+          yield* db.transaction(statementsFor(draft)).pipe(Effect.mapError(toError));
+          yield* SubscriptionRef.update(draftsRef, (list) => [...list, draft]);
+          const removed = yield* Effect.either(
+            record.delete
+              .byId(recordId)
+              .pipe(Effect.mapError((error) => new TransactionError({ message: error.message }))),
+          );
+          if (Either.isLeft(removed)) {
+            // Do not leave a second copy of the sale behind: undo the restore,
+            // then report the delete failure.
+            yield* db
+              .execute("DELETE FROM tx_records WHERE tx_record_id = $1", [draft.id])
+              .pipe(Effect.catchAll(() => Effect.void));
+            yield* SubscriptionRef.update(draftsRef, (list) =>
+              list.filter((candidate) => candidate.id !== draft.id),
+            );
+            return yield* Effect.fail(removed.left);
+          }
+          return draft.id;
+        });
+      },
       add: {
         new(mode) {
           return Effect.gen(function* () {
@@ -412,6 +723,8 @@ export const TransactionLive = Layer.effect(
               fix: 0,
               note: "",
               customerId: null,
+              customerName: "",
+              customerPhone: "",
               supplierId: null,
               rounding: 0,
               listings: [],
@@ -465,6 +778,12 @@ export const TransactionLive = Layer.effect(
         },
         customer(id, customerId) {
           return update(id, (draft) => ({ ...draft, customerId }));
+        },
+        customerName(id, customerName) {
+          return update(id, (draft) => ({ ...draft, customerName }));
+        },
+        customerPhone(id, customerPhone) {
+          return update(id, (draft) => ({ ...draft, customerPhone }));
         },
         supplier(id, supplierId) {
           return update(id, (draft) => ({ ...draft, supplierId }));

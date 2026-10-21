@@ -6,6 +6,9 @@ export type StockLot = { id: string; value: number; capital: number };
 /** One lot's share of a FIFO consumption. */
 type Take = { lot: StockLot; take: number };
 
+/** One lot's share of a drain; `take` is positive even when the lot goes negative. */
+export type DrainPortion = { eventId: string; stockId: string; take: number; capital: number };
+
 /** A portion of a movement, keyed to the journal row it wrote. */
 export type StockPortion = {
   /** The `product_events` row this portion caused. */
@@ -79,6 +82,51 @@ export function receiveStatements(
   recordId: string | null = null,
 ): Statement[] {
   return receivePortion(productId, input, now, recordId).statements;
+}
+
+/**
+ * Drain `pcs` across lots from oldest to newest. Every lot but the last is
+ * clamped at zero; the last lot takes whatever remains and may go negative.
+ * Unlike `consumeStatements`, a shortage is not an error — the last lot absorbs
+ * it, which is the house rule for a sale.
+ *
+ * The returned `lots` are the lots as they stand after the drain, so a second
+ * line for the same product sees what the first one left.
+ */
+export function drainStatements(
+  productId: string,
+  lots: readonly StockLot[],
+  pcs: number,
+  now: number,
+  note = "",
+  recordId: string | null = null,
+): { statements: Statement[]; portions: DrainPortion[]; lots: StockLot[]; shortage: number } {
+  const statements: Statement[] = [];
+  const portions: DrainPortion[] = [];
+  const nextLots = [...lots];
+  let remaining = pcs;
+
+  for (let index = 0; index < lots.length && remaining > 0; index++) {
+    const lot = lots[index];
+    const isLast = index === lots.length - 1;
+    // Every lot but the last is clamped at zero. The last one absorbs the rest,
+    // even when that makes its value negative.
+    const take = isLast ? remaining : Math.min(Math.max(lot.value, 0), remaining);
+    if (take <= 0) continue;
+
+    statements.push({
+      sql: "UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2 WHERE stock_id = $3",
+      bindings: [take, now, lot.id],
+    });
+    const eventId = generateId();
+    statements.push(insertEvent(eventId, productId, lot.id, -take, lot.capital, now, note, recordId));
+    portions.push({ eventId, stockId: lot.id, take, capital: lot.capital });
+    nextLots[index] = { ...lot, value: lot.value - take };
+    remaining -= take;
+  }
+
+  if (statements.length > 0) statements.push(touchProduct(productId, now));
+  return { statements, portions, lots: nextLots, shortage: remaining };
 }
 
 /**

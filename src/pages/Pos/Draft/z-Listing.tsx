@@ -20,10 +20,11 @@ import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "../mock";
-import { recalcDiscounts } from "../total";
+import { recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
+import type { LineIssue } from "./code-issues";
 import { DiscountDialog } from "./z-Discount";
 import { SearchResults } from "./z-SearchResults";
 import {
@@ -53,7 +54,7 @@ function blankLine(): Line {
     id: generateId(),
     name: "",
     code: "",
-    unit: 0,
+    unit: 1,
     price: 0,
     qty: 0,
     discounts: [{ id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 }],
@@ -80,6 +81,7 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
 export function Listing({
   lines,
   extraTotal,
+  issues,
   onChange,
   onToggle,
   focusSearch,
@@ -89,6 +91,8 @@ export function Listing({
   onActivate,
 }: {
   lines: Line[];
+  /** The inline problems, keyed by line id. */
+  issues: Map<string, LineIssue>;
   /** The rupiah all extras come to, or null when there are none. */
   extraTotal: Decimal | null;
   onChange: (lines: Line[]) => void;
@@ -549,6 +553,7 @@ export function Listing({
                         key={line.id}
                         line={line}
                         number={lines.length - index}
+                        issue={issues.get(line.id)}
                         selected={cardSelected && focused ? (active.field as Field) : null}
                         selectedSub={
                           cardSelected && active.field === "qty"

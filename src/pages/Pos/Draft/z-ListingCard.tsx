@@ -6,11 +6,13 @@ import { ChevronLeft, ChevronRight, GripVertical, Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
-import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "../total";
+import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import type { Line } from "../mock";
 import type { Field, QtySub } from "./listing-grid";
 import { Cell, EDITING_RING, SELECTED_RING } from "./z-Cell";
+import type { LineIssue } from "./code-issues";
+import { CodeIssueView, FieldIssue } from "./z-Issue";
 
 /**
  * One line of the purchase, laid out as a twelve-column block: who and how much
@@ -24,6 +26,7 @@ import { Cell, EDITING_RING, SELECTED_RING } from "./z-Cell";
 export function ListingCard({
   line,
   number,
+  issue,
   selected,
   editing,
   onChange,
@@ -36,6 +39,7 @@ export function ListingCard({
 }: {
   line: Line;
   number: number;
+  issue?: LineIssue;
   selected: Field | null;
   selectedSub?: QtySub;
   editing: boolean;
@@ -80,6 +84,7 @@ export function ListingCard({
           empty={line.name === ""}
           placeholder="Nama barang"
           base={line.base?.name}
+          footer={issue?.name === true ? <FieldIssue>Nama barang harus diisi</FieldIssue> : undefined}
           onSelect={() => onSelect("name")}
           onStartEdit={() => onStartEdit("name")}
           onEditingDone={onEditingDone}
@@ -138,6 +143,7 @@ export function ListingCard({
           empty={line.code === ""}
           placeholder="Kode barang"
           base={line.base?.code}
+          footer={issue?.code === undefined ? undefined : <CodeIssueView issue={issue.code} />}
           onSelect={() => onSelect("code")}
           onStartEdit={() => onStartEdit("code")}
           onEditingDone={onEditingDone}
@@ -166,6 +172,7 @@ export function ListingCard({
           empty={line.unit === 0}
           placeholder="0"
           base={line.base?.unit}
+          footer={issue?.unit === true ? <FieldIssue>Satuan minimal 1</FieldIssue> : undefined}
           onSelect={() => onSelect("unit")}
           onStartEdit={() => onStartEdit("unit")}
           onEditingDone={onEditingDone}

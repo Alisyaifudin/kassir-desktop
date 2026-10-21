@@ -33,7 +33,7 @@ import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft, DraftMethod } from "~/services/transaction";
-import { paidTotal } from "../total";
+import { paidTotal } from "~/lib/purchase";
 import { run } from "../run";
 import { rupiah } from "../util-rupiah";
 import { Cell, SELECTED_RING } from "./z-Cell";

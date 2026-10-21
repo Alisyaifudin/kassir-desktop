@@ -346,9 +346,12 @@ const SELECT_IMAGES =
   "SELECT image_id, product_id, image_order, image_name, image_mime, image_updated_at, image_sync_at FROM images WHERE image_deleted_at IS NULL";
 const SELECT_STOCKS =
   "SELECT stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at FROM stocks";
+// `record_listings` no longer carries `listing_id` (the product snapshot is the
+// link now), so the sale is selected by its `product_id`; the listing id is not
+// part of the sale row.
 const SELECT_SALES = `
   SELECT
-    rl.listing_id, rl.record_listing_name, rl.record_listing_kind,
+    NULL AS listing_id, rl.record_listing_name, rl.record_listing_kind,
     rl.record_listing_price, rl.record_listing_qty, rl.record_listing_capital,
     rl.record_listing_total, r.record_paid_at, r.record_id
   FROM record_listings rl
@@ -356,7 +359,7 @@ const SELECT_SALES = `
   WHERE r.record_deleted_at IS NULL
     -- A sale is 'incoming': the enum follows the money, not the goods.
     AND r.record_mode = 'incoming'
-    AND rl.listing_id IN (SELECT listing_id FROM listings WHERE product_id = $1)
+    AND rl.product_id = $1
     AND r.record_paid_at >= $2 AND r.record_paid_at < $3
   ORDER BY r.record_paid_at ASC`;
 const SELECT_STOCK_OPENING =

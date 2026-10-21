@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
 import { type Extra, type Line } from "../mock";
-import { linesSubtotal } from "../total";
+import { linesSubtotal } from "~/lib/purchase";
 import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Payment } from "./z-Payment";

@@ -29,6 +29,8 @@ export function Bottom({
   focused,
   onActivate,
   onStore,
+  onSubmit,
+  disabled,
 }: {
   draft: Draft;
   grand: Decimal;
@@ -39,14 +41,16 @@ export function Bottom({
   focused: boolean;
   onActivate: () => void;
   onStore: () => void;
+  /** Starts the commit; false while the sale cannot be paid (hard errors). */
+  onSubmit: () => boolean;
+  disabled: boolean;
 }) {
   const payRef = useRef<HTMLButtonElement>(null);
   const [focusRounding, setFocusRounding] = useState(0);
   const [payFocused, setPayFocused] = useState(false);
   function submit(): boolean {
-    if (change.isNegative()) return false;
-    alert("Pembayaran berhasil (mock).");
-    return true;
+    if (disabled || change.isNegative()) return false;
+    return onSubmit();
   }
   return (
     <section className="flex flex-none items-stretch border-t">
@@ -68,7 +72,7 @@ export function Bottom({
         <div className="flex items-center px-1 justify-between">
           <Button
             ref={payRef}
-            disabled={change.comparedTo(0) < 0}
+            disabled={disabled || change.comparedTo(0) < 0}
             className={cn(
               "rounded-none transition-shadow",
               payFocused &&

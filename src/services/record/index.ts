@@ -150,6 +150,52 @@ export type ListingHistoryPage = {
  * own. Listings link to the catalog by `listingId`, which is null when the
  * listing is gone (or was never catalogued), and such a line moves no stock.
  */
+/**
+ * A line the live Pos/Restock cart hands to the record writer. The cart is the
+ * editable source; this is the frozen shape the writer needs. `price` is per
+ * listing unit, `qty` is in listing units, and `unit` converts them to pcs.
+ */
+export type RecordDraftListing = {
+  listingId: string | null;
+  name: string;
+  code: string;
+  kind: string;
+  unit: number;
+  price: number;
+  qty: number;
+  discounts: { kind: DiscountKind; value: number; eff: number }[];
+};
+
+export type RecordDraftExtra = {
+  name: string;
+  value: number;
+  eff: number;
+  kind: ValueKind;
+};
+
+/**
+ * The whole cart commit: the record header, its frozen lines and extras, the
+ * payments, and the pending customer. `draftId` is the `tx_records` row the
+ * commit deletes in the same transaction.
+ */
+export type RecordDraftInput = {
+  draftId: string;
+  paidAt: number;
+  rounding: number;
+  cashier: string;
+  mode: RecordMode;
+  pay: number;
+  note: string;
+  fix: number;
+  customer: { id: string | null; name: string; phone: string };
+  subTotal: number;
+  total: number;
+  methods: { methodId: string; pay: number }[];
+  listings: RecordDraftListing[];
+  extras: RecordDraftExtra[];
+  images: { order: number; name: string; mime: "image/png" | "image/jpeg" | "image/webp" }[];
+};
+
 export type RecordImport = {
   paidAt: number;
   rounding: number;
@@ -217,6 +263,13 @@ export class RecordService extends Context.Tag("RecordService")<
        * would. Fails, writing nothing, when a sale's stock cannot cover a line.
        */
       external: (input: RecordImport) => Effect.Effect<void, RecordError>;
+      /**
+       * Commit a live cart: writes the record and its stock movements, deletes
+       * the `tx_records` row that produced it, and returns the new record id.
+       * A sale (`incoming`) drains lots oldest-first and may leave the last lot
+       * negative; a manual line creates its product and listing too.
+       */
+      draft: (input: RecordDraftInput) => Effect.Effect<string, RecordError>;
     };
     count: {
       summary: (start: number, end: number) => Effect.Effect<RecordSummary[], RecordError>;

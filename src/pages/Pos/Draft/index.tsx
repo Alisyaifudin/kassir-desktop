@@ -2,11 +2,12 @@ import { useEffect } from "react";
 import { Effect } from "effect";
 import { service } from "~/services";
 import { type Extra, type Line } from "../mock";
-import { extrasTotal, linesSubtotal } from "../total";
+import { extrasTotal, linesSubtotal } from "~/lib/purchase";
 import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Tabs } from "./z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
+import type { LineIssue } from "./code-issues";
 
 /**
  * The stages the panel walks through, in order: choose the goods, then the
@@ -35,6 +36,7 @@ export function Draft({
   onActivate,
   lines,
   onLines,
+  issues,
   extras,
   onExtras,
 }: {
@@ -50,6 +52,7 @@ export function Draft({
   onActivate: () => void;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
 }) {
@@ -74,6 +77,7 @@ export function Draft({
         onActivate={onActivate}
         lines={lines}
         onLines={onLines}
+        issues={issues}
         extras={extras}
         onExtras={onExtras}
         onToggle={() => onStage(stage === "listing" ? "extra" : "listing")}
@@ -92,6 +96,7 @@ function StageBody({
   onActivate,
   lines,
   onLines,
+  issues,
   extras,
   onExtras,
   onToggle,
@@ -105,6 +110,7 @@ function StageBody({
   onActivate: () => void;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
   onToggle: () => void;
@@ -114,6 +120,7 @@ function StageBody({
     return (
       <Listing
         lines={lines}
+        issues={issues}
         extraTotal={extras.length === 0 ? null : extrasTotal(extras, subtotal)}
         onChange={onLines}
         onToggle={onToggle}

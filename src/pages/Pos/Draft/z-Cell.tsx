@@ -42,6 +42,7 @@ export function Cell({
   singleClickEdit,
   editId,
   prefix,
+  footer,
   onChange,
   onCommit,
   onSelect,
@@ -70,6 +71,8 @@ export function Cell({
   editId?: string;
   /** Drawn over the left of the cell (e.g. a key hint), in both modes. */
   prefix?: ReactNode;
+  /** Drawn under the value/editor, e.g. an inline validation message. */
+  footer?: ReactNode;
   /** Fires on every keystroke, before commit; lets a total update live. */
   onChange?: (raw: string) => void;
   onCommit: (raw: string) => void;
@@ -225,6 +228,7 @@ export function Cell({
           {empty ? <span className="text-muted-foreground italic">{placeholder}</span> : display}
         </button>
       )}
+      {footer}
     </div>
   );
 }

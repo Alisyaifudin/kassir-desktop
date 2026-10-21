@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Effect } from "effect";
+import type Decimal from "decimal.js";
+import { Effect, Either } from "effect";
+import { toast } from "sonner";
 import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
 import { service } from "~/services";
@@ -7,9 +9,18 @@ import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
 import type { Extra, Line } from "./mock";
-import { linesSubtotal, paidTotal, purchaseTotal, transactionGrandTotal } from "./total";
+import {
+  linesSubtotal,
+  paidTotal,
+  purchaseTotal,
+  roundMoney,
+  transactionGrandTotal,
+} from "~/lib/purchase";
+import { useUser } from "~/hooks/use-user";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
+import { findLineIssues, hasHardIssue } from "./Draft/code-issues";
+import { Complete } from "./z-Complete";
 
 /**
  * The Pos screen: the restock screen's shape, selling instead of buying.
@@ -77,6 +88,15 @@ function Screen({
     [saleDrafts],
   );
   const creating = useRef(false);
+  const user = useUser();
+  const [submitting, setSubmitting] = useState(false);
+  const [complete, setComplete] = useState<{
+    recordId: string;
+    total: Decimal;
+    change: Decimal;
+    fix: number;
+  } | null>(null);
+  const listingRes = useStream(service.listing.get.changes);
 
   // Bumped by F2; the payment rows in the bottom panel watch it to put the
   // cursor on the first amount, so a sale can be settled from any stage.
@@ -95,6 +115,7 @@ function Screen({
   // screen, not just a panel.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (submitting) return;
       if (event.key === "F1") {
         event.preventDefault();
         setFocusSearch((count) => count + 1);
@@ -112,11 +133,13 @@ function Screen({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onDraft]);
+  }, [onDraft, submitting]);
 
   // The screen always has a sale to show: an empty one is made for it.
   useEffect(() => {
-    if (normalDrafts.length > 0 || creating.current) return;
+    if (normalDrafts.length > 0 || creating.current || complete !== null || submitting) {
+      return;
+    }
     creating.current = true;
     void Effect.runPromise(service.transaction.add.new("incoming")).then(
       (id) => {
@@ -127,10 +150,19 @@ function Screen({
         creating.current = false;
       },
     );
-  }, [normalDrafts.length, onDraft]);
+  }, [normalDrafts.length, onDraft, complete, submitting]);
 
   const active = normalDrafts.find((draft) => draft.id === draftId) ?? normalDrafts[0] ?? null;
   const activeId = active?.id ?? null;
+  const issues = useMemo(
+    () =>
+      findLineIssues(
+        active?.listings ?? [],
+        listingRes.type === "success" ? listingRes.data : [],
+      ),
+    [active?.listings, listingRes],
+  );
+  const hardIssue = hasHardIssue(issues);
 
   // Switching tabs (click, Ctrl+Arrow, F12) returns to the goods with the
   // search ready. The focus token is bumped a tick later so the listing grid is
@@ -152,6 +184,7 @@ function Screen({
   // own word-jump, so only act when the target is not an editor.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (submitting) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const target = event.target as HTMLElement | null;
@@ -170,9 +203,21 @@ function Screen({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [normalDrafts, activeId, onDraft]);
+  }, [normalDrafts, activeId, onDraft, submitting]);
 
-  if (active === null) return <Loading />;
+  const completeDialog =
+    complete === null ? null : (
+      <Complete
+        recordId={complete.recordId}
+        total={complete.total}
+        change={complete.change}
+        fix={complete.fix}
+        onRestored={(id) => onDraft(id)}
+        onClose={() => setComplete(null)}
+      />
+    );
+
+  if (active === null) return <>{completeDialog ?? <Loading />}</>;
 
   /** Park this cart, then jump to another open one (or let the effect make one). */
   function storeCart() {
@@ -208,37 +253,70 @@ function Screen({
 
   const subtotal = linesSubtotal(lines);
   const total = purchaseTotal(extras, subtotal);
-  const grand = transactionGrandTotal(total, active.rounding);
-  const change = paidTotal(active.methods).minus(grand);
+  const grand = roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
+  const change = roundMoney(paidTotal(active.methods), active.fix).minus(grand);
+
+  /** Start the commit; returns whether the click/key should be swallowed. */
+  function submitDraft(): boolean {
+    if (submitting || hardIssue || grand.isZero() || change.isNegative()) return false;
+    (document.activeElement as HTMLElement | null)?.blur();
+    setSubmitting(true);
+    void Effect.runPromise(
+      Effect.either(service.transaction.submit(active.id, { cashier: user.name })),
+    ).then((result) => {
+      setSubmitting(false);
+      if (Either.isLeft(result)) {
+        toast.error(result.left.message);
+        return;
+      }
+      setComplete({ recordId: result.right, total: grand, change, fix: active.fix });
+    });
+    return true;
+  }
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1">
-      <Draft
-        draft={active}
-        drafts={tabs}
-        onSelect={openDraft}
-        stage={stage}
-        onStage={onStage}
-        focusSearch={focusSearch}
-        focusLast={focusLast}
-        onExitDown={() => setFocusBottom((count) => count + 1)}
-        focused={area === "main"}
-        onActivate={() => setArea("main")}
-        lines={lines}
-        onLines={setLines}
-        extras={extras}
-        onExtras={setExtras}
-      />
-      <Bottom
-        draft={active}
-        grand={grand}
-        change={change}
-        focusPayment={focusPayment}
-        focusTop={focusBottom}
-        onExitUp={() => setFocusLast((count) => count + 1)}
-        focused={area === "bottom"}
-        onActivate={() => setArea("bottom")}
-        onStore={storeCart}
-      />
-    </div>
+    <>
+      <div
+        className="relative flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1"
+        inert={submitting}
+      >
+        <Draft
+          draft={active}
+          drafts={tabs}
+          onSelect={openDraft}
+          stage={stage}
+          onStage={onStage}
+          focusSearch={focusSearch}
+          focusLast={focusLast}
+          onExitDown={() => setFocusBottom((count) => count + 1)}
+          focused={area === "main"}
+          onActivate={() => setArea("main")}
+          lines={lines}
+          onLines={setLines}
+          issues={issues}
+          extras={extras}
+          onExtras={setExtras}
+        />
+        <Bottom
+          draft={active}
+          grand={grand}
+          change={change}
+          focusPayment={focusPayment}
+          focusTop={focusBottom}
+          onExitUp={() => setFocusLast((count) => count + 1)}
+          focused={area === "bottom"}
+          onActivate={() => setArea("bottom")}
+          onStore={storeCart}
+          onSubmit={submitDraft}
+          disabled={hardIssue || submitting || grand.isZero()}
+        />
+        {submitting ? (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60">
+            <Loading />
+          </div>
+        ) : null}
+      </div>
+      {completeDialog}
+    </>
   );
 }

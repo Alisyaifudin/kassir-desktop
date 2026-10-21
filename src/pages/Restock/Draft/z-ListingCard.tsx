@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
-import { lineDiscountTotal, lineGrandTotal } from "../total";
+import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import type { Line } from "../mock";
 import type { Field } from "./listing-grid";

@@ -51,9 +51,13 @@ const productLive = ProductLive.pipe(Layer.provide(hiddenLive));
 const printerLive = PrinterLive.pipe(Layer.provide(hiddenLive));
 const socialLive = SocialLive.pipe(Layer.provide(hiddenLive));
 const supplierLive = SupplierLive.pipe(Layer.provide(hiddenLive));
-const transactionLive = TransactionLive.pipe(Layer.provide(hiddenLive));
 // `record` reverses a deleted record's stock movement, so it needs `product`.
 const recordLive = RecordLive.pipe(Layer.provide(hiddenLive), Layer.provide(productLive));
+// `transaction` commits a cart through `record` and restores one from it.
+const transactionLive = TransactionLive.pipe(
+  Layer.provide(hiddenLive),
+  Layer.provide(recordLive),
+);
 
 // Auth also needs the cashier service to verify the session's id.
 const authLive = AuthLive.pipe(Layer.provide(hiddenLive), Layer.provide(cashierLive));

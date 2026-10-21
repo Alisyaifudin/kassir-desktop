@@ -13,7 +13,7 @@ import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft } from "~/services/transaction";
-import { paidTotal } from "../total";
+import { paidTotal } from "~/lib/purchase";
 import { run } from "../run";
 import { rupiah } from "../util-rupiah";
 import { Methods } from "./z-Methods";
