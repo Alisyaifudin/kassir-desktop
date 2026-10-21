@@ -56,7 +56,7 @@ function blankLine(): Line {
     code: "",
     unit: 1,
     price: 0,
-    qty: 0,
+    qty: 1,
     discounts: [{ id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 }],
   };
 }
