@@ -176,6 +176,12 @@ function expectSubmitKind(result: SaleResult, kind: SubmitError["kind"]) {
   if (error !== null) expect(error.kind).toBe(kind);
 }
 
+function expectSubmitMessage(result: SaleResult, contains: string) {
+  const error = submitError(result);
+  expect(error).not.toBeNull();
+  if (error !== null) expect(error.message).toContain(contains);
+}
+
 function expectTransactionMessage(result: SaleResult, contains: string) {
   const error = transactionError(result);
   expect(error).not.toBeNull();
@@ -452,6 +458,39 @@ describe("TransactionService.submit — payment", () => {
 
   test("rejects underpayment", async () => {
     const { db, result } = await submit({ methods: [makeMethod(30000)] });
+    expectSubmitKind(result, "payment");
+    expect(count(db, "records")).toBe(0);
+  });
+
+  test("rejects a discount that eats the whole line", async () => {
+    // 100% of a Rp40.000 line leaves nothing to pay for.
+    const { db, result } = await submit({
+      lines: [makeLine({ discounts: [makeDiscount("percent", 100)] })],
+      methods: [makeMethod(40000)],
+    });
+    expectSubmitKind(result, "price");
+    expectSubmitMessage(result, "Diskon Kopi");
+    expect(count(db, "records")).toBe(0);
+  });
+
+  test("rejects a pcs discount larger than the quantity", async () => {
+    // `pcs: 9` on four pieces is 9 × the price — clamped to the line, so the
+    // line is fully discounted and the sale is refused rather than stored.
+    const { db, result } = await submit({
+      lines: [makeLine({ discounts: [makeDiscount("pcs", 9)] })],
+      methods: [makeMethod(40000)],
+    });
+    expectSubmitKind(result, "price");
+    expect(count(db, "records")).toBe(0);
+  });
+
+  test("rejects a negative total from a deduction larger than the goods", async () => {
+    // A −50.000 "extra" on a 40.000 sale used to be storable: `grand` is
+    // negative, the tender is "enough", and the change reads positive.
+    const { db, result } = await submit({
+      extras: [makeExtra("number", -50000)],
+      methods: [makeMethod(40000)],
+    });
     expectSubmitKind(result, "payment");
     expect(count(db, "records")).toBe(0);
   });

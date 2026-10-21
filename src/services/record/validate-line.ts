@@ -12,6 +12,7 @@
  * Kept pure and free of Effect so the boundary (the Zod schema in
  * `pages/Setting/Data/RecordUpload`) and the service can agree by construction.
  */
+import Decimal from "decimal.js";
 export type RecordLine = {
   name: string;
   qty: number;
@@ -21,6 +22,8 @@ export type RecordLine = {
   listingId: string | null;
   /** Pcs per listing unit. Omitted by an import, which reads it from the link. */
   unit?: number;
+  /** The line's discount stack, as the cart derived it. Omitted when there is none. */
+  discounts?: readonly { eff: number }[];
 };
 
 /** What a line is called in a message; a manual line may not have a name yet. */
@@ -46,6 +49,16 @@ export function validateRecordLine(line: RecordLine): string | null {
   }
   if (line.listingId === null && line.name.trim() === "") {
     return "Nama barang manual harus diisi";
+  }
+  // The cart clamps a discount to its line, so an over-discount can no longer
+  // be negative — but a line whose stack takes all of it is still not a sale,
+  // and this is the one place both writers (cart and import) agree on that.
+  const discounts = line.discounts ?? [];
+  if (discounts.length > 0 && line.price > 0 && line.qty > 0) {
+    const taken = discounts.reduce((total, discount) => total.plus(discount.eff), new Decimal(0));
+    if (taken.gte(new Decimal(line.price).times(line.qty))) {
+      return `Diskon ${label(line.name)} melebihi harga barang`;
+    }
   }
   return null;
 }

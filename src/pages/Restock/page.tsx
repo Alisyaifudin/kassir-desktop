@@ -120,7 +120,7 @@ function Screen({
     blocked: complete !== null || submitting || hardIssue,
     // A credit sale has no change to settle; a cash one may not be underpaid.
     ready: (credit) =>
-      !(credit ? creditGrand.isZero() : grand.isZero()) && (credit || !change.isNegative()),
+      (credit ? creditGrand.gt(0) : grand.gt(0)) && (credit || !change.isNegative()),
     setSubmitting: cart.setSubmitting,
     setComplete,
     build: (recordId, credit) => ({
@@ -179,7 +179,7 @@ function Screen({
             focusLast={focusLast}
             onExitUp={exitUp}
             onCredit={() => submit(true)}
-            creditDisabled={hardIssue || creditGrand.isZero()}
+            creditDisabled={hardIssue || !creditGrand.gt(0)}
           />
           <Bottom
             stage={stage}
@@ -187,7 +187,7 @@ function Screen({
             grand={grand}
             fix={active.fix}
             change={change}
-            disabled={hardIssue || grand.isZero()}
+            disabled={hardIssue || !grand.gt(0)}
             focusPay={focusPay}
             onFocusRounding={() => setFocusRounding((count) => count + 1)}
             onExitUp={exitUp}

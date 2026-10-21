@@ -63,7 +63,7 @@ mock.module("~/services", () => ({
 }));
 
 const { useCartScreen } = await import("./use-cart-screen");
-const { useDialogLock } = await import("./use-inert-app");
+const { useDialogLock } = await import("~/hooks/use-dialog-lock");
 
 function makeDraft(id: string, overrides: Partial<Draft> = {}): Draft {
   return {

@@ -792,6 +792,13 @@ export const RecordLive = Layer.effect(
                 );
               }
             }
+            if (!(input.total > 0)) {
+              return yield* Effect.fail(
+                new RecordError({
+                  message: `Catatan ${input.cashier || "impor"}: Total transaksi tidak boleh nol atau negatif`,
+                }),
+              );
+            }
 
             const recordId = generateId();
             const now = Date.now();
@@ -985,6 +992,13 @@ export const RecordLive = Layer.effect(
               if (message !== null) {
                 return yield* Effect.fail(new RecordError({ message }));
               }
+            }
+            // No path may store a record whose total is zero or negative: the
+            // sale screen refuses it, and so must a direct caller.
+            if (!(input.total > 0)) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Total transaksi tidak boleh nol atau negatif" }),
+              );
             }
 
             const isPurchase = input.mode === "outcoming";

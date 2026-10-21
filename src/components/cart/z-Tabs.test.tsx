@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { Draft } from "~/services/transaction";
 import { STORED_FLAG } from "~/services/transaction";
@@ -19,7 +20,7 @@ mock.module("~/services", () => ({
   },
 }));
 
-const { Tabs } = await import("./z-Tabs");
+const { CartPanel, Tabs, cartTabId } = await import("./z-Tabs");
 
 function makeDraft(id: string, title: string, flag = 0): Draft {
   return {
@@ -48,7 +49,10 @@ const drafts = [makeDraft("d1", "Kopi"), makeDraft("d2", "Teh"), makeDraft("d3",
 function renderStrip(activeId = "d1") {
   const selected: string[] = [];
   render(
-    <Tabs mode="sale" drafts={drafts} activeId={activeId} onSelect={(id) => selected.push(id)} />,
+    <>
+      <Tabs mode="sale" drafts={drafts} activeId={activeId} onSelect={(id) => selected.push(id)} />
+      <CartPanel draftId={activeId}>isi keranjang</CartPanel>
+    </>,
   );
   return { selected, tabs: screen.getAllByRole("tab") };
 }
@@ -109,6 +113,39 @@ describe("cart tab strip", () => {
     expect(tabs).toHaveLength(4);
     fireEvent.keyDown(tabs[3], { key: " " });
     expect(selected).toEqual(["d4"]);
+  });
+
+  test("every tab names the panel it controls, and only one panel exists", () => {
+    const { tabs } = renderStrip("d2");
+    const panels = screen.getAllByRole("tabpanel");
+    expect(panels).toHaveLength(1);
+    const panel = panels[0];
+    expect(panel.id).toBe("cart-panel");
+    // The panel is labelled by the *selected* cart's tab.
+    expect(panel.getAttribute("aria-labelledby")).toBe(cartTabId("d2"));
+    for (const [index, tab] of tabs.entries()) {
+      expect(tab.getAttribute("aria-controls")).toBe(panel.id);
+      expect(tab.id).toBe(cartTabId(drafts[index]!.id));
+    }
+  });
+
+  test("switching carts relabels the panel to the new tab", () => {
+    function Screen() {
+      const [active, setActive] = useState("d1");
+      return (
+        <>
+          <Tabs mode="sale" drafts={drafts} activeId={active} onSelect={setActive} />
+          <CartPanel draftId={active}>isi keranjang</CartPanel>
+        </>
+      );
+    }
+    render(<Screen />);
+    const panel = () => screen.getAllByRole("tabpanel")[0];
+    expect(panel().getAttribute("aria-labelledby")).toBe(cartTabId("d1"));
+
+    fireEvent.click(screen.getAllByRole("tab")[1]!);
+    expect(panel().getAttribute("aria-labelledby")).toBe(cartTabId("d2"));
+    expect(screen.getAllByRole("tab")[1]?.getAttribute("aria-selected")).toBe("true");
   });
 
   test("Delete opens the confirm dialog instead of destroying the cart", () => {

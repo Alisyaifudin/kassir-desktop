@@ -11,7 +11,8 @@ export function usePrintReceipt(record: RecordFull) {
   async function print() {
     setLoading(true);
     try {
-      setError(await Effect.runPromise(programPrintReceipt(record)));
+      const outcome = await Effect.runPromise(programPrintReceipt(record));
+      setError(outcome.ok ? null : outcome.message);
     } catch (e) {
       // The program reports typed failures as a message; only a defect can land
       // here. Either way the button must leave its loading state.

@@ -59,22 +59,29 @@ export function Search() {
         </form>
         <ModeSelect />
       </div>
-      <Output limit={limit} onMore={() => setLimit((current) => current + PAGE)} />
+      <Results limit={limit} onMore={() => setLimit((current) => current + PAGE)} />
     </div>
   );
 }
 
-function Output({ limit, onMore }: { limit: number; onMore: () => void }) {
+/**
+ * The result pane. A plain `div`, deliberately: this used to be `<output>`,
+ * which maps to ARIA `role="status"` — an atomic polite live region — so every
+ * keystroke that re-queried and every "Lebih banyak" append made a screen
+ * reader read up to 100 rows × 7 cells aloud. What is worth announcing is the
+ * count, which `SearchTable` now carries in its own small `role="status"`.
+ */
+function Results({ limit, onMore }: { limit: number; onMore: () => void }) {
   const res = useData(limit);
   return (
     <RecordsErrorBoundary fallback={RecordsErrorFallback}>
       <Loader res={res} fallback={<LoadingTable />}>
         {({ data }) => (
-          <output className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden">
             <div className="max-h-full overflow-hidden flex">
               <SearchTable page={data} onMore={onMore} />
             </div>
-          </output>
+          </div>
         )}
       </Loader>
     </RecordsErrorBoundary>
@@ -102,34 +109,48 @@ function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () =>
   );
 
   return (
-    <Table className="text-normal flex-1">
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[60px] font-normal small:w-[50px]">No</TableHead>
-          <TableHead className="text-center w-[170px] font-normal small:w-[110px]">
-            Tanggal
-          </TableHead>
-          <TableHead className="text-center w-[100px] font-normal small:w-[80px]">Waktu</TableHead>
-          <TableHead className="font-normal">Nama</TableHead>
-          <TableHead className="text-center w-[57px] font-normal small:w-[50px]">Qty</TableHead>
-          <TableHead className="text-end w-[120px] font-normal">Harga</TableHead>
-          <TableHead className="icon" />
-        </TableRow>
-      </TableHeader>
-      <TableBody className="overflow-auto flex-1 w-full">
-        <ForEachRow page={page} tabStop={tabStop} onFocusRow={setFocused} onOpen={open} />
-        <Show when={page.entries.length < page.total}>
+    <>
+      {/* One short sentence, announced once per result change — never the rows. */}
+      <p role="status" className="sr-only">
+        {page.total === 0
+          ? "Tidak ada yang cocok."
+          : `Menampilkan ${page.entries.length} dari ${page.total} hasil.`}
+      </p>
+      <Table className="text-normal flex-1">
+        <TableHeader>
           <TableRow>
-            <TableCell colSpan={7} className="text-end">
-              Menampilkan {page.entries.length} / {page.total} |{" "}
-              <button className="underline" onClick={onMore}>
-                Lebih banyak
-              </button>
-            </TableCell>
+            <TableHead className="w-[60px] font-normal small:w-[50px]">No</TableHead>
+            <TableHead className="text-center w-[170px] font-normal small:w-[110px]">
+              Tanggal
+            </TableHead>
+            <TableHead className="text-center w-[100px] font-normal small:w-[80px]">
+              Waktu
+            </TableHead>
+            <TableHead className="font-normal">Nama</TableHead>
+            <TableHead className="text-center w-[57px] font-normal small:w-[50px]">Qty</TableHead>
+            <TableHead className="text-end w-[120px] font-normal">Harga</TableHead>
+            <TableHead className="icon" />
           </TableRow>
-        </Show>
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody className="overflow-auto flex-1 w-full">
+          <ForEachRow page={page} tabStop={tabStop} onFocusRow={setFocused} onOpen={open} />
+          <Show when={page.entries.length < page.total}>
+            <TableRow>
+              <TableCell colSpan={7} className="text-end">
+                Menampilkan {page.entries.length} / {page.total} |{" "}
+                <button
+                  className="underline"
+                  aria-label="Muat hasil berikutnya"
+                  onClick={onMore}
+                >
+                  Lebih banyak
+                </button>
+              </TableCell>
+            </TableRow>
+          </Show>
+        </TableBody>
+      </Table>
+    </>
   );
 }
 
@@ -218,7 +239,7 @@ function ForEachRow({
 
 function LoadingTable() {
   return (
-    <output className="flex-1 overflow-hidden">
+    <div className="flex-1 overflow-hidden">
       <div className="max-h-full overflow-hidden flex">
         <Table className="text-normal flex-1">
           <TableHeader>
@@ -265,6 +286,6 @@ function LoadingTable() {
           </TableBody>
         </Table>
       </div>
-    </output>
+    </div>
   );
 }

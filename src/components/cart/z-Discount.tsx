@@ -175,12 +175,38 @@ function Body({
     onChange(recalcDiscounts(line.price, line.qty, normalize(next)));
   }
 
+  /**
+   * A row may not take more than the line has: `Angka` stops at what is left of
+   * the line's subtotal, `PCS` at its quantity (`pcs: 2` on a one-piece line
+   * would be twice the line) and `Persen` at 100. `recalcDiscounts` clamps the
+   * derivation as well — this is what stops the mistyped digit from entering
+   * the cart at all.
+   */
+  function clampValue(index: number, kind: DiscountKind, value: number): number {
+    if (kind === "percent") return Math.min(Math.max(value, 0), 100);
+    if (kind === "pcs") return Math.min(Math.max(value, 0), Math.max(line.qty, 0));
+    const takenByOthers = line.discounts.reduce(
+      (total, discount, i) => (i === index ? total : total + discount.eff),
+      0,
+    );
+    const left = Math.max(line.price * line.qty - takenByOthers, 0);
+    return Math.min(Math.max(value, 0), left);
+  }
+
   function setValue(index: number, value: number) {
-    commit(line.discounts.map((d, i) => (i === index ? { ...d, value } : d)));
+    commit(
+      line.discounts.map((d, i) =>
+        i === index ? { ...d, value: clampValue(index, d.kind, value) } : d,
+      ),
+    );
   }
 
   function setKind(index: number, kind: DiscountKind) {
-    commit(line.discounts.map((d, i) => (i === index ? { ...d, kind } : d)));
+    commit(
+      line.discounts.map((d, i) =>
+        i === index ? { ...d, kind, value: clampValue(index, kind, d.value) } : d,
+      ),
+    );
   }
 
   function remove(index: number) {

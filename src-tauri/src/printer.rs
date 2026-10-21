@@ -180,11 +180,17 @@ mod platform {
         let _ = std::fs::remove_file(&temp_path);
 
         // The spooler accepted the job, which is not the same as the paper coming
-        // out: say "sent", so the cashier knows to look at the printer.
+        // out: say "sent", so the cashier knows to look at the printer. The byte
+        // count is a developer detail and belongs in the log, not on a 58 mm
+        // receipt's worth of screen space.
+        log::info!(
+            "print_pdf: {} bytes sent to '{}'",
+            pdf_bytes.len(),
+            printer_name
+        );
         Ok(format!(
-            "Dikirim ke printer '{}' ({} byte)",
-            printer_name,
-            pdf_bytes.len()
+            "Dikirim ke printer '{}'. Periksa printer jika kertas tidak keluar.",
+            printer_name
         ))
     }
 }
@@ -285,11 +291,17 @@ mod platform {
         }
 
         // The spooler accepted the job, which is not the same as the paper coming
-        // out: say "sent", so the cashier knows to look at the printer.
+        // out: say "sent", so the cashier knows to look at the printer. The byte
+        // count is a developer detail and belongs in the log, not on a 58 mm
+        // receipt's worth of screen space.
+        log::info!(
+            "print_pdf: {} bytes sent to '{}'",
+            pdf_bytes.len(),
+            printer_name
+        );
         Ok(format!(
-            "Dikirim ke printer '{}' ({} byte)",
-            printer_name,
-            pdf_bytes.len()
+            "Dikirim ke printer '{}'. Periksa printer jika kertas tidak keluar.",
+            printer_name
         ))
     }
 }

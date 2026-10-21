@@ -1,41 +1,5 @@
 import { useEffect } from "react";
-
-/**
- * How many dialogs currently own the screen.
- *
- * Module-level on purpose: `useCartScreen`'s F1/F2/F12 handlers live on
- * `window` (so they work from any panel), which means they cannot see a dialog
- * through React state that is two components away. A tiny counter is the
- * cheapest honest answer, and it is read at event time, not during render.
- */
-let openDialogs = 0;
-
-/**
- * True while a dialog that took the keyboard away from the screen is open.
- *
- * `inert` on `#root` and Radix's focus trap both stop Tab and the pointer, but
- * neither stops a `keydown` listener registered on `window` — and every Dialog
- * portal renders outside `#root`. So F12 could write a new draft to SQLite
- * behind the "Pembayaran berhasil" dialog and F1 could reset the grid selection
- * behind the money editors. The DOM fallback catches a modal that never called
- * `useDialogLock` (Radix sets `aria-modal` itself).
- */
-export function isScreenOwnedByDialog(): boolean {
-  if (openDialogs > 0) return true;
-  if (typeof document === "undefined") return false;
-  return document.querySelector('[aria-modal="true"]') !== null;
-}
-
-/** Publish "a dialog owns the screen" while `open`. */
-export function useDialogLock(open: boolean) {
-  useEffect(() => {
-    if (!open) return;
-    openDialogs += 1;
-    return () => {
-      openDialogs -= 1;
-    };
-  }, [open]);
-}
+import { useDialogLock } from "~/hooks/use-dialog-lock";
 
 /**
  * Takes the rest of the app out of the keyboard and the accessibility tree
@@ -52,6 +16,9 @@ export function useDialogLock(open: boolean) {
  * the overlay, the Select popups) lives beside it on `body`, so the dialog and
  * its popups stay live. This is the same `inert` idiom the cart pages use while
  * a submit is in flight.
+ *
+ * The shortcut lock itself lives in `~/hooks/use-dialog-lock`, which is where
+ * every `window` listener in the app reads it (see `useNavigationShortcuts`).
  */
 export function useInertApp(open: boolean) {
   // Every caller is a dialog that owns the keyboard, so it registers itself for

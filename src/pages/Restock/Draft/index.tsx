@@ -4,7 +4,7 @@ import { linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
 import { Listing } from "~/components/cart/z-Listing";
 import { Payment } from "./z-Payment";
-import { Tabs } from "~/components/cart/z-Tabs";
+import { CartPanel, Tabs } from "~/components/cart/z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
 import type { LineIssue } from "~/components/cart/code-issues";
 
@@ -64,24 +64,26 @@ export function Draft({
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
       <Tabs mode="purchase" drafts={drafts} activeId={draft.id} onSelect={onSelect} />
-      <StageBody
-        stage={stage}
-        draft={draft}
-        grand={grand}
-        lines={lines}
-        onLines={onLines}
-        issues={issues}
-        extras={extras}
-        onExtras={onExtras}
-        focusPayment={focusPayment}
-        focusSearch={focusSearch}
-        focusRounding={focusRounding}
-        focusLast={focusLast}
-        onFocusPay={onFocusPay}
-        onExitUp={onExitUp}
-        onCredit={onCredit}
-        creditDisabled={creditDisabled}
-      />
+      <CartPanel draftId={draft.id}>
+        <StageBody
+          stage={stage}
+          draft={draft}
+          grand={grand}
+          lines={lines}
+          onLines={onLines}
+          issues={issues}
+          extras={extras}
+          onExtras={onExtras}
+          focusPayment={focusPayment}
+          focusSearch={focusSearch}
+          focusRounding={focusRounding}
+          focusLast={focusLast}
+          onFocusPay={onFocusPay}
+          onExitUp={onExitUp}
+          onCredit={onCredit}
+          creditDisabled={creditDisabled}
+        />
+      </CartPanel>
     </section>
   );
 }

@@ -11,7 +11,8 @@ import type { ListingHistoryPage } from "~/services/record";
  * inside it and Enter opens the record — the same model as the day list.
  */
 const page: ListingHistoryPage = {
-  total: 2,
+  // More rows exist than this page carries, so the "Lebih banyak" row renders.
+  total: 5,
   entries: [
     { id: "l1", recordId: "r1", paidAt: 1_700_000_000_000, name: "Kopi", qty: 2, price: 10_000 },
     { id: "l2", recordId: "r2", paidAt: 1_700_000_000_000, name: "Teh", qty: 1, price: 5_000 },
@@ -60,6 +61,23 @@ describe("record search results keyboard model", () => {
     renderSearch();
     const [, first] = screen.getAllByRole("row");
     expect(first?.getAttribute("aria-label")).toContain("Kopi");
+  });
+
+  test("the rows are not an atomic live region", () => {
+    renderSearch();
+    // The result pane used to be `<output>`, i.e. `role="status"` +
+    // `aria-atomic`: every keystroke re-read up to 100 rows × 7 cells aloud.
+    const live = document.querySelectorAll('[role="status"],[aria-live]');
+    expect(live).toHaveLength(1);
+    const status = live[0];
+    expect(status?.textContent).toBe("Menampilkan 2 dari 5 hasil.");
+    expect(status?.querySelector("table")).toBeNull();
+    expect(document.querySelector("output")).toBeNull();
+  });
+
+  test("the load-more control has a name", () => {
+    renderSearch();
+    expect(screen.getByRole("button", { name: "Muat hasil berikutnya" })).toBeTruthy();
   });
 
   test("no unnamed control hides in the result list", () => {

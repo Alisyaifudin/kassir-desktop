@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window. Least privilege on purpose: the only filesystem paths the app touches are `$APPDATA/images` (product covers, read+write) and `$APPLOCALDATA/logs` (the log file the Setting > Log page reads). The JSON exports do not go through the fs plugin: they call the Rust `export_file` command, which opens the save dialog and writes the file itself, so a user-picked path never needs to be inside this scope. `sql:allow-execute` is the one deliberate hole — the SQLite access layer runs statements issued by `src/services/db` — and it is compensated by the window CSP below.",
+  "description": "Capability for the main window. Least privilege on purpose: the only filesystem paths the app touches are `$APPDATA/images` (product covers: read, write, mkdir) and `$APPLOCALDATA/logs` (the log file the Setting > Log page reads and clears). The commands enabled are exactly the ones `src/lib/image.ts` and `src/services/log/live.ts` call — `fs:read-files` (exists, read_file, read_text_file) and `fs:write-files` (write_file, write_text_file, remove) scoped to those two paths, plus `fs:allow-mkdir` for the images folder, whose path scope comes from the same allow-lists. `fs:default` is deliberately NOT granted: it adds `read-app-specific-dirs-recursive`, i.e. recursive read of every app-specific directory — including the one holding `sqlite:data.db`, the Tauri store and the logs — which no frontend call needs. The JSON exports do not go through the fs plugin: they call the Rust `export_file` command, which opens the save dialog and writes the file itself, so a user-picked path never needs to be inside this scope. `sql:allow-execute` is the one deliberate hole — the SQLite access layer runs statements issued by `src/services/db` — and it is compensated by the window CSP below.",
   "windows": [
     "main"
   ],
@@ -11,7 +11,13 @@
     "sql:allow-execute",
     "store:default",
     "log:default",
-    "fs:default",
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        { "path": "$APPDATA/images" },
+        { "path": "$APPDATA/images/**" }
+      ]
+    },
     {
       "identifier": "fs:read-files",
       "allow": [

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T21:00:33.545Z",
+  "updatedAt": "2026-10-21T21:25:47.478Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -1583,6 +1583,204 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T21:00:33.545Z"
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "startedAt": "2026-10-21T21:00:33.620Z",
+      "audit": {
+        "score": 88,
+        "categories": {
+          "architecture": 90,
+          "react": 88,
+          "tauri": 91,
+          "ux": 84,
+          "codeQuality": 87,
+          "testing": 87
+        },
+        "verdict": "I re-verified every iteration-7 \"fixed\" claim against the code rather than the changelog and all nine hold: `payCredit` now reads the record and refuses cash/duplicate/underpayment with five tests, all 19 catalogue writes use the narrow `hydrateMany` path (the submit suite asserts the statement counts), the three swallowed cart streams are now `<Loader>` + typed boundaries, `numerish`/`integer` are conjunctions with `parseRange`, the record-search and Records lists use roving tabindex, the cart strip is a real `tablist` with tests, icons are all `icon`/`small:`, and `useCartScreen` + the dialog lock are tested; `tsc --noEmit`, `eslint` and `bun test` (364/364) are clean. The score is nonetheless slightly below iteration 7 because this pass found a genuine high-severity money hole the earlier ones missed: nothing bounds a line discount by the line (the \"Angka\" and \"PCS\" editors are uncapped, and `pcs: 2` on a one-piece line is instantly negative), and `transaction.submit` guards only `grand.isZero()`, so with any tender the POS will commit a record with a negative total, a positive change and a receipt that says the shop paid the customer — and the record layer re-derives the line total from the same figures, so it is permanent history; the related second defect is that a line's discount `eff` is only re-derived on quantity edits, not on price edits, so the discount silently keeps the old rupiah while the UI still says \"10%\". Both are pinned by the same missing unit test on `src/lib/purchase.ts`, the money core with 14 importers and no test file, which is why `testing` stays at 87; the remaining medium findings are the cart tab strip having no `tabpanel`/`aria-controls`, the record-search table wrapped in `<output>` (an atomic live region that reads 100 rows per keystroke), `Alt`+digit navigation and the Alt legend ignoring the new dialog lock (so the completion dialog's print/undo exits can be navigated away from), and `fs:default` still granting recursive read of every app-specific dir including `data.db` — named in two prior verdicts, now filed as a report. Deliberately not covered in depth: `record/live.ts`'s credit-edit and `unsubmit` reversal paths past the code I read, the Money/Debt screen bodies beyond their data hooks, the receipt PDF geometry on real 58/80 mm paper, the updater `latest.json`/pubkey trust chain, migration SQL bodies beyond version/checksum/index structure, the Rust printer path on real Windows hardware, and the Playwright/e2e suite; also folded into this verdict rather than filed — the Records list sort headers expose no `aria-sort` (direction is an arrow icon only), `Record/Search` never resets its `focused` index when the query changes, `useSaveEdit` resets the note if the record object identity changes mid-edit, `useCartScreen`'s F1/F2/F12 effect and `z-Methods`' `Ctrl+0..3` re-register window listeners (deliberate, documented), `useInertApp` removes `inert` from `#root` when the first of two stacked dialogs closes, `showShortcut`'s module-level timer outlives unmount, and `record/live.ts` (~1.7k) / `transaction/live.ts` (~1.2k) remain oversized.",
+        "reports": [
+          {
+            "slug": "discount-exceeds-line-and-negative-total-commits",
+            "title": "A line discount can exceed the line, and the commit path only rejects a total of exactly zero — a negative sale is saved",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/lib/purchase.ts",
+              "src/components/cart/z-Discount.tsx",
+              "src/components/cart/z-Extra.tsx",
+              "src/services/transaction/live.ts",
+              "src/services/record/live.ts",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Pos/z-Bottom.tsx"
+            ],
+            "summary": "Nothing bounds a cart line's discount by the line's own total: `recalcDiscounts` subtracts any `eff` from `price × qty`, the \"Angka\" editor is an uncapped `InputCurrency` and the \"PCS\" editor is an uncapped integer count (so `pcs: 2` on a one-piece line is instantly twice the line total). The resulting negative line rolls up into a negative grand total, and `transaction.submit` guards only `grand.isZero()` — so with any non-zero tender the record commits with `record_total` negative, `record_pay` positive, a positive \"Kembalian\", and a receipt that says the shop owed the customer money. On a POS where a mistyped discount is the expected mistake, this silently writes history.",
+            "path": "iterations/008/report-01-discount-exceeds-line-and-negative-total-commits.md",
+            "createdAt": "2026-10-21T21:07:54.302Z"
+          },
+          {
+            "slug": "discount-eff-stale-after-price-edit",
+            "title": "Editing a line's price leaves the line's discount `eff` at the old price, and the record/receipt inherit the stale money",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/components/cart/z-ListingCard.tsx",
+              "src/components/cart/z-Listing.tsx",
+              "src/components/cart/z-Discount.tsx",
+              "src/lib/purchase.ts",
+              "src/services/record/live.ts"
+            ],
+            "summary": "A cart line stores its discount's derived `eff`/`total` inside the editable line, so every mutation site has to re-derive it. Quantity changes do (`z-ListingCard.tsx:288`, `bumpQty`, `addListing`), the discount dialog does, but the price cell does not (`onCommit={(raw) => onChange({ price })}`), so after correcting a price the cart still applies the old rupiah discount while telling the cashier \"10%\" — and `record.add.draft` re-derives the line total from that same stale `eff`, so the wrong figure becomes immutable history and a wrong receipt.",
+            "path": "iterations/008/report-02-discount-eff-stale-after-price-edit.md",
+            "createdAt": "2026-10-21T21:08:10.061Z"
+          },
+          {
+            "slug": "fs-default-grants-recursive-app-read",
+            "title": "`fs:default` still grants recursive read of every app-specific directory, including the SQLite database, while the capability says least privilege",
+            "severity": "medium",
+            "category": "security",
+            "files": [
+              "src-tauri/capabilities/default.json",
+              "src-tauri/gen/schemas/desktop-schema.json",
+              "src/lib/image.ts",
+              "src/services/log/live.ts",
+              "src-tauri/src/export.rs",
+              "src-tauri/tauri.conf.json"
+            ],
+            "summary": "Recurring (named in the iteration-6 and iteration-7 verdicts, still present): `src-tauri/capabilities/default.json` still grants `fs:default`, which by Tauri's own schema includes `read-app-specific-dirs-recursive` over AppConfig/AppData/AppLocalData/AppCache/AppLog — i.e. recursive read of the directory that holds `sqlite:data.db`, the Tauri Store and the logs. The explicit `fs:read-files`/`fs:write-files` scopes narrow the commands the app calls, so `fs:default` only adds reach, not function — and the capability's own description (\"the only filesystem paths the app touches are `$APPDATA/images` and `$APPLOCALDATA/logs`\") is now false, which is how a real over-grant survived three audits.",
+            "path": "iterations/008/report-03-fs-default-grants-recursive-app-read.md",
+            "createdAt": "2026-10-21T21:08:24.732Z"
+          },
+          {
+            "slug": "navigation-shortcuts-ignore-dialog-lock",
+            "title": "`Alt`+digit navigation and the Alt legend ignore the cart dialog lock, so the completion dialog's print/undo exits can be navigated away from",
+            "severity": "medium",
+            "category": "react",
+            "files": [
+              "src/layouts/authenticated/use-navigation-shortcuts.ts",
+              "src/components/cart/use-inert-app.ts",
+              "src/components/cart/use-cart-screen.ts",
+              "src/components/cart/z-Complete.tsx"
+            ],
+            "summary": "The dialog lock introduced in iteration 7 (`isScreenOwnedByDialog`) is consulted only by `useCartScreen`'s F1/F2/F12 and Ctrl+Arrow listeners. The app-wide navigator in `src/layouts/authenticated/use-navigation-shortcuts.ts` has its own `window` keydown/keyup listeners and still runs `Alt+3`/`Alt+5` and toggles the Alt shortcut legend while a cart dialog owns the screen — so from the \"Pembayaran berhasil\" modal a cashier can navigate away and lose the receipt print and the Batalkan/undo window that dialog exists for. The fix is one predicate call, but the predicate currently lives in `src/components/cart/`, out of reach of a layout, so the contract is enforced per-listener by memory.",
+            "path": "iterations/008/report-04-navigation-shortcuts-ignore-dialog-lock.md",
+            "createdAt": "2026-10-21T21:08:51.188Z"
+          },
+          {
+            "slug": "record-search-table-in-output-live-region",
+            "title": "The record search result table is wrapped in `<output>`, making the whole 100-row table an atomic live region announced on every keystroke",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Record/Search/z-Search.tsx"
+            ],
+            "summary": "`src/pages/Record/Search/z-Search.tsx` wraps the entire result table — and its loading skeleton — in an `<output>` element used as a layout div. `<output>` maps to ARIA `role=\"status\"`, an atomic polite live region, so every keystroke that re-queries `/records/search` (and every \"Lebih banyak\" append) makes a screen reader read up to 100 rows × 7 cells of date/time/name/qty/price aloud, while the one thing worth announcing (\"Menampilkan 100 / 4320\") is just a row inside the same region. The fix is a `<div>` plus one small `role=\"status\"` count.",
+            "path": "iterations/008/report-05-record-search-table-in-output-live-region.md",
+            "createdAt": "2026-10-21T21:09:04.862Z"
+          },
+          {
+            "slug": "cart-tabs-have-no-tabpanel",
+            "title": "The cart `tablist` has no `tabpanel` and no `aria-controls`, so the ARIA tabs pattern stops at the strip",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/components/cart/z-Tabs.tsx",
+              "src/components/cart/z-CartFrame.tsx",
+              "src/pages/Pos/Draft/index.tsx",
+              "src/pages/Restock/Draft/index.tsx",
+              "src/components/cart/z-Tabs.test.tsx"
+            ],
+            "summary": "The cart tab strip is a real `tablist` of `role=\"tab\"` elements (iteration 7), but there is no `role=\"tabpanel\"` anywhere in the repo and no tab carries `aria-controls` or an `id`. The content the tabs switch — `StageBody` and the settle strip — is plain markup, so a screen reader in tabs mode is told a tab is selected and offered panel navigation that leads nowhere, and a cashier switching carts is never told that the cart body below was replaced. `z-Tabs.test.tsx` covers the widget but cannot cover the (missing) association.",
+            "path": "iterations/008/report-06-cart-tabs-have-no-tabpanel.md",
+            "createdAt": "2026-10-21T21:09:24.733Z"
+          },
+          {
+            "slug": "money-core-has-no-unit-tests",
+            "title": "The shared money core (`src/lib/purchase.ts`) has no unit test of its own, and the discount/rounding edge cases are unpinned",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "src/lib/purchase.ts",
+              "src/services/transaction/submit.test.ts",
+              "src/services/record/round.ts",
+              "src/pages/Record/Item/z-Detail/discounts.test.ts"
+            ],
+            "summary": "`src/lib/purchase.ts` — the shared money core behind both cart screens, the receipt and the commit path (14 importers) — is the only pure module of its class with no test file of its own. The submit suite imports `recalcDiscounts` only as a fixture builder and asserts stored rows at `fix: 2` with valid inputs, so discount stacking order, over-discount handling, negative extras, the `fix` clamp in `roundMoney` and the half-rounding direction are all unpinned. Both money defects found this iteration are one small unit test away from being caught.",
+            "path": "iterations/008/report-07-money-core-has-no-unit-tests.md",
+            "createdAt": "2026-10-21T21:09:54.387Z"
+          },
+          {
+            "slug": "print-success-message-is-dead-and-leaks-bytes",
+            "title": "The printer command's success message is dead code that leaks a byte count, and \"Tes Cetak\" shows no success state",
+            "severity": "low",
+            "category": "ux",
+            "files": [
+              "src-tauri/src/printer.rs",
+              "src/lib/printer.ts",
+              "src/pages/Setting/Printer/util-program-print.ts",
+              "src/pages/Setting/Printer/use-test.ts",
+              "src/pages/Setting/Printer/z-TestBtn.tsx"
+            ],
+            "summary": "Recurring (folded into the iteration-7 verdict, never fixed): `printer.rs` answers `print_pdf` with \"Dikirim ke printer 'X' (N byte)\" in both the Win32 and CUPS branches — a developer detail aimed at a cashier — and the frontend throws the string away entirely (`programPrint` returns `null` on success, `printPdf` ignores the Ok value). The result is dead code plus a real gap: Setting → Printer → \"Tes Cetak\" has no success state at all (only `TextError`), so a successful test print looks identical to a click that did nothing.",
+            "path": "iterations/008/report-08-print-success-message-is-dead-and-leaks-bytes.md",
+            "createdAt": "2026-10-21T21:10:07.510Z"
+          }
+        ],
+        "at": "2026-10-21T21:10:27.543Z"
+      },
+      "finishedAt": "2026-10-21T21:25:47.478Z",
+      "fix": {
+        "summary": "All 8 iteration-8 reports addressed (8 fixed). `bun run lint`, `bunx tsc --noEmit`, `rustfmt --check src-tauri/src/printer.rs` are clean and `bun test` is 417/417 across 52 files (was 364 + 1 new test file per area).\n\n## What changed\n\n**Money invariants (report 01, high — the negative-sale hole)**\n- `src/lib/purchase.ts`: `recalcDiscounts` now clamps every row to `[0, running]`, so a mistyped `Angka`/`PCS` takes the rest of the line and stops instead of producing a negative line. New `discountsEatLine(line)` reports a stack that reaches the whole line; new `withDerivedDiscounts(line)` is the one place a line's `eff` is re-derived.\n- `transaction.submit`: rejects `discountsEatLine` per line with `Diskon <nama> melebihi harga barang` *before* the payment checks, and the grand-total guard is `isNegative() || isZero()`.\n- `record/validate-line.ts` + `record/live.ts`: `RecordLine` gained optional `discounts`; the shared validator refuses a stack >= price × qty, and both `add.draft` and `add.external` refuse a non-positive total.\n- UI: the discount dialog clamps as typed (`Angka` to what is left, `PCS` to qty, `Persen` to 100); `findLineIssues`/`hasHardIssue` gained a `discount` hard issue rendered inline under the Diskon cell; Bayar readiness on both screens is `grand.gt(0)`.\n- Contract note for the next auditor: a line discounted to exactly zero is now refused by design (per the report's acceptance criteria), so a \"free item\" has to be a record-level extra, not a 100% line discount.\n\n**Stale `eff` after a price edit (report 02)** — every per-line patch in `z-Listing.tsx` goes through one `patchLine()` helper that re-derives when price/qty move; `QtyCell` no longer re-derives itself, so `recalcDiscounts` is called from exactly one place in `components/cart` (the discount dialog's own commit).\n\n**Dialog lock (report 02/04)** — the predicate moved to `src/hooks/use-dialog-lock.ts`; `useNavigationShortcuts` now consults it in both the `Alt+digit` and the Alt-legend listeners, with tests covering both directions.\n\n**`fs:default` (report 03)** — dropped from `src-tauri/capabilities/default.json`; replaced with the scoped `fs:read-files`/`fs:write-files` sets plus a scoped `fs:allow-mkdir` (the only command the default was providing). Description rewritten honestly; new `src/lib/tauri-capability.test.ts` fails if `fs:default`/recursive sets or an out-of-scope path comes back.\n\n**Accessibility** — cart tabs now have `id` + `aria-controls` and both screens wrap the switched body in a real `role=\"tabpanel\"` (`CartPanel`, labelled by the selected tab), with tests; the record-search result table is no longer wrapped in `<output>` (no more 100-row atomic live region) — there is one small `role=\"status\"` count sentence instead, and the load-more button is named.\n\n**Tests/printer** — new `src/lib/purchase.test.ts` (35 cases pinning discount stacking, over-discount clamping, price-change re-derivation, extras order, `paidTotal`, and `roundMoney` vs `roundToFix`); `printer.rs` logs the byte count and returns a cashier sentence, `printPdf`/`programPrint` carry it through as a `PrintOutcome`, and \"Tes Cetak\" now shows a `role=\"status\"` success line.\n\n## What remains for the next auditor\n- Not verifiable in this pass: the packaged-build checks for the fs ACL (image add/read/delete, Setting → Log, and `readTextFile('data.db')` throwing) and the real-printer check for \"Tes Cetak\". `src-tauri/gen/schemas/*` still shows the old resolved ACL until the next `tauri build` regenerates it.\n- `roundMoney` (Decimal) and `record/round.ts`'s `roundToFix` (JS `toFixed`) genuinely disagree for float-representation values like `1.005`; the test only pins where they agree. Worth a decision if the receipt's rounding line ever drifts.\n- No component test for `z-TestBtn` (no Setting/Printer test directory exists) and no render test that types into the price cell (the pure re-derivation is tested instead).",
+        "fixes": [
+          {
+            "report": "discount-exceeds-line-and-negative-total-commits",
+            "status": "fixed",
+            "note": "The money invariant is now enforced at four layers. `src/lib/purchase.ts`: `recalcDiscounts` clamps every row to `[0, running]` so a mistyped `Angka`/`PCS` takes the rest of the line and stops instead of rolling a negative line into a negative grand total; new `discountsEatLine(line)` reports a stack that reaches the whole line. `src/services/transaction/live.ts`: the per-line loop now rejects `discountsEatLine` with `Diskon <nama> melebihi harga barang` (before the payment checks, so the message names the real mistake) and the grand-total guard is `isNegative() || isZero()` (\"Total transaksi tidak boleh nol atau negatif\"). `src/services/record/validate-line.ts`: `RecordLine` gained optional `discounts`, and `validateRecordLine` refuses a stack >= price × qty — shared by both `add.draft` and `add.external`; both writers also refuse a non-positive `input.total`, so no path (cart, import, direct call) can persist a non-positive record. UI: the discount dialog's `setValue`/`setKind` clamp as typed (`Angka` to what is left of the line, `PCS` to `qty`, `Persen` to 100), `findLineIssues`/`hasHardIssue` gained a `discount` hard issue rendered inline under the Diskon cell, and Bayar's readiness on both screens is now `grand.gt(0)` rather than `!isZero()`. Tests: `src/lib/purchase.test.ts` (34 cases) pins the clamp cases; `submit.test.ts` adds \"rejects a discount that eats the whole line\", \"rejects a pcs discount larger than the quantity\" and \"rejects a negative total from a deduction larger than the goods\". Note the deliberate contract: a line discounted to exactly zero is refused (per the report's acceptance criteria), so a \"free item\" must be rung up as a record-level extra rather than a 100% line discount."
+          },
+          {
+            "report": "discount-eff-stale-after-price-edit",
+            "status": "fixed",
+            "note": "Fixed with the single-write-path option. `src/lib/purchase.ts` gained `withDerivedDiscounts(line)` — the one place a line's `eff`/`total` is re-derived from its own `price`/`qty`. In `src/components/cart/z-Listing.tsx` every per-line patch now goes through a new `patchLine()` (used by the card's `onChange`, `bumpQty`, `addListing`'s bump, and the new-line builder), which re-derives whenever `price` or `qty` moved — so editing the price cell re-derives a `Persen` discount at the new price (10% of Rp20.000 = Rp2.000) and a `PCS` discount at the new quantity. `QtyCell` no longer calls `recalcDiscounts` itself (`onChange({ qty })` only), so `grep -rn \"recalcDiscounts(\" src/components/cart` now shows only `z-Discount.tsx`'s own commit (the dialog is the derive site for its own edits). Unit tests in `src/lib/purchase.test.ts` pin the re-derivation (percent 10 on 10.000 → 1.000, price to 20.000 → 2.000; pcs after a qty change) — the report's acceptance criterion. Not done: no render test types into the price cell (the pure helper is tested instead); the stale-`eff`-from-a-price-*lowering*-to-negative case is now unreachable because `recalcDiscounts` clamps and `discountsEatLine` blocks submit."
+          },
+          {
+            "report": "navigation-shortcuts-ignore-dialog-lock",
+            "status": "fixed",
+            "note": "The dialog-lock contract now lives where a layout can reach it: `src/hooks/use-dialog-lock.ts` holds the module-level counter, `isScreenOwnedByDialog()` and `useDialogLock()` (moved verbatim out of `src/components/cart/use-inert-app.ts`, which now imports `useDialogLock` from there and keeps only the `inert`/`aria-hidden` work). `src/layouts/authenticated/use-navigation-shortcuts.ts` consults `isScreenOwnedByDialog()` in both listeners: `handleKey` returns before navigating (`Alt+3` out of \"Pembayaran berhasil\" no longer strands the receipt print / Batalkan window) and `handleAltDown` returns before toggling the legend (it used to paint under the overlay while flipping the inert shell). Callers updated (`use-cart-screen.ts`, `z-Complete.tsx`, `use-cart-screen.test.ts`). New `src/layouts/authenticated/use-navigation-shortcuts.test.tsx` covers both directions: `Alt+3`/`Alt+5` navigate and the legend appears with no dialog, neither happens while `useDialogLock(true)` is mounted or a `[aria-modal=\"true\"]` element exists, and both work again after it is removed — it uses a real `MemoryRouter`/real shortcut atom (a `mock.module(\"react-router\")` version leaked into `Record/Search`'s test, so it was dropped). Exception documented in place: `z-Methods`' `Ctrl+0..3` and the receipt view's `Ctrl+P` are the dialogs' own shortcuts and deliberately do not consult the predicate. Not done: the \"one central shortcut registry\" (option 2 in the report) — the predicate-plus-comment approach is the smaller change and keeps both listeners where they are."
+          },
+          {
+            "report": "fs-default-grants-recursive-app-read",
+            "status": "fixed",
+            "note": "`src-tauri/capabilities/default.json` no longer grants `fs:default`. Replaced with the narrow set the frontend actually calls, verified against `tauri-plugin-fs` 2.5.0's own permission manifests: `fs:read-files` (exists, read_file, read_text_file) and `fs:write-files` (write_file, write_text_file, remove) keep their previous `$APPDATA/images` + `$APPLOCALDATA/logs` allow-lists, and `fs:allow-mkdir` is added as a scoped instance over `$APPDATA/images` only (that is the one command `fs:default` was providing — `create-app-specific-dirs` — so `src/lib/image.ts`'s `mkdir(\"images\")` keeps working; `read-app-specific-dirs-recursive` and `deny-default` are gone). The capability description was rewritten to state the enabled commands, the two allowed paths, why `fs:default` is deliberately absent (recursive read of the dir holding `sqlite:data.db`) and that `sql:allow-execute` is the remaining deliberate hole. New guard test `src/lib/tauri-capability.test.ts` parses every `src-tauri/capabilities/*.json` and fails if `fs:default` / `read-app-specific-dirs-recursive` / `read-all` / `write-all` comes back, if any `allow` path leaves the two-directory allow-list, if the three command permissions disappear, or if the description stops naming what it grants. NOT verified here: a packaged build — `tauri build` cannot run in this pass, so \"product image add/read/delete and Setting → Log still work in the MSI\" and \"readTextFile('data.db', {baseDir: AppData}) throws\" remain to be checked by hand (they are the report's own verification steps). Note `src-tauri/gen/schemas/*` still shows the old resolved ACL; those are build artifacts and regenerate on the next `tauri build`."
+          },
+          {
+            "report": "cart-tabs-have-no-tabpanel",
+            "status": "fixed",
+            "note": "The tabs pattern is now complete. `src/components/cart/z-Tabs.tsx` exports `CART_TAB_PANEL_ID` (\"cart-panel\"), `cartTabId(draftId)` and a new `CartPanel` component — a `role=\"tabpanel\"` with that id, `aria-labelledby={cartTabId(draftId)}` and `tabIndex={-1}` (the panel's first content is the cart grid, which is itself focusable and owns the arrows, so the panel is an `aria-labelledby` anchor rather than a tab stop; the reason is in the doc comment). Every `role=\"tab\"` now carries `id={cartTabId(draft.id)}` and `aria-controls={panelId}` (the `Tabs` component takes `panelId`, defaulting to the constant). Both screens wrap the switched body — `StageBody`, i.e. Listing/Extras/Payment — in `<CartPanel draftId={draft.id}>` (`src/pages/Pos/Draft/index.tsx`, `src/pages/Restock/Draft/index.tsx`), so exactly one panel is mounted and its label follows the open cart. `z-Tabs.test.tsx` gained two cases: every tab's `id`/`aria-controls` resolves to the single `[role=\"tabpanel\"]` whose `aria-labelledby` is the selected cart's tab id, and clicking another tab relabels the panel and flips `aria-selected` (rendered through a stateful wrapper, so it is a real switch, not a static read). All previous tab-strip cases (one tab stop, arrows, Enter, parked cart, Delete confirm) still pass. Not done: the settle strip is not inside the panel — the tab is treated as owning the transaction body, which is what changes when a cart is switched; the payment strip reads the same draft and is shared chrome."
+          },
+          {
+            "report": "record-search-table-in-output-live-region",
+            "status": "fixed",
+            "note": "`src/pages/Record/Search/z-Search.tsx`: both `<output>` wrappers (the loaded result pane — the component is now named `Results`, it was `Output` — and `LoadingTable`'s skeleton) are plain `<div>`s, so the accidental atomic `role=\"status\"` region over up to 100 rows × 7 cells is gone. `SearchTable` now renders one small visually-hidden live region next to the table: `<p role=\"status\" className=\"sr-only\">` with a single short sentence — \"Menampilkan {n} dari {total} hasil.\" or \"Tidak ada yang cocok.\" — which updates on a query change and on \"Lebih banyak\" without reading the table. The paging control gained `aria-label=\"Muat hasil berikutnya\"` (it stays a native button and the list's last tab stop). Tests in `z-Search.test.tsx`: exactly one `[role=\"status\"]`/`[aria-live]` exists and its whole text content is the count sentence, it contains no `table`, no `<output>` element remains, and the load-more button has its name (the fixture's `total` went 2 → 5 so the paging row renders). Not done: the number of rows is still announced as text rather than being virtualised/paginated differently — out of scope here."
+          },
+          {
+            "report": "money-core-has-no-unit-tests",
+            "status": "fixed",
+            "note": "Added `src/lib/purchase.test.ts` (35 pure cases, 67 assertions, no DOM/timers). Every exported function of the money core is now referenced: `lineSubtotal`, `lineGrandTotal`, `lineDiscountTotal`, `linesSubtotal`, `recalcDiscounts`, `discountsEatLine`, `withDerivedDiscounts`, `recalcExtras`, `extrasTotal`, `purchaseTotal`, `transactionGrandTotal`, `paidTotal`, `roundMoney`. Pinned edges: order dependence (two 10% = 1.000 + 900, not 2.000; number-then-percent vs percent-then-number), an empty row keeping the running total, over-discount clamping for `number` and `pcs` (the `pcs: 2` on a qty-1 line that was this iteration's bug), stacked large rows never going below zero, a negative value never adding money, re-derivation after a price edit (1.000 → 2.000) — the two defects this iteration found are now one assertion away — flat negative extras, percent extras compounding on the running total, `paidTotal` across split methods without float drift, and `roundMoney` at fix 0/2/4, at `-1`/`101`/non-integer (falling back to 0) and at a `.5` half, asserted against `record/round.ts`'s `roundToFix` (a genuine divergence exists for values like `1.005`, where `Number.toFixed` and `Decimal.toFixed` disagree because of the float representation — the test pins the values where both agree and does not claim more). Kept as is: `submit.test.ts` still uses `recalcDiscounts` as a fixture builder, but it now also asserts literal expectations for the new refusal cases (\"Diskon Kopi melebihi harga barang\", the negative-total rejection) rather than only round-tripping the same function."
+          },
+          {
+            "report": "print-success-message-is-dead-and-leaks-bytes",
+            "status": "fixed",
+            "note": "The success channel is alive end to end and the byte count moved to the log. Rust (`src-tauri/src/printer.rs`, both the Win32 and CUPS branches): `log::info!(\"print_pdf: {} bytes sent to '{}'\", …)` now carries the size, and the returned string is the cashier sentence \"Dikirim ke printer 'X'. Periksa printer jika kertas tidak keluar.\" (`rustfmt --check` clean). Frontend: `src/lib/printer.ts`'s `printPdf` is `invoke<string>` and resolves with that sentence; `programPrint` (`src/pages/Setting/Printer/util-program-print.ts`) now returns a `PrintOutcome` — `{ ok: true; message } | { ok: false; message }` — instead of `string | null`, keeping the existing `catchAll`/`catchAllCause` handling so every path answers an outcome. Call sites updated: `program-print-receipt.ts` (the social read failure also maps to `ok: false`), `use-print-receipt.ts` (`setError(outcome.ok ? null : outcome.message)`), `z-Complete.tsx` (only a failure blocks the \"Tercetak\" countdown — behaviour unchanged), and `use-test.ts` now exposes `success` alongside `error`; `z-TestBtn.tsx` renders it in a `role=\"status\"` line under the button, so a successful \"Tes Cetak\" finally looks different from a dead click. Not done: no component test for `z-TestBtn` (there is no existing test directory for Setting/Printer and the hook talks to Tauri `invoke`), and the real Windows/58 mm hardware check from the report's verification steps still has to happen on a machine with a printer."
+          }
+        ],
+        "at": "2026-10-21T21:25:47.478Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T21:25:47.478Z"
         }
       }
     }

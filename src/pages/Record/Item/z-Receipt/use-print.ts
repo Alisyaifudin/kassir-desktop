@@ -38,6 +38,8 @@ export function usePrint() {
       return;
     }
     printRef.current.focus();
+    // Ctrl+P belongs to the receipt view itself, so it is deliberately not
+    // behind `isScreenOwnedByDialog` — the printed result *is* the dialog.
     function printWebView(e: KeyboardEvent) {
       if (e.ctrlKey && e.key === "p") {
         document.documentElement.style.setProperty("--paper-width", `72`);

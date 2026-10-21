@@ -8,7 +8,7 @@ import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import type { Extra, Line } from "~/components/cart/types";
 import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
 import { cartErrorMessage, run } from "~/components/cart/run";
-import { isScreenOwnedByDialog } from "~/components/cart/use-inert-app";
+import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
 
 /** The fields every cart screen's completion dialog needs to be rendered. */
 export type Completed = {

@@ -1,3 +1,4 @@
+import { discountsEatLine } from "~/lib/purchase";
 import type { Listing } from "~/services/listing";
 import type { DraftListing } from "~/services/transaction";
 
@@ -14,6 +15,8 @@ export type LineIssue = {
   name?: boolean;
   /** A hand-entered line whose unit is not a positive integer. */
   unit?: boolean;
+  /** A discount stack that takes the whole line: the sale would carry it free. */
+  discount?: boolean;
 };
 
 function normalized(code: string): string {
@@ -116,7 +119,16 @@ export function findLineIssues(
       if (line.name.trim() === "") current.name = true;
       if (!Number.isInteger(line.unit) || line.unit < 1) current.unit = true;
     }
-    if (current.name === true || current.unit === true) issues.set(line.id, current);
+    // A mistyped discount is the expected mistake on a POS; show it on the line
+    // the cart already highlights, rather than letting Bayar discover it.
+    if (line.qty > 0 && discountsEatLine(line)) current.discount = true;
+    if (
+      current.name === true ||
+      current.unit === true ||
+      current.discount === true
+    ) {
+      issues.set(line.id, current);
+    }
   }
 
   return issues;
@@ -125,7 +137,14 @@ export function findLineIssues(
 /** Whether any shown issue must stop the sale. */
 export function hasHardIssue(issues: Map<string, LineIssue>): boolean {
   for (const issue of issues.values()) {
-    if (issue.name === true || issue.unit === true || issue.code?.tone === "error") return true;
+    if (
+      issue.name === true ||
+      issue.unit === true ||
+      issue.discount === true ||
+      issue.code?.tone === "error"
+    ) {
+      return true;
+    }
   }
   return false;
 }

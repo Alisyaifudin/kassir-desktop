@@ -2,7 +2,7 @@ import { type Extra, type Line } from "~/components/cart/types";
 import { extrasTotal, linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
 import { Listing } from "~/components/cart/z-Listing";
-import { Tabs } from "~/components/cart/z-Tabs";
+import { CartPanel, Tabs } from "~/components/cart/z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
 import type { LineIssue } from "~/components/cart/code-issues";
 
@@ -56,21 +56,23 @@ export function Draft({
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
       <Tabs mode="sale" drafts={drafts} activeId={draft.id} onSelect={onSelect} />
-      <StageBody
-        stage={stage}
-        rounding={draft.rounding}
-        focusSearch={focusSearch}
-        focusLast={focusLast}
-        onExitDown={onExitDown}
-        focused={focused}
-        onActivate={onActivate}
-        lines={lines}
-        onLines={onLines}
-        issues={issues}
-        extras={extras}
-        onExtras={onExtras}
-        onToggle={() => onStage(stage === "listing" ? "extra" : "listing")}
-      />
+      <CartPanel draftId={draft.id}>
+        <StageBody
+          stage={stage}
+          rounding={draft.rounding}
+          focusSearch={focusSearch}
+          focusLast={focusLast}
+          onExitDown={onExitDown}
+          focused={focused}
+          onActivate={onActivate}
+          lines={lines}
+          onLines={onLines}
+          issues={issues}
+          extras={extras}
+          onExtras={onExtras}
+          onToggle={() => onStage(stage === "listing" ? "extra" : "listing")}
+        />
+      </CartPanel>
     </section>
   );
 }

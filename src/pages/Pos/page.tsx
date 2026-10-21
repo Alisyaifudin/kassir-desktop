@@ -101,7 +101,9 @@ function Screen({
     activeId: active?.id ?? null,
     blocked: complete !== null || submitting || hardIssue,
     // A sale is ready when it has something to pay for and the tender covers it.
-    ready: () => !grand.isZero() && !change.isNegative(),
+    // A sale needs something to pay for: a zero total is nothing, and a
+    // negative one is a discount that outran the goods.
+    ready: () => grand.gt(0) && !change.isNegative(),
     setSubmitting: cart.setSubmitting,
     setComplete,
     build: (recordId) => ({ recordId, total: grand, change, fix: active?.fix ?? 0 }),
@@ -157,7 +159,7 @@ function Screen({
             onActivate={() => setArea("bottom")}
             onStore={cart.storeCart}
             onSubmit={submitDraft}
-            disabled={hardIssue || submitting || grand.isZero()}
+            disabled={hardIssue || submitting || !grand.gt(0)}
           />
         </CartPanels>
       )}

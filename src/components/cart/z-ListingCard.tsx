@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, GripVertical, Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
-import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "~/lib/purchase";
+import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Line } from "~/components/cart/types";
 import { Cell, EDITING_RING, SELECTED_RING } from "~/components/cart/z-Cell";
@@ -248,6 +248,9 @@ export const ListingCard = memo(function ListingCard({
               </>
             )}
           </Button>
+          {issue?.discount === true ? (
+            <FieldIssue>Diskon melebihi harga barang</FieldIssue>
+          ) : undefined}
         </div>
       </div>
     </motion.div>
@@ -284,8 +287,10 @@ function QtyCell({
   }, [editing, line.qty]);
 
   function setQty(qty: number) {
-    const next = Math.max(0, qty);
-    onChange({ qty: next, discounts: recalcDiscounts(line.price, next, line.discounts) });
+    // The grid re-derives the line's discount stack from the new qty (see
+    // `patchLine` in z-Listing), so a quantity edit cannot leave a `pcs`
+    // discount at the old count.
+    onChange({ qty: Math.max(0, qty) });
   }
 
   function commit() {

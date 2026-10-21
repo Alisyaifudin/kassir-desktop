@@ -14,7 +14,7 @@ import {
 import { service } from "~/services";
 import { programPrintReceipt } from "~/pages/Record/Item/z-Receipt/program-print-receipt";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { useDialogLock } from "~/components/cart/use-inert-app";
+import { useDialogLock } from "~/hooks/use-dialog-lock";
 
 /**
  * The moment after a transaction is committed — the sale's or the purchase's,
@@ -102,12 +102,12 @@ export function Complete({
       setError(result.left.message);
       return;
     }
-    // `programPrintReceipt` returns null on success and an error message
-    // otherwise; it catches the Effect failures itself.
-    const message = await Effect.runPromise(programPrintReceipt(result.right));
-    if (message !== null) {
+    // `programPrintReceipt` catches the Effect failures itself and answers what
+    // the attempt did; only a failure blocks the countdown.
+    const outcome = await Effect.runPromise(programPrintReceipt(result.right));
+    if (!outcome.ok) {
       setBusy(null);
-      setError(message);
+      setError(outcome.message);
       return;
     }
     setBusy(null);

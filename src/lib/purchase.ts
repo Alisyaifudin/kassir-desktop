@@ -45,6 +45,22 @@ export function lineGrandTotal(line: Pick<Line, "price" | "qty" | "discounts">):
   return lineSubtotal(line).minus(lineDiscountTotal(line));
 }
 
+/**
+ * Whether a line's discount stack takes all of it (or would take more).
+ *
+ * `recalcDiscounts` clamps every row to what is left of the line, so `eff` can
+ * never push the line below zero — but a line whose discount reaches its own
+ * subtotal is still not a sale: it would store a zero line and, before the
+ * clamp existed, a negative one. The cart shows it and both writers refuse it.
+ */
+export function discountsEatLine(
+  line: Pick<Line, "price" | "qty" | "discounts">,
+): boolean {
+  const subtotal = lineSubtotal(line);
+  if (!subtotal.gt(0)) return false;
+  return lineDiscountTotal(line).gte(subtotal);
+}
+
 /** The rupiah the line's discount stack takes off, in total. */
 export function lineDiscountTotal(line: Pick<Line, "discounts">): Decimal {
   return line.discounts.reduce((total, discount) => total.plus(discount.eff), new Decimal(0));
@@ -54,6 +70,12 @@ export function lineDiscountTotal(line: Pick<Line, "discounts">): Decimal {
  * Recompute each discount in order: its `eff` (the rupiah it takes off) and the
  * running `total` after it. A percent applies to the running total, so the
  * stack is order-dependent.
+ *
+ * Every row is clamped to what is left of the line (`[0, running]`): a discount
+ * larger than the goods — a mistyped `Angka`, or `2` PCS on a one-piece line —
+ * takes the rest of the line and stops, instead of rolling a negative line into
+ * a negative grand total. `discountsEatLine` is what reports that to the user;
+ * the clamp is what keeps every intermediate figure non-negative.
  */
 export function recalcDiscounts<T extends DiscountLine>(
   price: number,
@@ -62,21 +84,37 @@ export function recalcDiscounts<T extends DiscountLine>(
 ): (T & { eff: number; total: number })[] {
   let running = new Decimal(price).times(qty);
   return lines.map((line) => {
-    let eff: Decimal;
+    let wanted: Decimal;
     switch (line.kind) {
       case "number":
-        eff = new Decimal(line.value);
+        wanted = new Decimal(line.value);
         break;
       case "pcs":
-        eff = new Decimal(line.value).times(price);
+        wanted = new Decimal(line.value).times(price);
         break;
       case "percent":
-        eff = new Decimal(line.value).div(100).times(running);
+        wanted = new Decimal(line.value).div(100).times(running);
         break;
     }
+    const eff = Decimal.max(new Decimal(0), Decimal.min(wanted, running));
     running = running.minus(eff);
     return { ...line, eff: eff.toNumber(), total: running.toNumber() };
   });
+}
+
+/**
+ * A line whose discount stack is back in step with its own price and qty.
+ *
+ * A cart line stores each discount's derived `eff`, so every edit that moves
+ * the money has to re-derive it — the price cell included, or a `Persen`
+ * discount keeps the rupiah of the price it was typed against while the UI
+ * still says `10%`. Cart components patch a line and then call this, so there
+ * is one place that can be right instead of one per field.
+ */
+export function withDerivedDiscounts<T extends Line, D extends DiscountLine>(
+  line: T & { discounts: readonly D[] },
+): T & { discounts: D[] } {
+  return { ...line, discounts: recalcDiscounts(line.price, line.qty, line.discounts) };
 }
 
 function sum(values: Iterable<number | Decimal>): Decimal {

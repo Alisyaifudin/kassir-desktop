@@ -16,6 +16,7 @@ import {
 import { DatabaseService, type DbError, type Statement } from "../db";
 import { RecordService, type RecordDraftInput } from "../record";
 import {
+  discountsEatLine,
   linesSubtotal,
   paidTotal,
   recalcDiscounts,
@@ -751,6 +752,18 @@ export const TransactionLive = Layer.effect(
                 }),
               );
             }
+            // A discount that eats the whole line is a mistyped `Angka`/`PCS`,
+            // not a sale. Reported per line, before the payment checks, so the
+            // cashier is told which line and why instead of "Metode pembayaran
+            // harus diisi" — and so no record can be stored with a zero line.
+            if (discountsEatLine(line)) {
+              return yield* Effect.fail(
+                new SubmitError({
+                  kind: "price",
+                  message: `Diskon ${line.name || "barang"} melebihi harga barang`,
+                }),
+              );
+            }
           }
 
           const subtotal = linesSubtotal(lines);
@@ -762,9 +775,15 @@ export const TransactionLive = Layer.effect(
           const credit = input.credit === true;
           const rounding = credit ? 0 : draft.rounding;
           const grand = roundMoney(transactionGrandTotal(total, rounding), draft.fix);
-          if (grand.isZero()) {
+          // Not just zero: a negative total (a discount or a deduction that
+          // outruns the goods) used to pass here and be stored with a positive
+          // tender and a positive "Kembalian".
+          if (grand.isNegative() || grand.isZero()) {
             return yield* Effect.fail(
-              new SubmitError({ kind: "payment", message: "Total transaksi tidak boleh nol" }),
+              new SubmitError({
+                kind: "payment",
+                message: "Total transaksi tidak boleh nol atau negatif",
+              }),
             );
           }
           const pay = credit ? new Decimal(0) : roundMoney(paidTotal(draft.methods), draft.fix);

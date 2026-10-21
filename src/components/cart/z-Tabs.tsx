@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Plus, X } from "lucide-react";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
@@ -29,16 +29,52 @@ import { Kbd } from "~/components/ui/kdb";
  * Closing one is destructive — the row and any images it holds are removed from
  * disk — so it always confirms first.
  */
+/** The id the strip's tabs point at; the screen renders the matching panel. */
+export const CART_TAB_PANEL_ID = "cart-panel";
+
+/** The id of one cart's tab, which is also the panel's `aria-labelledby`. */
+export function cartTabId(draftId: string): string {
+  return `cart-tab-${draftId}`;
+}
+
+/**
+ * The panel half of the tabs pattern: the body the strip switches — the stage
+ * for the open cart — labelled by the selected tab. Without it the strip was a
+ * `tablist` promising a panel that did not exist, so a screen reader in tabs
+ * mode was offered panel navigation that led nowhere and was never told the
+ * cart below had been replaced.
+ *
+ * `tabIndex={-1}` rather than `0`: the panel's first content is the cart grid,
+ * which is itself focusable and owns the arrow keys, so the panel is a
+ * programmatic target (and an `aria-labelledby` anchor) rather than a tab stop.
+ */
+export function CartPanel({ draftId, children }: { draftId: string; children: ReactNode }) {
+  return (
+    <div
+      role="tabpanel"
+      id={CART_TAB_PANEL_ID}
+      aria-labelledby={cartTabId(draftId)}
+      tabIndex={-1}
+      className="flex min-h-0 flex-1 flex-col outline-none"
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Tabs({
   mode,
   drafts,
   activeId,
   onSelect,
+  panelId = CART_TAB_PANEL_ID,
 }: {
   mode: "sale" | "purchase";
   drafts: DraftModel[];
   activeId: string;
   onSelect: (id: string) => void;
+  /** The `role="tabpanel"` these tabs own. */
+  panelId?: string;
 }) {
   const [pendingDelete, setPendingDelete] = useState<DraftModel | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -130,6 +166,8 @@ export function Tabs({
           {drafts.map((draft, index) => (
             <Tab
               key={draft.id}
+              id={cartTabId(draft.id)}
+              panelId={panelId}
               draft={draft}
               number={index + 1}
               total={drafts.length}
@@ -171,6 +209,8 @@ export function Tabs({
 }
 
 function Tab({
+  id,
+  panelId,
   draft,
   number,
   total,
@@ -179,6 +219,8 @@ function Tab({
   onKeyDown,
   onClose,
 }: {
+  id: string;
+  panelId: string;
   draft: DraftModel;
   number: number;
   total: number;
@@ -194,8 +236,10 @@ function Tab({
   // thing from the tab), so Tabbing never walks a row of delete buttons.
   return (
     <div
+      id={id}
       role="tab"
       aria-selected={selected}
+      aria-controls={panelId}
       aria-label={`Transaksi ${title} (${number} dari ${total})`}
       tabIndex={selected ? 0 : -1}
       onClick={onSelect}

@@ -185,6 +185,8 @@ export function Methods({
   }, [focusRounding]);
 
   // With a single method, Ctrl+0..3 swap its kind (and default account).
+  // Deliberately not behind `isScreenOwnedByDialog`: this dialog *is* the owner,
+  // and its own shortcuts must keep working while it is open.
   useEffect(() => {
     if (multiple || first === null) return;
     const firstMethodId = first.id;

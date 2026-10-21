@@ -29,7 +29,7 @@ import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "~/components/cart/types";
-import { recalcDiscounts } from "~/lib/purchase";
+import { withDerivedDiscounts } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "~/components/cart/z-ListingCard";
@@ -66,6 +66,21 @@ const NAME_COLUMN = 1;
 /** `+manual` is the header's second (sale) or last (purchase) cell. */
 const manualColumn = (layout: ListingLayout): number => (layout.stageToggle ? 8 : 10);
 const TOGGLE_COLUMN = 10;
+
+/**
+ * One edit to one line, with its discount stack brought back in step.
+ *
+ * A line stores each discount's derived `eff`, so an edit that moves the money
+ * (a corrected price, a new quantity) has to re-derive it. Every patch from the
+ * card goes through here, so a future field cannot forget: `Persen 10` on
+ * Rp10.000 is Rp1.000, and after the price is corrected to Rp20.000 it is
+ * Rp2.000 — not the old rupiah under a label that still says `10%`.
+ */
+function patchLine(line: Line, patch: Partial<Line>): Line {
+  const next = { ...line, ...patch };
+  if (next.price === line.price && next.qty === line.qty) return next;
+  return withDerivedDiscounts(next);
+}
 
 /** A blank line for +manual. No `base`, so there is nothing to undo to. */
 function blankLine(): Line {
@@ -246,7 +261,7 @@ export function Listing({
       const handlers: CardHandlers = {
         onChange: (patch) => {
           const { lines: current, onChange: update } = latest.current;
-          update(current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+          update(current.map((row) => (row.id === id ? patchLine(row, patch) : row)));
         },
         onRemove: () => latest.current.removeCard(id),
         onDiscount: () => setDiscountFor(id),
@@ -352,15 +367,11 @@ export function Listing({
     if (existing !== undefined) {
       const qty = existing.qty + 1;
       onChange(
-        lines.map((line) =>
-          line.id === existing.id
-            ? { ...line, qty, discounts: recalcDiscounts(line.price, qty, line.discounts) }
-            : line,
-        ),
+        lines.map((line) => (line.id === existing.id ? patchLine(line, { qty }) : line)),
       );
     } else {
       const blank: DiscountLine = { id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 };
-      const line: Line = {
+      const line: Line = withDerivedDiscounts({
         id: generateId(),
         listingId: listing.id,
         name: listing.name,
@@ -368,14 +379,14 @@ export function Listing({
         unit: listing.unit,
         price: listing.price,
         qty: 1,
-        discounts: recalcDiscounts(listing.price, 1, [blank]),
+        discounts: [blank],
         base: {
           name: listing.name,
           code: listing.code ?? "",
           unit: listing.unit,
           price: listing.price,
         },
-      };
+      });
       onChange([line, ...lines]);
     }
     pushQuery.cancel();
@@ -423,13 +434,7 @@ export function Listing({
     const qty = Math.max(0, line.qty + delta);
     onChange(
       lines.map((candidate) =>
-        candidate.id === line.id
-          ? {
-              ...candidate,
-              qty,
-              discounts: recalcDiscounts(candidate.price, qty, candidate.discounts),
-            }
-          : candidate,
+        candidate.id === line.id ? patchLine(candidate, { qty }) : candidate,
       ),
     );
   }
