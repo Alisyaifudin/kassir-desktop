@@ -1,4 +1,5 @@
 import { Effect, Either, Option, Stream } from "effect";
+import { toast } from "sonner";
 import { useMutation } from "~/components/Loader";
 import { log } from "~/lib/log";
 import { service } from "~/services";
@@ -30,7 +31,12 @@ export function useProduct() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const result = await mutate(undefined);
-    if (Either.isLeft(result)) log.error(messageOf(result.left));
+    if (Either.isLeft(result)) {
+      log.error(messageOf(result.left));
+      return;
+    }
+    // `null` = the cashier cancelled the save dialog: silent, not "success".
+    if (result.right !== null) toast.success(`Disimpan ke ${result.right}`);
   }
 
   return {
@@ -44,6 +50,6 @@ function program() {
   return Effect.gen(function* () {
     const snapshot = yield* Stream.runHead(service.product.get.changesFull);
     const products = Option.getOrElse(snapshot, (): ProductFull[] => []);
-    yield* saveJson(`${Date.now()}-products.json`, products.map(toProductImport));
+    return yield* saveJson(`${Date.now()}-products.json`, products.map(toProductImport));
   });
 }

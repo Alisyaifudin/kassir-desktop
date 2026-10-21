@@ -2,7 +2,12 @@ import { useRef, useState } from "react";
 import { Effect } from "effect";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { useImageUrl } from "~/hooks/use-image";
 import { service } from "~/services";
 import type { Draft, DraftImage } from "~/services/transaction";
@@ -76,6 +81,7 @@ export function Images({ draft }: { draft: Draft }) {
       <Dialog open={preview !== null} onOpenChange={(open) => (open ? undefined : setPreview(null))}>
         <DialogContent className="max-w-3xl">
           <DialogTitle className="sr-only">Gambar</DialogTitle>
+          <DialogDescription className="sr-only">Pratinjau gambar produk.</DialogDescription>
           {preview !== null ? <Full image={preview} /> : null}
         </DialogContent>
       </Dialog>

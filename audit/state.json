@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T21:42:21.427Z",
+  "updatedAt": "2026-10-21T22:08:12.085Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -1935,6 +1935,196 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T21:42:21.427Z"
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "startedAt": "2026-10-21T21:42:21.525Z",
+      "audit": {
+        "score": 87,
+        "categories": {
+          "architecture": 89,
+          "react": 87,
+          "tauri": 89,
+          "ux": 84,
+          "codeQuality": 87,
+          "testing": 87
+        },
+        "verdict": "No code changed between iteration 9 and this pass (HEAD is the iteration-9 audit commit), and every iteration-8/9 fix I re-read still holds: `recalcDiscounts` clamps, `discountsEatLine` is enforced in both writers, the scoped `fs:*` set with its guard test, the tabs `tabpanel`, `purchase.test.ts`, the split `DbError` message/detail, the keyset stock history and the total `capitalize` are all in the tree, and `tsc --noEmit`, `eslint --max-warnings 0` and `bun test` (all green, 55 test files) are clean. The two most important new findings are things nine iterations never touched because nobody read the primitives: `useScroll` — mounted by the shared `Table`, so by the Records, search, Debt, Product, Money and Extra lists — rewrites the address bar with `history.replaceState('', '', location.pathname + '?scroll=N')` on every scroll, which on a hash router throws the route away (the damage surfaces on the next reload/restart, when `?day=`/`?selected=`/`?draft=` are gone), and `Calendar` hands back start-of-day for every day click while two of its callers use it to edit `record_paid_at`/`record_credit_at`, so \"move this sale to yesterday\" silently rewinds the receipt and the day list to 00:00 with no way to restore the time. Alongside those: an armed auto-updater (`updater:default`, signing key, `createUpdaterArtifacts`) that no frontend code ever calls, eleven `package.json` dependencies nothing imports, an unconditional \"Berhasil mengunggah\" on all three import dialogs even when every row was skipped, 21 of 35 dialogs shipping with no accessible description (Radix's warning is already in the test output), and a design-token guard whose two narrow regexes let a `text-mormal` typo and 13 fixed-size icons through. The biggest remaining risk is unchanged and now larger in context: `record/live.ts` (1,727 lines) and `transaction/live.ts` (1,212 lines) own the stock journal, credit settle, `unsubmit` reversal and mode flip, and are verified only at the statement level. Deliberately not covered in depth: the receipt PDF geometry on real 58/80 mm paper, the Rust printer on real Windows hardware, the packaged MSI plus the updater `latest.json`/pubkey trust chain end to end, the contents of the two Playwright specs (137 lines), the Customer/Extra/Product-Performance/Method page bodies, migration SQL bodies beyond version/checksum/index structure, and the `money` import data model (entries store absolute balances, so importing a foreign file can make the diff column meaningless).",
+        "reports": [
+          {
+            "slug": "use-scroll-clobbers-hash-route",
+            "title": "The shared `Table` primitive rewrites the URL from `window.location.pathname`, dropping the hash-router route on every table scroll",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/hooks/use-scroll.ts",
+              "src/components/ui/table.tsx",
+              "src/route.tsx",
+              "src/pages/Record/z-Record/List.tsx",
+              "src/pages/Debt/z-DebtTable.tsx",
+              "src/pages/Extra/z-Layout.tsx"
+            ],
+            "summary": "`useScroll()` is mounted by the shared `Table` wrapper, so it runs on the Records day list, the record search results, the Debt table, the Product table, the Money history and the Extra list. On any scroll past 10px it calls `window.history.replaceState({}, \"\", `${window.location.pathname}?scroll=…`)`. The app uses `createHashRouter`, so the route lives in `location.hash`; the write throws the hash away and leaves the address bar at `/?scroll=N`. The router's in-memory location survives (no popstate fires), so the damage only shows up on the next reload/restart — the app opens at `/` instead of the screen the cashier was on, losing `?day=`, `?tab=`, `?selected=` and `?draft=`. The restore half of the same hook reads `window.location.search`, which is always empty under a hash router, so the feature it exists for has never worked either.",
+            "path": "iterations/010/report-01-use-scroll-clobbers-hash-route.md",
+            "createdAt": "2026-10-21T21:50:52.874Z"
+          },
+          {
+            "slug": "calendar-day-pick-zeroes-record-time",
+            "title": "Picking a day in the record's date editor zeroes the time-of-day, permanently rewinding the receipt and the day list to 00:00",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/components/Calendar.tsx",
+              "src/pages/Record/Item/z-Detail/z-PaidAt.tsx",
+              "src/pages/Record/Item/z-Detail/z-CreditAt.tsx",
+              "src/pages/Record/Item/z-Detail/use-change-paid-at.ts",
+              "src/services/record/live.ts",
+              "src/lib/receipt/build-header.ts"
+            ],
+            "summary": "`Calendar` returns a start-of-day instant for every day click, and two of its callers use it to edit a persisted timestamp (`record_paid_at`, `record_credit_at`). Moving a sale to another day therefore rewrites its clock to 00:00 — which changes the day list's time sort, the record's `date`, and the time printed on a reprinted receipt — with no UI hint that the time was dropped and no way to put it back (the picker has no time control).",
+            "path": "iterations/010/report-02-calendar-day-pick-zeroes-record-time.md",
+            "createdAt": "2026-10-21T21:51:07.620Z"
+          },
+          {
+            "slug": "unused-updater-surface-and-dead-dependencies",
+            "title": "An armed auto-updater that nothing calls, and eleven unused dependencies",
+            "severity": "medium",
+            "category": "security",
+            "files": [
+              "package.json",
+              "src-tauri/capabilities/desktop.json",
+              "src-tauri/Cargo.toml",
+              "src-tauri/tauri.conf.json",
+              "src-tauri/src/lib.rs",
+              ".github/workflows/windows-release.yml"
+            ],
+            "summary": "The app grants `updater:default` to the main window, initialises `tauri-plugin-updater`, ships a signing key and `createUpdaterArtifacts`, and points at a `latest.json` endpoint — but no frontend code ever checks for an update, so the most powerful capability in the app is granted to a feature with no consumer. The same pass finds eleven `package.json` dependencies that nothing imports (`@tauri-apps/plugin-{updater,opener,dialog,process}`, `jszip`, `immer`, `p-queue`, `valibot`, `fuzzysort`, `eventemitter3`, `radix-ui`), i.e. install-time supply-chain surface for libraries the code never touches.",
+            "path": "iterations/010/report-03-unused-updater-surface-and-dead-dependencies.md",
+            "createdAt": "2026-10-21T21:51:37.948Z"
+          },
+          {
+            "slug": "bulk-import-export-report-unverified-success",
+            "title": "Bulk import reports \"Berhasil mengunggah\" even when every row was skipped, and export reports nothing at all",
+            "severity": "medium",
+            "category": "ux",
+            "files": [
+              "src/pages/Setting/Data/ProductUpload/z-Selected.tsx",
+              "src/pages/Setting/Data/RecordUpload/z-Selected.tsx",
+              "src/pages/Money/History/z-UploadDialog/z-Selected.tsx",
+              "src/lib/export.ts",
+              "src/pages/Setting/Data/use-product-download.ts",
+              "src/pages/Setting/Data/ProductDownload.tsx"
+            ],
+            "summary": "All three bulk-import dialogs finish with an unconditional `toast.success(\"Berhasil mengunggah\")`, including when every row was rejected or skipped as a duplicate — the same render then shows a panel listing 200 skipped rows. The file is cleared from the panel either way, so the operator cannot check. On the export side the Rust command's written path (or its cancel) is discarded, so a successful export and a cancelled one are both silent.",
+            "path": "iterations/010/report-04-bulk-import-export-report-unverified-success.md",
+            "createdAt": "2026-10-21T21:51:52.575Z"
+          },
+          {
+            "slug": "dialogs-ship-without-descriptions",
+            "title": "Twenty-one dialogs have no accessible description, and Radix's warning is already in the test output",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/components/ui/dialog.tsx",
+              "src/pages/Record/Item/z-Detail/z-Debt/index.tsx",
+              "src/pages/Cashier/z-NewCashier.tsx",
+              "src/pages/Money/History/z-NewRecord.tsx",
+              "src/pages/Money/History/z-DeletePocket.tsx",
+              "src/components/Calendar.tsx",
+              "src/components/DateRange.tsx"
+            ],
+            "summary": "Twenty-one of the app's thirty-five dialogs render a title with no `DialogDescription` (and no `aria-describedby={undefined}`), so Radix logs \"Missing Description\" on every mount — a warning already visible in the unit-test output — and a screen reader gets a bare title for money dialogs like `Bayar Kredit`. Two dialogs also nest their whole form/body inside `DialogHeader`, which is why the omission is easy to miss when reading them.",
+            "path": "iterations/010/report-05-dialogs-ship-without-descriptions.md",
+            "createdAt": "2026-10-21T21:52:07.042Z"
+          },
+          {
+            "slug": "design-token-guard-blind-spots",
+            "title": "`text-mormal` typo and 13 fixed-size icons slip past a guard that only knows two hard-coded-size shapes",
+            "severity": "low",
+            "category": "ux",
+            "files": [
+              "src/lib/design-tokens.test.ts",
+              "src/components/Calendar.tsx",
+              "src/components/DateRange.tsx",
+              "src/components/ui/dialog.tsx",
+              "src/components/ui/checkbox.tsx",
+              "src/pages/Setting/Data/ProductUpload/z-Selected.tsx",
+              "src/pages/Money/History/z-UploadDialog/z-Selected.tsx",
+              "src/global.css"
+            ],
+            "summary": "The design-token guard recognises only `text-xs|sm|lg|…|[Npx]` and lucide `size={N}`, so two other hard-coded-size shapes have already shipped: a misspelled `text-mormal` in both date pickers (no such utility, so two `DialogTitle` headings fall back to 16px inside a 30px dialog) and thirteen icons sized with fixed `w-4 h-4` / `h-6 w-6` / `h-12 w-12` instead of the `icon` utility that re-resolves per app size — including the shared dialog close button.",
+            "path": "iterations/010/report-06-design-token-guard-blind-spots.md",
+            "createdAt": "2026-10-21T21:52:33.465Z"
+          },
+          {
+            "slug": "shared-helpers-reimplemented-locally",
+            "title": "Shared `numerish`, `useRecordRevision` and `getURLBack` all have drifted private copies in the pages",
+            "severity": "low",
+            "category": "maintainability",
+            "files": [
+              "src/pages/Record/Item/z-Detail/z-Debt/use-debt.ts",
+              "src/lib/utils.ts",
+              "src/pages/Debt/use-data.ts",
+              "src/pages/Money/History/use-data.ts",
+              "src/hooks/use-record-revision.ts",
+              "src/hooks/use-generate-url-back.ts"
+            ],
+            "summary": "Three shared helpers have private copies in the pages that needed them most: `use-debt.ts` defines its own `numeric` that accepts the empty string (the exact hole the shared `numerish` documents and closes — recurring from iteration 9), `Debt/use-data.ts` and `Money/History/use-data.ts` each carry a byte-identical `useRevision` while `hooks/use-record-revision.ts` exists precisely to stop that, and `use-generate-url-back.ts` re-parses `url_back` a third time with a weaker rule.",
+            "path": "iterations/010/report-07-shared-helpers-reimplemented-locally.md",
+            "createdAt": "2026-10-21T21:52:55.282Z"
+          }
+        ],
+        "at": "2026-10-21T21:53:22.722Z"
+      },
+      "finishedAt": "2026-10-21T22:08:12.085Z",
+      "fix": {
+        "summary": "## Iteration 10 fix pass — 7/7 reports addressed (all `fixed`)\n\nVerification: `bun run lint` clean, `bun run typecheck` clean, `bun test` **454 pass / 0 fail** (59 files, was 446), and `bun test | grep \"Missing .Description\"` is now empty.\n\n### high\n- **`use-scroll-clobbers-hash-route`** — deleted `src/hooks/use-scroll.ts`; the shared `Table` and `Extra/z-Layout` no longer mount any scroll→URL plumbing, so nothing rewrites `location.pathname`/`?scroll=` any more. New `src/components/ui/table.test.tsx` proves scrolling a `Table` leaves `window.location.href`/`hash` byte-identical.\n\n### medium\n- **`unused-updater-surface-and-dead-dependencies`** — took the \"no consumer yet → remove it\" direction: deleted `src-tauri/capabilities/desktop.json` (`updater:default`), the plugin init + Cargo dep + `plugins.updater`/`createUpdaterArtifacts` + the workflow's signing-key env, the unused `tauri_plugin_process` init, and all 11 unused npm deps (`bun.lock`/`Cargo.lock` regenerated, diffs are removals only). `src/lib/tauri-capability.test.ts` now fails if `updater:*`/`process:*` or `plugins.updater` come back.\n- **`bulk-import-export-report-unverified-success`** — new `src/lib/upload.ts` (`describeUpload` + `notifyUpload`) drives all three import panels from the real counts (success/warning/error); nothing-written no longer removes the file, so the skipped panel stays. `saveJson` now returns the written path and the three export surfaces show `Disimpan ke <path>` and stay silent on cancel. New `src/lib/upload.test.ts`.\n- **`calendar-day-pick-zeroes-record-time`** — `Calendar` gained `granularity?: \"day\" | \"instant\"`; `z-PaidAt`/`z-CreditAt` pass `instant`, so a day pick keeps the hour/minute/second (day cells, \"Hari Ini\", month and year drill-downs all funnel through one `pick()`). New `src/components/Calendar.test.tsx` (3 cases).\n- **`dialogs-ship-without-descriptions`** — all 21 description-less dialogs now render a `DialogDescription` (or `sr-only` for the lightbox); the two Money dialogs no longer nest their body in `DialogHeader`. New `src/lib/dialog-description.test.ts` scans every `<DialogContent>` block.\n\n### low\n- **`design-token-guard-blind-spots`** — fixed `text-mormal` (Calendar + DateRange) and a second unknown token found on the way (`text-smallall!` → `text-small`); every fixed `w-/h-` lucide icon moved to `icon` (or a documented `size-*` for shadcn primitives). `design-tokens.test.ts` gained two rules: unknown `text-*` names and lucide icons sized with `w-N`/`h-*`.\n- **`shared-helpers-reimplemented-locally`** — `use-debt.ts` uses the shared `numerish` (empty \"Bayaran\" now fails validation, empty \"Pembulatan\" defaults to 0); new `src/hooks/use-money-revision.ts` + `useRecordRevision` replace both private `useRevision` copies; `?url_back=` is parsed once in `utils.ts` (`urlBackOf`) and rejects non-in-rooted paths. 4 new cases in `utils.test.ts`.\n\n### For the next auditor\n- The three import panels now record the uploaded file object in a ref so a parent re-render cannot restart a loop that deliberately keeps a fully-skipped file selected — worth a component test when `~/services` mocking is workable.\n- Other create/delete dialogs still nest their form inside `DialogHeader` (structural only; `DialogHeader` is a plain `div`, and moving them changes its `flex flex-col text-center` layout). The two the report named are fixed; a structural guard was written and dropped for that reason.\n- Removed updater: releases no longer produce `latest.json`/`.sig`. If updates are wanted later, re-add plugin + capability + a real cashier-confirmed flow (not `installMode: \"passive\"`) in one change.\n- `granularity=\"instant\"` on `Calendar` is the new contract for any future timestamp editor; `granularity=\"day\"` (default) is for filters.\n- Untouched pre-existing gap: `record/live.ts` / `transaction/live.ts` still oversized and only statement-verified.",
+        "fixes": [
+          {
+            "report": "use-scroll-clobbers-hash-route",
+            "status": "fixed",
+            "note": "Deleted `src/hooks/use-scroll.ts` entirely (option 1 from the report): the URL plumbing is gone, so nothing writes `window.location.*` outside React Router and the restore path no longer reads the always-empty `window.location.search` under the hash router. Removed the `useScroll` mount + `onScroll`/`ref` wiring from `src/components/ui/table.tsx` (the shared `Table` is presentational again) and from `src/pages/Extra/z-Layout.tsx` (now a plain `<main>`). Grepped the tree: no other consumer of a `?scroll=` param existed. Added `src/components/ui/table.test.tsx` which pins that scrolling a `Table` leaves `window.location.href`/`hash` byte-identical (`#/records?day=…&selected=…`)."
+          },
+          {
+            "report": "unused-updater-surface-and-dead-dependencies",
+            "status": "fixed",
+            "note": "Took the report's option 2 (no consumer yet → remove the armed surface).\n\nUpdater: deleted `src-tauri/capabilities/desktop.json` (the only grant was `updater:default`) and removed `desktop-capability` from `app.security.capabilities` in both `tauri.conf.json` and `tauri.dev.conf.json`; removed `tauri_plugin_updater::Builder` from `src-tauri/src/lib.rs`, `tauri-plugin-updater` from `Cargo.toml` (lockfile regenerated with `cargo metadata`, diff is removals only), `plugins.updater` + the pubkey/endpoint from `tauri.conf.json` with `bundle.createUpdaterArtifacts: false`, and the two `TAURI_SIGNING_PRIVATE_KEY*` env lines from `.github/workflows/windows-release.yml` so the pipeline tells one story. Also dropped the now-unused `.plugin(tauri_plugin_process::init())` (nothing calls exit/restart).\n\nDependencies: removed all 11 from `package.json` (`@tauri-apps/plugin-{updater,opener,dialog,process}`, `jszip`, `immer`, `p-queue`, `valibot`, `fuzzysort`, `eventemitter3`, `radix-ui`) and regenerated `bun.lock` with `bun install` (11 removed). Grepped every one first: no import under `src/`.\n\nGuard: added `grants no self-update or process-control permission` to `src/lib/tauri-capability.test.ts` — fails if any capability regains `updater:*`/`process:*`, or if `plugins.updater`/`createUpdaterArtifacts: true` come back. `bun run typecheck` and that suite are green.\n\nRemaining: on the next release the workflow no longer produces `latest.json`/`.sig`. If updates are wanted later, re-add the plugin + capability + a real check-and-install UI with an explicit cashier confirmation (not `installMode: \"passive\"`) in the same change."
+          },
+          {
+            "report": "bulk-import-export-report-unverified-success",
+            "status": "fixed",
+            "note": "Import side: added `src/lib/upload.ts` with a pure `describeUpload({written, skipped, noun})` → `{tone, message}` and `notifyUpload()`, so the three panels share one result→message rule instead of each hard-coding \"Berhasil mengunggah\": 0 written → error (\"Tidak ada … yang bisa diunggah, N dilewati.\" / \"Berkas tidak berisi data.\"), partial → warning naming both counts, full → success naming the written count. ProductUpload/RecordUpload/Money-UploadDialog `z-Selected.tsx` now collect skips in a local array (so the count is known without waiting for a state flush), `setSkipped`/`setTimestamps` at the end, and **no longer call `onRemove()` when nothing was written** — the file stays selected with the skipped panel listing the reasons. The Money dialog's fatal `MoneyError` path still removes the file and shows the error. Added `src/lib/upload.test.ts` (4 cases).\n\nExport side: `saveJson` in `src/lib/export.ts` now returns `Effect<string | null, IOError>` (written path, or `null` on cancel) instead of discarding it. `use-product-download.ts`, `use-record-download.ts` and `Money/History/z-Download.tsx` show `toast.success(\"Disimpan ke <path>\")` on a path and stay silent on `null`; errors unchanged. `bun run typecheck` clean.\n\nRemaining: the new counted messages have no component-render test (the panels mock the whole `~/services` barrel, which `mock.module` cannot scope safely in this suite) — only `describeUpload` is pinned. Values/format of the toast text may be reviewed manually."
+          },
+          {
+            "report": "calendar-day-pick-zeroes-record-time",
+            "status": "fixed",
+            "note": "`Calendar` gained an explicit `granularity?: \"day\" | \"instant\"` prop (default `\"day\"`, so the Records day filter keeps snapping to midnight) and a single `pick(year, month, day)` helper that builds the picked date and, when `granularity === \"instant\"`, adds the incoming timestamp's hour/minute/second/millisecond onto it (`Math.min(day, daysInMonth)` clamps month/year drill-downs). Applied to the day-cell click, \"Hari Ini\", the month picker (\"Bulan Ini\") and the year form (\"Tahun Ini\") so no path silently drops the clock. `Record/Item/z-Detail/z-PaidAt.tsx` and `z-CreditAt.tsx` — the two callers that write `record_paid_at`/`record_credit_at` — now pass `granularity=\"instant\"`, so moving a sale to another day keeps its time; the header and the reprint inherit it because nothing else changed. Fixed the `text-mormal` typo on that same heading while there (covered by design-token-guard-blind-spots).\n\nAdded `src/components/Calendar.test.tsx` (3 cases, real Radix dialog + happy-dom): a day pick under `instant` keeps 14:32, the default day pick still yields midnight, and \"Hari Ini\" means today at the same time of day. `bun test src/components/Calendar.test.tsx` green.\n\nNote for the next auditor: `granularity` is only honoured for values that commit a pick; drill-down navigation (prev/next, month→day) still only moves `showTime`, unchanged."
+          },
+          {
+            "report": "dialogs-ship-without-descriptions",
+            "status": "fixed",
+            "note": "Added an accessible description to all 21 dialogs that had none, and a guard test.\n\n- `DialogDescription` added to 17 dialogs (product/record/money/customer/method/cashier/social/extra/draft/delete dialogs, `cart/z-Note`, `cart/z-Discount`, `cart/z-Methods`), each naming the object being changed (e.g. `Bayar Kredit` → \"Bayar utang pelanggan: isi jumlah yang diterima, catatan keluar dari daftar utang setelah lunas.\", `z-NewCashier` → \"Kasir baru yang bisa dipilih saat login.\"). Both date pickers get a description per view (day/month/year); `Restock/Draft/z-Images` (a lightbox with an `sr-only` title) gets an `sr-only` description.\n- Moved the body out of `DialogHeader` in the two dialogs the report named: `Money/History/z-NewRecord.tsx` (the whole `<form>` is now a sibling of the header) and `Money/History/z-DeletePocket.tsx` (the warning text became the `DialogDescription`, the buttons/`TextError` block moved beside the header).\n- New guard `src/lib/dialog-description.test.ts`: splits each `src/**/*.tsx` into `<DialogContent>` blocks (skipping `ui/dialog.tsx` itself) and fails unless the block contains a `<DialogDescription>`, `aria-describedby={undefined}` or a `description=` prop — so a new dialog cannot ship without deciding.\n- Verified: `bun test 2>&1 | grep -c \"Missing .Description\"` is 0 (was firing on every mount) and the whole suite is 446/446 green.\n\nNot done: the other delete/create dialogs (`Cashier/z-DeleteBtn`, `Method/z-DeleteBtn`, `Method/z-NewBtn`, `Social/z-DeleteBtn`, `Social/z-NewItem`, `Money/z-NewPocket`, `Customer/z-DeleteBtn`) still nest their form inside `DialogHeader`. That is structural only (the header is a plain `<div>`; no ARIA role is involved) and moving them changes `DialogHeader`'s `flex flex-col text-center` layout, so it was left out of a fix pass that must stay visually reviewable; the two the report called out are done. A structural guard test was written and then removed for that reason."
+          },
+          {
+            "report": "design-token-guard-blind-spots",
+            "status": "fixed",
+            "note": "Typos: `text-mormal` → `text-normal` in `Calendar.tsx` (day view heading) and `DateRange.tsx:255` (month heading); also found and fixed a second unknown token the audit missed — `text-smallall!` → `text-small` in `RecordUpload/z-Schema.tsx`.\n\nFixed-size icons → token utility (all lucide): `ui/dialog.tsx` close button `h-12 w-12` → `icon`; `ErrorBoundary` Terminal/ArrowLeft/Home → `icon`; `ProductUpload/z-Schema` + `RecordUpload/z-Schema` HelpCircle, and the X in `ProductUpload/z-Selected`, `RecordUpload/z-Selected`, `Setting/Data/z-Skipped`, `Money/.../z-Selected` (2) → `icon`; shadcn primitives whose glyph lives in a fixed box keep a documented size class instead — `ui/checkbox` `size-5`, `ui/accordion`/`ui/breadcrumb`/`ui/pagination` `size-4`, `ui/radio-group` `size-3.5`, `z-Topbar` back arrow `size-6 small:size-5`.\n\nGuard widened in `src/lib/design-tokens.test.ts` with two new rules:\n1. every `text-<name>` inside a string literal must be one of the four size tokens + `change`/`grand-total`, a `--color-*` from `global.css`, a Tailwind palette colour, or a non-size utility (alignment/wrap/keywords) — verified it flags `text-mormal`, `text-smallall` and `text-xs` while passing the current tree;\n2. a lucide icon (identifiers parsed from each file's `lucide-react` import) may not be sized with a fixed `w-N`/`h-N`; `icon` and `size-*` are the allowed forms — this rule initially failed on `z-Topbar` and caught exactly the real case.\n\n`bun test src/lib/design-tokens.test.ts` is 5/5 green."
+          },
+          {
+            "report": "shared-helpers-reimplemented-locally",
+            "status": "fixed",
+            "note": "Three consolidations:\n\n1. `Record/Item/z-Detail/z-Debt/use-debt.ts`: deleted the local `numeric` (`Number.isFinite(Number(v))`, which accepted `\"\"`, `\" \"`, `\"0x10\"`, `\"1e3\"`). The schema now uses the shared `numerish`, with `pay: numerish.min(1, { message: \"Bayaran wajib diisi.\" })` and `rounding: string.trim().transform(v => v === \"\" ? \"0\" : v).pipe(numerish)` — an empty rounding field is the one case that genuinely means zero, and it is defaulted *before* the shared rule runs. A blank \"Bayaran\" no longer reaches the settle check as 0; the message renders through the existing `<FieldError errors={field.state.meta.errors}>` on that field.\n2. Added `src/hooks/use-money-revision.ts` (mirror of `useRecordRevision`, same docstring style). `Debt/use-data.ts` now imports `useRecordRevision` and `Money/History/use-data.ts` imports `useMoneyRevision`; both private `useRevision` copies are gone. `rg \"get\\.revision\" src` now hits only the two hook files.\n3. `src/lib/utils.ts`: `?url_back=` is parsed once — new `urlBackOf(search)` rejects anything that is not a rooted, non-protocol-relative in-app path (`//evil.com`, `https://evil.com`, `records`, `\"\"` all rejected) and `getURLBack` is a thin `?? defaultURL` wrapper. `src/hooks/use-generate-url-back.ts` calls `urlBackOf` instead of its own `z.string()` parse (it still builds the plain `${base}?${search}` when no `url_back` is present). Added 4 cases to `src/lib/utils.test.ts` for the new rule.\n\nAlso tightened the bulk-import panels from the previous report while here: each `z-Selected` now records the file object it already uploaded in a ref, so a parent re-render (which creates a fresh `onRemove` and re-runs the effect) cannot restart the loop — necessary because a fully-skipped file is now deliberately left in the panel.\n\n`bun run typecheck`, `bun run lint` and `bun test` (454) are clean."
+          }
+        ],
+        "at": "2026-10-21T22:08:12.085Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T22:08:12.085Z"
         }
       }
     }

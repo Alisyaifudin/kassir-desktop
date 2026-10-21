@@ -3,6 +3,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -27,6 +28,7 @@ export function EditDialog({ record }: { record: RecordFull }) {
         <DialogHeader>
           <DialogTitle className="text-big">Sunting catatan</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Ubah catatan dan data pelanggan pada catatan riwayat ini.</DialogDescription>
         <div className="flex flex-col gap-4 py-2">
           <label className="flex flex-col gap-1">
             <span>Catatan</span>

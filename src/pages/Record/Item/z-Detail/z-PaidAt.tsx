@@ -16,8 +16,11 @@ export function PaidAt({ record }: { record: RecordFull }) {
     <div className="flex gap-1 flex-col justify-end">
       <div className="flex gap-2 items-center justify-end">
         <Spinner when={loading} />
+        {/* `granularity="instant"`: this edits a persisted timestamp, so a day
+            pick must keep the time of day instead of rewriting it to 00:00. */}
         <Calendar
           className="w-fit small:w-fit"
+          granularity="instant"
           time={paidAt}
           setTime={change}
         >

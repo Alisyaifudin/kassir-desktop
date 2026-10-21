@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -68,6 +69,7 @@ export const DeleteBtn = memo(function DeleteBtn({
             </div>
           </form>
         </DialogHeader>
+        <DialogDescription>Kontak ini dihapus dari daftar.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

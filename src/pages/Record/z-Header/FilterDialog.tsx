@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -84,6 +85,7 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
               Pilih satu atau lebih. Kosongkan untuk menampilkan semua.
             </p>
           </DialogHeader>
+          <DialogDescription>Saring daftar riwayat berdasarkan hari, kasir, metode pembayaran, dan lainnya.</DialogDescription>
           <div className="flex flex-col gap-4 p-6 pt-2 max-h-[70vh] overflow-y-auto">
             <ForEach items={groups}>
               {(group) => (

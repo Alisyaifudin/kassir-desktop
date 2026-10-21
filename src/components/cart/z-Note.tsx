@@ -3,6 +3,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -29,6 +30,7 @@ export function Note({ draft }: { draft: Draft }) {
         <DialogHeader>
           <DialogTitle className="text-big">Catatan</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Catatan untuk transaksi ini; ikut tercetak di struk.</DialogDescription>
         <Textarea
           rows={5}
           value={draft.note}

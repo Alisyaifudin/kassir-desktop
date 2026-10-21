@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -82,6 +83,7 @@ export const NewItem = memo(function NewItem() {
             </div>
           </form>
         </DialogHeader>
+        <DialogDescription>Kontak baru untuk pelanggan atau pemasok.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

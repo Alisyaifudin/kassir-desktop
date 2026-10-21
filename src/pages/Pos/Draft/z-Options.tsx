@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -33,6 +34,7 @@ export function Options({ draft, onStore }: { draft: Draft; onStore: () => void 
         <DialogHeader>
           <DialogTitle className="text-big">Opsi transaksi</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Opsi untuk transaksi yang sedang disusun.</DialogDescription>
         <div className="flex flex-col gap-4">
           <Precision draft={draft} />
           <Customer draft={draft} />

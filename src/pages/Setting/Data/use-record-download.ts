@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Effect, Either } from "effect";
+import { toast } from "sonner";
 import { useMutation } from "~/components/Loader";
 import { log } from "~/lib/log";
 import { service } from "~/services";
@@ -56,7 +57,12 @@ export function useRecord() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const result = await mutate({ start: range[0], end: range[1] });
-    if (Either.isLeft(result)) log.error(messageOf(result.left));
+    if (Either.isLeft(result)) {
+      log.error(messageOf(result.left));
+      return;
+    }
+    // `null` = the cashier cancelled the save dialog: silent, not "success".
+    if (result.right !== null) toast.success(`Disimpan ke ${result.right}`);
   }
 
   return {
@@ -76,6 +82,6 @@ function program({ start, end }: { start: number; end: number }) {
     const full = yield* Effect.forEach(records, (record) => service.record.get.byId(record.id), {
       concurrency: 8,
     });
-    yield* saveJson(`record_${start}_${end}.json`, full.map(toRecordImport));
+    return yield* saveJson(`record_${start}_${end}.json`, full.map(toRecordImport));
   });
 }

@@ -4,10 +4,23 @@ import { Either } from "effect";
 import { useState } from "react";
 import { z } from "zod";
 import { useMutation } from "~/components/Loader";
+import { numerish } from "~/lib/utils";
 import { service } from "~/services";
 
-const numeric = z.string().refine((value) => Number.isFinite(Number(value)));
-const schema = z.object({ pay: numeric, rounding: numeric });
+/**
+ * The shared `numerish` rule, not a local `Number.isFinite(Number(value))`: that
+ * one accepted `""` (as 0), `" "`, `"0x10"` and `"1e3"`, so a blank "Bayaran"
+ * reached the settle path as zero. An empty rounding field is the one case the
+ * cashier means as zero, so it is defaulted *before* the shared rule runs.
+ */
+const schema = z.object({
+  pay: numerish.min(1, { message: "Bayaran wajib diisi." }),
+  rounding: z
+    .string()
+    .trim()
+    .transform((value) => (value === "" ? "0" : value))
+    .pipe(numerish),
+});
 
 export function useDebt({
   recordId,

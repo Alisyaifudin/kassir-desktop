@@ -3,6 +3,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -37,6 +38,7 @@ export const DebtDialog = memo(function DebtDialog({
         <DialogHeader>
           <DialogTitle className="text-big">Bayar Kredit</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Bayar utang pelanggan: isi jumlah yang diterima, catatan keluar dari daftar utang setelah lunas.</DialogDescription>
         <form
           onSubmit={(event) => {
             event.preventDefault();

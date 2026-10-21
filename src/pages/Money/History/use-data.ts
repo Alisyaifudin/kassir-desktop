@@ -1,5 +1,6 @@
 import { Effect, Stream } from "effect";
-import { useQuery, useStream, type Result } from "~/components/Loader";
+import { useQuery, type Result } from "~/components/Loader";
+import { useMoneyRevision } from "~/hooks/use-money-revision";
 import { service } from "~/services";
 import type { MoneyError } from "~/services/money";
 import { useRange } from "../use-range";
@@ -7,19 +8,11 @@ import { withDiff, type MoneyRow } from "./with-diff";
 
 export type { MoneyRow } from "./with-diff";
 
-/**
- * The service's write counter, so a queried history re-reads after a record is
- * added or removed. Seeded at 0 so the first render already has a stable key.
- */
-function useRevision(): number {
-  const res = useStream(service.money.entries.get.revision, () => 0);
-  return res.type === "success" ? res.data : 0;
-}
-
 /** A pocket's entries in the selected range, newest first, each with its diff. */
 export function useData(pocketId: string): Result<MoneyRow[], MoneyError> {
   const { start, endExclusive } = useRange();
-  const revision = useRevision();
+  // Shared write counter: the history re-reads after an entry is added/removed.
+  const revision = useMoneyRevision();
 
   return useQuery(
     () => Stream.fromEffect(program(pocketId, start, endExclusive)),

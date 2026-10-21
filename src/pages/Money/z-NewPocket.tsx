@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -46,6 +47,7 @@ export const NewPocket = memo(function NewPocket() {
             </div>
           </form>
         </DialogHeader>
+        <DialogDescription>Kantong baru untuk memisahkan uang tunai, bank, atau dompet digital.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

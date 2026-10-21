@@ -1,11 +1,12 @@
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "~/components/ui/dialog";
 import { useState } from "react";
 import { TextError } from "~/components/TextError";
@@ -40,6 +41,7 @@ export function DeleteBtn({
           </div>
           <TextError>{error}</TextError>
         </DialogHeader>
+        <DialogDescription>Catatan riwayat ini beserta barisnya dihapus permanen.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

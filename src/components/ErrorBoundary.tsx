@@ -106,13 +106,13 @@ export default function ErrorBoundary() {
 
           <div className="grid grid-cols-2 gap-3">
             <Button variant="outline" onClick={goBack} className="h-11 font-semibold">
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="icon mr-2" />
               Kembali
             </Button>
 
             <Button variant="ghost" asChild className="h-11 font-semibold">
               <Link to="/">
-                <Home className="w-4 h-4 mr-2" />
+                <Home className="icon mr-2" />
                 Home
               </Link>
             </Button>
@@ -123,7 +123,7 @@ export default function ErrorBoundary() {
         {env && technicalDetails && (
           <div className="w-full mt-4 pt-8 border-t text-left">
             <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-              <Terminal className="w-4 h-4" />
+              <Terminal className="icon" />
               <span className="text-small font-bold uppercase tracking-widest text-foreground/50">
                 Detail Teknis (Dev Tool)
               </span>

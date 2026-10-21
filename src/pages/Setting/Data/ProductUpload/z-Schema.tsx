@@ -32,7 +32,7 @@ export function SchemaDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="text-muted-foreground">
-          <HelpCircle className="w-4 h-4" />
+          <HelpCircle className="icon" />
           <span className="sr-only">Lihat format data</span>
         </Button>
       </DialogTrigger>

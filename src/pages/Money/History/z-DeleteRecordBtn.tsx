@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -60,6 +61,7 @@ export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money:
             </div>
           </div>
         </DialogHeader>
+        <DialogDescription>Catatan ini dihapus dan saldo kantong dihitung ulang.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

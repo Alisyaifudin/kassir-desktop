@@ -16,7 +16,14 @@ export function CreditAt({ record }: { record: RecordFull }) {
     <div className="flex gap-1 flex-col justify-end">
       <div className="flex gap-2 items-center justify-end">
         <Spinner when={loading} />
-        <Calendar className="w-fit small:w-fit" time={creditAt} setTime={change}>
+        {/* `granularity="instant"`: this edits a persisted timestamp, so a day
+            pick must keep the time of day instead of rewriting it to 00:00. */}
+        <Calendar
+          className="w-fit small:w-fit"
+          granularity="instant"
+          time={creditAt}
+          setTime={change}
+        >
           <p>
             Kredit: {formatTime(creditAt, "long")} {day}, {formatDate(creditAt, "long")}
           </p>

@@ -86,6 +86,28 @@ describe("Tauri capability", () => {
     expect(identifiers).toContain("fs:allow-mkdir");
   });
 
+  test("grants no self-update or process-control permission", () => {
+    // `updater:default` was granted to the main window for four audits while no
+    // frontend code ever called `check()` — the single most powerful permission
+    // in the ACL (downloads a signed installer and runs it) with no consumer.
+    // The plugin, its crate, its config and the release artifacts are gone, so
+    // the permission must never come back without the feature.
+    const identifiers = capabilities().flatMap((capability) =>
+      capability.permissions.map(identifierOf),
+    );
+    for (const id of identifiers) {
+      expect(id).not.toMatch(/^updater:/);
+      expect(id).not.toMatch(/^process:/);
+    }
+
+    const conf = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8")) as {
+      plugins?: Record<string, unknown>;
+      bundle?: { createUpdaterArtifacts?: boolean };
+    };
+    expect(conf.plugins?.updater).toBeUndefined();
+    expect(conf.bundle?.createUpdaterArtifacts).toBe(false);
+  });
+
   test("says what it grants, including the deliberate holes", () => {
     // The description used to claim least privilege while `fs:default` was in
     // the list, which is how the over-grant survived three audits.

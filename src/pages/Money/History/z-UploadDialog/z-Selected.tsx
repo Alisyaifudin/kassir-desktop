@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MoneyImport } from "./util-validate-money";
 import { Effect, Fiber } from "effect";
 import { toast } from "sonner";
+import { describeUpload, notifyUpload } from "~/lib/upload";
 import { service } from "~/services";
 import { log } from "~/lib/log";
 import { TextError } from "~/components/TextError";
@@ -26,6 +27,10 @@ export function Selected({
   const fiberRef = useRef<Fiber.RuntimeFiber<void, unknown> | null>(null);
   const [timestamps, setTimestamps] = useState<number[]>([]);
   const [progress, setProgress] = useState(0);
+  // One upload per chosen file: `onRemove` is a fresh function on every parent
+  // render, so without this the loop would restart whenever the page re-renders
+  // (which is what happens when nothing was written and the file stays).
+  const uploaded = useRef<typeof data>(undefined);
   const [error, setError] = useState<null | string>(null);
 
   function interruptUpload() {
@@ -43,17 +48,18 @@ export function Selected({
     onRemove();
     toast.error("Unggahan dibatalkan");
   }
-  function addDuplicate(timestamp: number) {
-    setTimestamps((n) => [...n, timestamp]);
-  }
-
   useEffect(() => {
     const uploadEffect = Effect.gen(function* () {
+      if (data === undefined || uploaded.current === data) return;
+      uploaded.current = data;
       let i = 1;
       if (data === undefined) return;
       setProgress(0);
       setError(null);
       setTimestamps([]);
+      // A duplicate timestamp is skipped, not fatal; the count decides what the
+      // final message says.
+      const duplicates: number[] = [];
       for (const money of data.money) {
         yield* service.money.entries.add.imported({
           pocketId,
@@ -62,16 +68,23 @@ export function Selected({
           note: money.note,
         }).pipe(
           Effect.catchTag("DuplicateError", (e) => {
-            addDuplicate(Number(e.name));
+            duplicates.push(Number(e.name));
             return Effect.void;
           }),
         );
         setProgress(i);
         i++;
       }
-      onRemove();
-      setError(null);
-      toast.success("Berhasil mengunggah");
+      setTimestamps(duplicates);
+      notifyUpload(
+        describeUpload({
+          written: data.money.length - duplicates.length,
+          skipped: duplicates.length,
+          noun: "catatan",
+        }),
+      );
+      // Nothing written keeps the file in the panel, next to the reasons.
+      if (duplicates.length < data.money.length) onRemove();
     }).pipe(
       Effect.catchTag("MoneyError", ({ message }) => {
         log.error(message);
@@ -104,7 +117,7 @@ export function Selected({
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="w-4 h-4" />
+                <X className="icon" />
               </Button>
             </div>
             <div className="space-y-2 rounded-lg border border-input bg-card p-4">
@@ -142,7 +155,7 @@ function DuplicateItem({ timestamps, dismiss }: { timestamps: number[]; dismiss:
           onClick={dismiss}
           className="text-muted-foreground hover:text-foreground"
         >
-          <X className="w-4 h-4" />
+          <X className="icon" />
         </Button>
       </div>
       <p className="mt-1 text-small text-amber-800">

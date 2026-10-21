@@ -48,6 +48,3 @@ tauri-plugin-mcp-bridge = { version = "0.13.1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 winprint = "0.2.0"
-
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "2"

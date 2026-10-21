@@ -4,7 +4,7 @@
     "withGlobalTauri": true,
     "security": {
       "csp": null,
-      "capabilities": ["default", "desktop-capability", "mcp-bridge"]
+      "capabilities": ["default", "mcp-bridge"]
     }
   }
 }

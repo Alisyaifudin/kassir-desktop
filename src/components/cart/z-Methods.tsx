@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogPortal,
@@ -529,6 +530,7 @@ export function Methods({
           <DialogHeader>
             <DialogTitle className="text-big font-bold">Metode pembayaran</DialogTitle>
           </DialogHeader>
+          <DialogDescription>Metode dan jumlah pembayaran; sisanya menjadi kembalian.</DialogDescription>
           <div className="flex flex-col gap-3">
             {draft.methods.map((method, index) => (
               <div key={method.id} className="flex flex-col gap-1 rounded-md  border p-2">

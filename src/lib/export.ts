@@ -19,10 +19,16 @@ export function fileNameOf(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "-");
 }
 
-export function saveJson(defaultName: string, value: unknown): Effect.Effect<void, IOError> {
+/**
+ * The written path, or `null` when the cashier cancelled the save dialog. A
+ * caller must be able to tell "wrote 412 products to D:\\backup.json" from "pressed
+ * Esc": reporting success on `null` leaves the operator hunting for a file that
+ * was never written.
+ */
+export function saveJson(defaultName: string, value: unknown): Effect.Effect<string | null, IOError> {
   return Effect.gen(function* () {
     const contents = JSON.stringify(value, null, 2);
-    yield* Effect.tryPromise({
+    return yield* Effect.tryPromise({
       try: () =>
         invoke<string | null>("export_file", {
           defaultName: fileNameOf(defaultName),

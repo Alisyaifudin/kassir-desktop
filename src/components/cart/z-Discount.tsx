@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogPortal,
   DialogTitle,
@@ -107,6 +108,7 @@ export function DiscountDialog({
         <DialogHeader>
           <DialogTitle className="text-big font-bold">Diskon</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Diskon per baris: angka rupiah atau persen, tidak boleh melebihi harga baris.</DialogDescription>
         {line !== null ? (
           <Body
             key={line.id}

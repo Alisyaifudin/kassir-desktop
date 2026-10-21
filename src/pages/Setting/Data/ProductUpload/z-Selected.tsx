@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ProductImport } from "./util-validate-product";
 import { Effect, Fiber } from "effect";
 import { toast } from "sonner";
+import { describeUpload, notifyUpload } from "~/lib/upload";
 import { service } from "~/services";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
@@ -22,6 +23,10 @@ export function Selected({
   const fiberRef = useRef<Fiber.RuntimeFiber<void, unknown> | null>(null);
   const [skipped, setSkipped] = useState<Skipped[]>([]);
   const [progress, setProgress] = useState(0);
+  // One upload per chosen file: `onRemove` is a fresh function on every parent
+  // render, so without this the loop would restart whenever the page re-renders
+  // (which is what happens when nothing was written and the file stays).
+  const uploaded = useRef<typeof data>(undefined);
 
   function interruptUpload() {
     const fiber = fiberRef.current;
@@ -41,34 +46,44 @@ export function Selected({
 
   useEffect(() => {
     const uploadEffect = Effect.gen(function* () {
-      if (data === undefined) return;
+      if (data === undefined || uploaded.current === data) return;
+      uploaded.current = data;
       setProgress(0);
       setSkipped([]);
       // A row that cannot be written is skipped and reported, not allowed to stop
-      // the rest of the file.
+      // the rest of the file. The skips are collected locally so the final
+      // message can count them without waiting for a state flush.
+      const skippedRows: Skipped[] = [];
       for (const [index, product] of data.products.entries()) {
         yield* service.product.add(product).pipe(
           Effect.catchTags({
             ProductDuplicateCode: ({ value }) =>
-              Effect.sync(() =>
-                setSkipped((items) => [
-                  ...items,
-                  { key: `${index}`, name: product.name, reason: `kode ${value} sudah dipakai` },
-                ]),
-              ),
+              Effect.sync(() => {
+                skippedRows.push({
+                  key: `${index}`,
+                  name: product.name,
+                  reason: `kode ${value} sudah dipakai`,
+                });
+              }),
             ProductError: ({ message }) =>
-              Effect.sync(() =>
-                setSkipped((items) => [
-                  ...items,
-                  { key: `${index}`, name: product.name, reason: message },
-                ]),
-              ),
+              Effect.sync(() => {
+                skippedRows.push({ key: `${index}`, name: product.name, reason: message });
+              }),
           }),
         );
         setProgress(index + 1);
       }
-      onRemove();
-      toast.success("Berhasil mengunggah");
+      setSkipped(skippedRows);
+      notifyUpload(
+        describeUpload({
+          written: data.products.length - skippedRows.length,
+          skipped: skippedRows.length,
+          noun: "produk",
+        }),
+      );
+      // Nothing written means the file stays in the panel (with the skipped
+      // reasons below it) so the operator can fix it and retry.
+      if (skippedRows.length < data.products.length) onRemove();
     });
 
     const fiber = Effect.runFork(uploadEffect);
@@ -94,7 +109,7 @@ export function Selected({
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="w-4 h-4" />
+                <X className="icon" />
               </Button>
             </div>
             <div className="space-y-2 rounded-lg border border-input bg-card p-4">

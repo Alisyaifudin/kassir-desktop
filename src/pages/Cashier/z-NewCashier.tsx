@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -29,6 +30,7 @@ export const NewCashier = memo(function NewCashier() {
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Kasir</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Kasir baru yang bisa dipilih saat login.</DialogDescription>
         <form
           onSubmit={(e) => {
             e.preventDefault();

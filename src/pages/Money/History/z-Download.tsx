@@ -13,7 +13,13 @@ export function Download({ pocket }: { pocket: Pocket }) {
 
   async function handleClick() {
     const result = await mutate(pocket);
-    if (Either.isLeft(result)) toast.error(errorMessage(result.left));
+    if (Either.isLeft(result)) {
+      toast.error(errorMessage(result.left));
+      return;
+    }
+    // `null` means the cashier cancelled the save dialog — not a failure, and
+    // not a success either, so it stays silent.
+    if (result.right !== null) toast.success(`Disimpan ke ${result.right}`);
   }
 
   return (
@@ -35,7 +41,7 @@ function errorMessage(error: MoneyError | IOError): string {
 function program(pocket: Pocket) {
   return Effect.gen(function* () {
     const entries = yield* service.money.entries.get.all(pocket.id);
-    yield* saveJson(
+    return yield* saveJson(
       `${Date.now()}-${pocket.name}.json`,
       entries.map(({ timestamp, value, note }) => ({ timestamp, value, note })),
     );

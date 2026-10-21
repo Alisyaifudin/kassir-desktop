@@ -30,7 +30,7 @@ export function SkippedItems({
           onClick={dismiss}
           className="text-muted-foreground hover:text-foreground"
         >
-          <X className="w-4 h-4" />
+          <X className="icon" />
         </Button>
       </div>
       <p className="mt-1 text-small text-amber-800">

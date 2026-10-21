@@ -50,7 +50,7 @@ export function Topbar() {
               onClick={() => navigate(backUrl)}
               className="rounded-full hover:bg-sky-400/50 h-10 w-10 small:h-8 small:w-8"
             >
-              <ArrowLeft className="h-6 w-6 small:h-5 small:w-5" />
+              <ArrowLeft className="size-6 small:size-5" />
             </Button>
           )}
           <h1 className={cn("font-bold tracking-tight transition-all", "text-big")}>

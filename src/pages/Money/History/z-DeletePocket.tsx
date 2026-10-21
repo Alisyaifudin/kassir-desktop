@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -23,24 +24,24 @@ export const DeletePocketBtn = memo(function DeletePocketBtn({ pocketId }: { poc
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="text-big">Hapus Kantong</DialogTitle>
-          <div className="flex flex-col gap-2 text-big">
-            <p>
-              Kamu akan menghapus kantong ini. Semua catatan keuangan pada kantong ini akan
-              terhapus selamanya!
-            </p>
-            <TextError>{error}</TextError>
-
-            <div className="col-span-2 flex items-center justify-between">
-              <Button asChild variant="secondary">
-                <DialogClose>Batalkan</DialogClose>
-              </Button>
-              <Button onClick={handleDelete} variant="destructive">
-                Hapus
-                <Spinner when={loading} />
-              </Button>
-            </div>
-          </div>
+          <DialogDescription>
+            Kamu akan menghapus kantong ini. Semua catatan keuangan pada kantong ini akan terhapus
+            selamanya!
+          </DialogDescription>
         </DialogHeader>
+        <div className="flex flex-col gap-2 text-big">
+          <TextError>{error}</TextError>
+
+          <div className="col-span-2 flex items-center justify-between">
+            <Button asChild variant="secondary">
+              <DialogClose>Batalkan</DialogClose>
+            </Button>
+            <Button onClick={handleDelete} variant="destructive">
+              Hapus
+              <Spinner when={loading} />
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

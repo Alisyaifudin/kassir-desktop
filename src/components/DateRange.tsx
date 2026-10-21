@@ -2,10 +2,11 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTrigger,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "~/components/ui/dialog";
 import { memo, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
@@ -78,6 +79,9 @@ export const DateRange = memo(function DateRange({
         </DialogTrigger>
       </Button>
       <DialogContent className="flex flex-col gap-5 max-w-full w-fit justify-center">
+        <DialogDescription>
+          Pilih tanggal awal lalu tanggal akhir untuk rentang laporan.
+        </DialogDescription>
         <div className="grid grid-cols-2">
           <p>
             <b>Dari: </b>
@@ -248,7 +252,7 @@ function DayCalendar({
             <ChevronLeft className="icon" />
           </Button>
           <Button variant="secondary" onClick={() => setLevel("month")}>
-            <DialogTitle className="text-mormal">
+            <DialogTitle className="text-normal">
               {monthNames[date.month]} {date.year}
             </DialogTitle>
           </Button>
@@ -257,6 +261,7 @@ function DayCalendar({
           </Button>
         </div>
       </DialogHeader>
+      <DialogDescription>Pilih hari untuk rentang laporan: klik tanggal awal, lalu tanggal akhir.</DialogDescription>
       <div className="grid grid-cols-7">
         <div className="col-span-7 grid grid-cols-7 gap-2">
           <p className="text-center">Sen</p>
@@ -370,6 +375,7 @@ function MonthCalendar({
           </Button>
         </div>
       </DialogHeader>
+      <DialogDescription>Pilih bulan yang ingin ditampilkan.</DialogDescription>
       <div className="grid grid-cols-4">
         {months.map(({ month, start, end }, i) => (
           <div
@@ -462,6 +468,7 @@ function YearCalendar({
           <ChevronRight className="icon" />
         </Button>
       </DialogHeader>
+      <DialogDescription>Pilih tahun yang ingin ditampilkan.</DialogDescription>
       <form className="flex items-center gap-2" onSubmit={handleSubmitYear}>
         <Input
           type="number"

@@ -11,7 +11,7 @@
  * Run with:  bun test src/lib/utils.test.ts
  */
 import { describe, expect, test } from "bun:test";
-import { capitalize, integer, numeric } from "./utils";
+import { capitalize, getURLBack, integer, numeric, urlBackOf } from "./utils";
 import { EARLIEST_EPOCH, FURTHEST_EPOCH, parseRange } from "./range";
 
 function params(entries: Record<string, string>): { get(key: string): string | null } {
@@ -50,6 +50,26 @@ describe("numerish", () => {
   test("keeps decimals and negatives", () => {
     expect(numeric.parse("68000.5")).toBe(68000.5);
     expect(numeric.parse("-2")).toBe(-2);
+  });
+});
+
+describe("getURLBack", () => {
+  test("keeps a rooted in-app path", () => {
+    expect(getURLBack("/", new URLSearchParams({ url_back: "/records?day=1" }))).toBe(
+      "/records?day=1",
+    );
+  });
+
+  test.each(["//evil.com", "https://evil.com", "records", ""])(
+    "%p falls back to the caller's default",
+    (raw) => {
+      expect(getURLBack("/money", new URLSearchParams({ url_back: raw }))).toBe("/money");
+    },
+  );
+
+  test("no param falls back", () => {
+    expect(getURLBack("/", new URLSearchParams())).toBe("/");
+    expect(urlBackOf(new URLSearchParams())).toBeNull();
   });
 });
 

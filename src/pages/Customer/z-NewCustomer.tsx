@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -29,6 +30,7 @@ export const NewCustomer = memo(function NewCustomer() {
         <DialogHeader>
           <DialogTitle className="text-big">Tambah Pelanggan</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Pelanggan baru untuk transaksi kredit dan riwayat pembeliannya.</DialogDescription>
         <form
           onSubmit={(e) => {
             e.preventDefault();

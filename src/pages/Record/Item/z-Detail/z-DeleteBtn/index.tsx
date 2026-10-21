@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -35,6 +36,7 @@ export function DeleteBtn({ recordId }: { recordId: string }) {
           </div>
           <TextError>{error}</TextError>
         </DialogHeader>
+        <DialogDescription>Catatan riwayat ini beserta barisnya dihapus permanen.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

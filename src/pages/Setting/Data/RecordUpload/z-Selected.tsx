@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Effect, Fiber } from "effect";
 import { toast } from "sonner";
+import { describeUpload, notifyUpload } from "~/lib/upload";
 import { service } from "~/services";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
@@ -23,6 +24,10 @@ export function Selected({
   const fiberRef = useRef<Fiber.RuntimeFiber<void, unknown> | null>(null);
   const [skipped, setSkipped] = useState<Skipped[]>([]);
   const [progress, setProgress] = useState(0);
+  // One upload per chosen file: `onRemove` is a fresh function on every parent
+  // render, so without this the loop would restart whenever the page re-renders
+  // (which is what happens when nothing was written and the file stays).
+  const uploaded = useRef<typeof data>(undefined);
 
   function interruptUpload() {
     const fiber = fiberRef.current;
@@ -42,30 +47,38 @@ export function Selected({
 
   useEffect(() => {
     const uploadEffect = Effect.gen(function* () {
-      if (data === undefined) return;
+      if (data === undefined || uploaded.current === data) return;
+      uploaded.current = data;
       setProgress(0);
       setSkipped([]);
       // A record whose stock cannot cover it is skipped and reported; the rest of
-      // the file still goes in, one transaction per record.
+      // the file still goes in, one transaction per record. The skips are
+      // collected locally so the final message can count them.
+      const skippedRows: Skipped[] = [];
       for (const [index, record] of data.records.entries()) {
         yield* service.record.add.external(record).pipe(
           Effect.catchTag("RecordError", ({ message }) =>
-            Effect.sync(() =>
-              setSkipped((items) => [
-                ...items,
-                {
-                  key: `${index}`,
-                  name: `${formatDate(record.paidAt, "long")}, ${formatTime(record.paidAt, "long")}`,
-                  reason: message,
-                },
-              ]),
-            ),
+            Effect.sync(() => {
+              skippedRows.push({
+                key: `${index}`,
+                name: `${formatDate(record.paidAt, "long")}, ${formatTime(record.paidAt, "long")}`,
+                reason: message,
+              });
+            }),
           ),
         );
         setProgress(index + 1);
       }
-      onRemove();
-      toast.success("Berhasil mengunggah");
+      setSkipped(skippedRows);
+      notifyUpload(
+        describeUpload({
+          written: data.records.length - skippedRows.length,
+          skipped: skippedRows.length,
+          noun: "catatan",
+        }),
+      );
+      // Nothing written keeps the file in the panel, next to the reasons.
+      if (skippedRows.length < data.records.length) onRemove();
     });
 
     const fiber = Effect.runFork(uploadEffect);
@@ -91,7 +104,7 @@ export function Selected({
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="w-4 h-4" />
+                <X className="icon" />
               </Button>
             </div>
             <div className="space-y-2 rounded-lg border border-input bg-card p-4">

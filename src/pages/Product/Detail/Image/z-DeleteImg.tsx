@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -61,6 +62,7 @@ export function DeleteImg({ productId, item }: { productId: string; item: Galler
           <DialogHeader>
             <DialogTitle className="text-normal">Hapus Gambar</DialogTitle>
           </DialogHeader>
+          <DialogDescription>Gambar ini dihapus dari galeri produk.</DialogDescription>
           <div className="flex flex-1 items-center justify-center overflow-hidden">
             {href !== null ? <img src={href} className="h-full object-contain" alt="" /> : null}
           </div>
