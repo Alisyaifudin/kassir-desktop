@@ -34,6 +34,18 @@ pub fn run() {
             printer::get_printers,
             printer::print_pdf,
         ]);
+
+    // Debug-only MCP bridge for AI/e2e automation.
+    // Bound to 127.0.0.1 so the automation socket is never reachable from the LAN,
+    // and never registered in release builds.
+    // Requires `app.withGlobalTauri = true`, see src-tauri/tauri.dev.conf.json.
+    #[cfg(debug_assertions)]
+    let builder = builder.plugin(
+        tauri_plugin_mcp_bridge::Builder::new()
+            .bind_address("127.0.0.1")
+            .build(),
+    );
+
     #[cfg(debug_assertions)]
     let prevent_default_plugin: tauri::plugin::TauriPlugin<tauri::Wry> =
         tauri_plugin_prevent_default::Builder::new()

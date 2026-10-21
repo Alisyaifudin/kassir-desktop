@@ -47,6 +47,7 @@ sqlx = { version = "0.8", features = [
 ] }
 tempfile = "3"
 tauri-plugin-dialog = "2"
+tauri-plugin-mcp-bridge = "0.13.1"
 
 [target.'cfg(windows)'.dependencies]
 winprint = "0.2.0"
