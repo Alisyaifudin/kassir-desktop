@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useStream } from "~/components/Loader";
 import { Combobox } from "~/components/ui/combobox";
 import { service } from "~/services";
@@ -23,21 +22,20 @@ function Field({
   draft: Draft;
   suppliers: { id: string; name: string }[];
 }) {
-  // A typed-but-unknown name lives here until submit creates it. Holding it in
-  // state (rather than the draft) is what keeps a half-typed supplier from
-  // being persisted as a supplier id.
-  const [pending, setPending] = useState<string | null>(null);
-  const value = pending ?? draft.supplierId ?? "";
+  // The draft carries the pending new-supplier text, so closing this panel or
+  // refreshing does not lose it before submit creates the supplier.
+  const value = draft.supplierId ?? draft.supplierName;
   const options = suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }));
 
   function handleChange(next: string) {
     const known = suppliers.find((supplier) => supplier.id === next);
     if (known !== undefined) {
-      setPending(null);
       run(service.transaction.set.supplier(draft.id, known.id));
+      run(service.transaction.set.supplierName(draft.id, ""));
       return;
     }
-    setPending(next.trim() === "" ? null : next);
+    run(service.transaction.set.supplier(draft.id, null));
+    run(service.transaction.set.supplierName(draft.id, next));
   }
 
   return (
@@ -49,9 +47,9 @@ function Field({
         placeholder="Cari atau pemasok baru"
         emptyText="Pemasok baru"
       />
-      {pending !== null ? (
+      {draft.supplierId === null && draft.supplierName.trim() !== "" ? (
         <p className="text-small text-muted-foreground">
-          Pemasok baru &ldquo;{pending}&rdquo; akan dibuat saat Bayar.
+          Pemasok baru &ldquo;{draft.supplierName}&rdquo; akan dibuat saat Bayar.
         </p>
       ) : null}
     </div>

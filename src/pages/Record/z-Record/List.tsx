@@ -32,7 +32,7 @@ export function List({ records }: { records: RecordModel[] }) {
   const sorted = useMemo(() => {
     const sign = sort === "asc" ? 1 : -1;
     return [...records].sort((a, b) =>
-      order === "time" ? sign * (a.paidAt - b.paidAt) : sign * (a.grandTotal - b.grandTotal),
+      order === "time" ? sign * (a.date - b.date) : sign * (a.grandTotal - b.grandTotal),
     );
   }, [records, order, sort]);
 
@@ -80,7 +80,7 @@ export function List({ records }: { records: RecordModel[] }) {
             >
               <TableCell>{i + 1}</TableCell>
               <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
-              <TableCell className="text-center">{formatTime(record.paidAt)}</TableCell>
+              <TableCell className="text-center">{formatTime(record.date)}</TableCell>
               <TableCell className="text-right">
                 {record.grandTotal.toLocaleString("id-ID")}
               </TableCell>

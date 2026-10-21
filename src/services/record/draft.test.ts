@@ -48,6 +48,7 @@ function input(overrides: Partial<RecordDraftInput> = {}): RecordDraftInput {
     note: "",
     fix: 0,
     customer: { id: null, name: "Budi", phone: "0812" },
+    supplier: { id: null, name: "" },
     subTotal: 40000,
     total: 40000,
     methods: [{ methodId: "cash", pay: 40000 }],
@@ -91,7 +92,7 @@ describe("RecordService.add.draft (incoming)", () => {
     expect(record.record_pay).toBe(40000);
     expect(record.record_customer_name).toBe("Budi");
     expect(record.record_customer_phone).toBe("0812");
-    expect(record.record_is_credit).toBe(0);
+    expect(record.record_credit_at).toBeNull();
 
     const portions = db
       .query(
@@ -319,12 +320,221 @@ function expectRecordError(
   if (result._tag === "Left") expect(result.left.message).toContain(contains);
 }
 
-describe("RecordService.add.draft — direct branches", () => {
-  test("refuses an outcoming (purchase) input", async () => {
+
+describe("RecordService.add.draft (outcoming)", () => {
+  test("allocates extras and rounding into the lot capital", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    const recordId = await runDraft(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        total: 44000,
+        pay: 44000,
+        extras: [{ name: "Ongkir", value: 4000, eff: 4000, kind: "number" }],
+      }),
+    );
+
+    const portion = db
+      .query(
+        `SELECT record_listing_total AS total, record_listing_capital AS capital
+         FROM record_listings WHERE record_id = ?`,
+      )
+      .get(recordId) as { total: number; capital: number };
+    expect(portion).toEqual({ total: 40000, capital: 11000 });
+
+    const event = db
+      .query(
+        "SELECT product_event_value AS value, product_event_capital AS capital FROM product_events WHERE record_id = ?",
+      )
+      .get(recordId) as { value: number; capital: number };
+    expect(event).toEqual({ value: 4, capital: 11000 });
+  });
+
+  test("reuses an existing lot whose capital matches at the record precision", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    const recordId = await runDraft(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: 1000,
+            qty: 4,
+            discounts: [],
+          },
+        ],
+        subTotal: 4000,
+        total: 4000,
+        pay: 4000,
+      }),
+    );
+
+    const lot = db.query("SELECT stock_value FROM stocks WHERE stock_id = 's1'").get() as {
+      stock_value: number;
+    };
+    expect(lot.stock_value).toBe(6);
+    const event = db
+      .query("SELECT stock_id, product_event_value AS value FROM product_events WHERE record_id = ?")
+      .get(recordId) as { stock_id: string; value: number };
+    expect(event).toEqual({ stock_id: "s1", value: 4 });
+    expect(
+      (db.query("SELECT COUNT(*) AS n FROM stocks WHERE product_id = 'p1'").get() as { n: number }).n,
+    ).toBe(2);
+  });
+
+  test("consolidates matching lots into the oldest one before receiving", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    db.exec(`
+      INSERT INTO stocks (
+        stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at
+      ) VALUES ('s3', 'p1', 5, 1000, 3, 3);
+    `);
+    const recordId = await runDraft(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: 1000,
+            qty: 4,
+            discounts: [],
+          },
+        ],
+        subTotal: 4000,
+        total: 4000,
+        pay: 4000,
+      }),
+    );
+
+    const lots = db
+      .query("SELECT stock_id, stock_value FROM stocks ORDER BY stock_id")
+      .all() as { stock_id: string; stock_value: number }[];
+    expect(lots).toEqual([
+      { stock_id: "s1", stock_value: 11 },
+      { stock_id: "s2", stock_value: 5 },
+      { stock_id: "s3", stock_value: 0 },
+    ]);
+    const events = db
+      .query(
+        `SELECT product_event_value AS value, product_event_capital AS capital,
+                stock_id, record_id
+         FROM product_events ORDER BY rowid`,
+      )
+      .all() as {
+      value: number;
+      capital: number;
+      stock_id: string;
+      record_id: string | null;
+    }[];
+    expect(events.filter((event) => event.record_id === null)).toHaveLength(2);
+    expect(events.filter((event) => event.stock_id === "s1").map((event) => event.value)).toEqual([
+      5, 4,
+    ]);
+    expect(events.filter((event) => event.stock_id === "s3").map((event) => event.value)).toEqual([
+      -5,
+    ]);
+    const portion = db
+      .query("SELECT record_listing_capital AS capital FROM record_listings WHERE record_id = ?")
+      .get(recordId) as { capital: number };
+    expect(portion.capital).toBe(1000);
+  });
+
+  test("creates and snapshots a new supplier", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    const recordId = await runDraft(
+      recordLayer,
+      input({ mode: "outcoming", supplier: { id: null, name: "Toko Sumber" } }),
+    );
+
+    const record = db
+      .query("SELECT record_supplier_id, record_supplier_name FROM records WHERE record_id = ?")
+      .get(recordId) as { record_supplier_id: string | null; record_supplier_name: string };
+    expect(record.record_supplier_name).toBe("Toko Sumber");
+    expect(record.record_supplier_id).not.toBeNull();
+    expect(
+      db.query("SELECT supplier_name FROM suppliers WHERE supplier_id = ?").get(record.record_supplier_id!) as {
+        supplier_name: string;
+      },
+    ).toEqual({ supplier_name: "Toko Sumber" });
+  });
+
+  test("rejects a negative line price", async () => {
     const { recordLayer, seed } = setup();
     seed();
-    const result = await runDraftEither(recordLayer, input({ mode: "outcoming" }));
-    expectRecordError(result, "belum didukung");
+    const result = await runDraftEither(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: -1,
+            qty: 1,
+            discounts: [],
+          },
+        ],
+      }),
+    );
+    expectRecordError(result, "Harga");
+  });
+});
+
+describe("RecordService.add.draft — direct branches", () => {
+  test("writes an outcoming purchase at the allocated capital", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    const recordId = await runDraft(recordLayer, input({ mode: "outcoming" }));
+
+    const record = db
+      .query("SELECT record_mode, record_paid_at, record_credit_at FROM records WHERE record_id = ?")
+      .get(recordId) as {
+      record_mode: string;
+      record_paid_at: number | null;
+      record_credit_at: number | null;
+    };
+    expect(record.record_mode).toBe("outcoming");
+    expect(record.record_paid_at).not.toBeNull();
+    expect(record.record_credit_at).toBeNull();
+
+    const portion = db
+      .query(
+        `SELECT record_listing_qty AS qty, record_listing_capital AS capital,
+                record_listing_total AS total, record_listing_price AS price
+         FROM record_listings WHERE record_id = ?`,
+      )
+      .get(recordId) as { qty: number; capital: number; total: number; price: number };
+    expect(portion).toEqual({ qty: 4, capital: 10000, total: 40000, price: 10000 });
+
+    const events = db
+      .query(
+        `SELECT product_event_value AS value, product_event_capital AS capital
+         FROM product_events WHERE record_id = ?`,
+      )
+      .all(recordId) as { value: number; capital: number }[];
+    expect(events).toEqual([{ value: 4, capital: 10000 }]);
+
+    const lot = db
+      .query("SELECT stock_value, stock_capital FROM stocks WHERE product_id = 'p1' AND stock_capital = 10000")
+      .get() as { stock_value: number; stock_capital: number };
+    expect(lot).toEqual({ stock_value: 4, stock_capital: 10000 });
   });
 
   test("refuses an empty line list", async () => {

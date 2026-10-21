@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Effect } from "effect";
+import type Decimal from "decimal.js";
+import { Effect, Either } from "effect";
+import { toast } from "sonner";
 import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
 import { service } from "~/services";
@@ -14,9 +16,11 @@ import {
   roundMoney,
   transactionGrandTotal,
 } from "~/lib/purchase";
+import { useUser } from "~/hooks/use-user";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
 import { findLineIssues, hasHardIssue } from "./Draft/code-issues";
+import { Complete } from "./z-Complete";
 
 /**
  * The restock screen: the sale screen's shape, buying instead of selling.
@@ -78,10 +82,23 @@ function Screen({
   const [focusPay, setFocusPay] = useState(0);
   // Bayar's Up / the payment grid's top: return to the last listing row.
   const [focusLast, setFocusLast] = useState(0);
+  const user = useUser();
+  const [submitting, setSubmitting] = useState(false);
+  const [complete, setComplete] = useState<{
+    recordId: string;
+    total: Decimal;
+    change: Decimal;
+    fix: number;
+  } | null>(null);
+  // Batalkan rebuilds the cart asynchronously; hold the no-tabs effect until
+  // the restored draft reaches the stream.
+  const [restoring, setRestoring] = useState(false);
+  const [restoredId, setRestoredId] = useState<string | null>(null);
 
   // F1 searches; F12 starts another purchase draft.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (submitting) return;
       if (event.key === "F1") {
         event.preventDefault();
         if (stage === "payment") {
@@ -100,11 +117,19 @@ function Screen({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onDraft, onStage, stage]);
+  }, [onDraft, onStage, stage, submitting]);
 
   // The screen always has a purchase to show: an empty one is made for it.
   useEffect(() => {
-    if (purchaseDrafts.length > 0 || creating.current) return;
+    if (
+      purchaseDrafts.length > 0 ||
+      creating.current ||
+      complete !== null ||
+      submitting ||
+      restoring
+    ) {
+      return;
+    }
     creating.current = true;
     void Effect.runPromise(service.transaction.add.new("outcoming")).then(
       (id) => {
@@ -115,7 +140,24 @@ function Screen({
         creating.current = false;
       },
     );
-  }, [purchaseDrafts.length, onDraft]);
+  }, [purchaseDrafts.length, onDraft, complete, submitting, restoring]);
+
+  // Once the rebuilt draft reaches the stream, the normal no-tabs guard can take
+  // over again. The timeout is a safety net for a stream that never delivers.
+  useEffect(() => {
+    if (!restoring) return;
+    if (restoredId === null) return;
+    if (purchaseDrafts.some((draft) => draft.id === restoredId)) {
+      setRestoring(false);
+      setRestoredId(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRestoring(false);
+      setRestoredId(null);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [restoring, restoredId, purchaseDrafts]);
 
   const active = purchaseDrafts.find((draft) => draft.id === draftId) ?? purchaseDrafts[0] ?? null;
   const activeId = active?.id ?? null;
@@ -149,6 +191,7 @@ function Screen({
   // own word-jump, so only act when the target is not an editor.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (submitting) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const target = event.target as HTMLElement | null;
@@ -167,9 +210,34 @@ function Screen({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [purchaseDrafts, activeId, onDraft]);
+  }, [purchaseDrafts, activeId, onDraft, submitting]);
 
-  if (active === null) return <Loading />;
+  const completeDialog =
+    complete === null ? null : (
+      <Complete
+        recordId={complete.recordId}
+        total={complete.total}
+        change={complete.change}
+        fix={complete.fix}
+        onRestoreStart={() => {
+          setRestoring(true);
+          setRestoredId(null);
+        }}
+        onRestoreEnd={() => {
+          setRestoring(false);
+          setRestoredId(null);
+        }}
+        onRestored={(id) => {
+          setRestoredId(id);
+          onDraft(id);
+        }}
+        onClose={() => setComplete(null)}
+      />
+    );
+
+  // Keep the dialog at the same sibling position as the main return so it does
+  // not remount when a cancelled purchase restores a draft.
+  if (active === null) return <><Loading />{completeDialog}</>;
 
   // The cart lives in the transaction service; these are its `tx_listings` and
   // `tx_extras` rows, written back on every edit.
@@ -191,37 +259,69 @@ function Screen({
     setTimeout(() => setFocusLast((count) => count + 1), 0);
   }
 
+  /** Start the commit; returns whether the click/key should be swallowed. */
+  function submitDraft(): boolean {
+    if (complete !== null || submitting || hardIssue || grand.isZero() || change.isNegative()) {
+      return false;
+    }
+    (document.activeElement as HTMLElement | null)?.blur();
+    setSubmitting(true);
+    void Effect.runPromise(
+      Effect.either(service.transaction.submit(active.id, { cashier: user.name })),
+    ).then((result) => {
+      setSubmitting(false);
+      if (Either.isLeft(result)) {
+        toast.error(result.left.message);
+        return;
+      }
+      setComplete({ recordId: result.right, total: grand, change, fix: active.fix });
+    });
+    return true;
+  }
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1">
-      <Draft
-        draft={active}
-        drafts={purchaseDrafts}
-        onSelect={onDraft}
-        stage={stage}
-        onStage={onStage}
-        grand={grand}
-        lines={lines}
-        onLines={setLines}
-        issues={issues}
-        extras={extras}
-        onExtras={setExtras}
-        focusSearch={focusSearch}
-        focusRounding={focusRounding}
-        onFocusPay={() => setFocusPay((count) => count + 1)}
-        focusLast={focusLast}
-        onExitUp={exitUp}
-      />
-      <Bottom
-        stage={stage}
-        onChange={onStage}
-        grand={grand}
-        fix={active.fix}
-        change={change}
-        disabled={hardIssue || grand.isZero()}
-        focusPay={focusPay}
-        onFocusRounding={() => setFocusRounding((count) => count + 1)}
-        onExitUp={exitUp}
-      />
-    </div>
+    <>
+      <div
+        className="relative flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1"
+        inert={submitting}
+      >
+        <Draft
+          draft={active}
+          drafts={purchaseDrafts}
+          onSelect={onDraft}
+          stage={stage}
+          onStage={onStage}
+          grand={grand}
+          lines={lines}
+          onLines={setLines}
+          issues={issues}
+          extras={extras}
+          onExtras={setExtras}
+          focusSearch={focusSearch}
+          focusRounding={focusRounding}
+          onFocusPay={() => setFocusPay((count) => count + 1)}
+          focusLast={focusLast}
+          onExitUp={exitUp}
+        />
+        <Bottom
+          stage={stage}
+          onChange={onStage}
+          grand={grand}
+          fix={active.fix}
+          change={change}
+          disabled={hardIssue || grand.isZero()}
+          focusPay={focusPay}
+          onFocusRounding={() => setFocusRounding((count) => count + 1)}
+          onExitUp={exitUp}
+          onSubmit={submitDraft}
+        />
+        {submitting ? (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60">
+            <Loading />
+          </div>
+        ) : null}
+      </div>
+      {completeDialog}
+    </>
   );
 }

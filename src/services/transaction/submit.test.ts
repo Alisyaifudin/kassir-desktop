@@ -100,6 +100,7 @@ type SaleOptions = {
   customerId?: string | null;
   customerName?: string;
   customerPhone?: string;
+  supplierName?: string;
   stored?: boolean;
   cashier?: string;
   secondSubmit?: boolean;
@@ -128,6 +129,9 @@ async function submit(options: SaleOptions = {}) {
       }
       if (options.customerPhone !== undefined) {
         yield* tx.set.customerPhone(id, options.customerPhone);
+      }
+      if (options.supplierName !== undefined) {
+        yield* tx.set.supplierName(id, options.supplierName);
       }
       if (options.extras !== undefined) yield* tx.extras.set(id, options.extras);
       if (options.stored === true) yield* tx.set.store(id);
@@ -185,7 +189,7 @@ type RecordRow = {
   record_id: string;
   record_paid_at: number;
   record_rounding: number;
-  record_is_credit: number;
+  record_credit_at: number | null;
   record_cashier: string;
   record_mode: string;
   record_pay: number;
@@ -322,10 +326,30 @@ describe("TransactionService.submit — eligibility", () => {
     expect(count(db, "records")).toBe(0);
   });
 
-  test("rejects an outcoming (purchase) draft", async () => {
-    const { db, result } = await submit({ mode: "outcoming" });
-    expectSubmitKind(result, "outcoming");
-    expect(count(db, "records")).toBe(0);
+  test("submits an outcoming (purchase) draft and snapshots its supplier", async () => {
+    const { db, result } = await submit({ mode: "outcoming", supplierName: "Toko Sumber" });
+    const recordId = right(result);
+    const record = db
+      .query(
+        "SELECT record_mode, record_paid_at, record_credit_at, record_supplier_name FROM records WHERE record_id = ?",
+      )
+      .get(recordId) as {
+      record_mode: string;
+      record_paid_at: number | null;
+      record_credit_at: number | null;
+      record_supplier_name: string;
+    };
+    expect(record.record_mode).toBe("outcoming");
+    expect(record.record_paid_at).not.toBeNull();
+    expect(record.record_credit_at).toBeNull();
+    expect(record.record_supplier_name).toBe("Toko Sumber");
+    const event = db
+      .query(
+        "SELECT product_event_value, product_event_capital FROM product_events WHERE record_id = ?",
+      )
+      .get(recordId) as { product_event_value: number; product_event_capital: number };
+    expect(event).toEqual({ product_event_value: 4, product_event_capital: 10000 });
+    expect(count(db, "records")).toBe(1);
   });
 
   test("rejects a draft with no listings", async () => {
@@ -402,12 +426,12 @@ describe("TransactionService.submit — payment", () => {
     expect(count(db, "records")).toBe(0);
   });
 
-  test("rejects an empty method list when the total is negative", async () => {
+  test("rejects a negative line price before payment", async () => {
     const { db, result } = await submit({
       lines: [makeLine({ price: -100, qty: 4 })],
       methods: [],
     });
-    expectSubmitKind(result, "payment");
+    expectSubmitKind(result, "price");
     expect(count(db, "records")).toBe(0);
   });
 
@@ -586,7 +610,7 @@ describe("TransactionService.submit — stock", () => {
     expect(record.record_total).toBe(40000);
     expect(record.record_sub_total).toBe(40000);
     expect(record.record_pay).toBe(40000);
-    expect(record.record_is_credit).toBe(0);
+    expect(record.record_credit_at).toBeNull();
     expect(record.record_mode).toBe("incoming");
     expect(record.record_cashier).toBe("Kasir");
 
@@ -958,7 +982,7 @@ describe("TransactionService.submit — extras and discounts", () => {
     expect(record.record_updated_at).toBeGreaterThanOrEqual(before);
     expect(record.record_sync_at).toBeNull();
     expect(record.record_deleted_at).toBeNull();
-    expect(record.record_is_credit).toBe(0);
+    expect(record.record_credit_at).toBeNull();
   });
 });
 
@@ -1155,6 +1179,44 @@ describe("TransactionService.submit — lifecycle", () => {
     ]);
     expect(count(db, "tx_images")).toBe(0);
     expect(count(db, "tx_records")).toBe(0);
+  });
+
+  test("restores the record's images when a submit is cancelled", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    db.exec(`
+      INSERT INTO tx_records (
+        tx_record_id, tx_record_order, tx_record_flag, tx_record_title, tx_record_mode
+      ) VALUES ('d1', 0, 0, 'Kopi', 'incoming');
+      INSERT INTO tx_listings (
+        tx_listing_id, tx_record_id, listing_id, tx_listing_name,
+        tx_listing_price, tx_listing_unit, tx_listing_qty
+      ) VALUES ('tl1', 'd1', 'l1', 'Kopi', 10000, 1, 4);
+      INSERT INTO tx_methods (tx_method_id, tx_record_id, method_id, tx_method_value)
+        VALUES ('tm1', 'd1', 'cash', 40000);
+      INSERT INTO tx_images (tx_image_id, tx_image_order, tx_image_name, tx_image_mime, tx_record_id)
+        VALUES ('ti1', 0, 'photo.png', 'image/png', 'd1');
+    `);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const recordId = yield* tx.submit("d1", { cashier: "Kasir" });
+        const draftId = yield* tx.unsubmit(recordId);
+        const draft = yield* tx.get.byId(draftId);
+        return { recordId, draftId, draft };
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+    expect(outcome.draft.images).toEqual([
+      { id: expect.any(String), order: 0, name: "photo.png", mime: "image/png" },
+    ]);
+    expect(
+      db.query("SELECT tx_image_name FROM tx_images WHERE tx_record_id = ?").get(outcome.draftId),
+    ).toEqual({ tx_image_name: "photo.png" });
+    expect(
+      (db.query("SELECT record_deleted_at FROM records WHERE record_id = ?").get(outcome.recordId) as {
+        record_deleted_at: number | null;
+      }).record_deleted_at,
+    ).not.toBeNull();
   });
 
   test("still commits when the post-commit product refresh fails", async () => {

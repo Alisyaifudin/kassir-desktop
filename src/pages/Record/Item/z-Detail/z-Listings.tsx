@@ -7,7 +7,6 @@ import {
 } from "~/components/ui/table";
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
-import { useUser } from "~/hooks/use-user";
 import type { RecordFull } from "~/services/record";
 import { ListingRow } from "./z-ListingRow";
 
@@ -16,7 +15,6 @@ import { ListingRow } from "./z-ListingRow";
  * it. A purchase (`outcoming`) also shows what the line cost.
  */
 export function Listings({ record }: { record: RecordFull }) {
-  const canLink = useUser().role === "admin";
   // These tables sit in the page's one scroll container; the shared Table box
   // must not cap and scroll on its own, so it sizes to its content instead.
   return (
@@ -41,7 +39,6 @@ export function Listings({ record }: { record: RecordFull }) {
               listing={listing}
               index={index}
               record={record}
-              canLink={canLink}
             />
           )}
         </ForEach>

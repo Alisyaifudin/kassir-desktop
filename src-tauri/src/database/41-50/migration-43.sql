@@ -1,4 +1,25 @@
 -- ============================================================================
+-- migration-43   Combined schema rewrite, backfill, reconciliation and cart
+--                columns.
+-- ============================================================================
+-- This file folds the former 43 (schema), 44 (backfill), 47 (stock journal
+-- reconciliation), 48 (tx listing code), 49 (stored-cart flag) and 50
+-- (customer text / live barcode index) into one migration. Version 46 remains
+-- separate because an already-applied prod database records it by checksum.
+--
+-- The `records` row now carries three dates:
+--   record_created_at  immutable creation time
+--   record_paid_at     settlement time; NULL while a credit is outstanding
+--   record_credit_at   credit date; kept after settlement
+-- The old `record_is_credit` flag is gone.
+-- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- Section from migration-43.sql
+-- ----------------------------------------------------------------------------
+
+-- ============================================================================
 -- migration-43   Schema rewrite: decompose the aggregates, add soft delete.
 -- ============================================================================
 -- The schema half of the reshaping. The data half — moving every row out of the
@@ -312,9 +333,10 @@ CREATE TABLE images (
 -- ----------------------------------------------------------------------------
 CREATE TABLE records (
   record_id             TEXT PRIMARY KEY,
-  record_paid_at        INTEGER NOT NULL,
+  record_created_at     INTEGER NOT NULL,
+  record_paid_at        INTEGER,
   record_rounding       REAL NOT NULL,
-  record_is_credit      INTEGER NOT NULL CHECK (record_is_credit IN (0, 1)),
+  record_credit_at      INTEGER,
   record_cashier        TEXT NOT NULL,
   record_mode           TEXT NOT NULL REFERENCES mode_enum(v),
   record_pay            REAL NOT NULL,
@@ -678,3 +700,353 @@ CREATE TABLE suppliers (
 
 PRAGMA foreign_keys = ON;
 PRAGMA busy_timeout = 30;
+
+-- ----------------------------------------------------------------------------
+-- Section from migration-44.sql
+-- ----------------------------------------------------------------------------
+
+-- ============================================================================
+-- migration-44   Backfill: move the parked rows into the new schema.
+-- ============================================================================
+-- The data half of migration-43. 43 rebuilds the schema and parks every table it
+-- replaces as `<name>_old`; this file moves the rows across, so the two can be
+-- reviewed and retried separately — the DDL does not have to be re-read to check
+-- a copy, and a copy that fails can be re-run without touching the schema.
+--
+-- There is no DDL here: every statement is INSERT ... SELECT. The parked tables
+-- are left in place afterwards (43's ground rule is that nothing is dropped).
+--
+-- `foreign_keys` is turned off for the copy, as in 43. Under sqlx the pragma is a
+-- no-op inside a transaction, so foreign keys stay ON there and the statements
+-- are ordered parent-first to satisfy them either way.
+-- ============================================================================
+
+PRAGMA foreign_keys = OFF;      -- no-op under sqlx; kept so the file also runs in the CLI
+PRAGMA busy_timeout = 30000;
+
+
+-- ============================================================================
+-- BACKFILL from the parked `*_old` tables.
+-- ============================================================================
+-- Why plain SQL works here: every new row maps 1:1 to an old row, so no new
+-- ids have to be minted — we REUSE the old primary keys:
+--   products.product_id -> stocks.stock_id / listings.listing_id
+--   records.record_id   -> record_methods.record_method_id
+--   record_products.record_product_id -> record_listings.record_listing_id
+-- Existing ids are numeric strings (new app rows are ULIDs); both are fine
+-- because ids are just unique text (server bounds them to nonempty/max 100).
+-- A fan-out seed (several listings per product) WOULD need runtime code,
+-- because SQLite cannot generate ULIDs.
+-- ============================================================================
+
+-- 1 products — drop the slimmed-out columns.
+INSERT INTO products (
+  product_id, product_name, product_note, product_updated_at, product_sync_at
+)
+SELECT
+  product_id, product_name, product_note, product_updated_at, product_sync_at
+FROM products_old;
+
+-- 2 stocks — the single existing lot per product. stock_id reuses
+--      product_id so product_events can point at it with a join.
+INSERT INTO stocks (
+  stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at
+)
+SELECT
+  product_id, product_id, product_stock, product_capital,
+  product_updated_at, product_updated_at
+FROM products_old;
+
+-- 3 listings — one default retail / 1-pcs listing per product.
+INSERT INTO listings (
+  listing_id, product_id, listing_name, listing_price, listing_unit,
+  listing_kind, listing_updated_at
+)
+SELECT
+  product_id, product_id, product_name, product_price, 1, 'retail', product_updated_at
+FROM products_old;
+
+-- 4 code — attach the old single barcode to the seed retail listing.
+--      NOTE: do NOT trim() here; the old UNIQUE index compared raw values, so
+--      trimming could collapse ' 123 ' and '123' into a unique-index violation.
+UPDATE listings
+SET listing_code      = (SELECT p.product_barcode FROM products_old p
+                         WHERE p.product_id = listings.product_id),
+    listing_code_kind = 'barcode'
+WHERE EXISTS (
+  SELECT 1 FROM products_old p
+  WHERE p.product_id = listings.product_id
+    AND p.product_barcode IS NOT NULL
+    AND p.product_barcode <> ''
+);
+
+-- 5 product_events — DISCARDED, then rebuilt from the records.
+--      The old journal never recorded which record produced a movement (its
+--      `product_events_old` has no record/line column), so it cannot be
+--      attributed. Instead the new journal is derived from the record lines
+--      after they are copied (step 6b), which gives every event its `record_id`
+--      and lets `record_listings` point at the exact event. `product_events_old`
+--      is left parked for inspection; nothing reads it again.
+
+-- 6 records — drop method_id; rename the mode enum values.
+INSERT INTO records (
+  record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
+  record_cashier, record_mode, record_pay, record_note, record_fix,
+  record_customer_name, record_customer_phone, record_sub_total, record_total,
+  record_updated_at, record_sync_at
+)
+SELECT
+  record_id,
+  COALESCE(record_paid_at, record_updated_at, 0),
+  CASE WHEN record_is_credit = 1 THEN NULL ELSE COALESCE(record_paid_at, record_updated_at, 0) END,
+  record_rounding,
+  CASE WHEN record_is_credit = 1 THEN COALESCE(record_paid_at, record_updated_at, 0) ELSE NULL END,
+  record_cashier,
+  CASE record_mode
+    WHEN 'sell' THEN 'incoming'
+    WHEN 'buy'  THEN 'outcoming'
+    ELSE record_mode
+  END AS record_mode,
+  record_pay, record_note, record_fix, record_customer_name,
+  record_customer_phone, record_sub_total, record_total,
+  record_updated_at, record_sync_at
+FROM records_old;
+
+-- 6b product_events — rebuilt from the record lines. One event per line:
+--      `record_product_id` doubles as the event id, so a line can point at it.
+--      A sale (`sell`) consumes (negative), a purchase (`buy`) receives; the
+--      line's capital snapshot is the lot's capital at that moment. The stock
+--      the old db already carried is reconciled later by migration-47, which
+--      journals the opening balance as one adjustment per lot.
+INSERT INTO product_events (
+  product_event_id, product_event_created_at, product_event_sync_at,
+  product_event_value, product_event_capital, product_event_note,
+  product_id, stock_id, record_id
+)
+SELECT
+  rp.record_product_id,
+  r.record_paid_at,
+  r.record_sync_at,
+  CASE WHEN r.record_mode = 'sell' THEN -rp.record_product_qty
+       ELSE rp.record_product_qty END,
+  rp.record_product_capital_raw,
+  '',
+  po.product_id,
+  po.product_id,               -- the seed lot id is the product id
+  rp.record_id
+FROM record_products_old rp
+JOIN records_old r ON r.record_id = rp.record_id
+JOIN products_old po ON po.product_id = rp.product_id;
+
+-- 7 record_methods — the old single method paid the whole `record_pay`.
+INSERT INTO record_methods (
+  record_method_id, record_id, method_id, record_method_pay
+)
+SELECT
+  record_id, record_id, method_id, record_pay
+FROM records_old;
+
+-- 8 record_listings — from record_products. One old line is one portion and
+--      one group; pre-journal records have no `product_event_id`. `product_id`
+--      used to be stored as the listing link; it is now the product snapshot.
+INSERT INTO record_listings (
+  record_listing_id, record_listing_group_id, record_id, product_event_id,
+  product_id, record_listing_name, record_listing_kind, record_listing_unit,
+  record_listing_price, record_listing_qty, record_listing_capital,
+  record_listing_total
+)
+SELECT
+  rp.record_product_id,
+  rp.record_product_id,          -- one old line is its own group
+  rp.record_id,
+  -- the event rebuilt in step 6b, when the product still had a lot
+  CASE WHEN EXISTS (
+    SELECT 1 FROM product_events pe WHERE pe.product_event_id = rp.record_product_id
+  ) THEN rp.record_product_id ELSE NULL END,
+  rp.product_id,                 -- may be NULL (old ON DELETE SET NULL)
+  rp.record_product_name,
+  'retail',
+  1,                             -- seed listings are 1-pcs
+  rp.record_product_price,
+  rp.record_product_qty,
+  rp.record_product_capital_raw,
+  rp.record_product_total
+FROM record_products_old rp;
+
+-- 9 discounts — record_product_id maps 1:1 to record_listing_id. Each migrated
+--      discount is its own group (there are no per-portion copies yet).
+INSERT INTO discounts (
+  discount_id, discount_group_id, record_listing_id, discount_kind,
+  discount_value, discount_eff
+)
+SELECT
+  discount_id, discount_id, record_product_id, discount_kind, discount_value, discount_eff
+FROM discounts_old;
+
+-- 10 record_extras — 1:1.
+INSERT INTO record_extras (
+  record_extra_id, record_extra_name, record_id,
+  record_extra_value, record_extra_eff, record_extra_kind
+)
+SELECT
+  record_extra_id, record_extra_name, record_id,
+  record_extra_value, record_extra_eff, record_extra_kind
+FROM record_extras_old;
+
+-- 11 images — 1:1.
+INSERT INTO images (
+  image_id, image_order, image_name, image_mime, product_id,
+  image_updated_at, image_sync_at
+)
+SELECT
+  image_id, image_order, image_name, image_mime, product_id,
+  image_updated_at, image_sync_at
+FROM images_old;
+
+-- 12 Pending product tombstones -> soft-deleted stub rows.
+--
+--      !! record tombstones are CORRUPTED and deliberately NOT migrated !! --
+--      src/database/record/del-by-id.ts wrote a literal `2` as grave_item_id
+--      (a missing `$` in the VALUES template), so all 173 record graves point
+--      at the live record '2'. The real ids are unrecoverable. Creating stubs
+--      from them would soft-delete a real record, so they are skipped;
+--      `graves_old` is retained for inspection. Product graves are valid and
+--      are re-materialized as soft-deleted stubs below. The money-kind, `money`
+--      and `extra` tombstones were never synced server-side; left alone.
+INSERT INTO products (
+  product_id, product_name, product_note, product_updated_at, product_sync_at,
+  product_deleted_at
+)
+SELECT
+  g.grave_item_id, '', '', MIN(g.grave_timestamp), NULL, MIN(g.grave_timestamp)
+FROM graves_old g
+WHERE g.grave_kind = 'product'
+  AND NOT EXISTS (SELECT 1 FROM products p WHERE p.product_id = g.grave_item_id)
+GROUP BY g.grave_item_id;
+
+-- 13 Force the new aggregates to re-push (the server has never seen
+--       stocks/listings/record_methods/record_listings).
+--       COMMENTED OUT until the server contract accepts the nested payload —
+--       pushing the new shape early will be rejected.
+-- UPDATE products SET product_sync_at = NULL;
+-- UPDATE records  SET record_sync_at  = NULL;
+
+
+
+
+-- ============================================================================
+
+PRAGMA foreign_keys = ON;
+PRAGMA busy_timeout = 30;
+
+-- ----------------------------------------------------------------------------
+-- Section from migration-47.sql
+-- ----------------------------------------------------------------------------
+
+-- ============================================================================
+-- migration-47   Reconcile the stock journal with the cached lot value.
+-- ============================================================================
+-- migration-44 seeds one lot per product from the old `product_stock` and
+-- repoints the old `product_events` at it. The lot is what the app reads as
+-- stock; the events are the append-only journal. They agree only when every
+-- movement was logged, which the old data predates: the opening stock lived in
+-- `product_stock`, not in an event.
+--
+-- For each lot, compare the cached `stock_value` with the sum of its events and
+-- journal the difference as one final, signed adjustment. The lot is left as it
+-- is -- it is the figure the shop counted -- so the journal is what gets
+-- corrected. A second run would find no difference and insert nothing.
+--
+-- The id is a random 128-bit hex rather than the app's ULID (SQL cannot mint
+-- one); ids are opaque text everywhere, so that is fine.
+-- ============================================================================
+
+-- Read the gaps into a table first: SQLite does not guarantee the order while
+-- inserting into a table a SELECT is already reading, and a later lot's gap
+-- must not be computed from an earlier lot's adjustment.
+CREATE TEMP TABLE _stock_reconcile AS
+SELECT
+  s.stock_id,
+  s.product_id,
+  s.stock_value,
+  s.stock_capital,
+  s.stock_value - COALESCE(SUM(e.product_event_value), 0) AS gap,
+  COALESCE(MAX(e.product_event_created_at), 0) AS last_event_at
+FROM stocks s
+JOIN products p ON p.product_id = s.product_id
+LEFT JOIN product_events e ON e.stock_id = s.stock_id
+WHERE p.product_deleted_at IS NULL
+GROUP BY s.stock_id
+HAVING s.stock_value - COALESCE(SUM(e.product_event_value), 0) <> 0;
+
+INSERT INTO product_events (
+  product_event_id,
+  product_event_created_at,
+  product_event_sync_at,
+  product_event_value,
+  product_event_capital,
+  product_event_note,
+  product_id,
+  stock_id,
+  record_id
+)
+SELECT
+  lower(hex(randomblob(16))),
+  -- the final event: never before the lot's last one, even with clock skew
+  MAX(CAST(strftime('%s', 'now') AS INTEGER) * 1000, last_event_at + 1),
+  NULL,                       -- a new local event, like every other movement
+  gap,
+  stock_capital,
+  'Kalkulasi ulang',
+  product_id,
+  stock_id,
+  NULL                        -- no record produced it
+FROM _stock_reconcile;
+
+DROP TABLE _stock_reconcile;
+
+-- ----------------------------------------------------------------------------
+-- Section from migration-48.sql
+-- ----------------------------------------------------------------------------
+
+-- Persist the code snapshot the draft's listing grid shows. `tx_listings`
+-- already snapshots name/price/unit/qty; the code is the one editable field
+-- that had nowhere to go.
+ALTER TABLE tx_listings ADD COLUMN tx_listing_code TEXT NOT NULL DEFAULT '';
+
+-- ----------------------------------------------------------------------------
+-- Section from migration-49.sql
+-- ----------------------------------------------------------------------------
+
+-- Bit 0 used to mark the open draft; it now marks a stored (pending) cart.
+-- Clear the legacy meaning so old drafts do not load as parked carts; the
+-- active tab now comes from the URL or the first open draft.
+UPDATE tx_records SET tx_record_flag = tx_record_flag & ~1;
+
+-- ----------------------------------------------------------------------------
+-- Section from migration-50.sql
+-- ----------------------------------------------------------------------------
+
+-- ============================================================================
+-- migration-50   Columns and index for committing a live cart.
+-- ============================================================================
+-- `tx_records` keeps the pending new-customer and new-supplier text, so closing
+-- the options/info dialog no longer loses a typed name before submit.
+ALTER TABLE tx_records ADD COLUMN tx_record_customer_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE tx_records ADD COLUMN tx_record_customer_phone TEXT NOT NULL DEFAULT '';
+ALTER TABLE tx_records ADD COLUMN tx_record_supplier_name TEXT NOT NULL DEFAULT '';
+
+-- A purchase keeps the supplier id for a live link and a name snapshot so the
+-- record still reads correctly after the supplier is renamed or soft-deleted.
+ALTER TABLE records ADD COLUMN record_supplier_id TEXT REFERENCES suppliers(supplier_id) ON DELETE SET NULL;
+ALTER TABLE records ADD COLUMN record_supplier_name TEXT NOT NULL DEFAULT '';
+
+-- A code always has a kind; the old product-level barcode had none. Drop the
+-- old unique index first so the backfill cannot trip it.
+DROP INDEX IF EXISTS listing_barcode_unique;
+UPDATE listings SET listing_code_kind = 'barcode'
+WHERE listing_code IS NOT NULL AND listing_code_kind IS NULL;
+
+-- Only a *live* barcode is unique: a soft-deleted listing's code may be reused.
+CREATE UNIQUE INDEX listing_barcode_unique ON listings (listing_code)
+  WHERE listing_code_kind = 'barcode' AND listing_deleted_at IS NULL;

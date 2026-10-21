@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { allocateFifo, depleteLots, drainStatements, type StockLot } from "./stock-sql";
+import {
+  allocateFifo,
+  depleteLots,
+  drainStatements,
+  receiveAtCapital,
+  type StockLot,
+} from "./stock-sql";
 
 const lots: StockLot[] = [
   { id: "old", value: 3, capital: 100 },
@@ -85,5 +91,82 @@ describe("drainStatements", () => {
     expect(result.statements).toEqual([]);
     expect(result.portions).toEqual([]);
     expect(result.shortage).toBe(0);
+  });
+});
+
+
+describe("receiveAtCapital", () => {
+  const matchingLots: StockLot[] = [
+    { id: "old", value: 2, capital: 1000 },
+    { id: "empty", value: 0, capital: 1000 },
+    { id: "new", value: 5, capital: 1000 },
+  ];
+
+  test("opens a new lot when no capital matches", () => {
+    const result = receiveAtCapital(
+      "p",
+      [{ id: "old", value: 2, capital: 1000 }],
+      { pcs: 4, capital: 1200 },
+      10,
+      2,
+      "r1",
+    );
+    expect(result.lots.map((lot) => lot.value)).toEqual([2, 4]);
+    expect(result.lots[1].capital).toBe(1200);
+    expect(result.capital).toBe(1200);
+    expect(result.statements.filter((s) => s.sql.includes("INSERT INTO product_events"))).toHaveLength(1);
+  });
+
+  test("points at an existing matching lot and keeps its exact capital", () => {
+    const result = receiveAtCapital(
+      "p",
+      [{ id: "old", value: 2, capital: 1000 }],
+      { pcs: 4, capital: 1000.004 },
+      10,
+      2,
+      "r1",
+    );
+    expect(result.stockId).toBe("old");
+    expect(result.capital).toBe(1000);
+    expect(result.lots[0].value).toBe(6);
+    expect(result.statements.filter((s) => s.sql.includes("INSERT INTO product_events"))).toHaveLength(1);
+  });
+
+  test("combines every matching lot into the oldest one", () => {
+    const result = receiveAtCapital("p", matchingLots, { pcs: 4, capital: 1000 }, 10, 2, "r1");
+    expect(result.stockId).toBe("old");
+    expect(result.lots.map((lot) => lot.value)).toEqual([11, 0, 0]);
+    // one non-empty transfer × two journal rows, plus the purchase event
+    expect(result.statements.filter((s) => s.sql.includes("INSERT INTO product_events"))).toHaveLength(3);
+  });
+
+  test("reuses a matching lot even when its cached value is negative", () => {
+    const result = receiveAtCapital(
+      "p",
+      [{ id: "negative", value: -2, capital: 1000 }],
+      { pcs: 4, capital: 1000 },
+      10,
+      2,
+      "r1",
+    );
+    expect(result.stockId).toBe("negative");
+    expect(result.lots[0].value).toBe(2);
+    expect(result.statements.filter((s) => s.sql.includes("INSERT INTO product_events"))).toHaveLength(1);
+  });
+
+  test("treats capitals equal at the record's fix as the same lot", () => {
+    const result = receiveAtCapital(
+      "p",
+      [
+        { id: "a", value: 1, capital: 1000.004 },
+        { id: "b", value: 2, capital: 1000.001 },
+      ],
+      { pcs: 1, capital: 1000.002 },
+      10,
+      2,
+      "r1",
+    );
+    expect(result.stockId).toBe("a");
+    expect(result.lots.map((lot) => lot.value)).toEqual([4, 0]);
   });
 });

@@ -43,7 +43,7 @@ export function Body({
       <div className="border pt-5">
         <div id="print-container" className="flex flex-col gap-2 px-2 pb-5">
           <Header
-            paidAt={record.paidAt}
+            paidAt={record.date}
             address={info.address}
             cashier={record.cashier}
             headers={headers}
@@ -64,8 +64,9 @@ export function Body({
             totalQty={totalQty}
             footers={footers}
             socials={socials}
-            methods={record.methods}
+            methods={record.isCredit ? [] : record.methods}
             customer={record.customer}
+            supplier={record.supplier.name}
           />
         </div>
       </div>

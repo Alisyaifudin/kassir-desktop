@@ -8,7 +8,9 @@ import { useChangePaidAt } from "./use-change-paid-at";
 /** When the record was paid, edited in place. Admin-only, like the record's day. */
 export function PaidAt({ record }: { record: RecordFull }) {
   const { loading, error, change } = useChangePaidAt(record.id);
-  const day = getDayName(record.paidAt);
+  const paidAt = record.paidAt;
+  if (paidAt === null) return null;
+  const day = getDayName(paidAt);
 
   return (
     <div className="flex gap-1 flex-col justify-end">
@@ -16,11 +18,11 @@ export function PaidAt({ record }: { record: RecordFull }) {
         <Spinner when={loading} />
         <Calendar
           className="w-fit small:w-fit"
-          time={record.paidAt}
+          time={paidAt}
           setTime={change}
         >
           <p>
-            {formatTime(record.paidAt, "long")} {day}, {formatDate(record.paidAt, "long")}
+            Dibayar: {formatTime(paidAt, "long")} {day}, {formatDate(paidAt, "long")}
           </p>
         </Calendar>
       </div>

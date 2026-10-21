@@ -28,15 +28,17 @@ export function Summary({ record }: { record: RecordFull }) {
           <p className="text-end">Rp{record.grandTotal.toLocaleString("id-ID")}</p>
         </div>
         <hr className="h-2 bg-transparent border-t-2 border-dashed border-black w-full" />
-        <div className="grid grid-cols-[100px_120px]">
-          <p>Pembayaran</p>
-          <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
-        </div>
-        <Show when={record.change !== 0}>
+        <Show when={!record.isCredit}>
           <div className="grid grid-cols-[100px_120px]">
-            <p>Kembalian</p>
-            <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
+            <p>Pembayaran</p>
+            <p className="text-end">Rp{record.pay.toLocaleString("id-ID")}</p>
           </div>
+          <Show when={record.change !== 0}>
+            <div className="grid grid-cols-[100px_120px]">
+              <p>Kembalian</p>
+              <p className="text-end">Rp{record.change.toLocaleString("id-ID")}</p>
+            </div>
+          </Show>
         </Show>
       </div>
     </div>

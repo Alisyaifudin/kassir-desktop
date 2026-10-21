@@ -16,7 +16,10 @@ const discount = (kind: DiscountKind, value: number, eff: number) => ({
 export const mockData: Omit<ReceiptData, "info"> = {
   record: {
     id: "123456",
+    createdAt: 0,
+    date: 0,
     paidAt: 0,
+    creditAt: null,
     rounding: 10,
     isCredit: false,
     cashier: "Budi",
@@ -25,6 +28,7 @@ export const mockData: Omit<ReceiptData, "info"> = {
     note: "Contoh catatan struk",
     fix: 0,
     customer: { name: "Andi", phone: "081234567890" },
+    supplier: { id: null, name: "" },
     subTotal: 10000,
     total: 12_000_000,
     grandTotal: 12_000_010,

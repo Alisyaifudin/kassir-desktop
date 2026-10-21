@@ -191,6 +191,110 @@ export function consumeStatements(
   return { statements, shortage, portions };
 }
 
+
+/**
+ * Receive a purchase quantity at `capital` per pc. If a lot already carries the
+ * same capital (at the record's precision), the purchase points at it instead of
+ * opening a duplicate lot. When several lots match, the newest stock is moved
+ * into the oldest with their own journal events, so the chosen lot ends up
+ * holding the combined quantity.
+ */
+export function receiveAtCapital(
+  productId: string,
+  lots: readonly StockLot[],
+  input: { pcs: number; capital: number },
+  now: number,
+  fix: number,
+  recordId: string | null = null,
+): {
+  statements: Statement[];
+  eventId: string;
+  stockId: string;
+  lots: StockLot[];
+  capital: number;
+} {
+  const digits = Number.isInteger(fix) && fix >= 0 && fix <= 100 ? fix : 0;
+  const same = (a: number, b: number) => Number(a.toFixed(digits)) === Number(b.toFixed(digits));
+  const matching = lots.filter((lot) => same(lot.capital, input.capital));
+
+  if (matching.length === 0) {
+    const received = receivePortion(
+      productId,
+      { value: input.pcs, capital: input.capital },
+      now,
+      recordId,
+    );
+    return {
+      statements: received.statements,
+      eventId: received.eventId,
+      stockId: received.stockId,
+      lots: [...lots, { id: received.stockId, value: input.pcs, capital: input.capital }],
+      capital: input.capital,
+    };
+  }
+
+  const nextLots = lots.map((lot) => ({ ...lot }));
+  const target = nextLots.find((lot) => lot.id === matching[0].id)!;
+  const statements: Statement[] = [];
+
+  // Newest matching stock moves into the oldest matching lot. Two rows per
+  // transfer keep both lots' journals honest; these are stock-only movements,
+  // so they deliberately carry no record id.
+  for (let index = matching.length - 1; index >= 1; index--) {
+    const source = nextLots.find((lot) => lot.id === matching[index].id)!;
+    if (source.value === 0) continue;
+    statements.push(
+      {
+        sql: "UPDATE stocks SET stock_value = 0, stock_updated_at = $1 WHERE stock_id = $2",
+        bindings: [now, source.id],
+      },
+      insertEvent(
+        generateId(),
+        productId,
+        source.id,
+        -source.value,
+        source.capital,
+        now,
+        "Konsolidasi modal",
+      ),
+      insertEvent(
+        generateId(),
+        productId,
+        target.id,
+        source.value,
+        target.capital,
+        now,
+        "Konsolidasi modal",
+      ),
+      {
+        sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
+        bindings: [source.value, now, target.id],
+      },
+    );
+    target.value += source.value;
+    source.value = 0;
+  }
+
+  const eventId = generateId();
+  statements.push(
+    {
+      sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
+      bindings: [input.pcs, now, target.id],
+    },
+    insertEvent(eventId, productId, target.id, input.pcs, target.capital, now, "", recordId),
+    touchProduct(productId, now),
+  );
+  target.value += input.pcs;
+
+  return {
+    statements,
+    eventId,
+    stockId: target.id,
+    lots: nextLots,
+    capital: target.capital,
+  };
+}
+
 /** Manual correction of a lot; a capital-only change is a delta-0 event. */
 export function adjustStatements(
   productId: string,

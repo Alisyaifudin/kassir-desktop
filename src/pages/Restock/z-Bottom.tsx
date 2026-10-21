@@ -21,6 +21,7 @@ export function Bottom({
   focusPay,
   onFocusRounding,
   onExitUp,
+  onSubmit,
 }: {
   stage: Stage;
   onChange: (stage: Stage) => void;
@@ -34,6 +35,8 @@ export function Bottom({
   onFocusRounding: () => void;
   /** Bayar pressed Up: leave the payment grid for the goods. */
   onExitUp: () => void;
+  /** Starts the commit; false while the purchase cannot be paid. */
+  onSubmit: () => boolean;
 }) {
   const payRef = useRef<HTMLButtonElement>(null);
   const seenFocusPay = useRef(focusPay);
@@ -83,10 +86,7 @@ export function Bottom({
               onExitUp();
             }
           }}
-          onClick={() => {
-            // TODO(submit): write the draft into `records` (stock, payments,
-            // rounding), then delete its `tx_records` row.
-          }}
+          onClick={() => onSubmit()}
         >
           Bayar
         </Button>

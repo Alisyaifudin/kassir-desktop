@@ -10,6 +10,7 @@ export function Footer({
   totalQty,
   methods,
   customer,
+  supplier,
 }: {
   footers: string[];
   socials: Social[];
@@ -17,6 +18,7 @@ export function Footer({
   totalQty: number;
   methods: RecordMethod[];
   customer: { name: string; phone: string };
+  supplier: string;
 }) {
   const phone = "xxxxxxx" + customer.phone.slice(-5, -1);
   const methodText = methods
@@ -29,6 +31,9 @@ export function Footer({
         <p>{totalProductTypes} Jenis/{totalQty} pcs</p>
         <p>{methodText}</p>
       </div>
+      <Show when={supplier.trim() !== ""}>
+        <p>Pemasok: {supplier}</p>
+      </Show>
       <Show when={customer.name !== "" && customer.phone !== ""}>
         <p>
           Pelanggan: {customer.name} ({phone})

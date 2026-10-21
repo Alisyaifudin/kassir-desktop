@@ -49,6 +49,7 @@ type RecordRow = {
   tx_record_customer_name: string;
   tx_record_customer_phone: string;
   tx_record_supplier_id: string | null;
+  tx_record_supplier_name: string;
 };
 
 type MethodRow = {
@@ -97,7 +98,7 @@ const SELECT_RECORDS = `
   SELECT tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
          tx_record_mode, tx_record_fix, tx_record_note, tx_record_rounding,
          tx_record_customer_id, tx_record_customer_name, tx_record_customer_phone,
-         tx_record_supplier_id
+         tx_record_supplier_id, tx_record_supplier_name
   FROM tx_records
   ORDER BY tx_record_order`;
 
@@ -150,6 +151,7 @@ function rowToDraft(
     customerName: row.tx_record_customer_name,
     customerPhone: row.tx_record_customer_phone,
     supplierId: row.tx_record_supplier_id,
+    supplierName: row.tx_record_supplier_name,
     listings,
     extras,
     methods,
@@ -165,8 +167,8 @@ function statementsFor(draft: Draft): Statement[] {
           tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
           tx_record_mode, tx_record_query, tx_record_fix, tx_record_note,
           tx_record_rounding, tx_record_customer_id, tx_record_customer_name,
-          tx_record_customer_phone, tx_record_supplier_id
-        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12)
+          tx_record_customer_phone, tx_record_supplier_id, tx_record_supplier_name
+        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13)
         ON CONFLICT(tx_record_id) DO UPDATE SET
           tx_record_order = excluded.tx_record_order,
           tx_record_flag = excluded.tx_record_flag,
@@ -178,7 +180,8 @@ function statementsFor(draft: Draft): Statement[] {
           tx_record_customer_id = excluded.tx_record_customer_id,
           tx_record_customer_name = excluded.tx_record_customer_name,
           tx_record_customer_phone = excluded.tx_record_customer_phone,
-          tx_record_supplier_id = excluded.tx_record_supplier_id`,
+          tx_record_supplier_id = excluded.tx_record_supplier_id,
+          tx_record_supplier_name = excluded.tx_record_supplier_name`,
       bindings: [
         draft.id,
         draft.order,
@@ -192,6 +195,7 @@ function statementsFor(draft: Draft): Statement[] {
         draft.customerName,
         draft.customerPhone,
         draft.supplierId,
+        draft.supplierName,
       ],
     },
     { sql: `DELETE FROM tx_listings WHERE tx_record_id = $1`, bindings: [draft.id] },
@@ -436,12 +440,6 @@ export const TransactionLive = Layer.effect(
               }),
             );
           }
-          if (draft.mode !== "incoming") {
-            return yield* Effect.fail(
-              new SubmitError({ kind: "outcoming", message: "Mode pembelian belum didukung" }),
-            );
-          }
-
           const lines = draft.listings.filter((line) => line.qty > 0);
           if (lines.length === 0) {
             return yield* Effect.fail(
@@ -462,6 +460,14 @@ export const TransactionLive = Layer.effect(
                 new SubmitError({
                   kind: "code",
                   message: `Satuan ${line.name || "barang"} tidak valid`,
+                }),
+              );
+            }
+            if (!Number.isFinite(line.price) || line.price < 0) {
+              return yield* Effect.fail(
+                new SubmitError({
+                  kind: "price",
+                  message: `Harga ${line.name || "barang"} tidak valid`,
                 }),
               );
             }
@@ -506,7 +512,7 @@ export const TransactionLive = Layer.effect(
             paidAt: Date.now(),
             rounding: draft.rounding,
             cashier: input.cashier,
-            mode: "incoming",
+            mode: draft.mode,
             pay: pay.toNumber(),
             note: draft.note,
             fix: draft.fix,
@@ -514,6 +520,10 @@ export const TransactionLive = Layer.effect(
               id: draft.customerId,
               name: draft.customerName,
               phone: draft.customerPhone,
+            },
+            supplier: {
+              id: draft.supplierId,
+              name: draft.supplierName,
             },
             subTotal: subtotal.toNumber(),
             total: total.toNumber(),
@@ -656,6 +666,19 @@ export const TransactionLive = Layer.effect(
             customerId = rows[0]?.customer_id ?? null;
           }
 
+          const imageRows = yield* db
+            .selectMany<{
+              record_image_id: string;
+              record_image_order: number;
+              record_image_name: string;
+              record_image_mime: DraftImageMime;
+            }>(
+              `SELECT record_image_id, record_image_order, record_image_name, record_image_mime
+               FROM record_images WHERE record_id = $1 ORDER BY record_image_order`,
+              [recordId],
+            )
+            .pipe(Effect.mapError(toError));
+
           const draft: Draft = {
             id: generateId(),
             order,
@@ -667,7 +690,8 @@ export const TransactionLive = Layer.effect(
             customerId,
             customerName: customerId === null ? saved.customer.name : "",
             customerPhone: customerId === null ? saved.customer.phone : "",
-            supplierId: null,
+            supplierId: saved.supplier.id,
+            supplierName: saved.supplier.id === null ? saved.supplier.name : "",
             rounding: saved.rounding,
             listings,
             extras: saved.extras.map((extra) => ({
@@ -681,7 +705,12 @@ export const TransactionLive = Layer.effect(
               methodId: method.methodId,
               value: method.pay,
             })),
-            images: [],
+            images: imageRows.map((image) => ({
+              id: image.record_image_id,
+              order: image.record_image_order,
+              name: image.record_image_name,
+              mime: image.record_image_mime,
+            })),
           };
 
           // Persist the restored cart first, then undo the record. If the second
@@ -726,6 +755,7 @@ export const TransactionLive = Layer.effect(
               customerName: "",
               customerPhone: "",
               supplierId: null,
+              supplierName: "",
               rounding: 0,
               listings: [],
               extras: [],
@@ -787,6 +817,9 @@ export const TransactionLive = Layer.effect(
         },
         supplier(id, supplierId) {
           return update(id, (draft) => ({ ...draft, supplierId }));
+        },
+        supplierName(id, supplierName) {
+          return update(id, (draft) => ({ ...draft, supplierName }));
         },
         rounding(id, rounding) {
           return update(id, (draft) => ({ ...draft, rounding }));

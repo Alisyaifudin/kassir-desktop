@@ -19,6 +19,7 @@ const recordSchema = `{
     note: string;
     fix: number;
     customer: { name: string; phone: string };
+    supplier?: { id: string | null; name: string };
     subTotal: number;
     total: number;
     methods: { methodId: string; pay: number }[];

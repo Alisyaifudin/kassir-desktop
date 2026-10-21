@@ -10,7 +10,7 @@ import { messageOf, saveJson } from "./util-file";
 /** A record as the upload accepts it: the same shape `record.add.external` takes. */
 function toRecordImport(record: RecordFull): RecordImport {
   return {
-    paidAt: record.paidAt,
+    paidAt: record.paidAt ?? record.creditAt ?? record.createdAt,
     rounding: record.rounding,
     isCredit: record.isCredit,
     cashier: record.cashier,
@@ -19,6 +19,7 @@ function toRecordImport(record: RecordFull): RecordImport {
     note: record.note,
     fix: record.fix,
     customer: { name: record.customer.name, phone: record.customer.phone },
+    supplier: { id: record.supplier.id, name: record.supplier.name },
     subTotal: record.subTotal,
     total: record.total,
     methods: record.methods.map(({ methodId, pay }) => ({ methodId, pay })),

@@ -27,12 +27,15 @@ import {
   consumeStatements,
   depleteLots,
   drainStatements,
+  receiveAtCapital,
   receivePortion,
   receiveStatements,
   touchProduct,
   type StockLot,
 } from "../product/stock-sql";
 import { generateId } from "~/lib/random";
+import { roundMoney } from "~/lib/purchase";
+import { allocateCapital } from "./capital";
 
 type SummaryRow = {
   mode: RecordMode;
@@ -42,7 +45,7 @@ type SummaryRow = {
 
 type DebtRow = {
   record_id: string;
-  record_paid_at: number;
+  record_credit_at: number;
   record_note: string;
   record_fix: number;
   record_total: number;
@@ -50,9 +53,10 @@ type DebtRow = {
 
 type RecordRow = {
   record_id: string;
-  record_paid_at: number;
+  record_created_at: number;
+  record_paid_at: number | null;
   record_rounding: number;
-  record_is_credit: number;
+  record_credit_at: number | null;
   record_cashier: string;
   record_mode: RecordMode;
   record_pay: number;
@@ -60,6 +64,8 @@ type RecordRow = {
   record_fix: number;
   record_customer_name: string;
   record_customer_phone: string;
+  record_supplier_id: string | null;
+  record_supplier_name: string;
   record_sub_total: number;
   record_total: number;
   record_updated_at: number;
@@ -138,6 +144,11 @@ type CustomerRow = {
   customer_phone: string;
 };
 
+type SupplierRow = {
+  supplier_id: string;
+  supplier_name: string;
+};
+
 type ListingLinkRow = {
   listing_id: string;
   product_id: string;
@@ -146,15 +157,17 @@ type ListingLinkRow = {
 
 /** The fields `insertRecordStatement` needs; `RecordImport` is a superset. */
 type RecordHeader = {
-  paidAt: number;
+  createdAt: number;
+  paidAt: number | null;
+  creditAt: number | null;
   rounding: number;
-  isCredit: boolean;
   cashier: string;
   mode: RecordMode;
   pay: number;
   note: string;
   fix: number;
   customer: { name: string; phone: string };
+  supplier: { id: string | null; name: string };
   subTotal: number;
   total: number;
 };
@@ -208,6 +221,8 @@ type TouchedLot = {
 // query Effects plus a `revision` counter instead of a full-list `SubscriptionRef`.
 // `ROUND(…, record_fix)` reproduces the per-record precision the legacy
 // `count.total` applied before summing.
+const RECORD_DATE = "COALESCE(record_paid_at, record_credit_at, record_created_at)";
+
 const SELECT_SUMMARY = `
   SELECT
     record_mode AS mode,
@@ -215,13 +230,14 @@ const SELECT_SUMMARY = `
     SUM(ROUND(record_total + record_rounding, record_fix)) AS total
   FROM records
   WHERE record_deleted_at IS NULL
-    AND record_paid_at >= $1 AND record_paid_at < $2
+    AND ${RECORD_DATE} >= $1 AND ${RECORD_DATE} < $2
   GROUP BY record_mode`;
 
 const RECORD_COLUMNS = `
-  record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
-  record_mode, record_pay, record_note, record_fix, record_customer_name,
-  record_customer_phone, record_sub_total, record_total, record_updated_at,
+  record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
+  record_cashier, record_mode, record_pay, record_note, record_fix,
+  record_customer_name, record_customer_phone, record_supplier_id,
+  record_supplier_name, record_sub_total, record_total, record_updated_at,
   record_sync_at, record_deleted_at`;
 
 // `record_listings` has no ordering column; SQLite's implicit rowid order is
@@ -266,17 +282,20 @@ const SELECT_METHODS_FOR = (placeholders: string) => `
 // Without it the page would have to re-ask for the count on every fetch.
 const SELECT_LISTING_HISTORY = `
   SELECT
-    r.record_id, r.record_paid_at, r.record_mode,
+    r.record_id,
+    COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at) AS record_paid_at,
+    r.record_mode,
     rl.record_listing_id, rl.record_listing_name, rl.record_listing_price,
     rl.record_listing_qty,
     COUNT(*) OVER () AS total_count
   FROM record_listings rl
   JOIN records r ON r.record_id = rl.record_id
   WHERE r.record_deleted_at IS NULL
-    AND r.record_paid_at >= $1 AND r.record_paid_at < $2
+    AND COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at) >= $1
+    AND COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at) < $2
     AND r.record_mode = $3
     AND rl.record_listing_name LIKE $4 ESCAPE '\\'
-  ORDER BY r.record_paid_at DESC
+  ORDER BY COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at) DESC
   LIMIT $5`;
 
 function dbErrorToRecordError(error: DbError): RecordError {
@@ -299,15 +318,22 @@ function rowToRecord(row: RecordRow, methods: RecordMethod[]): Record {
   const grandTotal = roundToFix(row.record_total + row.record_rounding, row.record_fix);
   return {
     id: row.record_id,
+    createdAt: row.record_created_at,
+    date: row.record_paid_at ?? row.record_credit_at ?? row.record_created_at,
     paidAt: row.record_paid_at,
+    creditAt: row.record_credit_at,
     rounding: row.record_rounding,
-    isCredit: row.record_is_credit === 1,
+    isCredit: row.record_paid_at === null && row.record_credit_at !== null,
     cashier: row.record_cashier,
     mode: row.record_mode,
     pay: row.record_pay,
     note: row.record_note,
     fix: row.record_fix,
     customer: { name: row.record_customer_name, phone: row.record_customer_phone },
+    supplier: {
+      id: row.record_supplier_id,
+      name: row.record_supplier_name,
+    },
     subTotal: roundToFix(row.record_sub_total, row.record_fix),
     total: roundToFix(row.record_total, row.record_fix),
     grandTotal,
@@ -332,22 +358,24 @@ function insertMethod(recordId: string, methodId: string, pay: number): Statemen
   };
 }
 
-// The lines a mode flip has to move: only those pointing at a catalog listing
-// have stock behind them. `listing_unit` converts the line's qty into base pcs,
-// which is the unit `stocks` counts in.
+// The lines a delete has to compensate for: only those pointing at a catalog
+// listing have stock behind them. `listing_unit` converts the line's qty into
+// base pcs, which is the unit `stocks` counts in.
 const SELECT_MOVES = `
   SELECT rl.record_listing_name, rl.record_listing_qty, rl.record_listing_capital,
          rl.product_id, rl.record_listing_unit AS listing_unit
   FROM record_listings rl
   WHERE rl.record_id = $1 AND rl.product_id IS NOT NULL`;
 
-// A credit record is outstanding until `payCredit` clears its flag, so this is
-// the debt list. Legacy phrasing kept `record_total`, which is what is owed.
+// A credit record is outstanding until it gets a paid_at, so this is the debt
+// list. Legacy phrasing kept `record_total`, which is what is owed.
 const SELECT_DEBT = `
-  SELECT record_id, record_paid_at, record_note, record_fix, record_total
+  SELECT record_id, record_credit_at, record_note, record_fix, record_total
   FROM records
-  WHERE record_is_credit = 1 AND record_deleted_at IS NULL
-  ORDER BY record_paid_at DESC`;
+  WHERE record_credit_at IS NOT NULL
+    AND record_paid_at IS NULL
+    AND record_deleted_at IS NULL
+  ORDER BY record_credit_at DESC`;
 
 const SELECT_LOTS = `
   SELECT stock_id, stock_value, stock_capital
@@ -376,7 +404,7 @@ const SELECT_TOUCHED_LOTS = `
 
 // Which products this record's movement is journaled against. A line whose
 // product is missing from this set predates the journal and carries its movement
-// baked into the aggregate instead — see `set.mode`.
+// baked into the aggregate instead — see `delete`.
 const SELECT_JOURNALED_PRODUCTS = `
   SELECT DISTINCT product_id FROM product_events WHERE record_id = $1`;
 
@@ -390,16 +418,18 @@ const SELECT_LISTING_LINK = `
 function insertRecordStatement(id: string, input: RecordHeader, now: number): Statement {
   return {
     sql: `INSERT INTO records (
-        record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
-        record_mode, record_pay, record_note, record_fix, record_customer_name,
-        record_customer_phone, record_sub_total, record_total, record_updated_at,
-        record_sync_at, record_deleted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULL, NULL)`,
+        record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
+        record_cashier, record_mode, record_pay, record_note, record_fix,
+        record_customer_name, record_customer_phone, record_supplier_id,
+        record_supplier_name, record_sub_total, record_total,
+        record_updated_at, record_sync_at, record_deleted_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NULL, NULL)`,
     bindings: [
       id,
+      input.createdAt,
       input.paidAt,
       input.rounding,
-      input.isCredit ? 1 : 0,
+      input.creditAt,
       input.cashier,
       input.mode,
       input.pay,
@@ -407,6 +437,8 @@ function insertRecordStatement(id: string, input: RecordHeader, now: number): St
       input.fix,
       input.customer.name,
       input.customer.phone,
+      input.supplier.id,
+      input.supplier.name,
       input.subTotal,
       input.total,
       now,
@@ -579,7 +611,8 @@ export const RecordLive = Layer.effect(
           rows.map(
             (row): DebtRecord => ({
               id: row.record_id,
-              paidAt: row.record_paid_at,
+              paidAt: row.record_credit_at,
+              creditAt: row.record_credit_at,
               note: row.record_note,
               fix: row.record_fix,
               total: row.record_total,
@@ -600,7 +633,7 @@ export const RecordLive = Layer.effect(
         let sql = `
           SELECT ${RECORD_COLUMNS} FROM records
           WHERE record_deleted_at IS NULL
-            AND record_paid_at >= $1 AND record_paid_at < $2`;
+            AND ${RECORD_DATE} >= $1 AND ${RECORD_DATE} < $2`;
         if (trimmed !== "") {
           bindings.push(`%${escapeLike(trimmed)}%`);
           sql += `
@@ -610,7 +643,7 @@ export const RecordLive = Layer.effect(
                 AND rl.record_listing_name LIKE $3 ESCAPE '\\'
             )`;
         }
-        sql += " ORDER BY record_paid_at ASC";
+        sql += ` ORDER BY ${RECORD_DATE} ASC`;
 
         const rows = yield* db
           .selectMany<RecordRow>(sql, bindings)
@@ -848,7 +881,27 @@ export const RecordLive = Layer.effect(
           return Effect.gen(function* () {
             const recordId = generateId();
             const now = Date.now();
-            const statements: Statement[] = [insertRecordStatement(recordId, input, now)];
+            const statements: Statement[] = [
+              insertRecordStatement(
+                recordId,
+                {
+                  createdAt: input.paidAt,
+                  paidAt: input.isCredit ? null : input.paidAt,
+                  creditAt: input.isCredit ? input.paidAt : null,
+                  rounding: input.rounding,
+                  cashier: input.cashier,
+                  mode: input.mode,
+                  pay: input.pay,
+                  note: input.note,
+                  fix: input.fix,
+                  customer: input.customer,
+                  supplier: input.supplier ?? { id: null, name: "" },
+                  subTotal: input.subTotal,
+                  total: input.total,
+                },
+                now,
+              ),
+            ];
             // Lots are read once per product and depleted as lines take from them,
             // since the transaction has not run and a second read would hand out
             // stock an earlier line already took.
@@ -1006,11 +1059,6 @@ export const RecordLive = Layer.effect(
         },
         draft(input) {
           return Effect.gen(function* () {
-            if (input.mode !== "incoming") {
-              return yield* Effect.fail(
-                new RecordError({ message: "Mode pembelian belum didukung" }),
-              );
-            }
             const lines = input.listings.filter((line) => line.qty > 0);
             if (lines.length === 0) {
               return yield* Effect.fail(
@@ -1028,10 +1076,44 @@ export const RecordLive = Layer.effect(
                   new RecordError({ message: `Satuan ${line.name || "barang"} tidak valid` }),
                 );
               }
+              if (!Number.isFinite(line.price) || line.price < 0) {
+                return yield* Effect.fail(
+                  new RecordError({ message: `Harga ${line.name || "barang"} tidak valid` }),
+                );
+              }
               if (line.listingId === null && line.name.trim() === "") {
                 return yield* Effect.fail(
                   new RecordError({ message: "Nama barang manual harus diisi" }),
                 );
+              }
+            }
+
+            const isPurchase = input.mode === "outcoming";
+            const allocations = isPurchase
+              ? allocateCapital(
+                  lines.map((line) => ({
+                    qty: line.qty,
+                    unit: line.unit,
+                    price: line.price,
+                    discounts: line.discounts,
+                  })),
+                  roundMoney(new Decimal(input.total).plus(input.rounding), input.fix),
+                )
+              : null;
+            if (isPurchase && allocations === null) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Total barang tidak boleh nol" }),
+              );
+            }
+            if (allocations !== null) {
+              for (let index = 0; index < allocations.length; index++) {
+                if (allocations[index].capital.isNegative()) {
+                  return yield* Effect.fail(
+                    new RecordError({
+                      message: `Modal ${lines[index].name || "barang"} tidak valid`,
+                    }),
+                  );
+                }
               }
             }
 
@@ -1124,19 +1206,62 @@ export const RecordLive = Layer.effect(
               }
             }
 
+            // The supplier is the purchase counterparty, with the same
+            // id-or-name behavior as the customer snapshot.
+            const wantedSupplier = input.supplier.name.trim();
+            let supplierId: string | null = null;
+            let supplierName = "";
+            if (input.supplier.id !== null && input.supplier.id !== "") {
+              const rows = yield* db
+                .selectMany<SupplierRow>(
+                  `SELECT supplier_id, supplier_name FROM suppliers
+                   WHERE supplier_id = $1 AND supplier_deleted_at IS NULL`,
+                  [input.supplier.id],
+                )
+                .pipe(Effect.mapError(dbErrorToRecordError));
+              supplierId = rows[0]?.supplier_id ?? null;
+              supplierName = rows[0]?.supplier_name ?? "";
+            } else if (wantedSupplier !== "") {
+              const rows = yield* db
+                .selectMany<SupplierRow>(
+                  `SELECT supplier_id, supplier_name FROM suppliers
+                   WHERE supplier_deleted_at IS NULL AND lower(supplier_name) = lower($1)
+                   ORDER BY supplier_updated_at DESC LIMIT 1`,
+                  [wantedSupplier],
+                )
+                .pipe(Effect.mapError(dbErrorToRecordError));
+              const found = rows[0];
+              if (found !== undefined) {
+                supplierId = found.supplier_id;
+                supplierName = found.supplier_name;
+              } else {
+                supplierId = generateId();
+                supplierName = wantedSupplier;
+                statements.push({
+                  sql: `INSERT INTO suppliers (
+                      supplier_id, supplier_name, supplier_note,
+                      supplier_updated_at, supplier_sync_at, supplier_deleted_at
+                    ) VALUES ($1, $2, '', $3, NULL, NULL)`,
+                  bindings: [supplierId, supplierName, now],
+                });
+              }
+            }
+
             statements.push(
               insertRecordStatement(
                 recordId,
                 {
+                  createdAt: now,
                   paidAt: input.paidAt,
+                  creditAt: null,
                   rounding: input.rounding,
-                  isCredit: false,
                   cashier: input.cashier,
                   mode: input.mode,
                   pay: input.pay,
                   note: input.note,
                   fix: input.fix,
                   customer: { name: customerName, phone: customerPhone },
+                  supplier: { id: supplierId, name: supplierName },
                   subTotal: input.subTotal,
                   total: input.total,
                 },
@@ -1145,7 +1270,8 @@ export const RecordLive = Layer.effect(
             );
 
             const lotsByProduct = new Map<string, StockLot[]>();
-            for (const line of lines) {
+            for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+              const line = lines[lineIndex];
               const groupId = generateId();
               const pcs = line.qty * line.unit;
               const lineTotal = new Decimal(line.price)
@@ -1220,6 +1346,45 @@ export const RecordLive = Layer.effect(
 
               let lots = lotsByProduct.get(productId);
               if (lots === undefined) lots = yield* readLots(productId);
+
+              if (isPurchase) {
+                const allocation = allocations![lineIndex];
+                const received = receiveAtCapital(
+                  productId,
+                  lots,
+                  { pcs, capital: allocation.capital.toNumber() },
+                  now,
+                  input.fix,
+                  recordId,
+                );
+                statements.push(...received.statements);
+                lotsByProduct.set(productId, received.lots);
+                const portionId = generateId();
+                statements.push(
+                  insertPortion({
+                    id: portionId,
+                    groupId,
+                    recordId,
+                    productEventId: received.eventId,
+                    productId,
+                    name: line.name,
+                    kind: line.kind,
+                    unit: line.unit,
+                    price: pricePerPcs,
+                    qty: pcs,
+                    capital: received.capital,
+                    total: lineTotal.toNumber(),
+                  }),
+                );
+                statements.push(
+                  ...insertDiscounts(
+                    portionId,
+                    line.discounts.filter((discount) => discount.eff !== 0),
+                    1,
+                  ),
+                );
+                continue;
+              }
 
               let portions: { eventId: string; stockId: string; take: number; capital: number }[];
               if (lots.length === 0) {
@@ -1356,6 +1521,20 @@ export const RecordLive = Layer.effect(
             yield* bumpRevision();
           });
         },
+        creditAt(id, creditAt) {
+          return Effect.gen(function* () {
+            const now = Date.now();
+            yield* commit([
+              {
+                sql: `UPDATE records SET
+                    record_credit_at = $1, record_updated_at = $2, record_sync_at = NULL
+                  WHERE record_id = $3`,
+                bindings: [creditAt, now, id],
+              },
+            ]);
+            yield* bumpRevision();
+          });
+        },
         note(id, note) {
           return Effect.gen(function* () {
             const now = Date.now();
@@ -1365,35 +1544,6 @@ export const RecordLive = Layer.effect(
                     record_note = $1, record_updated_at = $2, record_sync_at = NULL
                   WHERE record_id = $3`,
                 bindings: [note, now, id],
-              },
-            ]);
-            yield* bumpRevision();
-          });
-        },
-        methods(id, rows) {
-          return Effect.gen(function* () {
-            if (rows.length === 0) {
-              return yield* Effect.fail(
-                new RecordError({ message: "Metode pembayaran harus diisi" }),
-              );
-            }
-            if (rows.some((row) => !Number.isFinite(row.pay) || row.pay < 0)) {
-              return yield* Effect.fail(
-                new RecordError({ message: "Jumlah pembayaran tidak valid" }),
-              );
-            }
-            const now = Date.now();
-            // `record_pay` is a denormalized cache of this sum, so the two move
-            // together — that is the whole reason this is one write.
-            const pay = rows.reduce((total, row) => total + row.pay, 0);
-            yield* commit([
-              { sql: "DELETE FROM record_methods WHERE record_id = $1", bindings: [id] },
-              ...rows.map((row) => insertMethod(id, row.methodId, row.pay)),
-              {
-                sql: `UPDATE records SET
-                    record_pay = $1, record_updated_at = $2, record_sync_at = NULL
-                  WHERE record_id = $3`,
-                bindings: [pay, now, id],
               },
             ]);
             yield* bumpRevision();
@@ -1412,7 +1562,8 @@ export const RecordLive = Layer.effect(
               ...current.map((method) => insertMethod(id, method.method_id, 0)),
               {
                 sql: `UPDATE records SET
-                    record_is_credit = 1, record_pay = 0, record_rounding = 0,
+                    record_credit_at = $1, record_paid_at = NULL,
+                    record_pay = 0, record_rounding = 0,
                     record_updated_at = $1, record_sync_at = NULL
                   WHERE record_id = $2`,
                 bindings: [now, id],
@@ -1443,7 +1594,7 @@ export const RecordLive = Layer.effect(
               insertMethod(id, methodId, input.pay),
               {
                 sql: `UPDATE records SET
-                    record_is_credit = 0, record_pay = $1, record_rounding = $2,
+                    record_pay = $1, record_rounding = $2,
                     record_paid_at = $3, record_updated_at = $3, record_sync_at = NULL
                   WHERE record_id = $4`,
                 bindings: [input.pay, input.rounding, now, id],
@@ -1452,269 +1603,86 @@ export const RecordLive = Layer.effect(
             yield* bumpRevision();
           });
         },
-        linkStock(recordListingId, stockId) {
-          return Effect.gen(function* () {
-            const portions = yield* db
-              .selectMany<{
-                record_id: string;
-                product_event_id: string | null;
-              }>(
-                `SELECT record_id, product_event_id
-                 FROM record_listings WHERE record_listing_id = $1`,
-                [recordListingId],
-              )
-              .pipe(Effect.mapError(dbErrorToRecordError));
-            const portion = portions[0];
-            if (portion === undefined) return;
-            if (portion.product_event_id === null) {
-              return yield* Effect.fail(
-                new RecordError({ message: "Baris ini tidak punya pergerakan stok" }),
-              );
-            }
-
-            const events = yield* db
-              .selectMany<{
-                stock_id: string | null;
-                product_id: string;
-                product_event_value: number;
-              }>(
-                `SELECT stock_id, product_id, product_event_value
-                 FROM product_events WHERE product_event_id = $1`,
-                [portion.product_event_id],
-              )
-              .pipe(Effect.mapError(dbErrorToRecordError));
-            const event = events[0];
-            if (event === undefined) return;
-            if (event.product_event_value >= 0) {
-              return yield* Effect.fail(
-                new RecordError({ message: "Hanya baris penjualan yang bisa dipindah lotnya" }),
-              );
-            }
-            if (event.stock_id === stockId) return;
-
-            const pcs = -event.product_event_value;
-            const now = Date.now();
-
-            // Unlink: the event stays in the journal but no longer consumes from
-            // a lot, so the pcs go back to the lot they used to come from.
-            if (stockId === null) {
-              if (event.stock_id === null) return;
-              yield* commit([
-                {
-                  sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
-                  bindings: [pcs, now, event.stock_id],
-                },
-                {
-                  sql: "UPDATE product_events SET stock_id = NULL WHERE product_event_id = $1",
-                  bindings: [portion.product_event_id],
-                },
-                touchProduct(event.product_id, now),
-                {
-                  sql: `UPDATE records SET record_updated_at = $1, record_sync_at = NULL
-                    WHERE record_id = $2`,
-                  bindings: [now, portion.record_id],
-                },
-              ]);
-              yield* bumpRevision();
-              yield* refreshProducts();
-              return;
-            }
-
-            const lots = yield* db
-              .selectMany<{
-                stock_id: string;
-                product_id: string;
-                stock_capital: number;
-              }>(
-                `SELECT stock_id, product_id, stock_capital
-                 FROM stocks WHERE stock_id IN ($1, $2)`,
-                [event.stock_id, stockId],
-              )
-              .pipe(Effect.mapError(dbErrorToRecordError));
-            const target = lots.find((lot) => lot.stock_id === stockId);
-            if (target === undefined) {
-              return yield* Effect.fail(new RecordError({ message: "Stok tujuan tidak ditemukan" }));
-            }
-
-            const statements: Statement[] = [];
-            // A previously dangling event has no lot to give the pcs back to.
-            if (event.stock_id !== null) {
-              statements.push({
-                sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
-                bindings: [pcs, now, event.stock_id],
-              });
-            }
-            statements.push(
-              {
-                sql: "UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2 WHERE stock_id = $3",
-                bindings: [pcs, now, target.stock_id],
-              },
-              {
-                sql: `UPDATE product_events SET
-                    stock_id = $1, product_id = $2, product_event_capital = $3
-                  WHERE product_event_id = $4`,
-                bindings: [
-                  target.stock_id,
-                  target.product_id,
-                  target.stock_capital,
-                  portion.product_event_id,
-                ],
-              },
-              {
-                // Only the attribution moves: the line keeps the modal it was
-                // recorded with, so the receipt's cost basis stays historical.
-                sql: `UPDATE record_listings SET product_id = $1
-                  WHERE record_listing_id = $2`,
-                bindings: [target.product_id, recordListingId],
-              },
-              touchProduct(event.product_id, now),
-              touchProduct(target.product_id, now),
-              {
-                sql: `UPDATE records SET record_updated_at = $1, record_sync_at = NULL
-                  WHERE record_id = $2`,
-                bindings: [now, portion.record_id],
-              },
-            );
-            yield* commit(statements);
-            yield* bumpRevision();
-            yield* refreshProducts();
-          });
-        },
         mode(id, mode) {
           return Effect.gen(function* () {
             const record = yield* readRecord(id);
-            if (record.record_mode === mode) return;
+            if (record.record_mode === mode) return id;
 
+            const newId = generateId();
             const now = Date.now();
-            const statements: Statement[] = [];
+            const statements: Statement[] = [
+              {
+                sql: `INSERT INTO records (
+                    record_id, record_created_at, record_paid_at, record_rounding,
+                    record_credit_at, record_cashier, record_mode, record_pay,
+                    record_note, record_fix, record_customer_name,
+                    record_customer_phone, record_sub_total, record_total,
+                    record_updated_at, record_sync_at, record_deleted_at
+                  )
+                  SELECT
+                    $1, record_created_at, record_paid_at, record_rounding,
+                    record_credit_at, record_cashier, $2, record_pay,
+                    record_note, record_fix, record_customer_name,
+                    record_customer_phone, record_sub_total, record_total,
+                    $3, NULL, NULL
+                  FROM records WHERE record_id = $4`,
+                bindings: [newId, mode, now, id],
+              },
+            ];
 
-            /**
-             * The statements that move one line's pcs one way. A purchase arrives
-             * as its own cost lot at the capital it was bought for; a sale consumes
-             * FIFO, like any other sale, and fails when the product cannot cover it.
-             */
-            const lotsByProduct = new Map<string, StockLot[]>();
+            // The line and payment rows move with the replacement record; the
+            // old record is only a tombstone afterwards.
+            statements.push(
+              { sql: "UPDATE record_listings SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
+              { sql: "UPDATE record_methods SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
+              { sql: "UPDATE record_extras SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
+              { sql: "UPDATE record_images SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
+            );
 
-            function moveLine(
-              move: MoveRow,
-              direction: RecordMode,
-              passes: number,
-              eventRecordId: string | null,
-            ): Effect.Effect<Statement[], RecordError> {
-              return Effect.gen(function* () {
-                const requestedPcs = move.record_listing_qty * move.listing_unit * passes;
-                if (requestedPcs === 0) return [];
-                if (direction === "outcoming") {
-                  // Listing capital is per listing unit, while a stock lot's
-                  // capital is per base piece.
-                  return receiveStatements(
-                    move.product_id,
-                    {
-                      value: requestedPcs,
-                      capital: move.record_listing_capital / move.listing_unit,
-                    },
-                    now,
-                    eventRecordId,
-                  );
-                }
-                // Lots are read once per product and depleted here as the lines
-                // take from them: the transaction has not run yet, so a second
-                // read would hand out stock the first line already took. Twenty
-                // records on file carry two lines against the same product.
-                let lots = lotsByProduct.get(move.product_id);
-                if (lots === undefined) {
-                  lots = yield* readLots(move.product_id);
-                  lotsByProduct.set(move.product_id, lots);
-                }
-                const pcs = requestedPcs;
-                const { statements: consumed, shortage } = consumeStatements(
-                  move.product_id,
-                  lots,
-                  pcs,
-                  now,
-                  "",
-                  eventRecordId,
-                );
-                if (shortage > 0) {
-                  return yield* Effect.fail(
-                    new RecordError({
-                      message: `Stok ${move.record_listing_name} tidak mencukupi`,
-                    }),
-                  );
-                }
-                lotsByProduct.set(move.product_id, depleteLots(lots, pcs));
-                return consumed;
-              });
-            }
-
-            // 1. Take back whatever this record did to stock, so the flip starts
-            //    from a state that never saw it. For a record written by the
-            //    event-linked commit path that is exact: its events are struck
-            //    from the journal and the lots they touched are rebuilt from the
-            //    events that survive them.
-            const journaled = yield* db
-              .selectMany<{ product_id: string }>(SELECT_JOURNALED_PRODUCTS, [id])
+            // A mode flip reverses every stock movement: the event sign flips,
+            // and the cached lot takes the difference between the old and new
+            // signed value.
+            const events = yield* db
+              .selectMany<{
+                product_event_id: string;
+                product_id: string;
+                stock_id: string | null;
+                product_event_value: number;
+              }>(
+                `SELECT product_event_id, product_id, stock_id, product_event_value
+                 FROM product_events WHERE record_id = $1`,
+                [id],
+              )
               .pipe(Effect.mapError(dbErrorToRecordError));
-            const journaledProducts = new Set(journaled.map((row) => row.product_id));
-            statements.push({
-              sql: "DELETE FROM product_events WHERE record_id = $1",
-              bindings: [id],
-            });
-            const touched = yield* touchedLots(id);
-            for (const lot of touched) {
-              statements.push(...restoreLot(lot, now));
-            }
-            // `readLots` below still sees the pre-transaction state. If the new
-            // direction consumes from a lot this same transaction restores or
-            // deletes, prime the in-memory FIFO view with that restored state.
-            if (mode === "incoming") {
-              for (const lot of touched) {
-                let lots = lotsByProduct.get(lot.productId);
-                if (lots === undefined) {
-                  lots = yield* readLots(lot.productId);
-                  lotsByProduct.set(lot.productId, lots);
-                }
-                const index = lots.findIndex((item) => item.id === lot.stockId);
-                const restored = restoredLot(lot);
-                if (index >= 0) {
-                  if (restored === null) lots.splice(index, 1);
-                  else lots[index] = restored;
-                } else if (restored !== null) {
-                  // A surviving journal event normally keeps its stock row in
-                  // `readLots`; append only for a repaired dangling-lot case.
-                  lots.push(restored);
-                }
+            for (const event of events) {
+              if (event.stock_id !== null) {
+                statements.push({
+                  sql: `UPDATE stocks SET
+                      stock_value = stock_value - 2 * $1, stock_updated_at = $2
+                    WHERE stock_id = $3`,
+                  bindings: [event.product_event_value, now, event.stock_id],
+                });
               }
-            }
-
-            // 2. Apply the new direction, line by line. A line whose product the
-            //    journal never recorded carries its movement baked into the
-            //    product's aggregate, so step 1 could not take it back. Two passes
-            //    fix that without a second movement: one to undo what the line did
-            //    as the old mode, one to do what it does as the new one — the
-            //    legacy `stock ± 2 × qty`, in lot form.
-            const moves = yield* db
-              .selectMany<MoveRow>(SELECT_MOVES, [id])
-              .pipe(Effect.mapError(dbErrorToRecordError));
-            for (const move of moves) {
-              const journaled = journaledProducts.has(move.product_id);
-              const passes = journaled ? 1 : 2;
-              // Keep legacy movements unlinked. Delete will then compensate for
-              // the old baked-in direction instead of treating the whole flip as
-              // a new journaled record movement and losing that old baseline.
-              statements.push(...(yield* moveLine(move, mode, passes, journaled ? id : null)));
+              statements.push({
+                sql: `UPDATE product_events SET
+                    record_id = $1, product_event_value = -product_event_value
+                  WHERE product_event_id = $2`,
+                bindings: [newId, event.product_event_id],
+              });
+              statements.push(touchProduct(event.product_id, now));
             }
 
             statements.push({
               sql: `UPDATE records SET
-                  record_mode = $1, record_updated_at = $2, record_sync_at = NULL
-                WHERE record_id = $3`,
-              bindings: [mode, now, id],
+                  record_deleted_at = $1, record_updated_at = $1, record_sync_at = NULL
+                WHERE record_id = $2`,
+              bindings: [now, id],
             });
 
             yield* commit(statements);
             yield* bumpRevision();
             yield* refreshProducts();
+            return newId;
           });
         },
       },

@@ -10,6 +10,7 @@ import { sortDebt, totalDebt } from "./util-debt";
 const debt = (id: string, paidAt: number, total: number): DebtRecord => ({
   id,
   paidAt,
+  creditAt: paidAt,
   total,
   note: "",
   fix: 0,

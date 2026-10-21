@@ -5,28 +5,22 @@ import { roundToFix } from "~/services/record/round";
 import type { RecordFull, RecordListing } from "~/services/record";
 import { discountLabel, discountTotals } from "./discounts";
 import { GotoProductBtn } from "./z-GotoProductBtn";
-import { LinkStock } from "./z-LinkStock";
 
 export function ListingRow({
   listing,
   index,
   record,
-  canLink,
 }: {
   listing: RecordListing;
   index: number;
   record: RecordFull;
-  canLink: boolean;
 }) {
   const isPurchase = record.mode === "outcoming";
   const totals = discountTotals(listing.price, listing.qty, listing.discounts);
   return (
     <>
       <TableRow>
-        <TableCell className="flex items-center">
-          {index + 1}
-          {canLink ? <LinkStock listing={listing} /> : null}
-        </TableCell>
+        <TableCell>{index + 1}</TableCell>
         <TableCell>{listing.name}</TableCell>
         <TableCell className="text-end">
           <span className="flex items-center gap-1 justify-end">

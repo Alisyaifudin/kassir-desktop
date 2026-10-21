@@ -40,6 +40,9 @@ const recordSchema: z.ZodType<RecordImport> = z.object({
   note: z.string(),
   fix: z.number().int(),
   customer: z.object({ name: z.string(), phone: z.string() }),
+  supplier: z
+    .object({ id: z.string().nullable(), name: z.string() })
+    .optional(),
   subTotal: z.number(),
   total: z.number(),
   methods: z.array(z.object({ methodId: z.string().nonempty(), pay: z.number() })),

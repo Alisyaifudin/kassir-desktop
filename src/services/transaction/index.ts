@@ -10,7 +10,7 @@ export class TransactionError extends Data.TaggedError("TransactionError")<{
  * it: the listing-side problems are shown inline, everything else as a toast.
  */
 export class SubmitError extends Data.TaggedError("SubmitError")<{
-  kind: "empty" | "stored" | "payment" | "name" | "code" | "outcoming";
+  kind: "empty" | "stored" | "payment" | "name" | "code" | "price" | "outcoming";
   message: string;
 }> {}
 
@@ -98,6 +98,8 @@ export type Draft = {
   /** A new customer's typed phone; optional. */
   customerPhone: string;
   supplierId: string | null;
+  /** A new supplier's typed name, used when `supplierId` is null. */
+  supplierName: string;
   rounding: number;
   listings: DraftListing[];
   extras: DraftExtra[];
@@ -138,6 +140,7 @@ export class TransactionService extends Context.Tag("TransactionService")<
       customerName: (id: string, name: string) => Effect.Effect<void, TransactionError>;
       customerPhone: (id: string, phone: string) => Effect.Effect<void, TransactionError>;
       supplier: (id: string, supplierId: string | null) => Effect.Effect<void, TransactionError>;
+      supplierName: (id: string, name: string) => Effect.Effect<void, TransactionError>;
       rounding: (id: string, rounding: number) => Effect.Effect<void, TransactionError>;
       /** Parks the cart: it leaves the active tabs but stays in the list. */
       store: (id: string) => Effect.Effect<void, TransactionError>;

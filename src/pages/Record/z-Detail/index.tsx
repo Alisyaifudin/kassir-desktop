@@ -53,7 +53,7 @@ function Body({ record }: { record: RecordFull }) {
           </div>
           <div className="flex items-center gap-5">
             <p>
-              {formatTime(record.paidAt, "long")}, {formatDate(record.paidAt, "long")}
+              {formatTime(record.date, "long")}, {formatDate(record.date, "long")}
             </p>
             {record.cashier ? <p>Kasir: {capitalize(record.cashier)}</p> : null}
           </div>

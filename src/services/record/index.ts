@@ -86,8 +86,19 @@ export type RecordMethod = {
 /** `subTotal` / `total` / `grandTotal` / `change` are derived from `fix`. */
 export type Record = {
   id: string;
-  paidAt: number;
+  /** Immutable creation time. */
+  createdAt: number;
+  /**
+   * The effective date the record belongs to: settlement date when paid,
+   * otherwise the credit date, otherwise creation.
+   */
+  date: number;
+  /** Null while an outstanding credit has not been settled. */
+  paidAt: number | null;
+  /** When the credit was opened; null for a cash record. */
+  creditAt: number | null;
   rounding: number;
+  /** True only while the credit is still outstanding. */
   isCredit: boolean;
   cashier: string;
   mode: RecordMode;
@@ -95,6 +106,7 @@ export type Record = {
   note: string;
   fix: number;
   customer: { name: string; phone: string };
+  supplier: { id: string | null; name: string };
   subTotal: number;
   total: number;
   grandTotal: number;
@@ -111,12 +123,14 @@ export type RecordFull = Record & {
 };
 
 /**
- * An unsettled credit record. `payCredit` clears `is_credit`, so a record is
- * outstanding exactly while that flag is set; `total` is what is owed.
+ * An unsettled credit record. `payCredit` stamps `paid_at`, so a record is
+ * outstanding exactly while `credit_at` is set and `paid_at` is still null.
  */
 export type DebtRecord = {
   id: string;
+  /** Effective credit date, kept under `paidAt` for the existing debt views. */
   paidAt: number;
+  creditAt: number;
   note: string;
   /** Decimal places `total` is rendered with. */
   fix: number;
@@ -188,6 +202,7 @@ export type RecordDraftInput = {
   note: string;
   fix: number;
   customer: { id: string | null; name: string; phone: string };
+  supplier: { id: string | null; name: string };
   subTotal: number;
   total: number;
   methods: { methodId: string; pay: number }[];
@@ -206,6 +221,7 @@ export type RecordImport = {
   note: string;
   fix: number;
   customer: { name: string; phone: string };
+  supplier?: { id: string | null; name: string };
   subTotal: number;
   total: number;
   methods: { methodId: string; pay: number }[];
@@ -280,25 +296,17 @@ export class RecordService extends Context.Tag("RecordService")<
      * aggregate is then asked to re-read.
      */
     set: {
-      paidAt: (id: string, paidAt: number) => Effect.Effect<void, RecordError>;
+      paidAt: (id: string, paidAt: number | null) => Effect.Effect<void, RecordError>;
+      /** Changes the credit date; only meaningful on a credit record. */
+      creditAt: (id: string, creditAt: number) => Effect.Effect<void, RecordError>;
       note: (id: string, note: string) => Effect.Effect<void, RecordError>;
       /**
-       * Flips the record between a sale and a purchase, moving stock with it:
-       * the movement the record had is undone, then the opposite one is applied.
-       * A sale consumes FIFO, a purchase arrives as its own cost lot. The write
-       * fails if a sale cannot be covered, rather than creating a negative lot.
+       * Replaces the record with a new one in the other mode: the old row is
+       * soft-deleted, every child is re-pointed, and the stock journal's signs
+       * are flipped. Returns the new record id.
        */
-      mode: (id: string, mode: RecordMode) => Effect.Effect<void, RecordError>;
-      /**
-       * Replaces the record's payments. `record_pay` is a cache of their sum, so
-       * it is rewritten with them — pass the record's own `pay` when the only
-       * thing changing is which method paid it.
-       */
-      methods: (
-        id: string,
-        methods: { methodId: string; pay: number }[],
-      ) => Effect.Effect<void, RecordError>;
-      /** Turns a purchase into a credit one: nothing tendered, nothing rounded. */
+      mode: (id: string, mode: RecordMode) => Effect.Effect<string, RecordError>;
+      /** Opens a credit on the record: nothing tendered, nothing rounded. */
       toCredit: (id: string) => Effect.Effect<void, RecordError>;
       /**
        * Settles a credit record and stamps it as paid now. `rounding` is the
@@ -307,16 +315,6 @@ export class RecordService extends Context.Tag("RecordService")<
       payCredit: (
         id: string,
         input: { pay: number; rounding: number },
-      ) => Effect.Effect<void, RecordError>;
-      /**
-       * Re-points a line portion at another stock lot: the movement is moved
-       * between the two lots (pcs and capital) and the event is re-stamped with
-       * the new lot's capital. The portion's product snapshot follows the lot.
-       * Only a consumption portion (a sale) can be re-pointed.
-       */
-      linkStock: (
-        recordListingId: string,
-        stockId: string | null,
       ) => Effect.Effect<void, RecordError>;
     };
     delete: {
