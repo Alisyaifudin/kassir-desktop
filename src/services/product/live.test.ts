@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { Context, Effect, Layer } from "effect";
 import { makeTestDatabase } from "../db/test-support";
 import { ProductService } from ".";
@@ -77,5 +77,60 @@ describe("product catalogue identity", () => {
     );
 
     expect(same).toBe(true);
+  });
+
+  // The identity check must survive two writes landing inside the same
+  // millisecond: `Date.now()` is the writers' only clock, and a same-tick
+  // "read back, compare timestamps" used to report the old row as unchanged,
+  // so the ref never emitted and the POS kept the old price and stock.
+  test("a price edit inside one millisecond is not mistaken for no change", async () => {
+    const { layer } = setup();
+    const now = Date.now();
+    const clock = spyOn(Date, "now").mockReturnValue(now);
+
+    try {
+      const result = await run(layer, (product) =>
+        Effect.gen(function* () {
+          const id = yield* product.add(input("Kopi"));
+          const [before] = yield* product.get.all();
+          yield* product.set.listing.update(id, before.listings[0].id, {
+            name: "Kopi",
+            price: 2500,
+            unit: 1,
+            kind: "retail",
+            code: "Kopi",
+            codeKind: "barcode",
+          });
+          const [after] = yield* product.get.all();
+          return { price: after.listings[0].price, replaced: after !== before };
+        }),
+      );
+
+      expect(result.price).toBe(2500);
+      expect(result.replaced).toBe(true);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  test("a stock movement inside one millisecond is not mistaken for no change", async () => {
+    const { layer } = setup();
+    const now = Date.now();
+    const clock = spyOn(Date, "now").mockReturnValue(now);
+
+    try {
+      const result = await run(layer, (product) =>
+        Effect.gen(function* () {
+          const id = yield* product.add(input("Kopi"));
+          expect((yield* product.get.byId(id)).stock).toBe(5);
+          yield* product.stock.receive(id, { value: 3, capital: 700 });
+          return (yield* product.get.byId(id)).stock;
+        }),
+      );
+
+      expect(result).toBe(8);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

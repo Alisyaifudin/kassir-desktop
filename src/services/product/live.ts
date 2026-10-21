@@ -424,15 +424,72 @@ export const ProductLive = Layer.effect(
 
     /**
      * True when a freshly read state describes the same rows as the one in the
-     * ref. Every child table stamps its own `*_updated_at` on write, so comparing
-     * those timestamps is enough and costs O(children) instead of a deep equal.
+     * ref, compared value by value.
+     *
+     * The `*_updated_at` timestamps are part of the comparison, but they are
+     * deliberately **not** the only signal: writers stamp them with `Date.now()`,
+     * which has 1 ms granularity (coarser under load), and multi-write flows touch
+     * the same rows back to back. Deciding identity from the clock alone lets two
+     * writes inside one millisecond read back as "unchanged", so the ref keeps the
+     * old object, emits nothing, and the POS sells the old price and old stock.
+     * Comparing the handful of primitives each row actually carries cannot be
+     * fooled that way.
      */
-    function sameChildren<T extends { id: string; updatedAt: number }>(a: T[], b: T[]): boolean {
+    function sameChildren<T>(a: T[], b: T[], same: (x: T, y: T) => boolean): boolean {
+      return a.length === b.length && a.every((item, index) => same(item, b[index]));
+    }
+
+    function sameListing(a: Listing, b: Listing): boolean {
       return (
-        a.length === b.length &&
-        a.every(
-          (item, index) => item.id === b[index].id && item.updatedAt === b[index].updatedAt,
-        )
+        a.id === b.id &&
+        a.name === b.name &&
+        a.price === b.price &&
+        a.unit === b.unit &&
+        a.kind === b.kind &&
+        a.code === b.code &&
+        a.codeKind === b.codeKind &&
+        a.updatedAt === b.updatedAt &&
+        a.syncAt === b.syncAt
+      );
+    }
+
+    function sameStock(a: Stock, b: Stock): boolean {
+      return (
+        a.id === b.id &&
+        a.value === b.value &&
+        a.capital === b.capital &&
+        a.createdAt === b.createdAt &&
+        a.updatedAt === b.updatedAt
+      );
+    }
+
+    function sameProperty(a: Property, b: Property): boolean {
+      return (
+        a.id === b.id &&
+        a.key === b.key &&
+        a.value === b.value &&
+        a.updatedAt === b.updatedAt &&
+        a.syncAt === b.syncAt
+      );
+    }
+
+    function sameProductName(a: ProductName, b: ProductName): boolean {
+      return (
+        a.id === b.id &&
+        a.value === b.value &&
+        a.updatedAt === b.updatedAt &&
+        a.syncAt === b.syncAt
+      );
+    }
+
+    function sameImage(a: ProductImage, b: ProductImage): boolean {
+      return (
+        a.id === b.id &&
+        a.order === b.order &&
+        a.name === b.name &&
+        a.mime === b.mime &&
+        a.updatedAt === b.updatedAt &&
+        a.syncAt === b.syncAt
       );
     }
 
@@ -442,11 +499,11 @@ export const ProductLive = Layer.effect(
         a.note === b.note &&
         a.updatedAt === b.updatedAt &&
         a.syncAt === b.syncAt &&
-        sameChildren(a.listings, b.listings) &&
-        sameChildren(a.stocks, b.stocks) &&
-        sameChildren(a.properties, b.properties) &&
-        sameChildren(a.productNames, b.productNames) &&
-        sameChildren(a.images, b.images)
+        sameChildren(a.listings, b.listings, sameListing) &&
+        sameChildren(a.stocks, b.stocks, sameStock) &&
+        sameChildren(a.properties, b.properties, sameProperty) &&
+        sameChildren(a.productNames, b.productNames, sameProductName) &&
+        sameChildren(a.images, b.images, sameImage)
       );
     }
 

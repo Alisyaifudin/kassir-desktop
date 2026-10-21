@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
 import { useImageUrl } from "~/hooks/use-image";
 import type { Listing, ListingError } from "~/services/listing";
 import { cn } from "~/lib/utils";
-import { rupiah } from "~/pages/_cart/util-rupiah";
+import { rupiah } from "~/components/cart/util-rupiah";
 
 const ESTIMATE_ROW = 320;
 const MIN_CELL = 260;

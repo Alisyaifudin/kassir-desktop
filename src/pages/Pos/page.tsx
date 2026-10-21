@@ -9,7 +9,7 @@ import { service } from "~/services";
 import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import type { Extra, Line } from "./mock";
+import type { Extra, Line } from "~/components/cart/types";
 import {
   linesSubtotal,
   paidTotal,
@@ -20,7 +20,9 @@ import {
 import { useUser } from "~/hooks/use-user";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
-import { findLineIssues, hasHardIssue } from "~/pages/_cart/code-issues";
+import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
+import { cartErrorMessage, run } from "~/components/cart/run";
+import { CartStartError } from "~/components/cart/z-StartError";
 import { Complete } from "./z-Complete";
 
 /**
@@ -102,6 +104,11 @@ function Screen({
   // race a second empty tab into existence.
   const [restoring, setRestoring] = useState(false);
   const [restoredId, setRestoredId] = useState<string | null>(null);
+  // Why the screen has no cart to show. A rejected `add.new` writes no state, so
+  // the effect below would never re-run: without this the operator got a spinner
+  // that never ends instead of a message and a retry.
+  const [startError, setStartError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   const listingRes = useStream(service.listing.get.changes);
 
   // Bumped by F2; the payment rows in the bottom panel watch it to put the
@@ -134,7 +141,9 @@ function Screen({
       }
       if (event.key === "F12") {
         event.preventDefault();
-        void Effect.runPromise(service.transaction.add.new("incoming")).then(onDraft, () => {});
+        void Effect.runPromise(service.transaction.add.new("incoming")).then(onDraft, (error) => {
+          setStartError(cartErrorMessage(error));
+        });
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -156,13 +165,15 @@ function Screen({
     void Effect.runPromise(service.transaction.add.new("incoming")).then(
       (id) => {
         creating.current = false;
+        setStartError(null);
         onDraft(id);
       },
-      () => {
+      (error) => {
         creating.current = false;
+        setStartError(cartErrorMessage(error));
       },
     );
-  }, [normalDrafts.length, onDraft, complete, submitting, restoring]);
+  }, [normalDrafts.length, onDraft, complete, submitting, restoring, retry]);
 
   // Once the rebuilt draft reaches the stream, the normal no-tabs guard can take
   // over again. The timeout is a safety net for a stream that never delivers.
@@ -261,26 +272,50 @@ function Screen({
   // this, restoring a draft flips `active` from null to a draft while
   // `complete` is still set, React remounts the dialog, and the operator sees
   // a close → open → close flash.
-  if (active === null) return <><Loading />{completeDialog}</>;
+  if (active === null) {
+    return (
+      <>
+        {startError === null ? (
+          <Loading />
+        ) : (
+          <CartStartError
+            message={startError}
+            onRetry={() => {
+              setStartError(null);
+              setRetry((count) => count + 1);
+            }}
+          />
+        )}
+        {completeDialog}
+      </>
+    );
+  }
 
   /** Park this cart, then jump to another open one (or let the effect make one). */
   function storeCart() {
     const id = active.id;
     const next = normalDrafts.find((draft) => draft.id !== id);
-    void Effect.runPromise(service.transaction.set.store(id)).then(() => {
+    void Effect.runPromise(Effect.either(service.transaction.set.store(id))).then((result) => {
+      if (Either.isLeft(result)) {
+        toast.error(result.left.message);
+        return;
+      }
       if (next !== undefined) onDraft(next.id);
       else onDraft(null);
-    }, () => {});
+    });
   }
 
   /** A parked tab expands back into a normal one when clicked. */
   function openDraft(id: string) {
     const draft = saleDrafts.find((candidate) => candidate.id === id);
     if (draft !== undefined && (draft.flag & STORED_FLAG) !== 0) {
-      void Effect.runPromise(service.transaction.set.restore(id)).then(
-        () => onDraft(id),
-        () => {},
-      );
+      void Effect.runPromise(Effect.either(service.transaction.set.restore(id))).then((result) => {
+        if (Either.isLeft(result)) {
+          toast.error(result.left.message);
+          return;
+        }
+        onDraft(id);
+      });
       return;
     }
     onDraft(id);
@@ -291,9 +326,9 @@ function Screen({
   const lines: Line[] = active.listings;
   const extras: Extra[] = active.extras;
   const setLines = (next: Line[]) =>
-    void Effect.runFork(service.transaction.listings.set(active.id, next));
+    run(service.transaction.listings.set(active.id, next));
   const setExtras = (next: Extra[]) =>
-    void Effect.runFork(service.transaction.extras.set(active.id, next));
+    run(service.transaction.extras.set(active.id, next));
 
   const subtotal = linesSubtotal(lines);
   const total = purchaseTotal(extras, subtotal);

@@ -34,9 +34,9 @@ import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft, DraftMethod } from "~/services/transaction";
 import { paidTotal } from "~/lib/purchase";
-import { run } from "~/pages/_cart/run";
-import { rupiah } from "~/pages/_cart/util-rupiah";
-import { Cell, SELECTED_RING } from "~/pages/_cart/z-Cell";
+import { run } from "~/components/cart/run";
+import { rupiah } from "~/components/cart/util-rupiah";
+import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
 
 /** The default `Input` chrome, so a currency field sits in the row like one. */
 const AMOUNT_CLASS =

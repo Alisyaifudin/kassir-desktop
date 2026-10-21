@@ -12,12 +12,6 @@ pub struct PrinterInfo {
     pub status: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PrintResult {
-    pub success: bool,
-    pub message: String,
-}
-
 // ============================================================================
 // Shared PDF validation
 // ============================================================================
@@ -62,17 +56,29 @@ fn write_temp_pdf(pdf_bytes: &[u8]) -> Result<std::path::PathBuf, String> {
 // ============================================================================
 // Commands
 // ============================================================================
+//
+// Both commands do blocking work: Win32 printer enumeration waits on the
+// spooler, and a print job can take seconds on a slow or offline printer. A
+// synchronous `#[command]` runs on the main thread — the one driving the webview
+// event loop — so the whole POS window would freeze right after Bayar, exactly
+// when the cashier needs to start the next sale. `spawn_blocking` moves it to the
+// blocking pool instead (the same reason `auth.rs` pushes bcrypt there).
 
 #[command]
-pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
-    platform::get_printers()
+pub async fn get_printers() -> Result<Vec<PrinterInfo>, String> {
+    tauri::async_runtime::spawn_blocking(platform::get_printers)
+        .await
+        .map_err(|e| format!("Gagal membaca daftar printer: {}", e))?
 }
 
 #[command]
-pub fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, String> {
-    // Validate PDF before doing anything else
+pub async fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, String> {
+    // Validate PDF before doing anything else: the bytes stay on this side of the
+    // thread hop when they are not a PDF at all.
     validate_pdf(&pdf_bytes)?;
-    platform::print_pdf(&printer_name, &pdf_bytes)
+    tauri::async_runtime::spawn_blocking(move || platform::print_pdf(&printer_name, &pdf_bytes))
+        .await
+        .map_err(|e| format!("Gagal menjalankan pencetakan: {}", e))?
 }
 
 // ============================================================================
@@ -109,20 +115,16 @@ mod platform {
     }
 
     pub fn print_pdf(printer_name: &str, pdf_bytes: &[u8]) -> Result<String, String> {
-        // Find the requested printer
+        // Enumerate the spooler once: the device and the "available printers"
+        // message both come from this single (slow) call.
         let devices =
             PrinterDevice::all().map_err(|e| format!("Gagal membaca daftar printer: {}", e))?;
+        let available: Vec<String> = devices.iter().map(|p| format!("'{}'", p.name())).collect();
 
         let device = devices
             .into_iter()
             .find(|p| p.name() == printer_name)
             .ok_or_else(|| {
-                let available: Vec<String> = PrinterDevice::all()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|p| format!("'{}'", p.name()))
-                    .collect();
-
                 format!(
                     "Printer '{}' not found. Available printers: [{}]",
                     printer_name,
@@ -148,10 +150,12 @@ mod platform {
 
         let _ = std::fs::remove_file(&temp_path);
 
+        // The spooler accepted the job, which is not the same as the paper coming
+        // out: say "sent", so the cashier knows to look at the printer.
         Ok(format!(
-            "Successfully sent {} byte PDF to printer '{}'",
-            pdf_bytes.len(),
-            printer_name
+            "Dikirim ke printer '{}' ({} byte)",
+            printer_name,
+            pdf_bytes.len()
         ))
     }
 }
@@ -216,10 +220,7 @@ mod platform {
         // Ensure the requested printer exists
         let available = get_printers()?;
         if !available.iter().any(|p| p.name == printer_name) {
-            let names: Vec<String> = available
-                .iter()
-                .map(|p| format!("'{}'", p.name))
-                .collect();
+            let names: Vec<String> = available.iter().map(|p| format!("'{}'", p.name)).collect();
             return Err(format!(
                 "Printer '{}' not found. Available printers: [{}]",
                 printer_name,
@@ -254,10 +255,12 @@ mod platform {
             ));
         }
 
+        // The spooler accepted the job, which is not the same as the paper coming
+        // out: say "sent", so the cashier knows to look at the printer.
         Ok(format!(
-            "Successfully sent {} byte PDF to printer '{}'",
-            pdf_bytes.len(),
-            printer_name
+            "Dikirim ke printer '{}' ({} byte)",
+            printer_name,
+            pdf_bytes.len()
         ))
     }
 }

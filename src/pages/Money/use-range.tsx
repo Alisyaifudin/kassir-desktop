@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
+import { useDayStart } from "~/hooks/use-day-start";
 import { tz } from "~/lib/constants";
 import { integer } from "~/lib/utils";
 
@@ -23,13 +24,16 @@ export type SearchRange = {
  */
 export function useRange(): SearchRange {
   const [search, setSearch] = useSearchParams();
+  // Anchored on the rolling day, not on the day the page was first opened: a
+  // window left open overnight kept offering yesterday as "last month".
+  const dayStart = useDayStart();
   const defaults = useMemo(() => {
-    const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
+    const today = Temporal.Instant.fromEpochMilliseconds(dayStart).toZonedDateTimeISO(tz);
     return {
       start: today.subtract({ months: 1 }).epochMilliseconds,
       end: today.epochMilliseconds,
     };
-  }, []);
+  }, [dayStart]);
 
   const start = integer.catch(defaults.start).parse(search.get("start"));
   const end = integer.catch(defaults.end).parse(search.get("end"));

@@ -10,7 +10,7 @@ import {
 import { Textarea } from "~/components/ui/textarea";
 import { service } from "~/services";
 import type { Draft } from "~/services/transaction";
-import { run } from "~/pages/_cart/run";
+import { run } from "~/components/cart/run";
 
 /**
  * A free-text note carried onto the record — "titip nota ke Bu Sari". Optional,

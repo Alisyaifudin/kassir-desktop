@@ -1,7 +1,7 @@
 import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
 import { cn } from "~/lib/utils";
-import type { ExtraPreset } from "../types";
-import { rupiah } from "~/pages/_cart/util-rupiah";
+import type { ExtraPreset } from "~/components/cart/types";
+import { rupiah } from "~/components/cart/util-rupiah";
 
 /**
  * The charge presets under a search query, replacing the extra rows. Unlike the

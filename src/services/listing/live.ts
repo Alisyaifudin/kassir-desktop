@@ -36,13 +36,26 @@ function toListings(products: Product[]): Listing[] {
 }
 
 /**
+ * `toListings` returns the same array until the catalogue changes, so the id map
+ * is built once per catalogue instead of once per keystroke.
+ */
+let lookup: { listings: Listing[]; byId: Map<string, Listing> } | null = null;
+
+function listingById(listings: Listing[]): Map<string, Listing> {
+  if (lookup !== null && lookup.listings === listings) return lookup.byId;
+  const byId = new Map(listings.map((listing) => [listing.id, listing]));
+  lookup = { listings, byId };
+  return byId;
+}
+
+/**
  * Relevance-ordered matches over the listing index: listing name, its code,
  * the parent product name, and the product's alternative names. An empty query
  * returns the whole catalogue.
  */
 function matching(listings: Listing[], query: string): Listing[] {
   if (query.trim() === "") return listings;
-  const byId = new Map(listings.map((listing) => [listing.id, listing]));
+  const byId = listingById(listings);
   const hits: Listing[] = [];
   for (const hit of searchListings(getListingIndex(listings), query)) {
     const listing = byId.get(hit.id);

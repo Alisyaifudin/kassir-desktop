@@ -13,7 +13,7 @@ import {
 } from "~/components/ui/dialog";
 import { service } from "~/services";
 import { programPrintReceipt } from "~/pages/Record/Item/z-Receipt/program-print-receipt";
-import { rupiah } from "~/pages/_cart/util-rupiah";
+import { rupiah } from "~/components/cart/util-rupiah";
 
 /**
  * The moment after a sale is committed. The record is already in `records`; the

@@ -4,7 +4,7 @@ import { service } from "~/services";
 import type { ListingHistoryPage, RecordError } from "~/services/record";
 import { useMode } from "../use-mode";
 import { useQuery as useUrlQuery } from "../use-query";
-import { useRecordRevision } from "../use-records";
+import { useRecordRevision } from "~/hooks/use-record-revision";
 import { useRange } from "./use-range";
 
 /**

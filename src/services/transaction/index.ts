@@ -122,6 +122,12 @@ export class TransactionService extends Context.Tag("TransactionService")<
     };
     /** Write every pending cart edit now instead of waiting out the debounce. */
     flush: () => Effect.Effect<void, TransactionError>;
+    /**
+     * Puts a message on the same channel {@link get.saveError} exposes, so a cart
+     * failure that is fired without being awaited (a tab delete, a grid hand-off)
+     * still reaches the operator instead of vanishing into a dropped fiber.
+     */
+    reportError: (message: string) => Effect.Effect<void>;
     add: { new: (mode: DraftMode) => Effect.Effect<string, TransactionError> };
     /**
      * Commit the draft as a record, in one transaction: the record and its

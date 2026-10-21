@@ -16,12 +16,13 @@ import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
-import { EXTRA_PRESETS, type Extra, type ExtraPreset } from "../mock";
+import { type Extra, type ExtraPreset } from "~/components/cart/types";
+import { EXTRA_PRESETS } from "../presets";
 import { recalcExtras } from "~/lib/purchase";
-import { rupiah } from "~/pages/_cart/util-rupiah";
-import { SELECTED_RING } from "~/pages/_cart/z-Cell";
+import { rupiah } from "~/components/cart/util-rupiah";
+import { SELECTED_RING } from "~/components/cart/z-Cell";
 import { ExtraCard } from "./z-Extra";
-import { ExtraSearch } from "./z-ExtraSearch";
+import { ExtraSearch } from "~/components/cart/z-ExtraSearch";
 import {
   extraCellAt,
   extraColumnIn,

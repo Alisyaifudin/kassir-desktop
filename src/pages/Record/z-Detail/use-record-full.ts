@@ -2,7 +2,7 @@ import { Effect, Stream } from "effect";
 import { useQuery, type Result } from "~/components/Loader";
 import { service } from "~/services";
 import type { RecordError, RecordFull } from "~/services/record";
-import { useRecordRevision } from "../use-records";
+import { useRecordRevision } from "~/hooks/use-record-revision";
 
 /**
  * The selected record in full. The list only carries headers (plus its

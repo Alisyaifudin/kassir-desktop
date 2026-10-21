@@ -20,6 +20,30 @@ function normalized(code: string): string {
   return code.trim().toLowerCase();
 }
 
+/** Case-folded code → the catalogue listings that carry it. */
+export type CatalogByCode = Map<string, Listing[]>;
+
+let catalogCache: { catalog: readonly Listing[]; byCode: CatalogByCode } | null = null;
+
+/**
+ * The catalogue's code index. `listing.get.changes` hands out the same array
+ * until the catalogue changes, so this is built once per catalogue instead of
+ * once per cart keystroke — it used to be rebuilt on every edit inside a cell.
+ */
+export function buildCatalogByCode(catalog: readonly Listing[]): CatalogByCode {
+  if (catalogCache !== null && catalogCache.catalog === catalog) return catalogCache.byCode;
+  const byCode: CatalogByCode = new Map();
+  for (const listing of catalog) {
+    if (listing.code === null || listing.code.trim() === "") continue;
+    const key = normalized(listing.code);
+    const list = byCode.get(key) ?? [];
+    list.push(listing);
+    byCode.set(key, list);
+  }
+  catalogCache = { catalog, byCode };
+  return byCode;
+}
+
 /**
  * Find the code/name/unit problems the listing grid shows under its cells.
  *
@@ -36,17 +60,9 @@ function normalized(code: string): string {
 export function findLineIssues(
   lines: readonly DraftListing[],
   catalog: readonly Listing[],
+  catalogByCode: CatalogByCode = buildCatalogByCode(catalog),
 ): Map<string, LineIssue> {
   const issues = new Map<string, LineIssue>();
-
-  const catalogByCode = new Map<string, Listing[]>();
-  for (const listing of catalog) {
-    if (listing.code === null || listing.code.trim() === "") continue;
-    const key = normalized(listing.code);
-    const list = catalogByCode.get(key) ?? [];
-    list.push(listing);
-    catalogByCode.set(key, list);
-  }
 
   const manual = lines
     .map((line, index) => ({ line, number: lines.length - index }))

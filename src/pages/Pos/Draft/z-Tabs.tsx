@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
+import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -14,7 +15,7 @@ import {
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
-import { run } from "~/pages/_cart/run";
+import { run } from "~/components/cart/run";
 import { Kbd } from "~/components/ui/kdb";
 
 /**
@@ -37,7 +38,15 @@ export function Tabs({
   const [pendingDelete, setPendingDelete] = useState<DraftModel | null>(null);
 
   function create() {
-    void Effect.runPromise(service.transaction.add.new("incoming")).then(onSelect, () => {});
+    void Effect.runPromise(Effect.either(service.transaction.add.new("incoming"))).then(
+      (result) => {
+        if (Either.isLeft(result)) {
+          toast.error(result.left.message);
+          return;
+        }
+        onSelect(result.right);
+      },
+    );
   }
 
   function confirmDelete() {

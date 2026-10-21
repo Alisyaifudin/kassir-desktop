@@ -1,8 +1,10 @@
 /**
- * UI shapes for the Pos cart and the extra presets the search offers.
+ * The shapes one cart screen draws — a sale in Pos and a purchase in Restock
+ * share them, so the two screens cannot drift on what a line or an extra is.
  *
- * The cart itself now lives in `services/transaction` (`tx_listings` and
- * `tx_extras`); this file only keeps the types and the preset catalogue.
+ * The cart itself lives in `services/transaction` (`tx_listings` and
+ * `tx_extras`); these are the UI shapes the grids, the discount stack and the
+ * extra search hand around.
  */
 import type { ValueKind } from "~/lib/constants";
 
@@ -17,14 +19,18 @@ export type DiscountLine = {
   total: number;
 };
 
-/** One line of a sale: goods, what they cost this time, how many. */
+/**
+ * One cart line: goods, what they cost this time, how many.
+ *
+ * `price` is `Harga jual` on a sale and `Harga beli` on a purchase — the same
+ * field, read against whichever mode the screen is in.
+ */
 export type Line = {
   id: string;
   name: string;
   code: string;
   /** How many pieces make one unit of the line. */
   unit: number;
-  /** Harga jual — the price on this sale, not the catalog cost. */
   price: number;
   qty: number;
   /** The catalog listing this line came from, if any; a manual line has none. */
@@ -43,7 +49,7 @@ export type Line = {
   };
 };
 
-/** A charge or deduction applied to the whole sale, e.g. biaya kartu. */
+/** A charge or deduction applied to the whole record, e.g. biaya kartu, ongkos kirim. */
 export type Extra = {
   id: string;
   name: string;
@@ -59,14 +65,3 @@ export type ExtraPreset = {
   /** The value a fresh extra starts at; usually left at zero to be filled in. */
   value: number;
 };
-
-export const EXTRA_PRESETS: ExtraPreset[] = [
-  { id: "P1", name: "Ongkos Kirim", kind: "number", value: 0 },
-  { id: "P2", name: "Biaya Packing", kind: "number", value: 0 },
-  { id: "P3", name: "Biaya Kartu", kind: "percent", value: 0 },
-  { id: "P4", name: "Biaya Layanan", kind: "percent", value: 0 },
-  { id: "P5", name: "Diskon Grosir", kind: "percent", value: 0 },
-  { id: "P6", name: "Diskon Kuantitas", kind: "percent", value: 0 },
-  { id: "P7", name: "Pembulatan", kind: "number", value: 0 },
-  { id: "P8", name: "Biaya Antar", kind: "number", value: 0 },
-];

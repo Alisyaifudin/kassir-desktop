@@ -1,19 +1,10 @@
 import { Stream } from "effect";
 import { useSearchParams } from "react-router";
-import { useQuery, useStream, type Result } from "~/components/Loader";
+import { useQuery, type Result } from "~/components/Loader";
+import { useRecordRevision } from "~/hooks/use-record-revision";
 import { service } from "~/services";
 import type { Record as RecordModel, RecordError } from "~/services/record";
 import { useTime } from "./use-time";
-
-/**
- * The service's write counter. Every commit and delete bumps it, so a queried
- * page re-reads by putting it in the query's deps. Seeded at 0 so the first
- * render already has a stable key instead of waiting on the stream.
- */
-export function useRecordRevision(): number {
-  const res = useStream(service.record.get.revision, () => 0);
-  return res.type === "success" ? res.data : 0;
-}
 
 /**
  * One local day of records, narrowed by the header's `query` param. The name

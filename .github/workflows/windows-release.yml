@@ -82,6 +82,39 @@ jobs:
           releaseDraft: ${{ github.event_name != 'workflow_dispatch' || inputs.draft == 'true' }}
           prerelease: false
 
+  # The Rust side is otherwise only compiled as a side effect of `tauri build`,
+  # so a type error surfaced minutes into the MSI build on Windows. This job
+  # compiles (and lints) the crate on every push, in well under two minutes with
+  # the cache. The Linux target is the honest gate here: `printer.rs`'s Windows
+  # branch is `#[cfg(windows)]` and cannot be checked on ubuntu — the release job
+  # below still compiles it.
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
   # Tier-0 end-to-end: the real router in Chromium against sql.js, running the
   # real migrations (`bun run test:e2e`). Non-blocking until the suite covers
   # more than the happy-path sale — the unit tests above are the gate.

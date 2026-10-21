@@ -697,6 +697,11 @@ export const TransactionLive = Layer.effect(
           Effect.zipRight(flushAll()),
           Effect.mapError((error) => new TransactionError({ message: error.message })),
         ),
+      reportError(message) {
+        return Effect.sync(() => {
+          log.error(message);
+        }).pipe(Effect.zipRight(SubscriptionRef.set(saveErrorRef, message)));
+      },
       submit(id, input) {
         return Effect.gen(function* () {
           yield* ensureLoaded();
@@ -1062,13 +1067,17 @@ export const TransactionLive = Layer.effect(
               clearTimeout(timer);
               timers.delete(id);
             }
+            // Row first, ref second. The tab must not disappear from the screen
+            // before SQLite agrees, or a failed delete comes back as a
+            // "deleted" cart on the next hydrate — with the lines and prices it
+            // was parked with — and the cashier has already been told it is gone.
+            yield* db
+              .execute("DELETE FROM tx_records WHERE tx_record_id = $1", [id])
+              .pipe(Effect.mapError(toError));
             written.delete(id);
             yield* SubscriptionRef.update(draftsRef, (list) =>
               list.filter((draft) => draft.id !== id),
             );
-            yield* db
-              .execute("DELETE FROM tx_records WHERE tx_record_id = $1", [id])
-              .pipe(Effect.mapError(toError));
             // The cascade drops the rows; the files are ours to remove.
             for (const img of target?.images ?? []) {
               yield* image.del(img.name).pipe(

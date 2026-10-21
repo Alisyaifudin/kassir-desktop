@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type KeyboardEvent,
+} from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { Stream } from "effect";
 import { AnimatePresence } from "motion/react";
 import {
@@ -16,15 +24,16 @@ import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
+import { DEBOUNCE_DELAY } from "~/lib/constants";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
-import type { DiscountLine, Line } from "../types";
+import type { DiscountLine, Line } from "~/components/cart/types";
 import { recalcDiscounts } from "~/lib/purchase";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
-import type { LineIssue } from "~/pages/_cart/code-issues";
-import { DiscountDialog } from "./z-Discount";
-import { SearchResults } from "~/pages/_cart/z-SearchResults";
+import type { LineIssue } from "~/components/cart/code-issues";
+import { DiscountDialog } from "~/components/cart/z-Discount";
+import { SearchResults } from "~/components/cart/z-SearchResults";
 import {
   cellAt,
   columnIn,
@@ -39,6 +48,12 @@ import {
 } from "./listing-grid";
 
 const HEADER: RowRef = { kind: "header" };
+
+/** The callbacks one cart card needs; stable, so `memo` can skip the card. */
+export type CardHandlers = Pick<
+  ComponentProps<typeof ListingCard>,
+  "onChange" | "onRemove" | "onDiscount" | "onSelect" | "onStartEdit" | "onEditingDone"
+>;
 const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 
 /** The column a fresh selection remembers when the search bar is the start. */
@@ -89,7 +104,13 @@ export function Listing({
   focusSearch: number;
   focusLast: number;
 }) {
+  // What the field shows, and the debounced value the service searches on.
+  // One `listing.get.search` per pause, not per keystroke: the product,
+  // extra and record searches all debounce, and this one rebuilt a
+  // catalogue-sized map plus a rescore and sort for every character typed.
+  const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
+  const pushQuery = useDebouncedCallback(setQuery, DEBOUNCE_DELAY);
   const [selection, setSelection] = useState<Selection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
   const [discountFor, setDiscountFor] = useState<string | null>(null);
@@ -105,7 +126,9 @@ export function Listing({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // While the search bar has text the cards make way for the future results.
-  const hidden = query.trim() !== "";
+  // The results pane appears as soon as a character is typed; only the query
+  // itself waits for the pause.
+  const hidden = input.trim() !== "";
   const ids = useMemo(() => lines.map((line) => line.id), [lines]);
   const rows = useMemo(() => rowsFor(hidden ? [] : ids), [hidden, ids]);
   const results = useQuery(() => Stream.fromEffect(service.listing.get.search(query)), [query], {
@@ -178,6 +201,46 @@ export function Listing({
     const timer = setTimeout(() => containerRef.current?.focus(), 0);
     return () => clearTimeout(timer);
   }, [discountFor]);
+
+  // Stable per-line callbacks: the card is memoised, so a keystroke in the search
+  // bar or in one cell must not re-render the other `useSortable`/`motion`
+  // nodes. They read the current lines and selection through refs, so their
+  // identity survives every render.
+  const latest = useRef({ lines, onChange, removeCard });
+  latest.current = { lines, onChange, removeCard };
+  const handlersFor = useMemo(() => {
+    const cache = new Map<string, CardHandlers>();
+    return (id: string) => {
+      const cached = cache.get(id);
+      if (cached !== undefined) return cached;
+      const handlers: CardHandlers = {
+        onChange: (patch) => {
+          const { lines: current, onChange: update } = latest.current;
+          update(current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+        },
+        onRemove: () => latest.current.removeCard(id),
+        onDiscount: () => setDiscountFor(id),
+        onSelect: (field, sub) => {
+          setSelection({
+            row: { kind: "card", cardId: id, part: partOf(field) },
+            col: startOf(field),
+            qtySub: field === "qty" ? (sub ?? "value") : undefined,
+          });
+          setEditing(false);
+        },
+        onStartEdit: (field) => {
+          setSelection({
+            row: { kind: "card", cardId: id, part: partOf(field) },
+            col: startOf(field),
+          });
+          setEditing(true);
+        },
+        onEditingDone: () => setEditing(false),
+      };
+      cache.set(id, handlers);
+      return handlers;
+    };
+  }, []);
 
   function moveVertical(delta: number) {
     const index = rows.findIndex((row) => sameRow(row, selection.row));
@@ -284,12 +347,22 @@ export function Listing({
       };
       onChange([line, ...lines]);
     }
+    pushQuery.cancel();
+    setInput("");
     setQuery("");
     searchRef.current?.focus();
   }
 
   /** Enter in the search field takes the exact code match, else the first result. */
   function pickFirst() {
+    // Enter before the debounce fired: the list on screen still belongs to the
+    // previous query, and picking from it would add the wrong goods. Bring the
+    // query up to date first; the results land in a few milliseconds.
+    if (input !== query) {
+      pushQuery.cancel();
+      setQuery(input);
+      return;
+    }
     if (results.type !== "success" || results.data.length === 0) return;
     const code = query.trim().toLowerCase();
     const exact = results.data.find((listing) => listing.code?.toLowerCase() === code);
@@ -437,8 +510,12 @@ export function Listing({
             className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
             placeholder="Cari barang untuk dibeli..."
             aria-autocomplete="list"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
+            value={input}
+            onChange={(event) => {
+              const next = event.currentTarget.value;
+              setInput(next);
+              pushQuery(next);
+            }}
           />
         </div>
         <div
@@ -486,6 +563,7 @@ export function Listing({
                     return (
                       <ListingCard
                         key={line.id}
+                        {...handlersFor(line.id)}
                         line={line}
                         number={lines.length - index}
                         issue={issues.get(line.id)}
@@ -496,29 +574,6 @@ export function Listing({
                             : undefined
                         }
                         editing={cardSelected && editing}
-                        onChange={(patch) =>
-                          onChange(
-                            lines.map((row) => (row.id === line.id ? { ...row, ...patch } : row)),
-                          )
-                        }
-                        onRemove={() => removeCard(line.id)}
-                        onDiscount={() => setDiscountFor(line.id)}
-                        onSelect={(field, sub) => {
-                          setSelection({
-                            row: { kind: "card", cardId: line.id, part: partOf(field) },
-                            col: startOf(field),
-                            qtySub: field === "qty" ? (sub ?? "value") : undefined,
-                          });
-                          setEditing(false);
-                        }}
-                        onStartEdit={(field) => {
-                          setSelection({
-                            row: { kind: "card", cardId: line.id, part: partOf(field) },
-                            col: startOf(field),
-                          });
-                          setEditing(true);
-                        }}
-                        onEditingDone={() => setEditing(false)}
                       />
                     );
                   })}

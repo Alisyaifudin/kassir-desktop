@@ -101,3 +101,48 @@ describe("listing index cache", () => {
     ).not.toBe(index);
   });
 });
+
+describe("searchListings at grosir scale", () => {
+  beforeEach(() => resetListingIndex());
+
+  // A POS terminal types into this search bar continuously. This is a regression
+  // guard, not a target: the index is built once, but one query over a grosir
+  // catalogue still scores every entry four ways, which measured ~19 ms on the
+  // dev machine. The search bar is debounced (`DEBOUNCE_DELAY`) so that cost is
+  // paid once per pause instead of once per character; if the scoring pass or
+  // the sort gets materially worse, this catches it.
+  test("scores 5,000 listings within the typing budget", () => {
+    const catalogue = Array.from({ length: 5_000 }, (_, index) =>
+      listing(`Barang ${index}`, {
+        id: `l${index}`,
+        code: String(10_000 + index),
+        product: `Produk ${index % 400}`,
+        alt: [`Alias ${index % 100}`],
+      }),
+    );
+    const index = getListingIndex(catalogue);
+
+    // Warm the JIT with a query that hits nothing, then measure the real one.
+    searchListings(index, "zzz");
+
+    const started = performance.now();
+    for (let i = 0; i < 5; i += 1) searchListings(index, "barang 12");
+    const perQuery = (performance.now() - started) / 5;
+
+    expect(searchListings(index, "barang 12").length).toBeGreaterThan(0);
+    expect(perQuery).toBeLessThan(25);
+  });
+
+  test("an unchanged catalogue reuses one index across many queries", () => {
+    const catalogue = Array.from({ length: 200 }, (_, index) =>
+      listing(`Barang ${index}`, { id: `l${index}` }),
+    );
+    const index = getListingIndex(catalogue);
+
+    for (const query of ["b", "ba", "bar", "bara", "baran", "barang"]) {
+      searchListings(getListingIndex(catalogue), query);
+    }
+
+    expect(getListingIndex(catalogue)).toBe(index);
+  });
+});

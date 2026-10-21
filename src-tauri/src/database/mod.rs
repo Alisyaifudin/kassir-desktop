@@ -1,7 +1,7 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 pub fn generate_migration() -> Vec<Migration> {
-    let migrations = vec![
+    vec![
         Migration {
             version: 1,
             description: "create_initial_tables",
@@ -266,6 +266,5 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-46.sql"),
             kind: MigrationKind::Up,
         },
-    ];
-    return migrations;
+    ]
 }

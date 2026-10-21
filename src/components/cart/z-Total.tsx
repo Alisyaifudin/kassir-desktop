@@ -1,5 +1,5 @@
 import type Decimal from "decimal.js";
-import { rupiah } from "~/pages/_cart/util-rupiah";
+import { rupiah } from "~/components/cart/util-rupiah";
 
 /**
  * What the shop pays. Big, centred and alone — the one number that matters once

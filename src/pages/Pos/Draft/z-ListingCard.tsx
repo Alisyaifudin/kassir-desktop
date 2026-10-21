@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -7,12 +7,12 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "~/lib/purchase";
-import { rupiah } from "~/pages/_cart/util-rupiah";
-import type { Line } from "../mock";
+import { rupiah } from "~/components/cart/util-rupiah";
+import type { Line } from "~/components/cart/types";
 import type { Field, QtySub } from "./listing-grid";
-import { Cell, EDITING_RING, SELECTED_RING } from "~/pages/_cart/z-Cell";
-import type { LineIssue } from "~/pages/_cart/code-issues";
-import { CodeIssueView, FieldIssue } from "~/pages/_cart/z-Issue";
+import { Cell, EDITING_RING, SELECTED_RING } from "~/components/cart/z-Cell";
+import type { LineIssue } from "~/components/cart/code-issues";
+import { CodeIssueView, FieldIssue } from "~/components/cart/z-Issue";
 
 /**
  * One line of the purchase, laid out as a twelve-column block: who and how much
@@ -23,7 +23,7 @@ import { CodeIssueView, FieldIssue } from "~/pages/_cart/z-Issue";
  * The parent owns selection and editing, so the whole grid can be driven by the
  * arrow keys; a cell only renders what it is told.
  */
-export function ListingCard({
+export const ListingCard = memo(function ListingCard({
   line,
   number,
   issue,
@@ -229,7 +229,7 @@ export function ListingCard({
       </div>
     </motion.div>
   );
-}
+});
 
 /**
  * The quantity cell, laid out as its own little sub-grid: `‹`, the value, `›`.

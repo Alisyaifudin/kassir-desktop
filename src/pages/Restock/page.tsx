@@ -9,7 +9,7 @@ import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import type { Extra, Line } from "./types";
+import type { Extra, Line } from "~/components/cart/types";
 import {
   linesSubtotal,
   paidTotal,
@@ -20,7 +20,9 @@ import {
 import { useUser } from "~/hooks/use-user";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
-import { findLineIssues, hasHardIssue } from "~/pages/_cart/code-issues";
+import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
+import { cartErrorMessage, run } from "~/components/cart/run";
+import { CartStartError } from "~/components/cart/z-StartError";
 import { Complete } from "./z-Complete";
 
 /**
@@ -96,6 +98,11 @@ function Screen({
   // the restored draft reaches the stream.
   const [restoring, setRestoring] = useState(false);
   const [restoredId, setRestoredId] = useState<string | null>(null);
+  // Why the screen has no cart to show. A rejected `add.new` writes no state, so
+  // the effect below would never re-run: without this the operator got a spinner
+  // that never ends instead of a message and a retry.
+  const [startError, setStartError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   // F1 searches; F12 starts another purchase draft.
   useEffect(() => {
@@ -114,7 +121,9 @@ function Screen({
       }
       if (event.key === "F12") {
         event.preventDefault();
-        void Effect.runPromise(service.transaction.add.new("outcoming")).then(onDraft, () => {});
+        void Effect.runPromise(service.transaction.add.new("outcoming")).then(onDraft, (error) => {
+          setStartError(cartErrorMessage(error));
+        });
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -136,13 +145,15 @@ function Screen({
     void Effect.runPromise(service.transaction.add.new("outcoming")).then(
       (id) => {
         creating.current = false;
+        setStartError(null);
         onDraft(id);
       },
-      () => {
+      (error) => {
         creating.current = false;
+        setStartError(cartErrorMessage(error));
       },
     );
-  }, [purchaseDrafts.length, onDraft, complete, submitting, restoring]);
+  }, [purchaseDrafts.length, onDraft, complete, submitting, restoring, retry]);
 
   // Once the rebuilt draft reaches the stream, the normal no-tabs guard can take
   // over again. The timeout is a safety net for a stream that never delivers.
@@ -240,16 +251,33 @@ function Screen({
 
   // Keep the dialog at the same sibling position as the main return so it does
   // not remount when a cancelled purchase restores a draft.
-  if (active === null) return <><Loading />{completeDialog}</>;
+  if (active === null) {
+    return (
+      <>
+        {startError === null ? (
+          <Loading />
+        ) : (
+          <CartStartError
+            message={startError}
+            onRetry={() => {
+              setStartError(null);
+              setRetry((count) => count + 1);
+            }}
+          />
+        )}
+        {completeDialog}
+      </>
+    );
+  }
 
   // The cart lives in the transaction service; these are its `tx_listings` and
   // `tx_extras` rows, written back on every edit.
   const lines: Line[] = active.listings;
   const extras: Extra[] = active.extras;
   const setLines = (next: Line[]) =>
-    void Effect.runFork(service.transaction.listings.set(active.id, next));
+    run(service.transaction.listings.set(active.id, next));
   const setExtras = (next: Extra[]) =>
-    void Effect.runFork(service.transaction.extras.set(active.id, next));
+    run(service.transaction.extras.set(active.id, next));
 
   const subtotal = linesSubtotal(lines);
   const total = purchaseTotal(extras, subtotal);

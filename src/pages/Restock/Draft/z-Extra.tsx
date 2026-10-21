@@ -14,9 +14,9 @@ import {
 } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import type { ValueKind } from "~/lib/constants";
-import type { Extra } from "../types";
-import { rupiah } from "~/pages/_cart/util-rupiah";
-import { Cell, SELECTED_RING } from "~/pages/_cart/z-Cell";
+import type { Extra } from "~/components/cart/types";
+import { rupiah } from "~/components/cart/util-rupiah";
+import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
 import type { ExtraField } from "./extra-grid";
 
 const KIND_LABELS: Record<ValueKind, string> = { number: "Angka", percent: "Persen" };

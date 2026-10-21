@@ -22,8 +22,8 @@ import {
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { lineSubtotal, recalcDiscounts } from "~/lib/purchase";
-import { rupiah } from "~/pages/_cart/util-rupiah";
-import type { DiscountKind, DiscountLine, Line } from "../mock";
+import { rupiah } from "~/components/cart/util-rupiah";
+import type { DiscountKind, DiscountLine, Line } from "~/components/cart/types";
 
 /** start column of value, kind, eff, x (no# is column 0). */
 const COLUMNS = [1, 4, 7, 10];

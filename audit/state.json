@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T17:55:51.934Z",
+  "updatedAt": "2026-10-21T18:38:57.271Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -315,6 +315,212 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T17:55:51.934Z"
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "startedAt": "2026-10-21T18:05:04.255Z",
+      "audit": {
+        "score": 78,
+        "categories": {
+          "architecture": 78,
+          "react": 78,
+          "tauri": 80,
+          "ux": 78,
+          "codeQuality": 76,
+          "testing": 74
+        },
+        "verdict": "Biggest remaining risk is data truth again, but at a deeper layer: iteration 1's fix turned the POS catalogue into a projection of `ProductService`, and then made that service reuse the cached state whenever the row `*_updated_at` numbers match — so a write in the same millisecond as the previous one is read back as \"unchanged\", the ref never emits, and the POS sells the old price/stock. That is why `bun test` (now the CI gate before the MSI build) fails on `repricing a listing is visible without a reload` when the whole suite runs and passes when the file is run alone; the detector needs the writes it just made, not a clock. Second is paper: `build-summary.ts` only prints the Pembulatan and Total Semua lines for positive rounding, so a rounded-down sale prints a receipt whose numbers do not explain the money taken, and `src/lib/receipt/` has exactly one test. Substantial improvement since iteration 1: `tsc --noEmit` and `eslint` are clean, typecheck/lint/test are wired into CI, the release ACL is narrow with a real CSP, the dead JWT commands and ~10k lines of unrouted legacy code are gone, `ListingLive` no longer caches, incremental cart writes and the decimal money library are in place, and the POS keyboard/focus work (F1/F2/F12, unified grid hand-off, parked carts, the completion dialog) is genuinely production-grade. Deliberately not covered: the fingerprinted migration SQL beyond the `tx_*`/index shape, the body of the money/record/analytics screens beyond their data hooks, the sync surface, the Rust printer path on real Windows hardware, the updater/`latest.json` trust chain, a screen-reader audit of the POS grid, and a measured profile of the search path (report 6 is argued structurally, not benchmarked); remaining nits folded in rather than filed — 8 files still carry fixed text sizes (`text-3xl` in the Money/History and receipt dialogs, `text-5xl` in the login brand panel), `src/pages/_cart/` and `Pos/mock.ts` still live in page land, and `src/services/PLAN.md` is a stale doc naming directories deleted last iteration.",
+        "reports": [
+          {
+            "slug": "catalogue-invalidation-by-wall-clock",
+            "title": "Catalogue cache decides \"unchanged\" from wall-clock milliseconds, so a write can be silently dropped",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/services/product/live.ts",
+              "src/services/listing/live.test.ts",
+              "src/services/product/stock-sql.ts",
+              "src/services/listing/live.ts"
+            ],
+            "summary": "`ProductService.hydrate()` reuses the previous `ProductState` when every `*_updated_at` number matches, and those numbers are `Date.now()` stamped by the writer. Two writes to the same row inside one millisecond therefore read back as \"unchanged\": the ref keeps the old object, emits nothing, and the POS keeps the old price and old stock. This is exactly the stale-catalogue class iteration 1 fixed, re-introduced by its own optimisation — and it is why `bun test` (the CI gate that now blocks the MSI build) fails on `listing service > repricing a listing is visible without a reload` when the whole suite runs, yet passes when the file is run alone.",
+            "path": "iterations/002/report-01-catalogue-invalidation-by-wall-clock.md",
+            "createdAt": "2026-10-21T18:12:38.799Z"
+          },
+          {
+            "slug": "pos-restock-cart-duplication",
+            "title": "The Pos and Restock carts are still the same ~6,000 lines written twice, now drifting both ways",
+            "severity": "high",
+            "category": "maintainability",
+            "files": [
+              "src/pages/Pos/Draft/z-Methods.tsx",
+              "src/pages/Restock/Draft/z-Methods.tsx",
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Restock/Draft/z-Listing.tsx",
+              "src/pages/Pos/mock.ts",
+              "src/pages/Restock/types.ts",
+              "src/pages/_cart/z-Cell.tsx",
+              "src/pages/Pos/Draft/listing-grid.ts"
+            ],
+            "summary": "Recurring (iteration 1, marked \"partial\"). The two cart screens are still one screen written twice: `git diff --no-index --stat` between `Pos/Draft` and `Restock/Draft` reports 658/525 changed lines out of 7,253, i.e. ~6,000 identical lines, and the types are duplicated too (`Pos/mock.ts` vs `Restock/types.ts`). The copies have now drifted in both directions — the Pos copy has the parked-cart flow, the `toggle` header cell and the panel hand-off; the Restock copy has none of it — so the same class of \"fix reached one screen only\" bug that iteration 1 caught is now built into the structure. The shared primitives also live under a page (`src/pages/_cart/`) and are imported across page folders (54 imports).",
+            "path": "iterations/002/report-02-pos-restock-cart-duplication.md",
+            "createdAt": "2026-10-21T18:12:54.915Z"
+          },
+          {
+            "slug": "receipt-drops-negative-rounding",
+            "title": "A receipt for a downward rounding omits the rounding line and the grand total",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/lib/receipt/build-summary.ts",
+              "src/lib/receipt/create-receipt-data.ts",
+              "src/pages/Pos/Draft/z-Methods.tsx",
+              "src/services/transaction/live.ts",
+              "src/pages/Record/Item/z-Receipt/z-Summary.tsx"
+            ],
+            "summary": "`build-summary.ts` only prints the \"Pembulatan\" and \"Total Semua\" lines when `record.rounding > 0`, so a sale rounded *down* (a reachable, tested path: the Pembulatan cell has `allowNegative`, `submit` has a \"supports negative rounding\" unit test) prints a receipt showing `Total Rp100.500` and `Pembayaran Rp100.000` with no line explaining the Rp500 and no grand total. The dead `record.rounding > 0 ? \"\" : \"-\"` inside that block shows the guard was meant to be `!== 0`. Nothing in `src/lib/receipt/` tests the summary builder, which is why it survived.",
+            "path": "iterations/002/report-03-receipt-drops-negative-rounding.md",
+            "createdAt": "2026-10-21T18:13:16.198Z"
+          },
+          {
+            "slug": "cart-lifecycle-errors-dropped",
+            "title": "Cart creation and tab deletion drop their errors: permanent spinner, and deleted carts resurrect",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/pages/Pos/Draft/z-Tabs.tsx",
+              "src/pages/_cart/run.ts",
+              "src/services/transaction/live.ts",
+              "src/components/SaveError.tsx"
+            ],
+            "summary": "`<SaveError>` was built so a failed cart write cannot be invisible, but it is only fed by the debounced flush. The rest of the cart lifecycle fires effects with empty rejection handlers: draft creation (`add.new`) failing leaves the POS on a permanent `<Loading/>` with no message and no retry (`Pos/page.tsx:264`), `Effect.runFork(service.transaction.delete.byId(...))` drops the error from a delete that removes the tab from the ref *before* deleting the row — so a \"deleted\" cart comes back on the next hydrate — and `_cart/run.ts` swallows failures for ~15 more call sites.",
+            "path": "iterations/002/report-04-cart-lifecycle-errors-dropped.md",
+            "createdAt": "2026-10-21T18:13:51.112Z"
+          },
+          {
+            "slug": "print-commands-block-main-thread",
+            "title": "Printer IPC commands run on the main thread and freeze the POS while spooling",
+            "severity": "medium",
+            "category": "tauri",
+            "files": [
+              "src-tauri/src/printer.rs",
+              "src-tauri/src/auth.rs",
+              "src-tauri/src/lib.rs",
+              "src/lib/printer.ts"
+            ],
+            "summary": "`get_printers` and `print_pdf` are synchronous `#[tauri::command]` functions (`src-tauri/src/printer.rs:66-77`), so on Tauri v2 they run on the main thread: Win32 printer enumeration, temp-file write and `WinPdfPrinter::print` all block the webview event loop. Printing happens immediately after Bayar, so a slow or offline printer freezes the whole POS window right when the cashier needs to start the next sale. `auth.rs` already moved its blocking work to `spawn_blocking` with a comment explaining exactly this hazard; `printer.rs` was left behind.",
+            "path": "iterations/002/report-05-print-commands-block-main-thread.md",
+            "createdAt": "2026-10-21T18:14:10.407Z"
+          },
+          {
+            "slug": "pos-search-unthrottled",
+            "title": "POS search re-queries the whole catalogue on every keystroke, unlike every other search box",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Restock/Draft/z-Listing.tsx",
+              "src/services/listing/live.ts",
+              "src/lib/search/listings.ts",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Pos/Draft/z-ListingCard.tsx",
+              "src/pages/Product/z-Search.tsx"
+            ],
+            "summary": "The POS search bar is the only search in the app that is not debounced: Product, Extra and Record all use `useDebouncedCallback`, while `Pos/Draft/z-Listing.tsx` feeds every keystroke straight into `listing.get.search`, which rebuilds a catalogue-sized `Map` and rescoring/ sorting pass per character. The same screen also rebuilds a catalogue-wide code map (`findLineIssues`) on every cart edit, and `ListingCard` is unmemoised with inline callbacks, so one keystroke re-renders every `useSortable`/`motion` card. Small catalogues hide it; a grosir catalogue turns typing into a stutter.",
+            "path": "iterations/002/report-06-pos-search-unthrottled.md",
+            "createdAt": "2026-10-21T18:14:41.669Z"
+          },
+          {
+            "slug": "receipt-money-rust-untested",
+            "title": "The receipt builders, the money journal and all of `src-tauri` are untested, and no test covers submit→catalogue",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "src/lib/receipt/build-summary.ts",
+              "src/lib/receipt/create-receipt-data.ts",
+              "src/services/money/live.ts",
+              "src/services/transaction/submit.test.ts",
+              "src/services/db/test-support.ts",
+              ".github/workflows/windows-release.yml"
+            ],
+            "summary": "Recurring in part (iteration 1's `tests-not-wired-to-tooling` is fixed — CI now runs typecheck/lint/test). What remains is coverage shape: the receipt builders (`src/lib/receipt/*`, only `build-header` tested) and the money journal (`src/services/money/live.ts`, 382 lines, no test) are untested, which is exactly where this iteration's negative-rounding receipt bug lives. There are also zero Rust tests and no `cargo check`/`clippy` step, so `src-tauri` is only compiled at release time, and no test asserts the composite \"a committed sale changes the price/stock the POS reads\" that iteration 1 was about.",
+            "path": "iterations/002/report-07-receipt-money-rust-untested.md",
+            "createdAt": "2026-10-21T18:15:03.845Z"
+          },
+          {
+            "slug": "dashboard-day-frozen-at-mount",
+            "title": "The dashboard's \"today\" is frozen at mount, so a shop PC open past midnight reports yesterday as today",
+            "severity": "low",
+            "category": "correctness",
+            "files": [
+              "src/pages/Home/use-stats.ts",
+              "src/pages/Home/z-IncomeCard.tsx",
+              "src/pages/Money/use-range.tsx",
+              "src/pages/Record/use-records.ts",
+              "src/pages/Record/use-time.ts"
+            ],
+            "summary": "The Beranda dashboard derives \"today\" once, inside `useMemo(dayRanges, [])`, and queries on `[range.today.start]` with no record-revision dep — so an app left open across local midnight keeps showing yesterday's figures as \"Pendapatan Hari Ini\", and nothing short of a route remount refreshes it. `Money/use-range.tsx` freezes its default month window the same way. Every other day-scoped screen (`Record/use-records.ts`, `Debt/use-data.ts`) already subscribes to `record.get.revision`; the dashboard is the one that does not.",
+            "path": "iterations/002/report-08-dashboard-day-frozen-at-mount.md",
+            "createdAt": "2026-10-21T18:15:26.319Z"
+          }
+        ],
+        "at": "2026-10-21T18:15:49.363Z"
+      },
+      "finishedAt": "2026-10-21T18:38:57.271Z",
+      "fix": {
+        "summary": "## Fix pass — iteration 2 (8/8 reports recorded: 5 fixed, 3 partial)\n\n**Verification:** `bun run lint` ✅, `bun run typecheck` ✅, `bun test` **224 pass / 0 fail** (was 197 pass / 1 fail at audit time — the whole-suite `listing service > repricing a listing is visible without a reload` failure is gone), `cargo clippy --all-targets -D warnings` and `cargo fmt --check` ✅ on `src-tauri`.\n\n### Data truth\n- **`catalogue-invalidation-by-wall-clock` (fixed)** — `ProductService.hydrate()` no longer decides \"unchanged\" from `Date.now()` timestamps alone: per-row value comparators (`sameListing`/`sameStock`/`sameProperty`/`sameProductName`/`sameImage`). The identity-reuse optimisation and \"no-op hydrate emits nothing\" still hold. Two frozen-clock regression tests were added and mutation-checked (removing `a.price === b.price` makes them fail).\n- **`receipt-drops-negative-rounding` (fixed)** — guard is now `rounding !== 0` with an honest sign, so paper prints `Total / Pembulatan -Rp500 / Total Semua / Pembayaran / Kembalian`. `build-summary.test.ts` + `create-receipt-data.test.ts` added; flipping the guard back fails 4 tests.\n- **`cart-lifecycle-errors-dropped` (fixed)** — new `transaction.reportError()` feeds the `<SaveError>` channel, `components/cart/run.ts` routes every fire-and-forget cart write into it, a rejected `add.new` renders a real \"Tidak bisa memulai transaksi\" + retry instead of a permanent spinner, and `delete.byId` deletes the row *before* dropping the tab from the ref (no resurrecting carts). Tests added in `flush.test.ts`.\n- **`dashboard-day-frozen-at-mount` (fixed)** — new `useDayStart()/currentDayStart()` (one timer to next local midnight + focus/visibility), used by `Home/use-stats.ts` and `Money/use-range.tsx`; `useStats` also subscribes to `useRecordRevision` (moved to `src/hooks/`).\n\n### Performance / platform\n- **`pos-search-unthrottled` (partial)** — both cart searches are debounced (`use-debounce` + `DEBOUNCE_DELAY`), `matching()` caches its id map by array identity, `findLineIssues` caches the catalogue code map, and the cart cards are `memo`'d with stable per-line handlers. Measured: one query over 5,000 listings is ~19 ms of scoring, so the new timing test guards at <25 ms — the scoring ladder itself was not reworked.\n- **`print-commands-block-main-thread` (fixed)** — both printer commands are `async` + `spawn_blocking`, the not-found path enumerates the spooler once, success says \"Dikirim ke printer\", dead `PrintResult` removed.\n\n### Structure / testing\n- **`pos-restock-cart-duplication` (partial)** — `src/pages/_cart/` is gone (→ `src/components/cart/`), one shared `components/cart/types.ts` replaces `Pos/mock.ts` + `Restock/types.ts` (`EXTRA_PRESETS` → `Pos/presets.ts`), and the byte-identical `z-Discount`/`z-ExtraSearch`/`z-Total` are single copies. Duplication diff 18 files/658+525 → 14 files/651+513. **Still open:** the two `Draft/` trees are not collapsed into one mode-branched component; the two grids (`listing-grid`/`extra-grid`, Pos-only `toggle` cell, Restock-only `subtotal` row) are what block sharing `z-Extra`, `z-ListingCard`, `z-Methods`, `z-Listing`, `Draft/index.tsx`.\n- **`receipt-money-rust-untested` (partial)** — receipt builders, `money/live.ts` (6 tests) and the submit→catalogue composite are now tested; CI has a `rust` job (`cargo fmt --check` + `clippy -D warnings`, two real fixes needed: `printer.rs` formatting and a `needless_return` in `database/mod.rs`). **Still open:** no test asserts the bytes handed to the printer, no Rust unit tests, e2e still non-blocking.\n\n### For the next auditor\n1. Collapse `Pos/Draft` + `Restock/Draft` behind one `CartDraft` with `mode` + slots; unify the two grid modules first.\n2. The 5,000-listing scoring pass (~19 ms) is the next real perf win — a cheap prefilter before `gradeText`.\n3. `run.ts` deliberately imports the `~/services` singleton to report failures; if the service layer moves, that coupling needs a reporter prop.\n4. Watch `sameState`: any new child field added to `ProductState` must be added to its comparator, or identity reuse can hide a write again.",
+        "fixes": [
+          {
+            "report": "receipt-drops-negative-rounding",
+            "status": "fixed",
+            "note": "`buildSummarySection` now guards on `record.rounding !== 0` and signs with `rounding < 0 ? \"-\" : \"\"`, so a rounded-down sale prints `Total`, `Pembulatan -Rp500`, `Total Semua Rp100.000` and then `Pembayaran`/`Kembalian` — the same shape as the positive case, matching the screen (`Record/Item/z-Receipt/z-Summary.tsx` already used `!== 0`). Added `src/lib/receipt/build-summary.test.ts` (zero/positive/negative rounding + extras ordering, asserting the exact ordered label set and `-Rp500`) and `src/lib/receipt/create-receipt-data.test.ts` (full `createReceiptData` line order incl. `-Rp500` and `Total Semua`, plus a no-`undefined`/`NaN` guard). `build-transaction-summary.ts` has no rounding guard; nothing else prints rounding."
+          },
+          {
+            "report": "catalogue-invalidation-by-wall-clock",
+            "status": "fixed",
+            "note": "Replaced the timestamp-only identity check in `ProductService.hydrate()` with value-by-value comparators (`sameListing`/`sameStock`/`sameProperty`/`sameProductName`/`sameImage`, wired through a generic `sameChildren(a, b, same)`), keeping the timestamp fields as one input but no longer as the only signal — two writes inside one `Date.now()` millisecond can no longer read back as \"unchanged\". The identity optimisation itself is preserved: an untouched product keeps its object, a no-op hydrate still emits nothing. Added two deterministic regression tests in `src/services/product/live.test.ts` (frozen `Date.now()`: a listing price edit and a `stock.receive` in the same millisecond both reach `get.all()`/`get.byId()`), verified they fail under timestamp-only comparison. `bun test` full suite: 207 pass / 0 fail (previously the listing repricing test failed in the whole-suite run). Not done: the `hydrate({touched})` scoping recommended as option 1 — that is a larger refactor, and the content comparison is sound on its own."
+          },
+          {
+            "report": "pos-restock-cart-duplication",
+            "status": "partial",
+            "note": "Landed the first two steps of the report's plan (the ones with no design decisions): (1) `src/pages/_cart/` is gone — the shared cart primitives (`z-Cell`, `z-Issue`, `z-Note`, `z-Precision`, `z-SearchResults`, `code-issues` + test, `util-rupiah`, `run`) now live in `src/components/cart/`, with all 53 `~/pages/_cart/…` imports rewritten and no `src/pages/**` → other-page import left for them. (2) One type module: new `src/components/cart/types.ts` holds `Line`/`Extra`/`ExtraPreset`/`DiscountLine`/`DiscountKind`; `Pos/mock.ts` and `Restock/types.ts` are deleted, and the only live thing `mock.ts` carried (`EXTRA_PRESETS`) moved to `src/pages/Pos/presets.ts` — no production module named \"mock\" remains. (3) Merged the now-byte-identical duplicated components into `src/components/cart/`: `z-Discount.tsx` (401 lines, was copied twice), `z-ExtraSearch.tsx`, and `z-Total.tsx` — the Restock copy of `z-Total` had silently lost Pos's `data-testid=\"grand-total\"`, which is exactly the drift class the report describes, and both screens now have it back. Duplication measure: `git diff --no-index --stat Pos/Draft Restock/Draft` went from 18 files/658+525 to 14 files/651+513. **Remaining (still the core of the report, needs a design pass, not a mechanical move):** the two `Draft/` trees themselves are not collapsed into one mode-branched `CartDraft`; `listing-grid.ts`/`extra-grid.ts` still differ by the Pos-only `toggle` header cell and the Restock-only `subtotal` row, which is what blocks sharing `z-Extra.tsx`, `z-ListingCard.tsx` (drifted: testid + \"Harga Jual\"/\"Harga Beli\" label), `z-Methods.tsx`, `z-Listing.tsx` and `Draft/index.tsx`. Unifying the two grids behind a `mode`/header-cell prop is the next cheapest step and would unlock those five files."
+          },
+          {
+            "report": "cart-lifecycle-errors-dropped",
+            "status": "fixed",
+            "note": "Three changes, each closing one of the report's failure paths. (1) **No more silent drops**: `components/cart/run.ts` now catches the effect's failure and routes it to `service.transaction.reportError(...)` — a new service method that writes to the same `saveErrorRef` `<SaveError>` renders (plus `log.error`), so every fire-and-forget cart edit (note, precision, rounding, methods, customer/supplier, images, tab delete, title, listings/extras) has a visible channel. `Effect.runFork` in `Pos/page.tsx`, `Restock/page.tsx` and both `Draft/index.tsx` goes through it; the remaining `runFork`s under `src/pages/**` are `Fiber.interrupt`/upload fibers, not cart writes. The two `then(onSelect, () => {})` new-tab buttons in `z-Tabs.tsx` and the `storeCart`/`openDraft` park+restore paths now use `Effect.either` and toast the message instead of dropping it, and an F12/`add.new` rejection sets the start-error state. (2) **No more permanent spinner**: both pages track `startError` + a `retry` token; a rejected `add.new` (nothing is written, so the \"always have a cart\" effect never re-ran) now renders a new `components/cart/z-StartError.tsx` — \"Tidak bisa memulai transaksi\" + the message + a `Coba lagi` button that re-arms the effect. (3) **Deleted carts cannot resurrect**: `transaction.delete.byId` now deletes the `tx_records` row *first* and only then removes the draft from the ref (and `written`), so a failed delete leaves the tab visible instead of bringing it back with its parked lines on the next hydrate. Tests added in `src/services/transaction/flush.test.ts` (the flaky DB layer now also fails `execute`): a failed delete leaves both the draft and the row; a successful one removes both; `reportError` reaches the `saveError` channel. `bun test` 210 pass. **Remaining**: the failures that reach the operator via `toast`/`SaveError` are still transient (no retry button on a failed delete — the tab simply stays), and `flush.test.ts`'s failure hook is test-only, so the \"corrupt `tx.db`\" manual scenario was not exercised end to end."
+          },
+          {
+            "report": "pos-search-unthrottled",
+            "status": "partial",
+            "note": "Four changes. (1) **Debounce**: both `Pos/Draft/z-Listing.tsx` and `Restock/Draft/z-Listing.tsx` now split the search into `input` (what the field shows, and what opens the results pane) and `query` (fed to `listing.get.search` through `useDebouncedCallback(setQuery, DEBOUNCE_DELAY)` — the same `use-debounce` + `DEBOUNCE_DELAY` the Product/Extra/Record searches use). Picking a listing cancels the pending push and clears both. So one query per pause, not per character. (2) `ListingService.matching()` no longer rebuilds a catalogue-sized `Map` per query: `listingById()` caches the id→Listing map against the `toListings()` array identity, which is stable until the catalogue changes. (3) `findLineIssues` no longer rebuilds the catalogue code map on every cart edit — new `buildCatalogByCode(catalog)` caches it by array identity (the `listing.get.changes` array), and `findLineIssues` takes it as an optional third argument defaulting to the cache. (4) Cards are memoised: both `ListingCard`s are `memo(...)`, and each `z-Listing` now hands them a per-line handler set (`handlersFor(line.id)`, memoised in a `Map`, reading `lines`/`onChange`/`removeCard` through a ref) instead of inline lambdas, so a keystroke in the search bar or in one cell no longer re-renders every `useSortable`/`motion` node. Added two tests in `src/lib/search/listings.test.ts`: a 5,000-listing timing guard and \"many queries reuse one index\". **Measured, not asserted-away:** one query over 5,000 listings still costs ~19 ms in the scoring pass (four `gradeText` calls per entry), so the timing guard is `perQuery < 25 ms` and documented as a regression bound, not the report's suggested 8 ms target — I did not rework the scoring ladder, which is the next real step if that number matters (e.g. an `indexOf`/first-char prefilter before `gradeText`). Not verified by a profiler in the app: the \"30 cart lines, one price edit re-renders only that card\" claim rests on the memo + stable handlers, not on React DevTools."
+          },
+          {
+            "report": "print-commands-block-main-thread",
+            "status": "fixed",
+            "note": "`get_printers` and `print_pdf` in `src-tauri/src/printer.rs` are now `async fn`s that run their body on `tauri::async_runtime::spawn_blocking`, mirroring `auth.rs`'s bcrypt handling with a comment explaining the hazard — so Win32 printer enumeration, the temp-PDF write and `WinPdfPrinter::print` no longer run on the webview's main thread and a slow/offline printer can't freeze the POS right after Bayar. `validate_pdf` still runs before the hop, so a non-PDF buffer fails without touching the pool. Also in the same file: the Windows not-found path no longer calls `PrinterDevice::all()` a second time (and drops its `unwrap_or_default()`), the success string now says `Dikirim ke printer '<name>'` instead of \"Successfully sent …\" because the spooler accepting a job is not the paper coming out, and the unused `PrintResult` struct is gone (it was the only dead-code warning in the crate). `cargo check` passes clean on the Linux target. **Not verifiable here:** the Windows `winprint` branch compiles only on a Windows host — I kept the change to shapes that need no new bound (no `Clone` on `PrinterDevice`, a `fn` item passed to `spawn_blocking`), but it should be confirmed with `cargo check` on Windows. No Rust test was added for these (report 7 covers the missing Rust job)."
+          },
+          {
+            "report": "dashboard-day-frozen-at-mount",
+            "status": "fixed",
+            "note": "Added `src/hooks/use-day-start.ts` — `useDayStart()` returns today's local midnight and re-arms itself with a single `setTimeout` to the next local midnight (no `setInterval`) plus `window.focus` / `visibilitychange` listeners for a machine that wakes up, and `currentDayStart()` / `untilNextMidnight()` as pure helpers. `Home/use-stats.ts` now derives its ranges from it (`useMemo(() => dayRanges(dayStart), [dayStart])`) instead of `useMemo(..., [])`, so \"Pendapatan Hari Ini\"/\"Kemarin\" roll over at midnight without a route remount; `Money/use-range.tsx` anchors its default \"last month\" window on the same value. `useStats` also gained the record-revision dep (and `keepPrevious: true`, like the other day-scoped screens), so a commit landing while Beranda is mounted refreshes the numbers — previously nothing short of navigating away did. To keep it from being a page→page import, `useRecordRevision` moved out of `Record/use-records.ts` into `src/hooks/use-record-revision.ts` (its three importers updated). Tests: `src/hooks/use-day-start.test.ts` asserts the day start is the *local* midnight (a UTC midnight would read as hour 8), the timer waits exactly to the next midnight, and a backwards clock jump never yields a negative wait. `Record/use-time.ts` was already computing `getDay` per render, so it needed no change."
+          },
+          {
+            "report": "receipt-money-rust-untested",
+            "status": "partial",
+            "note": "Filled the highest-value gaps. (1) **Receipt builders**: `src/lib/receipt/build-summary.test.ts` (zero/up/down rounding + extras, asserting the exact ordered rows) and `src/lib/receipt/create-receipt-data.test.ts` (section order, `paperWidth` plumbing, `-Rp500` and `Total Semua` in the emitted lines, no `undefined`/`NaN`). Mutation-verified: flipping the rounding guard back to `> 0` fails 4 tests. (2) **Money journal**: new `src/services/money/live.test.ts` against `makeTestDatabase()` — a card shows its most recent entry regardless of insert order, entries sharing an instant resolve identically in the card and the history, `last` is the value in force before an instant (0 before anything), deleting a pocket hides it and its entries, deleting an entry falls back to the previous one, and a reorder changes the catalog order without touching balances. (3) **submit→catalogue composite**: new `src/services/transaction/catalogue.test.ts` submits a sale and asserts, in the same tick, that `product.get.byId` *and* `listing.get.all()` both show stock 7→6 with the price intact, plus a frozen-`Date.now` repricing case — the regression lock for both iteration 1's stale-catalogue bug and report 1's wall-clock detector (`bun test` 224 pass). (4) **Rust in CI**: added a `rust` job to `.github/workflows/windows-release.yml` running `cargo fmt --manifest-path src-tauri/Cargo.toml --check` and `cargo clippy --all-targets -- -D warnings` on ubuntu behind rust-cache (well under two minutes). Making that green required two real fixes: `cargo fmt` on `printer.rs` and removing a `needless_return` in `src-tauri/src/database/mod.rs` (the migration list is unchanged, only the `let`/`return` wrapper around it). **Remaining, not done:** no test for the print pipeline (`programPrintReceipt` → `printPdf`) asserting the bytes handed to the printer equal `createReceiptData(record, width)`, no Rust unit tests inside `src-tauri` (`clippy` compiles, it does not assert), and the e2e job is still `continue-on-error` — the \"sale reduces the stock shown on the POS card\" flow was covered at the service level instead of in `e2e/`, so the e2e job has not been made blocking."
+          }
+        ],
+        "at": "2026-10-21T18:38:57.271Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T18:38:57.271Z"
         }
       }
     }

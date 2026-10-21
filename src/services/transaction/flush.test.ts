@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Context, Effect, Layer, Stream } from "effect";
-import { DatabaseService, DbError, type Statement } from "../db";
+import { Context, Effect, Either, Layer, Stream } from "effect";
+import { DatabaseService, DbError, type Binding, type Statement } from "../db";
 import { makeTestDatabase } from "../db/test-support";
 import { ProductLive } from "../product/live";
 import { RecordLive } from "../record/live";
@@ -13,7 +13,7 @@ import { TransactionLive } from "./live";
  */
 function setup() {
   const { db, layer: dbLayer } = makeTestDatabase();
-  const state = { failures: 0, written: [] as Statement[][] };
+  const state = { failures: 0, execFailures: 0, written: [] as Statement[][] };
 
   const flaky = Layer.effect(
     DatabaseService,
@@ -21,6 +21,13 @@ function setup() {
       const real = yield* DatabaseService;
       return {
         ...real,
+        execute: (query: string, bindings: Binding[] = []) => {
+          if (state.execFailures > 0) {
+            state.execFailures -= 1;
+            return Effect.fail(new DbError({ message: "disk penuh" }));
+          }
+          return real.execute(query, bindings);
+        },
         transaction: (statements: Statement[]) => {
           if (state.failures > 0) {
             state.failures -= 1;
@@ -139,5 +146,57 @@ describe("cart flush", () => {
       tx_record_note: string;
     };
     expect(row.tx_record_note).toBe("meja 4");
+  });
+
+  test("a failed tab delete leaves the cart and its row, and reports nothing as saved", async () => {
+    const { db, state, layer } = setup();
+
+    const result = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.flush();
+
+        state.execFailures = 1;
+        const failure = yield* Effect.either(tx.delete.byId(id));
+        const drafts = yield* tx.get.drafts("incoming");
+        return { failed: Either.isLeft(failure), drafts: drafts.length };
+      }),
+    );
+
+    // The tab must not disappear from the screen before SQLite agrees, or a
+    // "deleted" cart comes back on the next hydrate with the prices it was
+    // parked with.
+    expect(result.failed).toBe(true);
+    expect(result.drafts).toBe(1);
+    expect(db.query("SELECT COUNT(*) AS n FROM tx_records").get()).toEqual({ n: 1 });
+  });
+
+  test("a tab delete removes both the draft and its row", async () => {
+    const { db, layer } = setup();
+
+    const remaining = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.flush();
+        yield* tx.delete.byId(id);
+        return (yield* tx.get.drafts("incoming")).length;
+      }),
+    );
+
+    expect(remaining).toBe(0);
+    expect(db.query("SELECT COUNT(*) AS n FROM tx_records").get()).toEqual({ n: 0 });
+  });
+
+  test("a reported failure reaches the same channel <SaveError> renders", async () => {
+    const { layer } = setup();
+
+    const message = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        yield* tx.reportError("Keranjang gagal dihapus: disk penuh");
+        return yield* saveError(tx);
+      }),
+    );
+
+    expect(message).toContain("Keranjang gagal dihapus");
   });
 });

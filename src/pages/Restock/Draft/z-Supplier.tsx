@@ -2,7 +2,7 @@ import { useStream } from "~/components/Loader";
 import { Combobox } from "~/components/ui/combobox";
 import { service } from "~/services";
 import type { Draft } from "~/services/transaction";
-import { run } from "~/pages/_cart/run";
+import { run } from "~/components/cart/run";
 
 /**
  * Who the goods were bought from. Picking an existing supplier is written to the

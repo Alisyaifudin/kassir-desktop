@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { Effect } from "effect";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
-import { type Extra, type Line } from "../types";
+import { run } from "~/components/cart/run";
+import { type Extra, type Line } from "~/components/cart/types";
 import { linesSubtotal } from "~/lib/purchase";
 import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Payment } from "./z-Payment";
 import { Tabs } from "./z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
-import type { LineIssue } from "~/pages/_cart/code-issues";
+import type { LineIssue } from "~/components/cart/code-issues";
 
 /**
  * The stages the panel walks through, in order: choose the goods, then the
@@ -71,7 +71,7 @@ export function Draft({
   useEffect(() => {
     const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
     if (title !== draft.title) {
-      void Effect.runFork(service.transaction.set.title(draft.id, title));
+      run(service.transaction.set.title(draft.id, title));
     }
   }, [lines, draft.id, draft.title]);
 

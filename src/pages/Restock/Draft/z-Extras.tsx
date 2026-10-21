@@ -18,12 +18,12 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
-import type { Extra, ExtraPreset } from "../types";
+import type { Extra, ExtraPreset } from "~/components/cart/types";
 import { recalcExtras } from "~/lib/purchase";
-import { rupiah } from "~/pages/_cart/util-rupiah";
-import { SELECTED_RING } from "~/pages/_cart/z-Cell";
+import { rupiah } from "~/components/cart/util-rupiah";
+import { SELECTED_RING } from "~/components/cart/z-Cell";
 import { ExtraCard } from "./z-Extra";
-import { ExtraSearch } from "./z-ExtraSearch";
+import { ExtraSearch } from "~/components/cart/z-ExtraSearch";
 import {
   extraCellAt,
   extraColumnIn,

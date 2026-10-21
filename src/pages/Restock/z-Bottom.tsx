@@ -4,7 +4,7 @@ import type Decimal from "decimal.js";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { STAGES, type Stage } from "./Draft";
-import { Total } from "./Draft/z-Total";
+import { Total } from "~/components/cart/z-Total";
 
 /**
  * The bottom panel: what the purchase costs and the moves that walk the main
