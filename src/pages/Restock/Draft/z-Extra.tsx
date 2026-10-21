@@ -14,7 +14,7 @@ import {
 } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import type { ValueKind } from "~/lib/constants";
-import type { Extra } from "../mock";
+import type { Extra } from "../types";
 import { rupiah } from "../util-rupiah";
 import { Cell, SELECTED_RING } from "./z-Cell";
 import type { ExtraField } from "./extra-grid";

@@ -1,14 +1,18 @@
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
-import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
+import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
-import type { Line } from "../mock";
-import type { Field } from "./listing-grid";
-import { Cell, SELECTED_RING } from "./z-Cell";
+import type { Line } from "../types";
+import type { Field, QtySub } from "./listing-grid";
+import { Cell, EDITING_RING, SELECTED_RING } from "./z-Cell";
+import type { LineIssue } from "./code-issues";
+import { CodeIssueView, FieldIssue } from "./z-Issue";
 
 /**
  * One line of the purchase, laid out as a twelve-column block: who and how much
@@ -22,6 +26,7 @@ import { Cell, SELECTED_RING } from "./z-Cell";
 export function ListingCard({
   line,
   number,
+  issue,
   selected,
   editing,
   onChange,
@@ -30,15 +35,18 @@ export function ListingCard({
   onSelect,
   onStartEdit,
   onEditingDone,
+  selectedSub,
 }: {
   line: Line;
   number: number;
+  issue?: LineIssue;
   selected: Field | null;
+  selectedSub?: QtySub;
   editing: boolean;
   onChange: (patch: Partial<Line>) => void;
   onRemove: () => void;
   onDiscount: () => void;
-  onSelect: (field: Field) => void;
+  onSelect: (field: Field, sub?: QtySub) => void;
   onStartEdit: (field: Field) => void;
   onEditingDone: () => void;
 }) {
@@ -76,6 +84,7 @@ export function ListingCard({
           empty={line.name === ""}
           placeholder="Nama barang"
           base={line.base?.name}
+          footer={issue?.name === true ? <FieldIssue>Nama barang harus diisi</FieldIssue> : undefined}
           onSelect={() => onSelect("name")}
           onStartEdit={() => onStartEdit("name")}
           onEditingDone={onEditingDone}
@@ -134,27 +143,21 @@ export function ListingCard({
           empty={line.code === ""}
           placeholder="Kode barang"
           base={line.base?.code}
+          footer={issue?.code === undefined ? undefined : <CodeIssueView issue={issue.code} />}
           onSelect={() => onSelect("code")}
           onStartEdit={() => onStartEdit("code")}
           onEditingDone={onEditingDone}
           onCommit={(raw) => onChange({ code: raw })}
         />
-        <Cell
-          id={`cell-${line.id}-qty`}
-          className="col-span-1 border-r"
-          label="Kuantitas"
-          align="center"
-          numeric="integer"
+        <QtyCell
+          line={line}
           selected={selected === "qty"}
+          selectedSub={selectedSub ?? "value"}
           editing={editing && selected === "qty"}
-          value={line.qty}
-          display={String(line.qty)}
-          empty={line.qty === 0}
-          placeholder="0"
-          onSelect={() => onSelect("qty")}
+          onChange={onChange}
+          onSelect={(sub) => onSelect("qty", sub)}
           onStartEdit={() => onStartEdit("qty")}
           onEditingDone={onEditingDone}
-          onCommit={(raw) => onChange({ qty: Number(raw) || 0 })}
         />
         <Cell
           id={`cell-${line.id}-unit`}
@@ -169,6 +172,7 @@ export function ListingCard({
           empty={line.unit === 0}
           placeholder="0"
           base={line.base?.unit}
+          footer={issue?.unit === true ? <FieldIssue>Satuan minimal 1</FieldIssue> : undefined}
           onSelect={() => onSelect("unit")}
           onStartEdit={() => onStartEdit("unit")}
           onEditingDone={onEditingDone}
@@ -222,5 +226,131 @@ export function ListingCard({
         </div>
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * The quantity cell, laid out as its own little sub-grid: `‹`, the value, `›`.
+ * The empty arrows bump the line by one and never enter edit mode; the value
+ * (or its label) is what opens the editor, on a double click.
+ */
+function QtyCell({
+  line,
+  selected,
+  selectedSub,
+  editing,
+  onChange,
+  onSelect,
+  onStartEdit,
+  onEditingDone,
+}: {
+  line: Line;
+  selected: boolean;
+  selectedSub: QtySub;
+  editing: boolean;
+  onChange: (patch: Partial<Line>) => void;
+  onSelect: (sub: QtySub) => void;
+  onStartEdit: () => void;
+  onEditingDone: () => void;
+}) {
+  const [draft, setDraft] = useState(String(line.qty));
+  useEffect(() => {
+    if (editing) setDraft(String(line.qty));
+  }, [editing, line.qty]);
+
+  function setQty(qty: number) {
+    const next = Math.max(0, qty);
+    onChange({ qty: next, discounts: recalcDiscounts(line.price, next, line.discounts) });
+  }
+
+  function commit() {
+    setQty(Number(draft) || 0);
+    onEditingDone();
+  }
+
+  return (
+    <div
+      id={`cell-${line.id}-qty`}
+      className={cn(
+        "relative flex flex-col justify-center gap-0.5 border-r px-1 py-1",
+        editing && EDITING_RING,
+      )}
+    >
+      <span
+        onClick={() => onSelect("value")}
+        onDoubleClick={onStartEdit}
+        className="text-small leading-none text-muted-foreground select-none text-center"
+      >
+        Kuantitas
+      </span>
+      {editing ? (
+        <Input
+          autoFocus
+          value={draft}
+          inputMode="numeric"
+          onChange={(event) => setDraft(event.currentTarget.value.replace(/\D/g, ""))}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit();
+              return;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onEditingDone();
+            }
+          }}
+          className="h-9 rounded-none border-0 bg-transparent p-0 text-center text-normal shadow-none focus-visible:ring-0 small:h-7"
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-0.5">
+          <button
+            type="button"
+            tabIndex={-1}
+            title="Kurangi"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect("left");
+              setQty(line.qty - 1);
+            }}
+            className={cn(
+              "flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent",
+              selected && selectedSub === "left" && SELECTED_RING,
+            )}
+          >
+            <ChevronLeft className="icon" />
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => onSelect("value")}
+            onDoubleClick={onStartEdit}
+            className={cn(
+              "min-w-0 flex-1 truncate rounded-sm text-center text-normal tabular-nums",
+              selected && selectedSub === "value" && SELECTED_RING,
+            )}
+          >
+            {line.qty}
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            title="Tambah"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect("right");
+              setQty(line.qty + 1);
+            }}
+            className={cn(
+              "flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent",
+              selected && selectedSub === "right" && SELECTED_RING,
+            )}
+          >
+            <ChevronRight className="icon" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

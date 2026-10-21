@@ -1,6 +1,6 @@
 import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
 import { cn } from "~/lib/utils";
-import type { ExtraPreset } from "../mock";
+import type { ExtraPreset } from "../types";
 import { rupiah } from "../util-rupiah";
 
 /**

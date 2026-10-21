@@ -11,12 +11,14 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useStream } from "~/components/Loader";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
-import { EXTRA_PRESETS, type Extra, type ExtraPreset } from "../mock";
+import { service } from "~/services";
+import type { Extra, ExtraPreset } from "../types";
 import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import { SELECTED_RING } from "./z-Cell";
@@ -63,10 +65,12 @@ export function Extras({
   extras,
   subtotal,
   onChange,
+  focusSearch,
 }: {
   extras: Extra[];
   subtotal: Decimal;
   onChange: (extras: Extra[]) => void;
+  focusSearch: number;
 }) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<ExtraSelection>({ row: HEADER, col: NAME_COLUMN });
@@ -76,6 +80,10 @@ export function Extras({
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const kindWasOpen = useRef(false);
+  const extraRes = useStream(service.extra.get.changes);
+  // The page-level F1 token; remembers the value seen at mount so switching
+  // stages does not steal focus into the new search bar.
+  const seenFocusSearch = useRef(focusSearch);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // While the search bar has text the rows make way for the future results.
@@ -87,11 +95,23 @@ export function Extras({
   const effects = useMemo(() => recalcExtras(extras, subtotal), [extras, subtotal]);
   // What the purchase comes to before rounding: the goods, plus every extra.
   const total = effects[effects.length - 1]?.total ?? subtotal;
+  const presets: ExtraPreset[] = useMemo(
+    () =>
+      extraRes.type === "success"
+        ? extraRes.data.map((extra) => ({
+            id: extra.id,
+            name: extra.name,
+            kind: extra.kind,
+            value: extra.value,
+          }))
+        : [],
+    [extraRes],
+  );
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (needle === "") return [];
-    return EXTRA_PRESETS.filter((preset) => preset.name.toLowerCase().includes(needle));
-  }, [query]);
+    return presets.filter((preset) => preset.name.toLowerCase().includes(needle));
+  }, [presets, query]);
 
   const active = extraCellAt(selection.row, selection.col);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -116,6 +136,18 @@ export function Extras({
     if (isSearch) searchRef.current?.focus();
     else containerRef.current?.focus();
   }, [selection, editing, isSearch]);
+
+  // F1 is a page-level shortcut: when it fires, put the cursor in the search
+  // bar and reset the selection to the header, even out of an edit.
+  useEffect(() => {
+    if (focusSearch === seenFocusSearch.current) return;
+    seenFocusSearch.current = focusSearch;
+    setSelection({ row: HEADER, col: NAME_COLUMN });
+    setEditing(false);
+    const input = searchRef.current;
+    input?.focus();
+    input?.select();
+  }, [focusSearch]);
 
   // Radix hands focus back to the trigger when the select closes; take it back
   // for the grid, after Radix's own focus restore has run.
@@ -236,15 +268,9 @@ export function Extras({
     // Portaled popups (the kind select) bubble their keys through the React
     // tree, not the DOM; ignore anything that did not start inside this grid.
     if (!event.currentTarget.contains(event.target as Node)) return;
-    // F1 always jumps to the search bar, even out of an edit.
-    if (event.key === "F1") {
-      event.preventDefault();
-      searchRef.current?.focus();
-      setSelection({ row: HEADER, col: NAME_COLUMN });
-      setEditing(false);
-      return;
-    }
     if (editing) return;
+    // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
+    if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;

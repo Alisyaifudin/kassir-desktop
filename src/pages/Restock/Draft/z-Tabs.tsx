@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { cn } from "~/lib/utils";
+import { Kbd } from "~/components/ui/kdb";
 import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { run } from "../run";
@@ -48,6 +49,7 @@ export function Tabs({
   return (
     <div className="flex flex-col border-b">
       <div className="flex items-end gap-2 px-0.5 pt-0.5">
+        <Kbd className="py-4 mb-1">F12</Kbd>
         <Button className="rounded-full p-1" title="Draft baru" onClick={create}>
           <Plus className="icon" />
         </Button>

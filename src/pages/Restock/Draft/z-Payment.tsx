@@ -7,14 +7,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
-import { InputCurrency } from "~/components/ui/input-currency";
-import { capitalize, cn } from "~/lib/utils";
-import { useUser } from "~/hooks/use-user";
+import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft } from "~/services/transaction";
-import { paidTotal } from "~/lib/purchase";
-import { run } from "../run";
+import { paidTotal, roundMoney } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
 import { Methods } from "./z-Methods";
 import { Note } from "./z-Note";
@@ -22,10 +19,7 @@ import { Precision } from "./z-Precision";
 import { Supplier } from "./z-Supplier";
 import { Images } from "./z-Images";
 import { Kredit } from "./z-Kredit";
-
-/** The default `Input` chrome, so a currency field sits in the row like one. */
-const AMOUNT_CLASS =
-  "flex w-full text-normal rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+import { CashierName } from "../z-CashierName";
 
 /**
  * Stage three: settling the purchase.
@@ -38,10 +32,16 @@ export function Payment({
   draft,
   grand,
   focusPayment,
+  focusRounding,
+  onFocusPay,
+  onExitUp,
 }: {
   draft: Draft;
   grand: Decimal;
   focusPayment: number;
+  focusRounding: number;
+  onFocusPay: () => void;
+  onExitUp: () => void;
 }) {
   const res = {
     catalog: useStream(service.method.get.catalogChanges),
@@ -57,6 +57,9 @@ export function Payment({
             catalog={catalog}
             suppliers={suppliers}
             focusPayment={focusPayment}
+            focusRounding={focusRounding}
+            onFocusPay={onFocusPay}
+            onExitUp={onExitUp}
           />
         )}
       </LoaderMany>
@@ -70,15 +73,20 @@ function Body({
   catalog,
   suppliers,
   focusPayment,
+  focusRounding,
+  onFocusPay,
+  onExitUp,
 }: {
   draft: Draft;
   grand: Decimal;
   catalog: MethodCatalog;
   suppliers: { id: string; name: string }[];
   focusPayment: number;
+  focusRounding: number;
+  onFocusPay: () => void;
+  onExitUp: () => void;
 }) {
-  const cashier = useUser().name ?? "admin";
-  const paid = paidTotal(draft.methods);
+  const paid = roundMoney(paidTotal(draft.methods), draft.fix);
   const change = paid.minus(grand);
   const supplierName = suppliers.find((supplier) => supplier.id === draft.supplierId)?.name ?? "—";
 
@@ -90,8 +98,11 @@ function Body({
             <AccordionTrigger className="px-2 py-1 hover:no-underline">
               <span className="flex min-w-0 items-center gap-3">
                 <span className="font-medium">Info pembelian</span>
-                <span className="truncate text-small text-muted-foreground">
-                  Kasir: {capitalize(cashier)} · Pemasok: {supplierName} · Presisi {draft.fix}
+                <span className="flex min-w-0 items-center gap-2 text-small text-muted-foreground">
+                  <CashierName />
+                  <span className="truncate">
+                    Pemasok: {supplierName} · Presisi {draft.fix}
+                  </span>
                 </span>
               </span>
             </AccordionTrigger>
@@ -111,20 +122,18 @@ function Body({
 
       <Images draft={draft} />
 
-      <label className="mt-3 grid grid-cols-[170px_1fr] items-center gap-2 px-2 small:grid-cols-[120px_1fr]">
-        <span className="select-none">Pembulatan</span>
-        <InputCurrency
-          className={cn(AMOUNT_CLASS, "text-right")}
-          placeholder="0"
-          allowNegative
-          value={draft.rounding}
-          onValueChange={(rounding) => run(service.transaction.set.rounding(draft.id, rounding))}
-        />
-      </label>
-
       <div className="mt-4 px-2 pb-4">
         <h3 className="mb-2 text-normal font-bold select-none">Pembayaran</h3>
-        <Methods draft={draft} catalog={catalog} focusPayment={focusPayment} />
+        <Methods
+          draft={draft}
+          catalog={catalog}
+          focusPayment={focusPayment}
+          focusRounding={focusRounding}
+          onFocusPay={onFocusPay}
+          onExitUp={onExitUp}
+          focused={true}
+          onActivate={() => {}}
+        />
         <div className="mt-3 flex items-center justify-between border-t pt-2 ">
           <span className="text-big">
             Dibayar:{" "}

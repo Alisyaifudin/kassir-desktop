@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Effect } from "effect";
 import type Decimal from "decimal.js";
 import { service } from "~/services";
-import { type Extra, type Line } from "../mock";
+import { type Extra, type Line } from "../types";
 import { linesSubtotal } from "~/lib/purchase";
 import { Extras } from "./z-Extras";
 import { Listing } from "./z-Listing";
 import { Payment } from "./z-Payment";
 import { Tabs } from "./z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
+import type { LineIssue } from "./code-issues";
 
 /**
  * The stages the panel walks through, in order: choose the goods, then the
@@ -32,8 +33,14 @@ export function Draft({
   grand,
   lines,
   onLines,
+  issues,
   extras,
   onExtras,
+  focusSearch,
+  focusRounding,
+  focusLast,
+  onFocusPay,
+  onExitUp,
 }: {
   draft: DraftModel;
   drafts: DraftModel[];
@@ -43,15 +50,18 @@ export function Draft({
   grand: Decimal;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
+  focusSearch: number;
+  focusRounding: number;
+  focusLast: number;
+  onFocusPay: () => void;
+  onExitUp: () => void;
 }) {
   // Bumped by F2; the payment stage watches it to put the cursor on its first
   // amount, even when it is already the open stage.
   const [focusPayment, setFocusPayment] = useState(0);
-  // Bumped by F1 from the payment stage; the listing grid watches it to focus
-  // its search bar.
-  const [focusSearch, setFocusSearch] = useState(0);
 
   // The open purchase takes its name from its first listing.
   useEffect(() => {
@@ -61,25 +71,19 @@ export function Draft({
     }
   }, [lines, draft.id, draft.title]);
 
-  // The function keys cross stages: F2 settles the purchase, and F1 from the
-  // payment stage goes back to the goods and asks for the search bar.
+  // F2 settles the purchase from anywhere; F1 is handled by the page because
+  // it has to reach the search bar of whichever grid is on screen.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "F2") {
         event.preventDefault();
         onStage("payment");
         setFocusPayment((count) => count + 1);
-        return;
-      }
-      if (event.key === "F1" && stage === "payment") {
-        event.preventDefault();
-        onStage("listing");
-        setFocusSearch((count) => count + 1);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onStage, stage]);
+  }, [onStage]);
 
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
@@ -90,10 +94,15 @@ export function Draft({
         grand={grand}
         lines={lines}
         onLines={onLines}
+        issues={issues}
         extras={extras}
         onExtras={onExtras}
         focusPayment={focusPayment}
         focusSearch={focusSearch}
+        focusRounding={focusRounding}
+        focusLast={focusLast}
+        onFocusPay={onFocusPay}
+        onExitUp={onExitUp}
       />
     </section>
   );
@@ -105,24 +114,60 @@ function StageBody({
   grand,
   lines,
   onLines,
+  issues,
   extras,
   onExtras,
   focusPayment,
   focusSearch,
+  focusRounding,
+  focusLast,
+  onFocusPay,
+  onExitUp,
 }: {
   stage: Stage;
   draft: DraftModel;
   grand: Decimal;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
   focusPayment: number;
   focusSearch: number;
+  focusRounding: number;
+  focusLast: number;
+  onFocusPay: () => void;
+  onExitUp: () => void;
 }) {
-  if (stage === "listing") return <Listing lines={lines} onChange={onLines} focusSearch={focusSearch} />;
-  if (stage === "extras") {
-    return <Extras extras={extras} subtotal={linesSubtotal(lines)} onChange={onExtras} />;
+  if (stage === "listing") {
+    return (
+      <Listing
+        lines={lines}
+        issues={issues}
+        onChange={onLines}
+        focusSearch={focusSearch}
+        focusLast={focusLast}
+      />
+    );
   }
-  return <Payment draft={draft} grand={grand} focusPayment={focusPayment} />;
+  if (stage === "extras") {
+    return (
+      <Extras
+        extras={extras}
+        subtotal={linesSubtotal(lines)}
+        onChange={onExtras}
+        focusSearch={focusSearch}
+      />
+    );
+  }
+  return (
+    <Payment
+      draft={draft}
+      grand={grand}
+      focusPayment={focusPayment}
+      focusRounding={focusRounding}
+      onFocusPay={onFocusPay}
+      onExitUp={onExitUp}
+    />
+  );
 }

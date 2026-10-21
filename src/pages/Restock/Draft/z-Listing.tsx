@@ -18,10 +18,11 @@ import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
-import type { DiscountLine, Line } from "../mock";
+import type { DiscountLine, Line } from "../types";
 import { recalcDiscounts } from "~/lib/purchase";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
+import type { LineIssue } from "./code-issues";
 import { DiscountDialog } from "./z-Discount";
 import { SearchResults } from "./z-SearchResults";
 import {
@@ -50,9 +51,9 @@ function blankLine(): Line {
     id: generateId(),
     name: "",
     code: "",
-    unit: 0,
+    unit: 1,
     price: 0,
-    qty: 0,
+    qty: 1,
     discounts: [{ id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 }],
   };
 }
@@ -71,17 +72,22 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  * and only enters edit mode on Enter or a double-click. See `listing-grid.ts`
  * for the geometry.
  *
- * Listings are still mocked — the rows live in the panel's state and nothing is
- * written to `tx_listings` yet.
+ * The lines are the draft's `tx_listings` rows; the parent writes each edit
+ * back through the transaction service.
  */
 export function Listing({
   lines,
+  issues,
   onChange,
   focusSearch,
+  focusLast,
 }: {
   lines: Line[];
+  /** The inline problems, keyed by line id. */
+  issues: Map<string, LineIssue>;
   onChange: (lines: Line[]) => void;
   focusSearch: number;
+  focusLast: number;
 }) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<Selection>({ row: HEADER, col: NAME_COLUMN });
@@ -91,17 +97,20 @@ export function Listing({
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const hadDiscount = useRef(false);
+  // The page-level F1 token; remembers the value seen at mount so switching
+  // stages does not steal focus into the new search bar.
+  const seenFocusSearch = useRef(focusSearch);
+  // Bayar / the payment grid's Up hand-off; skip the value at mount.
+  const seenFocusLast = useRef(focusLast);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // While the search bar has text the cards make way for the future results.
   const hidden = query.trim() !== "";
   const ids = useMemo(() => lines.map((line) => line.id), [lines]);
   const rows = useMemo(() => rowsFor(hidden ? [] : ids), [hidden, ids]);
-  const results = useQuery(
-    () => Stream.fromEffect(service.listing.get.search(query)),
-    [query],
-    { keepPrevious: true },
-  );
+  const results = useQuery(() => Stream.fromEffect(service.listing.get.search(query)), [query], {
+    keepPrevious: true,
+  });
 
   const active = cellAt(selection.row, selection.col);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -125,13 +134,32 @@ export function Listing({
     else containerRef.current?.focus();
   }, [selection, editing, isSearch]);
 
-  // F1 from another stage lands here: put the cursor in the search bar.
+  // F1 is a page-level shortcut: when it fires, put the cursor in the search
+  // bar and reset the selection to the header, even out of an edit.
   useEffect(() => {
-    if (focusSearch === 0) return;
+    if (focusSearch === seenFocusSearch.current) return;
+    seenFocusSearch.current = focusSearch;
     setSelection({ row: HEADER, col: NAME_COLUMN });
     setEditing(false);
-    searchRef.current?.focus();
+    const input = searchRef.current;
+    input?.focus();
+    input?.select();
   }, [focusSearch]);
+
+  // When the settle strip hands off upward, land on the first cell of the last
+  // row — the code column.
+  useEffect(() => {
+    if (focusLast === seenFocusLast.current) return;
+    seenFocusLast.current = focusLast;
+    const lastRow = rows[rows.length - 1];
+    if (lastRow === undefined) return;
+    const cells = selectableCells(lastRow);
+    const cell = cells[0];
+    if (cell === undefined) return;
+    setSelection({ row: lastRow, col: cell.start });
+    setEditing(false);
+    containerRef.current?.focus();
+  }, [focusLast, rows]);
 
   useEffect(() => {
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
@@ -158,18 +186,53 @@ export function Listing({
     if (next === undefined) return;
     const col = next.kind === "card" && selection.col === 0 ? NAME_COLUMN : selection.col;
     const cell = cellAt(next, col);
-    setSelection({ row: next, col: columnIn(cell, col) });
+    setSelection({
+      row: next,
+      col: columnIn(cell, col),
+      qtySub: cell.field === "qty" ? "value" : undefined,
+    });
     setEditing(false);
   }
 
   function moveHorizontal(delta: number) {
+    // Inside Kuantitas the three sub-cells walk before leaving the cell.
+    if (active.field === "qty" && selection.row.kind === "card") {
+      const sub = selection.qtySub ?? "value";
+      if (delta < 0) {
+        if (sub === "right") {
+          setSelection({ ...selection, qtySub: "value" });
+          setEditing(false);
+          return;
+        }
+        if (sub === "value") {
+          setSelection({ ...selection, qtySub: "left" });
+          setEditing(false);
+          return;
+        }
+      } else {
+        if (sub === "left") {
+          setSelection({ ...selection, qtySub: "value" });
+          setEditing(false);
+          return;
+        }
+        if (sub === "value") {
+          setSelection({ ...selection, qtySub: "right" });
+          setEditing(false);
+          return;
+        }
+      }
+    }
     const flat = rows.flatMap((row) => selectableCells(row).map((cell) => ({ row, cell })));
     const index = flat.findIndex(
       (entry) => sameRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
     const next = flat[index + delta];
     if (next === undefined) return;
-    setSelection({ row: next.row, col: next.cell.start });
+    setSelection({
+      row: next.row,
+      col: next.cell.start,
+      qtySub: next.cell.field === "qty" ? (delta > 0 ? "left" : "right") : undefined,
+    });
     setEditing(false);
   }
 
@@ -248,7 +311,37 @@ export function Listing({
     }
   }
 
+  function bumpQty(delta: number) {
+    const row = selection.row;
+    if (row.kind !== "card") return;
+    const line = lines.find((candidate) => candidate.id === row.cardId);
+    if (line === undefined) return;
+    const qty = Math.max(0, line.qty + delta);
+    onChange(
+      lines.map((candidate) =>
+        candidate.id === line.id
+          ? {
+              ...candidate,
+              qty,
+              discounts: recalcDiscounts(candidate.price, qty, candidate.discounts),
+            }
+          : candidate,
+      ),
+    );
+  }
+
   function activate() {
+    if (active.field === "qty") {
+      const sub = selection.qtySub ?? "value";
+      if (sub === "left") {
+        bumpQty(-1);
+        return;
+      }
+      if (sub === "right") {
+        bumpQty(1);
+        return;
+      }
+    }
     if (active.editable) {
       setEditing(true);
       return;
@@ -275,15 +368,9 @@ export function Listing({
     // The search-results grid lives inside this container; do not also move the
     // listing selection for keys it already handled.
     if (event.defaultPrevented) return;
-    // F1 always jumps to the search bar, even out of an edit.
-    if (event.key === "F1") {
-      event.preventDefault();
-      searchRef.current?.focus();
-      setSelection({ row: HEADER, col: NAME_COLUMN });
-      setEditing(false);
-      return;
-    }
     if (editing) return;
+    // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
+    if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;
@@ -385,43 +472,56 @@ export function Listing({
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
             <SortableContext items={ids} strategy={verticalListSortingStrategy}>
               <div className="divide-y divide-border">
                 <AnimatePresence initial={false}>
                   {lines.map((line, index) => {
-                  const cardSelected =
-                    selection.row.kind === "card" && selection.row.cardId === line.id;
-                  return (
-                    <ListingCard
-                      key={line.id}
-                      line={line}
-                      number={lines.length - index}
-                      selected={cardSelected ? (active.field as Field) : null}
-                      editing={cardSelected && editing}
-                      onChange={(patch) =>
-                        onChange(lines.map((row) => (row.id === line.id ? { ...row, ...patch } : row)))
-                      }
-                      onRemove={() => removeCard(line.id)}
-                      onDiscount={() => setDiscountFor(line.id)}
-                      onSelect={(field) => {
-                        setSelection({
-                          row: { kind: "card", cardId: line.id, part: partOf(field) },
-                          col: startOf(field),
-                        });
-                        setEditing(false);
-                      }}
-                      onStartEdit={(field) => {
-                        setSelection({
-                          row: { kind: "card", cardId: line.id, part: partOf(field) },
-                          col: startOf(field),
-                        });
-                        setEditing(true);
-                      }}
-                      onEditingDone={() => setEditing(false)}
-                    />
-                  );
-                })}
+                    const cardSelected =
+                      selection.row.kind === "card" && selection.row.cardId === line.id;
+                    return (
+                      <ListingCard
+                        key={line.id}
+                        line={line}
+                        number={lines.length - index}
+                        issue={issues.get(line.id)}
+                        selected={cardSelected ? (active.field as Field) : null}
+                        selectedSub={
+                          cardSelected && active.field === "qty"
+                            ? (selection.qtySub ?? "value")
+                            : undefined
+                        }
+                        editing={cardSelected && editing}
+                        onChange={(patch) =>
+                          onChange(
+                            lines.map((row) => (row.id === line.id ? { ...row, ...patch } : row)),
+                          )
+                        }
+                        onRemove={() => removeCard(line.id)}
+                        onDiscount={() => setDiscountFor(line.id)}
+                        onSelect={(field, sub) => {
+                          setSelection({
+                            row: { kind: "card", cardId: line.id, part: partOf(field) },
+                            col: startOf(field),
+                            qtySub: field === "qty" ? (sub ?? "value") : undefined,
+                          });
+                          setEditing(false);
+                        }}
+                        onStartEdit={(field) => {
+                          setSelection({
+                            row: { kind: "card", cardId: line.id, part: partOf(field) },
+                            col: startOf(field),
+                          });
+                          setEditing(true);
+                        }}
+                        onEditingDone={() => setEditing(false)}
+                      />
+                    );
+                  })}
                 </AnimatePresence>
               </div>
             </SortableContext>

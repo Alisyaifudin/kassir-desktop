@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type Decimal from "decimal.js";
 import { Button } from "~/components/ui/button";
@@ -16,13 +17,35 @@ export function Bottom({
   grand,
   fix,
   change,
+  disabled,
+  focusPay,
+  onFocusRounding,
+  onExitUp,
 }: {
   stage: Stage;
   onChange: (stage: Stage) => void;
   grand: Decimal;
   fix: number;
   change: Decimal;
+  /** A hard line problem or a zero total keeps the purchase from settling. */
+  disabled: boolean;
+  focusPay: number;
+  /** Bayar pressed Left: go back to the payment grid's rounding cell. */
+  onFocusRounding: () => void;
+  /** Bayar pressed Up: leave the payment grid for the goods. */
+  onExitUp: () => void;
 }) {
+  const payRef = useRef<HTMLButtonElement>(null);
+  const seenFocusPay = useRef(focusPay);
+  const [payFocused, setPayFocused] = useState(false);
+  useEffect(() => {
+    if (focusPay === seenFocusPay.current) return;
+    seenFocusPay.current = focusPay;
+    payRef.current?.focus();
+  }, [focusPay]);
+  useEffect(() => {
+    if (stage !== "payment") setPayFocused(false);
+  }, [stage]);
   const index = STAGES.indexOf(stage);
   const prev = index > 0 ? STAGES[index - 1] : null;
   const next = index < STAGES.length - 1 ? STAGES[index + 1] : null;
@@ -38,13 +61,28 @@ export function Bottom({
       </Button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
         <Total grand={grand} fix={fix} />
-        <span className="text-small text-muted-foreground tabular-nums select-none">
-          {index + 1} / {STAGES.length}
-        </span>
       </div>
       {stage === "payment" ? (
         <Button
-          disabled={change.isNegative()}
+          ref={payRef}
+          disabled={disabled || change.isNegative()}
+          className={cn(
+            "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            payFocused && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+          )}
+          onFocus={() => setPayFocused(true)}
+          onBlur={() => setPayFocused(false)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              onFocusRounding();
+              return;
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              onExitUp();
+            }
+          }}
           onClick={() => {
             // TODO(submit): write the draft into `records` (stock, payments,
             // rounding), then delete its `tx_records` row.

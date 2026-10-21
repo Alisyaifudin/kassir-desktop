@@ -23,7 +23,7 @@ import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { lineSubtotal, recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "../util-rupiah";
-import type { DiscountKind, DiscountLine, Line } from "../mock";
+import type { DiscountKind, DiscountLine, Line } from "../types";
 
 /** start column of value, kind, eff, x (no# is column 0). */
 const COLUMNS = [1, 4, 7, 10];
