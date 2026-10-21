@@ -59,6 +59,7 @@ export function ListingCard({
   return (
     <motion.div
       ref={setNodeRef}
+      data-testid="cart-line"
       style={{ transform: CSS.Transform.toString(transform), transition }}
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}

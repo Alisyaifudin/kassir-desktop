@@ -7,5 +7,11 @@ import { rupiah } from "../util-rupiah";
  * payment stage cannot disagree.
  */
 export function Total({ grand, fix }: { grand: Decimal; fix: number }) {
-  return <p className="text-center text-grand-total tabular-nums">{rupiah(grand, fix)}</p>;
+  // `data-testid` because this is a div, not a button: the e2e harness has no
+  // role to address it by.
+  return (
+    <p data-testid="grand-total" className="text-center text-grand-total tabular-nums">
+      {rupiah(grand, fix)}
+    </p>
+  );
 }

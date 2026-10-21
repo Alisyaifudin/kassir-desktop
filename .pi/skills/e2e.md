@@ -169,7 +169,15 @@ Seeds run after the migrations and before first render. Useful facts learned
 the hard way:
 
 - Name specs `*.e2e.ts`. `bun test` globs `*.spec.ts` and would run them without
-  Playwright.
+  Playwright. `e2e/harness.ts` has `boot`, `cashierSql`, and `login`.
+- The hash router leaves the file name in the URL, so match `/#\/pos` — not
+  `/\#\/pos`.
+- Adding a listing is a two-step race: the search input is immediate but results
+  come from an async query, and the cart line is *also* a button containing the
+  product name. Wait for the catalog card specifically — it carries the
+  `tanpa kode` fallback, which a cart line never does.
+- Sortable cart lines carry `data-testid="cart-line"`, so "bump qty" can assert
+  the count stays 1 while the total doubles.
 - `cashiers` requires an explicit `cashier_id` (migration-39); omitting the PK
   silently fails the seed.
 - The seeded hash must be `plain:<password>` to match the e2e
@@ -181,9 +189,13 @@ the hard way:
 - `npx tsc --noEmit` reports ~439 pre-existing errors project-wide, so it is not
   a usable gate here. Vite + the tests themselves are.
 
+## Covered
+
+Boot + migrations, first-run setup, seeded login, wrong password, catalog search,
+add-to-cart totals, bump-vs-duplicate, empty search. Seven tests, ~7 s.
+
 ## Not yet covered
 
-The suite covers boot, seeding, login, and the wrong-password path. The cart,
-POS grid, DnD, and printing have no Tier-0 tests yet; a cart test needs the
-`methods`/`products`/`listings`/`stocks` seed from
-`src/services/record/draft.test.ts`.
+The restock flow, drag-and-drop reordering, discounts, payment rows, submit, and
+printing. A submit test needs the `methods`/`products`/`listings`/`stocks` seed
+that `e2e/pos-cart.e2e.ts` already has, plus a payment method row.
