@@ -17,13 +17,15 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { type Extra, type ExtraPreset } from "~/components/cart/types";
-import { EXTRA_PRESETS } from "../presets";
+import { useExtraPresets } from "~/components/cart/use-extra-presets";
 import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { SELECTED_RING } from "~/components/cart/z-Cell";
-import { ExtraCard } from "./z-Extra";
+import { ExtraCard } from "~/components/cart/z-Extra";
 import { ExtraSearch } from "~/components/cart/z-ExtraSearch";
 import {
+  PURCHASE_EXTRA_LAYOUT,
+  SALE_EXTRA_LAYOUT,
   extraCellAt,
   extraColumnIn,
   extraRowsFor,
@@ -33,12 +35,11 @@ import {
   type ExtraField,
   type ExtraRowRef,
   type ExtraSelection,
-} from "./extra-grid";
+} from "~/components/cart/extra-grid";
 
 const HEADER: ExtraRowRef = { kind: "header" };
+const SUBTOTAL_ROW: ExtraRowRef = { kind: "subtotal" };
 const NAME_COLUMN = 1;
-const MANUAL_COLUMN = 8;
-const TOGGLE_COLUMN = 10;
 
 /** A blank extra for +manual: a flat amount with nothing filled in. */
 function blankExtra(): Extra {
@@ -50,39 +51,53 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
 }
 
 /**
- * Stage two: the charges on the purchase as a whole — ongkos kirim, a grosir
- * discount, a rounding-off favour. Same grid as the listing stage: the subtotal
- * sits at the top as a row of its own, then one row per extra, each showing
- * what it works out to, because "3%" is not a number a shopkeeper can check at
- * a glance.
+ * Stage two of both carts: the charges on the record as a whole — ongkos kirim,
+ * a grosir discount, a rounding-off favour. Same grid as the listing stage: the
+ * subtotal sits at the top as a row of its own (a purchase) or the header ends in
+ * a toggle back to the goods with the total on it (a sale), then one row per
+ * extra, each showing what it works out to, because "3%" is not a number a
+ * shopkeeper can check at a glance.
  *
  * Unlike a line's discounts there is no trailing empty row; `+manual` or the
- * search add one, and a purchase with no extras at all is fine. Each row's
- * number is its drag handle, so the extras can be put in any order.
+ * search add one, and a record with no extras at all is fine. Each row's number
+ * is its drag handle, so the extras can be put in any order.
+ *
+ * One component for both screens: `mode` picks the grid layout and the wording,
+ * and the settle-strip props (`focusLast`, `onExitDown`, `focused`, `onActivate`,
+ * `rounding`) are absent on the purchase screen, which has no sibling panel to
+ * hand focus to.
  */
 export function Extras({
+  mode,
   extras,
   subtotal,
-  rounding,
+  rounding = 0,
   onChange,
   onToggle,
   focusSearch,
   focusLast,
   onExitDown,
-  focused,
+  focused = true,
   onActivate,
 }: {
+  mode: "sale" | "purchase";
   extras: Extra[];
   subtotal: Decimal;
-  rounding: number;
+  /** The record's rounding, drawn on the sale's stage toggle when it is not zero. */
+  rounding?: number;
   onChange: (extras: Extra[]) => void;
-  onToggle: () => void;
+  /** Back to the goods; present on a sale, where the stages are siblings. */
+  onToggle?: () => void;
   focusSearch: number;
-  focusLast: number;
-  onExitDown: () => void;
-  focused: boolean;
-  onActivate: () => void;
+  /** The settle strip's hand-off upward; a sale-only token. */
+  focusLast?: number;
+  /** ArrowDown off the last row; the sale hands the selection to the settle strip. */
+  onExitDown?: () => void;
+  /** Whether this panel owns the selection — only the owner may take focus. */
+  focused?: boolean;
+  onActivate?: () => void;
 }) {
+  const layout = mode === "sale" ? SALE_EXTRA_LAYOUT : PURCHASE_EXTRA_LAYOUT;
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<ExtraSelection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
@@ -102,24 +117,29 @@ export function Extras({
   // While the search bar has text the rows make way for the future results.
   const hidden = query.trim() !== "";
   const ids = useMemo(() => extras.map((extra) => extra.id), [extras]);
-  const rows = useMemo(() => extraRowsFor(hidden ? [] : ids), [hidden, ids]);
+  const rows = useMemo(() => extraRowsFor(hidden ? [] : ids, layout), [hidden, ids, layout]);
   // The extras are a stack: a percent applies to the running total, so a
   // reorder changes every percent that follows it.
   const effects = useMemo(() => recalcExtras(extras, subtotal), [extras, subtotal]);
-  // What the purchase comes to before rounding: the goods, plus every extra.
+  // What the record comes to before rounding: the goods, plus every extra.
   const total = effects[effects.length - 1]?.total ?? subtotal;
+  // The extras catalog, live: the Extra page writes to the same service, so a
+  // new or re-priced extra is searchable here without a reload.
+  const presets = useExtraPresets();
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (needle === "") return [];
-    return EXTRA_PRESETS.filter((preset) => preset.name.toLowerCase().includes(needle));
-  }, [query]);
+    return presets.filter((preset) => preset.name.toLowerCase().includes(needle));
+  }, [presets, query]);
 
-  const active = extraCellAt(selection.row, selection.col);
+  const active = extraCellAt(selection.row, selection.col, layout);
   const isSearch = selection.row.kind === "header" && active.field === "search";
   const activeId =
     selection.row.kind === "header"
       ? `cell-header-${active.field}`
-      : `extra-${selection.row.extraId}-${active.field}`;
+      : selection.row.kind === "subtotal"
+        ? "cell-subtotal-subtotal"
+        : `extra-${selection.row.extraId}-${active.field}`;
 
   // A row that was deleted or hidden must not keep the selection.
   useEffect(() => {
@@ -153,17 +173,17 @@ export function Extras({
   // Unified grid: when the settle strip hands off upward, land on the first
   // cell of the last row — the name column.
   useEffect(() => {
-    if (focusLast === seenFocusLast.current) return;
+    if (focusLast === undefined || focusLast === seenFocusLast.current) return;
     seenFocusLast.current = focusLast;
     const lastRow = rows[rows.length - 1];
     if (lastRow === undefined) return;
-    const cells = selectableExtraCells(lastRow);
+    const cells = selectableExtraCells(lastRow, layout);
     const cell = cells[0];
     if (cell === undefined) return;
     setSelection({ row: lastRow, col: cell.start });
     setEditing(false);
     containerRef.current?.focus();
-  }, [focusLast, rows]);
+  }, [focusLast, rows, layout]);
 
   // Radix hands focus back to the trigger when the select closes; take it back
   // for the grid, after Radix's own focus restore has run.
@@ -201,14 +221,16 @@ export function Extras({
     if (index === -1) return false;
     const next = rows[index + delta];
     if (next === undefined) return false;
-    const cell = extraCellAt(next, selection.col);
+    const cell = extraCellAt(next, selection.col, layout);
     setSelection({ row: next, col: extraColumnIn(cell, selection.col) });
     setEditing(false);
     return true;
   }
 
   function moveHorizontal(delta: number) {
-    const flat = rows.flatMap((row) => selectableExtraCells(row).map((cell) => ({ row, cell })));
+    const flat = rows.flatMap((row) =>
+      selectableExtraCells(row, layout).map((cell) => ({ row, cell })),
+    );
     const index = flat.findIndex(
       (entry) => sameExtraRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
@@ -229,7 +251,7 @@ export function Extras({
     setEditing(true);
   }
 
-  /** Add a preset to the draft and drop back into the search field. */
+  /** Add a chosen extra to the draft and drop back into the search field. */
   function addPreset(preset: ExtraPreset) {
     append({ id: generateId(), name: preset.name, kind: preset.kind, value: preset.value });
     setQuery("");
@@ -245,7 +267,9 @@ export function Extras({
       const next = remaining[index] ?? remaining[index - 1];
       setSelection(
         next === undefined
-          ? { row: HEADER, col: NAME_COLUMN }
+          ? layout.subtotalRow
+            ? { row: SUBTOTAL_ROW, col: 0 }
+            : { row: HEADER, col: NAME_COLUMN }
           : { row: { kind: "extra", extraId: next.id }, col: NAME_COLUMN },
       );
       setEditing(false);
@@ -268,7 +292,7 @@ export function Extras({
     }
     switch (active.field) {
       case "toggle":
-        onToggle();
+        onToggle?.();
         return;
       case "manual":
         insert();
@@ -280,7 +304,7 @@ export function Extras({
         if (selection.row.kind === "extra") removeExtra(selection.row.extraId);
         return;
       default:
-        return; // eff and value-as-display do nothing on their own
+        return; // the subtotal, eff and value-as-display do nothing on their own
     }
   }
 
@@ -303,7 +327,7 @@ export function Extras({
           resultsRef.current?.focus();
           return;
         }
-        if (!moveVertical(1)) onExitDown();
+        if (!moveVertical(1)) onExitDown?.();
         return;
       case "ArrowLeft":
         if (isSearch) return;
@@ -331,28 +355,38 @@ export function Extras({
 
   const manualSelected = selection.row.kind === "header" && active.field === "manual";
   const toggleSelected = selection.row.kind === "header" && active.field === "toggle";
-  // A zero subtotal is not worth breaking the button into two lines.
-  const showSubtotal = !subtotal.isZero();
+  // A zero total is not worth breaking the button into two lines.
+  const showToggleTotal = !subtotal.isZero();
+  // The purchase screen has no settle strip, so its total always has a row of
+  // its own; on a sale the strip already shows it unless rounding moved it.
+  const showTotal = mode === "purchase" || rounding !== 0;
 
   return (
     <div
       ref={containerRef}
       tabIndex={0}
       role="grid"
+      aria-label="Biaya tambahan"
       aria-activedescendant={activeId}
       onKeyDown={handleKeyDown}
       onClickCapture={onActivate}
       onFocusCapture={onActivate}
       className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
     >
-      <div className="grid shrink-0 grid-cols-12 border-b">
+      <div role="row" className="grid shrink-0 grid-cols-12 border-b">
         <div
           id="cell-header-search"
+          role="gridcell"
+          aria-selected={focused && isSearch}
           onClick={() => {
             setSelection({ row: HEADER, col: NAME_COLUMN });
             setEditing(false);
           }}
-          className={cn("col-span-8 flex items-center gap-2 p-1", focused && isSearch && SELECTED_RING)}
+          className={cn(
+            "flex items-center gap-2 p-1",
+            layout.stageToggle ? "col-span-8" : "col-span-10",
+            focused && isSearch && SELECTED_RING,
+          )}
         >
           <Kbd className="py-5 small:py-4">F1</Kbd>
           <Input
@@ -367,11 +401,16 @@ export function Extras({
         </div>
         <div
           id="cell-header-manual"
+          role="gridcell"
+          aria-selected={focused && manualSelected}
           onClick={() => {
-            setSelection({ row: HEADER, col: MANUAL_COLUMN });
+            setSelection({ row: HEADER, col: layout.stageToggle ? 8 : 10 });
             setEditing(false);
           }}
-          className={cn("col-span-2 flex items-center border-l p-1", focused && manualSelected && SELECTED_RING)}
+          className={cn(
+            "col-span-2 flex items-center border-l p-1",
+            focused && manualSelected && SELECTED_RING,
+          )}
         >
           <Button
             variant="ghost"
@@ -385,45 +424,49 @@ export function Extras({
             Manual
           </Button>
         </div>
-        <div
-          id="cell-header-toggle"
-          onClick={() => {
-            setSelection({ row: HEADER, col: TOGGLE_COLUMN });
-            setEditing(false);
-          }}
-          className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
-        >
-          {showSubtotal ? (
-            <Button
-              variant="ghost"
-              className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggle();
-              }}
-            >
-              <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
-                <ArrowLeft className="icon" />
+        {layout.stageToggle ? (
+          <div
+            id="cell-header-toggle"
+            role="gridcell"
+            aria-selected={focused && toggleSelected}
+            onClick={() => {
+              setSelection({ row: HEADER, col: 10 });
+              setEditing(false);
+            }}
+            className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
+          >
+            {showToggleTotal ? (
+              <Button
+                variant="ghost"
+                className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggle?.();
+                }}
+              >
+                <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
+                  <ArrowLeft className="icon" />
+                  Produk
+                </span>
+                <span className="w-full truncate text-normal font-bold tabular-nums">
+                  {rupiah(subtotal)}
+                </span>
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggle?.();
+                }}
+              >
+                <ArrowLeft />
                 Produk
-              </span>
-              <span className="w-full truncate text-normal font-bold tabular-nums">
-                {rupiah(subtotal)}
-              </span>
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggle();
-              }}
-            >
-              <ArrowLeft />
-              Produk
-            </Button>
-          )}
-        </div>
+              </Button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {hidden ? (
@@ -436,6 +479,29 @@ export function Extras({
       ) : (
         <>
           <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
+            {layout.subtotalRow ? (
+              <div role="row" className="grid grid-cols-12 border-b">
+                <div
+                  id="cell-subtotal-subtotal"
+                  role="gridcell"
+                  aria-selected={selection.row.kind === "subtotal"}
+                  onClick={() => {
+                    setSelection({ row: SUBTOTAL_ROW, col: 0 });
+                    setEditing(false);
+                  }}
+                  className={cn(
+                    "col-span-12 flex items-center justify-between gap-2 bg-card px-3 py-2 text-card-foreground",
+                    selection.row.kind === "subtotal" && SELECTED_RING,
+                  )}
+                >
+                  <span className="text-normal text-muted-foreground select-none">
+                    Subtotal Barang
+                  </span>
+                  <span className="text-big font-bold tabular-nums">{rupiah(subtotal)}</span>
+                </div>
+              </div>
+            ) : null}
+
             {extras.length === 0 ? (
               <p className="p-4 text-muted-foreground select-none">Belum ada biaya tambahan.</p>
             ) : (
@@ -477,14 +543,12 @@ export function Extras({
             )}
           </div>
 
-          {/* No rounding means the settle strip already shows this number, so
-              only break the total out when it actually differs. */}
-          {rounding === 0 ? null : (
+          {showTotal ? (
             <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-card px-3 py-2 text-card-foreground">
               <span className="text-normal text-muted-foreground select-none">Total</span>
               <span className="text-big font-bold tabular-nums">{rupiah(total)}</span>
             </div>
-          )}
+          ) : null}
         </>
       )}
     </div>

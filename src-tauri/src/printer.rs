@@ -264,3 +264,32 @@ mod platform {
         ))
     }
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::validate_pdf;
+
+    // `validate_pdf` is the only place IPC-supplied bytes cross into Rust, and
+    // the bytes come from the frontend. The message is what the cashier reads,
+    // so the assertion is on the Indonesian sentence, not just `is_err()`.
+    const NOT_A_PDF: &str = "Data yang dikirim bukan PDF yang sah.";
+
+    #[test]
+    fn a_pdf_header_is_accepted() {
+        assert!(validate_pdf(b"%PDF-1.7\n...").is_ok());
+    }
+
+    #[test]
+    fn a_short_buffer_is_refused() {
+        assert_eq!(validate_pdf(b"%PD"), Err(NOT_A_PDF.to_string()));
+    }
+
+    #[test]
+    fn a_non_pdf_buffer_is_refused() {
+        assert_eq!(validate_pdf(b"<html>nope"), Err(NOT_A_PDF.to_string()));
+    }
+}

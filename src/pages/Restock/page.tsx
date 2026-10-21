@@ -7,7 +7,7 @@ import { Loading } from "~/components/Loading";
 import { SaveError } from "~/components/SaveError";
 import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
-import { Draft, type Stage } from "./Draft";
+import { Draft, STAGES, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
 import type { Extra, Line } from "~/components/cart/types";
 import {
@@ -18,8 +18,8 @@ import {
   transactionGrandTotal,
 } from "~/lib/purchase";
 import { useUser } from "~/hooks/use-user";
-import { useStage } from "./use-stage";
-import { useDraftId } from "./use-draft";
+import { useStage } from "~/pages/cart/use-stage";
+import { useDraftId } from "~/pages/cart/use-draft";
 import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
 import { cartErrorMessage, run } from "~/components/cart/run";
 import { CartStartError } from "~/components/cart/z-StartError";
@@ -36,7 +36,7 @@ import { Complete } from "./z-Complete";
  * shared link all land where they should.
  */
 export default function Page() {
-  const [stage, setStage] = useStage();
+  const [stage, setStage] = useStage(STAGES);
   const [draftId, setDraftId] = useDraftId();
   const res = useStream(service.transaction.get.changes);
   return (

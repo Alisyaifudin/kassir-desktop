@@ -101,6 +101,7 @@ function Thumb({
       <Button
         variant="destructive"
         size="icon"
+        aria-label="Hapus gambar"
         title="Hapus gambar"
         className="absolute right-0 top-0 size-5 rounded-full opacity-0 transition-opacity group-hover:opacity-100"
         onClick={onRemove}

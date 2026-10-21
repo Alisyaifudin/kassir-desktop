@@ -86,6 +86,8 @@ export function Selected({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Batalkan unggahan"
+                title="Batalkan unggahan"
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >

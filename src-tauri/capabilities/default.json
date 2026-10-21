@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window. Least privilege on purpose: the only filesystem paths the app touches are `$APPDATA/images` (product covers, read+write) and `$APPLOCALDATA/logs` (the log file the Setting > Log page reads). `sql:allow-execute` is the one deliberate hole — the SQLite access layer runs statements issued by `src/services/db` — and it is compensated by the window CSP below.",
+  "description": "Capability for the main window. Least privilege on purpose: the only filesystem paths the app touches are `$APPDATA/images` (product covers, read+write) and `$APPLOCALDATA/logs` (the log file the Setting > Log page reads). The JSON exports do not go through the fs plugin: they call the Rust `export_file` command, which opens the save dialog and writes the file itself, so a user-picked path never needs to be inside this scope. `sql:allow-execute` is the one deliberate hole — the SQLite access layer runs statements issued by `src/services/db` — and it is compensated by the window CSP below.",
   "windows": [
     "main"
   ],
@@ -9,7 +9,6 @@
     "core:default",
     "sql:default",
     "sql:allow-execute",
-    "dialog:default",
     "store:default",
     "log:default",
     "fs:default",

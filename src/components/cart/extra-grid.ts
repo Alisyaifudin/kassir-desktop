@@ -1,16 +1,20 @@
 /**
  * The extras grid's geometry — the listing grid's rules, one row shorter. A
  * selection keeps a column index and looks up the cell that owns it, so a wide
- * cell (`subtotal`) behaves like a merged one across rows.
+ * cell (`name`, `subtotal`) behaves like a merged one across rows.
  *
  * Columns are 0-indexed, twelve wide. `no#` is not selectable, `eff` and `x`
  * are selectable but not editable.
+ *
+ * One grid for both cart screens: `layout` carries the two real differences —
+ * the sale screen ends its header with a stage toggle back to the goods, the
+ * purchase screen has a `Subtotal Barang` row under the header instead.
  */
 
 export type ExtraField = "name" | "value" | "kind" | "eff" | "x";
 
 /** Every cell, including the ones that only draw. */
-export type AnyExtraField = ExtraField | "search" | "manual" | "no" | "subtotal";
+export type AnyExtraField = ExtraField | "search" | "manual" | "toggle" | "no" | "subtotal";
 
 export type ExtraRowRef =
   | { kind: "header" }
@@ -27,10 +31,28 @@ export type ExtraCellDef = {
   editable: boolean;
 };
 
-const HEADER_CELLS: ExtraCellDef[] = [
-  { field: "search", start: 0, end: 9, selectable: true, editable: true },
-  { field: "manual", start: 10, end: 11, selectable: true, editable: false },
-];
+/** Which optional pieces the grid has: the stage toggle and the subtotal row. */
+export type ExtraLayout = { stageToggle: boolean; subtotalRow: boolean };
+
+/** The sale screen: search, `+manual`, a toggle back to the goods; no subtotal row. */
+export const SALE_EXTRA_LAYOUT: ExtraLayout = { stageToggle: true, subtotalRow: false };
+
+/** The purchase screen: search, `+manual`, and the goods subtotal as a row. */
+export const PURCHASE_EXTRA_LAYOUT: ExtraLayout = { stageToggle: false, subtotalRow: true };
+
+function headerCells(layout: ExtraLayout): ExtraCellDef[] {
+  if (layout.stageToggle) {
+    return [
+      { field: "search", start: 0, end: 7, selectable: true, editable: true },
+      { field: "manual", start: 8, end: 9, selectable: true, editable: false },
+      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+    ];
+  }
+  return [
+    { field: "search", start: 0, end: 9, selectable: true, editable: true },
+    { field: "manual", start: 10, end: 11, selectable: true, editable: false },
+  ];
+}
 
 const SUBTOTAL_CELLS: ExtraCellDef[] = [
   { field: "subtotal", start: 0, end: 11, selectable: true, editable: false },
@@ -45,14 +67,14 @@ const EXTRA_CELLS: ExtraCellDef[] = [
   { field: "x", start: 11, end: 11, selectable: true, editable: false },
 ];
 
-export function extraCellsForRow(row: ExtraRowRef): ExtraCellDef[] {
-  if (row.kind === "header") return HEADER_CELLS;
+export function extraCellsForRow(row: ExtraRowRef, layout: ExtraLayout): ExtraCellDef[] {
+  if (row.kind === "header") return headerCells(layout);
   if (row.kind === "subtotal") return SUBTOTAL_CELLS;
   return EXTRA_CELLS;
 }
 
-export function selectableExtraCells(row: ExtraRowRef): ExtraCellDef[] {
-  return extraCellsForRow(row).filter((cell) => cell.selectable);
+export function selectableExtraCells(row: ExtraRowRef, layout: ExtraLayout): ExtraCellDef[] {
+  return extraCellsForRow(row, layout).filter((cell) => cell.selectable);
 }
 
 function distance(cell: ExtraCellDef, col: number): number {
@@ -62,8 +84,8 @@ function distance(cell: ExtraCellDef, col: number): number {
 }
 
 /** The selectable cell that owns `col`, or the nearest one when none does. */
-export function extraCellAt(row: ExtraRowRef, col: number): ExtraCellDef {
-  const cells = selectableExtraCells(row);
+export function extraCellAt(row: ExtraRowRef, col: number, layout: ExtraLayout): ExtraCellDef {
+  const cells = selectableExtraCells(row, layout);
   const hit = cells.find((cell) => col >= cell.start && col <= cell.end);
   if (hit !== undefined) return hit;
   return cells.reduce((best, cell) => (distance(cell, col) < distance(best, col) ? cell : best));
@@ -80,11 +102,11 @@ export function sameExtraRow(a: ExtraRowRef, b: ExtraRowRef): boolean {
   return true;
 }
 
-/** The vertical order: header, the subtotal, then each extra. */
-export function extraRowsFor(extraIds: string[]): ExtraRowRef[] {
+/** The vertical order: the header, the optional subtotal row, then each extra. */
+export function extraRowsFor(extraIds: string[], layout: ExtraLayout): ExtraRowRef[] {
   return [
     { kind: "header" },
-    { kind: "subtotal" },
+    ...(layout.subtotalRow ? [{ kind: "subtotal" } as ExtraRowRef] : []),
     ...extraIds.map((extraId): ExtraRowRef => ({ kind: "extra", extraId })),
   ];
 }

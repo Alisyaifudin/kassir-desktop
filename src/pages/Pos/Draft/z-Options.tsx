@@ -24,7 +24,7 @@ import { Precision } from "~/components/cart/z-Precision";
 export function Options({ draft, onStore }: { draft: Draft; onStore: () => void }) {
   return (
     <Dialog>
-      <Button asChild variant="ghost" size="icon" title="Opsi transaksi">
+      <Button asChild variant="ghost" size="icon" aria-label="Opsi transaksi" title="Opsi transaksi">
         <DialogTrigger type="button">
           <SlidersHorizontal className="icon" />
         </DialogTrigger>

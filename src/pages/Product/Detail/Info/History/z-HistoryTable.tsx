@@ -46,6 +46,7 @@ export function HistoryTable({ events }: { events: ProductEvent[] }) {
                     search: `?url_back=${encodeURIComponent(urlBack)}`,
                   }}
                   title="Buka catatan"
+                  aria-label="Buka catatan"
                 >
                   <ExternalLink className="icon" />
                 </Link>

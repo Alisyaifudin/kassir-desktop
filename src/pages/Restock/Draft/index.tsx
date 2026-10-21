@@ -4,10 +4,10 @@ import { service } from "~/services";
 import { run } from "~/components/cart/run";
 import { type Extra, type Line } from "~/components/cart/types";
 import { linesSubtotal } from "~/lib/purchase";
-import { Extras } from "./z-Extras";
-import { Listing } from "./z-Listing";
+import { Extras } from "~/components/cart/z-Extras";
+import { Listing } from "~/components/cart/z-Listing";
 import { Payment } from "./z-Payment";
-import { Tabs } from "./z-Tabs";
+import { Tabs } from "~/components/cart/z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
 import type { LineIssue } from "~/components/cart/code-issues";
 
@@ -91,7 +91,7 @@ export function Draft({
 
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
-      <Tabs drafts={drafts} activeId={draft.id} onSelect={onSelect} />
+      <Tabs mode="purchase" drafts={drafts} activeId={draft.id} onSelect={onSelect} />
       <StageBody
         stage={stage}
         draft={draft}
@@ -152,6 +152,7 @@ function StageBody({
   if (stage === "listing") {
     return (
       <Listing
+        mode="purchase"
         lines={lines}
         issues={issues}
         onChange={onLines}
@@ -163,6 +164,7 @@ function StageBody({
   if (stage === "extras") {
     return (
       <Extras
+        mode="purchase"
         extras={extras}
         subtotal={linesSubtotal(lines)}
         onChange={onExtras}

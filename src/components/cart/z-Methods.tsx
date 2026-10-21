@@ -536,6 +536,7 @@ export function Methods({
                     variant="destructive"
                     size="icon"
                     className="size-8 shrink-0 rounded-full"
+                    aria-label="Hapus pembayaran"
                     title="Hapus pembayaran"
                     disabled={draft.methods.length <= 1}
                     onClick={() => set(draft.methods.filter((row) => row.id !== method.id))}

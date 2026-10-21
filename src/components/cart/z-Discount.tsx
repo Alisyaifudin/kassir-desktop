@@ -382,6 +382,7 @@ function Body({
                   variant="ghost"
                   size="icon"
                   className="rounded-full hover:bg-destructive hover:text-primary-foreground"
+                  aria-label="Hapus diskon"
                   title="Hapus diskon"
                   disabled={!canDelete}
                   onClick={(event) => {

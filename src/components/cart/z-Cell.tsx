@@ -130,6 +130,10 @@ export function Cell({
   return (
     <div
       id={id}
+      // The grid's active descendant must point at a role-bearing node, not a
+      // bare div: otherwise a screen reader enters an ARIA grid it cannot read.
+      role="gridcell"
+      aria-selected={selected}
       onClick={() => {
         if (editing) return;
         onSelect();
@@ -162,6 +166,7 @@ export function Cell({
               variant="ghost"
               size="icon"
               className="size-6 shrink-0"
+              aria-label="Batalkan perubahan"
               title="Batalkan perubahan"
               // Keep the input focused so its blur does not commit first.
               onMouseDown={(event) => event.preventDefault()}

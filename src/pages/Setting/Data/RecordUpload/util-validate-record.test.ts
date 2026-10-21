@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { Effect } from "effect";
 import { extractRecord } from "./util-validate-record";
 
@@ -43,6 +43,17 @@ async function message(content: unknown): Promise<string> {
   if (result._tag === "Right") return "ok";
   return result.left._tag === "JsonError" ? result.left.e.message : "terlalu besar";
 }
+
+// A refused file logs the raw zod error on purpose — that is the diagnostic the
+// operator sends us — so keep the console quiet instead of dropping the log. A
+// green run that prints four stack traces trains people to ignore red output.
+let consoleError: ReturnType<typeof spyOn>;
+beforeAll(() => {
+  consoleError = spyOn(console, "error").mockImplementation(() => {});
+});
+afterAll(() => {
+  consoleError.mockRestore();
+});
 
 describe("import file validation", () => {
   test("a well-formed file is accepted", async () => {

@@ -7,6 +7,10 @@
  *
  * Columns are 0-indexed, twelve wide. `x` is selectable but not editable; `no#`
  * and the drag handle are not selectable.
+ *
+ * One grid for both cart screens: `layout` carries the only real difference —
+ * the sale screen ends its header with a stage toggle (`Tambahan`), the purchase
+ * screen's header is just search + manual.
  */
 
 export type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
@@ -14,9 +18,7 @@ export type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "pri
 /** Every cell, including the ones that only draw. */
 export type AnyField = Field | "search" | "manual" | "toggle" | "no" | "grip";
 
-export type RowRef =
-  | { kind: "header" }
-  | { kind: "card"; cardId: string; part: "top" | "bottom" };
+export type RowRef = { kind: "header" } | { kind: "card"; cardId: string; part: "top" | "bottom" };
 
 /** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
 export type QtySub = "left" | "value" | "right";
@@ -31,11 +33,28 @@ export type CellDef = {
   editable: boolean;
 };
 
-const HEADER_CELLS: CellDef[] = [
-  { field: "search", start: 0, end: 7, selectable: true, editable: true },
-  { field: "manual", start: 8, end: 9, selectable: true, editable: false },
-  { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
-];
+/** Which optional columns the grid has. A sale has a stage toggle; a purchase does not. */
+export type ListingLayout = { stageToggle: boolean };
+
+/** The sale screen: search, `+manual`, and the `Tambahan` stage toggle. */
+export const SALE_LISTING_LAYOUT: ListingLayout = { stageToggle: true };
+
+/** The purchase screen: search and `+manual` only. */
+export const PURCHASE_LISTING_LAYOUT: ListingLayout = { stageToggle: false };
+
+function headerCells(layout: ListingLayout): CellDef[] {
+  if (layout.stageToggle) {
+    return [
+      { field: "search", start: 0, end: 7, selectable: true, editable: true },
+      { field: "manual", start: 8, end: 9, selectable: true, editable: false },
+      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+    ];
+  }
+  return [
+    { field: "search", start: 0, end: 9, selectable: true, editable: true },
+    { field: "manual", start: 10, end: 11, selectable: true, editable: false },
+  ];
+}
 
 const TOP_CELLS: CellDef[] = [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
@@ -55,13 +74,13 @@ const BOTTOM_CELLS: CellDef[] = [
 
 const CARD_CELLS = [...TOP_CELLS, ...BOTTOM_CELLS];
 
-export function cellsForRow(row: RowRef): CellDef[] {
-  if (row.kind === "header") return HEADER_CELLS;
+export function cellsForRow(row: RowRef, layout: ListingLayout): CellDef[] {
+  if (row.kind === "header") return headerCells(layout);
   return row.part === "top" ? TOP_CELLS : BOTTOM_CELLS;
 }
 
-export function selectableCells(row: RowRef): CellDef[] {
-  return cellsForRow(row).filter((cell) => cell.selectable);
+export function selectableCells(row: RowRef, layout: ListingLayout): CellDef[] {
+  return cellsForRow(row, layout).filter((cell) => cell.selectable);
 }
 
 function distance(cell: CellDef, col: number): number {
@@ -71,8 +90,8 @@ function distance(cell: CellDef, col: number): number {
 }
 
 /** The selectable cell that owns `col`, or the nearest one when none does. */
-export function cellAt(row: RowRef, col: number): CellDef {
-  const cells = selectableCells(row);
+export function cellAt(row: RowRef, col: number, layout: ListingLayout): CellDef {
+  const cells = selectableCells(row, layout);
   const hit = cells.find((cell) => col >= cell.start && col <= cell.end);
   if (hit !== undefined) return hit;
   return cells.reduce((best, cell) => (distance(cell, col) < distance(best, col) ? cell : best));

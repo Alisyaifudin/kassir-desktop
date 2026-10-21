@@ -17,7 +17,7 @@ import type { ValueKind } from "~/lib/constants";
 import type { Extra } from "~/components/cart/types";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
-import type { ExtraField } from "./extra-grid";
+import type { ExtraField } from "~/components/cart/extra-grid";
 
 const KIND_LABELS: Record<ValueKind, string> = { number: "Angka", percent: "Persen" };
 
@@ -68,6 +68,8 @@ export function ExtraCard({
   return (
     <motion.div
       ref={setNodeRef}
+      role="row"
+      aria-label={`Biaya ${extra.name === "" ? number : extra.name}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
@@ -78,7 +80,7 @@ export function ExtraCard({
         isDragging && "relative z-10 shadow-lg",
       )}
     >
-      <div className="grid grid-cols-12 items-stretch">
+      <div role="presentation" className="grid grid-cols-12 items-stretch">
         <div
           className="col-span-1 flex touch-none cursor-grab items-center justify-center text-normal text-muted-foreground tabular-nums select-none active:cursor-grabbing"
           {...listeners}
@@ -123,6 +125,8 @@ export function ExtraCard({
         />
         <div
           id={`extra-${extra.id}-kind`}
+          role="gridcell"
+          aria-selected={selected === "kind"}
           onClick={() => onSelect("kind")}
           className={cn(
             "col-span-2 flex flex-col justify-center gap-0.5 border-l px-2 py-1",
@@ -149,6 +153,8 @@ export function ExtraCard({
         </div>
         <div
           id={`extra-${extra.id}-eff`}
+          role="gridcell"
+          aria-selected={selected === "eff"}
           onClick={() => onSelect("eff")}
           className={cn(
             "col-span-2 flex flex-col justify-center gap-0.5 border-l px-2 py-1",
@@ -156,10 +162,14 @@ export function ExtraCard({
           )}
         >
           <span className="text-small leading-none text-muted-foreground select-none">Efektif</span>
-          <span className="text-normal font-bold tabular-nums text-primary">{signedRupiah(eff)}</span>
+          <span className="text-normal font-bold tabular-nums text-primary">
+            {signedRupiah(eff)}
+          </span>
         </div>
         <div
           id={`extra-${extra.id}-x`}
+          role="gridcell"
+          aria-selected={selected === "x"}
           onClick={() => onSelect("x")}
           className={cn(
             "col-span-1 flex items-center justify-center border-l",
@@ -170,6 +180,7 @@ export function ExtraCard({
             variant="ghost"
             size="icon"
             className="rounded-full hover:bg-destructive hover:text-primary-foreground"
+            aria-label="Hapus biaya"
             title="Hapus biaya"
             onClick={(event) => {
               event.stopPropagation();

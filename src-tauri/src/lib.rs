@@ -1,12 +1,26 @@
 use log::LevelFilter;
+use tauri::Manager;
 mod auth;
 mod database;
+mod export;
 mod printer;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let database_migs = database::generate_migration();
     let builder = tauri::Builder::default()
+        // Registered first, before any window or database plugin initialises: the
+        // plugin must win the race on the instance lock. One process per machine
+        // is the model — the app preloads a fixed `sqlite:data.db` and keeps the
+        // cart and the catalogue in process-local refs, so a second launch would
+        // debounce-write its own stale snapshot over the first one's rows.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
@@ -28,6 +42,7 @@ pub fn run() {
             auth::verify_password,
             printer::get_printers,
             printer::print_pdf,
+            export::export_file,
         ]);
 
     // Debug-only MCP bridge for AI/e2e automation.

@@ -99,6 +99,8 @@ export function Selected({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Batalkan unggahan"
+                title="Batalkan unggahan"
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -135,6 +137,8 @@ function DuplicateItem({ timestamps, dismiss }: { timestamps: number[]; dismiss:
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Tutup"
+          title="Tutup"
           onClick={dismiss}
           className="text-muted-foreground hover:text-foreground"
         >

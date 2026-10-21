@@ -17,6 +17,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // Two workers, not the CPU count: every test signs in with a real bcrypt hash
+  // (250 ms of pure CPU), and four of those in parallel on a CI runner starve
+  // each other past the 30 s test timeout — a red job that says nothing about
+  // the app. The suite is seven tests; the wall clock is ~12 s either way.
+  workers: 2,
   reporter: process.env.CI ? "line" : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:1420",

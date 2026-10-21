@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T19:14:09.021Z",
+  "updatedAt": "2026-10-21T19:45:31.419Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -716,6 +716,235 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T19:14:09.021Z"
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "startedAt": "2026-10-21T19:14:09.121Z",
+      "audit": {
+        "score": 80,
+        "categories": {
+          "architecture": 78,
+          "react": 82,
+          "tauri": 74,
+          "ux": 84,
+          "codeQuality": 79,
+          "testing": 80
+        },
+        "verdict": "The critical migration regression is genuinely fixed — 43–50 are restored byte-for-byte, `migration-51` is registered, and `src/services/db/migration-chain.test.ts` now pins contiguity *and* checksums, so an existing install can open `data.db` again; `bun test` is 242 passing with no flake, and the typography tokens are enforced by `design-tokens.test.ts` instead of by review. The biggest remaining risk is no longer data truth inside the process but the **process boundary and the duplicated grid**: a second launch runs a second process against the same `sqlite:data.db` with its own in-memory cart and catalogue (no single-instance plugin), and the Pos/Restock cart is still ~4,200 lines in two copies that have now diverged in the keyboard grid — that is the fourth audit in a row to file it, and it is where the next keyboard bug will appear. Two new findings deserve priority beyond that: the Pos \"Tambahan\" search reads a hardcoded 8-entry list instead of the Extra service catalog (so configured extras never reach the sale screen), and both JSON exports `writeFile` outside the fs capability scope, which makes them fail with a raw `PathForbidden` sentence in the packaged app. Deliberately not covered this round: the Money/Record/Analytics screen bodies beyond their data hooks, the `record/live.ts` credit-edit and `unsubmit` reversal paths in depth, the Rust printer path on real Windows hardware, the updater `latest.json`/pubkey trust chain, the fingerprint-migration SQL bodies beyond version/checksum and index structure, and the bedside folder `src/pages/Stock-PENDING/`. Also folded into the verdict rather than filed: `components/Calendar.tsx`/`DateRange.tsx` are the second instance of the same duplicated-implementation pattern, the POS extras grid's `onExitDown` hand-off is now Pos-only, and several Rust error strings are English (`\"No printers found on this system…\"`) on a path whose sibling messages are Indonesian.",
+        "reports": [
+          {
+            "slug": "pos-extras-search-ignores-extra-service",
+            "title": "The POS \"Tambahan\" search reads a hardcoded 8-entry list instead of the Extra service catalog",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/pages/Pos/presets.ts",
+              "src/pages/Pos/Draft/z-Extras.tsx",
+              "src/pages/Restock/Draft/z-Extras.tsx",
+              "src/services/extra/index.ts"
+            ],
+            "summary": "The Restock extras search subscribes to `service.extra.get.changes`; the POS extras search filters a module-level constant of eight names with `value: 0`. Extras the owner creates or re-prices in the Extra page therefore never reach the sale screen, and the ones whose names happen to match are seeded with a zero rate instead of their configured one — a second source of truth for money that is added to a sale, on the screen that takes the money.",
+            "path": "iterations/004/report-01-pos-extras-search-ignores-extra-service.md",
+            "createdAt": "2026-10-21T19:19:31.551Z"
+          },
+          {
+            "slug": "pos-restock-cart-duplication-fourth-audit",
+            "title": "Pos and Restock are still the same cart written twice, and the copies have diverged in the keyboard grid",
+            "severity": "high",
+            "category": "architecture",
+            "files": [
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Pos/Draft/z-Extras.tsx",
+              "src/pages/Restock/Draft/z-Listing.tsx",
+              "src/pages/Restock/Draft/z-Extras.tsx",
+              "src/pages/Pos/Draft/z-Tabs.tsx",
+              "src/pages/Restock/Draft/z-Tabs.tsx",
+              "src/pages/Pos/Draft/extra-grid.ts",
+              "src/pages/Pos/Draft/listing-grid.ts",
+              "src/pages/Pos/use-draft.ts",
+              "src/pages/Pos/use-stage.ts",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx"
+            ],
+            "summary": "Recurring (4th audit): ~4,200 lines of cart UI still exist as two copies, and the copies are now behaviourally asymmetric — the stage-toggle column, the ArrowDown hand-off out of the grid, the `focused` gate on the focus effect and the parked-cart tab render exist only in the Pos copy. Every keyboard/focus fix of the last three iterations landed in one file and not the other, so the same bug will be re-found here again unless the grid itself is merged into `src/components/cart/` the way `z-Methods` already was.",
+            "path": "iterations/004/report-02-pos-restock-cart-duplication-fourth-audit.md",
+            "createdAt": "2026-10-21T19:19:47.470Z"
+          },
+          {
+            "slug": "records-date-range-queries-unindexed",
+            "title": "Record history, dashboard and debt all full-scan `records` because nothing indexes the record date",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/services/record/live.ts",
+              "src-tauri/src/database/mod.rs",
+              "src-tauri/src/database/51-60/migration-51.sql",
+              "src-tauri/src/database/migration-checksums.json"
+            ],
+            "summary": "Every record read — history list, day summary, debt table, comprehensive listing search — filters and orders on `COALESCE(record_paid_at, record_credit_at, record_created_at)`, and no migration indexes `records` at all. The file itself notes the table is \"~64k rows, always read by range\", so each of those screens is a full scan plus temp-B-tree sort over the entire sales history that degrades every trading day; the fix is one append-only migration with an expression index.",
+            "path": "iterations/004/report-03-records-date-range-queries-unindexed.md",
+            "createdAt": "2026-10-21T19:20:16.150Z"
+          },
+          {
+            "slug": "no-single-instance-guard",
+            "title": "No single-instance guard, so a second launch runs a second process against the same `data.db`",
+            "severity": "medium",
+            "category": "tauri",
+            "files": [
+              "src-tauri/Cargo.toml",
+              "src-tauri/src/lib.rs",
+              "src-tauri/tauri.conf.json",
+              "src/services/transaction/live.ts",
+              "src/services/product/live.ts"
+            ],
+            "summary": "Neither `Cargo.toml` nor `lib.rs` registers `tauri-plugin-single-instance`, while the app preloads one fixed `sqlite:data.db` and holds the cart and the catalogue as process-local `SubscriptionRef`s with a debounced per-draft writer. A second launch therefore opens the same file from a second process with independent, silently stale state: last-writer-wins on cart rows, cached prices and stock, and two FIFO drains on the same lot — the exact stale-state failure the audits keep removing inside the process.",
+            "path": "iterations/004/report-04-no-single-instance-guard.md",
+            "createdAt": "2026-10-21T19:20:28.075Z"
+          },
+          {
+            "slug": "pos-grid-aria-semantics-missing",
+            "title": "The POS and Restock grids declare `role=\"grid\"` without rows or gridcells, and icon buttons ship unnamed",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Restock/Draft/z-Listing.tsx",
+              "src/pages/Pos/Draft/z-Extras.tsx",
+              "src/components/cart/z-Methods.tsx",
+              "src/components/cart/z-ListingCard.tsx",
+              "src/pages/Setting/Data/z-Skipped.tsx",
+              "src/pages/Setting/Data/ProductUpload/z-Selected.tsx"
+            ],
+            "summary": "The keyboard-first cart grids declare `role=\"grid\"` with `aria-activedescendant`, but no `role=\"row\"`/`role=\"gridcell\"` exists anywhere in `src/`, so the active descendant points at roleless divs and the whole ARIA grid is inert — worse than no role, because AT enters a table it cannot navigate. Several icon-only buttons (dismiss, cancel upload, delete row/payment) are also nameless or named only by `title`, which screen readers do not reliably announce.",
+            "path": "iterations/004/report-05-pos-grid-aria-semantics-missing.md",
+            "createdAt": "2026-10-21T19:20:47.237Z"
+          },
+          {
+            "slug": "oversized-service-modules",
+            "title": "`record/live.ts` (1,778) and `transaction/live.ts` (1,193) are the two most bug-prone files and break the one-function-per-file rule",
+            "severity": "medium",
+            "category": "maintainability",
+            "files": [
+              "src/services/record/live.ts",
+              "src/services/transaction/live.ts",
+              "src/services/product/live.ts",
+              "src/services/product/stock-sql.ts"
+            ],
+            "summary": "Three service files hold 3,956 lines between them — `record/live.ts` alone has 26 top-level declarations, ten SQL constants, all statement builders and one 426-line `Effect.gen` for `add.draft` — against `.agent/agent.md`'s \"one function per file / small and single-purpose\" rule. Every correctness bug this series filed in these files had to be located by reading hundreds of lines of builder code, and the coarse granularity is why the record service can only be tested through whole-cart integration cases. The in-repo precedent (`product/stock-sql.ts`) shows the split that makes statements unit-testable.",
+            "path": "iterations/004/report-06-oversized-service-modules.md",
+            "createdAt": "2026-10-21T19:21:10.732Z"
+          },
+          {
+            "slug": "duplicate-date-pickers-dom-poke-controlled-input",
+            "title": "\"Tahun Ini\" pokes a controlled input through `document.getElementById`, and the date picker exists twice",
+            "severity": "low",
+            "category": "correctness",
+            "files": [
+              "src/components/DateRange.tsx",
+              "src/components/Calendar.tsx",
+              "src/pages/Record/z-Header/index.tsx",
+              "src/pages/Money/History/z-TimePicker.tsx"
+            ],
+            "summary": "Two date pickers implement the same drill-down (491 + 350 lines, seven call sites), and `DateRange`'s \"Tahun Ini\" writes `document.getElementById(\"year-input\") as HTMLInputElement` into an input that is controlled by React state — so the visible year and the state disagree after the click and React restores the old value on the next render. The cast also throws if the field is not mounted, and both files shadow `setInterval` with a state setter.",
+            "path": "iterations/004/report-07-duplicate-date-pickers-dom-poke-controlled-input.md",
+            "createdAt": "2026-10-21T19:21:27.113Z"
+          },
+          {
+            "slug": "cart-keyboard-untested-and-e2e-advisory",
+            "title": "The keyboard-first cart grid has no tests, e2e is advisory, and `src-tauri` is untested",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/components/cart/z-ListingCard.tsx",
+              ".github/workflows/windows-release.yml",
+              "src-tauri/src/printer.rs",
+              "src-tauri/src/auth.rs",
+              "src/pages/Setting/Data/RecordUpload/util-validate-record.test.ts"
+            ],
+            "summary": "The cart grid's keyboard/focus state machine — the most-modified and most-audited code in the repo, and now duplicated twice — has no tests under `src/pages/Pos` or `src/pages/Restock`, the e2e job that exercises one sale is `continue-on-error: true`, and `src-tauri` contains no `#[cfg(test)]` at all, so `validate_pdf` (the only place IPC-supplied bytes cross into Rust) and the bcrypt round-trip are compile-checked only. The service layer is well covered; the surface the cashier touches is not.",
+            "path": "iterations/004/report-08-cart-keyboard-untested-and-e2e-advisory.md",
+            "createdAt": "2026-10-21T19:21:47.651Z"
+          },
+          {
+            "slug": "export-writes-outside-fs-capability-scope",
+            "title": "Both JSON exports write outside the fs capability scope, so `writeFile` is rejected as `PathForbidden`",
+            "severity": "high",
+            "category": "tauri",
+            "files": [
+              "src-tauri/capabilities/default.json",
+              "src/pages/Setting/Data/util-file.ts",
+              "src/pages/Money/History/z-Download.tsx",
+              "src/lib/image.ts",
+              "src/services/log/live.ts",
+              "src-tauri/src/lib.rs"
+            ],
+            "summary": "`fs:write-files` is scoped to `$APPDATA/images` and `$APPLOCALDATA/logs`, but Setting > Data's \"Simpan Data\" and Money > History's \"Unduh\" call `writeFile` on the absolute path the user picks in the Save dialog (`pages/Setting/Data/util-file.ts:28`, `pages/Money/History/z-Download.tsx:59`). Tauri's fs plugin returns `PathForbidden` for any path outside that scope, so both exports fail in the packaged app — and surface the raw plugin sentence (\"maybe it is not allowed on the scope for allow-write-file…\") to the cashier. The narrow ACL the last audits asked for silently disabled a feature because the code was never adjusted to it.",
+            "path": "iterations/004/report-09-export-writes-outside-fs-capability-scope.md",
+            "createdAt": "2026-10-21T19:23:09.556Z"
+          }
+        ],
+        "at": "2026-10-21T19:23:29.033Z"
+      },
+      "finishedAt": "2026-10-21T19:45:31.419Z",
+      "fix": {
+        "summary": "## What changed (iteration 4)\n\n**The two high-severity correctness/security items are closed.**\n\n1. **JSON exports work again under the narrow ACL** — new Rust `export_file` command (`src-tauri/src/export.rs`) opens the Save dialog and writes with `std::fs` on `spawn_blocking`; `src/lib/export.ts` is now the single `saveJson()` program used by Setting > Data and Money > History. The frontend no longer imports the fs/dialog plugins, the pocket name is sanitised, and a failure shows an Indonesian message while the raw error is logged. `dialog:default` was dropped from the capability (nothing else used it).\n2. **The Pos/Restock cart is no longer written twice** — `z-Listing`, `z-Extras`, `z-Extra`, `z-Tabs`, both grid geometry modules and the two hooks now live once under `src/components/cart/` + `src/pages/cart/`, parameterised by `mode`/layout. The purchase screen inherits the Pos keyboard fixes (focus gate, ArrowDown hand-off, stage-toggle column, parked tab). −3,469 lines in `src/pages/Pos|Restock`.\n\n**Also fixed:** the POS \"Tambahan\" search reads the live Extra service (`useExtraPresets`) instead of the hardcoded 8-entry list; `tauri-plugin-single-instance` registered first in the builder; migration-52 adds the record-date expression index + open-credit partial index (checksum-pinned, 01–51 untouched); grids now have real `row`/`rowgroup`/`gridcell` structure (with a source-scan guard for unnamed icon buttons) — plus 8 more unnamed icon buttons found and named; \"Tahun Ini\" drives its controlled year field through state in both date pickers and the `setInterval` shadow is renamed.\n\n**Testing/tooling:** the e2e job is blocking (`workers: 2` added — four parallel bcrypt logins were timing out), `cargo test` runs in CI with new `validate_pdf` and bcrypt tests, cart grid geometry is tested for both modes, insert statements are extracted to `record/sql/insert.ts` with 5 binding-order tests, and the expected `ZodError` traces in the import test are silenced.\n\n## Verification\n`bun run lint`, `bun run typecheck`, `bun test` (263 passing, 0 failing), `bunx playwright test` (7/7), `cargo check`/`clippy -D warnings`/`fmt --check`/`test` all green.\n\n## Follow-up for the next auditor\n- **Still duplicated (screen level):** `Pos/page.tsx` vs `Restock/page.tsx`, `z-Bottom`, `z-Complete`, `Draft/index.tsx`. The next slice is the report's `use-cart-screen.ts` extraction.\n- **No DOM-level keyboard test yet** for the merged grid: it subscribes to the live services, so a `@testing-library/react` test needs a service-mock seam first. The `focused={false}` \"does not steal focus\" assertion is the missing case.\n- **Oversized services:** `record/live.ts` is down to 1,668 lines (statements extracted); the `SELECT_*` constants, the `transaction/live.ts` builders and the 426-line `add.draft` remain.\n- **Date pickers** are still two implementations; only the DOM-poke bug is fixed.\n- Not exercised here: an MSI click-through of both exports, the single-instance double-launch, and `EXPLAIN QUERY PLAN` against a real `data.db`.",
+        "fixes": [
+          {
+            "report": "export-writes-outside-fs-capability-scope",
+            "status": "fixed",
+            "note": "Took the preferred fix: the write moved behind Rust, so the ACL stays narrow.\n\n- New `src-tauri/src/export.rs`: `#[command] export_file(app, default_name, contents)` opens the Save dialog with `tauri-plugin-dialog`'s Rust API (`blocking_save_file` on `spawn_blocking`), writes with `std::fs`, returns the chosen path or `None` on cancel. A write failure logs the raw OS error and returns `\"Gagal menyimpan file. Coba pilih folder lain.\"`; a dialog-cancel writes nothing and reports nothing. Registered in `lib.rs`'s `invoke_handler`.\n- New `src/lib/export.ts` is now the one \"serialise → ask → write\" program: `saveJson(defaultName, value)` invokes the command, sanitises the default file name (`\\ / : * ? \" < > |` in a pocket name can no longer become part of the path) and maps failures to the Indonesian message while `log.error`-ing the detail.\n- `pages/Setting/Data/util-file.ts` re-exports it (keeps `messageOf`), `pages/Money/History/z-Download.tsx` uses it — the duplicated program and both `@tauri-apps/plugin-fs`/`plugin-dialog` imports are gone (grep: no `writeFile` outside `lib/image.ts` and `services/log/live.ts`, both inside the scope).\n- `capabilities/default.json`: `dialog:default` removed (nothing else used the JS dialog API); fs scopes unchanged; description documents why no user-picked path is in scope.\n- Sent the JSON as a string binding rather than `Vec<u8>` (JSON IPC would ship an array of numbers per byte); noted as a deviation from the report's signature.\n\nVerified: cargo check / clippy -D warnings / fmt / test green, playwright 7/7, bun test 263, lint + typecheck green. The acceptance criterion about a release-build click-through could not be exercised here (no MSI)."
+          },
+          {
+            "report": "pos-restock-cart-duplication-fourth-audit",
+            "status": "fixed",
+            "note": "The two cart screens now share one grid implementation.\n\nMerged into `src/components/cart/`, taking the Pos copy as the base (the fixed one) and making the differences props:\n- `listing-grid.ts` / `extra-grid.ts` — one geometry module each, with a `ListingLayout { stageToggle }` / `ExtraLayout { stageToggle, subtotalRow }` parameter and `SALE_*` / `PURCHASE_*` presets. The header cell list and `extraRowsFor` now derive from the layout, so the stage-toggle column and the purchase subtotal row are configuration, not a second file.\n- `z-Listing.tsx` — one component, `mode: \"sale\" | \"purchase\"`, optional `onToggle` / `focusLast` / `onExitDown` / `onActivate` / `focused` (defaults keep the purchase screen's old ungated behaviour). Both screens now get the Pos fixes: the `focused` gate, the ArrowDown `onExitDown` hand-off, the stage-toggle cell, and `Harga Jual`/`Harga Beli` + placeholder from `mode`.\n- `z-Extras.tsx` — one component; the live extra catalog (see the extras-search report), the toggle column, the subtotal row and the total row are all layout/mode driven. Purchase now also gets the Pos focus gate (a no-op there, since it owns the selection).\n- `z-ListingCard.tsx` / `z-Cell.tsx` were already shared; `z-Extra.tsx` moved here; `z-Tabs.tsx` merged with `mode` (parked-cart branch kept for both — harmless on a purchase).\n- `use-draft.ts` / `use-stage.ts` moved to `src/pages/cart/`; `useStage` now takes the screen's `STAGES` because the two screens have different stage lists (Pos: listing/extra, Restock: listing/extras/payment) — that was the only real difference between the two copies.\n- Deleted: both `Draft/z-Listing.tsx`, `z-Extras.tsx`, `z-Extra.tsx`, `z-Tabs.tsx`, `extra-grid.ts`, `listing-grid.ts`, `use-draft.ts`, `use-stage.ts`, and `Pos/presets.ts` (-3,469 lines in `src/pages/Pos|Restock`, +19 new files under `src/components/cart`).\n\nRemaining (deliberately not in this pass): `Pos/page.tsx` / `Restock/page.tsx`, `z-Bottom.tsx`, `z-Complete.tsx` and `Draft/index.tsx` are still near-copies with real differences (settle strip + parking vs three stages + credit). The report's step 6 (`use-cart-screen.ts`) is the next slice. The keyboard map now has one source (`components/cart/z-Listing.tsx`); the geometry is tested for both modes, the DOM-level key test is still open (see `cart-keyboard-untested-and-e2e-advisory`)."
+          },
+          {
+            "report": "pos-extras-search-ignores-extra-service",
+            "status": "fixed",
+            "note": "The POS extras search now reads the Extra service catalog, and both cart screens share the same hook.\n\n- New `src/components/cart/use-extra-presets.ts`: `useExtraPresets()` subscribes to `service.extra.get.changes` and maps the rows to `ExtraPreset[]` (id/name/kind/value from the service row, so the configured `value` and `kind` come along).\n- `src/pages/Pos/presets.ts` deleted; `rg EXTRA_PRESETS src` returns nothing.\n- The merged `src/components/cart/z-Extras.tsx` (single implementation for both screens) uses the hook, so the Restock copy's inline mapping is gone too — there is now one place that answers \"what extras can I add\".\n- `addPreset` still seeds from the preset, which now carries the extra's real `value`/`kind` (a 3% extra arrives at 3%, not 0%) and its catalog id instead of `P1…P8`.\n\nNo new test file: the behaviour is a wiring change over an already-tested service (`src/services/extra`), and a component test would have to mount the service layer (see the testing report's note about DOM-level cart tests). Manual verification path from the report (Extra page → add \"Pajak 11%\" → POS F2 → type `pajak`) still needs a run on the packaged app."
+          },
+          {
+            "report": "oversized-service-modules",
+            "status": "partial",
+            "note": "First slice of the split, following the `product/stock-sql.ts` precedent — the statement builders now live apart from the service and are pinned by unit tests.\n\n- New `src/services/record/sql/insert.ts`: `insertRecordStatement`, `insertMethod`, `insertPortion`, `insertDiscounts` and the `RecordHeader` type, moved verbatim (no SQL text or binding changed).\n- New `src/services/record/sql/insert.test.ts` (5 cases) asserts the column/placeholder/binding relationship of the record header, the twelve portion bindings in order, that a discount's `eff` is scaled by the portion's `qty` share while `value` is not, and that a payment row binds record/method/pay. This is the unit test the report said was impossible; it runs without a database.\n- `record/live.ts`: 1,778 → 1,668 lines, and `RecordHeader` is no longer a local type.\n\nStill open: `record/live.ts` (1,668) and `transaction/live.ts` (1,193) are far above the ~400-line criterion. The next mechanical slices are the ten `SELECT_*` constants into `record/sql/select-*.ts`, the `transaction/live.ts` statement builders into `transaction/sql/`, and pulling the 426-line `add.draft` into `validate → lines → lots → capital → assemble` steps. No behaviour changed, so `submit`/`draft`/`catalogue`/`flush`/`import`/`credit` tests stayed untouched and green (263 passing)."
+          },
+          {
+            "report": "no-single-instance-guard",
+            "status": "fixed",
+            "note": "Registered `tauri-plugin-single-instance`, first in the builder chain (before the window/db plugins), so a second launch focuses the existing window instead of opening the same `sqlite:data.db` from a second process with its own cart and catalogue refs.\n\n- `src-tauri/Cargo.toml`: `tauri-plugin-single-instance = \"2\"` with a comment saying why (fixed data.db + process-local refs), so it is not removed as \"unnecessary\" later. `Cargo.lock` updated.\n- `src-tauri/src/lib.rs`: `.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| { … unminimize/show/set_focus on \"main\" }))` registered before `tauri_plugin_dialog`, with the reason in a comment; `use tauri::Manager` added for `get_webview_window`. No capability entry needed.\n- Not done: the belt-and-braces \"cannot lock data.db\" message, which is redundant with the plugin in place.\n\nVerified: `cargo check`, `cargo clippy --all-targets -D warnings`, `cargo fmt --check`, `cargo test` all green locally (the crate had to be fetched, so the lockfile moved). The Task-Manager double-launch check needs a Windows build."
+          },
+          {
+            "report": "records-date-range-queries-unindexed",
+            "status": "fixed",
+            "note": "Added an append-only migration (01–51 byte-unchanged) plus its pin and registration.\n\n- `src-tauri/src/database/51-60/migration-52.sql`:\n  - `record_date_idx ON records (COALESCE(record_paid_at, record_credit_at, record_created_at)) WHERE record_deleted_at IS NULL` — the expression every read filters/orders on; the partial predicate is the `record_deleted_at IS NULL` that `byRange`, `SELECT_SUMMARY`, `SELECT_LISTING_HISTORY` and `debt()` all add, so one index serves all four.\n  - `record_credit_open_idx ON records (record_credit_at) WHERE record_paid_at IS NULL AND record_deleted_at IS NULL` — the open-credit list.\n  - Deliberate deviation from the report: dropped its third suggestion (`record_live_idx ON records (record_mode)`) — `record_mode` has two values, so an index on it is not worth the write cost; the report itself said to measure and only keep what is chosen.\n- `src-tauri/src/database/mod.rs`: `version: 52, description: \"index_record_dates\"`.\n- `src-tauri/src/database/migration-checksums.json`: `\"52\": \"sha384:a461746…\"`.\n\nVerified: `bun test src/services/db/migration-chain.test.ts` (4 passing — contiguity, file names, checksums), full `bun test` 263 passing (the sql.js e2e harness applies the real migrations, so a syntax error in 52 would fail the suite), playwright 7/7. `EXPLAIN QUERY PLAN` against a real `data.db` copy is left for the next auditor with a database at hand."
+          },
+          {
+            "report": "cart-keyboard-untested-and-e2e-advisory",
+            "status": "partial",
+            "note": "Three of the four asks landed; the DOM-level grid test did not.\n\n1. Grid keyboard tests — added, but at the geometry level rather than by rendering. `src/components/cart/listing-grid.test.ts` and `extra-grid.test.ts` (14 cases) run both modes: the sale header has the stage toggle and the purchase one does not, `+manual` sits where the layout says, wide cells own their span, columns clamp/snap, the purchase subtotal row appears only for purchase, the arrow walk skips the number/grip cells, row identity. A render test of `Listening`/`Extras` would mount the real service layer (they subscribe to `service.listing.get.search` / `service.extra.get.changes`), which in `bun test` would open the Tauri/sqlite path; that needs a service-mock seam first and is left for the next pass. The `focused={false}` \"does not steal focus\" assertion is therefore still missing.\n2. E2E is now blocking: `continue-on-error: true` removed from the `e2e` job in `.github/workflows/windows-release.yml` (comment explains the value). Also pinned `workers: 2` in `playwright.config.ts` — with the default CPU-count workers, four parallel logins at bcrypt cost each starve past the 30 s timeout (reproduced: 2 failed at 4 workers, 7/7 at 2 workers), and a flaky blocking job is worse than an advisory one.\n3. Rust tests added: `#[cfg(test)]` in `printer.rs` (accepts `%PDF-1.7…`, refuses a short buffer and a non-PDF buffer, asserting the Indonesian message the cashier reads) and `auth.rs` (hash/verify round-trip, wrong password). `cargo test` runs 5 tests green, and a new \"Rust tests\" step runs it in the `rust` CI job alongside fmt/clippy.\n4. Expected `ZodError` traces silenced in `util-validate-record.test.ts` with a `console.error` spy (the log itself is intentional — it is the diagnostic the operator sends us), so a green run no longer prints four red stack traces."
+          },
+          {
+            "report": "pos-grid-aria-semantics-missing",
+            "status": "fixed",
+            "note": "The grids now have real ARIA structure, and every icon-only button has a name.\n\nGrid cells/rows (in the merged cart components, so both screens benefit):\n- `z-Cell.tsx` root is `role=\"gridcell\"` with `aria-selected={selected}` — this is what `aria-activedescendant` resolves to for name/code/unit/price/diskon.\n- `z-ListingCard.tsx`: the card is `role=\"rowgroup\"`, each of its two bands `role=\"row\"`, and the number, `grandTotal`, `x` and the `Kuantitas` cell are `role=\"gridcell\"` with `aria-selected`.\n- `z-Extra.tsx`: card `role=\"row\"` + `aria-label`, inner wrapper `role=\"presentation\"`, kind/eff/x cells `role=\"gridcell\"`.\n- `z-Listing.tsx` / `z-Extras.tsx` headers: `role=\"row\"` with `role=\"gridcell\"` + `aria-selected` on search/manual/toggle, and the purchase subtotal row likewise; both grids carry an `aria-label` (\"Barang yang dijual/dibeli\", \"Biaya tambahan\").\n\nAccessible names added (aria-label + title kept as tooltip): Setting > Data dismiss and both upload dialogs' cancel, the Money upload dialog's cancel and duplicate-note dismiss, the Record header's prev/next-day arrows and clear-filter, the Setting nav icon, `Opsi transaksi`, Restock image delete, `Hapus diskon`, `Hapus pembayaran`, `Batalkan perubahan` (cell undo), the draft-tab new/close buttons, and the debt/history \"buka catatan\" links.\n\nRegression guard: `src/components/ui/icon-buttons.test.ts` scans `src/**/*.tsx` for `<Button size=\"icon\">` without `aria-label`/`aria-labelledby`/`sr-only` and fails — it caught 8 more unnamed buttons that the report had not listed, all now named.\n\nNot done: `eslint-plugin-jsx-a11y` (the optional suggestion) — a new dependency, not needed while the two bespoke guards cover the two failures that were shipping."
+          },
+          {
+            "report": "duplicate-date-pickers-dom-poke-controlled-input",
+            "status": "partial",
+            "note": "The DOM poke and the timer shadowing are gone; the two pickers are still two.\n\n- `src/components/DateRange.tsx`: \"Tahun Ini\" now calls `setYear(today.year)` / `setLevel(\"month\")` / `setDate(today)` — the field is controlled by `year`, so the visible year and the state can no longer disagree (and a click cannot throw when the field is absent, because nothing is looked up). The `const [interval, setInterval] = useState(...)` pair was renamed to `level` / `setLevel` throughout the file, so the global timer function is no longer shadowed (14 identifiers).\n- `src/components/Calendar.tsx`: the year field is now controlled (`yearInput` state) and \"Tahun Ini\" calls `setYearInput(today.year)`; the `handleSubmitYear` FormData path still works because the field keeps its `name`.\n- `rg 'getElementById\\(\"year-input\"\\)' src` returns nothing.\n\nNot done: merging `Calendar` and `DateRange` into one `DatePicker` (491 + 350 lines, seven call sites). That is a real refactor with its own risk surface and no acceptance-criteria test yet; the bug the report is filed for is fixed, and the merge is the next step (extract the shared day/month/year drill-down plus `use-year-input.ts`, keep the two public components as thin wrappers so the call sites do not change)."
+          }
+        ],
+        "at": "2026-10-21T19:45:31.419Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T19:45:31.419Z"
         }
       }
     }

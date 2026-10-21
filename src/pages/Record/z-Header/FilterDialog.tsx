@@ -66,6 +66,7 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
             variant="secondary"
             onClick={clear}
             className="rounded-xl h-10 w-10 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
+            aria-label="Hapus filter"
             title="Hapus filter"
           >
             <X size={18} />

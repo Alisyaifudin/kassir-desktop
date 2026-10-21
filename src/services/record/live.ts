@@ -24,6 +24,12 @@ import { NotFound } from "~/lib/effect-error";
 import { ProductService } from "../product";
 import { roundToFix } from "./round";
 import {
+  insertDiscounts,
+  insertMethod,
+  insertPortion,
+  insertRecordStatement,
+} from "./sql/insert";
+import {
   consumeStatements,
   depleteLots,
   drainStatements,
@@ -154,23 +160,6 @@ type ListingLinkRow = {
   listing_id: string;
   product_id: string;
   listing_unit: number;
-};
-
-/** The fields `insertRecordStatement` needs; `RecordImport` is a superset. */
-type RecordHeader = {
-  createdAt: number;
-  paidAt: number | null;
-  creditAt: number | null;
-  rounding: number;
-  cashier: string;
-  mode: RecordMode;
-  pay: number;
-  note: string;
-  fix: number;
-  customer: { name: string; phone: string };
-  supplier: { id: string | null; name: string };
-  subTotal: number;
-  total: number;
 };
 
 function insertProductRow(productId: string, name: string, now: number): Statement {
@@ -351,14 +340,6 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-function insertMethod(recordId: string, methodId: string, pay: number): Statement {
-  return {
-    sql: `INSERT INTO record_methods (
-        record_method_id, record_id, method_id, record_method_pay
-      ) VALUES ($1, $2, $3, $4)`,
-    bindings: [generateId(), recordId, methodId, pay],
-  };
-}
 
 // The lines a delete has to compensate for: only those pointing at a catalog
 // listing have stock behind them. `listing_unit` converts the line's qty into
@@ -417,97 +398,6 @@ const SELECT_LISTING_LINK = `
   FROM listings
   WHERE listing_id = $1 AND listing_deleted_at IS NULL`;
 
-function insertRecordStatement(id: string, input: RecordHeader, now: number): Statement {
-  return {
-    sql: `INSERT INTO records (
-        record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
-        record_cashier, record_mode, record_pay, record_note, record_fix,
-        record_customer_name, record_customer_phone, record_supplier_id,
-        record_supplier_name, record_sub_total, record_total,
-        record_updated_at, record_sync_at, record_deleted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NULL, NULL)`,
-    bindings: [
-      id,
-      input.createdAt,
-      input.paidAt,
-      input.rounding,
-      input.creditAt,
-      input.cashier,
-      input.mode,
-      input.pay,
-      input.note,
-      input.fix,
-      input.customer.name,
-      input.customer.phone,
-      input.supplier.id,
-      input.supplier.name,
-      input.subTotal,
-      input.total,
-      now,
-    ],
-  };
-}
-
-/** A `record_listings` portion row. */
-function insertPortion(p: {
-  id: string;
-  groupId: string;
-  recordId: string;
-  productEventId: string | null;
-  productId: string | null;
-  name: string;
-  kind: string;
-  unit: number;
-  price: number;
-  qty: number;
-  capital: number;
-  total: number;
-}): Statement {
-  return {
-    sql: `INSERT INTO record_listings (
-        record_listing_id, record_listing_group_id, record_id, product_event_id,
-        product_id, record_listing_name, record_listing_kind, record_listing_unit,
-        record_listing_price, record_listing_qty, record_listing_capital,
-        record_listing_total
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-    bindings: [
-      p.id,
-      p.groupId,
-      p.recordId,
-      p.productEventId,
-      p.productId,
-      p.name,
-      p.kind,
-      p.unit,
-      p.price,
-      p.qty,
-      p.capital,
-      p.total,
-    ],
-  };
-}
-
-/** One copy of each discount for a line that is a single portion. */
-function insertDiscounts(
-  portionId: string,
-  discounts: { kind: DiscountKind; value: number; eff: number }[],
-  share: number,
-): Statement[] {
-  return discounts.map((discount) => ({
-    sql: `INSERT INTO discounts (
-        discount_id, discount_group_id, record_listing_id, discount_kind,
-        discount_value, discount_eff
-      ) VALUES ($1, $2, $3, $4, $5, $6)`,
-    bindings: [
-      generateId(),
-      generateId(),
-      portionId,
-      discount.kind,
-      discount.value,
-      discount.eff * share,
-    ],
-  }));
-}
 
 /**
  * Groups the per-portion rows back into the lines the UI and receipt show.

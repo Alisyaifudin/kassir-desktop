@@ -47,7 +47,10 @@ import {
   type Field,
   type RowRef,
   type Selection,
-} from "./listing-grid";
+  PURCHASE_LISTING_LAYOUT,
+  SALE_LISTING_LAYOUT,
+  type ListingLayout,
+} from "~/components/cart/listing-grid";
 
 const HEADER: RowRef = { kind: "header" };
 
@@ -60,7 +63,8 @@ const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 
 /** The column a fresh selection remembers when the search bar is the start. */
 const NAME_COLUMN = 1;
-const MANUAL_COLUMN = 8;
+/** `+manual` is the header's second (sale) or last (purchase) cell. */
+const manualColumn = (layout: ListingLayout): number => (layout.stageToggle ? 8 : 10);
 const TOGGLE_COLUMN = 10;
 
 /** A blank line for +manual. No `base`, so there is nothing to undo to. */
@@ -81,9 +85,10 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
 }
 
 /**
- * Stage one: choosing what is being bought. The search bar and `+manual` stay
+ * Stage one of both carts: choosing the goods. The search bar and `+manual` stay
  * pinned to the top; the lines below scroll, newest on top and numbered from
- * the bottom.
+ * the bottom. One component for both screens: `mode` picks `Harga Jual`/`Harga
+ * Beli` and whether the header ends in a `Tambahan` stage toggle.
  *
  * The whole grid is keyboard-driven: a `(row, column)` selection moves with the
  * arrows, keeps its column across rows (so a wide cell acts like a merged one),
@@ -94,30 +99,38 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  * back through the transaction service.
  */
 export function Listing({
+  mode,
   lines,
-  extraTotal,
+  extraTotal = null,
   issues,
   onChange,
   onToggle,
   focusSearch,
   focusLast,
   onExitDown,
-  focused,
+  focused = true,
   onActivate,
 }: {
+  /** A sale reads `Harga Jual` and has a stage toggle; a purchase reads `Harga Beli`. */
+  mode: "sale" | "purchase";
   lines: Line[];
   /** The inline problems, keyed by line id. */
   issues: Map<string, LineIssue>;
   /** The rupiah all extras come to, or null when there are none. */
-  extraTotal: Decimal | null;
+  extraTotal?: Decimal | null;
   onChange: (lines: Line[]) => void;
-  onToggle: () => void;
+  /** The stage toggle in the header; present on a sale, absent on a purchase. */
+  onToggle?: () => void;
   focusSearch: number;
-  focusLast: number;
-  onExitDown: () => void;
-  focused: boolean;
-  onActivate: () => void;
+  /** The settle strip's hand-off upward; a sale-only token. */
+  focusLast?: number;
+  /** ArrowDown off the last row; the sale hands the selection to the settle strip. */
+  onExitDown?: () => void;
+  /** Whether this panel owns the selection — only the owner may take focus. */
+  focused?: boolean;
+  onActivate?: () => void;
 }) {
+  const layout = mode === "sale" ? SALE_LISTING_LAYOUT : PURCHASE_LISTING_LAYOUT;
   // What the field shows, and the debounced value the service searches on.
   // One `listing.get.search` per pause, not per keystroke: the product,
   // extra and record searches all debounce, and this one rebuilt a
@@ -150,7 +163,7 @@ export function Listing({
     keepPrevious: true,
   });
 
-  const active = cellAt(selection.row, selection.col);
+  const active = cellAt(selection.row, selection.col, layout);
   const isSearch = selection.row.kind === "header" && active.field === "search";
   const activeId =
     selection.row.kind === "header"
@@ -189,17 +202,17 @@ export function Listing({
   // Unified grid: when the settle strip hands off upward, land on the first
   // cell of the last row — the code column.
   useEffect(() => {
-    if (focusLast === seenFocusLast.current) return;
+    if (focusLast === undefined || focusLast === seenFocusLast.current) return;
     seenFocusLast.current = focusLast;
     const lastRow = rows[rows.length - 1];
     if (lastRow === undefined) return;
-    const cells = selectableCells(lastRow);
+    const cells = selectableCells(lastRow, layout);
     const cell = cells[0];
     if (cell === undefined) return;
     setSelection({ row: lastRow, col: cell.start });
     setEditing(false);
     containerRef.current?.focus();
-  }, [focusLast, rows]);
+  }, [focusLast, rows, layout]);
 
   useEffect(() => {
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
@@ -265,7 +278,7 @@ export function Listing({
     const next = rows[index + delta];
     if (next === undefined) return false;
     const col = next.kind === "card" && selection.col === 0 ? NAME_COLUMN : selection.col;
-    const cell = cellAt(next, col);
+    const cell = cellAt(next, col, layout);
     setSelection({
       row: next,
       col: columnIn(cell, col),
@@ -303,7 +316,7 @@ export function Listing({
         }
       }
     }
-    const flat = rows.flatMap((row) => selectableCells(row).map((cell) => ({ row, cell })));
+    const flat = rows.flatMap((row) => selectableCells(row, layout).map((cell) => ({ row, cell })));
     const index = flat.findIndex(
       (entry) => sameRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
@@ -439,7 +452,7 @@ export function Listing({
     }
     switch (active.field) {
       case "toggle":
-        onToggle();
+        onToggle?.();
         return;
       case "manual":
         insert();
@@ -477,7 +490,7 @@ export function Listing({
           resultsRef.current?.focus();
           return;
         }
-        if (!moveVertical(1)) onExitDown();
+        if (!moveVertical(1)) onExitDown?.();
         return;
       case "ArrowLeft":
         if (isSearch) return;
@@ -514,27 +527,36 @@ export function Listing({
       ref={containerRef}
       tabIndex={0}
       role="grid"
+      aria-label={mode === "sale" ? "Barang yang dijual" : "Barang yang dibeli"}
       aria-activedescendant={activeId}
       onKeyDown={handleKeyDown}
       onClickCapture={onActivate}
       onFocusCapture={onActivate}
       className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
     >
-      <div className="grid shrink-0 grid-cols-12 border-b">
+      <div role="row" className="grid shrink-0 grid-cols-12 border-b">
         <div
           id="cell-header-search"
           onClick={() => {
             setSelection({ row: HEADER, col: NAME_COLUMN });
             setEditing(false);
           }}
-          className={cn("col-span-8 flex items-center gap-2 p-1", focused && isSearch && SELECTED_RING)}
+          role="gridcell"
+          aria-selected={focused && isSearch}
+          className={cn(
+            "flex items-center gap-2 p-1",
+            layout.stageToggle ? "col-span-8" : "col-span-10",
+            focused && isSearch && SELECTED_RING,
+          )}
         >
           <Kbd className="py-5 small:py-4">F1</Kbd>
           <Input
             ref={searchRef}
             type="search"
             className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
-            placeholder="Cari barang untuk dijual..."
+            placeholder={
+              mode === "sale" ? "Cari barang untuk dijual..." : "Cari barang untuk dibeli..."
+            }
             aria-autocomplete="list"
             value={input}
             onChange={(event) => {
@@ -546,11 +568,16 @@ export function Listing({
         </div>
         <div
           id="cell-header-manual"
+          role="gridcell"
+          aria-selected={focused && manualSelected}
           onClick={() => {
-            setSelection({ row: HEADER, col: MANUAL_COLUMN });
+            setSelection({ row: HEADER, col: manualColumn(layout) });
             setEditing(false);
           }}
-          className={cn("col-span-2 flex items-center border-l p-1", focused && manualSelected && SELECTED_RING)}
+          className={cn(
+            "col-span-2 flex items-center border-l p-1",
+            focused && manualSelected && SELECTED_RING,
+          )}
         >
           <Button
             variant="ghost"
@@ -564,45 +591,49 @@ export function Listing({
             Manual
           </Button>
         </div>
-        <div
-          id="cell-header-toggle"
-          onClick={() => {
-            setSelection({ row: HEADER, col: TOGGLE_COLUMN });
-            setEditing(false);
-          }}
-          className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
-        >
-          {!showExtraTotal ? (
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggle();
-              }}
-            >
-              Tambahan
-              <ArrowRight />
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggle();
-              }}
-            >
-              <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
+        {layout.stageToggle ? (
+          <div
+            id="cell-header-toggle"
+            role="gridcell"
+            aria-selected={focused && toggleSelected}
+            onClick={() => {
+              setSelection({ row: HEADER, col: TOGGLE_COLUMN });
+              setEditing(false);
+            }}
+            className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
+          >
+            {!showExtraTotal ? (
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggle?.();
+                }}
+              >
                 Tambahan
-                <ArrowRight className="icon" />
-              </span>
-              <span className="w-full truncate text-normal font-bold tabular-nums">
-                {rupiah(extraTotal)}
-              </span>
-            </Button>
-          )}
-        </div>
+                <ArrowRight />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggle?.();
+                }}
+              >
+                <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
+                  Tambahan
+                  <ArrowRight className="icon" />
+                </span>
+                <span className="w-full truncate text-normal font-bold tabular-nums">
+                  {rupiah(extraTotal)}
+                </span>
+              </Button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {hidden ? (
@@ -630,7 +661,7 @@ export function Listing({
                         key={line.id}
                         {...handlersFor(line.id)}
                         line={line}
-                        priceLabel="Harga Jual"
+                        priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}
                         number={lines.length - index}
                         issue={issues.get(line.id)}
                         selected={cardSelected && focused ? (active.field as Field) : null}

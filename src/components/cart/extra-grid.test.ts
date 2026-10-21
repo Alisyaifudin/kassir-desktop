@@ -1,0 +1,93 @@
+/**
+ * Pins the extras grid's keyboard geometry — the listing grid's rules plus the
+ * two pieces only this grid has: the purchase screen's `Subtotal Barang` row and
+ * the sale screen's stage toggle. Both are driven by `ExtraLayout`, so a screen
+ * that forgets one is a failing test rather than a keyboard bug found by a
+ * cashier.
+ *
+ * Run with:  bun test src/components/cart/extra-grid.test.ts
+ */
+import { describe, expect, test } from "bun:test";
+import {
+  PURCHASE_EXTRA_LAYOUT,
+  SALE_EXTRA_LAYOUT,
+  extraCellAt,
+  extraCellsForRow,
+  extraColumnIn,
+  extraRowsFor,
+  sameExtraRow,
+  selectableExtraCells,
+  startOfExtraField,
+  type ExtraRowRef,
+} from "./extra-grid";
+
+const HEADER: ExtraRowRef = { kind: "header" };
+const SUBTOTAL: ExtraRowRef = { kind: "subtotal" };
+const ROW = (extraId: string): ExtraRowRef => ({ kind: "extra", extraId });
+
+describe("extras grid geometry", () => {
+  test("a sale's header ends in the stage toggle, a purchase's does not", () => {
+    expect(extraCellsForRow(HEADER, SALE_EXTRA_LAYOUT).map((cell) => cell.field)).toEqual([
+      "search",
+      "manual",
+      "toggle",
+    ]);
+    expect(extraCellsForRow(HEADER, PURCHASE_EXTRA_LAYOUT).map((cell) => cell.field)).toEqual([
+      "search",
+      "manual",
+    ]);
+  });
+
+  test("the subtotal row exists only on the purchase screen, between the header and the extras", () => {
+    expect(extraRowsFor(["a", "b"], PURCHASE_EXTRA_LAYOUT)).toEqual([
+      HEADER,
+      SUBTOTAL,
+      ROW("a"),
+      ROW("b"),
+    ]);
+    expect(extraRowsFor(["a", "b"], SALE_EXTRA_LAYOUT)).toEqual([HEADER, ROW("a"), ROW("b")]);
+  });
+
+  test("the subtotal is one full-width cell", () => {
+    const cells = extraCellsForRow(SUBTOTAL, PURCHASE_EXTRA_LAYOUT);
+    expect(cells).toHaveLength(1);
+    expect(cells[0]?.field).toBe("subtotal");
+    expect(cells[0]?.start).toBe(0);
+    expect(cells[0]?.end).toBe(11);
+    expect(extraCellAt(SUBTOTAL, 7, PURCHASE_EXTRA_LAYOUT).field).toBe("subtotal");
+  });
+
+  test("an extra row walks name, value, kind, eff, x — never the number", () => {
+    expect(selectableExtraCells(ROW("a"), SALE_EXTRA_LAYOUT).map((cell) => cell.field)).toEqual([
+      "name",
+      "value",
+      "kind",
+      "eff",
+      "x",
+    ]);
+    expect(extraCellAt(ROW("a"), 0, SALE_EXTRA_LAYOUT).field).toBe("name");
+    expect(extraCellAt(ROW("a"), 11, SALE_EXTRA_LAYOUT).field).toBe("x");
+  });
+
+  test("a column outside a cell snaps to the nearest one and the remembered column is clamped", () => {
+    const name = extraCellAt(HEADER, 5, SALE_EXTRA_LAYOUT);
+    expect(name.field).toBe("search");
+    expect(extraColumnIn(name, 9)).toBe(7);
+    expect(extraColumnIn(name, 2)).toBe(2);
+  });
+
+  test("rows compare by identity, not by position", () => {
+    expect(sameExtraRow(ROW("a"), ROW("a"))).toBe(true);
+    expect(sameExtraRow(ROW("a"), ROW("b"))).toBe(false);
+    expect(sameExtraRow(HEADER, ROW("a"))).toBe(false);
+    expect(sameExtraRow(SUBTOTAL, SUBTOTAL)).toBe(true);
+  });
+
+  test("every extra field starts on a column the row has", () => {
+    expect(startOfExtraField("name")).toBe(1);
+    expect(startOfExtraField("value")).toBe(4);
+    expect(startOfExtraField("kind")).toBe(7);
+    expect(startOfExtraField("eff")).toBe(9);
+    expect(startOfExtraField("x")).toBe(11);
+  });
+});

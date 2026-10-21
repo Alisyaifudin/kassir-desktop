@@ -5,8 +5,7 @@ import { Button } from "~/components/ui/button";
 import { useMutation } from "~/components/Loader";
 import { service } from "~/services";
 import { MoneyError, type Pocket } from "~/services/money";
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { saveJson } from "~/lib/export";
 import { IOError } from "~/lib/effect-error";
 
 export function Download({ pocket }: { pocket: Pocket }) {
@@ -36,28 +35,9 @@ function errorMessage(error: MoneyError | IOError): string {
 function program(pocket: Pocket) {
   return Effect.gen(function* () {
     const entries = yield* service.money.entries.get.all(pocket.id);
-    const json = JSON.stringify(
+    yield* saveJson(
+      `${Date.now()}-${pocket.name}.json`,
       entries.map(({ timestamp, value, note }) => ({ timestamp, value, note })),
-      null,
-      2,
     );
-    const bytes = yield* Effect.tryPromise({
-      try: () => new Blob([json], { type: "application/json" }).bytes(),
-      catch: (e) => new IOError(e),
-    });
-    const filePath = yield* Effect.tryPromise({
-      try: () =>
-        save({
-          title: "Simpan Data",
-          defaultPath: `${Date.now()}-${pocket.name}.json`,
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        }),
-      catch: (e) => new IOError(e),
-    });
-    if (filePath === null) return;
-    yield* Effect.tryPromise({
-      try: () => writeFile(filePath, bytes),
-      catch: (e) => new IOError(e),
-    });
   });
 }

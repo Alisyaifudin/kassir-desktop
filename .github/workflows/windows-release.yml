@@ -115,12 +115,18 @@ jobs:
       - name: Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
+      # `validate_pdf` (the only place IPC-supplied bytes cross into Rust) and
+      # the bcrypt round-trip used to be compile-checked only.
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
   # Tier-0 end-to-end: the real router in Chromium against sql.js, running the
-  # real migrations (`bun run test:e2e`). Non-blocking until the suite covers
-  # more than the happy-path sale — the unit tests above are the gate.
+  # real migrations (`bun run test:e2e`). Blocking: the harness applies the real
+  # migrations and rings up a real sale, so a service-layer regression that the
+  # unit tests miss (a migration that does not apply, a cart that stops writing)
+  # fails here instead of at the till.
   e2e:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 

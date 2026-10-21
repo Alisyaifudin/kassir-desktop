@@ -16,6 +16,8 @@ export function SettingLink() {
       <Button
         variant={pathname.includes("/setting") ? "secondary" : "ghost"}
         size="icon"
+        aria-label="Pengaturan"
+        title="Pengaturan"
         onClick={(e) => {
           e.preventDefault();
           navigate("/setting");

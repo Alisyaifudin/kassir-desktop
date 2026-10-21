@@ -41,6 +41,10 @@ tauri-plugin-fs = "2"
 tauri-plugin-http = "2"
 tempfile = "3"
 tauri-plugin-dialog = "2"
+# One process per machine: the app preloads a fixed `sqlite:data.db` and keeps the
+# cart and the catalogue in process-local refs, so a second launch would write
+# over the first one's state from a stale snapshot.
+tauri-plugin-single-instance = "2"
 tauri-plugin-mcp-bridge = { version = "0.13.1", optional = true }
 
 [target.'cfg(windows)'.dependencies]

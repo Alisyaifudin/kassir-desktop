@@ -82,7 +82,7 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
                       search: `?tab=detail&url_back=${encodeURIComponent(urlBack)}`,
                     }}
                   >
-                    <ExternalLink className="size-8 small:size-6" />
+                    <ExternalLink className="size-8 small:size-6" aria-label="Buka catatan" />
                   </Link>
                 </Button>
               </TableCell>

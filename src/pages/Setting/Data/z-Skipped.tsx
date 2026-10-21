@@ -25,6 +25,8 @@ export function SkippedItems({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Tutup"
+          title="Tutup"
           onClick={dismiss}
           className="text-muted-foreground hover:text-foreground"
         >

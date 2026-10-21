@@ -49,6 +49,8 @@ export function Header({ busy }: { busy: boolean }) {
         <Button
           size="icon"
           variant="ghost"
+          aria-label="Hari sebelumnya"
+          title="Hari sebelumnya"
           onClick={() => setTime(yesterday)}
           className="rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-all"
         >
@@ -62,6 +64,8 @@ export function Header({ busy }: { busy: boolean }) {
         <Button
           size="icon"
           variant="ghost"
+          aria-label="Hari berikutnya"
+          title="Hari berikutnya"
           onClick={() => setTime(tomorrow)}
           className="rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-all"
         >

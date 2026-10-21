@@ -72,6 +72,9 @@ export const ListingCard = memo(function ListingCard({
     <motion.div
       ref={setNodeRef}
       data-testid="cart-line"
+      // One line is a row group of two grid rows (goods on top, cost below), so
+      // the active descendant points at a real gridcell inside a real row.
+      role="rowgroup"
       style={{ transform: CSS.Transform.toString(transform), transition }}
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
@@ -82,8 +85,12 @@ export const ListingCard = memo(function ListingCard({
         isDragging && "relative z-10 shadow-lg",
       )}
     >
-      <div className="grid grid-cols-12 items-stretch">
-        <div className="col-span-1 flex items-center justify-center border-r text-normal text-muted-foreground tabular-nums select-none">
+      <div role="row" className="grid grid-cols-12 items-stretch">
+        <div
+          role="gridcell"
+          aria-selected={false}
+          className="col-span-1 flex items-center justify-center border-r text-normal text-muted-foreground tabular-nums select-none"
+        >
           {number}
         </div>
         <Cell
@@ -105,6 +112,8 @@ export const ListingCard = memo(function ListingCard({
         />
         <div
           id={`cell-${line.id}-grandTotal`}
+          role="gridcell"
+          aria-selected={selected === "grandTotal"}
           onClick={() => onSelect("grandTotal")}
           className={cn(
             "col-span-2 flex items-center justify-end border-r px-2 text-big font-bold tabular-nums select-none",
@@ -115,6 +124,8 @@ export const ListingCard = memo(function ListingCard({
         </div>
         <div
           id={`cell-${line.id}-x`}
+          role="gridcell"
+          aria-selected={selected === "x"}
           onClick={() => onSelect("x")}
           className={cn(
             "col-span-1 flex items-center justify-center",
@@ -137,7 +148,7 @@ export const ListingCard = memo(function ListingCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-12 items-stretch border-t">
+      <div role="row" className="grid grid-cols-12 items-stretch border-t">
         <div
           className="col-span-1 flex touch-none cursor-grab items-center justify-center border-r text-muted-foreground select-none active:cursor-grabbing"
           {...listeners}
@@ -285,6 +296,8 @@ function QtyCell({
   return (
     <div
       id={`cell-${line.id}-qty`}
+      role="gridcell"
+      aria-selected={selected}
       className={cn(
         "relative flex flex-col justify-center gap-0.5 border-r px-1 py-1",
         editing && EDITING_RING,

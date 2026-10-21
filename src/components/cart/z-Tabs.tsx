@@ -19,18 +19,23 @@ import { run } from "~/components/cart/run";
 import { Kbd } from "~/components/ui/kdb";
 
 /**
- * The open purchase drafts, one `tx_records` row each. The number is the tab's
- * position and the title comes from the draft itself, so a restocker can leave a
- * half-finished trip and start another.
+ * The open cart drafts, one `tx_records` row each. The number is the tab's
+ * position and the title comes from the draft itself, so the cashier can leave a
+ * half-finished sale (or a restocker a halfway trip) and start another.
+ *
+ * One component for both screens: `mode` decides whether a new tab is a sale or
+ * a purchase. A parked sale collapses to its number and restores on click.
  *
  * Closing one is destructive — the row and any images it holds are removed from
  * disk — so it always confirms first.
  */
 export function Tabs({
+  mode,
   drafts,
   activeId,
   onSelect,
 }: {
+  mode: "sale" | "purchase";
   drafts: DraftModel[];
   activeId: string;
   onSelect: (id: string) => void;
@@ -38,15 +43,15 @@ export function Tabs({
   const [pendingDelete, setPendingDelete] = useState<DraftModel | null>(null);
 
   function create() {
-    void Effect.runPromise(Effect.either(service.transaction.add.new("incoming"))).then(
-      (result) => {
-        if (Either.isLeft(result)) {
-          toast.error(result.left.message);
-          return;
-        }
-        onSelect(result.right);
-      },
-    );
+    void Effect.runPromise(
+      Effect.either(service.transaction.add.new(mode === "sale" ? "incoming" : "outcoming")),
+    ).then((result) => {
+      if (Either.isLeft(result)) {
+        toast.error(result.left.message);
+        return;
+      }
+      onSelect(result.right);
+    });
   }
 
   function confirmDelete() {
@@ -57,9 +62,14 @@ export function Tabs({
 
   return (
     <div className="flex flex-col border-b">
-      <div className="flex items-end gap-2  px-0.5 pt-0.5">
+      <div className="flex items-end gap-2 px-0.5 pt-0.5">
         <Kbd className="py-4 mb-1">F12</Kbd>
-        <Button className="rounded-full p-1" title="Draft baru" onClick={create}>
+        <Button
+          className="rounded-full p-1"
+          aria-label="Draft baru"
+          title="Draft baru"
+          onClick={create}
+        >
           <Plus className="icon" />
         </Button>
         <div className="flex flex-1 items-center gap-1 overflow-x-auto">
@@ -139,6 +149,7 @@ function Tab({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={`Hapus transaksi tersimpan ${number}`}
           title={`Hapus transaksi tersimpan ${number}`}
           className={cn(
             "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",
@@ -177,6 +188,7 @@ function Tab({
       <Button
         variant="ghost"
         size="icon"
+        aria-label={`Tutup ${draft.title}`}
         title={`Tutup ${draft.title}`}
         className={cn(
           "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",

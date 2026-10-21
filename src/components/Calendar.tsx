@@ -105,6 +105,9 @@ function Content({
     .startOfDay();
   const [showTime, setShowTime] = useState(time);
   const date = Temporal.Instant.fromEpochMilliseconds(showTime).toZonedDateTimeISO(tz).startOfDay();
+  // The year drill-down's field is controlled, so "Tahun Ini" can set it through
+  // state instead of poking the DOM.
+  const [yearInput, setYearInput] = useState(date.year);
   const today = Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay();
   switch (mode) {
     case "day": {
@@ -322,7 +325,8 @@ function Content({
       <form onSubmit={handleSubmitYear}>
         <Input
           type="number"
-          defaultValue={date.year}
+          value={yearInput}
+          onChange={(event) => setYearInput(Number(event.currentTarget.value))}
           name="year"
           id="year-input"
           aria-autocomplete="list"
@@ -332,8 +336,9 @@ function Content({
         <Button
           variant="outline"
           onClick={() => {
-            const inputEl = document.getElementById("year-input") as HTMLInputElement;
-            inputEl.value = today.year.toString();
+            // Drive the controlled year field through state: a DOM write is
+            // reverted by React on the next render.
+            setYearInput(today.year);
             if (depth === "year") {
               setTime(today.epochMilliseconds);
             } else {

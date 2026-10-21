@@ -47,3 +47,28 @@ pub async fn verify_password(password: String, hash: String) -> Result<bool, Aut
         })?
         .map_err(Into::into) // Converts BcryptError → AuthError
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The bcrypt round-trip was only ever compile-checked. A hash that does not
+    // verify, or one a wrong password opens, is a login screen that is either
+    // locked or open to anyone — worth a test even though the command itself is
+    // three lines.
+    #[test]
+    fn a_password_verifies_against_its_own_hash() {
+        let hash = hash("rahasia", DEFAULT_COST).expect("hashing should succeed");
+        assert!(verify("rahasia", &hash).expect("verify should not error"));
+    }
+
+    #[test]
+    fn a_wrong_password_does_not_verify() {
+        let hash = hash("rahasia", DEFAULT_COST).expect("hashing should succeed");
+        assert!(!verify("salah", &hash).expect("verify should not error"));
+    }
+}
