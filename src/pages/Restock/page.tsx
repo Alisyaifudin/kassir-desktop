@@ -172,8 +172,19 @@ function Screen({
     return () => clearTimeout(timer);
   }, [restoring, restoredId, purchaseDrafts]);
 
-  const active = purchaseDrafts.find((draft) => draft.id === draftId) ?? purchaseDrafts[0] ?? null;
+  // A `?draft=` that is no longer open — submitted, deleted, or a link from
+  // another machine — is repaired, not honoured blindly: the address bar must
+  // name the cart that is actually under the cursor. (It never *changes* the
+  // cart on its own: the write below replaces the history entry.)
+  const active =
+    (draftId !== null ? purchaseDrafts.find((draft) => draft.id === draftId) : undefined) ??
+    purchaseDrafts[0] ??
+    null;
   const activeId = active?.id ?? null;
+  useEffect(() => {
+    if (activeId === null || draftId === activeId) return;
+    onDraft(activeId);
+  }, [activeId, draftId, onDraft]);
   const issues = useMemo(
     () =>
       findLineIssues(

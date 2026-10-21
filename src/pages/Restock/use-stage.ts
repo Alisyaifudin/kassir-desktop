@@ -5,16 +5,22 @@ import { STAGES, type Stage } from "./Draft";
 /**
  * Which stage the main panel is showing, kept in the URL so a refresh or a
  * shared link lands on the same step. `stage` is the one spelling of it.
+ *
+ * Replaces the history entry: moving between Produk and Tambahan is a step
+ * inside one screen, not a place to go Back to.
  */
 export function useStage() {
   const [search, setSearch] = useSearchParams();
   const stage = z.enum(STAGES).catch(STAGES[0]).parse(search.get("stage"));
   const setStage = (stage: Stage) => {
-    setSearch((old) => {
-      const s = new URLSearchParams(old);
-      s.set("stage", stage);
-      return s;
-    });
+    setSearch(
+      (old) => {
+        const s = new URLSearchParams(old);
+        s.set("stage", stage);
+        return s;
+      },
+      { replace: true },
+    );
   };
   return [stage, setStage] as const;
 }

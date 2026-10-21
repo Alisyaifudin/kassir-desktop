@@ -13,7 +13,7 @@ export function ErrorComponent({
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center space-y-4">
-        {status && <h1 className="text-6xl font-bold text-gray-400">{status}</h1>}
+        {status && <h1 className="text-big font-bold text-gray-400">{status}</h1>}
 
         <h2 className="text-big font-semibold">{title}</h2>
 

@@ -9,26 +9,36 @@ import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Line } from "~/components/cart/types";
-import type { Field, QtySub } from "./listing-grid";
 import { Cell, EDITING_RING, SELECTED_RING } from "~/components/cart/z-Cell";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { CodeIssueView, FieldIssue } from "~/components/cart/z-Issue";
 
 /**
- * One line of the purchase, laid out as a twelve-column block: who and how much
- * on top, where and what it costs underneath. Each cell stacks a small label
- * over its value; the grid supplies the lines, so the value itself is borderless
- * and only becomes a field when the cell is put into edit mode.
+ * One line of a cart, shared by the sale (Pos) and the purchase (Restock)
+ * screens, laid out as a twelve-column block: who and how much on top, where
+ * and what it costs underneath. Each cell stacks a small label over its value;
+ * the grid supplies the lines, so the value itself is borderless and only
+ * becomes a field when the cell is put into edit mode.
  *
  * The parent owns selection and editing, so the whole grid can be driven by the
  * arrow keys; a cell only renders what it is told.
+ *
+ * The two screens differ only in wording — a purchase reads the line's cost as
+ * `Harga Beli` — so the label is a prop rather than a second copy of the file.
  */
+
+/** The editable cells of a cart line. Both grids ship this same set. */
+type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
+
+/** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
+type QtySub = "left" | "value" | "right";
 export const ListingCard = memo(function ListingCard({
   line,
   number,
   issue,
   selected,
   editing,
+  priceLabel,
   onChange,
   onRemove,
   onDiscount,
@@ -43,6 +53,8 @@ export const ListingCard = memo(function ListingCard({
   selected: Field | null;
   selectedSub?: QtySub;
   editing: boolean;
+  /** `Harga Jual` on the sale screen, `Harga Beli` on the purchase screen. */
+  priceLabel: string;
   onChange: (patch: Partial<Line>) => void;
   onRemove: () => void;
   onDiscount: () => void;
@@ -183,7 +195,7 @@ export const ListingCard = memo(function ListingCard({
         <Cell
           id={`cell-${line.id}-price`}
           className="col-span-2 border-r"
-          label="Harga Jual"
+          label={priceLabel}
           align="right"
           currency
           selected={selected === "price"}

@@ -32,7 +32,7 @@ import type { DiscountLine, Line } from "~/components/cart/types";
 import { recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Listing } from "~/services/listing";
-import { ListingCard } from "./z-ListingCard";
+import { ListingCard } from "~/components/cart/z-ListingCard";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
 import { SearchResults } from "~/components/cart/z-SearchResults";
@@ -630,6 +630,7 @@ export function Listing({
                         key={line.id}
                         {...handlersFor(line.id)}
                         line={line}
+                        priceLabel="Harga Jual"
                         number={lines.length - index}
                         issue={issues.get(line.id)}
                         selected={cardSelected && focused ? (active.field as Field) : null}

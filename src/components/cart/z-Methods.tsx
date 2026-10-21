@@ -57,9 +57,17 @@ const METHOD_BY_KEY: Record<string, MethodKind> = {
 type PayField = "rounding" | "kind" | "account" | "amount" | "add" | "summary" | "pay";
 
 /**
- * The settle strip as a grid, in the same idiom as the main panel: one cell at
- * a time, arrows to move, Enter to edit. A click is enough to select *and*
- * edit; the keyboard keeps selection and editing separate.
+ * The settle strip, shared by the sale (Pos) and the purchase (Restock)
+ * screens: a grid in the same idiom as the main panel — one cell at a time,
+ * arrows to move, Enter to edit. A click is enough to select *and* edit; the
+ * keyboard keeps selection and editing separate.
+ *
+ * The two screens differ in exactly two ways, both passed in:
+ *   * `onSubmit` — on a sale, Enter on an underpaid amount must keep the editor
+ *     open so the shortfall can be fixed. The callback answers "may I leave the
+ *     editor?"; a purchase passes nothing and Enter always leaves.
+ *   * `focusTop` — the sale screen hands the grid downward from the cart above,
+ *     which lands the cursor on Pembulatan. A purchase has no such hand-off.
  *
  * A lone method stays inline — kind, account, amount — with `+` opening the
  * full editor. A second method collapses that row into a summary cell that
@@ -80,13 +88,15 @@ export function Methods({
   draft: Draft;
   catalog: MethodCatalog;
   focusPayment: number;
-  focusTop: number;
+  /** The cart's hand-off downward; omit it on a screen that has no cart above. */
+  focusTop?: number;
   onExitUp: () => void;
   focused: boolean;
   onActivate: () => void;
   onFocusPay: () => void;
   focusRounding: number;
-  onSubmit: () => boolean;
+  /** Answers "may Enter leave the editor?" — a sale keeps an underpaid one open. */
+  onSubmit?: () => boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<PayField>("rounding");
@@ -154,7 +164,7 @@ export function Methods({
 
   // Unified grid: when the main grid hands off downward, land on Pembulatan.
   useEffect(() => {
-    if (focusTop === seenFocusTop.current) return;
+    if (focusTop === undefined || focusTop === seenFocusTop.current) return;
     seenFocusTop.current = focusTop;
     setSelected("rounding");
     setEditing(false);
@@ -471,7 +481,7 @@ export function Methods({
                   if (event.key === "Enter") {
                     event.preventDefault();
                     // Underpaid: stay in the editor so the amount can be fixed.
-                    if (onSubmit()) setEditing(false);
+                    if (onSubmit?.() ?? true) setEditing(false);
                     return true;
                   }
                   return false;

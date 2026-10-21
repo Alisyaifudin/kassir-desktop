@@ -79,7 +79,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
                           <span className="truncate text-small font-semibold">
                             {capitalize(cashier.name)}
                           </span>
-                          <span className="text-tiny text-muted-foreground">
+                          <span className="text-small text-muted-foreground">
                             {cashier.role === "admin" ? "Admin" : "Kasir"}
                           </span>
                         </span>

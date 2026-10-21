@@ -36,6 +36,7 @@ import {
 import { generateId } from "~/lib/random";
 import { roundMoney } from "~/lib/purchase";
 import { allocateCapital } from "./capital";
+import { validateRecordLine } from "./validate-line";
 
 type SummaryRow = {
   mode: RecordMode;
@@ -872,6 +873,24 @@ export const RecordLive = Layer.effect(
       add: {
         external(input) {
           return Effect.gen(function* () {
+            // The import file is the one place the app takes structured data
+            // from outside its own writers, so it is held to the same numeric
+            // rules as a live cart — an unvalidated line corrupts the stock
+            // journal permanently (see ./validate-line.ts).
+            if (input.listings.length === 0) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Transaksi harus punya minimal satu barang" }),
+              );
+            }
+            for (const line of input.listings) {
+              const message = validateRecordLine(line);
+              if (message !== null) {
+                return yield* Effect.fail(
+                  new RecordError({ message: `Catatan ${input.cashier || "impor"}: ${message}` }),
+                );
+              }
+            }
+
             const recordId = generateId();
             const now = Date.now();
             const statements: Statement[] = [
@@ -1059,25 +1078,10 @@ export const RecordLive = Layer.effect(
               );
             }
             for (const line of lines) {
-              if (!Number.isFinite(line.qty) || line.qty <= 0) {
-                return yield* Effect.fail(
-                  new RecordError({ message: "Jumlah barang tidak valid" }),
-                );
-              }
-              if (!Number.isInteger(line.unit) || line.unit < 1) {
-                return yield* Effect.fail(
-                  new RecordError({ message: `Satuan ${line.name || "barang"} tidak valid` }),
-                );
-              }
-              if (!Number.isFinite(line.price) || line.price < 0) {
-                return yield* Effect.fail(
-                  new RecordError({ message: `Harga ${line.name || "barang"} tidak valid` }),
-                );
-              }
-              if (line.listingId === null && line.name.trim() === "") {
-                return yield* Effect.fail(
-                  new RecordError({ message: "Nama barang manual harus diisi" }),
-                );
+              // One implementation, shared with the JSON import boundary.
+              const message = validateRecordLine(line);
+              if (message !== null) {
+                return yield* Effect.fail(new RecordError({ message }));
               }
             }
 

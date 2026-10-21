@@ -13,7 +13,7 @@ import type { MethodCatalog } from "~/services/method";
 import type { Draft } from "~/services/transaction";
 import { paidTotal, roundMoney } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { Methods } from "./z-Methods";
+import { Methods } from "~/components/cart/z-Methods";
 import { Note } from "~/components/cart/z-Note";
 import { Precision } from "~/components/cart/z-Precision";
 import { Supplier } from "./z-Supplier";

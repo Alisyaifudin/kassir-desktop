@@ -148,14 +148,14 @@ export class SomeError {
 ```
 
 - **Shared errors**: `src/lib/effect-error.ts` (`NotFound`, `TooMany`, `RequestError`, `ResponseError`, `InvalidCredential`, `DuplicateError`, etc.).
-- **Domain-specific errors**: Defined locally (`DbError` in `src/database/instance.ts`, `TxError` in `src/transaction/instance.ts`, `StoreError` in `src/store/error.ts`).
+- **Domain-specific errors**: Defined per service in its `index.ts` (`Data.TaggedError`) — `DbError` in `src/services/db`, `TransactionError` in `src/services/transaction`, `RecordError` in `src/services/record`.
 
 ### Catching Errors
 ```ts
 // Backend: Effect.catchTag
 .pipe(
   Effect.catchTag("TooMany", (e) => { log.error(e.msg); return Effect.succeed(e.msg); }),
-  Effect.catchTag("TxError", ({ e }) => { log.error(e); return Effect.succeed(e.message); }),
+  Effect.catchTag("TransactionError", ({ message }) => { log.error(message); return Effect.succeed(message); }),
 );
 
 // Frontend: switch on _tag in components
@@ -169,41 +169,47 @@ switch (error._tag) {
 
 ## 📡 Data Fetching & State
 
-### `Result.use` + `Result.match` — Primary data pattern
+**Services own state; components subscribe.** The authoritative guide is
+`.pi/skills/services.md` — read it before adding a service or a data-driven
+component. In short:
+
+```
+service (Layer) → SubscriptionRef<T> → changes: Stream<T>
+component ─ useStream(changes) ─► Result<T, E> ─► <Loader> ─► UI
+component ─ useMutation(service.set) ─────────► Effect
+```
+
+### `useStream` — reading service state
 ```tsx
-const res = Result.use({
-  fn: () => db.cashier.get.all(),
-  key: "cashiers",
-});
-return Result.match(res, {
-  onLoading() { return <Loading />; },
-  onError({ e }) { log.error(e); return <TextError>{e.message}</TextError>; },
-  onSuccess(data) { return data.map(d => <Item key={d.name} item={d} />); },
-});
-```
-- `Result.use` supports optional `deps` array and `revalidateOn` options.
-- Global cache. Use `Result.revalidate()` or `Result.revalidate(key)` to invalidate.
-- **Always** use this pattern for data fetching. Never raw `useEffect` + `useState`.
-
-### `useCallEffect` — Imperative async (user clicks)
-```ts
-const { loading, error, data, handler } = useCallEffect(
-  (input: Input) => db.record.add(input)
+const res = useStream(service.cashier.get.changes);
+return (
+  <Loader res={res} fallback={<Loading />}>
+    {({ data }) => data.map((c) => <Item key={c.id} item={c} />)}
+  </Loader>
 );
 ```
+- A component never fetches and never keeps its own copy of database state.
+- `Loader` / `LoaderMany` turn the `Result` into UI, including loading and error
+  routing (they throw into an error boundary; no manual `if (res.type === …)`).
+- One-shot effects wrap into a stream: `useStream(Stream.fromEffect(fn))`.
 
-### `useSubmit` — Form submissions
-```ts
-const { loading, error, handleSubmit } = useSubmit(
-  (e) => myEffectProgram(),
-  onSuccess,
-);
+### `useMutation` — writing
+```tsx
+const { pending, mutate } = useMutation(service.cashier.add);
 ```
+Mutations write the service ref, so subscribers update themselves: **there is
+no `revalidate()`** and no global query cache. Never add one.
 
-### `CacheItem` — Client-side entity cache
-Use `CacheItem<T extends { id: string }>` from `src/lib/cache-factory.ts`. Supports `set`, `get`, `all()`, `update`, `delete`, `revalidate`.
+### `useCallEffect` — imperative async (a click that is not a plain write)
+`src/hooks/use-call-effect.ts` for `loading | error | data | handler` around
+one Effect.
 
----
+### Retired patterns (do not reintroduce)
+`Result.use`, `Result.revalidate`, `CacheItem`, `useSubmit` and `Loader-old` are
+gone, together with `src/lib/{result,cache-factory,response,validate}.ts`. A
+module-level cache that nothing invalidates is the bug the first audits filed
+against this app: it becomes a second source of truth and the screen sells
+stale prices. If you find such a file, delete it instead of using it.
 
 ## 🧭 Routing
 
@@ -269,10 +275,9 @@ Define page-specific skeleton components (e.g., `LoadingList()`) using `<Skeleto
 
 ## 💾 Database & Persistence
 
-- **Main DB**: `sqlite:data.db` via `DB.try()` in `src/database/instance.ts`.
-- **Transaction DB**: `sqlite:tx.db` via `TX.try()` in `src/transaction/instance.ts`.
-- Both handle connection lifecycle (close on error, re-open on next call).
-- After mutations, invalidate caches with `cache.revalidate()` or `cache.update(id, ...)`.
+- **One DB**: `sqlite:data.db`, opened through `DatabaseService` (`src/services/db/live.ts`); every service takes it as a layer. There is no second `tx.db` any more — the cart's `tx_*` tables live in `data.db` (migration 43).
+- The connection handles its lifecycle (close on error, re-open on next call).
+- Schema: `src-tauri/src/database/**/migration-*.sql`, applied by sqlx at preload. Migrations are **append-only and byte-fingerprinted** — never edit a shipped file, add the next number (`src/services/db/migration-chain.test.ts` enforces both the contiguity and the checksums).
 - **Tauri Store**: `src/store/instance.ts` for persistent config (size, info, printer, sync token).
 
 ---
@@ -289,11 +294,11 @@ Logs to both `console` and Tauri's log plugin.
 
 ### Zod
 - API responses validated with Zod schemas alongside request functions.
-- Form validation via `validate()` from `src/lib/validate.ts`.
+- Form validation with Zod schemas next to the form/feature (there is no `validate()` helper).
 - Custom helpers in `src/lib/utils.ts`: `numerish`, `numeric`, `integer`.
 
 ### Types
-- Database types: `DB` namespace in `src/database/database-type.d.ts`.
+- Database row types: declared next to the SQL in each service (`src/services/<domain>/…`).
 - Derive types from Zod: `z.infer<typeof schema>`.
 - No `any`. Strictly typed.
 
@@ -314,21 +319,20 @@ The backend OpenAPI spec: `http://192.168.225.187:8787/api/docs/openapi.yaml`
 `VITE_API_URL` is in `.env.local` (never read plain `.env`).
 
 ## 🔄 Sync Pattern
-Sync components follow a pull/merge/push loop:
-- `src/server/{entity}/` — API calls (`get.ts`, `post.ts`)
-- `src/lib/sync/{entity}/` — sync logic (`pull.ts`, `merge.ts`, `push.ts`, `index.ts`)
-- `src/database/{entity}/` — local DB operations
-- `src/store/sync/{entity}.ts` — last-pull timestamp
+The sync pipeline is not wired up yet: `src/lib/sync/`, `src/pages/Shop/`,
+`src/pages/Analytics/` and the `~/database` operations layer were deleted in the
+first cleanup pass. Do not build on, or import, those paths. When sync is
+scheduled again it belongs in a service (`src/services/sync/`) following
+`.pi/skills/services.md`, with the local `_sync_at` columns as its cursor.
 
 ## 📂 Project Structure
 - `src/pages/` — route-based page components
 - `src/components/` — shared UI components
 - `src/components/ui/` — shadcn/ui primitives
-- `src/lib/` — shared utilities (Effect-based)
-- `src/database/` — local SQLite operations
+- `src/lib/` — shared utilities (Effect-based): money, receipt, purchase maths, date, log
+- `src/services/` — the data layer: one Effect service per domain (the only place that talks to SQLite or Tauri)
 - `src/server/` — API client calls
-- `src/store/` — persistent key-value store
-- `src/transaction/` — transaction-scoped SQLite operations
+- `src/store/` — persistent key-value store (Tauri Store: size, printer, identity)
 - `src/hooks/` — reusable hooks
 - `src/layouts/` — root and auth layout wrappers
 - `src/middleware/` — route middleware

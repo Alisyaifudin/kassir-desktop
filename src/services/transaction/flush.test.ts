@@ -187,6 +187,41 @@ describe("cart flush", () => {
     expect(db.query("SELECT COUNT(*) AS n FROM tx_records").get()).toEqual({ n: 0 });
   });
 
+  // The guarantee the window-close handler in
+  // `layouts/authenticated/use-flush-on-exit.ts` relies on: an edit that is
+  // still sitting on the debounce timer is written by `flush()`, immediately,
+  // and is not written a second time when the timer would have fired.
+  test("an edit still on the debounce is written by flush() without waiting it out", async () => {
+    const { db, layer } = setup();
+
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.flush();
+
+        yield* tx.set.note(id, "meja 4");
+        const pending = db.query("SELECT tx_record_note FROM tx_records").get() as {
+          tx_record_note: string;
+        };
+        expect(pending.tx_record_note).toBe("");
+
+        // What closing the window does.
+        yield* tx.flush();
+        const flushed = db.query("SELECT tx_record_note FROM tx_records").get() as {
+          tx_record_note: string;
+        };
+        expect(flushed.tx_record_note).toBe("meja 4");
+      }),
+    );
+
+    // Past the debounce window: the cleared timer must not write again.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const row = db.query("SELECT tx_record_note FROM tx_records").get() as {
+      tx_record_note: string;
+    };
+    expect(row.tx_record_note).toBe("meja 4");
+  });
+
   test("a reported failure reaches the same channel <SaveError> renders", async () => {
     const { layer } = setup();
 

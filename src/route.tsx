@@ -1,13 +1,11 @@
 import { createHashRouter } from "react-router";
 import { loginRoute } from "./pages/Login";
-// import { shopRoute } from "./pages/Shop";
 import { posRoute } from "./pages/Pos/index.tsx";
 import { restockRoute } from "./pages/Restock/index.tsx";
 import { productRoute } from "./pages/Product";
 import { settingRoute } from "./pages/Setting";
 import { recordRoute } from "./pages/Record";
 import { moneyRoute } from "./pages/Money";
-// import { analRoute } from "./pages/Analytics";
 import { cashierRoute } from "./pages/Cashier/index.tsx";
 import { customerRoute } from "./pages/Customer/index.tsx";
 import { methodRoute } from "./pages/Method/index.tsx";
@@ -39,14 +37,12 @@ export const router = createHashRouter([
           extraRoute,
           homeRoute,
           debtRoute,
-          // shopRoute,
           posRoute,
           restockRoute,
           settingRoute,
           productRoute,
           moneyRoute,
           recordRoute,
-          // analRoute,
         ],
       },
     ],

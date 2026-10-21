@@ -11,7 +11,7 @@ export default function RecordDownload() {
       <div className="flex gap-2 items-center justify-between ">
         <h3 className="italic text-normal font-bold">Riwayat</h3>
       </div>
-      <form onSubmit={handleSubmit} className="text-2xl flex justify-between items-end">
+      <form onSubmit={handleSubmit} className="text-normal flex justify-between items-end">
         <input type="hidden" name="action" value="record"></input>
         <div className="flex gap-3 items-end">
           <DateRange range={range} setRange={setRange} />

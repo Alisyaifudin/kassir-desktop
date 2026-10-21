@@ -23,7 +23,7 @@ export function BrandPanel() {
       </div>
 
       <div className="relative flex flex-col gap-6 small:gap-4">
-        <h1 className="max-w-lg text-5xl font-bold leading-[1.1] tracking-tight small:text-4xl">
+        <h1 className="max-w-lg text-big font-bold leading-[1.1] tracking-tight">
           Kelola toko Anda dengan lebih mudah.
         </h1>
         <p className="max-w-md text-normal text-white/80">
@@ -46,8 +46,8 @@ export function BrandPanel() {
 
       <div className="relative flex items-center gap-2 text-white/60 small:gap-1">
         <ShieldCheck className="size-4 small:size-3.5" />
-        <span className="text-tiny">Data tersimpan aman di perangkat Anda</span>
-        <span className="ml-auto text-tiny">v{version}</span>
+        <span className="text-small">Data tersimpan aman di perangkat Anda</span>
+        <span className="ml-auto text-small">v{version}</span>
       </div>
     </aside>
   );

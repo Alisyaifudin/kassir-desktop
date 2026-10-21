@@ -27,7 +27,7 @@
   },
   "plugins": {
     "sql": {
-      "preload": ["sqlite:data.db", "sqlite:tx.db"]
+      "preload": ["sqlite:data.db"]
     },
     "updater": {
       "windows": {

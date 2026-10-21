@@ -50,8 +50,8 @@ export function SchemaDialog() {
           <DialogTitle className="text-big">Format data</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-3">
-              <p className="text-small!">File JSON harus mengikuti bentuk data berikut:</p>
-              <pre className="max-h-[60vh] overflow-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
+              <p className="text-smallall!">File JSON harus mengikuti bentuk data berikut:</p>
+              <pre className="max-h-[60vh] overflow-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
                 <code className="block whitespace-pre">{recordSchema}</code>
               </pre>
             </div>

@@ -5,9 +5,11 @@ import { service } from "~/services";
 import Redirect from "~/components/Redirect";
 import { Topbar } from "./z-Topbar";
 import { useNavigationShortcuts } from "./use-navigation-shortcuts";
+import { useFlushOnExit } from "./use-flush-on-exit";
 
 export default function Layout() {
   useNavigationShortcuts();
+  useFlushOnExit();
   const auth = useStream(service.auth.changes);
 
   return (

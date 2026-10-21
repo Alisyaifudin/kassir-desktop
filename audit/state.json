@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T18:38:57.271Z",
+  "updatedAt": "2026-10-21T19:14:09.021Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -521,6 +521,201 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T18:38:57.271Z"
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "startedAt": "2026-10-21T18:38:57.344Z",
+      "audit": {
+        "score": 77,
+        "categories": {
+          "architecture": 76,
+          "react": 82,
+          "tauri": 55,
+          "ux": 82,
+          "codeQuality": 80,
+          "testing": 80
+        },
+        "verdict": "The biggest remaining risk is no longer data truth in the POS but the migration set: commit `c3178d24` re-folded `migration-43.sql` (+376 lines, new checksum) and deleted `44/45/47/48/49/50` one commit after `b9bb5083` restored them precisely because \"a database already at 46 (the prod backup) cannot be served by a consolidated or renumbered set\". sqlx validates applied migrations on preload, so an existing install gets `VersionMismatch(43)`/`VersionMissing(44)` and the app cannot open `data.db` at all — that single finding is why tauri scores 55 despite an otherwise narrow ACL, real CSP, `spawn_blocking` printer/auth commands and no dead JWT surface. Genuine improvement since iteration 2: `tsc --noEmit` and `eslint` are clean, `bun test` is 224 passing tests including the previously flaky same-millisecond repricing and submit→catalogue cases, the receipt builders and `use-day-start` are tested, `useMutation` no longer leaks state after unmount, `hydrate()` compares values instead of wall-clock, and the POS keyboard/focus/dialog work (grid hand-off, parked carts, `Complete` with `onCloseAutoFocus` suppression, handler memoisation in `z-ListingCard`) is production-grade. The Pos/Restock cart is still ~5,100 lines written twice and has now drifted behaviourally (Enter on an underpaid Pos amount keeps the editor open; Restock closes it) — third audit, so it is the top non-blocking item; new findings are the JSON-import boundary accepting negative qty/price (silently desynchronising the event-sourced stock journal), the debounced cart having no flush on window close, and cart URL state pushing a history entry per stage/tab change so Back can silently switch the draft being rung up. Deliberately not covered in depth: the fingerprinted migration SQL bodies beyond version/checksum structure, the Money/Record/Analytics screen bodies beyond their data hooks, the `record/live.ts` credit-edit paths added in `c3178d24`, the Rust printer path on real Windows hardware, the updater `latest.json`/pubkey trust chain, a screen-reader pass (icon buttons are named only via `title`, not `aria-label` — worth a future audit), and the search-path cost per keystroke is still argued structurally rather than profiled.",
+        "reports": [
+          {
+            "slug": "migration-set-refolded-breaks-existing-installs",
+            "title": "Migration 43 was re-folded and 44–50 deleted, so sqlx will reject every database already at v46",
+            "severity": "critical",
+            "category": "tauri",
+            "files": [
+              "src-tauri/src/database/mod.rs",
+              "src-tauri/src/database/41-50/migration-43.sql",
+              "src-tauri/src/database/41-50/migration-46.sql",
+              "src-tauri/tauri.conf.json"
+            ],
+            "summary": "Commit `c3178d24` folded the post-42 migrations into `migration-43.sql` (+376 lines, so a different checksum) and deleted `44`, `45`, `47`, `48`, `49`, `50` from disk and from `generate_migration()`. The commit immediately before it (`b9bb5083`) had explicitly restored those files because, in its own words, \\\"sqlx fingerprints every migration it has applied, so a database already at 46 (the prod backup) cannot be served by a consolidated or renumbered set\\\". `tauri_plugin_sql` runs `sqlx::migrate::Migrator` on `sqlite:data.db` at preload time, and that migrator validates the applied set against the shipped set: a checksum change on 43 and six missing applied versions is a `VersionMismatch`/`VersionMissing` error, i.e. the POS cannot open its database after an update.",
+            "path": "iterations/003/report-01-migration-set-refolded-breaks-existing-installs.md",
+            "createdAt": "2026-10-21T18:46:23.401Z"
+          },
+          {
+            "slug": "pos-restock-cart-verbatim-duplication",
+            "title": "Pos and Restock are still the same 5,100-line cart written twice, now with behavioural drift",
+            "severity": "high",
+            "category": "architecture",
+            "files": [
+              "src/pages/Pos/Draft/z-Methods.tsx",
+              "src/pages/Restock/Draft/z-Methods.tsx",
+              "src/pages/Pos/Draft/z-ListingCard.tsx",
+              "src/pages/Restock/Draft/z-ListingCard.tsx",
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Restock/Draft/z-Listing.tsx",
+              "src/pages/Pos/Draft/z-Extras.tsx",
+              "src/pages/Restock/Draft/z-Extras.tsx",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx"
+            ],
+            "summary": "The Pos and Restock cart screens are still one ~5,100-line workflow written twice, and the copies have visibly diverged: `z-ListingCard.tsx` differs by exactly two lines (a `data-testid` and `Harga Jual`/`Harga Beli`), while the 700-line payment grid `z-Methods.tsx` differs by a reworded comment and the Enter-on-underpaid behaviour (Pos keeps the editor open, Restock closes it). Recurring for the third audit: the shared `src/components/cart/` primitives landed last iteration, but the two highest-risk files — the payment grid and the line card — were not merged, so every fix still has to be made twice by hand.",
+            "path": "iterations/003/report-02-pos-restock-cart-verbatim-duplication.md",
+            "createdAt": "2026-10-21T18:46:42.512Z"
+          },
+          {
+            "slug": "record-import-accepts-negative-qty-and-price",
+            "title": "JSON import accepts negative quantities and prices, corrupting the stock journal silently",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/pages/Setting/Data/RecordUpload/util-validate-record.ts",
+              "src/pages/Setting/Data/RecordUpload/z-Selected.tsx",
+              "src/services/record/live.ts",
+              "src/services/record/index.ts",
+              "src/services/product/stock-sql.ts"
+            ],
+            "summary": "The Settings → Data JSON import validates shape but not values: `z.number()` with no sign/positivity checks, and `record.add.external` skips the `qty > 0` / `price >= 0` / `unit >= 1` validation that the sibling `add.draft` performs. An imported sale line with `qty: -3` writes a record with a negative total while moving no stock (FIFO stops at `remaining > 0`), and the same line on a purchase creates a negative lot in `stocks`/`product_events` — permanent event-sourced history that nothing reports as an error.",
+            "path": "iterations/003/report-03-record-import-accepts-negative-qty-and-price.md",
+            "createdAt": "2026-10-21T18:47:05.083Z"
+          },
+          {
+            "slug": "cart-flush-lost-on-window-close",
+            "title": "Closing the window throws away the last 100 ms of cart edits, invisibly",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/services/transaction/live.ts",
+              "src/services/transaction/index.ts",
+              "src/layouts/authenticated/z-Refresh.tsx",
+              "src/layouts/authenticated/index.tsx",
+              "src-tauri/src/lib.rs",
+              "src/lib/constants.ts"
+            ],
+            "summary": "Every cart edit reaches SQLite only through a 100 ms per-draft debounce (`schedule()` in `transaction/live.ts`), and the only `flush()` call in the whole app is the Topbar's reload button. There is no `onCloseRequested`, `beforeunload`, or `RunEvent::ExitRequested` handler, so closing the window (the normal end-of-shift action) silently drops the last edit, abandons an in-flight write, and swallows any pending `Keranjang belum tersimpan` failure the `SaveError` channel would have shown.",
+            "path": "iterations/003/report-04-cart-flush-lost-on-window-close.md",
+            "createdAt": "2026-10-21T18:47:27.659Z"
+          },
+          {
+            "slug": "hardcoded-text-sizes-still-shipping",
+            "title": "Fixed text sizes still ship in 10 files, so the small-mode scale breaks the receipt and both destructive dialogs",
+            "severity": "low",
+            "category": "ux",
+            "files": [
+              "src/pages/Record/Item/z-Receipt/z-Top.tsx",
+              "src/pages/Money/History/z-DeletePocket.tsx",
+              "src/pages/Money/History/z-DeleteRecordBtn.tsx",
+              "src/pages/Money/History/z-SelectType.tsx",
+              "src/components/Notification.tsx",
+              "src/pages/Login/z-BrandPanel.tsx",
+              "src/pages/Login/z-LoginForm.tsx",
+              "src/pages/Setting/Data/RecordDownload.tsx",
+              "src/pages/Setting/Data/RecordUpload/z-Schema.tsx",
+              "src/pages/Product/Detail/Image/z-AddTile.tsx"
+            ],
+            "summary": "Twelve lines across ten files still bypass the four design tokens — `text-3xl` in both money-history destructive dialogs, `text-3xl`/`text-2xl` in the receipt header, `text-5xl small:text-4xl` in the login brand panel, `text-sm` in the JSON schema dialog — plus four uses of the owner-reserved `text-tiny`. Because the tokens re-resolve under the `small:` mode (30 px → 20 px) while raw sizes do not, these screens have a hierarchy that is only correct in one of the two supported sizes. Recurring for the third audit: iteration 1 fixed the three files it named by hand, this set was left.",
+            "path": "iterations/003/report-05-hardcoded-text-sizes-still-shipping.md",
+            "createdAt": "2026-10-21T18:47:46.346Z"
+          },
+          {
+            "slug": "dead-modules-and-stale-service-plan",
+            "title": "Six unimported modules and a 450-line stale PLAN.md still describe the deleted legacy architecture",
+            "severity": "low",
+            "category": "maintainability",
+            "files": [
+              "src/lib/result.ts",
+              "src/lib/cache-factory.ts",
+              "src/lib/response.ts",
+              "src/lib/validate.ts",
+              "src/components/Notification.tsx",
+              "src/hooks/use-submit.ts",
+              "src/services/PLAN.md",
+              "src/route.tsx",
+              ".agent/agent.md"
+            ],
+            "summary": "Six modules have no importer at all — including `src/lib/result.ts`, a 146-line global mutable query cache that `.agent/agent.md` still documents as the project's \"primary data pattern\" and that `.pi/skills/services.md` says was removed. Alongside them, `src/services/PLAN.md` (450 lines, living inside the folder it describes) still claims `src/pages/{Shop,Analytics,Stock-PENDING,Setting/Sync_PENDING}` and `src/lib/sync` import `~/database` — all deleted in iteration 1 — and `src/route.tsx` carries two commented imports plus two commented route entries for those same deleted pages.",
+            "path": "iterations/003/report-06-dead-modules-and-stale-service-plan.md",
+            "createdAt": "2026-10-21T18:48:19.084Z"
+          },
+          {
+            "slug": "cart-url-state-pushes-history-entries",
+            "title": "Cart navigation pushes a history entry per keystroke-level action, so Back can switch the sale being rung up",
+            "severity": "medium",
+            "category": "react",
+            "files": [
+              "src/pages/Pos/use-draft.ts",
+              "src/pages/Pos/use-stage.ts",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/pages/Restock/use-stage.ts",
+              "src/pages/Restock/use-draft.ts"
+            ],
+            "summary": "`useDraftId` and `useStage` write the open cart and the stage into the URL with `setSearchParams(…, no options)`, which React Router 7 turns into a `navigate` push. Every tab switch, stage toggle, F12 and park therefore adds a history entry, so Back / Alt+Left / a mouse back button rewinds through `?draft=` states instead of leaving the Pos screen — and because the screen resolves `?draft=` via `find(id) ?? normalDrafts[0]`, going back can silently put a *different* open cart under the cashier's cursor mid-sale.",
+            "path": "iterations/003/report-07-cart-url-state-pushes-history-entries.md",
+            "createdAt": "2026-10-21T18:48:57.132Z"
+          }
+        ],
+        "at": "2026-10-21T18:49:26.626Z"
+      },
+      "finishedAt": "2026-10-21T19:14:09.021Z",
+      "fix": {
+        "summary": "## What changed\n\n**1. Critical — migration set (`migration-set-refolded-breaks-existing-installs`), fixed**\n- Restored `migration-43` (byte-identical to `b9bb5083`, checked with `sha384sum`) and `44/45/47/48/49/50` from disk, and re-registered all six in `generate_migration()`. A `data.db` already at v46 validates again instead of failing `VersionMismatch`/`VersionMissing` at preload.\n- The work that had been folded into 43 (plus the supplier columns that had grown into 50) now lives in a new append-only `src-tauri/src/database/51-60/migration-51.sql` (version 51): it rebuilds `records` into the current shape (`record_created_at`, nullable `record_paid_at`, `record_credit_at` instead of `record_is_credit`, `record_supplier_id/name`) and adds `tx_record_supplier_name`. Because SQLite rewrites child FKs whenever a parent is renamed, the children of `records` are parked, recreated with their own DDL and refilled, then the copies dropped — verified on both a fresh 1..51 install and a seeded v46 database upgrading through 47..51 (counts preserved, `PRAGMA foreign_key_check` empty, new FK-enforced inserts pass).\n- `plugins.sql.preload` now lists only `sqlite:data.db`.\n- New guard: `src/services/db/migration-chain.test.ts` + `src-tauri/src/database/migration-checksums.json` fail `bun test` if the versions stop being contiguous, an `include_str!` target disappears, or a shipped migration's bytes change.\n\n**2. High — cart duplication (`pos-restock-cart-verbatim-duplication`), partial**\n`z-Methods` (734 lines) and `z-ListingCard` now exist once, in `src/components/cart/`. The two real differences became props: `onSubmit?: () => boolean` (Enter on an underpaid amount keeps the editor open on a sale, closes on a purchase — the drift is gone) and `focusTop?: number`; `priceLabel` labels the line cost, and `data-testid=\"cart-line\"` now resolves on both routes. Four files deleted, ~1,330 lines of duplication removed. `z-Listing` / `z-Extras` / `page.tsx` are still two files each (report step 3–4: needs the grid-nav extraction first).\n\n**3. Medium — cart URL history (`cart-url-state-pushes-history-entries`), fixed**\n`useDraftId`/`useStage` (Pos + Restock) write with `{ replace: true }`, so Back/Alt+Left leave `/pos` instead of rewinding carts; `?draft=`/`?stage=` still survive a reload. Both screens also repair a stale `?draft=` so the URL can never name a cart that is not on screen.\n\n**4. Medium — flush on window close (`cart-flush-lost-on-window-close`), fixed**\nNew `useFlushOnExit` (mounted in the authenticated layout) awaits `service.transaction.flush()` inside `onCloseRequested`, cancels the close on failure, and shows the real `Keranjang belum tersimpan: …` message from the cart's `saveError` channel; `pagehide` covers webview reloads. New service test proves a debounce-pending edit is written by `flush()` and not written twice.\n\n**5. Medium — import boundary (`record-import-accepts-negative-qty-and-price`), fixed**\nNew `src/services/record/validate-line.ts` is the single set of line rules used by `add.draft` **and** `add.external` (which previously moved stock with no validation, so `qty: -3` wrote a negative-total record and, on a purchase, a negative lot). The import Zod schema now enforces qty int>0, nonnegative price/capital/pay, `listings` min(1), `fix` 0..100, and a parse failure names the offending record. Two new test files.\n\n**6. Low — text sizes (`hardcoded-text-sizes-still-shipping`), fixed**\nAll 12 reported lines mapped to `text-big`/`text-normal`/`text-small` (plus `text-6xl` in `ErrorComponent` and the `text-[10rem]` 404 watermark); `rg text-tiny src` is now empty. New `src/lib/design-tokens.test.ts` scans `src/**/*.tsx` and fails on any fixed size, so it cannot recur.\n\n**7. Low — dead modules and stale docs (`dead-modules-and-stale-service-plan`), fixed**\nDeleted `src/lib/{result,cache-factory,response,validate}.ts`, `components/Notification.tsx`, `hooks/use-submit.ts`, `services/PLAN.md`, the commented Shop/Analytics routes in `route.tsx`, and the 50-line commented block in `Setting/Shop/z-Info.tsx`. `.agent/agent.md` no longer documents `Result.use`; it now teaches `useStream`/`useMutation`/`Loader`, lists the retired patterns, and drops the deleted `tx.db`/`~/database`/`sync` architecture claims.\n\nNet change: **+515 / −3,595 lines**. `bun run lint`, `bun run typecheck`, `bun test` (242 pass), `bun run build` and `cargo check` all pass.\n\n## For the next auditor\n- `z-Listing` / `z-Extras` / the two `page.tsx` still duplicate the cart; the remaining path is `use-grid-nav.ts`, then one `<CartScreen mode>`.\n- ~11 other `setSearch` callers (Money/Debt/Record/Extra filters, notably per-keystroke `Record/use-query.ts`) still push a history entry per write; same one-line fix, needs its own pass.\n- No e2e assertion on `window.history.length` or on the close-flush path was added (the Playwright suite needs a browser + build, so it could not be verified here). The migration chain should still be smoke-tested once against a real copy of the prod `data.db` (v46).",
+        "fixes": [
+          {
+            "report": "migration-set-refolded-breaks-existing-installs",
+            "status": "fixed",
+            "note": "Restored the shipped chain byte-for-byte from b9bb5083 (migration-43 = decompose_products_and_soft_delete, 44/45/47/48/49/50 back on disk) and re-registered all six in `generate_migration()`; `sha384sum` of migration-43 now equals `git show b9bb5083:...` exactly, so a `data.db` already at v46 validates again. The work that had been folded into 43 (and the supplier columns that had grown into 50) now lives in a new append-only `src-tauri/src/database/51-60/migration-51.sql`, version 51: it rebuilds `records` into the current shape (`record_created_at`, nullable `record_paid_at`, `record_credit_at` replacing `record_is_credit`, `record_supplier_id/name`) and adds `tx_record_supplier_name`. The rebuild parks each `records` child (product_events, record_methods, record_listings, discounts, record_extras, record_images) and recreates it with its own DDL because SQLite rewrites child FKs when a parent is renamed — verified on both paths (fresh 1..51 and a seeded v46 database upgrading through 47..51): child counts preserved, `PRAGMA foreign_key_check` empty, new inserts with FK enforcement pass. Dropped `sqlite:tx.db` from `plugins.sql.preload` (nothing in `src/` loads it; the `tx_*` tables live in data.db). Added `src/services/db/migration-chain.test.ts` + `src-tauri/src/database/migration-checksums.json`: it parses mod.rs, asserts the versions are contiguous 1..N, that every `include_str!` resolves, that the file name matches the version, and that every shipped file still has its pinned sha384 (so editing a shipped migration now fails `bun test` in CI). Full suite 228 pass, lint + tsc clean."
+          },
+          {
+            "report": "pos-restock-cart-verbatim-duplication",
+            "status": "partial",
+            "note": "Merged the two highest-risk duplicated files into `src/components/cart/`: (1) `z-Methods.tsx` now exists once (734 lines) and takes the two real differences as props — `onSubmit?: () => boolean` (the Enter branch is `if (onSubmit?.() ?? true) setEditing(false)`, so a sale keeps an underpaid amount's editor open while a purchase still closes it) and `focusTop?: number` (the sale's downward hand-off; guarded so a screen without it never yanks focus). Pos `z-Bottom.tsx` passes both, Restock `z-Payment.tsx` passes neither. (2) `z-ListingCard.tsx` exists once, with `priceLabel` (\"Harga Jual\"/\"Harga Beli\") as a prop, and carries `data-testid=\"cart-line\"` on both routes — the e2e hook the Restock grid was silently missing. Deleted all four per-page copies; both `z-Listing.tsx` now import the shared card and pass their label. tsc + eslint + 228 tests green. Remaining (hence partial): `z-Listing.tsx` (664/599) and `z-Extras.tsx` (492/441) are still two files — they differ by the stage-toggle header cell, the label wording and the extras preset source, and merging them needs the grid-nav extraction (`use-grid-nav.ts`) from report step 3 before `page.tsx` can collapse into one `<CartScreen mode>`. Page-tree total is now ~3,820 lines, down from ~5,148."
+          },
+          {
+            "report": "cart-url-state-pushes-history-entries",
+            "status": "fixed",
+            "note": "Both `useDraftId` and `useStage` (Pos and Restock — the four files were byte-identical) now write with `{ replace: true }`, so a tab switch, stage toggle, F12, park or restore no longer pushes a history entry: `?draft=`/`?stage=` still survive a reload and still describe the screen, but Back/Alt+Left/the mouse back button leave `/pos` instead of rewinding through carts. Also hardened the stale-id path in both `page.tsx`: `?draft=` resolution is now explicit (`find(id)` when the param is present, first open cart only as a fallback) plus a small effect that repairs the URL to the cart that is actually on screen, so the address bar can never name a different cart than the cursor is in (this also avoids the dead `<Loading/>` a stale id could hang on). tsc + eslint + 228 tests green. Follow-up not done here: the other ~11 `setSearch` callers (Money/Debt/Record/Extra list filters, e.g. `Record/use-query.ts` which writes per keystroke) have the same push-per-keystroke shape and should be switched to `{ replace: true }` in a focused pass; and no e2e assertion on `window.history.length` was added (the Playwright suite needs a browser + build, so it is unverified here)."
+          },
+          {
+            "report": "cart-flush-lost-on-window-close",
+            "status": "fixed",
+            "note": "Added `src/layouts/authenticated/use-flush-on-exit.ts`, mounted once in the authenticated layout beside `useNavigationShortcuts()`. It registers `getCurrentWindow().onCloseRequested` (dynamic import, so the browser harness/test environment without a window API just logs and moves on) and awaits `service.transaction.flush()` inside the handler — Tauri holds the close until the promise settles, so the last 100 ms of cart edits reach `tx_*` before teardown. On failure it calls `event.preventDefault()` (window stays open, cart intact) and shows the real message from the cart's `get.saveError` channel (\"Keranjang belum tersimpan: …\") rather than a generic toast, so a quit cannot swallow the failure `SaveError` would have shown. `flush()` swallows write errors into `saveErrorRef` by design, hence reading the channel instead of relying on the effect's error channel. A `pagehide` listener covers a webview reload (F5 / the Topbar button), fire-and-forget, removed on unmount along with the close listener. Added a service-level test in `src/services/transaction/flush.test.ts` proving the guarantee the hook depends on: an edit still sitting on the debounce is not yet in `tx_records`, `flush()` writes it immediately, and the cleared timer does not write it again. Not done (recorded as partial): step 2 of the report (leading-edge write for the first edit of a burst) — the close handler makes the loss impossible on the normal quit path and a leading edge would roughly double the write rate at POS speed, so it was left out deliberately. tsc + eslint + 229 tests green."
+          },
+          {
+            "report": "record-import-accepts-negative-qty-and-price",
+            "status": "fixed",
+            "note": "The import boundary now validates values, not just shape, and both ways into a record share one implementation. New `src/services/record/validate-line.ts` (`validateRecordLine`) holds the qty>0 / unit>=1 / price>=0 / capital>=0 / manual-name rules; `add.draft` calls it instead of its private copy and `add.external` (the JSON import path) now calls it for every line plus rejects `listings: []` — before, `add.external` went straight into stock movement, so `qty: -3` wrote a negative-total record while FIFO moved no stock (`shortage = -3`, no failure) and the same line on a purchase created a negative lot in `stocks`/`product_events`. The Zod schema in `pages/Setting/Data/RecordUpload/util-validate-record.ts` now mirrors those rules (`qty` int positive, `price`/`capital`/`methods[].pay` nonnegative, `listings` min(1), `fix` 0..100) so a bad file is refused before anything is written, and a parse failure now names the offending record and field (\"Format data tidak sah pada catatan ke-N. <reason>\") instead of \"Cek lagi\". Kept the qty message wording \"Jumlah barang tidak valid\" because the grids and two existing specs match on it. Tests: new `src/services/record/import.test.ts` (negative qty/zero qty write nothing and move no stock; negative price/capital on a purchase create no lot; empty line list refused; a valid record still imports with its method row) and `src/pages/Setting/Data/RecordUpload/util-validate-record.test.ts` (rejects each bad field, names record N, refuses an empty file). tsc + eslint + 240 tests green. Not done: the report's step 3 arithmetic check (subTotal == Σ line totals, total == subTotal + extras) — it needs the discount/rounding semantics settled first, and a wrong check would refuse valid backups."
+          },
+          {
+            "report": "hardcoded-text-sizes-still-shipping",
+            "status": "fixed",
+            "note": "Replaced every remaining fixed text size with a design token, so the small-mode re-resolution applies everywhere: `text-3xl` → `text-big` (both money-history destructive dialogs, the Money/History type select, `components/Notification.tsx`), `text-2xl` → `text-normal` (the receipt's Kredit/Lunas status, the RecordDownload form row), `text-3xl` → `text-big` in `Record/Item/z-Receipt/z-Top.tsx`, `text-5xl small:text-4xl` → `text-big` (login brand headline — the hand-rolled second scale is gone), `text-sm` → `text-small` (JSON schema `<pre>`), and all four `text-tiny` uses → `text-small` (brand-panel footer + version, login hint, \"Tambah\" tile), so `rg text-tiny src` is now empty. Also caught two the report did not list, same violation class: `text-6xl` in `components/ErrorComponent.tsx` → `text-big`, and `text-[10rem]` in `components/NotFound.tsx` → `text-big` (the 404 watermark: it is now smaller, which is the token-consistent reading of it). Added `src/lib/design-tokens.test.ts`, a source-scanning guard (same idiom as `method-filter.test.ts`) that fails `bun test` on any `text-(xs|sm|base|lg|xl|[2-9]xl|[Npx])` or `text-tiny` in `src/**/*.tsx`, so this cannot recur a fourth time. tsc + eslint + 242 tests green."
+          },
+          {
+            "report": "dead-modules-and-stale-service-plan",
+            "status": "fixed",
+            "note": "Deleted the six unimported modules (`src/lib/{result,cache-factory,response,validate}.ts`, `src/components/Notification.tsx`, `src/hooks/use-submit.ts`) after confirming with `rg` that nothing in `src/` referenced any of them, and deleted the 450-line stale `src/services/PLAN.md` (its \"current state\" table named `src/pages/{Shop,Analytics,Stock-PENDING,Setting/Sync_PENDING}` and `src/lib/sync`, all gone since iteration 1). Removed the two commented imports and two commented route entries for the deleted Shop/Analytics pages from `src/route.tsx`, and the 50-line commented-out old implementation at the foot of `src/pages/Setting/Shop/z-Info.tsx`. Rewrote `.agent/agent.md`'s \"Data Fetching & State\" section: it no longer documents `Result.use` as the \"Primary data pattern\"; it now shows `useStream` + `Loader`/`LoaderMany` + `useMutation`, states there is no global query cache or `revalidate()`, points at `.pi/skills/services.md` as authoritative, and lists the retired patterns (`Result.use`, `CacheItem`, `useSubmit`, `Loader-old`) so a reader cannot reintroduce a second source of truth. Also corrected the other stale doc claims in the same file (no `sqlite:tx.db`/`TX.try()`/`src/database`/`src/transaction`; no `validate()` helper; the sync pipeline is not wired up; project structure now names `src/services/`), and told future contributors that migrations are append-only and checksum-guarded. Not done: the CI dead-module check (knip/ts-prune) the report suggests — a naive \"every file is imported\" test would trip on entry points, test files and the e2e harness, so it needs `knip` as a dependency and a reviewed ignore list; worth a dedicated pass. tsc + eslint + 242 tests green."
+          }
+        ],
+        "at": "2026-10-21T19:14:09.021Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T19:14:09.021Z"
         }
       }
     }

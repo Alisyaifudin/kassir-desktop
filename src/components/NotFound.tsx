@@ -8,7 +8,7 @@ export function NotFound() {
     <div className="flex flex-1 w-full flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors px-4">
       <div className="text-center space-y-6 max-w-md">
         <div className="relative flex justify-center">
-          <span className="text-[10rem] font-black text-zinc-200 dark:text-zinc-900 leading-none select-none">
+          <span className="text-big font-black text-zinc-200 dark:text-zinc-900 leading-none select-none">
             404
           </span>
           <div className="absolute inset-0 flex items-center justify-center">

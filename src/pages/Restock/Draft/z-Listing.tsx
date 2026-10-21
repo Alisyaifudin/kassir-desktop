@@ -30,7 +30,7 @@ import { service } from "~/services";
 import type { DiscountLine, Line } from "~/components/cart/types";
 import { recalcDiscounts } from "~/lib/purchase";
 import type { Listing } from "~/services/listing";
-import { ListingCard } from "./z-ListingCard";
+import { ListingCard } from "~/components/cart/z-ListingCard";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
 import { SearchResults } from "~/components/cart/z-SearchResults";
@@ -565,6 +565,7 @@ export function Listing({
                         key={line.id}
                         {...handlersFor(line.id)}
                         line={line}
+                        priceLabel="Harga Beli"
                         number={lines.length - index}
                         issue={issues.get(line.id)}
                         selected={cardSelected ? (active.field as Field) : null}

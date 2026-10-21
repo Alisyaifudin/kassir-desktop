@@ -7,7 +7,7 @@ import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft } from "~/services/transaction";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { Methods } from "./Draft/z-Methods";
+import { Methods } from "~/components/cart/z-Methods";
 import { Options } from "./Draft/z-Options";
 import { Total } from "~/components/cart/z-Total";
 import { CashierName } from "./z-CashierName";

@@ -22,8 +22,8 @@ export const DeletePocketBtn = memo(function DeletePocketBtn({ pocketId }: { poc
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Hapus Kantong</DialogTitle>
-          <div className="flex flex-col gap-2 text-3xl">
+          <DialogTitle className="text-big">Hapus Kantong</DialogTitle>
+          <div className="flex flex-col gap-2 text-big">
             <p>
               Kamu akan menghapus kantong ini. Semua catatan keuangan pada kantong ini akan
               terhapus selamanya!
