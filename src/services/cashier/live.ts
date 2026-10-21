@@ -31,6 +31,16 @@ function sortByName(cashiers: readonly Cashier[]): Cashier[] {
   return [...cashiers].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Store the canonical form of a name: trimmed, inner whitespace collapsed.
+ *
+ * Forms already trim the ends, but nothing collapsed "Budi  Santoso", which the
+ * login picker, the day list and the receipt all have to render.
+ */
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
+
 function dbErrorToCashierError(dbError: DbError): CashierError {
   return new CashierError({ message: dbError.message });
 }
@@ -99,12 +109,13 @@ export const CashierLive = Layer.effect(
       set: {
         name(id, name) {
           return Effect.gen(function* () {
+            const next = normalizeName(name);
             yield* mutate("UPDATE cashiers SET cashier_name = $1 WHERE cashier_id = $2", [
-              name,
+              next,
               id,
             ]);
             yield* SubscriptionRef.update(cashiersRef, (cashiers) =>
-              sortByName(cashiers.map((c) => (c.id === id ? { ...c, name } : c))),
+              sortByName(cashiers.map((c) => (c.id === id ? { ...c, name: next } : c))),
             );
           });
         },
@@ -136,12 +147,13 @@ export const CashierLive = Layer.effect(
       },
       add(cashier) {
         return Effect.gen(function* () {
+          const name = normalizeName(cashier.name);
           yield* mutate(
             "INSERT INTO cashiers (cashier_id, cashier_name, cashier_role, cashier_hash) VALUES ($1, $2, $3, $4)",
-            [cashier.id, cashier.name, cashier.role, cashier.hash],
+            [cashier.id, name, cashier.role, cashier.hash],
           );
           yield* SubscriptionRef.update(cashiersRef, (cashiers) =>
-            sortByName([...cashiers, { id: cashier.id, name: cashier.name, role: cashier.role }]),
+            sortByName([...cashiers, { id: cashier.id, name, role: cashier.role }]),
           );
         });
       },

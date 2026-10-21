@@ -18,9 +18,11 @@ import { formatDate, formatTime } from "~/lib/date";
 import { cn } from "~/lib/utils";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import type { ListingHistoryPage } from "~/services/record";
+import { useMode } from "../use-mode";
 import { useQuery } from "../use-query";
 import { RecordsErrorBoundary, RecordsErrorFallback } from "../z-Error";
 import { useData } from "./use-data";
+import { useRange } from "./use-range";
 import { ModeSelect } from "./z-ModeSelect";
 
 /** Rows fetched per page; "Lebih banyak" asks the service for the next slice. */
@@ -28,8 +30,21 @@ const PAGE = 100;
 
 export function Search() {
   const [query, setQuery] = useQuery();
-  const [limit, setLimit] = useState(PAGE);
+  const [mode] = useMode();
+  const { start, endExclusive } = useRange();
   const ref = useRef<HTMLInputElement>(null);
+
+  // "Lebih banyak" is an instruction about the result set it was pressed on, not
+  // about the session: one expansion used to raise the page size for every later
+  // search, so each keypress re-queried and re-rendered 200, then 300 rows. The
+  // key is what the expansion belongs to; a new query/filter/range falls back to
+  // one page without an effect (and so without a second, oversized request).
+  const scope = `${query}|${mode}|${start}|${endExclusive}`;
+  const [expanded, setExpanded] = useState<{ scope: string; limit: number }>({
+    scope,
+    limit: PAGE,
+  });
+  const limit = expanded.scope === scope ? expanded.limit : PAGE;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,7 +74,13 @@ export function Search() {
         </form>
         <ModeSelect />
       </div>
-      <Results limit={limit} onMore={() => setLimit((current) => current + PAGE)} />
+      <Results
+        limit={limit}
+        // Remounting the table on a new result set is also what resets its
+        // roving cursor: `focused` survived a new query, so Tab landed mid-list.
+        tableKey={scope}
+        onMore={() => setExpanded({ scope, limit: limit + PAGE })}
+      />
     </div>
   );
 }
@@ -71,7 +92,15 @@ export function Search() {
  * reader read up to 100 rows × 7 cells aloud. What is worth announcing is the
  * count, which `SearchTable` now carries in its own small `role="status"`.
  */
-function Results({ limit, onMore }: { limit: number; onMore: () => void }) {
+function Results({
+  limit,
+  tableKey,
+  onMore,
+}: {
+  limit: number;
+  tableKey: string;
+  onMore: () => void;
+}) {
   const res = useData(limit);
   return (
     <RecordsErrorBoundary fallback={RecordsErrorFallback}>
@@ -79,7 +108,7 @@ function Results({ limit, onMore }: { limit: number; onMore: () => void }) {
         {({ data }) => (
           <div className="flex-1 overflow-hidden">
             <div className="max-h-full overflow-hidden flex">
-              <SearchTable page={data} onMore={onMore} />
+              <SearchTable key={tableKey} page={data} onMore={onMore} />
             </div>
           </div>
         )}

@@ -104,3 +104,31 @@ describe("Record list keyboard model", () => {
     expect(document.activeElement).toBe(rows[0]!);
   });
 });
+
+describe("Record list sort headers", () => {
+  test("a header toggles aria-sort none → ascending → descending", () => {
+    renderList([record({ id: "a" }), record({ id: "b" })]);
+    const header = screen.getByRole("columnheader", { name: /total/i });
+
+    // The sort lives in the URL, so this also survives navigation.
+    expect(header.getAttribute("aria-sort")).toBe("none");
+
+    // The first click adopts the current direction (desc) on the new column, the
+    // second flips it — the same model the header button always had.
+    fireEvent.click(screen.getByRole("button", { name: /urutkan menurut total/i }));
+    expect(screen.getByRole("columnheader", { name: /total/i }).getAttribute("aria-sort")).toBe(
+      "descending",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /urutkan menurut total, turun/i }));
+    expect(screen.getByRole("columnheader", { name: /total/i }).getAttribute("aria-sort")).toBe(
+      "ascending",
+    );
+  });
+
+  test("the direction is in the button's accessible name, not only in the arrow", () => {
+    renderList([record({ id: "a" })]);
+    const button = screen.getByRole("button", { name: /urutkan menurut waktu/i });
+    expect(button.textContent).toContain("Waktu");
+  });
+});

@@ -81,7 +81,10 @@ export function List({ records }: { records: RecordModel[] }) {
           <TableHead className={cn("text-center w-[150px] font-normal small:w-[90px]")}>
             Kasir
           </TableHead>
-          <TableHead className="w-[120px] font-normal small:w-[93px]">
+          <TableHead
+            className="w-[120px] font-normal small:w-[93px]"
+            aria-sort={order === "time" ? (sort === "asc" ? "ascending" : "descending") : "none"}
+          >
             <SortBtn
               onClick={() => handleClickSort("time")}
               sort={order === "time" ? sort : undefined}
@@ -90,7 +93,12 @@ export function List({ records }: { records: RecordModel[] }) {
               Waktu
             </SortBtn>
           </TableHead>
-          <TableHead className="font-normal">
+          <TableHead
+            className="font-normal"
+            aria-sort={
+              order === "total" ? (sort === "asc" ? "ascending" : "descending") : "none"
+            }
+          >
             <SortBtn
               onClick={() => handleClickSort("total")}
               sort={order === "total" ? sort : undefined}
@@ -165,22 +173,28 @@ function SortBtn({
   onClick: () => void;
   className?: string;
 }) {
-  if (sort === undefined)
-    return (
-      <button
-        onClick={onClick}
-        className={cn("p-0 w-full h-full flex items-center hover:shadow-md", className)}
-      >
-        {children}
-      </button>
-    );
+  // The direction used to be an unlabelled lucide arrow, so both states read as
+  // "Total" and a screen-reader operator could re-sort without hearing that
+  // anything happened. The name carries the column and the direction; the arrow
+  // is decoration (the `<th aria-sort>` also announces the state on the cell).
+  const direction = sort === undefined ? "" : sort === "asc" ? ", naik" : ", turun";
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="p-0 w-full h-full flex items-center justify-between hover:shadow-md"
+      aria-label={`Urutkan menurut ${children}${direction}`}
+      className={cn(
+        "p-0 w-full h-full flex items-center hover:shadow-md",
+        sort === undefined ? undefined : "justify-between",
+        className,
+      )}
     >
-      {children}
-      {sort === "desc" ? <ArrowDownWideNarrow /> : <ArrowDownNarrowWide />}
+      <span>{children}</span>
+      {sort === undefined ? null : sort === "desc" ? (
+        <ArrowDownWideNarrow aria-hidden="true" />
+      ) : (
+        <ArrowDownNarrowWide aria-hidden="true" />
+      )}
     </button>
   );
 }

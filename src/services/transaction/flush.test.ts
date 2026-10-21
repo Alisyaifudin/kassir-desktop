@@ -24,14 +24,14 @@ function setup() {
         execute: (query: string, bindings: Binding[] = []) => {
           if (state.execFailures > 0) {
             state.execFailures -= 1;
-            return Effect.fail(new DbError({ message: "disk penuh" }));
+            return Effect.fail(new DbError({ message: "disk penuh", detail: "SQLITE_FULL" }));
           }
           return real.execute(query, bindings);
         },
         transaction: (statements: Statement[]) => {
           if (state.failures > 0) {
             state.failures -= 1;
-            return Effect.fail(new DbError({ message: "disk penuh" }));
+            return Effect.fail(new DbError({ message: "disk penuh", detail: "SQLITE_FULL" }));
           }
           state.written.push(statements);
           return real.transaction(statements);

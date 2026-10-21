@@ -208,7 +208,18 @@ export class ProductService extends Context.Tag("ProductService")<
       ) => Effect.Effect<void, ProductError>;
       history: (
         productId: string,
-        input: { before?: number; limit: number },
+        input: {
+          /**
+           * Keyset cursor: the full sort key of the last row seen, not just its
+           * timestamp. One commit writes one event per lot stamped with the same
+           * `now`, so a cursor on `created_at` alone drops the rest of a
+           * same-instant group at a page boundary.
+           */
+          before?: { createdAt: number; id: string };
+          /** Server-side Masuk/Keluar filter, so `done` means "no more matches". */
+          mode?: "in" | "out";
+          limit: number;
+        },
       ) => Effect.Effect<ProductEvent[], ProductError>;
     };
     delete: (id: string) => Effect.Effect<void, ProductError>;

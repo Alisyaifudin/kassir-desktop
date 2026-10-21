@@ -1042,16 +1042,37 @@ export const ProductLive = Layer.effect(
           });
         },
         history(productId, input) {
+          // Row-value keyset on the full sort key, and the Masuk/Keluar filter in
+          // SQL. The previous version used `created_at < cursor` alone, so a page
+          // boundary inside a group of same-instant events (one record commit
+          // writes one event per lot at one `now`) silently dropped the rest of
+          // the group, and it filtered by direction only after paging.
           return db
             .selectMany<EventRow>(
               `SELECT
                   product_event_id, product_event_created_at, product_event_value,
                   product_event_capital, product_event_note, product_id, stock_id, record_id
                 FROM product_events
-                WHERE product_id = $1 AND ($2 IS NULL OR product_event_created_at < $2)
+                WHERE product_id = $1
+                  AND (
+                    $2 IS NULL
+                    OR product_event_created_at < $2
+                    OR (product_event_created_at = $2 AND product_event_id < $3)
+                  )
+                  AND (
+                    $4 IS NULL
+                    OR ($4 = 'in' AND product_event_value > 0)
+                    OR ($4 = 'out' AND product_event_value < 0)
+                  )
                 ORDER BY product_event_created_at DESC, product_event_id DESC
-                LIMIT $3`,
-              [productId, input.before ?? null, input.limit],
+                LIMIT $5`,
+              [
+                productId,
+                input.before?.createdAt ?? null,
+                input.before?.id ?? null,
+                input.mode ?? null,
+                input.limit,
+              ],
             )
             .pipe(
               Effect.mapError(dbErrorToProductError),

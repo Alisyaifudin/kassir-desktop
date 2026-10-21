@@ -517,7 +517,10 @@ describe("TransactionService.submit — payment", () => {
 
   test("rejects a method the catalog does not know", async () => {
     const { db, result } = await submit({ methods: [makeMethod(40000, "nope")] });
-    expectTransactionMessage(result, "FOREIGN KEY");
+    // The FK violation is a developer detail: the cashier gets a sentence, and
+    // the driver text (`FOREIGN KEY constraint failed`) goes to the log only.
+    expectTransactionMessage(result, "Data gagal disimpan. Coba lagi.");
+    expect(transactionError(result)?.message).not.toContain("FOREIGN KEY");
     expect(count(db, "records")).toBe(0);
     expect(stocksOf(db)).toEqual([
       { stock_id: "s1", stock_value: 2, stock_capital: 1000 },

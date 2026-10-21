@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T21:25:47.478Z",
+  "updatedAt": "2026-10-21T21:42:21.427Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -1781,6 +1781,160 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T21:25:47.478Z"
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "startedAt": "2026-10-21T21:25:47.546Z",
+      "audit": {
+        "score": 89,
+        "categories": {
+          "architecture": 92,
+          "react": 88,
+          "tauri": 92,
+          "ux": 86,
+          "codeQuality": 88,
+          "testing": 88
+        },
+        "verdict": "I re-verified the iteration-8 money work rather than trusting the changelog, and it holds: `recalcDiscounts` clamps every row, `discountsEatLine` is enforced per line in `transaction.submit` *and* in the shared `record/validate-line.ts` used by both `add.draft` and `add.external`, the grand-total guard is `isNegative() || isZero()`, both screens' Bayar is `grand.gt(0)`, `fs:default` is gone behind a scoped `fs:read-files`/`fs:write-files`/`allow-mkdir` set with a guard test, `purchase.test.ts` exists (35 cases), the tabs have a real `tabpanel`, and `tsc --noEmit`, `eslint --max-warnings 0` and `bun test` (417/417, 52 files) are clean — so this pass found **no remaining money hole**, which is why the score improves even though it is short of 95. The biggest remaining risk is now outside the money core: `record/live.ts` (1,727 lines) and `transaction/live.ts` (1,212 lines) own the stock journal, credit settle, mode flip and unsubmit reversals and are verified only at the statement level, so a regression in those paths would be silent and permanent; alongside it, `capitalize()` is non-total and is rendered on the login picker, the day list and the receipt (filed), the stock-history pager drops same-instant events and filters only the loaded page (filed), and every SQLite failure still shows the cashier raw driver text while the Rust commands already log internals (filed). Deliberately not covered: the `unsubmit`/credit-edit reversal paths past the code I read, the receipt PDF geometry on real 58/80 mm paper, the packaged MSI + updater `latest.json`/pubkey trust chain, the Rust printer on real Windows hardware, the e2e specs in depth (2 files, 186 lines), and the Customer/Method/Extra/Product-Performance screen bodies; also folded into this verdict rather than filed — `roundMoney` (Decimal) and `record/round.ts`'s `roundToFix` (`Number#toFixed`) are two implementations of one contract with no test where they could differ, `useInertApp` drops `inert` from `#root` when the first of two stacked dialogs closes, `useSaveEdit` resets the note if the record object identity changes mid-edit, `useCartScreen`'s F1/F2/F12 effect and `z-Methods`' `Ctrl+0..3` re-register window listeners every render (documented as deliberate), `z-DebtTable`/`z-UploadDialog` money math is float `value - previous`, and `useDebt` defines its own `numeric` instead of the shared helper that now rejects the empty string.",
+        "reports": [
+          {
+            "slug": "capitalize-throws-on-padded-or-empty-names",
+            "title": "`capitalize()` throws on a name with a double/trailing space or an empty cashier, which can take down the login picker",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/lib/utils.ts",
+              "src/pages/Login/z-LoginForm.tsx",
+              "src/pages/Record/z-Record/List.tsx",
+              "src/lib/receipt/build-header.ts",
+              "src/lib/utils.test.ts"
+            ],
+            "summary": "`capitalize()` maps `t[0].toUpperCase()` over `name.split(\" \")`, so any empty segment — a name with a double space inside, or an empty cashier from a legacy/imported record — makes `t[0]` undefined and throws a TypeError during render. It is called on `cashier.name` in the login picker, and on `record.cashier` in the day list and the receipt header, so a single bad row blanks the screen (and, on `/login`, locks the account picker out). The project's own writers trim, but nothing trims inner whitespace and `add.external` accepts `cashier: \"\"`; `src/lib/utils.test.ts` has no case for it.",
+            "path": "iterations/009/report-01-capitalize-throws-on-padded-or-empty-names.md",
+            "createdAt": "2026-10-21T21:31:45.459Z"
+          },
+          {
+            "slug": "stock-history-keyset-cursor-skips-events",
+            "title": "Stock-history paging drops events that share a timestamp, and its Masuk/Keluar filter only filters the loaded page",
+            "severity": "medium",
+            "category": "correctness",
+            "files": [
+              "src/pages/Product/Detail/Info/History/use-history.ts",
+              "src/pages/Product/Detail/Info/History/index.tsx",
+              "src/services/product/live.ts",
+              "src/services/product/stock-sql.ts",
+              "src/services/product/index.ts"
+            ],
+            "summary": "The stock-history pager uses `product_event_created_at < cursor` as its keyset while its `ORDER BY` already had to add `product_event_id` as a tiebreak, and a single record commit writes one event per lot with the same `now` — so a page boundary inside a same-instant group silently drops the rest of the group, in the one screen that is supposed to be the auditable record of stock. The Masuk/Keluar filter is applied client-side to the loaded page while `done` is computed on the unfiltered page, so a filtered view can report \"Belum ada pergerakan stok\" while matches exist one page back, and `product_events` has no `(product_id, created_at)` index for the query.",
+            "path": "iterations/009/report-02-stock-history-keyset-cursor-skips-events.md",
+            "createdAt": "2026-10-21T21:31:59.113Z"
+          },
+          {
+            "slug": "raw-sqlite-errors-rendered-to-cashier",
+            "title": "Raw SQLite error text is rendered to the cashier, while the Rust side already logs internals and returns a sentence",
+            "severity": "medium",
+            "category": "ux",
+            "files": [
+              "src/services/db/live.ts",
+              "src/services/db/index.ts",
+              "src/services/record/live.ts",
+              "src/lib/utils.ts",
+              "src/pages/Record/z-Error.tsx",
+              "src/pages/Money/z-Error.tsx",
+              "src/pages/Debt/z-Error.tsx"
+            ],
+            "summary": "`db/live.ts` composes every failure as `Gagal mengeksekusi query: \\n<raw driver text>`, the domain services copy that string into their own error `message` verbatim, and the page fallbacks render `error.message` — so a locked or corrupt database shows the cashier an English SQLite sentence with an embedded newline and table names, while the Rust commands in the same repo carefully log internals and return one Indonesian sentence. There is no `detail` field to log, so the diagnostic exists only where it is least useful.",
+            "path": "iterations/009/report-03-raw-sqlite-errors-rendered-to-cashier.md",
+            "createdAt": "2026-10-21T21:32:11.782Z"
+          },
+          {
+            "slug": "sort-headers-missing-aria-sort",
+            "title": "Sort direction is icon-only: the Records list and Debt table announce no `aria-sort`",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Record/z-Record/List.tsx",
+              "src/pages/Debt/z-DebtTable.tsx",
+              "src/pages/Record/z-Record/List.test.tsx"
+            ],
+            "summary": "The Records day list and the Debt table expose their sort column and direction only as a lucide arrow inside the button: no `aria-sort` on the `<th>`, no accessible-name difference between ascending and descending, and the icon is not hidden. A screen-reader operator can press the header, re-sort the list, and get identical narration for both directions — on the two tables whose sort state is persisted in the URL and therefore survives navigation.",
+            "path": "iterations/009/report-04-sort-headers-missing-aria-sort.md",
+            "createdAt": "2026-10-21T21:32:25.045Z"
+          },
+          {
+            "slug": "gallery-object-urls-leak-on-unmount",
+            "title": "Unsaved product-gallery drafts leak their blob URLs when the page is left",
+            "severity": "low",
+            "category": "performance",
+            "files": [
+              "src/pages/Product/Detail/Image/use-gallery.ts",
+              "src/pages/Product/Detail/Image/page.tsx"
+            ],
+            "summary": "`useGallery` calls `URL.createObjectURL` for every picked image and releases it only on an explicit discard or a successful save, with no unmount cleanup — so picking up to 10 files (50 MB cap) and then navigating away with the browser back/Home link pins those blobs for the rest of the session, in an app that by design is never closed between shifts.",
+            "path": "iterations/009/report-05-gallery-object-urls-leak-on-unmount.md",
+            "createdAt": "2026-10-21T21:32:45.309Z"
+          },
+          {
+            "slug": "record-search-page-size-not-reset-per-query",
+            "title": "Record search keeps the expanded page size (and the old focus index) after the query changes",
+            "severity": "low",
+            "category": "performance",
+            "files": [
+              "src/pages/Record/Search/z-Search.tsx",
+              "src/pages/Record/Search/use-data.ts",
+              "src/services/record/live.ts"
+            ],
+            "summary": "The record-search page keeps `limit` in state that is never reset when the query changes, so one \"Lebih banyak\" permanently raises the page size for the rest of the session — every later keypress re-queries and renders 200, then 300 rows, defeating the deliberate cap that made the screen fast. The roving focus index has the same problem: it survives a new query, so the list's single tab stop lands mid-list instead of on the first result.",
+            "path": "iterations/009/report-06-record-search-page-size-not-reset-per-query.md",
+            "createdAt": "2026-10-21T21:32:57.192Z"
+          }
+        ],
+        "at": "2026-10-21T21:33:15.129Z"
+      },
+      "finishedAt": "2026-10-21T21:42:21.427Z",
+      "fix": {
+        "summary": "All six iteration-9 reports are fixed; `bun run lint`, `bunx tsc --noEmit` and `bun test` (436 pass / 55 files) are clean.\n\n## What changed\n\n1. **`capitalize()` was non-total** (`capitalize-throws-on-padded-or-empty-names`) — splits on `/\\s+/`, drops empty segments, so `\"\"`, `\" \"`, `\"Budi  Santoso\"` and tab/newline-padded names render instead of throwing. Tests added in `src/lib/utils.test.ts`. Producers closed too: the backup import now requires `cashier: z.string().trim().min(1)` (error already names the record index), and `services/cashier/live.ts` normalises on write (`normalizeName`: trim + collapse inner whitespace) in `add` and `set.name`.\n\n2. **Stock-history pager** (`stock-history-keyset-cursor-skips-events`) — `product.stock.history` takes `{ before?: { createdAt, id }, mode?: \"in\" | \"out\", limit }`; the WHERE uses the full keyset (`created_at < $2 OR (created_at = $2 AND id < $3)`) and applies the Masuk/Keluar predicate in SQL, so `done`/empty state describe the whole history. `useHistory` passes the last row's `{createdAt,id}` and restarts paging on `mode`; the page no longer filters the loaded slice. New append-only **migration 53** adds `product_event_product_time_idx (product_id, created_at DESC, id DESC)` (registered in `database/mod.rs`, checksum pinned, migration-chain test green). Two new tests in `product/live.test.ts`: 25 same-instant events all come back across pages, and the \"in\" filter finds old incoming rows behind 25 newer outgoing ones.\n\n3. **Raw SQLite text on screen** (`raw-sqlite-errors-rendered-to-cashier`) — `DbError` now carries `{ message, detail }`: `message` is one short Indonesian sentence (rendered), `detail` is the driver text (log only). New `src/services/db/failure.ts` logs `db: <sentence> | <driver text>` via `lib/log` (so it reaches Setting → Log) and builds the safe error; all five `db/live.ts` catch sites use it. `submit.test.ts` updated — the FK case now asserts the sentence and that `FOREIGN KEY` is *not* in the message. New `db/failure.test.ts` pins the split.\n\n4. **No `aria-sort`** (`sort-headers-missing-aria-sort`) — Records day list and Debt table put `aria-sort` on the `<th>` and give the header button a name carrying column + direction (`Urutkan menurut Total, turun`); arrows are `aria-hidden`. Tests: `List.test.tsx` toggles none → descending → ascending, new `Debt/z-DebtTable.test.tsx` asserts it follows the URL params.\n\n5. **Record-search paging leaked across queries** (`record-search-page-size-not-reset-per-query`) — `limit` is now scoped to a `query|mode|start|end` key (reset during render, so no oversized first request), and `SearchTable` is keyed on the same scope so its roving `focused` cursor resets to row 0. Tests assert the requested limit returns to 100 and the tab stop returns to the first row.\n\n6. **Gallery blob URLs leaked on navigation** (`gallery-object-urls-leak-on-unmount`) — `useGallery` keeps a `draftsRef` and revokes every still-live URL in a mount-once cleanup effect. New `use-gallery.test.tsx` covers unmount, no-revoke-before-unmount and single-discard.\n\n## For the next auditor\n\n- The `<th aria-sort>` + named-button pattern is now the house style for sortable tables; a third sortable surface should copy it.\n- `DbError.detail` exists but is not yet propagated into domain errors (`RecordError` etc. only carry `message`); the log line is written at the driver boundary, so nothing is lost today. If a later pass wants a \"Salin detail\" affordance in Setting → Log, `detail` is the field to thread through.\n- Left alone deliberately: `local-storage`/`store` services still embed their (non-SQLite) error text in `message`; `useGallery`'s stale `arranged` order after a save (no memory consequence); `@tanstack/react-virtual` is still not used by the record-search table — the paging cap is now enforced again, so the 300-row case is gone.",
+        "fixes": [
+          {
+            "report": "capitalize-throws-on-padded-or-empty-names",
+            "status": "fixed",
+            "note": "`capitalize()` is now total: it splits on runs of whitespace, drops empty segments and title-cases the rest, so `\"\"`, `\" \"`, `\"Budi  Santoso\"`, `\" Budi \"` and tab/newline-padded names all render instead of throwing. Added `describe(\"capitalize\")` to `src/lib/utils.test.ts` (5 cases incl. the empty string and the doubled space). Also closed the two producers: `util-validate-record.ts` now requires `cashier: z.string().trim().min(1)` (the error already names the record index), and `services/cashier/live.ts` normalises on write via a new `normalizeName()` (trim + collapse inner whitespace) in both `add` and `set.name`, so a padded name never reaches the DB or the ref."
+          },
+          {
+            "report": "stock-history-keyset-cursor-skips-events",
+            "status": "fixed",
+            "note": "Keyset now uses the full sort key and the filter moved into SQL. `product.stock.history` takes `{ before?: { createdAt, id }, mode?: \"in\" | \"out\", limit }`; the query is `product_event_created_at < $2 OR (product_event_created_at = $2 AND product_event_id < $3)` with the direction predicate in the same WHERE, so `done` and the empty state describe the whole history. `useHistory` passes `{createdAt,id}` of the last row, takes `mode` as a dep (new query/filter restarts paging), and `History/index.tsx` no longer filters the loaded slice client-side. New append-only `migration-53.sql` adds `product_event_product_time_idx (product_id, created_at DESC, id DESC)`, registered in `database/mod.rs` and pinned in `migration-checksums.json` (migration-chain test green). Two tests added to `product/live.test.ts`: 25 same-instant events paged at PAGE=20 return all of them, and the \"in\" filter finds 5 old incoming events behind 25 newer outgoing ones."
+          },
+          {
+            "report": "raw-sqlite-errors-rendered-to-cashier",
+            "status": "fixed",
+            "note": "Split the diagnostic from the sentence at the driver boundary. `DbError` now carries `{ message, detail }` — `message` is one short Indonesian sentence, `detail` is the raw driver text and is never rendered. New `src/services/db/failure.ts` (`dbFailure(sentence, e)` + `DB_READ_FAILED` / `DB_WRITE_FAILED` / `DB_OPEN_FAILED`) logs `db: <sentence> | <driver text>` through `lib/log` (so it lands in Setting → Log) and returns the safe error; all five `db/live.ts` catch sites use it, so `Gagal mengeksekusi query: \\n<sqlite>` no longer exists. Downstream `dbErrorTo*` mappings keep copying `error.message`, which is now already a cashier sentence — no per-service churn needed. Test-support/e2e/flush tests updated to construct the new shape; new `src/services/db/failure.test.ts` asserts the message has no driver text and no newline while `detail` keeps it. Left as-is intentionally: `local-storage`/`store` still embed their (non-SQLite, internal) error text — out of this report's scope."
+          },
+          {
+            "report": "sort-headers-missing-aria-sort",
+            "status": "fixed",
+            "note": "Both sortable tables now announce their state. `Record/z-Record/List.tsx`: each sortable `<th>` carries `aria-sort` (`ascending`/`descending`/`none`), and `SortBtn` is a single `type=\"button\"` with `aria-label=\"Urutkan menurut <kolom>\"` plus `\", naik\"`/`\", turun\"` when sorted; the lucide arrows are `aria-hidden=\"true\"`. Same in `Debt/z-DebtTable.tsx` (the icon was already wrapped in a span, now `aria-hidden` along with the new label). New tests: `Record/z-Record/List.test.tsx` toggles the Total header none → descending → ascending and asserts the names; new `Debt/z-DebtTable.test.tsx` asserts `aria-sort` follows `?sort-by=&sort-dir=` and flips on click."
+          },
+          {
+            "report": "record-search-page-size-not-reset-per-query",
+            "status": "fixed",
+            "note": "Scoped the paging to the result set it was expanded for. `Search` now derives a `scope` key (`query|mode|start|endExclusive`) and keeps `{ scope, limit }`: a new query/filter/range falls back to `PAGE` during render (no effect, so no oversized first request), and only \"Lebih banyak\" on the same scope raises it. The same key is passed as `tableKey` and used as `key` on `SearchTable`, so its roving `focused` cursor resets to row 0 on a new result set while surviving an expansion. Tests added to `Search/z-Search.test.tsx` (the `use-data` mock now records the requested limit): after \"Lebih banyak\" (200) a new term requests 100 again, and the tab stop is back on the first row after a new search."
+          },
+          {
+            "report": "gallery-object-urls-leak-on-unmount",
+            "status": "fixed",
+            "note": "`useGallery` now owns the blob URLs' lifetime: a `draftsRef` mirror plus a mount-once `useEffect` cleanup revokes every still-live `blob:` URL on unmount, so leaving the page with unsaved drafts (up to 10 files / 50 MB) no longer pins them for the session. The existing per-draft revokes in `discard`/`discardAll`/`save` stay; revoking twice is a no-op. New `use-gallery.test.tsx` (mock `URL.createObjectURL`/`revokeObjectURL`): three picked drafts are all revoked on unmount and none before, and `discard` still revokes exactly one url. The stale `arranged` order noted in the report is not touched (no memory consequence)."
+          }
+        ],
+        "at": "2026-10-21T21:42:21.427Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T21:42:21.427Z"
         }
       }
     }

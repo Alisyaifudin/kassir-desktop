@@ -26,13 +26,15 @@ export function makeTestDatabase() {
       try: () => {
         db.query(query).run(...bindings);
       },
-      catch: (error) => new DbError({ message: String(error) }),
+      catch: (error) =>
+        new DbError({ message: "Data gagal disimpan. Coba lagi.", detail: String(error) }),
     });
 
   const all = <T>(query: string, bindings: Binding[] = []): Effect.Effect<T[], DbError> =>
     Effect.try({
       try: () => db.query(query).all(...bindings) as T[],
-      catch: (error) => new DbError({ message: String(error) }),
+      catch: (error) =>
+        new DbError({ message: "Data gagal dibaca. Coba lagi.", detail: String(error) }),
     });
 
   const layer = Layer.succeed(DatabaseService, {

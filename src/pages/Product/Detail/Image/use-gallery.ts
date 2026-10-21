@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -57,6 +57,19 @@ export function useGallery(productId: string, images: ProductImage[]) {
   /** the drag order, as ids; null until the user arranges anything */
   const [arranged, setArranged] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // The blob URLs are released by discard/save, but those are only reachable
+  // while the page is mounted. A till runs for weeks, so leaving the page with
+  // unsaved drafts (up to 50 MB of files) used to pin them for the rest of the
+  // session. This effect is the unmount backstop; revoking twice is a no-op.
+  const draftsRef = useRef<Draft[]>([]);
+  draftsRef.current = drafts;
+  useEffect(
+    () => () => {
+      for (const draft of draftsRef.current) URL.revokeObjectURL(draft.href);
+    },
+    [],
+  );
 
   const saved = useMemo<GalleryItem[]>(
     () =>

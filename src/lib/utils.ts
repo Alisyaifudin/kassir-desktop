@@ -106,9 +106,22 @@ export function getURLBack(defaultURL: string, search: URLSearchParams) {
   return urlBack;
 }
 
+/**
+ * Title-case a display name.
+ *
+ * Total on purpose: names reach this from forms, the backup import path and
+ * legacy rows, so a double space or an empty string must render (as invented
+ * here: extra spaces collapse, nothing throws). The previous version split on a
+ * single space and upper-cased `t[0]`, so `capitalize("Budi  Santoso")` — or an
+ * imported `cashier: ""` — threw a TypeError in the middle of a render and took
+ * down the login picker, the day list and the receipt.
+ */
 export function capitalize(name: string): string {
-  const terms = name.split(" ");
-  return terms.map((t) => t[0].toUpperCase() + t.slice(1)).join(" ");
+  return name
+    .split(/\s+/)
+    .filter((term) => term !== "")
+    .map((term) => term[0].toUpperCase() + term.slice(1))
+    .join(" ");
 }
 
 export function formatBarcode(barcode?: string) {

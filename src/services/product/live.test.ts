@@ -245,3 +245,107 @@ describe("product writes read narrowly", () => {
     for (const query of queries) expect(query).toContain("product_id IN");
   });
 });
+
+describe("stock history paging", () => {
+  const SAME_INSTANT = 1_700_000_000_000;
+
+  function seed(
+    db: ReturnType<typeof setup>["db"],
+    productId: string,
+    rows: { id: string; at: number; value: number }[],
+  ) {
+    const insert = db.prepare(
+      `INSERT INTO product_events (
+         product_event_id, product_event_created_at, product_event_value,
+         product_event_capital, product_event_note, product_id
+       ) VALUES (?, ?, ?, 100, '', ?)`,
+    );
+    for (const row of rows) insert.run(row.id, row.at, row.value, productId);
+  }
+
+  /** Page to the end the way `useHistory` does, and collect the ids seen. */
+  function pageAll(
+    layer: Layer.Layer<ProductService>,
+    productId: string,
+    limit: number,
+    mode?: "in" | "out",
+  ) {
+    return run(layer, (product) =>
+      Effect.gen(function* () {
+        const ids: string[] = [];
+        let cursor: { createdAt: number; id: string } | undefined;
+        for (let guard = 0; guard < 100; guard++) {
+          const page = yield* product.stock.history(productId, { before: cursor, mode, limit });
+          ids.push(...page.map((event) => event.id));
+          if (page.length < limit) break;
+          const last = page[page.length - 1];
+          cursor = { createdAt: last.createdAt, id: last.id };
+        }
+        return ids;
+      }),
+    );
+  }
+
+  /**
+   * A commit stamps one event per lot with the same `now`, so a keyset on
+   * `created_at` alone lost the rest of the group at a page boundary — in the
+   * screen that is supposed to be the auditable record of stock.
+   */
+  test("a page boundary inside a same-instant group keeps every event", async () => {
+    const { db, layer } = setup();
+    const productId = await run(layer, (product) => product.add(input("Kopi")));
+
+    const seeded = Array.from({ length: 25 }, (_, index) => ({
+      id: `ev-${String(index).padStart(2, "0")}`,
+      at: SAME_INSTANT,
+      value: 1,
+    }));
+    seed(db, productId, seeded);
+
+    const ids = await pageAll(layer, productId, 20);
+
+    // The 25 seeded events plus the one `add` wrote for the opening lot.
+    expect(ids).toHaveLength(26);
+    expect(new Set(ids).size).toBe(26);
+    for (const row of seeded) expect(ids).toContain(row.id);
+  });
+
+  test("the Masuk/Keluar filter applies to the whole history, not the loaded page", async () => {
+    const { db, layer } = setup();
+    const productId = await run(layer, (product) => product.add(input("Kopi")));
+
+    // The matching rows are the *oldest*: a page of the newest 20 is all "out",
+    // which is exactly what used to render "Belum ada pergerakan stok."
+    seed(
+      db,
+      productId,
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `in-${index}`,
+        at: SAME_INSTANT,
+        value: 1,
+      })),
+    );
+    seed(
+      db,
+      productId,
+      Array.from({ length: 25 }, (_, index) => ({
+        id: `out-${String(index).padStart(2, "0")}`,
+        at: SAME_INSTANT + 1000,
+        value: -1,
+      })),
+    );
+
+    const incoming = await pageAll(layer, productId, 20, "in");
+
+    // The five old "in" rows (plus the opening lot `add` wrote), and none of the
+    // 25 newer "out" rows — the old client-side filter would have returned none.
+    expect(incoming.filter((id) => id.startsWith("in-")).sort()).toEqual([
+      "in-0",
+      "in-1",
+      "in-2",
+      "in-3",
+      "in-4",
+    ]);
+    expect(incoming.some((id) => id.startsWith("out-"))).toBe(false);
+  });
+});

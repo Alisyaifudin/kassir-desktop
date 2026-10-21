@@ -43,7 +43,7 @@ const recordSchema: z.ZodType<RecordImport> = z.object({
   paidAt: z.number().int(),
   rounding: z.number(),
   isCredit: z.boolean(),
-  cashier: z.string(),
+  cashier: z.string().trim().min(1, { message: "Nama kasir tidak boleh kosong" }),
   mode: z.enum(["incoming", "outcoming"]),
   pay: z.number(),
   note: z.string(),

@@ -314,5 +314,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/51-60/migration-52.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 53,
+            description: "index_product_event_time",
+            sql: include_str!("../../src/database/51-60/migration-53.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

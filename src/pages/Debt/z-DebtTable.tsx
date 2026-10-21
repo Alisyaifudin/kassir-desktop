@@ -38,13 +38,19 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">No</TableHead>
-          <TableHead className="w-[300px] small:w-[240px]">
+          <TableHead
+            className="w-[300px] small:w-[240px]"
+            aria-sort={sortBy === "paidAt" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+          >
             <SortBtn sort={sortBy === "paidAt" ? sortDir : undefined} onClick={onSort("paidAt")}>
               Tanggal
             </SortBtn>
           </TableHead>
           <TableHead>Catatan</TableHead>
-          <TableHead className="w-[170px] text-right small:w-[150px]">
+          <TableHead
+            className="w-[170px] text-right small:w-[150px]"
+            aria-sort={sortBy === "total" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+          >
             <SortBtn
               sort={sortBy === "total" ? sortDir : undefined}
               onClick={onSort("total")}
@@ -105,14 +111,19 @@ function SortBtn({
   onClick: () => void;
   className?: string;
 }) {
+  // Direction is announced both by the `<th aria-sort>` and by the button's own
+  // name: as an unlabelled arrow, ascending and descending read identically.
+  const direction = sort === undefined ? "" : sort === "asc" ? ", naik" : ", turun";
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-label={`Urutkan menurut ${children}${direction}`}
       className={cn("p-0 w-full h-full flex justify-center items-center", className)}
     >
       <span>{children}</span>
       {sort ? (
-        <span className="ml-1">
+        <span className="ml-1" aria-hidden="true">
           {sort === "desc" ? <ArrowDownWideNarrow /> : <ArrowDownNarrowWide />}
         </span>
       ) : null}

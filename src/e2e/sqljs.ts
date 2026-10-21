@@ -44,7 +44,9 @@ export async function createBrowserDatabase(seed: string[] = []): Promise<Databa
 }
 
 function fail(error: unknown): DbError {
-  return new DbError({ message: `Gagal mengeksekusi query: \n${String(error)}` });
+  // Same split as `services/db/live.ts`: the sentence is rendered, the driver
+  // text is a log detail.
+  return new DbError({ message: "Data gagal dibaca. Coba lagi.", detail: String(error) });
 }
 
 /** Runs one statement. Multi-statement strings are the caller's problem (`transaction`). */

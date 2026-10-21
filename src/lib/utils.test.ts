@@ -11,7 +11,7 @@
  * Run with:  bun test src/lib/utils.test.ts
  */
 import { describe, expect, test } from "bun:test";
-import { integer, numeric } from "./utils";
+import { capitalize, integer, numeric } from "./utils";
 import { EARLIEST_EPOCH, FURTHEST_EPOCH, parseRange } from "./range";
 
 function params(entries: Record<string, string>): { get(key: string): string | null } {
@@ -50,6 +50,24 @@ describe("numerish", () => {
   test("keeps decimals and negatives", () => {
     expect(numeric.parse("68000.5")).toBe(68000.5);
     expect(numeric.parse("-2")).toBe(-2);
+  });
+});
+
+describe("capitalize", () => {
+  test("title-cases a normal name", () => {
+    expect(capitalize("budi santoso")).toBe("Budi Santoso");
+  });
+
+  // The helper is rendered on the login picker, the day list and the receipt, so
+  // it must be total: a padded, doubled or empty name renders as-is, never throws.
+  test.each([
+    ["", ""],
+    [" ", ""],
+    ["Budi  Santoso", "Budi Santoso"],
+    [" Budi ", "Budi"],
+    ["\tBudi\nSantoso", "Budi Santoso"],
+  ])("%p becomes %p without throwing", (raw, expected) => {
+    expect(capitalize(raw)).toBe(expected);
   });
 });
 

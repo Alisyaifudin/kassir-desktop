@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { ListingHistoryPage } from "~/services/record";
@@ -19,7 +19,15 @@ const page: ListingHistoryPage = {
   ],
 } as ListingHistoryPage;
 
-mock.module("./use-data", () => ({ useData: () => ({ type: "success", data: page }) }));
+/** Every limit the page asked the service for, in order. */
+const limits: number[] = [];
+
+mock.module("./use-data", () => ({
+  useData: (limit: number) => {
+    limits.push(limit);
+    return { type: "success", data: page };
+  },
+}));
 
 const { Search } = await import("./z-Search");
 
@@ -35,6 +43,10 @@ function renderSearch() {
 }
 
 describe("record search results keyboard model", () => {
+  beforeEach(() => {
+    limits.length = 0;
+  });
+
   test("the list is one tab stop", () => {
     renderSearch();
     // The header row is the first, then the data rows.
@@ -84,5 +96,40 @@ describe("record search results keyboard model", () => {
     renderSearch();
     // The magnifier is the only button; it is named.
     expect(screen.getByRole("button", { name: "Cari transaksi" })).toBeTruthy();
+  });
+});
+
+describe("record search paging scope", () => {
+  /** Change the term and submit, the way an operator does. */
+  function searchFor(term: string) {
+    const input = screen.getByRole("searchbox");
+    fireEvent.change(input, { target: { value: term } });
+    fireEvent.submit(input.closest("form")!);
+  }
+
+  test("a new search goes back to one page", () => {
+    renderSearch();
+
+    fireEvent.click(screen.getByRole("button", { name: "Muat hasil berikutnya" }));
+    expect(limits.at(-1)).toBe(200);
+
+    searchFor("teh");
+
+    // The previous query's expansion is not an instruction about this one.
+    expect(limits.at(-1)).toBe(100);
+  });
+
+  test("a new search puts the tab stop back on the first row", () => {
+    renderSearch();
+
+    const [, first, second] = screen.getAllByRole("row");
+    fireEvent.keyDown(first!, { key: "ArrowDown" });
+    expect(second?.getAttribute("tabindex")).toBe("0");
+
+    searchFor("teh");
+
+    const [, newFirst, newSecond] = screen.getAllByRole("row");
+    expect(newFirst?.getAttribute("tabindex")).toBe("0");
+    expect(newSecond?.getAttribute("tabindex")).toBe("-1");
   });
 });

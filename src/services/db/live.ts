@@ -3,8 +3,12 @@ import { Effect, Layer } from "effect";
 import { NotFound } from "~/lib/effect-error";
 import { Binding, DatabaseService, DbError, Statement } from ".";
 import { flattenTransaction } from "./transaction";
-import { formatError } from "~/lib/utils";
-
+import {
+  DB_OPEN_FAILED,
+  DB_READ_FAILED,
+  DB_WRITE_FAILED,
+  dbFailure,
+} from "./failure";
 
 const DB_PATH = "sqlite:data.db";
 let _getDb: Effect.Effect<Database, DbError> | null = null;
@@ -13,7 +17,7 @@ function getDb() {
   if (_getDb === null) {
     _getDb = Effect.tryPromise({
       try: () => Database.load(DB_PATH),
-      catch: (e) => new DbError({ message: `Gagal memuat database: \n${formatError(e)}` }),
+      catch: (e) => dbFailure(DB_OPEN_FAILED, e),
     });
   }
   return _getDb;
@@ -25,7 +29,7 @@ export const DatabaseLive = Layer.succeed(DatabaseService, {
       const db = yield* getDb();
       yield* Effect.tryPromise({
         try: () => db.execute(query, bindings),
-        catch: (e) => new DbError({ message: `Gagal mengeksekusi query: \n${formatError(e)}` }),
+        catch: (e) => dbFailure(DB_WRITE_FAILED, e),
       });
     });
   },
@@ -34,7 +38,7 @@ export const DatabaseLive = Layer.succeed(DatabaseService, {
       const db = yield* getDb();
       const res = yield* Effect.tryPromise({
         try: () => db.select<T[]>(query, bindings),
-        catch: (e) => new DbError({ message: `Gagal mengeksekusi query: \n${formatError(e)}` }),
+        catch: (e) => dbFailure(DB_READ_FAILED, e),
       });
       return res;
     });
@@ -44,7 +48,7 @@ export const DatabaseLive = Layer.succeed(DatabaseService, {
       const db = yield* getDb();
       const res = yield* Effect.tryPromise({
         try: () => db.select<T[]>(query, bindings),
-        catch: (e) => new DbError({ message: `Gagal mengeksekusi query: \n${formatError(e)}` }),
+        catch: (e) => dbFailure(DB_READ_FAILED, e),
       });
       if (res.length > 0) return res[0];
       return yield* Effect.fail(new NotFound({ message: "Tidak ditemukan" }));
@@ -61,7 +65,7 @@ export const DatabaseLive = Layer.succeed(DatabaseService, {
       const { query, bindings } = flattenTransaction(statements);
       yield* Effect.tryPromise({
         try: () => db.execute(query, bindings),
-        catch: (e) => new DbError({ message: `Gagal mengeksekusi transaksi: \n${formatError(e)}` }),
+        catch: (e) => dbFailure(DB_WRITE_FAILED, e),
       });
     });
   },
