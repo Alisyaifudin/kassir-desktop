@@ -20,8 +20,8 @@ import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { Extra, ExtraPreset } from "../types";
 import { recalcExtras } from "~/lib/purchase";
-import { rupiah } from "../util-rupiah";
-import { SELECTED_RING } from "./z-Cell";
+import { rupiah } from "~/pages/_cart/util-rupiah";
+import { SELECTED_RING } from "~/pages/_cart/z-Cell";
 import { ExtraCard } from "./z-Extra";
 import { ExtraSearch } from "./z-ExtraSearch";
 import {

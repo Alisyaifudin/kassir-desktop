@@ -24,21 +24,17 @@ pub struct PrintResult {
 
 fn validate_pdf(pdf_bytes: &[u8]) -> Result<(), String> {
     if pdf_bytes.len() < 4 {
-        return Err(format!(
-            "Invalid PDF: file too small ({} bytes, expected at least 4 bytes for PDF header)",
-            pdf_bytes.len()
-        ));
+        return Err("Data yang dikirim bukan PDF yang sah.".to_string());
     }
 
     if &pdf_bytes[0..4] != b"%PDF" {
-        let header = String::from_utf8_lossy(&pdf_bytes[0..pdf_bytes.len().min(20)]);
-        return Err(format!(
-            "Invalid PDF: missing PDF header. Found '{:?}' instead of '%PDF'. \
-             Make sure you're sending raw PDF bytes, not base64 or JSON. \
-             First 20 bytes: {}",
-            &pdf_bytes[0..4],
-            header
-        ));
+        // The raw bytes are a developer detail: log them, do not show them.
+        log::error!(
+            "print_pdf received a non-PDF buffer of {} bytes starting with {:?}",
+            pdf_bytes.len(),
+            &pdf_bytes[0..4]
+        );
+        return Err("Data yang dikirim bukan PDF yang sah.".to_string());
     }
 
     Ok(())
@@ -93,7 +89,7 @@ mod platform {
 
     pub fn get_printers() -> Result<Vec<PrinterInfo>, String> {
         let devices =
-            PrinterDevice::all().map_err(|e| format!("Failed to enumerate printers: {:?}", e))?;
+            PrinterDevice::all().map_err(|e| format!("Gagal membaca daftar printer: {}", e))?;
 
         if devices.is_empty() {
             return Err(
@@ -115,7 +111,7 @@ mod platform {
     pub fn print_pdf(printer_name: &str, pdf_bytes: &[u8]) -> Result<String, String> {
         // Find the requested printer
         let devices =
-            PrinterDevice::all().map_err(|e| format!("Failed to list printers: {:?}", e))?;
+            PrinterDevice::all().map_err(|e| format!("Gagal membaca daftar printer: {}", e))?;
 
         let device = devices
             .into_iter()

@@ -22,9 +22,9 @@ import type { DiscountLine, Line } from "../types";
 import { recalcDiscounts } from "~/lib/purchase";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "./z-ListingCard";
-import type { LineIssue } from "./code-issues";
+import type { LineIssue } from "~/pages/_cart/code-issues";
 import { DiscountDialog } from "./z-Discount";
-import { SearchResults } from "./z-SearchResults";
+import { SearchResults } from "~/pages/_cart/z-SearchResults";
 import {
   cellAt,
   columnIn,

@@ -1,5 +1,4 @@
 import {
-  Store,
   ShoppingCart,
   Package,
   PackagePlus,

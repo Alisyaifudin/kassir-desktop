@@ -3,7 +3,7 @@ import { Combobox } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
 import { service } from "~/services";
 import type { Draft } from "~/services/transaction";
-import { run } from "../run";
+import { run } from "~/pages/_cart/run";
 
 /**
  * Who the sale is for. Picking an existing customer writes its id to the draft;

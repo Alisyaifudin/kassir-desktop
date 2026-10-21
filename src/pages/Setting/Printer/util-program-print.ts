@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 import { log } from "~/lib/log";
 import { printPdf } from "~/lib/printer";
 import { generatePdfBytes } from "~/lib/receipt";
@@ -40,5 +40,12 @@ export const programPrint = (data: Omit<ReceiptData, "info">) =>
       }
       log.error(error.message);
       return Effect.succeed(error.message);
+    }),
+    // A defect (an unexpected synchronous throw inside the receipt/PDF pipeline)
+    // must not escape the print dialog: report it like any other print failure so
+    // the caller always gets a message and can leave its loading state.
+    Effect.catchAllCause((cause) => {
+      log.error(Cause.pretty(cause));
+      return Effect.succeed("Gagal mencetak struk");
     }),
   );

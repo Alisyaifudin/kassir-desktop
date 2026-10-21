@@ -9,7 +9,7 @@ import { Listing } from "./z-Listing";
 import { Payment } from "./z-Payment";
 import { Tabs } from "./z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
-import type { LineIssue } from "./code-issues";
+import type { LineIssue } from "~/pages/_cart/code-issues";
 
 /**
  * The stages the panel walks through, in order: choose the goods, then the

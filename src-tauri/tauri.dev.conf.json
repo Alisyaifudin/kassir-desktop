@@ -1,6 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "app": {
-    "withGlobalTauri": true
+    "withGlobalTauri": true,
+    "security": {
+      "csp": null,
+      "capabilities": ["default", "desktop-capability", "mcp-bridge"]
+    }
   }
 }

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
 import { useImageUrl } from "~/hooks/use-image";
 import { service } from "~/services";
 import type { Draft, DraftImage } from "~/services/transaction";
-import { run } from "../run";
+import { run } from "~/pages/_cart/run";
 
 /**
  * Photos of the purchase — the nota, the goods, whatever the operator needs to

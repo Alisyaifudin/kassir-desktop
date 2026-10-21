@@ -15,7 +15,7 @@ export function ErrorComponent({
       <div className="max-w-md w-full text-center space-y-4">
         {status && <h1 className="text-6xl font-bold text-gray-400">{status}</h1>}
 
-        <h2 className="text-2xl font-semibold">{title}</h2>
+        <h2 className="text-big font-semibold">{title}</h2>
 
         <p className="text-gray-600">{children}</p>
 

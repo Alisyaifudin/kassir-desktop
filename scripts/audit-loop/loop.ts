@@ -235,7 +235,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
     await runFixPhase(ctx, last);
     if (ctx.interrupted) return finishInterrupted(ctx);
     if (state.finished) return;
-    const converged = maybeFinishAfterFix(ctx);
+    const converged = await maybeFinishAfterFix(ctx);
     if (converged) return;
   }
 
@@ -288,7 +288,7 @@ async function runLoop(config: LoopConfig): Promise<void> {
     if (ctx.interrupted) return finishInterrupted(ctx);
     if (state.finished) return;
 
-    const stopped = maybeFinishAfterFix(ctx);
+    const stopped = await maybeFinishAfterFix(ctx);
     if (stopped) return;
   }
 }

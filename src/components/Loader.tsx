@@ -230,22 +230,42 @@ export function useMutation<TInput, A, E>(run: (input: TInput) => Effect.Effect<
   const runRef = useRef(run);
   runRef.current = run;
 
+  // A mutation can outlive its component (a dialog that closes while saving).
+  // Setting state after unmount is a no-op in React 19 but the pending counter
+  // must still be right for the components that *are* mounted, so it is tracked
+  // per call and only written while mounted.
+  const mounted = useRef(true);
+  const inFlight = useRef(0);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
   const mutate = useCallback(async (input: TInput): Promise<Either.Either<A, E>> => {
-    setPending(true);
-    setError(null);
+    inFlight.current += 1;
+    if (mounted.current) {
+      setPending(true);
+      setError(null);
+    }
     try {
       const either = await Effect.runPromise(runRef.current(input).pipe(Effect.either));
-      Either.match(either, {
-        onLeft(error) {
-          setError(error);
-        },
-        onRight(data) {
-          setData(data);
-        },
-      });
+      if (mounted.current) {
+        Either.match(either, {
+          onLeft(error) {
+            setError(error);
+          },
+          onRight(data) {
+            setData(data);
+          },
+        });
+      }
       return either;
     } finally {
-      setPending(false);
+      inFlight.current -= 1;
+      // `pending` is false only once *every* in-flight call has settled.
+      if (mounted.current && inFlight.current === 0) setPending(false);
     }
   }, []);
 

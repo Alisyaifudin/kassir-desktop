@@ -154,11 +154,20 @@ export function generatePdfBytes(data: ReceiptData, option: ReceiptOption) {
       height: option.padding * 6,
     };
 
-    const textData = createReceiptData(data, paperSize.width);
+    // Everything below is synchronous pdf-lib/receipt work. A throw there would
+    // become an Effect *defect* (bypassing every `catchAll` on the print path),
+    // so it is lifted into the typed error channel explicitly.
+    const textData = yield* Effect.try({
+      try: () => createReceiptData(data, paperSize.width),
+      catch: (e) => new PdfDocError(e, "Gagal menyiapkan struk"),
+    });
     const maxWidth = paperSize.width - 2 * option.padding;
 
     // Expand text data: split wrapped text into multiple items
-    const expandedTextData = expandWrappedTextData(textData, maxWidth, style);
+    const expandedTextData = yield* Effect.try({
+      try: () => expandWrappedTextData(textData, maxWidth, style),
+      catch: (e) => new PdfDocError(e, "Gagal menyiapkan struk"),
+    });
 
     // Calculate paper height based on expanded text data
     for (const { size } of expandedTextData) {

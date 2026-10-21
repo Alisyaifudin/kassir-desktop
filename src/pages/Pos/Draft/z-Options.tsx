@@ -12,9 +12,9 @@ import {
 import { Textarea } from "~/components/ui/textarea";
 import { service } from "~/services";
 import type { Draft } from "~/services/transaction";
-import { run } from "../run";
+import { run } from "~/pages/_cart/run";
 import { Customer } from "./z-Customer";
-import { Precision } from "./z-Precision";
+import { Precision } from "~/pages/_cart/z-Precision";
 
 /**
  * The sale's optional details — precision, customer, note — behind one small

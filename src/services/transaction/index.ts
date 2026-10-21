@@ -114,7 +114,14 @@ export class TransactionService extends Context.Tag("TransactionService")<
       drafts: (mode: DraftMode) => Effect.Effect<Draft[], TransactionError>;
       byId: (id: string) => Effect.Effect<Draft, TransactionError | NotFound>;
       changes: Stream.Stream<Draft[], TransactionError>;
+      /**
+       * `null` while every cart edit is on disk; a cashier-facing message once a
+       * write failed ("Keranjang belum tersimpan: …").
+       */
+      saveError: Stream.Stream<string | null>;
     };
+    /** Write every pending cart edit now instead of waiting out the debounce. */
+    flush: () => Effect.Effect<void, TransactionError>;
     add: { new: (mode: DraftMode) => Effect.Effect<string, TransactionError> };
     /**
      * Commit the draft as a record, in one transaction: the record and its

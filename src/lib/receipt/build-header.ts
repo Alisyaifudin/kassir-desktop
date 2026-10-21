@@ -28,7 +28,14 @@ export function buildHeaderSection(info: ReceiptData["info"], record: ReceiptDat
     text: orderNo,
     size: "normal",
   });
-  const datetime = formatDate(record.paidAt, "short") + ", " + formatTime(record.paidAt, "short");
+  // A credit (utang) record has no `paidAt` yet: print the credit date and say
+  // so, instead of dating the receipt as if it had been settled.
+  const printedAt = record.paidAt ?? record.creditAt ?? record.createdAt;
+  const datetime =
+    (record.paidAt === null ? "Kredit " : "") +
+    formatDate(printedAt, "short") +
+    ", " +
+    formatTime(printedAt, "short");
   // Cashier info (if enabled) and datetime
   if (info.showCashier) {
     const cashier = "Kasir: " + capitalize(record.cashier);

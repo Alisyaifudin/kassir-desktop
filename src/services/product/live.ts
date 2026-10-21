@@ -422,12 +422,74 @@ export const ProductLive = Layer.effect(
       });
     }
 
+    /**
+     * True when a freshly read state describes the same rows as the one in the
+     * ref. Every child table stamps its own `*_updated_at` on write, so comparing
+     * those timestamps is enough and costs O(children) instead of a deep equal.
+     */
+    function sameChildren<T extends { id: string; updatedAt: number }>(a: T[], b: T[]): boolean {
+      return (
+        a.length === b.length &&
+        a.every(
+          (item, index) => item.id === b[index].id && item.updatedAt === b[index].updatedAt,
+        )
+      );
+    }
+
+    function sameState(a: ProductState, b: ProductState): boolean {
+      return (
+        a.name === b.name &&
+        a.note === b.note &&
+        a.updatedAt === b.updatedAt &&
+        a.syncAt === b.syncAt &&
+        sameChildren(a.listings, b.listings) &&
+        sameChildren(a.stocks, b.stocks) &&
+        sameChildren(a.properties, b.properties) &&
+        sameChildren(a.productNames, b.productNames) &&
+        sameChildren(a.images, b.images)
+      );
+    }
+
+    /**
+     * Re-reads the catalogue. Unchanged products keep their identity, so a write
+     * that touches one row does not invalidate every memoised list downstream.
+     */
     function hydrate(): Effect.Effect<void, ProductError> {
       return Effect.gen(function* () {
         const states = yield* loadAll();
-        yield* SubscriptionRef.set(productsRef, states);
+        const previous = yield* SubscriptionRef.get(productsRef);
+        const byId = new Map(previous.map((state) => [state.id, state]));
+        const merged = states.map((state) => {
+          const before = byId.get(state.id);
+          return before !== undefined && sameState(before, state) ? before : state;
+        });
         loaded = true;
+        // Nothing actually changed: do not emit, so no page re-renders.
+        const unchanged =
+          merged.length === previous.length && merged.every((state, i) => state === previous[i]);
+        if (unchanged) return;
+        yield* SubscriptionRef.set(productsRef, merged);
       });
+    }
+
+    // `get.all` / `changes` hand out `Product`, not the internal `ProductState`.
+    // Re-mapping them on every emission would throw away the identity
+    // preservation above, so the views (and the array) are memoised.
+    const productViews = new WeakMap<ProductState, Product>();
+    let viewedStates: ProductState[] | null = null;
+    let viewedProducts: Product[] = [];
+
+    function toProducts(states: ProductState[]): Product[] {
+      if (states === viewedStates) return viewedProducts;
+      viewedStates = states;
+      viewedProducts = states.map((state) => {
+        const cached = productViews.get(state);
+        if (cached !== undefined) return cached;
+        const view = toProduct(state);
+        productViews.set(state, view);
+        return view;
+      });
+      return viewedProducts;
     }
 
     function ensureLoaded(): Effect.Effect<void, ProductError> {
@@ -459,7 +521,7 @@ export const ProductLive = Layer.effect(
         all() {
           return ensureLoaded().pipe(
             Effect.zipRight(SubscriptionRef.get(productsRef)),
-            Effect.map((states) => states.map(toProduct)),
+            Effect.map(toProducts),
           );
         },
         byId,
@@ -496,7 +558,7 @@ export const ProductLive = Layer.effect(
         changes: Stream.unwrap(
           ensureLoaded().pipe(
             Effect.as(
-              productsRef.changes.pipe(Stream.map((states) => states.map(toProduct))),
+              productsRef.changes.pipe(Stream.map(toProducts)),
             ),
           ),
         ),

@@ -19,21 +19,21 @@ export function BrandPanel() {
         <div className="flex size-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur small:size-12">
           <ReceiptText className="size-8 small:size-6" />
         </div>
-        <span className="text-4xl font-bold tracking-tight small:text-3xl">Kassir</span>
+        <span className="text-big font-bold tracking-tight">Kassir</span>
       </div>
 
       <div className="relative flex flex-col gap-6 small:gap-4">
         <h1 className="max-w-lg text-5xl font-bold leading-[1.1] tracking-tight small:text-4xl">
           Kelola toko Anda dengan lebih mudah.
         </h1>
-        <p className="max-w-md text-xl text-white/80 small:text-lg">
+        <p className="max-w-md text-normal text-white/80">
           Semua yang Anda butuhkan untuk menjalankan bisnis — dari transaksi hingga laporan.
         </p>
         <ul className="mt-2 flex flex-col gap-3 small:mt-1 small:gap-2">
           {features.map(({ icon: Icon, text }) => (
             <li
               key={text}
-              className="flex items-center gap-3 text-lg text-white/90 small:gap-2 small:text-base"
+              className="flex items-center gap-3 text-small text-white/90 small:gap-2"
             >
               <span className="flex size-9 items-center justify-center rounded-lg bg-white/15 small:size-8">
                 <Icon className="size-5 small:size-4" />

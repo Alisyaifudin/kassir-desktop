@@ -18,8 +18,8 @@ import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { EXTRA_PRESETS, type Extra, type ExtraPreset } from "../mock";
 import { recalcExtras } from "~/lib/purchase";
-import { rupiah } from "../util-rupiah";
-import { SELECTED_RING } from "./z-Cell";
+import { rupiah } from "~/pages/_cart/util-rupiah";
+import { SELECTED_RING } from "~/pages/_cart/z-Cell";
 import { ExtraCard } from "./z-Extra";
 import { ExtraSearch } from "./z-ExtraSearch";
 import {

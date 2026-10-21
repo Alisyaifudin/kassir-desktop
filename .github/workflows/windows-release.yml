@@ -53,6 +53,17 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      # Fail fast on a red tree: `tauri build` runs `bun run build`, which runs
+      # `tsc`, so a type error used to surface only inside the installer build.
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Unit tests
+        run: bun test
+
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -70,3 +81,26 @@ jobs:
           # push -> always draft (previous behaviour); dispatch -> as requested.
           releaseDraft: ${{ github.event_name != 'workflow_dispatch' || inputs.draft == 'true' }}
           prerelease: false
+
+  # Tier-0 end-to-end: the real router in Chromium against sql.js, running the
+  # real migrations (`bun run test:e2e`). Non-blocking until the suite covers
+  # more than the happy-path sale — the unit tests above are the gate.
+  e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: bun run test:e2e

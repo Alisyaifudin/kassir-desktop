@@ -27,6 +27,7 @@ import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
 import { image } from "~/lib/image";
 import { DEBOUNCE_DELAY, METHOD_BASE_ID } from "~/lib/constants";
+import { log } from "~/lib/log";
 
 /** The same limits the product gallery enforces. */
 const MAX_IMAGE_SIZE = 10 * 1e6;
@@ -159,90 +160,314 @@ function rowToDraft(
   };
 }
 
-/** The draft row plus its payments, the whole aggregate as one atomic rewrite. */
+/** The draft's own row, upserted so a fresh draft and an edit share one shape. */
+function recordStatement(draft: Draft): Statement {
+  return {
+    sql: `INSERT INTO tx_records (
+        tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
+        tx_record_mode, tx_record_query, tx_record_fix, tx_record_note,
+        tx_record_rounding, tx_record_customer_id, tx_record_customer_name,
+        tx_record_customer_phone, tx_record_supplier_id, tx_record_supplier_name
+      ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13)
+      ON CONFLICT(tx_record_id) DO UPDATE SET
+        tx_record_order = excluded.tx_record_order,
+        tx_record_flag = excluded.tx_record_flag,
+        tx_record_title = excluded.tx_record_title,
+        tx_record_mode = excluded.tx_record_mode,
+        tx_record_fix = excluded.tx_record_fix,
+        tx_record_note = excluded.tx_record_note,
+        tx_record_rounding = excluded.tx_record_rounding,
+        tx_record_customer_id = excluded.tx_record_customer_id,
+        tx_record_customer_name = excluded.tx_record_customer_name,
+        tx_record_customer_phone = excluded.tx_record_customer_phone,
+        tx_record_supplier_id = excluded.tx_record_supplier_id,
+        tx_record_supplier_name = excluded.tx_record_supplier_name`,
+    bindings: [
+      draft.id,
+      draft.order,
+      draft.flag,
+      draft.title,
+      draft.mode,
+      draft.fix,
+      draft.note,
+      draft.rounding,
+      draft.customerId,
+      draft.customerName,
+      draft.customerPhone,
+      draft.supplierId,
+      draft.supplierName,
+    ],
+  };
+}
+
+function insertListingStatement(draftId: string, listing: DraftListing): Statement {
+  return {
+    sql: `INSERT INTO tx_listings (
+        tx_listing_id, tx_record_id, listing_id, tx_listing_name, tx_listing_code,
+        tx_listing_price, tx_listing_unit, tx_listing_qty, tx_listing_kind
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'retail')`,
+    bindings: [
+      listing.id,
+      draftId,
+      listing.listingId ?? null,
+      listing.name,
+      listing.code,
+      listing.price,
+      listing.unit,
+      listing.qty,
+    ],
+  };
+}
+
+function updateListingStatement(listing: DraftListing): Statement {
+  return {
+    sql: `UPDATE tx_listings SET
+        listing_id = $2, tx_listing_name = $3, tx_listing_code = $4,
+        tx_listing_price = $5, tx_listing_unit = $6, tx_listing_qty = $7
+      WHERE tx_listing_id = $1`,
+    bindings: [
+      listing.id,
+      listing.listingId ?? null,
+      listing.name,
+      listing.code,
+      listing.price,
+      listing.unit,
+      listing.qty,
+    ],
+  };
+}
+
+const DELETE_LISTING: (id: string) => Statement = (id) => ({
+  sql: `DELETE FROM tx_listings WHERE tx_listing_id = $1`,
+  bindings: [id],
+});
+
+function insertDiscountStatement(listingId: string, discount: DraftListing["discounts"][number]): Statement {
+  return {
+    sql: `INSERT INTO tx_discounts (
+        tx_disc_id, tx_listing_id, tx_disc_value, tx_disc_eff, tx_disc_kind
+      ) VALUES ($1, $2, $3, $4, $5)`,
+    bindings: [discount.id, listingId, discount.value, discount.eff, discount.kind],
+  };
+}
+
+function insertExtraStatement(draftId: string, extra: DraftExtra): Statement {
+  return {
+    sql: `INSERT INTO tx_extras (
+        tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value, tx_extra_eff
+      ) VALUES ($1, $2, $3, $4, $5, 0)`,
+    bindings: [extra.id, draftId, extra.kind, extra.name, extra.value],
+  };
+}
+
+function updateExtraStatement(extra: DraftExtra): Statement {
+  return {
+    sql: `UPDATE tx_extras SET
+        tx_extra_kind = $2, tx_extra_name = $3, tx_extra_value = $4
+      WHERE tx_extra_id = $1`,
+    bindings: [extra.id, extra.kind, extra.name, extra.value],
+  };
+}
+
+function insertMethodStatement(draftId: string, method: DraftMethod): Statement {
+  return {
+    sql: `INSERT INTO tx_methods (tx_method_id, tx_record_id, method_id, tx_method_value)
+          VALUES ($1, $2, $3, $4)`,
+    bindings: [method.id, draftId, method.methodId, method.value],
+  };
+}
+
+function updateMethodStatement(method: DraftMethod): Statement {
+  return {
+    sql: `UPDATE tx_methods SET method_id = $2, tx_method_value = $3 WHERE tx_method_id = $1`,
+    bindings: [method.id, method.methodId, method.value],
+  };
+}
+
+function insertImageStatement(draftId: string, img: DraftImage): Statement {
+  return {
+    sql: `INSERT INTO tx_images (tx_image_id, tx_image_order, tx_image_name, tx_image_mime, tx_record_id)
+          VALUES ($1, $2, $3, $4, $5)`,
+    bindings: [img.id, img.order, img.name, img.mime, draftId],
+  };
+}
+
+function updateImageStatement(img: DraftImage): Statement {
+  return {
+    sql: `UPDATE tx_images SET tx_image_order = $2, tx_image_name = $3, tx_image_mime = $4
+           WHERE tx_image_id = $1`,
+    bindings: [img.id, img.order, img.name, img.mime],
+  };
+}
+
+/**
+ * The draft row plus every child row, as one atomic rewrite. Used when the whole
+ * aggregate is new: `add.new` and `unsubmit`. Edits use {@link statementsForChange}.
+ */
 function statementsFor(draft: Draft): Statement[] {
   return [
-    {
-      sql: `INSERT INTO tx_records (
-          tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
-          tx_record_mode, tx_record_query, tx_record_fix, tx_record_note,
-          tx_record_rounding, tx_record_customer_id, tx_record_customer_name,
-          tx_record_customer_phone, tx_record_supplier_id, tx_record_supplier_name
-        ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13)
-        ON CONFLICT(tx_record_id) DO UPDATE SET
-          tx_record_order = excluded.tx_record_order,
-          tx_record_flag = excluded.tx_record_flag,
-          tx_record_title = excluded.tx_record_title,
-          tx_record_mode = excluded.tx_record_mode,
-          tx_record_fix = excluded.tx_record_fix,
-          tx_record_note = excluded.tx_record_note,
-          tx_record_rounding = excluded.tx_record_rounding,
-          tx_record_customer_id = excluded.tx_record_customer_id,
-          tx_record_customer_name = excluded.tx_record_customer_name,
-          tx_record_customer_phone = excluded.tx_record_customer_phone,
-          tx_record_supplier_id = excluded.tx_record_supplier_id,
-          tx_record_supplier_name = excluded.tx_record_supplier_name`,
-      bindings: [
-        draft.id,
-        draft.order,
-        draft.flag,
-        draft.title,
-        draft.mode,
-        draft.fix,
-        draft.note,
-        draft.rounding,
-        draft.customerId,
-        draft.customerName,
-        draft.customerPhone,
-        draft.supplierId,
-        draft.supplierName,
-      ],
-    },
+    recordStatement(draft),
     { sql: `DELETE FROM tx_listings WHERE tx_record_id = $1`, bindings: [draft.id] },
-    ...draft.listings.map((listing) => ({
-      sql: `INSERT INTO tx_listings (
-          tx_listing_id, tx_record_id, listing_id, tx_listing_name, tx_listing_code,
-          tx_listing_price, tx_listing_unit, tx_listing_qty, tx_listing_kind
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'retail')`,
-      bindings: [
-        listing.id,
-        draft.id,
-        listing.listingId ?? null,
-        listing.name,
-        listing.code,
-        listing.price,
-        listing.unit,
-        listing.qty,
-      ],
-    })),
+    ...draft.listings.map((listing) => insertListingStatement(draft.id, listing)),
     ...draft.listings.flatMap((listing) =>
-      listing.discounts.map((discount) => ({
-        sql: `INSERT INTO tx_discounts (
-            tx_disc_id, tx_listing_id, tx_disc_value, tx_disc_eff, tx_disc_kind
-          ) VALUES ($1, $2, $3, $4, $5)`,
-        bindings: [discount.id, listing.id, discount.value, discount.eff, discount.kind],
-      })),
+      listing.discounts.map((discount) => insertDiscountStatement(listing.id, discount)),
     ),
     { sql: `DELETE FROM tx_extras WHERE tx_record_id = $1`, bindings: [draft.id] },
-    ...draft.extras.map((extra) => ({
-      sql: `INSERT INTO tx_extras (
-          tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value, tx_extra_eff
-        ) VALUES ($1, $2, $3, $4, $5, 0)`,
-      bindings: [extra.id, draft.id, extra.kind, extra.name, extra.value],
-    })),
+    ...draft.extras.map((extra) => insertExtraStatement(draft.id, extra)),
     { sql: `DELETE FROM tx_methods WHERE tx_record_id = $1`, bindings: [draft.id] },
-    ...draft.methods.map((method) => ({
-      sql: `INSERT INTO tx_methods (tx_method_id, tx_record_id, method_id, tx_method_value)
-            VALUES ($1, $2, $3, $4)`,
-      bindings: [method.id, draft.id, method.methodId, method.value],
-    })),
+    ...draft.methods.map((method) => insertMethodStatement(draft.id, method)),
     { sql: `DELETE FROM tx_images WHERE tx_record_id = $1`, bindings: [draft.id] },
-    ...draft.images.map((img) => ({
-      sql: `INSERT INTO tx_images (tx_image_id, tx_image_order, tx_image_name, tx_image_mime, tx_record_id)
-            VALUES ($1, $2, $3, $4, $5)`,
-      bindings: [img.id, img.order, img.name, img.mime, draft.id],
-    })),
+    ...draft.images.map((img) => insertImageStatement(draft.id, img)),
   ];
+}
+
+function sameRecordRow(previous: Draft, draft: Draft): boolean {
+  return (
+    previous.order === draft.order &&
+    previous.flag === draft.flag &&
+    previous.title === draft.title &&
+    previous.mode === draft.mode &&
+    previous.fix === draft.fix &&
+    previous.note === draft.note &&
+    previous.rounding === draft.rounding &&
+    previous.customerId === draft.customerId &&
+    previous.customerName === draft.customerName &&
+    previous.customerPhone === draft.customerPhone &&
+    previous.supplierId === draft.supplierId &&
+    previous.supplierName === draft.supplierName
+  );
+}
+
+function sameListingRow(previous: DraftListing, listing: DraftListing): boolean {
+  return (
+    (previous.listingId ?? null) === (listing.listingId ?? null) &&
+    previous.name === listing.name &&
+    previous.code === listing.code &&
+    previous.unit === listing.unit &&
+    previous.price === listing.price &&
+    previous.qty === listing.qty
+  );
+}
+
+function sameDiscounts(
+  previous: DraftListing["discounts"],
+  next: DraftListing["discounts"],
+): boolean {
+  if (previous.length !== next.length) return false;
+  return previous.every((discount, index) => {
+    const other = next[index];
+    return (
+      discount.id === other.id &&
+      discount.value === other.value &&
+      discount.eff === other.eff &&
+      discount.kind === other.kind
+    );
+  });
+}
+
+function sameExtra(previous: DraftExtra, extra: DraftExtra): boolean {
+  return (
+    previous.kind === extra.kind && previous.name === extra.name && previous.value === extra.value
+  );
+}
+
+function sameMethod(previous: DraftMethod, method: DraftMethod): boolean {
+  return previous.methodId === method.methodId && previous.value === method.value;
+}
+
+function sameImage(previous: DraftImage, img: DraftImage): boolean {
+  return (
+    previous.order === img.order && previous.name === img.name && previous.mime === img.mime
+  );
+}
+
+/**
+ * Only what actually changed since the last successful write. One qty edit is one
+ * `UPDATE`; the alternative (`statementsFor`) is ~2 statements per line plus 1 per
+ * discount on every keystroke, all through the single SQLite connection the rest
+ * of the app is using.
+ */
+function statementsForChange(previous: Draft | undefined, draft: Draft): Statement[] {
+  if (previous === undefined) return statementsFor(draft);
+
+  const statements: Statement[] = [];
+  if (!sameRecordRow(previous, draft)) statements.push(recordStatement(draft));
+
+  const previousListings = new Map(previous.listings.map((line) => [line.id, line]));
+  const nextIds = new Set(draft.listings.map((line) => line.id));
+  for (const line of previous.listings) {
+    if (!nextIds.has(line.id)) statements.push(DELETE_LISTING(line.id));
+  }
+  for (const line of draft.listings) {
+    const before = previousListings.get(line.id);
+    if (before === undefined) {
+      statements.push(insertListingStatement(draft.id, line));
+      for (const discount of line.discounts) {
+        statements.push(insertDiscountStatement(line.id, discount));
+      }
+      continue;
+    }
+    if (!sameListingRow(before, line)) statements.push(updateListingStatement(line));
+    if (!sameDiscounts(before.discounts, line.discounts)) {
+      statements.push({
+        sql: `DELETE FROM tx_discounts WHERE tx_listing_id = $1`,
+        bindings: [line.id],
+      });
+      for (const discount of line.discounts) {
+        statements.push(insertDiscountStatement(line.id, discount));
+      }
+    }
+  }
+
+  const previousExtras = new Map(previous.extras.map((extra) => [extra.id, extra]));
+  const nextExtras = new Set(draft.extras.map((extra) => extra.id));
+  for (const extra of previous.extras) {
+    if (!nextExtras.has(extra.id)) {
+      statements.push({
+        sql: `DELETE FROM tx_extras WHERE tx_extra_id = $1`,
+        bindings: [extra.id],
+      });
+    }
+  }
+  for (const extra of draft.extras) {
+    const before = previousExtras.get(extra.id);
+    if (before === undefined) statements.push(insertExtraStatement(draft.id, extra));
+    else if (!sameExtra(before, extra)) statements.push(updateExtraStatement(extra));
+  }
+
+  const previousMethods = new Map(previous.methods.map((method) => [method.id, method]));
+  const nextMethods = new Set(draft.methods.map((method) => method.id));
+  for (const method of previous.methods) {
+    if (!nextMethods.has(method.id)) {
+      statements.push({
+        sql: `DELETE FROM tx_methods WHERE tx_method_id = $1`,
+        bindings: [method.id],
+      });
+    }
+  }
+  for (const method of draft.methods) {
+    const before = previousMethods.get(method.id);
+    if (before === undefined) statements.push(insertMethodStatement(draft.id, method));
+    else if (!sameMethod(before, method)) statements.push(updateMethodStatement(method));
+  }
+
+  const previousImages = new Map(previous.images.map((img) => [img.id, img]));
+  const nextImages = new Set(draft.images.map((img) => img.id));
+  for (const img of previous.images) {
+    if (!nextImages.has(img.id)) {
+      statements.push({
+        sql: `DELETE FROM tx_images WHERE tx_image_id = $1`,
+        bindings: [img.id],
+      });
+    }
+  }
+  for (const img of draft.images) {
+    const before = previousImages.get(img.id);
+    if (before === undefined) statements.push(insertImageStatement(draft.id, img));
+    else if (!sameImage(before, img)) statements.push(updateImageStatement(img));
+  }
+
+  return statements;
 }
 
 export const TransactionLive = Layer.effect(
@@ -256,6 +481,13 @@ export const TransactionLive = Layer.effect(
     const draftsRef = yield* SubscriptionRef.make<Draft[]>([]);
     let loaded = false;
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    // The last version of each draft that is known to be on disk, so a flush can
+    // write only what changed (see `statementsForChange`).
+    const written = new Map<string, Draft>();
+    // `null` while the cart on screen is also the cart on disk. A failed write
+    // sets a message the POS renders, because a cart that looks saved but is not
+    // is the one failure a cashier must not discover by crashing.
+    const saveErrorRef = yield* SubscriptionRef.make<string | null>(null);
 
     function load(): Effect.Effect<Draft[], TransactionError> {
       return Effect.gen(function* () {
@@ -354,6 +586,7 @@ export const TransactionLive = Layer.effect(
     function hydrate(): Effect.Effect<void, TransactionError> {
       return Effect.gen(function* () {
         const drafts = yield* load();
+        for (const draft of drafts) written.set(draft.id, draft);
         yield* SubscriptionRef.set(draftsRef, drafts);
         loaded = true;
       });
@@ -366,14 +599,50 @@ export const TransactionLive = Layer.effect(
       });
     }
 
+    /**
+     * Writes one draft's pending changes. Failures are recorded on
+     * {@link saveErrorRef} and in the app log (`src/lib/log.ts`, the file Setting
+     * > Log reads) rather than swallowed into the console.
+     */
     function flush(id: string): Effect.Effect<void> {
       return Effect.gen(function* () {
         const drafts = yield* SubscriptionRef.get(draftsRef);
         const draft = drafts.find((d) => d.id === id);
         if (draft === undefined) return;
-        yield* db
-          .transaction(statementsFor(draft))
-          .pipe(Effect.catchAll((error) => Effect.logError(`tx flush failed: ${error.message}`)));
+        const statements = statementsForChange(written.get(id), draft);
+        if (statements.length === 0) return;
+        yield* db.transaction(statements).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              written.set(id, draft);
+            }),
+          ),
+          Effect.tap(() => SubscriptionRef.set(saveErrorRef, null)),
+          Effect.catchAll((error) => {
+            const message = `Keranjang belum tersimpan: ${error.message}`;
+            log.error(message);
+            return SubscriptionRef.set(saveErrorRef, message);
+          }),
+        );
+      });
+    }
+
+    /** Write every draft now, instead of waiting out the debounce. */
+    function flushAll(): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        const drafts = yield* SubscriptionRef.get(draftsRef);
+        yield* Effect.forEach(
+          drafts,
+          (draft) => {
+            const timer = timers.get(draft.id);
+            if (timer !== undefined) {
+              clearTimeout(timer);
+              timers.delete(draft.id);
+            }
+            return flush(draft.id);
+          },
+          { discard: true },
+        );
       });
     }
 
@@ -421,7 +690,13 @@ export const TransactionLive = Layer.effect(
         },
         // Hydrates on first subscribe, then replays the cart and every change.
         changes: Stream.unwrap(ensureLoaded().pipe(Effect.as(draftsRef.changes))),
+        saveError: saveErrorRef.changes,
       },
+      flush: () =>
+        ensureLoaded().pipe(
+          Effect.zipRight(flushAll()),
+          Effect.mapError((error) => new TransactionError({ message: error.message })),
+        ),
       submit(id, input) {
         return Effect.gen(function* () {
           yield* ensureLoaded();
@@ -573,6 +848,7 @@ export const TransactionLive = Layer.effect(
               return Effect.fail(error);
             }),
           );
+          written.delete(id);
           yield* SubscriptionRef.update(draftsRef, (list) =>
             list.filter((candidate) => candidate.id !== id),
           );
@@ -723,6 +999,7 @@ export const TransactionLive = Layer.effect(
           // step fails the cashier has both, which is recoverable; the reverse
           // would lose the sale.
           yield* db.transaction(statementsFor(draft)).pipe(Effect.mapError(toError));
+          written.set(draft.id, draft);
           yield* SubscriptionRef.update(draftsRef, (list) => [...list, draft]);
           const removed = yield* Effect.either(
             record.delete
@@ -785,6 +1062,7 @@ export const TransactionLive = Layer.effect(
               clearTimeout(timer);
               timers.delete(id);
             }
+            written.delete(id);
             yield* SubscriptionRef.update(draftsRef, (list) =>
               list.filter((draft) => draft.id !== id),
             );

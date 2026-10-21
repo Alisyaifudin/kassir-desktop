@@ -55,9 +55,10 @@ export function buildAppLive(hidden: HiddenLive) {
   const infoLive = InfoLive.pipe(Layer.provide(hidden));
   const methodLive = MethodLive.pipe(Layer.provide(hidden));
   const logLive = LogLive;
-  const listingLive = ListingLive.pipe(Layer.provide(hidden));
   const moneyLive = MoneyLive.pipe(Layer.provide(hidden));
   const productLive = ProductLive.pipe(Layer.provide(hidden));
+  // The POS catalogue is derived from `product`, so it has no state of its own.
+  const listingLive = ListingLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
   const printerLive = PrinterLive.pipe(Layer.provide(hidden));
   const socialLive = SocialLive.pipe(Layer.provide(hidden));
   const supplierLive = SupplierLive.pipe(Layer.provide(hidden));

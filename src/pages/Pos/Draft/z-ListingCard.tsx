@@ -7,12 +7,12 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal, recalcDiscounts } from "~/lib/purchase";
-import { rupiah } from "../util-rupiah";
+import { rupiah } from "~/pages/_cart/util-rupiah";
 import type { Line } from "../mock";
 import type { Field, QtySub } from "./listing-grid";
-import { Cell, EDITING_RING, SELECTED_RING } from "./z-Cell";
-import type { LineIssue } from "./code-issues";
-import { CodeIssueView, FieldIssue } from "./z-Issue";
+import { Cell, EDITING_RING, SELECTED_RING } from "~/pages/_cart/z-Cell";
+import type { LineIssue } from "~/pages/_cart/code-issues";
+import { CodeIssueView, FieldIssue } from "~/pages/_cart/z-Issue";
 
 /**
  * One line of the purchase, laid out as a twelve-column block: who and how much
@@ -112,6 +112,7 @@ export function ListingCard({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Hapus baris"
             className="rounded-full hover:bg-destructive hover:text-primary-foreground"
             title="Hapus baris"
             onClick={(event) => {

@@ -15,7 +15,7 @@ import { cn } from "~/lib/utils";
 import { Kbd } from "~/components/ui/kdb";
 import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
-import { run } from "../run";
+import { run } from "~/pages/_cart/run";
 
 /**
  * The open purchase drafts, one `tx_records` row each. The number is the tab's

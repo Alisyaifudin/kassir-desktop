@@ -4,6 +4,7 @@ import { Effect, Either } from "effect";
 import { toast } from "sonner";
 import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
+import { SaveError } from "~/components/SaveError";
 import { service } from "~/services";
 import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { Draft, type Stage } from "./Draft";
@@ -19,7 +20,7 @@ import {
 import { useUser } from "~/hooks/use-user";
 import { useStage } from "./use-stage";
 import { useDraftId } from "./use-draft";
-import { findLineIssues, hasHardIssue } from "./Draft/code-issues";
+import { findLineIssues, hasHardIssue } from "~/pages/_cart/code-issues";
 import { Complete } from "./z-Complete";
 
 /**
@@ -342,6 +343,7 @@ function Screen({
           extras={extras}
           onExtras={setExtras}
         />
+        <SaveError />
         <Bottom
           draft={active}
           grand={grand}

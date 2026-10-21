@@ -17,7 +17,7 @@ export function NotFound() {
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Anda tersesat</h2>
+          <h2 className="text-big font-bold tracking-tight">Anda tersesat</h2>
           <p className="text-zinc-500 dark:text-zinc-400">
             Halaman yang anda cari tidak ditemukan.
           </p>

@@ -69,7 +69,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
                       >
                         <span
                           className={cn(
-                            "flex size-11 shrink-0 items-center justify-center rounded-full text-xl font-semibold text-white small:size-9 small:text-lg",
+                            "flex size-11 shrink-0 items-center justify-center rounded-full text-normal font-semibold text-white small:size-9 small:text-small",
                             avatarColor(cashier.id),
                           )}
                         >

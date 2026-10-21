@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Effect } from "effect";
 import type { RecordFull } from "~/services/record";
+import { log } from "~/lib/log";
 import { programPrintReceipt } from "./program-print-receipt";
 
 export function usePrintReceipt(record: RecordFull) {
@@ -9,9 +10,17 @@ export function usePrintReceipt(record: RecordFull) {
 
   async function print() {
     setLoading(true);
-    const message = await Effect.runPromise(programPrintReceipt(record));
-    setLoading(false);
-    setError(message);
+    try {
+      setError(await Effect.runPromise(programPrintReceipt(record)));
+    } catch (e) {
+      // The program reports typed failures as a message; only a defect can land
+      // here. Either way the button must leave its loading state.
+      const message = e instanceof Error ? e.message : "Gagal mencetak struk";
+      log.error(message);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return { loading, error, print } as const;

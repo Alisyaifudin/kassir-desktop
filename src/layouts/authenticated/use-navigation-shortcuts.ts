@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { showShortcut } from "./use-shortcut";
 
@@ -11,45 +11,54 @@ const linkMap = {
   5: "/setting",
 } as Record<string, string>;
 
-let press = false;
+/** Alt typing / AltGr / IME belong to the field the operator is in, not to us. */
+function isEditableTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  if (element === null || typeof element.tagName !== "string") return false;
+  return (
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.tagName === "SELECT" ||
+    element.isContentEditable
+  );
+}
 
 export function useNavigationShortcuts() {
   const navigate = useNavigate();
+  const pressed = useRef(false);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (!e.altKey) return;
-      e.preventDefault();
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
       const link = linkMap[e.key] as string | undefined;
+      // Only the combinations we act on are swallowed. Everything else — Alt
+      // alone, Alt+Left, AltGr characters, Alt while typing — stays native.
       if (link === undefined) return;
+      e.preventDefault();
       showShortcut(false);
       navigate(link);
     }
 
     function handleAltDown(e: KeyboardEvent) {
-      if (e.altKey) {
-        e.preventDefault();
-        if (press) return;
-        showShortcut((prev) => !prev);
-        press = true;
-      }
+      if (e.key !== "Alt" || e.ctrlKey || e.metaKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (pressed.current) return;
+      showShortcut((prev) => !prev);
+      pressed.current = true;
     }
 
     function handleAltUp(e: KeyboardEvent) {
-      if (!e.altKey) {
-        e.preventDefault();
-        press = false;
-      }
+      if (e.key === "Alt") pressed.current = false;
     }
 
-    document.body.addEventListener("keydown", handleKey);
-    document.body.addEventListener("keydown", handleAltDown);
-    document.body.addEventListener("keyup", handleAltUp);
+    window.addEventListener("keydown", handleKey);
+    window.addEventListener("keydown", handleAltDown);
+    window.addEventListener("keyup", handleAltUp);
 
     return () => {
-      document.body.removeEventListener("keydown", handleKey);
-      document.body.removeEventListener("keydown", handleAltDown);
-      document.body.removeEventListener("keyup", handleAltUp);
+      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("keydown", handleAltDown);
+      window.removeEventListener("keyup", handleAltUp);
     };
   }, [navigate]);
 }

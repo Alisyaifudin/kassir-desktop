@@ -22,7 +22,7 @@ import {
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { lineSubtotal, recalcDiscounts } from "~/lib/purchase";
-import { rupiah } from "../util-rupiah";
+import { rupiah } from "~/pages/_cart/util-rupiah";
 import type { DiscountKind, DiscountLine, Line } from "../mock";
 
 /** start column of value, kind, eff, x (no# is column 0). */

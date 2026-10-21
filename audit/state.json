@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-21T17:23:46.360Z",
+  "updatedAt": "2026-10-21T17:55:51.934Z",
+  "config": {
+    "targetScore": 95,
+    "convergeWindow": 5,
+    "convergeEpsilon": 2,
+    "maxIterations": 20
+  },
+  "iterations": [
+    {
+      "iteration": 1,
+      "startedAt": "2026-10-21T17:23:57.686Z",
+      "audit": {
+        "score": 60,
+        "categories": {
+          "architecture": 58,
+          "react": 62,
+          "tauri": 55,
+          "ux": 68,
+          "codeQuality": 52,
+          "testing": 62
+        },
+        "verdict": "Biggest remaining risk is data truth, not styling: `ListingLive` is a second, never-invalidated catalogue cache, so the POS shows pre-sale stock, misses newly created products and sells stale prices until the operator presses the Topbar's full-page-reload button — in a POS that is a money bug, not a caching nit. Second is the delivery pipeline: `tsc` exits 2 (including two real errors in live code, one of which is the credit-receipt crash), so `bun run build` / `tauri build` cannot produce the MSI and CI has no typecheck, lint or test step. Third is scope creep in the Tauri release ACL (no CSP, `sql:allow-execute`, recursive appdata write over the SQLite files, a dev MCP bridge permission and a LAN HTTP origin), plus two dead Rust auth commands signing tokens with a hard-coded secret. This is a first audit, so nothing \"improved\"; the assets to build on are real — a coherent Effect service layer, Decimal-based money math, 19 unit suites covering stock/credit/discounts, and a new sql.js e2e harness that runs the real migrations — and the recent regression that the restock credit fix did not reach the POS copy of the same screen is exactly what the duplication report is about. Deliberately not covered in depth: the migration SQL (fingerprinted, read only for the `tx_*`/foreign-key shape), the `money`/`record`/`analytics` page bodies beyond their data hooks, the sync pipeline (dead code), the Rust printer path on real Windows hardware, the updater/`latest.json` trust chain, and a screen-reader audit of the POS grid.",
+        "reports": [
+          {
+            "slug": "release-build-typecheck-broken",
+            "title": "`bun run build` fails: typecheck gates the release build and does not pass",
+            "severity": "critical",
+            "category": "tooling",
+            "files": [
+              "package.json",
+              "src-tauri/tauri.conf.json",
+              "tsconfig.json",
+              ".github/workflows/windows-release.yml",
+              "src/components/createErrorBoundary.tsx",
+              "src/lib/receipt/build-header.ts",
+              "src/pages/Home/z-NavGrid.tsx"
+            ],
+            "summary": "`package.json` defines `build` as `tsc && vite build` and Tauri runs it as `beforeBuildCommand`, but `tsc` exits 2 on the current tree — including errors in shipped code (`createErrorBoundary.tsx`, `receipt/build-header.ts`, `Home/z-NavGrid.tsx`). A clean `tauri build` / CI release therefore cannot produce the MSI, and the type errors that would have caught the credit-receipt crash are being ignored.",
+            "path": "iterations/001/report-01-release-build-typecheck-broken.md",
+            "createdAt": "2026-10-21T17:29:45.048Z"
+          },
+          {
+            "slug": "stale-listing-cache",
+            "title": "POS catalogue is a second, never-invalidated source of truth (stale stock, invisible new products)",
+            "severity": "high",
+            "category": "architecture",
+            "files": [
+              "src/services/listing/live.ts",
+              "src/services/product/live.ts",
+              "src/services/record/live.ts",
+              "src/services/wiring.ts",
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/layouts/authenticated/z-Refresh.tsx"
+            ],
+            "summary": "`ListingLive` caches prices/stock/codes in its own `SubscriptionRef` and has no invalidation path: `product.refresh()` and `record.refreshProducts()` update a different cache. The POS therefore shows pre-sale stock, misses newly created products, and sells stale prices until the user presses the Topbar's full-page-reload button.",
+            "path": "iterations/001/report-02-stale-listing-cache.md",
+            "createdAt": "2026-10-21T17:29:59.154Z"
+          },
+          {
+            "slug": "cart-flush-silent-and-whole-draft",
+            "title": "Cart writes fail silently and rewrite the entire draft on every edit",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/services/transaction/live.ts",
+              "src/pages/Pos/page.tsx",
+              "src/lib/constants.ts",
+              "src/lib/log.ts"
+            ],
+            "summary": "The POS cart is persisted by rewriting every row of the draft 100 ms after each edit, and `flush` swallows failures into `Effect.logError` while callers use bare `Effect.runFork`. A failed write is invisible in the UI and absent from the Tauri log, so a cart that looks saved can vanish on crash/reload; the rewrite is also O(lines + discounts) statements per keystroke.",
+            "path": "iterations/001/report-03-cart-flush-silent-and-whole-draft.md",
+            "createdAt": "2026-10-21T17:30:13.057Z"
+          },
+          {
+            "slug": "pos-restock-duplication",
+            "title": "Two live copies (plus two dead ones) of the POS cart screen diverge on every fix",
+            "severity": "high",
+            "category": "maintainability",
+            "files": [
+              "src/pages/Pos/Draft/z-Methods.tsx",
+              "src/pages/Restock/Draft/z-Methods.tsx",
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Restock/Draft/z-Listing.tsx",
+              "src/pages/Shop",
+              "src/pages/Stock-PENDING",
+              "src/route.tsx"
+            ],
+            "summary": "`/pos` and `/restock` are two hand-maintained copies of the same cart screen (~3,800 duplicated lines in `Draft/` alone, plus duplicated shells), and the most recent commit fixed a credit-failure bug in only one of them. Two further dead copies (`pages/Shop`, `pages/Stock-PENDING`, ~8,000 lines) still compile and are the ones a newcomer is most likely to edit.",
+            "path": "iterations/001/report-04-pos-restock-duplication.md",
+            "createdAt": "2026-10-21T17:30:26.095Z"
+          },
+          {
+            "slug": "dead-legacy-trees-under-src",
+            "title": "~10k lines of unrouted legacy code under `src/` that imports deleted modules",
+            "severity": "medium",
+            "category": "architecture",
+            "files": [
+              "src/lib/sync",
+              "src/pages/Shop",
+              "src/pages/Stock-PENDING",
+              "src/pages/Analytics",
+              "src/pages/Setting/Sync_PENDING",
+              "src/hooks/use-get-products.ts",
+              "src/route.tsx",
+              "src-tauri/src/api/mod.rs",
+              "src-tauri/Cargo.toml"
+            ],
+            "summary": "`src/lib/sync`, `src/pages/Shop`, `src/pages/Stock-PENDING`, `src/pages/Analytics`, `src/pages/Setting/Sync_PENDING` and two hooks are unrouted legacy code (~10k lines) importing modules that no longer exist (`~/database`, `~/store`, `~/server`, `~/transaction`, `~/middleware`). They are most of the typecheck failure, they mislead edits, and the Rust twin `src-tauri/src/api/` is dead too but still pulls axum/sqlx/tokio into `Cargo.toml`.",
+            "path": "iterations/001/report-05-dead-legacy-trees-under-src.md",
+            "createdAt": "2026-10-21T17:30:38.743Z"
+          },
+          {
+            "slug": "tauri-capability-surface",
+            "title": "Release capabilities are far wider than the app needs (no CSP, raw SQL, broad fs, dev bridge)",
+            "severity": "high",
+            "category": "tauri",
+            "files": [
+              "src-tauri/capabilities/default.json",
+              "src-tauri/capabilities/desktop.json",
+              "src-tauri/tauri.conf.json",
+              "src-tauri/tauri.dev.conf.json",
+              "src-tauri/src/lib.rs",
+              "src-tauri/Cargo.toml",
+              "vite.config.ts"
+            ],
+            "summary": "The release window has `csp: null`, `sql:allow-execute`, recursive read/write over `$APPLOCALDATA` (where the SQLite files live), an HTTP scope pointing at a developer LAN host, `opener:default`, and the `mcp-bridge:default` automation permission; `tauri-plugin-mcp-bridge` is a normal (non-optional) dependency so it links into the release binary. Any injection or compromised dependency gets full database and filesystem write rather than a rendering bug.",
+            "path": "iterations/001/report-06-tauri-capability-surface.md",
+            "createdAt": "2026-10-21T17:30:55.504Z"
+          },
+          {
+            "slug": "rust-jwt-hardcoded-secret",
+            "title": "Unused, forgeable JWT IPC commands with a hard-coded signing secret",
+            "severity": "medium",
+            "category": "security",
+            "files": [
+              "src-tauri/src/jwt.rs",
+              "src-tauri/src/auth.rs",
+              "src-tauri/src/lib.rs",
+              "src-tauri/src/printer.rs",
+              "src-tauri/Cargo.toml",
+              "src/services/auth/live.ts"
+            ],
+            "summary": "`src-tauri/src/jwt.rs` ships `encode_jwt`/`decode_jwt` IPC commands signed with a hard-coded secret (`\"super_secret_coy\"`) while the app's real session is an unvalidated `localStorage` object; the commands are unused. It also contains a `panic!` on unknown roles, `expect` on timestamps, and bcrypt hashing that blocks the async runtime.",
+            "path": "iterations/001/report-07-rust-jwt-hardcoded-secret.md",
+            "createdAt": "2026-10-21T17:31:10.893Z"
+          },
+          {
+            "slug": "credit-receipt-crash",
+            "title": "Printing a credit sale's receipt throws an uncatchable defect (stuck print button)",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/lib/receipt/build-header.ts",
+              "src/lib/receipt/index.ts",
+              "src/lib/date.ts",
+              "src/services/record/index.ts",
+              "src/pages/Record/Item/z-Receipt/use-print-receipt.ts",
+              "src/pages/Record/Item/z-Receipt/program-print-receipt.ts",
+              "src/pages/Setting/Printer/util-program-print.ts"
+            ],
+            "summary": "`record.paidAt` is `number | null` (null for credit sales) but `buildHeaderSection` feeds it to `formatDate`/`formatTime`, which call `Temporal.Instant.fromEpochMilliseconds(null)`. The throw happens as unwrapped sync code inside `Effect.gen`, so it becomes a defect that every `catchAll` misses: printing an unpaid receipt fails with no message and leaves the print button stuck loading.",
+            "path": "iterations/001/report-08-credit-receipt-crash.md",
+            "createdAt": "2026-10-21T17:31:24.038Z"
+          },
+          {
+            "slug": "hydrate-per-mutation",
+            "title": "Every mutation re-reads the whole aggregate from SQLite instead of patching the ref",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/services/product/live.ts",
+              "src/services/extra/live.ts",
+              "src/services/method/live.ts",
+              "src/services/money/live.ts",
+              "src/services/cashier/live.ts",
+              "src/services/record/live.ts"
+            ],
+            "summary": "Most services answer every write with `yield* hydrate()`, re-selecting the entire aggregate from SQLite (product reloads six tables, 20 call sites) and replacing every object in its `SubscriptionRef`. Cost scales with catalogue size, destroys referential stability for memoised lists, and diverges from the documented \"write backend then update the ref\" pattern that `CashierLive` already follows.",
+            "path": "iterations/001/report-09-hydrate-per-mutation.md",
+            "createdAt": "2026-10-21T17:31:45.483Z"
+          },
+          {
+            "slug": "pos-render-storm",
+            "title": "Every cart keystroke re-renders and re-animates the entire POS card list",
+            "severity": "medium",
+            "category": "react",
+            "files": [
+              "src/pages/Pos/page.tsx",
+              "src/pages/Pos/Draft/z-Listing.tsx",
+              "src/pages/Pos/Draft/z-ListingCard.tsx",
+              "src/pages/Pos/Draft/z-Cell.tsx",
+              "src/pages/Pos/Draft/z-Methods.tsx",
+              "src/services/transaction/live.ts",
+              "src/components/Loader.tsx",
+              "src/main.tsx"
+            ],
+            "summary": "`useStream(service.transaction.get.changes)` hands the POS a fresh `Draft[]` on every keystroke, and the card path has no memo boundaries (no `memo` on `ListingCard`/`Cell`, dnd-kit `useSortable` and `motion.div` per row), so typing a note re-renders and re-animates the whole cart. `useMutation` additionally has no unmount guard and a single shared `pending` flag.",
+            "path": "iterations/001/report-10-pos-render-storm.md",
+            "createdAt": "2026-10-21T17:32:03.206Z"
+          },
+          {
+            "slug": "design-tokens-and-a11y-drift",
+            "title": "Hard-coded text sizes, unnamed icon buttons, and an Alt handler that cancels every Alt key",
+            "severity": "medium",
+            "category": "ux",
+            "files": [
+              "src/layouts/authenticated/z-Topbar.tsx",
+              "src/layouts/authenticated/z-TopNavList.tsx",
+              "src/layouts/authenticated/use-navigation-shortcuts.ts",
+              "src/layouts/authenticated/use-shortcut.ts",
+              "src/layouts/authenticated/z-Refresh.tsx",
+              "src/components/ErrorBoundary.tsx",
+              "src/components/ErrorComponent.tsx",
+              "src/components/NotFound.tsx",
+              "src/pages/Pos/Draft/z-ListingCard.tsx",
+              "src/components/ui/button.tsx"
+            ],
+            "summary": "Shared chrome and error surfaces hard-code `text-3xl`/`text-2xl`/`text-xl`/`text-[10px]` instead of `text-normal`/`text-big`, so the app's own Besar/Kecil size mode only half-works and the error screen renders 10px text. Icon-only buttons (Back, Refresh, delete row) have no accessible name, and the global Alt handler calls `preventDefault()` on every Alt keydown before checking for a match, cancelling normal Alt typing and native Alt+Left.",
+            "path": "iterations/001/report-11-design-tokens-and-a11y-drift.md",
+            "createdAt": "2026-10-21T17:32:19.304Z"
+          },
+          {
+            "slug": "tests-not-wired-to-tooling",
+            "title": "19 unit suites and a new e2e harness that no script or CI job ever runs",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "package.json",
+              ".github/workflows/windows-release.yml",
+              "playwright.config.ts",
+              "e2e",
+              "src/services/transaction/submit.test.ts",
+              "src/services/record/credit.test.ts"
+            ],
+            "summary": "There are 19 solid `bun test` suites and a new sql.js-backed Playwright harness, but `package.json` has no `test` script and CI runs neither tests, lint, nor typecheck before building the installer. The three highest-risk paths found in this audit — cart flush failure, catalogue invalidation, credit receipt — have no coverage at all, and e2e covers only the happy-path sale.",
+            "path": "iterations/001/report-12-tests-not-wired-to-tooling.md",
+            "createdAt": "2026-10-21T17:32:31.748Z"
+          }
+        ],
+        "at": "2026-10-21T17:32:48.572Z"
+      },
+      "finishedAt": "2026-10-21T17:55:51.934Z",
+      "fix": {
+        "summary": "## What changed\n\n**Delivery pipeline is green again (was the critical finding).** `npx tsc --noEmit` went from 595 error lines / exit 2 to exit 0, and `bun run build` now exits 0 (verified, then `dist/` removed since it is git-ignored). `bun run lint` — which already failed before the pass — is now exit 0 too. `package.json` gained `typecheck` / `test` / `test:watch`, and `.github/workflows/windows-release.yml` now runs typecheck → lint → unit tests *before* `tauri-action`, plus a non-blocking `e2e` job.\n\n**Two real bugs the red typecheck was hiding are fixed.** A credit receipt no longer crashes: `build-header.ts` narrows `paidAt ?? creditAt ?? createdAt` and prints `\"Kredit \"`, and the receipt pipeline now lifts its synchronous throws into `PdfDocError` (+ `catchAllCause` in `programPrint`, `try/finally` in `use-print-receipt`) so the print button always leaves its loading state. The `createErrorBoundary` generics were rebuilt so its returned class is genuinely `ComponentType<ErrorBoundaryProps<E>>`.\n\n**Dead weight removed (≈10k TS lines + a Rust twin).** `src/lib/sync`, `src/pages/{Shop,Stock-PENDING,Analytics}`, `src/pages/Setting/Sync_PENDING`, two dead hooks, `src-tauri/src/api/`, `jwt.rs` (with the hard-coded `\"super_secret_coy\"` key, `jsonwebtoken`, `chrono`), and the `axum`/`tower`/`tokio`/`sqlx`/`futures` dependencies. `cargo check` passes, with and without the new `mcp-bridge` feature.\n\n**Cart persistence is no longer write-through-whole-cart-and-swallow.** `flush` diffs against the last persisted draft (`statementsForChange`) so one cell edit is one `UPDATE`; failures land in `get.saveError`, render in a new `<SaveError />` banner + toast on both POS screens, and go to the app log. New `transaction.flush()` drains pending writes, and the Topbar Refresh button refuses to reload if that drain fails.\n\n**POS catalogue is now a projection, not a cache.** `ListingLive` was rewritten as a derivation over `ProductService` (`get.all`/`get.changes`), so a price edit, a new product, a delete or a sale shows up without a reload. Backed by 3 new layer tests.\n\n**Release ACL narrowed:** no `mcp-bridge:*`, no LAN origin, no `opener:default`, fs write only under `$APPDATA/images` and `$APPLOCALDATA/logs`, a real CSP in the release config, and the MCP plugin is now an optional Cargo feature enabled only by `bun run tauri:dev`.\n\n**Smaller:** `useMutation` got an unmount guard and a concurrency-correct `pending`; `product.hydrate` preserves object identity and skips no-op emissions; the Alt shortcut handler no longer cancels every Alt key; hard-coded `text-3xl`/`text-[10px]` etc. replaced with `text-big`/`text-normal`/`text-small` in the shared chrome, error screens, login panel and shadcn primitives; icon-only buttons got `aria-label`s; 7 byte-identical cart files + 2 utils moved into `src/pages/_cart/`.\n\n**Tests:** 196 → 198 passing suites-wise (22 files, up from 19 with no runner), including first-ever coverage for cart-flush failure, catalogue invalidation, the credit receipt, and product identity.\n\n## What remains for the next auditor\n\n- **POS render storm (partial).** A note keystroke still re-renders the whole cart: the draft stream is unfiltered and the card path has no `memo`. Needs either a per-field subscription (`get.meta(id)`/`get.lines(id)`) or `memo` + id-keyed stable callbacks in both `z-Listing.tsx` copies. I did not ship a comparator that ignores callbacks — that is a stale-closure risk.\n- **Hydrate-per-mutation (partial).** `product`/`extra`/`method`/`money` `set.*` still re-select the whole aggregate; only the downstream re-render cost was removed. `extra`/`method`/`money` are mechanical conversions to the `CashierLive` pattern.\n- **POS/Restock duplication (partial).** The two page shells, `z-Methods`, `z-Listing`, `z-Extras`, `z-ListingCard`, `z-Discount`, `z-Tabs`, the grids and `use-draft`/`use-stage` are still two hand-maintained copies; `src/pages/_cart/` is the seam to continue in.\n- **CSP is unverified at runtime.** Nobody has run the MSI against the new policy. Smoke-test print, the image gallery and the receipt PDF in a release build before shipping.\n- **e2e coverage** is still happy-path-sale only; credit and cart store/restore specs are missing, and the new `e2e` CI job has never run.\n- `@tauri-apps/plugin-opener` is still in `package.json` (the Rust plugin and capability were removed); nothing imports it.",
+        "fixes": [
+          {
+            "report": "release-build-typecheck-broken",
+            "status": "fixed",
+            "note": "`npx tsc --noEmit` is now clean (exit 0, was 595 error lines). Fixes: (a) live errors — `createErrorBoundary.tsx` rebuilt around a single `createBoundary<E>` helper whose `State.error` is `unknown`, so the boundary class is assignable to `ComponentType<ErrorBoundaryProps<E>>` and `instanceof` typechecks; `receipt/build-header.ts` now narrows `paidAt` (see credit-receipt-crash); dropped the unused `Store` icon import in `Home/z-NavGrid.tsx`. (b) The rest of the 595 lines were the dead legacy trees (deleted, see dead-legacy-trees-under-src). Added `typecheck`, `test`, `test:watch` scripts to package.json and three steps to `.github/workflows/windows-release.yml` (typecheck, lint, unit tests) before `tauri-action`, so a red tree fails before the installer build. Also fixed the duplicate `tauri_plugin_http::init()` in `src-tauri/src/lib.rs`. Remaining: `bun run build` (the vite half) was not run because it emits `dist/`; `tsc && vite build` is now the only gate and tsc passes."
+          },
+          {
+            "report": "dead-legacy-trees-under-src",
+            "status": "fixed",
+            "note": "Deleted with plain `rm -rf` (not committed): `src/lib/sync/`, `src/pages/Shop/`, `src/pages/Stock-PENDING/`, `src/pages/Analytics/`, `src/pages/Setting/Sync_PENDING/`, `src/hooks/use-get-products.ts`, `src/hooks/use-product-search.tsx`. Verified nothing live imported them (only the commented-out route lines and `src/services/PLAN.md`). Also removed the two dead commented route imports in `src/route.tsx`. Rust twin: deleted `src-tauri/src/api/` (never declared in lib.rs) and dropped `axum`, `tower`, `tower-http`, `futures`, `tokio`, `sqlx` and `jsonwebtoken`/`chrono` from `Cargo.toml`; `cargo check` and `cargo check --features mcp-bridge` both pass. `bun run lint` also went from failing to exit 0 as a side effect. Kept `src/hooks/use-extra-search.tsx` — it is still used by `src/pages/Extra/use-filter-extras.ts`. Not done: `src/lib/result.ts` and the legacy `use-data.ts` helpers still exist; nothing in the report's acceptance criteria required removing them, and they no longer have dead consumers under `src/pages`."
+          },
+          {
+            "report": "rust-jwt-hardcoded-secret",
+            "status": "fixed",
+            "note": "Deleted `src-tauri/src/jwt.rs` (and its `jsonwebtoken` + `chrono` deps) plus the `jwt::decode_jwt`/`jwt::encode_jwt` entries in `generate_handler!`, so `rg \"super_secret_coy|encode_jwt|decode_jwt\" src-tauri src` is now empty and no signing secret ships in the binary. `auth.rs`: `hash_password`/`verify_password` now run bcrypt inside `tauri::async_runtime::spawn_blocking` instead of blocking a tokio worker. `printer.rs`: `validate_pdf` no longer returns raw byte dumps/implementation hints — it logs the offending header with `log::error!` and returns one plain Indonesian sentence; the two `PrinterDevice::all()` errors likewise. `cargo check` (default and `--features mcp-bridge`) passes. Left as-is deliberately: `src/services/auth/live.ts` sessions stay a local `{id,name,role}` object validated against `CashierService` (that is the designed model per `.pi/skills/services.md`); switching to signed tokens is a feature, not a fix. Also did not touch `AuthError`'s message shape or the printer's \"Printer not found. Available printers: [...]\" text (useful, not an internals leak)."
+          },
+          {
+            "report": "tauri-capability-surface",
+            "status": "partial",
+            "note": "Release ACL narrowed in `src-tauri/capabilities/default.json`: removed `mcp-bridge:default`, `opener:default`, the LAN origin `http://192.168.225.187:8787/**`, `fs:allow-appdata-read-recursive`, `fs:allow-appdata-write-recursive` and `fs:read-dirs`; `fs:read-files`/`fs:write-files` are now scoped to exactly `$APPDATA/images[/**]` (product covers) and `$APPLOCALDATA/logs[/**]` (the log file). The MCP permission moved to a new `capabilities/mcp-bridge.json`, which is listed only by `tauri.dev.conf.json`; `tauri.conf.json` now pins `app.security.capabilities: [\"default\",\"desktop-capability\"]` so a release build cannot pick it up. `tauri-plugin-mcp-bridge` became an optional dependency behind a `mcp-bridge` Cargo feature (default off, `cargo check` proves it is not compiled), `bun run tauri:dev` passes `--features mcp-bridge`, and `lib.rs` gates the plugin on `all(debug_assertions, feature=\"mcp-bridge\")`. Set a real CSP (self-only script/style/font, `img-src ... data: blob:` for the existing `URL.createObjectURL` covers, `connect-src 'self' ipc: http://ipc.localhost`); dev keeps `csp: null` in `tauri.dev.conf.json` because Vite HMR needs it. Also dropped the unused `tauri-plugin-opener` crate + plugin init. Kept `sql:allow-execute` (the service layer needs it) and documented it as the one intentional hole in the capability description. NOT verified: an actual `tauri build` + a run of the installed MSI against the new CSP (needs Windows); the next auditor should smoke-test print, image gallery and the receipt PDF under the release CSP."
+          },
+          {
+            "report": "credit-receipt-crash",
+            "status": "fixed",
+            "note": "`record.paidAt` is now narrowed, not cast: `build-header.ts` prints `record.paidAt ?? record.creditAt ?? record.createdAt` and prefixes `\"Kredit \"` when `paidAt` is null, so a credit receipt says so instead of dating itself as settled (`tsc` errors at build-header.ts:31 are gone). Defence in depth on the throw path: `generatePdfBytes` wraps `createReceiptData` and `expandWrappedTextData` in `Effect.try({ catch: (e) => new PdfDocError(e, \"Gagal menyiapkan struk\") })` so a sync throw lands in the typed error channel instead of becoming an uncatchable defect; `programPrint` gained a trailing `Effect.catchAllCause` that logs `Cause.pretty` and returns \"Gagal mencetak struk\"; `use-print-receipt.ts` now uses `try/catch/finally` so `setLoading(false)` always runs (the stuck print button). Added `src/lib/receipt/build-header.test.ts` (3 cases: paid date, credit date + \"Kredit\" label, all-dates-null fallback) — passes under `bun test`. Remaining: the drawing loop in `generatePdfBytes` is not individually wrapped (covered instead by `programPrint`'s `catchAllCause`), and there is no test that runs `generatePdfBytes` end-to-end (pdf-lib + font embedding not exercised in unit tests)."
+          },
+          {
+            "report": "stale-listing-cache",
+            "status": "partial",
+            "note": "Root cause fixed: `ListingLive` no longer caches anything. It is now a projection of `ProductService` (`src/services/listing/live.ts` rewritten) — `get.all`/`get.search` map `product.get.all()` and `get.changes` is `product.get.changes.pipe(Stream.map(toListings))`, so every write path that already refreshed `product` (`product.set.*` and `record.refreshProducts()` after each commit) now reaches the POS with no reload. Wiring: `ListingLive.pipe(Layer.provide(hidden), Layer.provide(productLive))`, product defined first (no cycle — product does not know listing). Deleted the five `SELECT_*` constants and the DatabaseService dependency from the listing layer. Added `src/services/listing/live.test.ts` (3 cases over the real schema via `makeTestDatabase`): a newly created product is sellable with its stock, a reprice is visible without a reload, a deleted listing disappears. Deviation from the report: kept `src/layouts/authenticated/z-Refresh.tsx`'s reload button instead of deleting it (the report's suggested fix #4 / acceptance criterion 4), because report 11 wants an accessible name on it and it is now a deliberate escape hatch rather than the only way to resync; it now flushes pending cart writes first and refuses to reload if the flush fails. Not done: the submit-time stock guard (report item 3); `submit` still trusts the client-side qty."
+          },
+          {
+            "report": "cart-flush-silent-and-whole-draft",
+            "status": "fixed",
+            "note": "Three changes in `src/services/transaction/live.ts`: (1) **Incremental writes** — new `statementsForChange(previous, draft)` diffs against a `written` map of the last successfully persisted draft, so a qty/note edit emits one `UPDATE` (or none) instead of `DELETE`+re-`INSERT` of every listing, discount, extra, method and image; the full rewrite (`statementsFor`) is now only used for `add.new`, `unsubmit` and an unknown draft. `written` is seeded on hydrate and maintained on flush/submit/unsubmit/delete. (2) **Failures are surfaced** — `flush` no longer swallows into `Effect.logError`: it records `\"Keranjang belum tersimpan: …\"` in a `SubscriptionRef<string|null>` exposed as `get.saveError` and logs through `src/lib/log.ts` (which reaches the file Setting → Log reads); a new `src/components/SaveError.tsx` renders it as a `role=\"status\"` banner + `toast.error` and is mounted on both `/pos` and `/restock`. Cleared on the next successful write. (3) **Drain before destructive actions** — added `transaction.flush()` (clears every debounce timer and writes now); `z-Refresh.tsx` awaits it before `window.location.reload()` and refuses to reload on failure. Also hardened `src/lib/log.ts`: the Tauri log plugin call is now fire-and-forget with the rejection swallowed, so logging can never break a caller or crash a unit test (this was making the new test fail). New `src/services/transaction/flush.test.ts` (3 cases): a failed write sets the error and recovers on the next flush; one cell edit issues exactly one `UPDATE tx_listings`; a flushed note is in the DB. All 202 tests, `tsc` and `eslint` pass. Remaining: the `SELECT_LISTINGS … ORDER BY rowid` ordering drift is moot for unchanged rows but a `DELETE`+re-`INSERT` of a *new* line still appends; no query-log statement count was measured on a real 30-line cart."
+          },
+          {
+            "report": "pos-restock-duplication",
+            "status": "partial",
+            "note": "Big reduction, not a full merge. (a) The two dead copies are gone (`src/pages/Shop/`, `src/pages/Stock-PENDING/`, plus the commented `shopRoute`/`analRoute` lines in `src/route.tsx`) — see dead-legacy-trees-under-src. (b) New shared module `src/pages/_cart/` now holds the pieces that were byte-identical between `/pos` and `/restock`: `z-Cell.tsx`, `z-SearchResults.tsx`, `z-Note.tsx`, `z-Precision.tsx`, `z-Issue.tsx`, `code-issues.ts` (+ its single test, the Restock duplicate deleted), and the two utilities `run.ts` and `util-rupiah.ts`. Both screens import from `~/pages/_cart/…`; the per-screen copies were deleted and all 26 import sites updated. Net: ~1,600 duplicated lines collapsed into 907 shared ones; `tsc`, `eslint` and all 196 tests pass. Remaining: `z-Methods.tsx` (734 vs 718), `z-Listing.tsx` (609 vs 544), `z-Extras.tsx`, `z-ListingCard.tsx`, `z-Discount.tsx`, `z-Tabs.tsx`, `listing-grid.ts`, `extra-grid.ts` and the page shells (`page.tsx`, `z-Bottom`, `z-Complete`, `use-draft`, `use-stage`) are still two hand-maintained copies — the full `mode` prop refactor is a multi-day job and was out of this pass's budget; the `_cart/` folder is the seam to continue in. Note for the next auditor: `Pos` has no credit path at all (the credit dialog only exists in `Restock/Draft/z-Kredit.tsx`), so the last commit's dialog fix has nothing to port to the sale screen."
+          },
+          {
+            "report": "hydrate-per-mutation",
+            "status": "partial",
+            "note": "Identity-preservation half done in `src/services/product/live.ts`: `hydrate()` now keeps the previous `ProductState` object for every product whose row and children's `*_updated_at` are unchanged (`sameState`/`sameChildren`), skips the `SubscriptionRef.set` entirely when nothing changed (no emission = no re-render), and `get.all`/`get.changes` were re-mapping every state on every emission, so the views are memoised too (`toProducts` + WeakMap per state). New `src/services/product/live.test.ts` asserts a rename leaves the other product's object identity intact and that a no-op `refresh()` re-emits nothing. Remaining (the bulk of the report): every `set.*` in `product` (20 call sites), `extra`, `method` and `money` still answers with a full `hydrate()`, so the six-table re-select per mutation and the SQLite round-trips are still there — only the downstream re-render cost is gone. `extra`/`method`/`money` are small and mechanical to convert to `SubscriptionRef.update` (the `CashierLive` pattern); that is the next step."
+          },
+          {
+            "report": "tests-not-wired-to-tooling",
+            "status": "fixed",
+            "note": "Wired up. `package.json` now has `\"typecheck\": \"tsc --noEmit\"`, `\"test\": \"bun test\"`, `\"test:watch\": \"bun test --watch\"` (the e2e specs are `.e2e.ts`, so `bun test` does not pick them up). `.github/workflows/windows-release.yml` gained three blocking steps before `tauri-action` — Typecheck, Lint, Unit tests — plus a separate `e2e` job (Playwright + `bunx playwright install --with-deps chromium`, `continue-on-error: true` as the report suggested while the suite stabilises). Coverage added for all three previously-untested high-risk paths: `src/services/transaction/flush.test.ts` (failed cart write surfaces a message + recovers; one cell edit = one UPDATE; a flushed note is on disk), `src/services/listing/live.test.ts` (new product sellable, reprice visible, delete disappears), `src/lib/receipt/build-header.test.ts` (credit receipt with `paidAt: null`), plus `src/services/product/live.test.ts` (identity/no-emit). `bun test` is 196 passing across 21 files, up from 19 suites with no runner. Remaining: e2e still covers only the happy-path sale (no credit flow, no cart store/restore spec) — the harness in `e2e/harness.ts` is the place to add them; and the new `e2e` CI job has never run on GitHub."
+          },
+          {
+            "report": "design-tokens-and-a11y-drift",
+            "status": "fixed",
+            "note": "Fixed the three named defects. (1) **Text tokens**: `z-Topbar` heading and `z-TopNavList` labels `text-3xl small:text-2xl` → `text-big`; `ErrorBoundary` `text-3xl`→`text-big`, `text-xl`→`text-normal`, `text-lg`→`text-normal`, `text-base`→`text-normal`, and the dev-only `text-[10px]` label → `text-small`; `ErrorComponent` `text-2xl`→`text-big`; `NotFound` `text-2xl sm:text-3xl`→`text-big`; `Login/z-BrandPanel` `text-4xl`→`text-big`, `text-xl`→`text-normal`, `text-lg/small:text-base`→`text-small`; `Login/z-LoginForm` avatar `text-xl small:text-lg`→`text-normal small:text-small`; shadcn primitives de-pxed: `button` `sm:text-xs`→`text-small`, `input` `file:text-sm`→`text-small`, `breadcrumb` `text-sm`→`text-small`, `table` caption `text-sm`→`text-small`, `field` `text-sm`/`text-base`→`text-small`/`text-normal`. (2) **Accessible names**: `aria-label`+`title` on the Topbar back button (\"Kembali\"), on `z-Refresh` (\"Muat ulang aplikasi\"), and `aria-label=\"Hapus baris\"` on the cart delete row in both `Pos/Draft/z-ListingCard.tsx` and `Restock/Draft/z-ListingCard.tsx`. (3) **Alt handler** (`use-navigation-shortcuts.ts`) rewritten: `preventDefault()` only when `linkMap[e.key]` actually resolves, nothing is cancelled while the target is an input/textarea/select/contentEditable, the legend now toggles on the `Alt` key itself instead of any keydown with `altKey`, listeners moved from `document.body` to `window`, the module-level `press` flag became a `useRef`, and `ctrl/meta` chords are ignored. Remaining: other pages still hard-code sizes outside the report's file list (`Money/History/z-DeletePocket`, `z-DeleteRecordBtn`, `z-SelectType`, `components/Notification.tsx`, `Login/z-BrandPanel`'s `text-5xl` hero, `NotFound`'s decorative `text-[10rem]` 404) — a follow-up sweep, deliberately left as a judgement call rather than blanket-replaced. No test asserts the Alt behaviour yet."
+          },
+          {
+            "report": "pos-render-storm",
+            "status": "partial",
+            "note": "Partial. Done: `useMutation` in `src/components/Loader.tsx` now tracks a `mounted` ref (no state writes after unmount) and a per-call `inFlight` counter, so `pending` is false only when every in-flight `mutate` has settled instead of the first completion clearing the spinner. Also reduced one of the two sources of churn: `product` now keeps object identity for unchanged rows and skips emitting when a refresh finds nothing new (see hydrate-per-mutation), so a catalogue reload no longer invalidates every memoised product row. NOT done — the actual POS render storm: `useStream(service.transaction.get.changes)` still hands the POS a new `Draft[]` on every keystroke (only the edited draft object changes; `listings`/`extras` array identities are preserved, so `z-Listing`'s `ids`/`rows` memos do hold), but `Screen` → `Draft` → `StageBody` → `ListingCard`/`Cell` are not `memo`-wrapped and the per-card callbacks are recreated inline, so a note keystroke still re-renders the whole cart. Fixing it properly needs either (a) a narrower per-field subscription on the draft (e.g. `get.meta(id)` / `get.lines(id)`) or (b) `memo` plus id-keyed stable callbacks threaded through both `Pos/Draft/z-Listing.tsx` and `Restock/Draft/z-Listing.tsx` — I judged a shallow `memo` with an ignoring comparator to be a stale-closure risk, so I did not ship it. No React DevTools measurement was taken."
+          }
+        ],
+        "at": "2026-10-21T17:55:51.934Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T17:55:51.934Z"
+        }
+      }
+    }
+  ]
+}

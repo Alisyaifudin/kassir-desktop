@@ -89,18 +89,18 @@ export default function ErrorBoundary() {
 
         {/* Text Content */}
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-big font-bold tracking-tight text-foreground">
             {errorStatus && (
-              <span className="text-muted-foreground mr-2 font-mono text-xl">[{errorStatus}]</span>
+              <span className="text-muted-foreground mr-2 font-mono text-normal">[{errorStatus}]</span>
             )}
             {errorTitle}
           </h1>
-          <p className="text-muted-foreground text-lg leading-relaxed">{errorMessage}</p>
+          <p className="text-muted-foreground text-normal leading-relaxed">{errorMessage}</p>
         </div>
 
         {/* Action Buttons - Pure Flat */}
         <div className="flex flex-col gap-3 w-full max-w-xs shrink-0">
-          <Button onClick={reloadPage} className="h-12 text-base font-bold tracking-wide uppercase">
+          <Button onClick={reloadPage} className="h-12 text-normal font-bold tracking-wide uppercase">
             Muat Ulang
           </Button>
 
@@ -124,7 +124,7 @@ export default function ErrorBoundary() {
           <div className="w-full mt-4 pt-8 border-t text-left">
             <div className="flex items-center gap-2 mb-4 text-muted-foreground">
               <Terminal className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">
+              <span className="text-small font-bold uppercase tracking-widest text-foreground/50">
                 Detail Teknis (Dev Tool)
               </span>
             </div>

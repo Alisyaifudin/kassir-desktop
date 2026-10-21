@@ -1,7 +1,6 @@
 use log::LevelFilter;
 mod auth;
 mod database;
-mod jwt;
 mod printer;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,7 +15,6 @@ pub fn run() {
                 .level(LevelFilter::Info)
                 .build(),
         )
-        .plugin(tauri_plugin_http::init()) // Add this line
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -25,21 +23,20 @@ pub fn run() {
                 .add_migrations("sqlite:data.db", database_migs)
                 .build(),
         )
-        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             auth::hash_password,
             auth::verify_password,
-            jwt::decode_jwt,
-            jwt::encode_jwt,
             printer::get_printers,
             printer::print_pdf,
         ]);
 
     // Debug-only MCP bridge for AI/e2e automation.
     // Bound to 127.0.0.1 so the automation socket is never reachable from the LAN,
-    // and never registered in release builds.
+    // and never registered in release builds. The plugin crate itself is an
+    // optional dependency behind the `mcp-bridge` feature, so a release build
+    // does not even link it; `bun run tauri:dev` passes the feature.
     // Requires `app.withGlobalTauri = true`, see src-tauri/tauri.dev.conf.json.
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, feature = "mcp-bridge"))]
     let builder = builder.plugin(
         tauri_plugin_mcp_bridge::Builder::new()
             .bind_address("127.0.0.1")
