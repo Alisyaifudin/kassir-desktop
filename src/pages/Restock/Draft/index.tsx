@@ -41,6 +41,8 @@ export function Draft({
   focusLast,
   onFocusPay,
   onExitUp,
+  onCredit,
+  creditDisabled,
 }: {
   draft: DraftModel;
   drafts: DraftModel[];
@@ -58,6 +60,8 @@ export function Draft({
   focusLast: number;
   onFocusPay: () => void;
   onExitUp: () => void;
+  onCredit: () => void;
+  creditDisabled: boolean;
 }) {
   // Bumped by F2; the payment stage watches it to put the cursor on its first
   // amount, even when it is already the open stage.
@@ -103,6 +107,8 @@ export function Draft({
         focusLast={focusLast}
         onFocusPay={onFocusPay}
         onExitUp={onExitUp}
+        onCredit={onCredit}
+        creditDisabled={creditDisabled}
       />
     </section>
   );
@@ -123,6 +129,8 @@ function StageBody({
   focusLast,
   onFocusPay,
   onExitUp,
+  onCredit,
+  creditDisabled,
 }: {
   stage: Stage;
   draft: DraftModel;
@@ -138,6 +146,8 @@ function StageBody({
   focusLast: number;
   onFocusPay: () => void;
   onExitUp: () => void;
+  onCredit: () => void;
+  creditDisabled: boolean;
 }) {
   if (stage === "listing") {
     return (
@@ -168,6 +178,8 @@ function StageBody({
       focusRounding={focusRounding}
       onFocusPay={onFocusPay}
       onExitUp={onExitUp}
+      onCredit={onCredit}
+      creditDisabled={creditDisabled}
     />
   );
 }

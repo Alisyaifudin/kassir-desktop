@@ -29,6 +29,7 @@ export function Complete({
   total,
   change,
   fix,
+  credit = false,
   onRestoreStart,
   onRestoreEnd,
   onRestored,
@@ -38,6 +39,7 @@ export function Complete({
   total: Decimal;
   change: Decimal;
   fix: number;
+  credit?: boolean;
   onRestoreStart: () => void;
   onRestoreEnd: () => void;
   onRestored: (draftId: string) => void;
@@ -131,21 +133,29 @@ export function Complete({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-big">Pembelian berhasil</DialogTitle>
+          <DialogTitle className="text-big">
+            {credit ? "Kredit berhasil" : "Pembelian berhasil"}
+          </DialogTitle>
           <DialogDescription>
-            Transaksi pembelian sudah tersimpan.
+            {credit
+              ? "Pembelian sudah dicatat sebagai kredit."
+              : "Transaksi pembelian sudah tersimpan."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-10">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-normal text-muted-foreground">Pembayaran</span>
+            <span className="text-normal text-muted-foreground">
+              {credit ? "Total kredit" : "Pembayaran"}
+            </span>
             <span className="text-big font-bold tabular-nums">{rupiah(total, fix)}</span>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-big text-muted-foreground">Kembalian</span>
-            <span className="text-grand-total font-bold tabular-nums">{rupiah(change, fix)}</span>
-          </div>
+          {credit ? null : (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-big text-muted-foreground">Kembalian</span>
+              <span className="text-grand-total font-bold tabular-nums">{rupiah(change, fix)}</span>
+            </div>
+          )}
         </div>
 
         {error === null ? null : <p className="text-small text-destructive">{error}</p>}

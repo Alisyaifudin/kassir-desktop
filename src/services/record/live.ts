@@ -1253,7 +1253,7 @@ export const RecordLive = Layer.effect(
                 {
                   createdAt: now,
                   paidAt: input.paidAt,
-                  creditAt: null,
+                  creditAt: input.creditAt,
                   rounding: input.rounding,
                   cashier: input.cashier,
                   mode: input.mode,
@@ -1465,7 +1465,9 @@ export const RecordLive = Layer.effect(
               });
             }
             for (const method of input.methods) {
-              if (method.pay === 0) continue;
+              // A credit keeps its chosen methods at zero so settlement can
+              // reuse them; a cash record drops unused zero rows.
+              if (method.pay === 0 && input.creditAt === null) continue;
               statements.push(insertMethod(recordId, method.methodId, method.pay));
             }
             for (const picture of input.images) {
@@ -1580,26 +1582,21 @@ export const RecordLive = Layer.effect(
               );
             }
             const methodId = yield* currentMethodId(id);
-            if (methodId === null) {
-              // Unreachable from the app (every record is committed with a
-              // method), and better than writing a record whose cached pay no
-              // longer matches its payments.
-              return yield* Effect.fail(
-                new RecordError({ message: "Catatan ini belum punya metode pembayaran" }),
-              );
-            }
             const now = Date.now();
-            yield* commit([
+            const statements: Statement[] = [
               { sql: "DELETE FROM record_methods WHERE record_id = $1", bindings: [id] },
-              insertMethod(id, methodId, input.pay),
-              {
-                sql: `UPDATE records SET
-                    record_pay = $1, record_rounding = $2,
-                    record_paid_at = $3, record_updated_at = $3, record_sync_at = NULL
-                  WHERE record_id = $4`,
-                bindings: [input.pay, input.rounding, now, id],
-              },
-            ]);
+            ];
+            if (methodId !== null) {
+              statements.push(insertMethod(id, methodId, input.pay));
+            }
+            statements.push({
+              sql: `UPDATE records SET
+                  record_pay = $1, record_rounding = $2,
+                  record_paid_at = $3, record_updated_at = $3, record_sync_at = NULL
+                WHERE record_id = $4`,
+              bindings: [input.pay, input.rounding, now, id],
+            });
+            yield* commit(statements);
             yield* bumpRevision();
           });
         },

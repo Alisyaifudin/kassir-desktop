@@ -123,7 +123,7 @@ export class TransactionService extends Context.Tag("TransactionService")<
      */
     submit: (
       id: string,
-      input: { cashier: string },
+      input: { cashier: string; credit?: boolean },
     ) => Effect.Effect<string, TransactionError | SubmitError>;
     /**
      * Undo a submission: write the record back as a draft, then delete the

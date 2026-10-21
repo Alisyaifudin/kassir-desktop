@@ -15,10 +15,10 @@ import {
  * top of the payment stage, away from `Bayar` at the bottom, and asks first —
  * a credit purchase is not a partial payment, it is a different kind of record.
  */
-export function Kredit() {
+export function Kredit({ onCredit, disabled }: { onCredit: () => void; disabled: boolean }) {
   return (
     <Dialog>
-      <Button asChild variant="outline">
+      <Button asChild variant="outline" disabled={disabled}>
         <DialogTrigger type="button">Kredit</DialogTrigger>
       </Button>
       <DialogContent>
@@ -37,10 +37,7 @@ export function Kredit() {
           </DialogClose>
           <Button
             variant="destructive"
-            onClick={() => {
-              // TODO(submit): commit this draft to `records` as a credit one
-              // (no payments, no rounding), then delete its `tx_records` row.
-            }}
+            onClick={onCredit}
           >
             Kredit
           </Button>

@@ -89,6 +89,7 @@ function Screen({
     total: Decimal;
     change: Decimal;
     fix: number;
+    credit: boolean;
   } | null>(null);
   // Batalkan rebuilds the cart asynchronously; hold the no-tabs effect until
   // the restored draft reaches the stream.
@@ -219,6 +220,7 @@ function Screen({
         total={complete.total}
         change={complete.change}
         fix={complete.fix}
+        credit={complete.credit}
         onRestoreStart={() => {
           setRestoring(true);
           setRestoredId(null);
@@ -251,6 +253,7 @@ function Screen({
   const subtotal = linesSubtotal(lines);
   const total = purchaseTotal(extras, subtotal);
   const grand = roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
+  const creditGrand = roundMoney(total, active.fix);
   const change = roundMoney(paidTotal(active.methods), active.fix).minus(grand);
 
   /** Leave the payment grid for the last row of the goods. */
@@ -260,21 +263,35 @@ function Screen({
   }
 
   /** Start the commit; returns whether the click/key should be swallowed. */
-  function submitDraft(): boolean {
-    if (complete !== null || submitting || hardIssue || grand.isZero() || change.isNegative()) {
+  function submitDraft(credit = false): boolean {
+    if (
+      complete !== null ||
+      submitting ||
+      hardIssue ||
+      (credit ? creditGrand.isZero() : grand.isZero())
+    ) {
+      return false;
+    }
+    if (!credit && change.isNegative()) {
       return false;
     }
     (document.activeElement as HTMLElement | null)?.blur();
     setSubmitting(true);
     void Effect.runPromise(
-      Effect.either(service.transaction.submit(active.id, { cashier: user.name })),
+      Effect.either(service.transaction.submit(active.id, { cashier: user.name, credit })),
     ).then((result) => {
       setSubmitting(false);
       if (Either.isLeft(result)) {
         toast.error(result.left.message);
         return;
       }
-      setComplete({ recordId: result.right, total: grand, change, fix: active.fix });
+      setComplete({
+        recordId: result.right,
+        total: credit ? creditGrand : grand,
+        change,
+        fix: active.fix,
+        credit,
+      });
     });
     return true;
   }
@@ -302,6 +319,10 @@ function Screen({
           onFocusPay={() => setFocusPay((count) => count + 1)}
           focusLast={focusLast}
           onExitUp={exitUp}
+          onCredit={() => {
+            void submitDraft(true);
+          }}
+          creditDisabled={hardIssue || creditGrand.isZero()}
         />
         <Bottom
           stage={stage}
@@ -313,7 +334,7 @@ function Screen({
           focusPay={focusPay}
           onFocusRounding={() => setFocusRounding((count) => count + 1)}
           onExitUp={exitUp}
-          onSubmit={submitDraft}
+          onSubmit={() => submitDraft(false)}
         />
         {submitting ? (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60">

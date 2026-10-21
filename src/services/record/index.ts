@@ -194,7 +194,8 @@ export type RecordDraftExtra = {
  */
 export type RecordDraftInput = {
   draftId: string;
-  paidAt: number;
+  paidAt: number | null;
+  creditAt: number | null;
   rounding: number;
   cashier: string;
   mode: RecordMode;

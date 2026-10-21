@@ -6,6 +6,7 @@ import { makeTestDatabase } from "../db/test-support";
 import { ProductError, ProductService } from "../product";
 import { ProductLive } from "../product/live";
 import { RecordLive } from "../record/live";
+import { RecordService } from "../record";
 import {
   SubmitError,
   TransactionError,
@@ -30,7 +31,7 @@ function setup() {
     Layer.provide(layer),
     Layer.provide(recordLayer),
   );
-  return { db, transactionLayer };
+  return { db, transactionLayer, recordLayer };
 }
 
 /** The catalog every test starts from: one product, two lots, one customer. */
@@ -101,6 +102,7 @@ type SaleOptions = {
   customerName?: string;
   customerPhone?: string;
   supplierName?: string;
+  credit?: boolean;
   stored?: boolean;
   cashier?: string;
   secondSubmit?: boolean;
@@ -137,7 +139,7 @@ async function submit(options: SaleOptions = {}) {
       if (options.stored === true) yield* tx.set.store(id);
 
       const result = yield* Effect.either(
-        tx.submit(id, { cashier: options.cashier ?? "Kasir" }),
+        tx.submit(id, { cashier: options.cashier ?? "Kasir", credit: options.credit }),
       );
       const second =
         options.secondSubmit === true
@@ -350,6 +352,45 @@ describe("TransactionService.submit — eligibility", () => {
       .get(recordId) as { product_event_value: number; product_event_capital: number };
     expect(event).toEqual({ product_event_value: 4, product_event_capital: 10000 });
     expect(count(db, "records")).toBe(1);
+  });
+
+  test("submits a cash purchase as a credit, ignoring payment and rounding", async () => {
+    const { db, result } = await submit({
+      mode: "outcoming",
+      credit: true,
+      rounding: 1000,
+      supplierName: "Toko Sumber",
+    });
+    const recordId = right(result);
+    const record = db
+      .query(
+        `SELECT record_paid_at, record_credit_at, record_pay, record_rounding,
+                record_supplier_name
+         FROM records WHERE record_id = ?`,
+      )
+      .get(recordId) as {
+      record_paid_at: number | null;
+      record_credit_at: number | null;
+      record_pay: number;
+      record_rounding: number;
+      record_supplier_name: string;
+    };
+    expect(record.record_paid_at).toBeNull();
+    expect(record.record_credit_at).not.toBeNull();
+    expect(record.record_pay).toBe(0);
+    expect(record.record_rounding).toBe(0);
+    expect(record.record_supplier_name).toBe("Toko Sumber");
+    expect(
+      db
+        .query("SELECT method_id, record_method_pay FROM record_methods WHERE record_id = ?")
+        .get(recordId),
+    ).toEqual({ method_id: "cash", record_method_pay: 0 });
+    const event = db
+      .query(
+        "SELECT product_event_value AS value, product_event_capital AS capital FROM product_events WHERE record_id = ?",
+      )
+      .get(recordId) as { value: number; capital: number };
+    expect(event).toEqual({ value: 4, capital: 10000 });
   });
 
   test("rejects a draft with no listings", async () => {
@@ -1217,6 +1258,28 @@ describe("TransactionService.submit — lifecycle", () => {
         record_deleted_at: number | null;
       }).record_deleted_at,
     ).not.toBeNull();
+  });
+
+  test("settles a submitted credit with its zero method row", async () => {
+    const { db, transactionLayer, recordLayer } = setup();
+    seed(db);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const record = yield* RecordService;
+        const id = yield* tx.add.new("outcoming");
+        yield* tx.listings.set(id, [makeLine()]);
+        yield* tx.methods.set(id, [makeMethod(40000)]);
+        const recordId = yield* tx.submit(id, { cashier: "Kasir", credit: true });
+        yield* record.set.payCredit(recordId, { pay: 40000, rounding: 0 });
+        return yield* record.get.byId(recordId);
+      }).pipe(Effect.provide(Layer.merge(transactionLayer, recordLayer))),
+    );
+    expect(outcome.paidAt).not.toBeNull();
+    expect(outcome.creditAt).not.toBeNull();
+    expect(outcome.pay).toBe(40000);
+    expect(outcome.methods).toHaveLength(1);
+    expect(outcome.methods[0].pay).toBe(40000);
   });
 
   test("still commits when the post-commit product refresh fails", async () => {

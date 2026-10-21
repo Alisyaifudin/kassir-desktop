@@ -41,6 +41,7 @@ function input(overrides: Partial<RecordDraftInput> = {}): RecordDraftInput {
   return {
     draftId: "d1",
     paidAt: 10,
+    creditAt: null,
     rounding: 0,
     cashier: "Kasir",
     mode: "incoming",

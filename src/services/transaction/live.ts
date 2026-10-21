@@ -479,23 +479,27 @@ export const TransactionLive = Layer.effect(
             (running, effect) => running.plus(effect.eff),
             subtotal,
           );
-          const grand = roundMoney(transactionGrandTotal(total, draft.rounding), draft.fix);
+          const credit = input.credit === true;
+          const rounding = credit ? 0 : draft.rounding;
+          const grand = roundMoney(transactionGrandTotal(total, rounding), draft.fix);
           if (grand.isZero()) {
             return yield* Effect.fail(
               new SubmitError({ kind: "payment", message: "Total transaksi tidak boleh nol" }),
             );
           }
-          const pay = roundMoney(paidTotal(draft.methods), draft.fix);
-          if (pay.lessThan(grand)) {
+          const pay = credit ? new Decimal(0) : roundMoney(paidTotal(draft.methods), draft.fix);
+          if (!credit && pay.lessThan(grand)) {
             return yield* Effect.fail(
               new SubmitError({ kind: "payment", message: "Pembayaran belum mencukupi" }),
             );
           }
 
-          const methods = draft.methods
-            .filter((method) => method.value !== 0)
-            .map((method) => ({ methodId: method.methodId, pay: method.value }));
-          if (methods.length === 0) {
+          const methods = credit
+            ? draft.methods.map((method) => ({ methodId: method.methodId, pay: 0 }))
+            : draft.methods
+                .filter((method) => method.value !== 0)
+                .map((method) => ({ methodId: method.methodId, pay: method.value }));
+          if (!credit && methods.length === 0) {
             return yield* Effect.fail(
               new SubmitError({ kind: "payment", message: "Metode pembayaran harus diisi" }),
             );
@@ -507,10 +511,12 @@ export const TransactionLive = Layer.effect(
             return [{ name: extra.name, value: extra.value, eff: effect.eff.toNumber(), kind: extra.kind }];
           });
 
+          const paidAt = credit ? null : Date.now();
           const payload: RecordDraftInput = {
             draftId: draft.id,
-            paidAt: Date.now(),
-            rounding: draft.rounding,
+            paidAt,
+            creditAt: credit ? Date.now() : null,
+            rounding,
             cashier: input.cashier,
             mode: draft.mode,
             pay: pay.toNumber(),

@@ -35,6 +35,8 @@ export function Payment({
   focusRounding,
   onFocusPay,
   onExitUp,
+  onCredit,
+  creditDisabled,
 }: {
   draft: Draft;
   grand: Decimal;
@@ -42,6 +44,8 @@ export function Payment({
   focusRounding: number;
   onFocusPay: () => void;
   onExitUp: () => void;
+  onCredit: () => void;
+  creditDisabled: boolean;
 }) {
   const res = {
     catalog: useStream(service.method.get.catalogChanges),
@@ -60,6 +64,8 @@ export function Payment({
             focusRounding={focusRounding}
             onFocusPay={onFocusPay}
             onExitUp={onExitUp}
+            onCredit={onCredit}
+            creditDisabled={creditDisabled}
           />
         )}
       </LoaderMany>
@@ -76,6 +82,8 @@ function Body({
   focusRounding,
   onFocusPay,
   onExitUp,
+  onCredit,
+  creditDisabled,
 }: {
   draft: Draft;
   grand: Decimal;
@@ -85,6 +93,8 @@ function Body({
   focusRounding: number;
   onFocusPay: () => void;
   onExitUp: () => void;
+  onCredit: () => void;
+  creditDisabled: boolean;
 }) {
   const paid = roundMoney(paidTotal(draft.methods), draft.fix);
   const change = paid.minus(grand);
@@ -117,7 +127,7 @@ function Body({
             </AccordionContent>
           </AccordionItem>
         </Accordion>
-        <Kredit />
+        <Kredit onCredit={onCredit} disabled={creditDisabled} />
       </div>
 
       <Images draft={draft} />
