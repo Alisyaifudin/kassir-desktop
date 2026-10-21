@@ -24,6 +24,7 @@ import { generateId } from "~/lib/random";
 import { lineSubtotal, recalcDiscounts } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { DiscountKind, DiscountLine, Line } from "~/components/cart/types";
+import { useInertApp } from "~/components/cart/use-inert-app";
 
 /** start column of value, kind, eff, x (no# is column 0). */
 const COLUMNS = [1, 4, 7, 10];
@@ -76,11 +77,15 @@ export function DiscountDialog({
   onChange: (discounts: DiscountLine[]) => void;
 }) {
   const exitEditing = useRef<(() => void) | null>(null);
+  // The dialog is not trapped (see below), so the app shell is made inert while
+  // it is open: Tab must not walk out into the cart grid behind the overlay.
+  useInertApp(open);
   return (
     // `modal={false}` is a workaround for a known Radix bug: with a trapped
     // Dialog (React 19), the Dialog's FocusScope reclaims focus from the kind
     // Select's portal, so the list never focuses. Radix's fix is unmerged, so
-    // we drop the trap for this editor; the overlay still blocks and dismisses.
+    // we drop the trap for this editor and hold the keyboard in with an inert
+    // app shell plus `aria-modal` instead; the overlay blocks the pointer.
     <Dialog modal={false} open={open} onOpenChange={onOpenChange}>
       {/* Radix drops its own overlay when the Dialog is not modal, so draw one. */}
       <DialogPortal>
@@ -90,6 +95,7 @@ export function DiscountDialog({
         />
       </DialogPortal>
       <DialogContent
+        aria-modal="true"
         className="max-w-5xl"
         onEscapeKeyDown={(event) => {
           if (exitEditing.current !== null) {

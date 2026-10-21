@@ -69,4 +69,38 @@ describe("Record list keyboard model", () => {
 
     expect(first?.getAttribute("aria-selected")).toBe("true");
   });
+
+  test("the list is one tab stop, however many records the day holds", () => {
+    const records = Array.from({ length: 12 }, (_, i) => record({ id: `r${i}`, date: i }));
+    renderList(records);
+    const rows = screen.getAllByRole("row").slice(1);
+
+    expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1);
+    expect(rows[0]?.getAttribute("tabindex")).toBe("0");
+  });
+
+  test("the selected row is the tab stop, so Tab returns where the operator was", () => {
+    renderList([record({ id: "a" }), record({ id: "b" }), record({ id: "c" })]);
+    const [, , second] = screen.getAllByRole("row");
+
+    fireEvent.click(second!);
+
+    expect(second?.getAttribute("tabindex")).toBe("0");
+    expect(screen.getAllByRole("row").slice(1).filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1);
+  });
+
+  test("Home and End jump to the first and last row", () => {
+    renderList([
+      record({ id: "a", date: 1 }),
+      record({ id: "b", date: 2 }),
+      record({ id: "c", date: 3 }),
+    ]);
+    const rows = screen.getAllByRole("row").slice(1);
+
+    fireEvent.keyDown(rows[1]!, { key: "End" });
+    expect(document.activeElement).toBe(rows[2]!);
+
+    fireEvent.keyDown(rows[2]!, { key: "Home" });
+    expect(document.activeElement).toBe(rows[0]!);
+  });
 });

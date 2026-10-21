@@ -1292,6 +1292,7 @@ describe("TransactionService.submit — lifecycle", () => {
       ProductService,
       {
         refresh: () => Effect.fail(new ProductError({ message: "refresh failed" })),
+        refreshMany: () => Effect.fail(new ProductError({ message: "refresh failed" })),
       } as unknown as Context.Tag.Service<typeof ProductService>,
     );
     const recordLayer = RecordLive.pipe(Layer.provide(layer), Layer.provide(failingProduct));
@@ -1314,6 +1315,44 @@ describe("TransactionService.submit — lifecycle", () => {
       { stock_id: "s1", stock_value: 0, stock_capital: 1000 },
       { stock_id: "s2", stock_value: 3, stock_capital: 2000 },
     ]);
+  });
+
+  test("a commit re-reads only the products its lines touched", async () => {
+    const { db, layer } = makeTestDatabase();
+    seed(db);
+    const fullReads: string[] = [];
+    const boundedReads: string[][] = [];
+    const recordingProduct = Layer.succeed(
+      ProductService,
+      {
+        refresh: () =>
+          Effect.sync(() => {
+            fullReads.push("all");
+          }),
+        refreshMany: (ids: string[]) =>
+          Effect.sync(() => {
+            boundedReads.push(ids);
+          }),
+      } as unknown as Context.Tag.Service<typeof ProductService>,
+    );
+    const recordLayer = RecordLive.pipe(Layer.provide(layer), Layer.provide(recordingProduct));
+    const transactionLayer = TransactionLive.pipe(
+      Layer.provide(layer),
+      Layer.provide(recordLayer),
+    );
+    const recordId = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [makeLine()]);
+        yield* tx.methods.set(id, [makeMethod()]);
+        return yield* tx.submit(id, { cashier: "Kasir" });
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+    expect(recordId).toEqual(expect.any(String));
+    // One product on the sale: one product re-read, not the whole catalogue.
+    expect(boundedReads).toEqual([["p1"]]);
+    expect(fullReads).toHaveLength(0);
   });
 
   test("a second submit of the same draft fails because the first removed it", async () => {

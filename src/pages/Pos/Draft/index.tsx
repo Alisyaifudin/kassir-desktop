@@ -1,6 +1,3 @@
-import { useEffect } from "react";
-import { service } from "~/services";
-import { run } from "~/components/cart/run";
 import { type Extra, type Line } from "~/components/cart/types";
 import { extrasTotal, linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
@@ -56,14 +53,6 @@ export function Draft({
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
 }) {
-  // The open sale takes its name from its first listing.
-  useEffect(() => {
-    const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
-    if (title !== draft.title) {
-      run(service.transaction.set.title(draft.id, title));
-    }
-  }, [lines, draft.id, draft.title]);
-
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
       <Tabs mode="sale" drafts={drafts} activeId={draft.id} onSelect={onSelect} />

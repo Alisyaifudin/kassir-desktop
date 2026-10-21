@@ -37,6 +37,7 @@ import { paidTotal } from "~/lib/purchase";
 import { run } from "~/components/cart/run";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
+import { useInertApp } from "~/components/cart/use-inert-app";
 
 /** The default `Input` chrome, so a currency field sits in the row like one. */
 const AMOUNT_CLASS =
@@ -99,6 +100,9 @@ export function Methods({
   onSubmit?: () => boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // The dialog is not trapped (see the comment on the Dialog below), so the app
+  // shell is made inert while it is open: Tab must not reach the cart behind it.
+  useInertApp(open);
   const [selected, setSelected] = useState<PayField>("rounding");
   const [editing, setEditing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -498,12 +502,17 @@ export function Methods({
         </div>
       </div>
 
+      {/* `modal={false}` keeps Radix's focus trap from reclaiming focus out of the
+          method `Select`'s portal (React 19; upstream fix unmerged). The app shell
+          is made inert instead, so the keyboard cannot leave this dialog, and
+          `aria-modal` tells a screen reader the rest of the page is covered. */}
       <Dialog modal={false} open={open} onOpenChange={setOpen}>
         {/* Radix drops its own overlay when the dialog is not modal, so draw one. */}
         <DialogPortal>
           <div className="fixed inset-0 z-50 bg-black/80" onClick={() => setOpen(false)} />
         </DialogPortal>
         <DialogContent
+          aria-modal="true"
           className="max-w-3xl"
           onOpenAutoFocus={(event) => {
             // The inline amount behind the dialog shares the id, so search

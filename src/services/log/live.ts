@@ -1,6 +1,7 @@
 import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import { LogError, LogService } from ".";
+import { tailLog, type LogPage } from "./tail";
 
 const LOG_PATH = "logs/kassir.log";
 const FILE = { baseDir: BaseDirectory.AppLocalData };
@@ -8,18 +9,11 @@ const FILE = { baseDir: BaseDirectory.AppLocalData };
 // The file is the source of truth and is written by the logger, not by this
 // service, so there is no value to hold. A revision counter gives subscribers a
 // re-read on subscribe and after every clear.
-function readLines(): Effect.Effect<string[], LogError> {
+function readLines(): Effect.Effect<LogPage, LogError> {
   return Effect.tryPromise({
     try: () => readTextFile(LOG_PATH, FILE),
     catch: () => new LogError({ message: "Gagal membaca log" }),
-  }).pipe(
-    Effect.map((text) =>
-      (text || "")
-        .split("\n")
-        .filter((line) => !line.includes("[WARN]"))
-        .reverse(),
-    ),
-  );
+  }).pipe(Effect.map((text) => tailLog(text)));
 }
 
 export const LogLive = Layer.effect(

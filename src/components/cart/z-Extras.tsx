@@ -240,6 +240,8 @@ export function Extras({
     setEditing(false);
   }
 
+  // Always append to the freshest list the prop hands us; two writers in one
+  // dispatch must not overwrite each other's row.
   function append(extra: Extra) {
     onChange([...extras, extra]);
     return extra;
@@ -312,6 +314,9 @@ export function Extras({
     // Portaled popups (the kind select) bubble their keys through the React
     // tree, not the DOM; ignore anything that did not start inside this grid.
     if (!event.currentTarget.contains(event.target as Node)) return;
+    // The preset list lives inside this container; do not also move the grid
+    // selection for keys it already handled (Enter picks the highlighted preset).
+    if (event.defaultPrevented) return;
     if (editing) return;
     // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
     if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
@@ -341,9 +346,15 @@ export function Extras({
         return;
       case "Enter":
         if (isSearch) {
-          if (hidden && results[0] !== undefined) {
-            event.preventDefault();
-            addPreset(results[0]);
+          // Enter in the grid only adds the first preset when the list itself is
+          // not focused; focused-list Enter is handled (and consumed) by
+          // ExtraSearch, which knows which preset is highlighted.
+          if (hidden && !resultsRef.current?.contains(document.activeElement)) {
+            const first = results[0];
+            if (first !== undefined) {
+              event.preventDefault();
+              addPreset(first);
+            }
           }
           return;
         }

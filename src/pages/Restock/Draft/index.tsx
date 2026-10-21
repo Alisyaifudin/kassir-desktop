@@ -1,7 +1,4 @@
-import { useEffect } from "react";
 import type Decimal from "decimal.js";
-import { service } from "~/services";
-import { run } from "~/components/cart/run";
 import { type Extra, type Line } from "~/components/cart/types";
 import { linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
@@ -64,14 +61,6 @@ export function Draft({
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
-  // The open purchase takes its name from its first listing.
-  useEffect(() => {
-    const title = lines.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru";
-    if (title !== draft.title) {
-      run(service.transaction.set.title(draft.id, title));
-    }
-  }, [lines, draft.id, draft.title]);
-
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
       <Tabs mode="purchase" drafts={drafts} activeId={draft.id} onSelect={onSelect} />

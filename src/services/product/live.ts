@@ -388,39 +388,95 @@ export const ProductLive = Layer.effect(
             db.selectMany<StockRow>(SELECT_STOCKS),
           ]).pipe(Effect.mapError(dbErrorToProductError));
 
-        const byId = new Map<string, ProductState>();
-        for (const row of productRows) {
-          byId.set(row.product_id, {
-            id: row.product_id,
-            name: row.product_name,
-            note: row.product_note,
-            updatedAt: row.product_updated_at,
-            syncAt: row.product_sync_at,
-            listings: [],
-            stocks: [],
-            properties: [],
-            productNames: [],
-            images: [],
-          });
-        }
-        for (const row of listingRows) byId.get(row.product_id)?.listings.push(rowToListing(row));
-        for (const row of propertyRows) byId.get(row.product_id)?.properties.push(rowToProperty(row));
-        for (const row of productNameRows)
-          byId.get(row.product_id)?.productNames.push(rowToProductName(row));
-        for (const row of imageRows) byId.get(row.product_id)?.images.push(rowToImage(row));
-        for (const row of stockRows) byId.get(row.product_id)?.stocks.push(rowToStock(row));
-
-        const states = [...byId.values()];
-        for (const state of states) {
-          state.listings.sort((a, b) => a.name.localeCompare(b.name));
-          state.properties.sort((a, b) => a.key.localeCompare(b.key));
-          state.productNames.sort((a, b) => a.value.localeCompare(b.value));
-          state.images.sort((a, b) => a.order - b.order);
-          state.stocks.sort((a, b) => a.createdAt - b.createdAt);
-        }
-        states.sort((a, b) => a.name.localeCompare(b.name));
-        return states;
+        return toStates({
+          productRows,
+          listingRows,
+          propertyRows,
+          productNameRows,
+          imageRows,
+          stockRows,
+        });
       });
+    }
+
+    /**
+     * The same aggregate for a handful of products. Committing a record only
+     * moves the stock of the products on its lines, so a sale must not pay for
+     * reading the whole catalogue: this is the bounded counterpart of `loadAll`
+     * (six SELECTs, each narrowed by `product_id IN (...)`).
+     */
+    function loadMany(ids: string[]): Effect.Effect<ProductState[], ProductError> {
+      const inList = ids.map((_, index) => `$${index + 1}`).join(", ");
+      return Effect.gen(function* () {
+        const [productRows, listingRows, propertyRows, productNameRows, imageRows, stockRows] =
+          yield* Effect.all([
+            db.selectMany<ProductRow>(`${SELECT_PRODUCTS} AND product_id IN (${inList})`, ids),
+            db.selectMany<ListingRow>(`${SELECT_LISTINGS} AND product_id IN (${inList})`, ids),
+            db.selectMany<PropertyRow>(`${SELECT_PROPERTIES} AND product_id IN (${inList})`, ids),
+            db.selectMany<ProductNameRow>(
+              `${SELECT_PRODUCT_NAMES} AND product_id IN (${inList})`,
+              ids,
+            ),
+            db.selectMany<ImageRow>(`${SELECT_IMAGES} AND product_id IN (${inList})`, ids),
+            db.selectMany<StockRow>(
+              `${SELECT_STOCKS} WHERE product_id IN (${inList})`,
+              ids,
+            ),
+          ]).pipe(Effect.mapError(dbErrorToProductError));
+
+        return toStates({
+          productRows,
+          listingRows,
+          propertyRows,
+          productNameRows,
+          imageRows,
+          stockRows,
+        });
+      });
+    }
+
+    function toStates(rows: {
+      productRows: ProductRow[];
+      listingRows: ListingRow[];
+      propertyRows: PropertyRow[];
+      productNameRows: ProductNameRow[];
+      imageRows: ImageRow[];
+      stockRows: StockRow[];
+    }): ProductState[] {
+      const { productRows, listingRows, propertyRows, productNameRows, imageRows, stockRows } =
+        rows;
+      const byId = new Map<string, ProductState>();
+      for (const row of productRows) {
+        byId.set(row.product_id, {
+          id: row.product_id,
+          name: row.product_name,
+          note: row.product_note,
+          updatedAt: row.product_updated_at,
+          syncAt: row.product_sync_at,
+          listings: [],
+          stocks: [],
+          properties: [],
+          productNames: [],
+          images: [],
+        });
+      }
+      for (const row of listingRows) byId.get(row.product_id)?.listings.push(rowToListing(row));
+      for (const row of propertyRows) byId.get(row.product_id)?.properties.push(rowToProperty(row));
+      for (const row of productNameRows)
+        byId.get(row.product_id)?.productNames.push(rowToProductName(row));
+      for (const row of imageRows) byId.get(row.product_id)?.images.push(rowToImage(row));
+      for (const row of stockRows) byId.get(row.product_id)?.stocks.push(rowToStock(row));
+
+      const states = [...byId.values()];
+      for (const state of states) {
+        state.listings.sort((a, b) => a.name.localeCompare(b.name));
+        state.properties.sort((a, b) => a.key.localeCompare(b.key));
+        state.productNames.sort((a, b) => a.value.localeCompare(b.value));
+        state.images.sort((a, b) => a.order - b.order);
+        state.stocks.sort((a, b) => a.createdAt - b.createdAt);
+      }
+      states.sort((a, b) => a.name.localeCompare(b.name));
+      return states;
     }
 
     /**
@@ -523,6 +579,46 @@ export const ProductLive = Layer.effect(
         });
         loaded = true;
         // Nothing actually changed: do not emit, so no page re-renders.
+        const unchanged =
+          merged.length === previous.length && merged.every((state, i) => state === previous[i]);
+        if (unchanged) return;
+        yield* SubscriptionRef.set(productsRef, merged);
+      });
+    }
+
+    /**
+     * Re-reads only the given products and folds them into the aggregate, so a
+     * committed record costs O(its lines) instead of O(catalogue). Products the
+     * commit created are added, ones it removed drop out, and untouched states
+     * keep their identity.
+     */
+    function hydrateMany(ids: string[]): Effect.Effect<void, ProductError> {
+      if (ids.length === 0) return Effect.void;
+      return Effect.gen(function* () {
+        // Nothing to fold into yet: the first read has to be the whole catalogue.
+        if (!loaded) return yield* hydrate();
+        const states = yield* loadMany(ids);
+        const previous = yield* SubscriptionRef.get(productsRef);
+        const touched = new Set(ids);
+        const fresh = new Map(states.map((state) => [state.id, state]));
+        const seen = new Set<string>();
+        const merged: ProductState[] = [];
+        for (const state of previous) {
+          if (!touched.has(state.id)) {
+            merged.push(state);
+            continue;
+          }
+          seen.add(state.id);
+          const next = fresh.get(state.id);
+          // Deleted by the commit: drop it rather than serving a ghost product.
+          if (next === undefined) continue;
+          merged.push(sameState(state, next) ? state : next);
+        }
+        // Products the commit created are not in the ref yet.
+        for (const state of states) {
+          if (!seen.has(state.id)) merged.push(state);
+        }
+        merged.sort((a, b) => a.name.localeCompare(b.name));
         const unchanged =
           merged.length === previous.length && merged.every((state, i) => state === previous[i]);
         if (unchanged) return;
@@ -978,6 +1074,7 @@ export const ProductLive = Layer.effect(
         });
       },
       refresh: () => hydrate(),
+      refreshMany: (ids) => hydrateMany(ids),
     };
   }),
 );

@@ -43,6 +43,12 @@ export function ExtraSearch({
         event.preventDefault();
         if (presets[selected] !== undefined) onPick(presets[selected]);
         return;
+      case "ArrowRight":
+      case "ArrowLeft":
+        // One column: horizontal arrows stay in the list instead of moving the
+        // grid selection off the search cell behind it.
+        event.preventDefault();
+        return;
       case "Escape":
         event.preventDefault();
         onExit();

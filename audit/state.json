@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-10-21T17:23:46.360Z",
-  "updatedAt": "2026-10-21T20:12:55.763Z",
+  "updatedAt": "2026-10-21T20:32:41.444Z",
   "config": {
     "targetScore": 95,
     "convergeWindow": 5,
@@ -1169,6 +1169,195 @@
           "exitCode": 0,
           "output": "$ eslint .",
           "at": "2026-10-21T20:12:55.763Z"
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "startedAt": "2026-10-21T20:12:55.839Z",
+      "audit": {
+        "score": 86,
+        "categories": {
+          "architecture": 85,
+          "react": 86,
+          "tauri": 90,
+          "ux": 86,
+          "codeQuality": 86,
+          "testing": 85
+        },
+        "verdict": "The data layer is genuinely strong now — I verified myself that `tsc --noEmit` and `eslint` are clean, `bun test` is 285/285 with no flake, the migration chain is contiguous and checksum-pinned, single-instance is registered first, blocking Rust work is on `spawn_blocking`, the JSON export is behind Rust so the fs ACL stays narrow, the HTTP plugin is gone, and every iteration-5 \"fixed\" item I re-read is actually fixed (credit dialog closes, Records URL hooks all `replace: true`, extras search reads the Extra service, product import is validated). The biggest remaining risk is no longer data truth but the untested interaction layer sitting on it: the cart has ~6,100 lines and 26 files with zero render tests, only three `*.test.tsx` exist in the whole repo, and that gap has already produced a real money bug this iteration — Enter in the \"Tambahan\" search adds the first preset instead of the highlighted one, because `z-Extras.tsx` is the only cart grid missing the `event.defaultPrevented` guard its listing twin has. Second is the commit path itself: the page shell and two differently-shaped submit implementations are still duplicated sixth-audit-running, and every sale still awaits a full six-table catalogue reload before the success dialog opens. Deliberately not covered: the Money/Record/Analytics screen bodies beyond their data hooks, `record/live.ts`'s credit-edit and `unsubmit` reversal paths in depth, the receipt PDF geometry on real 58/80 mm paper, the updater `latest.json`/pubkey trust chain (hence tauri capped at 90), migration SQL bodies beyond version/checksum/index structure, and the Rust printer path on real Windows hardware; also folded into the verdict rather than filed: 15 lucide icons still hardcode `size={N}` instead of `size-6 small:size-5`, the cart tab strip has no `role=\"tablist\"`/`role=\"tab\"` and its tabs are not focusable, `useCartScreen` re-registers window key listeners on every render, the POS search card re-renders and re-measures on every mousemove, and `record/live.ts` (1,666) / `transaction/live.ts` (1,193) remain oversized.",
+        "reports": [
+          {
+            "slug": "extras-search-enter-adds-first-result",
+            "title": "Enter in the cart's \"Tambahan\" search adds the first preset, not the highlighted one",
+            "severity": "high",
+            "category": "correctness",
+            "files": [
+              "src/components/cart/z-Extras.tsx",
+              "src/components/cart/z-ExtraSearch.tsx",
+              "src/components/cart/z-Listing.tsx"
+            ],
+            "summary": "The extras grid's keydown handler does not ignore events its child already handled (`event.defaultPrevented`), unlike the listing grid. So Enter inside the preset list runs twice: `ExtraSearch` picks `presets[selected]`, then the grid's own handler appends `results[0]`, and because both calls close over the same `extras` prop the second write overwrites the first. A cashier who arrows down to \"Ongkos Kirim\" and presses Enter gets whatever charge happens to sort first — on a real sale, the wrong amount goes onto the record.",
+            "path": "iterations/006/report-01-extras-search-enter-adds-first-result.md",
+            "createdAt": "2026-10-21T20:20:01.822Z"
+          },
+          {
+            "slug": "full-catalogue-reload-on-every-commit",
+            "title": "Every commit re-reads the entire catalogue before the sale is reported as done",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/services/record/live.ts",
+              "src/services/product/live.ts",
+              "src/services/listing/live.ts",
+              "src/components/cart/code-issues.ts"
+            ],
+            "summary": "`record.submit` awaits `product.refresh()`, which re-reads and re-maps all six catalogue tables before it returns — so the success dialog, and the whole `inert` cart, wait on a full catalogue scan on every sale. Identity diffing keeps React cheap, but the read is O(catalogue) per commit and grows exactly as the shop's product list grows.",
+            "path": "iterations/006/report-02-full-catalogue-reload-on-every-commit.md",
+            "createdAt": "2026-10-21T20:20:15.614Z"
+          },
+          {
+            "slug": "records-list-every-row-tab-stop",
+            "title": "The Records list makes every row a tab stop, so Tab no longer walks a list — it crawls it",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/pages/Record/z-Record/List.tsx",
+              "src/pages/Record/use-records.ts"
+            ],
+            "summary": "Every record row carries `tabIndex={0}`, so a normal shift of 50–200 records is 50–200 Tab presses between the header and the detail pane; the comment in the file claims the opposite (\"Tab reaches a row, Up/Down walk the list\"). Roving tabindex — one stop for the list, arrows inside — is the model the POS grids already use.",
+            "path": "iterations/006/report-03-records-list-every-row-tab-stop.md",
+            "createdAt": "2026-10-21T20:20:31.576Z"
+          },
+          {
+            "slug": "cart-dialogs-modal-false-focus-escapes",
+            "title": "The payment and discount dialogs are non-modal, so the keyboard walks straight past them into the cart",
+            "severity": "medium",
+            "category": "accessibility",
+            "files": [
+              "src/components/cart/z-Methods.tsx",
+              "src/components/cart/z-Discount.tsx",
+              "src/pages/Pos/page.tsx"
+            ],
+            "summary": "The payment editor and the per-line discount editor both render `<Dialog modal={false}>` with a hand-drawn `div` overlay (to dodge a Radix focus bug). Pointer input is blocked, keyboard input is not: Tab leaves the dialog into the cart grid behind it, `aria-modal` is never set, and the background is not `inert` — so an Enter after a few Tabs edits money under an overlay. Recurring from two prior verdicts, filed now because it is a keyboard-safety issue on the money path.",
+            "path": "iterations/006/report-04-cart-dialogs-modal-false-focus-escapes.md",
+            "createdAt": "2026-10-21T20:20:49.222Z"
+          },
+          {
+            "slug": "log-viewer-renders-entire-log-file",
+            "title": "The Log page renders every line of the log file, and hides the warnings without saying so",
+            "severity": "medium",
+            "category": "performance",
+            "files": [
+              "src/pages/Setting/Log/page.tsx",
+              "src/services/log/live.ts",
+              "src-tauri/src/lib.rs"
+            ],
+            "summary": "Setting → Log reads the whole `logs/kassir.log`, reverses it and renders one `<p>` per line with no cap or virtualization — a cost proportional to how long the app has been running, on the page you open when the app is misbehaving. The same function also silently drops every `[WARN]` line from what the viewer claims is the log history.",
+            "path": "iterations/006/report-05-log-viewer-renders-entire-log-file.md",
+            "createdAt": "2026-10-21T20:21:03.274Z"
+          },
+          {
+            "slug": "pos-restock-page-shell-and-submit-duplicated",
+            "title": "Pos and Restock still carry two copies of the page shell and two shapes of the submit path",
+            "severity": "medium",
+            "category": "architecture",
+            "files": [
+              "src/pages/Pos/page.tsx",
+              "src/pages/Restock/page.tsx",
+              "src/pages/Pos/Draft/index.tsx",
+              "src/pages/Restock/Draft/index.tsx",
+              "src/components/cart/use-cart-screen.ts"
+            ],
+            "summary": "The cart hook extraction landed, but the two page shells are still the same file twice — identical `Page` wrapper, identical `active === null` branch, `completeDialog`, `inert`/overlay block and totals derivation — and the commit path now exists in two shapes (`submitDraft` returning boolean vs `runSubmit` returning a message). Sixth audit in a row on this root cause; what remains is the part that decides what \"Bayar\" means.",
+            "path": "iterations/006/report-06-pos-restock-page-shell-and-submit-duplicated.md",
+            "createdAt": "2026-10-21T20:21:22.269Z"
+          },
+          {
+            "slug": "shop-leftovers-dead-button-and-export",
+            "title": "Dead Shop leftovers still ship: a permanently disabled record action and an export nobody calls",
+            "severity": "low",
+            "category": "maintainability",
+            "files": [
+              "src/pages/Record/z-Detail/ToTransaction.tsx",
+              "src/pages/Record/z-Detail/index.tsx",
+              "src/pages/Record/z-Detail/use-delete.ts"
+            ],
+            "summary": "The record detail pane still ships a permanently disabled \"Jadikan Transaksi\" button, and `use-delete.ts` exports a `programDeleteRecord` whose only documented callers (`Shop/z-Complete`, `Stock-PENDING/z-Complete`) were deleted. Both comments describe the removed Shop surface as if it were live, which is exactly what stops the next reader from deleting the dead code.",
+            "path": "iterations/006/report-07-shop-leftovers-dead-button-and-export.md",
+            "createdAt": "2026-10-21T20:21:40.285Z"
+          },
+          {
+            "slug": "cart-screens-have-no-render-tests",
+            "title": "The cart screens still have no render tests, so keyboard behaviour is only ever verified by reading",
+            "severity": "medium",
+            "category": "testing",
+            "files": [
+              "src/components/cart/z-Extras.tsx",
+              "src/components/cart/z-ExtraSearch.tsx",
+              "src/components/cart/z-Listing.tsx",
+              "e2e/pos-cart.e2e.ts",
+              "bunfig.toml"
+            ],
+            "summary": "285 unit tests, 39 files, clean tsc/lint, real e2e — but only three `*.test.tsx` exist against ~280 component files, and none of them renders a cart screen. The cart's tests are geometry-only, so the interaction bug filed this iteration (Enter in the extras search adding the first preset) passes the whole suite; it is the second money-path bug in two iterations that one render test would have caught.",
+            "path": "iterations/006/report-08-cart-screens-have-no-render-tests.md",
+            "createdAt": "2026-10-21T20:21:58.224Z"
+          }
+        ],
+        "at": "2026-10-21T20:22:15.344Z"
+      },
+      "finishedAt": "2026-10-21T20:32:41.444Z",
+      "fix": {
+        "summary": "## Iteration 6 fix pass\n\nAll 8 reports were addressed: **6 fixed, 2 partial**. `bun run lint`, `tsc --noEmit`, `bun test` (304 pass, 43 files) and `bun run test:e2e` (7 pass) are green.\n\n### Fixed\n\n1. **`extras-search-enter-adds-first-result` (high)** — `z-Extras.tsx` now has the `event.defaultPrevented` guard its listing twin always had, plus a belt-and-braces check that the preset list does not own focus when Enter falls through; `z-ExtraSearch.tsx` consumes ArrowLeft/Right (one-column list) so horizontal arrows no longer move the grid off the search cell. Regression test verified to fail on the pre-fix code.\n2. **`full-catalogue-reload-on-every-commit` (medium)** — new `ProductService.refreshMany(ids)`: the same six SELECTs narrowed by `product_id IN (...)`, folded into the aggregate with the existing identity helpers (adds commit-created products, drops deleted ones, falls back to a full hydrate when nothing is loaded). `record.submit` calls `refreshProductsFor(lotsByProduct.keys())` — the sale's own products — so `Bayar` is O(lines). Full `refresh()` kept for import/direct-credit/mode-switch/delete. Same-tick freshness preserved (`catalogue.test.ts` unchanged, new test asserts the bounded call).\n3. **`log-viewer-renders-entire-log-file` (medium)** — new pure `services/log/tail.ts` (`LOG_VIEW_LIMIT = 500`, returns `{lines,total}`), wired through `LogService.lines.changes`; the silent `[WARN]` filter is gone (warnings render marked) and the page states \"Menampilkan N baris terakhir dari M baris\". 4 unit tests at 50k lines.\n4. **`cart-dialogs-modal-false-focus-escapes` (medium)** — new `use-inert-app.ts`: while either money dialog is open it sets `inert` + `aria-hidden` on `#root` (all Dialog portals live beside it on `body`, so the dialog and its Select popups stay live; the hand-drawn overlay still dismisses). Both `DialogContent`s now carry `aria-modal=\"true\"`. Test added.\n5. **`records-list-every-row-tab-stop` (medium)** — roving tabindex (selected row, else first, is the single stop), ArrowUp/Down clamp, Home/End added, dead `aria-hidden` selector dropped, table named. Tests added.\n6. **`shop-leftovers-dead-button-and-export` (low)** — deleted `ToTransaction.tsx` (and its render site) and `programDeleteRecord`; `rg` is clean.\n\n### Partial\n\n7. **`pos-restock-page-shell-and-submit-duplicated`** — the substantive duplication is gone: `z-CartFrame.tsx` (`CartRoute`/`CartBody`/`CartEmpty`/`CartPanels`) replaces the duplicated `<main>`+loader, `active === null` branch, `inert`/overlay/`SaveError` block and completion-dialog slot; `use-submit-cart.ts` is the single blur → submitting → submit → toast-or-complete path with both call shapes (`submit`, `submitDraft`); the draft-title effect moved into `useCartScreen`. `rg \"transaction.submit\" src/pages` → 0. **Remaining:** pages are 166/200 lines vs the ≲80 target (totals derivation and `Complete` props still per-screen), and no render test mounts both pages through one submit.\n8. **`cart-screens-have-no-render-tests`** — added `z-Extras.test.tsx` (keyboard, including the money bug from report 1), `z-Discount.test.tsx`, `use-submit-cart.test.ts`. **Remaining:** no `z-Listing` or `z-Methods` render test, no Pos screen render test, no new e2e F2→Bayar→complete scenario.\n\n### Notes for the next auditor\n- The payment/discount dialogs are still `modal={false}` (Radix focus-trap vs Select-portal bug, unmerged upstream) — the keyboard is now held in by an inert app shell rather than a real focus loop; a genuine trap can return when upstream fixes it.\n- `record/live.ts` other write paths (`add.external`, direct credit, mode switch, delete) still do full catalogue refreshes deliberately.\n- No version files touched; no dependencies added.",
+        "fixes": [
+          {
+            "report": "extras-search-enter-adds-first-result",
+            "status": "fixed",
+            "note": "Added the missing `if (event.defaultPrevented) return;` guard to `z-Extras.tsx`'s `handleKeyDown` (same place and wording as `z-Listing.tsx`), so Enter handled by `ExtraSearch` no longer also runs the grid's `addPreset(results[0])`. Belt and braces: the grid's Enter branch now also refuses to add the first preset when `resultsRef` contains `document.activeElement`. `ExtraSearch` now consumes ArrowLeft/ArrowRight (one-column list) so horizontal arrows no longer move the grid selection off the search cell, which was the report's secondary finding. Remaining: the render test that pins this is tracked under `cart-screens-have-no-render-tests`."
+          },
+          {
+            "report": "log-viewer-renders-entire-log-file",
+            "status": "fixed",
+            "note": "Setting → Log is now bounded and honest. New `src/services/log/tail.ts` owns the split/tail/reverse step (`LOG_VIEW_LIMIT = 500`, blank lines dropped) and returns `{ lines, total }`; `log/live.ts` maps the file read through it, `LogService.lines.changes` carries that page instead of `string[]`. The silent `.filter(line => !line.includes(\"[WARN]\"))` is gone — warnings are rendered (amber) and the page states \"Menampilkan N baris terakhir dari M baris.\" so the operator knows the view is a window. Added `src/services/log/tail.test.ts` (50k-line fixture asserts ≤500 lines and correct newest-first tail, warnings kept, empty file). Remaining: the list is not virtualized, but with the 500-line cap a plain list is fine per the report's own guidance."
+          },
+          {
+            "report": "shop-leftovers-dead-button-and-export",
+            "status": "fixed",
+            "note": "Deleted the dead half of the removed Shop surface: `src/pages/Record/z-Detail/ToTransaction.tsx` (a permanently disabled \"Jadikan Transaksi\" button whose comment named the deleted `/shop` and `tx.db`) no longer exists and its render site is gone from `z-Detail/index.tsx`, so the footer now shows only working actions (Lihat, admin delete). Deleted `programDeleteRecord` from `use-delete.ts` — its only documented callers (`Shop/z-Complete`, `Stock-PENDING/z-Complete`) were removed long ago, `rg` showed zero call sites, and the rollback path is `service.transaction.unsubmit`. Trimmed the now-unused imports. `rg \"ToTransaction|programDeleteRecord\" src` → zero hits."
+          },
+          {
+            "report": "full-catalogue-reload-on-every-commit",
+            "status": "fixed",
+            "note": "`record.submit` no longer re-reads the catalogue: `ProductService` gained `refreshMany(ids)` (`product/live.ts`: same six SELECTs narrowed by `product_id IN (...)`, folded into the aggregate with the existing identity helpers, adding commit-created products and dropping deleted ones; falls back to a full hydrate if nothing is loaded yet). `record/live.ts` added `refreshProductsFor(ids)` and submit calls it with `lotsByProduct.keys()` — exactly the products whose lots the sale moved — so the success dialog now waits on O(lines) reads instead of O(catalogue). Full `refresh()` is kept for import (`add.external`), the direct-credit write, mode switch and delete. The same-tick guarantee is preserved (`services/transaction/catalogue.test.ts` passes unchanged) because the bounded read is still awaited. Added a test in `submit.test.ts` that stubs ProductService and asserts a one-line sale calls `refreshMany([\"p1\"])` and never `refresh()`; updated the failing-refresh stub to include `refreshMany`. Remaining: no 5,000-product benchmark, and other record write paths still do a full reload."
+          },
+          {
+            "report": "records-list-every-row-tab-stop",
+            "status": "fixed",
+            "note": "Records list now uses a roving tabindex. `List.tsx` computes `tabStop` (the selected row, else the first) and each row gets `tabIndex={i === tabStop ? 0 : -1}`, so Tab reaches the list exactly once regardless of the day's record count. ArrowUp/ArrowDown now clamp at the ends and Home/End jump to first/last; Enter/Space still select. Dropped the dead `tr:not([aria-hidden='true'])` selector (no producer) in favour of `tbody tr`. Gave the table an accessible name (`aria-label=\"Daftar transaksi hari ini\"`) and fixed the comment that claimed every row was a tab stop on purpose. Extended `List.test.tsx` with: only one row at `tabIndex 0` across 12 records, the selected row is that stop, and Home/End move focus."
+          },
+          {
+            "report": "cart-dialogs-modal-false-focus-escapes",
+            "status": "fixed",
+            "note": "Both money dialogs now hold the keyboard in without re-enabling Radix's trap (which is what the `modal={false}` workaround was avoiding for the kind `Select`). New `src/components/cart/use-inert-app.ts`: while the dialog is open it sets `inert` + `aria-hidden=\"true\"` on the app shell (`#root`) and restores on close; every Dialog portal (content, overlay, Select popups) lives beside `#root` on `body`, so the dialog and its popups stay live and the hand-drawn overlay still dismisses on click. `z-Methods.tsx` and `z-Discount.tsx` both call it and their `DialogContent` now carries `aria-modal=\"true\"`. Root cause documented in both comments (React 19 + `Select` portal). Added `src/components/cart/z-Discount.test.tsx`: asserts `aria-modal` on the dialog and `inert`/`aria-hidden` on `#root` while open, and nothing inert when closed. Remaining: the trap is still off (upstream fix unmerged), so it is inert rather than a real focus loop; a genuine Radix focus-trap can be restored when the upstream bug is fixed."
+          },
+          {
+            "report": "pos-restock-page-shell-and-submit-duplicated",
+            "status": "partial",
+            "note": "Root cause now single-sourced in three places. (1) `src/components/cart/z-CartFrame.tsx`: `CartRoute` (the route `<main>` + `transaction.get.changes` loader), `CartBody` (the completion-dialog slot, always the last child so a restore cannot remount it), `CartEmpty` (spinner vs `CartStartError`+retry) and `CartPanels` (the `inert={submitting}` column with `<SaveError/>` and the blocking overlay). Both pages now render those instead of their own copies. (2) `src/components/cart/use-submit-cart.ts`: one implementation of blur → `setSubmitting(true)` → `Effect.either(transaction.submit)` → toast-or-`setComplete`, parameterised by `ready(credit)` (a sale may not be underpaid; a credit purchase pays goods+charges) and `build(recordId, credit)`; it exposes both `submit()` (message for the credit dialog) and `submitDraft()` (boolean swallow for keys), so the old `submitDraft`-vs-`runSubmit` split is one rule set with two call sites. `rg \"transaction.submit\" src/pages` → zero. (3) The draft-title effect moved into `useCartScreen` (one hit for \"takes its name\"), deleted from both `Draft/index.tsx` along with their now-unused `useEffect`/`service`/`run` imports. Verified: `tsc --noEmit`, `eslint`, `bun test` (304 pass), `bun run test:e2e` (7 pass, including the sale flow). New `use-submit-cart.test.ts` drives success, failure-toast, not-ready and blocked through the shared hook with the service stubbed. Remaining: the two pages are 166/200 lines rather than the ≲80 target — the totals derivation and the `Complete` props block are still per-screen — and no render test mounts both pages through one submit."
+          },
+          {
+            "report": "cart-screens-have-no-render-tests",
+            "status": "partial",
+            "note": "The cart now has render tests that dispatch real key events. New `src/components/cart/z-Extras.test.tsx` renders the Tambahan grid with two presets (catalog stubbed at the service boundary via `useExtraPresets`, not component internals) and asserts: Enter after ArrowDown adds exactly one row and it is the *highlighted* preset; Enter on the first preset adds one row; Enter in the search field adds the first match once; horizontal arrows stay in the preset list; `+manual` adds one blank row. I verified the first three fail against the pre-fix grid (3 failures, then restored the guard) — this is the regression test the report asked for. New `src/components/cart/z-Discount.test.tsx` renders the money dialog and asserts `aria-modal` plus the inert app shell. New `src/components/cart/use-submit-cart.test.ts` covers the shared Bayar path (success, failure returns/toasts, not-ready, blocked). Remaining: no render test for `z-Listing` (search→results→Enter) or for the `z-Methods` payment strip, no `Pos` screen render test with a stubbed layer, and `e2e/pos-cart.e2e.ts` was not extended with an F2 → Bayar → completion scenario."
+          }
+        ],
+        "at": "2026-10-21T20:32:41.444Z",
+        "verification": {
+          "command": "bun run lint",
+          "ok": true,
+          "exitCode": 0,
+          "output": "$ eslint .",
+          "at": "2026-10-21T20:32:41.444Z"
         }
       }
     }

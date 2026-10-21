@@ -1,5 +1,6 @@
 import { Loader, useStream } from "~/components/Loader";
 import { Skeleton } from "~/components/ui/skeleton";
+import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import { Clear } from "./z-Clear";
 import { LogErrorBoundary, LogErrorFallback } from "./z-Error";
@@ -32,13 +33,30 @@ function Lines() {
   const res = useStream(service.logs.lines.changes);
   return (
     <Loader res={res} fallback={<LoadingLines />}>
-      {({ data: lines }) =>
-        lines.map((line, i) => (
-          <p className="text-white text-small" key={i}>
-            {line}
+      {({ data }) => (
+        <>
+          <p className="text-muted-foreground text-small select-none">
+            {data.total === 0
+              ? "Log masih kosong."
+              : data.total > data.lines.length
+                ? `Menampilkan ${data.lines.length} baris terakhir dari ${data.total} baris.`
+                : `Menampilkan ${data.total} baris.`}
           </p>
-        ))
-      }
+          {data.lines.map((line, i) => (
+            <p
+              className={cn(
+                "text-white text-small",
+                // A warning is part of the history; show it, marked, instead of
+                // silently dropping it from what the page calls the log.
+                line.includes("[WARN]") && "text-amber-300",
+              )}
+              key={i}
+            >
+              {line}
+            </p>
+          ))}
+        </>
+      )}
     </Loader>
   );
 }

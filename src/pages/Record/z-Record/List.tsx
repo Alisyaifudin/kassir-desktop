@@ -28,6 +28,15 @@ export function List({ records }: { records: RecordModel[] }) {
     [order, sort, setOrder],
   );
 
+  // Roving tabindex, the model the POS grids use: the list is a single tab
+  // stop, and Up/Down/Home/End move focus inside it. Every row at `tabIndex={0}`
+  // would make Tab crawl through a whole day of records before reaching the
+  // detail pane.
+  const tabStop = useMemo(() => {
+    const index = sorted.findIndex((record) => record.id === selected);
+    return index === -1 ? 0 : index;
+  }, [sorted, selected]);
+
   // Up/Down move the *focus* (so Tab does not have to walk every row); Enter or
   // Space then selects. Same mental model as the POS grids.
   const handleRowKeyDown = useCallback(
@@ -39,19 +48,33 @@ export function List({ records }: { records: RecordModel[] }) {
         setSelected(record.id);
         return;
       }
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      if (
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp" &&
+        event.key !== "Home" &&
+        event.key !== "End"
+      )
+        return;
       event.preventDefault();
       const rows = event.currentTarget
         .closest("tbody")
-        ?.querySelectorAll<HTMLTableRowElement>("tr:not([aria-hidden='true'])");
-      const next = index + (event.key === "ArrowDown" ? 1 : -1);
-      rows?.[next]?.focus();
+        ?.querySelectorAll<HTMLTableRowElement>("tr");
+      if (rows === undefined || rows.length === 0) return;
+      const target =
+        event.key === "ArrowDown"
+          ? index + 1
+          : event.key === "ArrowUp"
+            ? index - 1
+            : event.key === "Home"
+              ? 0
+              : rows.length - 1;
+      rows[Math.min(Math.max(target, 0), rows.length - 1)]?.focus();
     },
     [sorted, setSelected],
   );
 
   return (
-    <Table className="text-normal">
+    <Table className="text-normal" aria-label="Daftar transaksi hari ini">
       <TableHeader>
         <TableRow>
           <TableHead className="w-[30px] font-normal small:w-[10px]">No</TableHead>
@@ -86,10 +109,10 @@ export function List({ records }: { records: RecordModel[] }) {
         <ForEach items={sorted}>
           {(record, i) => (
             <TableRow
-              // The list is the only way to open a record's detail pane, so it
-              // has to work without a mouse: Tab reaches a row, Up/Down walk the
-              // list, Enter (or Space) opens the one under the cursor.
-              tabIndex={0}
+              // One row is in the tab order: the selected one (or the first,
+              // before anything is picked). Up/Down/Home/End move focus inside
+              // the list, Enter (or Space) opens the row under the cursor.
+              tabIndex={i === tabStop ? 0 : -1}
               aria-selected={selected === record.id}
               onKeyDown={handleRowKeyDown(i)}
               onClick={() => setSelected(record.id)}

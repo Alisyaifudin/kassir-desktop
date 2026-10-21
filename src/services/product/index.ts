@@ -212,6 +212,13 @@ export class ProductService extends Context.Tag("ProductService")<
       ) => Effect.Effect<ProductEvent[], ProductError>;
     };
     delete: (id: string) => Effect.Effect<void, ProductError>;
+    /** Re-reads the whole catalogue. For imports, deletes and startup. */
     refresh: () => Effect.Effect<void, ProductError>;
+    /**
+     * Re-reads only these products and folds them into the aggregate. A record
+     * commit moves the stock of the products on its lines and nothing else, so
+     * this is what keeps `Bayar` O(lines) instead of O(catalogue).
+     */
+    refreshMany: (ids: string[]) => Effect.Effect<void, ProductError>;
   }
 >() {}

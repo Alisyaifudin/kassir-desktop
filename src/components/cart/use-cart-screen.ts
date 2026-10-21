@@ -30,6 +30,9 @@ export type CartMode = "incoming" | "outcoming";
  * Everything here is identical on both screens by construction — that is the
  * point: a keyboard or lifecycle rule must not exist twice.
  */
+/** The object `useCartScreen` hands a screen (or the shared cart frame). */
+export type CartScreen = ReturnType<typeof useCartScreen>;
+
 export function useCartScreen<S extends string, C extends Completed = Completed>({
   mode,
   drafts,
@@ -280,6 +283,18 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
     if (active === null) return;
     run(service.transaction.extras.set(active.id, next));
   };
+
+  // The open cart takes its name from its first named line, so the tab strip
+  // says "Kopi" instead of "Transaksi Baru". Sale and purchase are the same rule
+  // (".name" is whatever was rung up), so it lives here rather than in both
+  // Draft panels.
+  const title = (active?.listings ?? []).find((line) => line.name.trim() !== "")?.name.trim();
+  const cartTitle = title ?? "Transaksi Baru";
+  const currentTitle = active?.title;
+  useEffect(() => {
+    if (activeId === null || currentTitle === undefined) return;
+    if (cartTitle !== currentTitle) run(service.transaction.set.title(activeId, cartTitle));
+  }, [activeId, cartTitle, currentTitle]);
 
   /** The restore latch the completion dialog drives when it rebuilds a cart. */
   const restore = {

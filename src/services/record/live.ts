@@ -720,6 +720,18 @@ export const RecordLive = Layer.effect(
         .pipe(Effect.mapError((error) => new RecordError({ message: error.message })));
     }
 
+    /**
+     * The bounded form for a commit whose moved products are known: re-read only
+     * those, so `Bayar` costs O(lines) instead of re-reading the catalogue.
+     */
+    function refreshProductsFor(ids: Iterable<string>): Effect.Effect<void, RecordError> {
+      const list = [...ids];
+      if (list.length === 0) return Effect.void;
+      return product
+        .refreshMany(list)
+        .pipe(Effect.mapError((error) => new RecordError({ message: error.message })));
+    }
+
     return {
       get: {
         debt,
@@ -1376,8 +1388,11 @@ export const RecordLive = Layer.effect(
             yield* commit(statements);
             yield* bumpRevision();
             // Stock moved, so the product aggregate is stale. A failure here must
-            // not fail the submit: the record is already committed.
-            yield* refreshProducts().pipe(
+            // not fail the submit: the record is already committed. Only the
+            // products this record touched are re-read — the cart cannot have
+            // moved anything else, and a full catalogue read here would put an
+            // O(catalogue) scan between `Bayar` and its success dialog.
+            yield* refreshProductsFor(lotsByProduct.keys()).pipe(
               Effect.catchAll((error) =>
                 Effect.logError(`product refresh after submit failed: ${error.message}`),
               ),
