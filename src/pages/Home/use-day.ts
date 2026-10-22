@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import { Effect, Stream } from "effect";
 import { useMemo } from "react";
 import { Temporal } from "temporal-polyfill";
@@ -6,11 +7,21 @@ import { useDayStart } from "~/hooks/use-day-start";
 import { useRecordRevision } from "~/hooks/use-record-revision";
 import { tz } from "~/lib/constants";
 import { service } from "~/services";
-import type { RecordError, RecordMode, RecordSummary } from "~/services/record";
+import type {
+  DebtRecord,
+  Record as RecordModel,
+  RecordError,
+  RecordMode,
+  RecordSummary,
+} from "~/services/record";
 
-export type Stats = {
+export type DayFacts = {
   today: Record<RecordMode, RecordSummary>;
   yesterday: Record<RecordMode, RecordSummary>;
+  /** Today's settled records, newest first. */
+  records: RecordModel[];
+  /** Every outstanding credit, not only today's — the same set /debt lists. */
+  debt: { total: number; count: number };
 };
 
 function empty(mode: RecordMode): RecordSummary {
@@ -37,24 +48,46 @@ function dayRanges(dayStart: number) {
   };
 }
 
-export function useStats(): Result<Stats, RecordError> {
-  // "Today" rolls over on its own: a shop PC left open across local midnight
-  // used to keep showing yesterday's takings as "Pendapatan Hari Ini".
+function debtOf(records: DebtRecord[]): { total: number; count: number } {
+  return {
+    count: records.length,
+    // Decimal, like the day list's footer: a sum of stored totals must not pick
+    // up float noise just because it is only for display.
+    total: records.length === 0 ? 0 : Decimal.sum(...records.map((item) => item.total)).toNumber(),
+  };
+}
+
+/**
+ * Everything Beranda says about the day, in one read: the two day summaries, the
+ * records behind them and the outstanding credits.
+ *
+ * One query rather than three so the band and the ledger below it never disagree
+ * or load at different moments. "Today" rolls over on its own (a shop PC left
+ * open across midnight kept showing yesterday's takings), and a commit made
+ * while Beranda is mounted re-reads it, like every other day-scoped screen.
+ */
+export function useDay(): Result<DayFacts, RecordError> {
   const dayStart = useDayStart();
   const range = useMemo(() => dayRanges(dayStart), [dayStart]);
-  // And a commit made while Beranda is mounted refreshes the numbers, like every
-  // other day-scoped screen.
   const revision = useRecordRevision();
 
   return useQuery(
     () =>
       Stream.fromEffect(
         Effect.gen(function* () {
-          const [today, yesterday] = yield* Effect.all([
+          const [today, yesterday, records, debt] = yield* Effect.all([
             service.record.count.summary(range.today.start, range.today.end),
             service.record.count.summary(range.yesterday.start, range.yesterday.end),
+            service.record.get.byRange(range.today.start, range.today.end),
+            service.record.get.debt(),
           ]);
-          return { today: byMode(today), yesterday: byMode(yesterday) };
+          return {
+            today: byMode(today),
+            yesterday: byMode(yesterday),
+            // `byRange` answers oldest-first; the page reads newest-first.
+            records: [...records].sort((a, b) => b.date - a.date),
+            debt: debtOf(debt),
+          };
         }),
       ),
     [range.today.start, revision],

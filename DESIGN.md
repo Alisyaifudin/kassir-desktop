@@ -189,6 +189,26 @@ band may use `rounded-lg`. No pills, no organic masks, no clipped corners.
   state (`Lunas` emerald / `Kredit` destructive, always with a dot *and* the word), the
   ULID (truncating, `title` carries the whole), the effective date, and a muted second
   line with the cashier, creation time and the admin-editable paid/credit dates.
+- **The page card** (`Home/z-Card`): the panel every Beranda region sits in — white on the
+  `bg-muted/50` canvas, one hairline border, no shadow. A `CardHead` carries the region's
+  name at `text-small` semibold and the single action that belongs to it ("Kelola",
+  "Riwayat", "Lihat"). Cards are the home screen's structure; no other screen needs them.
+- **The stat row** (`Home/z-Stats`): the day's three figures as equal cards — label, a
+  tinted icon tile (emerald for masuk, amber for keluar, destructive for utang), the
+  amount at `text-normal` semibold `tabular-nums`, then one meta line with the count and
+  the day-over-day percentage. Utang is the only stat that is itself a link. This is the
+  one place the app tints an icon: the tint names the direction of the money, it is not
+  decoration.
+- **The transaction card** (`Home/z-Ledger`): a card with a column head and full-row links
+  — Waktu, Kasir, Jenis, Status (dot plus `Lunas`/`Kredit`, the record page's own
+  vocabulary), Total right-aligned. Six rows, so the card closes inside a 1440×900 first
+  viewport; below `sm` the row becomes two lines and the amount spans both.
+- **The menu** (`Home/z-Menu`): the app's screens as tiles straight on the canvas — icon
+  tile, name, one short sentence on what the screen is for, and the Alt key or `admin`
+  tag that qualifies it. They are not wrapped in a
+  card (a card of cards is nesting); each tile is already a container. Hover is the
+  `active` blue, as is Beranda's primary action: on this page blue marks "go somewhere",
+  while the near-black primary stays the mark of an action that commits money.
 
 ## Do's and Don'ts
 
