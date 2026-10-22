@@ -1449,3 +1449,114 @@ describe("TransactionService.submit — lifecycle", () => {
     expect(count(db, "records")).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// add.fromRecord: a saved record, copied back into a cart
+// ---------------------------------------------------------------------------
+
+describe("TransactionService.add.fromRecord", () => {
+  test("rebuilds the record as a cart without touching the record", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [makeLine()]);
+        // 40.000 of goods rounded up by 500.
+        yield* tx.methods.set(id, [makeMethod(40500)]);
+        yield* tx.set.note(id, "kopi pagi");
+        yield* tx.set.fix(id, 2);
+        yield* tx.set.rounding(id, 500);
+        const recordId = yield* tx.submit(id, { cashier: "Kasir" });
+        const events = count(db, "product_events");
+        const draftId = yield* tx.add.fromRecord(recordId);
+        return { recordId, draftId, events, draft: yield* tx.get.byId(draftId) };
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    expect(outcome.draftId).not.toBe(outcome.recordId);
+    expect(outcome.draft).toMatchObject({
+      mode: "incoming",
+      note: "kopi pagi",
+      fix: 2,
+      rounding: 500,
+      flag: 0,
+      title: "Kopi",
+    });
+    expect(outcome.draft.listings).toHaveLength(1);
+    expect(outcome.draft.listings[0]).toMatchObject({
+      listingId: "l1",
+      name: "Kopi",
+      unit: 1,
+      price: 10000,
+      qty: 4,
+    });
+    expect(outcome.draft.methods.map((method) => [method.methodId, method.value])).toEqual([
+      ["cash", 40500],
+    ]);
+
+    // The point of the copy: history is untouched. The record is still current,
+    // and no second stock movement was written for it.
+    expect(count(db, "records")).toBe(1);
+    expect(
+      (db.query("SELECT record_deleted_at FROM records WHERE record_id = ?").get(outcome.recordId) as {
+        record_deleted_at: number | null;
+      }).record_deleted_at,
+    ).toBeNull();
+    expect(count(db, "product_events")).toBe(outcome.events);
+  });
+
+  test("copies one record twice, keeping each cart's own rows", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    db.exec(`
+      INSERT INTO tx_records (
+        tx_record_id, tx_record_order, tx_record_flag, tx_record_title, tx_record_mode
+      ) VALUES ('d1', 0, 0, 'Kopi', 'incoming');
+      INSERT INTO tx_listings (
+        tx_listing_id, tx_record_id, listing_id, tx_listing_name,
+        tx_listing_price, tx_listing_unit, tx_listing_qty
+      ) VALUES ('tl1', 'd1', 'l1', 'Kopi', 10000, 1, 4);
+      INSERT INTO tx_methods (tx_method_id, tx_record_id, method_id, tx_method_value)
+        VALUES ('tm1', 'd1', 'cash', 40000);
+      INSERT INTO tx_images (tx_image_id, tx_image_order, tx_image_name, tx_image_mime, tx_record_id)
+        VALUES ('ti1', 0, 'photo.png', 'image/png', 'd1');
+    `);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const recordId = yield* tx.submit("d1", { cashier: "Kasir" });
+        const first = yield* tx.add.fromRecord(recordId);
+        const second = yield* tx.add.fromRecord(recordId);
+        return { first, second, drafts: yield* tx.get.drafts("incoming") };
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    // The second copy would collide on `tx_image_id` if it reused the record's
+    // row ids, so this is the regression the fresh ids are there for.
+    expect(outcome.first).not.toBe(outcome.second);
+    expect(count(db, "tx_records")).toBe(2);
+    expect(count(db, "tx_images")).toBe(2);
+    expect(outcome.drafts).toHaveLength(2);
+    for (const draft of outcome.drafts) {
+      expect(draft.images).toEqual([
+        { id: expect.any(String), order: 0, name: "photo.png", mime: "image/png" },
+      ]);
+    }
+  });
+
+  test("reports a missing record instead of opening an empty cart", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        return yield* Effect.either(tx.add.fromRecord("nope"));
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    expect(result._tag).toBe("Left");
+    expect(count(db, "tx_records")).toBe(0);
+  });
+});

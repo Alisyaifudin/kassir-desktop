@@ -22,6 +22,7 @@ import { RecordsErrorBoundary, RecordsErrorFallback } from "../z-Error";
 import { DeleteBtn } from "./DeleteBtn";
 import { ExtrasTable } from "./ExtrasTable";
 import { Footer } from "./Footer";
+import { ToDraftBtn } from "./ToDraftBtn";
 import { useRecordFull } from "./use-record-full";
 
 export function Detail({ recordId }: { recordId: string }) {
@@ -133,6 +134,7 @@ function FooterBtn({ record }: { record: RecordFull }) {
         <Link to={{ pathname: `/records/${record.id}`, search: `?url_back=${path}` }}>Lihat</Link>
       </Button>
       <div className="flex items-center gap-3">
+        <ToDraftBtn record={record} />
         <Show when={role === "admin"}>
           <DeleteBtn recordId={record.id} />
         </Show>

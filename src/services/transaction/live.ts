@@ -14,7 +14,7 @@ import {
   type DraftMode,
 } from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
-import { RecordService, type RecordDraftInput } from "../record";
+import { RecordService, type RecordDraftInput, type RecordFull } from "../record";
 import {
   discountsEatLine,
   linesSubtotal,
@@ -471,6 +471,11 @@ function statementsForChange(previous: Draft | undefined, draft: Draft): Stateme
   return statements;
 }
 
+/** The tab position a draft appended now takes: after every open one. */
+function nextOrder(drafts: Draft[]): number {
+  return drafts.reduce((max, draft) => Math.max(max, draft.order), -1) + 1;
+}
+
 export const TransactionLive = Layer.effect(
   TransactionService,
   Effect.gen(function* () {
@@ -597,6 +602,173 @@ export const TransactionLive = Layer.effect(
       return Effect.gen(function* () {
         if (loaded) return;
         yield* hydrate();
+      });
+    }
+
+    function readRecord(id: string): Effect.Effect<RecordFull, TransactionError> {
+      return record.get.byId(id).pipe(
+        Effect.mapError((error) => new TransactionError({ message: error.message })),
+      );
+    }
+
+    /**
+     * A saved record, rebuilt as an editable cart. Two conversions matter: the
+     * record keeps pcs and a per-pc price while a draft line works in catalog
+     * units, so each line is matched to its listing again (falling back to the
+     * record's own numbers when the listing is gone); and every discount is run
+     * through the cart's own math, because only the record knows what each one
+     * took off.
+     *
+     * Every id is fresh. This backs `unsubmit` — where the record is then
+     * deleted — and `add.fromRecord`, which may copy the same record more than
+     * once, so reusing the record's own row ids would collide.
+     */
+    function draftFromRecord(
+      saved: RecordFull,
+      order: number,
+    ): Effect.Effect<Draft, TransactionError> {
+      return Effect.gen(function* () {
+        const listings: DraftListing[] = [];
+        for (const line of saved.listings) {
+          let catalog:
+            | {
+                listing_id: string;
+                listing_code: string | null;
+                listing_name: string;
+                listing_price: number;
+                listing_unit: number;
+              }
+            | null = null;
+          if (line.productId !== null) {
+            const rows = yield* db
+              .selectMany<{
+                listing_id: string;
+                listing_code: string | null;
+                listing_name: string;
+                listing_price: number;
+                listing_unit: number;
+              }>(
+                `SELECT listing_id, listing_code, listing_name, listing_price, listing_unit
+                 FROM listings
+                 WHERE product_id = $1
+                   AND listing_deleted_at IS NULL
+                   AND listing_unit = $2
+                 ORDER BY abs(listing_price - $3) ASC, listing_updated_at DESC
+                 LIMIT 1`,
+                [line.productId, line.unit, line.price * line.unit],
+              )
+              .pipe(Effect.mapError(toError));
+            catalog = rows[0] ?? null;
+          }
+          // The record's qty is in pcs and its price is per pc; the draft
+          // works in listing units.
+          const price = catalog?.listing_price ?? line.price * line.unit;
+          const qty = line.unit > 0 ? Math.max(0, Math.round(line.qty / line.unit)) : line.qty;
+          const discounts = recalcDiscounts(
+            price,
+            qty,
+            line.discounts.map((discount) => ({
+              id: generateId(),
+              value: discount.value,
+              kind: discount.kind,
+              eff: 0,
+              total: 0,
+            })),
+          );
+          listings.push({
+            id: generateId(),
+            listingId: catalog?.listing_id ?? null,
+            name: line.name,
+            code: catalog?.listing_code ?? "",
+            unit: line.unit,
+            price,
+            qty,
+            discounts,
+            base:
+              catalog === null
+                ? undefined
+                : {
+                    name: catalog.listing_name,
+                    code: catalog.listing_code ?? "",
+                    unit: catalog.listing_unit,
+                    price: catalog.listing_price,
+                  },
+          });
+        }
+
+        // Prefer the customer row that was written at submit; a customer that
+        // has since been deleted falls back to the name/phone text.
+        let customerId: string | null = null;
+        if (saved.customer.name.trim() !== "") {
+          const rows = yield* db
+            .selectMany<{ customer_id: string }>(
+              `SELECT customer_id FROM customers
+               WHERE customer_deleted_at IS NULL AND lower(customer_name) = lower($1)
+               ORDER BY customer_updated_at DESC LIMIT 1`,
+              [saved.customer.name],
+            )
+            .pipe(Effect.mapError(toError));
+          customerId = rows[0]?.customer_id ?? null;
+        }
+
+        const imageRows = yield* db
+          .selectMany<{
+            record_image_order: number;
+            record_image_name: string;
+            record_image_mime: DraftImageMime;
+          }>(
+            `SELECT record_image_order, record_image_name, record_image_mime
+             FROM record_images WHERE record_id = $1 ORDER BY record_image_order`,
+            [saved.id],
+          )
+          .pipe(Effect.mapError(toError));
+
+        return {
+          id: generateId(),
+          order,
+          flag: 0,
+          title: listings.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru",
+          mode: saved.mode,
+          fix: saved.fix,
+          note: saved.note,
+          customerId,
+          customerName: customerId === null ? saved.customer.name : "",
+          customerPhone: customerId === null ? saved.customer.phone : "",
+          supplierId: saved.supplier.id,
+          supplierName: saved.supplier.id === null ? saved.supplier.name : "",
+          rounding: saved.rounding,
+          listings,
+          extras: saved.extras.map((extra) => ({
+            id: generateId(),
+            name: extra.name,
+            kind: extra.kind,
+            value: extra.value,
+          })),
+          methods: saved.methods.map((method) => ({
+            id: generateId(),
+            methodId: method.methodId,
+            value: method.pay,
+          })),
+          images: imageRows.map((image) => ({
+            id: generateId(),
+            order: image.record_image_order,
+            name: image.record_image_name,
+            mime: image.record_image_mime,
+          })),
+        };
+      });
+    }
+
+    /**
+     * Puts a rebuilt draft on disk and in the ref. Written before anything else
+     * happens to it, so a cart the cashier can see is also a cart that survives
+     * a crash — and so the debounced writer treats it as already saved.
+     */
+    function persistDraft(draft: Draft): Effect.Effect<void, TransactionError> {
+      return Effect.gen(function* () {
+        yield* db.transaction(statementsFor(draft)).pipe(Effect.mapError(toError));
+        written.set(draft.id, draft);
+        yield* SubscriptionRef.update(draftsRef, (list) => [...list, draft]);
       });
     }
 
@@ -881,150 +1053,15 @@ export const TransactionLive = Layer.effect(
       },
       unsubmit(recordId) {
         return Effect.gen(function* () {
-          const saved = yield* record.get.byId(recordId).pipe(
-            Effect.mapError((error) => new TransactionError({ message: error.message })),
-          );
+          const saved = yield* readRecord(recordId);
           yield* ensureLoaded();
           const drafts = yield* SubscriptionRef.get(draftsRef);
-          const order = drafts.reduce((max, draft) => Math.max(max, draft.order), -1) + 1;
-
-          const listings: DraftListing[] = [];
-          for (const line of saved.listings) {
-            let catalog:
-              | {
-                  listing_id: string;
-                  listing_code: string | null;
-                  listing_name: string;
-                  listing_price: number;
-                  listing_unit: number;
-                }
-              | null = null;
-            if (line.productId !== null) {
-              const rows = yield* db
-                .selectMany<{
-                  listing_id: string;
-                  listing_code: string | null;
-                  listing_name: string;
-                  listing_price: number;
-                  listing_unit: number;
-                }>(
-                  `SELECT listing_id, listing_code, listing_name, listing_price, listing_unit
-                   FROM listings
-                   WHERE product_id = $1
-                     AND listing_deleted_at IS NULL
-                     AND listing_unit = $2
-                   ORDER BY abs(listing_price - $3) ASC, listing_updated_at DESC
-                   LIMIT 1`,
-                  [line.productId, line.unit, line.price * line.unit],
-                )
-                .pipe(Effect.mapError(toError));
-              catalog = rows[0] ?? null;
-            }
-            // The record's qty is in pcs and its price is per pc; the draft
-            // works in listing units.
-            const price = catalog?.listing_price ?? line.price * line.unit;
-            const qty =
-              line.unit > 0 ? Math.max(0, Math.round(line.qty / line.unit)) : line.qty;
-            const discounts = recalcDiscounts(
-              price,
-              qty,
-              line.discounts.map((discount) => ({
-                id: generateId(),
-                value: discount.value,
-                kind: discount.kind,
-                eff: 0,
-                total: 0,
-              })),
-            );
-            listings.push({
-              id: generateId(),
-              listingId: catalog?.listing_id ?? null,
-              name: line.name,
-              code: catalog?.listing_code ?? "",
-              unit: line.unit,
-              price,
-              qty,
-              discounts,
-              base:
-                catalog === null
-                  ? undefined
-                  : {
-                      name: catalog.listing_name,
-                      code: catalog.listing_code ?? "",
-                      unit: catalog.listing_unit,
-                      price: catalog.listing_price,
-                    },
-            });
-          }
-
-          // Prefer the customer row that was written at submit; a customer that
-          // has since been deleted falls back to the name/phone text.
-          let customerId: string | null = null;
-          if (saved.customer.name.trim() !== "") {
-            const rows = yield* db
-              .selectMany<{ customer_id: string }>(
-                `SELECT customer_id FROM customers
-                 WHERE customer_deleted_at IS NULL AND lower(customer_name) = lower($1)
-                 ORDER BY customer_updated_at DESC LIMIT 1`,
-                [saved.customer.name],
-              )
-              .pipe(Effect.mapError(toError));
-            customerId = rows[0]?.customer_id ?? null;
-          }
-
-          const imageRows = yield* db
-            .selectMany<{
-              record_image_id: string;
-              record_image_order: number;
-              record_image_name: string;
-              record_image_mime: DraftImageMime;
-            }>(
-              `SELECT record_image_id, record_image_order, record_image_name, record_image_mime
-               FROM record_images WHERE record_id = $1 ORDER BY record_image_order`,
-              [recordId],
-            )
-            .pipe(Effect.mapError(toError));
-
-          const draft: Draft = {
-            id: generateId(),
-            order,
-            flag: 0,
-            title: listings.find((line) => line.name.trim() !== "")?.name.trim() ?? "Transaksi Baru",
-            mode: saved.mode,
-            fix: saved.fix,
-            note: saved.note,
-            customerId,
-            customerName: customerId === null ? saved.customer.name : "",
-            customerPhone: customerId === null ? saved.customer.phone : "",
-            supplierId: saved.supplier.id,
-            supplierName: saved.supplier.id === null ? saved.supplier.name : "",
-            rounding: saved.rounding,
-            listings,
-            extras: saved.extras.map((extra) => ({
-              id: generateId(),
-              name: extra.name,
-              kind: extra.kind,
-              value: extra.value,
-            })),
-            methods: saved.methods.map((method) => ({
-              id: generateId(),
-              methodId: method.methodId,
-              value: method.pay,
-            })),
-            images: imageRows.map((image) => ({
-              id: image.record_image_id,
-              order: image.record_image_order,
-              name: image.record_image_name,
-              mime: image.record_image_mime,
-            })),
-          };
+          const draft = yield* draftFromRecord(saved, nextOrder(drafts));
 
           // Persist the restored cart first, then undo the record. If the second
           // step fails the cashier has both, which is recoverable; the reverse
           // would lose the sale.
-          yield* db.transaction(statementsFor(draft)).pipe(Effect.mapError(toError));
-          written.set(draft.id, draft);
-          yield* SubscriptionRef.update(draftsRef, (list) => [...list, draft]);
+          yield* persistDraft(draft);
           const removed = yield* Effect.either(
             record.delete
               .byId(recordId)
@@ -1049,7 +1086,7 @@ export const TransactionLive = Layer.effect(
           return Effect.gen(function* () {
             yield* ensureLoaded();
             const drafts = yield* SubscriptionRef.get(draftsRef);
-            const order = drafts.reduce((max, draft) => Math.max(max, draft.order), -1) + 1;
+            const order = nextOrder(drafts);
             const draft: Draft = {
               id: generateId(),
               order,
@@ -1072,6 +1109,20 @@ export const TransactionLive = Layer.effect(
             };
             yield* SubscriptionRef.update(draftsRef, (list) => [...list, draft]);
             schedule(draft.id);
+            return draft.id;
+          });
+        },
+        fromRecord(recordId) {
+          return Effect.gen(function* () {
+            // Read the record before loading the carts: a missing or deleted
+            // record fails without having touched the working state.
+            const saved = yield* readRecord(recordId);
+            yield* ensureLoaded();
+            const drafts = yield* SubscriptionRef.get(draftsRef);
+            const draft = yield* draftFromRecord(saved, nextOrder(drafts));
+            // Nothing to schedule: the draft is written whole here, so the
+            // debounced writer already has it in `written`.
+            yield* persistDraft(draft);
             return draft.id;
           });
         },

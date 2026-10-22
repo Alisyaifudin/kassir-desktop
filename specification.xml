@@ -1107,6 +1107,11 @@
         <mode name="incoming">Masuk — a sale: money in, stock consumed.</mode>
         <mode name="outcoming">Keluar — a purchase: money out, stock received.</mode>
       </modes>
+      <note name="pane_actions">
+        The right pane's footer opens the record in full (`Lihat`), copies it back into a fresh cart with
+        `Jadikan Transaksi` (transaction.add.fromRecord: the same rebuild `unsubmit` does, minus undoing the record, which
+        opens on /pos for a sale and /restock for a purchase with `?draft=` naming the copy), and — admin only — deletes it.
+      </note>
       <subpages>
         <subpage path="/records/:recordId">One record in full: the receipt it prints and the ledger behind it. Actions: edit note, move the date, change mode, edit the split payments, toggle credit, link a line to a catalog listing, delete.</subpage>
         <subpage path="/records/search">Comprehensive search across listing lines by product name, mode and date range, with a capped page plus the total match count.</subpage>

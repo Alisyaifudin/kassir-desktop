@@ -128,7 +128,15 @@ export class TransactionService extends Context.Tag("TransactionService")<
      * still reaches the operator instead of vanishing into a dropped fiber.
      */
     reportError: (message: string) => Effect.Effect<void>;
-    add: { new: (mode: DraftMode) => Effect.Effect<string, TransactionError> };
+    add: {
+      new: (mode: DraftMode) => Effect.Effect<string, TransactionError>;
+      /**
+       * Copies a saved record back into a fresh cart, leaving the record itself
+       * alone — the same rebuild `unsubmit` does, without undoing history.
+       * Returns the new draft id, which the cart screen opens by `?draft=`.
+       */
+      fromRecord: (recordId: string) => Effect.Effect<string, TransactionError>;
+    };
     /**
      * Commit the draft as a record, in one transaction: the record and its
      * lines, the stock movements, and the `tx_*` deletion. Returns the record id.
