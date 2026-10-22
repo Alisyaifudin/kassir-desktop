@@ -14,10 +14,11 @@
  * pinning its checksum in `migration-checksums.json`; it never means editing an
  * existing file — however tempting folding two files together looks.
  *
- * The one recorded exception: the 43-53 chain was re-baselined to 43 + 44
- * (folding 45-53 in, and adding `records.record_flag`) when the shop's database
- * was deliberately reset, so the pinned set stops at 44. From here the rule
- * holds again: 43 and 44 are shipped now too.
+ * The one recorded exception: 47-53 were folded into 43 + 44 (which also gained
+ * `records.record_flag`), so those versions no longer exist. 45 and 46 stayed
+ * because a shipped database already carries 46 — dropping it turns every such
+ * install into `VersionMissing` at preload. From here the rule holds again:
+ * 43-46 are shipped now too.
  *
  * Run with:  bun test src/services/db/migration-chain.test.ts
  */
