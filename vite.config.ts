@@ -29,8 +29,11 @@ export default defineConfig(({ command, mode }) => {
       }),
       {
         name: "inject-react-scan",
-        transformIndexHtml(html) {
-          if (isDev) {
+        // The Playwright harness runs without the overlay: react-scan's root sits
+        // over the bottom-right of the page and intercepts clicks, and its FPS
+        // bar lands in every screenshot taken from `/e2e.html`.
+        transformIndexHtml(html, ctx) {
+          if (isDev && !ctx.filename.endsWith("e2e.html")) {
             return html.replace(
               "</head>",
               '<script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js"></script></head>',

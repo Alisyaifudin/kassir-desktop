@@ -41,6 +41,7 @@ export function Cell({
   allowNegative,
   singleClickEdit,
   editId,
+  ariaLabel,
   prefix,
   footer,
   onChange,
@@ -69,6 +70,8 @@ export function Cell({
   singleClickEdit?: boolean;
   /** The id the editing input gets, so a shortcut can find it. */
   editId?: string;
+  /** Accessible name for the cell and its editor, e.g. "Nama baris 2". */
+  ariaLabel?: string;
   /** Drawn over the left of the cell (e.g. a key hint), in both modes. */
   prefix?: ReactNode;
   /** Drawn under the value/editor, e.g. an inline validation message. */
@@ -133,6 +136,7 @@ export function Cell({
       // The grid's active descendant must point at a role-bearing node, not a
       // bare div: otherwise a screen reader enters an ARIA grid it cannot read.
       role="gridcell"
+      aria-label={ariaLabel}
       aria-selected={selected}
       onClick={() => {
         if (editing) return;
@@ -182,6 +186,7 @@ export function Cell({
           {percent ? (
             <InputPercent
               id={editId}
+              aria-label={ariaLabel}
               autoFocus
               value={Number(draft) || 0}
               onValueChange={(next) => handleDraft(String(next))}
@@ -192,6 +197,7 @@ export function Cell({
           ) : currency ? (
             <InputCurrency
               id={editId}
+              aria-label={ariaLabel}
               autoFocus
               allowNegative={allowNegative}
               value={Number(draft) || 0}
@@ -203,6 +209,7 @@ export function Cell({
           ) : (
             <Input
               id={editId}
+              aria-label={ariaLabel}
               autoFocus
               value={draft}
               placeholder={placeholder}

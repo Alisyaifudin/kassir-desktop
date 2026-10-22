@@ -14,6 +14,7 @@ import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
 import { debtRoute } from "./pages/Debt/index.tsx";
 import { extraRoute } from "./pages/Extra/index.tsx";
+import { transactionRoute } from "./pages/Transaction/index.tsx";
 
 const RootLayout = lazy(() => import("./layouts/root.tsx"));
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
@@ -35,6 +36,7 @@ export const router = createHashRouter([
           methodRoute,
           socialRoute,
           extraRoute,
+          transactionRoute,
           homeRoute,
           debtRoute,
           posRoute,

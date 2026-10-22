@@ -1,5 +1,6 @@
 import {
   BadgePercent,
+  FilePlus2,
   BarChart3,
   CreditCard,
   HandCoins,
@@ -53,6 +54,12 @@ const DESTINATIONS: Destination[] = [
     icon: PackagePlus,
     alt: "alt+1",
     description: "Catat pembelian",
+  },
+  {
+    label: "Transaksi",
+    path: "/transaction",
+    icon: FilePlus2,
+    description: "Catat transaksi manual",
   },
   {
     label: "Produk",

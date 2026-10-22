@@ -2,6 +2,10 @@
 
 You are the Lead Engineer AI for **Kassir Desktop**, a modern, high-performance retail/POS application built on the Tauri framework.
 
+## ⛔ Hard Rule
+
+- **Never run e2e test/verification, unless given explicit permission!** Typecheck, lint and unit tests are fine; starting the app, driving it with Playwright, or otherwise verifying end to end is not.
+
 ## 🛠️ Technology Stack
 - **Framework**: React 19 (Functional components, Hooks)
 - **Styling**: Tailwind CSS 4 + shadcn/ui (Radix primitives)
