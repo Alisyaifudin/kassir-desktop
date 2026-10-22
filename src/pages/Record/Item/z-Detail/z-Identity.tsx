@@ -24,12 +24,12 @@ export function Identity({ record }: { record: RecordFull }) {
     <header className="flex shrink-0 flex-col gap-1 border-b px-1 pb-2">
       <div className="flex items-baseline justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="rounded-md bg-secondary px-2 text-small font-bold">
+          <span className="rounded-md bg-secondary px-2  font-bold">
             {purchase ? "Beli" : "Jual"}
           </span>
           <span
             className={cn(
-              "flex shrink-0 items-center gap-1.5 text-small font-bold",
+              "flex shrink-0 items-center gap-1.5  font-bold",
               record.isCredit
                 ? "text-destructive"
                 : "text-emerald-600 dark:text-emerald-500",
@@ -40,16 +40,13 @@ export function Identity({ record }: { record: RecordFull }) {
           </span>
           {/* A ULID does not break by itself; let it truncate rather than push
               the date out of the band. The full id is on the receipt. */}
-          <p className="min-w-0 truncate text-small text-muted-foreground" title={record.id}>
+          <p className="min-w-0 truncate  text-muted-foreground" title={record.id}>
             No: {record.id}
           </p>
         </div>
-        <p className="shrink-0 text-small tabular-nums text-muted-foreground">
-          {formatDate(record.date, "long")} · {formatTime(record.date, "short")}
-        </p>
       </div>
       <div className="flex items-center justify-between gap-4 text-small text-muted-foreground">
-        <p className="min-w-0 truncate text-small">
+        <p className="min-w-0 truncate ">
           Kasir {capitalize(record.cashier)} · Dibuat {formatDate(record.createdAt, "long")}{" "}
           {formatTime(record.createdAt, "short")}
         </p>
