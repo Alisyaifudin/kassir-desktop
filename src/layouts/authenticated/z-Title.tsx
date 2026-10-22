@@ -1,39 +1,26 @@
 import { Link } from "react-router";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Loader, useStream } from "~/components/Loader";
-import { createErrorBoundary } from "~/components/createErrorBoundary";
-import { TextError } from "~/components/TextError";
-import { service } from "~/services";
-import { InfoError } from "~/services/info";
+import { useShopName } from "./use-shop-name";
 
-const InfoErrorBoundary = createErrorBoundary(InfoError);
-
+/**
+ * The shop's name, italicised beside the page title — the topbar's brand.
+ *
+ * It is the name from Setting > Toko (`info.owner`, the one the receipt prints),
+ * not the old `info.name` field, so renaming the shop renames the brand without a
+ * reload. The page title beside it stays the name of the screen.
+ */
 export function Title() {
-  const res = useStream(service.info.changes);
-
+  const shopName = useShopName();
   return (
-    <InfoErrorBoundary fallback={TitleError}>
-      <Loader res={res} fallback={<TitleLoading />}>
-        {({ data }) => (
-          <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
-            <Link title={data.name} to="/" className="text-normal font-medium italic opacity-80">
-              {data.name.slice(0, 16)}
-            </Link>
-          </div>
-        )}
-      </Loader>
-    </InfoErrorBoundary>
-  );
-}
-
-function TitleError({ error }: { error: InfoError }) {
-  return <TextError>{error.message}</TextError>;
-}
-
-function TitleLoading() {
-  return (
-    <div className="hidden lg:block ml-4 border-l pl-4 border-black/20">
-      <Skeleton className="h-5 w-24" />
+    <div className="hidden lg:block ml-4 border-l pl-4 border-black/20 min-w-0">
+      {/* A shop can call itself anything; the brand truncates rather than pushing
+          the navigation off the topbar. */}
+      <Link
+        title={shopName}
+        to="/"
+        className="block truncate text-normal font-medium italic opacity-80 pr-2"
+      >
+        {shopName}
+      </Link>
     </div>
   );
 }
