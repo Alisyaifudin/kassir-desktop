@@ -16,9 +16,12 @@ import { ListingRow } from "./z-ListingRow";
  */
 export function Listings({ record }: { record: RecordFull }) {
   // These tables sit in the page's one scroll container; the shared Table box
-  // must not cap and scroll on its own, so it sizes to its content instead.
+  // must not cap — and must not scroll — on its own. `overflow-visible` matters
+  // as much as `max-h-none`: as a flex child, an `overflow-y-auto` box shrinks to
+  // the leftover height and scrolls its rows internally, which puts a second
+  // scrollbar inside the band and stops the sticky header from tracking the band.
   return (
-    <Table className="text-normal" parentClass="max-h-none">
+    <Table className="text-normal" parentClass="max-h-none overflow-visible">
       <TableHeader>
         <TableRow>
           <TableHead className="w-[93px] small:w-[80px]">No</TableHead>

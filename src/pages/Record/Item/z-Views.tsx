@@ -29,10 +29,12 @@ export function Views({ record, busy }: { record: RecordFull; busy: boolean }) {
         </TabsList>
       </div>
       {/* Radix mounts only the active tab, so the receipt's own reads (shop
-          identity, contacts) happen when someone looks at it, not on every open. */}
+          identity, contacts) happen when someone looks at it, not on every open.
+          The ledger manages its own scroll now — it has a band above and a shelf
+          below that must not move — so this pane clips instead of scrolling. */}
       <TabsContent
         value="detail"
-        className={cn("flex-1 min-h-0 overflow-y-auto transition-opacity", stale)}
+        className={cn("flex-1 min-h-0 overflow-hidden transition-opacity", stale)}
       >
         <Detail record={record} />
       </TabsContent>
