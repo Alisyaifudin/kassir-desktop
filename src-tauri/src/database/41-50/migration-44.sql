@@ -6,6 +6,11 @@
 -- reviewed and retried separately — the DDL does not have to be re-read to check
 -- a copy, and a copy that fails can be re-run without touching the schema.
 --
+-- Re-baselined: this file also carries the stock-journal reconciliation that
+-- shipped as migration-47 (it can only run after the lots above exist), and it
+-- writes `records` in the three-date shape that 43 now creates. The old 43-53
+-- lineage and this one cannot share a database.
+--
 -- There is no DDL here: every statement is INSERT ... SELECT. The parked tables
 -- are left in place afterwards (43's ground rule is that nothing is dropped).
 --
@@ -81,15 +86,24 @@ WHERE EXISTS (
 --      and lets `record_listings` point at the exact event. `product_events_old`
 --      is left parked for inspection; nothing reads it again.
 
--- 6 records — drop method_id; rename the mode enum values.
+-- 6 records — the old row splits into three dates; drop method_id.
+--      A credit sale was created when it was written and has not been paid; a
+--      cash sale was created and paid at once. `record_flag` keeps its default.
 INSERT INTO records (
-  record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
-  record_mode, record_pay, record_note, record_fix, record_customer_name,
-  record_customer_phone, record_sub_total, record_total,
+  record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
+  record_cashier, record_mode, record_pay, record_note, record_fix,
+  record_customer_name, record_customer_phone, record_sub_total, record_total,
   record_updated_at, record_sync_at
 )
 SELECT
-  record_id, record_paid_at, record_rounding, record_is_credit, record_cashier,
+  record_id,
+  COALESCE(record_paid_at, record_updated_at, 0),
+  CASE WHEN record_is_credit = 1 THEN NULL
+       ELSE COALESCE(record_paid_at, record_updated_at, 0) END,
+  record_rounding,
+  CASE WHEN record_is_credit = 1 THEN COALESCE(record_paid_at, record_updated_at, 0)
+       ELSE NULL END,
+  record_cashier,
   CASE record_mode
     WHEN 'sell' THEN 'incoming'
     WHEN 'buy'  THEN 'outcoming'
@@ -218,6 +232,69 @@ GROUP BY g.grave_item_id;
 --       pushing the new shape early will be rejected.
 -- UPDATE products SET product_sync_at = NULL;
 -- UPDATE records  SET record_sync_at  = NULL;
+
+
+-- ============================================================================
+-- 14. Reconcile the stock journal with the cached lot value (was migration-47).
+-- ============================================================================
+-- Step 2 seeds one lot per product from the old `product_stock`, and 6b rebuilds
+-- the journal from the record lines. The lot is what the app reads as stock; the
+-- events are the append-only journal. They agree only when every movement was
+-- logged, which the old data predates: the opening stock lived in
+-- `product_stock`, not in an event.
+--
+-- For each lot, compare the cached `stock_value` with the sum of its events and
+-- journal the difference as one final, signed adjustment. The lot is left as it
+-- is — it is the figure the shop counted — so the journal is what gets
+-- corrected. A second run would find no difference and insert nothing.
+--
+-- The id is a random 128-bit hex rather than the app's ULID (SQL cannot mint
+-- one); ids are opaque text everywhere, so that is fine.
+-- ============================================================================
+
+-- Read the gaps into a table first: SQLite does not guarantee the order while
+-- inserting into a table a SELECT is already reading, and a later lot's gap
+-- must not be computed from an earlier lot's adjustment.
+CREATE TEMP TABLE _stock_reconcile AS
+SELECT
+  s.stock_id,
+  s.product_id,
+  s.stock_value,
+  s.stock_capital,
+  s.stock_value - COALESCE(SUM(e.product_event_value), 0) AS gap,
+  COALESCE(MAX(e.product_event_created_at), 0) AS last_event_at
+FROM stocks s
+JOIN products p ON p.product_id = s.product_id
+LEFT JOIN product_events e ON e.stock_id = s.stock_id
+WHERE p.product_deleted_at IS NULL
+GROUP BY s.stock_id
+HAVING s.stock_value - COALESCE(SUM(e.product_event_value), 0) <> 0;
+
+INSERT INTO product_events (
+  product_event_id,
+  product_event_created_at,
+  product_event_sync_at,
+  product_event_value,
+  product_event_capital,
+  product_event_note,
+  product_id,
+  stock_id,
+  record_id
+)
+SELECT
+  lower(hex(randomblob(16))),
+  -- the final event: never before the lot's last one, even with clock skew
+  MAX(CAST(strftime('%s', 'now') AS INTEGER) * 1000, last_event_at + 1),
+  NULL,                       -- a new local event, like every other movement
+  gap,
+  stock_capital,
+  'Kalkulasi ulang',
+  product_id,
+  stock_id,
+  NULL                        -- no record produced it
+FROM _stock_reconcile;
+
+DROP TABLE _stock_reconcile;
 
 
 

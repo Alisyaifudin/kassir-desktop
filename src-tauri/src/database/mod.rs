@@ -266,59 +266,5 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-44.sql"),
             kind: MigrationKind::Up,
         },
-        Migration {
-            version: 45,
-            description: "reserved_bridge",
-            sql: include_str!("../../src/database/41-50/migration-45.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 46,
-            description: "allow_webp_images",
-            sql: include_str!("../../src/database/41-50/migration-46.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 47,
-            description: "reconcile_stock_events",
-            sql: include_str!("../../src/database/41-50/migration-47.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 48,
-            description: "add_code_to_tx_listings",
-            sql: include_str!("../../src/database/41-50/migration-48.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 49,
-            description: "clear_legacy_active_flag",
-            sql: include_str!("../../src/database/41-50/migration-49.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 50,
-            description: "add_submit_columns",
-            sql: include_str!("../../src/database/41-50/migration-50.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 51,
-            description: "record_dates_and_supplier_snapshot",
-            sql: include_str!("../../src/database/51-60/migration-51.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 52,
-            description: "index_record_dates",
-            sql: include_str!("../../src/database/51-60/migration-52.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 53,
-            description: "index_product_event_time",
-            sql: include_str!("../../src/database/51-60/migration-53.sql"),
-            kind: MigrationKind::Up,
-        },
     ]
 }

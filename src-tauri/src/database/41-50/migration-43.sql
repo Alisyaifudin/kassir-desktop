@@ -5,6 +5,13 @@
 -- parked `*_old` tables — is migration-44, so the two can be read, reviewed and
 -- retried separately. Both run in one pass when the app starts.
 --
+-- Re-baselined. This file now also carries the schema work that shipped as
+-- migrations 45-53 (the cart's customer/supplier text, the code snapshot on
+-- `tx_listings`, three record dates and the supplier snapshot, the read
+-- indexes) plus `records.record_flag`. Those files were folded here when the
+-- history was squashed to 43 + 44, so a database from the old 43-53 lineage no
+-- longer matches it and has to start from a fresh `data.db`.
+--
 -- Goals
 --   1. Replace the `graves` tombstone table with `*_deleted_at` soft-delete
 --      columns on top-level sync entities.
@@ -237,7 +244,8 @@ CREATE INDEX listing_product_idx ON listings (product_id);
 
 -- The code now lives on its listing (at most one). As before, only `barcode`
 -- is globally unique; `listing_code_kind` is NULL whenever `listing_code` is.
-CREATE UNIQUE INDEX listing_barcode_unique ON listings (listing_code) WHERE listing_code_kind = 'barcode';
+CREATE UNIQUE INDEX listing_barcode_unique ON listings (listing_code)
+  WHERE listing_code_kind = 'barcode' AND listing_deleted_at IS NULL;
 CREATE INDEX listing_code_idx ON listings (listing_code);
 
 -- properties: arbitrary key/value metadata attached to a product.
@@ -307,14 +315,24 @@ CREATE TABLE images (
 
 
 -- ----------------------------------------------------------------------------
--- 8. `records` — drop `method_id` (moved to `record_methods`).
+-- 8. `records` — drop `method_id` (moved to `record_methods`), and carry the
+--    three dates a record really has.
+--
+--    A record used to hold one `record_paid_at` plus an `record_is_credit`
+--    flag. Those are not the same fact: a credit sale is *created* when it is
+--    rung up, *settled* later, and keeps its credit date afterwards. So:
+--      record_created_at  immutable creation time
+--      record_paid_at     settlement time; NULL while a credit is outstanding
+--      record_credit_at   credit date; kept after settlement
+--    `record_flag` is local, unsynced bookkeeping; the app owns its bits.
 --    `record_pay` stays as a denormalized cache of SUM(record_methods...pay).
 -- ----------------------------------------------------------------------------
 CREATE TABLE records (
   record_id             TEXT PRIMARY KEY,
-  record_paid_at        INTEGER NOT NULL,
+  record_created_at     INTEGER NOT NULL,
+  record_paid_at        INTEGER,
   record_rounding       REAL NOT NULL,
-  record_is_credit      INTEGER NOT NULL CHECK (record_is_credit IN (0, 1)),
+  record_credit_at      INTEGER,
   record_cashier        TEXT NOT NULL,
   record_mode           TEXT NOT NULL REFERENCES mode_enum(v),
   record_pay            REAL NOT NULL,
@@ -326,7 +344,10 @@ CREATE TABLE records (
   record_total          REAL NOT NULL,
   record_updated_at     INTEGER NOT NULL,
   record_sync_at        INTEGER,
-  record_deleted_at     INTEGER
+  record_deleted_at     INTEGER,
+  record_supplier_id    TEXT REFERENCES suppliers(supplier_id) ON DELETE SET NULL,
+  record_supplier_name  TEXT NOT NULL DEFAULT '',
+  record_flag           INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 
 -- ----------------------------------------------------------------------------
@@ -546,7 +567,11 @@ CREATE TABLE tx_records (
   tx_record_note            TEXT NOT NULL DEFAULT (''),
   tx_record_rounding        REAL NOT NULL DEFAULT 0,
   tx_record_customer_id     TEXT, -- change from INTEGER TO TEXT
-  tx_record_supplier_id     TEXT -- the counterparty for an outcoming (purchase) draft
+  tx_record_supplier_id     TEXT, -- the counterparty for an outcoming (purchase) draft
+  -- Pending counterparty text, typed in the cart before the submit resolves it.
+  tx_record_customer_name   TEXT NOT NULL DEFAULT '',
+  tx_record_customer_phone  TEXT NOT NULL DEFAULT '',
+  tx_record_supplier_name   TEXT NOT NULL DEFAULT ''
 ) STRICT;
 
 
@@ -586,7 +611,10 @@ CREATE TABLE tx_listings (
   tx_listing_price       REAL NOT NULL,
   tx_listing_unit        INTEGER NOT NULL,
   tx_listing_qty         INTEGER NOT NULL,
-  tx_listing_kind        TEXT NOT NULL DEFAULT 'retail'
+  tx_listing_kind        TEXT NOT NULL DEFAULT 'retail',
+  -- The editable code the draft's listing grid shows, snapshotted like name
+  -- and price so the cart keeps what was typed even if the catalog changes.
+  tx_listing_code        TEXT NOT NULL DEFAULT ''
 ) STRICT;
 
 
@@ -640,6 +668,32 @@ CREATE TABLE suppliers (
   supplier_sync_at    INTEGER,
   supplier_deleted_at INTEGER
 ) STRICT;
+
+
+-- ============================================================================
+-- Read indexes.
+--
+-- Every record read filters — and most order — on the same expression,
+-- `COALESCE(record_paid_at, record_credit_at, record_created_at)`: the history
+-- list, Beranda's day summary, the comprehensive listing search and the debt
+-- table. SQLite cannot use a single-column index for a COALESCE, so without
+-- the first one below each of those screens is a full scan plus a temp B-tree
+-- sort over the whole sales history.
+-- ============================================================================
+CREATE INDEX record_date_idx
+  ON records (COALESCE(record_paid_at, record_credit_at, record_created_at))
+  WHERE record_deleted_at IS NULL;
+
+-- The open-credit list (Money > Debt): outstanding rows only, newest first.
+CREATE INDEX record_credit_open_idx
+  ON records (record_credit_at)
+  WHERE record_paid_at IS NULL AND record_deleted_at IS NULL;
+
+-- The product detail > Riwayat pager is a keyset read ordered by
+-- (created_at DESC, id DESC); keep that exact order in the index so each page
+-- is a range scan plus a LIMIT instead of a scan of the product's whole journal.
+CREATE INDEX product_event_product_time_idx
+  ON product_events (product_id, product_event_created_at DESC, product_event_id DESC);
 
 
 -- ============================================================================

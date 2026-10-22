@@ -14,6 +14,11 @@
  * pinning its checksum in `migration-checksums.json`; it never means editing an
  * existing file — however tempting folding two files together looks.
  *
+ * The one recorded exception: the 43-53 chain was re-baselined to 43 + 44
+ * (folding 45-53 in, and adding `records.record_flag`) when the shop's database
+ * was deliberately reset, so the pinned set stops at 44. From here the rule
+ * holds again: 43 and 44 are shipped now too.
+ *
  * Run with:  bun test src/services/db/migration-chain.test.ts
  */
 import { describe, expect, test } from "bun:test";
@@ -46,12 +51,20 @@ function registered(): Registered[] {
 function onDisk(): { version: number; path: string }[] {
   const files = [...new Glob(`${DB_DIR}/**/migration-*.sql`).scanSync(ROOT)];
   return files
-    .map((path) => ({ version: Number(path.match(/migration-(\d+)\.sql/)?.[1] ?? 0), path: normalize(path) }))
+    .map((path) => ({
+      version: Number(path.match(/migration-(\d+)\.sql/)?.[1] ?? 0),
+      path: normalize(path),
+    }))
     .sort((a, b) => a.version - b.version);
 }
 
 function checksum(path: string): string {
-  return "sha384:" + createHash("sha384").update(readFileSync(join(ROOT, path))).digest("hex");
+  return (
+    "sha384:" +
+    createHash("sha384")
+      .update(readFileSync(join(ROOT, path)))
+      .digest("hex")
+  );
 }
 
 describe("shipped migration chain", () => {
