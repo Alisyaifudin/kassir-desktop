@@ -71,6 +71,13 @@ describe("RecordService.set.mode", () => {
         record_created_at: number;
       }),
     ).toEqual({ record_mode: "outcoming", record_created_at: 10 });
+    // The copy is the same transaction, so the day it was paid must not be
+    // re-stamped with the moment of the flip.
+    expect(
+      (db.query("SELECT record_paid_at FROM records WHERE record_id = ?").get(newId) as {
+        record_paid_at: number | null;
+      }).record_paid_at,
+    ).toBe(10);
     expect(
       (db.query("SELECT record_id FROM record_listings WHERE record_listing_id = 'rl1'").get() as {
         record_id: string;
