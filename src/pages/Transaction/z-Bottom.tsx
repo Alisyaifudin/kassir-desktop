@@ -21,6 +21,7 @@ import { MethodError, type MethodCatalog } from "~/services/method";
 import type { RecordMode } from "~/services/record";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Note } from "./z-Note";
+import { Kbd } from "~/components/ui/kdb";
 
 const MethodErrorBoundary = createErrorBoundary(MethodError);
 
@@ -39,6 +40,7 @@ export function Bottom({
   onMode,
   methodId,
   onMethod,
+  pending,
   onSubmit,
 }: {
   total: Decimal;
@@ -48,6 +50,8 @@ export function Bottom({
   onMode: (mode: RecordMode) => void;
   methodId: string | null;
   onMethod: (id: string) => void;
+  /** A save is in flight; the button says so and refuses a second one. */
+  pending: boolean;
   onSubmit: () => void;
 }) {
   const simpanRef = useRef<HTMLButtonElement>(null);
@@ -103,14 +107,15 @@ export function Bottom({
               "w-[180px] transition-shadow",
               simpanFocused && "shadow-lg ring-2 ring-primary ring-offset-2 ring-offset-background",
             )}
-            disabled={!total.gt(0)}
+            disabled={!total.gt(0) || methodId === null || pending}
             aria-keyshortcuts="F1"
             title="Simpan (F1)"
             onFocus={() => setSimpanFocused(true)}
             onBlur={() => setSimpanFocused(false)}
             onClick={onSubmit}
           >
-            Simpan
+            {pending ? "Menyimpan..." : "Simpan"}
+            <Kbd className="py-5 small:py-3">F1</Kbd>
           </Button>
         </div>
         <div className="flex flex-1 items-center justify-center overflow-hidden px-2 pb-2">
@@ -163,6 +168,12 @@ function MethodSelect({
   // `cash` is not a defaultable kind, but it is the sensible first pick here.
   const fallback = methods.find((method) => method.kind === "cash") ?? methods[0];
   const selected = value ?? fallback?.id ?? "";
+
+  // Lift the sensible default into the page's state: `Simpan` can only write a
+  // record once a method is actually chosen.
+  useEffect(() => {
+    if (value === null && selected !== "") onChange(selected);
+  }, [value, selected, onChange]);
 
   return (
     <Select value={selected} onValueChange={onChange} disabled={methods.length === 0}>

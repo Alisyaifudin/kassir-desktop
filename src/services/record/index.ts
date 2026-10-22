@@ -7,6 +7,24 @@ export type { ValueKind };
 export class RecordError extends Data.TaggedError("RecordError")<{ message: string }> {}
 
 /**
+ * `records.record_flag` bit 0: a hand-typed adjustment (the `/transaction`
+ * screen), not a sale or purchase of goods. Such a record carries extras and no
+ * listings, and moves no stock, so every stock/report read that assumes "a
+ * record sold something" has to skip it.
+ */
+export const RECORD_FLAG_ADJUSTMENT = 0b1;
+
+/** A hand-typed record: extras only, one payment, no goods. */
+export type RecordAdjustmentInput = {
+  mode: RecordMode;
+  cashier: string;
+  note: string;
+  methodId: string;
+  /** A line is an `Extra` of kind `number`; `eff` is its value. */
+  extras: { name: string; value: number }[];
+};
+
+/**
  * Which way money moved — the opposite of which way goods moved. `incoming` is a
  * sale (penjualan: money in, stock consumed); `outcoming` is a purchase
  * (pembelian: money out, stock received). Read stock code against that inversion,
@@ -274,6 +292,12 @@ export class RecordService extends Context.Tag("RecordService")<
       revision: Stream.Stream<number, RecordError>;
     };
     add: {
+      /**
+       * Writes a hand-typed record: the extras are its only lines, one method
+       * pays the sum of them, and the header carries `RECORD_FLAG_ADJUSTMENT`.
+       * No stock moves, because no listing is sold or bought.
+       */
+      adjustment: (input: RecordAdjustmentInput) => Effect.Effect<string, RecordError>;
       /**
        * Writes a record that was made elsewhere, under a new id. A sale takes its
        * stock FIFO and a purchase arrives as a cost lot, exactly as a live record

@@ -63,6 +63,7 @@ describe("insert statements", () => {
       50000, // sub total
       50000, // total
       2000, // updated_at
+      0, // flag
     ]);
   });
 

@@ -1,6 +1,7 @@
 import { Effect, Layer, SubscriptionRef } from "effect";
 import Decimal from "decimal.js";
 import {
+  RECORD_FLAG_ADJUSTMENT,
   RecordError,
   RecordService,
   type DebtRecord,
@@ -23,12 +24,7 @@ import { DatabaseService } from "../db";
 import { NotFound } from "~/lib/effect-error";
 import { ProductService } from "../product";
 import { roundToFix } from "./round";
-import {
-  insertDiscounts,
-  insertMethod,
-  insertPortion,
-  insertRecordStatement,
-} from "./sql/insert";
+import { insertDiscounts, insertMethod, insertPortion, insertRecordStatement } from "./sql/insert";
 import {
   consumeStatements,
   depleteLots,
@@ -340,7 +336,6 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-
 // The lines a delete has to compensate for: only those pointing at a catalog
 // listing have stock behind them. `listing_unit` converts the line's qty into
 // base pcs, which is the unit `stocks` counts in.
@@ -397,7 +392,6 @@ const SELECT_LISTING_LINK = `
   SELECT listing_id, product_id, listing_unit
   FROM listings
   WHERE listing_id = $1 AND listing_deleted_at IS NULL`;
-
 
 /**
  * Groups the per-portion rows back into the lines the UI and receipt show.
@@ -479,21 +473,19 @@ export const RecordLive = Layer.effect(
         return Effect.succeed(new Map<string, RecordMethod[]>());
       }
       const placeholders = recordIds.map((_, index) => `$${index + 1}`).join(", ");
-      return db
-        .selectMany<MethodRow>(SELECT_METHODS_FOR(placeholders), [...recordIds])
-        .pipe(
-          Effect.mapError(dbErrorToRecordError),
-          Effect.map((rows) => {
-            const grouped = new Map<string, RecordMethod[]>();
-            for (const row of rows) {
-              const list = grouped.get(row.record_id);
-              const method = rowToMethod(row);
-              if (list === undefined) grouped.set(row.record_id, [method]);
-              else list.push(method);
-            }
-            return grouped;
-          }),
-        );
+      return db.selectMany<MethodRow>(SELECT_METHODS_FOR(placeholders), [...recordIds]).pipe(
+        Effect.mapError(dbErrorToRecordError),
+        Effect.map((rows) => {
+          const grouped = new Map<string, RecordMethod[]>();
+          for (const row of rows) {
+            const list = grouped.get(row.record_id);
+            const method = rowToMethod(row);
+            if (list === undefined) grouped.set(row.record_id, [method]);
+            else list.push(method);
+          }
+          return grouped;
+        }),
+      );
     }
 
     function debt(): Effect.Effect<DebtRecord[], RecordError> {
@@ -554,9 +546,7 @@ export const RecordLive = Layer.effect(
              WHERE record_id = $1 AND record_deleted_at IS NULL`,
             [id],
           )
-          .pipe(
-            Effect.catchTag("DbError", (error) => Effect.fail(dbErrorToRecordError(error))),
-          );
+          .pipe(Effect.catchTag("DbError", (error) => Effect.fail(dbErrorToRecordError(error))));
         const [methodRows, listingRows, discountRows, extraRows] = yield* Effect.all([
           db.selectMany<MethodRow>(SELECT_METHODS_FOR("$1"), [id]),
           db.selectMany<ListingRow>(SELECT_LISTINGS, [id]),
@@ -638,10 +628,10 @@ export const RecordLive = Layer.effect(
         const lots: TouchedLot[] = [];
         for (const lot of touched) {
           const surviving = yield* db
-            .selectMany<{ value: number; capital: number }>(SELECT_SURVIVING_EVENTS, [
-              lot.stock_id,
-              recordId,
-            ])
+            .selectMany<{
+              value: number;
+              capital: number;
+            }>(SELECT_SURVIVING_EVENTS, [lot.stock_id, recordId])
             .pipe(Effect.mapError(dbErrorToRecordError));
           let value = 0;
           for (const event of surviving) value += event.value;
@@ -649,10 +639,7 @@ export const RecordLive = Layer.effect(
           lots.push({
             stockId: lot.stock_id,
             productId: lot.product_id,
-            restored:
-              last === undefined || last === null
-                ? null
-                : { value, capital: last.capital },
+            restored: last === undefined || last === null ? null : { value, capital: last.capital },
             current: { value: lot.stock_value, capital: lot.stock_capital },
             delta: lot.record_delta,
           });
@@ -669,7 +656,11 @@ export const RecordLive = Layer.effect(
       if (lot.delta > 0) return null;
       // No journal survives and the record only took stock out, which cannot
       // have created the lot: it predates the journal, and its row is the balance.
-      return { id: lot.stockId, value: lot.current.value - lot.delta, capital: lot.current.capital };
+      return {
+        id: lot.stockId,
+        value: lot.current.value - lot.delta,
+        capital: lot.current.capital,
+      };
     }
 
     /** Statements putting one lot back where its surviving events leave it. */
@@ -679,7 +670,10 @@ export const RecordLive = Layer.effect(
       if (restored === null) {
         // Nothing survives and the record put stock *in*: this lot was the
         // record's own doing, so drop it rather than leave an empty husk.
-        return [{ sql: "DELETE FROM stocks WHERE stock_id = $1", bindings: [lot.stockId] }, touched];
+        return [
+          { sql: "DELETE FROM stocks WHERE stock_id = $1", bindings: [lot.stockId] },
+          touched,
+        ];
       }
       return [
         {
@@ -773,6 +767,71 @@ export const RecordLive = Layer.effect(
         revision: revisionRef.changes,
       },
       add: {
+        adjustment(input) {
+          return Effect.gen(function* () {
+            const extras = input.extras
+              .map((extra) => ({ ...extra, name: extra.name.trim() }))
+              .filter((extra) => extra.name !== "");
+
+            if (extras.length === 0) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Transaksi harus punya minimal satu baris" }),
+              );
+            }
+
+            // The lines are the whole transaction: a flat `number` extra each,
+            // so its effective value is its value. No goods, no rounding.
+            const subTotal = Decimal.sum(...extras.map((extra) => extra.value)).toNumber();
+            const total = subTotal;
+            if (!(total > 0)) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Total transaksi tidak boleh nol atau negatif" }),
+              );
+            }
+
+            const now = Date.now();
+            const recordId = generateId();
+            const statements: Statement[] = [
+              insertRecordStatement(
+                recordId,
+                {
+                  createdAt: now,
+                  paidAt: now,
+                  creditAt: null,
+                  rounding: 0,
+                  cashier: input.cashier,
+                  mode: input.mode,
+                  pay: total,
+                  note: input.note,
+                  fix: 0,
+                  customer: { name: "", phone: "" },
+                  supplier: { id: null, name: "" },
+                  subTotal,
+                  total,
+                  flag: RECORD_FLAG_ADJUSTMENT,
+                },
+                now,
+              ),
+            ];
+
+            for (const extra of extras) {
+              statements.push({
+                sql: `INSERT INTO record_extras (
+                    record_extra_id, record_extra_name, record_id,
+                    record_extra_value, record_extra_eff, record_extra_kind
+                  ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                bindings: [generateId(), extra.name, recordId, extra.value, extra.value, "number"],
+              });
+            }
+
+            statements.push(insertMethod(recordId, input.methodId, total));
+
+            yield* commit(statements);
+            yield* bumpRevision();
+            // Nothing moved stock, so the product aggregate stays valid.
+            return recordId;
+          });
+        },
         external(input) {
           return Effect.gen(function* () {
             // The import file is the one place the app takes structured data
@@ -831,14 +890,16 @@ export const RecordLive = Layer.effect(
             for (const line of input.listings) {
               // The entered line; its portions share this group id.
               const groupId = generateId();
-              const link = line.listingId === null
-                ? null
-                : ((yield* db
-                    .selectMany<{ listing_id: string; product_id: string; listing_unit: number }>(
-                      SELECT_LISTING_LINK,
-                      [line.listingId],
-                    )
-                    .pipe(Effect.mapError(dbErrorToRecordError)))[0] ?? null);
+              const link =
+                line.listingId === null
+                  ? null
+                  : ((yield* db
+                      .selectMany<{
+                        listing_id: string;
+                        product_id: string;
+                        listing_unit: number;
+                      }>(SELECT_LISTING_LINK, [line.listingId])
+                      .pipe(Effect.mapError(dbErrorToRecordError)))[0] ?? null);
 
               // A line with no catalog link moves no stock: one portion, no event.
               if (link === null || line.qty * (link?.listing_unit ?? 1) === 0) {
@@ -868,7 +929,10 @@ export const RecordLive = Layer.effect(
                 // Listing capital is per listing unit; a lot's capital is per pc.
                 const received = receivePortion(
                   link.product_id,
-                  { value: line.qty * link.listing_unit, capital: line.capital / link.listing_unit },
+                  {
+                    value: line.qty * link.listing_unit,
+                    capital: line.capital / link.listing_unit,
+                  },
                   now,
                   recordId,
                 );
@@ -900,14 +964,11 @@ export const RecordLive = Layer.effect(
               if (lots === undefined) {
                 lots = yield* readLots(link.product_id);
               }
-              const { statements: consumed, shortage, portions } = consumeStatements(
-                link.product_id,
-                lots,
-                pcs,
-                now,
-                "",
-                recordId,
-              );
+              const {
+                statements: consumed,
+                shortage,
+                portions,
+              } = consumeStatements(link.product_id, lots, pcs, now, "", recordId);
               if (shortage > 0) {
                 return yield* Effect.fail(
                   new RecordError({ message: `Stok ${line.name} tidak mencukupi` }),
@@ -1313,9 +1374,7 @@ export const RecordLive = Layer.effect(
                 portions = [
                   { eventId: received.eventId, stockId: received.stockId, take: pcs, capital: 0 },
                 ];
-                lotsByProduct.set(productId, [
-                  { id: received.stockId, value: -pcs, capital: 0 },
-                ]);
+                lotsByProduct.set(productId, [{ id: received.stockId, value: -pcs, capital: 0 }]);
               } else {
                 const drained = drainStatements(productId, lots, pcs, now, "", recordId);
                 statements.push(...drained.statements);
@@ -1509,9 +1568,7 @@ export const RecordLive = Layer.effect(
               );
             }
             if (record.record_paid_at !== null) {
-              return yield* Effect.fail(
-                new RecordError({ message: "Kredit ini sudah dibayar" }),
-              );
+              return yield* Effect.fail(new RecordError({ message: "Kredit ini sudah dibayar" }));
             }
             const owed = roundToFix(
               record.record_total + record.record_rounding + input.rounding,
@@ -1580,10 +1637,22 @@ export const RecordLive = Layer.effect(
             // The line and payment rows move with the replacement record; the
             // old record is only a tombstone afterwards.
             statements.push(
-              { sql: "UPDATE record_listings SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
-              { sql: "UPDATE record_methods SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
-              { sql: "UPDATE record_extras SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
-              { sql: "UPDATE record_images SET record_id = $1 WHERE record_id = $2", bindings: [newId, id] },
+              {
+                sql: "UPDATE record_listings SET record_id = $1 WHERE record_id = $2",
+                bindings: [newId, id],
+              },
+              {
+                sql: "UPDATE record_methods SET record_id = $1 WHERE record_id = $2",
+                bindings: [newId, id],
+              },
+              {
+                sql: "UPDATE record_extras SET record_id = $1 WHERE record_id = $2",
+                bindings: [newId, id],
+              },
+              {
+                sql: "UPDATE record_images SET record_id = $1 WHERE record_id = $2",
+                bindings: [newId, id],
+              },
             );
 
             // A mode flip reverses every stock movement: the event sign flips,
@@ -1637,10 +1706,9 @@ export const RecordLive = Layer.effect(
         byId(id) {
           return Effect.gen(function* () {
             const active = yield* db
-              .selectMany<{ record_mode: RecordMode }>(
-                "SELECT record_mode FROM records WHERE record_id = $1 AND record_deleted_at IS NULL",
-                [id],
-              )
+              .selectMany<{
+                record_mode: RecordMode;
+              }>("SELECT record_mode FROM records WHERE record_id = $1 AND record_deleted_at IS NULL", [id])
               .pipe(Effect.mapError(dbErrorToRecordError));
             // Soft delete is idempotent: a second attempt must not undo the
             // compensation events written for a legacy record on the first one.

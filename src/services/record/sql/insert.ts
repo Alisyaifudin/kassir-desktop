@@ -26,6 +26,12 @@ export type RecordHeader = {
   supplier: { id: string | null; name: string };
   subTotal: number;
   total: number;
+  /**
+   * `records.record_flag`. 0 for a sale or purchase; bit 0 marks a hand-typed
+   * adjustment (see `RECORD_FLAG_ADJUSTMENT`), which carries extras and no
+   * listings and moves no stock.
+   */
+  flag?: number;
 };
 
 export function insertRecordStatement(id: string, input: RecordHeader, now: number): Statement {
@@ -35,8 +41,8 @@ export function insertRecordStatement(id: string, input: RecordHeader, now: numb
         record_cashier, record_mode, record_pay, record_note, record_fix,
         record_customer_name, record_customer_phone, record_supplier_id,
         record_supplier_name, record_sub_total, record_total,
-        record_updated_at, record_sync_at, record_deleted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NULL, NULL)`,
+        record_updated_at, record_sync_at, record_deleted_at, record_flag
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NULL, NULL, $18)`,
     bindings: [
       id,
       input.createdAt,
@@ -55,6 +61,7 @@ export function insertRecordStatement(id: string, input: RecordHeader, now: numb
       input.subTotal,
       input.total,
       now,
+      input.flag ?? 0,
     ],
   };
 }

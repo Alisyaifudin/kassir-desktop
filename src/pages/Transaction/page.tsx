@@ -1,8 +1,13 @@
 import Decimal from "decimal.js";
+import { Either } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { RecordMode } from "~/services/record";
+import { useMutation } from "~/components/Loader";
+import { useUser } from "~/hooks/use-user";
+import { service } from "~/services";
+import type { RecordAdjustmentInput, RecordMode } from "~/services/record";
 import { Bottom } from "./z-Bottom";
+import { Complete } from "./z-Complete";
 import { Lines } from "./z-Lines";
 
 /** One hand-typed line: an `Extra` of kind `number`, in name-and-amount form. */
@@ -22,18 +27,26 @@ function emptyLine(id: string): ManualLine {
  * Much simpler than Pos on purpose: no catalog, no search, no stages, no
  * precision, no customer. The operator writes down what happened as lines of
  * name + amount, chooses whether it was money in or out, picks one method and
- * saves. The lines are the shape an `Extra` has, so the record it will write is
- * the same kind of row as a charge on a sale.
+ * saves. The lines are the shape an `Extra` has, so the record it writes is
+ * flagged as an adjustment rather than a sale or purchase, and moves no stock.
  */
 export default function Page() {
+  const user = useUser();
   // Ids only have to be unique inside this screen; the record writer mints its own.
   const nextId = useRef(2);
   const [lines, setLines] = useState<ManualLine[]>([emptyLine("line-1")]);
   const [mode, setMode] = useState<RecordMode>("incoming");
   const [note, setNote] = useState("");
   const [methodId, setMethodId] = useState<string | null>(null);
+  const [complete, setComplete] = useState<{ recordId: string; total: Decimal } | null>(null);
+  // A finished record leaves a blank screen behind; bumping this remounts the
+  // grid so it starts on an empty first line with the keyboard in it.
+  const [generation, setGeneration] = useState(0);
 
   const total = lines.reduce((sum, line) => sum.add(line.value), new Decimal(0));
+  const { pending, mutate } = useMutation((input: RecordAdjustmentInput) =>
+    service.record.add.adjustment(input),
+  );
 
   function add() {
     const id = `line-${nextId.current++}`;
@@ -51,16 +64,33 @@ export default function Page() {
     );
   }
 
-  function submit() {
-    // Mock: the shape is settled, the write is not.
-    toast("Simpan masih tiruan", {
-      description: "Transaksi ini belum disimpan ke database.",
+  function reset() {
+    nextId.current = 2;
+    setLines([emptyLine("line-1")]);
+    setNote("");
+    setComplete(null);
+    setGeneration((value) => value + 1);
+  }
+
+  async function submit() {
+    if (methodId === null) return;
+    const result = await mutate({
+      mode,
+      cashier: user.name,
+      note,
+      methodId,
+      extras: lines.map((line) => ({ name: line.name, value: line.value })),
     });
+    if (Either.isLeft(result)) {
+      toast.error(result.left.message);
+      return;
+    }
+    setComplete({ recordId: result.right, total });
   }
 
   return (
     <main className="relative flex h-full min-h-0 shrink grow basis-0 flex-col overflow-hidden">
-      <Lines lines={lines} onAdd={add} onChange={patch} onRemove={remove} />
+      <Lines key={generation} lines={lines} onAdd={add} onChange={patch} onRemove={remove} />
       <Bottom
         total={total}
         note={note}
@@ -69,8 +99,12 @@ export default function Page() {
         onMode={setMode}
         methodId={methodId}
         onMethod={setMethodId}
-        onSubmit={submit}
+        pending={pending}
+        onSubmit={() => void submit()}
       />
+      {complete === null ? null : (
+        <Complete recordId={complete.recordId} total={complete.total} onClose={reset} />
+      )}
     </main>
   );
 }

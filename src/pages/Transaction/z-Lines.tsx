@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
 import { Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
 import { cn } from "~/lib/utils";
 import type { ManualLine } from "./page";
+import { Kbd } from "~/components/ui/kdb";
 
 /**
  * The line grid, navigated the way the Pos and Restock grids are: one tab stop,
  * arrow keys move the selection between cells, Enter opens the editor on the
  * cell under it (or deletes the line when the `x` cell is selected), Escape
  * leaves the editor. Clicking a cell edits it directly.
+ *
+ * While a cell is open, Tab walks the editable cells in reading order —
+ * nama → nilai → the next line's nama — and wraps at either end, so the grid
+ * never hands the keyboard to the browser mid-record. Shift+Tab is the reverse.
+ * F2 appends a line and puts the cursor in its name wherever the keyboard is,
+ * the way Pos uses its function keys.
  *
  * Columns are 0-indexed: `0` nama, `1` nilai, `2` hapus. The number column only
  * draws.
@@ -39,6 +47,10 @@ export function Lines({
   const gridRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Selection>({ row: 0, col: 0 });
   const [editing, setEditing] = useState<Editing | null>(null);
+  // Tab moves the editor from one cell to the next in the same tick; the editor
+  // that closes must not clear the one that just opened (or refocus the grid).
+  const editingRef = useRef<Editing | null>(null);
+  editingRef.current = editing;
 
   const cellId = (row: number, col: Col) => `transaction-cell-${row}-${col}`;
   const editId = (row: number, col: 0 | 1) => `transaction-edit-${row}-${col}`;
@@ -84,9 +96,22 @@ export function Lines({
     setEditing({ row, col });
   }
 
-  function doneEditing() {
+  function doneEditing(row: number, col: 0 | 1) {
+    const current = editingRef.current;
+    if (current === null || current.row !== row || current.col !== col) return;
     setEditing(null);
     focusGrid();
+  }
+
+  /** Tab inside an editor: nama → nilai → next nama, wrapping at both ends. */
+  function moveTab(row: number, col: 0 | 1, back: boolean) {
+    if (!back) {
+      if (col === 0) startEdit(row, 1);
+      else startEdit(row + 1 < lines.length ? row + 1 : 0, 0);
+      return;
+    }
+    if (col === 1) startEdit(row, 0);
+    else startEdit(row - 1 >= 0 ? row - 1 : lines.length - 1, 1);
   }
 
   function add() {
@@ -96,6 +121,23 @@ export function Lines({
     setSelected({ row, col: 0 });
     setEditing({ row, col: 0 });
   }
+
+  // The listener lives on `window`, so it must not capture an `add` that still
+  // remembers an older line count.
+  const addRef = useRef(add);
+  addRef.current = add;
+
+  // F2: append a line and put the cursor in its name, from anywhere on the
+  // screen. A dialog owns the keyboard while it is open, so the shortcut waits.
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key !== "F2" || isScreenOwnedByDialog()) return;
+      event.preventDefault();
+      addRef.current();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function removeLine(row: number) {
     const line = lines[row];
@@ -188,7 +230,14 @@ export function Lines({
                     singleClickEdit
                     onSelect={() => select(index, 0)}
                     onStartEdit={() => startEdit(index, 0)}
-                    onEditingDone={doneEditing}
+                    onEditingDone={() => doneEditing(index, 0)}
+                    onEditKeyDown={(event) => {
+                      if (event.key !== "Tab") return false;
+                      event.preventDefault();
+                      moveTab(index, 0, event.shiftKey);
+                      return true;
+                    }}
+                    onChange={(raw) => onChange(line.id, { name: raw })}
                     onCommit={(raw) => onChange(line.id, { name: raw })}
                   />
 
@@ -209,7 +258,14 @@ export function Lines({
                     singleClickEdit
                     onSelect={() => select(index, 1)}
                     onStartEdit={() => startEdit(index, 1)}
-                    onEditingDone={doneEditing}
+                    onEditingDone={() => doneEditing(index, 1)}
+                    onEditKeyDown={(event) => {
+                      if (event.key !== "Tab") return false;
+                      event.preventDefault();
+                      moveTab(index, 1, event.shiftKey);
+                      return true;
+                    }}
+                    onChange={(raw) => onChange(line.id, { value: Number(raw) || 0 })}
                     onCommit={(raw) => onChange(line.id, { value: Number(raw) || 0 })}
                   />
 
@@ -238,6 +294,9 @@ export function Lines({
             <Button type="button" onClick={add}>
               <Plus aria-hidden="true" />
               Baris Baru
+              <Kbd className="py-5 small:py-3">
+                F2
+              </Kbd>
             </Button>
           </div>
         </div>
