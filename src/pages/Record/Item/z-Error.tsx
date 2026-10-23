@@ -12,7 +12,7 @@ import { SocialError } from "~/services/social";
  */
 export const ItemErrorBoundary = createErrorBoundary(RecordError);
 
-export function ItemErrorFallback({ error }: { error: RecordError }) {
+export function ItemErrorFallback({ error }: { error: { message: string } }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
       <p className="text-normal font-semibold">Catatan bermasalah</p>
@@ -28,10 +28,6 @@ export const MethodErrorBoundary = createErrorBoundary(MethodError);
 export const ProductErrorBoundary = createErrorBoundary(ProductError);
 
 /** The one-liner these narrow panels have room for. */
-export function InlineError({
-  error,
-}: {
-  error: InfoError | SocialError | MethodError | ProductError;
-}) {
+export function InlineError({ error }: { error: { message: string } }) {
   return <TextError>{error.message}</TextError>;
 }

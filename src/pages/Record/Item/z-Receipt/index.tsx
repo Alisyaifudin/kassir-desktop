@@ -1,18 +1,25 @@
-import { LoaderMany, useStream } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
 import type { RecordFull } from "~/services/record";
-import { service } from "~/services";
-import { ReceiptErrorBoundary, InlineError } from "../z-Error";
+import { pageData } from "../data";
+import { InlineError } from "../z-Error";
 import { Body } from "./z-Body";
 import { LoadingReceipt } from "./z-Loading";
 
+/**
+ * The printed face. The paper is one artifact: a receipt with lines but no shop
+ * identity is a lie about a document, so both of its small reads land before the
+ * sheet is drawn — and they are two keys, so the gate waits for the last one.
+ */
 export function Receipt({ record }: { record: RecordFull }) {
-  const info = useStream(service.info.changes);
-  const socials = useStream(service.social.get.changes);
+  const res = pageData.useAll("info", "socials");
+
   return (
-    <ReceiptErrorBoundary fallback={InlineError}>
-      <LoaderMany res={{ info, socials }} fallback={<LoadingReceipt />}>
-        {({ info, socials }) => <Body record={record} info={info} socials={socials} />}
-      </LoaderMany>
-    </ReceiptErrorBoundary>
+    <Gate
+      res={res}
+      skeleton={<LoadingReceipt />}
+      error={(error) => <InlineError error={error} />}
+    >
+      {({ data }) => <Body record={record} info={data.info} socials={data.socials} />}
+    </Gate>
   );
 }

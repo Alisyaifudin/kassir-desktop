@@ -1,25 +1,43 @@
-import { isRefetching, Loader, useDelayedFlag } from "~/components/Loader";
-import { NotFound } from "~/components/NotFound";
-import { useRecordFull } from "../z-Detail/use-record-full";
-import { ItemErrorBoundary, ItemErrorFallback } from "./z-Error";
-import { Loading } from "./z-Loading";
+import { useMemo } from "react";
+import { isRefetching, useDelayedFlag } from "~/components/Loader";
+import { pageData, recordSource } from "./data";
+import { service } from "~/services";
 import { Views } from "./z-Views";
 
+/**
+ * `/records/:recordId` — one record, in full.
+ *
+ * `Detail | Resi` is a URL value, not data, so the strip is drawn before the
+ * record arrives; each tab gates its own body with the same `record` key, and the
+ * receipt adds the shop identity and contacts it prints.
+ */
 export default function Page({ recordId }: { recordId: string }) {
-  const res = useRecordFull(recordId);
-  // An edit makes the record re-read itself. Fading both faces meanwhile keeps the
-  // version just replaced from being worked on; the first load is `Loader`'s job,
-  // so this is never true then.
+  const sources = useMemo(
+    () => ({
+      record: recordSource(recordId),
+      info: service.info.changes,
+      socials: service.social.get.changes,
+    }),
+    [recordId],
+  );
+
+  return (
+    <pageData.Provider sources={sources} deps={[recordId]}>
+      <Screen />
+    </pageData.Provider>
+  );
+}
+
+function Screen() {
+  const res = pageData.use("record");
+  // An edit makes the record re-read itself. Fading both faces meanwhile keeps
+  // the version just replaced from being worked on; a first load is the gate's
+  // job, so this is never true then.
   const busy = useDelayedFlag(isRefetching(res));
+
   return (
     <main className="flex flex-col gap-2 p-2 h-full overflow-hidden">
-      <ItemErrorBoundary fallback={ItemErrorFallback}>
-        <Loader res={res} fallback={<Loading />}>
-          {({ data: record }) =>
-            record === null ? <NotFound /> : <Views record={record} busy={busy} />
-          }
-        </Loader>
-      </ItemErrorBoundary>
+      <Views res={res} busy={busy} />
     </main>
   );
 }

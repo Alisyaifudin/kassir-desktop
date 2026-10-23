@@ -1,16 +1,35 @@
 import { cn } from "~/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import type { RecordFull } from "~/services/record";
+import { Gate } from "~/components/page-data";
+import { NotFound } from "~/components/NotFound";
+import type { Result } from "~/components/Loader";
+import type { RecordFull, RecordError } from "~/services/record";
+import type { InfoError } from "~/services/info";
+import type { SocialError } from "~/services/social";
 import { Detail } from "./z-Detail";
 import { Receipt } from "./z-Receipt";
+import { ItemErrorFallback } from "./z-Error";
+import { Loading } from "./z-Loading";
 import { useTab } from "./use-tab";
 
-/** A record's two faces: the receipt it prints, and the ledger it came from. */
-export function Views({ record, busy }: { record: RecordFull; busy: boolean }) {
+/**
+ * A record's two faces: the receipt it prints, and the ledger it came from.
+ *
+ * The strip is static — two labels from the route — so it is clickable while the
+ * record loads. Only the faces wait, and both read the same key.
+ */
+export function Views({
+  res,
+  busy,
+}: {
+  res: Result<RecordFull | null, RecordError | InfoError | SocialError>;
+  busy: boolean;
+}) {
   const [tab, setTab] = useTab();
   // Both faces fade together while the record re-reads, so the stale one is not
   // the one you act on.
   const stale = busy && "opacity-50 pointer-events-none";
+
   return (
     <Tabs
       value={tab}
@@ -36,13 +55,25 @@ export function Views({ record, busy }: { record: RecordFull; busy: boolean }) {
         value="detail"
         className={cn("flex-1 min-h-0 overflow-hidden transition-opacity", stale)}
       >
-        <Detail record={record} />
+        <Gate
+          res={res}
+          skeleton={<Loading />}
+          error={(error) => <ItemErrorFallback error={error} />}
+        >
+          {({ data }) => (data === null ? <NotFound /> : <Detail record={data} />)}
+        </Gate>
       </TabsContent>
       <TabsContent
         value="receipt"
         className={cn("flex-1 min-h-0 overflow-y-auto transition-opacity", stale)}
       >
-        <Receipt record={record} />
+        <Gate
+          res={res}
+          skeleton={<Loading />}
+          error={(error) => <ItemErrorFallback error={error} />}
+        >
+          {({ data }) => (data === null ? <NotFound /> : <Receipt record={data} />)}
+        </Gate>
       </TabsContent>
     </Tabs>
   );
