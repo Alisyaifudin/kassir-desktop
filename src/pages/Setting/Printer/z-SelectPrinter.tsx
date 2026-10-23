@@ -27,7 +27,7 @@ export function SelectPrinter({ printer, printers }: { printer: Printer; printer
         </Label>
         <Spinner when={loading} />
       </div>
-      <p className="text-muted-foreground text-small">
+      <p className="text-normal text-muted-foreground">
         Pilih printer yang akan digunakan untuk mencetak struk
       </p>
       <Select value={name} onValueChange={handleChange}>

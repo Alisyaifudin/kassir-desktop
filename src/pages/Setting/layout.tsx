@@ -1,51 +1,33 @@
 import { Outlet, useLocation } from "react-router";
-import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
-import { LogOut } from "lucide-react";
 import { NavPanel } from "./z-NavPanel";
-import { version } from "~/lib/constants";
-import { useLogout } from "./use-logout";
 
+/**
+ * The settings shell. One tinted canvas with a single scrollport for the screen
+ * on the right; the sidebar is the only thing that stays put, and the hub hides
+ * it because the hub *is* the list.
+ *
+ * Below `xl` the sidebar is gone and the topbar's back button is the way to the
+ * hub — the same as the rest of the app, no drawer to open and close.
+ */
 export default function Layout() {
   const { pathname } = useLocation();
-  const hideSidebar = pathname === "/setting";
+  const isHub = pathname === "/setting";
+
   return (
     <main
       className={cn(
-        "grid gap-2 p-2 flex-1 w-full justify-between overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]",
-        hideSidebar
+        "grid w-full flex-1 overflow-hidden bg-muted/50",
+        "h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]",
+        isHub
           ? "grid-cols-1"
-          : "grid-cols-1 xl:grid-cols-[300px_1fr] lg:small:grid-cols-[200px_1fr]",
+          : "grid-cols-1 xl:grid-cols-[264px_1fr] lg:small:grid-cols-[180px_1fr]",
       )}
     >
-      {hideSidebar ? null : <Navigation />}
-      <div className={cn("overflow-y-auto h-full pr-2 small:pr-0", { "pr-0": hideSidebar })}>
+      {isHub ? null : <NavPanel />}
+      <div className="scroll-gutter h-full overflow-y-auto">
         <Outlet />
       </div>
     </main>
-  );
-}
-
-function Navigation() {
-  const handleLogout = useLogout();
-  return (
-    <nav
-      className={cn(
-        "w-full flex-1 py-2 pr-2 ",
-        "overflow-y-auto h-full hidden xl:flex lg:small:flex flex-col justify-between gap-4",
-      )}
-    >
-      <div className="flex flex-col gap-3">
-        <NavPanel />
-      </div>
-      <div className="flex flex-col gap-1 mt-auto pb-4">
-        <Button onClick={handleLogout}>
-          Keluar
-          <LogOut />
-        </Button>
-        <p>Versi {version}</p>
-        {/* <Update /> */}
-      </div>
-    </nav>
   );
 }

@@ -4,27 +4,28 @@ import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import { Clear } from "./z-Clear";
 import { LogErrorBoundary, LogErrorFallback } from "./z-Error";
+import { PageHeader } from "../z-PageHeader";
+import { Panel } from "../z-Panel";
+import { navItemOf } from "../util-nav";
+
+const item = navItemOf("/setting/log");
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-4 p-6 flex-1 overflow-hidden">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-big font-bold text-foreground">Log Aplikasi</h1>
-        <p className="text-muted-foreground text-normal">Pantau aktivitas dan kesalahan sistem</p>
-      </div>
-
-      <div className="rounded-2xl border bg-card p-4 shadow-sm flex-1 flex flex-col">
+    <div className="flex h-full w-full flex-col gap-6 px-6 py-6 small:gap-4 small:px-3 small:py-3">
+      <PageHeader title={item.label} description={item.description} />
+      <Panel
+        title="Riwayat Log"
+        action={<Clear />}
+        className="min-h-0 flex-1"
+        bodyClassName="min-h-0 flex-1"
+      >
         <LogErrorBoundary fallback={LogErrorFallback}>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-normal font-semibold text-foreground">Riwayat Log</h2>
-            <Clear />
-          </div>
-
-          <div className="flex flex-col gap-1 bg-black rounded-xl p-4 h-full overflow-auto">
+          <div className="flex h-full min-h-0 flex-col gap-1 overflow-auto rounded-xl bg-black p-4">
             <Lines />
           </div>
         </LogErrorBoundary>
-      </div>
+      </Panel>
     </div>
   );
 }
@@ -35,7 +36,9 @@ function Lines() {
     <Loader res={res} fallback={<LoadingLines />}>
       {({ data }) => (
         <>
-          <p className="text-muted-foreground text-small select-none">
+          {/* `text-small` on purpose: this is a console, read line by line and
+              scanned for a timestamp, not a sentence anyone reads at arm's length. */}
+          <p className="text-small text-muted-foreground select-none">
             {data.total === 0
               ? "Log masih kosong."
               : data.total > data.lines.length
@@ -45,7 +48,7 @@ function Lines() {
           {data.lines.map((line, i) => (
             <p
               className={cn(
-                "text-white text-small",
+                "text-small text-white",
                 // A warning is part of the history; show it, marked, instead of
                 // silently dropping it from what the page calls the log.
                 line.includes("[WARN]") && "text-amber-300",
@@ -63,11 +66,11 @@ function Lines() {
 
 function LoadingLines() {
   return (
-    <div className="flex flex-col gap-2 p-2 w-full">
+    <div className="flex w-full flex-col gap-2 p-2">
       {Array.from({ length: 30 }).map((_, i) => (
         <Skeleton
           key={i}
-          className="h-3 bg-white/10 rounded animate-pulse"
+          className="h-3 animate-pulse rounded bg-white/10"
           style={{ width: `${60 + ((i * 7) % 40)}%` }}
         />
       ))}

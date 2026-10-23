@@ -8,7 +8,7 @@ export function TestBtn() {
   return (
     <div>
       <div className="flex flex-col gap-4">
-        <Button onClick={handleClick} disabled={loading} className="mt-2">
+        <Button onClick={handleClick} disabled={loading}>
           Tes Cetak <Spinner when={loading} />
         </Button>
       </div>
@@ -16,7 +16,7 @@ export function TestBtn() {
       {/* `role="status"`: the one thing a cashier needs after a test print, and
           it must be announced, not just drawn. It says "sent", never "printed". */}
       {success === null ? null : (
-        <p role="status" className="text-small text-muted-foreground">
+        <p role="status" className="text-normal text-muted-foreground">
           {success}
         </p>
       )}

@@ -1,12 +1,12 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { Loading } from "./z-Loading";
+import { LoadingScreen } from "../z-LoadingScreen";
 
 const Page = lazy(() => import("./page"));
 
 export const printerRoute: RouteObject = {
   Component: () => (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<LoadingScreen />}>
       <Page />
     </Suspense>
   ),

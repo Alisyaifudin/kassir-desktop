@@ -9,7 +9,7 @@ export function Loading() {
       </div>
       <div className="space-y-1">
         <p className="font-semibold text-foreground">Memproses data produk</p>
-        <p className="text-small text-muted-foreground">Validasi dan membaca berkas JSON.</p>
+        <p className="text-normal text-muted-foreground">Validasi dan membaca berkas JSON.</p>
       </div>
     </div>
   );

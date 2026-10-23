@@ -1,14 +1,14 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
 import { AdminOnly } from "~/components/AdminOnly";
-import { Loading } from "./z-Loading";
+import { LoadingScreen } from "../z-LoadingScreen";
 
 const Page = lazy(() => import("./page"));
 
 export const dataRoute: RouteObject = {
   Component: () => (
     <AdminOnly>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<LoadingScreen />}>
         <Page />
       </Suspense>
     </AdminOnly>

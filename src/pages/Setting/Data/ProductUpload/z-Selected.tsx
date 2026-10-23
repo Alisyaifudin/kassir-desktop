@@ -119,7 +119,7 @@ export function Selected({
                   style={{ width: `${(length === 0 ? 0 : progress / length) * 100}%` }}
                 />
               </div>
-              <p className="text-small text-muted-foreground">
+              <p className="text-normal text-muted-foreground">
                 {progress}/{length} data diproses
               </p>
             </div>

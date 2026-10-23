@@ -21,7 +21,7 @@ export function SkippedItems({
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-950">
       <div className="flex items-center justify-between">
-        <p className="text-small font-semibold">{title}</p>
+        <p className="text-normal font-semibold">{title}</p>
         <Button
           variant="ghost"
           size="icon"
@@ -33,11 +33,9 @@ export function SkippedItems({
           <X className="icon" />
         </Button>
       </div>
-      <p className="mt-1 text-small text-amber-800">
-        {items.length} data tidak disimpan.
-      </p>
+      <p className="mt-1 text-normal text-amber-800">{items.length} data tidak disimpan.</p>
       <div className="mt-3 max-h-32 overflow-y-auto rounded-md bg-background/80 p-2">
-        <ul className="space-y-1 text-small">
+        <ul className="space-y-1 text-normal">
           {items.map((item) => (
             <li key={item.key} className="truncate">
               {item.name} <span className="text-amber-800">— {item.reason}</span>

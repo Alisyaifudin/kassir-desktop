@@ -15,7 +15,7 @@ export function PrinterWidth({ printer }: { printer: Printer }) {
         </Label>
         <Spinner when={loading} />
       </div>
-      <p className="text-muted-foreground text-small">
+      <p className="text-normal text-muted-foreground">
         Atur lebar kertas struk untuk printer thermal
       </p>
       <Input

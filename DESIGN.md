@@ -226,6 +226,11 @@ Don't
 
 - Put `text-muted-foreground` on a tinted ground (4.43:1) — use the foreground.
 - Use `text-tiny`, `text-xs`, `text-sm`, or arbitrary px sizes in the UI.
+- Tint a destination icon with a raw Tailwind palette (`bg-blue-100 text-blue-600`): it
+  ignores the theme and dies in dark mode. The `.tone` ramp is the only per-destination
+  colour, and it belongs on the glyph, never on a surface.
+- Wrap a list of navigation links in a card, or animate a row in on mount: a settings
+  list is furniture, not an entrance.
 - Nest scroll containers, or let a `Table` wrapper silently become one.
 - Add charts, KPI cards, sparklines or "insight" panels to a record or a money view.
 - Use monospace, dashed rules or paper textures outside the Resi (print) reproduction.
