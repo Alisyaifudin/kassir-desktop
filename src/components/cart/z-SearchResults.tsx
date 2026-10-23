@@ -9,7 +9,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Package } from "lucide-react";
 import { Loader, type Result } from "~/components/Loader";
-import { Loading } from "~/components/Loading";
+import { Skeleton } from "~/components/ui/skeleton";
 import { createPortal } from "react-dom";
 import { useImageUrl } from "~/hooks/use-image";
 import type { Listing, ListingError } from "~/services/listing";
@@ -42,11 +42,30 @@ export function SearchResults({
   onExit: () => void;
 }) {
   return (
-    <Loader res={res} fallback={<Loading />}>
+    <Loader res={res} fallback={<SearchResultsLoading />}>
       {({ data }) => (
         <Grid listings={data} containerRef={containerRef} onPick={onPick} onExit={onExit} />
       )}
     </Loader>
+  );
+}
+
+/** The catalog's result grid while the search resolves. */
+function SearchResultsLoading() {
+  return (
+    <div
+      className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3 lg:grid-cols-4"
+      aria-busy="true"
+      aria-label="Memuat hasil pencarian"
+    >
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="flex flex-col gap-2 rounded-lg border p-2">
+          <Skeleton className="aspect-square w-full rounded-md" />
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-5 w-1/3" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -209,7 +228,9 @@ function Cell({
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const nameRef = useRef<HTMLSpanElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [nameRect, setNameRect] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [nameRect, setNameRect] = useState<{ left: number; top: number; width: number } | null>(
+    null,
+  );
   const [alignRight, setAlignRight] = useState(false);
   const stockClass =
     listing.stock <= 0

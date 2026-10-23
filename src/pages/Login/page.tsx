@@ -5,7 +5,7 @@ import { BrandPanel } from "./z-BrandPanel";
 import { ErrorComponent } from "~/components/ErrorComponent";
 import { LoaderMany, useStream } from "~/components/Loader";
 import { createManyErrorBoundary } from "~/components/createErrorBoundary";
-import { Loading } from "~/components/Loading";
+import { Skeleton } from "~/components/ui/skeleton";
 import { service } from "~/services";
 import { AuthError } from "~/services/auth";
 import { CashierError } from "~/services/cashier";
@@ -44,11 +44,7 @@ export default function Page() {
                       <Redirect to="/" />
                     ) : (
                       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-2xl border bg-card p-8 shadow-2xl small:p-6">
-                        {cashiers.length > 0 ? (
-                          <LoginForm cashiers={cashiers} />
-                        ) : (
-                          <FreshForm />
-                        )}
+                        {cashiers.length > 0 ? <LoginForm cashiers={cashiers} /> : <FreshForm />}
                       </div>
                     )
                   }
@@ -66,10 +62,19 @@ function LoginError({ error }: { error: AuthError | CashierError }) {
   return <ErrorComponent title="Aplikasi bermasalah ☠">{error.message}</ErrorComponent>;
 }
 
+/** The sign-in card's shape while the session and the cashier list resolve. */
 function LoadingView() {
   return (
-    <div className="flex h-40 items-center justify-center small:h-32">
-      <Loading />
+    <div
+      className="flex flex-col gap-3 rounded-2xl border bg-card p-8 shadow-2xl small:p-6"
+      aria-busy="true"
+      aria-label="Memuat"
+    >
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-4 w-64" />
+      <Skeleton className="mt-2 h-14 w-full" />
+      <Skeleton className="h-14 w-full" />
+      <Skeleton className="h-14 w-full" />
     </div>
   );
 }

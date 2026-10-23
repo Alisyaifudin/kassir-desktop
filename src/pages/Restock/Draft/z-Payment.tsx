@@ -1,5 +1,5 @@
 import { LoaderMany, useStream } from "~/components/Loader";
-import { Loading } from "~/components/Loading";
+import { Skeleton } from "~/components/ui/skeleton";
 import type Decimal from "decimal.js";
 import {
   Accordion,
@@ -53,7 +53,7 @@ export function Payment({
   };
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-gutter">
-      <LoaderMany res={res} fallback={<Loading />}>
+      <LoaderMany res={res} fallback={<PaymentLoading />}>
         {({ catalog, suppliers }) => (
           <Body
             draft={draft}
@@ -69,6 +69,17 @@ export function Payment({
           />
         )}
       </LoaderMany>
+    </div>
+  );
+}
+
+/** The purchase's payment/supplier form while its two catalogues load. */
+function PaymentLoading() {
+  return (
+    <div className="flex flex-col gap-3 p-2" aria-busy="true" aria-label="Memuat pembayaran">
+      <Skeleton className="h-14 w-full" />
+      <Skeleton className="h-14 w-2/3" />
+      <Skeleton className="h-10 w-40" />
     </div>
   );
 }

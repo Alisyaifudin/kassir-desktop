@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import Decimal from "decimal.js";
 import { Loader, useStream } from "~/components/Loader";
-import { Loading } from "~/components/Loading";
+import { Skeleton } from "~/components/ui/skeleton";
 import { createErrorBoundary } from "~/components/createErrorBoundary";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
@@ -163,9 +163,26 @@ function PayStrip(props: PayStripProps) {
 function PayStripView(props: PayStripProps) {
   const res = useStream(service.method.get.catalogChanges);
   return (
-    <Loader res={res} fallback={<Loading />}>
+    <Loader res={res} fallback={<PaymentLoading />}>
       {({ data }) => <Body {...props} catalog={data} />}
     </Loader>
+  );
+}
+
+/** The payment strip's own shape while the method catalogue loads. */
+function PaymentLoading() {
+  return (
+    <div className="flex min-w-0 flex-col gap-2 p-2" aria-busy="true" aria-label="Memuat metode">
+      <div className="flex gap-1">
+        <Skeleton className="h-14 flex-3" />
+        <Skeleton className="h-14 flex-3" />
+        <Skeleton className="h-14 flex-5" />
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t pt-2">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-5 w-24" />
+      </div>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { Loading } from "~/components/Loading";
+import { Loading } from "./z-Loading";
 
 const Page = lazy(() => import("./page"));
 

@@ -3,7 +3,7 @@ import { Either, Effect } from "effect";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader, useMutation, useStream } from "~/components/Loader";
-import { Loading } from "~/components/Loading";
+import { Loading } from "./z-Loading";
 import { useUser } from "~/hooks/use-user";
 import { generateId } from "~/lib/random";
 import { useDraftId } from "~/pages/cart/use-draft";

@@ -5,6 +5,7 @@ import { SaveError } from "~/components/SaveError";
 import { service } from "~/services";
 import type { Draft as DraftModel } from "~/services/transaction";
 import { CartStartError } from "~/components/cart/z-StartError";
+import { CartLoading } from "~/components/cart/z-CartLoading";
 import type { CartScreen } from "~/components/cart/use-cart-screen";
 
 /**
@@ -22,7 +23,9 @@ export function CartRoute({ children }: { children: (drafts: DraftModel[]) => Re
   const res = useStream(service.transaction.get.changes);
   return (
     <main className="relative flex h-full min-h-0 shrink grow basis-0 flex-col overflow-hidden">
-      <Loader res={res} fallback={<Loading />}>{({ data }) => children(data)}</Loader>
+      <Loader res={res} fallback={<CartLoading />}>
+        {({ data }) => children(data)}
+      </Loader>
     </main>
   );
 }
@@ -43,7 +46,7 @@ export function CartBody({ dialog, children }: { dialog: ReactNode; children: Re
 
 /** No draft yet: either it is being made, or it could not be made. */
 export function CartEmpty({ cart }: { cart: Pick<CartScreen, "startError" | "retryStart"> }) {
-  if (cart.startError === null) return <Loading />;
+  if (cart.startError === null) return <CartLoading />;
   return <CartStartError message={cart.startError} onRetry={cart.retryStart} />;
 }
 
@@ -51,13 +54,7 @@ export function CartEmpty({ cart }: { cart: Pick<CartScreen, "startError" | "ret
  * The panel column. `inert` while submitting, because the record is already
  * committed at that point: nothing else may be edited until the dialog says so.
  */
-export function CartPanels({
-  submitting,
-  children,
-}: {
-  submitting: boolean;
-  children: ReactNode;
-}) {
+export function CartPanels({ submitting, children }: { submitting: boolean; children: ReactNode }) {
   return (
     <div
       className="relative flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1"

@@ -2,7 +2,7 @@ import type Decimal from "decimal.js";
 import { UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Loader, useStream } from "~/components/Loader";
-import { Loading } from "~/components/Loading";
+import { Skeleton } from "~/components/ui/skeleton";
 import { createErrorBoundary } from "~/components/createErrorBoundary";
 import { Button } from "~/components/ui/button";
 import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
@@ -128,7 +128,7 @@ function MethodFields({
         </span>
       )}
     >
-      <Loader res={res} fallback={<Loading />}>
+      <Loader res={res} fallback={<Skeleton className="h-11 w-[320px] max-w-full" />}>
         {({ data }) => <MethodSelect catalog={data} value={value} onChange={onChange} />}
       </Loader>
     </MethodErrorBoundary>
