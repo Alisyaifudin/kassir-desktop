@@ -15,6 +15,7 @@ import { useUser } from "~/hooks/use-user";
 import type { RecordFull } from "~/services/record";
 import { useSaveEdit } from "./use-edit";
 import { ChangeMode } from "./z-ChangeMode";
+import { MethodField } from "./z-Method";
 import { ToCredit } from "./z-ToCredit";
 
 export function EditDialog({ record }: { record: RecordFull }) {
@@ -35,12 +36,21 @@ export function EditDialog({ record }: { record: RecordFull }) {
           <DialogTitle className="text-big">Sunting catatan</DialogTitle>
         </DialogHeader>
         <DialogDescription>
-          Ubah catatan pada catatan riwayat ini.
+          Ubah metode pembayaran atau catatan pada catatan riwayat ini.
           {isAdmin
             ? " Mengubah mode membuat catatan baru dengan isi yang sama, lalu menghapus yang lama."
             : null}
         </DialogDescription>
         <div className="flex flex-col gap-4 py-2">
+          {/* A split payment has no single method to correct, so the picker is
+              withheld rather than made to guess which half the cashier meant. */}
+          {edit.methodId === null ? null : (
+            <MethodField
+              methodId={edit.methodId}
+              onChange={edit.setMethodId}
+              disabled={edit.loading}
+            />
+          )}
           <label className="flex flex-col gap-1">
             <span>Catatan</span>
             <Textarea

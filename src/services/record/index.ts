@@ -366,6 +366,12 @@ export class RecordService extends Context.Tag("RecordService")<
       creditAt: (id: string, creditAt: number) => Effect.Effect<void, RecordError>;
       note: (id: string, note: string) => Effect.Effect<void, RecordError>;
       /**
+       * Files every payment on the record under `methodId`, so a sale rung up on
+       * the wrong method can be corrected without touching the money. The
+       * tendered amounts are left exactly as they were.
+       */
+      method: (id: string, methodId: string) => Effect.Effect<void, RecordError>;
+      /**
        * Replaces the record with a new one in the other mode: the old row is
        * soft-deleted, every child is re-pointed, and the stock journal's signs
        * are flipped. Returns the new record id.

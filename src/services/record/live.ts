@@ -1637,6 +1637,45 @@ export const RecordLive = Layer.effect(
             yield* bumpRevision();
           });
         },
+        method(id, methodId) {
+          return Effect.gen(function* () {
+            // Read the record first: re-pointing the payment rows of a missing id
+            // would otherwise update nothing and report success.
+            yield* readRecord(id);
+            yield* db
+              .selectOne<{ method_id: string }>(
+                "SELECT method_id FROM methods WHERE method_id = $1",
+                [methodId],
+              )
+              .pipe(
+                Effect.catchTag("DbError", (error) => Effect.fail(dbErrorToRecordError(error))),
+                Effect.catchTag("NotFound", () =>
+                  Effect.fail(new RecordError({ message: "Metode tidak ditemukan" })),
+                ),
+              );
+            // Only the method the payment is filed under moves. `record_method_pay`
+            // and the `record_pay` cache are left alone: correcting a mis-tapped
+            // method must not restate a single rupiah of what was tendered.
+            const current = yield* db
+              .selectMany<MethodRow>(SELECT_METHODS_FOR("$1"), [id])
+              .pipe(Effect.mapError(dbErrorToRecordError));
+            if (current.every((row) => row.method_id === methodId)) return;
+            const now = Date.now();
+            yield* commit([
+              {
+                sql: "UPDATE record_methods SET method_id = $1 WHERE record_id = $2",
+                bindings: [methodId, id],
+              },
+              {
+                sql: `UPDATE records SET
+                    record_updated_at = $1, record_sync_at = NULL
+                  WHERE record_id = $2`,
+                bindings: [now, id],
+              },
+            ]);
+            yield* bumpRevision();
+          });
+        },
         toCredit(id) {
           // A credit carries no tendered money, but keep its method rows at zero:
           // that preserves the split the user chose if the credit is settled later.
