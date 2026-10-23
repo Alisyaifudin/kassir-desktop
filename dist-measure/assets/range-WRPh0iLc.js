@@ -1,2 +1,0 @@
-import{jG as i,is as s,it as a}from"./index-DxjZdrqo.js";const c=s.ZonedDateTime.from({timeZone:a,year:1900,month:1,day:1}).epochMilliseconds,d=s.ZonedDateTime.from({timeZone:a,year:2101,month:1,day:1}).epochMilliseconds;function r(t,e){const o=i.catch(e).safeParse(t);if(!o.success)return e;const n=o.data;return n<c||n>d?e:n}function p(t,e){return{start:r(t.get("start"),e.start),end:r(t.get("end"),e.end)}}export{p};
-//# sourceMappingURL=range-WRPh0iLc.js.map
