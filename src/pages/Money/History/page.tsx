@@ -41,7 +41,7 @@ function History({ pocket }: { pocket: Pocket }) {
   return (
     <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
       <Header pocket={pocket} />
-      <Loader res={res} fallback={<TableLoading />}>
+      <Loader res={res} fallback={<TableLoading cols={pocket.type === "change" ? 8 : 7} />}>
         {({ data: money }) => <TableList money={money} type={pocket.type} />}
       </Loader>
       <NewRecord pocket={pocket} />

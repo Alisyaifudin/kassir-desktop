@@ -1128,8 +1128,9 @@ ignore it
         Index: a draggable grid of pocket cards (name, relative time, latest balance); the Kantong Baru dialog opens
         from a floating + button in the bottom-right corner.
         Detail: an editable pocket name, a date-range picker, a ledger table (day, date, time, diff for `change`
-        pockets, value, note), a settings button whose dialog holds the delete-pocket / JSON upload / JSON download
-        actions, and a floating + button for a new entry.
+        pockets, value, note truncated to 20 characters) whose rows expand to the full note when it is not empty, a
+        settings button whose dialog holds the delete-pocket / JSON upload / JSON download actions, and a floating +
+        button for a new entry.
       </description>
       <subpages>
         <subpage path="/money/:pocketId">One pocket's ledger, in the selected date range.</subpage>
