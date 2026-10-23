@@ -23,11 +23,24 @@ import type { PocketType } from "~/services/money";
 import { DeleteRecordBtn } from "./z-DeleteRecordBtn";
 import type { MoneyRow } from "./use-data";
 
-/** The note column stays one line; the whole note is one click away. */
-const NOTE_PREVIEW = 20;
+/**
+ * The note column stays one line, cut at this many characters (ellipsis
+ * included). Anything longer grows a chevron and an accordion; anything that
+ * fits is shown as typed. Change this to change both.
+ */
+const NOTE_PREVIEW = 50;
 
 function hasNote(note: string): boolean {
   return note.trim() !== "";
+}
+
+/**
+ * Only a note the preview had to cut short earns an accordion: a note that fits
+ * on the line is already fully readable, so a chevron on it would promise
+ * nothing.
+ */
+function isTruncated(note: string): boolean {
+  return note.replace(/\s+/g, " ").trim().length > NOTE_PREVIEW;
 }
 
 /**
@@ -137,7 +150,7 @@ export const TableList = memo(function TableList({
     onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getRowCanExpand: (row) => hasNote(row.original.note),
+    getRowCanExpand: (row) => isTruncated(row.original.note),
   });
 
   return (
@@ -176,10 +189,17 @@ export const TableList = memo(function TableList({
               </TableRow>
               {isOpen ? (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                  {/* The empty cell in front is the columns before `Catatan`, so
+                      the full note starts under the column it belongs to instead
+                      of under the row number. */}
+                  <TableCell colSpan={noteIndex(row)} className="p-0" />
+                  <TableCell
+                    colSpan={row.getVisibleCells().length - noteIndex(row)}
+                    className="p-0"
+                  >
                     {/* `pre-wrap` keeps the note's own line breaks and tabs, so a
                         list typed into the textarea still reads as a list. */}
-                    <p className="px-3 py-2 whitespace-pre-wrap break-words [tab-size:4]">
+                    <p className="py-2 pr-3 whitespace-pre-wrap break-words [tab-size:4]">
                       {row.original.note}
                     </p>
                   </TableCell>
@@ -193,24 +213,38 @@ export const TableList = memo(function TableList({
   );
 });
 
+/** How many columns sit to the left of `Catatan`, for lining the accordion up. */
+function noteIndex(row: Row<MoneyRow>): number {
+  return row.getVisibleCells().findIndex((cell) => cell.column.id === "note");
+}
+
 /** Column widths and alignment, keyed by column id — money and counts sit right. */
 const COLUMN: Record<string, { head?: string; cell?: string }> = {
   no: { head: "w-[60px] small:w-[48px]", cell: "text-muted-foreground" },
-  day: { head: "w-[120px] text-center small:w-[90px]", cell: "text-center" },
-  date: { head: "w-[550px] text-center small:w-[190px]", cell: "text-center" },
-  time: { head: "w-[130px] text-center small:w-[100px]", cell: "text-center" },
-  diff: { head: "w-[190px] text-right small:w-[140px]", cell: "text-right" },
-  value: { head: "w-[190px] text-right small:w-[140px]", cell: "text-right" },
-  note: { cell: "w-full max-w-0" },
+  // `whitespace-nowrap` on the reading columns is what keeps "15 Oktober 2026"
+  // on one line: in an auto layout the browser is free to shrink a column to
+  // its longest word, which turned the date into three lines.
+  day: { head: "w-[130px] text-center small:w-[100px]", cell: "whitespace-nowrap text-center" },
+  date: { head: "w-[280px] text-center small:w-[220px]", cell: "whitespace-nowrap text-center" },
+  time: { head: "w-[150px] text-center small:w-[110px]", cell: "whitespace-nowrap text-center" },
+  diff: { head: "w-[190px] text-right small:w-[140px]", cell: "whitespace-nowrap text-right" },
+  value: { head: "w-[190px] text-right small:w-[140px]", cell: "whitespace-nowrap text-right" },
+  note: {},
   actions: { head: "w-[60px] small:w-[48px]", cell: "text-right" },
 };
 
 /**
- * The note column: a truncated preview that opens the full text, or an em dash
- * on an entry that has nothing to open.
+ * The note column: the note itself when it fits on the line, a truncated preview
+ * that opens the full text when it does not, and an em dash when there is none.
  */
 function NoteCell({ row }: { row: Row<MoneyRow> }) {
-  if (!row.getCanExpand()) return <span className="text-muted-foreground">—</span>;
+  if (!row.getCanExpand()) {
+    return hasNote(row.original.note) ? (
+      <span className="truncate">{previewNote(row.original.note)}</span>
+    ) : (
+      null
+    );
+  }
 
   return (
     <button
