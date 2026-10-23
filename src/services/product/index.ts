@@ -10,6 +10,21 @@ export class ProductDuplicateCode extends Data.TaggedError("ProductDuplicateCode
 export type CodeKind = "barcode" | "qr";
 export type Mime = "image/png" | "image/jpeg" | "image/webp";
 
+/**
+ * `products.product_flag` bit 0: the product is withdrawn from the till.
+ *
+ * Set means the product and all of its listings are hidden from the Pos and
+ * Restock catalogue (`ListingService`), while the row itself, its stock and its
+ * history stay untouched — the /products list, reports and old records still
+ * read it. Never reuse the bit; see `FLAGS.md`.
+ */
+export const PRODUCT_FLAG_UNPUBLISHED = 0b1;
+
+/** False when the product is withdrawn from the till — see `PRODUCT_FLAG_UNPUBLISHED`. */
+export function isPublished(product: { flag: number }): boolean {
+  return (product.flag & PRODUCT_FLAG_UNPUBLISHED) === 0;
+}
+
 export type Listing = {
   id: string;
   productId: string;
@@ -74,6 +89,11 @@ export type Product = {
   id: string;
   name: string;
   note: string;
+  /**
+   * `product_flag` bitfield. 0 is a published product; bit 0 marks one that is
+   * withdrawn from the till (`PRODUCT_FLAG_UNPUBLISHED`). Mask, never compare.
+   */
+  flag: number;
   /** Alternative names (`product_names`), used by search only. */
   altNames: string[];
   listings: Listing[];
@@ -150,6 +170,11 @@ export class ProductService extends Context.Tag("ProductService")<
     add: (input: ProductInput) => Effect.Effect<string, ProductError | ProductDuplicateCode>;
     set: {
       info: (id: string, info: { name: string; note: string }) => Effect.Effect<void, ProductError>;
+      /**
+       * Publishes the product back into the Pos / Restock catalogue, or withdraws
+       * it. Only bit 0 of `product_flag` moves; every other bit is preserved.
+       */
+      publish: (id: string, published: boolean) => Effect.Effect<void, ProductError>;
       listing: {
         add: (
           productId: string,

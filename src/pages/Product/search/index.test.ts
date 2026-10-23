@@ -21,6 +21,7 @@ function product(
     id,
     name,
     note: "",
+    flag: 0,
     altNames: options.alt ?? [],
     listings: [
       {

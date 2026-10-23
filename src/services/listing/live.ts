@@ -1,6 +1,6 @@
 import { Effect, Layer, Stream } from "effect";
 import { ListingError, ListingService, type Listing } from ".";
-import { ProductService, type Product } from "../product";
+import { isPublished, ProductService, type Product } from "../product";
 import { getListingIndex, searchListings } from "~/lib/search/listings";
 
 /**
@@ -11,10 +11,16 @@ import { getListingIndex, searchListings } from "~/lib/search/listings";
  * `product.set.*` and `record.refreshProducts()` after each commit. Keeping a
  * copy here meant the POS sold yesterday's price and pre-sale stock until the
  * user reloaded the whole window.
+ *
+ * Published only: a product withdrawn from the till carries
+ * `PRODUCT_FLAG_UNPUBLISHED` and contributes no listing here, so Pos and Restock
+ * both stop offering it — search, grid and barcode alike — while the product,
+ * its stock and its history stay in `/products`.
  */
 function toListings(products: Product[]): Listing[] {
   const listings: Listing[] = [];
   for (const product of products) {
+    if (!isPublished(product)) continue;
     for (const listing of product.listings) {
       listings.push({
         id: listing.id,

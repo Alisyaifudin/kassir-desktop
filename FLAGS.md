@@ -1,8 +1,9 @@
 # Flags
 
-Two bitfields say what a stored row _is_. They live in different tables and
+Three bitfields say what a stored row _is_. They live in different tables and
 must not be confused: `records.record_flag` describes **history**, `tx_record_flag`
-describes **working state** that disappears when the cart is committed.
+describes **working state** that disappears when the cart is committed, and
+`product_flag` says whether a **catalogue row** is on offer.
 
 A new meaning gets a new power of two and a name in the constants next to its
 service; never reuse a bit. When a bit is added or changed, update this file and
@@ -39,6 +40,29 @@ Combinations:
 | `0b01` | a parked sale or purchase cart                        |
 | `0b10` | an active arbitrary-transaction tab                   |
 | `0b11` | a parked arbitrary-transaction tab (not produced yet) |
+
+## `products.product_flag` — the catalogue
+
+Defined in `src/services/product/index.ts`. Bit 0 is the only meaning so far:
+
+| bit | value | constant                   | meaning                                                                                                                                                                                    |
+| --- | ----- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0   | `0b1` | `PRODUCT_FLAG_UNPUBLISHED` | Withdrawn from the till. `ListingService` — the projection Pos and Restock both read — leaves the product and all of its listings out of its catalogue, so search, the grid and a scanned barcode all stop offering it. |
+| —   | `0b0` | —                          | Published: the product is sellable and buyable.                                                                                                                                            |
+
+Withdrawing is not deleting. The row, its stock, its images, its history,
+`/products` and every old record still carry it — only the two cart screens stop
+offering it. The switch is `product.set.publish(id, published)`, which masks bit 0
+and preserves the rest, and saves immediately rather than with the form's
+`Simpan`. Because `/products` is then the only place the state is still visible,
+that list greys the row or card out and tags it "Tidak terbit" — grey, never red:
+red is the loss badge, and a parked row is not a problem row.
+
+Writers of `products.product_flag` must mask like the rest of this file:
+
+```ts
+const sellable = isPublished(product); // (product.flag & PRODUCT_FLAG_UNPUBLISHED) === 0
+```
 
 ## Filtering
 

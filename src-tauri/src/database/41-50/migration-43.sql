@@ -8,9 +8,10 @@
 -- Re-baselined. This file now also carries the schema work that shipped as
 -- migrations 45-53 (the cart's customer/supplier text, the code snapshot on
 -- `tx_listings`, three record dates and the supplier snapshot, the read
--- indexes) plus `records.record_flag`. Those files were folded here when the
--- history was squashed to 43 + 44, so a database from the old 43-53 lineage no
--- longer matches it and has to start from a fresh `data.db`.
+-- indexes) plus `records.record_flag` and `products.product_flag`. Those files
+-- were folded here when the history was squashed to 43 + 44, so a database from
+-- the old 43-53 lineage no longer matches it and has to start from a fresh
+-- `data.db`.
 --
 -- Goals
 --   1. Replace the `graves` tombstone table with `*_deleted_at` soft-delete
@@ -187,6 +188,7 @@ CREATE TABLE products (
   product_id         TEXT PRIMARY KEY,
   product_name       TEXT NOT NULL,
   product_note       TEXT NOT NULL DEFAULT (''),
+  product_flag       INTEGER NOT NULL DEFAULT 0,
   product_updated_at INTEGER NOT NULL,
   product_sync_at    INTEGER,
   product_deleted_at INTEGER

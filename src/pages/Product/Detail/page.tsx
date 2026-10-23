@@ -1,8 +1,10 @@
 import { Link, Outlet, useLocation, useParams } from "react-router";
 import { useStream } from "~/components/Loader";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
+import { useUser } from "~/hooks/use-user";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
+import { PublishToggle } from "./z-Publish";
 import { ProductErrorBoundary, ProductErrorFallback } from "../z-Error";
 
 const TABS = [
@@ -26,6 +28,8 @@ export default function Page() {
   const res = useStream(service.product.get.changesFull);
   // Read (don't re-generate) so the list URL survives tab switches.
   const backUrl = useGetUrlBack("/products");
+  // Publishing is an edit, so it sits with the other admin-only controls.
+  const role = useUser().role;
 
   if (id === undefined) return null;
 
@@ -42,6 +46,9 @@ export default function Page() {
             <span className="truncate text-normal font-semibold">
               {product?.name ?? (res.type === "init" ? "…" : "Produk tidak ditemukan")}
             </span>
+            {product !== undefined && role === "admin" ? (
+              <PublishToggle product={product} />
+            ) : null}
           </div>
           <div className="inline-flex items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
             {TABS.map((tab) => (

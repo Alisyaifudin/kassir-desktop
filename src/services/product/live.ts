@@ -1,5 +1,6 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import {
+  PRODUCT_FLAG_UNPUBLISHED,
   ProductDuplicateCode,
   ProductError,
   ProductService,
@@ -35,6 +36,7 @@ type ProductRow = {
   product_id: string;
   product_name: string;
   product_note: string;
+  product_flag: number;
   product_updated_at: number;
   product_sync_at: number | null;
 };
@@ -115,6 +117,7 @@ type ProductState = {
   id: string;
   name: string;
   note: string;
+  flag: number;
   updatedAt: number;
   syncAt: number | null;
   listings: Listing[];
@@ -225,6 +228,7 @@ function toProduct(state: ProductState): Product {
     id: state.id,
     name: state.name,
     note: state.note,
+    flag: state.flag,
     altNames: state.productNames.map((name) => name.value),
     listings: state.listings,
     stock,
@@ -336,7 +340,7 @@ function productNameInsert(
 }
 
 const SELECT_PRODUCTS =
-  "SELECT product_id, product_name, product_note, product_updated_at, product_sync_at FROM products WHERE product_deleted_at IS NULL";
+  "SELECT product_id, product_name, product_note, product_flag, product_updated_at, product_sync_at FROM products WHERE product_deleted_at IS NULL";
 const SELECT_LISTINGS =
   "SELECT listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_code_kind, listing_updated_at, listing_sync_at FROM listings WHERE listing_deleted_at IS NULL";
 const SELECT_PROPERTIES =
@@ -451,6 +455,7 @@ export const ProductLive = Layer.effect(
           id: row.product_id,
           name: row.product_name,
           note: row.product_note,
+          flag: row.product_flag,
           updatedAt: row.product_updated_at,
           syncAt: row.product_sync_at,
           listings: [],
@@ -554,6 +559,7 @@ export const ProductLive = Layer.effect(
       return (
         a.name === b.name &&
         a.note === b.note &&
+        a.flag === b.flag &&
         a.updatedAt === b.updatedAt &&
         a.syncAt === b.syncAt &&
         sameChildren(a.listings, b.listings, sameListing) &&
@@ -774,6 +780,26 @@ export const ProductLive = Layer.effect(
                     product_updated_at = $3, product_sync_at = NULL
                   WHERE product_id = $4`,
                 bindings: [info.name, info.note, now, id],
+              },
+            ]);
+            yield* hydrateMany([id]);
+          });
+        },
+        publish(id, published) {
+          return Effect.gen(function* () {
+            const now = Date.now();
+            // Masked, not assigned: another meaning may share `product_flag`
+            // later, and publishing must not clear its bits.
+            const next = published
+              ? `product_flag & ~${PRODUCT_FLAG_UNPUBLISHED}`
+              : `product_flag | ${PRODUCT_FLAG_UNPUBLISHED}`;
+            yield* commit([
+              {
+                sql: `UPDATE products SET
+                    product_flag = ${next},
+                    product_updated_at = $1, product_sync_at = NULL
+                  WHERE product_id = $2`,
+                bindings: [now, id],
               },
             ]);
             yield* hydrateMany([id]);

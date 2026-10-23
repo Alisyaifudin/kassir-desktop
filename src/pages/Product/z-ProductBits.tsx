@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, EyeOff } from "lucide-react";
 import { cn } from "~/lib/utils";
 import type { Product } from "~/services/product";
 import { maxPrice, minPrice, stockStatus, type StockStatus } from "./use-filtered";
@@ -38,6 +38,22 @@ export function LossBadge() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-small font-medium text-destructive">
       <AlertTriangle className="size-4 small:size-3" /> Rugi
+    </span>
+  );
+}
+
+/**
+ * The withdrawn-from-the-till marker. Grey on purpose, and the only badge in
+ * this file that is: loss is red and stock is green/amber/destructive, so a
+ * neutral chip says "this row is parked", not "this row is a problem".
+ *
+ * The row or card it sits on is muted to match — see `ProductTable` and
+ * `ProductCard` — so the clue reads even before the label does.
+ */
+export function UnpublishedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-small font-medium text-muted-foreground ring-1 ring-inset ring-foreground/10">
+      <EyeOff className="size-4 small:size-3" /> Tidak terbit
     </span>
   );
 }

@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { Context, Effect, Layer } from "effect";
 import { DatabaseService, type Binding } from "../db";
 import { makeTestDatabase } from "../db/test-support";
-import { ProductService } from ".";
+import { isPublished, PRODUCT_FLAG_UNPUBLISHED, ProductService } from ".";
 import { ProductLive } from "./live";
 
 function setup() {
@@ -347,5 +347,59 @@ describe("stock history paging", () => {
       "in-4",
     ]);
     expect(incoming.some((id) => id.startsWith("out-"))).toBe(false);
+  });
+});
+
+describe("publishing a product", () => {
+  test("the flag is stored, readable and leaves the product in the catalogue", async () => {
+    const { layer } = setup();
+
+    const states = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(input("Kopi"));
+        const published = yield* product.get.byId(id);
+
+        yield* product.set.publish(id, false);
+        const withdrawn = yield* product.get.byId(id);
+        // The row is hidden from the till, not deleted from /products.
+        const all = yield* product.get.all();
+
+        yield* product.set.publish(id, true);
+        const again = yield* product.get.byId(id);
+
+        return { published, withdrawn, all, again };
+      }),
+    );
+
+    expect(states.published.flag & PRODUCT_FLAG_UNPUBLISHED).toBe(0);
+    expect(isPublished(states.published)).toBe(true);
+    expect(states.withdrawn.flag & PRODUCT_FLAG_UNPUBLISHED).toBe(PRODUCT_FLAG_UNPUBLISHED);
+    expect(isPublished(states.withdrawn)).toBe(false);
+    expect(states.all.map((item) => item.name)).toEqual(["Kopi"]);
+    expect(isPublished(states.again)).toBe(true);
+  });
+
+  /**
+   * `product_flag` is a bitfield, so publishing must clear bit 0 and leave the
+   * rest alone — otherwise the next meaning that claims a bit is wiped the
+   * first time someone flips the switch.
+   */
+  test("publishing preserves the flag's other bits", async () => {
+    const { db, layer } = setup();
+    const id = await run(layer, (product) => product.add(input("Kopi")));
+
+    // Bit 1 is a hypothetical future meaning, written raw so this test stays
+    // valid once it exists.
+    db.query("UPDATE products SET product_flag = 3 WHERE product_id = ?").run(id);
+
+    const flag = await run(layer, (product) =>
+      Effect.gen(function* () {
+        yield* product.refresh();
+        yield* product.set.publish(id, true);
+        return (yield* product.get.byId(id)).flag;
+      }),
+    );
+
+    expect(flag).toBe(2);
   });
 });
