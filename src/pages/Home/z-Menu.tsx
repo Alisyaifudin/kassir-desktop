@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import {
   BadgePercent,
   FilePlus2,
@@ -29,6 +30,12 @@ type Destination = {
   /** The app-wide shortcut that already reaches this screen, when there is one. */
   alt?: string;
   admin?: boolean;
+  /**
+   * Accent hue in oklch degrees. Every tile gets its own so the grid is
+   * scannable by color alone; the lightness/chroma live in `.tone`
+   * (global.css) so no tile shouts louder than another.
+   */
+  hue: number;
 };
 
 /**
@@ -46,6 +53,7 @@ const DESTINATIONS: Destination[] = [
     path: "/pos",
     icon: ShoppingCart,
     alt: "alt+0",
+    hue: 150,
     description: "Jual ke pelanggan",
   },
   {
@@ -53,12 +61,14 @@ const DESTINATIONS: Destination[] = [
     path: "/restock",
     icon: PackagePlus,
     alt: "alt+1",
+    hue: 200,
     description: "Catat pembelian",
   },
   {
     label: "Transaksi",
     path: "/transaction",
     icon: FilePlus2,
+    hue: 265,
     description: "Catat transaksi manual",
   },
   {
@@ -66,6 +76,7 @@ const DESTINATIONS: Destination[] = [
     path: "/products",
     icon: Package,
     alt: "alt+2",
+    hue: 115,
     description: "Katalog dan stok",
   },
   {
@@ -73,6 +84,7 @@ const DESTINATIONS: Destination[] = [
     path: "/records",
     icon: History,
     alt: "alt+3",
+    hue: 300,
     description: "Transaksi tercatat",
   },
   {
@@ -81,14 +93,22 @@ const DESTINATIONS: Destination[] = [
     icon: Wallet,
     alt: "alt+4",
     admin: true,
+    hue: 75,
     description: "Kantong dan kas",
   },
-  { label: "Analisis", path: "/analytics", icon: BarChart3, description: "Grafik penjualan" },
-  { label: "Utang", path: "/debt", icon: HandCoins, description: "Utang pelanggan" },
+  {
+    label: "Analisis",
+    path: "/analytics",
+    icon: BarChart3,
+    hue: 225,
+    description: "Grafik penjualan",
+  },
+  { label: "Utang", path: "/debt", icon: HandCoins, hue: 15, description: "Utang pelanggan" },
   {
     label: "Biaya Lainnya",
     path: "/extras",
     icon: BadgePercent,
+    hue: 345,
     description: "Biaya dan potongan",
   },
   {
@@ -96,22 +116,39 @@ const DESTINATIONS: Destination[] = [
     path: "/customer",
     icon: ReceiptText,
     admin: true,
+    hue: 50,
     description: "Daftar pelanggan",
   },
-  { label: "Kasir", path: "/cashier", icon: Users, admin: true, description: "Akun dan peran" },
+  {
+    label: "Kasir",
+    path: "/cashier",
+    icon: Users,
+    admin: true,
+    hue: 320,
+    description: "Akun dan peran",
+  },
   {
     label: "Metode",
     path: "/method",
     icon: CreditCard,
     admin: true,
+    hue: 175,
     description: "Metode pembayaran",
   },
-  { label: "Kontak", path: "/social", icon: Phone, admin: true, description: "Kontak toko" },
+  {
+    label: "Kontak",
+    path: "/social",
+    icon: Phone,
+    admin: true,
+    hue: 290,
+    description: "Kontak toko",
+  },
   {
     label: "Pengaturan",
     path: "/setting",
     icon: Settings,
     alt: "alt+5",
+    hue: 255,
     description: "Akun dan tampilan",
   },
 ];
@@ -133,7 +170,10 @@ export function Menu() {
                 className="group flex h-full flex-col gap-3 rounded-xl border bg-card p-2.5 transition-colors sm:p-4 hover:border-active/50 hover:bg-active/5 focus-visible:ring-2 focus-visible:ring-active focus-visible:outline-none"
               >
                 <span className="flex w-full items-start justify-between gap-2">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-active/10 group-hover:text-active">
+                  <span
+                    className="tone flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--tone-faint)] text-[var(--tone)] ring-1 ring-[var(--tone)]/40"
+                    style={{ "--tone-hue": item.hue } as CSSProperties}
+                  >
                     <item.icon aria-hidden="true" className="size-5" />
                   </span>
                   {meta === null ? null : (

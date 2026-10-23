@@ -374,6 +374,19 @@ main {
   scrollbar-gutter: stable;
 }
 
+/* Home menu tiles: each tile hands in one `--tone-hue` (oklch degrees) and gets
+   its icon outline from here, so all fourteen stay on one lightness/chroma and
+   none of them shouts louder than the next. Lightness is lifted in dark mode
+   because the same hue at tile size on a near-black card reads as mud. */
+.tone {
+  --tone: oklch(0.58 0.15 var(--tone-hue, 250));
+  --tone-faint: oklch(0.58 0.15 var(--tone-hue, 250) / 9%);
+}
+.dark .tone {
+  --tone: oklch(0.78 0.13 var(--tone-hue, 250));
+  --tone-faint: oklch(0.78 0.13 var(--tone-hue, 250) / 14%);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
