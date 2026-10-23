@@ -14,16 +14,25 @@ export type GateProps<T, E = unknown> = {
   error?: ReactNode | ((error: E) => ReactNode);
   /** Wire to `pageData.useRefresh()(key)` to make the default error retryable. */
   onRetry?: () => void;
-  /** How long to stay blank before the skeleton appears (avoids a flash). */
+  /**
+   * How long to stay blank before the skeleton appears — the same anti-flash
+   * window `Loader` uses. A local read answers in a few milliseconds, and a
+   * placeholder that flickers for two frames reads as jank, not as progress.
+   *
+   * Pass `0` only for a region that reserves no space of its own; otherwise let
+   * the page hold the region's floor (a `min-h`) so the delay hides the skeleton
+   * without moving anything.
+   */
   delay?: number;
 };
 
 /**
  * Renders one widget from one page-data result.
  *
- * `init` → the skeleton, after `delay` ms; `error` → an inline message (this
- * widget degrades, the page does not); `success` → the children, with
- * `refetching` available for a dim-while-stale treatment (`useDelayedFlag`).
+ * `init` → the skeleton, held back by `delay` ms so a fast load never flashes
+ * it; `error` → an inline message (this widget degrades, the page does not);
+ * `success` → the children, with `refetching` available for a dim-while-stale
+ * treatment (`useDelayedFlag`).
  */
 export function Gate<T, E = unknown>({
   res,
@@ -34,19 +43,22 @@ export function Gate<T, E = unknown>({
   delay = 200,
 }: GateProps<T, E>) {
   const init = res.type === "init";
-  const [showSkeleton, setShowSkeleton] = useState(false);
+  // With no delay there is nothing to wait for: the skeleton is on the first
+  // paint instead of after a blank window.
+  const immediate = delay <= 0;
+  const [delayed, setDelayed] = useState(false);
 
   useEffect(() => {
-    if (!init) {
-      setShowSkeleton(false);
+    if (!init || immediate) {
+      setDelayed(false);
       return;
     }
-    const timer = setTimeout(() => setShowSkeleton(true), delay);
+    const timer = setTimeout(() => setDelayed(true), delay);
     return () => clearTimeout(timer);
-  }, [init, delay]);
+  }, [init, delay, immediate]);
 
   if (res.type === "init") {
-    if (!showSkeleton) return null;
+    if (!immediate && !delayed) return null;
     return <>{skeleton ?? <Skeleton className="h-8 w-full" />}</>;
   }
 

@@ -1,7 +1,6 @@
 import { Link } from "react-router";
 import { PackagePlus, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { useDayStart } from "~/hooks/use-day-start";
 import { useUser } from "~/hooks/use-user";
 import { formatDate, getDayName } from "~/lib/date";
 import { capitalize } from "~/lib/utils";
@@ -12,12 +11,12 @@ import { withUrlBack } from "./format";
  * actually starts with. No 48px greeting: the topbar already carries the page
  * title, so this is a working header, not a title slide.
  *
- * The date is read off `useDayStart`, so a window left open past midnight stops
- * calling yesterday "today" here too.
+ * Entirely static: the user comes from the authenticated layout's own gate, and
+ * the day boundary is passed down from the page, which already reads it for its
+ * sources — so the date is right after midnight without a second timer.
  */
-export function Header() {
+export function Header({ dayStart }: { dayStart: number }) {
   const user = useUser();
-  const dayStart = useDayStart();
 
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">

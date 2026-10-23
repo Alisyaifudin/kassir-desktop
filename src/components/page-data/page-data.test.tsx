@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useMemo } from "react";
 import { Data, Deferred, Effect, Queue, Stream, SubscriptionRef } from "effect";
 import { createPageData, Gate } from "~/components/page-data";
 
@@ -53,6 +54,56 @@ describe("page data", () => {
 
     await waitFor(() => expect(screen.getByTestId("body")).toBeDefined());
     expect(screen.getByTestId("body").textContent).toBe("selesai");
+  });
+
+  test("the skeleton is held back, so a fast read never flashes it", async () => {
+    const pageData = createPageData<{ value: string }>("AntiFlash");
+
+    function Widget() {
+      const res = pageData.use("value");
+      return (
+        <Gate res={res} skeleton={<span data-testid="skeleton" />}>
+          {() => <span data-testid="body" />}
+        </Gate>
+      );
+    }
+
+    // A source that never answers, so the only clock is the anti-flash one.
+    render(
+      <pageData.Provider sources={{ value: Stream.never }}>
+        <Widget />
+      </pageData.Provider>,
+    );
+
+    // Nothing on the first frames: a load that resolves in milliseconds shows no
+    // placeholder at all.
+    expect(screen.queryByTestId("skeleton")).toBeNull();
+
+    // A read that really is slow earns its skeleton.
+    await waitFor(() => expect(screen.getByTestId("skeleton")).toBeDefined());
+  });
+
+  test("delay={0} draws the skeleton on the first paint", () => {
+    const pageData = createPageData<{ value: string }>("Immediate");
+
+    function Widget() {
+      const res = pageData.use("value");
+      return (
+        <Gate res={res} delay={0} skeleton={<span data-testid="skeleton" />}>
+          {() => <span data-testid="body" />}
+        </Gate>
+      );
+    }
+
+    render(
+      <pageData.Provider sources={{ value: Stream.never }}>
+        <Widget />
+      </pageData.Provider>,
+    );
+
+    // Synchronous: no `waitFor`, no timers — it has to be there already.
+    expect(screen.getByTestId("skeleton")).toBeDefined();
+    expect(screen.queryByTestId("body")).toBeNull();
   });
 
   test("every key subscribes before any key answers", async () => {
@@ -430,5 +481,56 @@ describe("page data mutations", () => {
 
     Effect.runSync(Deferred.succeed(gate, undefined));
     await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("segar"));
+  });
+});
+
+describe("page data dependencies", () => {
+  test("a dependency change keeps the data and refetches every key", async () => {
+    const pageData = createPageData<{ value: string }>("Deps");
+    const reads: string[] = [];
+
+    function Widget() {
+      const res = pageData.use("value");
+      return (
+        <span data-testid="body">
+          {res.type === "success"
+            ? `${res.data}/${res.refetching === true ? "stale" : "segar"}`
+            : res.type}
+        </span>
+      );
+    }
+
+    function App({ id }: { id: string }) {
+      const sources = useMemo(
+        () => ({
+          value: Stream.fromEffect(
+            Effect.zipRight(
+              Effect.sleep("10 millis"),
+              Effect.sync(() => {
+                reads.push(id);
+                return `nilai-${id}`;
+              }),
+            ),
+          ),
+        }),
+        [id],
+      );
+
+      return (
+        <pageData.Provider sources={sources} deps={[id]}>
+          <Widget />
+        </pageData.Provider>
+      );
+    }
+
+    const { rerender } = render(<App id="a" />);
+    await waitFor(() => expect(screen.getByTestId("body").textContent).toBe("nilai-a/segar"));
+
+    rerender(<App id="b" />);
+
+    // The old answer stays, flagged, until the new parameters answer.
+    await waitFor(() => expect(screen.getByTestId("body").textContent).toBe("nilai-a/stale"));
+    await waitFor(() => expect(screen.getByTestId("body").textContent).toBe("nilai-b/segar"));
+    expect(reads).toEqual(["a", "b"]);
   });
 });

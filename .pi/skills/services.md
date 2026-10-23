@@ -279,6 +279,28 @@ Rules:
   `pageData.useRefresh()(key)`.
 - **Gate the widget, not the page.** Card frames, headers, toolbars, pagination
   and action buttons belong outside any `Gate`.
+- **Pulse values, not cards.** When a card's structure is static and only its
+  numbers are async, do not swap the card for a skeleton — render the frame and
+  put `<SkeletonText className="w-32" />` where each value goes, at the width it
+  will occupy. Nothing moves when the value lands, the wording around it is
+  readable immediately, and two related values can arrive separately. Reserve
+  `Gate` for a region whose *body* is the thing that loads (a list, a table).
+  `pages/Home/z-Stats.tsx` is the worked example; `SkeletonText` lives beside
+  `Skeleton` in `~/components/ui/skeleton.tsx`.
+- **Give a gated body a floor.** A list body shorter than its skeleton collapses
+  the card the moment the rows arrive. Put one `min-h` on the rows container and
+  draw the skeleton rows at that exact height (real row height, big and `small:`
+  both), so the swap is invisible: `pages/Home/z-Ledger.tsx` (`ROWS_FLOOR`).
+- **A `Gate` keeps the anti-flash delay (200 ms).** A local read answers in a few
+  milliseconds, and a placeholder that flickers for two frames reads as jank.
+  The delay is only harmless when the region's *space* is already reserved — that
+  is what the floor above is for: the card holds its height, and the skeleton
+  fades in only for a read that is genuinely slow. Pass `delay={0}` where nothing
+  reserves the space (`pages/Home` uses it nowhere; the demo's widgets do not
+  either).
+- **Params go in `deps`.** `<pageData.Provider sources={…} deps={[dayStart, id]}>`
+  re-subscribes every key when one changes, keeping the old answers on screen
+  with `refetching` instead of blanking them.
 - `useAll` is `success` only when every key it reads is ready (errors surface
   immediately) — it never renders a half-filled card.
 - **A failure stays inline.** `Gate` renders `role="alert"` with an optional

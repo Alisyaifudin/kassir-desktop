@@ -1,14 +1,10 @@
 import { AlertCircle } from "lucide-react";
-import { createErrorBoundary } from "~/components/createErrorBoundary";
-import { MoneyError } from "~/services/money";
-import { RecordError } from "~/services/record";
-
-export const DayErrorBoundary = createErrorBoundary(RecordError);
-export const PocketsErrorBoundary = createErrorBoundary(MoneyError);
 
 /**
  * One line of failure inside the region that failed, not a page-wide takeover:
  * the pockets are a different service, and losing them must not hide the day.
+ * `Gate` renders this from a key's own error state — nothing is thrown, so no
+ * boundary is needed to keep the rest of Beranda alive.
  */
 export function RegionError({ title, error }: { title: string; error: { message: string } }) {
   return (
@@ -26,12 +22,4 @@ export function RegionError({ title, error }: { title: string; error: { message:
       </div>
     </div>
   );
-}
-
-export function DayError({ error }: { error: RecordError }) {
-  return <RegionError title="Gagal memuat ringkasan hari ini" error={error} />;
-}
-
-export function PocketsError({ error }: { error: MoneyError }) {
-  return <RegionError title="Gagal memuat uang" error={error} />;
 }

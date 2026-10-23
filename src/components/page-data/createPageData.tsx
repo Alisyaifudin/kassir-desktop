@@ -33,6 +33,13 @@ export type PageDataState<TMap, TError = unknown> = {
 export type PageDataProviderProps<TMap, TError = unknown> = {
   /** Every key the page can read. Subscribed once, all in parallel, on mount. */
   sources: PageDataSources<TMap, TError>;
+  /**
+   * Values the sources were derived from — a day boundary, an `:id`, a filter.
+   * When one changes, every key keeps what it has (`refetching`) and subscribes
+   * again, the way a params-driven query would. Compared by string form, so pass
+   * primitives and memoize anything that is not one.
+   */
+  deps?: readonly (string | number | boolean | null | undefined)[];
   children: ReactNode;
 };
 
@@ -132,7 +139,7 @@ export function createPageData<TMap, TError = unknown>(
     settle: (keys: Key[], succeeded: boolean) => void;
   } | null>(null);
 
-  function Provider({ sources, children }: PageDataProviderProps<TMap, TError>) {
+  function Provider({ sources, deps, children }: PageDataProviderProps<TMap, TError>) {
     const [state, setState] = useState<LooseState>(() => initState(sources));
 
     // Read at subscribe time, never a dependency: a page that passes an inline
@@ -184,19 +191,44 @@ export function createPageData<TMap, TError = unknown>(
       });
     }, []);
 
-    // Only the *set* of keys matters. Every key subscribes once, in parallel, as
-    // soon as the provider mounts — no ordering, no waterfall, no `await`.
+    // Only the *set* of keys matters (a page passing an inline `sources` object
+    // must not resubscribe on every render), and the dependency signature says
+    // when the sources answer a different question. Every key subscribes once,
+    // in parallel — no ordering, no waterfall, no `await`.
     const signature = Object.keys(sources).sort().join("\u0000");
+    const depsSignature = (deps ?? []).map((value) => String(value)).join("\u0000");
+    const previousDeps = useRef<string | null>(null);
+
+    const markStale = useCallback((keys: Key[]) => {
+      setState((old) => {
+        let next = old;
+        for (const key of keys) {
+          const prev = next[key];
+          // A key that never arrived has nothing to keep and a failed one has
+          // nothing to offer: only a success turns into `refetching`.
+          if (prev === undefined || prev.type !== "success" || prev.refetching === true) continue;
+          next = { ...next, [key]: { ...prev, refetching: true } };
+        }
+        return next;
+      });
+    }, []);
 
     useEffect(() => {
-      for (const key of signature === "" ? [] : signature.split("\u0000")) start(key);
+      const keys = signature === "" ? [] : signature.split("\u0000");
+      const changed = previousDeps.current !== null && previousDeps.current !== depsSignature;
+      previousDeps.current = depsSignature;
+
+      // New parameters do not blank the page: the previous answers stay on
+      // screen, flagged, until the new ones arrive.
+      if (changed) markStale(keys as Key[]);
+      for (const key of keys) start(key);
 
       const current = cancels.current;
       return () => {
         for (const cancel of current.values()) cancel();
         current.clear();
       };
-    }, [signature, start]);
+    }, [signature, depsSignature, start, markStale]);
 
     const refresh = useCallback((...keys: Key[]) => {
       const available = Object.keys(sourcesRef.current);
@@ -218,20 +250,6 @@ export function createPageData<TMap, TError = unknown>(
         start(key);
       }
     }, [start]);
-
-    const markStale = useCallback((keys: Key[]) => {
-      setState((old) => {
-        let next = old;
-        for (const key of keys) {
-          const prev = next[key];
-          // A key that never arrived has nothing to keep and a failed one has
-          // nothing to offer: only a success turns into `refetching`.
-          if (prev === undefined || prev.type !== "success" || prev.refetching === true) continue;
-          next = { ...next, [key]: { ...prev, refetching: true } };
-        }
-        return next;
-      });
-    }, []);
 
     const settle = useCallback(
       (keys: Key[], succeeded: boolean) => {
