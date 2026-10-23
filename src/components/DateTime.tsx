@@ -446,7 +446,7 @@ function Wheel({
           active && "bg-primary/10 ring-1 ring-primary/40",
         )}
       >
-        <motion.div data-slide={field} className="flex flex-col" style={{ transform }}>
+        <motion.div data-slide={field} className="flex flex-col gap-2" style={{ transform }}>
           {rows.map((row, index) =>
             row === null ? (
               <span key={index} aria-hidden className={cn("block", ROW_CLASS)} />
@@ -468,8 +468,8 @@ function Wheel({
                   index === 1 && "font-semibold text-foreground",
                   index !== 1 &&
                     (row.disabled
-                      ? "cursor-not-allowed text-muted-foreground/25"
-                      : "cursor-pointer text-muted-foreground/60"),
+                      ? "cursor-not-allowed text-small text-muted-foreground/25"
+                      : "cursor-pointer text-small text-muted-foreground/60"),
                 )}
               >
                 {row.text}
