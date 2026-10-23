@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -19,7 +20,10 @@ export const DeletePocketBtn = memo(function DeletePocketBtn({ pocketId }: { poc
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button type="button" asChild variant="destructive">
-        <DialogTrigger>Hapus Kantong</DialogTrigger>
+        <DialogTrigger>
+          <Trash2 className="icon" />
+          Hapus Kantong
+        </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>

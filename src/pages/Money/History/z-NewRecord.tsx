@@ -23,10 +23,15 @@ export const NewRecord = memo(function NewRecord({ pocket }: { pocket: Pocket })
   const { form, error } = useNew(pocket, () => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
-      <Button asChild>
-        <DialogTrigger>
-          <Plus />
-          Catatan Baru
+      {/* Floating action button, matching the pocket grid: the header keeps only
+          the pocket name, the date range and the settings button. */}
+      <Button
+        asChild
+        size="icon"
+        className="fixed bottom-6 right-6 z-40 size-14 rounded-full shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95 small:bottom-4 small:right-4 small:size-12"
+      >
+        <DialogTrigger aria-label="Tambah catatan baru">
+          <Plus className="icon" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-3xl">

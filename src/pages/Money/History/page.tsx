@@ -9,9 +9,7 @@ import { TableLoading } from "../z-Loading";
 import { useData } from "./use-data";
 import { Header } from "./z-Header";
 import { TableList } from "./z-TableList";
-import { DeletePocketBtn } from "./z-DeletePocket";
-import { Download } from "./z-Download";
-import { UploadMoney } from "./z-UploadDialog";
+import { NewRecord } from "./z-NewRecord";
 
 export default function Page({ pocketId }: { pocketId: string }) {
   const role = useUser().role;
@@ -44,19 +42,9 @@ function History({ pocket }: { pocket: Pocket }) {
     <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
       <Header pocket={pocket} />
       <Loader res={res} fallback={<TableLoading />}>
-        {({ data: money }) => (
-          <>
-            <TableList money={money} type={pocket.type} />
-            <div className="flex items-center pb-1 justify-between">
-              <DeletePocketBtn pocketId={pocket.id} />
-              <div className="flex items-center gap-2">
-                <UploadMoney pocketId={pocket.id} />
-                <Download pocket={pocket} />
-              </div>
-            </div>
-          </>
-        )}
+        {({ data: money }) => <TableList money={money} type={pocket.type} />}
       </Loader>
+      <NewRecord pocket={pocket} />
     </main>
   );
 }

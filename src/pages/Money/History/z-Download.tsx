@@ -1,3 +1,4 @@
+import { Download as DownloadIcon } from "lucide-react";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
 import { Spinner } from "~/components/Spinner";
@@ -23,8 +24,9 @@ export function Download({ pocket }: { pocket: Pocket }) {
   }
 
   return (
-    <Button onClick={handleClick} disabled={pending}>
+    <Button onClick={handleClick} disabled={pending} variant="secondary">
       <Spinner when={pending} />
+      <DownloadIcon className="icon" />
       Unduh
     </Button>
   );

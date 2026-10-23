@@ -25,7 +25,6 @@ export function Loading() {
     <main className="flex flex-col gap-2 w-full px-0.5 mx-auto flex-1 overflow-hidden">
       <div className="flex items-center justify-between">
         <Skeleton className="h-10 w-56" />
-        <Skeleton className="h-10 w-36" />
       </div>
       <CardsLoading />
     </main>

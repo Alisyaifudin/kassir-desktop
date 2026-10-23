@@ -1,3 +1,4 @@
+import { Upload } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -19,7 +20,10 @@ export function UploadMoney({ pocketId }: { pocketId: string }) {
   return (
     <Dialog>
       <Button asChild variant="secondary">
-        <DialogTrigger>Unggah</DialogTrigger>
+        <DialogTrigger>
+          <Upload className="icon" />
+          Unggah
+        </DialogTrigger>
       </Button>
       <DialogContent className="flex  overflow-y-auto max-h-[calc(100vh-2rem)] max-w-2xl flex-col p-0">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-6 pr-14">

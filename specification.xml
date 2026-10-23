@@ -1125,9 +1125,11 @@ ignore it
         Cash-flow pockets ("kantong"). A pocket has a name, a type — `absolute` (each entry is the balance as typed)
         or `change` (the page adds each entry's delta to the balance the ledger last held) — and a drag order. Entries
         carry value, timestamp and note. Backed by the money service.
-        Index: a draggable grid of pocket cards (name, relative time, latest balance) with a Kantong Baru dialog.
+        Index: a draggable grid of pocket cards (name, relative time, latest balance); the Kantong Baru dialog opens
+        from a floating + button in the bottom-right corner.
         Detail: an editable pocket name, a date-range picker, a ledger table (day, date, time, diff for `change`
-        pockets, value, note) and delete-pocket / JSON upload / JSON download actions.
+        pockets, value, note), a settings button whose dialog holds the delete-pocket / JSON upload / JSON download
+        actions, and a floating + button for a new entry.
       </description>
       <subpages>
         <subpage path="/money/:pocketId">One pocket's ledger, in the selected date range.</subpage>
