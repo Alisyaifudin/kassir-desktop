@@ -1,5 +1,5 @@
 import { generateId } from "~/lib/random";
-import type { CodeKind, ListingInput, ProductFull, ProductInput } from "~/services/product";
+import type { ListingInput, ProductFull, ProductInput } from "~/services/product";
 
 export type ListingDraft = {
   key: string;
@@ -8,7 +8,6 @@ export type ListingDraft = {
   unit: string;
   kind: string;
   code: string;
-  codeKind: CodeKind;
 };
 
 export type StockDraft = {
@@ -45,9 +44,8 @@ export function newListing(): ListingDraft {
     name: "",
     price: "",
     unit: "1",
-    kind: "retail",
+    kind: "",
     code: "",
-    codeKind: "barcode",
   };
 }
 
@@ -85,7 +83,6 @@ export function draftFromProduct(product: ProductFull): ProductDraft {
       unit: String(listing.unit),
       kind: listing.kind,
       code: listing.code ?? "",
-      codeKind: listing.codeKind ?? "barcode",
     })),
     stocks: product.stocks.map((stock) => ({
       key: stock.id,
@@ -116,9 +113,10 @@ export function toListingInput(listing: ListingDraft): ListingInput {
     name: listing.name.trim(),
     price: parseNumber(listing.price),
     unit: Math.max(1, Math.trunc(parseNumber(listing.unit))),
-    kind: listing.kind.trim() || "retail",
+    // Free label, and `""` is a legitimate value ("unlabelled"). The form only
+    // suggests the known kinds; it does not require one.
+    kind: listing.kind.trim(),
     code: code === "" ? null : code,
-    codeKind: code === "" ? null : listing.codeKind,
   };
 }
 

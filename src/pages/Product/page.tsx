@@ -55,7 +55,11 @@ function Content({
   const availableKinds = useMemo(() => {
     const kinds = new Set<string>();
     for (const product of products) {
-      for (const listing of product.listings) kinds.add(listing.kind);
+      // `kind` is a free label defaulting to ''; an unlabelled listing must not
+      // add a blank checkbox to the filter.
+      for (const listing of product.listings) {
+        if (listing.kind !== "") kinds.add(listing.kind);
+      }
     }
     // Sorted by display label, since the filter renders `getProductKind(kind)`.
     return [...kinds].sort((a, b) => getProductKind(a).localeCompare(getProductKind(b)));

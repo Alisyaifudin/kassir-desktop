@@ -33,6 +33,7 @@ function record(overrides: Partial<RecordModel> = {}): RecordModel {
     updatedAt: 1_000,
     syncAt: null,
     deletedAt: null,
+    pairId: null,
     ...overrides,
   };
 }

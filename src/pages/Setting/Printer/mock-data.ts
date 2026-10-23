@@ -37,10 +37,11 @@ export const mockData: Omit<ReceiptData, "info"> = {
     updatedAt: 0,
     syncAt: null,
     deletedAt: null,
+    pairId: null,
   },
   extras: [
-    { id: "mock-extra-1", name: "Diskon", value: -1000, eff: -1000, kind: "number" },
-    { id: "mock-extra-2", name: "PPN", value: 11, eff: 1000, kind: "percent" },
+    { id: "mock-extra-1", name: "Diskon", value: -1000, eff: -1000, kind: "number", flag: 0 },
+    { id: "mock-extra-2", name: "PPN", value: 11, eff: 1000, kind: "percent", flag: 0 },
   ],
   products: [
     {

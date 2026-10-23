@@ -55,22 +55,30 @@ SELECT
   product_updated_at, product_updated_at
 FROM products_old;
 
--- 3 listings — one default retail / 1-pcs listing per product.
+-- 3 listings — one unlabelled / 1-pcs listing per product.
+--      `listing_kind` is a free label and the old rows never had one, so the
+--      seed carries '' rather than inventing a "retail" for years of history.
 INSERT INTO listings (
   listing_id, product_id, listing_name, listing_price, listing_unit,
   listing_kind, listing_updated_at
 )
 SELECT
-  product_id, product_id, product_name, product_price, 1, 'retail', product_updated_at
+  product_id, product_id, product_name, product_price, 1, '', product_updated_at
 FROM products_old;
 
--- 4 code — attach the old single barcode to the seed retail listing.
+-- 4 code — attach the old single barcode to the seed listing.
+--      The old schema had no code-kind vocabulary to carry over: a code is just
+--      text now, unique across live listings (see 43 §5).
 --      NOTE: do NOT trim() here; the old UNIQUE index compared raw values, so
 --      trimming could collapse ' 123 ' and '123' into a unique-index violation.
+--      The same caveat applies to case: the old index was case-sensitive and the
+--      new one is NOCASE, so a database that carried 'ABC' and 'abc' on two
+--      products would fail this UPDATE (SQLite checks the index per row). No
+--      shipped database has such a pair — this is a pre-release re-baseline —
+--      but it is the one old-data shape this copy cannot absorb.
 UPDATE listings
-SET listing_code      = (SELECT p.product_barcode FROM products_old p
-                         WHERE p.product_id = listings.product_id),
-    listing_code_kind = 'barcode'
+SET listing_code = (SELECT p.product_barcode FROM products_old p
+                    WHERE p.product_id = listings.product_id)
 WHERE EXISTS (
   SELECT 1 FROM products_old p
   WHERE p.product_id = listings.product_id
@@ -167,7 +175,7 @@ SELECT
   ) THEN rp.record_product_id ELSE NULL END,
   rp.product_id,                 -- may be NULL (old ON DELETE SET NULL)
   rp.record_product_name,
-  'retail',
+  '',                            -- the old lines carried no kind
   1,                             -- seed listings are 1-pcs
   rp.record_product_price,
   rp.record_product_qty,

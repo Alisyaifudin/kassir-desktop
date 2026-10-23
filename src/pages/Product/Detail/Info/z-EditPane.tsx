@@ -33,8 +33,7 @@ function listingChanged(original: Listing, input: ListingInput): boolean {
     original.price !== input.price ||
     original.unit !== input.unit ||
     original.kind !== input.kind ||
-    original.code !== input.code ||
-    original.codeKind !== input.codeKind
+    original.code !== input.code
   );
 }
 

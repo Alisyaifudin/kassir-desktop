@@ -17,6 +17,7 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { type Extra, type ExtraPreset } from "~/components/cart/types";
+import { DUAL_FLAG } from "~/lib/constants";
 import { useExtraPresets } from "~/components/cart/use-extra-presets";
 import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
@@ -41,9 +42,9 @@ const HEADER: ExtraRowRef = { kind: "header" };
 const SUBTOTAL_ROW: ExtraRowRef = { kind: "subtotal" };
 const NAME_COLUMN = 1;
 
-/** A blank extra for +manual: a flat amount with nothing filled in. */
+/** A blank extra for +manual: a flat amount with nothing filled in, no flags. */
 function blankExtra(): Extra {
-  return { id: generateId(), name: "", kind: "number", value: 0 };
+  return { id: generateId(), name: "", kind: "number", value: 0, flag: 0 };
 }
 
 function caretAtEnd(input: HTMLInputElement | null): boolean {
@@ -60,7 +61,9 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  *
  * Unlike a line's discounts there is no trailing empty row; `+manual` or the
  * search add one, and a record with no extras at all is fine. Each row's number
- * is its drag handle, so the extras can be put in any order.
+ * is its drag handle, so the extras can be put in any order, and each row's
+ * `dual` checkbox sets the `DUAL_FLAG` that makes the sale book the extras-only
+ * twin — a preset brings the flag in, the checkbox is how it is corrected.
  *
  * One component for both screens: `mode` picks the grid layout and the wording,
  * and the settle-strip props (`focusLast`, `onExitDown`, `focused`, `onActivate`,
@@ -255,7 +258,15 @@ export function Extras({
 
   /** Add a chosen extra to the draft and drop back into the search field. */
   function addPreset(preset: ExtraPreset) {
-    append({ id: generateId(), name: preset.name, kind: preset.kind, value: preset.value });
+    // The flags travel with the name: `dual` is what makes the sale commit an
+    // extras-only twin, and it is not something the cashier retypes.
+    append({
+      id: generateId(),
+      name: preset.name,
+      kind: preset.kind,
+      value: preset.value,
+      flag: preset.flag,
+    });
     setQuery("");
     searchRef.current?.focus();
   }
@@ -302,6 +313,13 @@ export function Extras({
       case "kind":
         if (selection.row.kind === "extra") setOpenKindFor(selection.row.extraId);
         return;
+      case "dual": {
+        const row = selection.row;
+        if (row.kind !== "extra") return;
+        const extra = extras.find((item) => item.id === row.extraId);
+        if (extra !== undefined) patchExtra(extra.id, { flag: extra.flag ^ DUAL_FLAG });
+        return;
+      }
       case "x":
         if (selection.row.kind === "extra") removeExtra(selection.row.extraId);
         return;

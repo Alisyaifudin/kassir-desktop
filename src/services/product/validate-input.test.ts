@@ -19,7 +19,6 @@ function product(overrides: Partial<ProductInput> = {}): ProductInput {
         unit: 1,
         kind: "retail",
         code: null,
-        codeKind: null,
       },
     ],
     stocks: [{ value: 10, capital: 9_000 }],
@@ -34,7 +33,6 @@ const listing = (overrides: Record<string, unknown> = {}) => ({
   unit: 1,
   kind: "retail",
   code: null,
-  codeKind: null,
   ...overrides,
 });
 
@@ -105,10 +103,21 @@ describe("validateProductInput", () => {
   test("the same code twice in one product is refused", () => {
     const twice = product({
       listings: [
-        listing({ code: "8991", codeKind: "barcode" }),
-        listing({ name: "Kopi Susu 1L", code: "8991", codeKind: "barcode" }),
+        listing({ code: "8991" }),
+        listing({ name: "Kopi Susu 1L", code: "8991" }),
       ],
     });
     expect(validateProductInput(twice)).toBe("Kode 8991 dipakai dua kali di Kopi Susu");
+  });
+
+  test("the same code in different cases is refused — the unique index is NOCASE", () => {
+    const twice = product({
+      listings: [listing({ code: "AbC" }), listing({ name: "Kopi Susu 1L", code: "abc" })],
+    });
+    expect(validateProductInput(twice)).toBe("Kode abc dipakai dua kali di Kopi Susu");
+  });
+
+  test("an empty listing kind is allowed — the label is optional", () => {
+    expect(validateProductInput(product({ listings: [listing({ kind: "" })] }))).toBeNull();
   });
 });

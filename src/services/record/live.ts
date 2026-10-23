@@ -14,6 +14,7 @@ import {
   type RecordFull,
   type RecordListing,
   type RecordMethod,
+  type RecordMirrorInput,
   type RecordMode,
   type RecordSummary,
   type ValueKind,
@@ -74,6 +75,7 @@ type RecordRow = {
   record_updated_at: number;
   record_sync_at: number | null;
   record_deleted_at: number | null;
+  record_pair_id: string | null;
 };
 
 type MethodRow = {
@@ -126,6 +128,7 @@ type ExtraRow = {
   record_extra_value: number;
   record_extra_eff: number;
   record_extra_kind: ValueKind;
+  record_extra_flag: number;
 };
 
 type MoveRow = {
@@ -176,8 +179,8 @@ function insertListingRow(
   return {
     sql: `INSERT INTO listings (
         listing_id, product_id, listing_name, listing_price, listing_unit,
-        listing_kind, listing_code, listing_code_kind, listing_updated_at, listing_sync_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL)`,
+        listing_kind, listing_code, listing_updated_at, listing_sync_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)`,
     bindings: [
       listingId,
       productId,
@@ -186,7 +189,6 @@ function insertListingRow(
       input.unit,
       input.kind,
       input.code,
-      input.code === null ? null : "barcode",
       now,
     ],
   };
@@ -224,7 +226,7 @@ const RECORD_COLUMNS = `
   record_cashier, record_mode, record_pay, record_note, record_fix,
   record_customer_name, record_customer_phone, record_supplier_id,
   record_supplier_name, record_sub_total, record_total, record_updated_at,
-  record_sync_at, record_deleted_at`;
+  record_sync_at, record_deleted_at, record_pair_id`;
 
 // `record_listings` has no ordering column; SQLite's implicit rowid order is
 // insertion order, which is what a receipt wants. A line is stored as one row
@@ -251,7 +253,7 @@ const SELECT_DISCOUNTS = `
 const SELECT_EXTRAS = `
   SELECT
     record_extra_id, record_extra_name, record_extra_value, record_extra_eff,
-    record_extra_kind
+    record_extra_kind, record_extra_flag
   FROM record_extras
   WHERE record_id = $1`;
 
@@ -329,11 +331,98 @@ function rowToRecord(row: RecordRow, methods: RecordMethod[]): Record {
     updatedAt: row.record_updated_at,
     syncAt: row.record_sync_at,
     deletedAt: row.record_deleted_at,
+    pairId: row.record_pair_id,
   };
 }
 
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * The statements for a `dual` charge's twin: an extras-only `outcoming` record,
+ * settled in cash, flagged `RECORD_FLAG_ADJUSTMENT` so the stock and profit
+ * reads that assume "a record sold something" skip it, and linked to the sale
+ * both ways through `record_pair_id`.
+ *
+ * Its only lines are the dual extras, so `sub_total`, `total` and `pay` are all
+ * their sum — the extras carry the amount the sale actually charged, which is
+ * why a `percent` dual keeps its rupiah on a record with no subtotal of its
+ * own. No rounding, no customer, no supplier: the money is the whole fact.
+ *
+ * `null` when the twin would book nothing — no dual extra survived the
+ * zero-filter, or the net came out zero or negative. A deduction-heavy set is
+ * not a purchase, and the same rule `add.adjustment` enforces applies here: no
+ * record is stored with a total of zero or less. The sale is unaffected; only
+ * the twin is dropped.
+ */
+function mirrorStatements(
+  mirror: RecordMirrorInput | undefined,
+  recordId: string,
+  now: number,
+): Statement[] | null {
+  if (mirror === undefined) return null;
+  const extras = mirror.extras.filter((extra) => extra.eff !== 0);
+  if (extras.length === 0) return null;
+  const total = extras.reduce((sum, extra) => sum.plus(extra.eff), new Decimal(0));
+  if (!total.gt(0)) return null;
+
+  const mirrorId = generateId();
+  const amount = total.toNumber();
+  const statements: Statement[] = [
+    insertRecordStatement(
+      mirrorId,
+      {
+        createdAt: now,
+        paidAt: now,
+        creditAt: null,
+        rounding: 0,
+        cashier: mirror.cashier,
+        mode: mirror.mode,
+        pay: amount,
+        note: mirror.note,
+        fix: mirror.fix,
+        customer: { name: "", phone: "" },
+        supplier: { id: null, name: "" },
+        subTotal: amount,
+        total: amount,
+        flag: RECORD_FLAG_ADJUSTMENT,
+      },
+      now,
+    ),
+  ];
+  for (const extra of extras) {
+    statements.push({
+      sql: `INSERT INTO record_extras (
+          record_extra_id, record_extra_name, record_id,
+          record_extra_value, record_extra_eff, record_extra_kind,
+          record_extra_flag
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      bindings: [
+        generateId(),
+        extra.name,
+        mirrorId,
+        extra.value,
+        extra.eff,
+        extra.kind,
+        extra.flag,
+      ],
+    });
+  }
+  statements.push(insertMethod(mirrorId, mirror.methodId, amount));
+  // The links go last, after both rows exist: a self-reference inserted with
+  // the row would have nothing to point at yet while foreign_keys is on.
+  statements.push(
+    {
+      sql: "UPDATE records SET record_pair_id = $1 WHERE record_id = $2",
+      bindings: [mirrorId, recordId],
+    },
+    {
+      sql: "UPDATE records SET record_pair_id = $1 WHERE record_id = $2",
+      bindings: [recordId, mirrorId],
+    },
+  );
+  return statements;
 }
 
 // The lines a delete has to compensate for: only those pointing at a catalog
@@ -514,6 +603,11 @@ export const RecordLive = Layer.effect(
       return Effect.gen(function* () {
         const trimmed = query?.trim() ?? "";
         const bindings: (number | string)[] = [start, end];
+        // TODO: a `dual` charge's twin lives in this same table, flagged
+        // RECORD_FLAG_ADJUSTMENT, so `/records` lists it as a goods-less
+        // `outcoming` row beside the sale it belongs to. The filter below is
+        // deliberately absent until the list decides how a pair should read —
+        // see FLAGS.md. Analytics already skips `record_flag & 1`.
         let sql = `
           SELECT ${RECORD_COLUMNS} FROM records
           WHERE record_deleted_at IS NULL
@@ -582,6 +676,7 @@ export const RecordLive = Layer.effect(
           value: extra.record_extra_value,
           eff: extra.record_extra_eff,
           kind: extra.record_extra_kind,
+          flag: extra.record_extra_flag,
         }));
 
         return {
@@ -1091,9 +1186,10 @@ export const RecordLive = Layer.effect(
               }
             }
 
-            // A new listing's code is a barcode; two of them in one cart, or one
-            // that collides with an existing barcode, is refused. A collision
-            // with a QR listing is allowed — the cashier saw the warning.
+            // A new listing's code collides with nothing: every code is unique
+            // across live listings (case-insensitively), so two codes in one
+            // cart, or one that already belongs to a catalogue listing, is
+            // refused before the write rather than by the unique index.
             const manualCodes = new Map<string, string>();
             for (const line of lines) {
               if (line.listingId !== null) continue;
@@ -1116,7 +1212,6 @@ export const RecordLive = Layer.effect(
                 .selectMany<{ listing_code: string; listing_name: string }>(
                   `SELECT listing_code, listing_name FROM listings
                    WHERE listing_deleted_at IS NULL
-                     AND listing_code_kind = 'barcode'
                      AND lower(listing_code) IN (${placeholders})`,
                   codes,
                 )
@@ -1431,9 +1526,18 @@ export const RecordLive = Layer.effect(
               statements.push({
                 sql: `INSERT INTO record_extras (
                     record_extra_id, record_extra_name, record_id,
-                    record_extra_value, record_extra_eff, record_extra_kind
-                  ) VALUES ($1, $2, $3, $4, $5, $6)`,
-                bindings: [generateId(), extra.name, recordId, extra.value, extra.eff, extra.kind],
+                    record_extra_value, record_extra_eff, record_extra_kind,
+                    record_extra_flag
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                bindings: [
+                  generateId(),
+                  extra.name,
+                  recordId,
+                  extra.value,
+                  extra.eff,
+                  extra.kind,
+                  extra.flag,
+                ],
               });
             }
             for (const method of input.methods) {
@@ -1451,6 +1555,13 @@ export const RecordLive = Layer.effect(
                 bindings: [generateId(), picture.order, picture.name, picture.mime, recordId],
               });
             }
+
+            // A `dual` charge books twice: the sale carries it, and the twin
+            // books the same money from the paying-out side. Its statements go
+            // into this same list, so neither half can be stored without the
+            // other — the commit is the unit of work, not the record.
+            const mirror = mirrorStatements(input.mirror, recordId, now);
+            if (mirror !== null) statements.push(...mirror);
 
             // The cart has become a record; remove it in the same transaction.
             statements.push({
@@ -1708,7 +1819,12 @@ export const RecordLive = Layer.effect(
             const active = yield* db
               .selectMany<{
                 record_mode: RecordMode;
-              }>("SELECT record_mode FROM records WHERE record_id = $1 AND record_deleted_at IS NULL", [id])
+                record_pair_id: string | null;
+              }>(
+                `SELECT record_mode, record_pair_id FROM records
+                 WHERE record_id = $1 AND record_deleted_at IS NULL`,
+                [id],
+              )
               .pipe(Effect.mapError(dbErrorToRecordError));
             // Soft delete is idempotent: a second attempt must not undo the
             // compensation events written for a legacy record on the first one.
@@ -1730,6 +1846,20 @@ export const RecordLive = Layer.effect(
             const journaled = yield* db
               .selectMany<{ product_id: string }>(SELECT_JOURNALED_PRODUCTS, [id])
               .pipe(Effect.mapError(dbErrorToRecordError));
+
+            // The twin goes with its sale. It carries no listings and no stock
+            // events, so soft-deleting the row is the whole reversal — what
+            // must not happen is a `dual` charge surviving as a stray expense
+            // after the sale it belongs to was voided.
+            const pairId = active[0].record_pair_id;
+            if (pairId !== null) {
+              statements.push({
+                sql: `UPDATE records SET
+                    record_deleted_at = $1, record_updated_at = $1, record_sync_at = NULL
+                  WHERE record_id = $2 AND record_deleted_at IS NULL`,
+                bindings: [now, pairId],
+              });
+            }
             const journaledProducts = new Set(journaled.map((row) => row.product_id));
             for (const lot of yield* touchedLots(id)) {
               statements.push(...restoreLot(lot, now));

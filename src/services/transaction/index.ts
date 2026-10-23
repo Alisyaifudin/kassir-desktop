@@ -57,6 +57,8 @@ export type DraftListing = {
   listingId?: string | null;
   name: string;
   code: string;
+  /** The catalogue listing's free label (`retail`, `wholesale`, …); `""` when unlabelled. */
+  kind?: string;
   unit: number;
   price: number;
   qty: number;
@@ -71,6 +73,14 @@ export type DraftExtra = {
   name: string;
   kind: "number" | "percent";
   value: number;
+  /**
+   * The catalogue extra's flags, copied when the preset was picked
+   * (`extras.extra_flag`). `DUAL_FLAG` is the one that matters at submit: such
+   * an extra also books an extras-only `outcoming` record for the same money.
+   * A hand-typed extra carries whatever the catalogue row it was typed over
+   * carried — usually `0`.
+   */
+  flag: number;
 };
 
 /** The mime types an image may carry — the values in `img_mimes`. */
@@ -163,6 +173,10 @@ export class TransactionService extends Context.Tag("TransactionService")<
      * Commit the draft as a record, in one transaction: the record and its
      * lines, the stock movements, and the `tx_*` deletion. Returns the record id.
      * The cashier is the only thing the draft cannot know.
+     *
+     * A sale whose extras include `DUAL_FLAG` ones also commits an extras-only
+     * `outcoming` record — its twin — in that same transaction. A purchase
+     * ("outcoming") never writes one: the dual charge is a sale-side rule.
      */
     submit: (
       id: string,

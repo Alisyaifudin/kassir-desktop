@@ -2,11 +2,12 @@ import type { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { Context, Effect, Either, Layer } from "effect";
 import { recalcDiscounts } from "~/lib/purchase";
+import { DUAL_FLAG, METHOD_BASE_ID } from "~/lib/constants";
 import { makeTestDatabase } from "../db/test-support";
 import { ProductError, ProductService } from "../product";
 import { ProductLive } from "../product/live";
 import { RecordLive } from "../record/live";
-import { RecordService } from "../record";
+import { RECORD_FLAG_ADJUSTMENT, RecordService } from "../record";
 import {
   SubmitError,
   TransactionError,
@@ -79,9 +80,19 @@ function makeMethod(value = 40000, methodId = "cash"): DraftMethod {
 }
 
 let extraSeq = 0;
-function makeExtra(kind: DraftExtra["kind"], value: number, name = "Biaya"): DraftExtra {
+function makeExtra(
+  kind: DraftExtra["kind"],
+  value: number,
+  name = "Biaya",
+  flag = 0,
+): DraftExtra {
   extraSeq += 1;
-  return { id: `extra-${extraSeq}`, name, kind, value };
+  return { id: `extra-${extraSeq}`, name, kind, value, flag };
+}
+
+/** An extra the catalogue marks `dual`: the sale books a twin for it. */
+function makeDual(kind: DraftExtra["kind"], value: number, name = "Biaya"): DraftExtra {
+  return makeExtra(kind, value, name, DUAL_FLAG);
 }
 
 let discountSeq = 0;
@@ -294,6 +305,57 @@ function methodsOf(db: Database, id: string): MethodRow[] {
   return db
     .query("SELECT method_id, record_method_pay FROM record_methods WHERE record_id = ? ORDER BY rowid")
     .all(id) as MethodRow[];
+}
+
+/** The header fields a `dual` twin is judged on, plus its pair link. */
+type TwinRow = {
+  record_id: string;
+  record_mode: string;
+  record_paid_at: number | null;
+  record_credit_at: number | null;
+  record_pay: number;
+  record_sub_total: number;
+  record_total: number;
+  record_rounding: number;
+  record_fix: number;
+  record_note: string;
+  record_cashier: string;
+  record_flag: number;
+  record_pair_id: string | null;
+  record_deleted_at: number | null;
+};
+
+function twinRowOf(db: Database, id: string): TwinRow {
+  return db
+    .query(
+      `SELECT record_id, record_mode, record_paid_at, record_credit_at, record_pay,
+              record_sub_total, record_total, record_rounding, record_fix, record_note,
+              record_cashier, record_flag, record_pair_id, record_deleted_at
+       FROM records WHERE record_id = ?`,
+    )
+    .get(id) as TwinRow;
+}
+
+/** The record this one is paired with; fails loudly when the pair is missing. */
+function pairOf(db: Database, id: string): TwinRow {
+  const pairId = twinRowOf(db, id).record_pair_id;
+  expect(pairId).not.toBeNull();
+  return twinRowOf(db, pairId ?? "");
+}
+
+/** Extras as the twin stores them, flag included. */
+function flaggedExtrasOf(
+  db: Database,
+  id: string,
+): { name: string; value: number; eff: number; kind: string; flag: number }[] {
+  return db
+    .query(
+      `SELECT record_extra_name AS name, record_extra_value AS value,
+              record_extra_eff AS eff, record_extra_kind AS kind,
+              record_extra_flag AS flag
+       FROM record_extras WHERE record_id = ? ORDER BY rowid`,
+    )
+    .all(id) as { name: string; value: number; eff: number; kind: string; flag: number }[];
 }
 function customersOf(db: Database): CustomerRow[] {
   return db
@@ -560,10 +622,10 @@ describe("TransactionService.submit — payment", () => {
 // ---------------------------------------------------------------------------
 
 describe("TransactionService.submit — listings", () => {
-  test("rejects a manual barcode that an existing barcode already owns", async () => {
+  test("rejects a manual code that an existing listing already owns", async () => {
     const { db, result } = await submit({
       seed: (db) => {
-        db.exec("UPDATE listings SET listing_code = 'abc', listing_code_kind = 'barcode' WHERE listing_id = 'l1'");
+        db.exec("UPDATE listings SET listing_code = 'abc' WHERE listing_id = 'l1'");
       },
       lines: [makeLine({ listingId: null, name: "Baru", code: "ABC", price: 10000, qty: 1 })],
       methods: [makeMethod(10000)],
@@ -599,28 +661,24 @@ describe("TransactionService.submit — listings", () => {
     expect(count(db, "records")).toBe(0);
   });
 
-  test("allows a manual code that collides only with a QR listing", async () => {
+  test("rejects a manual code that matches an owned code in another case", async () => {
     const { db, result } = await submit({
       seed: (db) => {
-        db.exec("UPDATE listings SET listing_code = 'abc', listing_code_kind = 'qr' WHERE listing_id = 'l1'");
+        db.exec("UPDATE listings SET listing_code = 'AbC' WHERE listing_id = 'l1'");
       },
       lines: [makeLine({ listingId: null, name: "Baru", code: "ABC", price: 1000, qty: 1 })],
       methods: [makeMethod(1000)],
     });
-    const id = right(result);
-    const listing = db
-      .query("SELECT listing_code, listing_code_kind FROM listings WHERE listing_id <> 'l1'")
-      .get() as { listing_code: string; listing_code_kind: string };
-    expect(listing).toEqual({ listing_code: "abc", listing_code_kind: "barcode" });
-    expect(recordOf(db, id).record_total).toBe(1000);
+    expectTransactionMessage(result, "sudah dipakai");
+    expect(count(db, "records")).toBe(0);
   });
 
-  test("allows a manual barcode whose only owner is soft-deleted", async () => {
+  test("allows a manual code whose only owner is soft-deleted", async () => {
     const { db, result } = await submit({
       seed: (db) => {
         db.exec(`
           UPDATE listings
-          SET listing_code = 'abc', listing_code_kind = 'barcode', listing_deleted_at = 1
+          SET listing_code = 'abc', listing_deleted_at = 1
           WHERE listing_id = 'l1';
         `);
       },
@@ -629,10 +687,34 @@ describe("TransactionService.submit — listings", () => {
     });
     const id = right(result);
     const listing = db
-      .query("SELECT listing_code, listing_code_kind FROM listings WHERE listing_id <> 'l1'")
-      .get() as { listing_code: string; listing_code_kind: string };
-    expect(listing).toEqual({ listing_code: "abc", listing_code_kind: "barcode" });
+      .query("SELECT listing_code FROM listings WHERE listing_id <> 'l1'")
+      .get() as { listing_code: string };
+    expect(listing).toEqual({ listing_code: "abc" });
     expect(recordOf(db, id).record_total).toBe(1000);
+  });
+
+  test("carries the line's kind into the record snapshot", async () => {
+    const { db, result } = await submit({
+      lines: [makeLine({ kind: "grosir" })],
+      methods: [makeMethod(40000)],
+    });
+    const id = right(result);
+    // One row per lot portion; every portion keeps the entered line's label.
+    const kinds = new Set(portionsOf(db, id).map((row) => row.record_listing_kind));
+    expect(kinds).toEqual(new Set(["grosir"]));
+  });
+
+  test("stores an empty kind for an unlabelled manual line", async () => {
+    const { db, result } = await submit({
+      lines: [makeLine({ listingId: null, name: "Barang Baru", code: "", price: 5000, qty: 1 })],
+      methods: [makeMethod(5000)],
+    });
+    const id = right(result);
+    expect(portionsOf(db, id).map((row) => row.record_listing_kind)).toEqual([""]);
+    const listing = db
+      .query("SELECT listing_kind FROM listings WHERE listing_id <> 'l1'")
+      .get() as { listing_kind: string };
+    expect(listing).toEqual({ listing_kind: "" });
   });
 
   test("treats a deleted catalog listing as a no-stock line", async () => {
@@ -897,17 +979,15 @@ describe("TransactionService.submit — manual lines", () => {
     expect(product.product_name).toBe("Barang Baru");
     const listing = db
       .query(
-        "SELECT listing_code, listing_code_kind, listing_price, listing_unit FROM listings WHERE listing_id <> 'l1'",
+        "SELECT listing_code, listing_price, listing_unit FROM listings WHERE listing_id <> 'l1'",
       )
       .get() as {
       listing_code: string;
-      listing_code_kind: string;
       listing_price: number;
       listing_unit: number;
     };
     expect(listing).toEqual({
       listing_code: "new-1",
-      listing_code_kind: "barcode",
       listing_price: 5000,
       listing_unit: 1,
     });
@@ -928,9 +1008,9 @@ describe("TransactionService.submit — manual lines", () => {
     });
     const id = right(result);
     const listing = db
-      .query("SELECT listing_code, listing_code_kind FROM listings WHERE listing_id <> 'l1'")
-      .get() as { listing_code: string | null; listing_code_kind: string | null };
-    expect(listing).toEqual({ listing_code: null, listing_code_kind: null });
+      .query("SELECT listing_code FROM listings WHERE listing_id <> 'l1'")
+      .get() as { listing_code: string | null };
+    expect(listing).toEqual({ listing_code: null });
     expect(portionsOf(db, id)[0].record_listing_capital).toBe(0);
   });
 
@@ -1447,6 +1527,176 @@ describe("TransactionService.submit — lifecycle", () => {
     expect(outcome.drafts).toHaveLength(1);
     expect(outcome.drafts[0].id).toBeDefined();
     expect(count(db, "records")).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dual extras: the sale and its outcoming twin
+// ---------------------------------------------------------------------------
+
+describe("TransactionService.submit — dual extras", () => {
+  test("books a dual extra as an extras-only outcoming twin", async () => {
+    const { db, result } = await submit({
+      extras: [makeDual("number", 5000, "Ongkir")],
+      methods: [makeMethod(45000)],
+      note: "pagi",
+    });
+    const saleId = right(result);
+
+    expect(count(db, "records")).toBe(2);
+    const twin = pairOf(db, saleId);
+    expect(twin.record_mode).toBe("outcoming");
+    expect(twin.record_flag).toBe(RECORD_FLAG_ADJUSTMENT);
+    expect(twin.record_pay).toBe(5000);
+    expect(twin.record_sub_total).toBe(5000);
+    expect(twin.record_total).toBe(5000);
+    expect(twin.record_rounding).toBe(0);
+    expect(twin.record_credit_at).toBeNull();
+    expect(twin.record_paid_at).not.toBeNull();
+    expect(twin.record_note).toBe("pagi");
+    expect(twin.record_cashier).toBe("Kasir");
+    // Both directions, so either half can find the other.
+    expect(twinRowOf(db, twin.record_id).record_pair_id).toBe(saleId);
+
+    // The twin is the dual charge and nothing else: no goods, no stock, one
+    // cash payment for the same amount.
+    expect(portionsOf(db, twin.record_id)).toEqual([]);
+    expect(eventsOf(db, twin.record_id)).toEqual([]);
+    expect(flaggedExtrasOf(db, twin.record_id)).toEqual([
+      { name: "Ongkir", value: 5000, eff: 5000, kind: "number", flag: DUAL_FLAG },
+    ]);
+    // Settled in cash, against the till's own cash method — not whatever the
+    // sale itself was paid with.
+    expect(methodsOf(db, twin.record_id)).toEqual([
+      { method_id: METHOD_BASE_ID.cash, record_method_pay: 5000 },
+    ]);
+  });
+
+  test("keeps the sale's own record, extras and stock movement intact", async () => {
+    const { db, result } = await submit({
+      extras: [makeDual("number", 5000, "Ongkir")],
+      methods: [makeMethod(45000)],
+    });
+    const saleId = right(result);
+
+    expect(twinRowOf(db, saleId).record_mode).toBe("incoming");
+    expect(twinRowOf(db, saleId).record_total).toBe(45000);
+    expect(twinRowOf(db, saleId).record_pay).toBe(45000);
+    // The dual charge stays on the sale; the twin duplicates it, it does not
+    // move it off the sale.
+    expect(flaggedExtrasOf(db, saleId)).toEqual([
+      { name: "Ongkir", value: 5000, eff: 5000, kind: "number", flag: DUAL_FLAG },
+    ]);
+    expect(methodsOf(db, saleId)).toEqual([{ method_id: "cash", record_method_pay: 45000 }]);
+    // Only the sale moved stock.
+    expect(portionsOf(db, saleId)).toHaveLength(2);
+    expect(stocksOf(db)).toEqual([
+      { stock_id: "s1", stock_value: 0, stock_capital: 1000 },
+      { stock_id: "s2", stock_value: 3, stock_capital: 2000 },
+    ]);
+  });
+
+  test("carries a percent dual extra's rupiah, not a recomputed zero", async () => {
+    // 10% of the 40.000 subtotal. On a record with no listings the percentage
+    // would work out to 0, so the twin stores the amount the sale charged.
+    const { db, result } = await submit({
+      extras: [makeDual("percent", 10, "Servis")],
+      methods: [makeMethod(44000)],
+    });
+    const twin = pairOf(db, right(result));
+
+    expect(twin.record_total).toBe(4000);
+    expect(flaggedExtrasOf(db, twin.record_id)).toEqual([
+      { name: "Servis", value: 10, eff: 4000, kind: "percent", flag: DUAL_FLAG },
+    ]);
+  });
+
+  test("puts only the dual extras on the twin", async () => {
+    const { db, result } = await submit({
+      extras: [makeExtra("number", 1000, "Plastik"), makeDual("number", 5000, "Ongkir")],
+      methods: [makeMethod(46000)],
+    });
+    const twin = pairOf(db, right(result));
+
+    expect(twin.record_total).toBe(5000);
+    expect(flaggedExtrasOf(db, twin.record_id).map((extra) => extra.name)).toEqual(["Ongkir"]);
+    expect(flaggedExtrasOf(db, right(result)).map((extra) => extra.name)).toEqual([
+      "Plastik",
+      "Ongkir",
+    ]);
+  });
+
+  test("writes no twin for an ordinary sale", async () => {
+    const { db, result } = await submit({
+      extras: [makeExtra("number", 5000, "Ongkir")],
+      methods: [makeMethod(45000)],
+    });
+
+    expect(count(db, "records")).toBe(1);
+    expect(twinRowOf(db, right(result)).record_pair_id).toBeNull();
+  });
+
+  test("writes no twin for a dual extra worth nothing", async () => {
+    const { db, result } = await submit({ extras: [makeDual("number", 0, "Nol")] });
+
+    expect(count(db, "records")).toBe(1);
+    expect(twinRowOf(db, right(result)).record_pair_id).toBeNull();
+  });
+
+  test("writes no twin when the dual extras do not add up to a positive amount", async () => {
+    // A negative dual is a deduction, not a purchase: there is no rule for an
+    // outcoming record whose total is negative, so the twin is dropped and the
+    // sale is kept.
+    const { db, result } = await submit({
+      extras: [makeDual("number", -5000, "Potongan")],
+      methods: [makeMethod(35000)],
+    });
+
+    expect(count(db, "records")).toBe(1);
+    expect(flaggedExtrasOf(db, right(result)).map((extra) => extra.name)).toEqual(["Potongan"]);
+  });
+
+  test("writes no twin for a purchase, whatever its extras say", async () => {
+    // A purchase is already the outcoming side; a twin would book the same
+    // money twice with nothing on either side to tell them apart.
+    const { db, result } = await submit({
+      mode: "outcoming",
+      extras: [makeDual("number", 5000, "Ongkir")],
+      methods: [makeMethod(45000)],
+      supplierName: "Toko Sumber",
+    });
+
+    expect(count(db, "records")).toBe(1);
+    expect(twinRowOf(db, right(result)).record_mode).toBe("outcoming");
+    expect(twinRowOf(db, right(result)).record_pair_id).toBeNull();
+  });
+
+  test("removes the twin when the sale is undone, and restores dual on the cart", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [makeLine()]);
+        yield* tx.extras.set(id, [makeDual("number", 5000, "Ongkir")]);
+        yield* tx.methods.set(id, [makeMethod(45000)]);
+        const saleId = yield* tx.submit(id, { cashier: "Kasir" });
+        const twinId = twinRowOf(db, saleId).record_pair_id ?? "";
+        const draftId = yield* tx.unsubmit(saleId);
+        const draft = yield* tx.get.byId(draftId);
+        yield* tx.delete.byId(draftId);
+        return { saleId, twinId, draft };
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    // Both halves are void, so the refunded sale leaves no stray expense behind.
+    expect(twinRowOf(db, outcome.saleId).record_deleted_at).not.toBeNull();
+    expect(twinRowOf(db, outcome.twinId).record_deleted_at).not.toBeNull();
+    // The rebuilt cart knows the charge is dual, so re-submitting books a twin
+    // again instead of silently losing it.
+    expect(outcome.draft.extras).toHaveLength(1);
+    expect(outcome.draft.extras[0].flag & DUAL_FLAG).toBe(DUAL_FLAG);
   });
 });
 

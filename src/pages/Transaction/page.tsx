@@ -116,7 +116,7 @@ function Screen({ drafts }: { drafts: Draft[] }) {
 
   function addLine() {
     if (active === null) return;
-    setExtras([...extras, { id: generateId(), name: "", value: 0, kind: "number" }]);
+    setExtras([...extras, { id: generateId(), name: "", value: 0, kind: "number", flag: 0 }]);
   }
 
   function patchLine(id: string, next: Partial<DraftExtra>) {

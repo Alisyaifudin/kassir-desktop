@@ -56,6 +56,7 @@ function record(overrides: Partial<Record> = {}): Record {
     updatedAt: 1_700_000_000_000,
     syncAt: null,
     deletedAt: null,
+    pairId: null,
     ...overrides,
   };
 }
@@ -96,7 +97,7 @@ describe("createReceiptData", () => {
         info,
         socials,
         products: [product],
-        extras: [{ id: "e1", name: "Diskon", value: 500, eff: -500, kind: "number" }],
+        extras: [{ id: "e1", name: "Diskon", value: 500, eff: -500, kind: "number", flag: 0 }],
         record: record({
           total: 100_000,
           rounding: -500,

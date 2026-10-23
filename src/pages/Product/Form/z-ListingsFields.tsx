@@ -3,13 +3,6 @@ import { Button } from "~/components/ui/button";
 import { Combobox, type ComboboxOption } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
 import { NumberField } from "~/components/NumberField";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { getProductKind } from "~/lib/constants";
 import { LISTING_KIND_SUGGESTIONS, type ListingDraft } from "./types";
 import type { ProductFormController } from "./useProductForm";
@@ -17,11 +10,6 @@ import { Field } from "./z-Field";
 import { Section } from "./z-Section";
 
 type ListingError = { name?: string; price?: string; unit?: string } | undefined;
-
-const CODE_KINDS: { value: ListingDraft["codeKind"]; label: string }[] = [
-  { value: "barcode", label: "Barcode" },
-  { value: "qr", label: "QR" },
-];
 
 const KIND_OPTIONS: ComboboxOption[] = LISTING_KIND_SUGGESTIONS.map((kind) => ({
   value: kind,
@@ -131,7 +119,7 @@ function ListingRow({
             onChange={(e) => onChange({ unit: e.currentTarget.value })}
           />
         </Field>
-        <Field label="Jenis" className="col-span-2">
+        <Field label="Jenis" hint="Bebas dikosongkan" className="col-span-2">
           <Combobox
             value={listing.kind}
             disabled={disabled}
@@ -141,34 +129,13 @@ function ListingRow({
             aria-label="Jenis listing"
           />
         </Field>
-        <Field label="Kode" hint="Kosongkan bila tanpa kode" className="col-span-2">
-          <div className="flex gap-2">
-            <Input
-              value={listing.code}
-              disabled={disabled}
-              onChange={(e) => onChange({ code: e.currentTarget.value })}
-              placeholder="Barcode / QR"
-              className="min-w-0 flex-1"
-            />
-            <Select
-              value={listing.codeKind}
-              disabled={disabled || listing.code.trim() === ""}
-              onValueChange={(value) =>
-                onChange({ codeKind: value as ListingDraft["codeKind"] })
-              }
-            >
-              <SelectTrigger className="w-[180px] text-small small:w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CODE_KINDS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <Field label="Kode" hint="Unik; kosongkan bila tanpa kode" className="col-span-2">
+          <Input
+            value={listing.code}
+            disabled={disabled}
+            onChange={(e) => onChange({ code: e.currentTarget.value })}
+            placeholder="Barcode / QR / SKU"
+          />
         </Field>
       </div>
     </div>

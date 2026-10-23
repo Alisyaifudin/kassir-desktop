@@ -2,7 +2,6 @@ import { Effect, Context, Data, Stream } from "effect";
 
 export class ListingError extends Data.TaggedError("ListingError")<{ message: string }> {}
 
-export type CodeKind = "barcode" | "qr";
 export type Mime = "image/png" | "image/jpeg" | "image/webp";
 
 /**
@@ -18,8 +17,8 @@ export type Listing = {
   /** How many pieces make one `price`. */
   unit: number;
   kind: string;
+  /** The listing's one code; unique across live listings, case-insensitively. */
   code: string | null;
-  codeKind: CodeKind | null;
   cover: { name: string; mime: Mime } | null;
   stock: number;
   /** Parent product's name, joined for search. */

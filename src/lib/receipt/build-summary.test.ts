@@ -26,6 +26,7 @@ function record(overrides: Partial<Record> = {}): Record {
     updatedAt: 1_700_000_000_000,
     syncAt: null,
     deletedAt: null,
+    pairId: null,
     ...overrides,
   };
 }
@@ -51,6 +52,7 @@ const discount: RecordExtra = {
   value: 5_000,
   eff: -5_000,
   kind: "number",
+  flag: 0,
 };
 
 describe("buildSummarySection", () => {

@@ -9,9 +9,8 @@ const listingSchema = z.object({
   name: z.string().nonempty(),
   price: z.number(),
   unit: z.number().int().positive(),
-  kind: z.string().nonempty(),
+  kind: z.string(),
   code: z.string().nullable(),
-  codeKind: z.enum(["barcode", "qr"]).nullable(),
 });
 
 const productSchema = z.object({

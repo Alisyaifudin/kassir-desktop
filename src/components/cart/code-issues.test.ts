@@ -12,7 +12,6 @@ function listing(overrides: Partial<Listing> & { id: string }): Listing {
     unit: overrides.unit ?? 1,
     kind: overrides.kind ?? "retail",
     code: overrides.code ?? null,
-    codeKind: overrides.codeKind ?? null,
     cover: null,
     stock: 0,
     productName: overrides.productName ?? overrides.id,
@@ -34,25 +33,16 @@ function line(overrides: Partial<DraftListing> & { id: string }): DraftListing {
 }
 
 describe("findLineIssues", () => {
-  test("a new barcode colliding with an existing barcode is hard", () => {
+  test("a new line's code colliding with a catalogue listing is hard", () => {
     const issues = findLineIssues(
       [line({ id: "a", code: "ABC" })],
-      [listing({ id: "l1", code: "abc", codeKind: "barcode", name: "Kopi" })],
+      [listing({ id: "l1", code: "abc", name: "Kopi" })],
     );
     const issue = issues.get("a");
     expect(issue?.code?.tone).toBe("error");
     expect(issue?.code?.messages[0].text).toContain("Kopi");
     expect(issue?.code?.messages[0].productIds).toEqual(["product-l1"]);
     expect(hasHardIssue(issues)).toBe(true);
-  });
-
-  test("a new barcode colliding with a QR is only a warning", () => {
-    const issues = findLineIssues(
-      [line({ id: "a", code: "ABC" })],
-      [listing({ id: "l1", code: "abc", codeKind: "qr", name: "Kopi" })],
-    );
-    expect(issues.get("a")?.code?.tone).toBe("warning");
-    expect(hasHardIssue(issues)).toBe(false);
   });
 
   test("two new lines with the same code are both hard, numbered from the bottom", () => {
@@ -79,7 +69,7 @@ describe("findLineIssues", () => {
   test("catalog lines are not checked", () => {
     const issues = findLineIssues(
       [line({ id: "a", listingId: "l1", code: "abc", name: "" })],
-      [listing({ id: "l1", code: "abc", codeKind: "barcode" })],
+      [listing({ id: "l1", code: "abc" })],
     );
     expect(issues.size).toBe(0);
   });

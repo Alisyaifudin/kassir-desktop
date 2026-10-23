@@ -90,6 +90,11 @@ export type RecordExtra = {
   value: number;
   eff: number;
   kind: ValueKind;
+  /**
+   * The catalogue extra's flags as they stood at submit (`extras.extra_flag`).
+   * `DUAL_FLAG` marks a charge that also books an extras-only `outcoming` twin.
+   */
+  flag: number;
 };
 
 /** One payment applied to a record; a record may have several (split payment). */
@@ -133,6 +138,12 @@ export type Record = {
   updatedAt: number;
   syncAt: number | null;
   deletedAt: number | null;
+  /**
+   * The other half of a paired record — a sale and the extras-only `outcoming`
+   * twin its `dual` charges produced. `null` for every ordinary record. See
+   * `RecordMirrorInput`.
+   */
+  pairId: string | null;
 };
 
 export type RecordFull = Record & {
@@ -203,6 +214,29 @@ export type RecordDraftExtra = {
   value: number;
   eff: number;
   kind: ValueKind;
+  /** `extras.extra_flag` at submit; `DUAL_FLAG` is what makes a twin. */
+  flag: number;
+};
+
+/**
+ * The extras-only `outcoming` record a sale commits alongside itself when its
+ * cart carried a `dual` extra — the same money seen from the paying-out side.
+ *
+ * It has no listings, no stock movement and no rounding: its lines are the
+ * dual extras and nothing else, so `sub_total`, `total` and `pay` are all the
+ * sum of `extras[].eff`. The writer books it with `RECORD_FLAG_ADJUSTMENT`,
+ * settles it in cash, and links the pair both ways through
+ * `records.record_pair_id` — inside the same transaction as the sale, so one
+ * half can never be stored without the other.
+ */
+export type RecordMirrorInput = {
+  mode: RecordMode;
+  cashier: string;
+  note: string;
+  fix: number;
+  /** The method the twin is settled with; the caller passes cash. */
+  methodId: string;
+  extras: RecordDraftExtra[];
 };
 
 /**
@@ -228,6 +262,12 @@ export type RecordDraftInput = {
   listings: RecordDraftListing[];
   extras: RecordDraftExtra[];
   images: { order: number; name: string; mime: "image/png" | "image/jpeg" | "image/webp" }[];
+  /**
+   * The twin to write in the same commit, when the cart had a `dual` extra.
+   * Absent for an ordinary record, and for any mode but `incoming`: a dual
+   * charge is a sale-side concept here, so a purchase cart writes one record.
+   */
+  mirror?: RecordMirrorInput;
 };
 
 export type RecordImport = {
@@ -305,6 +345,10 @@ export class RecordService extends Context.Tag("RecordService")<
        * the `tx_records` row that produced it, and returns the new record id.
        * A sale (`incoming`) drains lots oldest-first and may leave the last lot
        * negative; a manual line creates its product and listing too.
+       *
+       * When `input.mirror` is set, the extras-only `outcoming` twin is written
+       * in the same commit, both rows stamped with each other's id in
+       * `record_pair_id` — so a sale and its twin are one unit of work.
        */
       draft: (input: RecordDraftInput) => Effect.Effect<string, RecordError>;
     };
@@ -339,7 +383,11 @@ export class RecordService extends Context.Tag("RecordService")<
       ) => Effect.Effect<void, RecordError>;
     };
     delete: {
-      /** Soft-deletes the record and removes the stock movement it caused. */
+      /**
+       * Soft-deletes the record and removes the stock movement it caused. A
+       * paired record takes its twin with it: undoing a sale must not leave the
+       * extras-only `outcoming` half behind as a stray expense.
+       */
       byId: (id: string) => Effect.Effect<void, RecordError>;
     };
   }

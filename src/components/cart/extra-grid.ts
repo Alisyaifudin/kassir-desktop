@@ -3,15 +3,16 @@
  * selection keeps a column index and looks up the cell that owns it, so a wide
  * cell (`name`, `subtotal`) behaves like a merged one across rows.
  *
- * Columns are 0-indexed, twelve wide. `no#` is not selectable, `eff` and `x`
- * are selectable but not editable.
+ * Columns are 0-indexed, twelve wide. `no#` is not selectable; `eff` and `x` are
+ * selectable but not editable; `dual` is a checkbox cell — selectable, and
+ * toggled (Enter or a click) rather than typed into.
  *
  * One grid for both cart screens: `layout` carries the two real differences —
  * the sale screen ends its header with a stage toggle back to the goods, the
  * purchase screen has a `Subtotal Barang` row under the header instead.
  */
 
-export type ExtraField = "name" | "value" | "kind" | "eff" | "x";
+export type ExtraField = "name" | "value" | "kind" | "eff" | "dual" | "x";
 
 /** Every cell, including the ones that only draw. */
 export type AnyExtraField = ExtraField | "search" | "manual" | "toggle" | "no" | "subtotal";
@@ -61,9 +62,13 @@ const SUBTOTAL_CELLS: ExtraCellDef[] = [
 const EXTRA_CELLS: ExtraCellDef[] = [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
   { field: "name", start: 1, end: 3, selectable: true, editable: true },
-  { field: "value", start: 4, end: 6, selectable: true, editable: true },
-  { field: "kind", start: 7, end: 8, selectable: true, editable: false },
-  { field: "eff", start: 9, end: 10, selectable: true, editable: false },
+  { field: "value", start: 4, end: 5, selectable: true, editable: true },
+  { field: "kind", start: 6, end: 7, selectable: true, editable: false },
+  { field: "eff", start: 8, end: 9, selectable: true, editable: false },
+  // A checkbox, not a field: `dual` toggles `DUAL_FLAG` on the extra, which is
+  // what makes a sale commit the extras-only twin. A preset carries the flag
+  // in; this cell is how the cashier corrects it.
+  { field: "dual", start: 10, end: 10, selectable: true, editable: false },
   { field: "x", start: 11, end: 11, selectable: true, editable: false },
 ];
 

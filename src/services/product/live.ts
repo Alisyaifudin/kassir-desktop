@@ -4,7 +4,6 @@ import {
   ProductDuplicateCode,
   ProductError,
   ProductService,
-  type CodeKind,
   type ImageInput,
   type Listing,
   type ListingInput,
@@ -49,7 +48,6 @@ type ListingRow = {
   listing_unit: number;
   listing_kind: string;
   listing_code: string | null;
-  listing_code_kind: CodeKind | null;
   listing_updated_at: number;
   listing_sync_at: number | null;
 };
@@ -136,7 +134,6 @@ function rowToListing(row: ListingRow): Listing {
     unit: row.listing_unit,
     kind: row.listing_kind,
     code: row.listing_code,
-    codeKind: row.listing_code_kind,
     updatedAt: row.listing_updated_at,
     syncAt: row.listing_sync_at,
   };
@@ -257,19 +254,25 @@ function codeErrorToProductError(
   error: DbError,
   code: string | null,
 ): ProductError | ProductDuplicateCode {
-  if (
-    code !== null &&
-    /UNIQUE constraint failed/i.test(error.message) &&
-    /listing_code/i.test(error.message)
-  ) {
+  // `DbError.message` is the cashier-facing sentence; the driver text (where
+  // SQLite names the failed constraint) lives in `detail`. Both are checked so
+  // this still works against a layer that folds them together.
+  const driver = `${error.message} ${error.detail}`;
+  if (code !== null && /UNIQUE constraint failed/i.test(driver) && /listing_code/i.test(driver)) {
     return new ProductDuplicateCode({ value: code });
   }
   return new ProductError({ message: error.message });
 }
 
-function normalizeCode(input: ListingInput): [string | null, CodeKind | null] {
-  if (input.code === null || input.code === "") return [null, null];
-  return [input.code, input.codeKind ?? "barcode"];
+/**
+ * `null` for "no code": an empty string is stored as NULL, so the unique index
+ * (which ignores NULLs) always agrees with the app's "this listing has no
+ * code" reading. The value itself is stored as given; uniqueness is
+ * case-insensitive because the index is COLLATE NOCASE.
+ */
+function normalizeCode(input: ListingInput): string | null {
+  const code = input.code?.trim() ?? "";
+  return code === "" ? null : code;
 }
 
 function listingInsert(
@@ -278,12 +281,12 @@ function listingInsert(
   input: ListingInput,
   now: number,
 ): Statement {
-  const [code, codeKind] = normalizeCode(input);
+  const code = normalizeCode(input);
   return {
     sql: `INSERT INTO listings (
         listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind,
-        listing_code, listing_code_kind, listing_updated_at, listing_sync_at, listing_deleted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, NULL)`,
+        listing_code, listing_updated_at, listing_sync_at, listing_deleted_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NULL)`,
     bindings: [
       listingId,
       productId,
@@ -292,20 +295,19 @@ function listingInsert(
       input.unit,
       input.kind,
       code,
-      codeKind,
       now,
     ],
   };
 }
 
 function listingUpdate(input: ListingInput, listingId: string, now: number): Statement {
-  const [code, codeKind] = normalizeCode(input);
+  const code = normalizeCode(input);
   return {
     sql: `UPDATE listings SET
         listing_name = $1, listing_price = $2, listing_unit = $3, listing_kind = $4,
-        listing_code = $5, listing_code_kind = $6, listing_updated_at = $7, listing_sync_at = NULL
-      WHERE listing_id = $8`,
-    bindings: [input.name, input.price, input.unit, input.kind, code, codeKind, now, listingId],
+        listing_code = $5, listing_updated_at = $6, listing_sync_at = NULL
+      WHERE listing_id = $7`,
+    bindings: [input.name, input.price, input.unit, input.kind, code, now, listingId],
   };
 }
 
@@ -342,7 +344,7 @@ function productNameInsert(
 const SELECT_PRODUCTS =
   "SELECT product_id, product_name, product_note, product_flag, product_updated_at, product_sync_at FROM products WHERE product_deleted_at IS NULL";
 const SELECT_LISTINGS =
-  "SELECT listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_code_kind, listing_updated_at, listing_sync_at FROM listings WHERE listing_deleted_at IS NULL";
+  "SELECT listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_updated_at, listing_sync_at FROM listings WHERE listing_deleted_at IS NULL";
 const SELECT_PROPERTIES =
   "SELECT property_id, product_id, property_key, property_value, property_updated_at, property_sync_at FROM properties WHERE property_deleted_at IS NULL";
 const SELECT_PRODUCT_NAMES =
@@ -509,7 +511,6 @@ export const ProductLive = Layer.effect(
         a.unit === b.unit &&
         a.kind === b.kind &&
         a.code === b.code &&
-        a.codeKind === b.codeKind &&
         a.updatedAt === b.updatedAt &&
         a.syncAt === b.syncAt
       );
@@ -690,7 +691,13 @@ export const ProductLive = Layer.effect(
             Effect.zipRight(SubscriptionRef.get(productsRef)),
             Effect.map((states) =>
               states
-                .filter((state) => state.listings.some((listing) => listing.code === value))
+                .filter((state) =>
+                  state.listings.some(
+                    (listing) =>
+                      listing.code !== null &&
+                      listing.code.toLowerCase() === value.toLowerCase(),
+                  ),
+                )
                 .map(toProduct),
             ),
           );

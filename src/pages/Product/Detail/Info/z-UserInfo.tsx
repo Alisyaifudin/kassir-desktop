@@ -34,7 +34,7 @@ export function UserInfo({ product }: { product: ProductFull }) {
             <span>
               {listing.name}{" "}
               <span className="text-small text-muted-foreground">
-                ({getProductKind(listing.kind)} · ×{listing.unit})
+                ({listing.kind === "" ? "" : `${getProductKind(listing.kind)} · `}×{listing.unit})
               </span>
             </span>
             <span className="tabular-nums">{formatPrice(listing.price)}</span>

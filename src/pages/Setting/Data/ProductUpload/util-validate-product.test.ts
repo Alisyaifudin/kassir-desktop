@@ -22,7 +22,6 @@ const product = {
       unit: 1,
       kind: "retail",
       code: null,
-      codeKind: null,
     },
   ],
   stocks: [{ value: 10, capital: 9_000 }],

@@ -7,7 +7,6 @@ export class ProductDuplicateCode extends Data.TaggedError("ProductDuplicateCode
   value: string;
 }> {}
 
-export type CodeKind = "barcode" | "qr";
 export type Mime = "image/png" | "image/jpeg" | "image/webp";
 
 /**
@@ -31,9 +30,10 @@ export type Listing = {
   name: string;
   price: number;
   unit: number;
+  /** Free label (`retail`, `karton`, …); `""` when the shop did not set one. */
   kind: string;
+  /** The listing's one code (barcode, QR payload, SKU…); `null` for none. */
   code: string | null;
-  codeKind: CodeKind | null;
   updatedAt: number;
   syncAt: number | null;
 };
@@ -133,9 +133,10 @@ export type ListingInput = {
   name: string;
   price: number;
   unit: number;
+  /** Free label; `""` is valid and means unlabelled. */
   kind: string;
+  /** `null` when the listing has no code. Codes are unique across live listings. */
   code: string | null;
-  codeKind: CodeKind | null;
 };
 
 export type PropertyInput = { key: string; value: string };

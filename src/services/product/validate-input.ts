@@ -39,16 +39,16 @@ export function validateProductInput(input: ProductInput): string | null {
 
   // A code identifies one listing; two rows sharing one is a lookup that can
   // never be resolved, so it is refused before the write rather than by the
-  // database's unique index half way through the transaction.
+  // database's unique index half way through the transaction. Case-folded,
+  // because the unique index is COLLATE NOCASE — `ABC` and `abc` are the same
+  // code to a scanned barcode.
   const codes = new Set<string>();
   for (const listing of input.listings) {
     const row = label(listing.name, product);
     if (listing.name.trim() === "") {
       return `Nama listing ${product} harus diisi`;
     }
-    if (listing.kind.trim() === "") {
-      return `Jenis listing ${row} harus diisi`;
-    }
+    // `kind` is a free label and may be empty; the DB defaults it to '' too.
     if (!Number.isFinite(listing.price) || listing.price < 0) {
       return `Harga ${row} tidak valid`;
     }
@@ -57,13 +57,11 @@ export function validateProductInput(input: ProductInput): string | null {
     }
     const code = listing.code?.trim() ?? "";
     if (code !== "") {
-      if (codes.has(code)) {
+      const key = code.toLowerCase();
+      if (codes.has(key)) {
         return `Kode ${code} dipakai dua kali di ${product}`;
       }
-      codes.add(code);
-      if (listing.codeKind !== "barcode" && listing.codeKind !== "qr") {
-        return `Jenis kode ${code} tidak valid`;
-      }
+      codes.add(key);
     }
   }
 

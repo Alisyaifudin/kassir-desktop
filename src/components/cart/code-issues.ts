@@ -5,7 +5,8 @@ import type { DraftListing } from "~/services/transaction";
 /** One reason a line's code is suspect; `productIds` are catalog links. */
 export type CodeIssueMessage = { text: string; productIds?: string[] };
 
-/** A hard (`error`) issue blocks Bayar; a `warning` (a QR collision) does not. */
+/** A hard (`error`) issue blocks Bayar. Kept a union so a future soft
+ *  (`warning`) issue does not have to change the shape. */
 export type CodeIssue = { tone: "warning" | "error"; messages: CodeIssueMessage[] };
 
 /** The inline problems a single listing card can show. */
@@ -51,11 +52,11 @@ export function buildCatalogByCode(catalog: readonly Listing[]): CatalogByCode {
  * Find the code/name/unit problems the listing grid shows under its cells.
  *
  * Only hand-entered lines (`listingId == null`) create catalog rows at submit,
- * so only they are checked. A code colliding with another new line is always
- * hard; a code colliding with an existing **barcode** is hard, while one
- * colliding with an existing **QR** is a warning (the new row is a barcode, and
- * the unique index allows the pair). Comparison is case-insensitive because a
- * shopkeeper does not think `ABC` and `abc` are different products.
+ * so only they are checked. Every code is unique across live listings, so a code
+ * colliding with another new line or with an existing catalogue listing is
+ * always hard — the unique index would reject the second row at submit anyway,
+ * and it compares case-insensitively, which is also what a shopkeeper expects
+ * (`ABC` and `abc` are the same barcode).
  *
  * `lines` must be in display order (newest first), which is also the order the
  * card numbers use.
@@ -97,13 +98,10 @@ export function findLineIssues(
       });
     }
     if (matches.length > 0) {
-      const hasBarcode = matches.some((match) => match.codeKind !== "qr");
-      if (hasBarcode) tone = "error";
+      tone = "error";
       const names = matches.map((match) => match.name).join(", ");
       messages.push({
-        text: hasBarcode
-          ? `Kode sudah dipakai oleh ${names}`
-          : `Kode juga dipakai oleh ${names} (QR)`,
+        text: `Kode sudah dipakai oleh ${names}`,
         productIds: matches.map((match) => match.productId),
       });
     }

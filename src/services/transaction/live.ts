@@ -14,7 +14,7 @@ import {
   type DraftMode,
 } from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
-import { RecordService, type RecordDraftInput, type RecordFull } from "../record";
+import { RecordService, type RecordDraftInput, type RecordFull, type RecordMirrorInput } from "../record";
 import {
   discountsEatLine,
   linesSubtotal,
@@ -27,7 +27,7 @@ import {
 import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
 import { image } from "~/lib/image";
-import { DEBOUNCE_DELAY, METHOD_BASE_ID } from "~/lib/constants";
+import { DEBOUNCE_DELAY, DUAL_FLAG, METHOD_BASE_ID } from "~/lib/constants";
 import { log } from "~/lib/log";
 
 /** The same limits the product gallery enforces. */
@@ -75,6 +75,7 @@ type ListingRow = {
   listing_id: string | null;
   tx_listing_name: string;
   tx_listing_code: string;
+  tx_listing_kind: string;
   tx_listing_price: number;
   tx_listing_unit: number;
   tx_listing_qty: number;
@@ -94,6 +95,7 @@ type ExtraRow = {
   tx_extra_kind: "number" | "percent";
   tx_extra_name: string;
   tx_extra_value: number;
+  tx_extra_flag: number;
 };
 
 const SELECT_RECORDS = `
@@ -115,7 +117,7 @@ const SELECT_IMAGES = `
 
 const SELECT_LISTINGS = `
   SELECT tx_listing_id, tx_record_id, listing_id, tx_listing_name, tx_listing_code,
-         tx_listing_price, tx_listing_unit, tx_listing_qty
+         tx_listing_kind, tx_listing_price, tx_listing_unit, tx_listing_qty
   FROM tx_listings
   ORDER BY rowid`;
 
@@ -125,7 +127,8 @@ const SELECT_DISCOUNTS = `
   ORDER BY tx_disc_order`;
 
 const SELECT_EXTRAS = `
-  SELECT tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value
+  SELECT tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value,
+         tx_extra_flag
   FROM tx_extras
   ORDER BY tx_extra_order`;
 
@@ -206,7 +209,7 @@ function insertListingStatement(draftId: string, listing: DraftListing): Stateme
     sql: `INSERT INTO tx_listings (
         tx_listing_id, tx_record_id, listing_id, tx_listing_name, tx_listing_code,
         tx_listing_price, tx_listing_unit, tx_listing_qty, tx_listing_kind
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'retail')`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     bindings: [
       listing.id,
       draftId,
@@ -216,6 +219,7 @@ function insertListingStatement(draftId: string, listing: DraftListing): Stateme
       listing.price,
       listing.unit,
       listing.qty,
+      listing.kind ?? "",
     ],
   };
 }
@@ -224,13 +228,15 @@ function updateListingStatement(listing: DraftListing): Statement {
   return {
     sql: `UPDATE tx_listings SET
         listing_id = $2, tx_listing_name = $3, tx_listing_code = $4,
-        tx_listing_price = $5, tx_listing_unit = $6, tx_listing_qty = $7
+        tx_listing_kind = $5, tx_listing_price = $6, tx_listing_unit = $7,
+        tx_listing_qty = $8
       WHERE tx_listing_id = $1`,
     bindings: [
       listing.id,
       listing.listingId ?? null,
       listing.name,
       listing.code,
+      listing.kind ?? "",
       listing.price,
       listing.unit,
       listing.qty,
@@ -258,18 +264,19 @@ function insertDiscountStatement(
 function insertExtraStatement(draftId: string, extra: DraftExtra): Statement {
   return {
     sql: `INSERT INTO tx_extras (
-        tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value, tx_extra_eff
-      ) VALUES ($1, $2, $3, $4, $5, 0)`,
-    bindings: [extra.id, draftId, extra.kind, extra.name, extra.value],
+        tx_extra_id, tx_record_id, tx_extra_kind, tx_extra_name, tx_extra_value,
+        tx_extra_eff, tx_extra_flag
+      ) VALUES ($1, $2, $3, $4, $5, 0, $6)`,
+    bindings: [extra.id, draftId, extra.kind, extra.name, extra.value, extra.flag],
   };
 }
 
 function updateExtraStatement(extra: DraftExtra): Statement {
   return {
     sql: `UPDATE tx_extras SET
-        tx_extra_kind = $2, tx_extra_name = $3, tx_extra_value = $4
+        tx_extra_kind = $2, tx_extra_name = $3, tx_extra_value = $4, tx_extra_flag = $5
       WHERE tx_extra_id = $1`,
-    bindings: [extra.id, extra.kind, extra.name, extra.value],
+    bindings: [extra.id, extra.kind, extra.name, extra.value, extra.flag],
   };
 }
 
@@ -347,6 +354,7 @@ function sameListingRow(previous: DraftListing, listing: DraftListing): boolean 
     (previous.listingId ?? null) === (listing.listingId ?? null) &&
     previous.name === listing.name &&
     previous.code === listing.code &&
+    (previous.kind ?? "") === (listing.kind ?? "") &&
     previous.unit === listing.unit &&
     previous.price === listing.price &&
     previous.qty === listing.qty
@@ -560,6 +568,7 @@ export const TransactionLive = Layer.effect(
             listingId: row.listing_id,
             name: row.tx_listing_name,
             code: row.tx_listing_code,
+            kind: row.tx_listing_kind,
             unit: row.tx_listing_unit,
             price: row.tx_listing_price,
             qty: row.tx_listing_qty,
@@ -575,6 +584,7 @@ export const TransactionLive = Layer.effect(
             name: row.tx_extra_name,
             kind: row.tx_extra_kind,
             value: row.tx_extra_value,
+            flag: row.tx_extra_flag,
           });
           extrasByRecord.set(row.tx_record_id, list);
         }
@@ -635,6 +645,7 @@ export const TransactionLive = Layer.effect(
             listing_id: string;
             listing_code: string | null;
             listing_name: string;
+            listing_kind: string;
             listing_price: number;
             listing_unit: number;
           } | null = null;
@@ -644,10 +655,11 @@ export const TransactionLive = Layer.effect(
                 listing_id: string;
                 listing_code: string | null;
                 listing_name: string;
+                listing_kind: string;
                 listing_price: number;
                 listing_unit: number;
               }>(
-                `SELECT listing_id, listing_code, listing_name, listing_price, listing_unit
+                `SELECT listing_id, listing_code, listing_name, listing_kind, listing_price, listing_unit
                  FROM listings
                  WHERE product_id = $1
                    AND listing_deleted_at IS NULL
@@ -679,6 +691,7 @@ export const TransactionLive = Layer.effect(
             listingId: catalog?.listing_id ?? null,
             name: line.name,
             code: catalog?.listing_code ?? "",
+            kind: catalog?.listing_kind ?? line.kind,
             unit: line.unit,
             price,
             qty,
@@ -742,6 +755,9 @@ export const TransactionLive = Layer.effect(
             name: extra.name,
             kind: extra.kind,
             value: extra.value,
+            // The catalogue snapshot the record carries, so a cart restored from
+            // history re-commits the same twin instead of silently losing it.
+            flag: extra.flag,
           })),
           methods: saved.methods.map((method) => ({
             id: generateId(),
@@ -984,9 +1000,30 @@ export const TransactionLive = Layer.effect(
                 value: extra.value,
                 eff: effect.eff.toNumber(),
                 kind: extra.kind,
+                flag: extra.flag,
               },
             ];
           });
+
+          // A `dual` extra books twice. The twin is only ever written for a
+          // sale: on a purchase the dual charge is already the outcoming side,
+          // so mirroring it would add a record that says nothing new. The
+          // writer drops the twin when the dual extras net to zero or less.
+          const dual =
+            draft.mode === "incoming"
+              ? extraInputs.filter((extra) => (extra.flag & DUAL_FLAG) !== 0)
+              : [];
+          const mirror: RecordMirrorInput | undefined =
+            dual.length === 0
+              ? undefined
+              : {
+                  mode: "outcoming",
+                  cashier: input.cashier,
+                  note: draft.note,
+                  fix: draft.fix,
+                  methodId: METHOD_BASE_ID.cash,
+                  extras: dual,
+                };
 
           const paidAt = credit ? null : Date.now();
           const payload: RecordDraftInput = {
@@ -1015,7 +1052,7 @@ export const TransactionLive = Layer.effect(
               listingId: line.listingId ?? null,
               name: line.name,
               code: line.code,
-              kind: "retail",
+              kind: line.kind ?? "",
               unit: line.unit,
               price: line.price,
               qty: line.qty,
@@ -1028,6 +1065,7 @@ export const TransactionLive = Layer.effect(
                 })),
             })),
             extras: extraInputs,
+            mirror,
             images: draft.images.map((image) => ({
               order: image.order,
               name: image.name,

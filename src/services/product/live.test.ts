@@ -27,7 +27,7 @@ function input(name: string) {
     name,
     note: "",
     listings: [
-      { name, price: 1000, unit: 1, kind: "retail", code: name, codeKind: "barcode" as const },
+      { name, price: 1000, unit: 1, kind: "retail", code: name },
     ],
     stocks: [{ value: 5, capital: 500 }],
     properties: [],
@@ -100,7 +100,6 @@ describe("product catalogue identity", () => {
             unit: 1,
             kind: "retail",
             code: "Kopi",
-            codeKind: "barcode",
           });
           const [after] = yield* product.get.all();
           return { price: after.listings[0].price, replaced: after !== before };
@@ -401,5 +400,82 @@ describe("publishing a product", () => {
     );
 
     expect(flag).toBe(2);
+  });
+});
+
+describe("listing codes and kinds", () => {
+  function withListing(overrides: Record<string, unknown>) {
+    const base = input("Kopi");
+    return { ...base, listings: [{ ...base.listings[0], ...overrides }] };
+  }
+
+  test("a code is unique across live listings, case-insensitively", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        yield* product.add(withListing({ name: "Kopi Kecil", code: "AbC" }));
+        return yield* Effect.either(
+          product.add(withListing({ name: "Kopi Besar", code: "abc" })),
+        );
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") expect(outcome.left._tag).toBe("ProductDuplicateCode");
+  });
+
+  test("two listings without a code coexist", async () => {
+    const { layer } = setup();
+
+    const count = await run(layer, (product) =>
+      Effect.gen(function* () {
+        yield* product.add(withListing({ code: null }));
+        yield* product.add(withListing({ name: "Kopi Dua", code: null }));
+        return (yield* product.get.all()).length;
+      }),
+    );
+
+    expect(count).toBe(2);
+  });
+
+  test("a soft-deleted listing frees its code for reuse", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(withListing({ code: "abc" }));
+        const listingId = (yield* product.get.byId(id)).listings[0].id;
+        yield* product.set.listing.remove(id, listingId);
+        const next = yield* product.add(withListing({ name: "Kopi Baru", code: "ABC" }));
+        return yield* product.get.byId(next);
+      }),
+    );
+
+    expect(outcome.listings.map((listing) => listing.code)).toEqual(["ABC"]);
+  });
+
+  test("kind is free text and is stored as given", async () => {
+    const { layer } = setup();
+
+    const listing = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(withListing({ kind: "karton" }));
+        return (yield* product.get.byId(id)).listings[0];
+      }),
+    );
+
+    expect(listing.kind).toBe("karton");
+  });
+
+  test("an empty kind is allowed", async () => {
+    const { db, layer } = setup();
+
+    const id = await run(layer, (product) => product.add(withListing({ kind: "" })));
+
+    const row = db.query("SELECT listing_kind FROM listings WHERE product_id = ?").get(id) as {
+      listing_kind: string;
+    };
+    expect(row).toEqual({ listing_kind: "" });
   });
 });

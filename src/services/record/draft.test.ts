@@ -180,9 +180,9 @@ describe("RecordService.add.draft (incoming)", () => {
     };
     expect(product.product_name).toBe("Barang Baru");
     const listing = db
-      .query("SELECT listing_code, listing_code_kind FROM listings WHERE listing_id <> 'l1'")
-      .get() as { listing_code: string; listing_code_kind: string };
-    expect(listing).toEqual({ listing_code: "new-1", listing_code_kind: "barcode" });
+      .query("SELECT listing_code FROM listings WHERE listing_id <> 'l1'")
+      .get() as { listing_code: string };
+    expect(listing).toEqual({ listing_code: "new-1" });
     const lot = db
       .query("SELECT stock_value, stock_capital FROM stocks WHERE product_id <> 'p1'")
       .get() as { stock_value: number; stock_capital: number };
@@ -230,32 +230,40 @@ describe("RecordService.add.draft (incoming)", () => {
     expect(db.query("SELECT COUNT(*) AS n FROM records").get()).toEqual({ n: 0 });
   });
 
-  test("allows a manual code that only collides with a QR listing", async () => {
+  test("refuses a manual code that a catalogue listing already owns", async () => {
     const { db, recordLayer, seed } = setup();
     seed();
-    db.exec("UPDATE listings SET listing_code = 'abc', listing_code_kind = 'qr' WHERE listing_id = 'l1'");
-    await runDraft(
-      recordLayer,
-      input({
-        listings: [
-          {
-            listingId: null,
-            name: "Baru",
-            code: "ABC",
-            kind: "retail",
-            unit: 1,
-            price: 1000,
-            qty: 1,
-            discounts: [],
-          },
-        ],
-        pay: 1000,
-        subTotal: 1000,
-        total: 1000,
-        methods: [{ methodId: "cash", pay: 1000 }],
-      }),
+    db.exec("UPDATE listings SET listing_code = 'abc' WHERE listing_id = 'l1'");
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.gen(function* () {
+          const record = yield* RecordService;
+          return yield* record.add.draft(
+            input({
+              listings: [
+                {
+                  listingId: null,
+                  name: "Baru",
+                  code: "ABC",
+                  kind: "retail",
+                  unit: 1,
+                  price: 1000,
+                  qty: 1,
+                  discounts: [],
+                },
+              ],
+              pay: 1000,
+              subTotal: 1000,
+              total: 1000,
+              methods: [{ methodId: "cash", pay: 1000 }],
+            }),
+          );
+        }).pipe(Effect.provide(recordLayer)),
+      ),
     );
-    expect(db.query("SELECT COUNT(*) AS n FROM records").get()).toEqual({ n: 1 });
+    expect(result._tag).toBe("Left");
+    if (result._tag === "Left") expect(result.left).toBeInstanceOf(RecordError);
+    expect(db.query("SELECT COUNT(*) AS n FROM records").get()).toEqual({ n: 0 });
   });
 
   test("treats a vanished catalog listing as a no-stock line", async () => {
@@ -332,7 +340,7 @@ describe("RecordService.add.draft (outcoming)", () => {
         mode: "outcoming",
         total: 44000,
         pay: 44000,
-        extras: [{ name: "Ongkir", value: 4000, eff: 4000, kind: "number" }],
+        extras: [{ name: "Ongkir", value: 4000, eff: 4000, kind: "number", flag: 0 }],
       }),
     );
 

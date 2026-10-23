@@ -55,6 +55,13 @@ export type Extra = {
   name: string;
   kind: ValueKind;
   value: number;
+  /**
+   * The catalogue extra's flags (`extras.extra_flag`). `DUAL_FLAG` marks one
+   * that also books an extras-only `outcoming` record for the same money when
+   * the sale is committed. A preset carries the flag in; the row's `dual`
+   * checkbox is where the cashier turns it on or off.
+   */
+  flag: number;
 };
 
 /** A charge the shop reaches for often; the extras search picks from these. */
@@ -64,4 +71,6 @@ export type ExtraPreset = {
   kind: ValueKind;
   /** The value a fresh extra starts at; usually left at zero to be filled in. */
   value: number;
+  /** The flags the picked extra inherits — `DUAL_FLAG` travels with the name. */
+  flag: number;
 };

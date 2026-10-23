@@ -30,7 +30,6 @@ function toListings(products: Product[]): Listing[] {
         unit: listing.unit,
         kind: listing.kind,
         code: listing.code,
-        codeKind: listing.codeKind,
         cover: product.cover === null ? null : { name: product.cover.name, mime: product.cover.mime },
         stock: product.stock,
         productName: product.name,

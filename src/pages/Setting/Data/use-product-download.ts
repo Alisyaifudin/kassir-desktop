@@ -12,13 +12,12 @@ function toProductImport(product: ProductFull): ProductImport {
   return {
     name: product.name,
     note: product.note,
-    listings: product.listings.map(({ name, price, unit, kind, code, codeKind }) => ({
+    listings: product.listings.map(({ name, price, unit, kind, code }) => ({
       name,
       price,
       unit,
       kind,
       code,
-      codeKind,
     })),
     stocks: product.stocks.map(({ value, capital }) => ({ value, capital })),
     properties: product.properties.map(({ key, value }) => ({ key, value })),

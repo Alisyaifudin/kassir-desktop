@@ -32,7 +32,6 @@ function product(
         unit: 1,
         kind: "pcs",
         code: options.code ?? null,
-        codeKind: options.code === null || options.code === undefined ? null : "barcode",
         updatedAt: 0,
         syncAt: null,
       },

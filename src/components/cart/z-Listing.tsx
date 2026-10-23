@@ -376,6 +376,7 @@ export function Listing({
         listingId: listing.id,
         name: listing.name,
         code: listing.code ?? "",
+        kind: listing.kind,
         unit: listing.unit,
         price: listing.price,
         qty: 1,

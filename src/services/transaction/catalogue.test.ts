@@ -125,7 +125,6 @@ describe("a committed sale reaches the catalogue the POS reads", () => {
             unit: 1,
             kind: "retail",
             code: null,
-            codeKind: null,
           });
           return (yield* listing.get.all())[0];
         }),

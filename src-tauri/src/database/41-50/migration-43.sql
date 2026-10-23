@@ -8,10 +8,11 @@
 -- Re-baselined. This file now also carries the schema work that shipped as
 -- migrations 45-53 (the cart's customer/supplier text, the code snapshot on
 -- `tx_listings`, three record dates and the supplier snapshot, the read
--- indexes) plus `records.record_flag` and `products.product_flag`. Those files
--- were folded here when the history was squashed to 43 + 44, so a database from
--- the old 43-53 lineage no longer matches it and has to start from a fresh
--- `data.db`.
+-- indexes) plus `records.record_flag`, `products.product_flag`, the extras
+-- flags (`tx_extra_flag` / `record_extra_flag`) and the `record_pair_id` link.
+-- Those files were folded here when the history was squashed to 43 + 44, so a
+-- database from the old 43-53 lineage no longer matches it and has to start
+-- from a fresh `data.db`.
 --
 -- Goals
 --   1. Replace the `graves` tombstone table with `*_deleted_at` soft-delete
@@ -149,14 +150,12 @@ FROM money_old;
 
 
 -- ----------------------------------------------------------------------------
--- 3. Enums and lookup tables.
+-- 3. Lookup tables.
 -- ----------------------------------------------------------------------------
-CREATE TABLE code_kind_enum (
-  v TEXT PRIMARY KEY
-) STRICT;
-
-INSERT INTO code_kind_enum (v) VALUES ('barcode'), ('qr');
-
+-- There is deliberately no `listing_code_kind` vocabulary (nor the
+-- `code_kind_enum` table that backed it): a listing `code` is just a text
+-- identifier, unique on its own (see §5).
+--
 -- Renames the old ('sell', 'buy') enum. The values describe the direction MONEY
 -- moved, which is the opposite of the goods: a sale takes money in, a purchase
 -- sends it out. `records_old` still references `mode_enum_old` (sell/buy); the
@@ -188,10 +187,13 @@ CREATE TABLE products (
   product_id         TEXT PRIMARY KEY,
   product_name       TEXT NOT NULL,
   product_note       TEXT NOT NULL DEFAULT (''),
-  product_flag       INTEGER NOT NULL DEFAULT 0,
   product_updated_at INTEGER NOT NULL,
   product_sync_at    INTEGER,
-  product_deleted_at INTEGER
+  product_deleted_at INTEGER,
+  -- Local flag bitfield (see FLAGS.md). Bit 0 = withdrawn from the till:
+  -- `ListingService` leaves the product and its listings out of the cart
+  -- catalogue, while the row, its stock and its history stay untouched.
+  product_flag       INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 
 -- Backfilled in migration-44.
@@ -224,19 +226,19 @@ CREATE INDEX stock_product_idx ON stocks (product_id);
 --   listing_price the selling price for this listing/unit.
 --   listing_kind  user-defined label to tell listings apart (e.g. "retail",
 --                 "wholesale", "marketplace"). Intentionally NOT an enum and
---                 NOT validated by the DB. Normalize casing in app code.
---   listing_code  the listing's single code value (barcode / qr), or NULL.
---   listing_code_kind  'barcode' | 'qr'; NULL when listing_code is NULL.
--- TODO(q1): default `retail` is a guess — keep or make it required input?
+--                 NOT validated by the DB; defaults to '' (meaning "unlabelled").
+--                 Normalize casing in app code.
+--   listing_code  the listing's single code value (a barcode, a QR payload, a
+--                 SKU — the DB does not interpret it), or NULL for no code.
 CREATE TABLE listings (
   listing_id         TEXT PRIMARY KEY,
   product_id         TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
   listing_name       TEXT NOT NULL,
   listing_price      REAL NOT NULL,
   listing_unit       INTEGER NOT NULL DEFAULT 1,
-  listing_kind       TEXT NOT NULL DEFAULT 'retail',
-  listing_code       TEXT,                                 -- at most one code per listing
-  listing_code_kind  TEXT REFERENCES code_kind_enum(v),    -- 'barcode' | 'qr'
+  listing_kind       TEXT NOT NULL DEFAULT '',  -- free label; '' when unset
+  listing_code       TEXT CHECK (listing_code IS NULL OR length(listing_code) > 0),
+                                                -- NULL, or this listing's one code
   listing_updated_at INTEGER NOT NULL,
   listing_sync_at    INTEGER,
   listing_deleted_at INTEGER
@@ -244,10 +246,16 @@ CREATE TABLE listings (
 
 CREATE INDEX listing_product_idx ON listings (product_id);
 
--- The code now lives on its listing (at most one). As before, only `barcode`
--- is globally unique; `listing_code_kind` is NULL whenever `listing_code` is.
-CREATE UNIQUE INDEX listing_barcode_unique ON listings (listing_code)
-  WHERE listing_code_kind = 'barcode' AND listing_deleted_at IS NULL;
+-- One listing per code: NULL means "no code" (the CHECK above refuses ''), and a
+-- non-NULL code may appear on exactly one live listing. NOCASE because the app
+-- looks codes up case-insensitively (a scan of `abc` must not miss a listing
+-- stored as `ABC`), and partial-on-live so a soft-deleted listing frees its code
+-- for reuse.
+CREATE UNIQUE INDEX listing_code_unique ON listings (listing_code COLLATE NOCASE)
+  WHERE listing_code IS NOT NULL AND listing_deleted_at IS NULL;
+
+-- The unique index above cannot serve a lookup that ignores the delete filter
+-- (or compares raw bytes), so keep a plain one for exact-match reads.
 CREATE INDEX listing_code_idx ON listings (listing_code);
 
 -- properties: arbitrary key/value metadata attached to a product.
@@ -349,7 +357,15 @@ CREATE TABLE records (
   record_deleted_at     INTEGER,
   record_supplier_id    TEXT REFERENCES suppliers(supplier_id) ON DELETE SET NULL,
   record_supplier_name  TEXT NOT NULL DEFAULT '',
-  record_flag           INTEGER NOT NULL DEFAULT 0
+  record_flag           INTEGER NOT NULL DEFAULT 0,
+  -- The other half of a pair this record was written with, both ways round.
+  -- A sale whose cart carried a `dual` extra commits a second, extras-only
+  -- `outcoming` record in the same transaction; `submit` stamps each row with
+  -- the other's id, and `delete.byId` reverses both together. NULL for every
+  -- ordinary record. Local bookkeeping, like `record_flag`: never synced, and
+  -- ON DELETE SET NULL so deleting a twin by any other path cannot leave a
+  -- dangling reference.
+  record_pair_id        TEXT REFERENCES records(record_id) ON DELETE SET NULL
 ) STRICT;
 
 -- ----------------------------------------------------------------------------
@@ -436,7 +452,7 @@ CREATE TABLE record_listings (
   product_event_id        TEXT REFERENCES product_events(product_event_id) ON DELETE SET NULL,
   product_id              TEXT REFERENCES products(product_id) ON DELETE SET NULL,
   record_listing_name     TEXT NOT NULL,
-  record_listing_kind     TEXT NOT NULL DEFAULT 'retail',
+  record_listing_kind     TEXT NOT NULL DEFAULT '',
   record_listing_unit     INTEGER NOT NULL DEFAULT 1,
   record_listing_price    REAL NOT NULL,
   record_listing_qty      REAL NOT NULL,
@@ -473,7 +489,11 @@ CREATE TABLE record_extras (
   record_id          TEXT NOT NULL REFERENCES records(record_id) ON DELETE CASCADE,
   record_extra_value REAL NOT NULL,
   record_extra_eff   REAL NOT NULL,
-  record_extra_kind  TEXT NOT NULL CHECK (record_extra_kind IN ('number', 'percent'))
+  record_extra_kind  TEXT NOT NULL CHECK (record_extra_kind IN ('number', 'percent')),
+  -- Snapshot of the catalogue extra's flags at submit (`extras.extra_flag`),
+  -- so a record still says which of its charges was `dual` after the preset is
+  -- renamed, re-flagged or deleted. `unsubmit` rebuilds the cart from it.
+  record_extra_flag  INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 
 
@@ -585,7 +605,11 @@ CREATE TABLE tx_extras (
   tx_extra_kind      TEXT NOT NULL CHECK (tx_extra_kind IN ('percent', 'number')),
   tx_extra_name      TEXT NOT NULL,
   tx_extra_value     REAL NOT NULL,
-  tx_extra_eff       REAL NOT NULL
+  tx_extra_eff       REAL NOT NULL,
+  -- The catalogue extra's flags, copied when the preset is picked. The cart
+  -- needs this to survive a park/restore: `dual` is what decides whether the
+  -- commit also writes the mirror record.
+  tx_extra_flag      INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 
 CREATE INDEX tx_idx_extras_extra_id ON tx_extras(tx_extra_id);
@@ -613,7 +637,7 @@ CREATE TABLE tx_listings (
   tx_listing_price       REAL NOT NULL,
   tx_listing_unit        INTEGER NOT NULL,
   tx_listing_qty         INTEGER NOT NULL,
-  tx_listing_kind        TEXT NOT NULL DEFAULT 'retail',
+  tx_listing_kind        TEXT NOT NULL DEFAULT '',
   -- The editable code the draft's listing grid shows, snapshotted like name
   -- and price so the cart keeps what was typed even if the catalog changes.
   tx_listing_code        TEXT NOT NULL DEFAULT ''
@@ -690,6 +714,12 @@ CREATE INDEX record_date_idx
 CREATE INDEX record_credit_open_idx
   ON records (record_credit_at)
   WHERE record_paid_at IS NULL AND record_deleted_at IS NULL;
+
+-- Finding a record's twin: the undo path and the pair lookups both read the
+-- narrow set of paired rows, not the whole history.
+CREATE INDEX record_pair_idx
+  ON records (record_pair_id)
+  WHERE record_pair_id IS NOT NULL;
 
 -- The product detail > Riwayat pager is a keyset read ordered by
 -- (created_at DESC, id DESC); keep that exact order in the index so each page

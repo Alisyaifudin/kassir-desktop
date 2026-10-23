@@ -80,6 +80,13 @@ const DESTINATIONS: Destination[] = [
     description: "Katalog dan stok",
   },
   {
+    label: "Biaya Lainnya",
+    path: "/extras",
+    icon: BadgePercent,
+    hue: 345,
+    description: "Biaya dan potongan",
+  },
+  {
     label: "Riwayat",
     path: "/records",
     icon: History,
@@ -104,13 +111,6 @@ const DESTINATIONS: Destination[] = [
     description: "Grafik penjualan",
   },
   { label: "Utang", path: "/debt", icon: HandCoins, hue: 15, description: "Utang pelanggan" },
-  {
-    label: "Biaya Lainnya",
-    path: "/extras",
-    icon: BadgePercent,
-    hue: 345,
-    description: "Biaya dan potongan",
-  },
   {
     label: "Pelanggan",
     path: "/customer",

@@ -16,7 +16,7 @@ export function useExtraPresets(): ExtraPreset[] {
   return useMemo(
     () =>
       res.type === "success"
-        ? res.data.map(({ id, name, kind, value }) => ({ id, name, kind, value }))
+        ? res.data.map(({ id, name, kind, value, flag }) => ({ id, name, kind, value, flag }))
         : [],
     [res],
   );

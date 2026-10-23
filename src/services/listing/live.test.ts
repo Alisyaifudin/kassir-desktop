@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Stream } from "effect";
 import { makeTestDatabase } from "../db/test-support";
 import { ProductService, type ListingInput } from "../product";
 import { ProductLive } from "../product/live";
@@ -39,7 +39,6 @@ const input = {
       unit: 1,
       kind: "retail",
       code: "K1",
-      codeKind: "barcode" as const,
     },
   ],
   stocks: [{ value: 5, capital: 500 }],
@@ -52,7 +51,6 @@ const edited: ListingInput = {
   unit: 1,
   kind: "retail",
   code: "K1",
-  codeKind: "barcode",
 };
 
 describe("listing service", () => {
@@ -100,5 +98,36 @@ describe("listing service", () => {
     );
 
     expect(after).toHaveLength(0);
+  });
+});
+
+describe("withdrawn products", () => {
+  test("a product that is not published is not sellable, and comes back when it is", async () => {
+    const { layer } = setup();
+    const result = await run(layer, (product, listing) =>
+      Effect.gen(function* () {
+        const productId = yield* product.add(input);
+        expect(yield* listing.get.all()).toHaveLength(1);
+
+        yield* product.set.publish(productId, false);
+        const all = yield* listing.get.all();
+        const search = yield* listing.get.search("kopi");
+        // The barcode path reads the same catalogue, so it stops matching too.
+        const byCode = yield* listing.get.search("K1");
+        // `changes` is what the Pos and Restock screens subscribe to.
+        const streamed = yield* Stream.runHead(listing.get.changes);
+
+        yield* product.set.publish(productId, true);
+        const back = yield* listing.get.all();
+        return { all, search, byCode, streamed, back };
+      }),
+    );
+
+    expect(result.all).toHaveLength(0);
+    expect(result.search).toHaveLength(0);
+    expect(result.byCode).toHaveLength(0);
+    expect(result.streamed._tag).toBe("Some");
+    expect(result.streamed._tag === "Some" ? result.streamed.value : null).toHaveLength(0);
+    expect(result.back).toHaveLength(1);
   });
 });

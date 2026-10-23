@@ -771,7 +771,7 @@ ignore it
     </service>
 
     <service name="extra" module="src/services/extra/">
-      <description>The surcharge/discount catalog. The DUAL_FLAG bit in `flag` marks an extra that applies in both sale and purchase mode; ValueKind (number | percent) lives in lib/constants and is shared with records.</description>
+      <description>The surcharge/discount catalog. The DUAL_FLAG bit in `flag` marks an extra that books twice: a sale carrying it also commits an extras-only `outcoming` record for the same money (see services/record, records.record_pair_id). The flag is copied into the cart (`tx_extra_flag`) and the record (`record_extra_flag`), because a cart has no id link to the catalog. ValueKind (number | percent) lives in lib/constants and is shared with records.</description>
       <error name="ExtraError" tag="ExtraError" />
       <interface>
         <method name="get.all() / get.changes">Ordered by name in SQL.</method>
@@ -845,8 +845,9 @@ ignore it
         <method name="get.revision">Write counter a queried page re-reads on.</method>
         <method name="count.summary(start, end)">Per-mode count and sum for a range.</method>
         <method name="add.external(input)">Import a record made elsewhere: lines + discounts + extras + methods in one transaction, moving stock by the same rules as a live record.</method>
+        <method name="add.draft(input) => id">Commit a cart: header, lines, discounts, extras, payments, stock movement and the `tx_*` delete, in one transaction. When `input.mirror` is set it also writes the extras-only `outcoming` twin of the cart's DUAL_FLAG extras in that same commit, linking both rows through `record_pair_id`.</method>
         <method name="set.paidAt / set.note / set.mode / set.methods / set.toCredit / set.payCredit / set.linkListing" />
-        <method name="delete.byId(id)">Soft-delete and reverse the stock movement the record caused.</method>
+        <method name="delete.byId(id)">Soft-delete and reverse the stock movement the record caused. A paired record takes its twin with it, so voiding a sale never leaves the extras-only `outcoming` half behind.</method>
       </interface>
     </service>
 

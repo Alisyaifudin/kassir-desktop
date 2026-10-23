@@ -5,6 +5,9 @@
  * that forgets one is a failing test rather than a keyboard bug found by a
  * cashier.
  *
+ * The `dual` column is pinned here too: it sits between `eff` and `x`, is one
+ * column wide, and is reached by the same arrow walk as every other cell.
+ *
  * Run with:  bun test src/components/cart/extra-grid.test.ts
  */
 import { describe, expect, test } from "bun:test";
@@ -57,16 +60,25 @@ describe("extras grid geometry", () => {
     expect(extraCellAt(SUBTOTAL, 7, PURCHASE_EXTRA_LAYOUT).field).toBe("subtotal");
   });
 
-  test("an extra row walks name, value, kind, eff, x — never the number", () => {
+  test("an extra row walks name, value, kind, eff, dual, x — never the number", () => {
     expect(selectableExtraCells(ROW("a"), SALE_EXTRA_LAYOUT).map((cell) => cell.field)).toEqual([
       "name",
       "value",
       "kind",
       "eff",
+      "dual",
       "x",
     ]);
     expect(extraCellAt(ROW("a"), 0, SALE_EXTRA_LAYOUT).field).toBe("name");
     expect(extraCellAt(ROW("a"), 11, SALE_EXTRA_LAYOUT).field).toBe("x");
+  });
+
+  test("dual is one column between eff and x, selectable and not editable", () => {
+    const cells = extraCellsForRow(ROW("a"), SALE_EXTRA_LAYOUT);
+    const dual = cells.find((cell) => cell.field === "dual");
+    expect(dual).toEqual({ field: "dual", start: 10, end: 10, selectable: true, editable: false });
+    expect(cells.find((cell) => cell.field === "eff")?.end).toBe(9);
+    expect(cells.find((cell) => cell.field === "x")?.start).toBe(11);
   });
 
   test("a column outside a cell snaps to the nearest one and the remembered column is clamped", () => {
@@ -86,8 +98,9 @@ describe("extras grid geometry", () => {
   test("every extra field starts on a column the row has", () => {
     expect(startOfExtraField("name")).toBe(1);
     expect(startOfExtraField("value")).toBe(4);
-    expect(startOfExtraField("kind")).toBe(7);
-    expect(startOfExtraField("eff")).toBe(9);
+    expect(startOfExtraField("kind")).toBe(6);
+    expect(startOfExtraField("eff")).toBe(8);
+    expect(startOfExtraField("dual")).toBe(10);
     expect(startOfExtraField("x")).toBe(11);
   });
 });

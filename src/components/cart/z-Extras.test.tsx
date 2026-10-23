@@ -16,8 +16,8 @@ import type { Extra, ExtraPreset } from "./types";
  * projection), never at component internals.
  */
 const presets: ExtraPreset[] = [
-  { id: "e1", name: "Ongkos Kirim", kind: "number", value: 10_000 },
-  { id: "e2", name: "Diskon Grosir", kind: "number", value: 2_000 },
+  { id: "e1", name: "Ongkos Kirim", kind: "number", value: 10_000, flag: 0 },
+  { id: "e2", name: "Diskon Grosir", kind: "number", value: 2_000, flag: 0 },
 ];
 
 mock.module("./use-extra-presets", () => ({ useExtraPresets: () => presets }));
@@ -114,5 +114,51 @@ describe("Tambahan grid keyboard", () => {
     expect(writes).toHaveLength(1);
     expect(writes[0]).toHaveLength(1);
     expect(writes[0]?.[0]?.name).toBe("");
+  });
+});
+
+describe("Tambahan dual checkbox", () => {
+  const DUAL = 0b1;
+
+  /** Add the first preset through the search field and hand back the grid. */
+  function addPreset() {
+    const { writes, search } = renderGrid();
+    fireEvent.change(search, { target: { value: "ongkos" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    const grid = screen.getByRole("grid", { name: "Biaya tambahan" });
+    return { writes, grid };
+  }
+
+  /** Header → first extra row → name, value, kind, eff, dual. */
+  function walkToDual(grid: HTMLElement) {
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    for (let step = 0; step < 4; step += 1) fireEvent.keyDown(grid, { key: "ArrowRight" });
+  }
+
+  test("a preset arrives without the flag and Enter on the dual cell sets it", () => {
+    const { writes, grid } = addPreset();
+    walkToDual(grid);
+
+    fireEvent.keyDown(grid, { key: "Enter" });
+
+    const written = writes[writes.length - 1];
+    expect(written?.[0]?.flag & DUAL).toBe(DUAL);
+    const checkbox = screen.getByRole("checkbox");
+    expect(checkbox.getAttribute("data-state")).toBe("checked");
+
+    fireEvent.keyDown(grid, { key: "Enter" });
+    const cleared = writes[writes.length - 1];
+    expect(cleared?.[0]?.flag & DUAL).toBe(0);
+    expect(screen.getByRole("checkbox").getAttribute("data-state")).toBe("unchecked");
+  });
+
+  test("clicking the checkbox toggles the same flag the cell does", () => {
+    const { writes } = addPreset();
+
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    const written = writes[writes.length - 1];
+    expect(written?.[0]?.flag & DUAL).toBe(DUAL);
+    expect(screen.getByRole("checkbox").getAttribute("data-state")).toBe("checked");
   });
 });

@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X } from "lucide-react";
 import type Decimal from "decimal.js";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
-import type { ValueKind } from "~/lib/constants";
+import { DUAL_FLAG, type ValueKind } from "~/lib/constants";
 import type { Extra } from "~/components/cart/types";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
@@ -29,10 +30,14 @@ function signedRupiah(value: Decimal): string {
 /**
  * One extra on the purchase, a twelve-column grid row: the number doubles as
  * the drag handle, then the same labelled cell the listing stage uses, with the
- * type as a select and the effective amount read out.
+ * type as a select, the effective amount read out, a `dual` checkbox and the
+ * delete button.
  *
- * The parent owns selection, editing and the open select, so the whole grid can
- * be driven by the arrow keys; the row only renders what it is told.
+ * `dual` is the extra's `DUAL_FLAG`: a preset arrives with it already set, and
+ * the cashier can turn it off (or on) here — it is what makes the sale commit an
+ * extras-only twin. The parent owns selection, editing and the open select, so
+ * the whole grid can be driven by the arrow keys; the row only renders what it
+ * is told.
  */
 export function ExtraCard({
   extra,
@@ -64,6 +69,7 @@ export function ExtraCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: extra.id,
   });
+  const dual = (extra.flag & DUAL_FLAG) !== 0;
 
   return (
     <motion.div
@@ -107,7 +113,7 @@ export function ExtraCard({
         />
         <Cell
           id={`extra-${extra.id}-value`}
-          className="col-span-3 border-l"
+          className="col-span-2 border-l"
           label="Nilai"
           align="right"
           currency={extra.kind === "number"}
@@ -165,6 +171,31 @@ export function ExtraCard({
           <span className="text-normal font-bold tabular-nums text-primary">
             {signedRupiah(eff)}
           </span>
+        </div>
+        <div
+          id={`extra-${extra.id}-dual`}
+          role="gridcell"
+          aria-selected={selected === "dual"}
+          onClick={() => onSelect("dual")}
+          className={cn(
+            "col-span-1 flex flex-col items-center justify-center gap-0.5 border-l px-1 py-1",
+            selected === "dual" && SELECTED_RING,
+          )}
+        >
+          <label
+            htmlFor={`extra-${extra.id}-dual-box`}
+            className="text-small leading-none text-muted-foreground select-none"
+          >
+            dual
+          </label>
+          <Checkbox
+            id={`extra-${extra.id}-dual-box`}
+            checked={dual}
+            aria-label={`Tandai biaya ${extra.name === "" ? number : extra.name} sebagai dual`}
+            onCheckedChange={(checked) =>
+              onChange({ flag: checked === true ? extra.flag | DUAL_FLAG : extra.flag & ~DUAL_FLAG })
+            }
+          />
         </div>
         <div
           id={`extra-${extra.id}-x`}

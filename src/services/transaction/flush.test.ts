@@ -5,6 +5,7 @@ import { makeTestDatabase } from "../db/test-support";
 import { ProductLive } from "../product/live";
 import { RecordLive } from "../record/live";
 import { TransactionService } from ".";
+import { DUAL_FLAG } from "~/lib/constants";
 import { TransactionLive } from "./live";
 
 /**
@@ -44,7 +45,7 @@ function setup() {
   const recordLayer = RecordLive.pipe(Layer.provide(flaky), Layer.provide(productLayer));
   const transactionLayer = TransactionLive.pipe(Layer.provide(flaky), Layer.provide(recordLayer));
 
-  return { db, state, layer: transactionLayer };
+  return { db, state, dbLayer, layer: transactionLayer };
 }
 
 function run<A>(
@@ -129,6 +130,41 @@ describe("cart flush", () => {
         expect(secondPass[0].bindings).toContain(3);
       }),
     );
+  });
+
+  test("an extra's dual flag survives the write and the reload", async () => {
+    const { db, dbLayer, layer } = setup();
+
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.extras.set(id, [
+          { id: "extra-1", name: "Ongkir", kind: "number", value: 5000, flag: DUAL_FLAG },
+          { id: "extra-2", name: "Plastik", kind: "number", value: 500, flag: 0 },
+        ]);
+        yield* tx.flush();
+      }),
+    );
+
+    const written = db
+      .query("SELECT tx_extra_name, tx_extra_flag FROM tx_extras ORDER BY tx_extra_order")
+      .all() as { tx_extra_name: string; tx_extra_flag: number }[];
+    expect(written).toEqual([
+      { tx_extra_name: "Ongkir", tx_extra_flag: DUAL_FLAG },
+      { tx_extra_name: "Plastik", tx_extra_flag: 0 },
+    ]);
+
+    // A second set of refs over the same database: the flag has to come back
+    // through the hydrate query, not just sit in the row.
+    const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
+    const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
+    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
+
+    expect(drafts[0]?.extras.map((extra) => [extra.name, extra.flag])).toEqual([
+      ["Ongkir", DUAL_FLAG],
+      ["Plastik", 0],
+    ]);
   });
 
   test("the persisted cart survives a reload of the refs", async () => {
@@ -233,5 +269,41 @@ describe("cart flush", () => {
     );
 
     expect(message).toContain("Keranjang gagal dihapus");
+  });
+});
+
+describe("cart listing snapshots", () => {
+  test("a line's kind is persisted with the draft", async () => {
+    const { db, layer } = setup();
+
+    const row = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [{ ...line, kind: "grosir" }]);
+        yield* tx.flush();
+        return db
+          .query("SELECT tx_listing_kind FROM tx_listings WHERE tx_record_id = ?")
+          .get(id);
+      }),
+    );
+
+    expect(row).toEqual({ tx_listing_kind: "grosir" });
+  });
+
+  test("an unlabelled line stores an empty kind, not a made-up one", async () => {
+    const { db, layer } = setup();
+
+    const row = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [{ ...line, kind: "" }]);
+        yield* tx.flush();
+        return db
+          .query("SELECT tx_listing_kind FROM tx_listings WHERE tx_record_id = ?")
+          .get(id);
+      }),
+    );
+
+    expect(row).toEqual({ tx_listing_kind: "" });
   });
 });

@@ -16,9 +16,8 @@ const productSchema = `{
         name: string;
         price: number;       // >= 0 (boleh 0 untuk bonus)
         unit: number;        // pcs per listing unit, bilangan bulat >= 1
-        kind: string;        // e.g. "retail", "wholesale"
-        code: string | null; // tidak boleh sama dalam satu produk
-        codeKind: "barcode" | "qr" | null;
+        kind: string;        // bebas, boleh "" (cth. "retail", "wholesale")
+        code: string | null; // unik antar listing, abaikan besar/kecil huruf
     }[];                     // minimal satu
     stocks: {
         value: number;       // pcs, >= 0
