@@ -77,6 +77,7 @@ function makeDraft(id: string, overrides: Partial<Draft> = {}): Draft {
     customerId: null,
     customerName: "",
     customerPhone: "",
+    paidAt: null,
     supplierId: null,
     supplierName: "",
     rounding: 0,

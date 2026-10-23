@@ -34,6 +34,7 @@ function makeDraft(id: string, title: string, flag = 0): Draft {
     customerId: null,
     customerName: "",
     customerPhone: "",
+    paidAt: null,
     supplierId: null,
     supplierName: "",
     rounding: 0,

@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { Context, Effect, Either, Layer } from "effect";
 import { recalcDiscounts } from "~/lib/purchase";
 import { DUAL_FLAG, METHOD_BASE_ID } from "~/lib/constants";
@@ -114,6 +114,8 @@ type SaleOptions = {
   customerPhone?: string;
   supplierName?: string;
   credit?: boolean;
+  /** The picked payment time on the draft; absent = "saat ini". */
+  paidAt?: number;
   stored?: boolean;
   cashier?: string;
   secondSubmit?: boolean;
@@ -135,6 +137,7 @@ async function submit(options: SaleOptions = {}) {
       yield* tx.methods.set(id, options.methods ?? [makeMethod()]);
       yield* tx.set.fix(id, options.fix ?? 0);
       yield* tx.set.rounding(id, options.rounding ?? 0);
+      if (options.paidAt !== undefined) yield* tx.set.paidAt(id, options.paidAt);
       if (options.note !== undefined) yield* tx.set.note(id, options.note);
       if (options.customerId !== undefined) yield* tx.set.customer(id, options.customerId);
       if (options.customerName !== undefined) {
@@ -760,6 +763,76 @@ describe("TransactionService.submit — listings", () => {
     expect(portionsOf(db, id)).toHaveLength(2);
     expect(recordOf(db, id).record_sub_total).toBe(40000);
     expect(portionsOf(db, id).every((portion) => portion.record_listing_name === "Kopi")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Payment time
+// ---------------------------------------------------------------------------
+
+describe("TransactionService.submit — payment time", () => {
+  const NOW = 1_760_000_000_000;
+
+  function clock() {
+    return spyOn(Date, "now").mockReturnValue(NOW);
+  }
+
+  test("`saat ini` (no pick) settles at the clock", async () => {
+    const tick = clock();
+    try {
+      const { db, result } = await submit({ methods: [makeMethod(40000)] });
+      const id = right(result);
+      expect(recordOf(db, id).record_paid_at).toBe(NOW);
+    } finally {
+      tick.mockRestore();
+    }
+  });
+
+  test("a picked time is what the record is paid at", async () => {
+    const tick = clock();
+    try {
+      const picked = NOW - 3 * 60 * 60 * 1000;
+      const { db, result } = await submit({
+        methods: [makeMethod(40000)],
+        paidAt: picked,
+      });
+      const id = right(result);
+      // Backdating is the point: the chosen wall clock, not commit time.
+      expect(recordOf(db, id).record_paid_at).toBe(picked);
+    } finally {
+      tick.mockRestore();
+    }
+  });
+
+  test("a pick in the future is clamped to now", async () => {
+    const tick = clock();
+    try {
+      const { db, result } = await submit({
+        methods: [makeMethod(40000)],
+        paidAt: NOW + 24 * 60 * 60 * 1000,
+      });
+      const id = right(result);
+      expect(recordOf(db, id).record_paid_at).toBe(NOW);
+    } finally {
+      tick.mockRestore();
+    }
+  });
+
+  test("a credit sale ignores the pick and stores no paid_at", async () => {
+    const tick = clock();
+    try {
+      const { db, result } = await submit({
+        credit: true,
+        paidAt: NOW - 60_000,
+        methods: [makeMethod(40000)],
+      });
+      const id = right(result);
+      const record = recordOf(db, id);
+      expect(record.record_paid_at).toBeNull();
+      expect(record.record_credit_at).toBe(NOW);
+    } finally {
+      tick.mockRestore();
+    }
   });
 });
 

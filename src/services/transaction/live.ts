@@ -47,6 +47,7 @@ type RecordRow = {
   tx_record_fix: number;
   tx_record_note: string;
   tx_record_rounding: number;
+  tx_record_paid_at: number | null;
   tx_record_customer_id: string | null;
   tx_record_customer_name: string;
   tx_record_customer_phone: string;
@@ -101,8 +102,8 @@ type ExtraRow = {
 const SELECT_RECORDS = `
   SELECT tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
          tx_record_mode, tx_record_fix, tx_record_note, tx_record_rounding,
-         tx_record_customer_id, tx_record_customer_name, tx_record_customer_phone,
-         tx_record_supplier_id, tx_record_supplier_name
+         tx_record_paid_at, tx_record_customer_id, tx_record_customer_name,
+         tx_record_customer_phone, tx_record_supplier_id, tx_record_supplier_name
   FROM tx_records
   ORDER BY tx_record_order`;
 
@@ -152,6 +153,7 @@ function rowToDraft(
     fix: row.tx_record_fix,
     note: row.tx_record_note,
     rounding: row.tx_record_rounding,
+    paidAt: row.tx_record_paid_at,
     customerId: row.tx_record_customer_id,
     customerName: row.tx_record_customer_name,
     customerPhone: row.tx_record_customer_phone,
@@ -170,9 +172,10 @@ function recordStatement(draft: Draft): Statement {
     sql: `INSERT INTO tx_records (
         tx_record_id, tx_record_order, tx_record_flag, tx_record_title,
         tx_record_mode, tx_record_query, tx_record_fix, tx_record_note,
-        tx_record_rounding, tx_record_customer_id, tx_record_customer_name,
-        tx_record_customer_phone, tx_record_supplier_id, tx_record_supplier_name
-      ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13)
+        tx_record_rounding, tx_record_paid_at, tx_record_customer_id,
+        tx_record_customer_name, tx_record_customer_phone, tx_record_supplier_id,
+        tx_record_supplier_name
+      ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13, $14)
       ON CONFLICT(tx_record_id) DO UPDATE SET
         tx_record_order = excluded.tx_record_order,
         tx_record_flag = excluded.tx_record_flag,
@@ -181,6 +184,7 @@ function recordStatement(draft: Draft): Statement {
         tx_record_fix = excluded.tx_record_fix,
         tx_record_note = excluded.tx_record_note,
         tx_record_rounding = excluded.tx_record_rounding,
+        tx_record_paid_at = excluded.tx_record_paid_at,
         tx_record_customer_id = excluded.tx_record_customer_id,
         tx_record_customer_name = excluded.tx_record_customer_name,
         tx_record_customer_phone = excluded.tx_record_customer_phone,
@@ -195,6 +199,7 @@ function recordStatement(draft: Draft): Statement {
       draft.fix,
       draft.note,
       draft.rounding,
+      draft.paidAt,
       draft.customerId,
       draft.customerName,
       draft.customerPhone,
@@ -341,6 +346,7 @@ function sameRecordRow(previous: Draft, draft: Draft): boolean {
     previous.fix === draft.fix &&
     previous.note === draft.note &&
     previous.rounding === draft.rounding &&
+    previous.paidAt === draft.paidAt &&
     previous.customerId === draft.customerId &&
     previous.customerName === draft.customerName &&
     previous.customerPhone === draft.customerPhone &&
@@ -748,6 +754,10 @@ export const TransactionLive = Layer.effect(
           customerPhone: customerId === null ? saved.customer.phone : "",
           supplierId: saved.supplier.id,
           supplierName: saved.supplier.id === null ? saved.supplier.name : "",
+          // The time the record was paid at, so unsubmit + re-submit keeps
+          // history where it was. A credit record has none: the rebuilt cart
+          // opens on "saat ini" instead.
+          paidAt: saved.paidAt,
           rounding: saved.rounding,
           listings,
           extras: saved.extras.map((extra) => ({
@@ -1025,11 +1035,15 @@ export const TransactionLive = Layer.effect(
                   extras: dual,
                 };
 
-          const paidAt = credit ? null : Date.now();
+          // The picked time, when the operator turned "saat ini" off: backdated
+          // as chosen, but never ahead of the clock — a post-dated paid_at would
+          // make a day summary count money that has not been taken yet.
+          const now = Date.now();
+          const paidAt = credit ? null : Math.min(draft.paidAt ?? now, now);
           const payload: RecordDraftInput = {
             draftId: draft.id,
             paidAt,
-            creditAt: credit ? Date.now() : null,
+            creditAt: credit ? now : null,
             rounding,
             cashier: input.cashier,
             mode: draft.mode,
@@ -1144,6 +1158,7 @@ export const TransactionLive = Layer.effect(
               customerPhone: "",
               supplierId: null,
               supplierName: "",
+              paidAt: null,
               rounding: 0,
               listings: [],
               extras: [],
@@ -1235,6 +1250,9 @@ export const TransactionLive = Layer.effect(
         },
         rounding(id, rounding) {
           return update(id, (draft) => ({ ...draft, rounding }));
+        },
+        paidAt(id, paidAt) {
+          return update(id, (draft) => ({ ...draft, paidAt }));
         },
         store(id) {
           return update(id, (draft) => ({ ...draft, flag: draft.flag | STORED_FLAG }));

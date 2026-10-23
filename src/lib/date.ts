@@ -89,3 +89,24 @@ export function getDayOrder(epochMilli: number) {
   const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
   return date.day;
 }
+
+/**
+ * The wall-clock reading of an epoch in the machine's zone, as the value the
+ * `DateTime` picker edits. The picker never sees a zone: it edits the clock face
+ * the operator is looking at, and `epochFromPlain` puts it back.
+ */
+export function plainFromEpoch(epochMilli: number): Temporal.PlainDateTime {
+  const tz = Temporal.Now.timeZoneId();
+  return Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz).toPlainDateTime();
+}
+
+/**
+ * The inverse: a wall-clock reading becomes an epoch in the machine's zone.
+ * A reading that does not exist locally (the hour a DST jump skips) is
+ * disambiguated forward, which is what Temporal's default `compatible` rule
+ * does — the alternative is refusing a time the operator can see on a clock.
+ */
+export function epochFromPlain(plain: Temporal.PlainDateTime): number {
+  const tz = Temporal.Now.timeZoneId();
+  return plain.toZonedDateTime(tz).epochMilliseconds;
+}

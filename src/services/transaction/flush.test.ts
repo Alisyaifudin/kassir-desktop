@@ -307,3 +307,60 @@ describe("cart listing snapshots", () => {
     expect(row).toEqual({ tx_listing_kind: "" });
   });
 });
+
+describe("cart payment time", () => {
+  const PICKED = 1_700_000_000_000;
+
+  test("a picked time is written to the draft, and cleared back to NULL", async () => {
+    const { db, layer } = setup();
+
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.set.paidAt(id, PICKED);
+        yield* tx.flush();
+      }),
+    );
+
+    expect(db.query("SELECT tx_record_paid_at FROM tx_records").get()).toEqual({
+      tx_record_paid_at: PICKED,
+    });
+
+    // Each `run` builds its own layer, so hydrate first: the setters write into
+    // the loaded drafts, and a fresh instance has none until it reads.
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const [draft] = yield* tx.get.drafts("incoming");
+        if (draft === undefined) return;
+        yield* tx.set.paidAt(draft.id, null);
+        yield* tx.flush();
+      }),
+    );
+
+    // "saat ini" is NULL, never the clock frozen at the moment of the edit.
+    expect(db.query("SELECT tx_record_paid_at FROM tx_records").get()).toEqual({
+      tx_record_paid_at: null,
+    });
+  });
+
+  test("the pick survives a reload of the cart", async () => {
+    const { dbLayer } = setup();
+    const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
+    const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
+
+    const first = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    await run(first, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.set.paidAt(id, PICKED);
+        yield* tx.flush();
+      }),
+    );
+
+    // A fresh layer means a fresh hydrate, which is the app restarting.
+    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
+
+    expect(drafts[0]?.paidAt).toBe(PICKED);
+  });
+});

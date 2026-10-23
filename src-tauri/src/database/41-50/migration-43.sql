@@ -588,6 +588,11 @@ CREATE TABLE tx_records (
   tx_record_fix             INTEGER NOT NULL DEFAULT 0,
   tx_record_note            TEXT NOT NULL DEFAULT (''),
   tx_record_rounding        REAL NOT NULL DEFAULT 0,
+  -- The payment time the operator picked in `Opsi transaksi`, as an epoch ms in
+  -- the machine's zone. NULL means "saat ini": the record is settled with
+  -- `Date.now()` at submit. A value is used as-is, clamped to now, so a sale can
+  -- be backdated but never post-dated.
+  tx_record_paid_at         INTEGER,
   tx_record_customer_id     TEXT, -- change from INTEGER TO TEXT
   tx_record_supplier_id     TEXT, -- the counterparty for an outcoming (purchase) draft
   -- Pending counterparty text, typed in the cart before the submit resolves it.
