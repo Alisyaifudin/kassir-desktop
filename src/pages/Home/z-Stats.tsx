@@ -23,6 +23,8 @@ import { RegionError } from "./z-Error";
  * three values (`today`'s two, `yesterday`'s delta) are the only things that
  * pulse, in place, at the width they will occupy — the card never changes height.
  *
+ * See `.pi/skills/page-data.md` §3 for the rule this file is the example of.
+ *
  * `today` and `yesterday` stay separate keys so each value can land on its own:
  * the amount can appear while the comparison beside it is still pulsing, and the
  * debt card is a third read with its own card.

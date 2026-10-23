@@ -1,6 +1,6 @@
 ---
 name: services
-description: Best practices and patterns for the Kassir service layer and React data flow — Effect services (Context.Tag + Layer + SubscriptionRef), the app-level `service` object, useStream/useMutation, Loader/LoaderMany, createErrorBoundary/createManyErrorBoundary, and Tailwind `small:` sizing. Use whenever adding or modifying a service, writing a component that reads service data, wiring layers, or migrating old `db`/`store`/`use-data`/`Loader-old` code.
+description: Best practices and patterns for the Kassir service layer and React data flow — Effect services (Context.Tag + Layer + SubscriptionRef), the app-level `service` object, useStream/useMutation, Loader/LoaderMany, createErrorBoundary/createManyErrorBoundary, and Tailwind `small:` sizing. Use whenever adding or modifying a service, writing a component that reads service data, wiring layers, or migrating old `db`/`store`/`use-data`/`Loader-old` code. Page-level async data has its own skill: `page-data`.
 ---
 
 # Kassir Services & Data Flow
@@ -230,128 +230,15 @@ Several results at once, one loading UI, one error boundary:
 It waits for all results, throws the first error, and hands back the resolved
 data keyed by the same names.
 
-### Page-level data — `src/components/page-data/`
+### Page-level data — see `.pi/skills/page-data.md`
 
-The `Loader`/`LoaderMany` model gates a **page**: one result at the top and the
-whole tree below it goes blank. `createPageData` gates a **widget**: the page
-owns every subscription, each part reads only the keys it needs, and everything
-else paints on the first frame.
-
-```ts
-// pages/Product/data.ts — the page's data contract, declared once
-export const pageData = createPageData<{
-  products: Product[];   // live   (service.product.get.changes)
-  printers: string[];    // once   (getPrinters(), a plain Effect)
-}, ProductError | InvokeError>("ProductPage");
-```
-
-```tsx
-// pages/Product/page.tsx — the page owns the sources
-export default function Page() {
-  return (
-    <pageData.Provider sources={{
-      products: service.product.get.changes,   // Stream = live
-      printers: getPrinters(),                 // Effect = read once
-    }}>
-      <Toolbar />   {/* static chrome: interactive immediately */}
-      <Grid />      {/* gated on products */}
-      <Fab />       {/* static chrome */}
-    </pageData.Provider>
-  );
-}
-
-// z-Toolbar.tsx — a leaf reads its own slice; no prop drilling
-const res = pageData.use("products");
-return (
-  <Gate res={res} skeleton={<ToolbarSkeleton />}>
-    {({ data }) => <Bars items={data} />}
-  </Gate>
-);
-
-// z-Grid.tsx — needs two keys: waits for the *last* one
-const res = pageData.useAll("products", "printers");
-```
-
-Rules:
-
-- **Every key subscribes once, in parallel**, when the provider mounts — never a
-  waterfall. `Stream` sources stay live; `Effect` sources run once and re-run on
-  `pageData.useRefresh()(key)`.
-- **Gate the widget, not the page.** Card frames, headers, toolbars, pagination
-  and action buttons belong outside any `Gate`.
-- **Pulse values, not cards.** When a card's structure is static and only its
-  numbers are async, do not swap the card for a skeleton — render the frame and
-  put `<SkeletonText className="w-32" />` where each value goes, at the width it
-  will occupy. Nothing moves when the value lands, the wording around it is
-  readable immediately, and two related values can arrive separately. Reserve
-  `Gate` for a region whose *body* is the thing that loads (a list, a table).
-  `pages/Home/z-Stats.tsx` is the worked example; `SkeletonText` lives beside
-  `Skeleton` in `~/components/ui/skeleton.tsx`.
-- **Give a gated body a floor.** A list body shorter than its skeleton collapses
-  the card the moment the rows arrive. Put one `min-h` on the rows container and
-  draw the skeleton rows at that exact height (real row height, big and `small:`
-  both), so the swap is invisible: `pages/Home/z-Ledger.tsx` (`ROWS_FLOOR`).
-- **A `Gate` keeps the anti-flash delay (200 ms).** A local read answers in a few
-  milliseconds, and a placeholder that flickers for two frames reads as jank.
-  The delay is only harmless when the region's *space* is already reserved — that
-  is what the floor above is for: the card holds its height, and the skeleton
-  fades in only for a read that is genuinely slow. Pass `delay={0}` where nothing
-  reserves the space (`pages/Home` uses it nowhere; the demo's widgets do not
-  either).
-- **Params go in `deps`.** `<pageData.Provider sources={…} deps={[dayStart, id]}>`
-  re-subscribes every key when one changes, keeping the old answers on screen
-  with `refetching` instead of blanking them.
-- `useAll` is `success` only when every key it reads is ready (errors surface
-  immediately) — it never renders a half-filled card.
-- **A failure stays inline.** `Gate` renders `role="alert"` with an optional
-  retry; the page-level boundary remains the last resort. Pass `error` to replace
-  the default slot: `<Gate error={(e) => <MyError error={e} />}>`.
-- `refresh` keeps the previous value and flags it `refetching` (same vocabulary
-  as `useQuery`'s `keepPrevious`) instead of flashing a skeleton.
-- `useSnapshot()` exposes the whole page state for a status strip or a debug
-  panel; `pageData.use(key).type` is enough for a single chip.
-- The playground lives at `/dev/page-data` (DEV only) — see
-  `src/pages/Dev/PageData/`, and `e2e/page-data.e2e.ts` for the arrival order.
-
-#### Writes — `useMutation`
-
-A mutation names the keys it invalidates. From the moment it starts, those keys
-keep their value and carry `refetching: true`; on success a read-once (`Effect`)
-key is re-run and the flag clears with the new value, while a live (`Stream`) key
-just clears — the service already pushed what changed.
-
-```ts
-const save = pageData.useMutation(service.product.set.name, {
-  refetch: ["products"],      // invalidated keys, typed
-});
-await save.mutate({ id, name });   // -> Either<A, E>, like Loader's useMutation
-// save.pending    this write's own round-trip (buttons)
-// save.refetching true through the write *and* the refetch that follows
-```
-
-**The pattern does not prescribe the look.** `res.refetching` (or the `refetching`
-argument of `Gate`'s render prop) is the only signal; each component decides:
-dim + shimmer, a spinner, a "menyegarkan" chip, a progress bar, or nothing. A
-non-stale widget must never go busy for a key it does not read.
-
-```tsx
-const res = pageData.use("products");
-<Gate res={res} skeleton={<TableSkeleton />}>
-  {({ data, refetching }) => (
-    <div className={refetching ? "pointer-events-none opacity-40" : undefined}>
-      <Table items={data} />
-    </div>
-  )}
-</Gate>
-```
-
-`useMutation` returns `pending | error | data | refetching`; failures clear the
-flag without re-running anything and come back as `Left`, so the caller decides
-between a toast, a field error, or the inline error slot. Styles for a stale
-look are page-local — `src/pages/Dev/PageData/z-Stale.tsx` is one example
-(`animate-shimmer`, defined in `global.css`, is the shared sweep).
-
----
+`createPageData` / `Gate` gate a **widget** instead of a page: the page owns the
+subscriptions, each part reads only the keys it needs, and static chrome paints on
+the first frame. Its full guide — fine-grained value placeholders, reserved card
+heights, the 200 ms anti-flash window, `useMutation`/`refetching`, `Provider deps`
+— lives in the **`page-data` skill**, with `src/pages/Home` as the reference
+implementation. Read that skill before writing or migrating any page that loads
+data.
 
 ## 3. Error boundaries — `src/components/createErrorBoundary.tsx`
 

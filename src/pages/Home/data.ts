@@ -6,6 +6,9 @@ import type { DaySummaries, DebtFacts } from "./day";
 /**
  * Beranda's data contract, one key per independent question.
  *
+ * The rules this page is built on — fine-grained value placeholders, reserved
+ * card heights, the anti-flash window, writes — live in `.pi/skills/page-data.md`.
+ *
  * The band needs the two summaries, the ledger needs the rows, the debt card
  * needs the credit — four reads that used to be one query and therefore one
  * loading state. The pockets belong to another service entirely and are
