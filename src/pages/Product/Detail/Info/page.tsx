@@ -1,20 +1,26 @@
-import { Loader, useStream } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
+import { TextError } from "~/components/TextError";
 import { NotFound } from "~/components/NotFound";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useUser } from "~/hooks/use-user";
-import { service } from "~/services";
+import { pageData } from "../data";
 import { useId } from "../use-id";
 import { History } from "./History";
 import { EditPane } from "./z-EditPane";
 import { UserInfo } from "./z-UserInfo";
 
+/** The tab's body is the data; its header and tabs already painted above. */
 export default function Page() {
   const id = useId();
-  const res = useStream(service.product.get.changesFull);
+  const res = pageData.use("products");
   const role = useUser().role;
 
   return (
-    <Loader res={res} fallback={<Loading />}>
+    <Gate
+      res={res}
+      skeleton={<Loading />}
+      error={(error) => <TextError>{error.message}</TextError>}
+    >
       {({ data: products }) => {
         const product = products.find((item) => item.id === id);
         if (product === undefined) return <NotFound />;
@@ -33,7 +39,7 @@ export default function Page() {
           </div>
         );
       }}
-    </Loader>
+    </Gate>
   );
 }
 

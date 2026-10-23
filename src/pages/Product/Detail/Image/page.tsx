@@ -11,13 +11,14 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Spinner } from "~/components/Spinner";
-import { Loader, useStream } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
+import { TextError } from "~/components/TextError";
 import { NotFound } from "~/components/NotFound";
 import { cn } from "~/lib/utils";
 import { useUser } from "~/hooks/use-user";
 import { useImageUrl } from "~/hooks/use-image";
-import { service } from "~/services";
 import type { ProductImage } from "~/services/product";
+import { pageData } from "../data";
 import { useId } from "../use-id";
 import { AddTile } from "./z-AddTile";
 import { DeleteImg } from "./z-DeleteImg";
@@ -32,15 +33,15 @@ import { useFileDrop } from "./use-file-drop";
 
 export default function Page() {
   const id = useId();
-  const res = useStream(service.product.get.changesFull);
+  const res = pageData.use("products");
   return (
-    <Loader res={res} fallback={<Loading />}>
+    <Gate res={res} skeleton={<Loading />} error={(error) => <TextError>{error.message}</TextError>}>
       {({ data: products }) => {
         const product = products.find((item) => item.id === id);
         if (product === undefined) return <NotFound />;
         return <Wrapper productId={product.id} images={product.images} />;
       }}
-    </Loader>
+    </Gate>
   );
 }
 
