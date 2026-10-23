@@ -22,6 +22,18 @@
 @custom-variant dark (&:is(.dark *));
 @custom-variant small (&:is(.small *));
 
+/* A left-to-right highlight for content that is still on screen but no longer
+   fresh (stale while a refetch is in flight). Motion is opt-out: pair it with
+   `motion-reduce:animate-none`. */
+@keyframes shimmer {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
 body {
   min-height: 100vh;
   display: flex;
@@ -296,6 +308,7 @@ main {
 }
 
 @theme inline {
+  --animate-shimmer: shimmer 1.4s linear infinite;
   --breakpoint-xs: 400px;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

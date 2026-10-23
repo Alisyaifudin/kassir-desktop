@@ -230,6 +230,105 @@ Several results at once, one loading UI, one error boundary:
 It waits for all results, throws the first error, and hands back the resolved
 data keyed by the same names.
 
+### Page-level data — `src/components/page-data/`
+
+The `Loader`/`LoaderMany` model gates a **page**: one result at the top and the
+whole tree below it goes blank. `createPageData` gates a **widget**: the page
+owns every subscription, each part reads only the keys it needs, and everything
+else paints on the first frame.
+
+```ts
+// pages/Product/data.ts — the page's data contract, declared once
+export const pageData = createPageData<{
+  products: Product[];   // live   (service.product.get.changes)
+  printers: string[];    // once   (getPrinters(), a plain Effect)
+}, ProductError | InvokeError>("ProductPage");
+```
+
+```tsx
+// pages/Product/page.tsx — the page owns the sources
+export default function Page() {
+  return (
+    <pageData.Provider sources={{
+      products: service.product.get.changes,   // Stream = live
+      printers: getPrinters(),                 // Effect = read once
+    }}>
+      <Toolbar />   {/* static chrome: interactive immediately */}
+      <Grid />      {/* gated on products */}
+      <Fab />       {/* static chrome */}
+    </pageData.Provider>
+  );
+}
+
+// z-Toolbar.tsx — a leaf reads its own slice; no prop drilling
+const res = pageData.use("products");
+return (
+  <Gate res={res} skeleton={<ToolbarSkeleton />}>
+    {({ data }) => <Bars items={data} />}
+  </Gate>
+);
+
+// z-Grid.tsx — needs two keys: waits for the *last* one
+const res = pageData.useAll("products", "printers");
+```
+
+Rules:
+
+- **Every key subscribes once, in parallel**, when the provider mounts — never a
+  waterfall. `Stream` sources stay live; `Effect` sources run once and re-run on
+  `pageData.useRefresh()(key)`.
+- **Gate the widget, not the page.** Card frames, headers, toolbars, pagination
+  and action buttons belong outside any `Gate`.
+- `useAll` is `success` only when every key it reads is ready (errors surface
+  immediately) — it never renders a half-filled card.
+- **A failure stays inline.** `Gate` renders `role="alert"` with an optional
+  retry; the page-level boundary remains the last resort. Pass `error` to replace
+  the default slot: `<Gate error={(e) => <MyError error={e} />}>`.
+- `refresh` keeps the previous value and flags it `refetching` (same vocabulary
+  as `useQuery`'s `keepPrevious`) instead of flashing a skeleton.
+- `useSnapshot()` exposes the whole page state for a status strip or a debug
+  panel; `pageData.use(key).type` is enough for a single chip.
+- The playground lives at `/dev/page-data` (DEV only) — see
+  `src/pages/Dev/PageData/`, and `e2e/page-data.e2e.ts` for the arrival order.
+
+#### Writes — `useMutation`
+
+A mutation names the keys it invalidates. From the moment it starts, those keys
+keep their value and carry `refetching: true`; on success a read-once (`Effect`)
+key is re-run and the flag clears with the new value, while a live (`Stream`) key
+just clears — the service already pushed what changed.
+
+```ts
+const save = pageData.useMutation(service.product.set.name, {
+  refetch: ["products"],      // invalidated keys, typed
+});
+await save.mutate({ id, name });   // -> Either<A, E>, like Loader's useMutation
+// save.pending    this write's own round-trip (buttons)
+// save.refetching true through the write *and* the refetch that follows
+```
+
+**The pattern does not prescribe the look.** `res.refetching` (or the `refetching`
+argument of `Gate`'s render prop) is the only signal; each component decides:
+dim + shimmer, a spinner, a "menyegarkan" chip, a progress bar, or nothing. A
+non-stale widget must never go busy for a key it does not read.
+
+```tsx
+const res = pageData.use("products");
+<Gate res={res} skeleton={<TableSkeleton />}>
+  {({ data, refetching }) => (
+    <div className={refetching ? "pointer-events-none opacity-40" : undefined}>
+      <Table items={data} />
+    </div>
+  )}
+</Gate>
+```
+
+`useMutation` returns `pending | error | data | refetching`; failures clear the
+flag without re-running anything and come back as `Left`, so the caller decides
+between a toast, a field error, or the inline error slot. Styles for a stale
+look are page-local — `src/pages/Dev/PageData/z-Stale.tsx` is one example
+(`animate-shimmer`, defined in `global.css`, is the shared sweep).
+
 ---
 
 ## 3. Error boundaries — `src/components/createErrorBoundary.tsx`
@@ -345,6 +444,8 @@ When moving a page off the legacy model:
 4. Add typed boundaries with `createErrorBoundary` / `createManyErrorBoundary`.
 5. Replace `size`-driven icon styles with the `small:` variant.
 6. Keep interface files comment-free; put implementation notes in `live.ts`.
+7. Once a page reads from services, replace its top-level `Loader` with
+   `createPageData` + per-widget `Gate`s so only the widgets that need data wait.
 
 (Note: not all pages are migrated yet — `~/store`, `~/server`, `~/middleware`,
 and `Loader-old` have been removed, and remaining consumers are being converted

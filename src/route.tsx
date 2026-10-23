@@ -16,6 +16,7 @@ import { debtRoute } from "./pages/Debt/index.tsx";
 import { extraRoute } from "./pages/Extra/index.tsx";
 import { transactionRoute } from "./pages/Transaction/index.tsx";
 import { analyticsRoute } from "./pages/Analytics/index.tsx";
+import { devPageDataRoute } from "./pages/Dev/PageData/index.tsx";
 
 const RootLayout = lazy(() => import("./layouts/root.tsx"));
 const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
@@ -47,6 +48,10 @@ export const router = createHashRouter([
           productRoute,
           moneyRoute,
           recordRoute,
+          // The page-data pattern's playground; the route only exists in a DEV
+          // build (its lazy chunk is still emitted, unreachable, in a release).
+          // See `~/components/page-data` and `src/pages/Dev/PageData`.
+          ...(import.meta.env.DEV ? [devPageDataRoute] : []),
         ],
       },
     ],
