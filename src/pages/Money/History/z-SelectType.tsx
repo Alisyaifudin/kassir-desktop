@@ -1,5 +1,14 @@
 import { memo } from "react";
 import { z } from "zod";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+
+const pocketType = z.enum(["absolute", "change"]);
 
 export const SelectType = memo(function SelectType({
   type,
@@ -9,16 +18,19 @@ export const SelectType = memo(function SelectType({
   onChange: (type: "absolute" | "change") => void;
 }) {
   return (
-    <select
+    <Select
       value={type}
-      onChange={(e) => {
-        const v = z.enum(["absolute", "change"]).catch("absolute").parse(e.currentTarget.value);
-        onChange(v);
-      }}
-      className="py-1 w-fit outline text-big outline-border shadow-md rounded-sm"
+      onValueChange={(value) => onChange(pocketType.catch("absolute").parse(value))}
     >
-      <option value="change">Perubahan</option>
-      <option value="absolute">Mutlak</option>
-    </select>
+      {/* Same box as the `NumberField` beside it: `text-normal` with the input's
+          `py-1`, so the pair reads as one row instead of two heights. */}
+      <SelectTrigger aria-label="Jenis catatan" className="w-fit shrink-0 py-1 text-normal">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="change">Perubahan</SelectItem>
+        <SelectItem value="absolute">Mutlak</SelectItem>
+      </SelectContent>
+    </Select>
   );
 });

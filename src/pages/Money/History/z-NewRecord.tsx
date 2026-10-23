@@ -49,7 +49,9 @@ export const NewRecord = memo(function NewRecord({ pocket }: { pocket: Pocket })
           }}
           className="flex flex-col gap-2"
         >
-          <div className="flex items-center gap-2">
+          {/* `items-stretch` lets the type listbox take its height from the
+              number field beside it, so the row reads as one control. */}
+          <div className="flex items-stretch gap-2">
             <form.Field name="value">
               {(field) => (
                 <NumberField
