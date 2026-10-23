@@ -1,7 +1,6 @@
 import { Cause, Effect } from "effect";
 import { log } from "~/lib/log";
 import { printPdf } from "~/lib/printer";
-import { generatePdfBytes } from "~/lib/receipt";
 import { ReceiptData } from "~/lib/receipt/type";
 import { service } from "~/services";
 
@@ -23,6 +22,11 @@ export const programPrint = (
   Effect.gen(function* () {
     const printer = yield* service.printer.get();
     const info = yield* service.info.info();
+    // `pdf-lib` is the heaviest thing in the app (~2 MB) and a test print is a
+    // deliberate act, so the receipt module is fetched when the button is
+    // pressed — not when the settings screen opens, and never for the app's
+    // first paint.
+    const { generatePdfBytes } = yield* Effect.promise(() => import("~/lib/receipt"));
     const pdfBytes = yield* generatePdfBytes(
       {
         ...data,

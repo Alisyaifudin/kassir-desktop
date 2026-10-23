@@ -1,6 +1,6 @@
 ---
 name: page-data
-description: How to build a page's async data with createPageData/Gate — one key per independent read, per-widget gating, fine-grained value placeholders (pulse the value, never swap the card), reserved card heights (ROWS_FLOOR) so loading never shifts layout, the 200 ms anti-flash window, mutations and the refetching flag, Provider deps for params, and error isolation. Use whenever creating or migrating a page under src/pages/, adding async data to a component, wiring a write that changes page data, or auditing a page that blocks on a top-level Loader. src/pages/Home is the reference implementation.
+description: How to build a page's async data with createPageData/Gate — one key per independent read, per-widget gating, fine-grained value placeholders (pulse the value, never swap the card), reserved card heights (ROWS_FLOOR) so loading never shifts layout, the 200 ms anti-flash window, mutations and the refetching flag, Provider deps for params, and error isolation. Use whenever creating or migrating a page under src/pages/, adding async data to a component, wiring a write that changes page data, or auditing a page that blocks on a top-level Loader. src/pages/Home (dashboard + list) and src/pages/Setting (form panels) are the reference implementations.
 ---
 
 # Page data — `~/components/page-data`
@@ -49,6 +49,18 @@ the mistakes that were made first.
 Static chrome never waits: headers, card frames, card heads, `Riwayat` /
 `Kelola` links, toolbars, pagination, action buttons, menus. If a part renders no
 async value, it must not be inside anything that waits.
+
+**Neither does a screen whose content is static data.** The settings section
+imports its shell and *every* screen eagerly (`pages/Setting/*/index.tsx`): the
+section names (`Akun`, `Toko`, `Sistem`), the five rows, their descriptions and
+each form's labels come from `util-nav.ts` and the markup, while the values load
+through `page-data` inside. A `React.lazy` screen behind
+`<Suspense fallback={<LoadingScreen/>}>` only hid that static half behind a
+page-shaped skeleton — the same mistake as a top-level `Loader`, in another
+costume. Laziness there is about *chunks*, not data, so check what the chunk
+actually costs first: `Printer`'s test print pulled `pdf-lib` (~2 MB) into the
+route, so the receipt module is now a dynamic import at click time
+(`Printer/util-program-print.ts`) and the eager screen costs nothing.
 
 **A leaf reads its own slice** (`pageData.use("records")`) — no prop-drilling a
 `Result`, no `useDay()` bundling three unrelated reads behind one spinner.
@@ -114,6 +126,16 @@ Rules:
   pulses.
 - **`Gate` is still right for a body**: a list, table or grid whose *content* is
   the thing loading has no static part to keep (`z-Ledger.tsx`, `z-Uang.tsx`).
+- **A control is not a text value.** Render the real control disabled and empty
+  inside `PendingValue` (`pages/Setting/z-PendingValue.tsx`): its border, padding,
+  chevron and height are the control's own, and only the text inside pulses. A
+  checkbox pulses as a box of the checkbox's size — an empty unchecked box would
+  be a claim.
+- **Hoist what the form does not own.** `Setting/Printer` keeps the label and the
+  description of each field outside the `Gate`, so only the control slot waits.
+  Where the form library owns the label (`Setting/Shop`, TanStack Form), the
+  skeleton renders the same labels from one `LABELS` map, so the two states can
+  never disagree about which field is which.
 
 `SkeletonText` lives beside `Skeleton` in `~/components/ui/skeleton.tsx`.
 `Skeleton` (`div`) is for **blocks**; `SkeletonText` (`span`) for **values inside
@@ -173,6 +195,20 @@ Hard-won rules:
 Inline value pulses (§3) are drawn immediately, on purpose: the line they sit in
 is otherwise static (`Rp`, `transaksi`), so deferring them would put a hole in a
 sentence. The anti-flash window applies to `Gate` skeletons, not to values.
+
+**When the skeleton is itself the shape** — a form: same labels, same controls,
+same gaps — no `min-h` can stay true across app sizes. Mount the skeleton at once
+and keep it invisible for the window instead:
+
+```tsx
+<Gate res={res} delay={0} skeleton={<ReservedSkeleton className="flex flex-col gap-4">…</ReservedSkeleton>}>
+```
+
+`ReservedSkeleton` (`pages/Setting/z-ReservedSkeleton.tsx`) renders its children
+transparent for `useDelayedFlag(true)`'s 200 ms. The space is taken from the first
+frame, nothing grey is drawn for a fast read, and a slow read fades the
+placeholder in without moving anything. Its `className` must reproduce the layout
+the real children will have (the panel's gaps), or the reservation is a lie.
 
 ## 6. Errors degrade one region
 
@@ -276,6 +312,21 @@ pockets: isAdmin ? service.money.pockets.get.changes : Stream.empty,
 9. Verify: `npx tsc --noEmit`, `npx eslint <touched paths>`, `bun test`.
    `e2e/home.e2e.ts` is the e2e reference for the regions and their order.
 
+### Second reference — `src/pages/Setting` (forms)
+
+| file | what it shows |
+|---|---|
+| `Shop/data.ts` | one key for a value written whole (`info.set`) — do not split an object a single write owns |
+| `Shop/page.tsx` | panel head and field labels static; `delay={0}` + `ReservedSkeleton`; error slot in the panel |
+| `Shop/z-Info.tsx` | `LABELS` shared by the form and its skeleton; the save button drawn in both |
+| `Printer/data.ts` | two keys with different freshness: stored config (live stream) vs hardware list (read once) |
+| `Printer/z-SelectPrinter.tsx` | label/description outside the `Gate`; the control slot is the only thing pending |
+| `z-PendingValue.tsx` | a control holding its own box with a pulse inside |
+| `z-ReservedSkeleton.tsx` | invisible reservation for a shape the page cannot measure |
+| `Log/page.tsx` | the console box is chrome; only the lines wait (default delay, space reserved by the layout) |
+| `*/index.tsx` | every screen in the section imported eagerly — no page-level `Suspense` over static heads and labels |
+| `Printer/util-program-print.ts` | the 2 MB receipt dependency loaded at click time, not with the screen |
+
 ## 11. Review checklist
 
 - [ ] No `Loader`/`useQuery` above a region — each region reads its own key.
@@ -300,5 +351,8 @@ pockets: isAdmin ? service.money.pockets.get.changes : Stream.empty,
 | Card jumps when data lands | skeleton height ≠ content height | match row heights and counts to the floor |
 | Amount appears but the delta disappears | bundled keys, or a card-level skeleton | separate keys + inline pulses (§3) |
 | The whole page blinks on navigation | one top-level `Loader` left in place | per-region keys (§1) |
+| A static list/section shows a page skeleton | the hub/screens are `React.lazy` behind `Suspense` | import them eagerly; lazy the heavy dependency instead (§1) |
 | Loader flashes for 10 ms on every visit | anti-flash delay removed | restore `delay = 200` (§5) |
+| Form panel grows when the form lands | shape-only skeleton was delayed with no space reserved | `delay={0}` + `ReservedSkeleton` (§5) |
+| Input flashes an empty box then text | value rendered without the control | `PendingValue` around the real disabled control (§3) |
 | Money card waits for the day | `pockets` read below the day's `Gate` | register both sources on the page |

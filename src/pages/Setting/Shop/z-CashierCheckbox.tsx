@@ -4,6 +4,7 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { CheckedState } from "@radix-ui/react-checkbox";
+import { Skeleton } from "~/components/ui/skeleton";
 import { useMutation } from "~/components/Loader";
 import { patchInfo } from "./util-patch-info";
 
@@ -27,3 +28,16 @@ export const CashierCheckbox = memo(function CashierCheckbox({
     </>
   );
 });
+
+/**
+ * The checkbox row while `info` is loading: the label is static, the box is the
+ * size of the real one and pulses. An empty box would read as "unchecked".
+ */
+export function CashierSkeleton() {
+  return (
+    <Label className="flex items-center gap-3" aria-busy="true" aria-label="Memuat opsi kasir">
+      <span>Tampilkan Nama Kasir</span>
+      <Skeleton className="h-6 w-6 rounded-sm" />
+    </Label>
+  );
+}
