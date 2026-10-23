@@ -94,7 +94,14 @@ function Body({
             <div className="h-full min-w-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Tooltip {...TOOLTIP} />
+                  <Tooltip
+                    {...TOOLTIP}
+                    formatter={(value, name) => {
+                      const key = String(name ?? "");
+                      const label = (METHOD_NAMES as Record<string, string>)[key];
+                      return [money(Number(value)), label ?? key];
+                    }}
+                  />
                   <Pie
                     data={payments}
                     dataKey="total"
@@ -110,19 +117,21 @@ function Body({
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <ul className="flex w-[380px] shrink-0 flex-col gap-1">
+            {/* As wide as its longest row: "Transfer · 1× · Rp481.341.968" at
+                text-normal is ~385px, and a clipped "Tu…" reads as a bug. */}
+            <ul className="flex w-fit shrink-0 flex-col gap-1">
               {payments.map((row, index) => (
                 <li key={row.kind} className="flex items-baseline justify-between gap-3">
-                  <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="flex items-center gap-1.5">
                     <span
                       aria-hidden="true"
                       className="size-2 shrink-0 rounded-full"
                       style={{ background: chartColor(index) }}
                     />
-                    <span className="min-w-0 truncate">{METHOD_NAMES[row.kind]}</span>
+                    <span className="whitespace-nowrap">{METHOD_NAMES[row.kind]}</span>
                   </span>
                   <span className="flex shrink-0 items-baseline gap-2">
-                    <span className="text-small tabular-nums text-muted-foreground">
+                    <span className="text-small whitespace-nowrap text-muted-foreground tabular-nums">
                       {row.count}×
                     </span>
                     <span className="font-semibold tabular-nums">{money(row.total)}</span>

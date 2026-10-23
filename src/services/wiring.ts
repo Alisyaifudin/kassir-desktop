@@ -31,6 +31,7 @@ import { RecordService } from "./record";
 import { RecordLive } from "./record/live";
 import { SocialService } from "./social";
 import { SocialLive } from "./social/live";
+import { StoreService } from "./store";
 import { StoreLive } from "./store/live";
 import { SupplierService } from "./supplier";
 import { SupplierLive } from "./supplier/live";
@@ -91,6 +92,7 @@ export function buildAppLive(hidden: HiddenLive) {
     supplierLive,
     transactionLive,
     authLive,
+    hidden,
   );
 }
 
@@ -121,6 +123,7 @@ export function makeService(live: typeof appLive) {
         product: yield* ProductService,
         record: yield* RecordService,
         social: yield* SocialService,
+        store: yield* StoreService,
         supplier: yield* SupplierService,
         transaction: yield* TransactionService,
         auth: yield* AuthService,

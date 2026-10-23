@@ -58,10 +58,13 @@ export const DateRange = memo(function DateRange({
   className,
   range,
   setRange,
+  children,
 }: {
   className?: string;
   range: [number, number];
   setRange: (start: number, end: number) => void;
+  /** Trigger label; the default spells both bounds out in full. */
+  children?: React.ReactNode;
 }) {
   const [level, setLevel] = useState<[Interval, Interval]>(["day", "day"]);
   const [open, setOpen] = useState(false);
@@ -74,9 +77,7 @@ export const DateRange = memo(function DateRange({
       }}
     >
       <Button asChild variant="ghost" className={cn("flex items-center gap-2 outline", className)}>
-        <DialogTrigger>
-          <CalendarLabel range={range} />
-        </DialogTrigger>
+        <DialogTrigger>{children ?? <CalendarLabel range={range} />}</DialogTrigger>
       </Button>
       <DialogContent className="flex flex-col gap-5 max-w-full w-fit justify-center">
         <DialogDescription>
@@ -142,7 +143,7 @@ function Content({
   setLevel: (level: Interval) => void;
 }) {
   const [date, setDate] = useState(() =>
-    Temporal.Instant.fromEpochMilliseconds(range[mode]).toZonedDateTimeISO(tz).startOfDay()
+    Temporal.Instant.fromEpochMilliseconds(range[mode]).toZonedDateTimeISO(tz).startOfDay(),
   );
   switch (level) {
     case "day":
@@ -216,7 +217,7 @@ function DayCalendar({
     const deltaStart = startOfMonth.dayOfWeek - 1;
     const start = startOfMonth.subtract(Temporal.Duration.from({ days: deltaStart }));
     const endOfMonth = startOfMonth.add(
-      Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 })
+      Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 }),
     );
     const deltaEnd = 7 - endOfMonth.dayOfWeek;
     const end = endOfMonth.add(Temporal.Duration.from({ days: deltaEnd + 1 }));
@@ -261,7 +262,9 @@ function DayCalendar({
           </Button>
         </div>
       </DialogHeader>
-      <DialogDescription>Pilih hari untuk rentang laporan: klik tanggal awal, lalu tanggal akhir.</DialogDescription>
+      <DialogDescription>
+        Pilih hari untuk rentang laporan: klik tanggal awal, lalu tanggal akhir.
+      </DialogDescription>
       <div className="grid grid-cols-7">
         <div className="col-span-7 grid grid-cols-7 gap-2">
           <p className="text-center">Sen</p>
@@ -287,7 +290,7 @@ function DayCalendar({
               onClick={() => {
                 const t = sanitizeTime(ms);
                 setDate(
-                  Temporal.Instant.fromEpochMilliseconds(t).toZonedDateTimeISO(tz).startOfDay()
+                  Temporal.Instant.fromEpochMilliseconds(t).toZonedDateTimeISO(tz).startOfDay(),
                 );
                 setTime(t);
               }}
@@ -338,7 +341,7 @@ function MonthCalendar({
   }).startOfDay();
   const handleClick = (month: number) => {
     const t = sanitizeTime(
-      Temporal.Instant.fromEpochMilliseconds(month).toZonedDateTimeISO(tz).startOfDay()
+      Temporal.Instant.fromEpochMilliseconds(month).toZonedDateTimeISO(tz).startOfDay(),
     );
     setDate(t);
     setLevel("day");
@@ -389,8 +392,8 @@ function MonthCalendar({
                 selectedTime.month === i + 1 && selectedTime.year === date.year
                   ? "default"
                   : today.month === i + 1 && today.year === date.year
-                  ? "outline"
-                  : "ghost"
+                    ? "outline"
+                    : "ghost"
               }
               onClick={() => handleClick(start)}
             >
@@ -436,7 +439,7 @@ function YearCalendar({
         year,
         month: today.month,
         day: today.day,
-      })
+      }),
     ).startOfDay();
     setDate(t);
     setLevel("month");

@@ -22,6 +22,23 @@ export const INTERVALS: { key: Interval; label: string }[] = [
   { key: "month", label: "Bulan" },
 ];
 
+export const DAY_MS = 86_400_000;
+
+/** Monday 00:00 of the week that holds `at`, in the shop's timezone. */
+export function startOfWeek(at: number): number {
+  const date = Temporal.Instant.fromEpochMilliseconds(at).toZonedDateTimeISO(tz).startOfDay();
+  return date.subtract(Temporal.Duration.from({ days: date.dayOfWeek - 1 })).epochMilliseconds;
+}
+
+/** The week (Monday..next Monday, `to` exclusive) that holds `at`. */
+export function weekRange(anchor: number): { from: number; to: number } {
+  const from = startOfWeek(anchor);
+  const to = Temporal.Instant.fromEpochMilliseconds(from)
+    .toZonedDateTimeISO(tz)
+    .add(Temporal.Duration.from({ weeks: 1 })).epochMilliseconds;
+  return { from, to };
+}
+
 /** Local midnight `daysAgo` days before today, as epoch ms. */
 function dayStart(daysAgo = 0): number {
   return Temporal.Now.zonedDateTimeISO(tz)
@@ -62,8 +79,9 @@ function oneOf<T extends string>(value: string | null, allowed: readonly T[], fa
 
 /**
  * The period every analytics page reads, in the URL so a sub-page switch keeps
- * it and a refresh restores it. The presets write `from`/`to`; the custom range
- * (if one ever lands) would write them directly and leave `preset` out.
+ * it and a refresh restores it. A preset writes `from`/`to` and names itself; a
+ * hand-picked range (the date picker, a week) writes the same two bounds and
+ * leaves `preset` out, so no preset button reads as pressed.
  */
 export function useRange() {
   const [params, setParams] = useSearchParams();
@@ -73,7 +91,8 @@ export function useRange() {
   const from = Number(params.get("from")) || defaults.from;
   const to = Number(params.get("to")) || defaults.to;
   const interval = oneOf(params.get("interval"), ["day", "week", "month"], "day");
-  const preset = (params.get("preset") as Preset | null) ?? "30d";
+  const raw = params.get("preset");
+  const preset = PRESETS.some((option) => option.key === raw) ? (raw as Preset) : null;
 
   const write = (next: { from: number; to: number; preset?: Preset; interval?: Interval }) => {
     setParams(
@@ -94,7 +113,10 @@ export function useRange() {
   const setPreset = (next: Preset) =>
     write({ ...rangeFor(next), preset: next, interval: next === "year" ? "month" : "day" });
   const setInterval = (next: Interval) =>
-    write({ from, to, preset: (preset as Preset) ?? undefined, interval: next });
+    write({ from, to, preset: preset ?? undefined, interval: next });
+  /** A hand-picked period: `to` is exclusive, as everywhere else on these pages. */
+  const setRange = (nextFrom: number, nextTo: number) =>
+    write({ from: nextFrom, to: nextTo, interval });
 
-  return { from, to, interval, preset, setPreset, setInterval } as const;
+  return { from, to, interval, preset, setPreset, setInterval, setRange } as const;
 }
