@@ -1,3 +1,4 @@
+import { Either } from "effect";
 import { useMutation } from "~/components/Loader";
 import { service } from "~/services";
 
@@ -11,8 +12,11 @@ export function useChangePaidAt(id: string) {
     service.record.set.paidAt(input.id, input.paidAt),
   );
 
-  async function change(paidAt: number) {
-    await mutate({ id, paidAt });
+  /** `true` when the record accepted the time; the editor keeps its dialog open
+   *  otherwise, so the failure is readable instead of closing over it. */
+  async function change(paidAt: number): Promise<boolean> {
+    const result = await mutate({ id, paidAt });
+    return Either.isRight(result);
   }
 
   return { loading: pending, error: error?.message ?? null, change } as const;
