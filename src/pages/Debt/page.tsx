@@ -1,8 +1,8 @@
-import { Loader } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Summary } from "./z-Summary";
 import { DebtTable } from "./z-DebtTable.tsx";
-import { DebtErrorBoundary, DebtErrorFallback } from "./z-Error";
+import { DebtErrorFallback } from "./z-Error";
 import { useData } from "./use-data";
 import { totalDebt } from "./util-debt";
 
@@ -37,17 +37,19 @@ function Loading() {
 function Content() {
   const res = useData();
   return (
-    <DebtErrorBoundary fallback={DebtErrorFallback}>
-      <Loader res={res} fallback={<Loading />}>
-        {({ data: records }) => (
-          <>
-            <Summary total={totalDebt(records)} />
-            <div className="flex flex-col gap-2 py-1 flex-1  overflow-hidden">
-              <DebtTable records={records} />
-            </div>
-          </>
-        )}
-      </Loader>
-    </DebtErrorBoundary>
+    <Gate
+      res={res}
+      skeleton={<Loading />}
+      error={(error) => <DebtErrorFallback error={error} />}
+    >
+      {({ data: records }) => (
+        <>
+          <Summary total={totalDebt(records)} />
+          <div className="flex flex-col gap-2 py-1 flex-1  overflow-hidden">
+            <DebtTable records={records} />
+          </div>
+        </>
+      )}
+    </Gate>
   );
 }

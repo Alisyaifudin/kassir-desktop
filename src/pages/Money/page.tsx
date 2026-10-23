@@ -1,15 +1,16 @@
-import { useCallback } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { Loader, useMutation, useStream } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
+import { TextError } from "~/components/TextError";
+import { useMutation } from "~/components/Loader";
 import Redirect from "~/components/Redirect";
 import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
 import type { PocketSummary } from "~/services/money";
+import { pageData } from "./data";
 import { NavCard } from "./z-NavCard";
 import { NewPocket } from "./z-NewPocket";
-import { MoneyErrorBoundary, MoneyErrorFallback } from "./z-Error";
 import { CardsLoading } from "./z-Loading";
 
 export default function Page() {
@@ -19,14 +20,18 @@ export default function Page() {
   if (role !== "admin") return <Redirect to="/" />;
 
   return (
-    <MoneyErrorBoundary fallback={MoneyErrorFallback}>
+    <pageData.Provider sources={{ pockets: service.money.pockets.get.changes }}>
       <Grid />
-    </MoneyErrorBoundary>
+    </pageData.Provider>
   );
 }
 
+/**
+ * The heading and the add-pocket button are static; only the cards wait. A failed
+ * read is a line where the grid would be, not a full-page takeover.
+ */
 function Grid() {
-  const res = useStream(service.money.pockets.get.changes);
+  const res = pageData.use("pockets");
   const { mutate } = useMutation(service.money.pockets.set.ordering);
 
   return (
@@ -36,14 +41,15 @@ function Grid() {
       </div>
       {/* The service owns the order, so a drop re-reads it back instead of
           keeping a second copy of the list in this component. */}
-      <Loader res={res} fallback={<CardsLoading />}>
+      <Gate
+        res={res}
+        skeleton={<CardsLoading />}
+        error={(error) => <TextError>{error.message}</TextError>}
+      >
         {({ data: summaries }) => (
-          <Sortable
-            summaries={summaries}
-            onReorder={(items) => void mutate(items)}
-          />
+          <Sortable summaries={summaries} onReorder={(items) => void mutate(items)} />
         )}
-      </Loader>
+      </Gate>
       <NewPocket />
     </main>
   );
@@ -60,26 +66,26 @@ function Sortable({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (over === null || active.id === over.id) return;
-      const oldIndex = summaries.findIndex((summary) => summary.pocket.id === active.id);
-      const newIndex = summaries.findIndex((summary) => summary.pocket.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-      onReorder(
-        arrayMove(summaries, oldIndex, newIndex).map((summary, order) => ({
-          id: summary.pocket.id,
-          order,
-        })),
-      );
-    },
-    [summaries, onReorder],
-  );
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+    const oldIndex = summaries.findIndex((summary) => summary.pocket.id === active.id);
+    const newIndex = summaries.findIndex((summary) => summary.pocket.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    onReorder(
+      arrayMove(summaries, oldIndex, newIndex).map((summary, order) => ({
+        id: summary.pocket.id,
+        order,
+      })),
+    );
+  };
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={summaries.map((summary) => summary.pocket.id)} strategy={rectSortingStrategy}>
+      <SortableContext
+        items={summaries.map((summary) => summary.pocket.id)}
+        strategy={rectSortingStrategy}
+      >
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
           {summaries.map((summary) => (
             <NavCard key={summary.pocket.id} summary={summary} />

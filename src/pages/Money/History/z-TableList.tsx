@@ -21,7 +21,7 @@ import { cn } from "~/lib/utils";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 import type { PocketType } from "~/services/money";
 import { DeleteRecordBtn } from "./z-DeleteRecordBtn";
-import type { MoneyRow } from "./use-data";
+import type { MoneyRow } from "./with-diff";
 
 /**
  * The note column stays one line, cut at this many characters (ellipsis

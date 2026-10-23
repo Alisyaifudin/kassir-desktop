@@ -13,7 +13,7 @@ import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 import { useDeleteRecord } from "./use-delete-record";
-import type { MoneyRow } from "./use-data";
+import type { MoneyRow } from "./with-diff";
 
 export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money: MoneyRow }) {
   const [open, setOpen] = useState(false);

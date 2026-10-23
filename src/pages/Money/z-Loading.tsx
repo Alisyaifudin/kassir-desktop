@@ -58,3 +58,16 @@ export function TableLoading({ cols = 7 }: { cols?: number }) {
     </Table>
   );
 }
+
+/** The history header: the pocket's name and its two controls. */
+export function HeaderLoading() {
+  return (
+    <div className="flex items-center justify-between" aria-busy="true" aria-label="Memuat kantong">
+      <Skeleton className="h-10 w-56" />
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-40" />
+        <Skeleton className="size-10" />
+      </div>
+    </div>
+  );
+}

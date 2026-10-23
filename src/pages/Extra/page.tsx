@@ -1,10 +1,11 @@
 import { Layout } from "./z-Layout";
 import { ExtraPanel } from "./z-ExtraPanel";
 import { Table, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { Loader, useStream } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
+import { useStream } from "~/components/Loader";
 import { service } from "~/services";
 import { ExtraList } from "./z-ExtraList";
-import { ExtraErrorBoundary, ExtraErrorFallback } from "./z-Error";
+import { ExtraErrorFallback } from "./z-Error";
 import { Loading } from "./z-LoadingTable";
 
 export default function Page() {
@@ -33,11 +34,11 @@ export default function Page() {
 
 function List() {
   const res = useStream(service.extra.get.changes);
+  // The table head and the toolbar above are already static; only the rows wait,
+  // and a failed read is a row in the same body rather than the whole page.
   return (
-    <ExtraErrorBoundary fallback={ExtraErrorFallback}>
-      <Loader res={res} fallback={<Loading />}>
-        {({ data: extras }) => <ExtraList all={extras} />}
-      </Loader>
-    </ExtraErrorBoundary>
+    <Gate res={res} skeleton={<Loading />} error={(error) => <ExtraErrorFallback error={error} />}>
+      {({ data: extras }) => <ExtraList all={extras} />}
+    </Gate>
   );
 }

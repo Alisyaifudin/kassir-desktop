@@ -1,0 +1,2 @@
+import{u as a,s as r,j as e,L as n,O as o,r as u}from"./index-DxjZdrqo.js";function i(s){document.body.classList.toggle("small",s==="small")}function f(){const s=a(r.config.size.changes);return e.jsx(n,{res:s,children:({data:t})=>e.jsxs(e.Fragment,{children:[e.jsx(l,{size:t}),e.jsx(o,{})]})})}function l({size:s}){return u.useLayoutEffect(()=>{i(s)},[s]),null}export{f as default};
+//# sourceMappingURL=root-CVc6YbL8.js.map

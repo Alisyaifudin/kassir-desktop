@@ -1,20 +1,19 @@
 import { Info } from "./z-Info";
 import { ExtraForm } from "./z-ExtraForm";
-import { Loader, useStream } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
+import { useStream } from "~/components/Loader";
 import { NotFound } from "~/components/NotFound";
 import { service } from "~/services";
 import type { Extra } from "~/services/extra";
 import { useUser } from "~/hooks/use-user";
 import { Skeleton } from "~/components/ui/skeleton";
-import { ExtraErrorBoundary, ExtraErrorFallback } from "../z-Error";
+import { ExtraErrorFallback } from "../z-Error";
 
 export default function Page({ id }: { id: string }) {
   return (
     <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
       <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
-        <ExtraErrorBoundary fallback={ExtraErrorFallback}>
-          <Finder id={id} />
-        </ExtraErrorBoundary>
+        <Finder id={id} />
       </div>
     </main>
   );
@@ -23,14 +22,14 @@ export default function Page({ id }: { id: string }) {
 function Finder({ id }: { id: string }) {
   const res = useStream(service.extra.get.changes);
   return (
-    <Loader res={res} fallback={<Loading />}>
+    <Gate res={res} skeleton={<Loading />} error={(error) => <ExtraErrorFallback error={error} />}>
       {({ data: extras }) => {
         // The row can be deleted from elsewhere, or the id hand-edited.
         const extra = extras.find((item) => item.id === id);
         if (extra === undefined) return <NotFound />;
         return <Detail extra={extra} />;
       }}
-    </Loader>
+    </Gate>
   );
 }
 
