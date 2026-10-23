@@ -1,5 +1,14 @@
 import { Effect, Stream } from "effect";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Rectangle,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Loader, useQuery } from "~/components/Loader";
 import { service } from "~/services";
 import type { DailyStat, MarginStat } from "~/services/analytics";
@@ -54,6 +63,16 @@ export default function Page() {
     </AnalyticsErrorBoundary>
   );
 }
+
+/** A loss bucketed below zero reads red, not green — the sign decides the ink. */
+type MarginBarProps = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  radius?: number | [number, number, number, number];
+  payload?: { margin?: number };
+};
 
 function Body({
   margins,
@@ -115,7 +134,20 @@ function Body({
             <XAxis dataKey="label" tick={geo.tick} minTickGap={28} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={moneyTick} />
             <Tooltip {...TOOLTIP} />
-            <Bar dataKey="margin" name="Laba kotor" fill={COLORS.laba} radius={[3, 3, 0, 0]} />
+            <Bar
+              dataKey="margin"
+              name="Laba kotor"
+              shape={(props: MarginBarProps) => {
+                const negative = (props.payload?.margin ?? 0) < 0;
+                return (
+                  <Rectangle
+                    {...props}
+                    fill={negative ? COLORS.pengeluaran : COLORS.laba}
+                    radius={negative ? [0, 0, 3, 3] : [3, 3, 0, 0]}
+                  />
+                );
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>
