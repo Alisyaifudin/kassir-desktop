@@ -1,7 +1,7 @@
 import { CashierCheckbox, CashierSkeleton } from "./z-CashierCheckbox";
 import { Info, InfoSkeleton } from "./z-Info";
 import { Gate } from "~/components/page-data";
-import { ReservedSkeleton } from "../z-ReservedSkeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { service } from "~/services";
 import { PageHeader } from "../z-PageHeader";

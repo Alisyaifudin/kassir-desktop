@@ -4,8 +4,8 @@ import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import type { Printer } from "~/services/printer";
-import { PendingValue } from "../z-PendingValue";
-import { ReservedSkeleton } from "../z-ReservedSkeleton";
+import { PendingValue } from "~/components/page-data";
+import { ReservedSkeleton } from "~/components/page-data";
 import { pageData } from "./data";
 import { useChangePrinterWidth } from "./use-change-width";
 

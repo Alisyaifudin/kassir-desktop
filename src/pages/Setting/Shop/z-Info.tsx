@@ -7,7 +7,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { useUpdate } from "./use-update";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import type { Info as InfoModel } from "~/services/info";
-import { PendingValue } from "../z-PendingValue";
+import { PendingValue } from "~/components/page-data";
 
 /**
  * Field labels are part of the form's static half, so the skeleton and the form

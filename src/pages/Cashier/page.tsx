@@ -1,50 +1,57 @@
+import { Gate } from "~/components/page-data";
+import { TextError } from "~/components/TextError";
+import { Skeleton } from "~/components/ui/skeleton";
+import { service } from "~/services";
+import { pageData } from "./data";
 import { Item } from "./z-Item";
 import { NewCashier } from "./z-NewCashier";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Loader, useStream } from "~/components/Loader";
-import { service } from "~/services";
-import { CashierErrorBoundary, CashierErrorFallback } from "./z-Error";
 
+/** Static head and add button; the list is the only key. */
 export default function Page() {
   return (
-    <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
-        <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
-      </div>
+    <pageData.Provider sources={{ cashiers: service.cashier.get.changes }}>
+      <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
+          <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
+        </div>
 
-      <div className="flex flex-col gap-2">
-        <CashierList />
-      </div>
-      <NewCashier />
-    </main>
+        <div className="flex flex-col gap-2">
+          <CashierList />
+        </div>
+        <NewCashier />
+      </main>
+    </pageData.Provider>
   );
 }
 
 function CashierList() {
-  const res = useStream(service.cashier.get.changes);
+  const res = pageData.use("cashiers");
+
   return (
-    <CashierErrorBoundary fallback={CashierErrorFallback}>
-      <Loader res={res} fallback={<LoadingList />}>
-        {({ data: cashiers }) => (
-          <>
-            {cashiers.map((cashier) => (
-              <Item key={cashier.id} cashier={cashier} />
-            ))}
-          </>
-        )}
-      </Loader>
-    </CashierErrorBoundary>
+    <Gate
+      res={res}
+      skeleton={<LoadingList />}
+      error={(error) => <TextError>{`Daftar kasir bermasalah: ${error.message}`}</TextError>}
+    >
+      {({ data }) => (
+        <>
+          {data.map((cashier) => (
+            <Item key={cashier.id} cashier={cashier} />
+          ))}
+        </>
+      )}
+    </Gate>
   );
 }
 
 function LoadingList() {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" aria-busy="true" aria-label="Memuat kasir">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center p-3 gap-3 rounded-xl bg-muted/30 animate-pulse"
+          className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center p-3 gap-3 rounded-xl bg-muted/30"
         >
           <Skeleton className="h-8 w-full rounded-lg" />
           <Skeleton className="h-8 w-full rounded-lg" />
