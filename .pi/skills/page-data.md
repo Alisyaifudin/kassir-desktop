@@ -356,3 +356,40 @@ pockets: isAdmin ? service.money.pockets.get.changes : Stream.empty,
 | Form panel grows when the form lands | shape-only skeleton was delayed with no space reserved | `delay={0}` + `ReservedSkeleton` (§5) |
 | Input flashes an empty box then text | value rendered without the control | `PendingValue` around the real disabled control (§3) |
 | Money card waits for the day | `pockets` read below the day's `Gate` | register both sources on the page |
+
+## 12. Where this is applied (keep it current)
+
+Migrated, each with a `data.ts` next to its `page.tsx`:
+
+| page | keys | notes |
+|---|---|---|
+| `Home` | `today`, `yesterday`, `records`, `debt`, `pockets` | the reference dashboard; per-widget pulses + `ROWS_FLOOR` |
+| `Setting/{Shop,Printer,Log}` | `info` / `printer`+`printers` / `lines` | the reference forms; `PendingValue` + `ReservedSkeleton` |
+| `Customer`, `Cashier`, `Method`, `Social` | one list key each | static heads, inline failures |
+| `Product` | `products` | toolbar/footer/add button static; counts pulse |
+| `Product/Detail` (+ `Info`, `Image`) | `products` (`changesFull`) | one key for the header and both tabs |
+| `Record` | `records` (day + query as `deps`) | left pane only; the right pane reads its own record |
+| `Record/Item` | `record`, `info`, `socials` | tab strip static; record live on the revision |
+| `Money` | `pockets` | heading + add button static |
+| `Money/History` | `pockets`, `entries` (range as `deps`) | header and ledger independent |
+| `Debt`, `Extra`, `Extra/Detail` | one key each | `Gate` + inline fallback |
+
+Deliberately still on `Loader`/`LoaderMany`, with reasons:
+
+- **Interactive cart strips** (`Pos/z-Bottom`, `Transaction/z-Bottom`,
+  `Restock/Draft/z-Payment`): their retry is a *remount* (`key={attempt}`) that
+  re-subscribes the stream, and the failing read is a small control under a total
+  that is already on screen. Converting them to a `Gate` would drop that retry.
+  If one is migrated, keep the retry by adding `pageData.useRefresh()(key)` to
+  `Gate`'s `onRetry` — do not silently lose it.
+- **Cart screens** (`Pos`, `Restock`, `Transaction`): the draft *is* the screen.
+  Their skeletons are shape-matched to the whole grid, which is honest; the
+  fine-grained rule applies to the static chrome around them, which is already
+  outside any loader (tabs, totals, buttons).
+- **Dialog / popover loads** (`Record/z-Header/FilterDialog`,
+  `Record/Item/.../z-Method`): a control that lives inside an overlay; the
+  placeholder is shaped like the control and the overlay itself is static.
+- **Analytics pages**: each page's *body* is the analysis (summary + charts) and
+  the rail/range controls live in the layout above it, so the gate is already at
+  the right boundary. Their `AnalyticsErrorFallback` is an inline region notice
+  (not a page takeover), so moving them to `Gate` would be cosmetic.

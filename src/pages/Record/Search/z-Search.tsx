@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Loader } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
 import { Show } from "~/components/Show";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
@@ -20,7 +20,7 @@ import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import type { ListingHistoryPage } from "~/services/record";
 import { useMode } from "../use-mode";
 import { useQuery } from "../use-query";
-import { RecordsErrorBoundary, RecordsErrorFallback } from "../z-Error";
+import { RecordsErrorFallback } from "../z-Error";
 import { useData } from "./use-data";
 import { useRange } from "./use-range";
 import { ModeSelect } from "./z-ModeSelect";
@@ -103,17 +103,19 @@ function Results({
 }) {
   const res = useData(limit);
   return (
-    <RecordsErrorBoundary fallback={RecordsErrorFallback}>
-      <Loader res={res} fallback={<LoadingTable />}>
-        {({ data }) => (
-          <div className="flex-1 overflow-hidden">
-            <div className="max-h-full overflow-hidden flex">
-              <SearchTable key={tableKey} page={data} onMore={onMore} />
-            </div>
+    <Gate
+      res={res}
+      skeleton={<LoadingTable />}
+      error={(error) => <RecordsErrorFallback error={error} />}
+    >
+      {({ data }) => (
+        <div className="flex-1 overflow-hidden">
+          <div className="max-h-full overflow-hidden flex">
+            <SearchTable key={tableKey} page={data} onMore={onMore} />
           </div>
-        )}
-      </Loader>
-    </RecordsErrorBoundary>
+        </div>
+      )}
+    </Gate>
   );
 }
 
