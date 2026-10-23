@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "~/components/ui/accordion";
 import { cn } from "~/lib/utils";
+import { formatDate, formatTime } from "~/lib/date";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft } from "~/services/transaction";
@@ -15,6 +16,7 @@ import { paidTotal, roundMoney } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Methods } from "~/components/cart/z-Methods";
 import { Note } from "~/components/cart/z-Note";
+import { PaymentTime } from "~/components/cart/z-PaymentTime";
 import { Precision } from "~/components/cart/z-Precision";
 import { Supplier } from "./z-Supplier";
 import { Images } from "./z-Images";
@@ -24,9 +26,10 @@ import { CashierName } from "../z-CashierName";
 /**
  * Stage three: settling the purchase.
  *
- * The optional details — cashier, note, supplier, precision — sit in an
- * accordion that stays out of the way of the two things that matter: what is
- * owed (the grand total below) and what has been paid.
+ * The optional details — cashier, note, supplier, precision, and the time the
+ * record is settled — sit in an accordion that stays out of the way of the two
+ * things that matter: what is owed (the grand total below) and what has been
+ * paid.
  */
 export function Payment({
   draft,
@@ -123,17 +126,25 @@ function Body({
                   <CashierName />
                   <span className="truncate">
                     Pemasok: {supplierName} · Presisi {draft.fix}
+                    {/* A backdated pick must not hide behind a collapsed
+                        accordion: the record is written with it, not with now. */}
+                    {draft.paidAt === null
+                      ? null
+                      : ` · ${formatDate(draft.paidAt, "short")} ${formatTime(draft.paidAt)}`}
                   </span>
                 </span>
               </span>
             </AccordionTrigger>
             <AccordionContent className="px-2">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="flex flex-wrap items-end gap-4">
-                  <Note draft={draft} />
-                  <Supplier draft={draft} />
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div className="flex flex-wrap items-end gap-4">
+                    <Note draft={draft} />
+                    <Supplier draft={draft} />
+                  </div>
+                  <Precision draft={draft} />
                 </div>
-                <Precision draft={draft} />
+                <PaymentTime draft={draft} />
               </div>
             </AccordionContent>
           </AccordionItem>
