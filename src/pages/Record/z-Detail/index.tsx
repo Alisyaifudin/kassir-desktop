@@ -10,7 +10,7 @@ import {
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
 import { ForEach } from "~/components/ForEach";
-import { Loader } from "~/components/Loader";
+import { Gate } from "~/components/page-data";
 import { Show } from "~/components/Show";
 import { Skeleton } from "~/components/ui/skeleton";
 import { capitalize, cn } from "~/lib/utils";
@@ -18,7 +18,7 @@ import { formatDate, formatTime } from "~/lib/date";
 import { useUser } from "~/hooks/use-user";
 import type { RecordFull } from "~/services/record";
 import { useUnselect } from "../use-selected";
-import { RecordsErrorBoundary, RecordsErrorFallback } from "../z-Error";
+import { RecordsErrorFallback } from "../z-Error";
 import { DeleteBtn } from "./DeleteBtn";
 import { ExtrasTable } from "./ExtrasTable";
 import { Footer } from "./Footer";
@@ -28,11 +28,13 @@ import { useRecordFull } from "./use-record-full";
 export function Detail({ recordId }: { recordId: string }) {
   const res = useRecordFull(recordId);
   return (
-    <RecordsErrorBoundary fallback={RecordsErrorFallback}>
-      <Loader res={res} fallback={<Loading />}>
-        {({ data: record }) => (record === null ? null : <Body record={record} />)}
-      </Loader>
-    </RecordsErrorBoundary>
+    <Gate
+      res={res}
+      skeleton={<Loading />}
+      error={(error) => <RecordsErrorFallback error={error} />}
+    >
+      {({ data: record }) => (record === null ? null : <Body record={record} />)}
+    </Gate>
   );
 }
 
