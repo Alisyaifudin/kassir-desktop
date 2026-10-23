@@ -1,4 +1,6 @@
 import { Effect, Layer } from "effect";
+import { AnalyticsService } from "./analytics";
+import { AnalyticsLive } from "./analytics/live";
 import { AuthService } from "./auth";
 import { AuthLive } from "./auth/live";
 import { CashierService } from "./cashier";
@@ -48,6 +50,7 @@ export type HiddenLive = typeof hiddenLive;
 
 /** Wires every domain service on top of a given hidden backend layer. */
 export function buildAppLive(hidden: HiddenLive) {
+  const analyticsLive = AnalyticsLive.pipe(Layer.provide(hidden));
   const cashierLive = CashierLive.pipe(Layer.provide(hidden));
   const extraLive = ExtraLive.pipe(Layer.provide(hidden));
   const configLive = ConfigLive.pipe(Layer.provide(hidden));
@@ -65,15 +68,13 @@ export function buildAppLive(hidden: HiddenLive) {
   // `record` reverses a deleted record's stock movement, so it needs `product`.
   const recordLive = RecordLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
   // `transaction` commits a cart through `record` and restores one from it.
-  const transactionLive = TransactionLive.pipe(
-    Layer.provide(hidden),
-    Layer.provide(recordLive),
-  );
+  const transactionLive = TransactionLive.pipe(Layer.provide(hidden), Layer.provide(recordLive));
 
   // Auth also needs the cashier service to verify the session's id.
   const authLive = AuthLive.pipe(Layer.provide(hidden), Layer.provide(cashierLive));
 
   return Layer.mergeAll(
+    analyticsLive,
     configLive,
     cashierLive,
     customerLive,
@@ -106,6 +107,7 @@ export function makeService(live: typeof appLive) {
   return Effect.runSync(
     Effect.gen(function* () {
       return {
+        analytics: yield* AnalyticsService,
         config: yield* ConfigService,
         cashier: yield* CashierService,
         customer: yield* CustomerService,
