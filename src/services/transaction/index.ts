@@ -17,8 +17,20 @@ export class SubmitError extends Data.TaggedError("SubmitError")<{
 /** Which way goods move: `incoming` is a sale, `outcoming` a purchase. */
 export type DraftMode = "incoming" | "outcoming";
 
-/** `tx_record_flag` bit 0: a stored (pending) cart, not an active tab. */
+/**
+ * `tx_record_flag` bit 0: a stored (pending) cart, not an active tab.
+ */
 export const STORED_FLAG = 0b01;
+
+/**
+ * `tx_record_flag` bit 1: an arbitrary-transaction tab — the `/transaction`
+ * screen's working state, whose lines are flat `number` extras and whose commit
+ * is `record.add.adjustment`, never `transaction.submit`. Such a tab never
+ * carries listings, images or stock movements.
+ *
+ * See `FLAGS.md` for every flag in both databases, bit by bit.
+ */
+export const ADJUSTMENT_CART_FLAG = 0b10;
 
 /** One payment applied to a draft; a draft may have several. */
 export type DraftMethod = {
@@ -85,7 +97,13 @@ export type Draft = {
   id: string;
   /** Tab position; not unique by design (users reorder). */
   order: number;
-  /** Local flag bitfield; bit 0 marks a stored (pending) cart. */
+  /**
+   * Local flag bitfield (`tx_record_flag`):
+   *   `0b01` stored/parked cart — `STORED_FLAG`
+   *   `0b10` arbitrary-transaction tab — `ADJUSTMENT_CART_FLAG`
+   * A sale or purchase tab is neither (`0`). The two coexist: a parked
+   * adjustment tab is `0b11`.
+   */
   flag: number;
   title: string;
   mode: DraftMode;
@@ -129,7 +147,11 @@ export class TransactionService extends Context.Tag("TransactionService")<
      */
     reportError: (message: string) => Effect.Effect<void>;
     add: {
-      new: (mode: DraftMode) => Effect.Effect<string, TransactionError>;
+      /**
+       * Opens a cart. `flag` is the `tx_record_flag` the tab starts with — 0 for
+       * a sale or purchase, `ADJUSTMENT_CART_FLAG` for `/transaction`.
+       */
+      new: (mode: DraftMode, flag?: number) => Effect.Effect<string, TransactionError>;
       /**
        * Copies a saved record back into a fresh cart, leaving the record itself
        * alone — the same rebuild `unsubmit` does, without undoing history.
@@ -155,6 +177,8 @@ export class TransactionService extends Context.Tag("TransactionService")<
     delete: { byId: (id: string) => Effect.Effect<void, TransactionError> };
     set: {
       title: (id: string, title: string) => Effect.Effect<void, TransactionError>;
+      /** Which way the money moves. A sale/purchase cart never changes it. */
+      mode: (id: string, mode: DraftMode) => Effect.Effect<void, TransactionError>;
       fix: (id: string, fix: number) => Effect.Effect<void, TransactionError>;
       note: (id: string, note: string) => Effect.Effect<void, TransactionError>;
       customer: (id: string, customerId: string | null) => Effect.Effect<void, TransactionError>;

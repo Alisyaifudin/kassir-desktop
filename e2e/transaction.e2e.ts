@@ -37,7 +37,7 @@ test("starts with one empty line and a disabled Simpan", async ({ page }) => {
   );
   await expect(page.getByRole("gridcell", { name: "Nilai baris 1" })).toBeVisible();
   await expect(page.getByRole("gridcell", { name: "Hapus baris 1" })).toBeVisible();
-  await expect(page.getByLabel("Jenis transaksi")).toHaveText(/Masuk/);
+  await expect(page.getByRole("radio", { name: "Masuk" })).toBeChecked();
   await expect(page.getByRole("button", { name: "Simpan" })).toBeDisabled();
   await expect(page.getByText("Raisya")).toBeVisible();
 
@@ -82,9 +82,8 @@ test("switches mode and mocks Simpan", async ({ page }) => {
 
   await edit(page, "Nama", 1, "Beli plastik");
   await edit(page, "Nilai", 1, "15000");
-  await page.getByLabel("Jenis transaksi").click();
-  await page.getByRole("option", { name: "Keluar" }).click();
-  await expect(page.getByLabel("Jenis transaksi")).toHaveText(/Keluar/);
+  await page.getByRole("radio", { name: "Keluar" }).click();
+  await expect(page.getByRole("radio", { name: "Keluar" })).toBeChecked();
 
   await page.getByRole("button", { name: "Simpan" }).click();
   await expect(page.locator("[data-sonner-toast]")).toContainText("Simpan masih tiruan");

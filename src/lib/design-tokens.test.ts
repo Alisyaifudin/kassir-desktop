@@ -15,8 +15,15 @@ import { describe, expect, test } from "bun:test";
 import { Glob } from "bun";
 import { readFileSync } from "node:fs";
 
-/** Raw text-size utilities: `text-sm`, `text-3xl`, `text-[14px]`, … */
-const FORBIDDEN = /(?<![\w-])text-(?:xs|sm|base|lg|xl|[2-9]xl|\[[^\]]+\])(?![\w-])/g;
+/**
+ * Raw text-size utilities: `text-sm`, `text-3xl`, `text-[14px]`, …
+ *
+ * An arbitrary *colour* is allowed — `text-[var(--tone)]`, `text-[#fff]`,
+ * `text-[oklch(…)]` are not sizes, and they still resolve per theme. Only the
+ * arbitrary value that is not visibly a colour is treated as a size.
+ */
+const FORBIDDEN =
+  /(?<![\w-])text-(?:xs|sm|base|lg|xl|[2-9]xl|\[(?!var\(|#|color:|oklch\(|rgb|hsl)[^\]]+\])(?![\w-])/g;
 
 /**
  * A lucide `size={N}` writes `width`/`height` **attributes**, which no `.small`
@@ -86,11 +93,13 @@ function sources(): string[] {
 /** The lucide identifiers a file imports, so only icons are size-checked. */
 function lucideIcons(content: string): Set<string> {
   const names = new Set<string>();
-  for (const match of content.matchAll(
-    /import\s*\{([^}]*)\}\s*from\s*"lucide-react"/g,
-  )) {
+  for (const match of content.matchAll(/import\s*\{([^}]*)\}\s*from\s*"lucide-react"/g)) {
     for (const part of match[1].split(",")) {
-      const name = part.trim().split(/\s+as\s+/).pop()?.trim();
+      const name = part
+        .trim()
+        .split(/\s+as\s+/)
+        .pop()
+        ?.trim();
       if (name) names.add(name);
     }
   }

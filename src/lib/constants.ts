@@ -48,6 +48,14 @@ export const METHOD_KBD = {
   debit: "Ctrl+3",
 } as const;
 
+/** Ctrl+0..3 pick a method kind, in `METHODS` order. */
+export const METHOD_BY_KEY: Record<string, MethodKind> = {
+  "0": "cash",
+  "1": "qris",
+  "2": "transfer",
+  "3": "debit",
+};
+
 // (1000, 'cash'), (1001, 'transfer'), (1002, 'debit'), (1003, 'qris');
 export const METHOD_BASE_ID = {
   cash: "1000",

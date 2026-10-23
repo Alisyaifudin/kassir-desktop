@@ -5,7 +5,7 @@ import { Button } from "~/components/ui/button";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
 import { cn } from "~/lib/utils";
-import type { ManualLine } from "./page";
+import type { DraftExtra } from "~/services/transaction";
 import { Kbd } from "~/components/ui/kdb";
 
 /**
@@ -34,14 +34,15 @@ const GRID =
 const COLUMNS = 3;
 
 export function Lines({
-  lines,
+  extras,
   onAdd,
   onChange,
   onRemove,
 }: {
-  lines: ManualLine[];
+  /** The active tab's extras; a line is one of kind `number`. */
+  extras: DraftExtra[];
   onAdd: () => void;
-  onChange: (id: string, next: Partial<ManualLine>) => void;
+  onChange: (id: string, next: Partial<DraftExtra>) => void;
   onRemove: (id: string) => void;
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -64,9 +65,9 @@ export function Lines({
   // A line removed under the selection must not leave it pointing past the end.
   useEffect(() => {
     setSelected((current) =>
-      current.row >= lines.length ? { ...current, row: Math.max(0, lines.length - 1) } : current,
+      current.row >= extras.length ? { ...current, row: Math.max(0, extras.length - 1) } : current,
     );
-  }, [lines.length]);
+  }, [extras.length]);
 
   // Enter can open an editor in the same tick the last one closed; focusing the
   // field here (after the cell has mounted it) is what keeps the keystrokes
@@ -107,15 +108,15 @@ export function Lines({
   function moveTab(row: number, col: 0 | 1, back: boolean) {
     if (!back) {
       if (col === 0) startEdit(row, 1);
-      else startEdit(row + 1 < lines.length ? row + 1 : 0, 0);
+      else startEdit(row + 1 < extras.length ? row + 1 : 0, 0);
       return;
     }
     if (col === 1) startEdit(row, 0);
-    else startEdit(row - 1 >= 0 ? row - 1 : lines.length - 1, 1);
+    else startEdit(row - 1 >= 0 ? row - 1 : extras.length - 1, 1);
   }
 
   function add() {
-    const row = lines.length;
+    const row = extras.length;
     onAdd();
     // Select and open the new line so typing can start immediately.
     setSelected({ row, col: 0 });
@@ -131,7 +132,7 @@ export function Lines({
   // screen. A dialog owns the keyboard while it is open, so the shortcut waits.
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key !== "F2" || isScreenOwnedByDialog()) return;
+      if (event.key !== "F1" || isScreenOwnedByDialog()) return;
       event.preventDefault();
       addRef.current();
     }
@@ -140,12 +141,12 @@ export function Lines({
   }, []);
 
   function removeLine(row: number) {
-    const line = lines[row];
+    const line = extras[row];
     if (line === undefined) return;
     onRemove(line.id);
     setEditing(null);
     // The list has not re-rendered yet, so clamp against its next length.
-    setSelected({ row: Math.max(0, Math.min(row, lines.length - 2)), col: selected.col });
+    setSelected({ row: Math.max(0, Math.min(row, extras.length - 2)), col: selected.col });
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -163,7 +164,7 @@ export function Lines({
         event.preventDefault();
         setSelected((current) => ({
           ...current,
-          row: Math.min(lines.length - 1, current.row + 1),
+          row: Math.min(extras.length - 1, current.row + 1),
         }));
         return;
       case "ArrowLeft":
@@ -203,7 +204,7 @@ export function Lines({
           className="min-h-0 flex-1 overflow-y-auto outline-none"
         >
           <div className="flex flex-col divide-y">
-            {lines.map((line, index) => {
+            {extras.map((line, index) => {
               const editingName = editing?.row === index && editing.col === 0;
               const editingValue = editing?.row === index && editing.col === 1;
               return (
@@ -294,9 +295,7 @@ export function Lines({
             <Button type="button" onClick={add}>
               <Plus aria-hidden="true" />
               Baris Baru
-              <Kbd className="py-5 small:py-3">
-                F2
-              </Kbd>
+              <Kbd>F1</Kbd>
             </Button>
           </div>
         </div>

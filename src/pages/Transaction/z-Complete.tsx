@@ -7,6 +7,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -81,6 +82,9 @@ export function Complete({
       >
         <DialogHeader>
           <DialogTitle className="text-big">Transaksi tersimpan</DialogTitle>
+          <DialogDescription>
+            Transaksi manual sudah dicatat; tidak ada stok yang berubah.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-6">

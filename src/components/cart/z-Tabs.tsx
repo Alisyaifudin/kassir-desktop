@@ -17,6 +17,7 @@ import { service } from "~/services";
 import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { run } from "~/components/cart/run";
 import { Kbd } from "~/components/ui/kdb";
+import { Show } from "../Show";
 
 /**
  * The open cart drafts, one `tx_records` row each. The number is the tab's
@@ -156,7 +157,6 @@ export function Tabs({
         >
           <Plus className="icon" />
         </Button>
-        <Kbd className="py-4 mb-1">Ctrl+←/→</Kbd>
         <div
           ref={listRef}
           role="tablist"
@@ -177,6 +177,9 @@ export function Tabs({
               onClose={() => setPendingDelete(draft)}
             />
           ))}
+          <Show when={drafts.length > 1}>
+            <Kbd className="py-4 mb-1">Ctrl+←/→</Kbd>
+          </Show>
         </div>
       </div>
 

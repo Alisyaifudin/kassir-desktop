@@ -4,7 +4,11 @@ import { Effect, Either } from "effect";
 import { toast } from "sonner";
 import { useStream } from "~/components/Loader";
 import { service } from "~/services";
-import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
+import {
+  ADJUSTMENT_CART_FLAG,
+  STORED_FLAG,
+  type Draft as DraftModel,
+} from "~/services/transaction";
 import type { Extra, Line } from "~/components/cart/types";
 import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
 import { cartErrorMessage, run } from "~/components/cart/run";
@@ -62,7 +66,12 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   onF2?: () => void;
 }) {
   const modeDrafts = useMemo(
-    () => drafts.filter((draft) => draft.mode === mode).sort((a, b) => a.order - b.order),
+    () =>
+      drafts
+        // `/transaction` tabs live in the same table but are not sale/purchase
+        // carts; without the mask they would appear here as an extra tab.
+        .filter((draft) => draft.mode === mode && (draft.flag & ADJUSTMENT_CART_FLAG) === 0)
+        .sort((a, b) => a.order - b.order),
     [drafts, mode],
   );
   // Stored carts are parked: never the active tab, never in Ctrl+Arrow order.
@@ -197,10 +206,7 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
 
   const issues = useMemo(
     () =>
-      findLineIssues(
-        active?.listings ?? [],
-        listingRes.type === "success" ? listingRes.data : [],
-      ),
+      findLineIssues(active?.listings ?? [], listingRes.type === "success" ? listingRes.data : []),
     [active?.listings, listingRes],
   );
   const hardIssue = hasHardIssue(issues);

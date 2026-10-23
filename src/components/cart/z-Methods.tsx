@@ -25,7 +25,7 @@ import {
   METHOD_BASE_ID,
   METHODS,
   METHOD_NAMES,
-  type DefaultableKind,
+  METHOD_BY_KEY,
   type MethodKind,
   METHOD_KBD,
 } from "~/lib/constants";
@@ -38,6 +38,7 @@ import { paidTotal } from "~/lib/purchase";
 import { run } from "~/components/cart/run";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
+import { MethodPicker, defaultMethodId } from "~/components/MethodPicker";
 import { useInertApp } from "~/components/cart/use-inert-app";
 
 /** The default `Input` chrome, so a currency field sits in the row like one. */
@@ -46,14 +47,6 @@ const AMOUNT_CLASS =
 
 /** The first amount field, so F2 (see page) can land on it. */
 const PAYMENT_AMOUNT_ID = "payment-amount-0";
-
-/** Ctrl+0..3 pick the method kind, in `METHODS` order. */
-const METHOD_BY_KEY: Record<string, MethodKind> = {
-  "0": "cash",
-  "1": "qris",
-  "2": "transfer",
-  "3": "debit",
-};
 
 /** The cells of the settle grid, in navigation order. */
 type PayField = "rounding" | "kind" | "account" | "amount" | "add" | "summary" | "pay";
@@ -530,7 +523,9 @@ export function Methods({
           <DialogHeader>
             <DialogTitle className="text-big font-bold">Metode pembayaran</DialogTitle>
           </DialogHeader>
-          <DialogDescription>Metode dan jumlah pembayaran; sisanya menjadi kembalian.</DialogDescription>
+          <DialogDescription>
+            Metode dan jumlah pembayaran; sisanya menjadi kembalian.
+          </DialogDescription>
           <div className="flex flex-col gap-3">
             {draft.methods.map((method, index) => (
               <div key={method.id} className="flex flex-col gap-1 rounded-md  border p-2">
@@ -685,74 +680,4 @@ function SelectCell({
       </Select>
     </div>
   );
-}
-
-/** The kind, then the account inside it — a transfer target or a debit card. */
-function MethodPicker({
-  methodId,
-  catalog,
-  onChange,
-}: {
-  methodId: string;
-  catalog: MethodCatalog;
-  onChange: (methodId: string) => void;
-}) {
-  const method = catalog.methods.find((candidate) => candidate.id === methodId);
-  const kind: MethodKind = method?.kind ?? "cash";
-  const accounts = catalog.methods.filter(
-    (candidate) => candidate.kind === kind && candidate.name !== null,
-  );
-  // "--Pilih--" is the kind's base method — no account chosen. The base id is
-  // not an account, so it doubles as the empty choice (Radix forbids an empty
-  // SelectItem value).
-  const accountId = accounts.some((account) => account.id === methodId)
-    ? methodId
-    : METHOD_BASE_ID[kind];
-  return (
-    <div className="flex min-w-0 gap-1">
-      <Select
-        value={kind}
-        onValueChange={(value) => onChange(defaultMethodId(catalog, value as MethodKind))}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue>{METHOD_NAMES[kind]}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {METHODS.map((candidate) => (
-              <SelectItem key={candidate} value={candidate}>
-                {METHOD_NAMES[candidate]}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      {accounts.length > 0 ? (
-        <Select value={accountId} onValueChange={onChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="--Pilih--" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value={METHOD_BASE_ID[kind]}>--Pilih--</SelectItem>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  {account.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      ) : null}
-    </div>
-  );
-}
-
-/** The kind's default account when it has one, else the built-in base method. */
-function defaultMethodId(catalog: MethodCatalog, kind: MethodKind): string {
-  if (kind !== "cash") {
-    const fallback = catalog.defaults[kind as DefaultableKind];
-    if (fallback !== undefined) return fallback;
-  }
-  return METHOD_BASE_ID[kind];
 }

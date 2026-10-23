@@ -265,11 +265,7 @@ export class RecordService extends Context.Tag("RecordService")<
        * Records paid inside `[start, end)`, newest first. `query` narrows to
        * records carrying a listing whose name matches.
        */
-      byRange: (
-        start: number,
-        end: number,
-        query?: string,
-      ) => Effect.Effect<Record[], RecordError>;
+      byRange: (start: number, end: number, query?: string) => Effect.Effect<Record[], RecordError>;
       byId: (id: string) => Effect.Effect<RecordFull, RecordError | NotFound>;
       /** Unsettled credit records, newest first — the /debt table. */
       debt: () => Effect.Effect<DebtRecord[], RecordError>;

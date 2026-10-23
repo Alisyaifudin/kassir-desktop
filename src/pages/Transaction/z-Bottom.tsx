@@ -5,21 +5,16 @@ import { Loader, useStream } from "~/components/Loader";
 import { Loading } from "~/components/Loading";
 import { createErrorBoundary } from "~/components/createErrorBoundary";
 import { Button } from "~/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
+import { METHOD_BY_KEY } from "~/lib/constants";
 import { useUser } from "~/hooks/use-user";
-import { METHOD_NAMES } from "~/lib/constants";
 import { capitalize, cn } from "~/lib/utils";
 import { service } from "~/services";
 import { MethodError, type MethodCatalog } from "~/services/method";
 import type { RecordMode } from "~/services/record";
 import { rupiah } from "~/components/cart/util-rupiah";
+import { MethodPicker, defaultMethodId } from "~/components/MethodPicker";
+import { ModeSwitch } from "./z-ModeSwitch";
 import { Note } from "./z-Note";
 import { Kbd } from "~/components/ui/kdb";
 
@@ -27,10 +22,11 @@ const MethodErrorBoundary = createErrorBoundary(MethodError);
 
 /**
  * The settle bar. The record-level choices sit in two short rows on the left —
- * which way the money moved beside how it was paid, the note beside who wrote
- * it — while the right half carries the one action and the total it settles.
+ * which way the money moved beside how it was paid (kind, then the account
+ * inside that kind), the note beside who wrote it — while the right half carries
+ * the one action and the total it settles.
  *
- * One method, no rounding, no split, no precision; `Simpan` is still a mock.
+ * One method, no rounding, no split, no precision; `Simpan` writes the record.
  */
 export function Bottom({
   total,
@@ -61,7 +57,7 @@ export function Bottom({
   // dialog owns the keyboard while it is open (the note), so the shortcut waits.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "F1" || isScreenOwnedByDialog()) return;
+      if (event.key !== "F2" || isScreenOwnedByDialog()) return;
       event.preventDefault();
       simpanRef.current?.focus();
     }
@@ -72,25 +68,9 @@ export function Bottom({
   return (
     <section className="flex flex-none flex-col items-stretch border-t lg:flex-row">
       <div className="flex min-w-0 shrink-0 flex-col gap-2 border-b p-2 lg:min-w-[420px] lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-2">
-          <MethodPicker value={methodId} onChange={onMethod} />
-          <Select value={mode} onValueChange={(value) => onMode(value as RecordMode)}>
-            <SelectTrigger
-              id="transaction-mode"
-              aria-label="Jenis transaksi"
-              className="w-[150px] text-normal"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="incoming" className="text-normal">
-                Masuk
-              </SelectItem>
-              <SelectItem value="outcoming" className="text-normal">
-                Keluar
-              </SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <MethodFields value={methodId} onChange={onMethod} />
+          <ModeSwitch value={mode} onChange={onMode} />
         </div>
 
         <div className="flex items-center gap-2">
@@ -115,7 +95,7 @@ export function Bottom({
             onClick={onSubmit}
           >
             {pending ? "Menyimpan..." : "Simpan"}
-            <Kbd className="py-5 small:py-3">F1</Kbd>
+            <Kbd>F2</Kbd>
           </Button>
         </div>
         <div className="flex flex-1 items-center justify-center overflow-hidden px-2 pb-2">
@@ -131,7 +111,7 @@ export function Bottom({
   );
 }
 
-function MethodPicker({
+function MethodFields({
   value,
   onChange,
 }: {
@@ -164,34 +144,34 @@ function MethodSelect({
   value: string | null;
   onChange: (id: string) => void;
 }) {
-  const methods = catalog.methods;
   // `cash` is not a defaultable kind, but it is the sensible first pick here.
-  const fallback = methods.find((method) => method.kind === "cash") ?? methods[0];
-  const selected = value ?? fallback?.id ?? "";
+  const selected = value ?? defaultMethodId(catalog, "cash");
 
-  // Lift the sensible default into the page's state: `Simpan` can only write a
-  // record once a method is actually chosen.
+  // Lift the default into the page's state: `Simpan` can only write a record
+  // once a method is actually chosen.
   useEffect(() => {
-    if (value === null && selected !== "") onChange(selected);
+    if (value === null) onChange(selected);
   }, [value, selected, onChange]);
 
+  // Ctrl+0..3 pick the kind, as they do on the cart's payment strip. Changing
+  // the kind lands on its default account, never on the previous kind's.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (isScreenOwnedByDialog()) return;
+      const kind = METHOD_BY_KEY[event.key];
+      if (kind === undefined) return;
+      event.preventDefault();
+      onChange(defaultMethodId(catalog, kind));
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [catalog, onChange]);
+
   return (
-    <Select value={selected} onValueChange={onChange} disabled={methods.length === 0}>
-      <SelectTrigger
-        id="transaction-method"
-        aria-label="Metode pembayaran"
-        className="w-[220px] text-normal"
-      >
-        <SelectValue placeholder="Pilih metode" />
-      </SelectTrigger>
-      <SelectContent>
-        {methods.map((method) => (
-          <SelectItem key={method.id} value={method.id} className="text-normal">
-            {method.name ?? METHOD_NAMES[method.kind]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="w-[320px] max-w-full">
+      <MethodPicker methodId={selected} catalog={catalog} onChange={onChange} />
+    </div>
   );
 }
 

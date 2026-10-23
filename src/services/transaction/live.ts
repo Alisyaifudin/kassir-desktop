@@ -243,7 +243,10 @@ const DELETE_LISTING: (id: string) => Statement = (id) => ({
   bindings: [id],
 });
 
-function insertDiscountStatement(listingId: string, discount: DraftListing["discounts"][number]): Statement {
+function insertDiscountStatement(
+  listingId: string,
+  discount: DraftListing["discounts"][number],
+): Statement {
   return {
     sql: `INSERT INTO tx_discounts (
         tx_disc_id, tx_listing_id, tx_disc_value, tx_disc_eff, tx_disc_kind
@@ -377,9 +380,7 @@ function sameMethod(previous: DraftMethod, method: DraftMethod): boolean {
 }
 
 function sameImage(previous: DraftImage, img: DraftImage): boolean {
-  return (
-    previous.order === img.order && previous.name === img.name && previous.mime === img.mime
-  );
+  return previous.order === img.order && previous.name === img.name && previous.mime === img.mime;
 }
 
 /**
@@ -606,9 +607,9 @@ export const TransactionLive = Layer.effect(
     }
 
     function readRecord(id: string): Effect.Effect<RecordFull, TransactionError> {
-      return record.get.byId(id).pipe(
-        Effect.mapError((error) => new TransactionError({ message: error.message })),
-      );
+      return record.get
+        .byId(id)
+        .pipe(Effect.mapError((error) => new TransactionError({ message: error.message })));
     }
 
     /**
@@ -630,15 +631,13 @@ export const TransactionLive = Layer.effect(
       return Effect.gen(function* () {
         const listings: DraftListing[] = [];
         for (const line of saved.listings) {
-          let catalog:
-            | {
-                listing_id: string;
-                listing_code: string | null;
-                listing_name: string;
-                listing_price: number;
-                listing_unit: number;
-              }
-            | null = null;
+          let catalog: {
+            listing_id: string;
+            listing_code: string | null;
+            listing_name: string;
+            listing_price: number;
+            listing_unit: number;
+          } | null = null;
           if (line.productId !== null) {
             const rows = yield* db
               .selectMany<{
@@ -833,7 +832,10 @@ export const TransactionLive = Layer.effect(
       );
     }
 
-    function update(id: string, change: (draft: Draft) => Draft): Effect.Effect<void, TransactionError> {
+    function update(
+      id: string,
+      change: (draft: Draft) => Draft,
+    ): Effect.Effect<void, TransactionError> {
       return Effect.gen(function* () {
         yield* SubscriptionRef.update(draftsRef, (drafts) =>
           drafts.map((draft) => (draft.id === id ? change(draft) : draft)),
@@ -940,10 +942,7 @@ export const TransactionLive = Layer.effect(
 
           const subtotal = linesSubtotal(lines);
           const effects = recalcExtras(draft.extras, subtotal);
-          const total = effects.reduce(
-            (running, effect) => running.plus(effect.eff),
-            subtotal,
-          );
+          const total = effects.reduce((running, effect) => running.plus(effect.eff), subtotal);
           const credit = input.credit === true;
           const rounding = credit ? 0 : draft.rounding;
           const grand = roundMoney(transactionGrandTotal(total, rounding), draft.fix);
@@ -979,7 +978,14 @@ export const TransactionLive = Layer.effect(
           const extraInputs = draft.extras.flatMap((extra, index) => {
             const effect = effects[index];
             if (effect === undefined || effect.eff.isZero()) return [];
-            return [{ name: extra.name, value: extra.value, eff: effect.eff.toNumber(), kind: extra.kind }];
+            return [
+              {
+                name: extra.name,
+                value: extra.value,
+                eff: effect.eff.toNumber(),
+                kind: extra.kind,
+              },
+            ];
           });
 
           const paidAt = credit ? null : Date.now();
@@ -1082,7 +1088,7 @@ export const TransactionLive = Layer.effect(
         });
       },
       add: {
-        new(mode) {
+        new(mode, flag = 0) {
           return Effect.gen(function* () {
             yield* ensureLoaded();
             const drafts = yield* SubscriptionRef.get(draftsRef);
@@ -1090,7 +1096,7 @@ export const TransactionLive = Layer.effect(
             const draft: Draft = {
               id: generateId(),
               order,
-              flag: 0,
+              flag,
               title: "Transaksi Baru",
               mode,
               fix: 0,
@@ -1150,11 +1156,13 @@ export const TransactionLive = Layer.effect(
             );
             // The cascade drops the rows; the files are ours to remove.
             for (const img of target?.images ?? []) {
-              yield* image.del(img.name).pipe(
-                Effect.catchAll((error) =>
-                  Effect.logError(`tx image delete failed: ${error.e.message}`),
-                ),
-              );
+              yield* image
+                .del(img.name)
+                .pipe(
+                  Effect.catchAll((error) =>
+                    Effect.logError(`tx image delete failed: ${error.e.message}`),
+                  ),
+                );
             }
           });
         },
@@ -1168,6 +1176,9 @@ export const TransactionLive = Layer.effect(
         },
         note(id, note) {
           return update(id, (draft) => ({ ...draft, note }));
+        },
+        mode(id, mode) {
+          return update(id, (draft) => ({ ...draft, mode }));
         },
         customer(id, customerId) {
           return update(id, (draft) => ({ ...draft, customerId }));
@@ -1213,7 +1224,9 @@ export const TransactionLive = Layer.effect(
         add(id, file) {
           return Effect.gen(function* () {
             if (file.size > MAX_IMAGE_SIZE) {
-              return yield* Effect.fail(new TransactionError({ message: "Ukuran maksimum 10 MB." }));
+              return yield* Effect.fail(
+                new TransactionError({ message: "Ukuran maksimum 10 MB." }),
+              );
             }
             const mime = imageMimeOf(file.type);
             if (mime === null) {
@@ -1249,11 +1262,13 @@ export const TransactionLive = Layer.effect(
               images: draft.images.filter((img) => img.id !== imageId),
             }));
             if (target !== undefined) {
-              yield* image.del(target.name).pipe(
-                Effect.catchAll((error) =>
-                  Effect.logError(`tx image delete failed: ${error.e.message}`),
-                ),
-              );
+              yield* image
+                .del(target.name)
+                .pipe(
+                  Effect.catchAll((error) =>
+                    Effect.logError(`tx image delete failed: ${error.e.message}`),
+                  ),
+                );
             }
           });
         },
