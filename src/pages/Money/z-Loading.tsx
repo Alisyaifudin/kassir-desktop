@@ -20,18 +20,6 @@ export function CardsLoading() {
 }
 
 /** Whole-page fallback for the lazy `/money` route. */
-export function Loading() {
-  return (
-    <main className="flex flex-col gap-2 w-full px-0.5 mx-auto flex-1 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-56" />
-      </div>
-      <CardsLoading />
-    </main>
-  );
-}
-
-/** Ledger placeholder, shared by the history route and its in-page loader. */
 export function TableLoading({ cols = 7 }: { cols?: number }) {
   return (
     <Table className="text-normal">

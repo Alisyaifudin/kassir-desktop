@@ -10,7 +10,6 @@ import { cashierRoute } from "./pages/Cashier/index.tsx";
 import { customerRoute } from "./pages/Customer/index.tsx";
 import { methodRoute } from "./pages/Method/index.tsx";
 import { socialRoute } from "./pages/Social/index.tsx";
-import { lazy } from "react";
 import { homeRoute } from "./pages/Home/index.ts";
 import { debtRoute } from "./pages/Debt/index.tsx";
 import { extraRoute } from "./pages/Extra/index.tsx";
@@ -18,9 +17,9 @@ import { transactionRoute } from "./pages/Transaction/index.tsx";
 import { analyticsRoute } from "./pages/Analytics/index.tsx";
 import { devPageDataRoute } from "./pages/Dev/PageData/index.tsx";
 
-const RootLayout = lazy(() => import("./layouts/root.tsx"));
-const ErrorBoundary = lazy(() => import("./components/ErrorBoundary.tsx"));
-const AuthLayout = lazy(() => import("./layouts/authenticated"));
+import RootLayout from "./layouts/root.tsx";
+import ErrorBoundary from "./components/ErrorBoundary.tsx";
+import AuthLayout from "./layouts/authenticated";
 
 export const router = createHashRouter([
   {
@@ -49,8 +48,7 @@ export const router = createHashRouter([
           moneyRoute,
           recordRoute,
           // The page-data pattern's playground; the route only exists in a DEV
-          // build (its lazy chunk is still emitted, unreachable, in a release).
-          // See `~/components/page-data` and `src/pages/Dev/PageData`.
+          // build. See `~/components/page-data` and `src/pages/Dev/PageData`.
           ...(import.meta.env.DEV ? [devPageDataRoute] : []),
         ],
       },

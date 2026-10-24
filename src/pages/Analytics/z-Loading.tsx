@@ -24,32 +24,23 @@ export function SummarySkeleton() {
   );
 }
 
-/** The whole screen while the lazy route loads. */
-export function AnalyticsLoading() {
+/**
+ * The body while the chart chunk loads. The rail and the period controls beside
+ * it are static and already on screen, so this draws only what the chunk fills:
+ * the summary band and the two charts under it.
+ */
+export function AnalyticsBodyLoading() {
   return (
-    <main
-      className="flex h-full min-h-0 overflow-hidden"
+    <div
+      className="flex min-h-0 flex-col gap-3"
       aria-busy="true"
       aria-label="Memuat analisis"
     >
-      <aside className="flex w-[280px] shrink-0 flex-col gap-1 border-r p-2 small:w-[220px]">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} className="h-10 w-full" />
-        ))}
-      </aside>
-      <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-2 border-b p-2">
-          <Skeleton className="h-8 w-72" />
-          <Skeleton className="h-8 w-40" />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-2">
-          <SummarySkeleton />
-          <div className="grid gap-3 lg:grid-cols-2">
-            <ChartSkeleton />
-            <ChartSkeleton />
-          </div>
-        </div>
-      </section>
-    </main>
+      <SummarySkeleton />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <ChartSkeleton />
+        <ChartSkeleton />
+      </div>
+    </div>
   );
 }

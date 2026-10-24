@@ -398,9 +398,13 @@ ignore it
 
     <routing>
       <description>
-        Hash router (createHashRouter from react-router v7), defined in src/route.tsx. Every route is lazy-loaded
-        via React.lazy + Suspense. A page that has not been migrated yet stays imported-but-commented in route.tsx,
-        so it is unreachable from the UI even though its folder is still on disk.
+        Hash router (createHashRouter from react-router v7), defined in src/route.tsx. Routes are imported
+        eagerly: the pages ship inside the binary, so a lazy chunk saves no download, and React's Suspense has
+        no delay hook — it would flash a grey skeleton on every first visit. Only two boundaries stay dynamic:
+        the receipt's pdf-lib (2.0 MB, `src/lib/receipt/index.ts`) and the chart surfaces (/analytics' five
+        bodies and the product Performance tab — recharts + d3, ~420 kB). A page that has not been migrated yet
+        stays imported-but-commented in route.tsx, so it is unreachable from the UI even though its folder is
+        still on disk.
       </description>
       <route path="/" error_boundary="ErrorBoundary" layout="RootLayout">
         <route path="login" page="Login" auth="public" />

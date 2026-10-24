@@ -42,25 +42,3 @@ export function RecordsLoading() {
     </div>
   );
 }
-
-/**
- * The route's chunk fallback: the same split-pane shape the page takes, both
- * panes empty. (`RecordsLoading` is the data skeleton for the left pane alone.)
- */
-export function Loading() {
-  return (
-    <div
-      className="grid gap-2 h-full overflow-hidden p-0.5 grid-cols-[490px_1px_1fr] small:grid-cols-[335px_1px_1fr]"
-      aria-busy="true"
-      aria-label="Memuat riwayat"
-    >
-      <RecordsLoading />
-      <div className="border-l h-full" />
-      <div className="flex flex-col gap-2 p-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    </div>
-  );
-}

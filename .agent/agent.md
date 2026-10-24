@@ -232,8 +232,13 @@ export const shopRoute: RouteObject = {
 ```
 
 ### Code Splitting
-- Use `lazy(() => import("./page"))` for page/layout components.
-- **Always** wrap `lazy()` in `<Suspense>` with a page-specific `<Loading />` fallback.
+- **Import pages eagerly.** Every route module does `import Page from "./page"` and sets `Component: Page`.
+  The assets ship inside the binary, so a page chunk saves no download; all it bought was a grey skeleton
+  on the first visit to each screen. Measured: all 26 page boundaries together deferred ~18 ms of V8 parse.
+- Split only where the chunk is a real library and the screen is genuinely optional: pdf-lib behind
+  `src/lib/receipt/index.ts` (2.0 MB) and the chart bodies behind `/analytics` + product Performance
+  (recharts + d3, ~420 kB). Put the `Suspense` around the region that actually waits (the layout's
+  `Outlet`), never around the shell.
 - Router uses `createHashRouter` from `react-router`.
 
 ### Middleware
@@ -315,7 +320,8 @@ Logs to both `console` and Tauri's log plugin.
 3. **Refactor aggressively** — split large components into smaller ones; extract big logic into custom hooks.
 4. **Never throw** — always `Effect.fail()` with typed errors. Match errors by `_tag`.
 5. **Barrel exports everywhere** — modules re-export through `index.ts` with grouped sub-objects.
-6. **Lazy load** — always `lazy()` + `<Suspense>` with page-specific Loading fallback.
+6. **Split only for weight** — pages are eager; `lazy()` is reserved for a library-sized chunk (pdf-lib,
+   recharts) on a screen the shop may never open, with the `Suspense` around the waiting region only.
 7. **Strict focus** — Only do the specific task requested. No tangent features or bonus improvements.
 
 ## 📡 Backend API

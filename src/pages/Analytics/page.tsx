@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router";
 import { RangeBar } from "./z-RangeBar";
 import { Rail } from "./z-Rail";
+import { AnalyticsBodyLoading } from "./z-Loading";
 
 /**
  * Analytics is a rail of five questions over one period. The period and the
@@ -24,7 +26,11 @@ export default function Page() {
           <RangeBar mode={week ? "week" : "date"} showInterval={!noSeries} />
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          <Outlet />
+          {/* The bodies are the chart chunk; the rail and the period above it are
+              static, so only this box is allowed to be empty for a moment. */}
+          <Suspense fallback={<AnalyticsBodyLoading />}>
+            <Outlet />
+          </Suspense>
         </div>
       </section>
     </main>

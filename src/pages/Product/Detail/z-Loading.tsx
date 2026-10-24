@@ -1,15 +1,13 @@
 import { Skeleton } from "~/components/ui/skeleton";
 
+/**
+ * The detail body while the Performance chunk loads. The header and the three
+ * tab links above it are static — they come from the route, not the product — so
+ * this draws the pane's own shape and no strip of its own.
+ */
 export function Loading() {
   return (
     <main className="mx-auto flex h-full w-full flex-col gap-2 overflow-hidden px-5 py-2">
-      <div className="flex items-center justify-between">
-        <div className="inline-flex items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-          <Skeleton className="mr-1 h-11 w-20 small:h-9" />
-          <Skeleton className="mr-1 h-11 w-24 small:h-9" />
-          <Skeleton className="h-11 w-32 small:h-9" />
-        </div>
-      </div>
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
           <Skeleton className="h-10 w-40" />

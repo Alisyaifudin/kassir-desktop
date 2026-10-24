@@ -1,20 +1,13 @@
-import { lazy, Suspense } from "react";
 import type { RouteObject } from "react-router";
-
-const Page = lazy(() => import("./page.tsx"));
+import Page from "./page.tsx";
 
 /**
  * Dev-only playground for the page-data pattern. Mounted from `route.tsx` behind
- * `import.meta.env.DEV`: the route never exists in a release, but the page is a
- * lazily-imported chunk, so a production bundle still carries that one (small,
- * unreachable) chunk. Splitting the route object into a DEV-only module is not
- * worth a top-level `await` in the router.
+ * `import.meta.env.DEV`, so a release build drops the module — and with it this
+ * import — entirely, rather than carrying an unreachable chunk for a route that
+ * does not exist.
  */
 export const devPageDataRoute: RouteObject = {
   path: "dev/page-data",
-  Component: () => (
-    <Suspense fallback={null}>
-      <Page />
-    </Suspense>
-  ),
+  Component: Page,
 };
