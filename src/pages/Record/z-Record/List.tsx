@@ -2,7 +2,6 @@ import { useCallback, useMemo, type KeyboardEvent } from "react";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -14,8 +13,23 @@ import { formatTime } from "~/lib/date";
 import type { Record as RecordModel } from "~/services/record";
 import { useSelected } from "../use-selected";
 import { useOrder } from "../use-order";
+import {
+  EMPTY_SELECTION,
+  recordPaymentLines,
+  type MethodSelection,
+} from "../method-filter";
 
-export function List({ records }: { records: RecordModel[] }) {
+export function List({
+  records,
+  selection = EMPTY_SELECTION,
+}: {
+  records: RecordModel[];
+  /**
+   * The method filter. A split payment only lists the methods it lets through,
+   * so the `Total` column can never show a payment the list was asked to hide.
+   */
+  selection?: MethodSelection;
+}) {
   const [selected, setSelected] = useSelected();
   const [{ order, sort }, setOrder] = useOrder();
   const sorted = useSorted(records, order, sort);
@@ -56,9 +70,11 @@ export function List({ records }: { records: RecordModel[] }) {
       )
         return;
       event.preventDefault();
+      // Only record rows are focusable: a record's payment lines are a
+      // breakdown of the row above them, not rows of their own.
       const rows = event.currentTarget
-        .closest("tbody")
-        ?.querySelectorAll<HTMLTableRowElement>("tr");
+        .closest("table")
+        ?.querySelectorAll<HTMLTableRowElement>("tr[data-record]");
       if (rows === undefined || rows.length === 0) return;
       const target =
         event.key === "ArrowDown"
@@ -112,37 +128,101 @@ export function List({ records }: { records: RecordModel[] }) {
       {/* Rows sit at the header's muted colour and one weight below it, so the
           list doesn't out-shout its own column labels. Needs the shipped
           variable face — the OS build of Noto Sans has no 300. The tinted
-          (selected / credit) rows keep full contrast against their background. */}
-      <TableBody className="text-muted-foreground font-light">
-        <ForEach items={sorted}>
-          {(record, i) => (
-            <TableRow
-              // One row is in the tab order: the selected one (or the first,
-              // before anything is picked). Up/Down/Home/End move focus inside
-              // the list, Enter (or Space) opens the row under the cursor.
-              tabIndex={i === tabStop ? 0 : -1}
-              aria-selected={selected === record.id}
-              onKeyDown={handleRowKeyDown(i)}
-              onClick={() => setSelected(record.id)}
+          (selected / credit) rows keep full contrast against their background.
+
+          One row group per record. The group is what makes a split payment
+          readable: the `No` cell spans the record's own rows, and the tint —
+          hover, selected — has to reach every payment line, which needs an
+          ancestor above the rows (a row cannot reach its siblings). The rule
+          belongs *between* records, so only the group's last row draws it. */}
+      <ForEach items={sorted}>
+        {(record, i) => {
+          const lines = recordPaymentLines(record, selection);
+          // Only a record that paid with more than one visible method earns a
+          // breakdown: a single method, a filter that narrowed the record down
+          // to one, a credit with no payments yet, and two stored rows of the
+          // same method all stay the single row they always were.
+          const split = lines.length > 1;
+          const isSelected = selected === record.id;
+          // A selected row lightens under the pointer; a credit keeps its red.
+          const hoverTint =
+            isSelected && !record.isCredit
+              ? "group-hover/rec:bg-sky-100"
+              : "group-hover/rec:bg-muted/50";
+
+          return (
+            <tbody
+              key={record.id}
               className={cn(
-                "cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary focus-visible:outline-none",
-                {
-                  "bg-sky-200 hover:bg-sky-100 text-foreground font-semibold ring-1 ring-inset ring-primary":
-                    selected === record.id,
-                },
-                { "bg-red-300 text-foreground": record.isCredit },
+                "group/rec text-muted-foreground font-light",
+                "[&>tr]:border-b-0 [&:not(:last-child)>tr:last-child]:border-b",
               )}
             >
-              <TableCell>{i + 1}</TableCell>
-              <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
-              <TableCell className="text-center">{formatTime(record.date)}</TableCell>
-              <TableCell className="text-right">
-                {record.grandTotal.toLocaleString("id-ID")}
-              </TableCell>
-            </TableRow>
-          )}
-        </ForEach>
-      </TableBody>
+              <TableRow
+                // Marks the only rows the keyboard model walks: a payment line
+                // is a breakdown of the row above it, not a row of its own.
+                data-record=""
+                // One row is in the tab order: the selected one (or the first,
+                // before anything is picked). Up/Down/Home/End move focus inside
+                // the list, Enter (or Space) opens the row under the cursor.
+                tabIndex={i === tabStop ? 0 : -1}
+                aria-selected={isSelected}
+                onKeyDown={handleRowKeyDown(i)}
+                onClick={() => setSelected(record.id)}
+                className={cn(
+                  "cursor-pointer hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary focus-visible:outline-none",
+                  hoverTint,
+                  {
+                    "bg-sky-200 text-foreground font-semibold ring-1 ring-inset ring-primary":
+                      isSelected,
+                  },
+                  { "bg-red-300 text-foreground": record.isCredit },
+                )}
+              >
+                {/* Vertically centred over the record's rows: the number
+                    labels the group, not its first line. */}
+                <TableCell rowSpan={split ? lines.length + 1 : undefined} className="align-middle">
+                  {i + 1}
+                </TableCell>
+                <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
+                <TableCell className="text-center">{formatTime(record.date)}</TableCell>
+                <TableCell className="text-right">
+                  {record.grandTotal.toLocaleString("id-ID")}
+                </TableCell>
+              </TableRow>
+              {split
+                ? lines.map((line) => (
+                    // The label takes the two columns it has room for (Kasir +
+                    // Waktu) and the figure stays in the Total column, so the
+                    // money still lines up down the page. Italic, same size:
+                    // the line reads as a note under the record, not a record.
+                    //
+                    // The whole group is the click target: a pointer landing on
+                    // a payment line still opens that record's detail, and the
+                    // tint above already says the lines belong together. The
+                    // line stays out of the tab order — keyboard selection is
+                    // the record row's job.
+                    <TableRow
+                      key={line.key}
+                      onClick={() => setSelected(record.id)}
+                      className={cn("cursor-pointer hover:bg-transparent italic", hoverTint, {
+                        "bg-sky-200 text-foreground": isSelected,
+                        "bg-red-300 text-foreground": record.isCredit,
+                      })}
+                    >
+                      <TableCell colSpan={2} className="pr-2 text-right">
+                        {line.label}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {line.pay.toLocaleString("id-ID")}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : null}
+            </tbody>
+          );
+        }}
+      </ForEach>
     </Table>
   );
 }

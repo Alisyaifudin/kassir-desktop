@@ -25,7 +25,7 @@ export function Records({ records }: { records: RecordModel[] }) {
     <div className="flex flex-col gap-1 overflow-hidden h-full">
       <div className="flex-1 min-h-0 overflow-hidden">
         <div className="h-full overflow-hidden">
-          <List records={filtered} />
+          <List records={filtered} selection={selection} />
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0 py-2 border-t mt-auto">

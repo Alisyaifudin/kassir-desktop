@@ -15,8 +15,10 @@ import {
   groupMethods,
   kindStateOf,
   matchesMethod,
+  methodLabel,
   normalizeSelection,
   parseSelection,
+  recordPaymentLines,
   selectionCount,
   subCheckedOf,
   toggleKindSelection,
@@ -189,5 +191,84 @@ describe("URL round-trip", () => {
     const b = normalizeSelection({ kinds: ["cash", "qris"], methods: [] }, groups);
     expect(a.kinds).toEqual(["cash", "qris"]);
     expect(a).toEqual(b);
+  });
+});
+
+/**
+ * The list's `Total` column breaks a split payment into one line per method, but
+ * only for the payments the filter lets through — a filter that leaves one
+ * payment has nothing to break down and must collapse back to a single line.
+ */
+const paid = (
+  payments: [methodId: string, kind: string, pay: number, name: string | null][],
+): RecordModel =>
+  ({
+    methods: payments.map(([methodId, kind, pay, name]) => ({ methodId, kind, pay, name })),
+  }) as unknown as RecordModel;
+
+const cashAndMandiri = paid([
+  ["1000", "cash", 15_000, null],
+  ["1005", "qris", 5_000, "Mandiri"],
+]);
+
+describe("payment lines for the Total column", () => {
+  test("an empty filter keeps every payment, in the order it was paid", () => {
+    expect(recordPaymentLines(cashAndMandiri, EMPTY_SELECTION)).toEqual([
+      { key: "1000", label: "Tunai", pay: 15_000 },
+      { key: "1005", label: "QRIS Mandiri", pay: 5_000 },
+    ]);
+  });
+
+  test("a filter that keeps one payment leaves one line — the record collapses", () => {
+    const cashOnly = toggleKindSelection(EMPTY_SELECTION, groups, cash);
+    expect(recordPaymentLines(cashAndMandiri, cashOnly)).toEqual([
+      { key: "1000", label: "Tunai", pay: 15_000 },
+    ]);
+  });
+
+  test("a filter that keeps both payments keeps both lines", () => {
+    const both = toggleKindSelection(
+      toggleKindSelection(EMPTY_SELECTION, groups, cash),
+      groups,
+      groupOf("qris"),
+    );
+    expect(recordPaymentLines(cashAndMandiri, both).map((line) => line.label)).toEqual([
+      "Tunai",
+      "QRIS Mandiri",
+    ]);
+  });
+
+  test("a filter matching none of the payments leaves no line at all", () => {
+    const transferOnly = toggleKindSelection(EMPTY_SELECTION, groups, transfer);
+    expect(recordPaymentLines(cashAndMandiri, transferOnly)).toEqual([]);
+  });
+
+  test("a zero-pay row carries no money, so it gets no line", () => {
+    const record = paid([
+      ["1000", "cash", 0, null],
+      ["1005", "qris", 5_000, "Mandiri"],
+    ]);
+    expect(recordPaymentLines(record, EMPTY_SELECTION).map((line) => line.key)).toEqual(["1005"]);
+  });
+
+  test("two rows of one method merge into a single line", () => {
+    const record = paid([
+      ["1000", "cash", 4_000, null],
+      ["1005", "qris", 5_000, "Mandiri"],
+      ["1000", "cash", 1_000, null],
+    ]);
+    expect(recordPaymentLines(record, EMPTY_SELECTION)).toEqual([
+      { key: "1000", label: "Tunai", pay: 5_000 },
+      { key: "1005", label: "QRIS Mandiri", pay: 5_000 },
+    ]);
+  });
+
+  test("a base method is named by its kind, a variant by its name after it", () => {
+    expect(methodLabel({ kind: "transfer", name: null })).toBe("Transfer");
+    expect(methodLabel({ kind: "transfer", name: "BCA" })).toBe("Transfer BCA");
+    // A row that lost its method keeps a label rather than printing nothing.
+    expect(recordPaymentLines(paid([["gone", "cash", 1, null]]), EMPTY_SELECTION)[0]?.label).toBe(
+      "Tunai",
+    );
   });
 });

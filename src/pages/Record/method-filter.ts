@@ -1,6 +1,6 @@
-import { METHODS, type MethodKind } from "~/lib/constants";
+import { METHOD_NAMES, METHODS, type MethodKind } from "~/lib/constants";
 import type { Method } from "~/services/method";
-import type { Record as RecordModel } from "~/services/record";
+import type { Record as RecordModel, RecordMethod } from "~/services/record";
 
 /** The base method has no name; every named method under a kind is a variant. */
 export function isBaseMethod(method: Method): boolean {
@@ -170,6 +170,15 @@ export function subCheckedOf(
   return selection.kinds.includes(group.base.kind) || selection.methods.includes(sub.id);
 }
 
+/** A payment is in the selection when its kind or its own id is named. */
+function paymentMatches(
+  payment: RecordMethod,
+  kinds: ReadonlySet<string>,
+  methods: ReadonlySet<string>,
+): boolean {
+  return kinds.has(payment.kind) || methods.has(payment.methodId);
+}
+
 /**
  * A record matches when any of its payments is a selected kind or a selected
  * method. Records carry every payment applied (split payment), so any hit wins;
@@ -179,7 +188,60 @@ export function matchesMethod(record: RecordModel, selection: MethodSelection): 
   if (isEmptySelection(selection)) return true;
   const kinds = new Set<string>(selection.kinds);
   const methods = new Set(selection.methods);
-  return record.methods.some(
-    (payment) => kinds.has(payment.kind) || methods.has(payment.methodId),
-  );
+  return record.methods.some((payment) => paymentMatches(payment, kinds, methods));
+}
+
+/**
+ * One payment line of the list's `Total` column: what a method took, and how to
+ * name it. `key` is the method id, unique inside a record — the id the line is
+ * rendered under.
+ */
+export type PaymentLine = {
+  key: string;
+  label: string;
+  pay: number;
+};
+
+/**
+ * `QRIS Mandiri` for a named variant, `Tunai` for a base method — the shape the
+ * receipt's method line uses, so the list and the receipt name a payment alike.
+ */
+export function methodLabel(method: Pick<RecordMethod, "kind" | "name">): string {
+  const name = method.name?.trim() ?? "";
+  return name === "" ? METHOD_NAMES[method.kind] : `${METHOD_NAMES[method.kind]} ${name}`;
+}
+
+/**
+ * A record's payments as the list can show them: only those the filter lets
+ * through, with no zero-pay leftovers (an unsettled split keeps those, and they
+ * carry no money — the same rule the detail pane's money band applies), and
+ * several rows for one method merged into a single line.
+ *
+ * Stored order is kept, so a split payment reads in the order it was paid, and a
+ * filter that leaves one payment collapses the record back to a single line.
+ */
+export function recordPaymentLines(
+  record: RecordModel,
+  selection: MethodSelection,
+): PaymentLine[] {
+  const kinds = new Set<string>(selection.kinds);
+  const methods = new Set(selection.methods);
+  const unfiltered = isEmptySelection(selection);
+  const lines: PaymentLine[] = [];
+  const byMethod = new Map<string, PaymentLine>();
+
+  for (const payment of record.methods) {
+    if (!unfiltered && !paymentMatches(payment, kinds, methods)) continue;
+    if (payment.pay === 0) continue;
+    const merged = byMethod.get(payment.methodId);
+    if (merged !== undefined) {
+      merged.pay += payment.pay;
+      continue;
+    }
+    const line = { key: payment.methodId, label: methodLabel(payment), pay: payment.pay };
+    byMethod.set(payment.methodId, line);
+    lines.push(line);
+  }
+
+  return lines;
 }

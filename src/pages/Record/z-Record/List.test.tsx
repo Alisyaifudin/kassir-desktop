@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import type { Record as RecordModel } from "~/services/record";
 import { List } from "./List";
+import type { MethodSelection } from "../method-filter";
 
 /**
  * The Records list is the only way to open a record's detail pane, so it has to
@@ -38,10 +39,10 @@ function record(overrides: Partial<RecordModel> = {}): RecordModel {
   };
 }
 
-function renderList(records: RecordModel[]) {
+function renderList(records: RecordModel[], selection?: MethodSelection) {
   return render(
     <MemoryRouter initialEntries={["/records"]}>
-      <List records={records} />
+      <List records={records} selection={selection} />
     </MemoryRouter>,
   );
 }
@@ -131,5 +132,71 @@ describe("Record list sort headers", () => {
     renderList([record({ id: "a" })]);
     const button = screen.getByRole("button", { name: /urutkan menurut waktu/i });
     expect(button.textContent).toContain("Waktu");
+  });
+});
+
+/**
+ * A record paid with two methods shows each method's money on its own line under
+ * the record's total — but only for the methods the filter kept, and never at the
+ * cost of the keyboard model (the payment lines are a breakdown, not rows).
+ */
+const splitPayments: RecordModel["methods"] = [
+  { id: "rm1", methodId: "1000", pay: 15_000, name: null, kind: "cash" },
+  { id: "rm2", methodId: "1005", pay: 5_000, name: "Mandiri", kind: "qris" },
+];
+
+const splitRecord = record({ id: "a", methods: splitPayments, grandTotal: 20_000 });
+
+describe("Record list split payments", () => {
+  test("each payment gets a line, and the number spans the group", () => {
+    renderList([splitRecord]);
+    const rows = screen.getAllByRole("row");
+
+    // Header, the record, and one line per payment.
+    expect(rows).toHaveLength(4);
+    expect(rows[1]?.firstElementChild?.getAttribute("rowspan")).toBe("3");
+
+    expect(screen.getByText("Tunai")).toBeDefined();
+    expect(screen.getByText("QRIS Mandiri")).toBeDefined();
+    expect(screen.getByText("15.000")).toBeDefined();
+    expect(screen.getByText("5.000")).toBeDefined();
+    expect(screen.getByText("20.000")).toBeDefined();
+  });
+
+  test("a filter that keeps one payment collapses the record to the one line", () => {
+    renderList([splitRecord], { kinds: ["cash"], methods: [] });
+    const rows = screen.getAllByRole("row");
+
+    expect(rows).toHaveLength(2);
+    expect(screen.queryByText("QRIS Mandiri")).toBeNull();
+    // Filtering hides lines; the record's own total does not move.
+    expect(screen.getByText("20.000")).toBeDefined();
+  });
+
+  test("clicking a payment line opens the record it belongs to", () => {
+    renderList([splitRecord, record({ id: "b", date: 500 })]);
+    const rows = screen.getAllByRole("row");
+
+    // A pointer on the breakdown selects the record, not a line of it.
+    fireEvent.click(screen.getByText("QRIS Mandiri"));
+
+    expect(rows[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(rows[3]?.hasAttribute("aria-selected")).toBe(false);
+    expect(rows[4]?.getAttribute("aria-selected")).toBe("false");
+  });
+
+  test("the payment lines are not rows of the keyboard model", () => {
+    // The list opens newest-first, so the split record needs the later date to
+    // sit above the other one; its payment lines then follow it.
+    renderList([splitRecord, record({ id: "b", date: 500 })]);
+    const rows = screen.getAllByRole("row");
+
+    // Only the two record rows are in the tab order, never their payment lines.
+    expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1);
+    expect(rows[2]?.hasAttribute("tabindex")).toBe(false);
+
+    // Down walks from the first record straight to the second, over the lines.
+    fireEvent.keyDown(rows[1]!, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(rows[4]!);
   });
 });
