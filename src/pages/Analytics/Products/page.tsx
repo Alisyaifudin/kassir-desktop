@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
+import { MODE_NAMES } from "~/lib/constants";
 import { formatDate, formatTime } from "~/lib/date";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
@@ -212,7 +213,7 @@ function Body({
             aria-pressed={mode === "incoming"}
             onClick={() => onMode("incoming")}
           >
-            Jual
+            {MODE_NAMES.incoming}
           </Button>
           <Button
             size="sm"
@@ -220,7 +221,7 @@ function Body({
             aria-pressed={mode === "outcoming"}
             onClick={() => onMode("outcoming")}
           >
-            Beli
+            {MODE_NAMES.outcoming}
           </Button>
         </div>
         <div

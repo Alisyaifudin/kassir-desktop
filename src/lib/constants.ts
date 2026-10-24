@@ -19,6 +19,16 @@ export type DefaultableKind = (typeof DEFAULTABLE_KINDS)[number];
  */
 export type ValueKind = "number" | "percent";
 
+/**
+ * The two directions a record can take, as the UI names them: `incoming` is a sale
+ * (money in, stock consumed), `outcoming` a purchase (money out, stock received).
+ *
+ * It reads Masuk/Keluar everywhere — the mode switch, the search filter, the
+ * receipt heading, the dashboard ledger, the analytics toggle and the change-mode
+ * dialog — so the vocabulary cannot drift back to Jual/Beli one screen at a time.
+ */
+export const MODE_NAMES = { incoming: "Masuk", outcoming: "Keluar" } as const;
+
 /** Shape of the built-in method rows seeded below; the `method` service owns the domain type. */
 type Method = { id: string; name?: string; kind: MethodKind };
 

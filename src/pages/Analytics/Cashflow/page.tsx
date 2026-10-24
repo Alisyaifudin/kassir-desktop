@@ -97,8 +97,8 @@ function Body({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Omzet" value={money(omzet)} hint={`${sold} transaksi jual`} />
-        <Stat label="Pengeluaran" value={money(pengeluaran)} hint={`${bought} transaksi beli`} />
+        <Stat label="Omzet" value={money(omzet)} hint={`${sold} transaksi masuk`} />
+        <Stat label="Pengeluaran" value={money(pengeluaran)} hint={`${bought} transaksi keluar`} />
         <Stat
           label="Arus kas bersih"
           value={money(net)}

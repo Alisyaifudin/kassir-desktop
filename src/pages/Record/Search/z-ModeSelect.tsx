@@ -1,12 +1,13 @@
 import { Label } from "~/components/ui/label";
+import { MODE_NAMES } from "~/lib/constants";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import type { RecordMode } from "~/services/record";
 import { useMode } from "../use-mode";
 
 /** `incoming` is a sale (money in); `outcoming` is a purchase (money out). */
 const MODES: { value: RecordMode; label: string }[] = [
-  { value: "incoming", label: "Masuk" },
-  { value: "outcoming", label: "Keluar" },
+  { value: "incoming", label: MODE_NAMES.incoming },
+  { value: "outcoming", label: MODE_NAMES.outcoming },
 ];
 
 export function ModeSelect() {

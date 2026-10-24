@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { Kbd } from "~/components/ui/kdb";
 import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
+import { MODE_NAMES } from "~/lib/constants";
 import { cn } from "~/lib/utils";
 import type { RecordMode } from "~/services/record";
 
 const MODES = [
-  { value: "incoming", label: "Masuk" },
-  { value: "outcoming", label: "Keluar" },
+  { value: "incoming", label: MODE_NAMES.incoming },
+  { value: "outcoming", label: MODE_NAMES.outcoming },
 ] as const;
 
 /** The only two directions, so the other one is the whole toggle. */

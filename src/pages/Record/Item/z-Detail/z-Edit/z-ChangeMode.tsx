@@ -1,10 +1,10 @@
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
+import { MODE_NAMES } from "~/lib/constants";
 import type { RecordFull } from "~/services/record";
 import { useChangeMode } from "./use-change-mode";
 
-const title = { outcoming: "Beli", incoming: "Jual" } as const;
 const body = { outcoming: "pembelian", incoming: "penjualan" } as const;
 
 /**
@@ -18,7 +18,7 @@ export function ChangeMode({ record }: { record: RecordFull }) {
 
   return (
     <div className="flex flex-col gap-1">
-      <p>Mode saat ini: {title[record.mode]}</p>
+      <p>Mode saat ini: {MODE_NAMES[record.mode]}</p>
       <Button
         type="button"
         onClick={() => void change(next)}
@@ -26,7 +26,7 @@ export function ChangeMode({ record }: { record: RecordFull }) {
         className="w-fit"
         disabled={loading}
       >
-        Ubah jadi {title[next]} <Spinner when={loading} />
+        Ubah jadi {MODE_NAMES[next]} <Spinner when={loading} />
       </Button>
       <p className="text-small text-muted-foreground">
         Catatan ini dibuat ulang sebagai {body[next]} lalu yang lama dihapus.

@@ -151,7 +151,7 @@ function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] 
 
       <ChartFrame
         title="Jam sibuk"
-        hint="Transaksi jual per jam pada minggu ini"
+        hint="Transaksi masuk per jam pada minggu ini"
         label="Grafik transaksi per jam"
         action={
           <div className="flex items-center gap-3">
@@ -189,7 +189,7 @@ function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] 
 
       <ChartFrame
         title="Pola hari"
-        hint="Transaksi jual per hari dalam minggu ini"
+        hint="Transaksi masuk per hari dalam minggu ini"
         label="Grafik transaksi per hari"
       >
         <ResponsiveContainer width="100%" height="100%">

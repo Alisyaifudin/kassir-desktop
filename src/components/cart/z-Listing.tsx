@@ -684,7 +684,7 @@ export function Listing({
                         key={line.id}
                         {...handlersFor(line.id)}
                         line={line}
-                        priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}
+                        priceLabel={mode === "sale" ? "Harga Masuk" : "Harga Keluar"}
                         number={lines.length - index}
                         issue={issues.get(line.id)}
                         selected={cardSelected && focused ? (active.field as Field) : null}

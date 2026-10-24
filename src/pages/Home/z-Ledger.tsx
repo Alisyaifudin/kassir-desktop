@@ -4,6 +4,7 @@ import { Gate } from "~/components/page-data";
 import { Button } from "~/components/ui/button";
 import { Skeleton, SkeletonText } from "~/components/ui/skeleton";
 import { formatTime } from "~/lib/date";
+import { MODE_NAMES } from "~/lib/constants";
 import { capitalize, cn } from "~/lib/utils";
 import type { Record as RecordModel } from "~/services/record";
 import { pageData } from "./data";
@@ -116,7 +117,7 @@ const ROW =
 
 function Row({ record }: { record: RecordModel }) {
   const to = withUrlBack(`/records/${record.id}`);
-  const kind = record.mode === "incoming" ? "Jual" : "Beli";
+  const kind = MODE_NAMES[record.mode];
 
   return (
     <>
