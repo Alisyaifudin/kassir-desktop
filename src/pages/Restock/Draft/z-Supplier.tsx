@@ -1,6 +1,7 @@
-import { useStream } from "~/components/Loader";
+
 import { Combobox } from "~/components/ui/combobox";
 import { service } from "~/services";
+import { pageData } from "../data";
 import type { Draft } from "~/services/transaction";
 import { run } from "~/components/cart/run";
 
@@ -10,7 +11,7 @@ import { run } from "~/components/cart/run";
  * supplier when the purchase is submitted — see the note under the field.
  */
 export function Supplier({ draft }: { draft: Draft }) {
-  const res = useStream(service.supplier.get.changes);
+  const res = pageData.use("suppliers");
   // Same rule as the customer field: a failed read is reported, not rendered as
   // an absent field ("Pemasok: —" read as "none chosen", and the purchase was
   // committed without one). An empty list still allows typing a new supplier.

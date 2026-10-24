@@ -1,5 +1,4 @@
-import { LoaderMany, useStream } from "~/components/Loader";
-import { Skeleton } from "~/components/ui/skeleton";
+import { Skeleton, SkeletonText } from "~/components/ui/skeleton";
 import type Decimal from "decimal.js";
 import {
   Accordion,
@@ -7,10 +6,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
+import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { formatDate, formatTime } from "~/lib/date";
-import { service } from "~/services";
-import type { MethodCatalog } from "~/services/method";
+import { pageData } from "../data";
 import type { Draft } from "~/services/transaction";
 import { paidTotal, roundMoney } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
@@ -50,34 +49,28 @@ export function Payment({
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
-  const res = {
-    catalog: useStream(service.method.get.catalogChanges),
-    suppliers: useStream(service.supplier.get.changes),
-  };
+  // The two catalogues are the page's own keys, so they load beside the drafts
+  // rather than after them. Everything around them — the accordion's wording,
+  // `Dibayar`/`Sisa`, `Pembayaran` — is chrome and is drawn at once; only the
+  // method rows and the supplier's name wait.
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-gutter">
-      <LoaderMany res={res} fallback={<PaymentLoading />}>
-        {({ catalog, suppliers }) => (
-          <Body
-            draft={draft}
-            grand={grand}
-            catalog={catalog}
-            suppliers={suppliers}
-            focusPayment={focusPayment}
-            focusRounding={focusRounding}
-            onFocusPay={onFocusPay}
-            onExitUp={onExitUp}
-            onCredit={onCredit}
-            creditDisabled={creditDisabled}
-          />
-        )}
-      </LoaderMany>
+      <Body
+        draft={draft}
+        grand={grand}
+        focusPayment={focusPayment}
+        focusRounding={focusRounding}
+        onFocusPay={onFocusPay}
+        onExitUp={onExitUp}
+        onCredit={onCredit}
+        creditDisabled={creditDisabled}
+      />
     </div>
   );
 }
 
-/** The purchase's payment/supplier form while its two catalogues load. */
-function PaymentLoading() {
+/** The purchase's payment shape before the first draft exists. */
+export function PaymentLoading() {
   return (
     <div className="flex flex-col gap-3 p-2" aria-busy="true" aria-label="Memuat pembayaran">
       <Skeleton className="h-14 w-full" />
@@ -90,8 +83,6 @@ function PaymentLoading() {
 function Body({
   draft,
   grand,
-  catalog,
-  suppliers,
   focusPayment,
   focusRounding,
   onFocusPay,
@@ -101,8 +92,6 @@ function Body({
 }: {
   draft: Draft;
   grand: Decimal;
-  catalog: MethodCatalog;
-  suppliers: { id: string; name: string }[];
   focusPayment: number;
   focusRounding: number;
   onFocusPay: () => void;
@@ -110,9 +99,18 @@ function Body({
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
 }) {
+  const methodsRes = pageData.use("methods");
+  const suppliersRes = pageData.use("suppliers");
+  const catalog = methodsRes.type === "success" ? methodsRes.data : null;
+  const suppliers = suppliersRes.type === "success" ? suppliersRes.data : null;
+  const refresh = pageData.useRefresh();
+
   const paid = roundMoney(paidTotal(draft.methods), draft.fix);
   const change = paid.minus(grand);
-  const supplierName = suppliers.find((supplier) => supplier.id === draft.supplierId)?.name ?? "—";
+  const supplierName =
+    suppliers === null
+      ? null
+      : (suppliers.find((supplier) => supplier.id === draft.supplierId)?.name ?? "—");
 
   return (
     <div className="mx-auto flex w-full  flex-col">
@@ -124,8 +122,14 @@ function Body({
                 <span className="font-medium">Info pembelian</span>
                 <span className="flex min-w-0 items-center gap-2 text-small text-muted-foreground">
                   <CashierName />
-                  <span className="truncate">
-                    Pemasok: {supplierName} · Presisi {draft.fix}
+                  <span className="flex min-w-0 items-center gap-1 truncate">
+                    Pemasok:{" "}
+                    {supplierName === null ? (
+                      <SkeletonText className="w-24" />
+                    ) : (
+                      <span className="truncate">{supplierName}</span>
+                    )}{" "}
+                    · Presisi {draft.fix}
                     {/* A backdated pick must not hide behind a collapsed
                         accordion: the record is written with it, not with now. */}
                     {draft.paidAt === null
@@ -151,6 +155,25 @@ function Body({
         </Accordion>
         <Kredit onCredit={onCredit} disabled={creditDisabled} />
       </div>
+
+      {methodsRes.type === "error" ? (
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-small text-destructive">
+          <span role="alert">
+            Daftar metode pembayaran gagal dimuat: {methodsRes.error.message}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => refresh("methods")}>
+            Coba lagi
+          </Button>
+        </div>
+      ) : null}
+      {suppliersRes.type === "error" ? (
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-small text-destructive">
+          <span role="alert">Daftar pemasok gagal dimuat: {suppliersRes.error.message}</span>
+          <Button size="sm" variant="outline" onClick={() => refresh("suppliers")}>
+            Coba lagi
+          </Button>
+        </div>
+      ) : null}
 
       <Images draft={draft} />
 

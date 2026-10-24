@@ -1,9 +1,9 @@
-import type Decimal from "decimal.js";
+import Decimal from "decimal.js";
 import { type Extra, type Line } from "~/components/cart/types";
 import { linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
 import { Listing } from "~/components/cart/z-Listing";
-import { Payment } from "./z-Payment";
+import { Payment, PaymentLoading } from "./z-Payment";
 import { CartPanel, Tabs } from "~/components/cart/z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
 import type { LineIssue } from "~/components/cart/code-issues";
@@ -32,6 +32,7 @@ export function Draft({
   issues,
   extras,
   onExtras,
+  loading,
   focusSearch,
   focusPayment,
   focusRounding,
@@ -41,11 +42,15 @@ export function Draft({
   onCredit,
   creditDisabled,
 }: {
-  draft: DraftModel;
+  /** `null` while the drafts are still being read: the strip and the stages are drawn anyway. */
+  draft: DraftModel | null;
   drafts: DraftModel[];
   onSelect: (id: string) => void;
   stage: Stage;
-  grand: Decimal;
+  /** `null` while there is no cart to total. */
+  grand: Decimal | null;
+  /** The drafts are still being read: the strip and the grid hold their places. */
+  loading: boolean;
   lines: Line[];
   onLines: (lines: Line[]) => void;
   issues: Map<string, LineIssue>;
@@ -63,11 +68,18 @@ export function Draft({
 }) {
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
-      <Tabs mode="purchase" drafts={drafts} activeId={draft.id} onSelect={onSelect} />
-      <CartPanel draftId={draft.id}>
+      <Tabs
+        mode="purchase"
+        drafts={drafts}
+        activeId={draft?.id ?? ""}
+        onSelect={onSelect}
+        loading={loading}
+      />
+      <CartPanel draftId={draft?.id}>
         <StageBody
           stage={stage}
           draft={draft}
+          loading={loading}
           grand={grand}
           lines={lines}
           onLines={onLines}
@@ -91,6 +103,7 @@ export function Draft({
 function StageBody({
   stage,
   draft,
+  loading,
   grand,
   lines,
   onLines,
@@ -107,8 +120,9 @@ function StageBody({
   creditDisabled,
 }: {
   stage: Stage;
-  draft: DraftModel;
-  grand: Decimal;
+  draft: DraftModel | null;
+  loading: boolean;
+  grand: Decimal | null;
   lines: Line[];
   onLines: (lines: Line[]) => void;
   issues: Map<string, LineIssue>;
@@ -128,6 +142,7 @@ function StageBody({
       <Listing
         mode="purchase"
         lines={lines}
+        loading={loading}
         issues={issues}
         onChange={onLines}
         focusSearch={focusSearch}
@@ -140,12 +155,17 @@ function StageBody({
       <Extras
         mode="purchase"
         extras={extras}
+        loading={loading}
         subtotal={linesSubtotal(lines)}
         onChange={onExtras}
         focusSearch={focusSearch}
       />
     );
   }
+  // No cart yet: the payment stage needs a draft to write amounts to, so it
+  // holds its shape instead of pretending.
+  if (draft === null) return <PaymentLoading />;
+
   return (
     <Payment
       // Keyed by draft: the payment stage holds dialog state (`Kredit`), amounts
@@ -153,7 +173,7 @@ function StageBody({
       // switch means nothing dialog-shaped can outlive the cart it describes.
       key={draft.id}
       draft={draft}
-      grand={grand}
+      grand={grand ?? new Decimal(0)}
       focusPayment={focusPayment}
       focusRounding={focusRounding}
       onFocusPay={onFocusPay}

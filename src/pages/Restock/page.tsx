@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Decimal from "decimal.js";
 import {
   linesSubtotal,
@@ -14,8 +14,10 @@ import { useDraftId } from "~/pages/cart/use-draft";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
 import { Complete } from "~/components/cart/z-Complete";
-import { CartBody, CartEmpty, CartPanels, CartRoute } from "~/components/cart/z-CartFrame";
-import type { Draft as DraftModel } from "~/services/transaction";
+import { CartBody, CartPanels } from "~/components/cart/z-CartFrame";
+import { CartStartError } from "~/components/cart/z-StartError";
+import { pageData } from "./data";
+import { service } from "~/services";
 
 /** A committed purchase, plus how it was settled — the receipt needs to know. */
 type CreditComplete = {
@@ -38,33 +40,37 @@ type CreditComplete = {
  * — the draft lifecycle, the tab walker, the shortcuts, what "Bayar" means and
  * the shell — lives in `useCartScreen`, `useSubmitCart` and `z-CartFrame`; what
  * is left here is the purchase's own three-stage layout.
+ *
+ * Nothing waits as a block: `drafts`, `methods` and `suppliers` are registered on
+ * one provider and start together, so the tab strip, the grid, the stage moves
+ * and `Bayar` are drawn from the first frame — like Pos.
  */
 export default function Page() {
   const [stage, setStage] = useStage(STAGES);
   const [draftId, setDraftId] = useDraftId();
+
+  const sources = useMemo(
+    () => ({
+      drafts: service.transaction.get.changes,
+      methods: service.method.get.catalogChanges,
+      suppliers: service.supplier.get.changes,
+    }),
+    [],
+  );
+
   return (
-    <CartRoute>
-      {(drafts) => (
-        <Screen
-          drafts={drafts}
-          stage={stage}
-          onStage={setStage}
-          draftId={draftId}
-          onDraft={setDraftId}
-        />
-      )}
-    </CartRoute>
+    <pageData.Provider sources={sources}>
+      <Screen stage={stage} onStage={setStage} draftId={draftId} onDraft={setDraftId} />
+    </pageData.Provider>
   );
 }
 
 function Screen({
-  drafts,
   stage,
   onStage,
   draftId,
   onDraft,
 }: {
-  drafts: DraftModel[];
   stage: Stage;
   onStage: (stage: Stage) => void;
   draftId: string | null;
@@ -80,9 +86,17 @@ function Screen({
   // Bayar's Up / the payment grid's top: return to the last listing row.
   const [focusLast, setFocusLast] = useState(0);
 
+  const draftsRes = pageData.use("drafts");
+  const drafts = draftsRes.type === "success" ? draftsRes.data : [];
+  // An empty list means "not read yet", not "no cart": hold the create-a-draft
+  // effect until the read has actually answered.
+  const ready = draftsRes.type === "success";
+  const refresh = pageData.useRefresh();
+
   const cart = useCartScreen<Stage, CreditComplete>({
     mode: "outcoming",
     drafts,
+    ready,
     firstStage: "listing",
     onStage,
     draftId,
@@ -107,25 +121,33 @@ function Screen({
   const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
 
   const total = purchaseTotal(extras, linesSubtotal(lines));
+  // `null` while there is no cart: the strip's `Rp` and labels stay, the amount
+  // pulses, and `Bayar` waits disabled.
   const grand =
-    active === null ? new Decimal(0) : roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
+    active === null
+      ? null
+      : roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
   // A credit purchase pays the goods and their charges; the rounding-off line is
   // the cash settlement's, not the debt's.
-  const creditGrand = active === null ? new Decimal(0) : roundMoney(total, active.fix);
+  const creditGrand = active === null ? null : roundMoney(total, active.fix);
   const change =
-    active === null ? new Decimal(0) : roundMoney(paidTotal(active.methods), active.fix).minus(grand);
+    active === null || grand === null
+      ? new Decimal(0)
+      : roundMoney(paidTotal(active.methods), active.fix).minus(grand);
 
   const { submit, submitDraft } = useSubmitCart({
     activeId: active?.id ?? null,
     blocked: complete !== null || submitting || hardIssue,
     // A credit sale has no change to settle; a cash one may not be underpaid.
     ready: (credit) =>
-      (credit ? creditGrand.gt(0) : grand.gt(0)) && (credit || !change.isNegative()),
+      (credit
+        ? creditGrand !== null && creditGrand.gt(0)
+        : grand !== null && grand.gt(0)) && (credit || !change.isNegative()),
     setSubmitting: cart.setSubmitting,
     setComplete,
     build: (recordId, credit) => ({
       recordId,
-      total: credit ? creditGrand : grand,
+      total: (credit ? creditGrand : grand) ?? new Decimal(0),
       change,
       fix: active?.fix ?? 0,
       credit,
@@ -157,44 +179,53 @@ function Screen({
         )
       }
     >
-      {active === null ? (
-        <CartEmpty cart={cart} />
-      ) : (
-        <CartPanels submitting={submitting}>
-          <Draft
-            draft={active}
-            drafts={cart.tabs}
-            onSelect={cart.openDraft}
-            stage={stage}
-            grand={grand}
-            lines={lines}
-            onLines={cart.setLines}
-            issues={cart.issues}
-            extras={extras}
-            onExtras={cart.setExtras}
-            focusSearch={cart.focusSearch}
-            focusPayment={focusPayment}
-            focusRounding={focusRounding}
-            onFocusPay={() => setFocusPay((count) => count + 1)}
-            focusLast={focusLast}
-            onExitUp={exitUp}
-            onCredit={() => submit(true)}
-            creditDisabled={hardIssue || !creditGrand.gt(0)}
-          />
-          <Bottom
-            stage={stage}
-            onChange={onStage}
-            grand={grand}
-            fix={active.fix}
-            change={change}
-            disabled={hardIssue || !grand.gt(0)}
-            focusPay={focusPay}
-            onFocusRounding={() => setFocusRounding((count) => count + 1)}
-            onExitUp={exitUp}
-            onSubmit={() => submitDraft(false)}
-          />
-        </CartPanels>
-      )}
+      <CartPanels submitting={submitting}>
+        {cart.startError !== null ? (
+          <div className="p-2">
+            <CartStartError message={cart.startError} onRetry={cart.retryStart} />
+          </div>
+        ) : draftsRes.type === "error" ? (
+          <div className="p-2">
+            <CartStartError
+              message={`Daftar pembelian gagal dimuat: ${draftsRes.error.message}`}
+              onRetry={() => refresh("drafts")}
+            />
+          </div>
+        ) : null}
+        <Draft
+          draft={active}
+          drafts={cart.tabs}
+          onSelect={cart.openDraft}
+          stage={stage}
+          loading={draftsRes.type === "init"}
+          grand={grand}
+          lines={lines}
+          onLines={cart.setLines}
+          issues={cart.issues}
+          extras={extras}
+          onExtras={cart.setExtras}
+          focusSearch={cart.focusSearch}
+          focusPayment={focusPayment}
+          focusRounding={focusRounding}
+          onFocusPay={() => setFocusPay((count) => count + 1)}
+          focusLast={focusLast}
+          onExitUp={exitUp}
+          onCredit={() => submit(true)}
+          creditDisabled={hardIssue || creditGrand === null || !creditGrand.gt(0)}
+        />
+        <Bottom
+          stage={stage}
+          onChange={onStage}
+          grand={grand}
+          fix={active?.fix ?? 0}
+          change={change}
+          disabled={active === null || hardIssue || grand === null || !grand.gt(0)}
+          focusPay={focusPay}
+          onFocusRounding={() => setFocusRounding((count) => count + 1)}
+          onExitUp={exitUp}
+          onSubmit={() => submitDraft(false)}
+        />
+      </CartPanels>
     </CartBody>
   );
 }

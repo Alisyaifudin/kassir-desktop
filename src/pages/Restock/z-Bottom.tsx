@@ -25,7 +25,8 @@ export function Bottom({
 }: {
   stage: Stage;
   onChange: (stage: Stage) => void;
-  grand: Decimal;
+  /** `null` while there is no cart to total; the amount pulses. */
+  grand: Decimal | null;
   fix: number;
   change: Decimal;
   /** A hard line problem or a zero total keeps the purchase from settling. */
