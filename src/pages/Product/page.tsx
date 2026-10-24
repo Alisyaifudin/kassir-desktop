@@ -69,7 +69,7 @@ function List() {
 
   return (
     <main className="relative flex h-[calc(100vh-68px)] flex-col overflow-hidden small:h-[calc(100vh-44px)]">
-      <Toolbar state={state} set={set} availableKinds={availableKinds} total={total} />
+      <Toolbar state={state} set={set} availableKinds={availableKinds}  />
 
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2 pt-2">
         <Gate

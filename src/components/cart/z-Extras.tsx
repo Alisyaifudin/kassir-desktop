@@ -13,6 +13,7 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
@@ -82,9 +83,18 @@ export function Extras({
   onExitDown,
   focused = true,
   onActivate,
+  presets: presetOverride,
+  loading = false,
 }: {
   mode: "sale" | "purchase";
   extras: Extra[];
+  /** The draft is still being read: hold three row places under the header. */
+  loading?: boolean;
+  /**
+   * The extras catalog. A screen with a page-level registry passes its own key
+   * (so it loads beside the drafts); without it the screen reads the stream.
+   */
+  presets?: ExtraPreset[];
   subtotal: Decimal;
   /** The record's rounding, drawn on the sale's stage toggle when it is not zero. */
   rounding?: number;
@@ -128,7 +138,8 @@ export function Extras({
   const total = effects[effects.length - 1]?.total ?? subtotal;
   // The extras catalog, live: the Extra page writes to the same service, so a
   // new or re-priced extra is searchable here without a reload.
-  const presets = useExtraPresets();
+  const livePresets = useExtraPresets();
+  const presets = presetOverride ?? livePresets;
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (needle === "") return [];
@@ -508,6 +519,13 @@ export function Extras({
       ) : (
         <>
           <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
+            {loading ? (
+              <div className="divide-y divide-border space-y-1" aria-hidden>
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton key={index} className="h-[141px] rounded-none w-full small:h-[113px]" />
+                ))}
+              </div>
+            ) : null}
             {layout.subtotalRow ? (
               <div role="row" className="grid grid-cols-12 border-b">
                 <div

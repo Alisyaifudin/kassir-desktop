@@ -2,6 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import { Stream } from "effect";
 import type { Draft } from "~/services/transaction";
+import { CustomerError } from "~/services/customer";
 
 /**
  * The customer field is optional to the *sale*, not to the *record*: the whole
@@ -29,6 +30,7 @@ mock.module("~/services", () => ({
 }));
 
 const { Customer } = await import("./z-Customer");
+const { pageData } = await import("../data");
 
 const draft = {
   id: "d1",
@@ -39,7 +41,19 @@ const draft = {
 
 describe("Customer field", () => {
   test("a failed read is announced and the field stays usable", async () => {
-    render(<Customer draft={draft} />);
+    // The field reads the page's `customers` key; only that key fails here.
+    render(
+      <pageData.Provider
+        sources={{
+          drafts: Stream.never,
+          methods: Stream.never,
+          customers: Stream.fail(new CustomerError({ message: "database is locked" })),
+          extras: Stream.never,
+        }}
+      >
+        <Customer draft={draft} />
+      </pageData.Provider>,
+    );
 
     // The alert lands asynchronously: `useStream` subscribes on mount.
     const alert = await screen.findByRole("alert");

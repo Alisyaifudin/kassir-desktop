@@ -126,6 +126,9 @@ Rules:
   pulses.
 - **`Gate` is still right for a body**: a list, table or grid whose *content* is
   the thing loading has no static part to keep (`z-Ledger.tsx`, `z-Uang.tsx`).
+- **A word can be a value.** "Sisa" and "Kembalian" are the same slot with two
+  readings, chosen by the data — so the *label* pulses, not just the number
+  (`Pos/z-Bottom.tsx`). Same for a tab title, a status word, a mode name.
 - **A control is not a text value.** Render the real control disabled and empty
   inside `PendingValue` (`pages/Setting/z-PendingValue.tsx`): its border, padding,
   chevron and height are the control's own, and only the text inside pulses. A
@@ -393,3 +396,73 @@ Deliberately still on `Loader`/`LoaderMany`, with reasons:
   the rail/range controls live in the layout above it, so the gate is already at
   the right boundary. Their `AnalyticsErrorFallback` is an inline region notice
   (not a page takeover), so moving them to `Gate` would be cosmetic.
+
+## 13. Skeleton dimensions are measured, not guessed
+
+A placeholder is wrong in four separate ways, and each is a decision:
+
+1. **Count** — how many places to hold (two or three tabs, three rows).
+2. **Box** — full width for a row band, a fixed width for a tab or a chip, a
+   `max-w` for a value inside a line.
+3. **Height at both app sizes** — `h-[X] small:h-[Y]`, from the real element, not
+   from a default like `h-4` or `h-11`.
+4. **Radius** — the shape of what it stands in for, *not* the primitive's default.
+
+Guessing is what produces "the skeleton doesn't look like the thing": a 44px row
+band standing in for a 141px cart line, a 112px tab for a 200px one.
+
+### Radius carries meaning
+
+| standing in for | radius | example |
+|---|---|---|
+| a **row** of a divided list (full width) | `rounded-none` | cart line `h-[141px] rounded-none w-full small:h-[113px]` |
+| a **tab** (rounded on top only) | `rounded-t-md` | `h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]` |
+| a **card, thumbnail, control** | keep `rounded-md` | method row `h-[70px] w-full small:h-[56px]` |
+| a **round chip** (avatar, kbd) | `rounded-full` | `size-8 rounded-full` in `CartLoading` |
+| a **line of text** | `SkeletonText`'s `rounded-sm`, or `rounded-none` for a full-width band | payment strip `w-full max-w-[120px] rounded-none` |
+
+A square row band inside a divided list reads as a row; a `rounded-md` one reads
+as a floating card and makes the list look like a stack of chips.
+
+### Measured reference — the cart screens (big / small)
+
+| element | box | radius |
+|---|---|---|
+| cart tab | `w-[200px] h-[40px]` / `w-[106px] h-[37px]` | `rounded-t-md` |
+| cart line | `w-full h-[141px]` / `h-[113px]` | `rounded-none` |
+| extras row | same as a cart line | `rounded-none` |
+| payment method row | `w-full h-[70px]` / `h-[56px]` | `rounded-md` (default) |
+| payment rounding band | `w-full h-[40px]` / `h-[30px]` | `rounded-none` |
+| change row amount | `max-w-[400px] h-[80px]` / `max-w-[300px] h-[70px]` | default |
+| grand total | `w-[400px] h-[120px]` / `w-[300px] h-[100px]` | `rounded-md` (default) |
+
+Notes from those numbers:
+
+- **A big numeral is a block, not an inline pulse.** `text-grand-total` is ~102px
+  tall, so the grand total is a `Skeleton` sized to the line, not a
+  `SkeletonText`.
+- **A tall glyph needs a tall pulse.** `text-change` is larger than body text, so
+  its pulse is `h-[80px]`/`h-[70px]`, not `0.8em`.
+- **Every dimension has a `small:` twin.** The app's size class changes the type
+  scale, so a single px value is only ever right in one mode.
+
+### How to measure (10 seconds, no guessing)
+
+In a Playwright page after the data has arrived:
+
+```js
+const r = (el) => { const b = el.getBoundingClientRect(); return `${Math.round(b.width)}x${Math.round(b.height)}` };
+r(document.querySelector('[role="tab"]'));            // the tab
+r(document.querySelector('[data-testid="cart-line"]')); // the row
+// then, for the small variants:
+document.body.classList.add("small");
+```
+
+Take both readings **after** any entrance animation settles (`ListingCard` animates
+height from 0 over 150 ms), or the first number will be the animation, not the box.
+
+### Placeholders are decorative
+
+Rows and tabs held for data are `aria-hidden`: they are not content, must not be
+counted as tabs/rows by a screen reader, and must not enter a grid's keyboard
+model (the cart's arrow keys are computed from real rows).

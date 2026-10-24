@@ -23,7 +23,9 @@ test("page data gates settle independently", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Page data playground" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Profil kasir" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Aktivitas terbaru" })).toBeVisible();
-  expect(await page.locator('[data-slot="skeleton"]').count()).toBeGreaterThan(0);
+  // `Gate` holds its skeleton back for the anti-flash window, so the first one
+  // arrives a beat after mount — wait for it instead of racing it.
+  await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 3000 });
   if (shots) await page.screenshot({ path: `${shots}-0-mount.png` });
 
   // 2. The static header is alive while keys are still in flight.
@@ -36,7 +38,7 @@ test("page data gates settle independently", async ({ page }) => {
   // skeleton. Counted without retrying, so this is a snapshot of one moment.
   await expect(page.getByText("Siti Rahma").first()).toBeVisible({ timeout: 3000 });
   expect(await page.getByText("Penjualan #A-1043 · Rp 128.000").count()).toBe(0);
-  expect(await page.locator('[data-slot="skeleton"]').count()).toBeGreaterThan(0);
+  await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible();
   if (shots) await page.screenshot({ path: `${shots}-1-profile.png` });
 
   // 4. `stats` arrives; the two-key card (profile + stats) fills at the same time.

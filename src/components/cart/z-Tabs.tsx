@@ -17,6 +17,7 @@ import { service } from "~/services";
 import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { run } from "~/components/cart/run";
 import { Kbd } from "~/components/ui/kdb";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Show } from "../Show";
 
 /**
@@ -49,12 +50,13 @@ export function cartTabId(draftId: string): string {
  * which is itself focusable and owns the arrow keys, so the panel is a
  * programmatic target (and an `aria-labelledby` anchor) rather than a tab stop.
  */
-export function CartPanel({ draftId, children }: { draftId: string; children: ReactNode }) {
+/** `draftId` is absent while the drafts load: the panel exists, its tab does not yet. */
+export function CartPanel({ draftId, children }: { draftId?: string; children: ReactNode }) {
   return (
     <div
       role="tabpanel"
       id={CART_TAB_PANEL_ID}
-      aria-labelledby={cartTabId(draftId)}
+      aria-labelledby={draftId === undefined ? undefined : cartTabId(draftId)}
       tabIndex={-1}
       className="flex min-h-0 flex-1 flex-col outline-none"
     >
@@ -69,13 +71,17 @@ export function Tabs({
   activeId,
   onSelect,
   panelId = CART_TAB_PANEL_ID,
+  loading = false,
 }: {
   mode: "sale" | "purchase";
   drafts: DraftModel[];
-  activeId: string;
+  /** Empty while the drafts load — the strip (F12, `+`) is drawn regardless. */
+  activeId?: string | null;
   onSelect: (id: string) => void;
   /** The `role="tabpanel"` these tabs own. */
   panelId?: string;
+  /** The drafts are still being read: hold their places in the strip. */
+  loading?: boolean;
 }) {
   const [pendingDelete, setPendingDelete] = useState<DraftModel | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -163,6 +169,17 @@ export function Tabs({
           aria-label="Transaksi terbuka"
           className="flex flex-1 items-center gap-1 overflow-x-auto"
         >
+          {loading ? (
+            // Two places for the carts that are on their way. The strip's own
+            // chrome — F12, `+` — is already there, so only the titles are
+            // unknown and only they are held.
+            <div aria-hidden className="flex items-center gap-1">
+              {/* Sized to a real tab: 123x41 big, 106x37 small. */}
+              <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
+              <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
+              <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
+            </div>
+          ) : null}
           {drafts.map((draft, index) => (
             <Tab
               key={draft.id}

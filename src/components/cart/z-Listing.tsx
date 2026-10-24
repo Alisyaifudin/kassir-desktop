@@ -22,6 +22,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-ki
 import { ArrowRight, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
@@ -125,10 +126,13 @@ export function Listing({
   onExitDown,
   focused = true,
   onActivate,
+  loading = false,
 }: {
   /** A sale reads `Harga Jual` and has a stage toggle; a purchase reads `Harga Beli`. */
   mode: "sale" | "purchase";
   lines: Line[];
+  /** The draft is still being read: hold three row places under the header. */
+  loading?: boolean;
   /** The inline problems, keyed by line id. */
   issues: Map<string, LineIssue>;
   /** The rupiah all extras come to, or null when there are none. */
@@ -651,6 +655,14 @@ export function Listing({
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
+          {loading ? (
+            <div className="divide-y space-y-1 divide-border" aria-hidden>
+              {Array.from({ length: 3 }).map((_, index) => (
+                // A real cart line is two cell rows: 141 tall big, 113 small.
+                <Skeleton key={index} className="h-[141px] rounded-none w-full small:h-[113px]" />
+              ))}
+            </div>
+          ) : null}
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}

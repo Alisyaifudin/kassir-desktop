@@ -1,6 +1,6 @@
-import { useStream } from "~/components/Loader";
 import { Combobox } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
+import { pageData } from "../data";
 import { service } from "~/services";
 import type { Draft } from "~/services/transaction";
 import { run } from "~/components/cart/run";
@@ -12,7 +12,7 @@ import { run } from "~/components/cart/run";
  * the field. The phone is only meaningful for that new customer.
  */
 export function Customer({ draft }: { draft: Draft }) {
-  const res = useStream(service.customer.get.changes);
+  const res = pageData.use("customers");
   // A failed read must not delete the field. Returning `null` made the failure
   // indistinguishable from "still loading": the combobox vanished and the sale
   // was committed with no customer and no message anywhere. The list falls back

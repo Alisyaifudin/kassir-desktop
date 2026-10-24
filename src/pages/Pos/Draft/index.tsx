@@ -1,4 +1,4 @@
-import { type Extra, type Line } from "~/components/cart/types";
+import { type Extra, type ExtraPreset, type Line } from "~/components/cart/types";
 import { extrasTotal, linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
 import { Listing } from "~/components/cart/z-Listing";
@@ -36,8 +36,11 @@ export function Draft({
   issues,
   extras,
   onExtras,
+  presets,
+  loading,
 }: {
-  draft: DraftModel;
+  /** `null` while the drafts are still being read: the strip and both stages are drawn anyway. */
+  draft: DraftModel | null;
   drafts: DraftModel[];
   onSelect: (id: string) => void;
   stage: Stage;
@@ -52,14 +55,24 @@ export function Draft({
   issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
+  /** The extras catalog, from the page's registry — it loads beside the drafts. */
+  presets: ExtraPreset[];
+  /** The drafts are still being read: the strip and the rows hold their places. */
+  loading: boolean;
 }) {
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
-      <Tabs mode="sale" drafts={drafts} activeId={draft.id} onSelect={onSelect} />
-      <CartPanel draftId={draft.id}>
+      <Tabs
+        mode="sale"
+        drafts={drafts}
+        activeId={draft?.id ?? ""}
+        onSelect={onSelect}
+        loading={loading}
+      />
+      <CartPanel draftId={draft?.id}>
         <StageBody
           stage={stage}
-          rounding={draft.rounding}
+          rounding={draft?.rounding ?? 0}
           focusSearch={focusSearch}
           focusLast={focusLast}
           onExitDown={onExitDown}
@@ -70,6 +83,8 @@ export function Draft({
           issues={issues}
           extras={extras}
           onExtras={onExtras}
+          presets={presets}
+          loading={loading}
           onToggle={() => onStage(stage === "listing" ? "extra" : "listing")}
         />
       </CartPanel>
@@ -90,6 +105,8 @@ function StageBody({
   issues,
   extras,
   onExtras,
+  presets,
+  loading,
   onToggle,
 }: {
   stage: Stage;
@@ -104,6 +121,8 @@ function StageBody({
   issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
+  presets: ExtraPreset[];
+  loading: boolean;
   onToggle: () => void;
 }) {
   const subtotal = linesSubtotal(lines);
@@ -112,6 +131,7 @@ function StageBody({
       <Listing
         mode="sale"
         lines={lines}
+        loading={loading}
         issues={issues}
         extraTotal={extras.length === 0 ? null : extrasTotal(extras, subtotal)}
         onChange={onLines}
@@ -130,6 +150,8 @@ function StageBody({
       extras={extras}
       subtotal={linesSubtotal(lines)}
       rounding={rounding}
+      presets={presets}
+      loading={loading}
       onChange={onExtras}
       onToggle={onToggle}
       focusSearch={focusSearch}

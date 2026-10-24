@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
 import Decimal from "decimal.js";
-import { Loader, useStream } from "~/components/Loader";
-import { Skeleton } from "~/components/ui/skeleton";
-import { createErrorBoundary } from "~/components/createErrorBoundary";
+import { Skeleton, SkeletonText } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
-import { service } from "~/services";
-import { MethodError, type MethodCatalog } from "~/services/method";
+import type { MethodCatalog } from "~/services/method";
+import { pageData } from "./data";
 import type { Draft } from "~/services/transaction";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Methods } from "~/components/cart/z-Methods";
@@ -33,8 +31,10 @@ export function Bottom({
   onSubmit,
   disabled,
 }: {
-  draft: Draft;
-  grand: Decimal;
+  /** `null` while the drafts load: the strip's chrome is drawn anyway. */
+  draft: Draft | null;
+  /** `null` while there is no draft to total; the amount pulses. */
+  grand: Decimal | null;
   change: Decimal;
   focusPayment: number;
   focusTop: number;
@@ -50,30 +50,34 @@ export function Bottom({
   const [focusRounding, setFocusRounding] = useState(0);
   const [payFocused, setPayFocused] = useState(false);
   function submit(): boolean {
-    if (disabled || change.isNegative()) return false;
+    if (draft === null || disabled || change.isNegative()) return false;
     return onSubmit();
   }
   return (
     <section className="flex flex-none items-stretch border-t">
       <div className="max-h-[40vh] min-w-[700px] small:min-w-[500px] flex-3 shrink-0 overflow-y-auto border-r ">
-        <PayStrip
-          draft={draft}
-          change={change}
-          focusPayment={focusPayment}
-          focusTop={focusTop}
-          onExitUp={onExitUp}
-          focused={focused}
-          onActivate={onActivate}
-          onFocusPay={() => payRef.current?.focus()}
-          focusRounding={focusRounding}
-          onSubmit={submit}
-        />
+        {draft === null ? (
+          <PaymentLoading />
+        ) : (
+          <PayStrip
+            draft={draft}
+            change={change}
+            focusPayment={focusPayment}
+            focusTop={focusTop}
+            onExitUp={onExitUp}
+            focused={focused}
+            onActivate={onActivate}
+            onFocusPay={() => payRef.current?.focus()}
+            focusRounding={focusRounding}
+            onSubmit={submit}
+          />
+        )}
       </div>
       <div className="flex min-w-0 flex-4 flex-col  gap-3">
         <div className="flex items-center px-1 justify-between">
           <Button
             ref={payRef}
-            disabled={disabled || change.comparedTo(0) < 0}
+            disabled={draft === null || disabled || change.comparedTo(0) < 0}
             className={cn(
               "rounded-none transition-shadow",
               payFocused &&
@@ -102,7 +106,7 @@ export function Bottom({
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center">
-          <Total grand={grand} fix={draft.fix} />
+          <Total grand={grand} fix={draft?.fix ?? 0} />
         </div>
       </div>
     </section>
@@ -114,10 +118,28 @@ export function Bottom({
  * to take a stage, tucked into the strip so the main panel never leaves the
  * goods. `focusPayment` counts F2 presses; the first amount field watches it.
  *
- * The catalogue read goes through `<Loader>`, so a failed read is a `MethodError`
- * — caught by the boundary below and reported with a retry — instead of the
- * endless spinner this strip used to show, which read as "the app is thinking"
- * on the one screen where the sale could never be paid.
+type PayStripProps = {
+  draft: Draft;
+  change: Decimal;
+  focusPayment: number;
+  focusTop: number;
+  onExitUp: () => void;
+  focused: boolean;
+  onActivate: () => void;
+  onFocusPay: () => void;
+  focusRounding: number;
+  onSubmit: () => boolean;
+};
+
+/**
+ * The payment rows and the money readouts — the part of the purchase that used
+ * to take a stage, tucked into the strip so the main panel never leaves the
+ * goods. `focusPayment` counts F2 presses; the first amount field watches it.
+ *
+ * The catalogue is the page's `methods` key, so it loads beside the drafts
+ * instead of after them. A failed read keeps the strip's place and offers the
+ * same retry (`refresh` re-subscribes just this key) rather than taking the till
+ * down: nothing else on the screen depends on it.
  */
 type PayStripProps = {
   draft: Draft;
@@ -132,55 +154,51 @@ type PayStripProps = {
   onSubmit: () => boolean;
 };
 
-const MethodErrorBoundary = createErrorBoundary(MethodError);
-
 function PayStrip(props: PayStripProps) {
-  // Remounting re-subscribes the stream, which is the cheapest retry there is.
-  const [attempt, setAttempt] = useState(0);
+  const res = pageData.use("methods");
+  const refresh = pageData.useRefresh();
+
+  // The strip itself is chrome — the rounding row, the change row, their labels —
+  // so it is drawn as soon as the draft exists. `catalog: null` keeps the method
+  // rows a placeholder inside `Methods`, and a failed read is one line under the
+  // strip that re-reads just this key.
+  const catalog = res.type === "success" ? res.data : null;
+
   return (
-    <MethodErrorBoundary
-      key={attempt}
-      fallback={({ error }) => (
-        <div
-          role="alert"
-          className="flex flex-col items-start gap-2 border-b border-destructive/40 bg-destructive/10 p-3 text-small"
-        >
-          <span>Daftar metode pembayaran gagal dimuat: {error.message}</span>
-          <span className="text-muted-foreground">
-            Penjualan belum bisa dibayar sampai metode pembayaran terbaca.
-          </span>
-          <Button size="sm" variant="outline" onClick={() => setAttempt((count) => count + 1)}>
+    <>
+      <Body {...props} catalog={catalog} />
+      {res.type !== "error" ? null : (
+        <div className="flex flex-wrap items-center gap-2 border-t px-2 pb-2 text-small text-destructive">
+          <span role="alert">Daftar metode pembayaran gagal dimuat: {res.error.message}</span>
+          <Button size="sm" variant="outline" onClick={() => refresh("methods")}>
             Coba lagi
           </Button>
         </div>
       )}
-    >
-      <PayStripView {...props} />
-    </MethodErrorBoundary>
+    </>
   );
 }
 
-function PayStripView(props: PayStripProps) {
-  const res = useStream(service.method.get.catalogChanges);
-  return (
-    <Loader res={res} fallback={<PaymentLoading />}>
-      {({ data }) => <Body {...props} catalog={data} />}
-    </Loader>
-  );
-}
-
-/** The payment strip's own shape while the method catalogue loads. */
+/**
+ * The strip before the first draft exists. Only the values can be missing here:
+ * `Pembulatan`, `Kembalian` and the row structure are written down, so they are
+ * drawn at once instead of being replaced by a grey block. (The rounding field
+ * needs a draft to write to, which is why it is a placeholder until the cart
+ * arrives — a field that cannot save is worse than an honest pulse.)
+ */
 function PaymentLoading() {
   return (
-    <div className="flex min-w-0 flex-col gap-2 p-2" aria-busy="true" aria-label="Memuat metode">
-      <div className="flex gap-1">
-        <Skeleton className="h-14 flex-3" />
-        <Skeleton className="h-14 flex-3" />
-        <Skeleton className="h-14 flex-5" />
+    <div className="flex min-w-0 flex-col" aria-busy="true" aria-label="Memuat pembayaran">
+      <div className="flex flex-col items-end border-b px-2">
+        <span className="text-small text-muted-foreground select-none">Pembulatan</span>
+        <Skeleton className="w-full h-[40px] small:h-[30px] rounded-none" />
       </div>
-      <div className="flex items-center justify-between gap-2 border-t pt-2">
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-5 w-24" />
+      <div className="p-1">
+        <Skeleton className="h-[73px] w-full small:h-[56px] rounded-none" />
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t px-2 pt-2 pb-1">
+        <SkeletonText className=" w-full max-w-[120px] rounded-none" />
+        <SkeletonText className="w-full max-w-[400px] small:max-w-[300px] small:h-[70px] h-[80px]" />
       </div>
     </div>
   );
@@ -200,7 +218,8 @@ function Body({
   onSubmit,
 }: {
   draft: Draft;
-  catalog: MethodCatalog;
+  /** `null` while the method catalogue loads; the rounding row is still usable. */
+  catalog: MethodCatalog | null;
   change: Decimal;
   focusPayment: number;
   focusTop: number;

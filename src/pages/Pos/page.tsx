@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Decimal from "decimal.js";
 import {
   linesSubtotal,
@@ -7,6 +7,8 @@ import {
   roundMoney,
   transactionGrandTotal,
 } from "~/lib/purchase";
+import { pageData } from "./data";
+import { service } from "~/services";
 import { Draft, STAGES, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
 import { useStage } from "~/pages/cart/use-stage";
@@ -14,8 +16,8 @@ import { useDraftId } from "~/pages/cart/use-draft";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
 import { Complete } from "~/components/cart/z-Complete";
-import { CartBody, CartEmpty, CartPanels, CartRoute } from "~/components/cart/z-CartFrame";
-import type { Draft as DraftModel } from "~/services/transaction";
+import { CartBody, CartPanels } from "~/components/cart/z-CartFrame";
+import { CartStartError } from "~/components/cart/z-StartError";
 
 /**
  * The Pos screen: the restock screen's shape, selling instead of buying.
@@ -26,37 +28,44 @@ import type { Draft as DraftModel } from "~/services/transaction";
  * because the payment never takes a stage of its own, settling a sale and
  * building one share the same strip.
  *
- * The open draft and the stage both live in the URL, so refresh, back and a
- * shared link all land where they should. Everything the screen shares with
- * Restock lives in `useCartScreen` (state), `useSubmitCart` (what "Bayar"
- * means) and `z-CartFrame` (the shell).
+ * Nothing on the screen waits as a block. The four reads are registered once and
+ * start together; the chrome — tab strip, `+`, F12, the search bar, `+manual`,
+ * the `Tambahan` toggle, `Bayar`, the cashier, the options button, the rounding
+ * field — is drawn from the first frame, and the values inside it that are data
+ * (tab titles, line rows, payment rows, the grand total) fill in or pulse.
  */
 export default function Page() {
   const [stage, setStage] = useStage(STAGES);
   const [draftId, setDraftId] = useDraftId();
+
+  const sources = useMemo(
+    () => ({
+      drafts: service.transaction.get.changes,
+      methods: service.method.get.catalogChanges,
+      customers: service.customer.get.changes,
+      extras: service.extra.get.changes,
+    }),
+    [],
+  );
+
   return (
-    <CartRoute>
-      {(drafts) => (
-        <Screen
-          drafts={drafts}
-          stage={stage}
-          onStage={setStage}
-          draftId={draftId}
-          onDraft={setDraftId}
-        />
-      )}
-    </CartRoute>
+    <pageData.Provider sources={sources}>
+      <Screen
+        stage={stage}
+        onStage={setStage}
+        draftId={draftId}
+        onDraft={setDraftId}
+      />
+    </pageData.Provider>
   );
 }
 
 function Screen({
-  drafts,
   stage,
   onStage,
   draftId,
   onDraft,
 }: {
-  drafts: DraftModel[];
   stage: Stage;
   onStage: (stage: Stage) => void;
   draftId: string | null;
@@ -74,9 +83,18 @@ function Screen({
   // shows one stage at a time.
   const [area, setArea] = useState<"main" | "bottom">("main");
 
+  const draftsRes = pageData.use("drafts");
+  const extrasRes = pageData.use("extras");
+  const drafts = draftsRes.type === "success" ? draftsRes.data : [];
+  // An empty list means "not read yet", not "no cart": hold the create-a-draft
+  // effect until the read has actually answered.
+  const ready = draftsRes.type === "success";
+
+  const refresh = pageData.useRefresh();
   const cart = useCartScreen({
     mode: "incoming",
     drafts,
+    ready,
     firstStage: "listing",
     onStage,
     draftId,
@@ -85,17 +103,28 @@ function Screen({
   });
   const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
 
-  // The sale's numbers, for the strip and for the readiness rule below. Zero
-  // while there is no cart to show.
+  const extrasPresets = useMemo(
+    () =>
+      (extrasRes.type === "success" ? extrasRes.data : []).map(
+        ({ id, name, kind, value, flag }) => ({ id, name, kind, value, flag }),
+      ),
+    [extrasRes],
+  );
+
+  // The sale's numbers, for the strip and for the readiness rule below. `null`
+  // until there is a cart to show: the strip's `Rp` and its wording stay, the
+  // amount pulses.
   const grand =
     active === null
-      ? new Decimal(0)
+      ? null
       : roundMoney(
           transactionGrandTotal(purchaseTotal(extras, linesSubtotal(lines)), active.rounding),
           active.fix,
         );
   const change =
-    active === null ? new Decimal(0) : roundMoney(paidTotal(active.methods), active.fix).minus(grand);
+    active === null || grand === null
+      ? new Decimal(0)
+      : roundMoney(paidTotal(active.methods), active.fix).minus(grand);
 
   const { submitDraft } = useSubmitCart({
     activeId: active?.id ?? null,
@@ -103,34 +132,46 @@ function Screen({
     // A sale is ready when it has something to pay for and the tender covers it.
     // A sale needs something to pay for: a zero total is nothing, and a
     // negative one is a discount that outran the goods.
-    ready: () => grand.gt(0) && !change.isNegative(),
+    ready: () => grand !== null && grand.gt(0) && !change.isNegative(),
     setSubmitting: cart.setSubmitting,
     setComplete,
-    build: (recordId) => ({ recordId, total: grand, change, fix: active?.fix ?? 0 }),
+    build: (recordId) => ({ recordId, total: grand ?? new Decimal(0), change, fix: active?.fix ?? 0 }),
   });
 
   return (
-    <CartBody
-      dialog={
-        complete === null ? null : (
-          <Complete
-            mode="sale"
-            recordId={complete.recordId}
-            total={complete.total}
-            change={complete.change}
-            fix={complete.fix}
-            onRestoreStart={cart.restore.onStart}
-            onRestoreEnd={cart.restore.onEnd}
-            onRestored={cart.restore.onRestored}
-            onClose={() => setComplete(null)}
-          />
-        )
-      }
-    >
-      {active === null ? (
-        <CartEmpty cart={cart} />
-      ) : (
+    <main className="relative flex h-full min-h-0 shrink grow basis-0 flex-col overflow-hidden">
+      <CartBody
+        dialog={
+          complete === null ? null : (
+            <Complete
+              mode="sale"
+              recordId={complete.recordId}
+              total={complete.total}
+              change={complete.change}
+              fix={complete.fix}
+              onRestoreStart={cart.restore.onStart}
+              onRestoreEnd={cart.restore.onEnd}
+              onRestored={cart.restore.onRestored}
+              onClose={() => setComplete(null)}
+            />
+          )
+        }
+      >
         <CartPanels submitting={submitting}>
+          {cart.startError !== null ? (
+            <div className="p-2">
+              <CartStartError message={cart.startError} onRetry={cart.retryStart} />
+            </div>
+          ) : draftsRes.type === "error" ? (
+            // The drafts are the one read the screen cannot work without; the
+            // rest of the strip stays usable and this line offers the retry.
+            <div className="p-2">
+              <CartStartError
+                message={`Daftar transaksi gagal dimuat: ${draftsRes.error.message}`}
+                onRetry={() => refresh("drafts")}
+              />
+            </div>
+          ) : null}
           <Draft
             draft={active}
             drafts={cart.tabs}
@@ -147,6 +188,8 @@ function Screen({
             issues={cart.issues}
             extras={extras}
             onExtras={cart.setExtras}
+            presets={extrasPresets}
+            loading={draftsRes.type === "init"}
           />
           <Bottom
             draft={active}
@@ -159,10 +202,10 @@ function Screen({
             onActivate={() => setArea("bottom")}
             onStore={cart.storeCart}
             onSubmit={submitDraft}
-            disabled={hardIssue || submitting || !grand.gt(0)}
+            disabled={active === null || hardIssue || submitting || grand === null || !grand.gt(0)}
           />
         </CartPanels>
-      )}
-    </CartBody>
+      </CartBody>
+    </main>
   );
 }

@@ -47,9 +47,16 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   onDraft,
   onF1,
   onF2,
+  ready = true,
 }: {
   mode: CartMode;
   drafts: DraftModel[];
+  /**
+   * False while the drafts are still being read. The "always keep a cart open"
+   * effect must not fire then: an empty list means "not read yet", not "no cart",
+   * and creating one would race the read into a duplicate tab.
+   */
+  ready?: boolean;
   /** The stage the panel returns to when the operator switches tabs. */
   firstStage: S;
   onStage: (stage: S) => void;
@@ -151,6 +158,7 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   // The screen always has a cart to show: an empty one is made for it.
   useEffect(() => {
     if (
+      !ready ||
       normalDrafts.length > 0 ||
       creating.current ||
       complete !== null ||
@@ -171,7 +179,7 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
         setStartError(cartErrorMessage(error));
       },
     );
-  }, [normalDrafts.length, onDraft, complete, submitting, restoring, retry, mode]);
+  }, [ready, normalDrafts.length, onDraft, complete, submitting, restoring, retry, mode]);
 
   // Once the rebuilt draft reaches the stream, the normal no-tabs guard can take
   // over again. The timeout is a safety net for a stream that never delivers.

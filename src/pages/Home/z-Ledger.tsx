@@ -20,7 +20,7 @@ const VISIBLE = 6;
  * its anti-flash delay: the placeholder can be held back 200 ms without the card
  * moving, and a quiet day does not shrink the card when the rows arrive.
  */
-const ROWS_FLOOR = "min-h-[208px] small:min-h-[176px]";
+const ROWS_FLOOR = "min-h-[275px] small:min-h-[176px]";
 /** One placeholder line, the height of a real row at either app size. */
 const SKELETON_ROW =
   "flex min-h-[52px] small:min-h-[44px] items-center justify-between gap-3 px-4";

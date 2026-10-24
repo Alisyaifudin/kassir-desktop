@@ -31,6 +31,7 @@ import {
 } from "~/lib/constants";
 import { generateId } from "~/lib/random";
 import { cn } from "~/lib/utils";
+import { Skeleton } from "~/components/ui/skeleton";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft, DraftMethod } from "~/services/transaction";
@@ -81,7 +82,11 @@ export function Methods({
   onSubmit,
 }: {
   draft: Draft;
-  catalog: MethodCatalog;
+  /**
+   * `null` while the method catalogue is still loading: the rounding row needs
+   * only the draft, so it is drawn and usable, and only the method rows wait.
+   */
+  catalog: MethodCatalog | null;
   focusPayment: number;
   /** The cart's hand-off downward; omit it on a screen that has no cart above. */
   focusTop?: number;
@@ -114,11 +119,12 @@ export function Methods({
 
   const first = draft.methods[0] ?? null;
   const multiple = draft.methods.length > 1;
-  const firstMethod = catalog.methods.find((method) => method.id === first?.methodId);
+  const firstMethod = catalog?.methods.find((method) => method.id === first?.methodId);
   const kind: MethodKind = firstMethod?.kind ?? "cash";
-  const accounts = catalog.methods.filter(
-    (candidate) => candidate.kind === kind && candidate.name !== null,
-  );
+  const accounts =
+    catalog === null
+      ? []
+      : catalog.methods.filter((candidate) => candidate.kind === kind && candidate.name !== null);
   const accountId =
     first !== null && accounts.some((account) => account.id === first.methodId)
       ? first.methodId
@@ -138,7 +144,8 @@ export function Methods({
             : ["kind", "amount", "add"],
     [multiple, first, accounts.length],
   );
-  const rows: PayField[][] = [["rounding"], methodRow];
+  // Without the catalogue there is only the rounding row to move around in.
+  const rows: PayField[][] = catalog === null ? [["rounding"]] : [["rounding"], methodRow];
 
   // F2 asked for the first amount; in a multi-method draft that lives in the
   // editor, so open it and reach for the field there.
@@ -182,12 +189,13 @@ export function Methods({
   // Deliberately not behind `isScreenOwnedByDialog`: this dialog *is* the owner,
   // and its own shortcuts must keep working while it is open.
   useEffect(() => {
-    if (multiple || first === null) return;
+    if (catalog === null || multiple || first === null) return;
     const firstMethodId = first.id;
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
       const kind = METHOD_BY_KEY[event.key];
       if (kind === undefined) return;
+      if (catalog === null) return;
       event.preventDefault();
       const methodId = defaultMethodId(catalog, kind);
       const current = latestDraft.current;
@@ -231,6 +239,7 @@ export function Methods({
   }, [selected, methodRow]);
 
   function add() {
+    if (catalog === null) return;
     set([
       ...draft.methods,
       { id: generateId(), methodId: defaultMethodId(catalog, "cash"), value: 0 },
@@ -379,7 +388,14 @@ export function Methods({
         </div>
 
         <div className="grid grid-cols-12">
-          {multiple ? (
+          {catalog === null ? (
+            // The rounding row above is live; the rows that need the catalogue
+            // hold their place with one line the height of a method row.
+            <div className="col-span-12 flex items-center p-1">
+              {/* A real payment row is 70 tall big, 56 small. */}
+              <Skeleton className="h-[70px] w-full small:h-[56px]" />
+            </div>
+          ) : multiple ? (
             <div
               id="cell-payment-summary"
               onClick={() => activate("summary")}
@@ -534,11 +550,15 @@ export function Methods({
                     {index + 1}.
                   </span>
                   <div className="min-w-0 flex-1">
-                    <MethodPicker
-                      methodId={method.methodId}
-                      catalog={catalog}
-                      onChange={(methodId) => update(method.id, { methodId })}
-                    />
+                    {catalog === null ? (
+                      <Skeleton className="h-11 w-full" />
+                    ) : (
+                      <MethodPicker
+                        methodId={method.methodId}
+                        catalog={catalog}
+                        onChange={(methodId) => update(method.id, { methodId })}
+                      />
+                    )}
                   </div>
                   <Button
                     variant="destructive"
