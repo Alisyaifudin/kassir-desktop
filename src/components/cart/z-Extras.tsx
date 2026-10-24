@@ -14,6 +14,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-ki
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
 import { Skeleton } from "~/components/ui/skeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
@@ -520,11 +521,13 @@ export function Extras({
         <>
           <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
             {loading ? (
-              <div className="divide-y divide-border space-y-1" aria-hidden>
+              // Held back for the anti-flash window, but keeping its places —
+              // see the same block in `z-Listing.tsx`.
+              <ReservedSkeleton className="divide-y divide-border space-y-1">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <Skeleton key={index} className="h-[141px] rounded-none w-full small:h-[113px]" />
                 ))}
-              </div>
+              </ReservedSkeleton>
             ) : null}
             {layout.subtotalRow ? (
               <div role="row" className="grid grid-cols-12 border-b">

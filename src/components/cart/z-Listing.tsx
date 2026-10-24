@@ -23,6 +23,7 @@ import { ArrowRight, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kdb";
 import { Skeleton } from "~/components/ui/skeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
@@ -656,12 +657,16 @@ export function Listing({
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
           {loading ? (
-            <div className="divide-y space-y-1 divide-border" aria-hidden>
+            // Held back for the anti-flash window, but keeping its places: the
+            // rows are the body of a `flex-1` panel, so the frame does not move
+            // either way, and the three rows are already the height of the lines
+            // that replace them.
+            <ReservedSkeleton className="divide-y space-y-1 divide-border">
               {Array.from({ length: 3 }).map((_, index) => (
                 // A real cart line is two cell rows: 141 tall big, 113 small.
                 <Skeleton key={index} className="h-[141px] rounded-none w-full small:h-[113px]" />
               ))}
-            </div>
+            </ReservedSkeleton>
           ) : null}
           <DndContext
             sensors={sensors}

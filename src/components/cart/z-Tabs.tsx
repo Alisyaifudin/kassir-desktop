@@ -18,6 +18,7 @@ import { STORED_FLAG, type Draft as DraftModel } from "~/services/transaction";
 import { run } from "~/components/cart/run";
 import { Kbd } from "~/components/ui/kdb";
 import { Skeleton } from "~/components/ui/skeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { Show } from "../Show";
 
 /**
@@ -173,12 +174,19 @@ export function Tabs({
             // Two places for the carts that are on their way. The strip's own
             // chrome — F12, `+` — is already there, so only the titles are
             // unknown and only they are held.
-            <div aria-hidden className="flex items-center gap-1">
+            //
+            // `ReservedSkeleton`, not a plain placeholder: a read usually
+            // answers in a few milliseconds, and grey tabs that live for two
+            // frames read as jank. The places are taken from the first frame
+            // and stay invisible for the 200 ms window, so the strip is already
+            // its final height (a tab is taller than the F12/`+` chrome beside
+            // it) and neither a fast read nor a slow one moves the panel.
+            <ReservedSkeleton className="flex items-center gap-1">
               {/* Sized to a real tab: 123x41 big, 106x37 small. */}
               <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
               <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
               <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
-            </div>
+            </ReservedSkeleton>
           ) : null}
           {drafts.map((draft, index) => (
             <Tab

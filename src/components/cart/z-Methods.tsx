@@ -32,6 +32,7 @@ import {
 import { generateId } from "~/lib/random";
 import { cn } from "~/lib/utils";
 import { Skeleton } from "~/components/ui/skeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { service } from "~/services";
 import type { MethodCatalog } from "~/services/method";
 import type { Draft, DraftMethod } from "~/services/transaction";
@@ -390,11 +391,12 @@ export function Methods({
         <div className="grid grid-cols-12">
           {catalog === null ? (
             // The rounding row above is live; the rows that need the catalogue
-            // hold their place with one line the height of a method row.
-            <div className="col-span-12 flex items-center p-1">
+            // hold their place with one line the height of a method row —
+            // reserved at once, drawn only if the catalogue is slow.
+            <ReservedSkeleton className="col-span-12 flex items-center p-1">
               {/* A real payment row is 70 tall big, 56 small. */}
               <Skeleton className="h-[70px] w-full small:h-[56px]" />
-            </div>
+            </ReservedSkeleton>
           ) : multiple ? (
             <div
               id="cell-payment-summary"

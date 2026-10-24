@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import Decimal from "decimal.js";
 import { Skeleton, SkeletonText } from "~/components/ui/skeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { cn } from "~/lib/utils";
 import type { MethodCatalog } from "~/services/method";
 import { pageData } from "./data";
@@ -57,7 +58,14 @@ export function Bottom({
     <section className="flex flex-none items-stretch border-t">
       <div className="max-h-[40vh] min-w-[700px] small:min-w-[500px] flex-3 shrink-0 overflow-y-auto border-r ">
         {draft === null ? (
-          <PaymentLoading />
+          // The strip's shape is reserved from the first frame but drawn only
+          // after the anti-flash window: the drafts usually answer in a few
+          // milliseconds, so grey bands over the whole strip would be a flash,
+          // while dropping the reservation would resize the bottom panel and
+          // with it the goods grid above.
+          <ReservedSkeleton>
+            <PaymentLoading />
+          </ReservedSkeleton>
         ) : (
           <PayStrip
             draft={draft}

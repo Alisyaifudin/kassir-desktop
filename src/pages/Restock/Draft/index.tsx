@@ -7,6 +7,7 @@ import { Payment, PaymentLoading } from "./z-Payment";
 import { CartPanel, Tabs } from "~/components/cart/z-Tabs";
 import type { Draft as DraftModel } from "~/services/transaction";
 import type { LineIssue } from "~/components/cart/code-issues";
+import { ReservedSkeleton } from "~/components/page-data";
 
 /**
  * The stages the panel walks through, in order: choose the goods, then the
@@ -163,8 +164,14 @@ function StageBody({
     );
   }
   // No cart yet: the payment stage needs a draft to write amounts to, so it
-  // holds its shape instead of pretending.
-  if (draft === null) return <PaymentLoading />;
+  // holds its shape instead of pretending — reserved on the first frame, grey
+  // only after the anti-flash window, like the rest of the cart's placeholders.
+  if (draft === null)
+    return (
+      <ReservedSkeleton>
+        <PaymentLoading />
+      </ReservedSkeleton>
+    );
 
   return (
     <Payment

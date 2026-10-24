@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useMemo } from "react";
 import { Data, Deferred, Effect, Queue, Stream, SubscriptionRef } from "effect";
-import { createPageData, Gate } from "~/components/page-data";
+import { createPageData, Gate, ReservedSkeleton } from "~/components/page-data";
 
 /**
  * These tests pin the three promises the pattern makes: keys load in parallel,
@@ -104,6 +104,25 @@ describe("page data", () => {
     // Synchronous: no `waitFor`, no timers — it has to be there already.
     expect(screen.getByTestId("skeleton")).toBeDefined();
     expect(screen.queryByTestId("body")).toBeNull();
+  });
+
+  test("ReservedSkeleton takes the space at once but draws nothing until the window passes", async () => {
+    render(
+      <ReservedSkeleton>
+        <span data-testid="place" />
+      </ReservedSkeleton>,
+    );
+
+    // The place is in the layout from the first frame — the region is already
+    // the height it will keep …
+    const place = screen.getByTestId("place");
+    expect(place).toBeDefined();
+    // … but nothing grey is drawn yet, so a fast read never flashes it.
+    expect(place.parentElement?.className).toContain("opacity-0");
+    expect(place.parentElement?.getAttribute("aria-hidden")).toBe("true");
+
+    // A read that really is slow earns its placeholder, in place.
+    await waitFor(() => expect(place.parentElement?.className).not.toContain("opacity-0"));
   });
 
   test("every key subscribes before any key answers", async () => {

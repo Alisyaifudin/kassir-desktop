@@ -1,5 +1,6 @@
 import type Decimal from "decimal.js";
 import { Skeleton } from "~/components/ui/skeleton";
+import { ReservedSkeleton } from "~/components/page-data";
 import { rupiah } from "~/components/cart/util-rupiah";
 
 /**
@@ -8,7 +9,8 @@ import { rupiah } from "~/components/cart/util-rupiah";
  * payment stage cannot disagree.
  *
  * `grand` is `null` until the draft arrives: the line and the `Rp` are static, so
- * they are drawn at once and only the amount pulses in place.
+ * they are drawn at once and only the amount pulses in place — after the
+ * anti-flash window, in a box that has held its place since the first frame.
  */
 export function Total({ grand, fix }: { grand: Decimal | null; fix: number }) {
   // `data-testid` because this is a div, not a button: the e2e harness has no
@@ -20,7 +22,10 @@ export function Total({ grand, fix }: { grand: Decimal | null; fix: number }) {
     <div data-testid="grand-total" className="text-center text-grand-total tabular-nums">
       {grand === null ? (
         <div className="flex items-center gap-1">
-          Rp <Skeleton className="h-[120px] small:h-[100px] w-[400px] small:w-[300px]" />
+          Rp
+          <ReservedSkeleton>
+            <Skeleton className="h-[120px] small:h-[100px] w-[400px] small:w-[300px]" />
+          </ReservedSkeleton>
         </div>
       ) : (
         rupiah(grand, fix)
