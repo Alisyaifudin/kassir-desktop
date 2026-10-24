@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type Decimal from "decimal.js";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
-import { useStream } from "~/components/Loader";
+import { useDelayedFlag, useStream } from "~/components/Loader";
 import { service } from "~/services";
 import {
   ADJUSTMENT_CART_FLAG,
@@ -24,11 +24,14 @@ export type Completed = {
 
 export type CartMode = "incoming" | "outcoming";
 
+/** Where the device remembers which cart was open — one key per screen mode. */
+const LAST_DRAFT_KEY = (mode: CartMode) => `cart.last-draft.${mode}`;
+
 /**
  * Everything the Pos and the Restock screens do *around* the cart grid, in one
  * place: which drafts of this mode exist, which one is open, the guard that
  * always keeps one open, the latch that waits for a restored one, the `?draft=`
- * repair, the tab walker, and the commit flags.
+ * repair, the cart this screen opens with, the tab walker, and the commit flags.
  *
  * The two screens differ only in what they render (a sale's bottom strip versus
  * a purchase's stage stepper) and in what F2 means there, so those stay props.
@@ -198,19 +201,72 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
     return () => clearTimeout(timer);
   }, [restoring, restoredId, normalDrafts]);
 
+  // The tab this screen opens with when the address bar names nothing.
+  //
+  // The device remembers the cart that was open, per mode, in the store — so it
+  // survives leaving the screen, a refresh and a restart. `?draft=` still wins
+  // when it names an open cart; a remembered cart that was closed or parked is
+  // not found; with nothing remembered the newest tab wins. (It used to be the
+  // *oldest* one, which meant every return rewound to tab one, because every
+  // route back to the screen — the topbar, Beranda's tiles, the `0` shortcut —
+  // is a bare path with no `?draft=` on it.)
+  const [rememberedId, setRememberedId] = useState<string | null>(null);
+  // Nothing is chosen before the store has answered: opening the newest tab and
+  // hopping to the remembered one a few milliseconds later would be a tab
+  // switch nobody asked for. The screens read `opened` as part of their loading
+  // state, so the undecided frame draws their placeholders (invisible for the
+  // anti-flash window) instead of a strip with no tab selected. The timeout is
+  // the backstop: a store that never answers must not leave the till without a
+  // cart.
+  const [rememberedReady, setRememberedReady] = useState(false);
+  const fallbackDue = useDelayedFlag(true, 400);
+  const rememberKey = LAST_DRAFT_KEY(mode);
+  useEffect(() => {
+    let alive = true;
+    void Effect.runPromise(
+      service.store.get<unknown>(rememberKey).pipe(
+        Effect.match({
+          onFailure: () => null,
+          onSuccess: (value) => (typeof value === "string" ? value : null),
+        }),
+      ),
+    ).then((id) => {
+      if (!alive) return;
+      // A cart opened by `?draft=` during this mount is the one under the
+      // cursor: a late read must not pull it back to last time's cart.
+      setRememberedId((current) => current ?? id);
+      setRememberedReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [rememberKey]);
+
+  const opened = rememberedReady || fallbackDue;
+  const newest = normalDrafts[normalDrafts.length - 1] ?? null;
+  const lastOpen =
+    rememberedId === null ? undefined : normalDrafts.find((draft) => draft.id === rememberedId);
+
   // A `?draft=` that is no longer open — submitted, deleted, or a link from
   // another machine — is repaired, not honoured blindly: the address bar must
   // name the cart that is actually under the cursor. (It never *changes* the
   // cart on its own: `useDraftId` replaces the history entry.)
-  const active =
-    (draftId !== null ? normalDrafts.find((draft) => draft.id === draftId) : undefined) ??
-    normalDrafts[0] ??
-    null;
+  const named = draftId !== null ? normalDrafts.find((draft) => draft.id === draftId) : undefined;
+  const active = named ?? lastOpen ?? (opened ? newest : null);
   const activeId = active?.id ?? null;
   useEffect(() => {
     if (activeId === null || draftId === activeId) return;
     onDraft(activeId);
   }, [activeId, draftId, onDraft]);
+
+  // The cart under the cursor is the one this device remembers, so leaving the
+  // screen for Beranda and coming back lands on the sale being rung up instead
+  // of rewinding to tab one.
+  useEffect(() => {
+    if (activeId === null || activeId === rememberedId) return;
+    setRememberedId(activeId);
+    void Effect.runPromise(service.store.set(rememberKey, activeId).pipe(Effect.ignore));
+  }, [activeId, rememberedId, rememberKey]);
 
   const issues = useMemo(
     () =>
@@ -337,6 +393,8 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
     drafts: modeDrafts,
     normalDrafts,
     tabs,
+    /** False until the screen knows which cart it opens with — part of its loading state. */
+    opened,
     active,
     activeId,
     lines,

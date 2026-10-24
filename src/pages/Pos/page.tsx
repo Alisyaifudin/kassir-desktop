@@ -189,7 +189,7 @@ function Screen({
             extras={extras}
             onExtras={cart.setExtras}
             presets={extrasPresets}
-            loading={draftsRes.type === "init"}
+            loading={draftsRes.type === "init" || !cart.opened}
           />
           <Bottom
             draft={active}

@@ -81,7 +81,7 @@ export function Tabs({
   onSelect: (id: string) => void;
   /** The `role="tabpanel"` these tabs own. */
   panelId?: string;
-  /** The drafts are still being read: hold their places in the strip. */
+  /** The strip cannot say yet which cart is open — hold places instead of tabs. */
   loading?: boolean;
 }) {
   const [pendingDelete, setPendingDelete] = useState<DraftModel | null>(null);
@@ -171,9 +171,13 @@ export function Tabs({
           className="flex flex-1 items-center gap-1 overflow-x-auto"
         >
           {loading ? (
-            // Two places for the carts that are on their way. The strip's own
-            // chrome — F12, `+` — is already there, so only the titles are
-            // unknown and only they are held.
+            // Three places for the carts that are on their way, *instead of* the
+            // tabs rather than beside them: `loading` here means "this strip
+            // cannot say yet which cart is open" — the drafts have not been read,
+            // or they have and the screen is still looking up which one it
+            // remembers. Drawing the real tabs unselected for those few
+            // milliseconds would be a selection flicker, and drawing places
+            // beside them would shift them sideways when the places go.
             //
             // `ReservedSkeleton`, not a plain placeholder: a read usually
             // answers in a few milliseconds, and grey tabs that live for two
@@ -187,22 +191,23 @@ export function Tabs({
               <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
               <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
             </ReservedSkeleton>
-          ) : null}
-          {drafts.map((draft, index) => (
-            <Tab
-              key={draft.id}
-              id={cartTabId(draft.id)}
-              panelId={panelId}
-              draft={draft}
-              number={index + 1}
-              total={drafts.length}
-              selected={draft.id === activeId}
-              onSelect={() => onSelect(draft.id)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
-              onClose={() => setPendingDelete(draft)}
-            />
-          ))}
-          <Show when={drafts.length > 1}>
+          ) : (
+            drafts.map((draft, index) => (
+              <Tab
+                key={draft.id}
+                id={cartTabId(draft.id)}
+                panelId={panelId}
+                draft={draft}
+                number={index + 1}
+                total={drafts.length}
+                selected={draft.id === activeId}
+                onSelect={() => onSelect(draft.id)}
+                onKeyDown={(event) => handleTabKeyDown(event, index)}
+                onClose={() => setPendingDelete(draft)}
+              />
+            ))
+          )}
+          <Show when={!loading && drafts.length > 1}>
             <Kbd className="py-4 mb-1">Ctrl+←/→</Kbd>
           </Show>
         </div>

@@ -197,7 +197,7 @@ function Screen({
           drafts={cart.tabs}
           onSelect={cart.openDraft}
           stage={stage}
-          loading={draftsRes.type === "init"}
+          loading={draftsRes.type === "init" || !cart.opened}
           grand={grand}
           lines={lines}
           onLines={cart.setLines}

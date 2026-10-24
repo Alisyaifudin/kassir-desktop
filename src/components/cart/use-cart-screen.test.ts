@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import { Effect, Stream } from "effect";
 import type { Draft } from "~/services/transaction";
@@ -19,6 +19,13 @@ let calls: Call[] = [];
 /** What the next `transaction.add.new` does. */
 let addOutcome: "ok" | "fail" = "ok";
 let nextId = 0;
+/**
+ * The device's memory of the cart that was open (`cart.last-draft.*`), and its
+ * traffic kept apart from `calls`: which cart is remembered is bookkeeping, not
+ * a cart lifecycle event, and the assertions below count the latter.
+ */
+let remembered: string | null = null;
+let storeCalls: { key: string; value?: unknown }[] = [];
 
 function record(kind: string) {
   return (...args: unknown[]) => {
@@ -29,6 +36,19 @@ function record(kind: string) {
 mock.module("sonner", () => ({ toast: { error: () => {} } }));
 mock.module("~/services", () => ({
   service: {
+    store: {
+      get: (key: string) => {
+        storeCalls.push({ key });
+        return remembered === null
+          ? Effect.fail(new Error(`Store "${key}" tidak ditemukan`))
+          : Effect.succeed(remembered);
+      },
+      set: (key: string, value: unknown) => {
+        storeCalls.push({ key, value });
+        remembered = String(value);
+        return Effect.void;
+      },
+    },
     listing: {
       get: { changes: Stream.make([]) },
     },
@@ -64,6 +84,14 @@ mock.module("~/services", () => ({
 
 const { useCartScreen } = await import("./use-cart-screen");
 const { useDialogLock } = await import("~/hooks/use-dialog-lock");
+
+// Each test starts as a device that remembers nothing; the ones that care set
+// `remembered` before mounting.
+beforeEach(() => {
+  calls = [];
+  storeCalls = [];
+  remembered = null;
+});
 
 function makeDraft(id: string, overrides: Partial<Draft> = {}): Draft {
   return {
@@ -203,8 +231,73 @@ describe("useCartScreen — one cart, always", () => {
     calls = [];
     const { onDraft } = harness({ drafts: [makeDraft("d1"), makeDraft("d2")], draftId: "gone" });
     await flush();
-    expect(onDraft).toHaveBeenLastCalledWith("d1");
+    // Nothing remembered, so the newest tab — not tab one, which is where every
+    // return to the screen used to land.
+    expect(onDraft).toHaveBeenLastCalledWith("d2");
     expect(kinds()).not.toContain("add.new");
+  });
+});
+
+describe("useCartScreen — the cart it opens with", () => {
+  test("opens the cart this device had open last, not the first tab", async () => {
+    calls = [];
+    remembered = "d2";
+    const { onDraft } = harness({
+      drafts: [makeDraft("d1", { order: 0 }), makeDraft("d2", { order: 1 })],
+    });
+    await flush();
+    expect(onDraft).toHaveBeenLastCalledWith("d2");
+    // Already the remembered cart: nothing to write back.
+    expect(storeCalls.filter((call) => call.value !== undefined)).toEqual([]);
+  });
+
+  test("with nothing remembered it opens the newest tab", async () => {
+    calls = [];
+    const { onDraft } = harness({
+      drafts: [makeDraft("d1", { order: 0 }), makeDraft("d2", { order: 1 })],
+    });
+    await flush();
+    expect(onDraft).toHaveBeenLastCalledWith("d2");
+  });
+
+  test("a remembered cart that was parked is not reopened", async () => {
+    calls = [];
+    remembered = "d2";
+    const { onDraft } = harness({
+      drafts: [makeDraft("d1", { order: 0 }), makeDraft("d2", { order: 1, flag: PARKED })],
+    });
+    await flush();
+    expect(onDraft).toHaveBeenLastCalledWith("d1");
+  });
+
+  test("a ?draft= in the address bar still wins over the remembered cart", async () => {
+    calls = [];
+    remembered = "d2";
+    const { result, onDraft } = harness({
+      drafts: [makeDraft("d1", { order: 0 }), makeDraft("d2", { order: 1 })],
+      draftId: "d1",
+    });
+    await flush();
+    expect(result.current.activeId).toBe("d1");
+    // Named, so there is nothing to repair — and the cart under the cursor
+    // becomes the remembered one.
+    expect(onDraft).not.toHaveBeenCalled();
+    expect(remembered).toBe("d1");
+  });
+
+  test("switching tabs remembers the new one for the next visit", async () => {
+    calls = [];
+    const drafts = [makeDraft("d1", { order: 0 }), makeDraft("d2", { order: 1 })];
+    const { rerender } = harness({ drafts, draftId: "d1" });
+    await flush();
+
+    rerender({ drafts, draftId: "d2" });
+    await flush();
+
+    expect(remembered).toBe("d2");
+    expect(storeCalls.filter((call) => call.value !== undefined).at(-1)?.key).toBe(
+      "cart.last-draft.incoming",
+    );
   });
 });
 
