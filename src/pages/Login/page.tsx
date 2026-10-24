@@ -27,9 +27,9 @@ export default function Page() {
           <div className="absolute -bottom-40 -left-24 size-96 rounded-full bg-indigo-400/20 blur-3xl small:size-72" />
         </div>
 
-        <div className="relative h-full w-full overflow-y-auto">
+        <div className="relative h-full w-full overflow-y-auto ">
           <div className="flex min-h-full items-center justify-center px-6 py-10 small:px-4 small:py-6">
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-2xl">
               <div className="mb-8 flex items-center gap-3 small:mb-6 small:gap-2 lg:hidden">
                 <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white small:size-10">
                   <ReceiptText className="size-7 small:size-6" />
