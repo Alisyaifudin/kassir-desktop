@@ -67,7 +67,7 @@ function Money({ record }: { record: RecordFull }) {
   return (
     <div className="flex justify-end">
       <div className="grid grid-cols-2 items-end gap-x-10">
-        <dl className="flex w-[300px] flex-col text-small small:w-[230px]">
+        <dl className="flex w-[300px] flex-col text-normal small:w-[230px]">
           {showSubtotal ? (
             <Row
               label={record.extras.length > 0 ? "Subtotal" : "Sebelum pembulatan"}
@@ -80,7 +80,7 @@ function Money({ record }: { record: RecordFull }) {
           <Row label="Total" value={rupiah(record.grandTotal, record.fix)} strong />
         </dl>
 
-        <dl className="flex w-[300px] flex-col text-small small:w-[230px]">
+        <dl className="flex w-[300px] flex-col text-normal small:w-[230px]">
           {record.isCredit ? (
             <Row label="Kredit" value="Belum dibayar" danger />
           ) : (
