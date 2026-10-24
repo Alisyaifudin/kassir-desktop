@@ -31,7 +31,7 @@ const SKELETON_ROW =
  * who, then the kind and its state — with the amount held at the right on both.
  * Same data, no squeezing: a 390px window still reads every cell.
  */
-const COLS = "sm:grid sm:grid-cols-[96px_minmax(0,1fr)_80px_auto] sm:items-center sm:gap-3";
+const COLS = "sm:grid sm:grid-cols-[96px_minmax(0,1fr)_100px_auto] sm:items-center sm:gap-3";
 
 /**
  * The ledger: the card and its head are static, only the rows wait for `records`.
