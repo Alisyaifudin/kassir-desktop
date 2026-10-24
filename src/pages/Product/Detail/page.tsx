@@ -34,8 +34,9 @@ export default function Page() {
 /**
  * The tab strip is static — its three labels come from the route, not the
  * product — so it is clickable before the row arrives. Only the product's name is
- * data in this header, and it pulses where it will land; the publish toggle
- * appears with the row, because an action needs something to act on.
+ * data in this header, and it pulses where it will land; the publish chip is drawn
+ * with it, disabled, because an action needs something to act on but its frame
+ * does not.
  */
 function Content() {
   const { id } = useParams();
@@ -69,7 +70,9 @@ function Content() {
                 <span className="truncate">{product.name}</span>
               )}
             </span>
-            {product !== undefined && role === "admin" ? (
+            {role === "admin" ? (
+              // The chip is chrome: it is here before the row is, disabled. Only
+              // the word inside it — the published state — is a value.
               <PublishToggle product={product} />
             ) : null}
           </div>

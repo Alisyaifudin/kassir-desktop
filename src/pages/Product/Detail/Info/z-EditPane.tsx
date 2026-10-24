@@ -17,11 +17,22 @@ import type {
 } from "~/services/product";
 import { draftFromProduct, parseNumber, toListingInput } from "../../Form/types";
 import { useProductForm } from "../../Form/useProductForm";
-import { InfoFields } from "../../Form/z-InfoFields";
-import { ListingsFields } from "../../Form/z-ListingsFields";
-import { ProductNamesFields } from "../../Form/z-ProductNamesFields";
-import { PropertiesFields } from "../../Form/z-PropertiesFields";
-import { StocksFields } from "../../Form/z-StocksFields";
+import { Field } from "../../Form/z-Field";
+import { INFO_LABELS, INFO_PLACEHOLDERS, InfoFields } from "../../Form/z-InfoFields";
+import { LISTINGS_SECTION, ListingRowSkeleton, ListingsFields } from "../../Form/z-ListingsFields";
+import { PendingInput, PendingTextarea } from "../../Form/z-Pending";
+import {
+  NAMES_SECTION,
+  NameRowSkeleton,
+  ProductNamesFields,
+} from "../../Form/z-ProductNamesFields";
+import {
+  PROPERTIES_SECTION,
+  PropertiesFields,
+  PropertyRowSkeleton,
+} from "../../Form/z-PropertiesFields";
+import { Section, SectionAdd } from "../../Form/z-Section";
+import { STOCKS_SECTION, StockRowSkeleton, StocksFields } from "../../Form/z-StocksFields";
 import { ConfirmDelete } from "../z-ConfirmDelete";
 import { StockAdjust } from "./z-StockAdjust";
 
@@ -226,39 +237,16 @@ export function EditPane({ product }: { product: ProductFull }) {
       />
       <PropertiesFields form={form} disabled={busy} />
       <TextError>{error}</TextError>
-      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-background/95 py-3 backdrop-blur">
-        <Button
-          type="button"
-          variant="destructive"
-          onClick={() => setConfirmOpen(true)}
-          disabled={busy}
-        >
-          Hapus
-        </Button>
-        <div className="flex items-stretch gap-2">
-          <div className="flex items-stretch overflow-hidden rounded-md border border-input bg-background shadow-sm">
-            <HistoryButton
-              label="Urungkan"
-              hint="Ctrl+Z"
-              disabled={busy || !canUndo}
-              onClick={undo}
-              icon={<Undo2 className="icon" />}
-            />
-            <span className="w-px self-stretch bg-border" aria-hidden />
-            <HistoryButton
-              label="Ulangi"
-              hint="Ctrl+Shift+Z"
-              disabled={busy || !canRedo}
-              onClick={redo}
-              icon={<Redo2 className="icon" />}
-            />
-          </div>
-          <Button type="button" onClick={() => void handleSave()} disabled={busy}>
-            Simpan
-            <Spinner when={pending} />
-          </Button>
-        </div>
-      </div>
+      <SaveBar
+        disabled={busy}
+        saving={pending}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onDelete={() => setConfirmOpen(true)}
+        onUndo={undo}
+        onRedo={redo}
+        onSave={() => void handleSave()}
+      />
       <ConfirmDelete
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -285,7 +273,7 @@ function HistoryButton({
   label: string;
   hint: string;
   disabled: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   icon: React.ReactNode;
 }) {
   return (
@@ -299,5 +287,113 @@ function HistoryButton({
     >
       {icon}
     </button>
+  );
+}
+
+/**
+ * The sticky footer of the form. It is chrome — `Hapus`, undo/redo and `Simpan`
+ * are the same buttons whether or not a product has been read — so it is drawn
+ * once here and once, disabled, by the pending shape below.
+ */
+function SaveBar({
+  disabled,
+  saving = false,
+  canUndo = false,
+  canRedo = false,
+  onDelete,
+  onUndo,
+  onRedo,
+  onSave,
+}: {
+  disabled: boolean;
+  saving?: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onDelete?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onSave?: () => void;
+}) {
+  return (
+    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-background/95 py-3 backdrop-blur">
+      <Button type="button" variant="destructive" onClick={onDelete} disabled={disabled}>
+        Hapus
+      </Button>
+      <div className="flex items-stretch gap-2">
+        <div className="flex items-stretch overflow-hidden rounded-md border border-input bg-background shadow-sm">
+          <HistoryButton
+            label="Urungkan"
+            hint="Ctrl+Z"
+            disabled={disabled || !canUndo}
+            onClick={onUndo}
+            icon={<Undo2 className="icon" />}
+          />
+          <span className="w-px self-stretch bg-border" aria-hidden />
+          <HistoryButton
+            label="Ulangi"
+            hint="Ctrl+Shift+Z"
+            disabled={disabled || !canRedo}
+            onClick={onRedo}
+            icon={<Redo2 className="icon" />}
+          />
+        </div>
+        <Button type="button" onClick={onSave} disabled={disabled}>
+          Simpan
+          <Spinner when={saving} />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The form before its product — the whole form, minus the values.
+ *
+ * Every word on this screen is static, so every word is drawn at once: the five
+ * section titles and their descriptions, each field's label and hint, the row
+ * titles ("Listing 1"), the `Tambah` buttons, and the
+ * `Hapus` / `Urungkan` / `Ulangi` / `Simpan` bar. What is missing is the *values*,
+ * and a value's placeholder is the real control — an input is input-tall, the note
+ * is three lines tall, the combobox keeps its chevron — painted as a skeleton.
+ * Nothing here is a guessed height, and nothing moves when the values land.
+ *
+ * Nor are the words copied: they come from the same constants the form reads
+ * (`INFO_LABELS`, `LISTING_ROW`, `STOCK_ROW`, `PROPERTY_ROW`, `NAMES_ROW`), and
+ * every row's placeholder is exported beside the row it stands in for, so the two
+ * states cannot drift apart.
+ *
+ * The row *count* of a section is data, so it is not invented: one row holds each
+ * body — the minimum a product always has — and the rest grow downwards.
+ */
+export function EditPaneSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat produk">
+      <div className="flex flex-col gap-3">
+        <Field label={INFO_LABELS.name}>
+          <PendingInput placeholder={INFO_PLACEHOLDERS.name} />
+        </Field>
+        <Field label={INFO_LABELS.note}>
+          <PendingTextarea rows={3} placeholder={INFO_PLACEHOLDERS.note} />
+        </Field>
+      </div>
+
+      <Section {...NAMES_SECTION} action={<SectionAdd disabled />}>
+        <NameRowSkeleton />
+      </Section>
+
+      <Section {...LISTINGS_SECTION} action={<SectionAdd disabled />}>
+        <ListingRowSkeleton index={0} />
+      </Section>
+
+      <Section {...STOCKS_SECTION} action={<SectionAdd label="Tambah lot" disabled />}>
+        <StockRowSkeleton index={0} />
+      </Section>
+
+      <Section {...PROPERTIES_SECTION} action={<SectionAdd disabled />}>
+        <PropertyRowSkeleton />
+      </Section>
+
+      <SaveBar disabled />
+    </div>
   );
 }

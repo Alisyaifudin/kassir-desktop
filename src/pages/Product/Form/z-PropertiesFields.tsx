@@ -1,9 +1,23 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
-import { Section } from "./z-Section";
+import { PendingInput } from "./z-Pending";
+import { Section, SectionAdd } from "./z-Section";
+
+/** The section's static half, shared with the detail form's pending shape. */
+export const PROPERTIES_SECTION = {
+  title: "Properti",
+  description: "Metadata bebas, mis. asal, kedaluwarsa, atau supplier.",
+} as const;
+
+/** A property row's words. The pending row reads them from here too. */
+export const PROPERTY_ROW = {
+  key: { label: "Kunci", placeholder: "cth. asal" },
+  value: { label: "Nilai", placeholder: "cth. Gayo" },
+  remove: "Hapus properti",
+} as const;
 
 export function PropertiesFields({
   form,
@@ -16,19 +30,8 @@ export function PropertiesFields({
 
   return (
     <Section
-      title="Properti"
-      description="Metadata bebas, mis. asal, kedaluwarsa, atau supplier."
-      action={
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 gap-1 text-small small:h-9"
-          disabled={disabled}
-          onClick={form.addProperty}
-        >
-          <Plus className="icon" /> Tambah
-        </Button>
-      }
+      {...PROPERTIES_SECTION}
+      action={<SectionAdd onClick={form.addProperty} disabled={disabled} />}
     >
       {draft.properties.length === 0 ? (
         <p className="text-small text-muted-foreground">Belum ada properti.</p>
@@ -37,25 +40,27 @@ export function PropertiesFields({
           {draft.properties.map((property) => (
             <div key={property.key} className="flex items-end gap-3">
               <Field
-                label="Kunci"
+                label={PROPERTY_ROW.key.label}
                 error={errors.propertyErrors?.[property.key]?.name}
                 className="flex-1"
               >
                 <Input
                   value={property.name}
                   disabled={disabled}
-                  onChange={(e) => form.updateProperty(property.key, { name: e.currentTarget.value })}
-                  placeholder="cth. asal"
+                  onChange={(e) =>
+                    form.updateProperty(property.key, { name: e.currentTarget.value })
+                  }
+                  placeholder={PROPERTY_ROW.key.placeholder}
                 />
               </Field>
-              <Field label="Nilai" className="flex-1">
+              <Field label={PROPERTY_ROW.value.label} className="flex-1">
                 <Input
                   value={property.value}
                   disabled={disabled}
                   onChange={(e) =>
                     form.updateProperty(property.key, { value: e.currentTarget.value })
                   }
-                  placeholder="cth. Gayo"
+                  placeholder={PROPERTY_ROW.value.placeholder}
                 />
               </Field>
               <Button
@@ -64,7 +69,7 @@ export function PropertiesFields({
                 className="size-11 small:size-9"
                 disabled={disabled}
                 onClick={() => form.removeProperty(property.key)}
-                aria-label="Hapus properti"
+                aria-label={PROPERTY_ROW.remove}
               >
                 <Trash2 className="icon" />
               </Button>
@@ -73,5 +78,31 @@ export function PropertiesFields({
         </div>
       )}
     </Section>
+  );
+}
+
+/**
+ * The row before the property's values: the same two labels, the same placeholders
+ * in the same boxes, empty and pulsing.
+ */
+export function PropertyRowSkeleton() {
+  return (
+    <div className="flex items-end gap-3">
+      <Field label={PROPERTY_ROW.key.label} className="flex-1">
+        <PendingInput placeholder={PROPERTY_ROW.key.placeholder} />
+      </Field>
+      <Field label={PROPERTY_ROW.value.label} className="flex-1">
+        <PendingInput placeholder={PROPERTY_ROW.value.placeholder} />
+      </Field>
+      <Button
+        type="button"
+        variant="ghost"
+        className="size-11 small:size-9"
+        disabled
+        aria-label={PROPERTY_ROW.remove}
+      >
+        <Trash2 className="icon" />
+      </Button>
+    </div>
   );
 }

@@ -213,6 +213,20 @@ frame, nothing grey is drawn for a fast read, and a slow read fades the
 placeholder in without moving anything. Its `className` must reproduce the layout
 the real children will have (the panel's gaps), or the reservation is a lie.
 
+**When every word of the form is static, do not hide the form at all.** A
+product's edit form is the case: which fields exist does not depend on the read,
+so the real controls are drawn empty and disabled with their own box painted —
+`PendingInput` / `PendingNumber` / `PendingTextarea` / `PendingCombobox` in
+`pages/Product/Form/z-Pending.tsx` — and the labels, hints, placeholders and row
+titles come from the same constants the form reads (`INFO_LABELS`,
+`LISTING_ROW`, `STOCK_ROW`, `PROPERTY_ROW`, `NAMES_ROW`). The box *is* the
+placeholder, so it is the control's own size — an input is input-tall, `rows={3}`
+is three lines, a combobox keeps its chevron — at both app sizes, with no px of
+ours in it. Nothing is hidden for 200 ms: the form is on screen from the first
+frame and only the values arrive. `pages/Product/Detail/Info` is the worked
+example; keep `ReservedSkeleton` for the case it was made for, a shape (row
+counts, panel gaps) that genuinely cannot be known.
+
 ## 6. Errors degrade one region
 
 No throwing for a data failure. Each `Gate` renders an inline `role="alert"` by
@@ -370,7 +384,7 @@ Migrated, each with a `data.ts` next to its `page.tsx`:
 | `Setting/{Shop,Printer,Log}` | `info` / `printer`+`printers` / `lines` | the reference forms; `PendingValue` + `ReservedSkeleton` |
 | `Customer`, `Cashier`, `Method`, `Social` | one list key each | static heads, inline failures |
 | `Product` | `products` | toolbar/footer/add button static; counts pulse |
-| `Product/Detail` (+ `Info`, `Image`) | `products` (`changesFull`) | one key for the header and both tabs |
+| `Product/Detail` (+ `Info`, `Image`) | `products` (`changesFull`) | one key for the header and both tabs; `Info` draws the pending form from the form's own constants (`PendingInput`/`PendingNumber`/…) instead of hiding it |
 | `Record` | `records` (day + query as `deps`) | left pane only; the right pane reads its own record |
 | `Record/Item` | `record`, `info`, `socials` | tab strip static; record live on the revision |
 | `Money` | `pockets` | heading + add button static |

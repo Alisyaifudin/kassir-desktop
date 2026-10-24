@@ -15,8 +15,13 @@ export type HistoryMode = "all" | "in" | "out";
  * skipped the rest of a same-instant group at a page boundary. The Masuk/Keluar
  * filter is passed to the query rather than applied here, so `done` and the empty
  * state describe the whole history, not just the page that happens to be loaded.
+ *
+ * `revision` is the product row's own revision counter, so it is `null` until the
+ * row arrives: the journal cannot be asked for before then, and reporting
+ * `loading` is the honest answer in the meantime (the card around it is drawn
+ * from the first frame either way).
  */
-export function useHistory(productId: string, revision: number, mode: HistoryMode) {
+export function useHistory(productId: string, revision: number | null, mode: HistoryMode) {
   const [events, setEvents] = useState<ProductEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +56,7 @@ export function useHistory(productId: string, revision: number, mode: HistoryMod
   // A new product, a new revision or a new filter starts over: keeping the old
   // rows (or the old cursor) would show events the query no longer matches.
   useEffect(() => {
+    if (revision === null) return;
     setEvents([]);
     setDone(false);
     void load(null, false);
