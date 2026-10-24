@@ -6,6 +6,7 @@ import { Ledger } from "./z-Ledger";
 import { useRecordFull } from "./use-record-full";
 import { DetailSkeleton } from "./z-Loading";
 import { Identity } from "./z-Identity";
+import { Lihat } from "./z-Lihat";
 import { Shelf } from "./z-Shelf";
 
 /**
@@ -14,9 +15,9 @@ import { Shelf } from "./z-Shelf";
  * two faces cannot say different things about one record.
  *
  * What the pane leaves out is every correction. Nothing here edits a record: no
- * dates, no note, no payment. Its shelf holds the money and the ways out
- * (`Lihat`, `Jadikan Transaksi`, `Hapus`), and its identity band carries the close
- * button where the page has its date pickers.
+ * dates, no note, no payment. Its identity band closes the preview on the left and
+ * opens the full page on the right (`Lihat`), where those corrections live; its
+ * shelf holds the money and the two ways on from it.
  */
 export function Detail({ recordId }: { recordId: string }) {
   const res = useRecordFull(recordId);
@@ -36,7 +37,13 @@ function Body({ record }: { record: RecordFull }) {
   return (
     <Ledger
       record={record}
-      identity={<Identity record={record} onClose={unselect} />}
+      identity={
+        <Identity
+          record={record}
+          onClose={unselect}
+          action={<Lihat recordId={record.id} />}
+        />
+      }
       shelf={<Shelf record={record} />}
     />
   );

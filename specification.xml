@@ -1116,15 +1116,20 @@ ignore it
         <mode name="outcoming">Keluar — a purchase: money out, stock received.</mode>
       </modes>
       <note name="pane_actions">
-        The right pane's footer opens the record in full (`Lihat`), copies it back into a fresh cart with
+        The right pane opens the record in full from its identity band (`Lihat`, at the top right — the shelf is only
+        reached at the end of a long ledger, so the way out cannot live there), copies it back into a fresh cart with
         `Jadikan Transaksi` (transaction.add.fromRecord: the same rebuild `unsubmit` does, minus undoing the record, which
-        opens on /pos for a sale and /restock for a purchase with `?draft=` naming the copy), and — admin only — deletes it.
+        opens on /pos for a sale and /restock for a purchase with `?draft=` naming the copy), and — admin only — deletes it
+        from the shelf.
       </note>
       <note name="detail_ledger">
         Both faces of a record render the same `Ledger` (src/pages/Record/z-Detail/z-Ledger.tsx): the identity band, then
         one scroll holding the goods, the charges, the parties and the band that closes the record. The two slots are what
-        differ — the page fills the identity with its own date corrections and the shelf with `Edit`/debt/delete, the pane
-        with its close button and `Lihat`/`Jadikan Transaksi`/`Hapus` — and the pane never turns on an edit affordance.
+        differ — the page fills the identity's trailing slot with its own date corrections and the shelf with
+        `Edit`/debt/delete, the pane with its close button at the leading edge, `Lihat` in the trailing slot and
+        `Jadikan Transaksi`/`Hapus` in the shelf — and the pane never turns on an edit affordance. The identity band itself
+        is bare: the id on the first line, cashier and creation time on the second, with no Jual/Beli or Lunas/Kredit chips
+        (the money band still says `Kredit · Belum dibayar` when there is a debt).
         The shelf is a slot *inside* that scroll, not a sibling of it: pinned under the ledger it covered the rows of a long
         record and showed no scrollbar at all (`footer`/`shelf` placement is not a per-face decision).
       </note>

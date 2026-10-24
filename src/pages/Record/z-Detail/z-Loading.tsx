@@ -10,8 +10,9 @@ const ROW = "grid grid-cols-[70px_minmax(0,1fr)_150px_60px_150px] items-center g
  * of the bands themselves — because a skeleton that does not match what it
  * precedes is worse than a spinner: it promises the wrong screen.
  *
- * `close` draws the pane's close button where the full page has its date
- * corrections, so the band is the same height either way.
+ * `close` picks the pane's shape: the close at the leading edge of the first line
+ * and `Lihat` at its trailing one, where the full page keeps that line to the id
+ * alone and puts its date corrections on the second.
  */
 export function DetailSkeleton({ close = false }: { close?: boolean }) {
   return (
@@ -20,21 +21,17 @@ export function DetailSkeleton({ close = false }: { close?: boolean }) {
       aria-busy="true"
       aria-label="Memuat catatan"
     >
-      {/* Identity band: mode chip, state, id, then the muted second line. */}
+      {/* Identity band: the close at the leading edge (pane only), the id, and the
+          face's own trailing slot — `Lihat` there, the date corrections here. */}
       <div className="flex shrink-0 flex-col gap-1 border-b px-1 pb-2">
         <div className="flex items-center gap-2">
-          <Skeleton className="h-7 w-16 rounded-md" />
-          <Skeleton className="h-6 w-20" />
+          {close ? <Skeleton className="size-9 shrink-0 rounded-md" /> : null}
           <Skeleton className="h-6 w-64" />
-          {close ? (
-            <Skeleton className="ml-auto size-9 rounded-md" />
-          ) : (
-            <Skeleton className="ml-auto h-6 w-44" />
-          )}
+          {close ? <Skeleton className="ml-auto h-10 w-20 rounded-md" /> : null}
         </div>
         <div className="flex items-center justify-between gap-4">
           <Skeleton className="h-5 w-80" />
-          {close ? null : <Skeleton className="h-5 w-56" />}
+          {close ? null : <Skeleton className="ml-auto h-8 w-56" />}
         </div>
       </div>
 
