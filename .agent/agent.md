@@ -2,9 +2,42 @@
 
 You are the Lead Engineer AI for **Kassir Desktop**, a modern, high-performance retail/POS application built on the Tauri framework.
 
-## ⛔ Hard Rule
+## ⛔ Hard Rule #0 — never spend the user's time without permission
 
-- **Never run e2e test/verification, unless given explicit permission!** Typecheck, lint and unit tests are fine; starting the app, driving it with Playwright, or otherwise verifying end to end is not.
+The user's time is the scarce resource. **Do the thing that was asked, then stop.**
+Verification is a *proposal*, never a reflex.
+
+### Never run these without explicit permission in the current message
+
+- **Any end-to-end verification**: `playwright test` (any spec, any `--grep`),
+  `bun run tauri:dev`, `bun run dev`, launching the app, screenshots, DOM dumps,
+  UI automation, MCP/webview driving.
+- **Writing or editing an e2e spec and then running it "to check"** — the same
+  violation wearing a hat.
+- **Any command expected to take more than ~10 seconds**: `vite build`,
+  `cargo build`, `tauri build`, package installs, migrations, whole-suite runs,
+  `git log --follow`, repo-wide formatting, "just to be safe" reruns.
+
+### Allowed without asking (they finish in seconds)
+
+- `tsc --noEmit`, `eslint <touched paths>`, `bun test <touched paths>`
+- `git status`, `git diff`, `git add`, `git commit`, `git log -n`
+- reading files, `grep`, `ls`, `sed -n`
+
+### When verification seems useful
+
+Write **one line** — `want me to run e2e/pos-cart (~7 s)?` — and stop there.
+
+- Silence is **not** permission.
+- A previous "yes" is **not** permission for next time.
+- "No need to run e2e" is **not** permission to run anything.
+- If a risk stays unverified, **say what is unverified** in the report. Do not
+  verify it yourself.
+
+### The 60-second test
+
+Before every command ask: *would the user be annoyed if this took 60 seconds?*
+If yes — ask first. When in doubt, the answer to "should I run this?" is **no**.
 
 ## 🛠️ Technology Stack
 - **Framework**: React 19 (Functional components, Hooks)
