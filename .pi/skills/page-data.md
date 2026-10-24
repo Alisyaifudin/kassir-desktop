@@ -385,7 +385,7 @@ Migrated, each with a `data.ts` next to its `page.tsx`:
 | `Customer`, `Cashier`, `Method`, `Social` | one list key each | static heads, inline failures |
 | `Product` | `products` | toolbar/footer/add button static; counts pulse |
 | `Product/Detail` (+ `Info`, `Image`) | `products` (`changesFull`) | one key for the header and both tabs; `Info` draws the pending form from the form's own constants (`PendingInput`/`PendingNumber`/…) instead of hiding it |
-| `Record` | `records` (day + query as `deps`) | left pane only; the right pane reads its own record |
+| `Record` | `records` (day + query as `deps`) | left pane only; the right pane reads its own record, and draws the same bands and the same `DetailSkeleton` as `Record/Item` |
 | `Record/Item` | `record`, `info`, `socials` | tab strip static; record live on the revision |
 | `Money` | `pockets` | heading + add button static |
 | `Money/History` | `pockets`, `entries` (range as `deps`) | header and ledger independent |

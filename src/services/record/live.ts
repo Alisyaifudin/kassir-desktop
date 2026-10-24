@@ -1637,40 +1637,62 @@ export const RecordLive = Layer.effect(
             yield* bumpRevision();
           });
         },
-        method(id, methodId) {
+        payment(id, payments) {
           return Effect.gen(function* () {
-            // Read the record first: re-pointing the payment rows of a missing id
-            // would otherwise update nothing and report success.
-            yield* readRecord(id);
-            yield* db
-              .selectOne<{ method_id: string }>(
-                "SELECT method_id FROM methods WHERE method_id = $1",
-                [methodId],
-              )
-              .pipe(
-                Effect.catchTag("DbError", (error) => Effect.fail(dbErrorToRecordError(error))),
-                Effect.catchTag("NotFound", () =>
-                  Effect.fail(new RecordError({ message: "Metode tidak ditemukan" })),
-                ),
+            const record = yield* readRecord(id);
+            // An outstanding credit has nothing tendered to correct — the money is
+            // written by `payCredit` when it is settled, and restating it here
+            // would clear the debt without moving any cash.
+            if (record.record_credit_at !== null && record.record_paid_at === null) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Kredit yang belum dibayar tidak punya pembayaran" }),
               );
-            // Only the method the payment is filed under moves. `record_method_pay`
-            // and the `record_pay` cache are left alone: correcting a mis-tapped
-            // method must not restate a single rupiah of what was tendered.
-            const current = yield* db
-              .selectMany<MethodRow>(SELECT_METHODS_FOR("$1"), [id])
+            }
+            if (payments.length === 0) {
+              return yield* Effect.fail(new RecordError({ message: "Minimal satu pembayaran" }));
+            }
+            if (payments.some((payment) => !Number.isFinite(payment.pay) || payment.pay < 0)) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Jumlah pembayaran tidak valid" }),
+              );
+            }
+            // Underpaying is not a correction, it is a different fact — a credit —
+            // and `toCredit` is the write that records it. Told here rather than
+            // only in the dialog so an import or a retry cannot leave a record
+            // short of its own total.
+            const owed = roundToFix(
+              record.record_total + record.record_rounding,
+              record.record_fix,
+            );
+            const paid = payments.reduce((sum, payment) => sum + payment.pay, 0);
+            if (paid < owed) {
+              return yield* Effect.fail(
+                new RecordError({
+                  message: `Pembayaran tidak cukup, minimal ${owed.toLocaleString("id-ID")}`,
+                }),
+              );
+            }
+            // The catalogue is a handful of rows; reading it whole avoids building
+            // a placeholder list for however many payments the cashier added.
+            const known = yield* db
+              .selectMany<{ method_id: string }>("SELECT method_id FROM methods", [])
               .pipe(Effect.mapError(dbErrorToRecordError));
-            if (current.every((row) => row.method_id === methodId)) return;
+            const ids = new Set(known.map((row) => row.method_id));
+            if (payments.some((payment) => !ids.has(payment.methodId))) {
+              return yield* Effect.fail(new RecordError({ message: "Metode tidak ditemukan" }));
+            }
+
             const now = Date.now();
             yield* commit([
-              {
-                sql: "UPDATE record_methods SET method_id = $1 WHERE record_id = $2",
-                bindings: [methodId, id],
-              },
+              // The split is replaced, not patched: a removed method has no row to
+              // update, and a re-ordered one keeps its position in the new list.
+              { sql: "DELETE FROM record_methods WHERE record_id = $1", bindings: [id] },
+              ...payments.map((payment) => insertMethod(id, payment.methodId, payment.pay)),
               {
                 sql: `UPDATE records SET
-                    record_updated_at = $1, record_sync_at = NULL
-                  WHERE record_id = $2`,
-                bindings: [now, id],
+                    record_pay = $1, record_updated_at = $2, record_sync_at = NULL
+                  WHERE record_id = $3`,
+                bindings: [paid, now, id],
               },
             ]);
             yield* bumpRevision();

@@ -1,38 +1,48 @@
 import { Show } from "~/components/Show";
+import { useUser } from "~/hooks/use-user";
 import type { RecordFull } from "~/services/record";
-import { ExtrasTable } from "../../z-Detail/ExtrasTable";
-import { Identity } from "./z-Identity";
-import { Listings } from "./z-Listings";
-import { Parties } from "./z-Parties";
+import { Ledger } from "../../z-Detail/z-Ledger";
+import { Identity } from "../../z-Detail/z-Identity";
+import { CreditAt } from "./z-CreditAt";
+import { PaidAt } from "./z-PaidAt";
 import { Shelf } from "./z-Shelf";
 
 /**
- * One record, read as a ledger: what it is on top, the goods in the middle, the
- * settlement and its corrections pinned at the bottom. The middle band is the
- * page's only scroll container, because it is the only part whose length varies
- * from record to record.
+ * One record, in full: the ledger its two faces share, with the corrections this
+ * page alone owns — the two date pickers in the identity band and the shelf that
+ * holds `Edit`, the debt and the delete.
+ *
+ * The ledger's own shape (identity on top, one scroll, the shelf closing it) lives
+ * in `Ledger`, so the pane that previews a record on `/records` cannot describe it
+ * differently; what differs here is only what the two slots are filled with.
  */
 export function Detail({ record }: { record: RecordFull }) {
-  const empty = record.listings.length === 0 && record.extras.length === 0;
-
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <Identity record={record} />
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1 pr-2">
-        {empty ? (
-          <p className="px-1 text-small text-muted-foreground">
-            Catatan ini tidak punya barang maupun biaya.
-          </p>
-        ) : null}
-        <Show when={record.listings.length > 0}>
-          <Listings record={record} />
-        </Show>
-        <Show when={record.extras.length > 0}>
-          <ExtrasTable record={record} parentClass="max-h-none overflow-visible" />
-        </Show>
-        <Parties record={record} />
+    <Ledger
+      record={record}
+      identity={
+        <Identity record={record}>
+          <Corrections record={record} />
+        </Identity>
+      }
+      shelf={<Shelf record={record} />}
+    />
+  );
+}
+
+/**
+ * When the record was settled and when its credit was opened, each editable
+ * where it is read. Admin-only, like every date correction — a cashier reads the
+ * record, an admin fixes it.
+ */
+function Corrections({ record }: { record: RecordFull }) {
+  const isAdmin = useUser().role === "admin";
+  return (
+    <Show when={isAdmin}>
+      <div className="flex shrink-0 items-center gap-1">
+        <PaidAt record={record} />
+        <CreditAt record={record} />
       </div>
-      <Shelf record={record} />
-    </div>
+    </Show>
   );
 }

@@ -479,6 +479,7 @@ ignore it
       </layout>
       <layout name="AuthLayout" file="src/layouts/authenticated/index.tsx">
         <description>Subscribes to service.auth.changes; a null session redirects to /login. Renders the sticky Topbar (bg-sky-300, h-16 / small:h-12), the main-body div, the Outlet, and the sonner Toaster. Registers the alt+N navigation shortcuts.</description>
+        <note>The shell is the height chain's root: it is `h-dvh` (a definite height, matching body and #root) and `#main-body` is `flex-1 min-h-0 overflow-y-auto`. With `min-h-screen` the shell's height was content-based, so every `h-full` page only resolved while it happened to fit; a long record silently grew past the viewport, and `body { overflow-y-hidden }` clipped it with no scrollbar anywhere. Pages that need a scrollport now get a definite height from this chain — do not go back to auto/min-height on the shell.</note>
         <component name="Topbar" file="z-Topbar.tsx">
           <description>Sticky header. Left: a back button unless on "/", the route title (longest-prefix match over a title map) and a dynamic Title. Right: TopNavList and the settings/reload actions. Titles: Beranda, Toko, Metode, Pelanggan, Kasir, Kontak, Produk, Biaya Lainnya, Riwayat, Analisis, Uang, Pengaturan — several of which name routes that are currently disabled.</description>
         </component>
@@ -850,7 +851,8 @@ ignore it
         <method name="count.summary(start, end)">Per-mode count and sum for a range.</method>
         <method name="add.external(input)">Import a record made elsewhere: lines + discounts + extras + methods in one transaction, moving stock by the same rules as a live record.</method>
         <method name="add.draft(input) => id">Commit a cart: header, lines, discounts, extras, payments, stock movement and the `tx_*` delete, in one transaction. When `input.mirror` is set it also writes the extras-only `outcoming` twin of the cart's DUAL_FLAG extras in that same commit, linking both rows through `record_pair_id`.</method>
-        <method name="set.paidAt / set.note / set.mode / set.methods / set.toCredit / set.payCredit / set.linkListing" />
+        <method name="set.paidAt / set.note / set.mode / set.payment / set.toCredit / set.payCredit / set.linkListing" />
+        <note>set.payment rewrites every record_methods row from the submitted list, so a method is re-filed, an amount restated, or a split added/trimmed in one save; record_pay is re-cached from the new sum and the totals never move. The sum must cover the grand total (underpaying is a credit, and set.toCredit records one), and an outstanding credit refuses it because its money arrives with set.payCredit.</note>
         <method name="delete.byId(id)">Soft-delete and reverse the stock movement the record caused. A paired record takes its twin with it, so voiding a sale never leaves the extras-only `outcoming` half behind.</method>
       </interface>
     </service>
@@ -1117,6 +1119,14 @@ ignore it
         The right pane's footer opens the record in full (`Lihat`), copies it back into a fresh cart with
         `Jadikan Transaksi` (transaction.add.fromRecord: the same rebuild `unsubmit` does, minus undoing the record, which
         opens on /pos for a sale and /restock for a purchase with `?draft=` naming the copy), and — admin only — deletes it.
+      </note>
+      <note name="detail_ledger">
+        Both faces of a record render the same `Ledger` (src/pages/Record/z-Detail/z-Ledger.tsx): the identity band, then
+        one scroll holding the goods, the charges, the parties and the band that closes the record. The two slots are what
+        differ — the page fills the identity with its own date corrections and the shelf with `Edit`/debt/delete, the pane
+        with its close button and `Lihat`/`Jadikan Transaksi`/`Hapus` — and the pane never turns on an edit affordance.
+        The shelf is a slot *inside* that scroll, not a sibling of it: pinned under the ledger it covered the rows of a long
+        record and showed no scrollbar at all (`footer`/`shelf` placement is not a per-face decision).
       </note>
       <subpages>
         <subpage path="/records/:recordId">One record in full: the receipt it prints and the ledger behind it. Actions: edit note, move the date, change mode, edit the split payments, toggle credit, link a line to a catalog listing, delete.</subpage>

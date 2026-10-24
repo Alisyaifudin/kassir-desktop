@@ -4,13 +4,13 @@ import { Effect } from "effect";
 import { RecordError, type RecordFull, type RecordMethod } from "~/services/record";
 
 /**
- * The edit dialog saves two fields behind one Simpan, so the pairing is what
- * needs pinning: a correction that moved only one of them must not restate the
- * other, and a failure must leave the dialog open with the message.
+ * The edit dialog's only field is the note — the payments moved to the money
+ * band — so what needs pinning is that an untouched dialog writes nothing and a
+ * refusal leaves it open with the message.
  */
 
 const calls: string[] = [];
-let failOn: "note" | "method" | null = null;
+let fail = false;
 
 mock.module("~/services", () => ({
   service: {
@@ -18,14 +18,8 @@ mock.module("~/services", () => ({
       set: {
         note: (id: string, note: string) => {
           calls.push(`note:${id}:${note}`);
-          return failOn === "note"
+          return fail
             ? Effect.fail(new RecordError({ message: "Gagal menyimpan catatan" }))
-            : Effect.succeed(undefined);
-        },
-        method: (id: string, methodId: string) => {
-          calls.push(`method:${id}:${methodId}`);
-          return failOn === "method"
-            ? Effect.fail(new RecordError({ message: "Metode tidak ditemukan" }))
             : Effect.succeed(undefined);
         },
       },
@@ -35,8 +29,8 @@ mock.module("~/services", () => ({
 
 const { useSaveEdit } = await import("./use-edit");
 
-function method(methodId: string): RecordMethod {
-  return { id: `rm-${methodId}`, methodId, pay: 10000, name: null, kind: "cash" };
+function method(methodId: string, pay: number): RecordMethod {
+  return { id: `rm-${methodId}`, methodId, pay, name: null, kind: "cash" };
 }
 
 function recordFixture(methods: RecordMethod[]): RecordFull {
@@ -76,27 +70,11 @@ function harness(record: RecordFull) {
 }
 
 describe("useSaveEdit", () => {
-  test("a method correction leaves the note alone", async () => {
+  test("saves the restated note", async () => {
     calls.length = 0;
     closed = 0;
-    failOn = null;
-    const { result } = harness(recordFixture([method("1000")]));
-
-    act(() => result.current.setMethodId("1003"));
-    await act(async () => {
-      await result.current.save();
-    });
-
-    expect(calls).toEqual(["method:r1:1003"]);
-    expect(closed).toBe(1);
-    expect(result.current.error).toBeNull();
-  });
-
-  test("a note correction leaves the method alone", async () => {
-    calls.length = 0;
-    closed = 0;
-    failOn = null;
-    const { result } = harness(recordFixture([method("1000")]));
+    fail = false;
+    const { result } = harness(recordFixture([method("1000", 10000)]));
 
     act(() => result.current.setNote("baru"));
     await act(async () => {
@@ -105,31 +83,14 @@ describe("useSaveEdit", () => {
 
     expect(calls).toEqual(["note:r1:baru"]);
     expect(closed).toBe(1);
-  });
-
-  test("both corrections land in one save", async () => {
-    calls.length = 0;
-    closed = 0;
-    failOn = null;
-    const { result } = harness(recordFixture([method("1000")]));
-
-    act(() => {
-      result.current.setNote("baru");
-      result.current.setMethodId("1003");
-    });
-    await act(async () => {
-      await result.current.save();
-    });
-
-    expect(calls).toEqual(["note:r1:baru", "method:r1:1003"]);
-    expect(closed).toBe(1);
+    expect(result.current.error).toBeNull();
   });
 
   test("an untouched dialog writes nothing", async () => {
     calls.length = 0;
     closed = 0;
-    failOn = null;
-    const { result } = harness(recordFixture([method("1000")]));
+    fail = false;
+    const { result } = harness(recordFixture([method("1000", 10000)]));
 
     await act(async () => {
       await result.current.save();
@@ -139,34 +100,19 @@ describe("useSaveEdit", () => {
     expect(closed).toBe(1);
   });
 
-  test("a split payment has no method to correct", async () => {
+  test("a refused note keeps the dialog open and says why", async () => {
     calls.length = 0;
     closed = 0;
-    failOn = null;
-    const { result } = harness(recordFixture([method("1000"), method("1003")]));
+    fail = true;
+    const { result } = harness(recordFixture([method("1000", 10000)]));
 
-    expect(result.current.methodId).toBeNull();
     act(() => result.current.setNote("baru"));
     await act(async () => {
       await result.current.save();
     });
 
-    expect(calls).toEqual(["note:r1:baru"]);
-  });
-
-  test("a refused method keeps the dialog open and says why", async () => {
-    calls.length = 0;
-    closed = 0;
-    failOn = "method";
-    const { result } = harness(recordFixture([method("1000")]));
-
-    act(() => result.current.setMethodId("1003"));
-    await act(async () => {
-      await result.current.save();
-    });
-
     expect(closed).toBe(0);
-    expect(result.current.error).toBe("Metode tidak ditemukan");
-    failOn = null;
+    expect(result.current.error).toBe("Gagal menyimpan catatan");
+    fail = false;
   });
 });

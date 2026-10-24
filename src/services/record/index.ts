@@ -366,11 +366,18 @@ export class RecordService extends Context.Tag("RecordService")<
       creditAt: (id: string, creditAt: number) => Effect.Effect<void, RecordError>;
       note: (id: string, note: string) => Effect.Effect<void, RecordError>;
       /**
-       * Files every payment on the record under `methodId`, so a sale rung up on
-       * the wrong method can be corrected without touching the money. The
-       * tendered amounts are left exactly as they were.
+       * Replaces the payments applied to the record: every `record_methods` row
+       * is rewritten from `payments`, so a method can be re-filed, an amount
+       * restated, or the split itself added to and trimmed in one save.
+       * `record_pay` is re-cached from the new sum; the totals are untouched.
+       *
+       * The sum must cover the grand total, and an outstanding credit is refused
+       * — it has no tendered money yet; `payCredit` settles it.
        */
-      method: (id: string, methodId: string) => Effect.Effect<void, RecordError>;
+      payment: (
+        id: string,
+        payments: { methodId: string; pay: number }[],
+      ) => Effect.Effect<void, RecordError>;
       /**
        * Replaces the record with a new one in the other mode: the old row is
        * soft-deleted, every child is re-pointed, and the stock journal's signs
