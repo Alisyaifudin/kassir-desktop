@@ -27,7 +27,9 @@ import { ReservedSkeleton } from "~/components/page-data";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
+import { toast } from "sonner";
 import { SEARCH_DELAY } from "~/lib/constants";
+import * as clipboard from "~/lib/clipboard";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "~/components/cart/types";
@@ -96,6 +98,17 @@ function blankLine(): Line {
     qty: 1,
     discounts: [{ id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 }],
   };
+}
+
+/** A key pressed inside a field with its own caret: leave its clipboard alone. */
+function fromTextField(event: { target: EventTarget | null }): boolean {
+  const target = event.target;
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+}
+
+/** A clipboard value short enough to read in a toast. */
+function brief(text: string, max = 32): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
 function caretAtEnd(input: HTMLInputElement | null): boolean {
@@ -434,6 +447,90 @@ export function Listing({
     searchRef.current?.focus();
   }
 
+  /**
+   * The text a cell hands to the clipboard, and the patch a pasted string means
+   * for it. The two live next to each other on purpose: a copy that a paste
+   * cannot read back into the same cell would be a trap.
+   *
+   * Numbers travel as bare digits — a price copies as `10000`, not `Rp10.000` —
+   * so a value copied here can be pasted into a spreadsheet, and a display string
+   * pasted back in still lands correctly because `patchFor` keeps only what the
+   * cell's own editor would accept.
+   */
+  function cellText(line: Line, field: Field): string | null {
+    switch (field) {
+      case "name":
+        return line.name;
+      case "code":
+        return line.code;
+      case "qty":
+        return String(line.qty);
+      case "unit":
+        return String(line.unit);
+      case "price":
+        return String(line.price);
+      default:
+        return null; // totals, the remove cell, the discount: nothing to carry
+    }
+  }
+
+  function patchFor(field: Field, text: string): Partial<Line> | null {
+    // One line of text, whatever the clipboard held.
+    const flat = text.replace(/\s+/g, " ").trim();
+    const digits = text.replace(/\D/g, "");
+    switch (field) {
+      case "name":
+        return flat === "" ? null : { name: flat };
+      case "code":
+        return { code: flat };
+      case "qty":
+        return digits === "" ? null : { qty: Math.max(0, Number(digits)) };
+      case "unit":
+        return digits === "" ? null : { unit: Math.max(0, Number(digits)) };
+      case "price":
+        return digits === "" ? null : { price: Number(digits) };
+      default:
+        return null;
+    }
+  }
+
+  /** The line and field under the cursor, when that cell can hold a value. */
+  function clipboardCell(): { line: Line; field: Field } | null {
+    const row = selection.row;
+    if (row.kind !== "card" || !active.editable) return null;
+    const line = lines.find((candidate) => candidate.id === row.cardId);
+    if (line === undefined) return null;
+    const field = active.field;
+    if (cellText(line, field as Field) === null) return null;
+    return { line, field: field as Field };
+  }
+
+  async function copyCell() {
+    const cell = clipboardCell();
+    if (cell === null) return;
+    const text = cellText(cell.line, cell.field);
+    if (text === null) return;
+    const copied = await clipboard.writeText(text);
+    if (!copied) {
+      toast.error("Tidak bisa menyalin ke papan klip");
+      return;
+    }
+    toast.success(text === "" ? "Sel kosong disalin" : `Disalin: ${brief(text)}`);
+  }
+
+  /**
+   * Write the clipboard's text into the selected cell and stay in select mode:
+   * the grid is for filling a column quickly, and flipping into an editor would
+   * end the run after one paste.
+   */
+  function pasteCell(text: string) {
+    const cell = clipboardCell();
+    if (cell === null) return;
+    const patch = patchFor(cell.field, text);
+    if (patch === null) return;
+    onChange(lines.map((line) => (line.id === cell.line.id ? patchLine(line, patch) : line)));
+  }
+
   /** What Enter takes from a result set: the exact code match, else the first. */
   function bestResult(listings: Listing[], query: string): Listing | undefined {
     const code = query.trim().toLowerCase();
@@ -555,6 +652,29 @@ export function Listing({
     if (editing) return;
     // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
     if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
+    // Copy and paste on the selected cell. A field that has a caret of its own —
+    // the search bar, an open editor — keeps the browser's own copy and paste.
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !fromTextField(event)) {
+      const key = event.key.toLowerCase();
+      if (key === "c") {
+        // Nothing of ours on this cell: leave the browser's own copy alone.
+        if (clipboardCell() === null) return;
+        event.preventDefault();
+        void copyCell();
+        return;
+      }
+      if (key === "v") {
+        // Same for a cell that cannot take a value, and for a webview without a
+        // readable clipboard — its own `paste` event still delivers the text
+        // (`onPaste` below).
+        if (clipboardCell() === null || !clipboard.canRead()) return;
+        event.preventDefault();
+        void clipboard.readText().then((text) => {
+          if (text !== null) pasteCell(text);
+        });
+        return;
+      }
+    }
     // A digit on a selected number cell opens its editor with that digit, so the
     // value is replaced rather than appended to — no Enter, no Backspace first.
     const typed = active.numeric === true ? typedDigit(event) : null;
@@ -616,6 +736,15 @@ export function Listing({
       aria-label={mode === "sale" ? "Barang yang dijual" : "Barang yang dibeli"}
       aria-activedescendant={activeId}
       onKeyDown={handleKeyDown}
+      // The fallback path for a webview where `navigator.clipboard.readText` is
+      // missing: the browser still hands the text to a `paste` event.
+      onPaste={(event) => {
+        if (editing || fromTextField(event)) return;
+        const text = event.clipboardData?.getData("text") ?? "";
+        if (text === "") return;
+        event.preventDefault();
+        pasteCell(text);
+      }}
       onClickCapture={onActivate}
       onFocusCapture={onActivate}
       className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
