@@ -56,7 +56,13 @@ export function Bottom({
   }
   return (
     <section className="flex flex-none items-stretch border-t">
-      <div className="max-h-[40vh] min-w-[700px] small:min-w-[500px] flex-3 shrink-0 overflow-y-auto border-r ">
+      {/* No `max-h` + `overflow-y-auto` here: the strip has a fixed number of
+          rows (Pembulatan, one method row, Kembalian), so its height is known
+          and small — the `40vh` cap only ever bit on a short window, where it
+          turned the whole payment column into a scroll box. The panel sizes to
+          its content instead, and the goods grid above (flex-1, min-h-0) gives
+          up the difference. */}
+      <div className="min-w-[700px] small:min-w-[500px] flex-3 shrink-0 border-r">
         {draft === null ? (
           // The strip's shape is reserved from the first frame but drawn only
           // after the anti-flash window: the drafts usually answer in a few
@@ -120,24 +126,6 @@ export function Bottom({
     </section>
   );
 }
-
-/**
- * The payment rows and the money readouts — the part of the purchase that used
- * to take a stage, tucked into the strip so the main panel never leaves the
- * goods. `focusPayment` counts F2 presses; the first amount field watches it.
- *
-type PayStripProps = {
-  draft: Draft;
-  change: Decimal;
-  focusPayment: number;
-  focusTop: number;
-  onExitUp: () => void;
-  focused: boolean;
-  onActivate: () => void;
-  onFocusPay: () => void;
-  focusRounding: number;
-  onSubmit: () => boolean;
-};
 
 /**
  * The payment rows and the money readouts — the part of the purchase that used
