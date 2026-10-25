@@ -1,8 +1,16 @@
+import { useEffect, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "~/components/ui/accordion";
 import { Button } from "~/components/ui/button";
 import { SkeletonText } from "~/components/ui/skeleton";
 import { NumberField } from "~/components/NumberField";
 import { cn } from "~/lib/utils";
+import { foldedLabel, groupStocks } from "./stock-groups";
 import type { StockDraft } from "./types";
 import { parseNumber } from "./types";
 import type { ProductFormController } from "./useProductForm";
@@ -55,6 +63,42 @@ export function StocksFields({
   );
   const average = total > 0 ? totalValue / total : 0;
 
+  // Sold-out lots fold away; a lot still being typed into never does. Only a
+  // persisted lot is folded, which is exactly the read-only rows of the detail
+  // pane — the place a long-lived product accumulates them.
+  const { active, folded } = groupStocks(
+    draft.stocks,
+    (stock) => lockedKeys?.has(stock.key) ?? false,
+  );
+  // A sold-out lot can still be wrong (a typed negative quantity): the accordion
+  // must never be the thing hiding the row that is complaining.
+  const foldedHasError = folded.some((stock) => errors.stockErrors?.[stock.key] !== undefined);
+  const [showFolded, setShowFolded] = useState(false);
+  useEffect(() => {
+    if (foldedHasError) setShowFolded(true);
+  }, [foldedHasError]);
+
+  function row(stock: StockDraft) {
+    // The label numbers the lot, so it keeps its place in the whole list even
+    // when its neighbours are folded away — two rows both saying "lot 1" would
+    // read as a mistake.
+    const index = draft.stocks.indexOf(stock);
+    return (
+      <StockRow
+        key={stock.key}
+        stock={stock}
+        index={index}
+        error={errors.stockErrors?.[stock.key]}
+        disabled={disabled}
+        canRemove={draft.stocks.length > 1 && !(lockedKeys?.has(stock.key) ?? false)}
+        adjustable={onAdjustValue !== undefined && (lockedKeys?.has(stock.key) ?? false)}
+        onAdjust={onAdjustValue ? () => onAdjustValue(stock, index) : undefined}
+        onChange={(patch) => form.updateStock(stock.key, patch)}
+        onRemove={() => form.removeStock(stock.key)}
+      />
+    );
+  }
+
   return (
     <Section
       {...STOCKS_SECTION}
@@ -62,20 +106,25 @@ export function StocksFields({
       action={<SectionAdd label="Tambah lot" onClick={form.addStock} disabled={disabled} />}
     >
       <div className="flex flex-col gap-3">
-        {draft.stocks.map((stock, index) => (
-          <StockRow
-            key={stock.key}
-            stock={stock}
-            index={index}
-            error={errors.stockErrors?.[stock.key]}
-            disabled={disabled}
-            canRemove={draft.stocks.length > 1 && !(lockedKeys?.has(stock.key) ?? false)}
-            adjustable={onAdjustValue !== undefined && (lockedKeys?.has(stock.key) ?? false)}
-            onAdjust={onAdjustValue ? () => onAdjustValue(stock, index) : undefined}
-            onChange={(patch) => form.updateStock(stock.key, patch)}
-            onRemove={() => form.removeStock(stock.key)}
-          />
-        ))}
+        {active.map(row)}
+        {folded.length === 0 ? null : (
+          <Accordion
+            type="single"
+            collapsible
+            // Controlled, so an error inside can force it open. `""` is this
+            // component's "closed" — Radix's single-collapsible value.
+            value={showFolded ? "folded" : ""}
+            onValueChange={(value) => setShowFolded(value === "folded")}
+            className="rounded-lg border bg-muted/20 px-3"
+          >
+            <AccordionItem value="folded" className="border-b-0">
+              <AccordionTrigger className="py-2 text-small text-muted-foreground hover:no-underline">
+                {foldedLabel(folded)}
+              </AccordionTrigger>
+              <AccordionContent className="flex flex-col gap-3">{folded.map(row)}</AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
       </div>
       <StockTotals
         total={total.toLocaleString("id-ID")}
