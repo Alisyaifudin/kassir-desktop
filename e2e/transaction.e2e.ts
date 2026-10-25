@@ -77,7 +77,7 @@ test("the last line cannot be deleted, only cleared", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Simpan" })).toBeDisabled();
 });
 
-test("switches mode and mocks Simpan", async ({ page }) => {
+test("switches mode, then writes the record", async ({ page }) => {
   await open(page);
 
   await edit(page, "Nama", 1, "Beli plastik");
@@ -85,8 +85,12 @@ test("switches mode and mocks Simpan", async ({ page }) => {
   await page.getByRole("radio", { name: "Keluar" }).click();
   await expect(page.getByRole("radio", { name: "Keluar" })).toBeChecked();
 
+  // `Simpan` writes a real record now (`record.add.adjustment`) and closes the
+  // tab; it used to be a stub that only raised a toast, which is what this test
+  // asserted. The confirmation dialog carrying a record id *is* the success.
   await page.getByRole("button", { name: "Simpan" }).click();
-  await expect(page.locator("[data-sonner-toast]")).toContainText("Simpan masih tiruan");
+  await expect(page.getByRole("heading", { name: "Transaksi tersimpan" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Lihat detail" })).toBeVisible();
 });
 
 test("navigates the grid with the arrow keys", async ({ page }) => {

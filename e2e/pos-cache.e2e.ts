@@ -8,7 +8,8 @@ import { boot, cashierSql, login } from "./harness";
  * be *narrow*: `methods`, `customers` and `extras` are catalogs, but `drafts` is
  * the screen's own working state — the "always keep a cart open" rule writes a
  * row when that list is empty, and the tab it opens comes from that same list.
- * It is skipped (`cache: { skip: ["drafts"] }`).
+ * It is cached like the rest, and the screen waits for the live subscription to
+ * confirm the seeded list (`ready`) before it acts on it.
  *
  * So this pins the property the `skip` exists for: a return visit reopens the
  * **same** cart, with its line, and does not race a second draft into existence.
@@ -56,8 +57,11 @@ test("a return visit reopens the same cart, with its line intact", async ({ page
   await expect(page.getByText("Kopi").first()).toBeVisible();
 
   // Leave the till and come back: this is the visit whose catalog keys are in
-  // the store, and whose `drafts` key still has to be read.
-  await page.getByRole("button", { name: "Beranda", exact: true }).click();
+  // the store, and whose `drafts` key still has to be read. Home is the topbar's
+  // brand link (`#/`) — the nav has no "Beranda" button, `Beranda` is only the
+  // title the topbar takes while you are there.
+  await page.getByRole("link", { name: "Toko" }).click();
+  await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Toko", exact: true }).click();
   await expect(page).toHaveURL(/#\/pos/);
 

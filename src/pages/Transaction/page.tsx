@@ -37,6 +37,11 @@ function isAdjustmentTab(draft: Draft): boolean {
   return (draft.flag & ADJUSTMENT_CART_FLAG) !== 0;
 }
 
+/** One empty line: what the grid starts with, and what "+"/F1 appends. */
+function blankLine(): DraftExtra {
+  return { id: generateId(), name: "", value: 0, kind: "number", flag: 0 };
+}
+
 export default function Page() {
   const res = useStream(service.transaction.get.changes);
 
@@ -82,6 +87,18 @@ function Screen({ drafts }: { drafts: Draft[] }) {
     });
   }, [drafts.length, setDraftId]);
 
+  // The grid always keeps one line to type into — the same invariant `removeLine`
+  // enforces. A cart that arrives with no lines (just created, or emptied from
+  // another window) gets its first row here; without it the screen drew an empty
+  // grid with no way in but F1.
+  useEffect(() => {
+    if (active === null || extras.length > 0) return;
+    run(service.transaction.extras.set(active.id, [blankLine()]));
+    // `active` is a new object on every stream emission; the id and the row count
+    // are what decide whether there is anything to seed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, extras.length]);
+
   // A `?draft=` that names a tab which is no longer open is repaired, never
   // honoured blindly: the URL must name the tab under the cursor.
   useEffect(() => {
@@ -116,7 +133,7 @@ function Screen({ drafts }: { drafts: Draft[] }) {
 
   function addLine() {
     if (active === null) return;
-    setExtras([...extras, { id: generateId(), name: "", value: 0, kind: "number", flag: 0 }]);
+    setExtras([...extras, blankLine()]);
   }
 
   function patchLine(id: string, next: Partial<DraftExtra>) {

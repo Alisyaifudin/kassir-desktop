@@ -88,14 +88,21 @@ test("a write is invisible until something invalidates it", async ({ page }) => 
   await expect(widget(page, "cached", "Pesanan")).toContainText("128 pesanan");
   await expect(widget(page, "plain", "Pesanan")).toContainText("133 pesanan", { timeout: 5000 });
 
-  // 2. The same write, announced: the mounted cached panel revalidates on the
+  // 2. The same write, announced: the mounted *cached* panel revalidates on the
   //    spot, and keeps showing the old value while it does.
   await page.getByRole("button", { name: "Tulis + invalidasi" }).click();
   await expect(widget(page, "cached", "Pesanan")).toContainText("138 pesanan", { timeout: 5000 });
-  await expect(widget(page, "plain", "Pesanan")).toContainText("138 pesanan", { timeout: 5000 });
+
+  //    The uncached panel does not move: an invalidation is an event on the
+  //    *store*, and a page that never opted in has no entry to invalidate. It
+  //    reads the new answer when it next mounts (step 3) — which is exactly what
+  //    the cache is for.
+  await expect(widget(page, "plain", "Pesanan")).toContainText("133 pesanan");
 
   // 3. And a visit after the invalidation reads instead of painting stale data…
   await leaveAndReturn(page);
   await expect(widget(page, "cached", "Pesanan")).toContainText("138 pesanan");
   await expect(widget(page, "cached", "Pesanan")).toHaveAttribute("data-paint", "cache");
+  await expect(widget(page, "plain", "Pesanan")).toContainText("138 pesanan");
+  await expect(widget(page, "plain", "Pesanan")).toHaveAttribute("data-paint", "baca");
 });
