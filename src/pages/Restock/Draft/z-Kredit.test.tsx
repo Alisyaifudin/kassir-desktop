@@ -17,8 +17,15 @@ describe("Kredit", () => {
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Kredit" }));
 
+    // `data-state`, not the unmount: Radix keeps the node until its exit
+    // animation ends, and this DOM has no animation engine, so the node lingers
+    // through a ~3 s synchronous cleanup that only ends when the test is over.
+    // Waiting for the unmount made this the slowest test in the suite by far and
+    // put it within a second of bun's 5 s ceiling on the Windows CI runner, where
+    // it did fail. The state flip is the fact the operator sees: the confirmation
+    // is closing because the purchase is already committed.
     await waitFor(() => {
-      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(dialog.getAttribute("data-state")).toBe("closed");
     });
   });
 
