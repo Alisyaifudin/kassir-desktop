@@ -26,6 +26,7 @@ import { NotFound } from "~/lib/effect-error";
 import { ProductService } from "../product";
 import { roundToFix } from "./round";
 import { insertDiscounts, insertMethod, insertPortion, insertRecordStatement } from "./sql/insert";
+import { catalogueStatements, type CatalogueLink } from "./sql/catalogue";
 import {
   consumeStatements,
   depleteLots,
@@ -159,6 +160,12 @@ type ListingLinkRow = {
   listing_id: string;
   product_id: string;
   listing_unit: number;
+};
+
+type CatalogueLinkRow = ListingLinkRow & {
+  listing_name: string;
+  listing_price: number;
+  siblings: number;
 };
 
 function insertProductRow(productId: string, name: string, now: number): Statement {
@@ -481,6 +488,19 @@ const SELECT_LISTING_LINK = `
   SELECT listing_id, product_id, listing_unit
   FROM listings
   WHERE listing_id = $1 AND listing_deleted_at IS NULL`;
+
+/**
+ * The same link, plus what the catalogue write-back needs: the stored name and
+ * price to compare against, and how many live listings share the product (a
+ * rename reaches `products.product_name` only when it is the product's only one).
+ */
+const SELECT_CATALOGUE_LINK = `
+  SELECT
+    l.listing_id, l.product_id, l.listing_name, l.listing_price, l.listing_unit,
+    (SELECT COUNT(*) FROM listings
+      WHERE product_id = l.product_id AND listing_deleted_at IS NULL) AS siblings
+  FROM listings l
+  WHERE l.listing_id = $1 AND l.listing_deleted_at IS NULL`;
 
 /**
  * Groups the per-portion rows back into the lines the UI and receipt show.
@@ -1358,9 +1378,24 @@ export const RecordLive = Layer.effect(
               let productId: string | null = null;
               if (line.listingId !== null) {
                 const rows = yield* db
-                  .selectMany<ListingLinkRow>(SELECT_LISTING_LINK, [line.listingId])
+                  .selectMany<CatalogueLinkRow>(SELECT_CATALOGUE_LINK, [line.listingId])
                   .pipe(Effect.mapError(dbErrorToRecordError));
-                productId = rows[0]?.product_id ?? null;
+                const link = rows[0];
+                productId = link?.product_id ?? null;
+                // The line is the operator's latest word on the goods; a renamed
+                // (or, on a sale, repriced) listing is the only thing that reaches
+                // the catalogue — the record keeps its own snapshot either way.
+                if (link !== undefined) {
+                  const written: CatalogueLink = {
+                    listingId: link.listing_id,
+                    productId: link.product_id,
+                    listingName: link.listing_name,
+                    listingPrice: link.listing_price,
+                    listingUnit: link.listing_unit,
+                    siblings: link.siblings,
+                  };
+                  statements.push(...catalogueStatements(written, line, input.mode, now));
+                }
               } else {
                 // A hand-entered line becomes a real product and listing.
                 productId = generateId();

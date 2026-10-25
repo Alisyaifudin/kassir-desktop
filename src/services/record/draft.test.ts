@@ -630,3 +630,190 @@ describe("RecordService.add.draft — direct branches", () => {
     expect(db.query("SELECT COUNT(*) AS n FROM records").get()).toEqual({ n: 1 });
   });
 });
+
+/**
+ * What a committed line teaches the catalogue.
+ *
+ * The record always keeps its own snapshot (`record_listing_name`,
+ * `record_listing_price`) — that is what a reprint shows. What is new is that a
+ * name edited in the grid also lands in the catalogue, which is where the
+ * operator meant it to go; a price lands there only on a sale, because on a
+ * purchase the line price is what the supplier charged.
+ */
+describe("RecordService.add.draft (catalogue write-back)", () => {
+  function catalogue(db: ReturnType<typeof setup>["db"]) {
+    return {
+      listing: db
+        .query("SELECT listing_name, listing_price FROM listings WHERE listing_id = 'l1'")
+        .get() as { listing_name: string; listing_price: number },
+      product: db
+        .query("SELECT product_name FROM products WHERE product_id = 'p1'")
+        .get() as { product_name: string },
+    };
+  }
+
+  test("a purchase renames the listing and the product that is only that listing", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    await runDraft(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        listings: [
+          {
+            listingId: "l1",
+            name: "  Kopi Susu  ",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: 8000,
+            qty: 4,
+            discounts: [],
+          },
+        ],
+        subTotal: 32000,
+        total: 32000,
+        pay: 32000,
+      }),
+    );
+
+    expect(catalogue(db).listing).toEqual({ listing_name: "Kopi Susu", listing_price: 10000 });
+    expect(catalogue(db).product).toEqual({ product_name: "Kopi Susu" });
+  });
+
+  test("a purchase renames one variant and leaves the product's own name", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    db.exec(`
+      INSERT INTO listings (
+        listing_id, product_id, listing_name, listing_price, listing_unit,
+        listing_kind, listing_updated_at
+      ) VALUES ('l2', 'p1', 'Dus', 120000, 12, 'retail', 1);
+    `);
+    await runDraft(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi Sachet",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: 8000,
+            qty: 4,
+            discounts: [],
+          },
+        ],
+        subTotal: 32000,
+        total: 32000,
+        pay: 32000,
+      }),
+    );
+
+    expect(catalogue(db).listing.listing_name).toBe("Kopi Sachet");
+    expect(catalogue(db).product.product_name).toBe("Kopi");
+  });
+
+  test("a purchase never writes its buying price into the shelf price", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    await runDraft(
+      recordLayer,
+      input({
+        mode: "outcoming",
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: 7000,
+            qty: 4,
+            discounts: [],
+          },
+        ],
+        subTotal: 28000,
+        total: 28000,
+        pay: 28000,
+      }),
+    );
+
+    expect(catalogue(db).listing).toEqual({ listing_name: "Kopi", listing_price: 10000 });
+  });
+
+  test("a sale renames the listing and takes the price it was sold at", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    await runDraft(
+      recordLayer,
+      input({
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi Susu",
+            code: "",
+            kind: "retail",
+            unit: 1,
+            price: 12000,
+            qty: 4,
+            discounts: [],
+          },
+        ],
+        subTotal: 48000,
+        total: 48000,
+        pay: 48000,
+      }),
+    );
+
+    expect(catalogue(db).listing).toEqual({ listing_name: "Kopi Susu", listing_price: 12000 });
+    expect(catalogue(db).product).toEqual({ product_name: "Kopi Susu" });
+  });
+
+  test("a sale in a different unit leaves the shelf price alone", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    // A dozen at 96000 is the same 8000 a piece: not a new shelf price.
+    await runDraft(
+      recordLayer,
+      input({
+        listings: [
+          {
+            listingId: "l1",
+            name: "Kopi",
+            code: "",
+            kind: "retail",
+            unit: 12,
+            price: 96000,
+            qty: 1,
+            discounts: [],
+          },
+        ],
+        subTotal: 96000,
+        total: 96000,
+        pay: 96000,
+      }),
+    );
+
+    expect(catalogue(db).listing).toEqual({ listing_name: "Kopi", listing_price: 10000 });
+  });
+
+  test("an unedited line leaves the catalogue untouched", async () => {
+    const { db, recordLayer, seed } = setup();
+    seed();
+    await runDraft(recordLayer, input());
+    expect(catalogue(db)).toEqual({
+      listing: { listing_name: "Kopi", listing_price: 10000 },
+      product: { product_name: "Kopi" },
+    });
+    // `product_updated_at` moves for the stock movement regardless; the listing
+    // row is the one only a catalogue write-back would touch.
+    expect(
+      (db.query("SELECT listing_updated_at FROM listings WHERE listing_id = 'l1'").get() as {
+        listing_updated_at: number;
+      }).listing_updated_at,
+    ).toBe(1);
+  });
+});
