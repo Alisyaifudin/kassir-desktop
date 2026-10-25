@@ -53,11 +53,23 @@ export function CartEmpty({ cart }: { cart: Pick<CartScreen, "startError" | "ret
 /**
  * The panel column. `inert` while submitting, because the record is already
  * committed at that point: nothing else may be edited until the dialog says so.
+ *
+ * `overflow-hidden`, deliberately, and not `overflow-x-hidden`: CSS resolves an
+ * element whose axes disagree by turning the visible one into `auto`, so
+ * `overflow-x-hidden` alone made this column a *vertical* scroll container — one
+ * that only ever scrolled a rounding residue (the column is `100%` of a window
+ * whose height in CSS pixels is fractional at a scaled display, and the last
+ * child's box rounds up to the device pixel grid, leaving a fraction of a pixel
+ * of scrollable area). On a 100%-scaled machine the arithmetic lands on whole
+ * pixels and nothing appears; at 125%/150% the panel grew a 1–2px scrollbar
+ * wedged under the navbar, on both cart screens, and it stole width from the
+ * grid when it appeared. Nothing in here should scroll: the goods grid and the
+ * purchase's stage panel are the ones with scroll boxes of their own.
  */
 export function CartPanels({ submitting, children }: { submitting: boolean; children: ReactNode }) {
   return (
     <div
-      className="relative flex h-full min-h-0 flex-col gap-2 overflow-x-hidden pt-1"
+      className="relative flex h-full min-h-0 flex-col gap-2 overflow-hidden pt-1"
       inert={submitting}
     >
       {children}
