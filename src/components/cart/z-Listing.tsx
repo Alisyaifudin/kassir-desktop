@@ -892,7 +892,7 @@ export function Listing({
                         line={line}
                         bumped={bumped === line.id}
                         seed={seed}
-                        priceLabel={mode === "sale" ? "Harga Masuk" : "Harga Keluar"}
+                        priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}
                         number={lines.length - index}
                         issue={issues.get(line.id)}
                         selected={cardSelected && focused ? (active.field as Field) : null}
