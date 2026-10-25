@@ -35,7 +35,7 @@ export function SchemaDialog() {
           <span className="sr-only">Lihat format data</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-full">
         <DialogHeader>
           <DialogTitle className="text-big">Format data</DialogTitle>
           <DialogDescription asChild>
