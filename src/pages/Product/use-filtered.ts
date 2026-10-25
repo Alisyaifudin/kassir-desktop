@@ -38,7 +38,9 @@ function compare(a: Product, b: Product, sort: SortBy): number {
     case "price":
       return minPrice(a) - minPrice(b);
     case "capital":
-      return a.capital - b.capital;
+      // The column's number, not `capital`: sorting by one figure while showing
+      // another is a sort that looks broken.
+      return a.maxCapital - b.maxCapital;
     case "stock":
       return a.stock - b.stock;
     case "updated":

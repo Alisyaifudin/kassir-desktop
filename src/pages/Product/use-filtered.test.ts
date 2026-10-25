@@ -11,7 +11,13 @@ import type { ListState } from "./use-list-state";
 
 function product(
   name: string,
-  options: { id?: string; stock?: number; code?: string | null } = {},
+  options: {
+    id?: string;
+    stock?: number;
+    code?: string | null;
+    capital?: number;
+    maxCapital?: number;
+  } = {},
 ): Product {
   const id = options.id ?? name;
   return {
@@ -34,8 +40,8 @@ function product(
       },
     ],
     stock: options.stock ?? 10,
-    capital: 0,
-    maxCapital: 0,
+    capital: options.capital ?? 0,
+    maxCapital: options.maxCapital ?? 0,
     cover: null,
     updatedAt: 0,
     syncAt: null,
@@ -97,6 +103,23 @@ describe("filterProducts", () => {
       stock: "out",
     });
     expect(result.map((item) => item.id)).toEqual(["b"]);
+  });
+
+  test("sorting by Modal uses the highest lot, the number the views print", () => {
+    // `capital` (the old average) and `maxCapital` disagree on purpose: sorting by
+    // the average while showing the highest looks like a broken sort.
+    const mixed = [
+      product("A", { id: "a", capital: 900, maxCapital: 900 }),
+      product("B", { id: "b", capital: 500, maxCapital: 1_200 }),
+    ];
+
+    const ascending = filterProducts(mixed, { ...base, sort: "capital" });
+    const descending = filterProducts(mixed, { ...base, sort: "capital", dir: "desc" });
+
+    // 900 then 1.200. The old average-based sort ordered these the other way
+    // round (b averaged 500), which is the disagreement this pins.
+    expect(ascending.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(descending.map((item) => item.id)).toEqual(["b", "a"]);
   });
 
   test("an empty query uses the chosen sort", () => {

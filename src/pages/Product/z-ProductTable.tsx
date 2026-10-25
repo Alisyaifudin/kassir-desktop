@@ -86,7 +86,10 @@ function ProductRow({
         {priceRange(product)}
       </TableCell>
       <TableCell className={cn("text-right tabular-nums", !published && "text-muted-foreground")}>
-        {formatPrice(product.capital)}
+        {/* The dearest lot, like the card's `Modal` line — the column and the card
+            are the same fact, and a table that averaged while the card did not
+            left the two views of one page disagreeing. */}
+        {formatPrice(product.maxCapital)}
       </TableCell>
       <TableCell className="text-right">
         <StockBadge product={product} />
