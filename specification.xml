@@ -15,7 +15,7 @@ ignore it
     see &lt;sync_system&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>6.0.4</version>
+  <version>6.0.5</version>
   <language>id</language>
 
   <ui_notes>
@@ -88,7 +88,7 @@ ignore it
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">6.0.4</entry>
+        <entry key="version">6.0.5</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -99,7 +99,7 @@ ignore it
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">6.0.4</entry>
+        <entry key="package.version">6.0.5</entry>
         <entry key="package.description">kassir-desktop</entry>
         <entry key="package.authors">Muhammad Ali Syaifudin</entry>
         <entry key="package.edition">2021</entry>
