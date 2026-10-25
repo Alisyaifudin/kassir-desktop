@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { Undo2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -8,6 +8,27 @@ import { cn } from "~/lib/utils";
 
 export const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 export const EDITING_RING = "z-10 ring-2 ring-primary ring-inset";
+
+/**
+ * Select everything in a cell's editor the moment it opens.
+ *
+ * Enter or a double-click means "type over this", not "append to it": with the
+ * caret parked at the end, replacing a price or a quantity was a Backspace
+ * session first. The user asked for this on the cells the arrows walk; the same
+ * click that opens a `singleClickEdit` cell lands here too, which is what a till
+ * wants — the value is a number and nothing in it is worth keeping.
+ *
+ * Runs in a *layout* effect so it lands in the same paint as the focus. It must
+ * therefore be the last word on the caret: `InputCurrency` parks its own caret at
+ * the end while mounting, in a layout effect of its own — children's run first,
+ * so this one wins.
+ */
+export function useSelectAllOnEdit(editing: boolean, container: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    if (!editing) return;
+    container.current?.querySelector("input")?.select();
+  }, [editing, container]);
+}
 
 /** Keep only what a numeric field may hold; everything else is dropped as typed. */
 function sanitizeNumeric(raw: string, mode: "integer" | "decimal"): string {
@@ -87,6 +108,8 @@ export function Cell({
   align?: "left" | "right" | "center";
 }) {
   const [draft, setDraft] = useState(String(value));
+  const cellRef = useRef<HTMLDivElement>(null);
+  useSelectAllOnEdit(editing, cellRef);
   useEffect(() => {
     if (editing) setDraft(String(value));
   }, [editing, value]);
@@ -132,6 +155,7 @@ export function Cell({
 
   return (
     <div
+      ref={cellRef}
       id={id}
       // The grid's active descendant must point at a role-bearing node, not a
       // bare div: otherwise a screen reader enters an ARIA grid it cannot read.

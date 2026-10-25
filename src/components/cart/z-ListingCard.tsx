@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,7 +9,7 @@ import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Line } from "~/components/cart/types";
-import { Cell, EDITING_RING, SELECTED_RING } from "~/components/cart/z-Cell";
+import { Cell, EDITING_RING, SELECTED_RING, useSelectAllOnEdit } from "~/components/cart/z-Cell";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { CodeIssueView, FieldIssue } from "~/components/cart/z-Issue";
 
@@ -293,6 +293,8 @@ function QtyCell({
   onEditingDone: () => void;
 }) {
   const [draft, setDraft] = useState(String(line.qty));
+  const cellRef = useRef<HTMLDivElement>(null);
+  useSelectAllOnEdit(editing, cellRef);
   useEffect(() => {
     if (editing) setDraft(String(line.qty));
   }, [editing, line.qty]);
@@ -311,6 +313,7 @@ function QtyCell({
 
   return (
     <div
+      ref={cellRef}
       id={`cell-${line.id}-qty`}
       role="gridcell"
       aria-selected={selected}
