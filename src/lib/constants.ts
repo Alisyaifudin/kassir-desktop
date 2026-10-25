@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 
-export const version = "6.0.0";
+export const version = "6.0.1";
 
 export const METHODS = ["cash", "qris", "transfer", "debit"] as const;
 export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
