@@ -86,6 +86,21 @@ describe("Tauri capability", () => {
     expect(identifiers).toContain("fs:allow-mkdir");
   });
 
+  test("grants the destroy a close needs", () => {
+    // The app could not be quit for a while and nothing said so. Tauri's Rust
+    // handler refuses the OS's close as soon as a JS listener sits on
+    // `tauri://close-requested` (`manager/window.rs`: `api.prevent_close()`), so
+    // the window lives or dies by a `destroy()` from the webview — and
+    // `core:window:default` does not include it. The refusal happened inside the
+    // API's own listener, where no one awaits it: pressing X, Alt+F4 or the
+    // taskbar's close did nothing at all, for ever. `useFlushOnExit` calls
+    // `destroy()` itself once the cart is written; this keeps the grant it needs.
+    const identifiers = capabilities().flatMap((capability) =>
+      capability.permissions.map(identifierOf),
+    );
+    expect(identifiers).toContain("core:window:allow-destroy");
+  });
+
   test("grants no self-update or process-control permission", () => {
     // `updater:default` was granted to the main window for four audits while no
     // frontend code ever called `check()` — the single most powerful permission

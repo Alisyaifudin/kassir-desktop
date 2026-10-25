@@ -302,20 +302,22 @@ ignore it
     </tauri_plugins>
 
     <capabilities>
+      <description>
+        Mirrors `src-tauri/capabilities/*.json`, which `src/lib/tauri-capability.test.ts` guards: least
+        privilege, no filesystem default, no updater, no process control. A permission nothing calls is a
+        permission that must not be granted — `fs:default` and `updater:default` were removed for exactly that.
+      </description>
       <capability name="default" windows="main">
         <permission>core:default</permission>
-        <permission>opener:default</permission>
-        <permission>sql:default, sql:allow-execute</permission>
-        <permission>dialog:default</permission>
-        <permission>store:default</permission>
-        <permission>log:default</permission>
-        <permission>fs:default, fs:allow-appdata-read-recursive, fs:allow-appdata-write-recursive, fs:read-dirs</permission>
-        <permission>fs:read-files → $APPLOCALDATA/*, $APPLOCALDATA/logs/*</permission>
-        <permission>fs:write-files → $APPLOCALDATA/*, $APPLOCALDATA/logs/*</permission>
-        <permission>http:default, http:allow-fetch → http://192.168.225.187:8787/**, https://api.kassir.store/*</permission>
+        <permission>core:window:allow-destroy → the close path: Tauri's Rust handler calls prevent_close() as soon as any JS listener sits on tauri://close-requested, so the window is only ever ended by a destroy() from useFlushOnExit (core:window:default does not include it — the app could not be quit while that was missing)</permission>
+        <permission>sql:default, sql:allow-execute → the whole SQLite access layer (src/services/db)</permission>
+        <permission>store:default, log:default</permission>
+        <permission>fs:allow-mkdir → $APPDATA/images, $APPDATA/images/**</permission>
+        <permission>fs:read-files → $APPDATA/images/**, $APPLOCALDATA/logs/**</permission>
+        <permission>fs:write-files → $APPDATA/images/**, $APPLOCALDATA/logs/**</permission>
       </capability>
-      <capability name="desktop" platforms="macOS,windows,linux" windows="main">
-        <permission>updater:default</permission>
+      <capability name="mcp-bridge" windows="main" dev-only="true">
+        <permission>mcp-bridge:default → the debug-only automation bridge on 127.0.0.1:9223; enabled by src-tauri/tauri.dev.conf.json and never linked in a release build</permission>
       </capability>
     </capabilities>
 

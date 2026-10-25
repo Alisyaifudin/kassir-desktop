@@ -16,7 +16,9 @@ import { service } from "~/services";
  *
  * The window's close is a promise: `@tauri-apps/api` awaits this handler and only
  * then destroys the window — and it destroys it *only* when the handler returns
- * without `preventDefault()`. Which means a handler that throws, or one that
+ * without `preventDefault()`. Tauri's Rust side has already stepped aside by then
+ * (`prevent_close()` fires as soon as a JS listener is registered), so nothing
+ * closes the window but a `destroy()` from here. Which means a handler that throws, or one that
  * awaits something that never settles, is an app with no way out and nothing on
  * screen to explain it. That is what this file got wrong: the flush read the
  * cart's save-error channel, which no write ever clears when there is nothing to
@@ -104,27 +106,39 @@ export function useFlushOnExit() {
     // as soon as this handler settles, so the write happens inside it.
     void (async () => {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      return getCurrentWindow().onCloseRequested(async (event) => {
+      const window = getCurrentWindow();
+      return window.onCloseRequested(async (event) => {
         try {
           const failure = await flushForClose();
-          const decision = closeDecision(failure, held);
-          if (decision === "close") {
-            if (failure !== null) {
-              log.error(`Keluar tanpa menyimpan keranjang: ${failure}`);
-              toast.error(`${failure} — keluar tanpa menyimpan.`);
-            }
+          if (closeDecision(failure, held) === "hold") {
+            held = true;
+            log.error(`Tutup ditahan: ${failure ?? "tidak diketahui"}`);
+            event.preventDefault();
+            toast.error(
+              `${failure ?? TIMEOUT_MESSAGE}. Tutup sekali lagi untuk keluar tanpa menyimpan.`,
+            );
             return;
           }
-          held = true;
-          log.error(`Tutup ditahan: ${failure ?? "tidak diketahui"}`);
+          if (failure !== null) {
+            log.error(`Keluar tanpa menyimpan keranjang: ${failure}`);
+            toast.error(`${failure} — keluar tanpa menyimpan.`);
+          }
+          // The window is this side's to destroy, and only this side's: Tauri's
+          // Rust handler calls `prevent_close()` as soon as a JS listener sits on
+          // `tauri://close-requested` (`manager/window.rs`), so the OS's close is
+          // refused and `destroy()` is the one call that ends the app. The API's
+          // own `onCloseRequested` makes it too — after this handler returns, in
+          // its listener, where a refused invoke is silent. A refused destroy was
+          // exactly the app that could not be quit; making the call here puts any
+          // refusal in the catch below, where it is logged and said out loud.
+          // `preventDefault` is what stops the API's own attempt.
           event.preventDefault();
-          toast.error(`${failure ?? TIMEOUT_MESSAGE}. Tutup sekali lagi untuk keluar tanpa menyimpan.`);
+          await window.destroy();
         } catch (error) {
-          // Nothing to do but let the window go: a rejection here would be
-          // swallowed by the listener and the window would never be destroyed.
           log.error(
             error instanceof Error ? error : new Error(`Gagal menutup: ${String(error)}`),
           );
+          toast.error(`Jendela tidak bisa ditutup: ${String(error)}`);
         }
       });
     })()
