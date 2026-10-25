@@ -187,6 +187,9 @@ export function InputCurrency({
 
   return (
     <input
+      // See `input.tsx`: Edge's WebView2 suggests as you type, and a textbox
+      // declaring `aria-autocomplete` is left alone.
+      aria-autocomplete="list"
       {...props}
       ref={inputRef}
       inputMode="decimal"

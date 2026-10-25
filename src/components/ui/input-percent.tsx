@@ -66,6 +66,9 @@ export function InputPercent({
   return (
     <div className="flex w-full min-w-0 items-baseline gap-0.5">
       <input
+        // See `input.tsx`: Edge's WebView2 suggests as you type, and a textbox
+        // declaring `aria-autocomplete` is left alone.
+        aria-autocomplete="list"
         {...props}
         inputMode="decimal"
         value={raw}
