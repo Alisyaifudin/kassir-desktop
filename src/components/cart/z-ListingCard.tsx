@@ -46,6 +46,7 @@ export const ListingCard = memo(function ListingCard({
   onStartEdit,
   onEditingDone,
   selectedSub,
+  bumped = false,
 }: {
   line: Line;
   number: number;
@@ -53,6 +54,12 @@ export const ListingCard = memo(function ListingCard({
   selected: Field | null;
   selectedSub?: QtySub;
   editing: boolean;
+  /**
+   * The line was just taken again from the search and moved to the top of the
+   * list: it slides into place, so the eye finds it rather than having to trust
+   * that the qty went up somewhere down there.
+   */
+  bumped?: boolean;
   /** `Harga Jual` on the sale screen, `Harga Beli` on the purchase screen. */
   priceLabel: string;
   onChange: (patch: Partial<Line>) => void;
@@ -83,6 +90,10 @@ export const ListingCard = memo(function ListingCard({
       className={cn(
         "overflow-hidden bg-card text-card-foreground",
         isDragging && "relative z-10 shadow-lg",
+        // A redraw of this card with the flag means "this is the one you scanned"
+        // — a translate, not a fade: `animate-in` also animates opacity, and the
+        // card's own opacity is owned by motion.
+        bumped && "animate-in slide-in-from-top-4 duration-300 ease-out",
       )}
     >
       <div role="row" className="grid grid-cols-12 items-stretch">

@@ -171,4 +171,23 @@ describe("goods search, scanned code", () => {
     expect(writes[1]).toHaveLength(1);
     expect(writes[1]?.[0]?.qty).toBe(2);
   });
+
+  test("taking a buried listing again moves it to the top with the bump", async () => {
+    const { writes, search } = renderGrid();
+
+    // Two lines, so the first one is no longer at the top.
+    scan(search, "899123");
+    await waitFor(() => expect(writes).toHaveLength(1));
+    scan(search, "899456");
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1]?.map((line) => line.name)).toEqual(["Teh Manis", "Kopi Susu"]);
+
+    // Scanning the buried one brings it back to the top, qty bumped.
+    scan(search, "899123");
+    await waitFor(() => expect(writes).toHaveLength(3));
+    expect(writes[2]?.map((line) => line.name)).toEqual(["Kopi Susu", "Teh Manis"]);
+    expect(writes[2]?.[0]?.qty).toBe(2);
+    // Position is the animation's business; the state has to be right either way.
+    expect(writes[2]?.[1]?.qty).toBe(1);
+  });
 });

@@ -371,14 +371,35 @@ export function Listing({
     onChange(arrayMove(lines, from, to));
   }
 
+  // The line that was just taken again from the search. It jumps to the top of
+  // the list, which is easy to miss among the others, so the card nods into
+  // place — and the flag clears itself so the cue is not replayed later.
+  const [bumped, setBumped] = useState<string | null>(null);
+  const bumpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (bumpTimer.current !== null) clearTimeout(bumpTimer.current);
+    },
+    [],
+  );
+  function flash(lineId: string) {
+    setBumped(lineId);
+    if (bumpTimer.current !== null) clearTimeout(bumpTimer.current);
+    bumpTimer.current = setTimeout(() => setBumped(null), 600);
+  }
+
   /** Add a listing to the draft, or bump the line that already holds it. */
   function addListing(listing: Listing) {
     const existing = lines.find((line) => line.listingId === listing.id);
     if (existing !== undefined) {
-      const qty = existing.qty + 1;
-      onChange(
-        lines.map((line) => (line.id === existing.id ? patchLine(line, { qty }) : line)),
-      );
+      // The same goods, taken again: qty +1 *and* the line comes to the top,
+      // where a new line would land. Leaving it buried is how the operator talks
+      // themselves into scanning a third time because they cannot see the bump.
+      onChange([
+        patchLine(existing, { qty: existing.qty + 1 }),
+        ...lines.filter((line) => line.id !== existing.id),
+      ]);
+      flash(existing.id);
     } else {
       const blank: DiscountLine = { id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 };
       const line: Line = withDerivedDiscounts({
@@ -722,6 +743,7 @@ export function Listing({
                         key={line.id}
                         {...handlersFor(line.id)}
                         line={line}
+                        bumped={bumped === line.id}
                         priceLabel={mode === "sale" ? "Harga Masuk" : "Harga Keluar"}
                         number={lines.length - index}
                         issue={issues.get(line.id)}
