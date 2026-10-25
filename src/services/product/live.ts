@@ -213,11 +213,19 @@ function rowToSale(row: SaleRow): ProductSale {
 function toProduct(state: ProductState): Product {
   let stock = 0;
   let capitalValue = 0;
-  let maxCapital = 0;
+  // The dearest lot that still holds stock, and the dearest of all of them. A lot
+  // that is sold out says nothing about what a piece costs *now* — its capital is
+  // a past purchase — so it only speaks when nothing else can: every lot empty.
+  let stocked: number | null = null;
+  let anyLot = 0;
   for (const lot of state.stocks) {
     stock += lot.value;
     capitalValue += lot.value * lot.capital;
-    maxCapital = Math.max(maxCapital, lot.capital);
+    if (lot.value > 0) {
+      stocked = stocked === null ? lot.capital : Math.max(stocked, lot.capital);
+    } else {
+      anyLot = Math.max(anyLot, lot.capital);
+    }
   }
   const cover = state.images.reduce<ProductImage | null>(
     (best, image) => (best === null || image.order < best.order ? image : best),
@@ -232,7 +240,7 @@ function toProduct(state: ProductState): Product {
     listings: state.listings,
     stock,
     capital: stock > 0 ? capitalValue / stock : 0,
-    maxCapital,
+    maxCapital: stocked ?? anyLot,
     cover,
     updatedAt: state.updatedAt,
     syncAt: state.syncAt,

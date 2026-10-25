@@ -98,9 +98,8 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
         <span className="text-normal tabular-nums text-muted-foreground">
           {priceRange(product)}
         </span>
-        {/* The highest `capital` among the lots, not the weighted average the
-            table's `Modal` column shows: the dearest lot is what decides whether
-            a price is worth selling at. */}
+        {/* The dearest lot that still holds stock, not the weighted average:
+            that is the number that decides whether a price is worth selling at. */}
         <span
           className={cn(
             "text-small tabular-nums text-muted-foreground",

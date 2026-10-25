@@ -8,11 +8,12 @@ import { ProductGrid } from "./z-ProductGrid";
 /**
  * The card carries the product's `Modal`.
  *
- * It is the *highest* lot's per-pcs capital, not the weighted average the table
- * column shows: the dearest lot is what decides whether a price is worth selling
- * at. The projection computes it (`maxCapital` in the product service); the card
- * only prints it, so this pins the label, the place under the price, and that a
- * card without lots still prints a number rather than a gap.
+ * It is the *highest* per-pcs capital among the lots that still hold stock — not
+ * the weighted average: the dearest lot is what decides whether a price is worth
+ * selling at, and a sold-out one would out-rank the lot the goods came from. The
+ * projection computes it (`maxCapital` in the product service, with the filter);
+ * the card only prints it, so this pins the label, the place under the price, and
+ * that a card without lots still prints a number rather than a gap.
  */
 function product(options: Partial<Product> = {}): Product {
   return {

@@ -89,6 +89,77 @@ describe("product catalogue identity", () => {
     expect(product?.maxCapital).toBe(900);
   });
 
+  test("a sold-out lot does not out-rank the lot the goods came from", async () => {
+    const { layer } = setup();
+
+    // 900 is a past purchase: that lot is empty. The goods in stock cost 500.
+    const product = await run(layer, (service) =>
+      Effect.gen(function* () {
+        yield* service.add({
+          ...input("Kopi"),
+          stocks: [
+            { value: 10, capital: 500 },
+            { value: 0, capital: 900 },
+          ],
+        });
+        const [added] = yield* service.get.all();
+        return added;
+      }),
+    );
+
+    expect(product?.stock).toBe(10);
+    expect(product?.maxCapital).toBe(500);
+  });
+
+  test("when every lot is empty, the highest of them is still the answer", async () => {
+    const { layer } = setup();
+
+    const product = await run(layer, (service) =>
+      Effect.gen(function* () {
+        yield* service.add({
+          ...input("Kopi"),
+          stocks: [
+            { value: 0, capital: 500 },
+            { value: 0, capital: 900 },
+          ],
+        });
+        const [added] = yield* service.get.all();
+        return added;
+      }),
+    );
+
+    expect(product?.stock).toBe(0);
+    expect(product?.capital).toBe(0);
+    expect(product?.maxCapital).toBe(900);
+  });
+
+  test("a lot adjusted below zero is skipped, like a sold-out one", async () => {
+    const { layer } = setup();
+
+    // A shortage lot: stock counted out that was never received. Its capital is
+    // not what the goods on the shelf cost either, so only the stocked lot speaks.
+    const result = await run(layer, (service) =>
+      Effect.gen(function* () {
+        const id = yield* service.add({
+          ...input("Kopi"),
+          stocks: [
+            { value: 10, capital: 500 },
+            { value: 4, capital: 900 },
+          ],
+        });
+        const full = yield* service.get.byId(id);
+        const shortage = full.stocks.find((lot) => lot.capital === 900);
+        if (shortage === undefined) throw new Error("no lot");
+        yield* service.stock.adjust(id, shortage.id, { value: -3, capital: 900 });
+        const [after] = yield* service.get.all();
+        return after;
+      }),
+    );
+
+    expect(result?.stock).toBe(7);
+    expect(result?.maxCapital).toBe(500);
+  });
+
   test("a refresh that finds nothing new does not re-emit", async () => {
     const { layer } = setup();
 

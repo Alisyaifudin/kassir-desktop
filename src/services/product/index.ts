@@ -101,11 +101,16 @@ export type Product = {
   capital: number;
   /**
    * The highest `capital` among the stock lots — per pcs, like `capital`, which
-   * is their weighted average. What the product card shows as `Modal`: "what did
-   * this ever cost us" is decided by the dearest lot, not by the blend.
+   * is their weighted average. What the card and the table show as `Modal`: "what
+   * did this ever cost us" is decided by the dearest lot, not by the blend.
    *
-   * `0` when the product has no lots. Free to compute — the list read already
-   * loads every stock lot (see `toProduct`).
+   * Only lots that still hold stock count: a sold-out lot's capital is a past
+   * purchase and would out-rank the lot the goods actually came from. When every
+   * lot is empty (or negative), the highest of them is still the best answer
+   * available. `0` when the product has no lots at all.
+   *
+   * Free to compute — the list read already loads every stock lot (see
+   * `toProduct`).
    */
   maxCapital: number;
   cover: ProductImage | null;
