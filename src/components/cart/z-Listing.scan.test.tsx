@@ -139,19 +139,29 @@ describe("goods search, scanned code", () => {
     expect(writes).toHaveLength(0);
   });
 
-  test("a full code typed by hand needs no Enter — the pause takes it", async () => {
+  /**
+   * A complete code is not a submission. Typing is how a code gets entered by
+   * hand, and the pause that ends the search is not the operator saying "this
+   * one" — the cart used to take the exact match on the strength of the text
+   * alone, so a code typed to *look it up* put the goods in the cart. Enter is
+   * the commit, whether it comes from a finger or from a scanner's suffix.
+   */
+  test("a full code typed by hand waits for Enter", async () => {
     const { writes, search } = renderGrid();
 
     fireEvent.change(search, { target: { value: "899456" } });
 
-    // The pause passes; an exact code is the whole answer, so it is the goods.
+    // The pause passes and the search answers for the text — and nothing else
+    // happens, even though that text is an exact code.
+    await waitFor(() => expect(searches.at(-1)).toBe("899456"));
+    expect(writes).toHaveLength(0);
+
+    fireEvent.keyDown(search, { key: "Enter" });
+
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]?.[0]?.listingId).toBe("l2");
+    // The field clears for the next item, exactly as a scan leaves it.
     await waitFor(() => expect(search.value).toBe(""));
-
-    // And the scan's own Enter, arriving late, adds no second line.
-    fireEvent.keyDown(search, { key: "Enter" });
-    expect(writes).toHaveLength(1);
   });
 
   test("the exact code wins over a name match, case-insensitively", async () => {

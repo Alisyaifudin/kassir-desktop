@@ -613,19 +613,12 @@ export function Listing({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [armed, query, results]);
 
-  // A scan ends on an exact code, and a code needs no list: take it and hand the
-  // bar back empty. This is what keeps the cards on screen through a scan — the
-  // pause would otherwise open the pane for results the operator never reads, and
-  // the grid would step aside for one word of a barcode.
-  useEffect(() => {
-    if (!settled || armed !== null || results.type !== "success") return;
-    const code = typedText.toLowerCase();
-    const hit = results.data.find((listing) => (listing.code ?? "").toLowerCase() === code);
-    if (hit === undefined) return;
-    addListing(hit);
-    // `addListing` reads the `lines` of this render, which is the fresh list.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settled, armed, typedText, results]);
+  // Enter is the only way into the cart. Nothing here adds a listing because the
+  // text happens to *be* a code: a full code is typed by hand as often as it is
+  // scanned — to look the goods up — and taking the search's answer for a
+  // submission put them in the cart unasked. Deliberately no "a scan ends on an
+  // exact code" shortcut: a scan is unaffected, because its Enter arrives before
+  // the pause, which is the case `armed` exists for.
 
   function removeCard(cardId: string) {
     const index = lines.findIndex((line) => line.id === cardId);
