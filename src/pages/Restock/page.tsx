@@ -14,6 +14,7 @@ import { useDraftId } from "~/pages/cart/use-draft";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
 import { Complete } from "~/components/cart/z-Complete";
+import { paidMethods, type PaidMethod } from "~/components/cart/paid-methods";
 import { CartBody, CartPanels } from "~/components/cart/z-CartFrame";
 import { CartStartError } from "~/components/cart/z-StartError";
 import { pageData } from "./data";
@@ -25,6 +26,8 @@ type CreditComplete = {
   total: Decimal;
   change: Decimal;
   fix: number;
+  /** What was tendered, per method — a credit purchase tenders nothing. */
+  methods: PaidMethod[];
   credit: boolean;
 };
 
@@ -121,6 +124,13 @@ function Screen({
     },
   });
   const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
+  const methodsRes = pageData.use("methods");
+  // The tender as the completion dialog will print it: one row per method that
+  // actually took money, named from the catalog the payment grid already read.
+  const paid = paidMethods(
+    active?.methods ?? [],
+    methodsRes.type === "success" ? methodsRes.data.methods : [],
+  );
 
   const total = purchaseTotal(extras, linesSubtotal(lines));
   // `null` while there is no cart: the strip's `Rp` and labels stay, the amount
@@ -152,6 +162,7 @@ function Screen({
       total: (credit ? creditGrand : grand) ?? new Decimal(0),
       change,
       fix: active?.fix ?? 0,
+      methods: paid,
       credit,
     }),
   });
@@ -172,6 +183,7 @@ function Screen({
             total={complete.total}
             change={complete.change}
             fix={complete.fix}
+            methods={complete.methods}
             credit={complete.credit}
             onRestoreStart={cart.restore.onStart}
             onRestoreEnd={cart.restore.onEnd}

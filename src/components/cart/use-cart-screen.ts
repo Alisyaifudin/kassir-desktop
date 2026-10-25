@@ -13,6 +13,7 @@ import type { Extra, Line } from "~/components/cart/types";
 import { findLineIssues, hasHardIssue } from "~/components/cart/code-issues";
 import { cartErrorMessage, run } from "~/components/cart/run";
 import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
+import type { PaidMethod } from "~/components/cart/paid-methods";
 
 /** The fields every cart screen's completion dialog needs to be rendered. */
 export type Completed = {
@@ -20,6 +21,8 @@ export type Completed = {
   total: Decimal;
   change: Decimal;
   fix: number;
+  /** What was tendered, per method: the completion dialog itemises a split. */
+  methods: PaidMethod[];
 };
 
 export type CartMode = "incoming" | "outcoming";

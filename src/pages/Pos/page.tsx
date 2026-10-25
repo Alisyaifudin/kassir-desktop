@@ -16,6 +16,7 @@ import { useDraftId } from "~/pages/cart/use-draft";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
 import { Complete } from "~/components/cart/z-Complete";
+import { paidMethods } from "~/components/cart/paid-methods";
 import { CartBody, CartPanels } from "~/components/cart/z-CartFrame";
 import { CartStartError } from "~/components/cart/z-StartError";
 
@@ -105,6 +106,14 @@ function Screen({
   });
   const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
 
+  const methodsRes = pageData.use("methods");
+  // The tender as the completion dialog will print it: one row per method that
+  // actually took money, named from the catalog the payment strip already read.
+  const paid = paidMethods(
+    active?.methods ?? [],
+    methodsRes.type === "success" ? methodsRes.data.methods : [],
+  );
+
   const extrasPresets = useMemo(
     () =>
       (extrasRes.type === "success" ? extrasRes.data : []).map(
@@ -137,7 +146,13 @@ function Screen({
     ready: () => grand !== null && grand.gt(0) && !change.isNegative(),
     setSubmitting: cart.setSubmitting,
     setComplete,
-    build: (recordId) => ({ recordId, total: grand ?? new Decimal(0), change, fix: active?.fix ?? 0 }),
+    build: (recordId) => ({
+      recordId,
+      total: grand ?? new Decimal(0),
+      change,
+      fix: active?.fix ?? 0,
+      methods: paid,
+    }),
   });
 
   return (
@@ -151,6 +166,7 @@ function Screen({
               total={complete.total}
               change={complete.change}
               fix={complete.fix}
+              methods={complete.methods}
               onRestoreStart={cart.restore.onStart}
               onRestoreEnd={cart.restore.onEnd}
               onRestored={cart.restore.onRestored}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type Decimal from "decimal.js";
+import Decimal from "decimal.js";
 import { Effect, Either } from "effect";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
@@ -15,6 +15,7 @@ import { service } from "~/services";
 import { programPrintReceipt } from "~/pages/Record/Item/z-Receipt/program-print-receipt";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { useDialogLock } from "~/hooks/use-dialog-lock";
+import type { PaidMethod } from "~/components/cart/paid-methods";
 
 /**
  * The moment after a transaction is committed — the sale's or the purchase's,
@@ -33,6 +34,7 @@ export function Complete({
   total,
   change,
   fix,
+  methods,
   credit = false,
   onRestoreStart,
   onRestoreEnd,
@@ -45,6 +47,11 @@ export function Complete({
   total: Decimal;
   change: Decimal;
   fix: number;
+  /**
+   * What was tendered and under which method. One row reads as its own label
+   * (`Pembayaran Tunai`); a split tender is itemised under the total.
+   */
+  methods: PaidMethod[];
   /** A purchase can be recorded as debt, with no payment at all. */
   credit?: boolean;
   onRestoreStart: () => void;
@@ -116,6 +123,10 @@ export function Complete({
   }
 
   const locked = busy !== null || countdown !== null;
+  // What the tender came to. It is what the rows under "Pembayaran" add up to, so
+  // a split reads as one figure with its parts; `Kembalian` is the difference to
+  // the total, not to the tender.
+  const paid = methods.reduce((sum, method) => sum.plus(method.value), new Decimal(0));
 
   // Unlocked and not counting down means the dialog is waiting on the operator —
   // after a failed print, say. Put the cursor back on Cetak so Enter retries
@@ -179,10 +190,31 @@ export function Complete({
           </p>
         ) : (
           <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-10">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-normal text-muted-foreground">Pembayaran</span>
-              <span className="text-big font-bold tabular-nums">{rupiah(total, fix)}</span>
-            </div>
+            {methods.length > 1 ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-normal text-muted-foreground">Pembayaran</span>
+                  <span className="text-big font-bold tabular-nums">{rupiah(paid, fix)}</span>
+                </div>
+                {methods.map((method) => (
+                  <div key={method.id} className="flex items-center justify-between gap-3 pl-4">
+                    <span className="text-normal text-muted-foreground">{method.name}</span>
+                    <span className="text-normal text-muted-foreground tabular-nums">
+                      {rupiah(method.value, fix)}
+                    </span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-normal text-muted-foreground">
+                  {methods[0] === undefined ? "Pembayaran" : `Pembayaran ${methods[0].name}`}
+                </span>
+                <span className="text-big font-bold tabular-nums">
+                  {rupiah(methods[0]?.value ?? total, fix)}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3">
               <span className="text-big text-muted-foreground">Kembalian</span>
               <span className="text-grand-total font-bold tabular-nums">{rupiah(change, fix)}</span>

@@ -31,8 +31,12 @@ mock.module("~/services", () => ({
 }));
 
 const { Complete } = await import("./z-Complete");
+type PaidMethod = import("./paid-methods").PaidMethod;
 
-function renderDialog() {
+function renderDialog({
+  methods = [{ id: "m1", name: "Tunai", value: 10_000 }],
+  ...overrides
+}: { methods?: PaidMethod[]; credit?: boolean; change?: Decimal; total?: Decimal } = {}) {
   const closes: number[] = [];
   const restores: number[] = [];
   render(
@@ -40,9 +44,11 @@ function renderDialog() {
       <Complete
         mode="sale"
         recordId="r1"
-        total={new Decimal(10_000)}
-        change={new Decimal(0)}
+        total={overrides.total ?? new Decimal(10_000)}
+        change={overrides.change ?? new Decimal(0)}
         fix={0}
+        methods={methods}
+        credit={overrides.credit}
         onRestoreStart={() => restores.push(1)}
         onRestoreEnd={() => restores.push(0)}
         onRestored={() => {}}
@@ -94,5 +100,54 @@ describe("completion dialog focus", () => {
     await waitFor(() => expect(document.activeElement).toBe(printButton()));
     expect(restores).toHaveLength(0);
     expect(closes).toHaveLength(0);
+  });
+});
+
+/**
+ * What was paid, and with what.
+ *
+ * A single method needs no heading of its own — "Pembayaran Tunai" is the whole
+ * sentence. A split tender does: the operator has to be able to read back which
+ * method took which share, under the figure they add up to.
+ */
+describe("completion dialog payment detail", () => {
+  test("one method names itself in the row and shows the tender", async () => {
+    renderDialog({ methods: [{ id: "m1", name: "QRIS Mandiri", value: 20_000 }] });
+
+    expect(screen.getByText("Pembayaran QRIS Mandiri")).toBeDefined();
+    expect(screen.getByText("Rp20.000")).toBeDefined();
+    // No sub-rows: the money is already in the row above.
+    expect(screen.queryByText("Pembayaran")).toBeNull();
+  });
+
+  test("a split tender is itemised under the total", async () => {
+    renderDialog({
+      change: new Decimal(2_500),
+      total: new Decimal(17_500),
+      methods: [
+        { id: "m1", name: "QRIS Mandiri", value: 15_000 },
+        { id: "m2", name: "Tunai", value: 5_000 },
+      ],
+    });
+
+    // The heading is the sum of the rows beneath it, and the change is the
+    // difference to the total — not to the tender.
+    expect(screen.getByText("Pembayaran")).toBeDefined();
+    expect(screen.getByText("Rp20.000")).toBeDefined();
+    expect(screen.getByText("QRIS Mandiri")).toBeDefined();
+    expect(screen.getByText("Rp15.000")).toBeDefined();
+    expect(screen.getByText("Tunai")).toBeDefined();
+    expect(screen.getByText("Rp5.000")).toBeDefined();
+    expect(screen.getByText("Rp2.500")).toBeDefined();
+  });
+
+  test("a credit purchase shows no payment rows at all", async () => {
+    renderDialog({ credit: true, methods: [{ id: "m1", name: "Tunai", value: 10_000 }] });
+
+    // The dialog's own title says "Pembayaran berhasil" on a sale; this is the
+    // credit variant, so neither the row nor the word appears in the body.
+    expect(screen.queryByText("Pembayaran")).toBeNull();
+    expect(screen.queryByText("Pembayaran Tunai")).toBeNull();
+    expect(screen.getByText(/Tidak ada pembayaran/)).toBeDefined();
   });
 });
