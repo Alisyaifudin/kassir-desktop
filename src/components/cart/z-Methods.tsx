@@ -41,6 +41,7 @@ import { run } from "~/components/cart/run";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
 import { MethodPicker, defaultMethodId } from "~/components/MethodPicker";
+import { nextFreeKind, freeMethodId } from "~/components/cart/method-kinds";
 import { useInertApp } from "~/components/cart/use-inert-app";
 
 /** The default `Input` chrome, so a currency field sits in the row like one. */
@@ -135,6 +136,11 @@ export function Methods({
   // An account (Shopee, BCA) reads better than its kind; the kind is the fallback.
   const firstLabel = firstMethod?.name ?? METHOD_NAMES[kind];
   const total = paidTotal(draft.methods);
+  // One method per transaction: `+` adds the first method this draft does not
+  // pay with yet (cash → QRIS → transfer → debit, and inside a kind the first
+  // free account), and each row's picker hides the ids the other rows hold.
+  const used = new Set(draft.methods.map((method) => method.methodId));
+  const nextKind = catalog === null ? null : nextFreeKind(catalog, used);
 
   const methodRow: PayField[] = useMemo(
     () =>
@@ -242,11 +248,16 @@ export function Methods({
   }, [selected, methodRow]);
 
   function add() {
-    if (catalog === null) return;
+    if (catalog === null || nextKind === null) return;
     set([
       ...draft.methods,
-      { id: generateId(), methodId: defaultMethodId(catalog, "cash"), value: 0 },
+      { id: generateId(), methodId: freeMethodId(catalog, nextKind, used), value: 0 },
     ]);
+  }
+
+  /** The method ids the *other* rows pay with — never one this row already is. */
+  function takenByOthers(rowId: string): string[] {
+    return draft.methods.filter((row) => row.id !== rowId).map((row) => row.methodId);
   }
 
   function update(id: string, patch: Partial<DraftMethod>) {
@@ -583,6 +594,7 @@ export function Methods({
                       <MethodPicker
                         methodId={method.methodId}
                         catalog={catalog}
+                        excludeMethodIds={takenByOthers(method.id)}
                         onChange={(methodId) => update(method.id, { methodId })}
                       />
                     )}
@@ -608,10 +620,23 @@ export function Methods({
                 />
               </div>
             ))}
-            <Button variant="outline" className="w-full" onClick={add}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={add}
+              // Every method taken: a transaction names each method once, so
+              // there is nothing left for another row to be.
+              disabled={nextKind === null}
+              title={nextKind === null ? "Semua metode sudah dipakai" : undefined}
+            >
               <Plus className="icon" />
               Tambah metode
             </Button>
+            {nextKind === null ? (
+              <p className="text-small text-muted-foreground">
+                Semua metode sudah dipakai; satu transaksi memakai tiap metode sekali.
+              </p>
+            ) : null}
             <div className="flex items-center justify-between border-t pt-2 text-small tabular-nums">
               <span className="text-muted-foreground">Total</span>
               <span className="font-bold">{rupiah(total, draft.fix)}</span>
