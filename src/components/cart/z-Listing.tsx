@@ -158,6 +158,11 @@ export function Listing({
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const pushQuery = useDebouncedCallback(setQuery, SEARCH_DELAY);
+  // An Enter that arrives before the search settled — which is every scan, the
+  // barcode gun types the code and its Enter in one burst — arms the pick
+  // instead of doing it: the listing is added the moment the results for the
+  // text on screen land. See `pickFirst` and the effect below.
+  const [armed, setArmed] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
   const [discountFor, setDiscountFor] = useState<string | null>(null);
@@ -401,21 +406,52 @@ export function Listing({
     searchRef.current?.focus();
   }
 
-  /** Enter in the search field takes the exact code match, else the first result. */
+  /** What Enter takes from a result set: the exact code match, else the first. */
+  function bestResult(listings: Listing[], query: string): Listing | undefined {
+    const code = query.trim().toLowerCase();
+    return listings.find((listing) => listing.code?.toLowerCase() === code) ?? listings[0];
+  }
+
+  /**
+   * Enter in the search field takes the exact code match, else the first result.
+   *
+   * Picking happens on the next render, not here: the results on screen belong to
+   * the previous query until the search for this text lands, and picking from the
+   * stale list adds the wrong goods. Making the operator press Enter a second
+   * time instead (what this used to do) meant a scanned code added nothing at
+   * all — the gun's Enter always arrives before the debounce.
+   */
   function pickFirst() {
-    // Enter before the debounce fired: the list on screen still belongs to the
-    // previous query, and picking from it would add the wrong goods. Bring the
-    // query up to date first; the results land in a few milliseconds.
     if (input !== query) {
       pushQuery.cancel();
       setQuery(input);
-      return;
     }
-    if (results.type !== "success" || results.data.length === 0) return;
-    const code = query.trim().toLowerCase();
-    const exact = results.data.find((listing) => listing.code?.toLowerCase() === code);
-    addListing(exact ?? results.data[0]);
+    setArmed(input);
   }
+
+  // The armed pick: the results for the text are in, so take the best one.
+  //
+  // "Are in" cannot be read off `refetching`: a kept value from the previous
+  // query is on screen for one render before `useQuery` gets to mark it stale,
+  // which is exactly the render Enter lands on. The rows are therefore tracked
+  // by identity — every emission is a fresh array — and the text they answer for
+  // is recorded with them.
+  const answeredData = useRef<unknown>(null);
+  const answeredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (results.type !== "success") return;
+    if (answeredData.current !== results.data) {
+      answeredData.current = results.data;
+      answeredFor.current = query;
+    }
+    if (armed === null || answeredFor.current !== armed) return;
+    setArmed(null);
+    const pick = bestResult(results.data, armed);
+    if (pick !== undefined) addListing(pick);
+    // `addListing` and `bestResult` are re-created each render and read the fresh
+    // `lines`/`input` from this render, which is what the pick wants.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [armed, query, results]);
 
   function removeCard(cardId: string) {
     const index = lines.findIndex((line) => line.id === cardId);
@@ -572,6 +608,8 @@ export function Listing({
             value={input}
             onChange={(event) => {
               const next = event.currentTarget.value;
+              // Typing again retires a pick that was armed but never fired.
+              setArmed(null);
               setInput(next);
               pushQuery(next);
             }}
