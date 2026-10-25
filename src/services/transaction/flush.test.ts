@@ -258,6 +258,47 @@ describe("cart flush", () => {
     expect(row.tx_record_note).toBe("meja 4");
   });
 
+  test("a clean flush clears an earlier failure, so it cannot hold the window shut", async () => {
+    const { layer } = setup();
+
+    // `reportError` is how a dropped UI fiber reports (a failed tab delete, a grid
+    // hand-off). Nothing about it is pending on disk, so a flush that finds
+    // nothing to write has to answer "all saved" — otherwise the channel keeps the
+    // message for the rest of the session and `useFlushOnExit` reads it as this
+    // close having failed, which is an app that can never be closed.
+    const result = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        yield* tx.add.new("incoming");
+        yield* tx.flush();
+        yield* tx.reportError("Keranjang gagal dihapus: disk penuh");
+        const reported = yield* saveError(tx);
+        yield* tx.flush();
+        return { reported, afterCleanFlush: yield* saveError(tx) };
+      }),
+    );
+
+    expect(result.reported).toContain("Keranjang gagal dihapus");
+    expect(result.afterCleanFlush).toBeNull();
+  });
+
+  test("a write that fails leaves its message for the close to hold on", async () => {
+    const { state, layer } = setup();
+
+    const message = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.flush();
+        state.failures = 1;
+        yield* tx.set.note(id, "meja 4");
+        yield* tx.flush();
+        return yield* saveError(tx);
+      }),
+    );
+
+    // Still unsaved, so still reported: the close must keep holding here.
+    expect(message).toContain("Keranjang belum tersimpan");
+  });
+
   test("a reported failure reaches the same channel <SaveError> renders", async () => {
     const { layer } = setup();
 

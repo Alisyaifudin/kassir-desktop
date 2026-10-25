@@ -798,28 +798,30 @@ export const TransactionLive = Layer.effect(
     }
 
     /**
-     * Writes one draft's pending changes. Failures are recorded on
-     * {@link saveErrorRef} and in the app log (`src/lib/log.ts`, the file Setting
-     * > Log reads) rather than swallowed into the console.
+     * Writes one draft's pending changes, answering the message it failed with —
+     * `null` when there was nothing to write or the write landed. Failures are
+     * recorded on {@link saveErrorRef} and in the app log (`src/lib/log.ts`, the
+     * file Setting > Log reads) rather than swallowed into the console.
      */
-    function flush(id: string): Effect.Effect<void> {
+    function flush(id: string): Effect.Effect<string | null> {
       return Effect.gen(function* () {
         const drafts = yield* SubscriptionRef.get(draftsRef);
         const draft = drafts.find((d) => d.id === id);
-        if (draft === undefined) return;
+        if (draft === undefined) return null;
         const statements = statementsForChange(written.get(id), draft);
-        if (statements.length === 0) return;
-        yield* db.transaction(statements).pipe(
+        if (statements.length === 0) return null;
+        return yield* db.transaction(statements).pipe(
           Effect.tap(() =>
             Effect.sync(() => {
               written.set(id, draft);
             }),
           ),
           Effect.tap(() => SubscriptionRef.set(saveErrorRef, null)),
+          Effect.as(null),
           Effect.catchAll((error) => {
             const message = `Keranjang belum tersimpan: ${error.message}`;
             log.error(message);
-            return SubscriptionRef.set(saveErrorRef, message);
+            return SubscriptionRef.set(saveErrorRef, message).pipe(Effect.as(message));
           }),
         );
       });
@@ -829,18 +831,20 @@ export const TransactionLive = Layer.effect(
     function flushAll(): Effect.Effect<void> {
       return Effect.gen(function* () {
         const drafts = yield* SubscriptionRef.get(draftsRef);
-        yield* Effect.forEach(
-          drafts,
-          (draft) => {
-            const timer = timers.get(draft.id);
-            if (timer !== undefined) {
-              clearTimeout(timer);
-              timers.delete(draft.id);
-            }
-            return flush(draft.id);
-          },
-          { discard: true },
-        );
+        const failures = yield* Effect.forEach(drafts, (draft) => {
+          const timer = timers.get(draft.id);
+          if (timer !== undefined) {
+            clearTimeout(timer);
+            timers.delete(draft.id);
+          }
+          return flush(draft.id);
+        });
+        // One answer for the whole pass. A pass that left nothing unsaved clears a
+        // message from an earlier failure — including one `reportError` put there
+        // — because `useFlushOnExit` reads this channel as "did *this* close fail
+        // to save?". While a clean pass left the message alone, a single failed
+        // write sealed the window shut for the rest of the session.
+        yield* SubscriptionRef.set(saveErrorRef, failures.find((message) => message !== null) ?? null);
       });
     }
 
