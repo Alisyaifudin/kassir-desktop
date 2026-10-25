@@ -55,6 +55,7 @@ export function Complete({
   const [busy, setBusy] = useState<"cancel" | "print" | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const printRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   // This is a real Radix modal, so the focus trap holds Tab in — but the cart's
@@ -115,6 +116,15 @@ export function Complete({
   }
 
   const locked = busy !== null || countdown !== null;
+
+  // Unlocked and not counting down means the dialog is waiting on the operator —
+  // after a failed print, say. Put the cursor back on Cetak so Enter retries
+  // instead of landing nowhere (the button was disabled while printing).
+  useEffect(() => {
+    if (locked) return;
+    printRef.current?.focus();
+  }, [locked]);
+
   const title =
     mode === "sale" ? "Pembayaran berhasil" : credit ? "Kredit berhasil" : "Pembelian berhasil";
   const description =
@@ -136,6 +146,13 @@ export function Complete({
       <DialogContent
         className="max-w-5xl"
         showCloseButton={!locked}
+        onOpenAutoFocus={(event) => {
+          // Land on Cetak, not on the first focusable child. The key the operator
+          // presses next is Enter — it must print the receipt, not sit on
+          // Batalkan, which would undo the sale that was just committed.
+          event.preventDefault();
+          printRef.current?.focus();
+        }}
         onCloseAutoFocus={(event) => {
           // Do not hand focus back to Bayar: Enter/Space on it would submit the
           // restored draft immediately after Batalkan.
@@ -198,7 +215,7 @@ export function Complete({
               </Link>
             </Button>
           </div>
-          <Button className="w-full" disabled={locked} onClick={() => void print()}>
+          <Button ref={printRef} className="w-full" disabled={locked} onClick={() => void print()}>
             {busy === "print" ? "Mencetak..." : countdown === null ? "Cetak" : "Tercetak"}
           </Button>
         </DialogFooter>
