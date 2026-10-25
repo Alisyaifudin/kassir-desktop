@@ -13,11 +13,17 @@ import { rupiah } from "~/components/cart/util-rupiah";
  */
 export function ExtraSearch({
   presets,
+  pending = false,
   containerRef,
   onPick,
   onExit,
 }: {
   presets: ExtraPreset[];
+  /**
+   * The query is still inside its debounce window: `presets` still belong to the
+   * previous one. Say so rather than showing "Tidak ada biaya." for a pause.
+   */
+  pending?: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   onPick: (preset: ExtraPreset) => void;
   onExit: () => void;
@@ -63,7 +69,9 @@ export function ExtraSearch({
       onKeyDown={handleKeyDown}
       className="min-h-0 flex-1 overflow-y-auto outline-none"
     >
-      {presets.length === 0 ? (
+      {pending ? (
+        <p className="p-4 text-muted-foreground select-none">Mencari…</p>
+      ) : presets.length === 0 ? (
         <p className="p-4 text-muted-foreground select-none">Tidak ada biaya.</p>
       ) : (
         <div className="divide-y divide-border">

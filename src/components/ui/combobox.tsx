@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useDebounce } from "use-debounce";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "~/lib/utils";
+import { SEARCH_DELAY } from "~/lib/constants";
 import { Input } from "./input";
 import { Popover, PopoverAnchor, PopoverContent } from "./popover";
 
@@ -74,7 +76,10 @@ export function Combobox({
     setText(labelFor(value, options));
   }, [value, options]);
 
-  const query = text.trim().toLowerCase();
+  // The list narrows on the settled text, not on every keystroke: with a catalog
+  // of every customer or product name, filtering and re-rendering the whole
+  // listbox between keys is what made the field itself feel slow.
+  const [query] = useDebounce(text.trim().toLowerCase(), SEARCH_DELAY);
   // An exact hit means the field already reads as a chosen value — show the full
   // list again rather than a single self-match.
   const browsing = query === "" || valuesByNeedle.has(query);

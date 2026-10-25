@@ -2,7 +2,7 @@ import { SearchIcon } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
 import { useEffect, useRef, useState } from "react";
 import { Input } from "~/components/ui/input";
-import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { SEARCH_DELAY } from "~/lib/constants";
 import { cn } from "~/lib/utils";
 import { useQuery } from "./use-query";
 
@@ -16,7 +16,7 @@ export function Search({ className }: { className?: string }) {
   }, []);
   const debounced = useDebouncedCallback((value: string) => {
     setQuery(value);
-  }, DEBOUNCE_DELAY);
+  }, SEARCH_DELAY);
   return (
     <label className={cn("relative flex gap-2 items-center flex-1", className)}>
       <SearchIcon className="absolute left-2" />

@@ -27,7 +27,7 @@ import { ReservedSkeleton } from "~/components/page-data";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "~/components/Loader";
 import { cn } from "~/lib/utils";
-import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { SEARCH_DELAY } from "~/lib/constants";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "~/components/cart/types";
@@ -157,7 +157,7 @@ export function Listing({
   // catalogue-sized map plus a rescore and sort for every character typed.
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
-  const pushQuery = useDebouncedCallback(setQuery, DEBOUNCE_DELAY);
+  const pushQuery = useDebouncedCallback(setQuery, SEARCH_DELAY);
   const [selection, setSelection] = useState<Selection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
   const [discountFor, setDiscountFor] = useState<string | null>(null);

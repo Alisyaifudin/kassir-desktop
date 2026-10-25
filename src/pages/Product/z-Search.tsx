@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { SearchIcon } from "lucide-react";
 import { Input } from "~/components/ui/input";
-import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { SEARCH_DELAY } from "~/lib/constants";
 
 export function Search({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [local, setLocal] = useState(value);
-  const debounced = useDebouncedCallback(onChange, DEBOUNCE_DELAY);
+  const debounced = useDebouncedCallback(onChange, SEARCH_DELAY);
 
   useEffect(() => {
     setLocal(value);

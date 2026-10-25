@@ -1,4 +1,4 @@
-import { DEBOUNCE_DELAY } from "~/lib/constants";
+import { SEARCH_DELAY } from "~/lib/constants";
 import { SearchIcon } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "../use-query";
@@ -13,7 +13,7 @@ export function SearchBars() {
 
   const debounced = useDebouncedCallback((value: string) => {
     setQuerySearch(value);
-  }, DEBOUNCE_DELAY);
+  }, SEARCH_DELAY);
 
   return (
     <div className="flex gap-2 flex-1">

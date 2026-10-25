@@ -106,6 +106,19 @@ export const DEFAULT_METHODS = [
 ] satisfies Method[];
 export const DEBOUNCE_DELAY = 100;
 
+/**
+ * How long a search bar waits before it runs its filter.
+ *
+ * Deliberately longer than `DEBOUNCE_DELAY`, which times the cart's writes. At
+ * 100 ms a fast typist (~200 ms between keys, but often less) still fires one
+ * filter per key, and every one of those passes paints a half-word's result for
+ * a frame — the wrong answer in a split second — and, on a long list, re-filters
+ * and re-renders it between keystrokes, which is what made the field itself feel
+ * slow. 250 ms is past the gap between quick keys and still under the ~300 ms
+ * where a search starts to feel unresponsive.
+ */
+export const SEARCH_DELAY = 250;
+
 // extra_flag bitmask: 0b1 = dual
 export const DUAL_FLAG = 0b1;
 

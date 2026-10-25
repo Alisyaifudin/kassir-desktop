@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useDebounce } from "use-debounce";
 import { ArrowLeft, Plus } from "lucide-react";
 import type Decimal from "decimal.js";
 import { AnimatePresence } from "motion/react";
@@ -19,7 +20,7 @@ import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { generateId } from "~/lib/random";
 import { type Extra, type ExtraPreset } from "~/components/cart/types";
-import { DUAL_FLAG } from "~/lib/constants";
+import { DUAL_FLAG, SEARCH_DELAY } from "~/lib/constants";
 import { useExtraPresets } from "~/components/cart/use-extra-presets";
 import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
@@ -51,6 +52,17 @@ function blankExtra(): Extra {
 
 function caretAtEnd(input: HTMLInputElement | null): boolean {
   return input !== null && input.selectionStart === input.value.length;
+}
+
+/**
+ * The catalog presets whose name contains the query. Pulled out of the render
+ * so Enter can match the text that is on screen *now* — before the debounce has
+ * settled — instead of picking from the list the previous query left behind.
+ */
+function matchPresets(presets: readonly ExtraPreset[], query: string): ExtraPreset[] {
+  const needle = query.trim().toLowerCase();
+  if (needle === "") return [];
+  return presets.filter((preset) => preset.name.toLowerCase().includes(needle));
 }
 
 /**
@@ -112,7 +124,13 @@ export function Extras({
   onActivate?: () => void;
 }) {
   const layout = mode === "sale" ? SALE_EXTRA_LAYOUT : PURCHASE_EXTRA_LAYOUT;
-  const [query, setQuery] = useState("");
+  // What the field shows, and the value the preset list filters on. `input`
+  // drives `hidden` so the results pane appears on the first character, while
+  // the filter itself waits for the pause (see `SEARCH_DELAY`): narrowing the
+  // list between keys painted a half-word's answer and rebuilt it per keystroke.
+  const [input, setInput] = useState("");
+  const [query, flushQuery] = useDebounce(input, SEARCH_DELAY);
+  const pending = input.trim() !== query.trim();
   const [selection, setSelection] = useState<ExtraSelection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
   const [openKindFor, setOpenKindFor] = useState<string | null>(null);
@@ -129,7 +147,7 @@ export function Extras({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // While the search bar has text the rows make way for the future results.
-  const hidden = query.trim() !== "";
+  const hidden = input.trim() !== "";
   const ids = useMemo(() => extras.map((extra) => extra.id), [extras]);
   const rows = useMemo(() => extraRowsFor(hidden ? [] : ids, layout), [hidden, ids, layout]);
   // The extras are a stack: a percent applies to the running total, so a
@@ -141,11 +159,7 @@ export function Extras({
   // new or re-priced extra is searchable here without a reload.
   const livePresets = useExtraPresets();
   const presets = presetOverride ?? livePresets;
-  const results = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (needle === "") return [];
-    return presets.filter((preset) => preset.name.toLowerCase().includes(needle));
-  }, [presets, query]);
+  const results = useMemo(() => matchPresets(presets, query), [presets, query]);
 
   const active = extraCellAt(selection.row, selection.col, layout);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -180,9 +194,9 @@ export function Extras({
     seenFocusSearch.current = focusSearch;
     setSelection({ row: HEADER, col: NAME_COLUMN });
     setEditing(false);
-    const input = searchRef.current;
-    input?.focus();
-    input?.select();
+    const field = searchRef.current;
+    field?.focus();
+    field?.select();
   }, [focusSearch]);
 
   // Unified grid: when the settle strip hands off upward, land on the first
@@ -279,7 +293,7 @@ export function Extras({
       value: preset.value,
       flag: preset.flag,
     });
-    setQuery("");
+    setInput("");
     searchRef.current?.focus();
   }
 
@@ -359,6 +373,9 @@ export function Extras({
       case "ArrowDown":
         event.preventDefault();
         if (isSearch && hidden) {
+          // Land on this query's list, not on the one the last pause left on
+          // screen: Enter in the list picks what the list highlights.
+          flushQuery.flush();
           resultsRef.current?.focus();
           return;
         }
@@ -380,7 +397,9 @@ export function Extras({
           // not focused; focused-list Enter is handled (and consumed) by
           // ExtraSearch, which knows which preset is highlighted.
           if (hidden && !resultsRef.current?.contains(document.activeElement)) {
-            const first = results[0];
+            // Enter before the pause: match once, now, instead of picking from
+            // the list the previous query left on screen.
+            const first = matchPresets(presets, input)[0];
             if (first !== undefined) {
               event.preventDefault();
               addPreset(first);
@@ -436,8 +455,8 @@ export function Extras({
             className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
             placeholder="Cari biaya tambahan..."
             aria-autocomplete="list"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
+            value={input}
+            onChange={(event) => setInput(event.currentTarget.value)}
           />
         </div>
         <div
@@ -513,6 +532,7 @@ export function Extras({
       {hidden ? (
         <ExtraSearch
           presets={results}
+          pending={pending}
           containerRef={resultsRef}
           onPick={addPreset}
           onExit={() => searchRef.current?.focus()}

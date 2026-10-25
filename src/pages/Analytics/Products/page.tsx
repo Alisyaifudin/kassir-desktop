@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import { useDebounce } from "use-debounce";
 import { Stream } from "effect";
 import { Link } from "react-router";
 import {
@@ -35,7 +36,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
-import { MODE_NAMES } from "~/lib/constants";
+import { MODE_NAMES, SEARCH_DELAY } from "~/lib/constants";
 import { formatDate, formatTime } from "~/lib/date";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
@@ -118,6 +119,11 @@ function Body({
   const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [globalFilter, setGlobalFilter] = useState("");
+  // The field holds every keystroke; the table filters on the settled value.
+  // Filtering and re-sorting the whole product list per keystroke is what made
+  // the box feel slow to type in, and it painted a half-word's rows for a frame
+  // between keys.
+  const settledFilter = useDebounce(globalFilter, SEARCH_DELAY);
 
   const top = useMemo(
     () => [...groups].sort((a, b) => b[metric] - a[metric]).slice(0, 8),
@@ -182,7 +188,7 @@ function Body({
   const table = useReactTable({
     data: groups,
     columns,
-    state: { sorting, expanded, globalFilter },
+    state: { sorting, expanded, globalFilter: settledFilter },
     onSortingChange: setSorting,
     onExpandedChange: setExpanded,
     onGlobalFilterChange: setGlobalFilter,
