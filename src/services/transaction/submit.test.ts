@@ -170,6 +170,50 @@ async function submit(options: SaleOptions = {}) {
   return { ...outcome, db };
 }
 
+/**
+ * A purchase arrives as its own cost lot: when its capital differs from every lot
+ * the product holds, the commit creates a new `stocks` row. The till's success
+ * depends on that lot being visible without a restart — the product page reads the
+ * in-memory aggregate, and a submit that does not re-read the products it moved
+ * leaves the lot out of it until the app reloads.
+ */
+describe("a purchase refreshes the product it stocked", () => {
+  test("the new lot is in the product aggregate right after submit", async () => {
+    const { db, layer } = makeTestDatabase();
+    const productLayer = ProductLive.pipe(Layer.provide(layer));
+    const recordLayer = RecordLive.pipe(Layer.provide(layer), Layer.provide(productLayer));
+    const transactionLayer = TransactionLive.pipe(
+      Layer.provide(layer),
+      Layer.provide(recordLayer),
+    );
+    seed(db);
+
+    const after = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const product = yield* ProductService;
+        // Warm the aggregate first: a product nobody has read yet is trivially
+        // correct, and the staleness only exists against a cached row.
+        yield* product.get.all();
+
+        const id = yield* tx.add.new("outcoming");
+        // 3 pcs at 15.000: a capital (15.000) neither existing lot holds.
+        yield* tx.listings.set(id, [makeLine({ price: 15_000, qty: 3 })]);
+        yield* tx.methods.set(id, [makeMethod(45_000)]);
+        yield* tx.set.fix(id, 0);
+        yield* tx.set.rounding(id, 0);
+        yield* Effect.either(tx.submit(id, { cashier: "Kasir" }));
+        yield* tx.delete.byId(id);
+
+        return yield* product.get.byId("p1");
+      }).pipe(Effect.provide(Layer.merge(transactionLayer, productLayer))),
+    );
+
+    expect(after.stocks.map((stock) => stock.capital)).toContain(15_000);
+    expect(after.stocks).toHaveLength(3);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Assertion helpers
 // ---------------------------------------------------------------------------
@@ -1548,6 +1592,41 @@ describe("TransactionService.submit — lifecycle", () => {
     // One product on the sale: one product re-read, not the whole catalogue.
     expect(boundedReads).toEqual([["p1"]]);
     expect(fullReads).toHaveLength(0);
+  });
+
+  test("a purchase re-reads the product it stocked, and only that one", async () => {
+    const { db, layer } = makeTestDatabase();
+    seed(db);
+    const boundedReads: string[][] = [];
+    const recordingProduct = Layer.succeed(
+      ProductService,
+      {
+        refresh: () => Effect.sync(() => undefined),
+        refreshMany: (ids: string[]) =>
+          Effect.sync(() => {
+            boundedReads.push(ids);
+          }),
+      } as unknown as Context.Tag.Service<typeof ProductService>,
+    );
+    const recordLayer = RecordLive.pipe(Layer.provide(layer), Layer.provide(recordingProduct));
+    const transactionLayer = TransactionLive.pipe(
+      Layer.provide(layer),
+      Layer.provide(recordLayer),
+    );
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const id = yield* tx.add.new("outcoming");
+        yield* tx.listings.set(id, [makeLine({ price: 15_000, qty: 3 })]);
+        yield* tx.methods.set(id, [makeMethod(45_000)]);
+        yield* tx.submit(id, { cashier: "Kasir" });
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    // A purchase creates a lot instead of draining one; it is still the same
+    // product that has to be re-read, and still only that product.
+    expect(boundedReads).toEqual([["p1"]]);
   });
 
   test("a second submit of the same draft fails because the first removed it", async () => {

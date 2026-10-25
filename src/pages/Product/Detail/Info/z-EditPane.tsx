@@ -66,12 +66,14 @@ export function EditPane({ product }: { product: ProductFull }) {
     [product.stocks],
   );
 
-  // Stock adjustments save immediately, so keep the persisted lots' quantities
-  // in the draft in sync (capital and unsaved lots are left alone).
-  const syncStockValues = form.syncStockValues;
+  // Stock adjustments save immediately, and a record commit from the till can
+  // add a lot while this pane is open, so the persisted lots are kept in sync
+  // with the row: quantities for the rows already here, plus any lot the draft
+  // has not seen yet. Unsaved "Tambah lot" rows stay where they are.
+  const syncStocks = form.syncStocks;
   useEffect(() => {
-    syncStockValues(product.stocks);
-  }, [product.stocks, syncStockValues]);
+    syncStocks(product.stocks);
+  }, [product.stocks, syncStocks]);
 
   // Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) drive the form history. A dialog owns its
   // own inputs, and a save in flight is not undoable, so stand down for both.

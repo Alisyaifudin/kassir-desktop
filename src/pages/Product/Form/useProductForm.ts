@@ -44,23 +44,48 @@ function patchKey(prefix: string, patch: object): string | null {
   return keys.length === 1 ? `${prefix}:${keys[0]}` : null;
 }
 
+/** A persisted lot as the database has it — the form's external truth. */
+type SyncedStock = { id: string; value: number; capital: number };
+
 /**
- * Overlay the latest persisted-lot quantities onto a draft. Lots that are not in
- * `lots` (unsaved "Tambah lot" rows) and every `capital` stay untouched.
+ * Overlay the latest persisted lots onto a draft.
+ *
+ * An existing row takes the persisted quantity — a stock adjustment saves
+ * immediately, outside the draft history, so it must not be rolled back — while
+ * its `capital` stays as typed unless it is a row the draft has never seen.
+ *
+ * Such a row is *added*: a purchase from Restock creates lots in the database
+ * while this form is open, and a lot that never reaches the draft is a lot the
+ * screen keeps denying exists until the app restarts. Unsaved "Tambah lot" rows
+ * go after the persisted ones, where `addStock` put them.
  */
-function applyStockSync(
-  draft: ProductDraft,
-  lots: readonly { id: string; value: number }[],
-): ProductDraft {
+function applyStockSync(draft: ProductDraft, lots: readonly SyncedStock[]): ProductDraft {
   if (lots.length === 0) return draft;
-  const byId = new Map(lots.map((lot) => [lot.id, String(lot.value)]));
+  const byKey = new Map(draft.stocks.map((stock) => [stock.key, stock]));
+  const persisted = new Set(lots.map((lot) => lot.id));
   let changed = false;
-  const stocks = draft.stocks.map((stock) => {
-    const value = byId.get(stock.key);
-    if (value === undefined || value === stock.value) return stock;
+  const stocks: ProductDraft["stocks"] = [];
+
+  for (const lot of lots) {
+    const existing = byKey.get(lot.id);
+    if (existing === undefined) {
+      stocks.push({ key: lot.id, value: String(lot.value), capital: String(lot.capital) });
+      changed = true;
+      continue;
+    }
+    const value = String(lot.value);
+    if (value === existing.value) {
+      stocks.push(existing);
+      continue;
+    }
     changed = true;
-    return { ...stock, value };
-  });
+    stocks.push({ ...existing, value });
+  }
+
+  for (const stock of draft.stocks) {
+    if (!persisted.has(stock.key)) stocks.push(stock);
+  }
+
   return changed ? { ...draft, stocks } : draft;
 }
 
@@ -174,10 +199,11 @@ export function useProductForm(initial?: ProductDraft) {
   }));
   const [errors, setErrors] = useState<ProductFormErrors>({});
 
-  // Latest persisted-lot quantities (external truth). Re-applied on undo/redo so
-  // an immediate stock adjustment is never rolled back to a stale draft value —
-  // that write is not part of the draft history.
-  const syncedLots = useRef<readonly { id: string; value: number }[]>([]);
+  // Latest persisted lots (external truth). Re-applied on undo/redo so an
+  // immediate stock adjustment is never rolled back to a stale draft value —
+  // that write is not part of the draft history — and so a lot a record commit
+  // added mid-edit is still there after an undo.
+  const syncedLots = useRef<readonly SyncedStock[]>([]);
 
   const { draft } = state;
 
@@ -247,11 +273,12 @@ export function useProductForm(initial?: ProductDraft) {
   );
 
   /**
-   * Refresh persisted lots' quantities from the source of truth (e.g. after an
-   * immediate stock adjustment). Deliberately outside the history: it is not a
+   * Refresh the persisted lots from the source of truth: an immediate stock
+   * adjustment (which saves without the form) and a lot a record commit created
+   * while this form was open. Deliberately outside the history — it is not a
    * user edit, so it must not become an undo step or be rolled back.
    */
-  const syncStockValues = useCallback((lots: readonly { id: string; value: number }[]) => {
+  const syncStocks = useCallback((lots: readonly SyncedStock[]) => {
     syncedLots.current = lots;
     setState((s) => {
       const draft = applyStockSync(s.draft, lots);
@@ -356,7 +383,7 @@ export function useProductForm(initial?: ProductDraft) {
     addStock,
     removeStock,
     updateStock,
-    syncStockValues,
+    syncStocks,
     addProperty,
     removeProperty,
     updateProperty,
