@@ -77,14 +77,7 @@ describe("cell editors open with everything selected", () => {
 
   test("a percent cell selects its number", () => {
     render(
-      <Harness
-        initialEditing
-        percent
-        value={12}
-        display="12%"
-        empty={false}
-        placeholder="0"
-      />,
+      <Harness initialEditing percent value={12} display="12%" empty={false} placeholder="0" />,
     );
 
     const field = input();
@@ -102,6 +95,15 @@ describe("cell editors open with everything selected", () => {
     fireEvent.keyDown(field, { key: "Enter" });
 
     expect(commits.at(-1)).toBe("5");
+  });
+
+  test("a digit typed on the selected cell seeds the editor, not the value", () => {
+    render(<Harness initialEditing={false} currency seed="7" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+
+    // The 10.000 is being replaced, so the editor opens on the typed digit.
+    expect(input().value).toBe("Rp7");
   });
 
   test("re-entering the editor selects again", () => {

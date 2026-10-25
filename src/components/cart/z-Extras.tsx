@@ -24,7 +24,7 @@ import { DUAL_FLAG, SEARCH_DELAY } from "~/lib/constants";
 import { useExtraPresets } from "~/components/cart/use-extra-presets";
 import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { SELECTED_RING } from "~/components/cart/z-Cell";
+import { SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
 import { ExtraCard } from "~/components/cart/z-Extra";
 import { ExtraSearch } from "~/components/cart/z-ExtraSearch";
 import {
@@ -133,6 +133,8 @@ export function Extras({
   const pending = input.trim() !== query.trim();
   const [selection, setSelection] = useState<ExtraSelection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
+  // The digit that opened the editor, if a keystroke did (see `typedDigit`).
+  const [seed, setSeed] = useState<string | null>(null);
   const [openKindFor, setOpenKindFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -242,6 +244,7 @@ export function Extras({
 
   function startEditExtra(extraId: string, field: ExtraField) {
     setSelection({ row: { kind: "extra", extraId }, col: startOfExtraField(field) });
+    setSeed(null);
     setEditing(true);
   }
 
@@ -326,6 +329,7 @@ export function Extras({
 
   function activate() {
     if (active.editable) {
+      setSeed(null);
       setEditing(true);
       return;
     }
@@ -364,6 +368,15 @@ export function Extras({
     if (editing) return;
     // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
     if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
+    // A digit on a selected `Nilai` cell opens its editor with that digit, so the
+    // value is replaced rather than appended to.
+    const typed = active.numeric === true ? typedDigit(event) : null;
+    if (typed !== null) {
+      event.preventDefault();
+      setSeed(typed);
+      setEditing(true);
+      return;
+    }
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;
@@ -601,7 +614,11 @@ export function Extras({
                             onRemove={() => removeExtra(extra.id)}
                             onSelect={(field) => selectExtra(extra.id, field)}
                             onStartEdit={(field) => startEditExtra(extra.id, field)}
-                            onEditingDone={() => setEditing(false)}
+                            onEditingDone={() => {
+                              setSeed(null);
+                              setEditing(false);
+                            }}
+                            seed={seed}
                             onKindOpenChange={(open) => setOpenKindFor(open ? extra.id : null)}
                           />
                         );

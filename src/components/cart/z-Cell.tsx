@@ -30,6 +30,47 @@ export function useSelectAllOnEdit(editing: boolean, container: RefObject<HTMLEl
   }, [editing, container]);
 }
 
+/**
+ * The digit that opens a numeric cell's editor, or `null` for anything else.
+ *
+ * Typing a number on a selected cell means "this is the value now": the editor
+ * opens with that digit alone (see `useEditorDraft`'s `seed`), so a cashier can
+ * overtype a price without Enter, then Backspace, then the number. Only digits
+ * seed it — a leading `.` or `-` does not survive the trip through the number the
+ * editor is given, so those keys stay inert until the field is open.
+ */
+export function typedDigit(event: KeyboardEvent<Element>): string | null {
+  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  return /^[0-9]$/.test(event.key) ? event.key : null;
+}
+
+/**
+ * A cell editor's text, seeded by the key that opened it.
+ *
+ * `seed` is read on the render where `editing` flips and dropped immediately: it
+ * belongs to the keystroke that opened this editor, so a later echo of the
+ * committed value must not bring it back (that is how a seed would turn into a
+ * phantom edit one cell later).
+ */
+export function useEditorDraft(
+  editing: boolean,
+  value: string,
+  seed?: string | null,
+): [string, (next: string) => void] {
+  const [draft, setDraft] = useState(value);
+  const opening = useRef<string | null>(null);
+  const wasEditing = useRef(false);
+  if (editing && !wasEditing.current) opening.current = seed ?? null;
+  wasEditing.current = editing;
+  useEffect(() => {
+    if (!editing) return;
+    const next = opening.current;
+    opening.current = null;
+    setDraft(next ?? value);
+  }, [editing, value]);
+  return [draft, setDraft];
+}
+
 /** Keep only what a numeric field may hold; everything else is dropped as typed. */
 function sanitizeNumeric(raw: string, mode: "integer" | "decimal"): string {
   if (mode === "integer") return raw.replace(/\D/g, "");
@@ -72,6 +113,7 @@ export function Cell({
   onEditingDone,
   onEditKeyDown,
   align = "left",
+  seed,
 }: {
   id: string;
   className?: string;
@@ -106,13 +148,12 @@ export function Cell({
   /** Intercept an editor key before the Cell's defaults; return true when handled. */
   onEditKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => boolean;
   align?: "left" | "right" | "center";
+  /** A digit typed while this cell was selected: the editor opens with it. */
+  seed?: string | null;
 }) {
-  const [draft, setDraft] = useState(String(value));
+  const [draft, setDraft] = useEditorDraft(editing, String(value), seed);
   const cellRef = useRef<HTMLDivElement>(null);
   useSelectAllOnEdit(editing, cellRef);
-  useEffect(() => {
-    if (editing) setDraft(String(value));
-  }, [editing, value]);
   function handleDraft(next: string) {
     setDraft(next);
     onChange?.(next);

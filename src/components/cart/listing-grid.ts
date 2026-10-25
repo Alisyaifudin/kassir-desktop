@@ -31,6 +31,11 @@ export type CellDef = {
   end: number;
   selectable: boolean;
   editable: boolean;
+  /**
+   * The cell holds a number: a digit typed while it is selected opens the editor
+   * with that digit instead of doing nothing (see `typedDigit`).
+   */
+  numeric?: boolean;
 };
 
 /** Which optional columns the grid has. A sale has a stage toggle; a purchase does not. */
@@ -66,9 +71,9 @@ const TOP_CELLS: CellDef[] = [
 const BOTTOM_CELLS: CellDef[] = [
   { field: "grip", start: 0, end: 0, selectable: false, editable: false },
   { field: "code", start: 1, end: 4, selectable: true, editable: true },
-  { field: "qty", start: 5, end: 5, selectable: true, editable: true },
-  { field: "unit", start: 6, end: 6, selectable: true, editable: true },
-  { field: "price", start: 7, end: 8, selectable: true, editable: true },
+  { field: "qty", start: 5, end: 5, selectable: true, editable: true, numeric: true },
+  { field: "unit", start: 6, end: 6, selectable: true, editable: true, numeric: true },
+  { field: "price", start: 7, end: 8, selectable: true, editable: true, numeric: true },
   { field: "diskon", start: 9, end: 11, selectable: true, editable: false },
 ];
 

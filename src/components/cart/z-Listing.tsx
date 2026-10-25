@@ -53,6 +53,7 @@ import {
   SALE_LISTING_LAYOUT,
   type ListingLayout,
 } from "~/components/cart/listing-grid";
+import { typedDigit } from "~/components/cart/z-Cell";
 
 const HEADER: RowRef = { kind: "header" };
 
@@ -165,6 +166,8 @@ export function Listing({
   const [armed, setArmed] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
+  // The digit that opened the editor, if a keystroke did (see `typedDigit`).
+  const [seed, setSeed] = useState<string | null>(null);
   const [discountFor, setDiscountFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -288,9 +291,13 @@ export function Listing({
             row: { kind: "card", cardId: id, part: partOf(field) },
             col: startOf(field),
           });
+          setSeed(null);
           setEditing(true);
         },
-        onEditingDone: () => setEditing(false),
+        onEditingDone: () => {
+          setSeed(null);
+          setEditing(false);
+        },
       };
       cache.set(id, handlers);
       return handlers;
@@ -503,6 +510,8 @@ export function Listing({
   }
 
   function activate() {
+    // Enter or a click opens the editor on the value, not on a key typed earlier.
+    setSeed(null);
     if (active.field === "qty") {
       const sub = selection.qtySub ?? "value";
       if (sub === "left") {
@@ -546,6 +555,15 @@ export function Listing({
     if (editing) return;
     // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
     if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
+    // A digit on a selected number cell opens its editor with that digit, so the
+    // value is replaced rather than appended to — no Enter, no Backspace first.
+    const typed = active.numeric === true ? typedDigit(event) : null;
+    if (typed !== null) {
+      event.preventDefault();
+      setSeed(typed);
+      setEditing(true);
+      return;
+    }
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;
@@ -744,6 +762,7 @@ export function Listing({
                         {...handlersFor(line.id)}
                         line={line}
                         bumped={bumped === line.id}
+                        seed={seed}
                         priceLabel={mode === "sale" ? "Harga Masuk" : "Harga Keluar"}
                         number={lines.length - index}
                         issue={issues.get(line.id)}

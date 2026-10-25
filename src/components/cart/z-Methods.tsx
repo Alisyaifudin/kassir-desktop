@@ -39,7 +39,7 @@ import type { Draft, DraftMethod } from "~/services/transaction";
 import { paidTotal } from "~/lib/purchase";
 import { run } from "~/components/cart/run";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { Cell, SELECTED_RING } from "~/components/cart/z-Cell";
+import { Cell, SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
 import { MethodPicker, defaultMethodId } from "~/components/MethodPicker";
 import { useInertApp } from "~/components/cart/use-inert-app";
 
@@ -105,6 +105,8 @@ export function Methods({
   useInertApp(open);
   const [selected, setSelected] = useState<PayField>("rounding");
   const [editing, setEditing] = useState(false);
+  // The digit that opened the editor, if a keystroke did (see `typedDigit`).
+  const [seed, setSeed] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasEditing = useRef(false);
   // The shortcut handler lives in an effect; keep the latest draft reachable
@@ -288,8 +290,16 @@ export function Methods({
     }
   }
 
+  /** Leave the editor. A seed belongs to the keystroke that opened it, so it goes. */
+  function stopEditing() {
+    setSeed(null);
+    setEditing(false);
+  }
+
   /** Select and (where it makes sense) open the editor; used by clicks and Enter. */
   function activate(field: PayField) {
+    // Enter or a click opens the editor on the value, not on a key typed earlier.
+    setSeed(null);
     setSelected(field);
     if (field === "pay") {
       onFocusPay();
@@ -309,6 +319,17 @@ export function Methods({
     if (editing) return;
     // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
     if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
+    // A digit on a selected amount cell opens its editor with that digit, so the
+    // value is replaced rather than appended to — no Enter, no Backspace first.
+    const numeric =
+      selected === "rounding" || (selected === "amount" && methodRow.includes("amount"));
+    const typed = numeric ? typedDigit(event) : null;
+    if (typed !== null) {
+      event.preventDefault();
+      setSeed(typed);
+      setEditing(true);
+      return;
+    }
     switch (event.key) {
       case "ArrowUp":
         event.preventDefault();
@@ -356,20 +377,22 @@ export function Methods({
             singleClickEdit
             selected={focused && selected === "rounding"}
             editing={editing && selected === "rounding"}
+            seed={seed}
             value={draft.rounding}
             display={rupiah(draft.rounding)}
             empty={draft.rounding === 0}
             placeholder="0"
             onSelect={() => activate("rounding")}
             onStartEdit={() => activate("rounding")}
-            onEditingDone={() => setEditing(false)}
+            onEditingDone={stopEditing}
             onEditKeyDown={(event) => {
               if (event.key === "ArrowDown" || event.key === "Enter") {
                 event.preventDefault();
                 if (multiple || first === null) {
-                  setEditing(false);
+                  stopEditing();
                   setOpen(true);
                 } else {
+                  setSeed(null);
                   setSelected("amount");
                   setEditing(true);
                 }
@@ -446,7 +469,7 @@ export function Methods({
                   kbd: METHOD_KBD[candidate],
                 }))}
                 onSelect={() => activate("kind")}
-                onEditingDone={() => setEditing(false)}
+                onEditingDone={stopEditing}
                 onChange={(value) =>
                   update(first.id, { methodId: defaultMethodId(catalog, value as MethodKind) })
                 }
@@ -467,7 +490,7 @@ export function Methods({
                     })),
                   ]}
                   onSelect={() => activate("account")}
-                  onEditingDone={() => setEditing(false)}
+                  onEditingDone={stopEditing}
                   onChange={(methodId) => update(first.id, { methodId })}
                 />
               ) : null}
@@ -482,16 +505,18 @@ export function Methods({
                 prefix={<Kbd>F2</Kbd>}
                 selected={focused && selected === "amount"}
                 editing={editing && selected === "amount"}
+                seed={seed}
                 value={first.value}
                 display={rupiah(first.value)}
                 empty={first.value === 0}
                 placeholder="0"
                 onSelect={() => activate("amount")}
                 onStartEdit={() => activate("amount")}
-                onEditingDone={() => setEditing(false)}
+                onEditingDone={stopEditing}
                 onEditKeyDown={(event) => {
                   if (event.key === "ArrowUp") {
                     event.preventDefault();
+                    setSeed(null);
                     setSelected("rounding");
                     setEditing(true);
                     return true;

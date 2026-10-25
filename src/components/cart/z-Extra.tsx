@@ -52,6 +52,7 @@ export function ExtraCard({
   onStartEdit,
   onEditingDone,
   onKindOpenChange,
+  seed,
 }: {
   extra: Extra;
   number: number;
@@ -65,6 +66,7 @@ export function ExtraCard({
   onStartEdit: (field: ExtraField) => void;
   onEditingDone: () => void;
   onKindOpenChange: (open: boolean) => void;
+  seed?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: extra.id,
@@ -120,6 +122,7 @@ export function ExtraCard({
           percent={extra.kind === "percent"}
           selected={selected === "value"}
           editing={editing && selected === "value"}
+          seed={seed}
           value={extra.value}
           display={extra.kind === "percent" ? `${extra.value}%` : rupiah(extra.value)}
           empty={extra.value === 0}

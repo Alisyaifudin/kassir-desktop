@@ -30,6 +30,8 @@ export type ExtraCellDef = {
   end: number;
   selectable: boolean;
   editable: boolean;
+  /** The cell holds a number: a digit typed while selected opens its editor. */
+  numeric?: boolean;
 };
 
 /** Which optional pieces the grid has: the stage toggle and the subtotal row. */
@@ -62,7 +64,7 @@ const SUBTOTAL_CELLS: ExtraCellDef[] = [
 const EXTRA_CELLS: ExtraCellDef[] = [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
   { field: "name", start: 1, end: 3, selectable: true, editable: true },
-  { field: "value", start: 4, end: 5, selectable: true, editable: true },
+  { field: "value", start: 4, end: 5, selectable: true, editable: true, numeric: true },
   { field: "kind", start: 6, end: 7, selectable: true, editable: false },
   { field: "eff", start: 8, end: 9, selectable: true, editable: false },
   // A checkbox, not a field: `dual` toggles `DUAL_FLAG` on the extra, which is

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef } from "react";
 import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,7 +9,13 @@ import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Line } from "~/components/cart/types";
-import { Cell, EDITING_RING, SELECTED_RING, useSelectAllOnEdit } from "~/components/cart/z-Cell";
+import {
+  Cell,
+  EDITING_RING,
+  SELECTED_RING,
+  useEditorDraft,
+  useSelectAllOnEdit,
+} from "~/components/cart/z-Cell";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { CodeIssueView, FieldIssue } from "~/components/cart/z-Issue";
 
@@ -47,6 +53,7 @@ export const ListingCard = memo(function ListingCard({
   onEditingDone,
   selectedSub,
   bumped = false,
+  seed,
 }: {
   line: Line;
   number: number;
@@ -60,6 +67,8 @@ export const ListingCard = memo(function ListingCard({
    * that the qty went up somewhere down there.
    */
   bumped?: boolean;
+  /** A digit typed while a cell was selected: that cell's editor opens with it. */
+  seed?: string | null;
   /** `Harga Jual` on the sale screen, `Harga Beli` on the purchase screen. */
   priceLabel: string;
   onChange: (patch: Partial<Line>) => void;
@@ -119,6 +128,7 @@ export const ListingCard = memo(function ListingCard({
           onSelect={() => onSelect("name")}
           onStartEdit={() => onStartEdit("name")}
           onEditingDone={onEditingDone}
+          seed={seed}
           onCommit={(raw) => onChange({ name: raw })}
         />
         <div
@@ -183,10 +193,12 @@ export const ListingCard = memo(function ListingCard({
           onSelect={() => onSelect("code")}
           onStartEdit={() => onStartEdit("code")}
           onEditingDone={onEditingDone}
+          seed={seed}
           onCommit={(raw) => onChange({ code: raw })}
         />
         <QtyCell
           line={line}
+          seed={seed}
           selected={selected === "qty"}
           selectedSub={selectedSub ?? "value"}
           editing={editing && selected === "qty"}
@@ -212,6 +224,7 @@ export const ListingCard = memo(function ListingCard({
           onSelect={() => onSelect("unit")}
           onStartEdit={() => onStartEdit("unit")}
           onEditingDone={onEditingDone}
+          seed={seed}
           onCommit={(raw) => onChange({ unit: Number(raw) || 0 })}
         />
         <Cell
@@ -230,6 +243,7 @@ export const ListingCard = memo(function ListingCard({
           onSelect={() => onSelect("price")}
           onStartEdit={() => onStartEdit("price")}
           onEditingDone={onEditingDone}
+          seed={seed}
           onCommit={(raw) => onChange({ price: Number(raw) || 0 })}
         />
         <div
@@ -275,6 +289,7 @@ export const ListingCard = memo(function ListingCard({
  */
 function QtyCell({
   line,
+  seed,
   selected,
   selectedSub,
   editing,
@@ -284,6 +299,7 @@ function QtyCell({
   onEditingDone,
 }: {
   line: Line;
+  seed?: string | null;
   selected: boolean;
   selectedSub: QtySub;
   editing: boolean;
@@ -292,12 +308,9 @@ function QtyCell({
   onStartEdit: () => void;
   onEditingDone: () => void;
 }) {
-  const [draft, setDraft] = useState(String(line.qty));
+  const [draft, setDraft] = useEditorDraft(editing, String(line.qty), seed);
   const cellRef = useRef<HTMLDivElement>(null);
   useSelectAllOnEdit(editing, cellRef);
-  useEffect(() => {
-    if (editing) setDraft(String(line.qty));
-  }, [editing, line.qty]);
 
   function setQty(qty: number) {
     // The grid re-derives the line's discount stack from the new qty (see

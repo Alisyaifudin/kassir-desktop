@@ -106,6 +106,18 @@ describe("Tambahan grid keyboard", () => {
     expect(document.activeElement).toBe(list);
   });
 
+  test("a digit on the selected Nilai cell opens its editor with that digit", () => {
+    renderGrid();
+    fireEvent.click(screen.getByRole("button", { name: /Manual/ }));
+
+    // Select the amount (the row's own `Nilai` cell), then type over it.
+    fireEvent.click(screen.getByText("Nilai"));
+    fireEvent.keyDown(screen.getByRole("grid", { name: "Biaya tambahan" }), { key: "5" });
+
+    const cell = document.querySelector('[id$="-value"]') as HTMLElement;
+    expect(cell.querySelector("input")?.value).toBe("Rp5");
+  });
+
   test("clicking +manual adds one blank row to edit", () => {
     const { writes } = renderGrid();
 
