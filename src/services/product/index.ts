@@ -83,6 +83,15 @@ export type ProductEvent = {
   productId: string;
   stockId: string | null;
   recordId: string | null;
+  /**
+   * The price the record line was sold at, when this movement came from one.
+   *
+   * Stock going *out* is a sale, and `capital` is the wrong figure to put beside
+   * it — what the operator wants to see there is what it went for. `null` when no
+   * record line points at the event (a manual stock-out): nothing was sold, so
+   * there is no price to name and the note is the only honest label.
+   */
+  price: number | null;
 };
 
 export type Product = {

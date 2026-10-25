@@ -97,6 +97,8 @@ type EventRow = {
   product_id: string;
   stock_id: string | null;
   record_id: string | null;
+  /** The sold price, through the record line this event moved; NULL for a manual correction. */
+  record_listing_price: number | null;
 };
 
 type SaleRow = {
@@ -193,6 +195,7 @@ function rowToEvent(row: EventRow): ProductEvent {
     productId: row.product_id,
     stockId: row.stock_id,
     recordId: row.record_id,
+    price: row.record_listing_price,
   };
 }
 
@@ -382,8 +385,25 @@ const SELECT_SALES = `
   ORDER BY r.record_paid_at ASC`;
 const SELECT_STOCK_OPENING =
   "SELECT COALESCE(SUM(product_event_value), 0) AS delta FROM product_events WHERE product_id = $1 AND product_event_created_at < $2";
+/**
+ * The price the line was sold at, for the movement this event is.
+ *
+ * A `record_listings` row points at the exact event its portion caused (a line
+ * split across lots has one row per portion, all at the same price), so the
+ * lookup is 1:1; `MIN` only keeps it from multiplying rows if that ever stops
+ * being true. NULL when nothing points at the event: a manual correction sold
+ * nothing, so it has no price to name.
+ */
+const EVENT_PRICE_SQL = `(
+  SELECT MIN(rl.record_listing_price)
+  FROM record_listings rl
+  WHERE rl.product_event_id = product_events.product_event_id
+) AS record_listing_price`;
+
 const SELECT_STOCK_EVENTS =
-  "SELECT product_event_id, product_event_created_at, product_event_value, product_event_capital, product_event_note, product_id, stock_id, record_id FROM product_events WHERE product_id = $1 AND product_event_created_at >= $2 AND product_event_created_at < $3 ORDER BY product_event_created_at ASC";
+  "SELECT product_event_id, product_event_created_at, product_event_value, product_event_capital, product_event_note, product_id, stock_id, record_id, " +
+  EVENT_PRICE_SQL +
+  " FROM product_events WHERE product_id = $1 AND product_event_created_at >= $2 AND product_event_created_at < $3 ORDER BY product_event_created_at ASC";
 
 export const ProductLive = Layer.effect(
   ProductService,
@@ -1095,7 +1115,8 @@ export const ProductLive = Layer.effect(
             .selectMany<EventRow>(
               `SELECT
                   product_event_id, product_event_created_at, product_event_value,
-                  product_event_capital, product_event_note, product_id, stock_id, record_id
+                  product_event_capital, product_event_note, product_id, stock_id, record_id,
+                  ${EVENT_PRICE_SQL}
                 FROM product_events
                 WHERE product_id = $1
                   AND (

@@ -445,6 +445,80 @@ describe("stock history paging", () => {
   });
 });
 
+/**
+ * The row a sale leaves behind names the price it went for, not the lot's cost:
+ * `Modal` beside stock going out says what the goods cost us once, which is not
+ * what that movement was worth. The link is `record_listings.product_event_id`
+ * — the portion an event moved — so an event nobody points at (a manual
+ * stock-out) has no price at all and must not invent one.
+ */
+describe("the price a stock movement was sold at", () => {
+  const AT = 1_700_000_000_000;
+
+  /** One sold event, linked to a record line at `price`. */
+  function seedSale(
+    db: ReturnType<typeof setup>["db"],
+    productId: string,
+    eventId: string,
+    price: number,
+  ) {
+    const recordId = `rec-${eventId}`;
+    db.query(
+      `INSERT INTO records (
+         record_id, record_created_at, record_paid_at, record_rounding, record_cashier,
+         record_mode, record_pay, record_note, record_fix, record_customer_name,
+         record_customer_phone, record_sub_total, record_total, record_updated_at
+       ) VALUES (?, ?, ?, 0, 'kasir', 'incoming', ?, '', 0, '', '', ?, ?, ?)`,
+    ).run(recordId, AT, AT, price, price, price, AT);
+    db.query(
+      `INSERT INTO product_events (
+         product_event_id, product_event_created_at, product_event_value,
+         product_event_capital, product_event_note, product_id, record_id
+       ) VALUES (?, ?, -1, 500, '', ?, ?)`,
+    ).run(eventId, AT, productId, recordId);
+    db.query(
+      `INSERT INTO record_listings (
+         record_listing_id, record_listing_group_id, record_id, product_event_id,
+         record_listing_name, record_listing_unit, record_listing_price,
+         record_listing_qty, record_listing_capital, record_listing_total
+       ) VALUES (?, ?, ?, ?, 'Kopi', 1, ?, 1, 500, ?)`,
+    ).run(`rl-${eventId}`, `grp-${eventId}`, recordId, eventId, price, price);
+    return recordId;
+  }
+
+  test("a movement that came from a record line carries that line's price", async () => {
+    const { db, layer } = setup();
+    const productId = await run(layer, (product) => product.add(input("Kopi")));
+    const recordId = seedSale(db, productId, "sale", 1_500);
+
+    const events = await run(layer, (product) => product.stock.history(productId, { limit: 20 }));
+    const sale = events.find((event) => event.id === "sale");
+
+    expect(sale?.price).toBe(1_500);
+    // What it cost us is still on the event; the screen just stops printing it.
+    expect(sale?.capital).toBe(500);
+    expect(sale?.recordId).toBe(recordId);
+  });
+
+  test("a manual correction has no price — nothing points at the event", async () => {
+    const { db, layer } = setup();
+    const productId = await run(layer, (product) => product.add(input("Kopi")));
+    db.query(
+      `INSERT INTO product_events (
+         product_event_id, product_event_created_at, product_event_value,
+         product_event_capital, product_event_note, product_id
+       ) VALUES ('manual', ?, -1, 500, 'Rusak', ?)`,
+    ).run(AT, productId);
+
+    const events = await run(layer, (product) => product.stock.history(productId, { limit: 20 }));
+    const manual = events.find((event) => event.id === "manual");
+
+    expect(manual?.price).toBeNull();
+    expect(manual?.recordId).toBeNull();
+    expect(manual?.note).toBe("Rusak");
+  });
+});
+
 describe("publishing a product", () => {
   test("the flag is stored, readable and leaves the product in the catalogue", async () => {
     const { layer } = setup();
