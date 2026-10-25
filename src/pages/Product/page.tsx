@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { useDebounce } from "use-debounce";
 import { Link } from "react-router";
+import { SEARCH_DELAY } from "~/lib/constants";
 import { Plus } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
@@ -91,7 +93,15 @@ function Rows({
   set: (patch: ListStatePatch) => void;
   urlBack: string;
 }) {
-  const filtered = useMemo(() => filterProducts(products, state), [products, state]);
+  // The pause belongs to the filtering, not to the field. `state` is a fresh
+  // object on every keystroke — the URL carries the text — so the memo is keyed on
+  // what filtering reads, not on the object itself.
+  const [query] = useDebounce(state.q, SEARCH_DELAY);
+  const filtered = useMemo(
+    () => filterProducts(products, { ...state, q: query }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [products, query, state.kinds.join(","), state.stock, state.margin, state.sort, state.dir],
+  );
   const totalPage = Math.max(1, Math.ceil(filtered.length / state.size));
   const page = Math.min(state.page, totalPage);
   const start = (page - 1) * state.size;

@@ -78,7 +78,11 @@ export function useListState() {
 
           let resetPage = false;
           if (patch.q !== undefined) {
-            put("q", patch.q.trim());
+            // Stored exactly as typed. The search bar is the one writer and reads
+            // its own value back from here, so a trimmed `q` would come back to
+            // the field and eat the space of "kopi susu" as it was typed. Readers
+            // trim (`filterProducts`); the field is the only place spaces matter.
+            put("q", patch.q);
             resetPage = true;
           }
           if (patch.kinds !== undefined) {
