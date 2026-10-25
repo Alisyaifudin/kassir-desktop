@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -12,9 +13,9 @@ import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { formatDate, formatTime, getDayName } from "~/lib/date";
 import { useDeleteRecord } from "./use-delete-record";
-import { Money } from "~/database/money/get-by-range";
+import type { MoneyRow } from "./with-diff";
 
-export const DeleteRecordBtn = memo(function DeleteBtn({ money }: { money: Money }) {
+export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money: MoneyRow }) {
   const [open, setOpen] = useState(false);
   const { loading, error, handleDelete } = useDeleteRecord(money.id, () => setOpen(false));
   return (
@@ -31,8 +32,8 @@ export const DeleteRecordBtn = memo(function DeleteBtn({ money }: { money: Money
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Hapus Catatan</DialogTitle>
-          <div className="flex flex-col gap-2 text-3xl">
+          <DialogTitle className="text-big">Hapus Catatan</DialogTitle>
+          <div className="flex flex-col gap-2 text-big">
             <div className="grid grid-cols-[200px_1fr]">
               <p>Tanggal</p>
               <p>
@@ -60,6 +61,7 @@ export const DeleteRecordBtn = memo(function DeleteBtn({ money }: { money: Money
             </div>
           </div>
         </DialogHeader>
+        <DialogDescription>Catatan ini dihapus dan saldo kantong dihitung ulang.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

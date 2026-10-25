@@ -1,7 +1,6 @@
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
-import { useScroll } from "~/hooks/use-scroll";
 
 // const TableScrollable = React.forwardRef<
 //   HTMLTableElement,
@@ -23,11 +22,8 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
 >(({ className, parentClass, ...props }, ref) => {
-  const [parentRef, handleScroll] = useScroll();
   return (
     <div
-      ref={parentRef}
-      onScroll={handleScroll}
       className={cn("relative w-full overflow-y-auto max-h-full h-auto", parentClass)}
     >
       <table
@@ -120,7 +116,7 @@ const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
 >(({ className, ...props }, ref) => (
-  <caption ref={ref} className={cn("mt-4 text-sm text-muted-foreground", className)} {...props} />
+  <caption ref={ref} className={cn("mt-4 text-small text-muted-foreground", className)} {...props} />
 ));
 TableCaption.displayName = "TableCaption";
 

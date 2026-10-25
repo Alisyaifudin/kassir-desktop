@@ -1,39 +1,33 @@
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { useState } from "react";
-import { db } from "~/database";
+import { useMutation } from "~/components/Loader";
 import { useUser } from "~/hooks/use-user";
-import { auth } from "~/lib/auth";
 import { log } from "~/lib/log";
+import { service } from "~/services";
 
+/**
+ * Renames the signed-in cashier. The session copy is updated too, so the topbar
+ * and the receipt cashier name follow without a reload.
+ */
 export function useUpdateName() {
   const user = useUser();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
   const [input, setInput] = useState(user.name);
+  const { pending, error, mutate } = useMutation((name: string) =>
+    service.cashier.set.name(user.id, name).pipe(
+      Effect.zipRight(service.auth.set({ ...user, name })),
+    ),
+  );
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const user = auth.user();
-    setLoading(true);
-    const error = await Effect.runPromise(program(user.id, input));
-    setLoading(false);
-    setError(error);
-    if (error === null) {
-      auth.set({ ...user, name: input });
-    }
+    const result = await mutate(input);
+    if (Either.isLeft(result)) log.error(result.left);
   }
-  return { loading, error, handleSubmit, name: { value: input, set: setInput } };
-}
 
-function program(id: string, name: string) {
-  return Effect.gen(function* () {
-    yield* db.cashier.update.name(id, name);
-    return null;
-  }).pipe(
-    Effect.catchTags({
-      DbError: ({ e }) => {
-        log.error(e);
-        return Effect.succeed(e.message);
-      },
-    }),
-  );
+  return {
+    loading: pending,
+    error: error?.message ?? null,
+    handleSubmit,
+    name: { value: input, set: setInput },
+  };
 }

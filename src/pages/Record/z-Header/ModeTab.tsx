@@ -10,25 +10,25 @@ export function ModeTab() {
         variant="ghost"
         className={cn(
           "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
-          mode === "sell"
+          mode === "incoming"
             ? "bg-background text-primary shadow-sm hover:bg-background"
             : "text-muted-foreground hover:text-foreground hover:bg-transparent",
         )}
-        onClick={() => setMode("sell")}
+        onClick={() => setMode("incoming")}
       >
-        Jual
+        Masuk
       </Button>
       <Button
         variant="ghost"
         className={cn(
           "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
-          mode === "buy"
+          mode === "outcoming"
             ? "bg-background text-primary shadow-sm hover:bg-background"
             : "text-muted-foreground hover:text-foreground hover:bg-transparent",
         )}
-        onClick={() => setMode("buy")}
+        onClick={() => setMode("outcoming")}
       >
-        Beli
+        Keluar
       </Button>
     </div>
   );

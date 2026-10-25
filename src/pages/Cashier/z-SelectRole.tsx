@@ -1,8 +1,7 @@
-import { Effect, pipe } from "effect";
+import { Either } from "effect";
 import { toast } from "sonner";
-import { db } from "~/database";
-import { CashierWithoutHash } from "~/database/cashier/get-all";
-import { revalidate } from "./use-data";
+import type { Cashier, Role } from "~/services/cashier";
+import { service } from "~/services";
 import {
   Select,
   SelectContent,
@@ -10,20 +9,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { log } from "~/lib/log";
+import { useMutation } from "~/components/Loader";
 
-export function SelectRole({ cashier }: { cashier: CashierWithoutHash }) {
-  const handleChange = async (role: string) => {
-    if (role !== "admin" && role !== "user") {
-      return;
-    }
-    const errMsg = await Effect.runPromise(program(cashier.id, role));
-    if (errMsg !== null) {
-      toast.error(errMsg);
-    } else {
-      revalidate();
-    }
-  };
+export function SelectRole({ cashier }: { cashier: Cashier }) {
+  const { mutate } = useMutation((role: Role) => service.cashier.set.role(cashier.id, role));
+
+  async function handleChange(role: string) {
+    if (role !== "admin" && role !== "user") return;
+    const result = await mutate(role);
+    if (Either.isLeft(result)) toast.error(result.left.message);
+  }
+
   return (
     <Select value={cashier.role} onValueChange={handleChange}>
       <SelectTrigger className="w-full">
@@ -34,16 +30,5 @@ export function SelectRole({ cashier }: { cashier: CashierWithoutHash }) {
         <SelectItem value="user">User</SelectItem>
       </SelectContent>
     </Select>
-  );
-}
-
-export function program(id: string, role: DB.Role) {
-  return pipe(
-    db.cashier.update.role(id, role),
-    Effect.as(null),
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
   );
 }

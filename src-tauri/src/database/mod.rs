@@ -1,7 +1,7 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 pub fn generate_migration() -> Vec<Migration> {
-    let migrations = vec![
+    vec![
         Migration {
             version: 1,
             description: "create_initial_tables",
@@ -248,6 +248,35 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-41.sql"),
             kind: MigrationKind::Up,
         },
-    ];
-    return migrations;
+        Migration {
+            version: 42,
+            description: "add_flag_to_extras",
+            sql: include_str!("../../src/database/41-50/migration-42.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 43,
+            description: "decompose_products_and_soft_delete",
+            sql: include_str!("../../src/database/41-50/migration-43.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 44,
+            description: "backfill_new_schema",
+            sql: include_str!("../../src/database/41-50/migration-44.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 45,
+            description: "reserved_bridge",
+            sql: include_str!("../../src/database/41-50/migration-45.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 46,
+            description: "allow_webp_images",
+            sql: include_str!("../../src/database/41-50/migration-46.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }

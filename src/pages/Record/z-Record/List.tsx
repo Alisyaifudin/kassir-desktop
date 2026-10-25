@@ -1,53 +1,106 @@
+import { useCallback, useMemo, type KeyboardEvent } from "react";
+import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { capitalize, cn } from "~/lib/utils";
 import { ForEach } from "~/components/ForEach";
-import { Record } from "../use-records";
-import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
-import { useCallback } from "react";
+import { capitalize, cn } from "~/lib/utils";
 import { formatTime } from "~/lib/date";
+import type { Record as RecordModel } from "~/services/record";
 import { useSelected } from "../use-selected";
 import { useOrder } from "../use-order";
+import {
+  EMPTY_SELECTION,
+  recordPaymentLines,
+  type MethodSelection,
+} from "../method-filter";
 
-type ListProps = {
-  records: Record[];
-};
-
-export function List({ records }: ListProps) {
+export function List({
+  records,
+  selection = EMPTY_SELECTION,
+}: {
+  records: RecordModel[];
+  /**
+   * The method filter. A split payment only lists the methods it lets through,
+   * so the `Total` column can never show a payment the list was asked to hide.
+   */
+  selection?: MethodSelection;
+}) {
   const [selected, setSelected] = useSelected();
   const [{ order, sort }, setOrder] = useOrder();
+  const sorted = useSorted(records, order, sort);
+
   const handleClickSort = useCallback(
-    (o: "time" | "total") => {
-      let s = sort;
-      if (order === o) {
-        s = s === "asc" ? "desc" : "asc";
-      }
-      setOrder(o, s);
+    (next: "time" | "total") => {
+      const direction = order === next ? (sort === "asc" ? "desc" : "asc") : sort;
+      setOrder(next, direction);
     },
     [order, sort, setOrder],
   );
-  const sign = sort === "asc" ? 1 : -1;
-  switch (order) {
-    case "time":
-      records.sort((a, b) => sign * (a.paidAt - b.paidAt));
-      break;
-    case "total":
-      records.sort((a, b) => sign * (a.grandTotal - b.grandTotal));
-      break;
-  }
+
+  // Roving tabindex, the model the POS grids use: the list is a single tab
+  // stop, and Up/Down/Home/End move focus inside it. Every row at `tabIndex={0}`
+  // would make Tab crawl through a whole day of records before reaching the
+  // detail pane.
+  const tabStop = useMemo(() => {
+    const index = sorted.findIndex((record) => record.id === selected);
+    return index === -1 ? 0 : index;
+  }, [sorted, selected]);
+
+  // Up/Down move the *focus* (so Tab does not have to walk every row); Enter or
+  // Space then selects. Same mental model as the POS grids.
+  const handleRowKeyDown = useCallback(
+    (index: number) => (event: KeyboardEvent<HTMLTableRowElement>) => {
+      const record = sorted[index];
+      if (record === undefined) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        setSelected(record.id);
+        return;
+      }
+      if (
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp" &&
+        event.key !== "Home" &&
+        event.key !== "End"
+      )
+        return;
+      event.preventDefault();
+      // Only record rows are focusable: a record's payment lines are a
+      // breakdown of the row above them, not rows of their own.
+      const rows = event.currentTarget
+        .closest("table")
+        ?.querySelectorAll<HTMLTableRowElement>("tr[data-record]");
+      if (rows === undefined || rows.length === 0) return;
+      const target =
+        event.key === "ArrowDown"
+          ? index + 1
+          : event.key === "ArrowUp"
+            ? index - 1
+            : event.key === "Home"
+              ? 0
+              : rows.length - 1;
+      rows[Math.min(Math.max(target, 0), rows.length - 1)]?.focus();
+    },
+    [sorted, setSelected],
+  );
+
   return (
-    <Table className="text-normal">
+    <Table className="text-normal" aria-label="Daftar transaksi hari ini">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[30px] small:w-[10px]">No</TableHead>
-          <TableHead className={cn("text-center w-[150px] small:w-[90px]")}>Kasir</TableHead>
-          <TableHead className="w-[120px] small:w-[93px]">
+          <TableHead className="w-[30px] font-normal small:w-[10px]">No</TableHead>
+          <TableHead className={cn("text-center w-[150px] font-normal small:w-[90px]")}>
+            Kasir
+          </TableHead>
+          <TableHead
+            className="w-[120px] font-normal small:w-[93px]"
+            aria-sort={order === "time" ? (sort === "asc" ? "ascending" : "descending") : "none"}
+          >
             <SortBtn
               onClick={() => handleClickSort("time")}
               sort={order === "time" ? sort : undefined}
@@ -56,7 +109,12 @@ export function List({ records }: ListProps) {
               Waktu
             </SortBtn>
           </TableHead>
-          <TableHead>
+          <TableHead
+            className="font-normal"
+            aria-sort={
+              order === "total" ? (sort === "asc" ? "ascending" : "descending") : "none"
+            }
+          >
             <SortBtn
               onClick={() => handleClickSort("total")}
               sort={order === "total" ? sort : undefined}
@@ -67,28 +125,121 @@ export function List({ records }: ListProps) {
           </TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
-        <ForEach items={records}>
-          {(record, i) => (
-            <TableRow
-              onClick={() => setSelected(record.id)}
+      {/* Rows sit at the header's muted colour and one weight below it, so the
+          list doesn't out-shout its own column labels. Needs the shipped
+          variable face — the OS build of Noto Sans has no 300. The tinted
+          (selected / credit) rows keep full contrast against their background.
+
+          One row group per record. The group is what makes a split payment
+          readable: the `No` cell spans the record's own rows, and the tint —
+          hover, selected — has to reach every payment line, which needs an
+          ancestor above the rows (a row cannot reach its siblings). The rule
+          belongs *between* records, so only the group's last row draws it. */}
+      <ForEach items={sorted}>
+        {(record, i) => {
+          const lines = recordPaymentLines(record, selection);
+          // Only a record that paid with more than one visible method earns a
+          // breakdown: a single method, a filter that narrowed the record down
+          // to one, a credit with no payments yet, and two stored rows of the
+          // same method all stay the single row they always were.
+          const split = lines.length > 1;
+          const isSelected = selected === record.id;
+          // A selected row lightens under the pointer; a credit keeps its red.
+          const hoverTint =
+            isSelected && !record.isCredit
+              ? "group-hover/rec:bg-sky-100"
+              : "group-hover/rec:bg-muted/50";
+
+          return (
+            <tbody
+              key={record.id}
               className={cn(
-                { "bg-sky-200 hover:bg-sky-100": selected === record.id },
-                { "bg-red-300": record.isCredit },
+                "group/rec text-muted-foreground font-light",
+                "[&>tr]:border-b-0 [&:not(:last-child)>tr:last-child]:border-b",
               )}
             >
-              <TableCell>{i + 1}</TableCell>
-              <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
-              <TableCell className="text-center">{formatTime(record.paidAt)}</TableCell>
-              <TableCell className="text-right">
-                {record.grandTotal.toLocaleString("id-ID")}
-              </TableCell>
-            </TableRow>
-          )}
-        </ForEach>
-      </TableBody>
+              <TableRow
+                // Marks the only rows the keyboard model walks: a payment line
+                // is a breakdown of the row above it, not a row of its own.
+                data-record=""
+                // One row is in the tab order: the selected one (or the first,
+                // before anything is picked). Up/Down/Home/End move focus inside
+                // the list, Enter (or Space) opens the row under the cursor.
+                tabIndex={i === tabStop ? 0 : -1}
+                aria-selected={isSelected}
+                onKeyDown={handleRowKeyDown(i)}
+                onClick={() => setSelected(record.id)}
+                className={cn(
+                  "cursor-pointer hover:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary focus-visible:outline-none",
+                  hoverTint,
+                  {
+                    "bg-sky-200 text-foreground font-semibold ring-1 ring-inset ring-primary":
+                      isSelected,
+                  },
+                  { "bg-red-300 text-foreground": record.isCredit },
+                )}
+              >
+                {/* Vertically centred over the record's rows: the number
+                    labels the group, not its first line. */}
+                <TableCell rowSpan={split ? lines.length + 1 : undefined} className="align-middle">
+                  {i + 1}
+                </TableCell>
+                <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
+                <TableCell className="text-center">{formatTime(record.date)}</TableCell>
+                <TableCell className="text-right">
+                  {record.grandTotal.toLocaleString("id-ID")}
+                </TableCell>
+              </TableRow>
+              {split
+                ? lines.map((line) => (
+                    // The label takes the two columns it has room for (Kasir +
+                    // Waktu) and the figure stays in the Total column, so the
+                    // money still lines up down the page. Italic, same size:
+                    // the line reads as a note under the record, not a record.
+                    //
+                    // The whole group is the click target: a pointer landing on
+                    // a payment line still opens that record's detail, and the
+                    // tint above already says the lines belong together. The
+                    // line stays out of the tab order — keyboard selection is
+                    // the record row's job.
+                    <TableRow
+                      key={line.key}
+                      onClick={() => setSelected(record.id)}
+                      className={cn("cursor-pointer hover:bg-transparent italic", hoverTint, {
+                        "bg-sky-200 text-foreground": isSelected,
+                        "bg-red-300 text-foreground": record.isCredit,
+                      })}
+                    >
+                      <TableCell colSpan={2} className="pr-2 text-right">
+                        {line.label}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {line.pay.toLocaleString("id-ID")}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : null}
+            </tbody>
+          );
+        }}
+      </ForEach>
     </Table>
   );
+}
+
+function useSorted(
+  records: RecordModel[],
+  order: "time" | "total",
+  sort: "asc" | "desc",
+): RecordModel[] {
+  // Copy before sorting: `records` is a prop, and sorting it in place would
+  // mutate the parent's array during render.
+  return useMemo(() => {
+    const sign = sort === "asc" ? 1 : -1;
+    return [...records].sort((a, b) =>
+      order === "time" ? sign * (a.date - b.date) : sign * (a.grandTotal - b.grandTotal),
+    );
+  }, [records, order, sort]);
 }
 
 function SortBtn({
@@ -102,22 +253,28 @@ function SortBtn({
   onClick: () => void;
   className?: string;
 }) {
-  if (sort === undefined)
-    return (
-      <button
-        onClick={onClick}
-        className={cn("p-0 w-full h-full flex items-center hover:shadow-md", className)}
-      >
-        {children}
-      </button>
-    );
+  // The direction used to be an unlabelled lucide arrow, so both states read as
+  // "Total" and a screen-reader operator could re-sort without hearing that
+  // anything happened. The name carries the column and the direction; the arrow
+  // is decoration (the `<th aria-sort>` also announces the state on the cell).
+  const direction = sort === undefined ? "" : sort === "asc" ? ", naik" : ", turun";
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="p-0 w-full h-full flex items-center justify-between hover:shadow-md"
+      aria-label={`Urutkan menurut ${children}${direction}`}
+      className={cn(
+        "p-0 w-full h-full flex items-center hover:shadow-md",
+        sort === undefined ? undefined : "justify-between",
+        className,
+      )}
     >
-      {children}
-      {sort === "desc" ? <ArrowDownWideNarrow /> : <ArrowDownNarrowWide />}
+      <span>{children}</span>
+      {sort === undefined ? null : sort === "desc" ? (
+        <ArrowDownWideNarrow aria-hidden="true" />
+      ) : (
+        <ArrowDownNarrowWide aria-hidden="true" />
+      )}
     </button>
   );
 }

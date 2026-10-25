@@ -1,38 +1,37 @@
-import { Effect } from "effect";
+import { Either } from "effect";
 import { useState } from "react";
-import { db } from "~/database";
-import { log } from "~/lib/log";
-import { revalidate } from "../../hooks/use-get-methods";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 import { useMethod } from "./use-method";
 
+/** The add dialog: one name, filed under whichever tab is open. */
 export function useNew(onClose: () => void) {
-  const [method] = useMethod();
-  const [error, setError] = useState<null | string>(null);
-  const [loading, setLoading] = useState(false);
+  const [kind] = useMethod();
   const [input, setInput] = useState("");
+  const [invalid, setInvalid] = useState<null | string>(null);
+  const { pending, error, mutate } = useMutation((name: string) =>
+    service.method.add({ name, kind }),
+  );
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
-    const errMsg = await Effect.runPromise(program(method, input));
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      revalidate();
-      onClose();
-      setInput("");
+    const name = input.trim();
+    // A blank name would leave a nameless row in the list and the POS picker.
+    if (name === "") {
+      setInvalid("Harus ada");
+      return;
     }
+    setInvalid(null);
+    const result = await mutate(name);
+    if (Either.isLeft(result)) return;
+    setInput("");
+    onClose();
   }
-  return { error, loading, handleSubmit, name: { value: input, set: setInput } };
-}
 
-function program(kind: "transfer" | "debit" | "qris", name: string) {
-  return Effect.gen(function* () {
-    yield* db.method.add.one(name, kind);
-    return null;
-  }).pipe(
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(JSON.stringify(e.stack));
-      return Effect.succeed(e.message);
-    }),
-  );
+  return {
+    error: invalid ?? error?.message ?? null,
+    loading: pending,
+    handleSubmit,
+    name: { value: input, set: setInput },
+  };
 }

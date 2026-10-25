@@ -29,7 +29,7 @@ function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
           showShortcut(false);
         }}
         className={cn(
-          "px-4 h-[56px] small:h-[44px] font-bold transition-all flex items-center justify-center text-3xl small:text-2xl",
+          "px-4 h-[56px] small:h-[44px] font-bold transition-all flex items-center justify-center text-normal",
           "rounded-t-2xl border-x border-t border-transparent relative",
           isActive
             ? "bg-white text-primary border-black/10 -mb-[1px] z-10"
@@ -47,11 +47,12 @@ export function TopNavList() {
 
   return (
     <div className="hidden md:flex items-end gap-1 h-full pt-2">
-      <TopNavLink path="/shop" label="Toko" alt="alt+0" root />
-      <TopNavLink path="/stock" label="Stok" alt="alt+1" />
-      <TopNavLink path="/records" label="Riwayat" alt="alt+2" />
+      <TopNavLink path="/pos" label="Toko" alt="alt+0" root />
+      <TopNavLink path="/restock" label="Stok" alt="alt+1" />
+      <TopNavLink path="/products" label="Produk" alt="alt+2" />
+      <TopNavLink path="/records" label="Riwayat" alt="alt+3" />
       <Show when={role === "admin"}>
-        <TopNavLink path="/money" label="Uang" alt="alt+3" />
+        <TopNavLink path="/money" label="Uang" alt="alt+4" />
       </Show>
     </div>
   );

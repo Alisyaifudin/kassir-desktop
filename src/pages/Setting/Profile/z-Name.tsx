@@ -8,7 +8,7 @@ export function Name() {
   const { loading, error, name, handleSubmit } = useUpdateName();
   return (
     <form onSubmit={handleSubmit} className="flex-col gap-2 flex">
-      <label className="grid grid-cols-[150px_1fr] gap-2 text-normal items-center">
+      <label className="grid grid-cols-[250px_1fr] small:grid-cols-[160px_1fr] gap-2 text-normal items-center">
         <span>Nama</span>
         <Input
           disabled={loading}

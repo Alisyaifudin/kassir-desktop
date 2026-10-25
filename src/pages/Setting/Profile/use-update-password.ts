@@ -1,44 +1,41 @@
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
-import { db } from "~/database";
-import { auth } from "~/lib/auth";
+import { useMutation } from "~/components/Loader";
+import { useUser } from "~/hooks/use-user";
+import { hash } from "~/lib/auth";
 import { log } from "~/lib/log";
+import { service } from "~/services";
 
+/**
+ * Replaces the signed-in cashier's password hash. The hash is computed by the
+ * Tauri side, the same as at login and cashier creation; the cashier service
+ * stores whatever hash it is given.
+ */
 export function useUpdatePassword() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
+  const user = useUser();
   const [input, setInput] = useState("");
+  const { pending, error, mutate } = useMutation((password: string) =>
+    hash(password).pipe(
+      Effect.flatMap((passwordHash) => service.cashier.set.password(user.id, passwordHash)),
+    ),
+  );
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const user = auth.user();
-    setLoading(true);
-    const error = await Effect.runPromise(program(user.id, input));
-    setLoading(false);
-    setError(error);
-    if (error === null) {
-      setInput("");
-      toast.success("Berhasil diperbarui");
+    const result = await mutate(input);
+    if (Either.isLeft(result)) {
+      log.error(result.left);
+      return;
     }
+    setInput("");
+    toast.success("Berhasil diperbarui");
   }
-  return { loading, error, handleSubmit, password: { value: input, set: setInput } };
-}
 
-function program(id: string, password: string) {
-  return Effect.gen(function* () {
-    const hash = yield* auth.hash(password);
-    yield* db.cashier.update.hash(id, hash);
-    return null;
-  }).pipe(
-    Effect.catchTags({
-      DbError: ({ e }) => {
-        log.error(e);
-        return Effect.succeed(e.message);
-      },
-      InvokeError: ({ e }) => {
-        log.error(e);
-        return Effect.succeed(e.message);
-      },
-    }),
-  );
+  return {
+    loading: pending,
+    error: error?.message ?? null,
+    handleSubmit,
+    password: { value: input, set: setInput },
+  };
 }

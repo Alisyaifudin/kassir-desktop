@@ -1,86 +1,78 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { SelectMethod } from "./SelectMethod";
-import { SelectMode } from "./SelectMode";
-import { ToCreditBtn } from "./ToCreditBtn";
-import { Show } from "~/components/Show";
-import { Spinner } from "~/components/Spinner";
-import { TextError } from "~/components/TextError";
-import { Method } from "~/database/method/cache";
-import { useNote } from "./use-note";
 import { Textarea } from "~/components/ui/textarea";
+import { TextError } from "~/components/TextError";
+import { Separator } from "~/components/ui/separator";
+import { useUser } from "~/hooks/use-user";
+import type { RecordFull } from "~/services/record";
+import { useSaveEdit } from "./use-edit";
+import { ChangeMode } from "./z-ChangeMode";
+import { ToCredit } from "./z-ToCredit";
 
-export function EditDialog({
-  method,
-  mode,
-  note: noteRaw,
-  isCredit,
-  recordId,
-}: {
-  recordId: string;
-  mode: DB.Mode;
-  note: string;
-  isCredit: boolean;
-  method: Method;
-}) {
+export function EditDialog({ record }: { record: RecordFull }) {
   const [open, setOpen] = useState(false);
-  const close = useCallback(() => {
-    setOpen(false);
-  }, []);
-  const { loading, error, handleSubmit, note, setNote } = useNote(recordId, noteRaw, close);
+  const close = () => setOpen(false);
+  const edit = useSaveEdit(record, close, open);
+  // Flipping the mode replaces the record and moves stock, the same weight as
+  // moving its dates — an admin correction, not day-to-day cashier work.
+  const isAdmin = useUser().role === "admin";
+
   return (
-    <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <Button variant="outline" asChild className="w-fit">
         <DialogTrigger type="button">Edit</DialogTrigger>
       </Button>
-      <DialogContent>
+      <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-5xl">Sunting catatan</DialogTitle>
+          <DialogTitle className="text-big">Sunting catatan</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-3 py-5">
-          <Show when={!isCredit}>
-            <SelectMode close={close} mode={mode} recordId={recordId} />
-          </Show>
-          <SelectMethod recordId={recordId} method={method} close={close} />
-          <form
-            id="record-note"
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleSubmit();
-            }}
-            className="flex flex-col gap-4"
-          >
-            <input type="hidden" name="action" value="edit-note"></input>
-            <label className="flex flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <p>Catatan:</p>
-              </div>
-              <Textarea
-                value={note}
-                onChange={(e) => setNote(e.currentTarget.value)}
-                name="note"
-                rows={3}
-              />
-            </label>
-            <TextError>{error}</TextError>
-          </form>
-          <div className="flex items-center justify-between">
-            <Show when={!isCredit && mode === "buy"} fallback={<div />}>
-              <ToCreditBtn close={close} recordId={recordId} />
-            </Show>
-            <Button form="record-note">
+        <DialogDescription>
+          Ubah catatan pada catatan riwayat ini.
+          {isAdmin
+            ? " Mengubah mode membuat catatan baru dengan isi yang sama, lalu menghapus yang lama."
+            : null}
+        </DialogDescription>
+        <div className="flex flex-col gap-4 py-2">
+          {/* The payments are not here: they are edited in the money band, where
+              their amounts are read, one row per method and one Simpan for the
+              split. This dialog only restates what was written on the record. */}
+          <label className="flex flex-col gap-1">
+            <span>Catatan</span>
+            <Textarea
+              value={edit.note}
+              onChange={(event) => edit.setNote(event.currentTarget.value)}
+              rows={4}
+              disabled={edit.loading}
+            />
+          </label>
+          <TextError>{edit.error}</TextError>
+          <div className="flex items-center justify-between gap-3">
+            {record.creditAt === null && record.mode === "outcoming" ? (
+              <ToCredit id={record.id} onSuccess={close} />
+            ) : (
+              <span />
+            )}
+            <Button type="button" onClick={() => void edit.save()} disabled={edit.loading}>
               Simpan
-              <Spinner when={loading} />
             </Button>
           </div>
+          {/* Moving a record out of its mode is a different kind of edit: it
+              replaces the record instead of rewriting it, so it sits apart from
+              the fields above rather than beside Simpan. */}
+          {isAdmin ? (
+            <div className="flex flex-col gap-4">
+              <Separator />
+              <ChangeMode record={record} />
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

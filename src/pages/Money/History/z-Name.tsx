@@ -1,8 +1,8 @@
 import { useUpdateName } from "./use-update-name";
 import { Spinner } from "~/components/Spinner";
 
-export function Name({ name: init, kindId }: { kindId: string; name: string }) {
-  const { name, setName, handleSubmit, loading } = useUpdateName(kindId, init);
+export function Name({ name: init, pocketId }: { pocketId: string; name: string }) {
+  const { name, setName, handleSubmit, loading } = useUpdateName(pocketId, init);
   return (
     <form className="flex-1 flex items-center" onSubmit={handleSubmit}>
       <input

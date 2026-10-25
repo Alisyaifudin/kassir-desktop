@@ -10,12 +10,16 @@ import { TopNavList } from "./z-TopNavList";
 
 const routeTitles: Record<string, string> = {
   "/": "Beranda",
-  "/shop": "Toko",
+  "/pos": "Toko",
+  "/restock": "Stok",
+  "/transaction": "Transaksi",
   "/method": "Metode",
   "/customer": "Pelanggan",
   "/cashier": "Kasir",
   "/social": "Kontak",
-  "/stock": "Stok",
+  "/products": "Produk",
+  "/debt": "Utang",
+  "/extras": "Biaya Lainnya",
   "/records": "Riwayat",
   "/analytics": "Analisis",
   "/money": "Uang",
@@ -43,13 +47,15 @@ export function Topbar() {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Kembali"
+              title="Kembali"
               onClick={() => navigate(backUrl)}
               className="rounded-full hover:bg-sky-400/50 h-10 w-10 small:h-8 small:w-8"
             >
-              <ArrowLeft className="h-6 w-6 small:h-5 small:w-5" />
+              <ArrowLeft className="size-6 small:size-5" />
             </Button>
           )}
-          <h1 className={cn("font-bold tracking-tight transition-all", "text-3xl small:text-2xl")}>
+          <h1 className={cn("font-bold tracking-tight transition-all", "text-big")}>
             {isHome ? "Beranda" : title}
           </h1>
           <Title />

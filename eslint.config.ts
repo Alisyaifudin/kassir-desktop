@@ -7,7 +7,7 @@ import react from "eslint-plugin-react";
 import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
-  { ignores: ["dist", "build", "node_modules", ".tauri", "src-tauri", "docs"] },
+  { ignores: ["dist", "build", "node_modules", ".tauri", "src-tauri", "docs", "src-old"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -31,6 +31,16 @@ export default tseslint.config(
       react: {
         version: "detect",
       },
+    },
+  },
+  {
+    // The audit-loop harness bridges loosely typed pi SDK events and is a Bun
+    // tool rather than browser code. Keep the app rules strict; relax only the
+    // unavoidable `any` boundary and the ANSI-stripping regex.
+    files: ["scripts/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-control-regex": "off",
     },
   },
   eslintConfigPrettier,

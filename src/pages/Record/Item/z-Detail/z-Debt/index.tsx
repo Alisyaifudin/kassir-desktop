@@ -1,8 +1,9 @@
-import React, { memo, useState } from "react";
+import { memo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -11,8 +12,8 @@ import { cn } from "~/lib/utils";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
-import { useDebt } from "./use-debt";
 import { FieldError, FieldLabel } from "~/components/ui/field";
+import { useDebt } from "./use-debt";
 
 export const DebtDialog = memo(function DebtDialog({
   grandTotal,
@@ -27,8 +28,9 @@ export const DebtDialog = memo(function DebtDialog({
     grandTotal,
     onClose: () => setOpen(false),
   });
+
   return (
-    <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <Button asChild className="w-fit">
         <DialogTrigger>Bayar Kredit</DialogTrigger>
       </Button>
@@ -36,11 +38,12 @@ export const DebtDialog = memo(function DebtDialog({
         <DialogHeader>
           <DialogTitle className="text-big">Bayar Kredit</DialogTitle>
         </DialogHeader>
+        <DialogDescription>Bayar utang pelanggan: isi jumlah yang diterima, catatan keluar dari daftar utang setelah lunas.</DialogDescription>
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            form.handleSubmit();
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
           }}
           className="flex flex-col gap-1"
         >
@@ -50,7 +53,7 @@ export const DebtDialog = memo(function DebtDialog({
                 <FieldLabel htmlFor={field.name}>Bayaran</FieldLabel>
                 <Input
                   value={field.state.value}
-                  onChange={(e) => field.handleChange(e.currentTarget.value)}
+                  onChange={(event) => field.handleChange(event.currentTarget.value)}
                   onBlur={field.handleBlur}
                   disabled={loading}
                   type="number"
@@ -68,7 +71,7 @@ export const DebtDialog = memo(function DebtDialog({
                 <FieldLabel htmlFor={field.name}>Pembulatan</FieldLabel>
                 <Input
                   value={field.state.value}
-                  onChange={(e) => field.handleChange(e.currentTarget.value)}
+                  onChange={(event) => field.handleChange(event.currentTarget.value)}
                   onBlur={field.handleBlur}
                   disabled={loading}
                   type="number"
@@ -91,7 +94,7 @@ export const DebtDialog = memo(function DebtDialog({
             </span>
           </div>
           <TextError>{error}</TextError>
-          <form.Subscribe selector={(s) => s.isSubmitting}>
+          <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
               <Button disabled={isSubmitting || change < 0}>
                 Bayar <Spinner when={isSubmitting} />

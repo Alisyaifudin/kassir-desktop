@@ -2,10 +2,11 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTrigger,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "~/components/ui/dialog";
 import { memo, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
@@ -57,27 +58,31 @@ export const DateRange = memo(function DateRange({
   className,
   range,
   setRange,
+  children,
 }: {
   className?: string;
   range: [number, number];
   setRange: (start: number, end: number) => void;
+  /** Trigger label; the default spells both bounds out in full. */
+  children?: React.ReactNode;
 }) {
-  const [interval, setInterval] = useState<[Interval, Interval]>(["day", "day"]);
+  const [level, setLevel] = useState<[Interval, Interval]>(["day", "day"]);
   const [open, setOpen] = useState(false);
   return (
     <Dialog
       open={open}
       onOpenChange={(open) => {
-        setInterval(["day", "day"]);
+        setLevel(["day", "day"]);
         setOpen(open);
       }}
     >
       <Button asChild variant="ghost" className={cn("flex items-center gap-2 outline", className)}>
-        <DialogTrigger>
-          <CalendarLabel range={range} />
-        </DialogTrigger>
+        <DialogTrigger>{children ?? <CalendarLabel range={range} />}</DialogTrigger>
       </Button>
       <DialogContent className="flex flex-col gap-5 max-w-full w-fit justify-center">
+        <DialogDescription>
+          Pilih tanggal awal lalu tanggal akhir untuk rentang laporan.
+        </DialogDescription>
         <div className="grid grid-cols-2">
           <p>
             <b>Dari: </b>
@@ -91,9 +96,9 @@ export const DateRange = memo(function DateRange({
         <div className="flex items-start gap-5 max-w-full w-fit justify-center">
           <Content
             mode={0}
-            interval={interval[0]}
+            level={level[0]}
             range={range}
-            setInterval={(s) => setInterval([s, interval[1]])}
+            setLevel={(s) => setLevel([s, level[1]])}
             setTime={(start) => {
               const end = start > range[1] ? start : range[1];
               setRange(start, end);
@@ -101,9 +106,9 @@ export const DateRange = memo(function DateRange({
           />
           <Content
             mode={1}
-            interval={interval[1]}
+            level={level[1]}
             range={range}
-            setInterval={(s) => setInterval([interval[0], s])}
+            setLevel={(s) => setLevel([level[0], s])}
             setTime={(end) => {
               const start = end < range[0] ? end : range[0];
               setRange(start, end);
@@ -126,21 +131,21 @@ function CalendarLabel({ range }: { range: [number, number] }) {
 
 function Content({
   mode,
-  interval,
+  level,
   range,
   setTime,
-  setInterval: setInterval,
+  setLevel: setLevel,
 }: {
   mode: 0 | 1;
-  interval: Interval;
+  level: Interval;
   range: [number, number];
   setTime: (time: number) => void;
-  setInterval: (interval: Interval) => void;
+  setLevel: (level: Interval) => void;
 }) {
   const [date, setDate] = useState(() =>
-    Temporal.Instant.fromEpochMilliseconds(range[mode]).toZonedDateTimeISO(tz).startOfDay()
+    Temporal.Instant.fromEpochMilliseconds(range[mode]).toZonedDateTimeISO(tz).startOfDay(),
   );
-  switch (interval) {
+  switch (level) {
     case "day":
       return (
         <DayCalendar
@@ -149,7 +154,7 @@ function Content({
           mode={mode}
           range={range}
           setTime={setTime}
-          setInterval={setInterval}
+          setLevel={setLevel}
         />
       );
     case "month":
@@ -159,11 +164,11 @@ function Content({
           setDate={setDate}
           mode={mode}
           range={range}
-          setInterval={setInterval}
+          setLevel={setLevel}
         />
       );
   }
-  return <YearCalendar date={date} setDate={setDate} setInterval={setInterval} />;
+  return <YearCalendar date={date} setDate={setDate} setLevel={setLevel} />;
 }
 
 type Day = {
@@ -185,14 +190,14 @@ function DayCalendar({
   setTime,
   range,
   mode,
-  setInterval: setInterval,
+  setLevel: setLevel,
   date,
   setDate,
 }: {
   range: [number, number];
   mode: 0 | 1;
   setTime: (time: number) => void;
-  setInterval: (interval: Interval) => void;
+  setLevel: (level: Interval) => void;
   date: Temporal.ZonedDateTime;
   setDate: (date: Temporal.ZonedDateTime) => void;
 }) {
@@ -212,7 +217,7 @@ function DayCalendar({
     const deltaStart = startOfMonth.dayOfWeek - 1;
     const start = startOfMonth.subtract(Temporal.Duration.from({ days: deltaStart }));
     const endOfMonth = startOfMonth.add(
-      Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 })
+      Temporal.Duration.from({ days: startOfMonth.daysInMonth - 1 }),
     );
     const deltaEnd = 7 - endOfMonth.dayOfWeek;
     const end = endOfMonth.add(Temporal.Duration.from({ days: deltaEnd + 1 }));
@@ -247,8 +252,8 @@ function DayCalendar({
           <Button onClick={handlePrev} className="p-2">
             <ChevronLeft className="icon" />
           </Button>
-          <Button variant="secondary" onClick={() => setInterval("month")}>
-            <DialogTitle className="text-mormal">
+          <Button variant="secondary" onClick={() => setLevel("month")}>
+            <DialogTitle className="text-normal">
               {monthNames[date.month]} {date.year}
             </DialogTitle>
           </Button>
@@ -257,6 +262,9 @@ function DayCalendar({
           </Button>
         </div>
       </DialogHeader>
+      <DialogDescription>
+        Pilih hari untuk rentang laporan: klik tanggal awal, lalu tanggal akhir.
+      </DialogDescription>
       <div className="grid grid-cols-7">
         <div className="col-span-7 grid grid-cols-7 gap-2">
           <p className="text-center">Sen</p>
@@ -282,7 +290,7 @@ function DayCalendar({
               onClick={() => {
                 const t = sanitizeTime(ms);
                 setDate(
-                  Temporal.Instant.fromEpochMilliseconds(t).toZonedDateTimeISO(tz).startOfDay()
+                  Temporal.Instant.fromEpochMilliseconds(t).toZonedDateTimeISO(tz).startOfDay(),
                 );
                 setTime(t);
               }}
@@ -310,13 +318,13 @@ function DayCalendar({
 function MonthCalendar({
   range,
   mode,
-  setInterval,
+  setLevel,
   date,
   setDate,
 }: {
   range: [number, number];
   mode: 0 | 1;
-  setInterval: (interval: Interval) => void;
+  setLevel: (level: Interval) => void;
   date: Temporal.ZonedDateTime;
   setDate: (date: Temporal.ZonedDateTime) => void;
 }) {
@@ -333,10 +341,10 @@ function MonthCalendar({
   }).startOfDay();
   const handleClick = (month: number) => {
     const t = sanitizeTime(
-      Temporal.Instant.fromEpochMilliseconds(month).toZonedDateTimeISO(tz).startOfDay()
+      Temporal.Instant.fromEpochMilliseconds(month).toZonedDateTimeISO(tz).startOfDay(),
     );
     setDate(t);
-    setInterval("day");
+    setLevel("day");
   };
   const handlePrev = () => {
     setDate(sanitizeTime(date.subtract(Temporal.Duration.from({ years: 1 }))));
@@ -362,7 +370,7 @@ function MonthCalendar({
           <Button onClick={handlePrev} className="p-2">
             <ChevronLeft className="icon" />
           </Button>
-          <Button className="w-fit" variant="secondary" onClick={() => setInterval("year")}>
+          <Button className="w-fit" variant="secondary" onClick={() => setLevel("year")}>
             <DialogTitle className="text-normal">{date.year}</DialogTitle>
           </Button>
           <Button onClick={handleNext} className="p-2">
@@ -370,6 +378,7 @@ function MonthCalendar({
           </Button>
         </div>
       </DialogHeader>
+      <DialogDescription>Pilih bulan yang ingin ditampilkan.</DialogDescription>
       <div className="grid grid-cols-4">
         {months.map(({ month, start, end }, i) => (
           <div
@@ -383,8 +392,8 @@ function MonthCalendar({
                 selectedTime.month === i + 1 && selectedTime.year === date.year
                   ? "default"
                   : today.month === i + 1 && today.year === date.year
-                  ? "outline"
-                  : "ghost"
+                    ? "outline"
+                    : "ghost"
               }
               onClick={() => handleClick(start)}
             >
@@ -398,7 +407,7 @@ function MonthCalendar({
           variant="outline"
           onClick={() => {
             setDate(today);
-            setInterval("day");
+            setLevel("day");
           }}
         >
           Bulan Ini
@@ -408,11 +417,11 @@ function MonthCalendar({
   );
 }
 function YearCalendar({
-  setInterval,
+  setLevel,
   date,
   setDate,
 }: {
-  setInterval: (interval: Interval) => void;
+  setLevel: (level: Interval) => void;
   date: Temporal.ZonedDateTime;
   setDate: (date: Temporal.ZonedDateTime) => void;
 }) {
@@ -430,10 +439,10 @@ function YearCalendar({
         year,
         month: today.month,
         day: today.day,
-      })
+      }),
     ).startOfDay();
     setDate(t);
-    setInterval("month");
+    setLevel("month");
   };
   function handlePrev() {
     let t = year - 1;
@@ -455,13 +464,14 @@ function YearCalendar({
         <Button onClick={handlePrev} className="p-2">
           <ChevronLeft className="icon" />
         </Button>
-        <Button className="w-fit" variant="secondary" onClick={() => setInterval("day")}>
+        <Button className="w-fit" variant="secondary" onClick={() => setLevel("day")}>
           <DialogTitle className="text-normal">Tahun</DialogTitle>
         </Button>
         <Button onClick={handleNext} className="p-2">
           <ChevronRight className="icon" />
         </Button>
       </DialogHeader>
+      <DialogDescription>Pilih tahun yang ingin ditampilkan.</DialogDescription>
       <form className="flex items-center gap-2" onSubmit={handleSubmitYear}>
         <Input
           type="number"
@@ -477,9 +487,11 @@ function YearCalendar({
         <Button
           variant="outline"
           onClick={() => {
-            const inputEl = document.getElementById("year-input") as HTMLInputElement;
-            inputEl.value = today.year.toString();
-            setInterval("month");
+            // The year field is a controlled input: writing `.value` through the
+            // DOM desynchronises it from state and React restores the old year on
+            // the next render. Set the state the field renders from.
+            setYear(today.year);
+            setLevel("month");
             setDate(today);
           }}
         >

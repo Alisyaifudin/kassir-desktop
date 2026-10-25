@@ -1,87 +1,42 @@
-import { Receipt } from "./z-Receipt";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Detail } from "./z-Detail";
-import { useTab } from "./use-tab";
-import { RecordData, useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { ErrorComponent } from "~/components/ErrorComponent";
-import { NotFound } from "~/components/NotFound";
-import { Skeleton } from "~/components/ui/skeleton";
+import { useMemo } from "react";
+import { useDelayedFlag } from "~/components/Loader";
+import { pageData, recordSource } from "./data";
+import { service } from "~/services";
+import { Views } from "./z-Views";
 
+/**
+ * `/records/:recordId` — one record, in full.
+ *
+ * `Detail | Resi` is a URL value, not data, so the strip is drawn before the
+ * record arrives; each tab gates its own body with the same `record` key, and the
+ * receipt adds the shop identity and contacts it prints.
+ */
 export default function Page({ recordId }: { recordId: string }) {
-  const res = useData(recordId);
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError(error) {
-      switch (error._tag) {
-        case "DbError":
-          log.error(error.e);
-          return <ErrorComponent>{error.e.message}</ErrorComponent>;
-        case "NotFound":
-          return <NotFound />;
-      }
-    },
-    onSuccess(data) {
-      return <Wrapper data={data} />;
-    },
-  });
-}
+  const sources = useMemo(
+    () => ({
+      record: recordSource(recordId),
+      info: service.info.changes,
+      socials: service.social.get.changes,
+    }),
+    [recordId],
+  );
 
-function Loading() {
   return (
-    <main className="flex flex-col gap-2 p-2 overflow-y-auto">
-      <div className="flex justify-between items-center gap-2">
-        <div className="flex gap-1">
-          <Skeleton className="h-10 w-20" />
-          <Skeleton className="h-10 w-20" />
-        </div>
-      </div>
-      <div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
-        <Skeleton className="h-12 w-full" />
-        <div className="border pt-5">
-          <div className="flex flex-col gap-2 px-2 pb-5">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 w-full">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    </main>
+    <pageData.Provider sources={sources} deps={[recordId]}>
+      <Screen />
+    </pageData.Provider>
   );
 }
 
-function Wrapper({ data }: { data: RecordData }) {
-  const [tab, setTab] = useTab();
+function Screen() {
+  // An edit makes the record re-read itself. Fading both faces meanwhile keeps
+  // the version just replaced from being worked on; a first load is the gate's
+  // job, so this is never true then.
+  const busy = useDelayedFlag(pageData.useStatus("record") === "refreshing");
+
   return (
-    <main className="flex flex-col gap-2 p-2 overflow-y-auto">
-      <Tabs value={tab} onValueChange={(val) => setTab(val)}>
-        <div className="flex justify-between items-center gap-2">
-          <TabsList className="h-fit">
-            <TabsTrigger className="text-normal" value="receipt">
-              Resi
-            </TabsTrigger>
-            <TabsTrigger className="text-normal" value="detail">
-              Detail
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="receipt">
-          <Receipt data={data} />
-        </TabsContent>
-        <TabsContent value="detail">
-          <Detail data={data} />
-        </TabsContent>
-      </Tabs>
+    <main className="flex flex-col gap-2 p-2 h-full overflow-hidden">
+      <Views busy={busy} />
     </main>
   );
 }

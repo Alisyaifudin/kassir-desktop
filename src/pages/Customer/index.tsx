@@ -1,16 +1,12 @@
-import { lazy, Suspense } from "react";
 import { RouteObject } from "react-router";
-import { admin } from "~/middleware/admin";
-import { Loading } from "./z-Loading";
-
-const Page = lazy(() => import("./page"));
+import { AdminOnly } from "~/components/AdminOnly";
+import Page from "./page";
 
 export const customerRoute: RouteObject = {
-  middleware: [admin],
   Component: () => (
-    <Suspense fallback={<Loading />}>
+    <AdminOnly fallback="/setting">
       <Page />
-    </Suspense>
+    </AdminOnly>
   ),
   path: "customer",
 };

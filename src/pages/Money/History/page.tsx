@@ -1,84 +1,80 @@
-import { useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { ErrorComponent } from "~/components/ErrorComponent";
-import { Skeleton } from "~/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { useMemo } from "react";
+import { TextError } from "~/components/TextError";
+import Redirect from "~/components/Redirect";
 import { NotFound } from "~/components/NotFound";
-import { Money, MoneyKind } from "~/database/money/get-by-range";
+import { useUser } from "~/hooks/use-user";
+import { service } from "~/services";
+import { HeaderLoading, TableLoading } from "../z-Loading";
+import { useRange } from "../use-range";
+import { entriesSource, pageData } from "./data";
 import { Header } from "./z-Header";
 import { TableList } from "./z-TableList";
-import { DeletePocketBtn } from "./z-DeletePocket";
-import { Download } from "./z-Download";
-import { UploadMoney } from "./z-UploadDialog";
+import { NewRecord } from "./z-NewRecord";
 
-export default function Page({ kindId }: { kindId: string }) {
-  const res = useData(kindId);
-  return Result.match(res, {
-    onLoading() {
-      return <Loading cols={7} />;
-    },
-    onError(e) {
-      switch (e._tag) {
-        case "DbError":
-          log.error(e.e);
-          return <ErrorComponent>{e.e.message}</ErrorComponent>;
-        case "NotFound":
-          return <NotFound />;
-      }
-    },
-    onSuccess({ money, kind }) {
-      return <Wrapper money={money} kind={kind} />;
-    },
-  });
-}
+export default function Page({ pocketId }: { pocketId: string }) {
+  const role = useUser().role;
+  const { start, endExclusive } = useRange();
 
-function Wrapper({ kind, money }: { kind: MoneyKind; money: Money[] }) {
+  const sources = useMemo(
+    () => ({
+      pockets: service.money.pockets.get.changes,
+      entries: entriesSource(pocketId, start, endExclusive),
+    }),
+    [pocketId, start, endExclusive],
+  );
+
+  if (role !== "admin") return <Redirect to="/" />;
+
   return (
-    <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
-      <Header kind={kind} />
-      <TableList money={money} type={kind.type} />
-      <div className="flex items-center pb-1 justify-between">
-        <DeletePocketBtn kindId={kind.id} />
-        <div className="flex items-center gap-2">
-          <UploadMoney kindId={kind.id} />
-          <Download kind={kind.name} kindId={kind.id} />
-        </div>
-      </div>
-    </main>
+    <pageData.Provider sources={sources} deps={[pocketId, start, endExclusive]}>
+      <Screen pocketId={pocketId} />
+    </pageData.Provider>
   );
 }
 
-function Loading({ cols }: { cols: number }) {
+/**
+ * The screen is *about* one pocket: which pocket, and what kind, comes from the
+ * `pockets` read — so that read gates the screen, and the ledger gates itself
+ * inside it. Nesting them keeps the entries from waiting on anything but their
+ * own key, while the table's column shape can still be measured from the pocket
+ * the header already showed.
+ */
+function Screen({ pocketId }: { pocketId: string }) {
   return (
-    <Table className="text-normal">
-      <TableHeader>
-        <TableRow>
-          {Array.from({ length: cols }).map((_, i) => (
-            <TableHead key={i}>
-              <Skeleton className="h-4 w-24" />
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <TableRow key={i}>
-            {Array.from({ length: cols }).map((_, j) => (
-              <TableCell key={j}>
-                <Skeleton className="h-4 w-full" />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
+      <pageData.Gate
+        keys={["pockets"]}
+        pulse={
+          <>
+            <HeaderLoading />
+            <TableLoading />
+          </>
+        }
+        error={(error) => <TextError>{error.message}</TextError>}
+      >
+        {({ pockets }) => {
+          // A pocket can be deleted from another window, or the URL hand-edited.
+          const pocket = pockets.find((summary) => summary.pocket.id === pocketId)?.pocket;
+          if (pocket === undefined) return <NotFound />;
+
+          return (
+            <>
+              <Header pocket={pocket} />
+              <pageData.Gate
+                keys={["entries"]}
+                // Its placeholder is already on screen from the pocket's pulse, so
+                // there is nothing to hold back — only its shape may sharpen.
+                delay={0}
+                pulse={<TableLoading cols={pocket.type === "change" ? 8 : 7} />}
+                error={(error) => <TextError>{error.message}</TextError>}
+              >
+                {({ entries }) => <TableList money={entries} type={pocket.type} />}
+              </pageData.Gate>
+              <NewRecord pocket={pocket} />
+            </>
+          );
+        }}
+      </pageData.Gate>
+    </main>
   );
 }

@@ -1,42 +1,18 @@
-import { Method } from "~/database/method/cache";
-import { Info } from "~/store/info/get";
+import type { Info } from "~/services/info";
+import type { Record, RecordExtra, RecordListing } from "~/services/record";
+import type { Social } from "~/services/social";
 
+/**
+ * Everything a receipt draws on. Fields left out are the ones the app no longer
+ * carries: `record.subtotal` is the service's `subTotal`, and the receipt prints
+ * the domain types themselves rather than a parallel shape to keep in step.
+ */
 export type ReceiptData = {
-  record: {
-    fix: number;
-    id: string;
-    paidAt: number;
-    cashier: string;
-    subtotal: number;
-    total: number;
-    grandTotal: number;
-    change: number;
-    pay: number;
-    rounding: number;
-    method: Method;
-  };
-  products: {
-    name: string;
-    price: number;
-    qty: number;
-    total: number;
-    discounts: {
-      kind: DB.DiscKind;
-      value: number;
-      eff: number;
-    }[];
-  }[];
-  extras: {
-    name: string;
-    eff: number;
-    value: number;
-    kind: DB.ValueKind;
-  }[];
+  record: Record;
+  products: RecordListing[];
+  extras: RecordExtra[];
   info: Info;
-  socials: {
-    name: string;
-    value: string;
-  }[];
+  socials: Social[];
 };
 
 export type ReceiptOption = {

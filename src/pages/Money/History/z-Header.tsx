@@ -1,13 +1,15 @@
-import { NewRecord } from "./z-NewRecord";
-import { MoneyKind } from "~/database/money/get-by-range";
+import type { Pocket } from "~/services/money";
 import { Name } from "./z-Name";
+import { PocketSettings } from "./z-Settings";
+import { TimePicker } from "./z-TimePicker";
 
-export function Header({ kind }: { kind: MoneyKind }) {
+export function Header({ pocket }: { pocket: Pocket }) {
   return (
     <header className="flex items-center justify-between">
-      <Name name={kind.name} kindId={kind.id} />
+      <Name name={pocket.name} pocketId={pocket.id} />
       <div className="flex items-center gap-3">
-        <NewRecord kind={kind} />
+        <TimePicker />
+        <PocketSettings pocket={pocket} />
       </div>
     </header>
   );

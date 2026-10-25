@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -15,19 +15,25 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   const isDev = command === "serve" || mode === "development";
-  // Load .env files with correct priority (.env.local > .env.development.local > .env.development > .env)
-  const env = loadEnv(mode, process.cwd(), "");
   return {
     plugins: [
       vanillaExtractPlugin(),
       react(),
       arraybuffer(),
       tailwindcss(),
-      tsconfigPaths(),
+      // Only scan the app's own tsconfig files. Without this, the plugin also
+      // scans `docs/tsconfig.json` (a separate Docusaurus project) and warns
+      // because `@docusaurus/tsconfig` is not installed in the root.
+      tsconfigPaths({
+        projects: ["./tsconfig.json", "./tsconfig.node.json"],
+      }),
       {
         name: "inject-react-scan",
-        transformIndexHtml(html) {
-          if (isDev) {
+        // The Playwright harness runs without the overlay: react-scan's root sits
+        // over the bottom-right of the page and intercepts clicks, and its FPS
+        // bar lands in every screenshot taken from `/e2e.html`.
+        transformIndexHtml(html, ctx) {
+          if (isDev && !ctx.filename.endsWith("e2e.html")) {
             return html.replace(
               "</head>",
               '<script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js"></script></head>',
@@ -37,11 +43,6 @@ export default defineConfig(({ command, mode }) => {
         },
       },
     ],
-    define: {
-      "import.meta.env.VITE_API_URL": JSON.stringify(
-        env.VITE_API_URL || "https://api.kassir.store",
-      ),
-    },
     base: "./",
     build: {
       chunkSizeWarningLimit: 2000,

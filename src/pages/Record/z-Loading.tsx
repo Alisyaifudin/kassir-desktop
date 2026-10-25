@@ -1,45 +1,42 @@
 import { Skeleton } from "~/components/ui/skeleton";
-import { cn } from "~/lib/utils";
 
-export function Loading() {
+/**
+ * The left pane while the day's records load: the table's own column headers, the
+ * rows, and the day total underneath. The right pane is not part of it — that
+ * column waits on its own record, and an empty selection has nothing to draw.
+ */
+export function RecordsLoading() {
   return (
-    <div
-      className={cn(
-        "grid gap-2 h-full overflow-hidden grid-cols-[490px_1px_1fr] small:grid-cols-[335px_1px_1fr]",
-      )}
-    >
-      <div className="h-full overflow-hidden">
+    <div className="flex flex-col gap-1 overflow-hidden h-full" aria-busy="true" aria-label="Memuat riwayat">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <div className="flex flex-col gap-1 overflow-hidden h-full">
           <div className="flex-1 min-h-0 overflow-hidden">
-            <div className="p-2">
-              <Skeleton className="h-8 w-48" />
-              <div className="grid grid-cols-4 gap-2 mt-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-6" />
-                ))}
+            <div className="border-b px-2 py-2">
+              <div className="grid grid-cols-[30px_1fr_90px_100px] items-center gap-2 small:grid-cols-[10px_1fr_93px_80px]">
+                <Skeleton className="h-4 w-6" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-14" />
+                <Skeleton className="ml-auto h-4 w-16" />
               </div>
             </div>
-            <div className="p-2 overflow-auto h-[calc(100%-4rem)]">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="py-1">
-                  <Skeleton className="h-4 w-full" />
+            <div className="p-2">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-[30px_1fr_90px_100px] items-center gap-2 py-1.5 small:grid-cols-[10px_1fr_93px_80px]"
+                >
+                  <Skeleton className="h-4 w-5" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="ml-auto h-4 w-20" />
                 </div>
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0 py-2 border-t">
+          <div className="flex items-center gap-2 shrink-0 border-t py-2 mt-auto">
             <Skeleton className="h-4 w-12" />
             <Skeleton className="h-4 w-32" />
           </div>
-        </div>
-      </div>
-      <div className="border-l h-full" />
-      <div className="h-full overflow-hidden">
-        <div className="flex flex-col gap-2 p-2">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
         </div>
       </div>
     </div>

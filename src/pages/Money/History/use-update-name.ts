@@ -1,43 +1,31 @@
 import { useState } from "react";
-import { db } from "~/database";
-import { Effect } from "effect";
-import { log } from "~/lib/log";
-import { revalidate } from "./use-data";
+import { Either } from "effect";
 import { toast } from "sonner";
-import { revalidateMoney } from "../use-data";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 
-export function useUpdateName(id: string, nameInit: string) {
+export function useUpdateName(pocketId: string, nameInit: string) {
   const [name, setName] = useState(nameInit);
-  const [loading, setLoading] = useState(false);
+  const { pending, mutate } = useMutation((input: { id: string; name: string }) =>
+    service.money.pockets.set.name(input.id, input.name),
+  );
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
-    if (name.trim() === "") {
+    const trimmed = name.trim();
+    if (trimmed === "") {
       toast.error("Nama kantong tidak boleh kosong");
       return;
     }
-    if (name.trim().length > 20) {
+    if (trimmed.length > 20) {
       toast.error("Nama kantong tidak boleh lebih dari 20 karakter");
       return;
     }
-    const errMsg = await Effect.runPromise(program(id, name));
-    setLoading(false);
-    if (errMsg === null) {
-      revalidate();
-      revalidateMoney();
-    } else {
-      toast.error(errMsg);
+    const result = await mutate({ id: pocketId, name: trimmed });
+    if (Either.isLeft(result)) {
+      toast.error(result.left.message);
     }
   }
-  return { name, setName, loading, handleSubmit };
-}
 
-function program(id: string, name: string) {
-  return db.moneyKind.update.name(id, name).pipe(
-    Effect.as(null),
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  return { name, setName, loading: pending, handleSubmit };
 }

@@ -2,10 +2,11 @@ import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTrigger,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "./ui/dialog";
 import { memo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
@@ -14,16 +15,28 @@ import { Input } from "./ui/input";
 import { cn, numeric } from "~/lib/utils";
 import { formatDate, monthNames } from "~/lib/date";
 
+/**
+ * `"day"` snaps a pick to local midnight (a date filter: the day is all that
+ * matters); `"instant"` keeps the incoming clock reading, because the caller is
+ * editing a persisted timestamp. Picking a day in the record's "Dibayar" /
+ * "Kredit" editor used to rewind the sale to 00:00 — the record, the day list's
+ * time order and a reprinted receipt all inherited it, and the picker has no
+ * time control to put it back.
+ */
+export type CalendarGranularity = "day" | "instant";
+
 export const Calendar = memo(function Calendar({
   time,
   setTime,
   mode: modeInit = "day",
+  granularity = "day",
   children,
   className,
 }: {
   time: number;
   setTime: (time: number) => void;
   mode?: "day" | "month" | "year";
+  granularity?: CalendarGranularity;
   children?: React.ReactNode;
   className?: string;
 }) {
@@ -58,6 +71,7 @@ export const Calendar = memo(function Calendar({
       <Content
         mode={mode}
         depth={modeInit}
+        granularity={granularity}
         time={time}
         setTime={(time) => {
           setTime(time);
@@ -90,21 +104,38 @@ function Content({
   mode,
   time,
   depth,
+  granularity,
   setTime,
   changeMode,
 }: {
   mode: "day" | "month" | "year";
   depth: "day" | "month" | "year";
+  granularity: CalendarGranularity;
   time: number;
   setTime: (time: number) => void;
   changeMode: (mode: "day" | "month" | "year") => void;
 }) {
   const tz = Temporal.Now.timeZoneId();
-  const timeStartOfDay = Temporal.Instant.fromEpochMilliseconds(time)
-    .toZonedDateTimeISO(tz)
-    .startOfDay();
+  const original = Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(tz);
+  // The clock reading carried onto the picked date for `granularity === "instant"`.
+  const clock = {
+    hours: original.hour,
+    minutes: original.minute,
+    seconds: original.second,
+    milliseconds: original.millisecond,
+  };
+  /** The instant the caller receives for a picked calendar date. */
+  const pick = (year: number, month: number, day: number) => {
+    const first = Temporal.ZonedDateTime.from({ timeZone: tz, year, month, day: 1 });
+    const picked = first.with({ day: Math.min(day, first.daysInMonth) });
+    return (granularity === "instant" ? picked.add(clock) : picked).epochMilliseconds;
+  };
+  const timeStartOfDay = original.startOfDay();
   const [showTime, setShowTime] = useState(time);
   const date = Temporal.Instant.fromEpochMilliseconds(showTime).toZonedDateTimeISO(tz).startOfDay();
+  // The year drill-down's field is controlled, so "Tahun Ini" can set it through
+  // state instead of poking the DOM.
+  const [yearInput, setYearInput] = useState(date.year);
   const today = Temporal.Now.instant().toZonedDateTimeISO(tz).startOfDay();
   switch (mode) {
     case "day": {
@@ -146,7 +177,7 @@ function Content({
                 <ChevronLeft className="icon" />
               </Button>
               <Button variant="secondary" onClick={() => changeMode("month")}>
-                <DialogTitle className="text-mormal">
+                <DialogTitle className="text-normal">
                   {monthNames[date.month]} {date.year}
                 </DialogTitle>
               </Button>
@@ -155,6 +186,7 @@ function Content({
               </Button>
             </div>
           </DialogHeader>
+          <DialogDescription>Pilih tanggal.</DialogDescription>
           <div className="grid grid-cols-7 gap-2">
             <p className="text-center">Sen</p>
             <p className="text-center">Sel</p>
@@ -182,7 +214,8 @@ function Content({
                 }
                 onClick={() => {
                   setShowTime(epoch);
-                  setTime(epoch);
+                  const picked = Temporal.Instant.fromEpochMilliseconds(epoch).toZonedDateTimeISO(tz);
+                  setTime(pick(picked.year, picked.month, picked.day));
                 }}
               >
                 {day}
@@ -190,7 +223,10 @@ function Content({
             ))}
           </div>
           <DialogFooter className="flex items-center justify-end">
-            <Button variant="outline" onClick={() => setTime(today.epochMilliseconds)}>
+            <Button
+              variant="outline"
+              onClick={() => setTime(pick(today.year, today.month, today.day))}
+            >
               Hari Ini
             </Button>
           </DialogFooter>
@@ -199,9 +235,10 @@ function Content({
     }
     case "month": {
       const handleClick = (month: number) => {
+        const day = granularity === "instant" ? original.day : 1;
         const t = Temporal.ZonedDateTime.from({ timeZone: tz, year: date.year, month, day: 1 });
         if (depth === "month") {
-          setTime(t.epochMilliseconds);
+          setTime(pick(date.year, month, day));
         } else {
           setShowTime(t.epochMilliseconds);
           changeMode("day");
@@ -242,6 +279,7 @@ function Content({
               </Button>
             </div>
           </DialogHeader>
+          <DialogDescription>Pilih bulan.</DialogDescription>
           <div className="grid grid-cols-4 gap-2">
             {Array.from({ length: 12 }).map((_, i) => (
               <Button
@@ -262,7 +300,7 @@ function Content({
               variant="outline"
               onClick={() => {
                 if (depth === "month") {
-                  setTime(today.epochMilliseconds);
+                  setTime(pick(today.year, today.month, granularity === "instant" ? original.day : 1));
                 } else {
                   setShowTime(today.epochMilliseconds);
                   changeMode("day");
@@ -287,26 +325,17 @@ function Content({
     if (!Number.isInteger(year)) {
       return;
     }
-    let t = 0;
-    if (year < 1900) {
-      t = Temporal.ZonedDateTime.from({
-        timeZone: tz,
-        year: 1900,
-        month: 1,
-        day: 1,
-      }).epochMilliseconds;
-    } else if (year > 2100) {
-      t = Temporal.ZonedDateTime.from({
-        timeZone: tz,
-        year: 2100,
-        month: 1,
-        day: 1,
-      }).epochMilliseconds;
-    } else {
-      t = Temporal.ZonedDateTime.from({ timeZone: tz, year, month: 1, day: 1 }).epochMilliseconds;
-    }
+    const clampedYear = Math.min(Math.max(year, 1900), 2100);
+    const month = granularity === "instant" ? original.month : 1;
+    const day = granularity === "instant" ? original.day : 1;
+    const t = Temporal.ZonedDateTime.from({
+      timeZone: tz,
+      year: clampedYear,
+      month: 1,
+      day: 1,
+    }).epochMilliseconds;
     if (depth === "year") {
-      setTime(t);
+      setTime(pick(clampedYear, month, day));
     } else {
       setShowTime(t);
       changeMode("month");
@@ -319,10 +348,12 @@ function Content({
           <DialogTitle className="text-normal">Tahun</DialogTitle>
         </Button>
       </DialogHeader>
+      <DialogDescription>Pilih tahun.</DialogDescription>
       <form onSubmit={handleSubmitYear}>
         <Input
           type="number"
-          defaultValue={date.year}
+          value={yearInput}
+          onChange={(event) => setYearInput(Number(event.currentTarget.value))}
           name="year"
           id="year-input"
           aria-autocomplete="list"
@@ -332,10 +363,17 @@ function Content({
         <Button
           variant="outline"
           onClick={() => {
-            const inputEl = document.getElementById("year-input") as HTMLInputElement;
-            inputEl.value = today.year.toString();
+            // Drive the controlled year field through state: a DOM write is
+            // reverted by React on the next render.
+            setYearInput(today.year);
             if (depth === "year") {
-              setTime(today.epochMilliseconds);
+              setTime(
+                pick(
+                  today.year,
+                  granularity === "instant" ? original.month : 1,
+                  granularity === "instant" ? original.day : 1,
+                ),
+              );
             } else {
               setShowTime(today.epochMilliseconds);
               changeMode("month");

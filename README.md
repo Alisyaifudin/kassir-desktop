@@ -10,6 +10,16 @@ Aplikasi untuk kasir.
 
 add indexing on product-events for performance
 
+# Future plan
+
+## Sync (deferred)
+
+- No `sync` service yet — it is the orchestrator over the other services' `get.unsync` / `sync.upsert` / `syncAt` (see `src/services/PLAN.md`, catalogue #13 and Phase 5).
+- `src/lib/sync/*` is stale: it imports the removed `~/store` and has to be rewritten on top of the services.
+- `src/pages/Setting/Sync_PENDING/` is legacy (`~/store` + `Result`), is **not** registered in `src/pages/Setting/index.tsx`, and is deliberately left out of the settings nav (`src/pages/Setting/util-nav.ts`).
+- Intended UI: a floating sync pill at the `AuthLayout` level, not a `/setting/sync` subpage.
+
+
 # Windows installer
 
 A `.msi` can only be produced on Windows. `tauri-bundler` gates the WiX-based MSI
@@ -32,9 +42,9 @@ build the NSIS installer instead (see below), never the MSI.
   installer for a branch that is not `master`:
 
 ```sh
-gh workflow run windows-release.yml --ref prod                    # draft, tag v5.19.28
+gh workflow run windows-release.yml --ref prod                    # draft, tag v6.0.0
 gh workflow run windows-release.yml --ref prod -f draft=false     # publish right away
-gh workflow run windows-release.yml --ref prod -f tag=v5.19.28-test  # custom tag
+gh workflow run windows-release.yml --ref prod -f tag=v6.0.0-test  # custom tag
 ```
 
 The manual trigger has to live on the default branch for GitHub to show it,

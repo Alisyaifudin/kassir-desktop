@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -22,7 +23,7 @@ export const NewBtn = memo(function NewBtn() {
       </Button>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Tambahkan Jenis Pembayaran</DialogTitle>
+          <DialogTitle className="text-big">Tambahkan Jenis Pembayaran</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <Input
               name="name"
@@ -40,6 +41,7 @@ export const NewBtn = memo(function NewBtn() {
             </div>
           </form>
         </DialogHeader>
+        <DialogDescription>Jenis pembayaran baru, misalnya Tunai, QRIS, atau Transfer.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

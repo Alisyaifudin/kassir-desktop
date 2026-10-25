@@ -1,3 +1,4 @@
+import { Upload } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -15,11 +16,14 @@ const moneySchemaFormat = `{
   timestamp: number;
 }[]`;
 
-export function UploadMoney({ kindId }: { kindId: string }) {
+export function UploadMoney({ pocketId }: { pocketId: string }) {
   return (
     <Dialog>
       <Button asChild variant="secondary">
-        <DialogTrigger>Unggah</DialogTrigger>
+        <DialogTrigger>
+          <Upload className="icon" />
+          Unggah
+        </DialogTrigger>
       </Button>
       <DialogContent className="flex  overflow-y-auto max-h-[calc(100vh-2rem)] max-w-2xl flex-col p-0">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-6 pr-14">
@@ -27,14 +31,14 @@ export function UploadMoney({ kindId }: { kindId: string }) {
           <DialogDescription asChild>
             <div className="space-y-3">
               <p className="text-small!">File JSON harus mengikuti bentuk data berikut:</p>
-              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
+              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
                 <code>{moneySchemaFormat}</code>
               </pre>
             </div>
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 px-6 pb-6">
-          <Content kindId={kindId} />
+          <Content pocketId={pocketId} />
         </div>
       </DialogContent>
     </Dialog>

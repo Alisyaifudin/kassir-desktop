@@ -1,3 +1,16 @@
+# Migrations are fingerprinted (SHA-384) by sqlx over their exact bytes, and a
+# mismatch makes it refuse the database outright. Line endings are part of those
+# bytes, so each migration's form is pinned to whatever the databases in the
+# field already recorded.
+#
+# Migrations 1-40 were migrated by Windows builds, where autocrlf turned the
+# working tree CRLF. Pin CRLF so a checkout on any platform produces the bytes
+# those databases recorded.
+src-tauri/src/database/01-10/*.sql text eol=crlf
+src-tauri/src/database/11-20/*.sql text eol=crlf
+src-tauri/src/database/21-30/*.sql text eol=crlf
+src-tauri/src/database/31-40/*.sql text eol=crlf
+
 # Migration 41 was authored with LF line endings. Force LF for 41+ to prevent
 # autocrlf from converting it to CRLF on Windows (which would break hash matching
 # on databases already migrated with the LF version).

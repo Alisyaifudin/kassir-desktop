@@ -31,3 +31,22 @@ dist-ssr
 .env.old
 .secret
 pi-session*
+data.db
+tx.db
+
+# local dumps / backups
+src-old/
+tx.sql
+backup
+# audit loop agent transcripts (reports and state are committed)
+audit/logs/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Impeccable design-session artifacts: the direction contract is kept, the
+# generated screenshots and decision payloads are not.
+.impeccable/review/
+.impeccable/questions/
+.impeccable/mocks/

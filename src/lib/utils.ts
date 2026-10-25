@@ -1,20 +1,31 @@
 import { z } from "zod";
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
 import { LoaderFunction, LoaderFunctionArgs } from "react-router";
 import { log } from "./log";
 
-export const numerish = z.string().refine((val) => val !== "" || !isNaN(Number(val)), {
-  message: "Harus angka",
-});
+/**
+ * A non-empty string that reads as a finite number.
+ *
+ * The "must be a number" rule is a conjunction, not a disjunction: with `||`
+ * every non-empty string passed and `integer.parse("abc")` produced `NaN`,
+ * so the five URL parsers built on these helpers believed a malformed `?page=`
+ * had already been rejected. The empty string is rejected too — it is "no
+ * value", not zero; a caller that wants zero says so.
+ */
+export const numerish = z
+  .string()
+  .trim()
+  .min(1, { message: "Harus angka" })
+  .refine((val) => Number.isFinite(Number(val)), { message: "Harus angka" });
 
 export const numeric = numerish.transform((val) => Number(val));
 
 export const integer = z
   .string()
-  .refine((val) => val !== "" || !isNaN(Number(val)) || !Number.isInteger(Number(val)), {
-    message: "Harus angka bulat",
-  })
+  .trim()
+  .min(1, { message: "Harus angka bulat" })
+  .refine((val) => Number.isSafeInteger(Number(val)), { message: "Harus angka bulat" })
   .transform((v) => Number(v));
 
 export function safeJSON(v: string) {
@@ -26,6 +37,21 @@ export function safeJSON(v: string) {
     return ["Gagal parse json", null] as const;
   }
 }
+
+/**
+ * The app sizes text with its own tokens — `--text-small`, `--text-big`, … —
+ * declared in global.css. tailwind-merge does not know them, so on its own it
+ * reads `text-small` as a colour and drops it the moment a real colour class is
+ * present. Declaring them as font sizes keeps `cn("text-small",
+ * "text-muted-foreground")` whole.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: ["tiny", "small", "normal", "big", "change", "grand-total"] }],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -74,15 +100,46 @@ export function constructCSV<T extends Record<string, any>>(data: T[]): string {
   return lines.join(lineBreak);
 }
 
-export function getURLBack(defaultURL: string, search: URLSearchParams) {
-  const parsed = z.string().safeParse(search.get("url_back"));
-  const urlBack = parsed.success ? parsed.data : defaultURL;
-  return urlBack;
+/**
+ * The one parse of `?url_back=`.
+ *
+ * A `url_back` is an in-app path the caller returns to, so only a rooted,
+ * non-protocol-relative value is accepted: `//evil.com` and `https://evil.com`
+ * fall back to the caller's default. Under the hash router neither is an open
+ * redirect today, but every reader used to validate with a bare `z.string()`
+ * (or not at all), so the rule belongs in one place before a future `<a href>`
+ * or `window.location` use turns one of them into a real redirect.
+ */
+export function urlBackOf(search: URLSearchParams): string | null {
+  const parsed = z
+    .string()
+    .refine((value) => value.startsWith("/") && !value.startsWith("//"), {
+      message: "Bukan alamat di dalam aplikasi",
+    })
+    .safeParse(search.get("url_back"));
+  return parsed.success ? parsed.data : null;
 }
 
+export function getURLBack(defaultURL: string, search: URLSearchParams) {
+  return urlBackOf(search) ?? defaultURL;
+}
+
+/**
+ * Title-case a display name.
+ *
+ * Total on purpose: names reach this from forms, the backup import path and
+ * legacy rows, so a double space or an empty string must render (as invented
+ * here: extra spaces collapse, nothing throws). The previous version split on a
+ * single space and upper-cased `t[0]`, so `capitalize("Budi  Santoso")` — or an
+ * imported `cashier: ""` — threw a TypeError in the middle of a render and took
+ * down the login picker, the day list and the receipt.
+ */
 export function capitalize(name: string): string {
-  const terms = name.split(" ");
-  return terms.map((t) => t[0].toUpperCase() + t.slice(1)).join(" ");
+  return name
+    .split(/\s+/)
+    .filter((term) => term !== "")
+    .map((term) => term[0].toUpperCase() + term.slice(1))
+    .join(" ");
 }
 
 export function formatBarcode(barcode?: string) {
@@ -104,4 +161,11 @@ function chunkSubstr(str: string, size: number): string[] {
 
 export function isString(v: unknown): v is string {
   return typeof v === "string";
+}
+
+export function formatError(e: unknown): string {
+  if (typeof e === "string") return e;
+  else if (e instanceof Error) return e.message;
+  console.error(e);
+  return "Error tidak dikenal";
 }

@@ -8,7 +8,7 @@
 
     "types": ["bun-types", "@testing-library/jest-dom", "vite-plugin-arraybuffer"],
 
-    "forceConsistentCasingInFileNames": false,
+    "forceConsistentCasingInFileNames": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

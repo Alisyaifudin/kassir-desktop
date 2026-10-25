@@ -10,14 +10,14 @@ export function Loading() {
 export function LoadingBig() {
   return (
     <div className="flex items-center justify-center flex-1 w-full h-full">
-      <Loader2 className="animate-spin" size={100} />
+      <Loader2 className="animate-spin size-[100px]" />
     </div>
   );
 }
 export function LoadingFull() {
   return (
     <div className="max-h-screen max-w-screen flex-1 flex items-center justify-center">
-      <Loader2 className="animate-spin" size={100} />
+      <Loader2 className="animate-spin size-[100px]" />
     </div>
   );
 }

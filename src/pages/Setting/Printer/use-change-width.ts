@@ -1,46 +1,29 @@
-import { Effect } from "effect";
-import { useState } from "react";
-import { log } from "~/lib/log";
-import { store } from "~/store";
-import { revalidate } from "./use-data";
+import { useEffect, useState } from "react";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
+import type { Printer } from "~/services/printer";
 
-export function useChangePrinterWidth(init: number) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
-  const [width, setWidth] = useState(init);
+/** The paper width in mm, kept in step with the printer it belongs to. */
+export function useChangePrinterWidth(printer: Printer) {
+  const [width, setWidth] = useState(printer.width);
+  const { pending, error, mutate } = useMutation(service.printer.set);
+
+  // A width written elsewhere (or restored on boot) is the one to show.
+  useEffect(() => {
+    setWidth(printer.width);
+  }, [printer.width]);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (loading || width < 1) {
-      return;
-    }
-    setLoading(true);
-    const errMsg = await Effect.runPromise(
-      store.printer.set.width(width).pipe(
-        Effect.as(null),
-        Effect.catchTag("StoreError", ({ e }) => {
-          log.error(e);
-          return Effect.succeed(e.message);
-        }),
-      ),
-    );
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      revalidate();
-    }
+    if (pending || width < 1) return;
+    await mutate({ ...printer, width });
   }
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const num = Number(e.currentTarget.value);
-    if (isNaN(num)) {
-      return;
-    }
-    setWidth(num);
+    const next = Number(e.currentTarget.value);
+    if (!Number.isFinite(next)) return;
+    setWidth(next);
   }
-  return {
-    width,
-    loading,
-    error,
-    handleSubmit,
-    handleChange,
-  };
+
+  return { width, loading: pending, error: error?.message ?? null, handleSubmit, handleChange };
 }

@@ -9,8 +9,8 @@ export function buildSummarySection(
   // Subtotal display (if different from total)
   const space = Math.min(MAXIMAL_SUMMARY_SPACE, paperWidth);
   const textData: TextData[] = [];
-  if (record.subtotal !== record.total) {
-    const text = `Rp${record.subtotal.toLocaleString("id-ID")}`;
+  if (record.subTotal !== record.total) {
+    const text = `Rp${record.subTotal.toLocaleString("id-ID")}`;
     textData.push({
       text: text,
       size: "normal",
@@ -49,10 +49,12 @@ export function buildSummarySection(
     });
   }
 
-  // Rounding adjustments
-  if (record.rounding > 0) {
+  // Rounding adjustments. A sale may be rounded *down* too, so the guard is
+  // "any rounding at all": printing nothing would hide the difference between
+  // `Total` and `Pembayaran` on the customer's copy.
+  if (record.rounding !== 0) {
     const roundingLabel = "Pembulatan";
-    const sign = record.rounding > 0 ? "" : "-";
+    const sign = record.rounding < 0 ? "-" : "";
     const roundingText = `${sign}Rp${Math.abs(record.rounding).toLocaleString("id-ID")}`;
     textData.push({
       kind: "spacebetween",

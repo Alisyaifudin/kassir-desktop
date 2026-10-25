@@ -1,27 +1,28 @@
 import { Skeleton } from "~/components/ui/skeleton";
+import { DetailSkeleton } from "../z-Detail/z-Loading";
 
+/**
+ * The record page while it loads, shaped like the tab it opens on: the
+ * `Detail | Resi` strip, then the detail face — identity band, goods ledger,
+ * and the shelf pinned underneath. The face itself comes from the shared
+ * `DetailSkeleton`, which the pane on `/records` draws too.
+ *
+ * It used to be the receipt, back when `Detail | Resi` defaulted to `Resi`: a
+ * 400px paper sheet with a header and a few lines, which became a visible
+ * jump-to-layout once the ledger became the default. A skeleton that does not
+ * match the thing it precedes is worse than a spinner — it promises the wrong
+ * screen.
+ */
 export function Loading() {
   return (
-    <main className="flex flex-col gap-2 p-2 overflow-y-auto">
-      <div className="flex justify-between items-center gap-2">
+    <div className="flex h-full flex-col gap-2 overflow-hidden">
+      <div className="flex flex-none items-center justify-between gap-2">
         <div className="flex gap-1">
           <Skeleton className="h-10 w-20" />
           <Skeleton className="h-10 w-20" />
         </div>
       </div>
-      <div className="flex flex-col gap-5 w-full max-w-[400px] mx-auto">
-        <Skeleton className="h-12 w-full" />
-        <div className="border pt-5">
-          <div className="flex flex-col gap-2 px-2 pb-5">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        </div>
-      </div>
-    </main>
+      <DetailSkeleton />
+    </div>
   );
 }

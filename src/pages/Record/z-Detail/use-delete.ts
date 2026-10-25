@@ -1,36 +1,20 @@
-import { Effect } from "effect";
-import { useState } from "react";
-import { revalidate } from "../use-records";
-import { db } from "~/database";
-import { log } from "~/lib/log";
+import { Either } from "effect";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 import { useUnselect } from "../use-selected";
 
 export function useDelete({ id, onClose }: { id: string; onClose: () => void }) {
-  const [error, setError] = useState<null | string>(null);
-  const [loading, setLoading] = useState(false);
   const unselect = useUnselect();
-  async function handleDelete() {
-    setLoading(true);
-    const errMsg = await Effect.runPromise(programDeleteRecord(id));
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      unselect();
-      onClose();
-      revalidate();
-    }
-  }
-  return { error, loading, handleDelete };
-}
+  const { pending, error, mutate } = useMutation(service.record.delete.byId);
 
-export function programDeleteRecord(id: string) {
-  return Effect.gen(function* () {
-    yield* db.record.del.byId(id);
-    return null;
-  }).pipe(
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  async function handleDelete() {
+    const either = await mutate(id);
+    if (Either.isLeft(either)) return;
+    // The service bumped its revision, so the list re-reads by itself; all that
+    // is left is dropping the selection that pointed at the deleted record.
+    unselect();
+    onClose();
+  }
+
+  return { error: error?.message ?? null, loading: pending, handleDelete };
 }

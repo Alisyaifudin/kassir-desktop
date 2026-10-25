@@ -1,39 +1,32 @@
+import { useLayoutEffect } from "react";
 import { Outlet } from "react-router";
-import { store } from "~/store";
-import { Result } from "~/lib/result";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Effect } from "effect";
-import { setSize } from "~/hooks/use-size";
+import type { Size } from "~/services/config";
+import { service } from "~/services";
+import { Loader, useStream } from "~/components/Loader";
 
-export default function Layout() {
-  const res = Result.use({
-    fn: () =>
-      store.size.get().pipe(
-        Effect.tap((size) => {
-          setSize(size);
-        }),
-      ),
-    key: "root-layout",
-  });
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onSuccess() {
-      return <Outlet />;
-    },
-  });
+/** Applies a size to the DOM (`<body>` class drives the `small:` variants). */
+function applySize(size: Size) {
+  document.body.classList.toggle("small", size === "small");
 }
 
-function Loading() {
+export default function Layout() {
+  const size = useStream(service.config.size.changes);
   return (
-    <div className="max-h-screen max-w-screen flex-1 flex flex-col items-center justify-center gap-6 p-6">
-      <Skeleton className="h-10 w-48" />
-      <div className="w-full max-w-3xl grid grid-cols-2 gap-4">
-        <Skeleton className="h-40" />
-        <Skeleton className="h-40" />
-      </div>
-      <Skeleton className="h-10 w-full max-w-3xl" />
-    </div>
+    <Loader res={size}>
+      {({ data }) => (
+        <>
+          <ApplySize size={data} />
+          <Outlet />
+        </>
+      )}
+    </Loader>
   );
+}
+
+function ApplySize({ size }: { size: Size }) {
+  // Layout effect so the class lands before paint (no size flicker).
+  useLayoutEffect(() => {
+    applySize(size);
+  }, [size]);
+  return null;
 }

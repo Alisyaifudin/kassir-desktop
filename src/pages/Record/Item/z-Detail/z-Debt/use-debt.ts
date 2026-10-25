@@ -1,78 +1,75 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import Decimal from "decimal.js";
-import { Effect } from "effect";
+import { Either } from "effect";
 import { useState } from "react";
 import { z } from "zod";
-import { db } from "~/database";
-import { log } from "~/lib/log";
-import { recordMap, revalidate } from "../../use-data";
+import { useMutation } from "~/components/Loader";
+import { numerish } from "~/lib/utils";
+import { service } from "~/services";
 
-const numeric = z.string().refine((v) => {
-  const num = Number(v);
-  return !isNaN(num) && isFinite(num);
-});
+/**
+ * The shared `numerish` rule, not a local `Number.isFinite(Number(value))`: that
+ * one accepted `""` (as 0), `" "`, `"0x10"` and `"1e3"`, so a blank "Bayaran"
+ * reached the settle path as zero. An empty rounding field is the one case the
+ * cashier means as zero, so it is defaulted *before* the shared rule runs.
+ */
 const schema = z.object({
-  pay: numeric,
-  rounding: numeric,
+  pay: numerish.min(1, { message: "Bayaran wajib diisi." }),
+  rounding: z
+    .string()
+    .trim()
+    .transform((value) => (value === "" ? "0" : value))
+    .pipe(numerish),
 });
 
 export function useDebt({
   recordId,
-  onClose,
   grandTotal,
+  onClose,
 }: {
   recordId: string;
   grandTotal: number;
   onClose: () => void;
 }) {
-  const [error, setError] = useState<null | string>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const { pending, error, mutate } = useMutation(
+    (input: { id: string; pay: number; rounding: number }) =>
+      service.record.set.payCredit(input.id, { pay: input.pay, rounding: input.rounding }),
+  );
+
   const form = useForm({
-    defaultValues: {
-      pay: "",
-      rounding: "",
-    },
-    validators: {
-      onSubmit: schema,
-    },
+    defaultValues: { pay: "", rounding: "" },
+    validators: { onSubmit: schema },
     async onSubmit({ value }) {
+      setValidationError(null);
       const pay = Number(value.pay);
       const rounding = Number(value.rounding);
-      const totalPay = new Decimal(grandTotal).plus(rounding);
-      if (totalPay.gt(pay)) {
-        setError("Pembayaran tidak cukup, minimal " + totalPay.toNumber().toLocaleString("id-ID"));
+      const required = new Decimal(grandTotal).plus(rounding);
+      if (required.gt(pay)) {
+        setValidationError(
+          "Pembayaran tidak cukup, minimal " + required.toNumber().toLocaleString("id-ID"),
+        );
         return;
       }
-      const errMsg = await Effect.runPromise(program({ id: recordId, rounding, pay }));
-      setError(errMsg);
-      if (errMsg === null) {
-        recordMap.delete(recordId);
-        revalidate();
-        onClose();
-      }
+      const result = await mutate({ id: recordId, pay, rounding });
+      if (Either.isRight(result)) onClose();
     },
   });
 
-  const loading = useStore(form.store, (s) => s.isSubmitting);
-  const total = useStore(form.store, (s) => {
-    const rounding = new Decimal(Number(s.values.rounding) || 0);
-    return rounding.plus(grandTotal).toNumber();
-  });
-  const change = useStore(form.store, (s) => {
-    const rounding = new Decimal(Number(s.values.rounding) || 0);
-    const pay = new Decimal(Number(s.values.pay) || 0);
-    const totalPay = rounding.plus(grandTotal);
-    return pay.minus(totalPay).toNumber();
-  });
-
-  return { error, form, loading, change, total };
-}
-
-function program(args: { pay: number; rounding: number; id: string }) {
-  return db.record.update.payCredit(args).pipe(
-    Effect.as(null),
-    Effect.catchTag("DbError", ({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
+  const total = useStore(form.store, (state) =>
+    new Decimal(grandTotal).plus(Number(state.values.rounding) || 0).toNumber(),
   );
+  const change = useStore(form.store, (state) =>
+    new Decimal(Number(state.values.pay) || 0)
+      .minus(new Decimal(grandTotal).plus(Number(state.values.rounding) || 0))
+      .toNumber(),
+  );
+
+  return {
+    form,
+    loading: pending,
+    error: validationError ?? error?.message ?? null,
+    total,
+    change,
+  };
 }

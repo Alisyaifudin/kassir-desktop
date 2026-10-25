@@ -1,152 +1,46 @@
-import {
-  Building2,
-  User,
-  Database,
-  Printer,
-  ScrollText,
-  LogOut,
-} from "lucide-react";
-import { Link, useLocation } from "react-router";
-import { useUser } from "~/hooks/use-user";
-import { cn, capitalize } from "~/lib/utils";
-import { useLogout } from "./use-logout";
+import { version } from "~/lib/constants";
+import { Header } from "./z-Header";
+import { NavRow } from "./z-NavRow";
+import { Section } from "./z-Section";
+import { SelectSize } from "./z-SelectSize";
+import { useNav } from "./use-nav";
 
-type Card = {
-  label: string;
-  path: string;
-  description: string;
-  icon: typeof Building2;
-  color: string;
-};
-
-const adminCards: Card[] = [
-  {
-    label: "Toko",
-    path: "/setting/shop",
-    description: "Identitas toko, ukuran tampilan, dan opsi kasir",
-    icon: Building2,
-    color: "bg-blue-100 text-blue-600",
-  },
-  {
-    label: "Profil",
-    path: "/setting/profile",
-    description: "Ubah nama dan kata sandi akun",
-    icon: User,
-    color: "bg-gray-100 text-gray-600",
-  },
-  {
-    label: "Data",
-    path: "/setting/data",
-    description: "Kelola dan lihat data aplikasi",
-    icon: Database,
-    color: "bg-amber-100 text-amber-700",
-  },
-  {
-    label: "Printer",
-    path: "/setting/printer",
-    description: "Pengaturan printer struk",
-    icon: Printer,
-    color: "bg-slate-100 text-slate-700",
-  },
-  {
-    label: "Log",
-    path: "/setting/log",
-    description: "Lihat log aplikasi",
-    icon: ScrollText,
-    color: "bg-red-100 text-red-700",
-  },
-  // {
-  //   label: "Sinkronisasi",
-  //   path: "/setting/sync",
-  //   description: "Sinkronisasi data ke awan",
-  //   icon: CloudUpload,
-  //   color: "bg-green-100 text-slate-700",
-  // },
-];
-
-const userCards: Card[] = [
-  {
-    label: "Profil",
-    path: "/setting/profile",
-    description: "Ubah nama dan kata sandi akun",
-    icon: User,
-    color: "bg-gray-100 text-gray-600",
-  },
-];
-
+/**
+ * Pengaturan is a table of contents, not a launcher wall.
+ *
+ * Each group is a section label in a left rail — the same two-column shape the
+ * detail pages use for their sidebar — beside one panel of full-width rows. That
+ * keeps every destination at `text-normal` (the app is read at arm's length) and
+ * makes the group names structural rather than another heading to compete with
+ * the destinations themselves.
+ *
+ * Below the destinations sits the one setting that is not a page: the app size,
+ * which applies the moment it changes. It is separated by a hairline because it
+ * is a different kind of row — a control, not a door.
+ */
 export default function Page() {
-  const user = useUser();
-  const handleLogout = useLogout();
-  const cards = user.role === "admin" ? adminCards : userCards;
+  const { groups } = useNav();
 
   return (
-    <div className="flex flex-col gap-6 py-2">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold tracking-tight">Pengaturan</h1>
-          <p className="text-muted-foreground">
-            Masuk sebagai {capitalize(user.name)} ({user.role})
-          </p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className={cn(
-            "group flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-all hover:bg-accent hover:shadow-md",
-            "text-destructive hover:text-destructive",
-          )}
-          type="button"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
-            <LogOut size={20} />
-          </div>
-          <div className="flex flex-col items-start leading-tight">
-            <span className="font-bold">Keluar</span>
-          </div>
-        </button>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-4 grid-cols-1">
-        <Cards cards={cards} />
-      </div>
-    </div>
-  );
-}
-
-function Cards({ cards }: { cards: Card[] }) {
-  return (
-    <>
-      {cards.map((card) => (
-        <NavCard key={card.path} card={card} />
+    <div className="flex w-full flex-col gap-6 px-6 py-6 pb-10 small:gap-4 small:px-3 small:py-3">
+      <Header />
+      {groups.map((group) => (
+        <Section key={group.section} title={group.section}>
+          <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
+            {group.items.map((item) => (
+              <NavRow key={item.path} item={item} />
+            ))}
+          </ul>
+        </Section>
       ))}
-    </>
-  );
-}
-
-function NavCard({ card }: { card: Card }) {
-  const { pathname } = useLocation();
-  const search = new URLSearchParams();
-  search.set("url_back", pathname);
-  const to = `${card.path}?${search.toString()}`;
-  const Icon = card.icon;
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "group flex items-center gap-4 rounded-2xl border bg-card p-5 transition-all hover:bg-accent hover:shadow-md",
-      )}
-    >
-      <div
-        className={cn(
-          "flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110",
-          card.color,
-        )}
-      >
-        <Icon size={28} />
+      <div className="border-t pt-6 small:pt-4">
+        <Section title="Tampilan">
+          <div className="rounded-xl border bg-card px-4 py-3 small:px-3 small:py-2">
+            <SelectSize />
+          </div>
+        </Section>
       </div>
-      <div className="flex flex-col gap-0.5">
-        <h3 className="text-big font-bold tracking-tight">{card.label}</h3>
-        <p className="text-muted-foreground">{card.description}</p>
-      </div>
-    </Link>
+      <p className="text-small text-muted-foreground">Kassir versi {version}</p>
+    </div>
   );
 }

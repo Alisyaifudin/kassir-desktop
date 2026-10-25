@@ -6,9 +6,9 @@ import { useProduct } from "./use-product-download";
 export function ProductDownload() {
   const { loading, error, handleSubmit } = useProduct();
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 items-center justify-between p-2 ">
+    <form onSubmit={handleSubmit} className="flex items-center justify-between gap-2">
       <input type="hidden" name="action" value="product"></input>
-      <h3 className="italic text-normal font-bold">Produk</h3>
+      <h3 className="text-normal font-medium">Produk</h3>
       <Button>
         Unduh
         <Spinner when={loading} />

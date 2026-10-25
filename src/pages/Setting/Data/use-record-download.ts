@@ -1,94 +1,87 @@
 import { useMemo, useState } from "react";
-import { getDefaultInterval } from "./util-default-date-interval";
-import { Effect } from "effect";
-import { db } from "~/database";
-import { IOError } from "~/lib/effect-error";
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { Effect, Either } from "effect";
+import { toast } from "sonner";
+import { useMutation } from "~/components/Loader";
 import { log } from "~/lib/log";
-import { RecordImport } from "./RecordUpload/util-validate-record";
+import { service } from "~/services";
+import type { RecordFull, RecordImport } from "~/services/record";
+import { getDefaultInterval } from "./util-default-date-interval";
+import { messageOf, saveJson } from "./util-file";
+
+/** A record as the upload accepts it: the same shape `record.add.external` takes. */
+function toRecordImport(record: RecordFull): RecordImport {
+  return {
+    paidAt: record.paidAt ?? record.creditAt ?? record.createdAt,
+    rounding: record.rounding,
+    isCredit: record.isCredit,
+    cashier: record.cashier,
+    mode: record.mode,
+    pay: record.pay,
+    note: record.note,
+    fix: record.fix,
+    customer: { name: record.customer.name, phone: record.customer.phone },
+    supplier: { id: record.supplier.id, name: record.supplier.name },
+    subTotal: record.subTotal,
+    total: record.total,
+    methods: record.methods.map(({ methodId, pay }) => ({ methodId, pay })),
+    listings: record.listings.map(
+      ({ name, kind, price, qty, capital, total, discounts }) => ({
+        // The line no longer carries a catalog listing id; a download restores
+        // the line as a manual one (no stock movement).
+        listingId: null,
+        name,
+        kind,
+        price,
+        qty,
+        capital,
+        total,
+        discounts: discounts.map(({ kind, value, eff }) => ({ kind, value, eff })),
+      }),
+    ),
+    extras: record.extras.map(({ name, value, eff, kind }) => ({ name, value, eff, kind })),
+  };
+}
 
 export function useRecord() {
-  const defaultInterval = useMemo(() => {
-    return getDefaultInterval();
-  }, []);
+  const defaultInterval = useMemo(() => getDefaultInterval(), []);
   const [range, setRange] = useState<[number, number]>([
     defaultInterval.startOfMonth,
     defaultInterval.endOfMonth,
   ]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<null | string>(null);
+  const { pending, error, mutate } = useMutation(program);
+
   function handleChange(start: number, end: number) {
     setRange([start, end]);
   }
-  async function handleSubmit() {
-    setLoading(true);
-    const errMsg = await Effect.runPromise(program(range[0], range[1]));
-    setLoading(false);
-    setError(errMsg);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const result = await mutate({ start: range[0], end: range[1] });
+    if (Either.isLeft(result)) {
+      log.error(messageOf(result.left));
+      return;
+    }
+    // `null` = the cashier cancelled the save dialog: silent, not "success".
+    if (result.right !== null) toast.success(`Disimpan ke ${result.right}`);
   }
-  return { range, setRange: handleChange, handleSubmit, loading, error };
+
+  return {
+    range,
+    setRange: handleChange,
+    handleSubmit,
+    loading: pending,
+    error: error === null ? null : messageOf(error),
+  };
 }
 
-function program(start: number, end: number) {
+function program({ start, end }: { start: number; end: number }) {
   return Effect.gen(function* () {
-    const records = yield* fetchRecord(start, end);
-    const json = JSON.stringify(records, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const data = yield* Effect.tryPromise({
-      try: () => blob.bytes(),
-      catch: (e) => new IOError(e),
+    const records = yield* service.record.get.byRange(start, end);
+    // The list carries no lines or extras, so each record is read in full. The
+    // concurrency bound stops a month's export from opening a query per row.
+    const full = yield* Effect.forEach(records, (record) => service.record.get.byId(record.id), {
+      concurrency: 8,
     });
-    const name = `record_${start}_${end}.json`;
-    const filePath = yield* Effect.tryPromise({
-      try: () =>
-        save({
-          title: "Simpan Data",
-          defaultPath: name,
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        }),
-      catch: (e) => new IOError(e),
-    });
-    if (filePath === null) return null;
-    yield* Effect.tryPromise({
-      try: () => writeFile(filePath, data),
-      catch: (e) => new IOError(e),
-    });
-    return null;
-  }).pipe(
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
-}
-
-function fetchRecord(start: number, end: number) {
-  return Effect.gen(function* () {
-    const [rs, ps, es] = yield* Effect.all(
-      [
-        db.record.get.byRange(start, end),
-        db.recordProduct.get.byRange(start, end),
-        db.recordExtra.get.byRange(start, end),
-      ],
-      { concurrency: "unbounded" },
-    );
-    return rs.map(({ id, method, ...r }) => {
-      const products = ps.filter((p) => p.recordId === id);
-      const extras = es.filter((e) => e.recordId === id);
-      const record: RecordImport = {
-        ...r,
-        methodId: method.id,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        products: products.map(({ recordId, id, discounts, ...p }) => ({
-          ...p,
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          discounts: discounts.map(({ id, ...d }) => d),
-        })),
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        extras: extras.map(({ recordId, id, ...e }) => e),
-      }
-      return record;
-    });
+    return yield* saveJson(`record_${start}_${end}.json`, full.map(toRecordImport));
   });
 }

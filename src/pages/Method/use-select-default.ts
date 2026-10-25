@@ -1,37 +1,28 @@
-import { Effect } from "effect";
-import { revalidate } from "../../hooks/use-get-methods";
-import { store } from "~/store";
-import { log } from "~/lib/log";
+import { Either } from "effect";
 import { toast } from "sonner";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
+import type { DefaultableKind } from "~/lib/constants";
 
-export type Kind = Exclude<DB.MethodEnum, "cash">;
-export type NonNullMethod = {
+/**
+ * Toggles a kind's default method. Clicking the one already marked clears the
+ * default rather than leaving it stuck, which is what the legacy radio did.
+ */
+export function useSelectDefault({
+  kind,
+  id,
+  defVal,
+}: {
+  kind: DefaultableKind;
   id: string;
-  name: string;
-  kind: Kind;
-};
+  defVal?: string;
+}) {
+  const { mutate } = useMutation((next: string | null) => service.method.set.default(kind, next));
 
-export function useClicked({ kind, id, defVal }: { kind: Kind; id: string; defVal?: string }) {
   async function handleClick() {
-    const error = await Effect.runPromise(program(kind, id, defVal));
-    if (error === null) {
-      revalidate();
-    } else {
-      toast.error(error);
-    }
+    const result = await mutate(id === defVal ? null : id);
+    if (Either.isLeft(result)) toast.error(result.left.message);
   }
 
   return handleClick;
-}
-
-function program(kind: Kind, id: string, defVal?: string) {
-  return Effect.gen(function* () {
-    yield* store.method.set(kind, id === defVal ? undefined : id);
-    return null;
-  }).pipe(
-    Effect.catchTag("StoreError", ({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
 }

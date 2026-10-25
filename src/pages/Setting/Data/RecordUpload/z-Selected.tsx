@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Effect, Fiber } from "effect";
 import { toast } from "sonner";
-import { db } from "~/database";
-import { log } from "~/lib/log";
-import { TextError } from "~/components/TextError";
+import { describeUpload, notifyUpload } from "~/lib/upload";
+import { service } from "~/services";
 import { Button } from "~/components/ui/button";
 import { X } from "lucide-react";
 import { Show } from "~/components/Show";
+import { formatDate, formatTime } from "~/lib/date";
+import { SkippedItems, type Skipped } from "../z-Skipped";
 import { RecordImport } from "./util-validate-record";
 
 export function Selected({
@@ -21,8 +22,12 @@ export function Selected({
 }) {
   const length = useMemo(() => (data === undefined ? 0 : data.records.length), [data]);
   const fiberRef = useRef<Fiber.RuntimeFiber<void, unknown> | null>(null);
+  const [skipped, setSkipped] = useState<Skipped[]>([]);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<null | string>(null);
+  // One upload per chosen file: `onRemove` is a fresh function on every parent
+  // render, so without this the loop would restart whenever the page re-renders
+  // (which is what happens when nothing was written and the file stays).
+  const uploaded = useRef<typeof data>(undefined);
 
   function interruptUpload() {
     const fiber = fiberRef.current;
@@ -42,26 +47,39 @@ export function Selected({
 
   useEffect(() => {
     const uploadEffect = Effect.gen(function* () {
-      let i = 1;
-      if (data === undefined) return;
+      if (data === undefined || uploaded.current === data) return;
+      uploaded.current = data;
       setProgress(0);
-      setError(null);
-      for (const record of data.records) {
-        yield* db.record.add.external(record);
-        setProgress(i);
-        i++;
+      setSkipped([]);
+      // A record whose stock cannot cover it is skipped and reported; the rest of
+      // the file still goes in, one transaction per record. The skips are
+      // collected locally so the final message can count them.
+      const skippedRows: Skipped[] = [];
+      for (const [index, record] of data.records.entries()) {
+        yield* service.record.add.external(record).pipe(
+          Effect.catchTag("RecordError", ({ message }) =>
+            Effect.sync(() => {
+              skippedRows.push({
+                key: `${index}`,
+                name: `${formatDate(record.paidAt, "long")}, ${formatTime(record.paidAt, "long")}`,
+                reason: message,
+              });
+            }),
+          ),
+        );
+        setProgress(index + 1);
       }
-      onRemove();
-      setError(null);
-      toast.success("Berhasil mengunggah");
-    }).pipe(
-      Effect.catchTag("DbError", ({ e }) => {
-        log.error(e);
-        setError(e.message);
-        onRemove();
-        return Effect.void;
-      }),
-    );
+      setSkipped(skippedRows);
+      notifyUpload(
+        describeUpload({
+          written: data.records.length - skippedRows.length,
+          skipped: skippedRows.length,
+          noun: "catatan",
+        }),
+      );
+      // Nothing written keeps the file in the panel, next to the reasons.
+      if (skippedRows.length < data.records.length) onRemove();
+    });
 
     const fiber = Effect.runFork(uploadEffect);
     fiberRef.current = fiber;
@@ -81,10 +99,12 @@ export function Selected({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Batalkan unggahan"
+                title="Batalkan unggahan"
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="w-4 h-4" />
+                <X className="icon" />
               </Button>
             </div>
             <div className="space-y-2 rounded-lg border border-input bg-card p-4">
@@ -94,14 +114,18 @@ export function Selected({
                   style={{ width: `${(length === 0 ? 0 : progress / length) * 100}%` }}
                 />
               </div>
-              <p className="text-small text-muted-foreground">
-                {progress}/{length} data tersimpan
+              <p className="text-normal text-muted-foreground">
+                {progress}/{length} data diproses
               </p>
             </div>
           </>
         )}
       </Show>
-      <TextError>{error}</TextError>
+      <SkippedItems
+        title="Catatan dilewati"
+        items={skipped}
+        dismiss={() => setSkipped([])}
+      />
     </div>
   );
 }

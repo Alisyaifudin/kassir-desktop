@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { memo, useState } from "react";
+import { Either } from "effect";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import {
@@ -12,7 +13,8 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Spinner } from "~/components/Spinner";
-import { useDelete } from "./use-delete";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 
 export const DeleteBtn = memo(function DeleteBtn({
   id,
@@ -24,7 +26,16 @@ export const DeleteBtn = memo(function DeleteBtn({
   phone: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { error, handleSubmit, loading } = useDelete(id, () => setOpen(false));
+  const { error, pending, mutate } = useMutation(service.customer.delete.byId);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // The row wraps this dialog in its own form; a delete must not submit it.
+    e.stopPropagation();
+    const result = await mutate(id);
+    if (Either.isRight(result)) setOpen(false);
+  }
+
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button className="p-2 rounded-full" type="button" asChild variant="destructive">
@@ -46,12 +57,12 @@ export const DeleteBtn = memo(function DeleteBtn({
             <Button type="button" asChild>
               <DialogClose>Batal</DialogClose>
             </Button>
-            <Button disabled={loading} variant="destructive">
+            <Button disabled={pending} variant="destructive">
               Hapus
-              <Spinner when={loading} />
+              <Spinner when={pending} />
             </Button>
           </form>
-          <TextError>{error}</TextError>
+          <TextError>{error?.message}</TextError>
         </DialogHeader>
       </DialogContent>
     </Dialog>

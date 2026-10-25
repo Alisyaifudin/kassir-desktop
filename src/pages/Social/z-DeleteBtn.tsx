@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -11,7 +12,9 @@ import { X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { cn } from "~/lib/utils";
 import { Spinner } from "~/components/Spinner";
-import { useDelete } from "./use-delete";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
+import { Either } from "effect";
 
 export const DeleteBtn = memo(function DeleteBtn({
   id,
@@ -23,7 +26,15 @@ export const DeleteBtn = memo(function DeleteBtn({
   value: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { error, handleSubmit, loading } = useDelete(id, () => setOpen(false));
+  const { error, pending, mutate } = useMutation(service.social.delete.byId);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // The row wraps this dialog in its own form; a delete must not submit it.
+    e.stopPropagation();
+    const result = await mutate(id);
+    if (Either.isRight(result)) setOpen(false);
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -42,22 +53,23 @@ export const DeleteBtn = memo(function DeleteBtn({
           <DialogTitle className="text-big">Hapus Kontak</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
-              <span>Jenis Kontak</span>
+              <span>Nama Kontak</span>
               <span>: {name}</span>
             </div>
             <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
-              <span>Nama Kontak</span>
+              <span>Isian Kontak</span>
               <span>: {value}</span>
             </div>
-            <TextError>{error}</TextError>
+            <TextError>{error?.message}</TextError>
             <div className="col-span-2 flex flex-col items-end">
-              <Button disabled={loading} variant="destructive" type="submit">
+              <Button disabled={pending} variant="destructive" type="submit">
                 Hapus
-                <Spinner when={loading} />
+                <Spinner when={pending} />
               </Button>
             </div>
           </form>
         </DialogHeader>
+        <DialogDescription>Kontak ini dihapus dari daftar.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

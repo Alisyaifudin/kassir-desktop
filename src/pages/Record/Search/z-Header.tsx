@@ -1,8 +1,8 @@
-import { useRange } from "./use-range";
 import { DateRange } from "~/components/DateRange";
+import { useRange } from "./use-range";
 
 export function Header() {
-  const [range, setRange] = useRange();
+  const { range, setRange } = useRange();
   return (
     <header className="flex items-center justify-between">
       <h1 className="font-bold text-big">Pencarian Komprehensif</h1>

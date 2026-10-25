@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -11,12 +12,13 @@ import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/Spinner";
 import { cn } from "~/lib/utils";
-import { useNew } from "./use-new";
+import { useSocialForm } from "./use-social-form";
 import { Field, FieldError } from "~/components/ui/field";
 
 export const NewItem = memo(function NewItem() {
   const [open, setOpen] = useState(false);
-  const { form, error } = useNew(() => setOpen(false));
+  const { form, error } = useSocialForm(undefined, () => setOpen(false));
+
   return (
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button asChild>
@@ -81,6 +83,7 @@ export const NewItem = memo(function NewItem() {
             </div>
           </form>
         </DialogHeader>
+        <DialogDescription>Kontak baru untuk pelanggan atau pemasok.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

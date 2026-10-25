@@ -1,12 +1,19 @@
-## Project Version
+## ⛔ Hard Rule #0 — permission before anything slow
 
-The project version is defined across **four files** that must always stay in sync:
+Never run, without the user's explicit permission **in their current message**:
+e2e/end-to-end anything (`playwright test`, dev server, launching the app,
+screenshots, DOM dumps), writing an e2e spec and then running it to "check", or
+any command likely to exceed ~10 seconds (`vite build`, `cargo build`, installs,
+migrations, whole-suite reruns, `git log --follow`).
 
-| File | Pattern |
-|---|---|
-| `package.json` | `"version": "X.Y.Z"` |
-| `src/lib/constants.ts` | `export const version = "X.Y.Z";` |
-| `src-tauri/tauri.conf.json` | `"version": "X.Y.Z"` |
-| `src-tauri/Cargo.toml` | `version = "X.Y.Z"` (under `[package]`) |
+**Do the asked thing, then stop.** If a check would help, write one line —
+"want me to run X (~7 s)?" — and wait. Silence is not permission. A past yes is
+not permission for next time. "No need to run e2e" is not permission for anything.
 
-When the user asks to bump the version, update **all four files** to the same new version.
+Allowed without asking: `tsc --noEmit`, `eslint <paths>`, `bun test <paths>`,
+`git status/diff/add/commit/log -n`, reading files, grep.
+If something stays unverified, say so in the report — do not verify it yourself.
+
+A `tool_call` gate (`.pi/extensions/guard-slow.ts`) enforces this: those commands
+are blocked unless the file `.pi/allow-slow` exists.
+

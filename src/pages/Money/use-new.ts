@@ -1,44 +1,31 @@
 import { useState } from "react";
-import { db } from "~/database";
-import { Effect } from "effect";
-import { log } from "~/lib/log";
-import { revalidateMoney } from "./use-data";
+import { Either } from "effect";
 import { toast } from "sonner";
+import { useMutation } from "~/components/Loader";
+import { service } from "~/services";
 
-export function useNew(onClose: () => void) {
+export function useNewPocket(onClose: () => void) {
   const [name, setName] = useState("");
-  const [error, setError] = useState<null | string>(null);
-  const [loading, setLoading] = useState(false);
+  const { pending, error, mutate } = useMutation(service.money.pockets.add);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     e.stopPropagation();
-    setLoading(true);
-    if (name.trim() === "") {
+    const trimmed = name.trim();
+    if (trimmed === "") {
       toast.error("Nama kantong tidak boleh kosong");
       return;
     }
-    if (name.trim().length > 20) {
+    if (trimmed.length > 20) {
       toast.error("Nama kantong tidak boleh lebih dari 20 karakter");
       return;
     }
-    const errMsg = await Effect.runPromise(program(name));
-    setLoading(false);
-    setError(errMsg);
-    if (errMsg === null) {
-      revalidateMoney();
-      onClose();
+    const result = await mutate({ name: trimmed, type: "absolute" });
+    if (Either.isRight(result)) {
       setName("");
+      onClose();
     }
   }
-  return { name, setName, error, loading, handleSubmit };
-}
 
-function program(name: string) {
-  return db.moneyKind.add.one(name).pipe(
-    Effect.as(null),
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  return { name, setName, error: error?.message ?? null, loading: pending, handleSubmit };
 }

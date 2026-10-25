@@ -1,22 +1,25 @@
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "~/components/ui/dialog";
-import { useState } from "react";
 import { TextError } from "~/components/TextError";
 import { Spinner } from "~/components/Spinner";
 import { useDelete } from "./use-delete";
 
+/** The record is soft-deleted; its stock movement and day lists follow the service. */
 export function DeleteBtn({ recordId }: { recordId: string }) {
   const [open, setOpen] = useState(false);
-  const { error, handleDelete, loading } = useDelete({ recordId });
+  const { error, loading, remove } = useDelete(recordId);
+
   return (
-    <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <Button asChild variant="destructive">
         <DialogTrigger>Hapus</DialogTrigger>
       </Button>
@@ -27,12 +30,13 @@ export function DeleteBtn({ recordId }: { recordId: string }) {
             <Button asChild>
               <DialogClose disabled={loading}>Batal</DialogClose>
             </Button>
-            <Button onClick={handleDelete} disabled={loading} variant="destructive">
+            <Button onClick={() => void remove()} disabled={loading} variant="destructive">
               Hapus <Spinner when={loading} />
             </Button>
           </div>
           <TextError>{error}</TextError>
         </DialogHeader>
+        <DialogDescription>Catatan riwayat ini beserta barisnya dihapus permanen.</DialogDescription>
       </DialogContent>
     </Dialog>
   );

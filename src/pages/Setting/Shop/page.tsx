@@ -1,84 +1,55 @@
-import { CashierCheckbox } from "./z-CashierCheckbox";
-import { SelectSize } from "./z-SelectSize";
-import { Info } from "./z-Info";
+import { CashierCheckbox, CashierSkeleton } from "./z-CashierCheckbox";
+import { Info, InfoSkeleton } from "./z-Info";
+import { ReservedSkeleton } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
-import { useData } from "./use-data";
-import { Result } from "~/lib/result";
-import { log } from "~/lib/log";
-import { Skeleton } from "~/components/ui/skeleton";
+import { service } from "~/services";
+import { PageHeader } from "../z-PageHeader";
+import { Panel } from "../z-Panel";
+import { navItemOf } from "../util-nav";
+import { pageData } from "./data";
+
+const item = navItemOf("/setting/shop");
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-6 p-6 flex-1 w-full overflow-auto">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-big font-bold text-foreground">Pengaturan Toko</h1>
-        <p className="text-muted-foreground text-normal">Kelola identitas dan preferensi toko</p>
+    <pageData.Provider sources={{ info: service.info.changes }}>
+      <div className="flex w-full flex-col gap-6 px-6 py-6 small:gap-4 small:px-3 small:py-3">
+        <PageHeader title={item.label} description={item.description} />
+        <Panel title="Identitas Toko">
+          <Form />
+        </Panel>
       </div>
-
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
-        <Wrapper />
-      </div>
-
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
-        <SelectSize />
-      </div>
-    </div>
+    </pageData.Provider>
   );
 }
 
-function Wrapper() {
-  const res = useData();
-  return Result.match(res, {
-    onLoading() {
-      return <Loading />;
-    },
-    onError({ e }) {
-      log.error(e);
-      return <TextError>{e.message}</TextError>;
-    },
-    onSuccess(info) {
-      const { owner, address, header, footer, showCashier } = info;
-      return (
-        <>
-          <Info owner={owner} address={address} header={header} footer={footer} />
-          <CashierCheckbox showCashier={showCashier} />
-        </>
-      );
-    },
-  });
-}
-
-function Loading() {
+/**
+ * The panel head is static; inside it, every field label, the descriptions and
+ * the save button are static too — only the values are pending. The skeleton
+ * draws the same field rows (see `InfoSkeleton`), so the panel does not resize
+ * when the shop's identity arrives.
+ */
+function Form() {
   return (
-    <>
-      <div className="flex flex-col gap-2 p-0.5">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <div className="grid grid-cols-[160px_1fr] small:grid-cols-[100px_1fr] text-normal items-center gap-1">
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <Skeleton className="h-4 w-48" />
-          </div>
-        ))}
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-        ))}
-        <Skeleton className="h-4 w-64" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-      <div className="flex flex-col gap-1 p-0.5">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-5 w-44" />
-          <Skeleton className="h-5 w-5 rounded" />
-          <Skeleton className="h-5 w-5 rounded-full" />
-        </div>
-        <Skeleton className="h-4 w-48" />
-      </div>
-    </>
+    <pageData.Gate
+      keys={["info"]}
+      // `delay={0}` + `ReservedSkeleton`: the form's shape is reserved from the
+      // first frame (no shift) but not drawn for 200 ms (no flash).
+      delay={0}
+      pulse={
+        <ReservedSkeleton className="flex flex-col gap-4">
+          <InfoSkeleton />
+          <CashierSkeleton />
+        </ReservedSkeleton>
+      }
+      error={(error) => <TextError>{error.message}</TextError>}
+    >
+      {({ info }) => (
+        <>
+          <Info info={info} />
+          <CashierCheckbox showCashier={info.showCashier} />
+        </>
+      )}
+    </pageData.Gate>
   );
 }

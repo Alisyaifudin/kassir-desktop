@@ -1,21 +1,11 @@
-import { useSyncExternalStore } from "react";
-import { _user } from "~/lib/auth";
+import { Effect } from "effect";
+import { useStream } from "~/components/Loader";
+import { Unauthenticated } from "~/lib/auth";
+import { service } from "~/services";
 
-function getSnapshot() {
-  return _user;
-}
-
-type Listener = () => void;
-const listeners = new Set<Listener>();
-function subscribe(cb: Listener) {
-  listeners.add(cb);
-  return () => {
-    listeners.delete(cb);
-  };
-}
-
+/** The authenticated user. Throws `Unauthenticated` if there is none. */
 export function useUser() {
-  const user = useSyncExternalStore(subscribe, getSnapshot);
-  if (user === undefined) throw new Error("user is undefined");
-  return user;
+  const res = useStream(service.auth.changes, () => Effect.runSync(service.auth.get()));
+  if (res.type === "success" && res.data !== null) return res.data;
+  throw new Unauthenticated("Unauthenticated");
 }

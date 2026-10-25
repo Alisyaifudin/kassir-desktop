@@ -1,16 +1,20 @@
 import { Input } from "~/components/ui/input";
 import { DeleteBtn } from "./z-DeleteBtn";
 import { memo } from "react";
-import { Customer } from "~/database/customer/cache";
+import type { Customer } from "~/services/customer";
 import { Show } from "~/components/Show";
 import { Loader2 } from "lucide-react";
 import { TextError } from "~/components/TextError";
-import { useUpdate } from "./use-update";
+import { useCustomerForm } from "./use-customer-form";
 import { Field, FieldError, FieldGroup } from "~/components/ui/field";
 import eq from "fast-deep-equal";
 
+/**
+ * One customer, edited in place: the write runs on submit (Enter, or the hidden
+ * submit button), so there is no save button to reach for.
+ */
 export const Item = memo(function Item({ customer }: { customer: Customer }) {
-  const { form, error } = useUpdate(customer);
+  const { form, error } = useCustomerForm(customer);
   return (
     <form
       onSubmit={(e) => {
@@ -42,12 +46,10 @@ export const Item = memo(function Item({ customer }: { customer: Customer }) {
           {(field) => (
             <Field>
               <Input
-                required
-                type="number"
-                disabled={field.form.state.isSubmitting}
-                id={`input-${field.name}`}
                 placeholder="No Hp"
+                id={`input-${field.name}`}
                 name={field.name}
+                disabled={field.form.state.isSubmitting}
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.currentTarget.value)}
                 onBlur={field.handleBlur}

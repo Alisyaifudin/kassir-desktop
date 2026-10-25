@@ -2,8 +2,9 @@ import { exists, mkdir, writeFile, readFile, remove, BaseDirectory } from "@taur
 import * as path from "@tauri-apps/api/path";
 import { Effect } from "effect";
 import { ArrayBufferError, IOError } from "./effect-error";
+import type { Mime } from "~/services/product";
 
-function save(file: File, id: string) {
+function save(file: File, fileKey: string) {
   return Effect.gen(function* () {
     const checkExist = yield* Effect.tryPromise({
       try: () =>
@@ -29,7 +30,7 @@ function save(file: File, id: string) {
     const data = new Uint8Array(arrayBuffer);
     yield* Effect.tryPromise({
       try: () =>
-        writeFile(`images/${id}`, data, {
+        writeFile(`images/${fileKey}`, data, {
           baseDir: BaseDirectory.AppData,
         }),
       catch: (e) => new IOError(e, "Gagal menyimpan file"),
@@ -37,10 +38,15 @@ function save(file: File, id: string) {
   });
 }
 
-function load(id: string, mimeType: DB.Mime) {
+/**
+ * `fileKey` is the image's `image_name` as stored in the DB, which is what
+ * `save` writes to. It is NOT the row id (`image_id`) - readers and deleters must
+ * pass `image_name`, otherwise they look for a file that was never written.
+ */
+function load(fileKey: string, mimeType: Mime) {
   return Effect.gen(function* () {
     const pathname = yield* Effect.tryPromise({
-      try: () => path.join("images", id),
+      try: () => path.join("images", fileKey),
       catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
     });
     const image = yield* Effect.tryPromise({
@@ -57,10 +63,10 @@ function load(id: string, mimeType: DB.Mime) {
   });
 }
 
-function del(id: string) {
+function del(fileKey: string) {
   return Effect.gen(function* () {
     const pathname = yield* Effect.tryPromise({
-      try: () => path.join("images", id),
+      try: () => path.join("images", fileKey),
       catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
     });
     yield* Effect.tryPromise({

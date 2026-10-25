@@ -1,47 +1,42 @@
+import { Effect, Either } from "effect";
 import { useForm } from "@tanstack/react-form";
-import { Effect } from "effect";
-import { useState } from "react";
 import { z } from "zod";
-import { db } from "~/database";
-import { auth } from "~/lib/auth";
-import { log } from "~/lib/log";
-import { revalidate } from "./use-data";
+import { useMutation } from "~/components/Loader";
+import { hash } from "~/lib/auth";
+import { generateId } from "~/lib/random";
+import { service } from "~/services";
 
 const schema = z.object({
-  name: z.string().nonempty(),
+  name: z.string().trim().nonempty("Harus ada"),
 });
 
+/**
+ * Creates a cashier with the empty password, as the legacy page did: the new
+ * account is a `user`, and they set their own password from Setting → Profile.
+ */
 export function useNewCashier(onClose: () => void) {
-  const [error, setError] = useState<null | string>(null);
+  const { error, mutate } = useMutation((name: string) =>
+    Effect.gen(function* () {
+      const id = generateId();
+      const passwordHash = yield* hash("");
+      yield* service.cashier.add({ id, name, role: "user", hash: passwordHash });
+    }),
+  );
+
   const form = useForm({
-    defaultValues: {
-      name: "",
-    },
+    defaultValues: { name: "" },
     validators: {
       onSubmit: schema,
     },
     async onSubmit({ value }) {
-      const errMsg = await Effect.runPromise(program(value.name));
-      setError(errMsg);
-      if (errMsg === null) {
-        onClose();
-        revalidate();
+      const result = await mutate(value.name.trim());
+      if (Either.isRight(result)) {
+        // The dialog unmounts its content, but this form state outlives it.
         form.reset();
+        onClose();
       }
     },
   });
-  return { error, form };
-}
 
-function program(name: string) {
-  return Effect.gen(function* () {
-    const hash = yield* auth.hash("");
-    yield* db.cashier.add({ name, role: "user", hash });
-    return null;
-  }).pipe(
-    Effect.catchAll(({ e }) => {
-      log.error(e);
-      return Effect.succeed(e.message);
-    }),
-  );
+  return { error: error?.message ?? null, form };
 }
