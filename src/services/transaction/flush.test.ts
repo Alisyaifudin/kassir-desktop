@@ -167,6 +167,100 @@ describe("cart flush", () => {
     ]);
   });
 
+  /**
+   * The grid is draggable, and the order a cashier dragged it into is the order
+   * the cart has to come back in. The draft tables keep no position column — a
+   * child's place is the order its row went in — so a reorder used to write
+   * nothing at all: the flush diffed by id, found every row unchanged, and the
+   * cart reloaded in its old order.
+   */
+  test("a dragged order is written, and comes back after a reload", async () => {
+    const { db, dbLayer, layer } = setup();
+
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [
+          { ...line, id: "line-1", name: "Kopi" },
+          { ...line, id: "line-2", name: "Teh" },
+          { ...line, id: "line-3", name: "Gula" },
+        ]);
+        yield* tx.flush();
+
+        // The drag: same three rows, only the order of the array changed.
+        yield* tx.listings.set(id, [
+          { ...line, id: "line-3", name: "Gula" },
+          { ...line, id: "line-1", name: "Kopi" },
+          { ...line, id: "line-2", name: "Teh" },
+        ]);
+        yield* tx.flush();
+      }),
+    );
+
+    const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
+    const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
+    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
+
+    expect(drafts[0]?.listings.map((row) => row.name)).toEqual(["Gula", "Kopi", "Teh"]);
+    // Every line is still there exactly once: the rewrite replaces, not appends.
+    expect(db.query("SELECT COUNT(*) AS n FROM tx_listings").get()).toEqual({ n: 3 });
+  });
+
+  test("an extra dragged above another keeps its place too", async () => {
+    const { dbLayer, layer } = setup();
+
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.extras.set(id, [
+          { id: "extra-1", name: "Ongkir", kind: "number", value: 5000, flag: 0 },
+          { id: "extra-2", name: "Plastik", kind: "number", value: 500, flag: 0 },
+        ]);
+        yield* tx.flush();
+
+        yield* tx.extras.set(id, [
+          { id: "extra-2", name: "Plastik", kind: "number", value: 500, flag: 0 },
+          { id: "extra-1", name: "Ongkir", kind: "number", value: 5000, flag: 0 },
+        ]);
+        yield* tx.flush();
+      }),
+    );
+
+    const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
+    const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
+    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
+
+    expect(drafts[0]?.extras.map((extra) => extra.name)).toEqual(["Plastik", "Ongkir"]);
+  });
+
+  test("a line typed in above the others stays above them", async () => {
+    const { dbLayer, layer } = setup();
+
+    await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [{ ...line, id: "line-1", name: "Kopi" }]);
+        yield* tx.flush();
+
+        // `+manual` inserts at the top of the grid.
+        yield* tx.listings.set(id, [
+          { ...line, id: "line-2", name: "Baru" },
+          { ...line, id: "line-1", name: "Kopi" },
+        ]);
+        yield* tx.flush();
+      }),
+    );
+
+    const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
+    const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
+    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
+
+    expect(drafts[0]?.listings.map((row) => row.name)).toEqual(["Baru", "Kopi"]);
+  });
+
   test("the persisted cart survives a reload of the refs", async () => {
     const { db, layer } = setup();
 

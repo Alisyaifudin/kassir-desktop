@@ -323,12 +323,12 @@ function updateImageStatement(img: DraftImage): Statement {
 function statementsFor(draft: Draft): Statement[] {
   return [
     recordStatement(draft),
-    { sql: `DELETE FROM tx_listings WHERE tx_record_id = $1`, bindings: [draft.id] },
+    deleteListings(draft.id),
     ...draft.listings.map((listing) => insertListingStatement(draft.id, listing)),
     ...draft.listings.flatMap((listing) =>
       listing.discounts.map((discount) => insertDiscountStatement(listing.id, discount)),
     ),
-    { sql: `DELETE FROM tx_extras WHERE tx_record_id = $1`, bindings: [draft.id] },
+    deleteExtras(draft.id),
     ...draft.extras.map((extra) => insertExtraStatement(draft.id, extra)),
     { sql: `DELETE FROM tx_methods WHERE tx_record_id = $1`, bindings: [draft.id] },
     ...draft.methods.map((method) => insertMethodStatement(draft.id, method)),
@@ -398,10 +398,41 @@ function sameImage(previous: DraftImage, img: DraftImage): boolean {
 }
 
 /**
+ * Whether two child lists hold the same rows in the same order.
+ *
+ * `tx_listings` and `tx_extras` carry no position column: a child's place is the
+ * order its row went into the table, which is exactly what `SELECT_LISTINGS`
+ * (`ORDER BY rowid`) and `SELECT_EXTRAS` (`ORDER BY tx_extra_order`, the rowid
+ * again) read back. So a drag in the cart changes nothing an `UPDATE` could
+ * carry — same rows, same values, only the order of the array — and without this
+ * check the flush wrote nothing and the cart came back in its old order.
+ */
+function sameChildOrder(
+  previous: readonly { id: string }[],
+  next: readonly { id: string }[],
+): boolean {
+  return (
+    previous.length === next.length && previous.every((row, index) => row.id === next[index]?.id)
+  );
+}
+
+function deleteListings(draftId: string): Statement {
+  return { sql: `DELETE FROM tx_listings WHERE tx_record_id = $1`, bindings: [draftId] };
+}
+
+function deleteExtras(draftId: string): Statement {
+  return { sql: `DELETE FROM tx_extras WHERE tx_record_id = $1`, bindings: [draftId] };
+}
+
+/**
  * Only what actually changed since the last successful write. One qty edit is one
  * `UPDATE`; the alternative (`statementsFor`) is ~2 statements per line plus 1 per
  * discount on every keystroke, all through the single SQLite connection the rest
  * of the app is using.
+ *
+ * The one change an `UPDATE` cannot express is a child's position — the draft
+ * tables have no position column, the reads are by insertion order — so a
+ * reordered list is rewritten whole instead of diffed.
  */
 function statementsForChange(previous: Draft | undefined, draft: Draft): Statement[] {
   if (previous === undefined) return statementsFor(draft);
@@ -409,46 +440,67 @@ function statementsForChange(previous: Draft | undefined, draft: Draft): Stateme
   const statements: Statement[] = [];
   if (!sameRecordRow(previous, draft)) statements.push(recordStatement(draft));
 
-  const previousListings = new Map(previous.listings.map((line) => [line.id, line]));
-  const nextIds = new Set(draft.listings.map((line) => line.id));
-  for (const line of previous.listings) {
-    if (!nextIds.has(line.id)) statements.push(DELETE_LISTING(line.id));
-  }
-  for (const line of draft.listings) {
-    const before = previousListings.get(line.id);
-    if (before === undefined) {
+  // Rows that come back in a different order are rewritten: an `UPDATE` cannot
+  // move a row, and the read is by insertion order. Only a drag or a line
+  // inserted above another reaches this branch — an ordinary edit still writes
+  // the one row this diff was built for.
+  if (!sameChildOrder(previous.listings, draft.listings)) {
+    statements.push(deleteListings(draft.id));
+    for (const line of draft.listings) {
       statements.push(insertListingStatement(draft.id, line));
       for (const discount of line.discounts) {
         statements.push(insertDiscountStatement(line.id, discount));
       }
-      continue;
     }
-    if (!sameListingRow(before, line)) statements.push(updateListingStatement(line));
-    if (!sameDiscounts(before.discounts, line.discounts)) {
-      statements.push({
-        sql: `DELETE FROM tx_discounts WHERE tx_listing_id = $1`,
-        bindings: [line.id],
-      });
-      for (const discount of line.discounts) {
-        statements.push(insertDiscountStatement(line.id, discount));
+  } else {
+    const previousListings = new Map(previous.listings.map((line) => [line.id, line]));
+    const nextIds = new Set(draft.listings.map((line) => line.id));
+    for (const line of previous.listings) {
+      if (!nextIds.has(line.id)) statements.push(DELETE_LISTING(line.id));
+    }
+    for (const line of draft.listings) {
+      const before = previousListings.get(line.id);
+      if (before === undefined) {
+        statements.push(insertListingStatement(draft.id, line));
+        for (const discount of line.discounts) {
+          statements.push(insertDiscountStatement(line.id, discount));
+        }
+        continue;
+      }
+      if (!sameListingRow(before, line)) statements.push(updateListingStatement(line));
+      if (!sameDiscounts(before.discounts, line.discounts)) {
+        statements.push({
+          sql: `DELETE FROM tx_discounts WHERE tx_listing_id = $1`,
+          bindings: [line.id],
+        });
+        for (const discount of line.discounts) {
+          statements.push(insertDiscountStatement(line.id, discount));
+        }
       }
     }
   }
 
-  const previousExtras = new Map(previous.extras.map((extra) => [extra.id, extra]));
-  const nextExtras = new Set(draft.extras.map((extra) => extra.id));
-  for (const extra of previous.extras) {
-    if (!nextExtras.has(extra.id)) {
-      statements.push({
-        sql: `DELETE FROM tx_extras WHERE tx_extra_id = $1`,
-        bindings: [extra.id],
-      });
+  if (!sameChildOrder(previous.extras, draft.extras)) {
+    // `tx_extra_order` *is* the rowid, so the rewrite is the only way to say
+    // "this extra is now second": inserting again in array order is the order.
+    statements.push(deleteExtras(draft.id));
+    for (const extra of draft.extras) statements.push(insertExtraStatement(draft.id, extra));
+  } else {
+    const previousExtras = new Map(previous.extras.map((extra) => [extra.id, extra]));
+    const nextExtras = new Set(draft.extras.map((extra) => extra.id));
+    for (const extra of previous.extras) {
+      if (!nextExtras.has(extra.id)) {
+        statements.push({
+          sql: `DELETE FROM tx_extras WHERE tx_extra_id = $1`,
+          bindings: [extra.id],
+        });
+      }
     }
-  }
-  for (const extra of draft.extras) {
-    const before = previousExtras.get(extra.id);
-    if (before === undefined) statements.push(insertExtraStatement(draft.id, extra));
-    else if (!sameExtra(before, extra)) statements.push(updateExtraStatement(extra));
+    for (const extra of draft.extras) {
+      const before = previousExtras.get(extra.id);
+      if (before === undefined) statements.push(insertExtraStatement(draft.id, extra));
+      else if (!sameExtra(before, extra)) statements.push(updateExtraStatement(extra));
+    }
   }
 
   const previousMethods = new Map(previous.methods.map((method) => [method.id, method]));
