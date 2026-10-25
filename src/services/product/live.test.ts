@@ -64,6 +64,31 @@ describe("product catalogue identity", () => {
     expect(result.editedName).toBe("Kopi Susu");
   });
 
+  test("the projection keeps the average capital and the highest lot's", async () => {
+    const { layer } = setup();
+
+    // Two lots, so the average and the most expensive lot are different numbers:
+    // 10 pcs at 500 and 2 pcs at 900 → average 566.67, highest 900. The card reads
+    // the highest (what a piece ever cost), the table reads the average.
+    const product = await run(layer, (service) =>
+      Effect.gen(function* () {
+        yield* service.add({
+          ...input("Kopi"),
+          stocks: [
+            { value: 10, capital: 500 },
+            { value: 2, capital: 900 },
+          ],
+        });
+        const [added] = yield* service.get.all();
+        return added;
+      }),
+    );
+
+    expect(product?.stock).toBe(12);
+    expect(product?.capital).toBeCloseTo((10 * 500 + 2 * 900) / 12, 5);
+    expect(product?.maxCapital).toBe(900);
+  });
+
   test("a refresh that finds nothing new does not re-emit", async () => {
     const { layer } = setup();
 

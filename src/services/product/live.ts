@@ -213,9 +213,11 @@ function rowToSale(row: SaleRow): ProductSale {
 function toProduct(state: ProductState): Product {
   let stock = 0;
   let capitalValue = 0;
+  let maxCapital = 0;
   for (const lot of state.stocks) {
     stock += lot.value;
     capitalValue += lot.value * lot.capital;
+    maxCapital = Math.max(maxCapital, lot.capital);
   }
   const cover = state.images.reduce<ProductImage | null>(
     (best, image) => (best === null || image.order < best.order ? image : best),
@@ -230,6 +232,7 @@ function toProduct(state: ProductState): Product {
     listings: state.listings,
     stock,
     capital: stock > 0 ? capitalValue / stock : 0,
+    maxCapital,
     cover,
     updatedAt: state.updatedAt,
     syncAt: state.syncAt,

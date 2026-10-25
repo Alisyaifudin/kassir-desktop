@@ -38,6 +38,7 @@ function product(
     ],
     stock: 0,
     capital: 0,
+    maxCapital: 0,
     cover: null,
     updatedAt: 0,
     syncAt: null,

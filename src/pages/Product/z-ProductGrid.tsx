@@ -5,7 +5,14 @@ import { useImageUrl } from "~/hooks/use-image";
 import { cn } from "~/lib/utils";
 import { isPublished, type Product } from "~/services/product";
 import { isLoss } from "./use-filtered";
-import { ListingCodes, LossBadge, StockBadge, UnpublishedBadge, priceRange } from "./z-ProductBits";
+import {
+  ListingCodes,
+  LossBadge,
+  StockBadge,
+  UnpublishedBadge,
+  formatPrice,
+  priceRange,
+} from "./z-ProductBits";
 
 export function ProductGrid({ items, urlBack }: { items: Product[]; urlBack: string }) {
   return (
@@ -90,6 +97,18 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
         <ListingCodes product={product} />
         <span className="text-normal tabular-nums text-muted-foreground">
           {priceRange(product)}
+        </span>
+        {/* The highest `capital` among the lots, not the weighted average the
+            table's `Modal` column shows: the dearest lot is what decides whether
+            a price is worth selling at. */}
+        <span
+          className={cn(
+            "text-small tabular-nums text-muted-foreground",
+            !published && "opacity-60",
+          )}
+          title="Modal tertinggi per pcs dari lot stok"
+        >
+          Modal {formatPrice(product.maxCapital)}
         </span>
         <div className="flex items-center justify-between gap-1">
           <StockBadge product={product} />

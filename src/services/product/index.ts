@@ -99,6 +99,15 @@ export type Product = {
   listings: Listing[];
   stock: number;
   capital: number;
+  /**
+   * The highest `capital` among the stock lots — per pcs, like `capital`, which
+   * is their weighted average. What the product card shows as `Modal`: "what did
+   * this ever cost us" is decided by the dearest lot, not by the blend.
+   *
+   * `0` when the product has no lots. Free to compute — the list read already
+   * loads every stock lot (see `toProduct`).
+   */
+  maxCapital: number;
   cover: ProductImage | null;
   updatedAt: number;
   syncAt: number | null;

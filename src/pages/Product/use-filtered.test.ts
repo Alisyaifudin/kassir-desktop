@@ -35,6 +35,7 @@ function product(
     ],
     stock: options.stock ?? 10,
     capital: 0,
+    maxCapital: 0,
     cover: null,
     updatedAt: 0,
     syncAt: null,
