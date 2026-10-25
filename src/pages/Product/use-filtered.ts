@@ -1,4 +1,5 @@
 import type { Product } from "~/services/product";
+import { getProductKind } from "~/lib/constants";
 import { LOW_STOCK_THRESHOLD, type ListState, type SortBy } from "./use-list-state";
 import { getIndex, search } from "./search";
 
@@ -85,4 +86,23 @@ export function filterProducts(products: Product[], state: ListState): Product[]
   }
 
   return bySort(result, state.sort, state.dir);
+}
+
+/**
+ * Every `kind` label the catalog actually uses, sorted by display name.
+ *
+ * Read by the filter popover, which is the only consumer — a page must not
+ * compute it "just in case" and hand it down.
+ */
+export function availableKinds(products: Product[]): string[] {
+  const kinds = new Set<string>();
+  for (const product of products) {
+    for (const listing of product.listings) {
+      // `kind` is a free label defaulting to ''; an unlabelled listing must not
+      // add a blank checkbox to the filter.
+      if (listing.kind !== "") kinds.add(listing.kind);
+    }
+  }
+  // Sorted by display label, since the filter renders `getProductKind(kind)`.
+  return [...kinds].sort((a, b) => getProductKind(a).localeCompare(getProductKind(b)));
 }

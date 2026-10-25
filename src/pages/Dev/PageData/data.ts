@@ -22,6 +22,8 @@ export type DemoPageData = {
   activity: DemoActivity[];
   beat: DemoBeat;
   broken: string;
+  /** Answers once, then fails every refresh — the `stale` demo. */
+  flaky: string;
 };
 
 export const pageData = createPageData<DemoPageData, DemoError>("DevPageData");

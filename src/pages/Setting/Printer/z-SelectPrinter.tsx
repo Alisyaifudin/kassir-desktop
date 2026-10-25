@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Label } from "~/components/ui/label";
@@ -11,8 +10,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import type { Printer } from "~/services/printer";
-import { PendingValue } from "~/components/page-data";
-import { ReservedSkeleton } from "~/components/page-data";
+import { PendingValue, ReservedSkeleton } from "~/components/page-data";
 import { pageData } from "./data";
 import { useChangePrinterName } from "./use-change-name";
 
@@ -25,8 +23,6 @@ import { useChangePrinterName } from "./use-change-name";
  * will have once a name lands.
  */
 export function SelectPrinter() {
-  const res = pageData.useAll("printer", "printers");
-
   return (
     <div className="flex flex-col gap-1">
       <Label htmlFor="default-printer" className="text-normal font-semibold">
@@ -36,12 +32,12 @@ export function SelectPrinter() {
         Pilih printer yang akan digunakan untuk mencetak struk
       </p>
 
-      <Gate
-        res={res}
+      <pageData.Gate
+        keys={["printer", "printers"]}
         // The control is its own floor, so it is mounted at once (reserving its
         // height) but stays invisible for the anti-flash window.
         delay={0}
-        skeleton={
+        pulse={
           <ReservedSkeleton>
             <PendingValue pulse="left-3 top-1/2 w-40 -translate-y-1/2">
               <Select disabled value="">
@@ -57,8 +53,8 @@ export function SelectPrinter() {
         }
         error={(error) => <TextError>{error.message}</TextError>}
       >
-        {({ data }) => <Picker printer={data.printer} printers={data.printers} />}
-      </Gate>
+        {({ printer, printers }) => <Picker printer={printer} printers={printers} />}
+      </pageData.Gate>
     </div>
   );
 }

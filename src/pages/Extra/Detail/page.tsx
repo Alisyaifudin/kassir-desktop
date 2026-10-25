@@ -1,35 +1,33 @@
 import { Info } from "./z-Info";
 import { ExtraForm } from "./z-ExtraForm";
-import { Gate } from "~/components/page-data";
-import { useStream } from "~/components/Loader";
 import { NotFound } from "~/components/NotFound";
 import { service } from "~/services";
 import type { Extra } from "~/services/extra";
 import { useUser } from "~/hooks/use-user";
 import { Skeleton } from "~/components/ui/skeleton";
 import { ExtraErrorFallback } from "../z-Error";
+import { pageData } from "../data";
 
 export default function Page({ id }: { id: string }) {
   return (
-    <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
-      <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
-        <Finder id={id} />
-      </div>
-    </main>
-  );
-}
-
-function Finder({ id }: { id: string }) {
-  const res = useStream(service.extra.get.changes);
-  return (
-    <Gate res={res} skeleton={<Loading />} error={(error) => <ExtraErrorFallback error={error} />}>
-      {({ data: extras }) => {
-        // The row can be deleted from elsewhere, or the id hand-edited.
-        const extra = extras.find((item) => item.id === id);
-        if (extra === undefined) return <NotFound />;
-        return <Detail extra={extra} />;
-      }}
-    </Gate>
+    <pageData.Provider sources={{ extras: service.extra.get.changes }}>
+      <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
+        <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
+          <pageData.Gate
+            keys={["extras"]}
+            pulse={<Loading />}
+            error={(error) => <ExtraErrorFallback error={error} />}
+          >
+            {({ extras }) => {
+              // The row can be deleted from elsewhere, or the id hand-edited.
+              const extra = extras.find((item) => item.id === id);
+              if (extra === undefined) return <NotFound />;
+              return <Detail extra={extra} />;
+            }}
+          </pageData.Gate>
+        </div>
+      </main>
+    </pageData.Provider>
   );
 }
 

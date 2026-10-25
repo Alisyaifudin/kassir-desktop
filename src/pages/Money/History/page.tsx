@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import Redirect from "~/components/Redirect";
 import { NotFound } from "~/components/NotFound";
@@ -34,39 +33,48 @@ export default function Page({ pocketId }: { pocketId: string }) {
 }
 
 /**
- * The header waits on the pocket (its name, its settings), the table on the
- * entries, and the add button on the pocket. Each is its own key, so a slow
- * ledger cannot hold up the header and a range change does not blank either.
+ * The screen is *about* one pocket: which pocket, and what kind, comes from the
+ * `pockets` read — so that read gates the screen, and the ledger gates itself
+ * inside it. Nesting them keeps the entries from waiting on anything but their
+ * own key, while the table's column shape can still be measured from the pocket
+ * the header already showed.
  */
 function Screen({ pocketId }: { pocketId: string }) {
-  const pockets = pageData.use("pockets");
-  const entries = pageData.use("entries");
-
-  const summaries = pockets.type === "success" ? pockets.data : null;
-  const pocket = summaries?.find((summary) => summary.pocket.id === pocketId)?.pocket ?? null;
-  // A pocket can be deleted from another window, or the URL hand-edited.
-  if (summaries !== null && pocket === null) return <NotFound />;
-
   return (
     <main className="flex flex-col gap-2 w-full p-0.5 mx-auto flex-1 overflow-hidden">
-      <Gate
-        res={pockets}
-        skeleton={<HeaderLoading />}
+      <pageData.Gate
+        keys={["pockets"]}
+        pulse={
+          <>
+            <HeaderLoading />
+            <TableLoading />
+          </>
+        }
         error={(error) => <TextError>{error.message}</TextError>}
       >
-        {({ data }) => {
-          const found = data.find((summary) => summary.pocket.id === pocketId);
-          return found === undefined ? <NotFound /> : <Header pocket={found.pocket} />;
+        {({ pockets }) => {
+          // A pocket can be deleted from another window, or the URL hand-edited.
+          const pocket = pockets.find((summary) => summary.pocket.id === pocketId)?.pocket;
+          if (pocket === undefined) return <NotFound />;
+
+          return (
+            <>
+              <Header pocket={pocket} />
+              <pageData.Gate
+                keys={["entries"]}
+                // Its placeholder is already on screen from the pocket's pulse, so
+                // there is nothing to hold back — only its shape may sharpen.
+                delay={0}
+                pulse={<TableLoading cols={pocket.type === "change" ? 8 : 7} />}
+                error={(error) => <TextError>{error.message}</TextError>}
+              >
+                {({ entries }) => <TableList money={entries} type={pocket.type} />}
+              </pageData.Gate>
+              <NewRecord pocket={pocket} />
+            </>
+          );
         }}
-      </Gate>
-      <Gate
-        res={entries}
-        skeleton={<TableLoading cols={pocket?.type === "change" ? 8 : 7} />}
-        error={(error) => <TextError>{error.message}</TextError>}
-      >
-        {({ data }) => (pocket === null ? null : <TableList money={data} type={pocket.type} />)}
-      </Gate>
-      {pocket === null ? null : <NewRecord pocket={pocket} />}
+      </pageData.Gate>
     </main>
   );
 }

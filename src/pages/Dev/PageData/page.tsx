@@ -3,6 +3,7 @@ import { Button } from "~/components/ui/button";
 import { pageData } from "./data";
 import { devSources } from "./z-sources";
 import { Monitor, Ticker } from "./z-Monitor";
+import { GateFailure, GateOneKey, GateStale, GateValues, GateWrite } from "./z-Gate";
 import {
   ActivityCard,
   BeatCard,
@@ -69,6 +70,32 @@ export default function Page() {
           <BeatCard />
           <MutationCard />
         </div>
+
+        <section className="mt-4 mb-8 flex flex-col gap-2">
+          <header className="flex flex-wrap items-baseline gap-2">
+            <h2 className="text-big font-bold">Gate: dua granularitas</h2>
+            <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-small text-amber-600 dark:text-amber-400">
+              satu komponen
+            </span>
+          </header>
+          <p className="max-w-3xl text-small text-muted-foreground">
+            Blok di atas menunjukkan <em>sumber</em> dan urutan siap. Blok ini menunjukkan satu
+            komponen untuk dua tugas: <code>pageData.Gate</code> mengambil <em>key</em> yang
+            dibacanya, jadi ia tidak bisa menjaga hal yang berbeda dari yang dibaca isinya — dan
+            isinya selalu jalur bahagia, tanpa <code>Result</code> atau <code>null</code>. Untuk
+            satu nilai di dalam baris statis, komponen yang sama dipakai dengan{" "}
+            <code>delay={"{0}"}</code>; status dan kegagalan satu kartu dibaca terpisah lewat{" "}
+            <code>useStatus</code> dan <code>useFrame</code>.
+          </p>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <GateOneKey />
+            <GateFailure />
+            <GateStale />
+            <GateWrite />
+            <GateValues />
+          </div>
+        </section>
 
         <footer className="pb-6 text-small text-muted-foreground">
           Rute ini hanya ada di build DEV (<code>import.meta.env.DEV</code>) dan tidak memakai

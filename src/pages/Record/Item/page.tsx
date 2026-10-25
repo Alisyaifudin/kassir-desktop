@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { isRefetching, useDelayedFlag } from "~/components/Loader";
+import { useDelayedFlag } from "~/components/Loader";
 import { pageData, recordSource } from "./data";
 import { service } from "~/services";
 import { Views } from "./z-Views";
@@ -29,15 +29,14 @@ export default function Page({ recordId }: { recordId: string }) {
 }
 
 function Screen() {
-  const res = pageData.use("record");
   // An edit makes the record re-read itself. Fading both faces meanwhile keeps
   // the version just replaced from being worked on; a first load is the gate's
   // job, so this is never true then.
-  const busy = useDelayedFlag(isRefetching(res));
+  const busy = useDelayedFlag(pageData.useStatus("record") === "refreshing");
 
   return (
     <main className="flex flex-col gap-2 p-2 h-full overflow-hidden">
-      <Views res={res} busy={busy} />
+      <Views busy={busy} />
     </main>
   );
 }

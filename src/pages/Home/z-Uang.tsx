@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 import type { PocketSummary } from "~/services/money";
@@ -31,23 +30,21 @@ const SKELETON_ROW =
  * day rather than after it, and a pocket failure cannot touch the ledger.
  */
 export function Uang() {
-  const res = pageData.use("pockets");
-
   return (
     <Card>
       <CardHead title="Uang" action={<CardLink to={withUrlBack("/money")}>Kelola</CardLink>} />
       <div className={cn("flex flex-col", ROWS_FLOOR)}>
-        <Gate
-          res={res}
-          skeleton={<UangSkeleton />}
+        <pageData.Gate
+          keys={["pockets"]}
+          pulse={<UangSkeleton />}
           error={(error) => (
             <div className="p-3">
               <RegionError title="Gagal memuat uang" error={error} />
             </div>
           )}
         >
-          {({ data }) => <Pockets pockets={data} />}
-        </Gate>
+          {({ pockets }) => <Pockets pockets={pockets} />}
+        </pageData.Gate>
       </div>
     </Card>
   );

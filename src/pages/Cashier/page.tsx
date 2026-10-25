@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { Skeleton } from "~/components/ui/skeleton";
 import { service } from "~/services";
@@ -26,22 +25,20 @@ export default function Page() {
 }
 
 function CashierList() {
-  const res = pageData.use("cashiers");
-
   return (
-    <Gate
-      res={res}
-      skeleton={<LoadingList />}
+    <pageData.Gate
+      keys={["cashiers"]}
+      pulse={<LoadingList />}
       error={(error) => <TextError>{`Daftar kasir bermasalah: ${error.message}`}</TextError>}
     >
-      {({ data }) => (
+      {({ cashiers }) => (
         <>
-          {data.map((cashier) => (
+          {cashiers.map((cashier) => (
             <Item key={cashier.id} cashier={cashier} />
           ))}
         </>
       )}
-    </Gate>
+    </pageData.Gate>
   );
 }
 

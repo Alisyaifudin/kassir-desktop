@@ -16,6 +16,7 @@ import { extraRoute } from "./pages/Extra/index.tsx";
 import { transactionRoute } from "./pages/Transaction/index.tsx";
 import { analyticsRoute } from "./pages/Analytics/index.tsx";
 import { devPageDataRoute } from "./pages/Dev/PageData/index.tsx";
+import { devPageCacheRoute } from "./pages/Dev/PageCache/index.tsx";
 
 import RootLayout from "./layouts/root.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
@@ -49,7 +50,7 @@ export const router = createHashRouter([
           recordRoute,
           // The page-data pattern's playground; the route only exists in a DEV
           // build. See `~/components/page-data` and `src/pages/Dev/PageData`.
-          ...(import.meta.env.DEV ? [devPageDataRoute] : []),
+          ...(import.meta.env.DEV ? [devPageDataRoute, devPageCacheRoute] : []),
         ],
       },
     ],

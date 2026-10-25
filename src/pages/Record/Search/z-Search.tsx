@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useNavigate } from "react-router";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Gate } from "~/components/page-data";
+import { pageData } from "./data";
+import { resultsSource } from "./source";
 import { Show } from "~/components/Show";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
@@ -21,7 +29,6 @@ import type { ListingHistoryPage } from "~/services/record";
 import { useMode } from "../use-mode";
 import { useQuery } from "../use-query";
 import { RecordsErrorFallback } from "../z-Error";
-import { useData } from "./use-data";
 import { useRange } from "./use-range";
 import { ModeSelect } from "./z-ModeSelect";
 
@@ -101,21 +108,34 @@ function Results({
   tableKey: string;
   onMore: () => void;
 }) {
-  const res = useData(limit);
+  // The search's four inputs are URL values and one local counter, so they are
+  // the registry's `deps`: typing a new term keeps the previous rows on screen
+  // (flagged) instead of blanking them between keystrokes.
+  const { start, endExclusive } = useRange();
+  const [mode] = useMode();
+  const [query] = useQuery();
+
+  const sources = useMemo(
+    () => ({ results: resultsSource({ start, end: endExclusive, mode, query, limit }) }),
+    [start, endExclusive, mode, query, limit],
+  );
+
   return (
-    <Gate
-      res={res}
-      skeleton={<LoadingTable />}
-      error={(error) => <RecordsErrorFallback error={error} />}
-    >
-      {({ data }) => (
-        <div className="flex-1 overflow-hidden">
-          <div className="max-h-full overflow-hidden flex">
-            <SearchTable key={tableKey} page={data} onMore={onMore} />
+    <pageData.Provider sources={sources} deps={[start, endExclusive, mode, query, limit]}>
+      <pageData.Gate
+        keys={["results"]}
+        pulse={<LoadingTable />}
+        error={(error) => <RecordsErrorFallback error={error} />}
+      >
+        {({ results }) => (
+          <div className="flex-1 overflow-hidden">
+            <div className="max-h-full overflow-hidden flex">
+              <SearchTable key={tableKey} page={results} onMore={onMore} />
+            </div>
           </div>
-        </div>
-      )}
-    </Gate>
+        )}
+      </pageData.Gate>
+    </pageData.Provider>
   );
 }
 

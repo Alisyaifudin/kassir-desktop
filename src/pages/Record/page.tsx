@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { Gate } from "~/components/page-data";
 import { useDelayedFlag } from "~/components/Loader";
 import { cn } from "~/lib/utils";
 import { pageData, recordsSource } from "./data";
@@ -41,11 +40,11 @@ export default function Page() {
 }
 
 function Screen() {
-  const res = pageData.use("records");
   const [selected] = useSelected();
   // A refetch keeps the previous day on screen; `busy` locks the header and fades
-  // the panes until the new day arrives.
-  const busy = useDelayedFlag(res.type === "success" && res.refetching === true);
+  // the panes until the new day arrives. Only the *word* is read here — the list
+  // itself is gated below, and the right pane reads its own record.
+  const busy = useDelayedFlag(pageData.useStatus("records") === "refreshing");
 
   return (
     <main className="flex flex-col gap-2 p-0.5 flex-1 overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
@@ -56,13 +55,13 @@ function Screen() {
           className={cn(GRID, busy && "opacity-50 pointer-events-none")}
         >
           <div className="h-full overflow-hidden">
-            <Gate
-              res={res}
-              skeleton={<RecordsLoading />}
+            <pageData.Gate
+              keys={["records"]}
+              pulse={<RecordsLoading />}
               error={(error) => <RecordsErrorFallback error={error} />}
             >
-              {({ data }) => <Records records={data} />}
-            </Gate>
+              {({ records }) => <Records records={records} />}
+            </pageData.Gate>
           </div>
           <div className="border-l h-full" />
           <div className="h-full overflow-hidden">

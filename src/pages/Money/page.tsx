@@ -1,7 +1,6 @@
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { useMutation } from "~/components/Loader";
 import Redirect from "~/components/Redirect";
@@ -31,7 +30,6 @@ export default function Page() {
  * read is a line where the grid would be, not a full-page takeover.
  */
 function Grid() {
-  const res = pageData.use("pockets");
   const { mutate } = useMutation(service.money.pockets.set.ordering);
 
   return (
@@ -41,15 +39,15 @@ function Grid() {
       </div>
       {/* The service owns the order, so a drop re-reads it back instead of
           keeping a second copy of the list in this component. */}
-      <Gate
-        res={res}
-        skeleton={<CardsLoading />}
+      <pageData.Gate
+        keys={["pockets"]}
+        pulse={<CardsLoading />}
         error={(error) => <TextError>{error.message}</TextError>}
       >
-        {({ data: summaries }) => (
-          <Sortable summaries={summaries} onReorder={(items) => void mutate(items)} />
+        {({ pockets }) => (
+          <Sortable summaries={pockets} onReorder={(items) => void mutate(items)} />
         )}
-      </Gate>
+      </pageData.Gate>
       <NewPocket />
     </main>
   );

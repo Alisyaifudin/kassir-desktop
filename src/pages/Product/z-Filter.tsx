@@ -5,6 +5,8 @@ import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { getProductKind } from "~/lib/constants";
+import { pageData } from "./data";
+import { availableKinds } from "./use-filtered";
 import type { ListState, ListStatePatch, MarginFilter, StockFilter } from "./use-list-state";
 
 const STOCK_LABELS: Record<StockFilter, string> = {
@@ -23,11 +25,9 @@ const MARGIN_LABELS: Record<MarginFilter, string> = {
 export function Filter({
   state,
   set,
-  availableKinds,
 }: {
   state: ListState;
   set: (patch: ListStatePatch) => void;
-  availableKinds: string[];
 }) {
   const activeCount =
     state.kinds.length + (state.stock !== "all" ? 1 : 0) + (state.margin !== "all" ? 1 : 0);
@@ -53,22 +53,31 @@ export function Filter({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-72 flex-col gap-4 small:w-60">
-        {availableKinds.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            <span className="text-small font-medium">Jenis</span>
-            <div className="flex flex-col gap-2">
-              {availableKinds.map((kind) => (
-                <Label key={kind} className="flex cursor-pointer items-center gap-2 text-small">
-                  <Checkbox
-                    checked={state.kinds.includes(kind)}
-                    onCheckedChange={() => toggleKind(kind)}
-                  />
-                  {getProductKind(kind)}
-                </Label>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        {/* The only data in this popover: which labels the catalog actually
+            uses. Absent until they arrive, exactly as it always was — the rest
+            of the filter works without them. */}
+        <pageData.Gate keys={["products"]} delay={0} pulse={null} error={null}>
+          {({ products }) => {
+            const kinds = availableKinds(products);
+            if (kinds.length === 0) return null;
+            return (
+              <div className="flex flex-col gap-2">
+                <span className="text-small font-medium">Jenis</span>
+                <div className="flex flex-col gap-2">
+                  {kinds.map((kind) => (
+                    <Label key={kind} className="flex cursor-pointer items-center gap-2 text-small">
+                      <Checkbox
+                        checked={state.kinds.includes(kind)}
+                        onCheckedChange={() => toggleKind(kind)}
+                      />
+                      {getProductKind(kind)}
+                    </Label>
+                  ))}
+                </div>
+              </div>
+            );
+          }}
+        </pageData.Gate>
 
         <div className="flex flex-col gap-2">
           <span className="text-small font-medium">Stok</span>

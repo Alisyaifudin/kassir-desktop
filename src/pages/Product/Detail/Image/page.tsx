@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Spinner } from "~/components/Spinner";
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { NotFound } from "~/components/NotFound";
 import { cn } from "~/lib/utils";
@@ -33,15 +32,18 @@ import { useFileDrop } from "./use-file-drop";
 
 export default function Page() {
   const id = useId();
-  const res = pageData.use("products");
   return (
-    <Gate res={res} skeleton={<Loading />} error={(error) => <TextError>{error.message}</TextError>}>
-      {({ data: products }) => {
+    <pageData.Gate
+      keys={["products"]}
+      pulse={<Loading />}
+      error={(error) => <TextError>{error.message}</TextError>}
+    >
+      {({ products }) => {
         const product = products.find((item) => item.id === id);
         if (product === undefined) return <NotFound />;
         return <Wrapper productId={product.id} images={product.images} />;
       }}
-    </Gate>
+    </pageData.Gate>
   );
 }
 

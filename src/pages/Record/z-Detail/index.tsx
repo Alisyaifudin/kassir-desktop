@@ -1,10 +1,10 @@
-import { Gate } from "~/components/page-data";
+import { useMemo } from "react";
 import type { RecordFull } from "~/services/record";
 import { useUnselect } from "../use-selected";
 import { RecordsErrorFallback } from "../z-Error";
 import { Ledger } from "./z-Ledger";
-import { useRecordFull } from "./use-record-full";
 import { DetailSkeleton } from "./z-Loading";
+import { detailSources, pageData } from "./data";
 import { Identity } from "./z-Identity";
 import { Lihat } from "./z-Lihat";
 import { Shelf } from "./z-Shelf";
@@ -20,15 +20,20 @@ import { Shelf } from "./z-Shelf";
  * shelf holds the money and the two ways on from it.
  */
 export function Detail({ recordId }: { recordId: string }) {
-  const res = useRecordFull(recordId);
+  const sources = useMemo(() => detailSources(recordId), [recordId]);
+
   return (
-    <Gate
-      res={res}
-      skeleton={<DetailSkeleton close />}
-      error={(error) => <RecordsErrorFallback error={error} />}
-    >
-      {({ data: record }) => (record === null ? null : <Body record={record} />)}
-    </Gate>
+    // `deps` makes selecting another record a *refetch*: the previous preview
+    // stays on screen while the next one is read, exactly as `keepPrevious` did.
+    <pageData.Provider sources={sources} deps={[recordId]}>
+      <pageData.Gate
+        keys={["record"]}
+        pulse={<DetailSkeleton close />}
+        error={(error) => <RecordsErrorFallback error={error} />}
+      >
+        {({ record }) => (record === null ? null : <Body record={record} />)}
+      </pageData.Gate>
+    </pageData.Provider>
   );
 }
 

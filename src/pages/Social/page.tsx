@@ -1,4 +1,4 @@
-import { Gate } from "~/components/page-data";
+import { Show } from "~/components/Show";
 import { TextError } from "~/components/TextError";
 import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
@@ -38,25 +38,25 @@ export default function Page() {
 }
 
 function Socials() {
-  const res = pageData.use("socials");
-
   return (
-    <Gate
-      res={res}
-      skeleton={<LoadingList />}
+    <pageData.Gate
+      keys={["socials"]}
+      pulse={<LoadingList />}
       error={(error) => <TextError>{`Kontak bermasalah: ${error.message}`}</TextError>}
     >
-      {({ data }) => {
-        if (data.length === 0) return <p className="text-big">---Belum Ada---</p>;
-        return (
+      {({ socials }) => (
+        <Show
+          when={socials.length > 0}
+          fallback={<p className="text-big">---Belum Ada---</p>}
+        >
           <div className="flex flex-col gap-1 overflow-y-auto">
-            {data.map((social) => (
+            {socials.map((social) => (
               <Item key={social.id} id={social.id} name={social.name} value={social.value} />
             ))}
           </div>
-        );
-      }}
-    </Gate>
+        </Show>
+      )}
+    </pageData.Gate>
   );
 }
 

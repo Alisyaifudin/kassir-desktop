@@ -56,7 +56,8 @@ test("page data gates settle independently", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("503");
   await expect(page.getByText("menunggu", { exact: true })).toHaveCount(0);
   await expect(page.getByText("gagal", { exact: true })).toHaveCount(1);
-  await expect(page.getByText("siap", { exact: true })).toHaveCount(5);
+  // Seven keys are registered in `data.ts`: the failing one plus six that settle.
+  await expect(page.getByText("siap", { exact: true })).toHaveCount(6);
   if (shots) await page.screenshot({ path: `${shots}-3-all.png` });
 });
 

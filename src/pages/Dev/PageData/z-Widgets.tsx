@@ -1,6 +1,6 @@
 import { Loader2, Plus } from "lucide-react";
 import { useRef } from "react";
-import { Gate, InlineError } from "~/components/page-data";
+import { InlineError } from "~/components/page-data";
 import { Button } from "~/components/ui/button";
 import { pageData } from "./data";
 import { Card, Rows } from "./z-Card";
@@ -15,20 +15,18 @@ import { LATENCY, addActivity, addOrders } from "./z-sources";
 
 /** One key, read-once source. Appears at ~400 ms. */
 export function ProfileCard() {
-  const res = pageData.use("profile");
-
   return (
-    <Card title="Profil kasir" contract={`use("profile") · Effect ${LATENCY.profile} ms`}>
-      <Gate res={res} skeleton={<Rows rows={2} />}>
-        {({ data }) => (
+    <Card title="Profil kasir" contract={`Gate keys={["profile"]} · Effect ${LATENCY.profile} ms`}>
+      <pageData.Gate keys={["profile"]} pulse={<Rows rows={2} />}>
+        {({ profile }) => (
           <div className="flex flex-col gap-1">
-            <p className="font-medium">{data.name}</p>
+            <p className="font-medium">{profile.name}</p>
             <p className="text-small text-muted-foreground">
-              {data.role} · {data.shop}
+              {profile.role} · {profile.shop}
             </p>
           </div>
         )}
-      </Gate>
+      </pageData.Gate>
     </Card>
   );
 }
@@ -38,18 +36,20 @@ export function ProfileCard() {
  * mutation card invalidates it — the numbers stay readable the whole time.
  */
 export function StatsCard() {
-  const res = pageData.use("stats");
+  // Freshness is a *state* read, not a value: the card decides how a refetch
+  // looks, and the gate below only decides whether there is anything to draw.
+  const status = pageData.useStatus("stats");
 
   return (
-    <Card title="Ringkasan hari ini" contract={`use("stats") · Effect ${LATENCY.stats} ms`}>
-      <Gate res={res} skeleton={<Rows rows={3} />}>
-        {({ data, refetching }) => (
-          <Stale when={refetching} mode="dim">
+    <Card title="Ringkasan hari ini" contract={`Gate keys={["stats"]} · Effect ${LATENCY.stats} ms`}>
+      <pageData.Gate keys={["stats"]} pulse={<Rows rows={3} />}>
+        {({ stats }) => (
+          <Stale when={status === "refreshing"} mode="dim">
             <dl className="grid grid-cols-3 gap-2 text-center">
-              <Figure label="Pesanan" value={data.orders.toLocaleString("id-ID")} />
+              <Figure label="Pesanan" value={stats.orders.toLocaleString("id-ID")} />
               <Figure
                 label="Omzet"
-                value={data.revenue.toLocaleString("id-ID", {
+                value={stats.revenue.toLocaleString("id-ID", {
                   style: "currency",
                   currency: "IDR",
                   maximumFractionDigits: 0,
@@ -57,7 +57,7 @@ export function StatsCard() {
               />
               <Figure
                 label="Rata-rata"
-                value={data.average.toLocaleString("id-ID", {
+                value={stats.average.toLocaleString("id-ID", {
                   style: "currency",
                   currency: "IDR",
                   maximumFractionDigits: 0,
@@ -66,7 +66,7 @@ export function StatsCard() {
             </dl>
           </Stale>
         )}
-      </Gate>
+      </pageData.Gate>
     </Card>
   );
 }
@@ -77,52 +77,52 @@ export function StatsCard() {
  * comes from `useAll`, so invalidating either key dims the pair.
  */
 export function PairCard() {
-  const res = pageData.useAll("profile", "stats");
+  // One `useFrame` for the pair's freshness: the group is `refreshing` when
+  // either key is, which is exactly what the old `useAll` flag meant.
+  const frame = pageData.useFrame(["profile", "stats"]);
 
   return (
     <Card
       title="Profil + ringkasan"
-      contract={`useAll("profile", "stats") · tunggu yang terakhir`}
+      contract={`Gate keys={["profile", "stats"]} · tunggu yang terakhir`}
     >
-      <Gate res={res} skeleton={<Rows rows={3} />}>
-        {({ data, refetching }) => (
-          <Stale when={refetching} mode="dim">
+      <pageData.Gate keys={["profile", "stats"]} pulse={<Rows rows={3} />}>
+        {({ profile, stats }) => (
+          <Stale when={frame.status === "refreshing"} mode="dim">
             <div className="flex flex-col gap-1">
-              <p className="font-medium">{data.profile.name}</p>
+              <p className="font-medium">{profile.name}</p>
               <p className="text-small text-muted-foreground">
-                {data.stats.orders.toLocaleString("id-ID")} pesanan ·{" "}
-                {data.stats.revenue.toLocaleString("id-ID", {
+                {stats.orders.toLocaleString("id-ID")} pesanan ·{" "}
+                {stats.revenue.toLocaleString("id-ID", {
                   style: "currency",
                   currency: "IDR",
                   maximumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-small text-muted-foreground">{data.profile.shop}</p>
+              <p className="text-small text-muted-foreground">{profile.shop}</p>
             </div>
           </Stale>
         )}
-      </Gate>
+      </pageData.Gate>
     </Card>
   );
 }
 
 /** One key, latest source. Still a skeleton at 2 s — long after its neighbours. */
 export function FeedCard() {
-  const res = pageData.use("feed");
-
   return (
-    <Card title="Aktivitas terbaru" contract={`use("feed") · Stream ${LATENCY.feed} ms`}>
-      <Gate res={res} skeleton={<Rows rows={3} />}>
-        {({ data }) => (
+    <Card title="Aktivitas terbaru" contract={`Gate keys={["feed"]} · Stream ${LATENCY.feed} ms`}>
+      <pageData.Gate keys={["feed"]} pulse={<Rows rows={3} />}>
+        {({ feed }) => (
           <ul className="flex flex-col gap-1">
-            {data.map((item) => (
+            {feed.map((item) => (
               <li key={item.id} className="truncate text-small">
                 {item.text}
               </li>
             ))}
           </ul>
         )}
-      </Gate>
+      </pageData.Gate>
     </Card>
   );
 }
@@ -133,15 +133,15 @@ export function FeedCard() {
  * widget says so with a spinner instead of muting the list.
  */
 export function ActivityCard() {
-  const res = pageData.use("activity");
+  const status = pageData.useStatus("activity");
 
   return (
-    <Card title="Aktivitas (live)" contract={`use("activity") · Stream`}>
-      <Gate res={res} skeleton={<Rows rows={2} />}>
-        {({ data, refetching }) => (
-          <Stale when={refetching} mode="spinner">
+    <Card title="Aktivitas (live)" contract={`Gate keys={["activity"]} · Stream`}>
+      <pageData.Gate keys={["activity"]} pulse={<Rows rows={2} />}>
+        {({ activity }) => (
+          <Stale when={status === "refreshing"} mode="spinner">
             <ul className="flex flex-col gap-1">
-              {data.map((item) => (
+              {activity.map((item) => (
                 <li key={item.id} className="truncate text-small">
                   {item.text}
                 </li>
@@ -149,41 +149,38 @@ export function ActivityCard() {
             </ul>
           </Stale>
         )}
-      </Gate>
+      </pageData.Gate>
     </Card>
   );
 }
 
 /** A failing key. The default inline error stays inside this card. */
 export function BrokenCard() {
-  const res = pageData.use("broken");
-  const refresh = pageData.useRefresh();
-
   return (
-    <Card title="Widget gagal" contract={`use("broken") · gagal ${LATENCY.broken} ms`}>
-      <Gate res={res} skeleton={<Rows rows={2} />} onRetry={() => refresh("broken")}>
-        {({ data }) => <p className="text-small">{data}</p>}
-      </Gate>
+    <Card title="Widget gagal" contract={`Gate keys={["broken"]} · gagal ${LATENCY.broken} ms`}>
+      {/* No `error` slot: the gate's default is an inline notice whose own button
+          re-reads the keys it blamed, so a retry needs no wiring. */}
+      <pageData.Gate keys={["broken"]} pulse={<Rows rows={2} />}>
+        {({ broken }) => <p className="text-small">{broken}</p>}
+      </pageData.Gate>
     </Card>
   );
 }
 
 /** A live stream: success arrives at 0 ms and keeps changing, with no refetch. */
 export function BeatCard() {
-  const res = pageData.use("beat");
-
   return (
-    <Card title="Data live" contract={`use("beat") · Stream tiap 1,5 s`}>
-      <Gate res={res} skeleton={<Rows rows={1} />}>
-        {({ data }) => (
+    <Card title="Data live" contract={`Gate keys={["beat"]} · Stream tiap 1,5 s`}>
+      <pageData.Gate keys={["beat"]} pulse={<Rows rows={1} />}>
+        {({ beat }) => (
           <div className="flex flex-col gap-1">
-            <p className="font-medium tabular-nums">Denyut ke-{data.beat}</p>
+            <p className="font-medium tabular-nums">Denyut ke-{beat.beat}</p>
             <p className="text-small text-muted-foreground tabular-nums">
-              {new Date(data.at).toLocaleTimeString("id-ID")}
+              {new Date(beat.at).toLocaleTimeString("id-ID")}
             </p>
           </div>
         )}
-      </Gate>
+      </pageData.Gate>
     </Card>
   );
 }

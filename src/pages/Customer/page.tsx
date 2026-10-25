@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { Skeleton } from "~/components/ui/skeleton";
 import { service } from "~/services";
@@ -26,22 +25,20 @@ export default function Page() {
 }
 
 function Customers() {
-  const res = pageData.use("customers");
-
   return (
-    <Gate
-      res={res}
-      skeleton={<LoadingList />}
+    <pageData.Gate
+      keys={["customers"]}
+      pulse={<LoadingList />}
       error={(error) => <TextError>{`Daftar pelanggan bermasalah: ${error.message}`}</TextError>}
     >
-      {({ data }) => (
+      {({ customers }) => (
         <>
-          {data.map((customer) => (
+          {customers.map((customer) => (
             <Item key={customer.id} customer={customer} />
           ))}
         </>
       )}
-    </Gate>
+    </pageData.Gate>
   );
 }
 

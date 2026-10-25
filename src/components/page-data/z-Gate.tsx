@@ -27,6 +27,11 @@ export type GateProps<T, E = unknown> = {
 };
 
 /**
+ * @deprecated Use `pageData.Gate`, which takes the keys it guards instead of a
+ * `Result`. This one is kept only while the un-migrated pages still pass
+ * `res={pageData.use(…)}`; it cannot tell which keys a body reads, so a body can
+ * read a key it does not gate.
+ *
  * Renders one widget from one page-data result.
  *
  * `init` → the skeleton, held back by `delay` ms so a fast load never flashes
@@ -100,4 +105,24 @@ export function messageOf(error: unknown): string {
     if (typeof message === "string") return message;
   }
   return "Gagal memuat data.";
+}
+
+/**
+ * Holds a placeholder back for `delay` ms, then draws it.
+ *
+ * Mount it **only while the region is waiting**: it is remounted — and its window
+ * restarted — exactly when a region goes from "has content" back to "waiting",
+ * and never when a sibling key arrives. That distinction is what keeps a
+ * three-key region from blinking three times.
+ */
+export function Held({ delay, children }: { delay: number; children: ReactNode }) {
+  const [shown, setShown] = useState(delay <= 0);
+
+  useEffect(() => {
+    if (delay <= 0) return;
+    const timer = setTimeout(() => setShown(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  return shown ? <>{children}</> : null;
 }

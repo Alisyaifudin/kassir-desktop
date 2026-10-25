@@ -254,19 +254,24 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   const named = draftId !== null ? normalDrafts.find((draft) => draft.id === draftId) : undefined;
   const active = named ?? lastOpen ?? (opened ? newest : null);
   const activeId = active?.id ?? null;
+  // A cached visit seeds the draft list before the live read confirms it. The
+  // repair below writes the address bar, so it waits for `ready`: a `?draft=`
+  // naming a cart that was submitted since must not be answered with it.
   useEffect(() => {
-    if (activeId === null || draftId === activeId) return;
+    if (!ready || activeId === null || draftId === activeId) return;
     onDraft(activeId);
-  }, [activeId, draftId, onDraft]);
+  }, [ready, activeId, draftId, onDraft]);
 
   // The cart under the cursor is the one this device remembers, so leaving the
   // screen for Beranda and coming back lands on the sale being rung up instead
   // of rewinding to tab one.
   useEffect(() => {
-    if (activeId === null || activeId === rememberedId) return;
+    // Same reason: the device remembers the cart the operator was on, and a
+    // seeded (unconfirmed) list must not teach it a dead one.
+    if (!ready || activeId === null || activeId === rememberedId) return;
     setRememberedId(activeId);
     void Effect.runPromise(service.store.set(rememberKey, activeId).pipe(Effect.ignore));
-  }, [activeId, rememberedId, rememberKey]);
+  }, [ready, activeId, rememberedId, rememberKey]);
 
   const issues = useMemo(
     () =>

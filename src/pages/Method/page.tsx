@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { Skeleton } from "~/components/ui/skeleton";
 import { service } from "~/services";
@@ -38,17 +37,15 @@ export default function Page() {
 }
 
 function List({ kind }: { kind: DefaultableKind }) {
-  const res = pageData.use("catalog");
-
   return (
-    <Gate
-      res={res}
-      skeleton={<LoadingList />}
+    <pageData.Gate
+      keys={["catalog"]}
+      pulse={<LoadingList />}
       error={(error) => (
         <TextError>{`Metode pembayaran bermasalah: ${error.message}`}</TextError>
       )}
     >
-      {({ data: catalog }) => {
+      {({ catalog }) => {
         const methods = namedMethodsOf(catalog.methods, kind);
         return (
           <div className="flex flex-col gap-2 overflow-auto">
@@ -58,7 +55,7 @@ function List({ kind }: { kind: DefaultableKind }) {
           </div>
         );
       }}
-    </Gate>
+    </pageData.Gate>
   );
 }
 

@@ -1,11 +1,9 @@
-import { Gate } from "~/components/page-data";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import type { Printer } from "~/services/printer";
-import { PendingValue } from "~/components/page-data";
-import { ReservedSkeleton } from "~/components/page-data";
+import { PendingValue, ReservedSkeleton } from "~/components/page-data";
 import { pageData } from "./data";
 import { useChangePrinterWidth } from "./use-change-width";
 
@@ -15,8 +13,6 @@ import { useChangePrinterWidth } from "./use-change-width";
  * being read.
  */
 export function PrinterWidth() {
-  const res = pageData.use("printer");
-
   return (
     <div className="flex flex-col gap-1">
       <Label htmlFor="receipt-width" className="text-normal font-semibold">
@@ -26,10 +22,10 @@ export function PrinterWidth() {
         Atur lebar kertas struk untuk printer thermal
       </p>
 
-      <Gate
-        res={res}
+      <pageData.Gate
+        keys={["printer"]}
         delay={0}
-        skeleton={
+        pulse={
           <ReservedSkeleton>
             <PendingValue pulse="left-3 top-1/2 w-16 -translate-y-1/2">
               <Input id="receipt-width" disabled className="mt-1 border-border bg-background" />
@@ -38,8 +34,8 @@ export function PrinterWidth() {
         }
         error={(error) => <TextError>{error.message}</TextError>}
       >
-        {({ data }) => <WidthForm printer={data} />}
-      </Gate>
+        {({ printer }) => <WidthForm printer={printer} />}
+      </pageData.Gate>
     </div>
   );
 }

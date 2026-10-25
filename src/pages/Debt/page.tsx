@@ -1,21 +1,22 @@
-import { Gate } from "~/components/page-data";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Summary } from "./z-Summary";
 import { DebtTable } from "./z-DebtTable.tsx";
 import { DebtErrorFallback } from "./z-Error";
-import { useData } from "./use-data";
+import { debtSource, pageData } from "./data";
 import { totalDebt } from "./util-debt";
 
 export default function Page() {
   return (
-    <div className="flex flex-col gap-4 p-6 h-full  overflow-hidden">
-      <div className="flex flex-col gap-1">
-        <p className="text-muted-foreground text-normal">
-          Pantau dan kelola catatan utang pelanggan
-        </p>
+    <pageData.Provider sources={{ records: debtSource() }}>
+      <div className="flex flex-col gap-4 p-6 h-full  overflow-hidden">
+        <div className="flex flex-col gap-1">
+          <p className="text-muted-foreground text-normal">
+            Pantau dan kelola catatan utang pelanggan
+          </p>
+        </div>
+        <Content />
       </div>
-      <Content />
-    </div>
+    </pageData.Provider>
   );
 }
 
@@ -35,14 +36,13 @@ function Loading() {
 }
 
 function Content() {
-  const res = useData();
   return (
-    <Gate
-      res={res}
-      skeleton={<Loading />}
+    <pageData.Gate
+      keys={["records"]}
+      pulse={<Loading />}
       error={(error) => <DebtErrorFallback error={error} />}
     >
-      {({ data: records }) => (
+      {({ records }) => (
         <>
           <Summary total={totalDebt(records)} />
           <div className="flex flex-col gap-2 py-1 flex-1  overflow-hidden">
@@ -50,6 +50,6 @@ function Content() {
           </div>
         </>
       )}
-    </Gate>
+    </pageData.Gate>
   );
 }

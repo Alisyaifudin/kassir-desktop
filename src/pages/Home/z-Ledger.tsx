@@ -1,6 +1,6 @@
 import { ReceiptText } from "lucide-react";
 import { Link } from "react-router";
-import { Gate } from "~/components/page-data";
+import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { Skeleton, SkeletonText } from "~/components/ui/skeleton";
 import { formatTime } from "~/lib/date";
@@ -38,8 +38,9 @@ const COLS = "sm:grid sm:grid-cols-[96px_minmax(0,1fr)_100px_auto] sm:items-cent
  * The head's "Riwayat" link works before a single row has arrived.
  */
 export function Ledger() {
-  const res = pageData.use("records");
-  const records = res.type === "success" ? res.data : null;
+  // The footer must disappear when the rows fail, so the card asks for the
+  // *state* of `records` — not its value. The rows themselves gate on their own.
+  const frame = pageData.useFrame(["records"]);
 
   return (
     <Card>
@@ -48,38 +49,47 @@ export function Ledger() {
         action={<CardLink to={withUrlBack("/records")}>Riwayat</CardLink>}
       />
       <div className={cn("flex flex-col", ROWS_FLOOR)}>
-        <Gate
-          res={res}
-          skeleton={<LedgerSkeleton />}
+        <pageData.Gate
+          keys={["records"]}
+          pulse={<LedgerSkeleton />}
           error={(error) => (
             <div className="p-3">
               <RegionError title="Gagal memuat transaksi hari ini" error={error} />
             </div>
           )}
         >
-          {({ data }) => <LedgerRows records={data} />}
-        </Gate>
+          {({ records }) => <LedgerRows records={records} />}
+        </pageData.Gate>
       </div>
       {/* The foot is chrome like the head: it holds its line while the rows
-          load, and only the count pulses inside it. */}
-      {res.type === "error" ? null : (
+          load, and each thing it says gates on what it reads. */}
+      <Show when={frame.status !== "failed"}>
         <div className="mt-auto flex items-center justify-between gap-3 border-t px-4 py-2">
           <span className="flex items-center gap-1 text-small text-muted-foreground">
-            {records === null ? (
-              <SkeletonText className="w-4" />
-            ) : (
-              <span className="tabular-nums">{records.length}</span>
-            )}
+            <pageData.Gate
+              keys={["records"]}
+              delay={0}
+              pulse={<SkeletonText className="w-4" />}
+              error={null}
+            >
+              {({ records }) => <span className="tabular-nums">{records.length}</span>}
+            </pageData.Gate>
             {/* Whitespace is not a flex item, so this changes nothing on screen;
                 it is here so the line copies as "1 transaksi". */}
             {" "}
             <span>transaksi</span>
           </span>
-          {records !== null && records.length > VISIBLE ? (
-            <CardLink to={withUrlBack("/records")}>Lihat {records.length - VISIBLE} lagi</CardLink>
-          ) : null}
+          <pageData.Gate keys={["records"]} delay={0} pulse={null} error={null}>
+            {({ records }) => (
+              <Show when={records.length > VISIBLE}>
+                <CardLink to={withUrlBack("/records")}>
+                  Lihat {records.length - VISIBLE} lagi
+                </CardLink>
+              </Show>
+            )}
+          </pageData.Gate>
         </div>
-      )}
+      </Show>
     </Card>
   );
 }

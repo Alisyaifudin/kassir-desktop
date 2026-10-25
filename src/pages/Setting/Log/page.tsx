@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
@@ -35,27 +34,19 @@ export default function Page() {
  * button in the panel head is usable from the first frame.
  */
 function Console() {
-  const res = pageData.use("lines");
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-1 overflow-auto rounded-xl bg-black p-4">
-      <Gate
-        res={res}
-        skeleton={<LoadingLines />}
+      <pageData.Gate
+        keys={["lines"]}
+        pulse={<LoadingLines />}
         error={(error) => <TextError>{error.message}</TextError>}
       >
-        {({ data }) => (
+        {({ lines }) => (
           <>
             {/* `text-small` on purpose: this is a console, read line by line and
                 scanned for a timestamp, not a sentence anyone reads at arm's length. */}
-            <p className="text-small text-muted-foreground select-none">
-              {data.total === 0
-                ? "Log masih kosong."
-                : data.total > data.lines.length
-                  ? `Menampilkan ${data.lines.length} baris terakhir dari ${data.total} baris.`
-                  : `Menampilkan ${data.total} baris.`}
-            </p>
-            {data.lines.map((line, i) => (
+            <p className="text-small text-muted-foreground select-none">{linesNote(lines)}</p>
+            {lines.lines.map((line, i) => (
               <p
                 className={cn(
                   "text-small text-white",
@@ -70,9 +61,18 @@ function Console() {
             ))}
           </>
         )}
-      </Gate>
+      </pageData.Gate>
     </div>
   );
+}
+
+/** How much of the log is on screen, in one sentence. */
+function linesNote(lines: { total: number; lines: string[] }): string {
+  if (lines.total === 0) return "Log masih kosong.";
+  if (lines.total > lines.lines.length) {
+    return `Menampilkan ${lines.lines.length} baris terakhir dari ${lines.total} baris.`;
+  }
+  return `Menampilkan ${lines.total} baris.`;
 }
 
 function LoadingLines() {

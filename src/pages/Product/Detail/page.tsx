@@ -41,7 +41,6 @@ export default function Page() {
 function Content() {
   const { id } = useParams();
   const { pathname } = useLocation();
-  const res = pageData.use("products");
   const backUrl = useGetUrlBack("/products");
   const role = useUser().role;
 
@@ -50,31 +49,55 @@ function Content() {
   const base = `/products/${id}`;
   const search = `url_back=${encodeURIComponent(backUrl)}`;
   const active = activeTab(pathname, id);
-  const product = res.type === "success" ? res.data.find((item) => item.id === id) : undefined;
 
   return (
     <ProductErrorBoundary fallback={ProductErrorFallback}>
       <main className="mx-auto flex h-[calc(100vh-68px)] w-full flex-col overflow-hidden small:h-[calc(100vh-44px)]">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-background px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex min-w-0 items-center text-normal font-semibold">
-              {product === undefined ? (
-                res.type === "init" ? (
-                  <SkeletonText className="w-40" />
-                ) : res.type === "error" ? (
-                  "Gagal memuat produk"
-                ) : (
-                  "Produk tidak ditemukan"
-                )
-              ) : (
-                <span className="truncate">{product.name}</span>
+            {/* The product row is the header's one read. Its four states are the
+                gate's: waiting (the name pulses, the chip is drawn disabled),
+                failed, missing, and found. */}
+            <pageData.Gate
+              keys={["products"]}
+              delay={0}
+              pulse={
+                <>
+                  <span className="flex min-w-0 items-center text-normal font-semibold">
+                    <SkeletonText className="w-40" />
+                  </span>
+                  {role === "admin" ? <PublishToggle product={undefined} /> : null}
+                </>
+              }
+              error={() => (
+                <span className="flex min-w-0 items-center text-normal font-semibold">
+                  Gagal memuat produk
+                </span>
               )}
-            </span>
-            {role === "admin" ? (
-              // The chip is chrome: it is here before the row is, disabled. Only
-              // the word inside it — the published state — is a value.
-              <PublishToggle product={product} />
-            ) : null}
+            >
+              {({ products }) => {
+                const product = products.find((item) => item.id === id);
+                if (product === undefined) {
+                  return (
+                    <span className="flex min-w-0 items-center text-normal font-semibold">
+                      Produk tidak ditemukan
+                    </span>
+                  );
+                }
+                return (
+                  <>
+                    <span className="flex min-w-0 items-center text-normal font-semibold">
+                      <span className="truncate">{product.name}</span>
+                    </span>
+                    {role === "admin" ? (
+                      // The chip is chrome: it is here before the row is, disabled.
+                      // Only the word inside it — the published state — is a value.
+                      <PublishToggle product={product} />
+                    ) : null}
+                  </>
+                );
+              }}
+            </pageData.Gate>
           </div>
           <div className="inline-flex items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
             {TABS.map((tab) => (

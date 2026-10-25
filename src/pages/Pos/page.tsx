@@ -87,8 +87,10 @@ function Screen({
   const extrasRes = pageData.use("extras");
   const drafts = draftsRes.type === "success" ? draftsRes.data : [];
   // An empty list means "not read yet", not "no cart": hold the create-a-draft
-  // effect until the read has actually answered.
-  const ready = draftsRes.type === "success";
+  // effect until the read has actually answered — and, on a cached visit, until
+  // the live subscription has confirmed the seeded list (`refetching`). Acting on
+  // last visit's tabs could open a cart that was submitted since, or miss one.
+  const ready = draftsRes.type === "success" && draftsRes.refetching !== true;
 
   const refresh = pageData.useRefresh();
   const cart = useCartScreen({

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
+import { Stream } from "effect";
 import type { ListingHistoryPage } from "~/services/record";
 
 /**
@@ -22,16 +23,19 @@ const page: ListingHistoryPage = {
 /** Every limit the page asked the service for, in order. */
 const limits: number[] = [];
 
-mock.module("./use-data", () => ({
-  useData: (limit: number) => {
+// The results are a page-data source now, so the mock replaces the source and the
+// registry reads it — the limit still travels into the query, which is what these
+// tests are about.
+mock.module("./source", () => ({
+  resultsSource: ({ limit }: { limit: number }) => {
     limits.push(limit);
-    return { type: "success", data: page };
+    return Stream.make(page);
   },
 }));
 
 const { Search } = await import("./z-Search");
 
-function renderSearch() {
+async function renderSearch() {
   render(
     <MemoryRouter initialEntries={["/records/search"]}>
       <Routes>
@@ -40,6 +44,8 @@ function renderSearch() {
       </Routes>
     </MemoryRouter>,
   );
+  // The rows arrive through the provider, one tick after mount.
+  await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
 }
 
 describe("record search results keyboard model", () => {
@@ -47,36 +53,36 @@ describe("record search results keyboard model", () => {
     limits.length = 0;
   });
 
-  test("the list is one tab stop", () => {
-    renderSearch();
+  test("the list is one tab stop", async () => {
+    await renderSearch();
     // The header row is the first, then the data rows.
     const [, first, second] = screen.getAllByRole("row");
     expect(first?.getAttribute("tabindex")).toBe("0");
     expect(second?.getAttribute("tabindex")).toBe("-1");
   });
 
-  test("ArrowDown moves the cursor inside the list", () => {
-    renderSearch();
+  test("ArrowDown moves the cursor inside the list", async () => {
+    await renderSearch();
     const [, first, second] = screen.getAllByRole("row");
     fireEvent.keyDown(first!, { key: "ArrowDown" });
     expect(document.activeElement).toBe(second!);
   });
 
-  test("Enter opens the focused record", () => {
-    renderSearch();
+  test("Enter opens the focused record", async () => {
+    await renderSearch();
     const [, first] = screen.getAllByRole("row");
     fireEvent.keyDown(first!, { key: "Enter" });
     expect(screen.getByText("detail")).toBeTruthy();
   });
 
-  test("a row carries its record as its accessible name", () => {
-    renderSearch();
+  test("a row carries its record as its accessible name", async () => {
+    await renderSearch();
     const [, first] = screen.getAllByRole("row");
     expect(first?.getAttribute("aria-label")).toContain("Kopi");
   });
 
-  test("the rows are not an atomic live region", () => {
-    renderSearch();
+  test("the rows are not an atomic live region", async () => {
+    await renderSearch();
     // The result pane used to be `<output>`, i.e. `role="status"` +
     // `aria-atomic`: every keystroke re-read up to 100 rows × 7 cells aloud.
     const live = document.querySelectorAll('[role="status"],[aria-live]');
@@ -87,13 +93,13 @@ describe("record search results keyboard model", () => {
     expect(document.querySelector("output")).toBeNull();
   });
 
-  test("the load-more control has a name", () => {
-    renderSearch();
+  test("the load-more control has a name", async () => {
+    await renderSearch();
     expect(screen.getByRole("button", { name: "Muat hasil berikutnya" })).toBeTruthy();
   });
 
-  test("no unnamed control hides in the result list", () => {
-    renderSearch();
+  test("no unnamed control hides in the result list", async () => {
+    await renderSearch();
     // The magnifier is the only button; it is named.
     expect(screen.getByRole("button", { name: "Cari transaksi" })).toBeTruthy();
   });
@@ -107,8 +113,8 @@ describe("record search paging scope", () => {
     fireEvent.submit(input.closest("form")!);
   }
 
-  test("a new search goes back to one page", () => {
-    renderSearch();
+  test("a new search goes back to one page", async () => {
+    await renderSearch();
 
     fireEvent.click(screen.getByRole("button", { name: "Muat hasil berikutnya" }));
     expect(limits.at(-1)).toBe(200);
@@ -116,11 +122,11 @@ describe("record search paging scope", () => {
     searchFor("teh");
 
     // The previous query's expansion is not an instruction about this one.
-    expect(limits.at(-1)).toBe(100);
+    await waitFor(() => expect(limits.at(-1)).toBe(100));
   });
 
-  test("a new search puts the tab stop back on the first row", () => {
-    renderSearch();
+  test("a new search puts the tab stop back on the first row", async () => {
+    await renderSearch();
 
     const [, first, second] = screen.getAllByRole("row");
     fireEvent.keyDown(first!, { key: "ArrowDown" });

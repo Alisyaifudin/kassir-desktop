@@ -8,26 +8,29 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { Show } from "~/components/Show";
 import { SkeletonText } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 import { pageData } from "./data";
-import { withUrlBack } from "./format";
+import { formatMoney, withUrlBack } from "./format";
 import { RegionError } from "./z-Error";
 
 /**
  * The day's three figures, as cards. Each one is a single fact the owner checks
  * on opening: what came in, what went out, what is still owed.
  *
- * The card is *not* replaced by a skeleton while its read is in flight. Its
- * label, its icon tile and its wording are static, so they are drawn at once; the
- * three values (`today`'s two, `yesterday`'s delta) are the only things that
- * pulse, in place, at the width they will occupy — the card never changes height.
+ * **One component gates everything — `<pageData.Gate>` — at the granularity of
+ * the thing that waits.** A number inside a static line gets its own gate with
+ * `delay={0}` and a placeholder sized to it, so the frame, the words and the `Rp`
+ * are on screen from the first frame and only the number pulses. A value that
+ * needs two keys (`today` + `yesterday`) declares both; a value that needs one
+ * declares one, so it can land first.
+ *
+ * The **frame** never reads a value: it asks `useFrame` for the group's word and
+ * its first error, which is what makes one error treatment per card possible
+ * without threading `number | null` props through it.
  *
  * See `.pi/skills/page-data.md` §3 for the rule this file is the example of.
- *
- * `today` and `yesterday` stay separate keys so each value can land on its own:
- * the amount can appear while the comparison beside it is still pulsing, and the
- * debt card is a third read with its own card.
  */
 export function Band() {
   return (
@@ -49,83 +52,161 @@ export function Band() {
   );
 }
 
-function TodayStat({
-  mode,
-  label,
-  icon,
-  tile,
-}: {
-  mode: "incoming" | "outcoming";
+const DEBT_TILE = "bg-destructive/10 text-destructive";
+
+type Mode = "incoming" | "outcoming";
+
+type TodayStatProps = {
+  mode: Mode;
   label: string;
   icon: LucideIcon;
   tile: string;
-}) {
-  const today = pageData.use("today");
-  const yesterday = pageData.use("yesterday");
+};
 
-  const error =
-    today.type === "error" ? today.error : yesterday.type === "error" ? yesterday.error : null;
-  if (error !== null) {
-    return (
-      <CardFrame label={label} icon={icon} tile={tile}>
-        <RegionError title="Gagal memuat ringkasan" error={error} />
-      </CardFrame>
-    );
-  }
-
-  const current = today.type === "success" ? today.data[mode] : null;
-  const previous = yesterday.type === "success" ? yesterday.data[mode] : null;
+function TodayStat({ mode, label, icon, tile }: TodayStatProps) {
+  // The frame's two facts, no values: both keys must answer before the card is
+  // done, and either failing is one error — not one per value.
+  const frame = pageData.useFrame(["today", "yesterday"]);
 
   return (
-    <CardFrame
-      label={label}
-      icon={icon}
-      tile={tile}
-      busy={current === null || previous === null}
-    >
-      <Amount value={current === null ? null : current.total} />
-      <Hint
-        count={current === null ? null : current.count}
-        unit="transaksi"
-        delta={
-          current === null || previous === null
-            ? undefined
-            : delta(current.total, previous.total)
+    <CardFrame label={label} icon={icon} tile={tile} busy={frame.status === "pending"}>
+      <Show
+        value={frame.error}
+        fallback={
+          <>
+            <TodayAmount mode={mode} />
+            <TodayHint mode={mode} />
+          </>
         }
-      />
+      >
+        {(error) => <RegionError title="Gagal memuat ringkasan" error={error} />}
+      </Show>
     </CardFrame>
   );
 }
 
-function DebtStat() {
-  const res = pageData.use("debt");
-  const debt = res.type === "success" ? res.data : null;
-  const settled = debt !== null && debt.total === 0;
+/** The amount needs `today` alone: it appears without waiting for the comparison. */
+function TodayAmount({ mode }: { mode: Mode }) {
+  return (
+    <span className="text-normal font-semibold tabular-nums">
+      {/* `Rp` is part of the money format, not of the value, so it does not pulse. */}
+      Rp{" "}
+      <pageData.Gate
+        keys={["today"]}
+        delay={0}
+        pulse={<SkeletonText className="h-[0.7em] w-32" />}
+        error={null}
+      >
+        {({ today }) => today[mode].total.toLocaleString("id-ID")}
+      </pageData.Gate>
+    </span>
+  );
+}
 
-  if (res.type === "error") {
-    return (
-      <CardFrame label="Utang berjalan" icon={HandCoins} tile="bg-destructive/10 text-destructive">
-        <RegionError title="Gagal memuat utang" error={res.error} />
-      </CardFrame>
-    );
-  }
+/**
+ * The count needs `today`; the day-over-day comparison needs both keys. Two
+ * gates, so the count can appear while the delta is still on its way.
+ */
+function TodayHint({ mode }: { mode: Mode }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
+      <span className="flex items-center gap-1">
+        <pageData.Gate
+          keys={["today"]}
+          delay={0}
+          pulse={<SkeletonText className="w-5" />}
+          error={null}
+        >
+          {({ today }) => <span className="tabular-nums">{today[mode].count}</span>}
+        </pageData.Gate>
+        {/* Whitespace is not a flex item, so this changes nothing on screen;
+            it is here so the line copies as "128 transaksi". */}{" "}
+        <span>transaksi</span>
+      </span>
+
+      <pageData.Gate
+        keys={["today", "yesterday"]}
+        delay={0}
+        error={null}
+        pulse={
+          <span className="flex items-center gap-1">
+            <SkeletonText className="size-4 rounded-full" />
+            <SkeletonText className="w-9" />
+          </span>
+        }
+      >
+        {({ today, yesterday }) => (
+          // `null` here is a reading — answered, no base — and the gate above has
+          // already taken "still loading" out of the picture.
+          <Show value={delta(today[mode].total, yesterday[mode].total)}>
+            {(change) => <Change {...change} />}
+          </Show>
+        )}
+      </pageData.Gate>
+    </span>
+  );
+}
+
+/**
+ * The debt card's frame is static — it always leads to `/debt`, like the money
+ * card leads to `/money` — so nothing here reads a value for chrome.
+ */
+function DebtStat() {
+  const frame = pageData.useFrame(["debt"]);
 
   return (
     <CardFrame
       label="Utang berjalan"
       icon={HandCoins}
-      tile="bg-destructive/10 text-destructive"
-      busy={debt === null}
-      to={debt !== null && !settled ? withUrlBack("/debt") : undefined}
+      tile={DEBT_TILE}
+      to={withUrlBack("/debt")}
+      busy={frame.status === "pending"}
     >
-      <Amount value={debt === null ? null : debt.total} tone={settled ? undefined : "text-destructive"} />
-      <Hint
-        count={debt === null ? null : debt.count}
-        unit="catatan belum lunas"
-        // This card has no comparison to draw, in any state.
-        delta={null}
-        empty={settled ? "Tidak ada utang" : undefined}
-      />
+      <Show
+        value={frame.error}
+        // Both values come from the same read, so they land together.
+        fallback={
+          <pageData.Gate
+            keys={["debt"]}
+            delay={0}
+            error={null}
+            pulse={
+              <>
+                <SkeletonText className="h-[0.7em] w-32" />
+                <span className="flex items-center gap-1 text-small text-muted-foreground">
+                  <SkeletonText className="w-5" /> <span>catatan belum lunas</span>
+                </span>
+              </>
+            }
+          >
+            {({ debt }) => (
+              <>
+                <span
+                  className={cn(
+                    "text-normal font-semibold tabular-nums",
+                    debt.total !== 0 && "text-destructive",
+                  )}
+                >
+                  {formatMoney(debt.total)}
+                </span>
+                <Show
+                  when={debt.total !== 0}
+                  fallback={
+                    <span className="text-small text-muted-foreground">Tidak ada utang</span>
+                  }
+                >
+                  <span className="flex items-center gap-1 text-small text-muted-foreground">
+                    <span className="tabular-nums">{debt.count}</span>{" "}
+                    <span>catatan belum lunas</span>
+                  </span>
+                </Show>
+              </>
+            )}
+          </pageData.Gate>
+        }
+      >
+        {(error) => <RegionError title="Gagal memuat utang" error={error} />}
+      </Show>
     </CardFrame>
   );
 }
@@ -138,6 +219,23 @@ function delta(current: number, previous: number): Delta | null {
   const change = Math.round(((current - previous) / previous) * 100);
   if (change === 0) return { text: "0%", up: true };
   return { text: `${change > 0 ? "+" : ""}${change}%`, up: change > 0 };
+}
+
+/** The comparison chip. Its direction is data, so the arrow is never pinned. */
+function Change({ text, up }: Delta) {
+  return (
+    <span
+      aria-label={`${up ? "naik" : "turun"} ${text.replace("+", "")} dari kemarin`}
+      className="flex items-center gap-1 tabular-nums"
+    >
+      {up ? (
+        <TrendingUp aria-hidden="true" className="size-4" />
+      ) : (
+        <TrendingDown aria-hidden="true" className="size-4" />
+      )}
+      {text}
+    </span>
+  );
 }
 
 const SURFACE = "flex flex-col gap-2 rounded-xl border bg-card p-4";
@@ -177,7 +275,7 @@ function CardFrame({
 
   if (to === undefined) {
     return (
-      <div className={SURFACE} aria-busy={busy === true ? true : undefined}>
+      <div className={SURFACE} aria-busy={busy || undefined}>
         {body}
       </div>
     );
@@ -186,7 +284,7 @@ function CardFrame({
   return (
     <Link
       to={to}
-      aria-busy={busy === true ? true : undefined}
+      aria-busy={busy || undefined}
       className={cn(
         SURFACE,
         "transition-colors hover:border-active/50 focus-visible:ring-2 focus-visible:ring-active focus-visible:outline-none",
@@ -194,79 +292,5 @@ function CardFrame({
     >
       {body}
     </Link>
-  );
-}
-
-/**
- * `Rp` is part of the app's money format, not of the value, so it stays on
- * screen; only the number pulses (at the width a rupiah amount takes here).
- */
-function Amount({ value, tone }: { value: number | null; tone?: string }) {
-  return (
-    <span className={cn("text-normal font-semibold tabular-nums", tone)}>
-      Rp{" "}
-      {value === null ? (
-        <SkeletonText className="h-[0.7em] w-32" />
-      ) : (
-        value.toLocaleString("id-ID")
-      )}
-    </span>
-  );
-}
-
-/**
- * The third line: the count and its noun, then the day-over-day comparison.
- * `undefined` means "not answered yet" and holds both the glyph's slot and the
- * percentage's; `null` means "answered, there is no comparison to draw".
- */
-function Hint({
-  count,
-  unit,
-  delta,
-  empty,
-}: {
-  count: number | null;
-  unit: string;
-  delta?: Delta | null;
-  /** Replaces the count line's wording when there is nothing to count. */
-  empty?: string;
-}) {
-  return (
-    <span className="flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
-      {empty === undefined ? (
-        <span className="flex items-center gap-1">
-          {count === null ? (
-            <SkeletonText className="w-5" />
-          ) : (
-            <span className="tabular-nums">{count}</span>
-          )}
-          {/* Whitespace is not a flex item, so this changes nothing on screen;
-              it is here so the line copies as "128 transaksi". */}
-          {" "}
-          <span>{unit}</span>
-        </span>
-      ) : (
-        <span>{empty}</span>
-      )}
-
-      {delta === undefined ? (
-        <span className="flex items-center gap-1">
-          <SkeletonText className="size-4 rounded-full" />
-          <SkeletonText className="w-9" />
-        </span>
-      ) : delta === null ? null : (
-        <span
-          aria-label={`${delta.up ? "naik" : "turun"} ${delta.text.replace("+", "")} dari kemarin`}
-          className="flex items-center gap-1 tabular-nums"
-        >
-          {delta.up ? (
-            <TrendingUp aria-hidden="true" className="size-4" />
-          ) : (
-            <TrendingDown aria-hidden="true" className="size-4" />
-          )}
-          {delta.text}
-        </span>
-      )}
-    </span>
   );
 }

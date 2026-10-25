@@ -8,14 +8,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { PAGE_SIZES, type ListStatePatch } from "./use-list-state";
+import { pageData } from "./data";
+import { filterProducts } from "./use-filtered";
+import { PAGE_SIZES, type ListState, type ListStatePatch } from "./use-list-state";
 
 /**
- * The foot of the list. The page-size select and the arrows are static; the range
- * and the page count are data, so they pulse — the bar itself never moves and the
- * select is usable before the first page arrives.
+ * The foot of the list. It reads the catalog itself — the count is the only data
+ * here — and holds its bar while that read is in flight, so the pagination
+ * controls are where they will be before the first page arrives.
  */
 export function ListFooter({
+  state,
+  set,
+}: {
+  state: ListState;
+  set: (patch: ListStatePatch) => void;
+}) {
+  return (
+    <pageData.Gate
+      keys={["products"]}
+      // The bar's controls are already on screen from the frame; only its numbers
+      // wait, so there is nothing to hold back.
+      delay={0}
+      pulse={<FooterBar total={null} page={1} size={state.size} set={set} />}
+      error={null}
+    >
+      {({ products }) => {
+        const total = filterProducts(products, state).length;
+        const totalPage = Math.max(1, Math.ceil(total / state.size));
+        return (
+          <FooterBar
+            total={total}
+            page={Math.min(state.page, totalPage)}
+            size={state.size}
+            set={set}
+          />
+        );
+      }}
+    </pageData.Gate>
+  );
+}
+
+/**
+ * The bar itself. `total: null` is "not answered yet": the range and the page
+ * count pulse, the select and the arrows stay put and disabled.
+ */
+function FooterBar({
   page,
   size,
   total,
@@ -23,7 +61,6 @@ export function ListFooter({
 }: {
   page: number;
   size: number;
-  /** `null` while the catalog is loading. */
   total: number | null;
   set: (patch: ListStatePatch) => void;
 }) {

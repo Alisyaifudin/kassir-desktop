@@ -24,4 +24,13 @@ export type PosData = {
 export const pageData = createPageData<
   PosData,
   TransactionError | MethodError | CustomerError | ExtraError
->("PosPage");
+>("PosPage", {
+  /**
+   * All four reads are live streams, so a seeded value is always painted as
+   * `refetching` — "this is last visit's answer, the subscription is confirming
+   * it right now". That flag is what makes caching `drafts` safe: the screen
+   * *writes* from that list ("no open cart yet, make one"), so it waits for the
+   * confirmation instead of acting on an older visit's tabs.
+   */
+  cache: true,
+});

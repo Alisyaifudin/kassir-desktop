@@ -1,4 +1,3 @@
-import { Gate } from "~/components/page-data";
 import type { RecordFull } from "~/services/record";
 import { pageData } from "../data";
 import { InlineError } from "../z-Error";
@@ -11,15 +10,13 @@ import { LoadingReceipt } from "./z-Loading";
  * sheet is drawn — and they are two keys, so the gate waits for the last one.
  */
 export function Receipt({ record }: { record: RecordFull }) {
-  const res = pageData.useAll("info", "socials");
-
   return (
-    <Gate
-      res={res}
-      skeleton={<LoadingReceipt />}
+    <pageData.Gate
+      keys={["info", "socials"]}
+      pulse={<LoadingReceipt />}
       error={(error) => <InlineError error={error} />}
     >
-      {({ data }) => <Body record={record} info={data.info} socials={data.socials} />}
-    </Gate>
+      {({ info, socials }) => <Body record={record} info={info} socials={socials} />}
+    </pageData.Gate>
   );
 }

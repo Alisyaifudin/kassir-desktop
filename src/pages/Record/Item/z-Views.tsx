@@ -1,11 +1,7 @@
 import { cn } from "~/lib/utils";
+import { pageData } from "./data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Gate } from "~/components/page-data";
 import { NotFound } from "~/components/NotFound";
-import type { Result } from "~/components/Loader";
-import type { RecordFull, RecordError } from "~/services/record";
-import type { InfoError } from "~/services/info";
-import type { SocialError } from "~/services/social";
 import { Detail } from "./z-Detail";
 import { Receipt } from "./z-Receipt";
 import { ItemErrorFallback } from "./z-Error";
@@ -18,13 +14,7 @@ import { useTab } from "./use-tab";
  * The strip is static — two labels from the route — so it is clickable while the
  * record loads. Only the faces wait, and both read the same key.
  */
-export function Views({
-  res,
-  busy,
-}: {
-  res: Result<RecordFull | null, RecordError | InfoError | SocialError>;
-  busy: boolean;
-}) {
+export function Views({ busy }: { busy: boolean }) {
   const [tab, setTab] = useTab();
   // Both faces fade together while the record re-reads, so the stale one is not
   // the one you act on.
@@ -55,25 +45,25 @@ export function Views({
         value="detail"
         className={cn("flex-1 min-h-0 overflow-hidden transition-opacity", stale)}
       >
-        <Gate
-          res={res}
-          skeleton={<Loading />}
+        <pageData.Gate
+          keys={["record"]}
+          pulse={<Loading />}
           error={(error) => <ItemErrorFallback error={error} />}
         >
-          {({ data }) => (data === null ? <NotFound /> : <Detail record={data} />)}
-        </Gate>
+          {({ record }) => (record === null ? <NotFound /> : <Detail record={record} />)}
+        </pageData.Gate>
       </TabsContent>
       <TabsContent
         value="receipt"
         className={cn("flex-1 min-h-0 overflow-y-auto transition-opacity", stale)}
       >
-        <Gate
-          res={res}
-          skeleton={<Loading />}
+        <pageData.Gate
+          keys={["record"]}
+          pulse={<Loading />}
           error={(error) => <ItemErrorFallback error={error} />}
         >
-          {({ data }) => (data === null ? <NotFound /> : <Receipt record={data} />)}
-        </Gate>
+          {({ record }) => (record === null ? <NotFound /> : <Receipt record={record} />)}
+        </pageData.Gate>
       </TabsContent>
     </Tabs>
   );

@@ -22,6 +22,7 @@ export type DemoBeat = { beat: number; at: number };
 export const LATENCY = {
   profile: 400,
   broken: 800,
+  flaky: 500,
   stats: 1300,
   feed: 2600,
   mutation: 700,
@@ -88,6 +89,32 @@ export const addActivity = (text: string): Effect.Effect<DemoActivity, DemoError
   });
 
 /**
+ * Succeeds once, then fails on every refresh — the case `useStatus`'s `stale`
+ * exists for: there is a value on screen and the attempt to renew it lost.
+ */
+let flakyRuns = 0;
+
+export const flaky: Effect.Effect<string, DemoError> = Effect.gen(function* () {
+  flakyRuns += 1;
+  const run = flakyRuns;
+  yield* sleep(LATENCY.flaky);
+  if (run > 1) {
+    return yield* Effect.fail(
+      new DemoError({ message: "Penyegaran gagal — nilai lama tetap ditampilkan." }),
+    );
+  }
+  return "Nilai pertama (berhasil dimuat)";
+});
+
+/**
+ * A write that changes nothing except asking `flaky` to read again — which then
+ * refuses. The `useMutation` demo for `stale`: the write succeeds, the refetch
+ * that follows it does not.
+ */
+export const touchFlaky = (): Effect.Effect<{ touched: true }, DemoError> =>
+  Effect.zipRight(sleep(LATENCY.mutation), Effect.succeed({ touched: true as const }));
+
+/**
  * Every key is one source. None of them waits for another: the provider
  * subscribes to all of them in parallel, so the whole page settles in ~2.6 s (the
  * slowest key) instead of the sum of the latencies.
@@ -110,6 +137,9 @@ export const devSources = {
 
   /** Delivered late, so a widget that needs it is the last one to appear. */
   feed: Stream.fromEffect(once(LATENCY.feed, feed)),
+
+  /** Fails on every refresh after the first answer, to show `stale`. */
+  flaky,
 
   /** Always fails, to show that a failure stays inside its own widget. */
   broken: Effect.zipRight(

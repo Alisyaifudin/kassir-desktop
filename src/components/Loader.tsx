@@ -7,6 +7,12 @@ type Data<T, E> =
       data: T;
       /** A `keepPrevious` query re-running: `data` is the previous answer. */
       refetching?: boolean;
+      /**
+       * The last attempt to refresh this value failed, so `data` is from an
+       * earlier read. Without it, "kept the old value" and "nothing has ever
+       * gone wrong" are the same result — see `pageData.useStatus`.
+       */
+      failure?: E;
     }
   | {
       type: "error";

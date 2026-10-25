@@ -1,6 +1,5 @@
 import { CashierCheckbox, CashierSkeleton } from "./z-CashierCheckbox";
 import { Info, InfoSkeleton } from "./z-Info";
-import { Gate } from "~/components/page-data";
 import { ReservedSkeleton } from "~/components/page-data";
 import { TextError } from "~/components/TextError";
 import { service } from "~/services";
@@ -31,15 +30,13 @@ export default function Page() {
  * when the shop's identity arrives.
  */
 function Form() {
-  const res = pageData.use("info");
-
   return (
-    <Gate
-      res={res}
+    <pageData.Gate
+      keys={["info"]}
       // `delay={0}` + `ReservedSkeleton`: the form's shape is reserved from the
       // first frame (no shift) but not drawn for 200 ms (no flash).
       delay={0}
-      skeleton={
+      pulse={
         <ReservedSkeleton className="flex flex-col gap-4">
           <InfoSkeleton />
           <CashierSkeleton />
@@ -47,12 +44,12 @@ function Form() {
       }
       error={(error) => <TextError>{error.message}</TextError>}
     >
-      {({ data }) => (
+      {({ info }) => (
         <>
-          <Info info={data} />
-          <CashierCheckbox showCashier={data.showCashier} />
+          <Info info={info} />
+          <CashierCheckbox showCashier={info.showCashier} />
         </>
       )}
-    </Gate>
+    </pageData.Gate>
   );
 }
