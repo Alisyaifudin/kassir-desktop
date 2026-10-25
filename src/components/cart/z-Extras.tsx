@@ -124,13 +124,14 @@ export function Extras({
   onActivate?: () => void;
 }) {
   const layout = mode === "sale" ? SALE_EXTRA_LAYOUT : PURCHASE_EXTRA_LAYOUT;
-  // What the field shows, and the value the preset list filters on. `input`
-  // drives `hidden` so the results pane appears on the first character, while
-  // the filter itself waits for the pause (see `SEARCH_DELAY`): narrowing the
-  // list between keys painted a half-word's answer and rebuilt it per keystroke.
+  // What the field shows, and the value the preset list filters on. The filter
+  // waits for the pause (see `SEARCH_DELAY`): narrowing the list between keys
+  // painted a half-word's answer and rebuilt it per keystroke.
   const [input, setInput] = useState("");
   const [query, flushQuery] = useDebounce(input, SEARCH_DELAY);
-  const pending = input.trim() !== query.trim();
+  // `typedText`, not `typed`: the key handlers declare their own `typed` for the
+  // digit a keystroke stands for, and a shadowed name here would compare that.
+  const typedText = input.trim();
   const [selection, setSelection] = useState<ExtraSelection>({ row: HEADER, col: NAME_COLUMN });
   const [editing, setEditing] = useState(false);
   // The digit that opened the editor, if a keystroke did (see `typedDigit`).
@@ -148,10 +149,24 @@ export function Extras({
   const seenFocusLast = useRef(focusLast);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  // While the search bar has text the rows make way for the future results.
-  const hidden = input.trim() !== "";
+  // The pane only takes over once the list has been narrowed to the text on
+  // screen — typing must not blank the rows for a list that is still the previous
+  // query's. Once it is up it stays up while there is text, so a longer query
+  // does not flash the rows back between keystrokes.
+  const settled = typedText !== "" && typedText === query.trim();
+  const [pane, setPane] = useState(false);
+  useEffect(() => {
+    if (typedText === "") setPane(false);
+    else if (settled) setPane(true);
+  }, [typedText, settled]);
+  // An empty bar is never covered — not even for the render before the effect
+  // above notices, which is the render a pick returns the bar in.
+  const shown = typedText !== "" && pane;
+  // ArrowDown empties the bar into the list before the list exists; the focus
+  // lands the moment it is painted.
+  const wantListFocus = useRef(false);
   const ids = useMemo(() => extras.map((extra) => extra.id), [extras]);
-  const rows = useMemo(() => extraRowsFor(hidden ? [] : ids, layout), [hidden, ids, layout]);
+  const rows = useMemo(() => extraRowsFor(shown ? [] : ids, layout), [shown, ids, layout]);
   // The extras are a stack: a percent applies to the running total, so a
   // reorder changes every percent that follows it.
   const effects = useMemo(() => recalcExtras(extras, subtotal), [extras, subtotal]);
@@ -172,13 +187,22 @@ export function Extras({
         ? "cell-subtotal-subtotal"
         : `extra-${selection.row.extraId}-${active.field}`;
 
-  // A row that was deleted or hidden must not keep the selection.
+  // A row that was deleted or covered by the results must not keep the selection.
   useEffect(() => {
-    if (hidden && selection.row.kind === "extra") {
+    if (shown && selection.row.kind === "extra") {
       setSelection({ row: HEADER, col: NAME_COLUMN });
       setEditing(false);
     }
-  }, [hidden, selection.row]);
+  }, [shown, selection.row]);
+
+  // A deferred ArrowDown focus: the list is painted, so take the keys into it.
+  useEffect(() => {
+    if (!shown || !wantListFocus.current) return;
+    const list = resultsRef.current;
+    if (list === null) return;
+    wantListFocus.current = false;
+    list.focus();
+  }, [shown, results]);
 
   // Focus follows the selection; the editing input owns focus itself. Only the
   // panel that owns the selection may take focus.
@@ -385,11 +409,14 @@ export function Extras({
         return;
       case "ArrowDown":
         event.preventDefault();
-        if (isSearch && hidden) {
+        if (isSearch && typedText !== "") {
           // Land on this query's list, not on the one the last pause left on
-          // screen: Enter in the list picks what the list highlights.
+          // screen: Enter in the list picks what the list highlights. The list is
+          // painted once the flush has filtered it, which is the same tick here —
+          // so the focus is taken then.
           flushQuery.flush();
-          resultsRef.current?.focus();
+          if (resultsRef.current !== null) resultsRef.current.focus();
+          else wantListFocus.current = true;
           return;
         }
         if (!moveVertical(1)) onExitDown?.();
@@ -409,7 +436,7 @@ export function Extras({
           // Enter in the grid only adds the first preset when the list itself is
           // not focused; focused-list Enter is handled (and consumed) by
           // ExtraSearch, which knows which preset is highlighted.
-          if (hidden && !resultsRef.current?.contains(document.activeElement)) {
+          if (typedText !== "" && !resultsRef.current?.contains(document.activeElement)) {
             // Enter before the pause: match once, now, instead of picking from
             // the list the previous query left on screen.
             const first = matchPresets(presets, input)[0];
@@ -542,10 +569,9 @@ export function Extras({
         ) : null}
       </div>
 
-      {hidden ? (
+      {shown ? (
         <ExtraSearch
           presets={results}
-          pending={pending}
           containerRef={resultsRef}
           onPick={addPreset}
           onExit={() => searchRef.current?.focus()}

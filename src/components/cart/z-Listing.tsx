@@ -194,15 +194,61 @@ export function Listing({
   const seenFocusLast = useRef(focusLast);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  // While the search bar has text the cards make way for the future results.
-  // The results pane appears as soon as a character is typed; only the query
-  // itself waits for the pause.
-  const hidden = input.trim() !== "";
+  // `typedText`, not `typed`: the key handlers declare their own `typed` for the
+  // digit a keystroke stands for, and a shadowed name here would compare that.
+  const typedText = input.trim();
   const ids = useMemo(() => lines.map((line) => line.id), [lines]);
-  const rows = useMemo(() => rowsFor(hidden ? [] : ids), [hidden, ids]);
   const results = useQuery(() => Stream.fromEffect(service.listing.get.search(query)), [query], {
     keepPrevious: true,
   });
+  // Which text the answers in `results` belong to. `useQuery` hands back a new
+  // array per answer, so one that survived a render still belongs to the query of
+  // the render that replaced it — tracked by identity rather than by reading
+  // `refetching`, which an effect sets one frame later: that frame is exactly the
+  // one a scan's Enter lands on (see `armed`), and a stale answer would count as
+  // settled for it.
+  const answeredData = useRef<unknown>(null);
+  const answeredFor = useRef<string | null>(null);
+  // A failure is an answer too: the pane has to open for it, or a broken search
+  // would leave the grid untouched and the operator with no sign anything ran.
+  const answer: unknown =
+    results.type === "success"
+      ? results.data
+      : results.type === "error"
+        ? results.error
+        : undefined;
+  if (answer !== undefined && answeredData.current !== answer) {
+    answeredData.current = answer;
+    answeredFor.current = query;
+  }
+  const settled = typedText !== "" && (answeredFor.current ?? "").trim() === typedText;
+  // The pane only takes over once there is something to show in its place: the
+  // pause is over and the search for the text on screen has answered. Until then
+  // the cards stay — typing must not blank the grid for a list that does not
+  // exist yet — and once it is up it stays up while there is text, so narrowing a
+  // query does not flash the grid back between keystrokes.
+  const [pane, setPane] = useState(false);
+  // ArrowDown emptied the bar into the list before the list existed; the focus
+  // lands the moment it is painted.
+  const wantListFocus = useRef(false);
+  useEffect(() => {
+    if (typedText === "") {
+      setPane(false);
+      // A clear bar cancels a pending trip into the list as well.
+      wantListFocus.current = false;
+    } else if (settled) setPane(true);
+  }, [typedText, settled]);
+  // An empty bar is never covered — not even for the render before the effect
+  // above notices, which is the render a pick returns the bar in.
+  const shown = typedText !== "" && pane;
+  useEffect(() => {
+    if (!shown || !wantListFocus.current) return;
+    const list = resultsRef.current;
+    if (list === null) return;
+    wantListFocus.current = false;
+    list.focus();
+  }, [shown, results]);
+  const rows = useMemo(() => rowsFor(shown ? [] : ids), [shown, ids]);
 
   const active = cellAt(selection.row, selection.col, layout);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -211,13 +257,14 @@ export function Listing({
       ? `cell-header-${active.field}`
       : `cell-${selection.row.cardId}-${active.field}`;
 
-  // A card that was deleted or hidden must not keep the selection.
+  // A card that was deleted or is covered by the results must not keep the
+  // selection.
   useEffect(() => {
-    if (hidden && selection.row.kind === "card") {
+    if (shown && selection.row.kind === "card") {
       setSelection({ row: HEADER, col: NAME_COLUMN });
       setEditing(false);
     }
-  }, [hidden, selection.row]);
+  }, [shown, selection.row]);
 
   // Focus follows the selection; the editing input owns focus itself. Only the
   // panel that owns the selection may take focus.
@@ -555,21 +602,9 @@ export function Listing({
   }
 
   // The armed pick: the results for the text are in, so take the best one.
-  //
-  // "Are in" cannot be read off `refetching`: a kept value from the previous
-  // query is on screen for one render before `useQuery` gets to mark it stale,
-  // which is exactly the render Enter lands on. The rows are therefore tracked
-  // by identity — every emission is a fresh array — and the text they answer for
-  // is recorded with them.
-  const answeredData = useRef<unknown>(null);
-  const answeredFor = useRef<string | null>(null);
   useEffect(() => {
-    if (results.type !== "success") return;
-    if (answeredData.current !== results.data) {
-      answeredData.current = results.data;
-      answeredFor.current = query;
-    }
     if (armed === null || answeredFor.current !== armed) return;
+    if (results.type !== "success") return;
     setArmed(null);
     const pick = bestResult(results.data, armed);
     if (pick !== undefined) addListing(pick);
@@ -577,6 +612,20 @@ export function Listing({
     // `lines`/`input` from this render, which is what the pick wants.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [armed, query, results]);
+
+  // A scan ends on an exact code, and a code needs no list: take it and hand the
+  // bar back empty. This is what keeps the cards on screen through a scan — the
+  // pause would otherwise open the pane for results the operator never reads, and
+  // the grid would step aside for one word of a barcode.
+  useEffect(() => {
+    if (!settled || armed !== null || results.type !== "success") return;
+    const code = typedText.toLowerCase();
+    const hit = results.data.find((listing) => (listing.code ?? "").toLowerCase() === code);
+    if (hit === undefined) return;
+    addListing(hit);
+    // `addListing` reads the `lines` of this render, which is the fresh list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settled, armed, typedText, results]);
 
   function removeCard(cardId: string) {
     const index = lines.findIndex((line) => line.id === cardId);
@@ -692,8 +741,12 @@ export function Listing({
         return;
       case "ArrowDown":
         event.preventDefault();
-        if (isSearch && hidden) {
-          resultsRef.current?.focus();
+        if (isSearch && typedText !== "") {
+          // Land the pause now, then take the list as soon as it is painted: the
+          // grid behind it is not where this key was pointing.
+          pushQuery.flush();
+          if (resultsRef.current !== null) resultsRef.current.focus();
+          else wantListFocus.current = true;
           return;
         }
         if (!moveVertical(1)) onExitDown?.();
@@ -710,7 +763,9 @@ export function Listing({
         return;
       case "Enter":
         if (isSearch) {
-          if (hidden) {
+          // On the text, not on the pane: a scan's Enter arrives long before the
+          // pause is over, and `pickFirst` knows how to wait for its answer.
+          if (typedText !== "") {
             event.preventDefault();
             pickFirst();
           }
@@ -853,7 +908,7 @@ export function Listing({
         ) : null}
       </div>
 
-      {hidden ? (
+      {shown ? (
         <SearchResults
           res={results}
           containerRef={resultsRef}

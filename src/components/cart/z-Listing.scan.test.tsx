@@ -139,16 +139,19 @@ describe("goods search, scanned code", () => {
     expect(writes).toHaveLength(0);
   });
 
-  test("typing, pausing, then Enter still adds — the field's own rhythm", async () => {
+  test("a full code typed by hand needs no Enter — the pause takes it", async () => {
     const { writes, search } = renderGrid();
 
     fireEvent.change(search, { target: { value: "899456" } });
-    // The pause the debounce waits for; Enter after it must behave as before.
-    await waitFor(() => expect(searches.at(-1)).toBe("899456"));
-    fireEvent.keyDown(search, { key: "Enter" });
 
+    // The pause passes; an exact code is the whole answer, so it is the goods.
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]?.[0]?.listingId).toBe("l2");
+    await waitFor(() => expect(search.value).toBe(""));
+
+    // And the scan's own Enter, arriving late, adds no second line.
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(writes).toHaveLength(1);
   });
 
   test("the exact code wins over a name match, case-insensitively", async () => {

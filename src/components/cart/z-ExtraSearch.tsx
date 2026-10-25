@@ -10,20 +10,18 @@ import { rupiah } from "~/components/cart/util-rupiah";
  *
  * Arrows move a selection, Enter (or a click) adds the preset, and Up from the
  * top row returns to the search field.
+ *
+ * It is only rendered once the query has been filtered, so there is no
+ * "still searching" state to draw: the list on screen always answers the text in
+ * the bar, or the text it was typed from a pause ago.
  */
 export function ExtraSearch({
   presets,
-  pending = false,
   containerRef,
   onPick,
   onExit,
 }: {
   presets: ExtraPreset[];
-  /**
-   * The query is still inside its debounce window: `presets` still belong to the
-   * previous one. Say so rather than showing "Tidak ada biaya." for a pause.
-   */
-  pending?: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   onPick: (preset: ExtraPreset) => void;
   onExit: () => void;
@@ -69,9 +67,7 @@ export function ExtraSearch({
       onKeyDown={handleKeyDown}
       className="min-h-0 flex-1 overflow-y-auto outline-none"
     >
-      {pending ? (
-        <p className="p-4 text-muted-foreground select-none">Mencari…</p>
-      ) : presets.length === 0 ? (
+      {presets.length === 0 ? (
         <p className="p-4 text-muted-foreground select-none">Tidak ada biaya.</p>
       ) : (
         <div className="divide-y divide-border">

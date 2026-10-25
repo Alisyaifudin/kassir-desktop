@@ -174,3 +174,64 @@ describe("Tambahan dual checkbox", () => {
     expect(screen.getByRole("checkbox").getAttribute("data-state")).toBe("checked");
   });
 });
+
+/**
+ * When the preset list may cover the rows.
+ *
+ * The filter waits for the pause (`SEARCH_DELAY`), so making the rows give way on
+ * the first character left a hole where the charges were. The rows stay until the
+ * filter has run for the text on screen, and then the pane keeps the floor while
+ * there is text — a longer query must not flash the rows back.
+ */
+describe("Tambahan search timing", () => {
+  /** Past the debounce, with room for the filter and the pane to paint. */
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 400));
+  const rows = () =>
+    [...document.querySelectorAll('[role="gridcell"]')].filter((cell) =>
+      (cell.id ?? "").startsWith("extra-"),
+    );
+
+  /** A grid with one blank row, so the rows have something to keep on screen. */
+  function renderWithRow() {
+    const { writes, search } = renderGrid();
+    fireEvent.click(screen.getByRole("button", { name: /Manual/ }));
+    expect(rows().length).toBeGreaterThan(0);
+    return { writes, search };
+  }
+
+  test("the rows stay while the query is still inside its pause", async () => {
+    const { search } = renderWithRow();
+
+    fireEvent.change(search, { target: { value: "o" } });
+
+    // Nothing has been filtered yet: the rows are what there is to show.
+    expect(rows().length).toBeGreaterThan(0);
+    expect(screen.queryByText("Ongkos Kirim")).toBeNull();
+
+    await pause();
+    expect(rows()).toHaveLength(0);
+    expect(screen.queryByText("Ongkos Kirim")).not.toBeNull();
+  });
+
+  test("a longer query does not flash the rows back", async () => {
+    const { search } = renderWithRow();
+
+    fireEvent.change(search, { target: { value: "o" } });
+    await pause();
+    expect(screen.queryByText("Ongkos Kirim")).not.toBeNull();
+
+    fireEvent.change(search, { target: { value: "ong" } });
+    expect(rows()).toHaveLength(0);
+  });
+
+  test("clearing the bar brings the rows straight back", async () => {
+    const { search } = renderWithRow();
+
+    fireEvent.change(search, { target: { value: "o" } });
+    await pause();
+    expect(rows()).toHaveLength(0);
+
+    fireEvent.change(search, { target: { value: "" } });
+    expect(rows().length).toBeGreaterThan(0);
+  });
+});
