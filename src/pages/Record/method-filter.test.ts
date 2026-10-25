@@ -201,9 +201,13 @@ describe("URL round-trip", () => {
  */
 const paid = (
   payments: [methodId: string, kind: string, pay: number, name: string | null][],
+  extra: Partial<RecordModel> = {},
 ): RecordModel =>
   ({
+    fix: 0,
+    change: 0,
     methods: payments.map(([methodId, kind, pay, name]) => ({ methodId, kind, pay, name })),
+    ...extra,
   }) as unknown as RecordModel;
 
 const cashAndMandiri = paid([
@@ -214,15 +218,15 @@ const cashAndMandiri = paid([
 describe("payment lines for the Total column", () => {
   test("an empty filter keeps every payment, in the order it was paid", () => {
     expect(recordPaymentLines(cashAndMandiri, EMPTY_SELECTION)).toEqual([
-      { key: "1000", label: "Tunai", pay: 15_000 },
-      { key: "1005", label: "QRIS Mandiri", pay: 5_000 },
+      { key: "1000", label: "Tunai", kind: "cash", pay: 15_000, contribution: 15_000 },
+      { key: "1005", label: "QRIS Mandiri", kind: "qris", pay: 5_000, contribution: 5_000 },
     ]);
   });
 
   test("a filter that keeps one payment leaves one line — the record collapses", () => {
     const cashOnly = toggleKindSelection(EMPTY_SELECTION, groups, cash);
     expect(recordPaymentLines(cashAndMandiri, cashOnly)).toEqual([
-      { key: "1000", label: "Tunai", pay: 15_000 },
+      { key: "1000", label: "Tunai", kind: "cash", pay: 15_000, contribution: 15_000 },
     ]);
   });
 
@@ -258,8 +262,8 @@ describe("payment lines for the Total column", () => {
       ["1000", "cash", 1_000, null],
     ]);
     expect(recordPaymentLines(record, EMPTY_SELECTION)).toEqual([
-      { key: "1000", label: "Tunai", pay: 5_000 },
-      { key: "1005", label: "QRIS Mandiri", pay: 5_000 },
+      { key: "1000", label: "Tunai", kind: "cash", pay: 5_000, contribution: 5_000 },
+      { key: "1005", label: "QRIS Mandiri", kind: "qris", pay: 5_000, contribution: 5_000 },
     ]);
   });
 
@@ -270,5 +274,60 @@ describe("payment lines for the Total column", () => {
     expect(recordPaymentLines(paid([["gone", "cash", 1, null]]), EMPTY_SELECTION)[0]?.label).toBe(
       "Tunai",
     );
+  });
+});
+
+/**
+ * The list prints what each method *contributed*, not what it was handed: the
+ * change came back out of the drawer, so it comes off the cash line, and a split
+ * then adds up to the record's grand total without the total being printed a
+ * second time. A record that took no cash at all gives the change back on its
+ * last method; a filter that hides the tender which produced it adjusts nothing.
+ */
+describe("change comes off the tender that produced it", () => {
+  const split = paid(
+    [
+      ["1000", "cash", 15_000, null],
+      ["1005", "qris", 10_000, "BNI"],
+    ],
+    { grandTotal: 20_000, change: 5_000 },
+  );
+
+  test("cash hands the change back, and what a method took is untouched", () => {
+    const lines = recordPaymentLines(split, EMPTY_SELECTION);
+
+    expect(lines.map((line) => line.contribution)).toEqual([10_000, 10_000]);
+    // `pay` still says 15.000: the receipt and the detail pane print that.
+    expect(lines.map((line) => line.pay)).toEqual([15_000, 10_000]);
+    expect(lines.reduce((sum, line) => sum + line.contribution, 0)).toBe(split.grandTotal);
+  });
+
+  test("no cash: the last method gives the change back", () => {
+    const overTendered = paid([["1005", "qris", 25_000, "BNI"]], {
+      grandTotal: 20_000,
+      change: 5_000,
+    });
+
+    expect(
+      recordPaymentLines(overTendered, EMPTY_SELECTION).map((line) => line.contribution),
+    ).toEqual([20_000]);
+  });
+
+  test("a filter that hides the cash line takes its change with it", () => {
+    const qrisOnly = toggleKindSelection(EMPTY_SELECTION, groups, groupOf("qris"));
+
+    // QRIS paid 10.000 and is shown as 10.000: subtracting the cash line's
+    // change here would print a figure QRIS never paid.
+    expect(recordPaymentLines(split, qrisOnly).map((line) => line.contribution)).toEqual([10_000]);
+  });
+
+  test("an underpaid record — an open credit — hands nothing back", () => {
+    const credit = paid([["1000", "cash", 5_000, null]], {
+      grandTotal: 20_000,
+      pay: 5_000,
+      change: -15_000,
+    });
+
+    expect(recordPaymentLines(credit, EMPTY_SELECTION)[0]?.contribution).toBe(5_000);
   });
 });

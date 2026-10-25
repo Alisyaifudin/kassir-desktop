@@ -17,6 +17,7 @@ import {
   EMPTY_SELECTION,
   recordPaymentLines,
   type MethodSelection,
+  type PaymentLine,
 } from "../method-filter";
 
 export function List({
@@ -130,18 +131,19 @@ export function List({
           variable face — the OS build of Noto Sans has no 300. The tinted
           (selected / credit) rows keep full contrast against their background.
 
-          One row group per record. The group is what makes a split payment
-          readable: the `No` cell spans the record's own rows, and the tint —
-          hover, selected — has to reach every payment line, which needs an
-          ancestor above the rows (a row cannot reach its siblings). The rule
+          One row group per record. A split payment stacks a figure per payment
+          under `Total`, and the record's own cells (number, cashier, time) span
+          them, so the group reads as one record that happened to be paid more
+          than one way rather than as several records. The tint (hover, selected)
+          and the click target have to reach every row of the group, which needs
+          an ancestor above the rows (a row cannot reach its siblings). The rule
           belongs *between* records, so only the group's last row draws it. */}
       <ForEach items={sorted}>
         {(record, i) => {
           const lines = recordPaymentLines(record, selection);
-          // Only a record that paid with more than one visible method earns a
-          // breakdown: a single method, a filter that narrowed the record down
-          // to one, a credit with no payments yet, and two stored rows of the
-          // same method all stay the single row they always were.
+          // A record with nothing to break down — a credit with no settlement
+          // yet, or a filter that hid every payment — keeps its grand total in
+          // the single row it has always had.
           const split = lines.length > 1;
           const isSelected = selected === record.id;
           // A selected row lightens under the pointer; a credit keeps its red.
@@ -159,8 +161,8 @@ export function List({
               )}
             >
               <TableRow
-                // Marks the only rows the keyboard model walks: a payment line
-                // is a breakdown of the row above it, not a row of its own.
+                // Marks the only rows the keyboard model walks: a second amount
+                // belongs to the record above it, it is not a row of its own.
                 data-record=""
                 // One row is in the tab order: the selected one (or the first,
                 // before anything is picked). Up/Down/Home/End move focus inside
@@ -179,51 +181,73 @@ export function List({
                   { "bg-red-300 text-foreground": record.isCredit },
                 )}
               >
-                {/* Vertically centred over the record's rows: the number
-                    labels the group, not its first line. */}
-                <TableCell rowSpan={split ? lines.length + 1 : undefined} className="align-middle">
+                {/* Vertically centred over the record's rows: the number labels
+                    the group, not its first payment. The cashier and the time
+                    span them for the same reason — they say whose record it is
+                    and when, once, however many ways it was paid. */}
+                <TableCell rowSpan={split ? lines.length : undefined} className="align-middle">
                   {i + 1}
                 </TableCell>
-                <TableCell className="text-center">{capitalize(record.cashier)}</TableCell>
-                <TableCell className="text-center">{formatTime(record.date)}</TableCell>
+                <TableCell
+                  rowSpan={split ? lines.length : undefined}
+                  className="text-center align-middle"
+                >
+                  {capitalize(record.cashier)}
+                </TableCell>
+                <TableCell
+                  rowSpan={split ? lines.length : undefined}
+                  className="text-center align-middle"
+                >
+                  {formatTime(record.date)}
+                </TableCell>
                 <TableCell className="text-right">
-                  {record.grandTotal.toLocaleString("id-ID")}
+                  <Amount line={lines[0]} fallback={record.grandTotal} />
                 </TableCell>
               </TableRow>
-              {split
-                ? lines.map((line) => (
-                    // The label takes the two columns it has room for (Kasir +
-                    // Waktu) and the figure stays in the Total column, so the
-                    // money still lines up down the page. Italic, same size:
-                    // the line reads as a note under the record, not a record.
-                    //
-                    // The whole group is the click target: a pointer landing on
-                    // a payment line still opens that record's detail, and the
-                    // tint above already says the lines belong together. The
-                    // line stays out of the tab order — keyboard selection is
-                    // the record row's job.
-                    <TableRow
-                      key={line.key}
-                      onClick={() => setSelected(record.id)}
-                      className={cn("cursor-pointer hover:bg-transparent italic", hoverTint, {
-                        "bg-sky-200 text-foreground": isSelected,
-                        "bg-red-300 text-foreground": record.isCredit,
-                      })}
-                    >
-                      <TableCell colSpan={2} className="pr-2 text-right">
-                        {line.label}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {line.pay.toLocaleString("id-ID")}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                : null}
+              {lines.slice(1).map((line) => (
+                // The record's first three cells are the `rowSpan` above, so this
+                // cell lands under `Total` on its own. The amount prints no
+                // method name — that is the point of the column — but a screen
+                // reader still hears which one it is (`Amount`), and a pointer
+                // here still opens the record the amount belongs to.
+                <TableRow
+                  key={line.key}
+                  onClick={() => setSelected(record.id)}
+                  className={cn("cursor-pointer hover:bg-transparent", hoverTint, {
+                    "bg-sky-200 text-foreground": isSelected,
+                    "bg-red-300 text-foreground": record.isCredit,
+                  })}
+                >
+                  <TableCell className="text-right">
+                    <Amount line={line} />
+                  </TableCell>
+                </TableRow>
+              ))}
             </tbody>
           );
         }}
       </ForEach>
     </Table>
+  );
+}
+
+/**
+ * One figure in the `Total` column. `line` is a payment's contribution; without
+ * one (a credit with nothing settled yet, a filter that hid every payment) the
+ * record's grand total stands in, which is what the row showed before the column
+ * learned to break a split down.
+ *
+ * The method is named for assistive tech only: the column is money, one figure
+ * per payment, but a bare number is exactly what a screen reader cannot attach to
+ * the row it belongs to.
+ */
+function Amount({ line, fallback }: { line?: PaymentLine; fallback?: number }) {
+  const value = line?.contribution ?? fallback ?? 0;
+  return (
+    <>
+      {line === undefined ? null : <span className="sr-only">{line.label} </span>}
+      {value.toLocaleString("id-ID")}
+    </>
   );
 }
 

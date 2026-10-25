@@ -1,6 +1,7 @@
 import { METHOD_NAMES, METHODS, type MethodKind } from "~/lib/constants";
 import type { Method } from "~/services/method";
 import type { Record as RecordModel, RecordMethod } from "~/services/record";
+import { roundToFix } from "~/services/record/round";
 
 /** The base method has no name; every named method under a kind is a variant. */
 export function isBaseMethod(method: Method): boolean {
@@ -192,14 +193,23 @@ export function matchesMethod(record: RecordModel, selection: MethodSelection): 
 }
 
 /**
- * One payment line of the list's `Total` column: what a method took, and how to
- * name it. `key` is the method id, unique inside a record — the id the line is
- * rendered under.
+ * One payment of the list's `Total` column: what a method took, and what it
+ * contributed. `key` is the method id, unique inside a record — the id the line
+ * is rendered under.
  */
 export type PaymentLine = {
   key: string;
   label: string;
+  /** The method's kind; it is what tells the list where the change came from. */
+  kind: MethodKind;
+  /** What the method was handed. */
   pay: number;
+  /**
+   * What the method contributed to what was due: `pay` less the change it handed
+   * back. The list prints this, so a split's figures add up to the grand total
+   * without the total being printed a second time.
+   */
+  contribution: number;
 };
 
 /**
@@ -220,10 +230,7 @@ export function methodLabel(method: Pick<RecordMethod, "kind" | "name">): string
  * Stored order is kept, so a split payment reads in the order it was paid, and a
  * filter that leaves one payment collapses the record back to a single line.
  */
-export function recordPaymentLines(
-  record: RecordModel,
-  selection: MethodSelection,
-): PaymentLine[] {
+export function recordPaymentLines(record: RecordModel, selection: MethodSelection): PaymentLine[] {
   const kinds = new Set<string>(selection.kinds);
   const methods = new Set(selection.methods);
   const unfiltered = isEmptySelection(selection);
@@ -236,12 +243,43 @@ export function recordPaymentLines(
     const merged = byMethod.get(payment.methodId);
     if (merged !== undefined) {
       merged.pay += payment.pay;
+      merged.contribution += payment.pay;
       continue;
     }
-    const line = { key: payment.methodId, label: methodLabel(payment), pay: payment.pay };
+    const line = {
+      key: payment.methodId,
+      label: methodLabel(payment),
+      kind: payment.kind,
+      pay: payment.pay,
+      contribution: payment.pay,
+    };
     byMethod.set(payment.methodId, line);
     lines.push(line);
   }
 
+  return applyChange(record, lines, unfiltered);
+}
+
+/**
+ * Change is money handed back, not a payment, so it comes off the tender that
+ * produced it: the cash line, which is where a cashier counts the coins out. A
+ * record that took no cash at all — an over-tendered transfer — gives the change
+ * back on its last method instead.
+ *
+ * A filter that hides that tender adjusts nothing: the lines left on screen are
+ * their own money, and taking a hidden row's change off them would print a
+ * figure no method ever paid.
+ */
+function applyChange(
+  record: RecordModel,
+  lines: PaymentLine[],
+  unfiltered: boolean,
+): PaymentLine[] {
+  const change = record.change ?? 0;
+  if (change <= 0 || lines.length === 0) return lines;
+  const cash = lines.find((line) => line.kind === "cash");
+  const target = cash ?? (unfiltered ? lines[lines.length - 1] : undefined);
+  if (target === undefined) return lines;
+  target.contribution = roundToFix(target.pay - change, record.fix);
   return lines;
 }

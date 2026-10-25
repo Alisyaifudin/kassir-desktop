@@ -142,61 +142,100 @@ describe("Record list sort headers", () => {
  */
 const splitPayments: RecordModel["methods"] = [
   { id: "rm1", methodId: "1000", pay: 15_000, name: null, kind: "cash" },
-  { id: "rm2", methodId: "1005", pay: 5_000, name: "Mandiri", kind: "qris" },
+  { id: "rm2", methodId: "1005", pay: 10_000, name: "BNI", kind: "qris" },
 ];
 
-const splitRecord = record({ id: "a", methods: splitPayments, grandTotal: 20_000 });
+/**
+ * Cash 15.000 and QRIS BNI 10.000 for a 20.000 sale: 5.000 came back as change,
+ * so cash *contributed* 10.000. The list prints contributions — the column is
+ * what paid for the record, one figure per payment — and hides which method each
+ * figure came from, keeping the name only for a screen reader.
+ */
+const splitRecord = record({
+  id: "a",
+  methods: splitPayments,
+  grandTotal: 20_000,
+  pay: 25_000,
+  change: 5_000,
+});
 
 describe("Record list split payments", () => {
-  test("each payment gets a line, and the number spans the group", () => {
+  test("the record spans its payments, and each payment is one figure", () => {
     renderList([splitRecord]);
     const rows = screen.getAllByRole("row");
 
-    // Header, the record, and one line per payment.
-    expect(rows).toHaveLength(4);
-    expect(rows[1]?.firstElementChild?.getAttribute("rowspan")).toBe("3");
+    // Header, then one row per payment — the record's own row is the first.
+    expect(rows).toHaveLength(3);
+    for (const cell of rows[1]!.querySelectorAll("td[rowspan]")) {
+      expect(cell.getAttribute("rowspan")).toBe("2");
+    }
+    // Number, cashier, time — all three span the group.
+    expect(rows[1]!.querySelectorAll("td[rowspan]")).toHaveLength(3);
 
-    expect(screen.getByText("Tunai")).toBeDefined();
-    expect(screen.getByText("QRIS Mandiri")).toBeDefined();
-    expect(screen.getByText("15.000")).toBeDefined();
-    expect(screen.getByText("5.000")).toBeDefined();
-    expect(screen.getByText("20.000")).toBeDefined();
+    // Cash minus the change, then what QRIS BNI put in — two figures, and the
+    // column adds up to the grand total without printing it a second time.
+    expect(screen.getAllByText("10.000")).toHaveLength(2);
+    expect(screen.queryByText("20.000")).toBeNull();
   });
 
-  test("a filter that keeps one payment collapses the record to the one line", () => {
-    renderList([splitRecord], { kinds: ["cash"], methods: [] });
+  test("the method names are hidden, but not from a screen reader", () => {
+    renderList([splitRecord]);
+
+    // `sr-only`: in the cell's text, out of the layout.
+    expect(screen.getByText("Tunai").className).toContain("sr-only");
+    expect(screen.getByText("QRIS BNI").className).toContain("sr-only");
+    expect(screen.queryByText("QRIS BNI", { selector: ":not(.sr-only)" })).toBeNull();
+  });
+
+  test("the record row keeps the grand total when nothing can be broken down", () => {
+    // A credit: no settlement yet, so no payment carries money.
+    const credit = record({
+      id: "c",
+      methods: splitPayments.map((m) => ({ ...m, pay: 0 })),
+      grandTotal: 20_000,
+      isCredit: true,
+    });
+    renderList([credit]);
     const rows = screen.getAllByRole("row");
 
     expect(rows).toHaveLength(2);
-    expect(screen.queryByText("QRIS Mandiri")).toBeNull();
-    // Filtering hides lines; the record's own total does not move.
     expect(screen.getByText("20.000")).toBeDefined();
+    expect(rows[1]?.firstElementChild?.hasAttribute("rowspan")).toBe(false);
   });
 
-  test("clicking a payment line opens the record it belongs to", () => {
+  test("a filter that keeps one payment collapses the record to one figure", () => {
+    renderList([splitRecord], { kinds: ["qris"], methods: [] });
+    const rows = screen.getAllByRole("row");
+
+    expect(rows).toHaveLength(2);
+    // The cash line — and the change that came with it — is gone.
+    expect(screen.getAllByText("10.000")).toHaveLength(1);
+    expect(rows[1]?.firstElementChild?.hasAttribute("rowspan")).toBe(false);
+  });
+
+  test("clicking a stacked figure opens the record it belongs to", () => {
     renderList([splitRecord, record({ id: "b", date: 500 })]);
     const rows = screen.getAllByRole("row");
 
-    // A pointer on the breakdown selects the record, not a line of it.
-    fireEvent.click(screen.getByText("QRIS Mandiri"));
+    // A pointer on the second figure selects the record, not a row of its own.
+    fireEvent.click(rows[2]!);
 
     expect(rows[1]?.getAttribute("aria-selected")).toBe("true");
-    expect(rows[3]?.hasAttribute("aria-selected")).toBe(false);
-    expect(rows[4]?.getAttribute("aria-selected")).toBe("false");
+    expect(rows[3]?.getAttribute("aria-selected")).toBe("false");
   });
 
-  test("the payment lines are not rows of the keyboard model", () => {
+  test("the stacked figures are not rows of the keyboard model", () => {
     // The list opens newest-first, so the split record needs the later date to
-    // sit above the other one; its payment lines then follow it.
+    // sit above the other one; its second figure then follows it.
     renderList([splitRecord, record({ id: "b", date: 500 })]);
     const rows = screen.getAllByRole("row");
 
-    // Only the two record rows are in the tab order, never their payment lines.
+    // Only the two record rows are in the tab order, never their extra figures.
     expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1);
     expect(rows[2]?.hasAttribute("tabindex")).toBe(false);
 
-    // Down walks from the first record straight to the second, over the lines.
+    // Down walks from the first record straight to the second, over the figure.
     fireEvent.keyDown(rows[1]!, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(rows[4]!);
+    expect(document.activeElement).toBe(rows[3]!);
   });
 });
