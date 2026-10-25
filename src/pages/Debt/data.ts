@@ -5,7 +5,11 @@ import type { DebtRecord, RecordError } from "~/services/record";
 
 export type DebtData = { records: DebtRecord[] };
 
-export const pageData = createPageData<DebtData, RecordError>("DebtPage");
+// Cached: the list comes back instantly and the revision replay re-reads it, so
+// settling a record on another screen still moves it out of here.
+export const pageData = createPageData<DebtData, RecordError>("DebtPage", {
+  cache: true,
+});
 
 /**
  * Unsettled credit records, newest first.

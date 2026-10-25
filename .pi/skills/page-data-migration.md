@@ -248,7 +248,20 @@ failed. It is not an error: render the value, say the word.
 - `credit ? "Kredit" : "Lunas"` is a two-way value, not a nullability — leave the
   ternary. Convert only branches that are "there is nothing here".
 
-### 9. Prove nothing was left behind
+### 9. Opt into the cache — and audit four questions
+
+Every page registry carries `cache: true` (`registry-cache.test.ts` enforces it),
+so a page is only cacheable if its sources are the right shape. Answer, in order:
+
+1. every key is a `Stream` (never a `Stream.tick`/`scan` derivation);
+2. no `Effect` key that nothing invalidates — that one goes in `cache.skip`;
+3. no screen *writes* from a seeded key without waiting for `refetching` to clear;
+4. `deps` names every input that changes the question (day, range, query, role).
+
+If (1) or (2) cannot be met, the page stays uncached and the registry test needs
+the exception written down next to it.
+
+### 10. Prove nothing was left behind
 
 ```bash
 grep -n "? null\|=== null ||\|number | null\|undefined : undefined" src/pages/That/Page.tsx

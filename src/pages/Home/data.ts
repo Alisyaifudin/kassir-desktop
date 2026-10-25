@@ -27,4 +27,9 @@ export type HomeData = {
 /** Everything a Home key can fail with: the record reads and the pocket read. */
 export type HomeError = RecordError | MoneyError;
 
-export const pageData = createPageData<HomeData, HomeError>("HomePage");
+// Cached, and safe because every key is revision- or service-driven: the seed is
+// last visit's answer for *this* day and role (`deps`), and the replayed counter
+// confirms it. `Home` is the page a return to Beranda should never flash.
+export const pageData = createPageData<HomeData, HomeError>("HomePage", {
+  cache: true,
+});

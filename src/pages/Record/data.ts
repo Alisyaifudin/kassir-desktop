@@ -13,7 +13,11 @@ import type { Record as RecordModel, RecordError } from "~/services/record";
  */
 export type RecordsData = { records: RecordModel[] };
 
-export const pageData = createPageData<RecordsData, RecordError>("RecordsPage");
+// Cached per day and query (`deps`): the day list comes back instantly, and the
+// revision replay re-reads it so an edit elsewhere still lands.
+export const pageData = createPageData<RecordsData, RecordError>("RecordsPage", {
+  cache: true,
+});
 
 /** Live on the record revision, so a commit re-reads the day it belongs to. */
 export function recordsSource(

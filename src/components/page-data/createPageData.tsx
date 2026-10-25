@@ -86,6 +86,8 @@ export type PageDataProviderProps<TMap, TError = unknown> = {
 export type PageDataApi<TMap, TError = unknown> = {
   /** Name passed to `createPageData`, used in error messages. */
   readonly name: string;
+  /** Whether this registry keeps its answers in `pageCache`. */
+  readonly cache: boolean;
   readonly Provider: (props: PageDataProviderProps<TMap, TError>) => ReactNode;
   /** One key. The component re-renders only when that key changes. */
   readonly use: <K extends keyof TMap & string>(key: K) => Result<TMap[K], TError>;
@@ -810,6 +812,7 @@ export function createPageData<TMap, TError = unknown>(
 
   return {
     name,
+    cache: cacheOn,
     Provider,
     use,
     useAll,

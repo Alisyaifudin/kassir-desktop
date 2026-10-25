@@ -17,7 +17,12 @@ export type RestockData = {
   suppliers: Supplier[];
 };
 
+// Cached: all three reads are live streams, so a seeded `drafts` is painted as
+// `refetching` and the screen's `ready` waits for the confirmation before it acts
+// on the list (see `page.tsx`).
 export const pageData = createPageData<
   RestockData,
   TransactionError | MethodError | SupplierError
->("RestockPage");
+>("RestockPage", {
+  cache: true,
+});

@@ -18,7 +18,11 @@ export type PocketHistoryData = {
   entries: MoneyRow[];
 };
 
-export const pageData = createPageData<PocketHistoryData, MoneyError>("PocketHistoryPage");
+// Cached per pocket *and* range (`deps`), so going back to a filter you already
+// looked at paints it and the revision counter confirms it.
+export const pageData = createPageData<PocketHistoryData, MoneyError>("PocketHistoryPage", {
+  cache: true,
+});
 
 function program(pocketId: string, start: number, end: number) {
   return Effect.gen(function* () {

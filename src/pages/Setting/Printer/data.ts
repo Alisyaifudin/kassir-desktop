@@ -20,7 +20,13 @@ export type PrinterData = {
   printers: string[];
 };
 
-export const pageData = createPageData<PrinterData, PrinterError | InvokeError>("PrinterPage");
+// Cached — except `printers`. `printer` is a live stream, so a return visit
+// paints the stored width and confirms it in the same beat. `printers` is a
+// read-once `Effect` that nothing invalidates, and a cached hardware list would
+// never show a printer plugged in since the last visit: it keeps reading.
+export const pageData = createPageData<PrinterData, PrinterError | InvokeError>("PrinterPage", {
+  cache: { skip: ["printers"] },
+});
 
 /** The system's printer names, read once. */
 export const printersSource = getPrinters().pipe(Effect.map((list) => list.map((it) => it.name)));

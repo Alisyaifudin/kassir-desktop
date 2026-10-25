@@ -9,4 +9,8 @@ import type { Product, ProductError } from "~/services/product";
  */
 export type ProductData = { products: Product[] };
 
-export const pageData = createPageData<ProductData, ProductError>("ProductPage");
+// Cached: every key here is a live stream, so a return visit paints last
+// visit's answer (flagged `refetching`) and the first emission confirms it.
+export const pageData = createPageData<ProductData, ProductError>("ProductPage", {
+  cache: true,
+});

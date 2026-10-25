@@ -13,4 +13,8 @@ export type ShopData = {
   info: Info;
 };
 
-export const pageData = createPageData<ShopData, InfoError>("ShopPage");
+// Cached: every key here is a live stream, so a return visit paints last
+// visit's answer (flagged `refetching`) and the first emission confirms it.
+export const pageData = createPageData<ShopData, InfoError>("ShopPage", {
+  cache: true,
+});

@@ -479,8 +479,9 @@ not its call shape, until it migrates.)
 - [ ] No `value ?? <placeholder>` / `<Show value={x} fallback={<placeholder/>}>`
       where `null` is also data.
 - [ ] Admin-only data is not subscribed for other roles.
-- [ ] If the page opted into `cache`, its live *working state* is in `skip`,
-      **and** no key it writes from is seeded from an older visit (§14).
+- [ ] The page registry has `cache: true`, every key is a live stream, an
+      `Effect` that nothing invalidates is in `skip`, and a screen that writes from
+      a seeded key waits for the confirmation (§14).
 
 ## Pitfalls seen in review
 
@@ -633,7 +634,7 @@ Rows and tabs held for data are `aria-hidden`: they are not content, must not be
 counted as tabs/rows by a screen reader, and must not enter a grid's keyboard
 model (the cart's arrow keys are computed from real rows).
 
-## 14. Cache — `cache: true`
+## 14. Cache — `cache: true` on every page
 
 `pageCache` (`~/components/page-data/z-cache.ts`) keeps each key's last answer in
 a **module-level, memory-only** store. A return visit paints that answer on the
@@ -644,9 +645,44 @@ rule:
 > names its keys (`useMutation`), an `invalidate(tag)`, or a page's own
 > `invalidate(key)` is the only thing that makes a key re-read.
 
+**Every page registry opts in.** `src/components/page-data/registry-cache.test.ts`
+fails if one does not, so a new page cannot quietly arrive without it.
+
 ```ts
 export const pageData = createPageData<PosData, PosError>("PosPage", { cache: true });
 ```
+
+### What makes that safe here: every key is a live stream
+
+A seeded `Stream` is painted **flagged `refetching`**, and the subscription's
+first emission — the `SubscriptionRef`'s replay, or the revision counter's
+current value — replaces it in milliseconds. So the store is never the last word;
+it only spares the first paint. This is why no write path needs to remember to
+invalidate anything: the services push, and a pushed value is written back to the
+store as it arrives.
+
+That property is also the condition. **Cache only keys whose source is a live
+stream.** Before opting a page in, answer four questions:
+
+1. **Is every key a `Stream`?** A `Stream.tick`/`scan` restarts on subscribe, so a
+   cached snapshot is painted and then contradicted — never cache a derived
+   stream. (`Dev/PageData` stays off for exactly this reason: its `beat` is
+   `Stream.tick | scan`.)
+2. **Is any key an `Effect` that nothing invalidates?** Then it must be `skip`ped,
+   or it will never re-read. `Setting/Printer` caches `printer` (live) and skips
+   `printers` (the system's printer list, read once): a seeded hardware list would
+   never show a printer plugged in since the last visit.
+3. **Does any screen *write* from a seeded key?** Then its `ready` must wait for
+   the confirmation — `success && refetching !== true`, not `useStatus === "ready"`
+   (a value that outlived a failed refresh is still readable). Pos and Restock
+   both open a cart when their draft list is empty, so both wait.
+4. **Does `deps` isolate the answer?** A day, a range, a query, a role: anything
+   that changes *which* question is being asked belongs in `deps`, or a return
+   visit will paint another question's answer. `Home` carries `[dayStart, role]`,
+   `Record` `[dayStart, dayEnd, query]`, `Money/History` `[pocketId, start, end]`,
+   `Record/Search` `[start, end, mode, query, limit]`, `Record`/`Record/z-Detail`
+   their ids. This is also what makes "go back to a filter you already saw"
+   instant without ever showing another role's answer.
 
 What the provider does differently:
 

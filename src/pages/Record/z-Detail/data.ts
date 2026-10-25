@@ -11,7 +11,12 @@ import { recordSource } from "../Item/data";
  */
 export type DetailData = { record: RecordFull | null };
 
-export const pageData = createPageData<DetailData, RecordError>("RecordDetailPane");
+// Cached: the preview of the record you had selected comes back instantly, and
+// the revision replay re-reads it — including the `null` for one deleted while
+// you were away.
+export const pageData = createPageData<DetailData, RecordError>("RecordDetailPane", {
+  cache: true,
+});
 
 export function detailSources(recordId: string) {
   return { record: recordSource(recordId) };
