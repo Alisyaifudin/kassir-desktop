@@ -53,6 +53,14 @@ function seed(db: Database) {
   `);
 }
 
+// Seeded once, at module scope. It used to run in `beforeEach`, which re-inserted
+// the same primary keys before every test after the first: bun 1.3's `db.exec`
+// swallowed the constraint error and kept going, so the suite looked green
+// locally while it was really seeding once and failing four times on a stricter
+// bun. One seed, once — the tests share the DB on purpose, so the fixture only
+// has to exist, not to be applied repeatedly.
+seed(db);
+
 function line(price: number, qty = 1): DraftListing {
   return {
     id: "line-1",
@@ -131,7 +139,6 @@ beforeEach(() => {
   // Files share the `~/services` module, so point it at this file's service for
   // every test rather than only at module load.
   offerService(service);
-  seed(db);
 });
 
 describe("Beranda over the real services", () => {
