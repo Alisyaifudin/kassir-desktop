@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { Effect, Layer } from "effect";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { makeTestDatabase } from "~/services/db/test-support";
 import { makeTestLocalStorage } from "~/services/local-storage/test-support";
 import { makeTestStore } from "~/services/store/test-support";
 import { buildAppLive, makeService } from "~/services/wiring";
+import { offerService } from "./service-proxy";
 
 /**
  * Setting → Toko, integrated: the real info service, the real form and the real
@@ -18,11 +19,9 @@ const storage = makeTestLocalStorage();
 // The store is the real backend here, seeded as a previous run left it.
 const store = makeTestStore({ name: "Kassir", owner: "Toko Lama" });
 
-const service = makeService(
-  buildAppLive(Layer.mergeAll(dbLayer, store.layer, storage.layer)),
+const service = offerService(
+  makeService(buildAppLive(Layer.mergeAll(dbLayer, store.layer, storage.layer))),
 );
-
-mock.module("~/services", () => ({ service }));
 
 const Page = (await import("~/pages/Setting/Shop/page")).default;
 
@@ -33,6 +32,8 @@ beforeEach(() => {
   // The first test reads this state; the second moves it on deliberately.
   store.entries.set("name", "Kassir");
   store.entries.set("owner", "Toko Lama");
+  // Every test starts on this file's service (the pages share one module).
+  offerService(service);
 });
 
 describe("the shop form over the real services", () => {

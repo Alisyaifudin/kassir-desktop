@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { Effect, Layer } from "effect";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { makeTestDatabase } from "~/services/db/test-support";
@@ -9,6 +9,7 @@ import { buildAppLive, makeService } from "~/services/wiring";
 import { recalcDiscounts } from "~/lib/purchase";
 import { pageCache } from "~/components/page-data";
 import type { DraftListing } from "~/services/transaction";
+import { offerService } from "./service-proxy";
 
 /**
  * Beranda, integrated: the real service layers over the real migrations, the
@@ -27,12 +28,9 @@ const { db, layer: dbLayer } = makeTestDatabase();
 const store = makeTestStore();
 const storage = makeTestLocalStorage();
 
-const service = makeService(
-  buildAppLive(Layer.mergeAll(dbLayer, store.layer, storage.layer)),
+const service = offerService(
+  makeService(buildAppLive(Layer.mergeAll(dbLayer, store.layer, storage.layer))),
 );
-
-// The pages import the app-level singleton; hand them this wired instance.
-mock.module("~/services", () => ({ service }));
 
 const { daySources } = await import("~/pages/Home/day");
 const { pageData } = await import("~/pages/Home/data");
@@ -130,6 +128,9 @@ const read = (testId: string) => screen.getByTestId(testId).textContent ?? "";
 beforeEach(() => {
   // The page caches answers outside React; each test starts cold but keeps the DB.
   pageCache.clear();
+  // Files share the `~/services` module, so point it at this file's service for
+  // every test rather than only at module load.
+  offerService(service);
   seed(db);
 });
 

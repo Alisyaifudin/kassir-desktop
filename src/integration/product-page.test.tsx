@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { Effect, Layer } from "effect";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { pageCache } from "~/components/page-data";
+import { offerService } from "./service-proxy";
 import { makeTestDatabase } from "~/services/db/test-support";
 import { makeTestLocalStorage } from "~/services/local-storage/test-support";
 import { makeTestStore } from "~/services/store/test-support";
@@ -24,11 +25,9 @@ const storage = makeTestLocalStorage({
   user: { id: "c1", name: "Ani", role: "admin" },
 });
 
-const service = makeService(
-  buildAppLive(Layer.mergeAll(dbLayer, store.layer, storage.layer)),
+const service = offerService(
+  makeService(buildAppLive(Layer.mergeAll(dbLayer, store.layer, storage.layer))),
 );
-
-mock.module("~/services", () => ({ service }));
 
 const Page = (await import("~/pages/Product/page")).default;
 
@@ -59,6 +58,8 @@ function renderPage(entry = "/products") {
 
 beforeEach(() => {
   pageCache.clear();
+  // Every test starts on this file's service (the pages share one module).
+  offerService(service);
 });
 
 describe("the product screen over the real services", () => {
