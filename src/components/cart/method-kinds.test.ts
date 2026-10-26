@@ -8,13 +8,7 @@
  * Run with:  bun test src/components/cart/method-kinds.test.ts
  */
 import { describe, expect, test } from "bun:test";
-import {
-  freeMethodId,
-  kindExhausted,
-  methodIdsOfKind,
-  methodKind,
-  nextFreeKind,
-} from "./method-kinds";
+import { freeMethodId, kindExhausted, methodIdsOfKind, nextFreeKind } from "./method-kinds";
 import type { MethodCatalog } from "~/services/method";
 
 /** The four base methods, with two named QRIS accounts and BCA for transfer. */
@@ -35,17 +29,6 @@ const taken = (...ids: string[]) => new Set(ids);
 const NO_IDS: ReadonlySet<string> = new Set();
 
 describe("method kinds", () => {
-  test("a named account reads as its kind", () => {
-    expect(methodKind(CATALOG, "2001")).toBe("qris");
-  });
-
-  test("an id the catalogue dropped still resolves, from the built-in base ids", () => {
-    // A draft keeps the money of a method that was deleted after it named it.
-    expect(methodKind(CATALOG, "1002")).toBe("debit");
-    expect(methodKind(CATALOG, "gone")).toBe("cash");
-    expect(methodKind(null, "1003")).toBe("qris");
-  });
-
   test("a kind offers its named accounts, then its base method", () => {
     expect(methodIdsOfKind(CATALOG, "qris")).toEqual(["2001", "2002", "1003"]);
     expect(methodIdsOfKind(CATALOG, "cash")).toEqual(["1000"]);

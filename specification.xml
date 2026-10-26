@@ -533,21 +533,25 @@ ignore it
       <component name="NumberField">Locale-aware numeric input with caret handling.</component>
       <component name="Password">Password input with reveal toggle.</component>
       <component name="NotFound">404 panel.</component>
-      <component name="Loading">Centered spinner; also exports LoadingBig and LoadingFull.</component>
+      <component name="Loading">Centered spinner.</component>
       <component name="Spinner">Inline spinning indicator.</component>
       <component name="TextError">Inline error text.</component>
       <component name="ErrorComponent">Full-page error state with Kembali / Beranda actions.</component>
       <component name="ErrorBoundary">Route-level boundary: Unauthenticated → hard redirect to /login, route error responses (404/403) get contextual icons, stack trace in dev.</component>
-      <component name="Tooltip">Tooltip wrapper component.</component>
       <component name="Calendar">Calendar/date picker.</component>
       <component name="DateRange">Date range picker, URL-param driven through each page's useRange.</component>
-      <component name="Notification">Toast notification wrapper.</component>
+      <component name="DateTime">Locale date + time field (Temporal-backed, zone-aware).</component>
+      <component name="MethodPicker">Payment-method picker over the method catalog.</component>
+      <component name="FileDropZone">Drag/drop or click-to-pick file panel for the import screens.</component>
+      <component name="SaveError">The cart's blocking banner for a failed save.</component>
     </shared_components>
 
     <ui_primitives>
       <description>shadcn/ui primitives built on Radix UI, located in src/components/ui/. Style: new-york, baseColor: zinc, icons: lucide.</description>
       <component name="button">Button variants (default, destructive, outline, secondary, ghost, link). Sizes: default, sm, lg, icon.</component>
       <component name="input">Text input with styling.</component>
+      <component name="input-currency">Rupiah amount input with caret handling.</component>
+      <component name="input-percent">Percentage input.</component>
       <component name="textarea">Multi-line text input.</component>
       <component name="label">Form label (Radix).</component>
       <component name="checkbox">Checkbox (Radix).</component>
@@ -558,14 +562,13 @@ ignore it
       <component name="accordion">Accordion (Radix).</component>
       <component name="tabs">Tabs (Radix).</component>
       <component name="separator">Visual separator (Radix).</component>
-      <component name="breadcrumb">Breadcrumb navigation.</component>
+      <component name="slider">Range slider (Radix).</component>
+      <component name="switch">Toggle switch (Radix).</component>
       <component name="table">Data table with header, body, row, cell.</component>
-      <component name="pagination">Pagination controls.</component>
       <component name="skeleton">Loading skeleton placeholder.</component>
       <component name="sonner">Sonner toast provider.</component>
       <component name="field">Form field wrapper.</component>
       <component name="combobox">Searchable select (Command + Popover).</component>
-      <component name="progress">Progress bar.</component>
       <component name="kdb">Keyboard shortcut badge (Kbd).</component>
     </ui_primitives>
   </frontend>

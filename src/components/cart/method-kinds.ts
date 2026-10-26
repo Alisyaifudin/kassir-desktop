@@ -1,24 +1,5 @@
-import {
-  METHOD_BASE_ID,
-  METHOD_BASE_KIND,
-  METHODS,
-  type DefaultableKind,
-  type MethodKind,
-} from "~/lib/constants";
+import { METHOD_BASE_ID, METHODS, type DefaultableKind, type MethodKind } from "~/lib/constants";
 import type { MethodCatalog } from "~/services/method";
-
-/**
- * The kind a method id pays with: the catalogue's own row for it or, for an id
- * the catalogue no longer carries (a method deleted after a draft named it, or a
- * draft read back before the catalogue loads), the built-in base id it was filed
- * under. A draft row keeps its money when its method is deleted, so it must
- * still resolve to a kind.
- */
-export function methodKind(catalog: MethodCatalog | null, methodId: string): MethodKind {
-  const known = catalog?.methods.find((method) => method.id === methodId);
-  if (known !== undefined) return known.kind;
-  return (METHOD_BASE_KIND as Record<string, MethodKind | undefined>)[methodId] ?? "cash";
-}
 
 /**
  * Every method id a kind can pay with: the named accounts inside it (QRIS

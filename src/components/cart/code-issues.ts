@@ -3,7 +3,7 @@ import type { Listing } from "~/services/listing";
 import type { DraftListing } from "~/services/transaction";
 
 /** One reason a line's code is suspect; `productIds` are catalog links. */
-export type CodeIssueMessage = { text: string; productIds?: string[] };
+type CodeIssueMessage = { text: string; productIds?: string[] };
 
 /** A hard (`error`) issue blocks Bayar. Kept a union so a future soft
  *  (`warning`) issue does not have to change the shape. */
@@ -25,7 +25,7 @@ function normalized(code: string): string {
 }
 
 /** Case-folded code → the catalogue listings that carry it. */
-export type CatalogByCode = Map<string, Listing[]>;
+type CatalogByCode = Map<string, Listing[]>;
 
 let catalogCache: { catalog: readonly Listing[]; byCode: CatalogByCode } | null = null;
 
@@ -34,7 +34,7 @@ let catalogCache: { catalog: readonly Listing[]; byCode: CatalogByCode } | null 
  * until the catalogue changes, so this is built once per catalogue instead of
  * once per cart keystroke — it used to be rebuilt on every edit inside a cell.
  */
-export function buildCatalogByCode(catalog: readonly Listing[]): CatalogByCode {
+function buildCatalogByCode(catalog: readonly Listing[]): CatalogByCode {
   if (catalogCache !== null && catalogCache.catalog === catalog) return catalogCache.byCode;
   const byCode: CatalogByCode = new Map();
   for (const listing of catalog) {

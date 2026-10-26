@@ -22,15 +22,6 @@ type Data<T, E> =
 export type Result<T, E> = Data<T, E> | { type: "init" };
 
 /**
- * True while a `keepPrevious` query is re-running — the previous value is still
- * on screen, but it is stale. Never true for a first load, which `Loader`'s
- * fallback already covers.
- */
-export function isRefetching(res: Result<unknown, unknown>): boolean {
-  return res.type === "success" && res.refetching === true;
-}
-
-/**
  * Reports `value` only once it has stayed `true` for `delay` ms, the same
  * strobing guard `Loader` uses on its fallback: most queries here resolve in a
  * few milliseconds, and flipping a whole-page busy state for that long reads as
@@ -180,8 +171,8 @@ export function useStream<A, E>(
  * `keepPrevious` holds the last successful value while the new deps resolve.
  * Reach for it when deps change on every keystroke or after a refetch, so the
  * view doesn't blank between queries. While that refetch is in flight the
- * success result carries `refetching: true` (see `isRefetching`), so the view
- * can fade itself instead of passing the stale value off as current.
+ * success result carries `refetching: true`, so the view can fade itself instead
+ * of passing the stale value off as current.
  */
 export function useQuery<A, E>(
   factory: () => Stream.Stream<A, E, never>,

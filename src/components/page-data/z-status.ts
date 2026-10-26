@@ -1,7 +1,7 @@
 import type { Result } from "~/components/Loader";
 
 /** A key's state with the types erased, for code that does not care which key. */
-export type LooseResult = Result<unknown, unknown>;
+type LooseResult = Result<unknown, unknown>;
 export type LooseState = Record<string, LooseResult>;
 
 /**

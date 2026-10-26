@@ -69,13 +69,6 @@ export const METHOD_BASE_ID = {
   transfer: "1001",
   debit: "1002",
 } as const;
-export const METHOD_BASE_KIND = {
-  "1000": "cash",
-  "1003": "qris",
-  "1001": "transfer",
-  "1002": "debit",
-} as const;
-
 export const DEBOUNCE_DELAY = 100;
 
 /**

@@ -15,7 +15,7 @@
 export type ExtraField = "name" | "value" | "kind" | "eff" | "dual" | "x";
 
 /** Every cell, including the ones that only draw. */
-export type AnyExtraField = ExtraField | "search" | "manual" | "toggle" | "no" | "subtotal";
+type AnyExtraField = ExtraField | "search" | "manual" | "toggle" | "no" | "subtotal";
 
 export type ExtraRowRef =
   | { kind: "header" }
@@ -24,7 +24,7 @@ export type ExtraRowRef =
 
 export type ExtraSelection = { row: ExtraRowRef; col: number };
 
-export type ExtraCellDef = {
+type ExtraCellDef = {
   field: AnyExtraField;
   start: number;
   end: number;

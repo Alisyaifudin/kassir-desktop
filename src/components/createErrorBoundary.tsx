@@ -2,11 +2,11 @@ import { Component, type ComponentType, type ReactNode } from "react";
 
 type AnyErrorConstructor = new (...args: never[]) => Error;
 
-export type ErrorBoundaryFallbackProps<E> = {
+type ErrorBoundaryFallbackProps<E> = {
   error: E;
 };
 
-export type ErrorBoundaryProps<E> = {
+type ErrorBoundaryProps<E> = {
   children: ReactNode;
   /** Rendered when a matching error is thrown. Receives the typed error. */
   fallback: ComponentType<ErrorBoundaryFallbackProps<E>>;

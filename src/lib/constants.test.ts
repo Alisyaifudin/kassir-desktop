@@ -4,7 +4,6 @@ import {
   DEFAULTABLE_KINDS,
   getProductKind,
   METHOD_BASE_ID,
-  METHOD_BASE_KIND,
   METHOD_BY_KEY,
   METHOD_KBD,
   METHOD_NAMES,
@@ -35,17 +34,6 @@ describe("method tables", () => {
     }
   });
 
-  test("the built-in ids and kinds are inverses", () => {
-    const entries = Object.entries(METHOD_BASE_ID) as [
-      keyof typeof METHOD_BASE_ID,
-      keyof typeof METHOD_BASE_KIND,
-    ][];
-    for (const [kind, id] of entries) {
-      expect(METHOD_BASE_KIND[id]).toBe(kind);
-    }
-    expect(Object.keys(METHOD_BASE_ID)).toHaveLength(METHODS.length);
-  });
-
   test("the built-in ids are the ones migration-31 seeded", () => {
     // Records written before the catalogue existed reference these rows.
     expect(METHOD_BASE_ID).toEqual({
@@ -54,6 +42,7 @@ describe("method tables", () => {
       transfer: "1001",
       debit: "1002",
     });
+    expect(Object.keys(METHOD_BASE_ID)).toHaveLength(METHODS.length);
   });
 
   test("only the non-cash kinds can be a default", () => {

@@ -16,7 +16,7 @@ import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
 import type { PaidMethod } from "~/components/cart/paid-methods";
 
 /** The fields every cart screen's completion dialog needs to be rendered. */
-export type Completed = {
+type Completed = {
   recordId: string;
   total: Decimal;
   change: Decimal;
@@ -25,7 +25,7 @@ export type Completed = {
   methods: PaidMethod[];
 };
 
-export type CartMode = "incoming" | "outcoming";
+type CartMode = "incoming" | "outcoming";
 
 /** Where the device remembers which cart was open — one key per screen mode. */
 const LAST_DRAFT_KEY = (mode: CartMode) => `cart.last-draft.${mode}`;
@@ -41,9 +41,6 @@ const LAST_DRAFT_KEY = (mode: CartMode) => `cart.last-draft.${mode}`;
  * Everything here is identical on both screens by construction — that is the
  * point: a keyboard or lifecycle rule must not exist twice.
  */
-/** The object `useCartScreen` hands a screen (or the shared cart frame). */
-export type CartScreen = ReturnType<typeof useCartScreen>;
-
 export function useCartScreen<S extends string, C extends Completed = Completed>({
   mode,
   drafts,

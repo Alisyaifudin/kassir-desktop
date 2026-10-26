@@ -16,7 +16,7 @@
 export type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
 
 /** Every cell, including the ones that only draw. */
-export type AnyField = Field | "search" | "manual" | "toggle" | "no" | "grip";
+type AnyField = Field | "search" | "manual" | "toggle" | "no" | "grip";
 
 export type RowRef = { kind: "header" } | { kind: "card"; cardId: string; part: "top" | "bottom" };
 
@@ -25,7 +25,7 @@ export type QtySub = "left" | "value" | "right";
 
 export type Selection = { row: RowRef; col: number; qtySub?: QtySub };
 
-export type CellDef = {
+type CellDef = {
   field: AnyField;
   start: number;
   end: number;

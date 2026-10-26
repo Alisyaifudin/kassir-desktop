@@ -23,7 +23,7 @@ import { formatDate, monthNames } from "~/lib/date";
  * time order and a reprinted receipt all inherited it, and the picker has no
  * time control to put it back.
  */
-export type CalendarGranularity = "day" | "instant";
+type CalendarGranularity = "day" | "instant";
 
 export const Calendar = memo(function Calendar({
   time,

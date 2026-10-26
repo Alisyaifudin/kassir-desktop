@@ -60,7 +60,7 @@ import { typedDigit } from "~/components/cart/z-Cell";
 const HEADER: RowRef = { kind: "header" };
 
 /** The callbacks one cart card needs; stable, so `memo` can skip the card. */
-export type CardHandlers = Pick<
+type CardHandlers = Pick<
   ComponentProps<typeof ListingCard>,
   "onChange" | "onRemove" | "onDiscount" | "onSelect" | "onStartEdit" | "onEditingDone"
 >;

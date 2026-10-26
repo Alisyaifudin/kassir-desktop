@@ -33,7 +33,7 @@ import { Show } from "../Show";
  * disk — so it always confirms first.
  */
 /** The id the strip's tabs point at; the screen renders the matching panel. */
-export const CART_TAB_PANEL_ID = "cart-panel";
+const CART_TAB_PANEL_ID = "cart-panel";
 
 /** The id of one cart's tab, which is also the panel's `aria-labelledby`. */
 export function cartTabId(draftId: string): string {

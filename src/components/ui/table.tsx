@@ -2,22 +2,6 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-// const TableScrollable = React.forwardRef<
-//   HTMLTableElement,
-//   React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
-// >(({ className, parentClass, ...props }, ref) => {
-//   return (
-//     <div
-//       className={cn("relative w-full overflow-auto", parentClass)}
-//       onScroll={handleScroll}
-//       ref={parentRef}
-//     >
-//       <table ref={ref} className={cn("w-full caption-bottom", className)} {...props} />
-//     </div>
-//   );
-// });
-// TableScrollable.displayName = "TableScrollable";
-
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
@@ -122,7 +106,6 @@ TableCaption.displayName = "TableCaption";
 
 export {
   Table,
-  // TableScrollable,
   TableHeader,
   TableBody,
   TableFooter,
