@@ -1,18 +1,12 @@
 import { useSearchParams } from "react-router";
-import { urlBackOf } from "~/lib/utils";
 
 /**
- * The URL a screen links back to. `keep` passes an `url_back` that came from the
- * screen the cashier came from, through the shared parser (`getURLBack`) instead
- * of a third strength of validation.
+ * The URL a screen links back to: `base` plus the current query. A caller that
+ * has to keep an incoming `url_back` uses `useGetUrlBack` instead, so this hook
+ * never re-writes the one it was handed.
  */
-export function useGenerateUrlBack(base: string, keep = false) {
+export function useGenerateUrlBack(base: string) {
   const [search] = useSearchParams();
-  if (keep) {
-    const urlBack = urlBackOf(search);
-    if (urlBack !== null) return urlBack;
-  }
   const searchStr = search.toString();
-  const urlBack = `${base}${searchStr ? `?${searchStr}` : ""}`;
-  return urlBack;
+  return `${base}${searchStr ? `?${searchStr}` : ""}`;
 }

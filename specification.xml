@@ -199,16 +199,15 @@ ignore it
         <file name="index.ts">Composes the layers and exports `service`.</file>
       </dir>
       <dir name="pages/">
-        <description>One folder per route, exporting a RouteObject.</description>
-        <description>Migrated to the services layer: Login, Home, Product, Record, Money, Extra, Debt, Setting.</description>
-        <description>Legacy, not routed, still importing the removed ~/database layer: Shop, Stock-PENDING, Analytics, Cashier, Customer, Method, Social, Setting/Sync_PENDING.</description>
+        <description>One folder per route, exporting a RouteObject — Login, Home, Pos, Restock, Transaction, Product, Record, Money, Debt, Extra, Cashier, Customer, Method, Social, Analytics, Setting and the Dev/PageData + Dev/PageCache playgrounds.</description>
+        <description>cart/ is shared UI for Pos and Restock, not a route.</description>
       </dir>
       <dir name="components/">
         <description>Shared UI. Loader.tsx carries the data-flow hooks (useStream, useQuery, useMutation, Loader, LoaderMany); createErrorBoundary.tsx builds typed error boundaries; AdminOnly.tsx is the role guard.</description>
       </dir>
       <dir name="layouts/">root.tsx (size) and authenticated/ (topbar, nav, outlet).</dir>
-      <dir name="hooks/">use-user, use-size, use-scroll, use-screen, use-submit, use-extra-search, use-product-search, use-image, use-get-url-back, use-generate-url-back.</dir>
-      <dir name="lib/">auth, constants, date, effect-error, log, printer, random, reqwest, response, url, utils, validate, image, receipt/. Legacy survivors: result.ts, cache-factory.ts, sync/.</dir>
+      <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back, use-record-revision.</dir>
+      <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, receipt/, search/.</dir>
       <file name="route.tsx">Hash router definition; the only place routes are enabled or disabled.</file>
       <file name="main.tsx">React root; renders RouterProvider.</file>
     </source>
