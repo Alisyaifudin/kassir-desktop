@@ -14,14 +14,6 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import {
   METHOD_BASE_ID,
   METHODS,
   METHOD_NAMES,
@@ -40,6 +32,7 @@ import { paidTotal } from "~/lib/purchase";
 import { run } from "~/components/cart/run";
 import { rupiah } from "~/components/cart/util-rupiah";
 import { Cell, SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
+import { SelectCell } from "~/components/cart/z-SelectCell";
 import { MethodPicker, defaultMethodId } from "~/components/MethodPicker";
 import { nextFreeKind, freeMethodId } from "~/components/cart/method-kinds";
 import { useInertApp } from "~/components/cart/use-inert-app";
@@ -673,83 +666,6 @@ function AddCell({ selected, onActivate }: { selected: boolean; onActivate: () =
       >
         <Plus className="icon" />
       </Button>
-    </div>
-  );
-}
-
-/**
- * A select as a grid cell: shows its label until entered, then opens the menu.
- * Clicking the cell edits in one click; the arrows keep it closed until Enter.
- */
-function SelectCell({
-  id,
-  className,
-  label,
-  selected,
-  editing,
-  value,
-  options,
-  onSelect,
-  onEditingDone,
-  onChange,
-}: {
-  id: string;
-  className?: string;
-  label: string;
-  selected: boolean;
-  editing: boolean;
-  value: string;
-  options: readonly { value: string; label: string; kbd?: string }[];
-  onSelect: () => void;
-  onEditingDone: () => void;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (editing) setOpen(true);
-  }, [editing]);
-
-  const display = options.find((option) => option.value === value)?.label ?? value;
-  return (
-    <div
-      id={id}
-      onClick={() => {
-        if (!editing) onSelect();
-      }}
-      className={cn(
-        "flex flex-col justify-center gap-0.5 px-2 py-1",
-        className,
-        selected && (editing ? "z-10 ring-2 ring-primary ring-inset" : SELECTED_RING),
-      )}
-    >
-      <span className="text-small leading-none text-muted-foreground select-none">{label}</span>
-      <Select
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next);
-          if (!next) onEditingDone();
-        }}
-        value={value}
-        onValueChange={onChange}
-      >
-        <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7">
-          <SelectValue>{display}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {options.map((option) => (
-              <SelectItem
-                className="small:w-[220px] w-[250px]"
-                key={option.value}
-                value={option.value}
-                kbd={option.kbd === undefined ? undefined : <Kbd>{option.kbd}</Kbd>}
-              >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
     </div>
   );
 }

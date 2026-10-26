@@ -192,10 +192,16 @@ the hard way:
 ## Covered
 
 Boot + migrations, first-run setup, seeded login, wrong password, catalog search,
-add-to-cart totals, bump-vs-duplicate, empty search. Seven tests, ~7 s.
+add-to-cart totals, bump-vs-duplicate, empty search, and the payment-method menu
+closing after a choice (`pos-method.e2e.ts` — the Radix `Select` in the settle
+strip closes on `pointerup` while its portal's trailing `click` is still in
+flight; only Chromium with real CSS animations reproduces that).
 
 ## Not yet covered
 
-The restock flow, drag-and-drop reordering, discounts, payment rows, submit, and
-printing. A submit test needs the `methods`/`products`/`listings`/`stocks` seed
-that `e2e/pos-cart.e2e.ts` already has, plus a payment method row.
+The restock flow, drag-and-drop reordering, discounts, submit, and printing. A
+submit test needs the `methods`/`products`/`listings`/`stocks` seed that
+`e2e/pos-cart.e2e.ts` already has, plus a payment method row —
+`e2e/pos-method.e2e.ts` seeds the four built-in methods (NULL names, ids
+`1000`–`1003`) and an account, and its `addCashMethod` adds the first method
+through the editor dialog.
