@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
+import { Effect } from "effect";
 import { integer } from "~/lib/utils";
+import { service } from "~/services";
 
 export type ViewMode = "table" | "grid";
 export type StockFilter = "all" | "in" | "low" | "out";
@@ -36,6 +38,20 @@ function oneOf<T extends string>(value: string | null, allowed: readonly T[], fa
   return value !== null && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
 }
 
+/**
+ * The view is the one piece of list state that is a preference rather than a
+ * filter: it is mirrored to localStorage, so a bare `/products` reopens on the
+ * layout last used instead of on cards. The URL still wins when it carries a
+ * `view`, so a shared link opens the same way it did when it was copied.
+ */
+function storedView(): ViewMode {
+  return Effect.runSync(
+    service.config.productView
+      .get()
+      .pipe(Effect.catchAll(() => Effect.succeed<ViewMode>("grid"))),
+  );
+}
+
 export function useListState() {
   const [params, setParams] = useSearchParams();
 
@@ -60,7 +76,7 @@ export function useListState() {
       margin: oneOf(params.get("margin"), MARGIN_FILTERS, "all"),
       sort,
       dir: oneOf(params.get("dir"), SORT_DIRS, "asc"),
-      view: oneOf(params.get("view"), VIEW_MODES, "grid"),
+      view: oneOf(params.get("view"), VIEW_MODES, storedView()),
       page: Math.max(1, integer.catch(1).parse(params.get("page"))),
       size: (PAGE_SIZES as readonly number[]).includes(sizeRaw) ? sizeRaw : 20,
     };
@@ -68,6 +84,14 @@ export function useListState() {
 
   const set = useCallback(
     (patch: ListStatePatch) => {
+      // Mirror the view for the next visit, outside the URL updater (which must
+      // stay pure — StrictMode runs it twice). Fire-and-forget: the URL already
+      // carries the view, so a full or disabled localStorage must not turn a
+      // toggle into an error dialog.
+      if (patch.view !== undefined) {
+        void Effect.runFork(Effect.ignore(service.config.productView.set(patch.view)));
+      }
+
       setParams(
         (old) => {
           const s = new URLSearchParams(old);

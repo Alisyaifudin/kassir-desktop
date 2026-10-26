@@ -18,7 +18,7 @@
     &lt;sync_system&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>6.7.13</version>
+  <version>6.8.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -103,7 +103,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">6.7.13</entry>
+        <entry key="version">6.8.0</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -119,7 +119,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">6.7.13</entry>
+        <entry key="package.version">6.8.0</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -700,7 +700,7 @@
       <owner service="product">products, listings, properties, images, stocks, product_events, product_names</owner>
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
-      <owner service="config">localStorage key "size"</owner>
+      <owner service="config">localStorage keys "size", "product-view"</owner>
       <owner service="auth">localStorage key "user"</owner>
       <owner service="info">store keys: name, owner, address, header, footer, show-cashier</owner>
       <owner service="printer">store keys: printer_name, printer_width</owner>
@@ -803,13 +803,19 @@
     </service>
 
     <service name="config" module="src/services/config/">
-      <description>The UI size preference. Owns the localStorage key "size".</description>
+      <description>The UI preferences: size, and the product list's layout. Owns the localStorage keys "size" and "product-view".</description>
       <error name="ConfigError" tag="ConfigError" />
       <interface>
         <method name="size.get()">Current size: "big" | "small".</method>
         <method name="size.set(size)">Persist, then push to subscribers.</method>
         <method name="size.changes">Stream&lt;Size&gt;. RootLayout turns it into the body class; useSize() reads it.</method>
+        <method name="productView.get()">Current product layout: "grid" | "table"; anything else stored reads as "grid".</method>
+        <method name="productView.set(view)">Set in memory, then persist. A failed write reports ConfigError but keeps the session on the chosen view.</method>
       </interface>
+      <note>
+        The product list keeps its view in the URL while it is open; productView is only the seed a bare `/products` reads.
+        Unlike `size` there is no `changes` stream — no one subscribes, the URL is the live value.
+      </note>
     </service>
 
     <service name="customer" module="src/services/customer/">

@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { useListState } from "./use-list-state";
+import { Effect } from "effect";
+import type { ProductView } from "~/services/config";
 
 /**
  * The product list's entire view state lives in the URL, so a refresh or a shared
@@ -9,8 +10,37 @@ import { useListState } from "./use-list-state";
  * expensive when broken: defaults are *absent* params (a URL carrying
  * `sort=name&dir=asc&view=grid` is noise), and any change to a filter resets the
  * page — otherwise you land on page 4 of a three-row result.
+ *
+ * The view is the exception with a second home: it is mirrored to
+ * `config.productView` (localStorage) so a bare `/products` opens on the layout
+ * last used, while a `?view=` in a shared link still wins.
  */
 let search = "";
+
+let storedView: ProductView = "grid";
+const persisted: ProductView[] = [];
+
+mock.module("~/services", () => ({
+  service: {
+    config: {
+      productView: {
+        get: () => Effect.succeed(storedView),
+        set: (view: ProductView) =>
+          Effect.sync(() => {
+            persisted.push(view);
+            storedView = view;
+          }),
+      },
+    },
+  },
+}));
+
+const { useListState } = await import("./use-list-state");
+
+beforeEach(() => {
+  storedView = "grid";
+  persisted.length = 0;
+});
 
 function Probe() {
   search = useLocation().search;
@@ -165,5 +195,44 @@ describe("writing the URL", () => {
     act(() => result.current.set({ view: "table" }));
 
     expect(params().get("page")).toBe("3");
+  });
+});
+
+describe("the stored view", () => {
+  test("a bare URL opens on the layout stored on the last visit", () => {
+    storedView = "table";
+
+    expect(harness().result.current.state.view).toBe("table");
+  });
+
+  test("a view in the URL beats the stored one, so a shared link opens the same", () => {
+    storedView = "table";
+
+    expect(harness("/products?view=grid").result.current.state.view).toBe("grid");
+  });
+
+  test("a view the app does not know falls back to the stored one, not to cards", () => {
+    storedView = "table";
+
+    expect(harness("/products?view=cards").result.current.state.view).toBe("table");
+  });
+
+  test("picking a view mirrors it to the preference", () => {
+    const { result } = harness();
+
+    act(() => result.current.set({ view: "table" }));
+
+    expect(persisted).toEqual(["table"]);
+  });
+
+  test("picking cards clears the URL param but still remembers cards", () => {
+    storedView = "table";
+    const { result } = harness("/products?view=table");
+
+    act(() => result.current.set({ view: "grid" }));
+
+    expect(params().has("view")).toBe(false);
+    expect(persisted).toEqual(["grid"]);
+    expect<ProductView>(storedView).toBe("grid");
   });
 });
