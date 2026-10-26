@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - master
-    # A CI-config or docs-only push must not kick off a build: the version in
-    # package.json is already released, so tauri-action would target an existing
-    # tag/release. Installer builds should be deliberate (see workflow_dispatch).
+    # A docs-only push must not kick off a build. CI config is deliberately *not*
+    # in this list: a change to this file is a change to how releases are built,
+    # and it has to be able to trigger the run that exercises it — ignoring
+    # `.github/**` meant a workflow fix could never run, so `master` sat on a
+    # version with no installer. Deliberate re-builds still belong to the manual
+    # dispatch below.
     paths-ignore:
-      - ".github/**"
       - "**/*.md"
   # Manual "Run workflow" button. GitHub only offers this trigger for workflows
   # that exist on the default branch, so this file lives on master -- the ref
