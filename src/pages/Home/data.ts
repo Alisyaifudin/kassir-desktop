@@ -15,7 +15,7 @@ import type { DaySummaries, DebtFacts } from "./day";
  * registered by the same provider, so the money card no longer waits behind the
  * day (`useDay` used to be read *above* `<Uang />`, which queued it).
  */
-export type HomeData = {
+type HomeData = {
   today: DaySummaries;
   yesterday: DaySummaries;
   debt: DebtFacts;
@@ -25,7 +25,7 @@ export type HomeData = {
 };
 
 /** Everything a Home key can fail with: the record reads and the pocket read. */
-export type HomeError = RecordError | MoneyError;
+type HomeError = RecordError | MoneyError;
 
 // Cached, and safe because every key is revision- or service-driven: the seed is
 // last visit's answer for *this* day and role (`deps`), and the replayed counter

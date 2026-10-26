@@ -9,7 +9,7 @@ import { recordSource } from "../Item/data";
  * so the two faces of one record cannot disagree, and it includes the service's
  * revision counter, so an edit elsewhere re-reads the pane too.
  */
-export type DetailData = { record: RecordFull | null };
+type DetailData = { record: RecordFull | null };
 
 // Cached: the preview of the record you had selected comes back instantly, and
 // the revision replay re-reads it — including the `null` for one deleted while

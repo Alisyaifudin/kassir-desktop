@@ -1,7 +1,7 @@
 import { Building2, Database, Printer, ScrollText, User, type LucideIcon } from "lucide-react";
 import type { Role } from "~/services/cashier";
 
-export type Section = "Akun" | "Toko" | "Sistem";
+type Section = "Akun" | "Toko" | "Sistem";
 
 export type NavItem = {
   label: string;
@@ -26,7 +26,7 @@ export type NavItem = {
  *
  * Sections follow the order they appear here.
  */
-export const settingsNav: NavItem[] = [
+const settingsNav: NavItem[] = [
   {
     label: "Profil",
     path: "/setting/profile",

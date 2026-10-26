@@ -12,7 +12,7 @@ import type { Social, SocialError } from "~/services/social";
  * credit bumps the record service's revision, and this page must show the record
  * it is currently describing (an edit re-reads itself).
  */
-export type RecordItemData = {
+type RecordItemData = {
   record: RecordFull | null;
   info: Info;
   socials: Social[];

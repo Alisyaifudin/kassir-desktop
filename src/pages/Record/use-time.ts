@@ -16,7 +16,7 @@ const FURTHEST = Temporal.ZonedDateTime.from({
   day: 1,
 }).epochMilliseconds;
 
-export type Day = {
+type Day = {
   /** Local midnight of the chosen day. */
   time: number;
   yesterday: number;

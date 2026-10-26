@@ -9,7 +9,7 @@ import { service } from "~/services";
 import type { Mime, ProductImage } from "~/services/product";
 
 /** A picked file that is not in the db yet. */
-export type Draft = {
+type Draft = {
   /** local id, used as the row id when the draft is committed */
   id: string;
   /** on-disk key, stored as `image_name` on commit */

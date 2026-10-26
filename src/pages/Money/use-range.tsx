@@ -5,7 +5,7 @@ import { useDayStart } from "~/hooks/use-day-start";
 import { tz } from "~/lib/constants";
 import { parseRange } from "~/lib/range";
 
-export type SearchRange = {
+type SearchRange = {
   /** First day of the range, local midnight. */
   start: number;
   /** Last day of the range, local midnight — the day the picker shows. */

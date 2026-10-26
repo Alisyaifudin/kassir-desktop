@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 /** A contact as the form needs it: the id to write, the values to show. */
-export type EditableSocial = { id: string; name: string; value: string };
+type EditableSocial = { id: string; name: string; value: string };
 
 const EMPTY: EditableSocial = { id: "", name: "", value: "" };
 

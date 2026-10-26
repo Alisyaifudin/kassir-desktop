@@ -2,7 +2,7 @@ import { Stream } from "effect";
 import { service } from "~/services";
 import type { ListingHistoryPage, RecordError, RecordMode } from "~/services/record";
 
-export type SearchParams = {
+type SearchParams = {
   start: number;
   end: number;
   mode: RecordMode;

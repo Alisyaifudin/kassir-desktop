@@ -1,8 +1,5 @@
 import { TableBody, TableCell, TableRow } from "~/components/ui/table";
-import { createErrorBoundary } from "~/components/createErrorBoundary";
 import { ExtraError } from "~/services/extra";
-
-export const ExtraErrorBoundary = createErrorBoundary(ExtraError);
 
 /**
  * Renders inside the extras table, so the fallback is a table body rather than

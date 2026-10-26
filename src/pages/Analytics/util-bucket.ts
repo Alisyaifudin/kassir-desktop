@@ -9,7 +9,7 @@ import type { Interval } from "./use-range";
  * or month. `margin`/`costed` only count lines that stored a cost, so an empty
  * `costed` means "no cost data in this bucket", not "zero profit".
  */
-export type Bucket = {
+type Bucket = {
   start: number;
   label: string;
   omzet: number;
@@ -54,13 +54,7 @@ function step(date: Temporal.ZonedDateTime, interval: Interval): Temporal.ZonedD
   }
 }
 
-/** "22 Oktober 2026", in the shop's timezone. */
-export function longDate(at: number): string {
-  const date = Temporal.Instant.fromEpochMilliseconds(at).toZonedDateTimeISO(tz);
-  return `${date.day} ${monthNames[date.month as 1]} ${date.year}`;
-}
-
-export function labelOf(start: number, interval: Interval): string {
+function labelOf(start: number, interval: Interval): string {
   const date = Temporal.Instant.fromEpochMilliseconds(start).toZonedDateTimeISO(tz);
   if (interval === "month") return `${monthNames[date.month as 1]} ${String(date.year).slice(-2)}`;
   // `22/10` rather than `22-10-2026`: half the width, still unambiguous on a

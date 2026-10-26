@@ -6,7 +6,7 @@ import { service } from "~/services";
 import type { RecordFull } from "~/services/record";
 
 /** One payment row being edited — the record's own row id, or a fresh one. */
-export type PaymentDraft = { id: string; methodId: string; pay: number };
+type PaymentDraft = { id: string; methodId: string; pay: number };
 
 /** What the band and its editor share; see `z-Payments.tsx`. */
 export type PaymentsEditor = ReturnType<typeof usePayments>;

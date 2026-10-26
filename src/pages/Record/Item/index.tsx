@@ -15,6 +15,6 @@ export const itemRoute: RouteObject = {
   loader,
 };
 
-export function loader({ params }: LoaderFunctionArgs) {
+function loader({ params }: LoaderFunctionArgs) {
   return params.recordId!;
 }

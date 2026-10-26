@@ -13,7 +13,7 @@ export function isEmptyLot(stock: StockDraft): boolean {
   return parseNumber(stock.value) <= 0;
 }
 
-export type StockGroups = {
+type StockGroups = {
   /** Lots that still hold stock — the rows the section lists outright. */
   active: StockDraft[];
   /** Sold-out lots, folded behind the accordion. */

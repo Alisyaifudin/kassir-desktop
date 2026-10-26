@@ -7,7 +7,7 @@ import type { LogPage } from "~/services/log/tail";
  * first, with the file's real line count), and every subscription or clear
  * re-reads it.
  */
-export type LogData = {
+type LogData = {
   lines: LogPage;
 };
 

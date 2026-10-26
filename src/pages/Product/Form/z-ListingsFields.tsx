@@ -12,7 +12,7 @@ import { Section, SectionAdd } from "./z-Section";
 
 type ListingError = { name?: string; price?: string; unit?: string } | undefined;
 
-export const KIND_OPTIONS: ComboboxOption[] = LISTING_KIND_SUGGESTIONS.map((kind) => ({
+const KIND_OPTIONS: ComboboxOption[] = LISTING_KIND_SUGGESTIONS.map((kind) => ({
   value: kind,
   label: getProductKind(kind),
 }));
@@ -28,7 +28,7 @@ export const LISTINGS_SECTION = {
  * form and its placeholder cannot drift apart — not in a label, not in a hint,
  * not in the placeholder an empty control shows.
  */
-export const LISTING_ROW = {
+const LISTING_ROW = {
   title: (index: number) => `Listing ${index + 1}`,
   name: { label: "Nama", placeholder: "cth. Eceran" },
   price: { label: "Harga", placeholder: "0" },

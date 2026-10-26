@@ -16,7 +16,7 @@ export const COLORS = {
   muted: "#94a3b8",
 } as const;
 
-export const METHOD_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"] as const;
+const METHOD_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"] as const;
 
 export function chartColor(index: number): string {
   return METHOD_COLORS[index % METHOD_COLORS.length] ?? METHOD_COLORS[0];

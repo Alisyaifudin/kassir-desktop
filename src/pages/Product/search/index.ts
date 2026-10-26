@@ -44,7 +44,7 @@ type Entry = {
   listings: ListingEntry[];
 };
 
-export type SearchIndex = Index<Entry>;
+type SearchIndex = Index<Entry>;
 
 /** A scored match: the product id and its score. */
 export type { Hit };

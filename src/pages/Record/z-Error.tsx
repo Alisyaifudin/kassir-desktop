@@ -7,8 +7,6 @@ import { RecordError } from "~/services/record";
  * fallback, which would blow up a two-pane layout, so these render inside the
  * pane that actually failed.
  */
-export const RecordsErrorBoundary = createErrorBoundary(RecordError);
-
 export function RecordsErrorFallback({ error }: { error: RecordError }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">

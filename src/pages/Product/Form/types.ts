@@ -1,5 +1,5 @@
 import { generateId } from "~/lib/random";
-import type { ListingInput, ProductFull, ProductInput } from "~/services/product";
+import type { ListingInput, ProductFull } from "~/services/product";
 
 export type ListingDraft = {
   key: string;
@@ -119,5 +119,3 @@ export function toListingInput(listing: ListingDraft): ListingInput {
     code: code === "" ? null : code,
   };
 }
-
-export type ProductDraftInput = ProductInput;

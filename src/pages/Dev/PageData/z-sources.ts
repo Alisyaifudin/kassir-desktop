@@ -53,7 +53,7 @@ let statsRuns = 0;
  * a genuine refetch. The first load is slow, a refetch is quicker — as a real
  * query usually is.
  */
-export const stats: Effect.Effect<DemoStats, never> = Effect.gen(function* () {
+const stats: Effect.Effect<DemoStats, never> = Effect.gen(function* () {
   const first = statsRuns === 0;
   yield* sleep(first ? LATENCY.stats : LATENCY.refetch);
   statsRuns += 1;
@@ -73,7 +73,7 @@ export const addOrders = (count: number): Effect.Effect<{ added: number }, DemoE
  * Live state, like `service.record.get.changes`: the mutation pushes into the
  * same ref a service would own, so subscribers update without a refetch.
  */
-export const activityRef = Effect.runSync(
+const activityRef = Effect.runSync(
   SubscriptionRef.make<DemoActivity[]>([{ id: "a1", text: "Kasir Raisya masuk" }]),
 );
 
@@ -94,7 +94,7 @@ export const addActivity = (text: string): Effect.Effect<DemoActivity, DemoError
  */
 let flakyRuns = 0;
 
-export const flaky: Effect.Effect<string, DemoError> = Effect.gen(function* () {
+const flaky: Effect.Effect<string, DemoError> = Effect.gen(function* () {
   flakyRuns += 1;
   const run = flakyRuns;
   yield* sleep(LATENCY.flaky);

@@ -13,7 +13,7 @@ import { withDiff, type MoneyRow } from "./with-diff";
  * dependencies — a new range keeps the old rows on screen, flagged `refetching`,
  * while the table loads behind them.
  */
-export type PocketHistoryData = {
+type PocketHistoryData = {
   pockets: PocketSummary[];
   entries: MoneyRow[];
 };

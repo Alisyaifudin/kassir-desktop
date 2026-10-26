@@ -7,7 +7,7 @@ import type { ProductFull, ProductError } from "~/services/product";
  * tab opened their own subscription to `changesFull`, so the same row was read
  * three times over.
  */
-export type ProductDetailData = { products: ProductFull[] };
+type ProductDetailData = { products: ProductFull[] };
 
 // Cached: every key here is a live stream, so a return visit paints last
 // visit's answer (flagged `refetching`) and the first emission confirms it.

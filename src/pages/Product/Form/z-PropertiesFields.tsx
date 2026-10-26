@@ -13,7 +13,7 @@ export const PROPERTIES_SECTION = {
 } as const;
 
 /** A property row's words. The pending row reads them from here too. */
-export const PROPERTY_ROW = {
+const PROPERTY_ROW = {
   key: { label: "Kunci", placeholder: "cth. asal" },
   value: { label: "Nilai", placeholder: "cth. Gayo" },
   remove: "Hapus properti",

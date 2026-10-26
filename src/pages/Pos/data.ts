@@ -14,7 +14,7 @@ import type { Draft as DraftModel, TransactionError } from "~/services/transacti
  * stage toggle, the rounding field, `Bayar`, the cashier name and the options
  * button all read values that either are already here or pulse in place.
  */
-export type PosData = {
+type PosData = {
   drafts: DraftModel[];
   methods: MethodCatalog;
   customers: Customer[];

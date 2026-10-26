@@ -4,7 +4,7 @@ import type { Record as RecordModel, RecordMethod } from "~/services/record";
 import { roundToFix } from "~/services/record/round";
 
 /** The base method has no name; every named method under a kind is a variant. */
-export function isBaseMethod(method: Method): boolean {
+function isBaseMethod(method: Method): boolean {
   return method.name === null || method.name === "";
 }
 
@@ -45,7 +45,7 @@ export type MethodSelection = {
 
 export const EMPTY_SELECTION: MethodSelection = { kinds: [], methods: [] };
 
-export function isEmptySelection(selection: MethodSelection): boolean {
+function isEmptySelection(selection: MethodSelection): boolean {
   return selection.kinds.length === 0 && selection.methods.length === 0;
 }
 

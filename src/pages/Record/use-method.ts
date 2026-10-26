@@ -20,7 +20,7 @@ import {
 /** Stable identity for the pre-load case, so memo deps don't churn every render. */
 const NO_METHODS: Method[] = [];
 
-export function useMethods(): Result<Method[], MethodError> {
+function useMethods(): Result<Method[], MethodError> {
   return useStream(service.method.get.changes);
 }
 

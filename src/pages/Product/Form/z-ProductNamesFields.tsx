@@ -13,7 +13,7 @@ export const NAMES_SECTION = {
 } as const;
 
 /** A name row's label and its empty box's placeholder. */
-export const NAMES_ROW = {
+const NAMES_ROW = {
   label: "Nama",
   placeholder: "cth. Kopi Gayo",
   remove: "Hapus nama alternatif",

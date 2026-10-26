@@ -11,7 +11,7 @@ import type { Record as RecordModel, RecordError } from "~/services/record";
  * day stays on screen, flagged `refetching`, until the new one arrives — which is
  * what the header's `busy` state is built on.
  */
-export type RecordsData = { records: RecordModel[] };
+type RecordsData = { records: RecordModel[] };
 
 // Cached per day and query (`deps`): the day list comes back instantly, and the
 // revision replay re-reads it so an edit elsewhere still lands.

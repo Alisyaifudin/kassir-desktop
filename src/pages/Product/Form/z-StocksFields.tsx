@@ -26,7 +26,7 @@ export const STOCKS_SECTION = {
 } as const;
 
 /** A lot row's words. The pending row reads them from here too. */
-export const STOCK_ROW = {
+const STOCK_ROW = {
   value: (index: number) => `Jumlah lot ${index + 1} (pcs)`,
   capital: "Modal / pcs",
   placeholder: "0",

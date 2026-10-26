@@ -206,7 +206,7 @@ ignore it
         <description>Shared UI. Loader.tsx carries the data-flow hooks (useStream, useQuery, useMutation, Loader, LoaderMany); createErrorBoundary.tsx builds typed error boundaries; AdminOnly.tsx is the role guard.</description>
       </dir>
       <dir name="layouts/">root.tsx (size) and authenticated/ (topbar, nav, outlet).</dir>
-      <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back, use-record-revision.</dir>
+      <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
       <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, receipt/, search/.</dir>
       <file name="route.tsx">Hash router definition; the only place routes are enabled or disabled.</file>
       <file name="main.tsx">React root; renders RouterProvider.</file>

@@ -15,7 +15,7 @@ import type { Printer, PrinterError } from "~/services/printer";
  * - `printers` — the names the system offers (read once: hardware changes when
  *   someone plugs something in, not while the page is open).
  */
-export type PrinterData = {
+type PrinterData = {
   printer: Printer;
   printers: string[];
 };

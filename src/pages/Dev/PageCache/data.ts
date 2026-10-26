@@ -26,7 +26,7 @@ import {
  * `cachedData` opts into `pageCache`: a key paints its last answer, and only an
  * invalidated one re-reads.
  */
-export type LabData = {
+type LabData = {
   profile: LabProfile;
   orders: LabOrders;
   ledger: LabLedgerRow[];

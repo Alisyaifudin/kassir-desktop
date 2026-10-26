@@ -11,7 +11,7 @@ import type { Draft as DraftModel, TransactionError } from "~/services/transacti
  * strip's frame, the accordion's wording and the goods grid are on screen while
  * the catalogues are still arriving, instead of after them.
  */
-export type RestockData = {
+type RestockData = {
   drafts: DraftModel[];
   methods: MethodCatalog;
   suppliers: Supplier[];

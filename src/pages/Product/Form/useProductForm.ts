@@ -15,7 +15,7 @@ import {
   type StockDraft,
 } from "./types";
 
-export type ProductFormErrors = {
+type ProductFormErrors = {
   name?: string;
   listings?: string;
   listingErrors?: Record<string, { name?: string; price?: string; unit?: string }>;
@@ -165,7 +165,7 @@ function hasErrors(errors: ProductFormErrors): boolean {
   );
 }
 
-export function buildProductInput(draft: ProductDraft): ProductInput {
+function buildProductInput(draft: ProductDraft): ProductInput {
   return {
     name: draft.name.trim(),
     note: draft.note,

@@ -1,17 +1,10 @@
-import { createErrorBoundary, createManyErrorBoundary } from "~/components/createErrorBoundary";
 import { TextError } from "~/components/TextError";
-import { InfoError } from "~/services/info";
-import { MethodError } from "~/services/method";
-import { ProductError } from "~/services/product";
-import { RecordError } from "~/services/record";
-import { SocialError } from "~/services/social";
 
 /**
- * Panel-scoped boundaries. `ErrorComponent` is a full-page fallback, which would
- * blow up this layout, so a failure is contained to the panel that raised it.
+ * Panel-scoped fallbacks. `ErrorComponent` is a full-page fallback, which would
+ * blow up this layout, so a failure is contained to the panel that raised it —
+ * `pageData.Gate` renders these from a key's own error state.
  */
-export const ItemErrorBoundary = createErrorBoundary(RecordError);
-
 export function ItemErrorFallback({ error }: { error: { message: string } }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
@@ -20,12 +13,6 @@ export function ItemErrorFallback({ error }: { error: { message: string } }) {
     </div>
   );
 }
-
-export const ReceiptErrorBoundary = createManyErrorBoundary(InfoError, SocialError);
-
-export const MethodErrorBoundary = createErrorBoundary(MethodError);
-
-export const ProductErrorBoundary = createErrorBoundary(ProductError);
 
 /** The one-liner these narrow panels have room for. */
 export function InlineError({ error }: { error: { message: string } }) {

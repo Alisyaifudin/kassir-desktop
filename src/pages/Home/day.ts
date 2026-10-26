@@ -27,7 +27,7 @@ function byMode(summaries: RecordSummary[]): DaySummaries {
 }
 
 /** Local-midnight boundaries for the day starting at `dayStart`, and the one before. */
-export function dayRanges(dayStart: number) {
+function dayRanges(dayStart: number) {
   const start = Temporal.Instant.fromEpochMilliseconds(dayStart).toZonedDateTimeISO(tz);
   return {
     today: { start: start.epochMilliseconds, end: start.add({ days: 1 }).epochMilliseconds },

@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 /** A customer as the form needs it: the id to write, the values to show. */
-export type EditableCustomer = Pick<Customer, "id" | "name" | "phone">;
+type EditableCustomer = Pick<Customer, "id" | "name" | "phone">;
 
 const EMPTY: EditableCustomer = { id: "", name: "", phone: "" };
 

@@ -3,7 +3,7 @@ import { createPageData } from "~/components/page-data";
 import { service } from "~/services";
 import type { DebtRecord, RecordError } from "~/services/record";
 
-export type DebtData = { records: DebtRecord[] };
+type DebtData = { records: DebtRecord[] };
 
 // Cached: the list comes back instantly and the revision replay re-reads it, so
 // settling a record on another screen still moves it out of here.

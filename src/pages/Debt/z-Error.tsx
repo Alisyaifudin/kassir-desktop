@@ -1,7 +1,4 @@
-import { createErrorBoundary } from "~/components/createErrorBoundary";
 import { RecordError } from "~/services/record";
-
-export const DebtErrorBoundary = createErrorBoundary(RecordError);
 
 /** Panel-scoped: `ErrorComponent` is a full-page fallback and would blow up this pane. */
 export function DebtErrorFallback({ error }: { error: RecordError }) {

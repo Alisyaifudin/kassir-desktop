@@ -6,7 +6,7 @@ import { tz } from "~/lib/constants";
 /** How wide each point on the charts is. */
 export type Interval = "day" | "week" | "month";
 
-export type Preset = "7d" | "30d" | "90d" | "month" | "year";
+type Preset = "7d" | "30d" | "90d" | "month" | "year";
 
 export const PRESETS: { key: Preset; label: string }[] = [
   { key: "7d", label: "7 hari" },
@@ -25,7 +25,7 @@ export const INTERVALS: { key: Interval; label: string }[] = [
 export const DAY_MS = 86_400_000;
 
 /** Monday 00:00 of the week that holds `at`, in the shop's timezone. */
-export function startOfWeek(at: number): number {
+function startOfWeek(at: number): number {
   const date = Temporal.Instant.fromEpochMilliseconds(at).toZonedDateTimeISO(tz).startOfDay();
   return date.subtract(Temporal.Duration.from({ days: date.dayOfWeek - 1 })).epochMilliseconds;
 }
@@ -46,7 +46,7 @@ function dayStart(daysAgo = 0): number {
     .subtract(Temporal.Duration.from({ days: daysAgo })).epochMilliseconds;
 }
 
-export function rangeFor(preset: Preset): { from: number; to: number } {
+function rangeFor(preset: Preset): { from: number; to: number } {
   const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
   switch (preset) {
     case "7d":

@@ -9,7 +9,7 @@ import type { Info, InfoError } from "~/services/info";
  * different versions of the same object. (Contrast `pages/Home`, where the four
  * day reads are independent and get a key each.)
  */
-export type ShopData = {
+type ShopData = {
   info: Info;
 };
 

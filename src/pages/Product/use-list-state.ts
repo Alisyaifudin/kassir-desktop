@@ -6,13 +6,13 @@ export type ViewMode = "table" | "grid";
 export type StockFilter = "all" | "in" | "low" | "out";
 export type MarginFilter = "all" | "profit" | "loss";
 export type SortBy = "score" | "name" | "price" | "capital" | "stock" | "updated";
-export type SortDir = "asc" | "desc";
+type SortDir = "asc" | "desc";
 
-export const STOCK_FILTERS = ["all", "in", "low", "out"] as const;
-export const MARGIN_FILTERS = ["all", "profit", "loss"] as const;
-export const SORT_BY = ["score", "name", "price", "capital", "stock", "updated"] as const;
-export const SORT_DIRS = ["asc", "desc"] as const;
-export const VIEW_MODES = ["table", "grid"] as const;
+const STOCK_FILTERS = ["all", "in", "low", "out"] as const;
+const MARGIN_FILTERS = ["all", "profit", "loss"] as const;
+const SORT_BY = ["score", "name", "price", "capital", "stock", "updated"] as const;
+const SORT_DIRS = ["asc", "desc"] as const;
+const VIEW_MODES = ["table", "grid"] as const;
 export const PAGE_SIZES = [10, 20, 50, 100] as const;
 
 /** Products at or below this base-pcs count count as "low stock". */

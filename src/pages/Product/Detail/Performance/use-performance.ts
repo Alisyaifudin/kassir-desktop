@@ -100,7 +100,7 @@ function bucketStarts(from: number, to: number, interval: Interval): number[] {
   return starts;
 }
 
-export function labelOf(start: number, interval: Interval): string {
+function labelOf(start: number, interval: Interval): string {
   const date = Temporal.Instant.fromEpochMilliseconds(start).toZonedDateTimeISO(tz);
   if (interval === "month") return `${monthNames[date.month]} ${String(date.year).slice(-2)}`;
   return formatDate(start);
