@@ -11,7 +11,7 @@ const line = (overrides: Partial<{ qty: number; unit: number; price: number; dis
 
 describe("allocateCapital", () => {
   test("without extras or rounding, capital is just price per pc", () => {
-    const result = allocateCapital([line({ qty: 4, price: 10000 })], new Decimal(40000));
+    const result = allocateCapital([line({ qty: 4, price: 10000 })], new Decimal(40000), 0);
     expect(result?.[0].lineTotal.toNumber()).toBe(40000);
     expect(result?.[0].pcs).toBe(4);
     expect(result?.[0].capital.toNumber()).toBe(10000);
@@ -25,6 +25,7 @@ describe("allocateCapital", () => {
         line({ qty: 3, unit: 1, price: 100 }),
       ],
       new Decimal(440),
+      0,
     );
     expect(result?.map((row) => row.effTotal.toNumber())).toEqual([110, 330]);
     expect(result?.map((row) => row.capital.toNumber())).toEqual([110, 110]);
@@ -34,19 +35,35 @@ describe("allocateCapital", () => {
     const result = allocateCapital(
       [line({ qty: 2, price: 1000, discounts: [200] })],
       new Decimal(1800),
+      0,
     );
     expect(result?.[0].lineTotal.toNumber()).toBe(1800);
     expect(result?.[0].capital.toNumber()).toBe(900);
   });
 
   test("converts a listing unit into pcs", () => {
-    const result = allocateCapital([line({ qty: 2, unit: 3, price: 9000 })], new Decimal(18000));
+    const result = allocateCapital([line({ qty: 2, unit: 3, price: 9000 })], new Decimal(18000), 0);
     expect(result?.[0].pcs).toBe(6);
     expect(result?.[0].capital.toNumber()).toBe(3000);
   });
 
+  test("the per-pc capital is rounded to the record's precision", () => {
+    // 30.001 for 3 pcs does not divide evenly; the stored capital is money, so
+    // it carries the record's fix, while the split's inputs stay exact.
+    const result = allocateCapital([line({ qty: 3, price: 10_000 })], new Decimal(30_001), 2);
+
+    expect(result?.[0].capital.toNumber()).toBe(10_000.33);
+    expect(result?.[0].effTotal.toNumber()).toBe(30_001);
+  });
+
+  test("zero precision rounds the capital to whole rupiah", () => {
+    const result = allocateCapital([line({ qty: 3, price: 10_000 })], new Decimal(30_001), 0);
+
+    expect(result?.[0].capital.toNumber()).toBe(10_000);
+  });
+
   test("returns null when the line totals sum to zero", () => {
-    expect(allocateCapital([line({ price: 0 })], new Decimal(0))).toBeNull();
+    expect(allocateCapital([line({ price: 0 })], new Decimal(0), 0)).toBeNull();
   });
 });
 

@@ -18,7 +18,7 @@
     &lt;sync_system&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>6.9.0</version>
+  <version>6.9.1</version>
   <language>id</language>
 
   <ui_notes>
@@ -103,7 +103,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">6.9.0</entry>
+        <entry key="version">6.9.1</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -119,7 +119,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">6.9.0</entry>
+        <entry key="package.version">6.9.1</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -734,7 +734,10 @@
         `record.add.draft` (a live cart: header, lines, discounts, extras, payments, stock movement, tx_* delete),
         `record.add.external` (an imported record, under a new id) and `record.add.adjustment` (a hand-typed
         extras-only record, flagged RECORD_FLAG_ADJUSTMENT). A sale drains `stocks` oldest-first (a purchase
-        receives a new cost lot) through the pure builders in product/stock-sql.ts. When a draft's DUAL_FLAG extras
+        receives a new cost lot) through the pure builders in product/stock-sql.ts. A purchase's capital: its
+        per-pc cost is the grand total split by each line's own total, then rounded to the record's
+        `record_fix` before it reaches `stocks.stock_capital` and `record_listings.record_listing_capital` — the
+        same precision lot matching and the Modal column compare with. When a draft's DUAL_FLAG extras
         are present, `add.draft` also writes the extras-only `outcoming` twin in the same commit, both rows stamped
         with each other's id in `record_pair_id`.
         A line that points at a catalogue listing is also the operator's latest word on the goods

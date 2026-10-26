@@ -214,6 +214,29 @@ describe("a purchase refreshes the product it stocked", () => {
   });
 });
 
+/**
+ * The purchase's per-pc capital is stored money: it lands on the stock lot the
+ * purchase opens and on the record line. Dividing the grand total by the pieces
+ * does not always terminate (30.001 for 3 pcs), so it is rounded to the record's
+ * `record_fix` at the one place it is derived — the same precision lot matching
+ * and the product page's Modal column compare with.
+ */
+describe("a purchase stores capital at the record's precision", () => {
+  test("an uneven grand total becomes a fixed-decimal capital", async () => {
+    const { db, result } = await submit({
+      mode: "outcoming",
+      fix: 2,
+      lines: [makeLine({ qty: 3, price: 10_000 })],
+      extras: [makeExtra("number", 1, "Ongkir")],
+    });
+
+    const id = right(result);
+    const [portion] = portionsOf(db, id);
+    expect(portion.record_listing_capital).toBe(10_000.33);
+    expect(stocksOf(db).map((stock) => stock.stock_capital)).toContain(10_000.33);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Assertion helpers
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { roundToFix } from "./round";
 
 /** The purchase line shape capital allocation needs. */
 export type CapitalLine = {
@@ -23,10 +24,17 @@ export type CapitalAllocation = {
  * Allocate the final grand total across purchase lines by their own line totals.
  * Returns null when the lines sum to zero, where the proportional split is
  * undefined.
+ *
+ * `capital` is the cost per pc the purchase will store on its stock lot and on
+ * the record line, so it is rounded to the record's precision (`record_fix`)
+ * here, at the one place it is derived — a 30.001 purchase of 3 pcs is
+ * 10.000,33, not 10.000,333333333333. The other figures stay at full precision:
+ * they are inputs to the split, not something that gets stored.
  */
 export function allocateCapital(
   lines: readonly CapitalLine[],
   grand: Decimal,
+  fix: number,
 ): CapitalAllocation[] | null {
   const lineTotals = lines.map((line) =>
     new Decimal(line.price)
@@ -44,7 +52,7 @@ export function allocateCapital(
       lineTotal,
       pcs,
       effTotal,
-      capital: pcs > 0 ? effTotal.div(pcs) : new Decimal(0),
+      capital: pcs > 0 ? new Decimal(roundToFix(effTotal.div(pcs).toNumber(), fix)) : new Decimal(0),
     };
   });
 }

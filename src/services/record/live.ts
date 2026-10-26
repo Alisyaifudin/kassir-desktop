@@ -1187,6 +1187,7 @@ export const RecordLive = Layer.effect(
                     discounts: line.discounts,
                   })),
                   roundMoney(new Decimal(input.total).plus(input.rounding), input.fix),
+                  input.fix,
                 )
               : null;
             if (isPurchase && allocations === null) {
