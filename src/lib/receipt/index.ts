@@ -98,9 +98,6 @@ class PdfDocError {
   constructor(error: unknown, msg: string) {
     this.e = error instanceof Error ? error : new Error(msg, { cause: error });
   }
-  static fail(error: unknown, msg: string) {
-    return Effect.fail(new PdfDocError(error, msg));
-  }
 }
 
 function createPdfDoc() {

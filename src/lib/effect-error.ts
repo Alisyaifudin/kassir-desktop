@@ -1,26 +1,8 @@
-import { Data, Effect } from "effect";
-import { To } from "react-router";
-
-export class TooMany {
-  readonly _tag = "TooMany";
-  constructor(readonly msg: string) {}
-  static new(msg: string) {
-    return new TooMany(msg);
-  }
-}
+import { Data } from "effect";
 
 export class NotFound extends Data.TaggedError("NotFound")<{ message: string }> {}
 export class InvokeError extends Data.TaggedError("InvokeError")<{ message: string }> {}
 export class InvalidCredential extends Data.TaggedError("InvalidCredential")<{ message: string }> {}
-
-export class RedirectError {
-  readonly _tag = "RedirectError";
-  constructor(public to: To) {}
-  static fail(to: To) {
-    return Effect.fail(new RedirectError(to));
-  }
-}
-
 
 export class IOError {
   readonly _tag = "IOError";
@@ -65,57 +47,7 @@ export class TooBigError {
   constructor(public size: number) {}
 }
 
-
 export class DuplicateError {
   readonly _tag = "DuplicateError";
   constructor(public name: string) {}
-}
-
-export class ManyDuplicateError {
-  readonly _tag = "ManyDuplicateError";
-  constructor(public products: { new: string; current: string }[]) {}
-}
-export class RequestError {
-  readonly _tag = "RequestError";
-  constructor(readonly error: Error) {}
-  static new(e: unknown) {
-    if (e instanceof Error) {
-      return new RequestError(e);
-    }
-    const unknown = new Error("Unknown Error", { cause: e });
-    return new RequestError(unknown);
-  }
-  static fail(e: unknown) {
-    return Effect.fail(RequestError.new(e));
-  }
-}
-
-export class ResponseError {
-  readonly _tag = "ResponseError";
-  constructor(readonly response: Response) {}
-  static fail(response: Response) {
-    return Effect.fail(new ResponseError(response));
-  }
-}
-
-export class BodyError {
-  readonly _tag = "BodyError";
-  constructor(readonly error: Error) {}
-  static new(e: unknown) {
-    if (e instanceof Error) {
-      return new BodyError(e);
-    }
-    const unknown = new Error("Unknown Error", { cause: e });
-    return new BodyError(unknown);
-  }
-  static fail(e: unknown) {
-    return Effect.fail(BodyError.new(e));
-  }
-}
-
-import { z } from "zod";
-
-export class ZodSchemaError {
-  readonly _tag = "ZodSchemaError";
-  constructor(readonly error: z.ZodError) {}
 }

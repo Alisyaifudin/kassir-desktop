@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { Temporal } from "temporal-polyfill";
+import { tz } from "./constants";
 
 export const MONTHS = [
   "Jan",
@@ -31,7 +31,7 @@ export const monthNames = {
   12: "Desember",
 } as Record<number, string>;
 
-export const dayNames = {
+const dayNames = {
   1: "Senin",
   2: "Selasa",
   3: "Rabu",
@@ -42,13 +42,11 @@ export const dayNames = {
 } as Record<number, string>;
 
 export function getDayName(epochMilli: number) {
-  const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
   return dayNames[date.dayOfWeek];
 }
 
 export function formatDate(epochMilli: number, type: "short" | "long" = "short"): string {
-  const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
   const { day, month, year } = date;
   switch (type) {
@@ -59,13 +57,7 @@ export function formatDate(epochMilli: number, type: "short" | "long" = "short")
   }
 }
 
-export const dateStringSchema = z.string().regex(
-  /^\d+-\d{2}-\d{2}$/, // Regular expression to match any number of digits for the year, followed by MM-DD
-  "Tanggal tidak valid",
-);
-
 export function formatTime(epochMilli: number, format: "long" | "short" = "short"): string {
-  const tz = Temporal.Now.timeZoneId();
   const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
   const { hour, minute, second } = date;
   switch (format) {
@@ -76,27 +68,12 @@ export function formatTime(epochMilli: number, format: "long" | "short" = "short
   }
 }
 
-export function dateToEpoch(date: string): number {
-  const [year, month, day] = date.split("-").map(Number);
-  const tz = Temporal.Now.timeZoneId();
-  const t = Temporal.ZonedDateTime.from({ timeZone: tz, year, month, day }).startOfDay()
-    .epochMilliseconds;
-  return t;
-}
-
-export function getDayOrder(epochMilli: number) {
-  const tz = Temporal.Now.timeZoneId();
-  const date = Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz);
-  return date.day;
-}
-
 /**
  * The wall-clock reading of an epoch in the machine's zone, as the value the
  * `DateTime` picker edits. The picker never sees a zone: it edits the clock face
  * the operator is looking at, and `epochFromPlain` puts it back.
  */
 export function plainFromEpoch(epochMilli: number): Temporal.PlainDateTime {
-  const tz = Temporal.Now.timeZoneId();
   return Temporal.Instant.fromEpochMilliseconds(epochMilli).toZonedDateTimeISO(tz).toPlainDateTime();
 }
 
@@ -107,6 +84,5 @@ export function plainFromEpoch(epochMilli: number): Temporal.PlainDateTime {
  * does — the alternative is refusing a time the operator can see on a clock.
  */
 export function epochFromPlain(plain: Temporal.PlainDateTime): number {
-  const tz = Temporal.Now.timeZoneId();
   return plain.toZonedDateTime(tz).epochMilliseconds;
 }

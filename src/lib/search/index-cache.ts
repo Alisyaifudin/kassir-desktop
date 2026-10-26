@@ -14,12 +14,12 @@ import type { TextOptions } from "./quality";
  * product and a lot.
  */
 
-export const SCALE = 9999;
+const SCALE = 9999;
 
 export type Hit = { id: string; score: number };
 
 /** One typed query, already parsed into everything the graders need. */
-export type Query = {
+type Query = {
   raw: string;
   norm: string;
   words: string[];

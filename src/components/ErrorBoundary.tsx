@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { isRouteErrorResponse, Link, useRouteError, type To } from "react-router";
+import { isRouteErrorResponse, Link, useRouteError } from "react-router";
 import { Button } from "./ui/button";
 import { Unauthenticated } from "~/lib/auth";
 import Redirect from "./Redirect";
@@ -20,16 +20,6 @@ function logError(error: unknown) {
   log.error(error instanceof Error ? error : safeStringify(error));
 }
 
-/** `effect-error.ts`'s `RedirectError` is a non-`Error` `_tag` value. */
-function isRedirectError(error: unknown): error is { _tag: "RedirectError"; to: To } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { _tag?: unknown })._tag === "RedirectError" &&
-    "to" in error
-  );
-}
-
 export default function ErrorBoundary() {
   const env = import.meta.env.DEV;
   const error = useRouteError();
@@ -42,11 +32,6 @@ export default function ErrorBoundary() {
   // Unauthenticated → login (hard reset clears the cached user).
   if (error instanceof Unauthenticated) {
     return <Redirect to="/login" hard />;
-  }
-
-  // Route redirect errors instead of rendering them as a crash.
-  if (isRedirectError(error)) {
-    return <Redirect to={error.to} />;
   }
 
   const reloadPage = () => window.location.reload();

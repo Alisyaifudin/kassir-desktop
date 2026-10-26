@@ -3,7 +3,6 @@ import { ReceiptData, TextData } from "./type";
 export function productsTextData(products: ReceiptData["products"], fix: number) {
   const textData: TextData[] = [];
   for (const product of products) {
-    // const nameTextData = formatLongText(product.name, capacity);
     textData.push({
       kind: "long",
       text: product.name,

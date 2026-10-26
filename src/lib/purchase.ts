@@ -129,7 +129,7 @@ export function linesSubtotal(lines: readonly Line[]): Decimal {
 }
 
 /** One extra's computed effect and the running total after it. */
-export type ExtraEffect = { eff: Decimal; total: Decimal };
+type ExtraEffect = { eff: Decimal; total: Decimal };
 
 /**
  * Work through the extras in order. A percent applies to the running total —

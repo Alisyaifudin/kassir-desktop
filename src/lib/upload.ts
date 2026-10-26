@@ -10,7 +10,7 @@ import { toast } from "sonner";
  * already in scope in the loops, so the message is derived from them here, in
  * one place, instead of being hard-coded three times.
  */
-export type UploadOutcome = {
+type UploadOutcome = {
   tone: "success" | "warning" | "error";
   message: string;
 };

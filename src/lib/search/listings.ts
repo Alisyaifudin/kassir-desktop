@@ -46,9 +46,9 @@ type Entry = {
   altNames: AltEntry[];
 };
 
-export type ListingIndex = Index<Entry>;
+type ListingIndex = Index<Entry>;
 
-export type ListingHit = Hit;
+type ListingHit = Hit;
 
 function toEntry(listing: SearchableListing): Entry {
   const name = analyze(listing.name);

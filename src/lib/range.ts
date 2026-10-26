@@ -22,7 +22,7 @@ export const FURTHEST_EPOCH = Temporal.ZonedDateTime.from({
   day: 1,
 }).epochMilliseconds;
 
-export type RangeBounds = { start: number; end: number };
+type RangeBounds = { start: number; end: number };
 
 function parseBound(raw: string | null, fallback: number): number {
   const parsed = integer.catch(fallback).safeParse(raw);

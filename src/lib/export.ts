@@ -15,7 +15,7 @@ import { log } from "./log";
 const FAILED = "Gagal menyimpan file. Coba pilih folder lain.";
 
 /** `\ / : * ? " < > |` are not allowed in a Windows file name. */
-export function fileNameOf(name: string): string {
+function fileNameOf(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "-");
 }
 

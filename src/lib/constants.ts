@@ -3,7 +3,6 @@ import { Temporal } from "temporal-polyfill";
 export const version = "6.7.4";
 
 export const METHODS = ["cash", "qris", "transfer", "debit"] as const;
-export type METHOD_BASE = "cash" | "transfer" | "debit" | "qris";
 export type MethodKind = (typeof METHODS)[number];
 
 /**
@@ -28,9 +27,6 @@ export type ValueKind = "number" | "percent";
  * dialog — so the vocabulary cannot drift back to Jual/Beli one screen at a time.
  */
 export const MODE_NAMES = { incoming: "Masuk", outcoming: "Keluar" } as const;
-
-/** Shape of the built-in method rows seeded below; the `method` service owns the domain type. */
-type Method = { id: string; name?: string; kind: MethodKind };
 
 const ProductKind = {
   retail: "Ecer",
@@ -80,30 +76,6 @@ export const METHOD_BASE_KIND = {
   "1002": "debit",
 } as const;
 
-export const DEFAULT_METHOD = {
-  id: "1000",
-  method: "cash",
-  name: null,
-} as const;
-
-export const DEFAULT_METHODS = [
-  {
-    id: "1000",
-    kind: "cash",
-  },
-  {
-    id: "1003",
-    kind: "qris",
-  },
-  {
-    id: "1001",
-    kind: "transfer",
-  },
-  {
-    id: "1002",
-    kind: "debit",
-  },
-] satisfies Method[];
 export const DEBOUNCE_DELAY = 100;
 
 /**
