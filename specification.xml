@@ -208,6 +208,7 @@ ignore it
       <dir name="layouts/">root.tsx (size) and authenticated/ (topbar, nav, outlet).</dir>
       <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
       <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, receipt/, search/.</dir>
+      <dir name="integration/">Cross-layer tests: the real service layers over the real migrations with only the Tauri backends substituted — Beranda's keys over page-data, the Product screen, and Setting → Toko's write path.</dir>
       <file name="route.tsx">Hash router definition; the only place routes are enabled or disabled.</file>
       <file name="main.tsx">React root; renders RouterProvider.</file>
     </source>
