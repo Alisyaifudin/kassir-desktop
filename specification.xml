@@ -1,4 +1,3 @@
-ignore it
 <?xml version="1.0" encoding="UTF-8"?>
 <specification>
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -6,13 +5,17 @@ ignore it
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <title>Kassir</title>
   <description>
-    A Tauri v2 desktop cashier application (Point of Sale) for Windows. Manages
-    products, transactions, customers, cash flow, and analytics. Offline-first:
-    SQLite (data.db) is the source of truth, fronted by an Effect services layer
-    (src/services/) that components subscribe to. Includes thermal receipt
-    printing, role-based access (admin/user), and multi-cashier login. A
-    timestamp-based cloud sync layer exists but is not wired into the UI yet —
-    see &lt;sync_system&gt;.
+    A Tauri v2 desktop cashier application (Point of Sale) for Windows. Sells and
+    restocks goods, records arbitrary transactions, and keeps products, stock,
+    customers, suppliers, payment methods, contacts, pockets and analytics.
+    Offline-first: one SQLite database (data.db) is the source of truth, fronted
+    by an Effect services layer (src/services/) whose SubscriptionRefs components
+    subscribe to, and read through the page-data layer
+    (src/components/page-data/). Includes thermal receipt printing (pdf-lib +
+    the Windows spooler), role-based access (admin/user), multi-cashier login,
+    and a timestamp-based cloud sync protocol that is documented
+    (backend-docs/openapi.yaml) but not implemented in the app — see
+    &lt;sync_system&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
   <version>6.7.9</version>
@@ -21,66 +24,78 @@ ignore it
   <ui_notes>
     <tech_stack>
       <category name="frontend">
-        <item name="typescript">5.6 (strict mode, ES2021 target)</item>
-        <item name="react">19.2, React Router 7.9 (hash-based)</item>
-        <item name="styling">Tailwind CSS 4.1, vanilla-extract 1.17, class-variance-authority 0.7</item>
-        <item name="ui_primitives">Radix UI (accordion, checkbox, dialog, label, popover, radio-group, select, separator, slot, tabs), shadcn/ui new-york style, zinc base color, CSS variables enabled</item>
-        <item name="icons">Lucide React 1.8</item>
-        <item name="animation">Motion 12.38 (framer-motion successor)</item>
+        <item name="typescript">5.6 (strict, noUnusedLocals/Parameters, ES2021 target)</item>
+        <item name="react">19.3, React Router 7.18 (createHashRouter)</item>
+        <item name="styling">Tailwind CSS 4.3 (CSS-first tokens in src/global.css), class-variance-authority 0.7, tailwind-merge 3.7, clsx 2.1; @vanilla-extract/vite-plugin 5.2 is still configured but no `.css.ts` sources remain</item>
+        <item name="ui_primitives">Radix UI (accordion, checkbox, dialog, label, popover, radio-group, select, separator, slider, slot, tabs), shadcn/ui new-york style, zinc base colour, CSS variables enabled</item>
+        <item name="icons">lucide-react 1.61</item>
+        <item name="animation">motion 12.43</item>
         <item name="drag_drop">@dnd-kit/core 6, @dnd-kit/sortable 10, @dnd-kit/utilities 3</item>
-        <item name="forms">@tanstack/react-form 1.28</item>
-        <item name="validation">Zod 4.3, Valibot 1.2</item>
-        <item name="state">Effect-TS 3.19 services own domain state (Context.Tag + Layer + SubscriptionRef); @xstate/store 3.13 survives on the legacy pages; immer 10.1</item>
-        <item name="numeric">decimal.js 10.5, temporal-polyfill 0.3</item>
-        <item name="search">fuzzysort 3.1, @nozbe/microfuzz 1.0</item>
+        <item name="tables">@tanstack/react-table 8.21, @tanstack/react-virtual 3.14</item>
+        <item name="forms">@tanstack/react-form 1.33</item>
+        <item name="validation">zod 4.6</item>
+        <item name="state">effect 3.22 (Context.Tag + Layer + SubscriptionRef + Stream); @xstate/store 3.17 for the shortcut-legend atom</item>
+        <item name="numeric">decimal.js 10.6 (all money), temporal-polyfill 0.3 (all dates)</item>
+        <item name="search">@nozbe/microfuzz 1.0</item>
         <item name="pdf">pdf-lib 1.17, @pdf-lib/fontkit 1.1</item>
         <item name="id_generation">ulid 3.0</item>
-        <item name="queue">p-queue 9.0</item>
         <item name="theme_switching">next-themes 0.4</item>
         <item name="toasts">sonner 2.0</item>
-        <item name="debounce">use-debounce 10.0</item>
-        <item name="misc">eventemitter3 5.0, fast-deep-equal 3.1, jszip 3.10, clsx 2.1, tailwind-merge 3.3</item>
+        <item name="debounce">use-debounce 10.1</item>
+        <item name="charts">recharts 3.10 (Analytics bodies and product performance, lazy-loaded)</item>
+        <item name="misc">fast-deep-equal 3.1</item>
       </category>
       <category name="backend_rust">
         <item name="framework">Tauri v2</item>
-        <item name="auth">bcrypt 0.17 (hash/verify), jsonwebtoken 8.0 (HS256)</item>
-        <item name="time">chrono 0.4</item>
+        <item name="auth">bcrypt 0.17 (hash/verify only — no JWT, no server auth)</item>
+        <item name="database">tauri-plugin-sql 2 (sqlite); the migration files are embedded by src-tauri/src/database/mod.rs</item>
         <item name="serialization">serde 1, serde_json 1</item>
-        <item name="http">axum 0.7, tower 0.4, tower-http 0.5 (cors)</item>
-        <item name="database">sqlx 0.8 (sqlite, runtime-tokio-rustls)</item>
-        <item name="runtime">tokio 1.37 (full features), futures 0.3</item>
-        <item name="printing">winprint 0.2 (Windows PDF printing)</item>
-        <item name="temporary_files">tempfile 3</item>
-        <item name="env">dotenvy 0.15</item>
-        <item name="build">tauri-build 2</item>
+        <item name="printing">winprint 0.2 (Windows PDF printing), tempfile 3</item>
+        <item name="logging">log 0.4 + tauri-plugin-log 2 (Info)</item>
+        <item name="single_instance">tauri-plugin-single-instance 2 (one process per machine; a second launch focuses the window)</item>
+        <item name="dev_only">tauri-plugin-mcp-bridge 0.13 behind the `mcp-bridge` Cargo feature (debug builds only)</item>
+        <item name="build">tauri-build 2, dotenvy 0.15</item>
       </category>
       <category name="tauri_plugins">
-        <item name="sql" version="2" features="sqlite">Database access with migrations</item>
-        <item name="store" version="2">Key-value persistent storage</item>
-        <item name="http" version="2">HTTP fetch client</item>
-        <item name="fs" version="2">Filesystem access</item>
-        <item name="dialog" version="2">Native file dialogs</item>
-        <item name="opener" version="2">Open URLs/files in default handler</item>
-        <item name="log" version="2">Structured logging</item>
-        <item name="process" version="2">Process management</item>
-        <item name="updater" version="2">Auto-updater</item>
-        <item name="prevent-default" version="4">Prevent default browser behaviors (prod only)</item>
+        <item name="sql" version="2">SQLite + migrations; preloads one database, `sqlite:data.db`</item>
+        <item name="store" version="2">store.json — settings that outlive the database</item>
+        <item name="log" version="2">log file under $APPLOCALDATA/logs</item>
+        <item name="fs" version="2">Scoped to $APPDATA/images and $APPLOCALDATA/logs only</item>
+        <item name="dialog" version="2">Save dialog used by the Rust `export_file` command</item>
+        <item name="process" version="2">Cargo dependency only — not initialised in lib.rs and granted no permission; relaunch/exit are not used</item>
+        <item name="single-instance" version="2">Instance lock + window focus</item>
+        <item name="prevent-default" version="4">Prod only: blocks browser defaults, keeps context menu, reload, focus move, find and print</item>
+        <item name="mcp-bridge" version="0.13">Debug-only automation bridge on 127.0.0.1:9223 (see &lt;testing&gt;)</item>
       </category>
       <category name="dev_tools">
-        <item name="bundler">Vite 6.0</item>
-        <item name="package_manager">Bun (bunfig.toml configured, bun.lock)</item>
-        <item name="testing">@testing-library/react 16, @testing-library/dom 10, @testing-library/jest-dom 6, @happy-dom/global-registrator 18</item>
-        <item name="linting">ESLint 9 (flat config), typescript-eslint 8, eslint-plugin-react 7, eslint-plugin-react-hooks 5.1-rc, eslint-plugin-react-refresh 0.5, eslint-config-prettier 10</item>
-        <item name="formatting">Prettier 3.8 (tabWidth=2, useTabs=false, printWidth=100)</item>
-        <item name="react_compiler">babel-plugin-react-compiler 1.0 (included but commented out in vite.config)</item>
-        <item name="react_scan">Injected in dev mode via vite plugin (unpkg CDN)</item>
-        <item name="vite_plugins">@vanilla-extract/vite-plugin 5.1, @vitejs/plugin-react 4.3, vite-tsconfig-paths 5.1, vite-plugin-arraybuffer 0.1, @tailwindcss/vite 4.1</item>
-        <item name="type_definitions">@types/bun 1.2, @types/react 19.2, @types/react-dom 19.2</item>
+        <item name="bundler">Vite 6.4 (port 1420, base "./", chunk warning 2000 KB)</item>
+        <item name="package_manager">Bun (bunfig.toml, bun.lock); scripts run through `bun run`</item>
+        <item name="unit_tests">bun test + @testing-library/react 16 + @testing-library/jest-dom 6 + happy-dom (preload test/happydom.ts, test/testing-library.ts)</item>
+        <item name="e2e">Playwright 1.64 (e2e/), plus an in-browser harness (src/e2e/) that runs the real migrations on sql.js</item>
+        <item name="linting">ESLint 9 flat config, typescript-eslint 8, eslint-plugin-react 7, react-hooks 5.1-rc, react-refresh 0.5, eslint-config-prettier 10</item>
+        <item name="formatting">Prettier 3.9 (tabWidth=2, useTabs=false, printWidth=100)</item>
+        <item name="react_compiler">babel-plugin-react-compiler 1.0 is installed but the Vite plugin is commented out</item>
+        <item name="react_scan">Injected into `&lt;head&gt;` in dev by a Vite transformIndexHtml plugin (unpkg CDN); skipped for /e2e.html so screenshots and clicks are clean</item>
+        <item name="vite_plugins">@vanilla-extract/vite-plugin, @vitejs/plugin-react, vite-plugin-arraybuffer (fonts as ArrayBuffer), @tailwindcss/vite, vite-tsconfig-paths (only the app's tsconfigs — docs/ is a separate Docusaurus project)</item>
+        <item name="type_definitions">@types/bun 1.4, @types/react 19.3, @types/react-dom 19.3, @types/sql.js 1.4 (for the e2e harness)</item>
+        <item name="audit">scripts/audit-loop/ (`bun run audit:once`, `bun run audit:loop`) — a read-only auditor plus a fixer that writes reports under audit/</item>
       </category>
     </tech_stack>
-    <theme>
-      <description>shadcn/ui new-york style with zinc base color and CSS variables. Light and dark theme support via next-themes. Icons from Lucide React. Animation via Motion library.</description>
-    </theme>
+
+    <design_system>
+      <description>
+        shadcn/ui new-york style, zinc base, CSS variables, light and dark via next-themes.
+        Typography is a four-token scale declared in global.css and re-resolved per app size:
+        `text-big`, `text-normal`, `text-small`, and the owner-reserved `text-tiny`, plus
+        `text-change` and `text-grand-total` for the cart's money. The UI size preference
+        ("big" | "small") toggles a `small` class on &lt;body&gt;, and every `small:` variant hangs
+        off it. `src/lib/design-tokens.test.ts` guards the rule mechanically: no raw
+        `text-3xl`/`text-sm`, and no lucide `size={N}` (an attribute no `.small` rule can
+        override) — icon size comes from `icon`/`size-*` classes so both modes stay correct.
+        Every &lt;DialogContent&gt; must render a &lt;DialogDescription&gt; or say
+        `aria-describedby={undefined}` on purpose; `src/lib/dialog-description.test.ts` guards it.
+      </description>
+    </design_system>
   </ui_notes>
 
   <project_structure>
@@ -92,19 +107,23 @@ ignore it
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
-        <script name="preview" command="vite preview" />
-        <script name="tauri" command="tauri" />
+        <script name="typecheck" command="tsc --noEmit" />
+        <script name="test" command="bun test" />
+        <script name="test:watch" command="bun test --watch" />
+        <script name="test:e2e" command="playwright test" />
+        <script name="tauri:dev" command="tauri dev --config src-tauri/tauri.dev.conf.json --features mcp-bridge" />
         <script name="lint" command="eslint ." />
         <script name="lint:fix" command="eslint . --fix" />
+        <script name="audit:once" command="bun scripts/audit-loop/index.ts --dry-run --max-iterations 1000" />
+        <script name="audit:loop" command="bun scripts/audit-loop/index.ts" />
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
         <entry key="package.version">6.7.9</entry>
-        <entry key="package.description">kassir-desktop</entry>
-        <entry key="package.authors">Muhammad Ali Syaifudin</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
+        <entry key="features.default">[] — the `mcp-bridge` feature is opt-in and debug-only</entry>
       </file>
       <file name="tauri.conf.json">
         <entry key="productName">kassir</entry>
@@ -113,46 +132,31 @@ ignore it
         <entry key="build.devUrl">http://localhost:1420</entry>
         <entry key="build.beforeBuildCommand">bun run build</entry>
         <entry key="build.frontendDist">../dist</entry>
-        <entry key="app.windows[0].title">kassir</entry>
-        <entry key="app.windows[0].width">800</entry>
-        <entry key="app.windows[0].height">600</entry>
-        <entry key="app.windows[0].resizable">true</entry>
-        <entry key="app.windows[0].maximized">true</entry>
-        <entry key="app.windows[0].dragDropEnabled">false</entry>
-        <entry key="app.security.csp">null (disabled)</entry>
-        <entry key="plugins.sql.preload">sqlite:data.db, sqlite:tx.db</entry>
-        <entry key="plugins.updater.windows.installMode">passive</entry>
-        <entry key="plugins.updater.endpoints[0]">https://github.com/Alisyaifudin/kassir-desktop/releases/latest/download/latest.json</entry>
-        <entry key="bundle.createUpdaterArtifacts">true</entry>
-        <entry key="bundle.active">true</entry>
-        <entry key="bundle.targets">msi</entry>
-        <entry key="bundle.icon">32x32.png, 128x128.png, 128x128@2x.png, icon.icns, icon.ico</entry>
+        <entry key="app.windows[0]">title kassir, 800x600, resizable, maximized, dragDropEnabled false (HTML5 drag/drop is used by the cart)</entry>
+        <entry key="app.security.csp">default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost</entry>
+        <entry key="app.security.capabilities">["default"] — the dev config adds "mcp-bridge"</entry>
+        <entry key="plugins.sql.preload">["sqlite:data.db"] — one database; the cart tables live inside it</entry>
+        <entry key="bundle.createUpdaterArtifacts">false (no updater plugin is wired)</entry>
+        <entry key="bundle.active / targets">true / msi</entry>
+      </file>
+      <file name="tauri.dev.conf.json">
+        <entry key="purpose">The `bun run tauri:dev` config: enables `withGlobalTauri` (needed by the MCP bridge) and the mcp-bridge capability. Never used for a release build.</entry>
       </file>
       <file name="vite.config.ts">
-        <entry key="port">1420 (strictPort)</entry>
-        <entry key="base">./ (relative for Tauri)</entry>
-        <entry key="chunkSizeWarningLimit">2000 KB</entry>
-        <entry key="plugins">vanillaExtractPlugin, react, arraybuffer, tailwindcss, tsconfigPaths, react-scan (dev only)</entry>
-        <entry key="env_prefix">VITE_API_URL (default: https://api.kassir.store)</entry>
+        <entry key="port">1420 (strictPort); TAURI_DEV_HOST enables LAN HMR on 1421</entry>
+        <entry key="base">./</entry>
+        <entry key="plugins">vanillaExtract, react, arraybuffer, tailwindcss, tsconfigPaths, inject-react-scan (dev only, not on /e2e.html)</entry>
         <entry key="server.watch.ignored">**/src-tauri/**</entry>
+        <entry key="env">No VITE_* variables are read by the app today (the cloud API has no client; see &lt;cloud_api&gt;)</entry>
       </file>
       <file name="tsconfig.json">
         <entry key="target">ES2021</entry>
-        <entry key="module">ESNext</entry>
-        <entry key="moduleResolution">bundler</entry>
+        <entry key="module / moduleResolution">ESNext / bundler</entry>
+        <entry key="strict / noUnusedLocals / noUnusedParameters / noFallthroughCasesInSwitch">true</entry>
         <entry key="jsx">react-jsx</entry>
-        <entry key="strict">true</entry>
-        <entry key="noUnusedLocals">true</entry>
-        <entry key="noUnusedParameters">true</entry>
-        <entry key="noFallthroughCasesInSwitch">true</entry>
         <entry key="paths.~/*">./src/*</entry>
         <entry key="types">bun-types, @testing-library/jest-dom, vite-plugin-arraybuffer</entry>
-      </file>
-      <file name=".env.development.local">
-        <entry key="VITE_API_URL">http://192.168.225.187:8787</entry>
-      </file>
-      <file name=".env.production">
-        <entry key="VITE_API_URL">https://api.kassir.store</entry>
+        <entry key="include">src, test</entry>
       </file>
       <file name="bunfig.toml">
         <entry key="test.preload">./test/happydom.ts, ./test/testing-library.ts</entry>
@@ -160,7 +164,6 @@ ignore it
       <file name="components.json">
         <entry key="style">new-york</entry>
         <entry key="rsc">false</entry>
-        <entry key="tsx">true</entry>
         <entry key="tailwind.baseColor">zinc</entry>
         <entry key="tailwind.cssVariables">true</entry>
         <entry key="iconLibrary">lucide</entry>
@@ -176,18 +179,23 @@ ignore it
         <entry key="body_class">overflow-y-hidden</entry>
         <entry key="root_element">&lt;div id="root" class="flex flex-col flex-1"&gt;</entry>
       </file>
+      <file name="e2e.html">
+        <entry key="purpose">Entry for the in-browser harness; loads src/e2e/main.tsx instead of src/main.tsx.</entry>
+      </file>
+      <file name="FLAGS.md">
+        <entry key="purpose">The one document for the three bitfields: records.record_flag, tx_records.tx_record_flag, and the extras flags. A new meaning gets a new power of two; the file and the constant's doc comment change together.</entry>
+      </file>
       <file name="eslint.config.ts">
         <entry key="format">Flat config (ESLint 9)</entry>
         <entry key="plugins">react-hooks, react-refresh, react</entry>
         <entry key="extends">js/recommended, tseslint/recommended, eslint-config-prettier</entry>
         <entry key="ignores">dist, build, node_modules, .tauri, src-tauri, docs</entry>
-        <entry key="rules.react/prop-types">off (TypeScript handles it)</entry>
-        <entry key="rules.react-refresh/only-export-components">off</entry>
       </file>
-      <file name=".gitignore">
-        <entry key="ignored">logs, node_modules, dist, dist-ssr, *.local, .vscode (except extensions.json), .idea, .DS_Store, .tauri, .secrets, .secret, pi-session*, .env-old, .env.old</entry>
+      <file name="backend-docs/openapi.yaml">
+        <entry key="purpose">The cloud API contract (auth schemes, timestamp sync endpoints, error shapes). Documentation only — no client ships in the app.</entry>
       </file>
     </config>
+
     <source root="src/">
       <dir name="services/">
         <description>
@@ -196,193 +204,178 @@ ignore it
           (SQLite, src/services/db/), store (plugin-store) and local-storage; every other folder is a public
           domain service re-exported on the app-level `service` object. See &lt;services&gt;.
         </description>
-        <file name="index.ts">Composes the layers and exports `service`.</file>
+        <file name="index.ts">Exports the `service` singleton; in a DEV or test build it first honours `globalThis.__KASSIR_SERVICE__`, which is how the e2e harness and the integration tests swap the backend (`NODE_ENV === "test"`; both gates are compile-time constants in a production build).</file>
+        <file name="wiring.ts">buildAppLive(hidden) and makeService(live) — the single place the Tauri plugins are reached.</file>
       </dir>
       <dir name="pages/">
-        <description>One folder per route, exporting a RouteObject — Login, Home, Pos, Restock, Transaction, Product, Record, Money, Debt, Extra, Cashier, Customer, Method, Social, Analytics, Setting and the Dev/PageData + Dev/PageCache playgrounds.</description>
-        <description>cart/ is shared UI for Pos and Restock, not a route.</description>
+        <description>One folder per route, exporting a RouteObject — Login, Home, Pos, Restock, Transaction, Product, Record, Money, Debt, Extra, Cashier, Customer, Method, Social, Analytics, Setting, and the Dev/PageData + Dev/PageCache playgrounds (DEV builds only).</description>
+        <description>cart/ is shared UI and hooks for Pos and Restock, not a route.</description>
       </dir>
       <dir name="components/">
-        <description>Shared UI. Loader.tsx carries the data-flow hooks (useStream, useQuery, useMutation, Loader, LoaderMany); createErrorBoundary.tsx builds typed error boundaries; AdminOnly.tsx is the role guard.</description>
+        <description>Shared UI. page-data/ is the async-data layer (&lt;page_data&gt;); cart/ is the POS machinery (&lt;cart&gt;); Loader.tsx carries useStream/useQuery/useMutation; ui/ holds the shadcn primitives; the rest are app-wide pieces (AdminOnly, ErrorBoundary, createErrorBoundary, DateRange, DateTime, NumberField, Password, MethodPicker, FileDropZone, SaveError, Show, ForEach, Loading, Spinner, TextError, ErrorComponent, NotFound, Calendar, Redirect).</description>
       </dir>
-      <dir name="layouts/">root.tsx (size) and authenticated/ (topbar, nav, outlet).</dir>
+      <dir name="layouts/">root.tsx (UI size → body class) and authenticated/ (AuthLayout guard, Topbar, nav, shortcuts, flush-on-exit).</dir>
       <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
-      <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, receipt/, search/.</dir>
-      <dir name="integration/">Cross-layer tests: the real service layers over the real migrations with only the Tauri backends substituted — Beranda's keys over page-data, the Product screen, and Setting → Toko's write path.</dir>
-      <file name="route.tsx">Hash router definition; the only place routes are enabled or disabled.</file>
-      <file name="main.tsx">React root; renders RouterProvider.</file>
+      <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, receipt/, search/. Plus the three mechanical guards: design-tokens.test.ts, dialog-description.test.ts, tauri-capability.test.ts.</dir>
+      <dir name="integration/">Cross-layer tests: the real service layers over the real migrations with only the Tauri backends substituted (Beranda's keys over page-data, the Product screen, Setting → Toko's write path).</dir>
+      <dir name="e2e/">The in-browser harness: sql.js running the real migrations, a localStorage-backed store, a Tauri shim, and main.tsx that injects the service before the router imports.</dir>
+      <file name="route.tsx">Hash router; the only place routes are enabled or disabled.</file>
+      <file name="main.tsx">ReactDOM root rendering RouterProvider.</file>
+    </source>
+    <source root="e2e/">
+      <description>Playwright specs (Tier 0 harness) and the shared boot/login helpers in harness.ts. They drive /e2e.html, seed SQL/storage via addInitScript, and assert on the real UI.</description>
+    </source>
+    <source root="test/">
+      <description>bun test preloads: happy-dom registration and @testing-library/jest-dom matchers with an afterEach cleanup.</description>
     </source>
   </project_structure>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Conventions the codebase is held to                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <conventions>
+    <rule name="service_owns_state">
+      A page never touches SQLite, plugin-store or localStorage. Every read and write goes through a service
+      (src/services/&lt;name&gt;). A service writes the database first, then its SubscriptionRef, so subscribers see
+      the write with no refresh call. Bounded catalogs are a full-list ref (products, methods, extras, customers,
+      suppliers, socials, cashiers, pockets); unbounded ones (records, money entries) are queried Effects plus a
+      `revision` counter that a query puts in its deps.
+    </rule>
+    <rule name="page_data">
+      Async page data goes through createPageData (src/components/page-data/): one key per independent read, the
+      read lives at the leaf that renders the value, fine-grained gates with value-sized placeholders (never a
+      whole-card swap), reserved card heights, a 200 ms anti-flash window, and writes that name the keys they
+      invalidate. See &lt;frontend&gt; / page_data and .pi/skills/page-data.md.
+    </rule>
+    <rule name="money">
+      Money arithmetic is decimal.js everywhere — never float `+ - *` on rupiah. `src/lib/purchase` holds the cart
+      math (line subtotal/grand total, discount stack, extras, paid total, transaction grand total, roundMoney);
+      the record's own precision (`record_fix`) is applied by `~/services/record/round.ts` (roundToFix) and by
+      `roundMoney`, so the table and the printed receipt cannot disagree by a rounding step.
+    </rule>
+    <rule name="dates">
+      Dates are Temporal (temporal-polyfill) in the shop's time zone (`tz` in lib/constants), never the browser's
+      raw Date arithmetic. A record belongs to the day `COALESCE(record_paid_at, record_credit_at,
+      record_created_at)` says — the same effective date the day list, Beranda and Analytics use.
+    </rule>
+    <rule name="flags">
+      Bitfields are documented in FLAGS.md and defined beside their service: records.record_flag
+      (RECORD_FLAG_ADJUSTMENT = 1), tx_records.tx_record_flag (STORED_FLAG = 0b01, ADJUSTMENT_CART_FLAG = 0b10),
+      products.product_flag (PRODUCT_FLAG_UNPUBLISHED = 0b1), and the extras flags (DUAL_FLAG = 0b1, carried from
+      extras into tx_extras into record_extras). Never reuse a bit.
+    </rule>
+    <rule name="dialog_lock">
+      Anything listening on `window` consults isScreenOwnedByDialog() (src/hooks/use-dialog-lock) before acting:
+      a cart money editor is a `modal={false}` Radix dialog portaled beside #root, so `inert` and the focus trap do
+      not stop a window keydown. useInertApp(open) registers the lock and makes #root inert/aria-hidden while the
+      editor is open.
+    </rule>
+    <rule name="no_page_cross_import">
+      A page must not import another page's hook or helper. Shared behaviour is lifted to src/hooks or
+      src/components, and shared page data to a service.
+    </rule>
+    <rule name="typed_errors">
+      Services fail with a Data.TaggedError per domain (ProductError, RecordError, …). Pages either catch the
+      typed failure (createErrorBoundary / pageData.Gate error prop) or render the sentence; the driver's text
+      never reaches the screen (DbError splits `message` from `detail`).
+    </rule>
+  </conventions>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 2: Backend (Tauri/Rust)                                        -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <rust_backend>
     <entry_point>
-      <file name="src-tauri/src/main.rs">
-        <description>Windows entry point with #[windows_subsystem = "windows"] in release mode (no console window). Calls kassir_lib::run().</description>
-      </file>
-      <file name="src-tauri/src/lib.rs">
-        <description>Plugin registration, migration setup, and command handler registration.</description>
-      </file>
-      <file name="src-tauri/build.rs">
-        <description>Standard tauri_build::build() for compile-time resource embedding.</description>
-      </file>
+      <file name="src-tauri/src/main.rs">Windows entry point (#[windows_subsystem = "windows"] in release); calls kassir_lib::run().</file>
+      <file name="src-tauri/src/lib.rs">Plugin registration (single-instance, dialog, fs, log, store, sql with migrations, prevent-default, optional mcp-bridge), the five-command invoke handler, and the app run loop.</file>
+      <file name="src-tauri/src/database/mod.rs">generate_migration(): embeds every `src-tauri/src/database/&lt;range&gt;/migration-N.sql` as a tauri-plugin-sql Migration for `sqlite:data.db`.</file>
     </entry_point>
 
     <commands>
       <command name="hash_password" module="auth">
         <signature>async fn(password: String) → Result&lt;String, AuthError&gt;</signature>
-        <description>Hashes a plaintext password using bcrypt with DEFAULT_COST. Returns the hash string.</description>
-        <error message="Hashing error: {bcrypt_error}" />
+        <description>bcrypt at DEFAULT_COST on the blocking pool (~250 ms of CPU; running it inline would stall the command runtime). Returns the hash.</description>
+        <error message="Hashing error: {error}" />
       </command>
       <command name="verify_password" module="auth">
         <signature>async fn(password: String, hash: String) → Result&lt;bool, AuthError&gt;</signature>
-        <description>Verifies a plaintext password against a bcrypt hash. Returns true if matching.</description>
-        <error message="Hashing error: {bcrypt_error}" />
-      </command>
-      <command name="encode_jwt" module="jwt">
-        <signature>fn(name: String, role: String) → Result&lt;String, JwtError&gt;</signature>
-        <description>Encodes a JWT (HS256) with UserClaims { name, role: Role, exp }. Expiry is 5 days from now. Secret key is hardcoded "super_secret_coy".</description>
-        <error name="InvalidRole">Role string is not "user" or "admin".</error>
-        <error name="InvalidToken">JWT encoding failed.</error>
-      </command>
-      <command name="decode_jwt" module="jwt">
-        <signature>fn(token: String) → Result&lt;UserClaims, JwtError&gt;</signature>
-        <description>Decodes and validates a JWT (HS256). Returns UserClaims { name, role, exp }.</description>
-        <error name="InvalidToken">JWT decoding/validation failed.</error>
+        <description>Verifies a plaintext password against a stored bcrypt hash, also on the blocking pool.</description>
+        <error message="Hashing error: {error}" />
       </command>
       <command name="get_printers" module="printer">
         <signature>fn() → Result&lt;Vec&lt;PrinterInfo&gt;, String&gt;</signature>
-        <description>Enumerates all Windows printer devices via winprint::PrinterDevice::all(). Returns list of { name, status: "Ready" }. Returns error if no printers found.</description>
+        <description>Enumerates Windows printers via winprint. The error lists the available printers when a lookup fails.</description>
       </command>
       <command name="print_pdf" module="printer">
         <signature>fn(printer_name: String, pdf_bytes: Vec&lt;u8&gt;) → Result&lt;String, String&gt;</signature>
-        <description>Prints raw PDF bytes to a named Windows printer. Validates PDF header (%PDF). Saves bytes to a NamedTempFile, prints via WinPdfPrinter with default PrintTicket, then deletes temp file.</description>
-        <error message="Invalid PDF: missing PDF header. First N bytes: {header}" />
-        <error message="Printer '{name}' not found. Available printers: [{list}]" />
+        <description>Validates the %PDF header, writes the bytes to a named temp file, prints through WinPdfPrinter, removes the file, and returns the cashier-facing sentence ("Dikirim ke printer …") the test-print screen shows.</description>
+      </command>
+      <command name="export_file" module="export">
+        <signature>async fn(default_name: String, contents: String) → Result&lt;Option&lt;String&gt;, String&gt;</signature>
+        <description>The JSON download. The Save dialog and the write both live in Rust: the fs plugin's scope is narrowed to the app's own image and log directories, so a frontend writeFile on a user-picked path is rejected. Returns the written path, or None when the dialog was cancelled.</description>
       </command>
     </commands>
 
-    <jwt>
-      <description>HS256 JWT with 5-day expiry. Claims: { name: String, role: Role (admin|user), exp: i64 }. Secret key: hardcoded "super_secret_coy". Role enum serializes as lowercase strings. gen_new_token refreshes token if within 2 days of expiry.</description>
-    </jwt>
-
-    <tauri_plugins>
-      <plugin name="sql" version="2">
-        <description>SQLite database with migration support. Preloads two databases: "sqlite:data.db" (41 migrations) and "sqlite:tx.db" (6 migrations).</description>
-      </plugin>
-      <plugin name="store" version="2">
-        <description>Key-value persistent storage (used for sync token, app settings).</description>
-      </plugin>
-      <plugin name="http" version="2">
-        <description>HTTP fetch client scoped to http://192.168.225.187:8787/** and https://api.kassir.store/*.</description>
-      </plugin>
-      <plugin name="fs" version="2">
-        <description>Filesystem access restricted to $APPLOCALDATA/* and $APPLOCALDATA/logs/* (read and write).</description>
-      </plugin>
-      <plugin name="dialog" version="2">
-        <description>Native file open/save dialogs.</description>
-      </plugin>
-      <plugin name="opener" version="2">
-        <description>Opens URLs and files in the default system application.</description>
-      </plugin>
-      <plugin name="log" version="2">
-        <description>Structured logging at Info level via Rust log crate.</description>
-      </plugin>
-      <plugin name="process" version="2">
-        <description>Process management (restart, exit).</description>
-      </plugin>
-      <plugin name="updater" version="2">
-        <description>Auto-updater with passive install mode on Windows. Checks for updates at https://github.com/Alisyaifudin/kassir-desktop/releases/latest/download/latest.json.</description>
-      </plugin>
-      <plugin name="prevent-default" version="4">
-        <description>Prevents default browser behaviors in production. Allows: CONTEXT_MENU, RELOAD, FOCUS_MOVE, PRINT (all other defaults blocked).</description>
-      </plugin>
-    </tauri_plugins>
+    <security>
+      <description>
+        No embedded HTTP server, no JWT, no sync token in the app binary: the cloud sync protocol lives only in
+        backend-docs/openapi.yaml. Passwords hash and verify through the two bcrypt commands above; the session is
+        frontend state (the auth service), persisted in localStorage.
+      </description>
+      <single_instance>
+        tauri-plugin-single-instance is registered first, before any window or database work. The model is one
+        process per machine: data.db is preloaded and the catalogue/cart live in process-local refs, so a second
+        launch would debounce-write its own stale snapshot over the first. A second launch focuses the existing
+        window instead.
+      </single_instance>
+    </security>
 
     <capabilities>
       <description>
-        Mirrors `src-tauri/capabilities/*.json`, which `src/lib/tauri-capability.test.ts` guards: least
-        privilege, no filesystem default, no updater, no process control. A permission nothing calls is a
-        permission that must not be granted — `fs:default` and `updater:default` were removed for exactly that.
+        Mirrors src-tauri/capabilities/*.json, which src/lib/tauri-capability.test.ts guards: least privilege, no
+        filesystem default, no updater, no process control. A permission nothing calls is a permission that must not
+        be granted.
       </description>
       <capability name="default" windows="main">
         <permission>core:default</permission>
-        <permission>core:window:allow-destroy → the close path: Tauri's Rust handler calls prevent_close() as soon as any JS listener sits on tauri://close-requested, so the window is only ever ended by a destroy() from useFlushOnExit (core:window:default does not include it — the app could not be quit while that was missing)</permission>
-        <permission>sql:default, sql:allow-execute → the whole SQLite access layer (src/services/db)</permission>
+        <permission>core:window:allow-destroy → useFlushOnExit closes the window itself; once a JS listener sits on tauri://close-requested, Rust prevent_close()s, and core:window:default does not include destroy</permission>
+        <permission>sql:default, sql:allow-execute → the whole SQLite layer (src/services/db)</permission>
         <permission>store:default, log:default</permission>
         <permission>fs:allow-mkdir → $APPDATA/images, $APPDATA/images/**</permission>
         <permission>fs:read-files → $APPDATA/images/**, $APPLOCALDATA/logs/**</permission>
         <permission>fs:write-files → $APPDATA/images/**, $APPLOCALDATA/logs/**</permission>
       </capability>
       <capability name="mcp-bridge" windows="main" dev-only="true">
-        <permission>mcp-bridge:default → the debug-only automation bridge on 127.0.0.1:9223; enabled by src-tauri/tauri.dev.conf.json and never linked in a release build</permission>
+        <permission>mcp-bridge:default → 127.0.0.1:9223 automation bridge, enabled only by tauri.dev.conf.json and the `mcp-bridge` Cargo feature</permission>
       </capability>
     </capabilities>
 
     <migrations>
-      <database name="data.db" migration_count="45">
+      <database name="data.db" migration_count="46">
         <description>
-          45 SQL migrations managed by tauri-plugin-sql, applied on boot. The schema evolved from simple INTEGER
-          primary keys to TEXT (ULID) keys with `_updated_at` / `_sync_at` bookkeeping for cloud sync. Key evolution:
-          - Migrations 1-10: Initial tables (products, records, record_items), discount/credit/capital
-          - Migrations 11-20: Barcode to TEXT, capital fixes, cashier with password, records redesign
-          - Migrations 21-30: Price/capital to REAL, images, socials, money, payment methods
-          - Migrations 31-40: TEXT (ULID) primary keys, product_events (event-sourced stock), sync columns; 39/41
-            rename the money-kind concept to pocket*
-          - Migration 41: add pocket_ordering
-          - Migration 42: add extra_flag, and image/webp to the mime lookup
-          - Migration 43: the decomposition — products split into listings/properties/images/stocks, records into
-            record_listings/record_methods/record_extras/discounts, every top-level entity gains a soft-delete
-            `&lt;singular&gt;_deleted_at`, and graves/graves_kind are retired
-          - Migration 44: the tx (cart) tables
-          - Migration 45: link product_events to records
-        </description>
-      </database>
-      <database name="tx.db" migration_count="0">
-        <description>
-          Preloaded but unmanaged: tauri.conf.json still lists tx.db in plugins.sql.preload, yet no migrations ship
-          for it any more and src/transaction/ is deleted. The tables it contains (transactions, products, discounts,
-          extras — described under &lt;database&gt; / transaction_tx_db) are only referenced by the unrouted Shop page.
+          The only database. Every migration in src-tauri/src/database/&lt;range&gt;/migration-N.sql is embedded by
+          database/mod.rs and applied on boot; the frontend also applies the same files in the e2e harness. The schema
+          evolved from INTEGER keys to TEXT (ULID) keys with `_updated_at` / `_sync_at` bookkeeping.
+          Key steps:
+          - 1-10: initial tables (products, records, record_items), discounts, rounding, credit, capital
+          - 11-20: barcode to TEXT, capital fixes, cashiers with a password hash, record redesign
+          - 21-30: price/capital to REAL, images, socials, money, payment methods
+          - 31-40: TEXT (ULID) keys, product_events (event-sourced stock), sync columns; money-kind renamed to pocket
+          - 41: pocket ordering (money_kind_ordering, carried onto pockets later)
+          - 42: extras.extra_flag
+          - 43: the schema rewrite — products split into listings / properties / images / stocks, records into
+            record_listings / record_methods / record_extras / record_images / discounts, every syncable row gains a
+            `&lt;singular&gt;_deleted_at` soft-delete column (graves/graves_kind retired), and the tx_* cart tables are
+            ported into data.db (tx.db is no longer preloaded). Replaced tables are parked as `&lt;name&gt;_old`; nothing
+            was dropped
+          - 44: the backfill — every old row copied into the new shape, parent-first, no DDL
+          - 45: a no-op bridge slot, so databases that recorded a 46 from another branch still line up
+          - 46: adds image/webp to img_mimes
+          Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
+          are created in 43.
         </description>
       </database>
     </migrations>
-
-    <embedded_api>
-      <description>
-        Embedded Axum HTTP server on 0.0.0.0:3000 (not started by default in the main lib.rs;
-        the create_server function is defined in src/api/mod.rs but not called from run()).
-        Uses sqlx with SQLite pool. Provides internal REST API for session and product management.
-      </description>
-      <endpoint method="GET" path="/">Returns "Backend is alive!"</endpoint>
-      <endpoint method="GET" path="/check_health">Runs SELECT 1 against SQLite. Returns "OK" or "Database error".</endpoint>
-      <endpoint method="POST" path="/api/session">
-        <description>Authenticates with { name, password }. Queries cashiers table for user, verifies bcrypt hash. Returns JWT token on success, or { error: "Nama dan/atau kata sandi salah" } on failure.</description>
-        <body>{ name: String, password: String }</body>
-        <response success="{ token: String }" />
-        <response error="{ error: String }" />
-      </endpoint>
-      <endpoint method="GET" path="/api/session">
-        <description>Validates JWT from X-Header-Token header. Returns session { name, role } with refreshed token if needed. Returns null session if invalid/missing token.</description>
-        <headers>X-Header-Token: &lt;jwt&gt;</headers>
-        <response>{ token: String | null, session: { name: String, role: "admin"|"user" } | null }</response>
-      </endpoint>
-      <endpoint method="GET" path="/api/product">
-        <description>Lists products updated after ?timestamp (default 0). Requires X-Header-Token auth. Returns { token, products: Product[] }.</description>
-        <params>timestamp?: i64</params>
-        <response>{ token: String, products: [{ id, name, price, stock, stock_back, barcode?, capital, note, updated_at }] }</response>
-      </endpoint>
-      <endpoint method="POST" path="/api/product">
-        <description>Creates or updates a product. If id is provided, updates existing; otherwise inserts new. Checks barcode uniqueness (returns error if duplicate barcode). Requires X-Header-Token auth.</description>
-        <body>{ id?: i64, name: String, price: f64, stock: i64, stock_back: i64, barcode?: String, capital: f64, note: String }</body>
-        <response success="{ token: String }" />
-        <response error="Barang sudah ada" />
-      </endpoint>
-      <token_refresh>
-        <description>gen_new_token() refreshes the JWT if the current token expires within 2 days (now + 2*24*3600 > claims.exp). Otherwise returns the existing token unchanged.</description>
-      </token_refresh>
-    </embedded_api>
   </rust_backend>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -390,37 +383,37 @@ ignore it
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <frontend>
     <entry>
-      <file name="src/main.tsx">
-        <description>Creates ReactDOM root on #root element, renders RouterProvider with the hash router from src/route.tsx. No StrictMode wrapper. Imports global.css for Tailwind.</description>
-      </file>
-      <file name="index.html">
-        <description>SPA entry. lang="id". &lt;body class="overflow-y-hidden"&gt; with &lt;div id="root" class="flex flex-col flex-1"&gt;. Loads /src/main.tsx as module.</description>
-      </file>
+      <file name="src/main.tsx">Creates the ReactDOM root on #root, renders RouterProvider with the hash router, imports global.css. No StrictMode.</file>
+      <file name="index.html">SPA entry, lang="id", body class "overflow-y-hidden", #root as a flex column.</file>
     </entry>
 
     <routing>
       <description>
-        Hash router (createHashRouter from react-router v7), defined in src/route.tsx. Routes are imported
-        eagerly: the pages ship inside the binary, so a lazy chunk saves no download, and React's Suspense has
-        no delay hook — it would flash a grey skeleton on every first visit. Only two boundaries stay dynamic:
-        the receipt's pdf-lib (2.0 MB, `src/lib/receipt/index.ts`) and the chart surfaces (/analytics' five
-        bodies and the product Performance tab — recharts + d3, ~420 kB). A page that has not been migrated yet
-        stays imported-but-commented in route.tsx, so it is unreachable from the UI even though its folder is
-        still on disk.
+        Hash router (createHashRouter) in src/route.tsx. Pages are imported eagerly except three deliberate lazy
+        boundaries: the Home page body (the heaviest dashboard), Analytics' five bodies (recharts + d3), and the
+        product Performance tab. The receipt's pdf-lib is loaded lazily by the shared print program
+        (src/pages/Setting/Printer/util-program-print.ts, `import("~/lib/receipt")`), not by the router. The Dev/PageData and
+        Dev/PageCache playgrounds only exist when `import.meta.env.DEV` is true.
       </description>
       <route path="/" error_boundary="ErrorBoundary" layout="RootLayout">
         <route path="login" page="Login" auth="public" />
         <route path="/" guard="AuthLayout">
-          <route index="true" page="Home" />
+          <route path="pos" page="Pos" />
+          <route path="restock" page="Restock" />
+          <route path="transaction" page="Transaction" />
           <route path="products" page="Product">
             <route index="true" />
             <route path="new" page="ProductNew" guard="in-page admin" />
-            <route path=":id" page="ProductDetail" />
+            <route path=":id" page="ProductDetail">
+              <route index="true" page="ProductDetail.Info" />
+              <route path="image" page="ProductDetail.Image" />
+              <route path="performance" page="ProductDetail.Performance" />
+            </route>
           </route>
           <route path="records" page="Record">
             <route index="true" />
-            <route path=":recordId" page="RecordItem" />
             <route path="search" page="RecordSearch" />
+            <route path=":recordId" page="RecordItem" />
           </route>
           <route path="money" page="Money" guard="in-page admin">
             <route index="true" />
@@ -432,6 +425,17 @@ ignore it
             <route path=":id" page="ExtraDetail" guard="in-page role switch" />
           </route>
           <route path="debt" page="Debt" />
+          <route path="cashier" page="Cashier" />
+          <route path="customer" page="Customer" />
+          <route path="method" page="Method" />
+          <route path="social" page="Social" />
+          <route path="analytics" page="Analytics">
+            <route index="true" page="Analytics.Cashflow" />
+            <route path="laba" page="Analytics.Profit" />
+            <route path="produk" page="Analytics.Products" />
+            <route path="waktu" page="Analytics.Time" />
+            <route path="pembayaran" page="Analytics.Payments" />
+          </route>
           <route path="setting" page="Setting" layout="SettingLayout">
             <route index="true" />
             <route path="profile" page="SettingProfile" />
@@ -440,179 +444,262 @@ ignore it
             <route path="log" page="SettingLog" guard="AdminOnly" />
             <route path="printer" page="SettingPrinter" />
           </route>
+          <route path="dev/page-data" page="Dev.PageData" dev-only="true" />
+          <route path="dev/page-cache" page="Dev.PageCache" dev-only="true" />
         </route>
       </route>
-      <disabled>
-        <description>Folders on disk that route.tsx no longer imports. They import the removed ~/database layer.</description>
-        <route path="shop/:tab?" page="Shop" />
-        <route path="stock" page="Stock" note="folder is src/pages/Stock-PENDING" />
-        <route path="analytics" page="Analytics" />
-        <route path="cashier" page="Cashier" />
-        <route path="customer" page="Customer" />
-        <route path="method" page="Method" />
-        <route path="social" page="Social" />
-        <route path="setting/sync" page="SettingSync" note="folder is src/pages/Setting/Sync_PENDING; never in the settings nav" />
-      </disabled>
     </routing>
 
     <guards>
       <description>
-        src/middleware/ is gone. Route protection is a component or an in-page check now. Two routes are deliberately
-        left open: Setting printer, which the settings nav and card grid hide from non-admins but whose route has
-        never been gated, and Setting profile, which any signed-in user may edit.
+        There is no route middleware. Protection is the AuthLayout component plus in-page role checks, and the
+        shortcuts are not role-gated, so the in-page check is what actually stops a non-admin.
       </description>
       <guard name="AuthLayout" file="src/layouts/authenticated/index.tsx">
-        <description>Subscribes to service.auth.changes. While the session is resolving it renders the auth Loader; if it resolves to null it renders &lt;Redirect to="/login" /&gt;. Wraps every route except /login.</description>
+        Subscribes to service.auth.changes; while the session resolves it renders a loader, on null it redirects to
+        /login. Wraps every route but /login.
       </guard>
       <guard name="AdminOnly" file="src/components/AdminOnly.tsx">
-        <description>Renders children for admins and redirects everyone else to `fallback` (default "/setting"). Used by Setting shop/data/log and Extra new. Replaces the `admin` route middleware, whose module no longer exists.</description>
+        Children for admins, `&lt;Redirect to={fallback}&gt;` for everyone else. Used by Setting shop/data/log and Extra new.
       </guard>
-      <guard name="in-page admin" file="src/pages/Money/page.tsx">
-        <description>Money (index and history) and Product new check useUser().role and render &lt;Redirect&gt; themselves. The alt+N shortcuts are not role-gated, so an in-page check is what actually stops a non-admin.</description>
+      <guard name="in-page admin" file="src/pages/Money/page.tsx, src/pages/Money/History/page.tsx, src/pages/Product/New/page.tsx">
+        Renders `&lt;Redirect to="/"&gt;` itself when useUser().role is not admin.
       </guard>
       <guard name="in-page role switch" file="src/pages/Extra/Detail/page.tsx">
-        <description>Extra detail branches on role: admins get the edit form, users get a read-only info panel.</description>
+        Admins get the edit form; other roles get a read-only info panel.
       </guard>
+      <note>Setting printer is reachable by any signed-in user: the sidebar hides it from non-admins but the route is ungated (see &lt;open_questions&gt;).</note>
     </guards>
 
     <layouts>
       <layout name="RootLayout" file="src/layouts/root.tsx">
-        <description>Wraps the app. Subscribes to service.config.size.changes and, in a layout effect, toggles the `small` class on &lt;body&gt; before paint, which is what drives every Tailwind `small:` variant.</description>
+        Subscribes to service.config.size.changes and toggles the `small` class on &lt;body&gt; before paint (layout
+        effect), which drives every Tailwind `small:` variant.
       </layout>
       <layout name="AuthLayout" file="src/layouts/authenticated/index.tsx">
-        <description>Subscribes to service.auth.changes; a null session redirects to /login. Renders the sticky Topbar (bg-sky-300, h-16 / small:h-12), the main-body div, the Outlet, and the sonner Toaster. Registers the alt+N navigation shortcuts.</description>
-        <note>The shell is the height chain's root: it is `h-dvh` (a definite height, matching body and #root) and `#main-body` is `flex-1 min-h-0 overflow-y-auto`. With `min-h-screen` the shell's height was content-based, so every `h-full` page only resolved while it happened to fit; a long record silently grew past the viewport, and `body { overflow-y-hidden }` clipped it with no scrollbar anywhere. Pages that need a scrollport now get a definite height from this chain — do not go back to auto/min-height on the shell.</note>
-        <component name="Topbar" file="z-Topbar.tsx">
-          <description>Sticky header. Left: a back button unless on "/", the route title (longest-prefix match over a title map) and a dynamic Title. Right: TopNavList and the settings/reload actions. Titles: Beranda, Toko, Metode, Pelanggan, Kasir, Kontak, Produk, Biaya Lainnya, Riwayat, Analisis, Uang, Pengaturan — several of which name routes that are currently disabled.</description>
-        </component>
-        <component name="TopNavList" file="z-TopNavList.tsx">
-          <description>Desktop-only (md:flex) tab bar: Toko (alt+0, /shop — a disabled route), Produk (alt+1), Riwayat (alt+2), and Uang (alt+3, admin only). The active tab gets a white background with rounded top corners.</description>
-        </component>
-        <component name="Refresh" file="z-Refresh.tsx">
-          <description>Reload button (RefreshCcw) calling window.location.reload(). The per-entity revalidate() calls are gone: services own their state, so there is no cache to bust.</description>
-        </component>
-        <component name="SettingLink" file="z-SettingLink.tsx">
-          <description>Settings gear button (alt+4 hint) navigating to /setting; active state uses the secondary variant.</description>
-        </component>
+        The session guard, the sticky Topbar, the main-body scrollport, the Outlet, the sonner Toaster, the alt+N
+        shortcuts and the close-flush handler. The shell is h-dvh with #main-body as `flex-1 min-h-0
+        overflow-y-auto`: pages get a definite height from this chain, which is what every `h-full` page and its
+        scroll box relies on — do not go back to min-height on the shell.
+        <component name="Topbar" file="z-Topbar.tsx">Back button (unless on "/"), the route title (longest-prefix map), the dynamic shop title, TopNavList, Refresh and SettingLink.</component>
+        <component name="TopNavList" file="z-TopNavList.tsx">Desktop tab bar: Toko (/pos), Restock (/restock), Produk (/products), Riwayat (/records), Uang (/money, admin only).</component>
+        <component name="Title" file="z-Title.tsx">The shop name from the info service, shown once the form has answered.</component>
+        <component name="Refresh" file="z-Refresh.tsx">window.location.reload(); there is no cache to bust.</component>
+        <component name="SettingLink" file="z-SettingLink.tsx">Gear → /setting, with the alt+5 hint.</component>
+        <component name="useNavigationShortcuts" file="use-navigation-shortcuts.ts">alt+0..5 navigation, alt legend toggle, dialog-lock and editable-target guards.</component>
+        <component name="useFlushOnExit" file="use-flush-on-exit.ts">On window close, flushes the cart service and destroys the window; `core:window:allow-destroy` exists for it.</component>
+        <component name="useShortcut" file="use-shortcut.ts">@xstate/store atom for the 5-second Kbd legend.</component>
       </layout>
     </layouts>
 
     <keyboard_shortcuts>
-      <description>alt+N navigation, registered by useNavigationShortcuts in the authenticated layout. Holding Alt shows the shortcut hint badges (Kbd) for 5 seconds, via an @xstate/store atom in use-shortcut.ts.</description>
-      <shortcut key="Alt+0" action="Navigate to /shop (disabled route)" />
-      <shortcut key="Alt+1" action="Navigate to /products" />
-      <shortcut key="Alt+2" action="Navigate to /records" />
-      <shortcut key="Alt+3" action="Navigate to /money (not role-gated; the page redirects non-admins)" />
-      <shortcut key="Alt+4" action="Navigate to /setting" />
+      <group name="navigation">
+        <description>Registered by useNavigationShortcuts in the authenticated layout. Holding Alt toggles the Kbd legend (5 s). Suppressed inside inputs/textarea/select/contenteditable, for AltGr, and whenever a dialog owns the screen.</description>
+        <shortcut key="Alt+0" action="/pos (Kassa)" />
+        <shortcut key="Alt+1" action="/restock" />
+        <shortcut key="Alt+2" action="/products" />
+        <shortcut key="Alt+3" action="/records" />
+        <shortcut key="Alt+4" action="/money (admins; the page redirects others)" />
+        <shortcut key="Alt+5" action="/setting" />
+      </group>
+      <group name="cart">
+        <description>The Pos and Restock screens share these through useCartScreen / the cart components. All are ignored while a dialog owns the screen or a commit is in flight.</description>
+        <shortcut key="F1" action="Put the cursor in the goods search (Restock first leaves the payment stage)" />
+        <shortcut key="F2" action="Go to the payment rows (Restock opens its payment stage); settle the sale once the tender is ready" />
+        <shortcut key="F12" action="Open a new cart tab" />
+        <shortcut key="Ctrl/Cmd+← / →" action="Previous / next open cart tab, skipping parked carts; editors keep their word-jump" />
+        <shortcut key="Ctrl/Cmd+0..3" action="In the payment strip: swap the row's method kind (cash, qris, transfer, debit)" />
+        <shortcut key="Ctrl/Cmd+C / V" action="Copy the selected goods cell / paste into it (value, not display text; the paste stays in select mode)" />
+        <shortcut key="Ctrl/Cmd+Z" action="Undo the cell editor's last change" />
+      </group>
     </keyboard_shortcuts>
 
     <error_boundary>
-      <description>Global ErrorBoundary component catches route errors. Handles: Unauthenticated → redirect /login (hard). Route error responses (404, 403) with contextual icons (FileQuestion, ShieldAlert). Generic errors with stack trace display (DEV only). Provides Muat Ulang, Kembali, Home actions.</description>
+      <description>
+        Route-level ErrorBoundary: Unauthenticated → hard redirect to /login; route error responses (404/403) with
+        contextual icons; anything else with the stack in DEV only. Feature-level boundaries come from
+        createErrorBoundary/createManyErrorBoundary (typed, rethrowing foreign errors), and the page-data layer
+        renders an inline error per key instead of throwing.
+      </description>
     </error_boundary>
 
     <auth_module>
       <description>
-        src/lib/auth.ts is now only the two Tauri bridges — hash(password) and verify(password, storedHash), both
-        Effect-wrapped invokes of the Rust commands — plus the Unauthenticated error. The session itself lives in the
-        auth service (src/services/auth/): persisted under the localStorage key "user" through the hidden
-        local-storage service, validated with a Zod schema { id, name, role }, and checked against the cashiers table
-        on hydrate (a session pointing at a deleted cashier is dropped). auth.get / auth.set / auth.changes replace
-        the old in-memory _user cache.
+        src/lib/auth.ts is only the two Tauri bridges — hash(password) and verify(password, storedHash) — plus the
+        Unauthenticated error. The session lives in the auth service: persisted under the localStorage key "user"
+        through the hidden local-storage service, validated with a Zod schema { id, name, role }, and checked
+        against the cashiers table on hydrate (a session pointing at a deleted cashier is dropped and the key
+        cleared). auth.get / auth.set / auth.changes drive the guard, useUser() and the topbar.
       </description>
     </auth_module>
 
+    <page_data>
+      <description>
+        src/components/page-data/ — the async-data convention every page follows. createPageData&lt;Data, Error&gt;(name,
+        { cache }) returns a typed namespace: `Provider` registers the page's sources (a Stream per key, keyed by
+        name) and starts them together; `Gate` renders a set of keys with a pulse placeholder, an error slot, a
+        delay (200 ms anti-flash by default) and a render prop that receives exactly the gated values; `use(key)`
+        reads one key without gating; `useFrame(keys)` returns the status and first error for a static frame
+        that must survive a failure; `useStatus` / `useRefresh` / `useMutate` cover the rest. The cache
+        (z-cache.ts, exported as `pageCache`) keeps the last answer per tag+deps in memory, paints it on a return
+        visit, and invalidates on a write or a revision bump; `Dev/PageCache` is its inspector.
+      </description>
+      <component name="Gate">keys, pulse, error (node or typed render prop), delay, children({...values}). The old Result-based Gate survives only in Dev/PageData, which demonstrates the difference.</component>
+      <component name="ReservedSkeleton">Holds the region's space from the first frame but stays invisible for the anti-flash window (useDelayedFlag). For regions whose shape the skeleton authors (forms, a total's box).</component>
+      <component name="PendingValue">The real control, disabled and empty, with only its text pulsing — the box, border, padding and chevron never move.</component>
+      <component name="z-status">statusOf / statusOfGroup: pending | ready | refreshing | failed | stale, with `stale` deliberately not `failed` (a working value from a failed refresh).</component>
+      <rule name="one_key_per_read">Two reads that fail independently get two keys. A value that needs two reads declares both; a value that needs one declares one, so it can land first.</rule>
+      <rule name="reserved_heights">A card's floor is a min-height (ROWS_FLOOR), never a measurement, so the skeleton and the real content occupy the same box.</rule>
+      <rule name="no_top_level_loader">A page does not block on one top-level Loader: chrome is on the first frame, values fill in (or pulse) inside it.</rule>
+    </page_data>
+
+    <cart>
+      <description>
+        The POS machinery in src/components/cart/, shared by Pos (sale), Restock (purchase) and, for its tab model,
+        /transaction. A cart is a `tx_records` row plus tx_listings / tx_discounts / tx_extras / tx_methods /
+        tx_images, owned by the transaction service; every edit is written through, so a refresh reopens the same
+        cart. The open cart and the stage are URL values (`?draft=`, `?stage=`), and tab switches replace history.
+      </description>
+      <component name="useCartScreen">The draft lifecycle: always have a cart, start one on demand, open/close/store/restore tabs, the tab walker (Ctrl+Arrow), F1/F2/F12, the dialog lock, and the stage reset on tab switch.</component>
+      <component name="useSubmitCart">The one Bayar: refuses when not ready, blurs the active cell, marks the screen busy, calls transaction.submit exactly once, then toasts the failure or hands the payload to the completion dialog.</component>
+      <component name="z-Listing">The goods grid — one line per row, editable cells (name/code/unit/price/qty/discount), per-cell issues, the search panel, scan-to-add, clipboard, undo.</component>
+      <component name="z-Methods">The payment strip: one row per method of a kind, split payments, Ctrl+0..3 kind swap, the money editors as `modal={false}` dialogs with useInertApp.</component>
+      <component name="z-Extras">The charge grid: preset catalog search, percent/number kinds, the dual-flag charge carried into the record.</component>
+      <component name="listing-grid / extra-grid">The keyboard model: columns, rows, selection, editing, and the per-column constraints, kept pure so the grids cannot drift apart.</component>
+      <component name="method-kinds">Kind vs method: a kind offers its named accounts then its base method; freeMethodId/nextFreeKind/kindExhausted enforce one method per transaction.</component>
+      <component name="code-issues">The duplicate/unregistered-code checks that block Bayar, with links to the products involved.</component>
+      <component name="paid-methods">The completion dialog's tender rows: zero rows dropped, base methods labelled from their kind, a deleted method keeps its money.</component>
+      <component name="z-CartFrame">CartBody (the completion dialog's stable slot) and CartPanels (the `inert` panel column with the blocking overlay while submitting).</component>
+      <component name="z-Complete / z-PaymentTime / z-Note / z-Precision / z-Total / z-StartError / z-Issue">The completion dialog (print receipt, undo), the paid-at picker, the draft note, the money precision select, the grand total, the could-not-start-cart panel and the inline issue renderers.</component>
+    </cart>
+
     <shared_components>
       <component name="useStream">Subscribes a hot Stream (a service's changes) to React state and returns a Result; interrupts the fiber on unmount.</component>
-      <component name="useQuery">useStream plus a factory and deps, re-subscribing when they change. keepPrevious holds the last value while a refetch is in flight and flags it refetching.</component>
-      <component name="useMutation">Runs an Effect on demand (submits, dialogs) and tracks pending/error/data; mutate resolves with an Either.</component>
-      <component name="Loader">Renders a Result: init → fallback (delayed 200ms so fast loads do not flash), error → throws to the nearest boundary, success → children. LoaderMany does the same for several results at once.</component>
-      <component name="createErrorBoundary">Builds a React error boundary for one or more Data.TaggedError subclasses; the fallback receives the typed error and non-matching errors rethrow to an ancestor boundary. createManyErrorBoundary takes several.</component>
-      <component name="AdminOnly">Role guard: children for admins, otherwise a Redirect to `fallback`.</component>
-      <component name="Redirect">Redirect helper (hash-router aware, optional hard reload).</component>
-      <component name="Show">Conditional render, by `when` or by `value` (null/undefined fall through).</component>
-      <component name="ForEach">Array map utility component.</component>
-      <component name="NumberField">Locale-aware numeric input with caret handling.</component>
-      <component name="Password">Password input with reveal toggle.</component>
-      <component name="NotFound">404 panel.</component>
-      <component name="Loading">Centered spinner.</component>
-      <component name="Spinner">Inline spinning indicator.</component>
-      <component name="TextError">Inline error text.</component>
-      <component name="ErrorComponent">Full-page error state with Kembali / Beranda actions.</component>
-      <component name="ErrorBoundary">Route-level boundary: Unauthenticated → hard redirect to /login, route error responses (404/403) get contextual icons, stack trace in dev.</component>
-      <component name="Calendar">Calendar/date picker.</component>
-      <component name="DateRange">Date range picker, URL-param driven through each page's useRange.</component>
-      <component name="DateTime">Locale date + time field (Temporal-backed, zone-aware).</component>
-      <component name="MethodPicker">Payment-method picker over the method catalog.</component>
-      <component name="FileDropZone">Drag/drop or click-to-pick file panel for the import screens.</component>
-      <component name="SaveError">The cart's blocking banner for a failed save.</component>
+      <component name="useQuery">useStream plus a factory and deps, re-subscribing when they change. keepPrevious holds the last value while a refetch is in flight and flags it `refetching`.</component>
+      <component name="useMutation">Runs an Effect on demand and tracks pending/error/data; mutate resolves with an Either so callers branch without try/catch.</component>
+      <component name="Loader">Renders a Result: init → fallback (delayed 200 ms so fast loads do not flash), error → throws to the nearest boundary, success → children. LoaderMany does the same for several results.</component>
+      <component name="createErrorBoundary">Builds a React error boundary for one or more typed error classes; foreign errors rethrow to an ancestor boundary. createManyErrorBoundary takes several.</component>
+      <component name="AdminOnly / Redirect">Role guard / hash-router-aware redirect (optional hard reload).</component>
+      <component name="Show / ForEach">Conditional render (by `when`, or by `value` where only null/undefined fall through) and the keyed array map.</component>
+      <component name="NumberField / Password / FileDropZone / MethodPicker">The locale-aware numeric input (caret survives grouping dots), the password field with reveal, the import file panel (keyboard-reachable, drop or click), and the payment-method picker (kind + account).</component>
+      <component name="Calendar / DateRange / DateTime">The date picker, the URL-driven range picker, and the Temporal-backed date+time field (a DateTimeField, never a native datetime-local).</component>
+      <component name="Loading / Spinner / TextError / ErrorComponent / NotFound / SaveError">The small states: centered spinner, inline spinner, one-line error, full-page error, 404 panel, and the cart's failed-save banner (toasted once, cleared by a later success).</component>
     </shared_components>
 
     <ui_primitives>
-      <description>shadcn/ui primitives built on Radix UI, located in src/components/ui/. Style: new-york, baseColor: zinc, icons: lucide.</description>
-      <component name="button">Button variants (default, destructive, outline, secondary, ghost, link). Sizes: default, sm, lg, icon.</component>
-      <component name="input">Text input with styling.</component>
-      <component name="input-currency">Rupiah amount input with caret handling.</component>
-      <component name="input-percent">Percentage input.</component>
-      <component name="textarea">Multi-line text input.</component>
-      <component name="label">Form label (Radix).</component>
-      <component name="checkbox">Checkbox (Radix).</component>
-      <component name="radio-group">Radio group (Radix).</component>
-      <component name="select">Select dropdown (Radix).</component>
-      <component name="dialog">Modal dialog (Radix).</component>
-      <component name="popover">Popover (Radix).</component>
-      <component name="accordion">Accordion (Radix).</component>
-      <component name="tabs">Tabs (Radix).</component>
-      <component name="separator">Visual separator (Radix).</component>
-      <component name="slider">Range slider (Radix).</component>
-      <component name="switch">Toggle switch (Radix).</component>
-      <component name="table">Data table with header, body, row, cell.</component>
-      <component name="skeleton">Loading skeleton placeholder.</component>
-      <component name="sonner">Sonner toast provider.</component>
-      <component name="field">Form field wrapper.</component>
-      <component name="combobox">Searchable select (Command + Popover).</component>
-      <component name="kdb">Keyboard shortcut badge (Kbd).</component>
+      <description>shadcn/ui primitives on Radix in src/components/ui/. new-york, zinc, CSS variables, lucide.</description>
+      <component name="button">Variants default/destructive/outline/secondary/ghost/link; sizes default/sm/lg/icon.</component>
+      <component name="input / textarea / label / field">Text controls plus the Field/FieldLabel/FieldError wrapper.</component>
+      <component name="input-currency">Rupiah input: grouped `Rp`, comma decimals, caret by digit, optional sign.</component>
+      <component name="input-percent">Percent input: `%` suffix, comma decimals, clamped to [min, max].</component>
+      <component name="checkbox / radio-group / select / combobox / slider / switch / tabs / accordion / popover / dialog / separator">Radix primitives, plus a custom Combobox (Popover + Input over a filtered list, search debounced by SEARCH_DELAY). Dialog requires a description or an explicit `aria-describedby={undefined}`.</component>
+      <component name="table / skeleton / kdb / sonner">Table parts, Skeleton + SkeletonText, Kbd/KbdGroup, and the sonner Toaster.</component>
     </ui_primitives>
   </frontend>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE 4: Database Layer (Frontend SQLite via @tauri-apps/plugin-sql) -->
+  <!-- Testing                                                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <testing>
+    <description>
+      Three layers, plus mechanical guards. Unit tests sit beside the code as *.test.ts(x) and are run by `bun test`
+      (happy-dom preloaded, @testing-library matchers, afterEach cleanup). Integration tests live in
+      src/integration/ and wire the real service layers over the real migrations with only the Tauri backends
+      substituted (db/store/local-storage test-support). End-to-end specs live in e2e/ and drive /e2e.html, whose
+      in-browser harness (src/e2e/) runs the same migration files on sql.js and injects the service before the router
+      is imported.
+    </description>
+    <layer name="unit">*.test.ts(x) beside the module; service tests use makeTestDatabase (bun:sqlite + every migration) and the Map-backed store/local-storage fakes; page/data hook tests use a real MemoryRouter; Tauri commands are stubbed with mock.module at the module boundary.</layer>
+    <layer name="integration">
+      src/integration/: the real service layers over the real migrations, the real page-data layer and the real page components — only the Tauri backends are substituted. home.test.tsx (Beranda's keys over the record/money services), product-page.test.tsx (catalogue reads and write-through), shop-settings.test.tsx (Setting → Toko's form writing to the store), and the till pair pos.test.tsx + restock.test.tsx.
+      The till pair drives the cart screens the way the operator does: scan into the grid (type + Enter before the debounce), bump a quantity, edit the inline tender, walk Restock's stages, open the completion dialog, park a tab, press F12 / Ctrl+Arrow / F2. What it pins is the joins — a scan becomes a line and a total, Bayar gates on the tender, a commit writes the record and moves stock the right way, a credit purchase books a debt, a dual charge commits its extras-only twin, Batalkan rewinds a sale into a draft. `till-harness.tsx` builds a fresh database, store, session and service per test and offers the common helpers; `service-proxy.ts` is the injection seam.
+    </layer>
+    <rule name="inject_dont_mock">Integration tests hand the pages a service through `src/integration/service-proxy.ts` (a stable proxy over `globalThis.__KASSIR_SERVICE__`, set per test) instead of `mock.module("~/services")`: bun caches a module across test files, so a second file's mock never takes effect and the pages keep the first file's service.</rule>
+    <layer name="e2e">e2e/*.e2e.ts via Playwright against /e2e.html: seeded SQL/storage, a real login, then assertions on the actual screens (pos-cart, transaction, analytics, publish, page-data, page-cache, …).</layer>
+    <guards>
+      <guard name="design-tokens.test.ts">No raw text sizes, no lucide size={N}; the four text tokens are the hierarchy.</guard>
+      <guard name="dialog-description.test.ts">Every DialogContent has a DialogDescription or an explicit aria-describedby={undefined}.</guard>
+      <guard name="tauri-capability.test.ts">The shipped capability stays least-privilege (no fs:default, no updater, no process).</guard>
+      <guard name="constants.test.ts">The version constant matches package.json (a release that forgets one bump site fails).</guard>
+    </guards>
+    <commands>
+      <command>bun test</command>
+      <command>playwright test</command>
+      <command>bun run typecheck</command>
+      <command>bun run lint</command>
+    </commands>
+  </testing>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 4: Database                                                    -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <database>
     <connection>
       <description>
-        data.db and tx.db are preloaded by @tauri-apps/plugin-sql (tauri.conf.json → plugins.sql.preload). The only
-        frontend accessor is the hidden `db` service at src/services/db/ — domain services never touch plugin-sql
-        themselves. DatabaseService exposes execute, selectMany, selectOne and transaction, each wrapped in Effect
-        with a DbError. `transaction` joins its statements into one execute call, because plugin-sql has no
-        transaction handle; a single execute is itself atomic, so a cross-table write is one multi-statement string.
-        Raw SQL with parameterized queries; no ORM.
+        One database, data.db, preloaded by @tauri-apps/plugin-sql and migrated on boot by the embedded Rust
+        migration list. The only frontend accessor is the hidden `db` service (src/services/db/) — domain services
+        never touch plugin-sql themselves. DatabaseService exposes execute, selectMany, selectOne and transaction,
+        each wrapped in Effect with a DbError. `transaction` joins its statements into one execute call: plugin-sql
+        has no transaction handle, but a single execute is atomic, so a cross-table write is one multi-statement
+        string with renumbered placeholders. Raw SQL, parameterized; no ORM.
       </description>
-      <file name="src/services/db/index.ts">Interface: execute, selectMany, selectOne, transaction, DbError.</file>
-      <file name="src/services/db/live.ts">DatabaseLive — a lazily loaded Database handle behind Layer.succeed.</file>
-      <type name="DbError">Data.TaggedError("DbError") with { message }. Each domain service maps it to its own error class at its boundary.</type>
+      <file name="src/services/db/index.ts">DatabaseService interface, Binding/Statement types, DbError { message, detail }.</file>
+      <file name="src/services/db/live.ts">DatabaseLive — a lazily loaded handle behind Layer.succeed.</file>
     </connection>
 
     <schema>
       <description>
-        The authoritative schema is the Rust migration set (src-tauri/src/database/&lt;range&gt;/migration-N.sql),
-        applied by the sql plugin at boot — 45 migrations for data.db. The root-level schema.sql is a stale dev
-        snapshot and is not applied. Since migration 43 the schema is decomposed: products split into
-        listings / properties / images / stocks, records into record_listings / record_methods / record_extras /
-        discounts, and deletion is a per-table soft `&lt;singular&gt;_deleted_at` column rather than the retired
-        graves / graves_kind tables. `stocks` is a local cache rebuilt from `product_events`.
+        The authoritative schema is the migration set in src-tauri/src/database/. Since migration 43 the aggregates
+        are decomposed (products → listings/properties/images/stocks; records → record_listings/record_methods/
+        record_extras/record_images/discounts), syncable rows carry `_updated_at` / `_sync_at` / `_deleted_at`, and
+        the `tx_*` cart tables live in the same file. `stocks` is a local cache rebuilt from the append-only
+        `product_events` journal. Tables replaced by 43 are parked as `&lt;name&gt;_old` and are never read; nothing was
+        dropped, so they remain on disk.
       </description>
+      <group name="catalog">
+        <table name="products">product_id, product_name, product_note, product_flag (bit 0 = unpublished), sync trio</table>
+        <table name="listings">one priced unit of a product; listing_name/price/unit/kind/code (code unique across live listings, NOCASE), soft delete</table>
+        <table name="stocks">the local lot cache: stock_value, stock_capital, created/updated; never synced</table>
+        <table name="product_events">append-only stock journal (manual/inc/dec), linked to the record and the stock lot; indexed by product, stock and record</table>
+        <table name="product_names / properties / images">alternative names, key/value properties, image references (name + mime under AppData/images); img_mimes is the allowed set (png/jpeg/webp)</table>
+      </group>
+      <group name="history">
+        <table name="records">header: created/paid/credit dates, mode (incoming|outcoming), flag, totals, customer/supplier snapshots, sync trio, deleted_at</table>
+        <table name="record_listings">the line's snapshot: name, code, unit, price, qty, capital, total, product/listing link, portions</table>
+        <table name="record_methods">one row per payment applied (split payments); record_pay mirrors the sum</table>
+        <table name="record_extras">charges/deductions snapshotted with their flag (DUAL_FLAG books the twin record)</table>
+        <table name="record_images">pictures attached to a record</table>
+        <table name="discounts">one row per discount on a record line, with eff (the rupiah it took)</table>
+      </group>
+      <group name="cart">
+        <description>The tx_* tables are working state, deleted when a cart commits. See &lt;database&gt; / cart_tables.</description>
+        <table name="tx_records">a tab: title, mode, flag (parked bit / adjustment bit), note, fix, rounding, customer/supplier text, paid_at, order</table>
+        <table name="tx_listings">the goods lines, with the catalogue values snapshotted (name, code, unit, price, qty, base)</table>
+        <table name="tx_discounts / tx_extras / tx_methods / tx_images">per-line discounts, whole-cart charges, payments, attached images</table>
+      </group>
+      <group name="directories">
+        <table name="cashiers / cashier_roles">login accounts (name UNIQUE, role, bcrypt hash); not synced</table>
+        <table name="customers / suppliers">sale-side and purchase-side counterparties, name-sorted, soft delete</table>
+        <table name="methods / method_enum">the payment catalog: base rows (name NULL) + named accounts, kind cash|qris|transfer|debit</table>
+        <table name="extras">the charge catalog with extra_flag (DUAL_FLAG)</table>
+        <table name="socials">receipt contact lines</table>
+        <table name="pockets / money">the cash journal: pocket types absolute|change, entries with timestamp/value/note, soft delete</table>
+        <table name="mode_enum / value_kind_enum / product_event_enum / money_type / role_enum / versions">lookup tables and the migration bookkeeping</table>
+      </group>
     </schema>
 
     <ownership>
-      <description>Which table — or which store/localStorage key — each service is the only writer of. The services themselves are described in the &lt;services&gt; section.</description>
+      <description>Which table — or store/localStorage key — each service is the only writer of.</description>
       <owner service="cashier">cashiers</owner>
       <owner service="customer">customers</owner>
-      <owner service="method">methods</owner>
+      <owner service="supplier">suppliers</owner>
+      <owner service="method">methods (store: default-{transfer,debit,qris})</owner>
       <owner service="extra">extras</owner>
       <owner service="social">socials</owner>
       <owner service="money">pockets, money</owner>
-      <owner service="product">products, listings, properties, images, stocks, product_events</owner>
-      <owner service="record">records, record_listings, discounts, record_extras, record_methods</owner>
+      <owner service="product">products, listings, properties, images, stocks, product_events, product_names</owner>
+      <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
+      <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
       <owner service="config">localStorage key "size"</owner>
       <owner service="auth">localStorage key "user"</owner>
       <owner service="info">store keys: name, owner, address, header, footer, show-cashier</owner>
@@ -622,120 +709,73 @@ ignore it
 
     <caching>
       <description>
-        The cache-factory in-memory caches and their revalidate() calls went with the legacy layer. A service's
-        SubscriptionRef is the cache: reads come from the ref once hydrated, and a write updates the database first
-        and then the ref, so subscribers see it without being told. Pages that query rather than subscribe re-read on
-        the owning service's `revision` stream. The one remaining explicit refresh is product.refresh(), because a
-        record write moves stock behind the product aggregate's back.
+        A service's SubscriptionRef is the cache: reads come from the ref once hydrated; a write goes to SQLite first
+        and then updates the ref, so subscribers see it with no explicit refresh. Queried domains (records, money
+        entries, analytics) expose a `revision` counter instead, which a query puts in its deps. The one sanctioned
+        revalidate is product.refresh()/refreshMany(), because a record or transaction write moves stock behind the
+        product aggregate's back. On top of that, page-data's pageCache keeps the last answer per tag+deps in memory
+        and invalidates on writes/revisions; it never touches disk.
       </description>
     </caching>
 
-    <transaction_tx_db>
+    <cart_tables>
       <description>
-        Separate tx.db database holding the tab-based POS cart. Not synced. It is currently dormant: tauri.conf.json
-        still preloads it, but no Rust migrations ship for it any more and src/transaction/ has been deleted, so the
-        only code that ever referenced these tables is the unrouted Shop page. The schema below is what the shipped
-        tx.db file contains.
+        The tab-based cart, ported into data.db by migration 43 (tx.db is no longer preloaded). Not synced. A tab is a
+        `tx_records` row; its goods are `tx_listings`, its charges `tx_extras`, its payments `tx_methods`, its line
+        discounts `tx_discounts` (hanging off a listing), its pictures `tx_images`. Committing writes the record and
+        deletes the tab in one transaction; `transaction.add.fromRecord` rebuilds a tab from a saved record, and
+        `record.delete` on a record it came from never leaves a stale tab behind.
       </description>
-      <table name="transactions">
-        <column name="tab" type="INTEGER" primary_key="true" />
-        <column name="tx_mode" type="TEXT" default="'sell'" />
-        <column name="tx_query" type="TEXT" default="''" />
-        <column name="tx_fix" type="INTEGER" default="0" />
-        <column name="tx_method_id" type="INTEGER" default="1000" />
-        <column name="tx_note" type="TEXT" default="''" />
-        <column name="tx_customer_name" type="TEXT" default="''" />
-        <column name="tx_customer_phone" type="TEXT" default="''" />
-        <column name="tx_customer_id" type="INTEGER" nullable="true" />
-        <column name="tx_product_barcode" type="TEXT" default="''" />
-        <column name="tx_product_name" type="TEXT" default="''" />
-        <column name="tx_product_price" type="REAL" default="0" />
-        <column name="tx_product_qty" type="INTEGER" default="0" />
-        <column name="tx_product_stock" type="INTEGER" default="0" />
-        <column name="tx_extra_name" type="TEXT" default="''" />
-        <column name="tx_extra_value" type="REAL" default="0" />
-        <column name="tx_extra_kind" type="TEXT" default="'percent'" />
-        <column name="tx_extra_is_saved" type="INTEGER" default="0" />
-      </table>
-      <table name="products">
-        <column name="product_id" type="TEXT" primary_key="true" />
-        <column name="tab" type="INTEGER" fk="transactions(tab) ON DELETE CASCADE" />
-        <column name="db_product_id" type="TEXT" nullable="true" />
-        <column name="db_product_price" type="REAL" nullable="true" />
-        <column name="db_product_capital" type="REAL" nullable="true" />
-        <column name="db_product_stock" type="INTEGER" nullable="true" />
-        <column name="db_product_name" type="TEXT" nullable="true" />
-        <column name="product_name" type="TEXT" />
-        <column name="product_barcode" type="TEXT" />
-        <column name="product_price" type="REAL" />
-        <column name="product_qty" type="INTEGER" />
-        <column name="product_created_at" type="INTEGER" />
-      </table>
-      <table name="discounts">
-        <column name="disc_order" type="INTEGER" primary_key="true" />
-        <column name="disc_id" type="TEXT" unique="true" />
-        <column name="product_id" type="TEXT" fk="products(product_id) ON DELETE CASCADE" />
-        <column name="disc_value" type="REAL" default="0" />
-        <column name="disc_kind" type="TEXT" default="'percent'" />
-      </table>
-      <table name="extras">
-        <column name="extra_id" type="TEXT" primary_key="true" />
-        <column name="tab" type="INTEGER" fk="transactions(tab) ON DELETE CASCADE" />
-        <column name="db_extra_id" type="INTEGER" nullable="true" />
-        <column name="extra_kind" type="TEXT" />
-        <column name="extra_name" type="TEXT" />
-        <column name="extra_value" type="REAL" />
-        <column name="extra_is_saved" type="INTEGER" />
-      </table>
-    </transaction_tx_db>
+    </cart_tables>
 
     <record_commit>
       <description>
-        The record write path lives in the record service (src/services/record/live.ts) and builds one multi-statement
-        transaction per write. record.add.external writes records + record_listings + discounts + record_extras +
-        record_methods, responds to each line by moving stock (FIFO consumption for a sale, a cost lot for a
-        purchase), then bumps the revision and calls product.refresh(). record.set.mode revisits the same stock rules
-        when a record flips between sale and purchase, striking the old movement from the journal first.
+        Three writers, all in the record service, all one multi-statement transaction:
+        `record.add.draft` (a live cart: header, lines, discounts, extras, payments, stock movement, tx_* delete),
+        `record.add.external` (an imported record, under a new id) and `record.add.adjustment` (a hand-typed
+        extras-only record, flagged RECORD_FLAG_ADJUSTMENT). A sale drains `stocks` oldest-first (a purchase
+        receives a new cost lot) through the pure builders in product/stock-sql.ts. When a draft's DUAL_FLAG extras
+        are present, `add.draft` also writes the extras-only `outcoming` twin in the same commit, both rows stamped
+        with each other's id in `record_pair_id`.
+        A line that points at a catalogue listing is also the operator's latest word on the goods
+        (record/sql/catalogue.ts): its edited name is written back to listings.listing_name — and to
+        products.product_name when that product has a single live listing — while its price is written back only on a
+        sale and only in the listing's own unit. Codes and units are never written back; the record keeps its own
+        snapshot either way.
       </description>
-      <gap>
-        There is no POS commit yet — no record.add.one taking the cart's inputs (listings, discounts, extras, split
-        payments, customer) so the Shop page can commit a sale on the services layer. That method, and the migration
-        of src/pages/Shop/, are the main remaining work before the POS can run again.
-      </gap>
     </record_commit>
   </database>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE 4b: Effect Services (src/services/)                             -->
+  <!-- PHASE 4b: Effect Services (src/services/)                            -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <services>
     <description>
-      Domain state lives in Effect services at src/services/&lt;name&gt;/ — index.ts is the interface only,
-      live.ts is the Layer. Each service owns a SubscriptionRef as its single source of truth and exposes reads as
-      Effects plus a changes Stream; a write goes to SQLite first and then the ref, so subscribers see it. Components
-      subscribe with useStream / useQuery from src/components/Loader.tsx and render through Loader / LoaderMany, with
-      typed errors caught by createErrorBoundary. src/services/index.ts composes the layers and exports the app-level
-      `service` object (no provider needed at call sites). Unbounded, always-queried domains (records, entry lists)
-      expose query Effects plus a `revision` counter instead of a full-list ref. Public services: config, auth,
-      cashier, customer, extra, info, log, method, money, printer, product, record, social. Hidden backends: db,
-      store, local-storage. The legacy ~/database, ~/store and ~/server modules are gone; a page either uses this
-      layer or is not routed.
+      Domain state lives in Effect services at src/services/&lt;name&gt;/ — index.ts is the interface only, live.ts is
+      the Layer. Each owns a SubscriptionRef as its single source of truth and exposes reads as Effects plus a
+      changes Stream; a write goes to SQLite first and then the ref. Components subscribe with useStream/useQuery or,
+      preferably, through page-data. Typed errors are caught by createErrorBoundary or rendered per key by
+      pageData.Gate. src/services/index.ts composes the layers and exports the app-level `service` object.
+      Public services: analytics, auth, cashier, config, customer, extra, info, listing, log, method, money, printer,
+      product, record, social, supplier, transaction. Hidden backends: db, store, local-storage.
     </description>
 
     <hidden_backends>
-      <description>Layered into every public service (Layer.provide) but not exposed on `service`.</description>
-      <backend name="db" module="src/services/db/">execute / selectMany / selectOne / transaction over data.db; DbError. See &lt;database&gt;.</backend>
+      <backend name="db" module="src/services/db/">execute / selectMany / selectOne / transaction over data.db; DbError { message, detail }. See &lt;database&gt;.</backend>
       <backend name="store" module="src/services/store/">plugin-store key-value: get / set / remove; StoreError, NotFound.</backend>
       <backend name="local-storage" module="src/services/local-storage/">localStorage key-value: get / set / remove; LocalStorageError, NotFound.</backend>
     </hidden_backends>
 
-    <service name="config" module="src/services/config/">
-      <description>The UI size preference. Owns the localStorage key "size".</description>
-      <error name="ConfigError" tag="ConfigError" />
+    <service name="analytics" module="src/services/analytics/">
+      <description>Read-only aggregates over saved records for /analytics. Shared rules: deleted records out, record_flag bit 0 (hand-typed adjustments) out, and a record counted on its effective date COALESCE(paid_at, credit_at, created_at).</description>
+      <error name="AnalyticsError" tag="AnalyticsError" />
       <interface>
-        <method name="size.get()">Current size: "big" | "small".</method>
-        <method name="size.set(size)">Persist, then push to subscribers.</method>
-        <method name="size.changes">Stream&lt;Size&gt;. RootLayout turns it into the body class; useSize() reads it.</method>
+        <method name="get.daily(from, to)">Per local day, per direction, with the unpaid part of the day.</method>
+        <method name="get.margins(from, to)">Per day, from lines that stored a cost; `costed` says whether a margin means anything.</method>
+        <method name="get.hours(from, to) / get.weekdays(from, to)">Sales per local hour, and per ISO weekday (1 = Monday).</method>
+        <method name="get.productGroups(from, to, mode)">Every product that moved, with qty, revenue, margin, costed lines.</method>
+        <method name="get.productInstances(from, to, mode, key, limit)">The lines behind one group, newest first.</method>
+        <method name="get.payments(from, to)">What was actually tendered, grouped by method kind.</method>
       </interface>
     </service>
 
@@ -751,54 +791,71 @@ ignore it
     </service>
 
     <service name="cashier" module="src/services/cashier/">
-      <description>Login accounts. Local-only — cashiers are not synced.</description>
+      <description>Login accounts. Local-only — cashiers are not synced. Names are stored trimmed with inner whitespace collapsed, and cashier_name is UNIQUE, so a duplicate is refused as a CashierError rather than a driver string.</description>
       <error name="CashierError" tag="CashierError" />
       <interface>
         <method name="get.all / get.byId(id) / get.changes">The roster, name-sorted. byId also returns the bcrypt hash and fails with NotFound.</method>
         <method name="add({id, name, role, hash})">Create an account; the caller hashes the password.</method>
         <method name="set.name / set.role / set.password">Rename, re-role, or replace the stored hash.</method>
-        <method name="delete(id)">Remove the account.</method>
+        <method name="delete(id)">Remove the account (a real delete; cashiers are not synced).</method>
       </interface>
       <note>Hashing and verification live in lib/auth (Tauri bcrypt commands); the service stores whatever hash it is handed.</note>
     </service>
 
-    <service name="customer" module="src/services/customer/">
-      <description>Customer records (name, phone), read by the record pages.</description>
-      <error name="CustomerError" tag="CustomerError" />
+    <service name="config" module="src/services/config/">
+      <description>The UI size preference. Owns the localStorage key "size".</description>
+      <error name="ConfigError" tag="ConfigError" />
       <interface>
-        <method name="get.all / get.unsync / get.changes" />
-        <method name="add(name, phone) => id" />
-        <method name="set.info(id, {name, phone}) / set.sync(id)" />
-        <method name="delete.byId(id) / delete.sync(id)" />
+        <method name="size.get()">Current size: "big" | "small".</method>
+        <method name="size.set(size)">Persist, then push to subscribers.</method>
+        <method name="size.changes">Stream&lt;Size&gt;. RootLayout turns it into the body class; useSize() reads it.</method>
       </interface>
     </service>
 
-    <service name="method" module="src/services/method/">
-      <description>Payment methods. Four built-in base rows (name null) plus named variants; kind is cash | transfer | debit | qris.</description>
-      <error name="MethodError" tag="MethodError" />
-      <interface><method name="get.all() / get.changes">The catalog, each kind's base row ahead of its named variants.</method></interface>
-      <note>Read side only. The Method page that writes is not migrated.</note>
+    <service name="customer" module="src/services/customer/">
+      <description>Sale-side customers (name, phone), read by the cart, the record pages and the Customer screen.</description>
+      <error name="CustomerError" tag="CustomerError" />
+      <interface>
+        <method name="get.all / get.unsync / get.changes">Name-sorted; unsync is the rows the sync layer has not pushed.</method>
+        <method name="add(name, phone) => id" />
+        <method name="set.info(id, {name, phone})">Clears customer_sync_at so the change is pushed.</method>
+        <method name="delete.byId(id)">Soft delete via customer_deleted_at.</method>
+      </interface>
     </service>
 
     <service name="extra" module="src/services/extra/">
-      <description>The surcharge/discount catalog. The DUAL_FLAG bit in `flag` marks an extra that books twice: a sale carrying it also commits an extras-only `outcoming` record for the same money (see services/record, records.record_pair_id). The flag is copied into the cart (`tx_extra_flag`) and the record (`record_extra_flag`), because a cart has no id link to the catalog. ValueKind (number | percent) lives in lib/constants and is shared with records.</description>
+      <description>
+        The surcharge/discount catalog. The DUAL_FLAG bit in `flag` marks an extra that books twice: a sale carrying
+        it also commits an extras-only `outcoming` record for the same money (see record.add.draft and
+        records.record_pair_id). The flag is copied into the cart (tx_extra_flag) and the record
+        (record_extra_flag), because the cart has no id link to the catalog. ValueKind (number | percent) lives in
+        lib/constants and is shared with records.
+      </description>
       <error name="ExtraError" tag="ExtraError" />
       <interface>
-        <method name="get.all() / get.changes">Ordered by name in SQL.</method>
-        <method name="add(input) => id">Insert at the end of the catalog.</method>
+        <method name="get.all() / get.changes">Ordered by name in SQL; a write re-reads the row and re-sorts locally.</method>
+        <method name="add(input) => id" />
         <method name="set.info(id, input)" />
-        <method name="delete.byId(id)">Soft-delete via extra_deleted_at.</method>
+        <method name="delete.byId(id)">Soft delete via extra_deleted_at.</method>
       </interface>
     </service>
 
     <service name="info" module="src/services/info/">
-      <description>The shop identity used by receipts and the title bar: name, owner, address, header, footer, showCashier.</description>
+      <description>The shop identity on receipts and in the title bar: name, owner, address, header, footer, showCashier.</description>
       <error name="InfoError" tag="InfoError" />
       <interface>
         <method name="name() / info()" />
-        <method name="set(info)">Writes all six store keys together, so a partial change reads first and patches (Setting/Shop/util-patch-info).</method>
-        <method name="refresh()">Re-read after an external store writer changes the identity.</method>
+        <method name="set(info)">Writes all six store keys together; a partial change reads first and patches (Setting/Shop/util-patch-info), so the form and the cashier checkbox cannot blank each other.</method>
         <method name="changes">Stream&lt;Info&gt;. Feeds the receipt, the title and the Setting shop form.</method>
+      </interface>
+    </service>
+
+    <service name="listing" module="src/services/listing/">
+      <description>The sellable catalogue the POS and Restock grids read: one row per listing (not per product), with its cover image, the parent's name and alternative names, and the parent's total stock. Derived from `product`, so it has no state of its own.</description>
+      <error name="ListingError" tag="ListingError" />
+      <interface>
+        <method name="get.all() / get.changes">Every published listing.</method>
+        <method name="get.search(query)">Name/code match over src/lib/search/listings (fuzzy ladder + signature-cached index). A blank query returns nothing.</method>
       </interface>
     </service>
 
@@ -806,715 +863,459 @@ ignore it
       <description>The application log file, $APPLOCALDATA/logs/kassir.log.</description>
       <error name="LogError" tag="LogError" />
       <interface>
-        <method name="lines.changes">Stream&lt;string[]&gt;, newest first with [WARN] lines filtered out. The file is the source of truth, so every subscription re-reads it.</method>
-        <method name="clear()">Empty the file, then bump the revision so subscribers re-read.</method>
+        <method name="lines.changes">Stream&lt;LogPage&gt;: the tail (last LOG_VIEW_LIMIT lines, newest first, warnings included) plus the file's real line count. Every subscription re-reads the file.</method>
+        <method name="clear()">Empty the file; subscribers re-read it.</method>
+      </interface>
+    </service>
+
+    <service name="method" module="src/services/method/">
+      <description>
+        Payment methods and the per-kind default. The catalog lives in SQLite (four base rows with name NULL plus
+        named accounts; methods.method_name is ordered NULLS-first inside a kind) and the defaults live in store.json,
+        one key per defaultable kind ("default-transfer" | "default-debit" | "default-qris"). One ref holds both
+        slices so a reader sees the catalog and the defaults together; a rename or delete re-reads only the method
+        slice, and a default change keeps the method array's identity.
+      </description>
+      <error name="MethodError" tag="MethodError" />
+      <interface>
+        <method name="get.all / get.catalog / get.changes / get.catalogChanges" />
+        <method name="add({name, kind}) => id" />
+        <method name="set.name(id, name) / set.default(kind, id | null)">null clears the kind's default.</method>
+        <method name="delete.byId(id)">Soft delete; record_methods rows keep their method.</method>
+      </interface>
+    </service>
+
+    <service name="money" module="src/services/money/">
+      <description>
+        Money pockets and their ledger. Owns the `pockets` and `money` tables (pocket_* columns). Reads filter
+        *_deleted_at IS NULL; deletes are soft, and deleting a pocket soft-deletes its entries too (the FK cascade
+        only fires on a physical delete). A pocket is `absolute` (each entry is the balance as typed) or `change`
+        (the page adds each entry's delta to the balance the ledger last held).
+      </description>
+      <error name="MoneyError" tag="MoneyError" />
+      <state>One SubscriptionRef of PocketSummary[] — each pocket joined to its most recent entry (timestamp DESC, money_id DESC for ties) — so a reorder, rename or new entry reaches subscribers. Entry lists are queried, driven by entries.get.revision.</state>
+      <interface>
+        <group name="pockets">
+          <method name="get.summary() / get.changes" />
+          <method name="add({name,type}) => id" />
+          <method name="set.name / set.type / set.ordering([{id,order}])" />
+          <method name="delete.byId(id)">Soft-delete the pocket and every entry it holds.</method>
+        </group>
+        <group name="entries">
+          <method name="get.byRange(pocketId,start,end) / get.all(pocketId) / get.last(pocketId,timestamp) / get.revision" />
+          <method name="add.one({pocketId,timestamp,value,note})" />
+          <method name="add.imported({...})">Insert unless the pocket already holds an entry at that instant (DuplicateError).</method>
+          <method name="delete.byId(id)">Soft-delete one entry.</method>
+        </group>
       </interface>
     </service>
 
     <service name="printer" module="src/services/printer/">
-      <description>The receipt printer: the system printer name plus the paper width in mm. Owns the store keys printer_name and printer_width.</description>
+      <description>The receipt printer: the system printer name plus the paper width in mm. Owns the store keys printer_name and printer_width; a width that is not a positive number falls back to 80.</description>
       <error name="PrinterError" tag="PrinterError" />
       <interface><method name="get() / set(printer) / changes">Read by the Setting printer page and the receipt print path.</method></interface>
     </service>
 
     <service name="product" module="src/services/product/">
       <description>
-        The product aggregate: a product with its listings (priced units, at most one code each), properties, images
-        and stock lots. The read model's `stock` and `capital` are derived — sum of the lots, and their
-        weighted-average cost. Owns products, listings, properties, images, stocks and product_events.
+        The product aggregate: a product with its listings (priced units, at most one code each, unique across live
+        listings), properties, alternative names, images and stock lots. The read model's `stock` and `capital` are
+        derived — the sum of the lots and their weighted-average cost. Owns products, listings, properties,
+        product_names, images, stocks and product_events.
       </description>
       <error name="ProductError" tag="ProductError">Plus ProductDuplicateCode, carrying the code that was already taken.</error>
-      <state>One SubscriptionRef of the whole read model; every write re-hydrates it, and get.changes / changesFull / unsync read from it.</state>
+      <state>One SubscriptionRef of the whole read model; a write re-hydrates the touched rows, and get.changes / changesFull / unsync read from it.</state>
       <interface>
         <method name="get.all / get.byId / get.byCode / get.unsync / get.performance(id, range) / get.changes / get.changesFull" />
-        <method name="add(input) => id">One transaction: the product, at least one listing, optional codes, and one stock lot.</method>
-        <method name="set.info / set.listing.{add, update, remove} / set.property.{add, update, remove} / set.image.{add, remove, reorder}" />
-        <method name="stock.{receive, consume, adjust, history}">FIFO consume and cost-lot receive; the pure SQL builders in product/stock-sql.ts are shared with the record service.</method>
+        <method name="add(input) => id">One transaction: the product, at least one listing, optional codes, and one stock lot. Values are validated here (no negative price or cost basis from any writer).</method>
+        <method name="set.info / set.publish(id, published) / set.listing.{add, update, remove} / set.property.{add, update, remove} / set.productName.{add, update, remove} / set.image.{add, commit, remove, reorder}" />
+        <method name="stock.{receive, consume, adjust, history}">FIFO consume and cost-lot receive; the pure builders in product/stock-sql.ts are shared with the record service.</method>
         <method name="delete(id)">Soft-delete the product; children ride the aggregate.</method>
-        <method name="refresh()">Re-hydrate after a record write moves stock — the one sanctioned revalidate.</method>
+        <method name="refresh() / refreshMany(ids)">Re-hydrate after a record or transaction write moves stock — the one sanctioned revalidate.</method>
       </interface>
     </service>
 
     <service name="record" module="src/services/record/">
       <description>
-        Committed transactions and everything snapshotted with them: listing lines with their discounts, extras, and
-        split payments. Owns records, record_listings, discounts, record_extras and record_methods. The mode enum
-        follows the money, not the goods: `incoming` is a sale (money in, stock consumed), `outcoming` a purchase
-        (money out, stock received).
+        Committed transactions and everything snapshotted with them: listing lines with their discounts, extras,
+        split payments and images. Owns records, record_listings, record_methods, record_extras, record_images and
+        discounts. The mode follows the money, not the goods: `incoming` is a sale (money in, stock consumed),
+        `outcoming` a purchase (money out, stock received).
       </description>
       <error name="RecordError" tag="RecordError" />
-      <state>
-        Records are a queried domain (~64k rows, always read by range), so there is no full-list ref: the reads are
-        Effects and get.revision is a counter bumped on every write, which a queried page puts in its query deps.
-      </state>
+      <state>Records are a queried domain (always read by range), so there is no full-list ref: reads are Effects and get.revision is a counter bumped on every write, which a queried page puts in its deps.</state>
       <interface>
-        <method name="get.byRange(start, end, query?)">Records paid in [start, end), newest first, optionally narrowed by a listing-name match done in SQL.</method>
-        <method name="get.byId(id)">The full record: lines, discounts, extras, methods.</method>
-        <method name="get.listingHistory({start, end, mode, query, limit})">Capped page of matching lines plus the total match count.</method>
-        <method name="get.debt()">Unsettled credit records, newest first. payCredit clears is_credit, so the flag is the outstanding marker.</method>
+        <method name="get.byRange(start, end, query?)">Records whose effective date falls in [start, end), newest first, optionally narrowed by a listing-name match done in SQL.</method>
+        <method name="get.byId(id)">The full record: lines (regrouped from portions), discounts, extras, methods, images.</method>
+        <method name="get.listingHistory({start, end, mode, query, limit})">Capped page of matching lines plus the total match count; a blank query returns nothing.</method>
+        <method name="get.debt()">Unsettled credit records, newest first.</method>
         <method name="get.revision">Write counter a queried page re-reads on.</method>
         <method name="count.summary(start, end)">Per-mode count and sum for a range.</method>
-        <method name="add.external(input)">Import a record made elsewhere: lines + discounts + extras + methods in one transaction, moving stock by the same rules as a live record.</method>
-        <method name="add.draft(input) => id">Commit a cart: header, lines, discounts, extras, payments, stock movement and the `tx_*` delete, in one transaction. When `input.mirror` is set it also writes the extras-only `outcoming` twin of the cart's DUAL_FLAG extras in that same commit, linking both rows through `record_pair_id`. A line that points at a catalogue listing is also the operator's latest word on the goods (record/sql/catalogue.ts): its edited name is written back to listings.listing_name — and to products.product_name when that product has a single live listing — while its price is written back only on a sale, and only in the unit the listing is priced in. Codes and units are never written back; the record keeps its own snapshot either way.</method>
-        <method name="set.paidAt / set.note / set.mode / set.payment / set.toCredit / set.payCredit / set.linkListing" />
-        <note>set.payment rewrites every record_methods row from the submitted list, so a method is re-filed, an amount restated, or a split added/trimmed in one save; record_pay is re-cached from the new sum and the totals never move. The sum must cover the grand total (underpaying is a credit, and set.toCredit records one), and an outstanding credit refuses it because its money arrives with set.payCredit.</note>
-        <method name="delete.byId(id)">Soft-delete and reverse the stock movement the record caused. A paired record takes its twin with it, so voiding a sale never leaves the extras-only `outcoming` half behind.</method>
+        <method name="add.adjustment(input) => id">A hand-typed extras-only record (RECORD_FLAG_ADJUSTMENT); no stock moves.</method>
+        <method name="add.external(input)">Import a record made elsewhere under a new id, moving stock by the same rules as a live record.</method>
+        <method name="add.draft(input) => id">Commit a live cart: header, lines, discounts, extras, payments, stock movement and the tx_* delete, in one transaction; with `mirror`, the DUAL_FLAG twin is written in the same commit. See &lt;database&gt; / record_commit.</method>
+        <method name="set.paidAt / set.creditAt / set.note / set.mode / set.payment / set.toCredit / set.payCredit" />
+        <note>set.mode does not rewrite the record in place: it soft-deletes the original, re-points every child at a copy and flips the stock journal, returning the new id — the page follows it instead of sitting on a tombstone.</note>
+        <note>set.payment rewrites every record_methods row from the submitted list (re-file a method, restate an amount, add or trim a split) and re-caches record_pay; the totals never move. The sum must cover the grand total (an underpayment is a credit), and an outstanding credit refuses it — its money arrives with set.payCredit. set.mode flips sale ↔ purchase and revisits the stock rules, striking the old movement from the journal first.</note>
+        <method name="delete.byId(id)">Soft-delete and reverse the stock movement. A paired record takes its twin with it, so voiding a sale never leaves the extras-only outcoming half behind.</method>
       </interface>
     </service>
 
     <service name="social" module="src/services/social/">
-      <description>Receipt contact lines (name, value).</description>
+      <description>Receipt contact lines (name, value). Ordered by id so an edit does not reshuffle the printed receipt.</description>
       <error name="SocialError" tag="SocialError" />
-      <interface><method name="get.all() / get.refresh() / get.changes" /></interface>
-      <note>Read side only, because the receipt needs it. The Social page that writes is not migrated.</note>
+      <interface>
+        <method name="get.all() / get.changes" />
+        <method name="add(input) => id / set.info(id, input) / delete.byId(id)">Soft delete.</method>
+      </interface>
     </service>
 
-
-    <service name="money" module="src/services/money/">
-      <description>
-        Money pockets and their ledger, replacing the legacy ~/database money / money-kind modules. Owns the `pockets`
-        and `money` tables in data.db (the table is `pockets` and every column `pocket_*` since migrations 39 and 41).
-        Reads filter `*_deleted_at IS NULL`; deletes are soft (`pocket_deleted_at` / `money_deleted_at`), and deleting
-        a pocket soft-deletes its entries too, since the FK cascade only fires on a physical delete.
-      </description>
-      <error name="MoneyError" tag="MoneyError">Wraps DbError at the service boundary.</error>
-      <state>
-        One SubscriptionRef holding PocketSummary[] — each pocket joined to its most recent entry — so a reorder, a
-        rename and a new entry all reach subscribers through pockets.get.changes. A write folds the new entry into
-        the owning pocket's card in memory; a delete re-reads it. Entry lists are queried, driven by
-        entries.get.revision.
-      </state>
+    <service name="supplier" module="src/services/supplier/">
+      <description>Purchase-side suppliers (name, note), read by the Restock cart. Mirrors the customer service.</description>
+      <error name="SupplierError" tag="SupplierError" />
       <interface>
-        <group name="pockets">
-          <read>
-            <method name="get.summary()">The catalog, each pocket with its latest entry.</method>
-            <method name="get.changes">Stream&lt;PocketSummary[]&gt; — catalog plus latest balances.</method>
-          </read>
-          <write>
-            <method name="add({name,type})">Insert at the end of the ordering; returns the new id.</method>
-            <method name="set.name(id,name)">Rename.</method>
-            <method name="set.type(id,type)">Set the absolute | change type.</method>
-            <method name="set.ordering([{id,order}])">Persist a drag reorder as one write.</method>
-            <method name="delete.byId(id)">Soft-delete the pocket and every entry it holds.</method>
-          </write>
-        </group>
-        <group name="entries">
-          <read>
-            <method name="get.byRange(pocketId,start,end)">Entries in [start,end), newest first.</method>
-            <method name="get.all(pocketId)">Every entry, newest first — the JSON export.</method>
-            <method name="get.last(pocketId,timestamp)">Balance before the range; 0 when nothing precedes it.</method>
-            <method name="get.revision">Write counter a queried history re-reads on.</method>
-          </read>
-          <write>
-            <method name="add.one({pocketId,timestamp,value,note})">Insert an absolute balance.</method>
-            <method name="add.imported({pocketId,timestamp,value,note})">Insert unless the pocket already holds an entry at that instant; fails with DuplicateError(timestamp).</method>
-            <method name="delete.byId(id)">Soft-delete one entry.</method>
-          </write>
-        </group>
+        <method name="get.all / get.unsync / get.changes" />
+        <method name="add(name, note) => id / set.info(id, {name, note}) / delete.byId(id)">Soft delete.</method>
+      </interface>
+    </service>
+
+    <service name="transaction" module="src/services/transaction/">
+      <description>
+        The open carts in tx_* tables, and the one place a cart becomes history. Owns tx_records, tx_listings,
+        tx_discounts, tx_extras, tx_methods and tx_images. Every edit is written through (debounced), so a refresh
+        reopens the same cart; a failed write surfaces through get.saveError rather than disappearing. Commit goes
+        through record.add.draft; the adjustment screen commits through record.add.adjustment.
+      </description>
+      <error name="TransactionError" tag="TransactionError">Plus SubmitError, a refusal the cashier can act on, whose `kind` lets the page route it (empty | stored | payment | name | code | price | outcoming).</error>
+      <interface>
+        <method name="get.drafts(mode) / get.byId(id) / get.changes">The open carts, oldest order first.</method>
+        <method name="get.saveError">Stream&lt;string | null&gt;: null while every edit is on disk, a sentence once a write failed.</method>
+        <method name="flush() / reportError(message)">Write pending edits now; put a failure on the same channel.</method>
+        <method name="add.new(mode, flag?) => id / add.fromRecord(recordId) => id" />
+        <method name="submit(id, {cashier, credit?}) => recordId">Commit the cart and delete it; returns the record id.</method>
+        <method name="unsubmit(recordId) => id">Write the record back as a draft, then delete the record (reversing its stock movement).</method>
+        <method name="set.{title, mode, fix, note, customer, customerName, customerPhone, supplier, supplierName, paidAt, rounding, store, restore}" />
+        <method name="listings.set / extras.set / methods.set" />
+        <method name="images.{add(file), remove(imageId)}">Saves the file under AppData/images and records the reference.</method>
+        <method name="delete.byId(id)">Hard delete — a cart is working state, not synced history.</method>
       </interface>
     </service>
   </services>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE 5-8: API, State, Pages, Sync                                    -->
+  <!-- PHASE 5: Cloud API & sync (documented, not implemented)              -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <cloud_api>
+  <cloud_api status="no-client">
     <description>
-      Effect-TS based HTTP client (src/lib/reqwest.ts) wrapping @tauri-apps/plugin-http fetch.
-      API base URL from VITE_API_URL env var (dev: http://192.168.225.187:8787, prod: https://api.kassir.store).
-      All requests use Authorization: Bearer &lt;token&gt; header. Responses validated with Zod schemas.
-      Error types: RequestError (network), ResponseError (non-2xx), BodyError (JSON parse), ZodSchemaError (validation).
-      The per-entity clients (src/server/) and their Zod response schemas were removed with the services migration,
-      so nothing calls these endpoints today — only src/lib/reqwest.ts survives. What follows is the contract the
-      sync rebuild has to meet, and migration-43 changes part of it (soft-delete `_deleted_at` on server rows,
-      nested product/record payloads, /api/grave retired, /api/method extended or replaced).
+      The server contract lives in backend-docs/openapi.yaml. The app ships no HTTP client: no VITE_API_URL is read,
+      no plugin-http is installed, and no src/server or src/lib/sync module exists. The protocol is timestamp-based
+      and bidirectional: pull (GET /{entity}/{timestamp}) fetches rows updated after the cursor, push
+      (POST /{entity}) uploads unsynced rows and returns { timestamp, failed[] }, and deletes are soft rows (see
+      &lt;sync_system&gt;). Auth is one of three schemes, never mixed: cookieAdmin, cookieUser, or bearerApp for
+      desktop/mobile sync.
     </description>
-
     <entity name="product" base="/api/product">
-      <endpoint method="GET" path="/api/product/{timestamp}">
-        <description>Pull products updated after timestamp. Response: ProductServer[] ({ id, name, barcode?, price, stock, capital, note, updatedAt }).</description>
-      </endpoint>
-      <endpoint method="POST" path="/api/product">
-        <description>Push local products. Body: Product[]. Response: { timestamp: number, failed: string[] }.</description>
-      </endpoint>
-      <endpoint method="GET" path="/api/product/count/{timestamp}">
-        <description>Count server products. Response: { count: number }.</description>
-      </endpoint>
+      <endpoint method="GET" path="/api/product/{timestamp}">Products updated after the cursor.</endpoint>
+      <endpoint method="GET" path="/api/product/count/{timestamp}">Row count for pull progress.</endpoint>
+      <endpoint method="POST" path="/api/product">Push local products; failed ids come back.</endpoint>
     </entity>
-
     <entity name="product-event" base="/api/product-event">
-      <endpoint method="POST" path="/api/product-event/{timestamp}">
-        <description>Pull product events. Body: productIds[]. Response: ProductEventServer[] ({ id, createdAt, productId, type: manual|inc|dec, value }).</description>
-      </endpoint>
-      <endpoint method="POST" path="/api/product-event">
-        <description>Push local product events. Response: { timestamp, failedIds }.</description>
-      </endpoint>
+      <endpoint method="POST" path="/api/product-event/{timestamp}">Events for the given product ids.</endpoint>
+      <endpoint method="POST" path="/api/product-event">Push local events.</endpoint>
     </entity>
-
     <entity name="record" base="/api/record">
-      <endpoint method="GET" path="/api/record/{timestamp}">
-        <description>Pull records updated after timestamp. Response: RecordServer[] with nested products (discounts), extras, customer.</description>
-      </endpoint>
-      <endpoint method="POST" path="/api/record">
-        <description>Push local records. Response: { timestamp, failed: string[] }.</description>
-      </endpoint>
-      <endpoint method="GET" path="/api/record/count/{timestamp}">
-        <description>Count server records. Response: { count: number }.</description>
-      </endpoint>
+      <endpoint method="GET" path="/api/record/{timestamp}">Records updated after the cursor, with their lines, discounts, extras and payments.</endpoint>
+      <endpoint method="GET" path="/api/record/count/{timestamp}">Row count for pull progress.</endpoint>
+      <endpoint method="POST" path="/api/record">Push local records.</endpoint>
     </entity>
-
     <entity name="method" base="/api/method">
-      <endpoint method="GET" path="/api/method/{timestamp}">
-        <description>Pull payment methods. Response: MethodServer[] ({ id, name?, kind: cash|transfer|debit|qris, deletedAt?, updatedAt? }).</description>
-      </endpoint>
-      <endpoint method="POST" path="/api/method">
-        <description>Push local methods. Response: { timestamp, failed: string[] }.</description>
-      </endpoint>
-    </entity>
-
-    <entity name="grave" base="/api/grave">
-      <endpoint method="GET" path="/api/grave/{timestamp}">
-        <description>Pull server deletion tombstones. Response: { products: string[], records: string[] }.</description>
-      </endpoint>
-      <endpoint method="DELETE" path="/api/grave">
-        <description>Push local deletion tombstones. Body: { products: string[], records: string[] }. Response: { timestamp, records: string[], products: string[] }.</description>
-      </endpoint>
+      <endpoint method="GET" path="/api/method/{timestamp}">Payment methods.</endpoint>
+      <endpoint method="POST" path="/api/method">Push local methods.</endpoint>
     </entity>
   </cloud_api>
 
-  <state_management>
+  <sync_system status="not-implemented">
     <description>
-      Domain state belongs to the services (see &lt;services&gt;): each owns a SubscriptionRef, exposes reads as
-      Effects and streams, and components subscribe rather than fetch. Two key-value backends sit underneath, reached
-      only through the hidden `store` and `local-storage` services — never directly from a page:
-      (1) @tauri-apps/plugin-store for store.json, the settings that should outlive the database, and
-      (2) browser localStorage for the session and the UI size.
-      @xstate/store survives only where a page is not migrated yet (the Analytics summary atoms) and in the
-      shortcut-hint atom. The legacy src/store/ module tree is gone.
+      There is no sync implementation in the repository: src/lib/sync/, src/server/, src/lib/reqwest.ts and the
+      Setting → Sync page are all gone, and nothing in the UI triggers a sync. What survives is the intended
+      protocol (documented in backend-docs/openapi.yaml) and the schema that must be honoured when it is rebuilt:
+      migration 43 replaced the graves tombstone exchange with a soft `&lt;singular&gt;_deleted_at` timestamp on every
+      syncable row (customers, suppliers, socials, pockets, money, products, listings, properties, images, extras,
+      methods, records), which syncs like any other update; products and records are now nested payloads
+      (listings/stocks, record_listings/record_extras/record_methods/discounts); `stocks` is local-only and never
+      pushed (product_events is the journal); cashiers are not synced. /api/grave is dead and should be dropped.
     </description>
-
-    <persistent_store file="store.json">
-      <entry key="name">Short shop name for the title bar (string, default "Toko"). Owned by the info service.</entry>
-      <entry key="owner">Shop owner, also the receipt letterhead name (string, default "Toko"). Owned by info.</entry>
-      <entry key="address">Shop address (string). Owned by info.</entry>
-      <entry key="header">Receipt header text (string). Owned by info.</entry>
-      <entry key="footer">Receipt footer text (string). Owned by info.</entry>
-      <entry key="show-cashier">Print the cashier name on the receipt (boolean). Owned by info.</entry>
-      <entry key="printer_name">Selected Windows printer (string). Owned by the printer service.</entry>
-      <entry key="printer_width">Receipt paper width in mm (number, default 80). Owned by the printer service.</entry>
-      <entry key="method-id">Selected payment method id (string). Legacy: read only by the unrouted Shop page.</entry>
-      <entry key="token">Cloud sync token (string). Legacy: written by the unrouted Sync_PENDING form.</entry>
-      <entry key="*-last-pull">Legacy sync cursors (product, record, method, grave, product-event). Read only by the stale src/lib/sync layers.</entry>
-    </persistent_store>
-
-    <local_storage>
-      <entry key="user">The signed-in cashier { id, name, role }. Owned by the auth service.</entry>
-      <entry key="size">UI size preference ("big" | "small"). Owned by the config service.</entry>
-    </local_storage>
-  </state_management>
-
-  <sync_system status="not-wired">
-    <description>
-      Timestamp-based bidirectional sync. Each entity (product, product-event, record, method, grave) follows the
-      same shape: pull → merge → push. A stored last-pull cursor fetches only deltas; pull gets count and data
-      concurrently; merge compares the server's updatedAt with the local _updated_at to choose insert vs update;
-      push uploads unsynced rows and marks them synced on the server's confirmation.
-      The design below is still the intended protocol and the cloud endpoints exist, but the implementation is NOT
-      wired: every file under src/lib/sync/ imports the removed ~/database, ~/store or ~/server modules and no longer
-      compiles, src/pages/Setting/Sync_PENDING/ is neither routed nor in the settings nav, and nothing in the UI
-      triggers a sync. Migration-43 also changed the contract these flows describe — deletion is now a soft
-      `&lt;singular&gt;_deleted_at` column instead of the graves tombstone exchange, and products/records are nested
-      payloads — so the flows must be reworked against the services before sync can run.
-    </description>
-
-    <sync_flow entity="product" order="1">
-      <stage name="pull">GET /api/product/count/{ts} + GET /api/product/{ts} concurrently. Fetches all server products updated after last known timestamp.</stage>
-      <stage name="merge">For each server product: if no local match → insert. If local updated_at &lt; server updatedAt → update. Tracks latest server updatedAt as new timestamp.</stage>
-      <stage name="push">Gets unsynced local products. POST /api/product. On response, marks non-failed IDs as synced (concurrency: 50). Returns remaining unsync count.</stage>
-      <stage name="store">Persists new last-pull timestamp via store.sync.product.set().</stage>
-    </sync_flow>
-
-    <sync_flow entity="product-event" order="1b">
-      <description>Syncs product_events after products (FK dependency). Posts product IDs to get relevant events.</description>
-      <stage name="pull">POST /api/product-event/{ts} with product IDs.</stage>
-      <stage name="push">POST /api/product-event with unsynced events.</stage>
-    </sync_flow>
-
-    <sync_flow entity="record" order="2">
-      <stage name="pull">GET /api/record/count/{ts} + GET /api/record/{ts}.</stage>
-      <stage name="merge">Insert/update records with nested products, extras, discounts.</stage>
-      <stage name="push">POST /api/record with unsynced records.</stage>
-    </sync_flow>
-
-    <sync_flow entity="method" order="3">
-      <stage name="pull">GET /api/method/{ts}.</stage>
-      <stage name="push">POST /api/method.</stage>
-    </sync_flow>
-
-    <sync_flow entity="grave" order="4" status="superseded">
-      <description>
-        Superseded by migration-43's SYNC CONTRACT: the graves / graves_kind tables are retired and deletion is a
-        soft `&lt;singular&gt;_deleted_at` timestamp that syncs like any other update. The /api/grave endpoints and
-        this tombstone exchange are dead and should be dropped when sync is rebuilt.
-      </description>
-      <stage name="pull">GET /api/grave/{ts}. Returns products[] and records[] tombstone IDs.</stage>
-      <stage name="merge">Deletes local products and records matching tombstone IDs (db.product.del.sync, db.record.del.sync). Cleans up local grave entries for those IDs.</stage>
-      <stage name="push">Collects local grave entries, DELETEs to /api/grave.</stage>
-    </sync_flow>
-
-    <error_handling>
-      <case name="network">"Tidak bisa menghubungi server"</case>
-      <case name="db">Logs error via log.error(), returns error message.</case>
-      <case name="response">Uses responseError.failMsg() to extract server error.</case>
-      <case name="validation">ZodSchemaError: logs validation issues, returns first 10 issue messages.</case>
-    </error_handling>
+    <shape>
+      <stage name="pull">Read the entity's last-pull cursor (a store key), fetch count + rows, and merge into the local tables.</stage>
+      <stage name="merge">Insert a row the server has and draw has none; update when the server's updatedAt is newer than the local `_updated_at`; a soft-deleted row merges like any other update.</stage>
+      <stage name="push">Read the entity's `unsync` set from its service, POST it, and mark the accepted ids synced (clear `_sync_at`).</stage>
+      <stage name="store">Persist the new cursor.</stage>
+    </shape>
+    <order>products → product_events → methods → records (records reference products and methods; events reference products).</order>
+    <requirements>
+      <item name="service_first">Every merge/push has to go through the owning service (or a new sync service), not SQL from a page — the services own the refs the UI reads.</item>
+      <item name="soft_delete">Deletion is a `_deleted_at` timestamp, not a tombstone table; the server must speak the same contract.</item>
+      <item name="conflict_rule">Last-writer-wins on `_updated_at`, with the server's timestamp as the tiebreak.</item>
+      <item name="ux">One "Sinkronisasi" action with per-entity pull/push progress, plus a resync that resets the cursors, and the floating status pill designed in &lt;sync_ui_design&gt;.</item>
+    </requirements>
   </sync_system>
 
+  <sync_ui_design status="not-implemented">
+    <description>
+      The intended UI for the rebuild, kept as a design record only: one Sinkronisasi button running the entities in
+      order, per-entity rows that reveal as each starts, an Unduh (pull+merge) phase then an Unggah (push) phase,
+      determinate pull bars from the /count endpoints (indeterminate for methods, which have no count endpoint),
+      short-circuit on the first failure, and a compact ✓/✗ summary at the end. Sinkronisasi Ulang resets all
+      cursors, marks everything unsynced, and runs the same flow. The button is disabled while a sync runs, and
+      leaving the screen cancels the fiber, leaving the cursors untouched so the next run re-pulls.
+    </description>
+  </sync_ui_design>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 6: Pages                                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
   <pages>
     <description>
-      `status="migrated"` means the page runs on the services layer and is reachable. `status="legacy"` means the
-      folder is still on disk but route.tsx no longer imports it, so it is unreachable and it still imports the
-      removed ~/database layer.
+      Every page below is routed and runs on the services layer. The two Dev/ pages exist only in a DEV build. Page
+      behaviour is described from the code, not from an older plan.
     </description>
 
-    <page name="login" path="/login" status="migrated">
-      <description>
-        Two-mode login. On mount it reads the cashiers service: with none it shows FreshForm (Buat Toko — shop name,
-        owner name, password), otherwise LoginForm (pick a cashier, enter the password). Already-authenticated users
-        are redirected by the auth guard.
-      </description>
-      <fresh_form>
-        <description>First-time setup. Creates the first admin cashier (hash via the Rust hash_password command, then cashier.add), signs the session in through auth.set, and lands on Home.</description>
-      </fresh_form>
-      <login_form>
-        <description>Returning user. Lists cashier names, verifies the password with the Rust verify_password command, then auth.set.</description>
-      </login_form>
+    <page name="login" path="/login">
+      <description>Two-mode login over the cashier service. With no cashiers it shows FreshForm (Buat Toko: shop name, owner name, password), otherwise LoginForm (pick a cashier, enter the password). Already-signed-in users are redirected by AuthLayout.</description>
+      <fresh_form>Buat Toko: name, password, confirm. Creates the first admin (Rust hash_password → cashier.add), signs the session in through auth.set, and lands on /setting so the shop identity can be filled in next. It does not write the shop name itself.</fresh_form>
+      <login_form>Lists cashier names, verifies with the Rust verify_password command, then auth.set.</login_form>
     </page>
 
     <page name="home" path="/" status="migrated">
       <description>
-        Dashboard landing page (index route). Header with the shop name and date, a stats grid (income, expense,
-        sales/purchase counts) read through the record service, and a navigation grid of cards linking to the other
-        sections.
+        Beranda: a workspace, not a launcher. Header (shop name, day), three zero-blocking stat cards (masuk, keluar,
+        utang) that each gate only the value they need, the day's ledger (six rows, reserved height, newest first),
+        and — admins only — the pocket card. The menu grid of destinations sits underneath. Data comes from one
+        provider with one key per question (today, yesterday, records, debt, pockets), each driven by the record
+        revision so a commit reaches the page while it is open. Role is part of the provider deps, and the pockets
+        key is left unsubscribed for cashiers.
+      </description>
+    </page>
+
+    <page name="pos" path="/pos" status="migrated">
+      <description>
+        The sale screen. Two panels: the top walks the goods then the charges (two stages), the bottom carries the
+        split payment rows, the change and the grand total. The cart and the stage live in the URL (`?draft=`,
+        `?stage=`); F1/F2/F12, Ctrl+←/→ and Ctrl+0..3 are the operator's path. Nothing waits as a block: drafts,
+        methods, customers and extras are registered on one page-data provider and start together. Bayar is the
+        shared useSubmitCart flow (mode incoming): submit → transaction.add.draft, then the completion dialog with
+        print and undo. See &lt;cart&gt;.
+      </description>
+    </page>
+
+    <page name="restock" path="/restock" status="migrated">
+      <description>
+        The purchase screen — Pos's shape buying instead of selling. Three stages (goods, charges, payment) because a
+        purchase settles through the stage panel; drafts, methods and suppliers load together. F2 opens the payment
+        stage and puts the cursor on its first amount. A credit purchase is a settled flag on the same submit
+        (useSubmitCart with credit), and the completion dialog prints the tender it took. Same shared cart machinery
+        as Pos.
+      </description>
+    </page>
+
+    <page name="transaction" path="/transaction" status="migrated">
+      <description>
+        `/transaction` — an arbitrary record, typed by hand: no catalog, no search, no stages, no precision, no
+        customer. Each tab is a real tx_records row flagged ADJUSTMENT_CART_FLAG; its lines are number extras, its
+        direction, note and one payment live beside them. Committing calls record.add.adjustment (a records row
+        flagged RECORD_FLAG_ADJUSTMENT, extras only, no stock) and deletes the tab. The tab is the source of truth:
+        every edit goes through the service and the screen renders the stream.
       </description>
     </page>
 
     <page name="product" path="/products" status="migrated">
       <description>
-        Product catalog over the product service. Search plus filters (kind, stock status, margin), a table or card
-        grid view, and pagination. Admins get a create button.
+        The catalogue. One live list key feeds both the rows and the counts: search (fuzzy ladder, 250 ms debounce),
+        kind/stock/margin filters, name/price/capital/stock sort with an "auto" relevance sort while searching,
+        table or card view, and pagination — all in the URL (useListState) so a link reopens the same view. Admins
+        get the floating add button. Rows gate on the key; the toolbar and footer are static.
       </description>
       <subpages>
-        <subpage path="/products/new" guard="in-page admin">Create a product: info, one or more listings, optional codes, initial stock.</subpage>
-        <subpage path="/products/:id">Detail: info, listings, properties, images (drag-order), stock lots and the event journal, plus a performance tab fed by record sales.</subpage>
+        <subpage path="/products/new" guard="in-page admin">The product form: info, one or more listings (code, price, unit, kind), alternative names, properties, images, initial stock lots.</subpage>
+        <subpage path="/products/:id">Detail with three sub-tabs: Info (info/listings/properties/stock lots and the event journal), Image (gallery, drag-order, cover, delete), Performance (sales, margin and stock events over a range, lazy-loaded).</subpage>
       </subpages>
     </page>
 
     <page name="records" path="/records" status="migrated">
       <description>
-        Transaction history over the record service, read one day at a time (useTime) and narrowed by a `query` param
-        matched in SQL. Two panes: the day's records on the left, the selected record's detail on the right. Refetches
-        keep the previous day on screen and fade the panes instead of blanking them.
+        The day's history over the record service, read one local day at a time (useTime) and narrowed by a `query`
+        matched in SQL. Two panes: the day's records on the left, the selected record on the right. Refetches keep the
+        previous day on screen and fade it instead of blanking. Modes: Masuk (sale: money in, stock consumed) and
+        Keluar (purchase: money out, stock received); the sort column/direction is in the URL (useOrder).
       </description>
-      <modes>
-        <mode name="incoming">Masuk — a sale: money in, stock consumed.</mode>
-        <mode name="outcoming">Keluar — a purchase: money out, stock received.</mode>
-      </modes>
-      <note name="pane_actions">
-        The right pane opens the record in full from its identity band (`Lihat`, at the top right — the shelf is only
-        reached at the end of a long ledger, so the way out cannot live there), copies it back into a fresh cart with
-        `Jadikan Transaksi` (transaction.add.fromRecord: the same rebuild `unsubmit` does, minus undoing the record, which
-        opens on /pos for a sale and /restock for a purchase with `?draft=` naming the copy), and — admin only — deletes it
-        from the shelf.
-      </note>
-      <note name="detail_ledger">
-        Both faces of a record render the same `Ledger` (src/pages/Record/z-Detail/z-Ledger.tsx): the identity band, then
-        one scroll holding the goods, the charges, the parties and the band that closes the record. The two slots are what
-        differ — the page fills the identity's trailing slot with its own date corrections and the shelf with
-        `Edit`/debt/delete, the pane with its close button at the leading edge, `Lihat` in the trailing slot and
-        `Jadikan Transaksi`/`Hapus` in the shelf — and the pane never turns on an edit affordance. The identity band itself
-        is bare: the id on the first line, cashier and creation time on the second, with no Jual/Beli or Lunas/Kredit chips
-        (the money band still says `Kredit · Belum dibayar` when there is a debt).
-        The shelf is a slot *inside* that scroll, not a sibling of it: pinned under the ledger it covered the rows of a long
-        record and showed no scrollbar at all (`footer`/`shelf` placement is not a per-face decision).
-      </note>
       <subpages>
-        <subpage path="/records/:recordId">One record in full: the receipt it prints and the ledger behind it. Actions: edit note, move the date, change mode, edit the split payments, toggle credit, link a line to a catalog listing, delete.</subpage>
-        <subpage path="/records/search">Comprehensive search across listing lines by product name, mode and date range, with a capped page plus the total match count.</subpage>
+        <subpage path="/records/search">Comprehensive search across listing lines by name, mode and date range, with a capped page and the total match count.</subpage>
+        <subpage path="/records/:recordId">One record in full, with Detail | Resi tabs in the URL. Detail shows the ledger (identity band, goods, charges, parties, totals, methods, images) and, admin only, the shelf actions: edit note, move the date, change mode, edit split payments, toggle credit, delete. Resi is the receipt it prints (lazy pdf-lib).</subpage>
       </subpages>
+      <note>The record list does not filter RECORD_FLAG_ADJUSTMENT yet, so a dual charge's extras-only twin shows as a goods-less outcoming row — see &lt;open_questions&gt;.</note>
     </page>
 
-    <page name="money" path="/money" status="migrated" guard="in-page admin">
+    <page name="money" path="/money" guard="in-page admin">
       <description>
-        Cash-flow pockets ("kantong"). A pocket has a name, a type — `absolute` (each entry is the balance as typed)
-        or `change` (the page adds each entry's delta to the balance the ledger last held) — and a drag order. Entries
-        carry value, timestamp and note. Backed by the money service.
-        Index: a draggable grid of pocket cards (name, relative time, latest balance); the Kantong Baru dialog opens
-        from a floating + button in the bottom-right corner.
-        Detail: an editable pocket name, a date-range picker, a ledger table (day, date, time, diff for `change`
-        pockets, value, note truncated to 20 characters) whose rows expand to the full note when it is not empty, a
-        settings button whose dialog holds the delete-pocket / JSON upload / JSON download actions, and a floating +
-        button for a new entry.
+        Pockets ("kantong") over the money service. A draggable grid of cards (name, relative time, latest balance) —
+        dragging persists the order through set.ordering — plus the Kantong Baru dialog. The page redirects
+        non-admins itself because the alt+4 shortcut is not role-gated.
       </description>
       <subpages>
-        <subpage path="/money/:pocketId">One pocket's ledger, in the selected date range.</subpage>
+        <subpage path="/money/:pocketId" guard="in-page admin">One pocket's ledger over a date range in the URL: editable name and type, the entries table (day, date, time, diff for `change` pockets, value, note), expandable rows, a settings dialog with delete-pocket / JSON upload / JSON download, and the new-entry button.</subpage>
       </subpages>
     </page>
 
     <page name="extra" path="/extras" status="migrated">
       <description>
-        The surcharge/discount catalog over the extra service. Search box (fuzzy, by name) over a table of name, kind
-        (Angka/Persen) and value. Admins get a create button and an edit form per row; other roles see a read-only
-        info panel.
+        The surcharge catalog: a fuzzy search box over a table of name, kind (Angka/Persen) and value, each row linking
+        into its detail. Admins get a create button and the edit form (name, value, kind, and the dual flag); other roles
+        see a read-only panel.
       </description>
       <subpages>
-        <subpage path="/extras/new" guard="AdminOnly">Create: name, initial value, kind, and the dual flag.</subpage>
-        <subpage path="/extras/:id">Detail: the edit form for admins (name, value, kind, dual) with delete, or the read-only info panel for users.</subpage>
+        <subpage path="/extras/new" guard="AdminOnly">Create: name, value, kind, dual.</subpage>
+        <subpage path="/extras/:id">Detail: edit form for admins (with delete), read-only info panel for users.</subpage>
       </subpages>
     </page>
 
     <page name="debt" path="/debt" status="migrated">
       <description>
-        Outstanding customer debt over record.get.debt(): every credit record, since paying one clears its is_credit
-        flag. A summary card totals the rows (decimal arithmetic) and a sortable table lists date, note, total and a
-        link into the record. Re-reads on the record revision, so settling or deleting a record updates it.
+        Outstanding customer credit over record.get.debt(): every credit record, since paying one clears it. A
+        summary card totals the rows with decimal arithmetic and a sortable table lists date, note, total and a link
+        into the record; the sort is in the URL (useSort). Re-reads on the record revision, so settling or deleting a
+        record updates it.
       </description>
+    </page>
+
+    <page name="cashier" path="/cashier" status="migrated">
+      <description>The cashier roster over the cashier service: name, role, add, rename, re-role and delete. A new account is created as a `user` with an empty password; the cashier sets their own from Setting → Profile. Static head and add button; the list is the only key.</description>
+    </page>
+
+    <page name="customer" path="/customer" status="migrated">
+      <description>The customer list over the customer service: name and phone, inline edit, add, soft delete. Static head; only the rows wait.</description>
+    </page>
+
+    <page name="method" path="/method" status="migrated">
+      <description>
+        Payment methods over the method service. Tabs are the defaultable kinds (Transfer, Debit, QRIS) in the URL
+        (useMethod); each tab lists the kind's named accounts plus its base method, with add, rename, set-as-default
+        and soft delete. Static head and tabs; the catalog is the only key.
+      </description>
+    </page>
+
+    <page name="social" path="/social" status="migrated">
+      <description>Receipt contact lines over the social service: name and value, add, edit, soft delete. Ordered by id so an edit never reshuffles the receipt.</description>
+    </page>
+
+    <page name="analytics" path="/analytics" status="migrated">
+      <description>
+        A rail of five questions over one period. The period and bucket width live in the URL (useRange: presets
+        7/30/90 days, this month, this year; a hand-picked range clears the preset) and in the header, so switching
+        pages never resets what you were looking at. The bodies are the lazy chart chunk; the rail and range bar are
+        static.
+      </description>
+      <subpages>
+        <subpage path="/analytics/">Arus Kas (Cashflow): money in vs out per bucket, with totals.</subpage>
+        <subpage path="/analytics/laba">Laba (Profit): margin over the period, from lines that stored a cost; days with no cost data say so.</subpage>
+        <subpage path="/analytics/produk">Products: per-product qty/revenue/margin, sortable and paginated, expandable to the individual lines.</subpage>
+        <subpage path="/analytics/waktu">Time: sales per weekday and per hour, one week at a time.</subpage>
+        <subpage path="/analytics/pembayaran">Payments: what was tendered per method kind, plus the unpaid part of the period.</subpage>
+      </subpages>
     </page>
 
     <page name="setting" path="/setting" status="migrated">
-      <description>
-        Application settings. A card grid at the index, and a sidebar on the sub-pages, both driven by one nav source
-        (util-nav.ts) that also records which roles may open each destination.
-      </description>
+      <description>One nav source (util-nav.ts) drives the index card grid and the sidebar, including which roles may open each destination; each screen's header quotes that row verbatim.</description>
       <subpages>
         <subpage path="/setting/profile">Signed-in account: rename (cashier.set.name + auth.set) and change password (Rust hash, then cashier.set.password).</subpage>
-        <subpage path="/setting/shop" guard="AdminOnly">Shop identity, UI size and the show-cashier toggle, over the info and config services.</subpage>
-        <subpage path="/setting/data" guard="AdminOnly">JSON export and import for products and records, over the product and record services.</subpage>
-        <subpage path="/setting/log" guard="AdminOnly">Application log viewer and clear, over the log service.</subpage>
-        <subpage path="/setting/printer">Printer picker and paper width, over the printer service, with a test print.</subpage>
+        <subpage path="/setting/shop" guard="AdminOnly">Shop identity (owner, address, header, footer) through info, plus the show-cashier toggle; every field label and the save button are static and only the values pulse. The form patches the current info instead of overwriting it.</subpage>
+        <subpage path="/setting/data" guard="AdminOnly">JSON export (Rust export_file) and import for products and records, with the skipped-row panel and a derived success/warning/error toast (describeUpload).</subpage>
+        <subpage path="/setting/log" guard="AdminOnly">The log tail (bounded, newest first, warnings included) and a clear action, over the log service.</subpage>
+        <subpage path="/setting/printer">Printer picker, paper width in mm (Lebar Struk) and a test print, over the printer service and the Rust printer commands. The width decides how the receipt PDF is laid out.</subpage>
       </subpages>
     </page>
 
-    <page name="shop" path="/shop/:tab" status="legacy">
-      <description>
-        Point of Sale — the primary transaction interface, and the largest unmigrated page: a tab-based cart, a
-        product/extra list with fuzzy search, line items with qty/price/discount, extras, method selection and change
-        calculation, with each tab persisted in tx.db. It imports the removed ~/database layer and cannot run. Reviving
-        it needs the cart folded into a service and a record commit method (see the &lt;database&gt; record_commit gap).
-      </description>
-      <modes>
-        <mode name="incoming">Sale. Consumes stock on commit.</mode>
-        <mode name="outcoming">Purchase/restock. Receives stock on commit.</mode>
-      </modes>
+    <page name="dev_page_data" path="/dev/page-data" dev-only="true">
+      <description>The page-data playground: a demo page with fast/slow/flaky keys, the Gate variants, stale and refreshing states, and the monitor that shows each key's status. It is also the place the legacy Result-based Gate still appears, labelled as such.</description>
     </page>
 
-    <page name="stock" path="/stock" status="legacy">
-      <description>
-        The old inventory page (folder src/pages/Stock-PENDING/). Superseded by /products; its editor is kept as a
-        duplicate copy of the Shop cart UI and it imports the removed ~/database layer.
-      </description>
-    </page>
-
-    <page name="analytics" path="/analytics" status="legacy">
-      <description>
-        Reports dashboard (cashflow, net, crowd, product, debt) with a shared interval and date-range picker. Each
-        sub-page reads the removed ~/database layer through a lib/result hook and publishes its summary into an
-        @xstate/store atom. Not routed; the queries belong in a read-only report service.
-      </description>
-      <subpages>
-        <subpage path="/analytics/cashflow">Income vs expense over time, with totals.</subpage>
-        <subpage path="/analytics/net">Net profit/loss: revenue minus costs.</subpage>
-        <subpage path="/analytics/crowd">Sales distribution by hour and day, with peak analysis.</subpage>
-        <subpage path="/analytics/product">Per-product sales: name, qty, revenue, profit. Sortable and paginated.</subpage>
-        <subpage path="/analytics/debt">Credit/debt table: customer, outstanding credit, total debt.</subpage>
-      </subpages>
-      <note>The /debt page now covers the debt view over the record service; the analytics copy is the duplicate.</note>
-    </page>
-
-    <page name="cashier" path="/cashier" status="legacy">
-      <description>Cashier account CRUD (name, role, password). The cashier service already backs it; the page still reads ~/database. Not routed.</description>
-    </page>
-
-    <page name="customer" path="/customer" status="legacy">
-      <description>Customer CRUD (name, phone). The customer service already backs it; the page still reads ~/database. Not routed.</description>
-    </page>
-
-    <page name="method" path="/method" status="legacy">
-      <description>Payment method CRUD (name, kind). The method service already backs the read side; the page still reads ~/database. Not routed.</description>
-    </page>
-
-    <page name="social" path="/social" status="legacy">
-      <description>Store contact lines (name, value). The social service backs the receipt read; the writing page still reads ~/database and calls the receipt's revalidateInfo bridge. Not routed.</description>
-    </page>
-
-    <page name="setting_sync" path="/setting/sync" status="legacy">
-      <description>
-        Manual sync trigger with per-entity progress (folder src/pages/Setting/Sync_PENDING/). Never in the settings
-        nav; depends on src/lib/sync, which still imports the removed ~/database, ~/store and ~/server modules.
-      </description>
+    <page name="dev_page_cache" path="/dev/page-cache" dev-only="true">
+      <description>The page-cache inspector: entries by tag+deps, their kind, age, hits, stale/error state, plus clear/invalidate controls and the stats.</description>
     </page>
   </pages>
 
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Phase 7: Utilities & modules                                        -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
   <utilities>
-    <module name="lib/utils.ts">
-      <function name="cn">Tailwind class merging (clsx + tailwind-merge).</function>
-      <function name="safeJSON">Safe JSON.parse returning [error, parsed] tuple.</function>
-      <function name="boolToNum">Boolean to 0|1 for SQLite.</function>
-      <function name="lazyLoader">React Router lazy loader utility.</function>
-      <function name="constructCSV">CSV builder with semicolon delimiter.</function>
-      <function name="capitalize">Capitalize each word.</function>
-      <function name="formatBarcode">Chunk barcode string into 14-char lines.</function>
-      <function name="getURLBack">Parse url_back from search params.</function>
-      <function name="numerish/numeric/integer">Zod schemas for number parsing.</function>
-    </module>
-    <module name="lib/effect-error.ts">
-      <type name="RequestError">Network-level fetch failure.</type>
-      <type name="ResponseError">Non-2xx HTTP response with status/body.</type>
-      <type name="BodyError">JSON parse failure.</type>
-      <type name="ZodSchemaError">Response validation failure.</type>
-      <type name="InvokeError">Tauri command invoke failure.</type>
-      <type name="InvalidCredential">Wrong password.</type>
-      <type name="NotFound">Missing row; returned by several services' byId reads.</type>
-      <type name="DuplicateError">A row that already exists, carrying the value that collided (for example an import timestamp).</type>
-      <type name="IOError / JsonError / TooBigError">File read/write, JSON parse and upload-size failures raised by the Setting data pages.</type>
-    </module>
-    <module name="lib/log.ts">Structured logging via @tauri-apps/plugin-log (Rust log crate, Info level).</module>
-    <module name="lib/random.ts">ULID-based ID generation via ulid package.</module>
-    <module name="lib/date.ts">Date/time formatting and manipulation utilities.</module>
-    <module name="lib/cache-factory.ts">LEGACY: the in-memory cache factory the removed ~/database layer used. Services keep state in a SubscriptionRef instead.</module>
-    <module name="lib/image.ts">Image handling utilities (resize, convert).</module>
-    <module name="lib/validate.ts">Validation helper functions.</module>
-    <module name="lib/result.ts">LEGACY: Result.use / Result.match, the pre-services data hook. Only the unrouted pages still use it; new code uses useStream / useQuery / Loader.</module>
-    <module name="lib/response.ts">Server response error extraction utilities.</module>
+    <module name="lib/purchase.ts">Money arithmetic for carts and records: lineSubtotal, lineGrandTotal, lineDiscountTotal, discountsEatLine, recalcDiscounts (clamped, order-dependent stack), withDerivedDiscounts, linesSubtotal, recalcExtras, extrasTotal, purchaseTotal, transactionGrandTotal, paidTotal, roundMoney. Decimal throughout.</module>
     <module name="lib/constants.ts">
-      <entry key="version">App version, kept in step with package.json, Cargo.toml and tauri.conf.json.</entry>
-      <entry key="METHODS / MethodKind">["cash", "transfer", "debit", "qris"].</entry>
-      <entry key="ValueKind">"number" | "percent" — shared by the extra catalog and the extras snapshotted onto records.</entry>
-      <entry key="METHOD_NAMES / METHOD_BASE_ID / DEFAULT_METHODS">Built-in payment method display names and ids.</entry>
-      <entry key="DUAL_FLAG">0b1 — the "applies in both modes" bit of an extra's flag.</entry>
-      <entry key="tz">The runtime time zone, used by every date-range bound.</entry>
+      <entry key="version">App version, kept in step with package.json, Cargo.toml, tauri.conf.json and specification.xml.</entry>
+      <entry key="METHODS / MethodKind">["cash", "qris", "transfer", "debit"] — the order the Ctrl+0..3 keys follow.</entry>
+      <entry key="DEFAULTABLE_KINDS / DefaultableKind">["transfer", "debit", "qris"] — cash is never a default.</entry>
+      <entry key="METHOD_NAMES / METHOD_KBD / METHOD_BY_KEY / METHOD_BASE_ID">Display names, key hints, key → kind, and the four built-in ids (1000 cash, 1003 qris, 1001 transfer, 1002 debit).</entry>
+      <entry key="MODE_NAMES">incoming = Masuk, outcoming = Keluar.</entry>
+      <entry key="ValueKind">"number" | "percent", shared by extras and records.</entry>
+      <entry key="DUAL_FLAG">0b1 — the "books twice" bit of an extra's flag.</entry>
+      <entry key="SEARCH_DELAY / DEBOUNCE_DELAY">250 ms for search filters, 100 ms for cart writes.</entry>
+      <entry key="tz">The runtime time zone, used by every date-range bound and every date format.</entry>
     </module>
-    <module name="lib/auth.ts">Tauri bridges only: hash(password) and verify(password, storedHash), plus Unauthenticated. The session itself lives in the auth service.</module>
-    <module name="lib/reqwest.ts">Effect HTTP client over @tauri-apps/plugin-http; used by the unwired sync layer.</module>
-    <module name="lib/url.ts">API base URL, from VITE_API_URL.</module>
-    <module name="lib/printer.ts">Tauri wrappers: enumerate Windows printers, print raw PDF bytes.</module>
-    <module name="lib/sync/">STALE: the legacy per-entity sync implementation. It still imports the removed ~/database, ~/store and ~/server modules, so it does not compile. See &lt;sync_system&gt;.</module>
+    <module name="lib/date.ts">formatDate / formatTime / getDayName / monthNames / MONTHS, and the picker bridge plainFromEpoch / epochFromPlain — all in the shop's zone, built on Temporal.</module>
+    <module name="lib/utils.ts">cn (tailwind-merge with the app's text-size tokens declared), numerish/numeric/integer (Zod string-number schemas that actually reject), urlBackOf/getURLBack (one parse for `?url_back=`: rooted, non-protocol-relative), capitalize (total on padded/empty names), formatError.</module>
+    <module name="lib/effect-error.ts">NotFound, InvokeError, InvalidCredential, IOError/ArrayBufferError/JsonError, TooBigError, DuplicateError. RedirectError was removed with the redirect loaders.</module>
+    <module name="lib/auth.ts">The two Tauri bcrypt bridges plus Unauthenticated. The session lives in the auth service.</module>
+    <module name="lib/export.ts">saveJson(defaultName, value): serialise, then ask Rust (export_file) where to write. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
+    <module name="lib/image.ts">Product-image files under AppData/images: save (mkdir on first use), load → object URL, del. The key is the image_name, never the row id.</module>
+    <module name="lib/printer.ts">The Rust printer bridges: getPrinters and printPdf (which returns the spooler's sentence).</module>
+    <module name="lib/log.ts">Fire-and-forget logging through plugin-log; a missing plugin or a rejected write never breaks the caller.</module>
+    <module name="lib/random.ts">generateId() — a ULID for every row the app creates.</module>
+    <module name="lib/range.ts">EARLIEST_EPOCH/FURTHEST_EPOCH and parseRange: URL epoch bounds that are safe for Temporal and fall back per bound.</module>
+    <module name="lib/upload.ts">describeUpload + notifyUpload: the one success/warning/error sentence for the three import panels.</module>
+    <module name="lib/clipboard.ts">canRead/writeText/readText: the async clipboard first, an execCommand("copy") fallback for the webview, and an honest "cannot read" for the paste-key path.</module>
+    <module name="lib/search/">normalize (casefold/accents/punctuation, compact), quality (the match ladder and code grading), index-cache (the signature-gated index, parseQuery, toHit, sortHits), listings (the restock catalogue index).</module>
     <module name="lib/receipt/">
-      <description>PDF receipt generation pipeline:
-        - create-receipt-data.ts: Orchestrates receipt data from transaction
-        - build-header.ts: Shop name, address, date
-        - product-text-data.ts: Line items with qty, price, discount, subtotal
-        - extras-text-data.ts: Extra charges
-        - build-summary.ts: Totals, payment, change
-        - build-transaction-summary.ts: Transaction mode, cashier, method
-        - build-footer.ts: Customizable thank-you message
-        - type.ts: Receipt TypeScript types
-      </description>
+      The PDF pipeline: create-receipt-data orchestrates; build-header (shop, datetime, cashier), product-text-data (lines, discounts), build-summary (totals, extras, rounding, pay, change), build-transaction-summary (species/pieces and the split payments), extras-text-data, build-footer (footer lines + contacts); index.ts lays out and saves the PDF (pdf-lib + Roboto via ?arraybuffer, wrapped by splitWrappedText).
     </module>
     <module name="hooks/">
-      <hook name="useUser">The signed-in user, from the auth service. Throws Unauthenticated when there is none.</hook>
-      <hook name="useSize">The UI size, from the config service.</hook>
-      <hook name="useScroll">Scroll position tracking, used by the page shells.</hook>
-      <hook name="useScreen">Screen size detection.</hook>
-      <hook name="useSubmit">Form submission helper returning { loading, error, handleSubmit }.</hook>
-      <hook name="useGetUrlBack">The url_back search param, with a default.</hook>
-      <hook name="useGenerateUrlBack">Builds a url_back value from the current location, for detail-page links.</hook>
-      <hook name="useExtraSearch">Generic fuzzy search over any { name } row — the Extra page and the POS pickers.</hook>
-      <hook name="useProductSearch">Fuzzy product search (fuzzysort + microfuzz).</hook>
-      <hook name="useImage">Reads an image file only once its card is near the viewport.</hook>
-      <hook name="useGetProducts / useGetCustomer / useGetMethods">LEGACY: read the removed ~/database caches; used only by the unrouted pages.</hook>
+      <hook name="useUser">The signed-in user from the auth service; throws Unauthenticated when there is none.</hook>
+      <hook name="useSize">The UI size from the config service.</hook>
+      <hook name="useDayStart">Today's local midnight, re-armed at the next midnight and on focus/visibilitychange.</hook>
+      <hook name="useDialogLock / isScreenOwnedByDialog">The "a dialog owns the keyboard" counter + aria-modal fallback, read by every window listener.</hook>
+      <hook name="useExtraSearch">Memoised microfuzz over any { name } row.</hook>
+      <hook name="useImageUrl">Resolves a stored image to an object URL; revokes on unmount and on a late load.</hook>
+      <hook name="useGetUrlBack / useGenerateUrlBack">Keep an incoming `url_back` / build a back-link from the current base and query.</hook>
     </module>
   </utilities>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE 10: API Documentation                                           -->
+  <!-- Open work                                                            -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-
-  <!-- TODO: Phase 10 — Cloud API Documentation still pending -->
-
-  <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <!-- Unified Sync Refactor (planned)                                      -->
-  <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <sync_refactor status="blocked">
-    <description>
-      Replace the separate per-entity sync buttons with 1 unified "Sinkronisasi"
-      button that runs all 5 entities sequentially: grave → product →
-      product-event → method → record. Each entity shows pull/push progress
-      with determinate progress bars.
-      BLOCKED: this design predates the services migration. src/lib/sync/ no longer compiles,
-      Setting/Sync_PENDING/ is unrouted, and migration-43 replaced the graves tombstone exchange with
-      soft deletes and nested payloads, so the sync layer has to be rebuilt on the services before any
-      of this UI can be finished. Paths below are from the legacy tree.
-    </description>
-
-    <decisions>
-      <decision name="sync_order">
-        <order>grave → product → product-event → method → record</order>
-        <rationale>Product-event depends on product (needs product IDs for pull). Records depend on product + method (FK references). Grave runs first to process deletions before pulling fresh data.</rationale>
-      </decision>
-
-      <decision name="error_handling">
-        <strategy>Stop on first failure (short-circuit)</strategy>
-        <rationale>Dependency chain means downstream entities can't work correctly after an upstream failure. Show which entity broke and the error message.</rationale>
-      </decision>
-
-      <decision name="method_progress">
-        <strategy>Indeterminate spinner (no count endpoint)</strategy>
-        <rationale>Methods are small (~10 items), no batched pull needed. Show spinner during pull, count after.</rationale>
-      </decision>
-
-      <decision name="progress_phases">
-        <strategy>Two-phase per entity: Unduh (pull+merge) then Unggah (push)</strategy>
-        <rationale>Matches the sync protocol's actual two phases. Gives granular feedback.</rationale>
-      </decision>
-
-      <decision name="push_progress">
-        <strategy>Show unsync count upfront, spinner during POST, result count after</strategy>
-        <rationale>User knows how many items will be pushed. POST is a single request — no streaming progress.</rationale>
-      </decision>
-
-      <decision name="resync">
-        <strategy>Separate "Sinkronisasi Ulang" button: resets all 5 sync timestamps + marks all unsynced + revalidates caches, then runs full sync</strategy>
-        <rationale>One-click full resync. User intent is clear — no need for two-step reset-then-sync.</rationale>
-      </decision>
-
-      <decision name="ui_layout">
-        <strategy>Rows reveal sequentially as each entity starts (Option A). All 5 rows show "Menunggu..." initially, then activate one by one.</strategy>
-      </decision>
-
-      <decision name="summary">
-        <strategy>Compact per-entity table after all complete, showing ✓/✗ with Unduh/Unggah counts</strategy>
-      </decision>
-
-      <decision name="progress_bar">
-        <strategy>Determinate horizontal bar for pull (total from /count endpoint). Fraction displayed: "150/300".</strategy>
-      </decision>
-
-      <decision name="zero_items">
-        <strategy>Still show the row with "Unduh 0" → "Unggah 0" → ✓</strategy>
-        <rationale>Consistency — user expects all 5 entities to show result. The /count HTTP call is cheap.</rationale>
-      </decision>
-
-      <decision name="navigation_during_sync">
-        <strategy>Accept partial state on unmount (Option A). Effect fiber cancels, sync timestamps not updated — next sync will re-pull incomplete entities.</strategy>
-      </decision>
-
-      <decision name="concurrent_clicks">
-        <strategy>Disable button during sync (disabled + spinner)</strategy>
-        <rationale>Prevents double-submit. Clear feedback.</rationale>
-      </decision>
-
-      <decision name="product_cache_invalidation">
-        <strategy>Revalidate product cache after product merge</strategy>
-        <rationale>Product-event pull needs fresh product IDs from db.product.get.all(). Cache must reflect newly synced products.</rationale>
-      </decision>
-
-      <decision name="sync_token">
-        <strategy>Opaque server-side token with no expiry. User enters/saves token via form before sync button is enabled.</strategy>
-      </decision>
-    </decisions>
-
-    <ui_spec>
-      <button label="Sinkronisasi" disabled_during_sync="true" />
-      <button label="Sinkronisasi Ulang" action="reset+sync" variant="destructive" />
-      <token_form>
-        <description>The existing z-Form.tsx in Setting/Sync_PENDING/ — token input plus save button. It writes the "token" store key directly, which is why it needs reworking rather than reusing when sync is rebuilt.</description>
-      </token_form>
-      <rows>
-        <row entity="grave" label="Sampah" icon="Trash2">
-          <pull label="Unduh" progress="determinate" source="/api/grave/count/{ts}" />
-          <push label="Unggah" progress="count_only" />
-        </row>
-        <row entity="product" label="Produk" icon="Box">
-          <pull label="Unduh" progress="determinate" source="/api/product/count/{ts}" />
-          <push label="Unggah" progress="count_only" />
-        </row>
-        <row entity="product-event" label="Produk Event" icon="Box">
-          <pull label="Unduh" progress="determinate" source="/api/product-event/count/{ts}" />
-          <push label="Unggah" progress="count_only" />
-        </row>
-        <row entity="method" label="Metode" icon="CreditCard">
-          <pull label="Unduh" progress="indeterminate" />
-          <push label="Unggah" progress="count_only" />
-        </row>
-        <row entity="record" label="Riwayat" icon="ReceiptText">
-          <pull label="Unduh" progress="determinate" source="/api/record/count/{ts}" />
-          <push label="Unggah" progress="count_only" />
-        </row>
-      </rows>
-      <summary>
-        <description>After all 5 entities complete, rows collapse. Compact table shows per-entity ✓/✗ with Unduh/Unggah counts.</description>
-      </summary>
-    </ui_spec>
-  </sync_refactor>
-
   <next_features>
-    <feature name="background_sync" status="not-wired">
-      <description>
-        A floating sync pill designed to live at the AuthLayout level, with its state in an @xstate/store atom so it
-        would survive route changes. It is NOT wired: src/layouts/authenticated/index.tsx mounts no such component,
-        the atom and program only exist inside the stale src/lib/sync/, and Setting/Sync_PENDING/ is unrouted. This
-        is the intended shape once sync is rebuilt, not current behaviour.
-      </description>
-      <implementation status="stale">
-        <file name="src/lib/sync/atom.ts">syncAtom with phase/result/activeEntity/globalError + a syncSignal ref (imports removed modules).</file>
-        <file name="src/lib/sync/program.ts">startSync(), startResync(), abortSync() (imports removed modules).</file>
-        <file name="src/layouts/authenticated/z-SyncFloating.tsx">Never written — the pill component does not exist.</file>
-      </implementation>
-    </feature>
-    <feature name="pos_commit" status="planned">
-      <description>
-        The POS commit path, a record.add.one on the record service taking the cart's inputs (listings, discounts,
-        extras, split payments, customer) and moving stock in one transaction. It is the blocker for migrating
-        src/pages/Shop/, the last big unmigrated page.
-      </description>
-    </feature>
-    <feature name="legacy_page_migration" status="planned">
-      <description>
-        Migrate the remaining unrouted pages onto the services they already have partly backing them: Cashier,
-        Customer, Method, Social, Analytics (needs a read-only report service), and Stock-PENDING (delete — it
-        duplicates Shop and is superseded by /products).
-      </description>
-    </feature>
     <feature name="sync_rebuild" status="planned">
-      <description>
-        Rebuild src/lib/sync/ on top of the services (or as a `sync` service), against migration-43's contract:
-        soft-delete `_deleted_at` instead of graves, nested product/record payloads, and per-entity unsync reads
-        from each service. Then restore the Setting sync page and the floating pill.
-      </description>
+      <description>Build a sync service over the current schema (soft `_deleted_at`, nested product/record payloads, per-entity unsync reads) and restore the Sinkronisasi screen and floating status pill designed in &lt;sync_ui_design&gt;. The server contract is in backend-docs/openapi.yaml.</description>
     </feature>
-    <feature name="product_event_pull_batching" status="planned">
-      <description>Split product IDs into batches for product-event pull to reduce request payload size for stores with many products.</description>
+    <feature name="record_list_flag_filter" status="planned">
+      <description>Filter RECORD_FLAG_ADJUSTMENT out of the /records list (or show the twin differently). Noted as the open piece in FLAGS.md: a dual charge's extras-only twin currently shows as a goods-less outcoming row.</description>
     </feature>
-    <feature name="full_grave_kind_sync" status="superseded">
-      <description>
-        Was: extend grave sync to every GraveKind (customer, money_kind, money, social, image, extra, method), since
-        only product and record were covered. Migration-43 retires the graves tables for soft-delete `_deleted_at`
-        columns, so this becomes part of the sync contract change rather than wider tombstone coverage. Fold into
-        &lt;next_features&gt; sync_rebuild.
-      </description>
+    <feature name="analytics_server_side" status="exploring">
+      <description>Analytics currently reads every record in the range and aggregates in SQL per question. If a shop's history outgrows that, the aggregates move behind materialised per-day tables.</description>
+    </feature>
+    <feature name="product_event_batching" status="not-wired">
+      <description>When sync is rebuilt: split product-event pull into batches so a shop with many products does not send one oversized list of ids.</description>
     </feature>
   </next_features>
 
   <open_questions>
-    <item name="grave_kind_coverage" status="superseded">
-      <description>Was: the server's grave sync only handled 'product' and 'record' kinds. Migration-43 retires graves/graves_kind for soft-delete `_deleted_at` columns, so the fix now belongs in the contract change (add `_deleted_at` to server rows, retire /api/grave) rather than in wider tombstone coverage. The deployed server still speaks the old contract.</description>
-    </item>
-    <item name="product_event_indexing" status="TODO">
-      <description>Add an index on product_events for performance. Records read it per stock movement and per delete.</description>
-    </item>
-    <item name="tx_db_fate" status="TODO">
-      <description>tx.db is still preloaded in tauri.conf.json but has no migrations and no writer left (src/transaction/ is deleted). Decide whether the POS cart becomes a `cart` service over data.db or tx.db is dropped outright.</description>
-    </item>
     <item name="setting_printer_guard" status="TODO">
-      <description>The Setting printer route has no role guard even though the nav and card grid hide it from non-admins, and the nav data marks it admin-only. Either add AdminOnly or change the nav metadata.</description>
+      <description>Setting printer has no role guard: the sidebar and util-nav mark it admin-only, but the route renders for any signed-in user. Either wrap it in AdminOnly or change the nav metadata.</description>
     </item>
-    <item name="schema_sql_snapshot" status="TODO">
-      <description>The root-level schema.sql (and tx.sql) are stale pre-migration-43 snapshots. Either regenerate them from the migrations or delete them so they stop contradicting the real schema.</description>
+    <item name="dual_twin_row" status="TODO">
+      <description>Decide how a dual charge's extras-only twin should read in /records: two rows, one row with a badge, or the twin hidden. It is deliberately visible until that decision, so the list keeps showing what the table actually holds.</description>
     </item>
-    <item name="spec_coverage" status="TODO">
-      <description>This document is now assembled from both the pre-services and post-services eras. The &lt;cloud_api&gt; section still describes the sync-era endpoints, and the page notes above mark what is unrouted; a pass over it should follow the sync rebuild.</description>
+    <item name="leftover_tables" status="TODO">
+      <description>Migrations 43/44 park every replaced table as `&lt;name&gt;_old` rather than dropping it (records_old, products_old, graves_old, …). They are never read; a follow-up migration could drop them, but only after every installed database has been through 44.</description>
+    </item>
+    <item name="vanilla_extract" status="TODO">
+      <description>@vanilla-extract/vite-plugin is still configured although no `.css.ts` source exists. Either drop the dependency/plugin or start using it; today all styling is Tailwind + global.css tokens.</description>
     </item>
   </open_questions>
-
 </specification>
