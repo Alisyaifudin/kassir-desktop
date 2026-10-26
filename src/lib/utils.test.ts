@@ -10,8 +10,8 @@
  *
  * Run with:  bun test src/lib/utils.test.ts
  */
-import { describe, expect, test } from "bun:test";
-import { capitalize, getURLBack, integer, numeric, urlBackOf } from "./utils";
+import { describe, expect, spyOn, test } from "bun:test";
+import { capitalize, cn, formatError, getURLBack, integer, numeric, urlBackOf } from "./utils";
 import { EARLIEST_EPOCH, FURTHEST_EPOCH, parseRange } from "./range";
 
 function params(entries: Record<string, string>): { get(key: string): string | null } {
@@ -115,5 +115,44 @@ describe("parseRange", () => {
 
   test("a missing param falls back too", () => {
     expect(parseRange(params({}), defaults)).toEqual(defaults);
+  });
+});
+
+describe("cn", () => {
+  // The app sizes text with its own tokens. tailwind-merge would read
+  // `text-small` as a colour and drop it as soon as a real colour class shows
+  // up, so the tokens are declared as font sizes; this is that declaration.
+  test("a size token survives next to a colour class", () => {
+    const merged = cn("text-small", "text-muted-foreground");
+    expect(merged).toContain("text-small");
+    expect(merged).toContain("text-muted-foreground");
+  });
+
+  test("two size tokens still resolve to the last one", () => {
+    expect(cn("text-small", "text-big")).toBe("text-big");
+  });
+
+  test("conditional and skipped values are dropped", () => {
+    const hidden = false;
+    expect(cn("p-2", undefined, null, hidden && "hidden", { "font-bold": true, hidden })).toBe(
+      "p-2 font-bold",
+    );
+  });
+});
+
+describe("formatError", () => {
+  test("a thrown string is its own message", () => {
+    expect(formatError("Gagal")).toBe("Gagal");
+  });
+
+  test("an Error reports its message, not its stack", () => {
+    expect(formatError(new Error("database is locked"))).toBe("database is locked");
+  });
+
+  test("anything else is logged and rendered as a known sentence", () => {
+    const logged = spyOn(console, "error").mockImplementation(() => {});
+    expect(formatError({ code: 5 })).toBe("Error tidak dikenal");
+    expect(logged).toHaveBeenCalledWith({ code: 5 });
+    logged.mockRestore();
   });
 });
