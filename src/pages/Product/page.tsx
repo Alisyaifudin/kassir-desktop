@@ -1,7 +1,5 @@
 import { useMemo } from "react";
-import { useDebounce } from "use-debounce";
 import { Link } from "react-router";
-import { SEARCH_DELAY } from "~/lib/constants";
 import { Plus } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
@@ -93,14 +91,14 @@ function Rows({
   set: (patch: ListStatePatch) => void;
   urlBack: string;
 }) {
-  // The pause belongs to the filtering, not to the field. `state` is a fresh
-  // object on every keystroke — the URL carries the text — so the memo is keyed on
-  // what filtering reads, not on the object itself.
-  const [query] = useDebounce(state.q, SEARCH_DELAY);
+  // No pause here: the search bar already waits for it before it writes the URL,
+  // so `state.q` arrives settled — a second `SEARCH_DELAY` would only make the
+  // rows lag the bar by two pauses instead of one. The memo is keyed on what
+  // filtering reads, not on `state`, which is a fresh object on every write.
   const filtered = useMemo(
-    () => filterProducts(products, { ...state, q: query }),
+    () => filterProducts(products, state),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [products, query, state.kinds.join(","), state.stock, state.margin, state.sort, state.dir],
+    [products, state.q, state.kinds.join(","), state.stock, state.margin, state.sort, state.dir],
   );
   const totalPage = Math.max(1, Math.ceil(filtered.length / state.size));
   const page = Math.min(state.page, totalPage);

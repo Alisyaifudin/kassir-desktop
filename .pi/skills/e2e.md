@@ -192,10 +192,14 @@ the hard way:
 ## Covered
 
 Boot + migrations, first-run setup, seeded login, wrong password, catalog search,
-add-to-cart totals, bump-vs-duplicate, empty search, and the payment-method menu
+add-to-cart totals, bump-vs-duplicate, empty search, the payment-method menu
 closing after a choice (`pos-method.e2e.ts` — the Radix `Select` in the settle
 strip closes on `pointerup` while its portal's trailing `click` is still in
-flight; only Chromium with real CSS animations reproduces that).
+flight; only Chromium with real CSS animations reproduces that), and the
+products search taking a whole scanned code (`product-search.e2e.ts` — the bar
+is typed into with `pressSequentially(code, { delay: 0 })` and the history is
+counted by patching `history.replaceState`, so "one write per pause, none per
+keystroke" is asserted without timing anything).
 
 ## Not yet covered
 
