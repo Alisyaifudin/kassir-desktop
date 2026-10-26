@@ -7,7 +7,13 @@ import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { getProductKind } from "~/lib/constants";
 import { pageData } from "./data";
 import { availableKinds } from "./use-filtered";
-import type { ListState, ListStatePatch, MarginFilter, StockFilter } from "./use-list-state";
+import type {
+  ListState,
+  ListStatePatch,
+  MarginFilter,
+  PublishFilter,
+  StockFilter,
+} from "./use-list-state";
 
 const STOCK_LABELS: Record<StockFilter, string> = {
   all: "Semua",
@@ -22,6 +28,12 @@ const MARGIN_LABELS: Record<MarginFilter, string> = {
   loss: "Rugi",
 };
 
+const PUBLISH_LABELS: Record<PublishFilter, string> = {
+  all: "Semua",
+  published: "Terbit",
+  unpublished: "Belum terbit",
+};
+
 export function Filter({
   state,
   set,
@@ -30,7 +42,10 @@ export function Filter({
   set: (patch: ListStatePatch) => void;
 }) {
   const activeCount =
-    state.kinds.length + (state.stock !== "all" ? 1 : 0) + (state.margin !== "all" ? 1 : 0);
+    state.kinds.length +
+    (state.stock !== "all" ? 1 : 0) +
+    (state.margin !== "all" ? 1 : 0) +
+    (state.publish !== "all" ? 1 : 0);
 
   const toggleKind = (kind: string) => {
     const next = state.kinds.includes(kind)
@@ -80,6 +95,21 @@ export function Filter({
         </pageData.Gate>
 
         <div className="flex flex-col gap-2">
+          <span className="text-small font-medium">Status</span>
+          <RadioGroup
+            value={state.publish}
+            onValueChange={(value) => set({ publish: value as PublishFilter })}
+            className="flex flex-col gap-2"
+          >
+            {(Object.keys(PUBLISH_LABELS) as PublishFilter[]).map((value) => (
+              <Label key={value} className="flex cursor-pointer items-center gap-2 text-small">
+                <RadioGroupItem value={value} /> {PUBLISH_LABELS[value]}
+              </Label>
+            ))}
+          </RadioGroup>
+        </div>
+
+        <div className="flex flex-col gap-2">
           <span className="text-small font-medium">Stok</span>
           <RadioGroup
             value={state.stock}
@@ -114,7 +144,7 @@ export function Filter({
           variant="ghost"
           className="h-11 text-small small:h-9"
           disabled={activeCount === 0}
-          onClick={() => set({ kinds: [], stock: "all", margin: "all" })}
+          onClick={() => set({ kinds: [], stock: "all", margin: "all", publish: "all" })}
         >
           Reset
         </Button>

@@ -18,7 +18,7 @@
     &lt;sync_system&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>6.8.0</version>
+  <version>6.9.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -103,7 +103,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">6.8.0</entry>
+        <entry key="version">6.9.0</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -119,7 +119,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">6.8.0</entry>
+        <entry key="package.version">6.9.0</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -1137,9 +1137,11 @@
     <page name="product" path="/products" status="migrated">
       <description>
         The catalogue. One live list key feeds both the rows and the counts: search (fuzzy ladder, 250 ms debounce),
-        kind/stock/margin filters, name/price/capital/stock sort with an "auto" relevance sort while searching,
-        table or card view, and pagination — all in the URL (useListState) so a link reopens the same view. Admins
-        get the floating add button. Rows gate on the key; the toolbar and footer are static.
+        kind/stock/margin/publish (Terbit, Belum terbit, Semua) filters, name/price/capital/stock sort with an "auto"
+        relevance sort while searching, table or card view, and pagination — all in the URL (useListState) so a link
+        reopens the same view; the view alone is also mirrored to the config service's `product-view` preference, so
+        a bare `/products` reopens on the last layout. Admins get the floating add button. Rows gate on the key; the
+        toolbar and footer are static.
       </description>
       <subpages>
         <subpage path="/products/new" guard="in-page admin">The product form: info, one or more listings (code, price, unit, kind), alternative names, properties, images, initial stock lots.</subpage>

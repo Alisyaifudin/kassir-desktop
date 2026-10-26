@@ -1,4 +1,5 @@
 import type { Product } from "~/services/product";
+import { isPublished } from "~/services/product";
 import { getProductKind } from "~/lib/constants";
 import { LOW_STOCK_THRESHOLD, type ListState, type SortBy } from "./use-list-state";
 import { getIndex, search } from "./search";
@@ -72,6 +73,10 @@ export function filterProducts(products: Product[], state: ListState): Product[]
   if (state.margin !== "all") {
     const wantLoss = state.margin === "loss";
     result = result.filter((product) => isLoss(product) === wantLoss);
+  }
+  if (state.publish !== "all") {
+    const wantPublished = state.publish === "published";
+    result = result.filter((product) => isPublished(product) === wantPublished);
   }
 
   // A query ranks by relevance; the structured filters still narrow the set,

@@ -69,6 +69,7 @@ describe("useListState defaults", () => {
       kinds: [],
       stock: "all",
       margin: "all",
+      publish: "all",
       sort: "name",
       dir: "asc",
       view: "grid",
@@ -79,7 +80,7 @@ describe("useListState defaults", () => {
 
   test("every filter is read back from the URL", () => {
     const { result } = harness(
-      "/products?q=kopi&kinds=retail,grosir&stock=low&margin=profit&sort=price&dir=desc&view=table&page=3&size=50",
+      "/products?q=kopi&kinds=retail,grosir&stock=low&margin=profit&publish=unpublished&sort=price&dir=desc&view=table&page=3&size=50",
     );
 
     expect(result.current.state).toEqual({
@@ -87,6 +88,7 @@ describe("useListState defaults", () => {
       kinds: ["retail", "grosir"],
       stock: "low",
       margin: "profit",
+      publish: "unpublished",
       sort: "price",
       dir: "desc",
       view: "table",
@@ -97,12 +99,13 @@ describe("useListState defaults", () => {
 
   test("a value that is not in the allowed set falls back instead of reaching the query", () => {
     const { result } = harness(
-      "/products?stock=nope&margin=nope&sort=nope&dir=nope&view=nope&page=abc&size=999",
+      "/products?stock=nope&margin=nope&publish=nope&sort=nope&dir=nope&view=nope&page=abc&size=999",
     );
 
     expect(result.current.state).toMatchObject({
       stock: "all",
       margin: "all",
+      publish: "all",
       sort: "name",
       dir: "asc",
       view: "grid",
@@ -136,13 +139,25 @@ describe("writing the URL", () => {
     expect(params().has("page")).toBe(false);
   });
 
+  test("a status change resets the page, like every other filter", () => {
+    const { result } = harness("/products?page=4");
+
+    act(() => result.current.set({ publish: "unpublished" }));
+
+    expect(params().get("publish")).toBe("unpublished");
+    expect(params().has("page")).toBe(false);
+  });
+
   test("defaults are removed rather than written", () => {
-    const { result } = harness("/products?stock=low&margin=loss&sort=price&dir=desc&view=table&size=50");
+    const { result } = harness(
+      "/products?stock=low&margin=loss&publish=unpublished&sort=price&dir=desc&view=table&size=50",
+    );
 
     act(() =>
       result.current.set({
         stock: "all",
         margin: "all",
+        publish: "all",
         sort: "score",
         dir: "asc",
         view: "grid",
@@ -150,7 +165,7 @@ describe("writing the URL", () => {
       }),
     );
 
-    for (const key of ["stock", "margin", "sort", "dir", "view", "size"]) {
+    for (const key of ["stock", "margin", "publish", "sort", "dir", "view", "size"]) {
       expect(params().has(key)).toBe(false);
     }
   });
@@ -163,6 +178,7 @@ describe("writing the URL", () => {
         kinds: ["retail"],
         stock: "out",
         margin: "loss",
+        publish: "published",
         sort: "price",
         dir: "desc",
         view: "table",
@@ -174,6 +190,7 @@ describe("writing the URL", () => {
     expect(params().get("kinds")).toBe("retail");
     expect(params().get("stock")).toBe("out");
     expect(params().get("margin")).toBe("loss");
+    expect(params().get("publish")).toBe("published");
     expect(params().get("sort")).toBe("price");
     expect(params().get("dir")).toBe("desc");
     expect(params().get("view")).toBe("table");

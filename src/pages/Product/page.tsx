@@ -98,7 +98,7 @@ function Rows({
   const filtered = useMemo(
     () => filterProducts(products, state),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [products, state.q, state.kinds.join(","), state.stock, state.margin, state.sort, state.dir],
+    [products, state.q, state.kinds.join(","), state.stock, state.margin, state.publish, state.sort, state.dir],
   );
   const totalPage = Math.max(1, Math.ceil(filtered.length / state.size));
   const page = Math.min(state.page, totalPage);
@@ -108,7 +108,7 @@ function Rows({
     return (
       <Empty
         total={products.length}
-        onReset={() => set({ q: "", kinds: [], stock: "all", margin: "all" })}
+        onReset={() => set({ q: "", kinds: [], stock: "all", margin: "all", publish: "all" })}
       />
     );
   }

@@ -7,11 +7,13 @@ import { service } from "~/services";
 export type ViewMode = "table" | "grid";
 export type StockFilter = "all" | "in" | "low" | "out";
 export type MarginFilter = "all" | "profit" | "loss";
+export type PublishFilter = "all" | "published" | "unpublished";
 export type SortBy = "score" | "name" | "price" | "capital" | "stock" | "updated";
 type SortDir = "asc" | "desc";
 
 const STOCK_FILTERS = ["all", "in", "low", "out"] as const;
 const MARGIN_FILTERS = ["all", "profit", "loss"] as const;
+const PUBLISH_FILTERS = ["all", "published", "unpublished"] as const;
 const SORT_BY = ["score", "name", "price", "capital", "stock", "updated"] as const;
 const SORT_DIRS = ["asc", "desc"] as const;
 const VIEW_MODES = ["table", "grid"] as const;
@@ -25,6 +27,7 @@ export type ListState = {
   kinds: string[];
   stock: StockFilter;
   margin: MarginFilter;
+  publish: PublishFilter;
   sort: SortBy;
   dir: SortDir;
   view: ViewMode;
@@ -74,6 +77,7 @@ export function useListState() {
       kinds: (params.get("kinds") ?? "").split(",").filter(Boolean),
       stock: oneOf(params.get("stock"), STOCK_FILTERS, "all"),
       margin: oneOf(params.get("margin"), MARGIN_FILTERS, "all"),
+      publish: oneOf(params.get("publish"), PUBLISH_FILTERS, "all"),
       sort,
       dir: oneOf(params.get("dir"), SORT_DIRS, "asc"),
       view: oneOf(params.get("view"), VIEW_MODES, storedView()),
@@ -119,6 +123,10 @@ export function useListState() {
           }
           if (patch.margin !== undefined) {
             put("margin", patch.margin === "all" ? null : patch.margin);
+            resetPage = true;
+          }
+          if (patch.publish !== undefined) {
+            put("publish", patch.publish === "all" ? null : patch.publish);
             resetPage = true;
           }
           if (patch.sort !== undefined) {

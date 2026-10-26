@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Product } from "~/services/product";
+import { PRODUCT_FLAG_UNPUBLISHED } from "~/services/product";
 import { resetIndex } from "./search";
 import { filterProducts } from "./use-filtered";
 import type { ListState } from "./use-list-state";
@@ -17,6 +18,7 @@ function product(
     code?: string | null;
     capital?: number;
     maxCapital?: number;
+    flag?: number;
   } = {},
 ): Product {
   const id = options.id ?? name;
@@ -24,7 +26,7 @@ function product(
     id,
     name,
     note: "",
-    flag: 0,
+    flag: options.flag ?? 0,
     altNames: [],
     listings: [
       {
@@ -53,6 +55,7 @@ const base: ListState = {
   kinds: [],
   stock: "all",
   margin: "all",
+  publish: "all",
   sort: "name",
   dir: "asc",
   view: "grid",
@@ -125,5 +128,31 @@ describe("filterProducts", () => {
   test("an empty query uses the chosen sort", () => {
     const result = filterProducts(products, base);
     expect(result.map((item) => item.id)).toEqual(["b", "c", "a", "z"]);
+  });
+
+  test("publish narrows to what the till can (or cannot) sell", () => {
+    const mixed = [
+      product("Alpha", { id: "published" }),
+      product("Beta", { id: "unpublished", flag: PRODUCT_FLAG_UNPUBLISHED }),
+    ];
+    const ids = (publish: ListState["publish"]) =>
+      filterProducts(mixed, { ...base, publish }).map((item) => item.id);
+
+    expect(ids("all")).toEqual(["published", "unpublished"]);
+    expect(ids("published")).toEqual(["published"]);
+    expect(ids("unpublished")).toEqual(["unpublished"]);
+  });
+
+  test("publish is a mask, not an equality: another flag bit does not unpublish", () => {
+    // Bit 1 is unused today, but `flag` is a bitfield: a product carrying it is
+    // still published, and an `=== 0` check would wrongly bury it under Terbit.
+    const mixed = [
+      product("Alpha", { id: "published", flag: 0b10 }),
+      product("Beta", { id: "unpublished", flag: PRODUCT_FLAG_UNPUBLISHED | 0b10 }),
+    ];
+
+    expect(
+      filterProducts(mixed, { ...base, publish: "published" }).map((item) => item.id),
+    ).toEqual(["published"]);
   });
 });
