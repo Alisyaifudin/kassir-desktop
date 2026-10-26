@@ -156,7 +156,7 @@ export function List({
             <tbody
               key={record.id}
               className={cn(
-                "group/rec text-muted-foreground font-light",
+                "group/rec text-muted-foreground",
                 "[&>tr]:border-b-0 [&:not(:last-child)>tr:last-child]:border-b",
               )}
             >
