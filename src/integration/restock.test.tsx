@@ -71,13 +71,43 @@ describe("the purchase screen on arrival", () => {
     expect(screen.getByRole("button", { name: /Berikutnya/ })).toBeDefined();
   });
 
-  test("F2 opens the payment stage from the goods", async () => {
+  test("F2 opens the charges stage, with the cursor in its search bar", async () => {
     renderTill("restock");
     await openDraftId("outcoming");
 
     fireEvent.keyDown(document.body, { key: "F2" });
 
+    // The charges grid, not the goods: its search bar is the stage's own field.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByPlaceholderText(/Cari biaya tambahan/i),
+      ),
+    );
+  });
+
+  test("F3 opens the payment stage from the charges", async () => {
+    renderTill("restock");
+    await openDraftId("outcoming");
+
+    fireEvent.keyDown(document.body, { key: "F2" });
+    fireEvent.keyDown(document.body, { key: "F3" });
+
     await waitFor(() => expect(screen.queryByRole("button", { name: "Bayar" })).not.toBeNull());
+  });
+
+  test("F1 comes back to the goods from the payment stage", async () => {
+    renderTill("restock");
+    await openDraftId("outcoming");
+    await toPayment();
+
+    fireEvent.keyDown(document.body, { key: "F1" });
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Bayar" })).toBeNull());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByPlaceholderText(/Cari barang untuk dibeli/i),
+      ),
+    );
   });
 });
 

@@ -41,7 +41,10 @@ import { useInertApp } from "~/components/cart/use-inert-app";
 const AMOUNT_CLASS =
   "flex w-full text-normal rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
-/** The first amount field, so F2 (see page) can land on it. */
+/**
+ * The first amount field, so the settle key — F2 on a sale, F3 on a purchase —
+ * can land on it.
+ */
 const PAYMENT_AMOUNT_ID = "payment-amount-0";
 
 /** The cells of the settle grid, in navigation order. */
@@ -149,8 +152,9 @@ export function Methods({
   // Without the catalogue there is only the rounding row to move around in.
   const rows: PayField[][] = catalog === null ? [["rounding"]] : [["rounding"], methodRow];
 
-  // F2 asked for the first amount; in a multi-method draft that lives in the
-  // editor, so open it and reach for the field there.
+  // The settle key asked for the first amount — F2 on a sale, F3 on a purchase
+  // (see each page); in a multi-method draft that lives in the editor, so open it
+  // and reach for the field there.
   useEffect(() => {
     if (focusPayment === 0) return;
     if (multiple) {
@@ -506,7 +510,7 @@ export function Methods({
                 currency
                 singleClickEdit
                 editId={PAYMENT_AMOUNT_ID}
-                prefix={<Kbd>F2</Kbd>}
+                prefix={<Kbd>{draft.mode === "incoming" ? "F2" : "F3"}</Kbd>}
                 selected={focused && selected === "amount"}
                 editing={editing && selected === "amount"}
                 seed={seed}

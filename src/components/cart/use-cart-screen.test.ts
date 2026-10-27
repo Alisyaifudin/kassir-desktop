@@ -131,8 +131,12 @@ function harness({
   const onStage = mock((stage: string) => {
     calls.push({ kind: "onStage", args: [stage] });
   });
-  const onF2 = mock(() => {
+  const onF2 = mock((focus: () => void) => {
     calls.push({ kind: "onF2", args: [] });
+    focus();
+  });
+  const onF3 = mock(() => {
+    calls.push({ kind: "onF3", args: [] });
   });
   const onF1 = mock((focus: () => void) => {
     calls.push({ kind: "onF1", args: [] });
@@ -151,11 +155,12 @@ function harness({
         onDraft,
         onF1,
         onF2,
+        onF3,
       });
     },
     { initialProps },
   );
-  return { ...view, onDraft, onStage, onF2, onF1 };
+  return { ...view, onDraft, onStage, onF2, onF3, onF1 };
 }
 
 /**
@@ -366,14 +371,16 @@ describe("useCartScreen — keyboard", () => {
     expect(kinds()).toContain("add.new");
   });
 
-  test("F1 and F2 reach the screen's own handlers", async () => {
+  test("F1, F2 and F3 reach the screen's own handlers", async () => {
     calls = [];
-    const { onF1, onF2 } = harness({ drafts: [makeDraft("d1")], draftId: "d1" });
+    const { onF1, onF2, onF3 } = harness({ drafts: [makeDraft("d1")], draftId: "d1" });
     await flush();
     press("F1");
     press("F2");
+    press("F3");
     expect(onF1).toHaveBeenCalledTimes(1);
     expect(onF2).toHaveBeenCalledTimes(1);
+    expect(onF3).toHaveBeenCalledTimes(1);
   });
 
   test("switching carts returns to the first stage", async () => {

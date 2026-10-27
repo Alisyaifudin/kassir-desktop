@@ -37,9 +37,9 @@ const LAST_DRAFT_KEY = (mode: CartMode) => `cart.last-draft.${mode}`;
  * repair, the cart this screen opens with, the tab walker, and the commit flags.
  *
  * The two screens differ only in what they render (a sale's bottom strip versus
- * a purchase's stage stepper) and in what F2 means there, so those stay props.
- * Everything here is identical on both screens by construction — that is the
- * point: a keyboard or lifecycle rule must not exist twice.
+ * a purchase's stage stepper) and in what F1/F2/F3 mean there, so those stay
+ * props. Everything here is identical on both screens by construction — that is
+ * the point: a keyboard or lifecycle rule must not exist twice.
  */
 export function useCartScreen<S extends string, C extends Completed = Completed>({
   mode,
@@ -50,6 +50,7 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   onDraft,
   onF1,
   onF2,
+  onF3,
   ready = true,
 }: {
   mode: CartMode;
@@ -66,14 +67,18 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
   draftId: string | null;
   onDraft: (id: string | null) => void;
   /**
-   * F1: put the cursor in the search bar of whichever grid is on screen. The
-   * bump function is handed in so a screen that has to change stage first (and
-   * wait a tick for the grid to mount) can defer it; without a handler the hook
-   * simply bumps.
+   * F1: the goods. The bump function is handed in so a screen that has to change
+   * stage first (and wait a tick for the grid to mount) can defer it; without a
+   * handler the hook simply bumps and the open stage's search bar takes it.
    */
   onF1?: (focusSearch: () => void) => void;
-  /** F2: settle. Each screen decides what settling means for its layout. */
-  onF2?: () => void;
+  /**
+   * F2: the charges. Same contract as `onF1` — a purchase opens its extras stage
+   * on the way, a sale has both stages side by side and only moves the cursor.
+   */
+  onF2?: (focusSearch: () => void) => void;
+  /** F3: settling. A purchase opens its payment stage; a sale has no F3. */
+  onF3?: () => void;
 }) {
   const modeDrafts = useMemo(
     () =>
@@ -126,9 +131,10 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
     });
   }
 
-  // F1/F2/F12 work from anywhere on the screen, not just from the focused panel.
-  // No dependency array on purpose: the handlers close over the screen's own
-  // callbacks and `startNew`, so they must be re-registered after every render.
+  // F1/F2/F3/F12 work from anywhere on the screen, not just from the focused
+  // panel. No dependency array on purpose: the handlers close over the screen's
+  // own callbacks and `startNew`, so they must be re-registered after every
+  // render.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (submitting) return;
@@ -146,7 +152,13 @@ export function useCartScreen<S extends string, C extends Completed = Completed>
       }
       if (event.key === "F2") {
         event.preventDefault();
-        onF2?.();
+        if (onF2 === undefined) focusSearchNow();
+        else onF2(focusSearchNow);
+        return;
+      }
+      if (event.key === "F3") {
+        event.preventDefault();
+        onF3?.();
         return;
       }
       if (event.key === "F12") {

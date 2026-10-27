@@ -58,7 +58,7 @@ export function Draft({
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
   focusSearch: number;
-  /** F2's token: the payment stage puts its cursor on the first amount. */
+  /** F3's token: the payment stage puts its cursor on the first amount. */
   focusPayment: number;
   focusRounding: number;
   focusLast: number;

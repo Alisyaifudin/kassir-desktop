@@ -488,7 +488,7 @@ export function Extras({
             focused && isSearch && SELECTED_RING,
           )}
         >
-          <Kbd className="py-5 small:py-4">F1</Kbd>
+          <Kbd className="py-5 small:py-4">{mode === "sale" ? "F1" : "F2"}</Kbd>
           <Input
             ref={searchRef}
             type="search"

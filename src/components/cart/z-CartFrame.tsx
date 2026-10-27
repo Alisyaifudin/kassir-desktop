@@ -8,7 +8,7 @@ import { SaveError } from "~/components/SaveError";
  * blocking overlay), and the slot the completion dialog is rendered into.
  *
  * What stays in the pages is what genuinely differs: their `<main>`, their draft
- * stream and its loading branch, their stage list, their panels, their F1/F2
+ * stream and its loading branch, their stage list, their panels, their F1/F2/F3
  * handlers and their completion payload.
  */
 

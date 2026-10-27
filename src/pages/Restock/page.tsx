@@ -79,7 +79,7 @@ function Screen({
   draftId: string | null;
   onDraft: (id: string | null) => void;
 }) {
-  // Bumped by F2; the payment stage watches it to put the cursor on its first
+  // Bumped by F3; the payment stage watches it to put the cursor on its first
   // amount, even when it is already the open stage.
   const [focusPayment, setFocusPayment] = useState(0);
   // Bayar's hand-off back to the payment grid's rounding cell.
@@ -106,19 +106,29 @@ function Screen({
     onStage,
     draftId,
     onDraft,
-    // F1 from the payment stage has to leave it first, and the listing grid only
-    // takes the cursor once it is mounted — hence the deferred bump.
+    // F1/F2 are the stages and their search bars: the listing grid, then the
+    // charges on the purchase. Neither grid exists before its stage is mounted,
+    // so the focus bump is deferred a tick — the same hand-off F1 has always
+    // needed to leave the payment stage.
     onF1: (focusSearch) => {
-      if (stage === "payment") {
-        onStage("listing");
-        setTimeout(focusSearch, 0);
-      } else {
+      if (stage === "listing") {
         focusSearch();
+        return;
       }
+      onStage("listing");
+      setTimeout(focusSearch, 0);
     },
-    // F2 settles from anywhere: open the payment stage and put the cursor on its
-    // first amount — the same meaning it has on Pos, where the rows are inline.
-    onF2: () => {
+    onF2: (focusSearch) => {
+      if (stage === "extras") {
+        focusSearch();
+        return;
+      }
+      onStage("extras");
+      setTimeout(focusSearch, 0);
+    },
+    // F3 settles from anywhere: open the payment stage and put the cursor on its
+    // first amount.
+    onF3: () => {
       onStage("payment");
       setFocusPayment((count) => count + 1);
     },
