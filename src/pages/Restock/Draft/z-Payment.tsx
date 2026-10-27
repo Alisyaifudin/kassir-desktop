@@ -17,6 +17,7 @@ import { Methods } from "~/components/cart/z-Methods";
 import { Note } from "~/components/cart/z-Note";
 import { PaymentTime } from "~/components/cart/z-PaymentTime";
 import { Precision } from "~/components/cart/z-Precision";
+import { FlipMode } from "~/components/cart/z-FlipMode";
 import { Supplier } from "./z-Supplier";
 import { Images } from "./z-Images";
 import { Kredit } from "./z-Kredit";
@@ -29,6 +30,10 @@ import { CashierName } from "../z-CashierName";
  * record is settled — sit in an accordion that stays out of the way of the two
  * things that matter: what is owed (the grand total below) and what has been
  * paid.
+ *
+ * Buried in that same accordion is the way out of a purchase that was never one:
+ * the cart becomes a sale and moves to Pos (`FlipMode`). It sits with the other
+ * things that rewrite what the purchase *is*, not with the money.
  */
 export function Payment({
   draft,
@@ -149,6 +154,9 @@ function Body({
                   <Precision draft={draft} />
                 </div>
                 <PaymentTime draft={draft} />
+                <div className="flex justify-end">
+                  <FlipMode draft={draft} className="items-end" />
+                </div>
               </div>
             </AccordionContent>
           </AccordionItem>

@@ -18,6 +18,7 @@ import { run } from "~/components/cart/run";
 import { PaymentTime } from "~/components/cart/z-PaymentTime";
 import { Customer } from "./z-Customer";
 import { Precision } from "~/components/cart/z-Precision";
+import { FlipMode } from "~/components/cart/z-FlipMode";
 
 /**
  * The sale's optional details — precision, customer, payment time, note — behind
@@ -27,6 +28,9 @@ import { Precision } from "~/components/cart/z-Precision";
  * "Waktu pembayaran" is the only one that changes what `Bayar` writes; it is
  * the shared `PaymentTime` control, so the sale and the purchase settle their
  * records the same way.
+ *
+ * The dialog's footer also hides the way out of a sale that was never one: the
+ * cart becomes a purchase and moves to Restock (`FlipMode`).
  */
 export function Options({ draft, onStore }: { draft: Draft | null; onStore: () => void }) {
   // The button is static, so it is drawn at once; the dialog's fields read and
@@ -73,7 +77,10 @@ export function Options({ draft, onStore }: { draft: Draft | null; onStore: () =
             </>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {/* Only a real cart can change hands; the placeholder frame of the
+              dialog's fields has nothing to flip. */}
+          {draft === null ? null : <FlipMode draft={draft} />}
           <DialogClose asChild>
             <Button variant="secondary" type="button" onClick={onStore} disabled={disabled}>
               Simpan keranjang
