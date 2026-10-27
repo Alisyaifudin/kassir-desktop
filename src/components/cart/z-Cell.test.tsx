@@ -4,13 +4,16 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Cell } from "./z-Cell";
 
 /**
- * Opening a cell's editor selects what is in it.
+ * Opening a cell's editor selects what is in it — unless a keystroke opened it.
  *
  * Enter (or a double-click) on a selected cell means "type over this": leaving the
  * caret at the end turned every correction of a price or a quantity into a
  * Backspace session first. The money editor is the interesting one — it parks its
  * own caret at the end while mounting, so this also pins that the selection is the
  * last word on the caret rather than a race won by whichever effect ran last.
+ *
+ * A seeded open is the other rule (see the digit case at the end of the file): the
+ * digit is the new value, so it is committed at once and the caret follows it.
  */
 function Harness({
   initialEditing,
@@ -97,13 +100,27 @@ describe("cell editors open with everything selected", () => {
     expect(commits.at(-1)).toBe("5");
   });
 
-  test("a digit typed on the selected cell seeds the editor, not the value", () => {
-    render(<Harness initialEditing={false} currency seed="7" />);
+  test("a digit typed on the selected cell is the value, and the caret goes after it", () => {
+    const commits: string[] = [];
+    render(
+      <Harness
+        initialEditing={false}
+        currency
+        seed="7"
+        onCommit={(raw) => commits.push(raw)}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "toggle" }));
 
-    // The 10.000 is being replaced, so the editor opens on the typed digit.
-    expect(input().value).toBe("Rp7");
+    // The 10.000 is replaced by the typed digit…
+    const field = input();
+    expect(field.value).toBe("Rp7");
+    // …committed on the spot, so Escape keeps it…
+    expect(commits).toEqual(["7"]);
+    // …and the caret sits after it: the next digit appends instead of replacing a
+    // selection, which is what made `1` then `2` read `2`.
+    expect(selection(field)).toEqual(["Rp7".length, "Rp7".length]);
   });
 
   test("re-entering the editor selects again", () => {

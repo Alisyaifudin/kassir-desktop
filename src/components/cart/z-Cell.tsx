@@ -10,24 +10,82 @@ export const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 export const EDITING_RING = "z-10 ring-2 ring-primary ring-inset";
 
 /**
- * Select everything in a cell's editor the moment it opens.
+ * The digit a cell's editor was opened with, remembered for that session.
  *
- * Enter or a double-click means "type over this", not "append to it": with the
- * caret parked at the end, replacing a price or a quantity was a Backspace
- * session first. The user asked for this on the cells the arrows walk; the same
- * click that opens a `singleClickEdit` cell lands here too, which is what a till
- * wants — the value is a number and nothing in it is worth keeping.
+ * `seed` arrives on the render where the parent flips `editing` on and is dropped
+ * again as soon as the editor closes, so the two hooks below have to latch which
+ * open it belonged to. Both read it once and forget it; a second latch per hook
+ * keeps them independent.
+ */
+function useSeedOnOpen(editing: boolean, seed?: string | null) {
+  const openSeed = useRef<string | null>(null);
+  const wasEditing = useRef(false);
+  if (editing && !wasEditing.current) openSeed.current = seed ?? null;
+  wasEditing.current = editing;
+  return openSeed;
+}
+
+/**
+ * Put the caret where the editor opened.
+ *
+ * Enter, a double-click or a `singleClickEdit` click means "type over this", not
+ * "append to it": with the caret parked at the end, replacing a price or a
+ * quantity was a Backspace session first. So an ordinary open selects everything.
+ *
+ * A *seeded* open is the opposite case. The digit that opened the editor is
+ * already the cell's value, so selecting it would put the next digit over it —
+ * `1` then `2` read `2`, not `12`. The caret goes after the digit instead, where
+ * the rest of the number appends.
  *
  * Runs in a *layout* effect so it lands in the same paint as the focus. It must
  * therefore be the last word on the caret: `InputCurrency` parks its own caret at
  * the end while mounting, in a layout effect of its own — children's run first,
  * so this one wins.
  */
-export function useSelectAllOnEdit(editing: boolean, container: RefObject<HTMLElement | null>) {
+export function useSelectAllOnEdit(
+  editing: boolean,
+  container: RefObject<HTMLElement | null>,
+  seed?: string | null,
+) {
+  const openSeed = useSeedOnOpen(editing, seed);
   useLayoutEffect(() => {
     if (!editing) return;
-    container.current?.querySelector("input")?.select();
-  }, [editing, container]);
+    const input = container.current?.querySelector("input");
+    if (input === null || input === undefined) return;
+    if (openSeed.current !== null) {
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+      return;
+    }
+    input.select();
+  }, [editing, container, openSeed]);
+}
+
+/**
+ * Commit the digit that opened a cell's editor, as it opens.
+ *
+ * A typed digit is the cell's new value from that keypress on — not a draft to
+ * confirm. Committing it here means the line (and the totals built from it) holds
+ * the digit while the rest of the number is being typed, Escape keeps it, and the
+ * cell's undo has something to go back to. The effect fires once per open: the
+ * latch is spent on the way out.
+ */
+export function useCommitSeedOnEdit(
+  editing: boolean,
+  seed: string | null | undefined,
+  commit: (raw: string) => void,
+) {
+  const openSeed = useSeedOnOpen(editing, seed);
+  // The callback is an inline arrow at every call site; keep the latest without
+  // re-running the effect on each render.
+  const latest = useRef(commit);
+  latest.current = commit;
+  useEffect(() => {
+    if (openSeed.current === null) return;
+    const digit = openSeed.current;
+    openSeed.current = null;
+    latest.current(digit);
+  }, [editing, openSeed]);
 }
 
 /**
@@ -47,10 +105,13 @@ export function typedDigit(event: KeyboardEvent<Element>): string | null {
 /**
  * A cell editor's text, seeded by the key that opened it.
  *
- * `seed` is read on the render where `editing` flips and dropped immediately: it
- * belongs to the keystroke that opened this editor, so a later echo of the
- * committed value must not bring it back (that is how a seed would turn into a
- * phantom edit one cell later).
+ * `seed` is applied on the render where `editing` flips — as a render-phase
+ * adjustment, not an effect, so the editor's first paint already holds the digit.
+ * (An effect painted the value it replaces for one frame first, which is the flash
+ * a seeded edit used to have.) The seed is then dropped immediately: it belongs to
+ * the keystroke that opened this editor, so a later echo of the committed value
+ * must not bring it back — that is how a seed would turn into a phantom edit one
+ * cell later.
  */
 export function useEditorDraft(
   editing: boolean,
@@ -58,15 +119,24 @@ export function useEditorDraft(
   seed?: string | null,
 ): [string, (next: string) => void] {
   const [draft, setDraft] = useState(value);
-  const opening = useRef<string | null>(null);
   const wasEditing = useRef(false);
-  if (editing && !wasEditing.current) opening.current = seed ?? null;
-  wasEditing.current = editing;
+  // True for the render that opened the editor, so the sync below leaves the seed
+  // it already applied alone.
+  const opening = useRef(false);
+  if (editing !== wasEditing.current) {
+    wasEditing.current = editing;
+    opening.current = editing;
+    if (editing) setDraft(seed ?? value);
+  }
   useEffect(() => {
     if (!editing) return;
-    const next = opening.current;
-    opening.current = null;
-    setDraft(next ?? value);
+    if (opening.current) {
+      opening.current = false;
+      return;
+    }
+    // The value changed underneath the open editor (an undo, another writer, this
+    // cell's own commit): follow it.
+    setDraft(value);
   }, [editing, value]);
   return [draft, setDraft];
 }
@@ -153,7 +223,8 @@ export function Cell({
 }) {
   const [draft, setDraft] = useEditorDraft(editing, String(value), seed);
   const cellRef = useRef<HTMLDivElement>(null);
-  useSelectAllOnEdit(editing, cellRef);
+  useSelectAllOnEdit(editing, cellRef, seed);
+  useCommitSeedOnEdit(editing, seed, onCommit);
   function handleDraft(next: string) {
     setDraft(next);
     onChange?.(next);

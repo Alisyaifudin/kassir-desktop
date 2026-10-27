@@ -2302,7 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "kassir"
-version = "6.13.3"
+version = "6.13.4"
 dependencies = [
  "bcrypt",
  "dotenvy",

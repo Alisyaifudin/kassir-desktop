@@ -9,9 +9,9 @@ import type { Line } from "./types";
  * Typing a number over a selected cell.
  *
  * On a till the operator does not press Enter and then clear a field: a number
- * typed on a selected cell *is* the new value, so the editor opens with that digit
- * and the old value is gone. Nothing happened at all before this — the grid
- * ignored printable keys, and the value sat there.
+ * typed on a selected cell *is* the new value. So the keypress commits it and the
+ * editor opens with the caret after it — never over a selection, which is what
+ * turned `1` then `2` into `2`.`
  *
  * The cells this applies to are the numeric ones (`price`, `unit`, `qty`, and the
  * payment strip's `Pembulatan`/`Nilai`); `nama` and `kode` still need Enter,
@@ -115,16 +115,51 @@ describe("a digit typed on a selected cell", () => {
     expect(editor(`cell-${line.id}-name`)).toBeNull();
   });
 
-  test("Enter still opens the editor on the value, not on a key typed earlier", async () => {
-    const { line, grid } = await renderWithLine();
+  test("the digit is the cell's value from that keypress on", async () => {
+    const { writes, line, grid } = await renderWithLine();
 
-    // A digit seeds the price editor, then Escape throws it away…
     fireEvent.click(document.getElementById(`cell-${line.id}-price`) as HTMLElement);
     fireEvent.keyDown(grid, { key: "5" });
-    fireEvent.keyDown(editor(`cell-${line.id}-price`) as HTMLInputElement, { key: "Escape" });
 
-    // …and Enter must open the committed value again, not resurrect the 5.
+    // Committed as the editor opens, so the cart holds it while the rest of the
+    // number is still being typed.
+    expect(writes.at(-1)?.[0]?.price).toBe(5);
+
+    // Escape closes the editor; it does not throw the digit away.
+    fireEvent.keyDown(editor(`cell-${line.id}-price`) as HTMLInputElement, { key: "Escape" });
+    expect(writes.at(-1)?.[0]?.price).toBe(5);
+
+    // …and the next open starts from it, not from the 10.000 it replaced.
     fireEvent.keyDown(grid, { key: "Enter" });
-    expect(editor(`cell-${line.id}-price`)?.value).toBe("Rp10.000");
+    expect(editor(`cell-${line.id}-price`)?.value).toBe("Rp5");
+  });
+
+  test("the caret lands after the digit, so the next one appends", async () => {
+    const { line, grid } = await renderWithLine();
+
+    fireEvent.click(document.getElementById(`cell-${line.id}-price`) as HTMLElement);
+    fireEvent.keyDown(grid, { key: "1" });
+
+    const price = editor(`cell-${line.id}-price`) as HTMLInputElement;
+    expect(price.value).toBe("Rp1");
+    // Nothing selected. The old open selected the whole value, so the next digit
+    // replaced it: `1` then `2` read `2`.
+    expect([price.selectionStart, price.selectionEnd]).toEqual([price.value.length, price.value.length]);
+  });
+
+  test("a quantity of 1, then 1 then 2, reads 12", async () => {
+    const { line, grid } = await renderWithLine();
+    expect(line.qty).toBe(1);
+
+    fireEvent.click(screen.getByText("Kuantitas"));
+    fireEvent.keyDown(grid, { key: "1" });
+
+    const qty = editor(`cell-${line.id}-qty`) as HTMLInputElement;
+    expect(qty.value).toBe("1");
+    expect([qty.selectionStart, qty.selectionEnd]).toEqual([1, 1]);
+
+    // What the browser does with that caret: the second digit appends.
+    fireEvent.change(qty, { target: { value: `${qty.value}2` } });
+    expect(editor(`cell-${line.id}-qty`)?.value).toBe("12");
   });
 });

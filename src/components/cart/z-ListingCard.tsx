@@ -13,6 +13,7 @@ import {
   Cell,
   EDITING_RING,
   SELECTED_RING,
+  useCommitSeedOnEdit,
   useEditorDraft,
   useSelectAllOnEdit,
 } from "~/components/cart/z-Cell";
@@ -310,7 +311,8 @@ function QtyCell({
 }) {
   const [draft, setDraft] = useEditorDraft(editing, String(line.qty), seed);
   const cellRef = useRef<HTMLDivElement>(null);
-  useSelectAllOnEdit(editing, cellRef);
+  useSelectAllOnEdit(editing, cellRef, seed);
+  useCommitSeedOnEdit(editing, seed, (raw) => setQty(Number(raw) || 0));
 
   function setQty(qty: number) {
     // The grid re-derives the line's discount stack from the new qty (see
