@@ -32,8 +32,7 @@ import {
   PropertiesFields,
   PropertyRowSkeleton,
 } from "../../Form/z-PropertiesFields";
-import { Section, SectionAdd } from "../../Form/z-Section";
-import { FlatSectionSurface } from "../../Form/z-Section";
+import { FlatSectionSurface, Section, SectionAdd } from "../../Form/z-Section";
 import { STOCKS_SECTION, StockRowSkeleton, StocksFields } from "../../Form/z-StocksFields";
 import { ConfirmDelete } from "../z-ConfirmDelete";
 import { StockAdjust } from "./z-StockAdjust";
