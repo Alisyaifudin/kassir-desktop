@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import type Decimal from "decimal.js";
-import { Stream } from "effect";
+import { Effect, Either, Stream } from "effect";
 import { AnimatePresence } from "motion/react";
 import {
   DndContext,
@@ -498,6 +498,56 @@ export function Listing({
     setQuery("");
     searchRef.current?.focus();
   }
+
+  /**
+   * The values a line was taken from — the catalog's name, code, unit and price —
+   * are what its cells undo back to. The draft row remembers them for the session
+   * only: `DraftListing.base` is UI state with no column behind it, so a reload
+   * came back with the line intact and every undo button gone, with no way to
+   * learn the origin again.
+   *
+   * So the grid reads it back. One catalog read covers every line that arrived
+   * without a base — not one per card — and each listing id is asked for at most
+   * once: a line whose listing has since been deleted would otherwise re-read the
+   * whole catalog on every keystroke, since every edit re-runs this.
+   */
+  const askedBase = useRef(new Set<string>());
+  // The freshest lines, for the read's callback: it lands a tick later, and an
+  // edit in between must not be overwritten by the restore.
+  const freshestLines = useRef(lines);
+  freshestLines.current = lines;
+  useEffect(() => {
+    const wanted = lines.filter(
+      (line) =>
+        line.base === undefined &&
+        line.listingId != null &&
+        !askedBase.current.has(line.listingId),
+    );
+    if (wanted.length === 0) return;
+    for (const line of wanted) {
+      if (line.listingId != null) askedBase.current.add(line.listingId);
+    }
+    void Effect.runPromise(Effect.either(service.listing.get.all())).then((result) => {
+      if (Either.isLeft(result)) return;
+      const catalog = new Map(result.right.map((listing) => [listing.id, listing]));
+      const current = freshestLines.current;
+      const restored = current.map((line) => {
+        if (line.base !== undefined || line.listingId == null) return line;
+        const listing = catalog.get(line.listingId);
+        if (listing === undefined) return line;
+        return {
+          ...line,
+          base: {
+            name: listing.name,
+            code: listing.code ?? "",
+            unit: listing.unit,
+            price: listing.price,
+          },
+        };
+      });
+      if (restored.some((line, index) => line !== current[index])) onChange(restored);
+    });
+  }, [lines, onChange]);
 
   /**
    * The text a cell hands to the clipboard, and the patch a pasted string means

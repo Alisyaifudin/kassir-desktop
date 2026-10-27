@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { Effect } from "effect";
 import {
   flushTill,
@@ -52,6 +52,14 @@ const tabs = () => screen.queryAllByRole("tab");
 
 /** The one open cart, once the screen has made it. */
 const ready = () => openDraftId("incoming");
+
+/** A catalog row by name — what a line's origin is read from. */
+async function catalogListing(name: string) {
+  const all = await Effect.runPromise(tillService().listing.get.all());
+  const listing = all.find((item) => item.name === name);
+  if (listing === undefined) throw new Error(`no listing called ${name}`);
+  return listing;
+}
 
 async function scanInto(cartId: string, text: string) {
   await scan(text);
@@ -180,6 +188,51 @@ describe("putting goods in the cart", () => {
         cartId,
       ])?.name,
     ).toBe("Jasa bungkus");
+  });
+});
+
+/**
+ * The undo in a cell reverts to what the *catalog* held. That origin is UI-only
+ * state — `DraftListing.base` has no column behind it — so a draft read back from
+ * SQLite arrives without it, and every undo button was gone for good.
+ */
+describe("a line that came back without its catalog origin", () => {
+  test("gets its undo back, read from the catalog", async () => {
+    renderTill("pos");
+    const cartId = await ready();
+    const kopi = await catalogListing("Kopi");
+
+    // What the row looks like after a reload: the line is intact, its price is the
+    // edited one, and nothing remembers the catalog's 10.000.
+    await act(async () => {
+      await Effect.runPromise(
+        tillService().transaction.listings.set(cartId, [
+          {
+            id: "line-1",
+            listingId: kopi.id,
+            name: "Kopi",
+            code: kopi.code ?? "",
+            kind: kopi.kind,
+            unit: kopi.unit,
+            price: 12_000,
+            qty: 1,
+            discounts: [],
+          },
+        ]),
+      );
+    });
+    await waitFor(() => expect(lines()).toHaveLength(1));
+
+    const cell = document.getElementById("cell-line-1-price");
+    expect(cell).not.toBeNull();
+    fireEvent.doubleClick(cell as HTMLElement);
+
+    // The undo is only offered when there is something to go back to, so its
+    // presence is the base having been read back.
+    await waitFor(() => expect(screen.queryByLabelText("Batalkan perubahan")).not.toBeNull());
+
+    fireEvent.click(screen.getByLabelText("Batalkan perubahan"));
+    await waitFor(() => expect(grand()).toBe("Rp10.000"));
   });
 });
 
