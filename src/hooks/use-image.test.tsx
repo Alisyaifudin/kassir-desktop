@@ -14,6 +14,18 @@ const loads: Load[] = [];
 let mode: "ok" | "fail" | "pending" = "ok";
 let resolvePending: ((url: string) => void) | null = null;
 
+/**
+ * Deliberately *whole*, and deliberately dropped in `afterAll`.
+ *
+ * `~/lib/image` resolves to the same file `src/lib/image.test.ts` imports as
+ * `./image`, and `mock.module` registrations are not reliably scoped to the file
+ * that made them (oven-sh/bun#31319 — seen on the Windows runner under both 1.3
+ * and 1.4). A mock missing `save`/`del` turns that test into `image.save is not a
+ * function`; a `load` still in "pending" mode — this file's last test leaves it
+ * there — hands `image.load` a promise nothing resolves, and the unit step hangs
+ * instead of failing. So every member is present, `mode` is reset on the way out,
+ * and `mock.restore()` takes the registration back if we can.
+ */
 mock.module("~/lib/image", () => ({
   image: {
     load: (name: string, mime: string) => {
@@ -29,6 +41,8 @@ mock.module("~/lib/image", () => ({
       }
       return Effect.succeed(`blob:${name}`);
     },
+    save: () => Effect.succeed(new ArrayBuffer(0)),
+    del: () => Effect.succeed(undefined),
   },
 }));
 
@@ -48,6 +62,10 @@ beforeEach(() => {
 });
 
 afterAll(() => {
+  // A leaked mock must never resolve to a promise nobody settles (see the note on
+  // the mock above): "ok" is the mode that always answers.
+  mode = "ok";
+  mock.restore();
   URL.revokeObjectURL = originalRevoke;
 });
 

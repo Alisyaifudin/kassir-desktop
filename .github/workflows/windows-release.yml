@@ -35,6 +35,10 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-latest
+    # Outer backstop for the same hang: the whole job (cold Rust build included)
+    # came in at 26 minutes on a green run, so an hour is generous and still
+    # finite. Without it the default is six hours of nothing.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -77,8 +81,16 @@ jobs:
       # The step still turns the run's annotation red (so a red suite is never
       # silent), but the job carries on into `Build and Release`. Typecheck and
       # Lint stay blocking — those two *are* the build's own preconditions.
+      #
+      # `timeout-minutes` is not decoration: `continue-on-error` reports a *failure*,
+      # and a hang is not a failure — it is nothing at all. Run 40293083687 sat on
+      # this step for the 6-hour job limit and had to be cancelled. The suite runs
+      # in ~40s here, so 10 minutes is ample headroom; a step timeout also makes the
+      # log downloadable, which is how the culprit was found (`image.load` awaiting
+      # a mocked Effect nobody settles — see `src/hooks/use-image.test.tsx`).
       - name: Unit tests
         run: bun test
+        timeout-minutes: 10
         continue-on-error: true
 
       - name: Build and Release
