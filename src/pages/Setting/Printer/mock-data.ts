@@ -1,4 +1,4 @@
-import { ReceiptData } from "~/lib/receipt/type";
+import type { ReceiptInput } from "~/lib/printer";
 import type { DiscountKind } from "~/services/record";
 
 const discount = (kind: DiscountKind, value: number, eff: number) => ({
@@ -13,7 +13,7 @@ const discount = (kind: DiscountKind, value: number, eff: number) => ({
  * discount kinds, extras in both directions, a rounding step — so a test print
  * exercises every branch of the layout.
  */
-export const mockData: Omit<ReceiptData, "info"> = {
+export const mockData: Omit<ReceiptInput, "info"> = {
   record: {
     id: "123456",
     createdAt: 0,

@@ -1,7 +1,6 @@
 import { Cause, Effect } from "effect";
 import { log } from "~/lib/log";
-import { printPdf } from "~/lib/printer";
-import { ReceiptData } from "~/lib/receipt/type";
+import { printReceipt, type ReceiptInput } from "~/lib/printer";
 import { service } from "~/services";
 
 /**
@@ -15,19 +14,20 @@ export type PrintOutcome = { ok: true; message: string } | { ok: false; message:
  * Prints a receipt. The shop's identity and the paper width are their own
  * services, so a caller hands over only what it knows — the record and its lines
  * — and gets back the outcome.
+ *
+ * The receipt is laid out and rendered to PDF by `print_receipt` in Rust; this
+ * side only collects the inputs. That is also why there is no dynamic `import()`
+ * left: the ~2 MB `pdf-lib` bundle the webview used to fetch on the first print
+ * is gone.
  */
 export const programPrint = (
-  data: Omit<ReceiptData, "info">,
+  data: Omit<ReceiptInput, "info">,
 ): Effect.Effect<PrintOutcome> =>
   Effect.gen(function* () {
     const printer = yield* service.printer.get();
     const info = yield* service.info.info();
-    // `pdf-lib` is the heaviest thing in the app (~2 MB) and a test print is a
-    // deliberate act, so the receipt module is fetched when the button is
-    // pressed — not when the settings screen opens, and never for the app's
-    // first paint.
-    const { generatePdfBytes } = yield* Effect.promise(() => import("~/lib/receipt"));
-    const pdfBytes = yield* generatePdfBytes(
+    const message = yield* printReceipt(
+      printer.name,
       {
         ...data,
         info,
@@ -41,22 +41,15 @@ export const programPrint = (
         },
       },
     );
-    const message = yield* printPdf(printer.name, pdfBytes);
     return { ok: true, message } as const;
   }).pipe(
     Effect.catchAll((error) => {
-      // `PdfDocError` is the odd one out — it carries the cause rather than a
-      // message — and the cause is the half worth reporting.
-      if ("e" in error) {
-        log.error(error.e.message);
-        return Effect.succeed({ ok: false, message: error.e.message } as const);
-      }
       log.error(error.message);
       return Effect.succeed({ ok: false, message: error.message } as const);
     }),
-    // A defect (an unexpected synchronous throw inside the receipt/PDF pipeline)
-    // must not escape the print dialog: report it like any other print failure so
-    // the caller always gets a message and can leave its loading state.
+    // A defect (an unexpected throw while collecting the inputs) must not escape
+    // the print dialog: report it like any other print failure so the caller
+    // always gets a message and can leave its loading state.
     Effect.catchAllCause((cause) => {
       log.error(Cause.pretty(cause));
       return Effect.succeed({ ok: false, message: "Gagal mencetak struk" } as const);

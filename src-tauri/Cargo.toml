@@ -45,6 +45,14 @@ tauri-plugin-dialog = "2"
 # over the first one's state from a stale snapshot.
 tauri-plugin-single-instance = "2"
 tauri-plugin-mcp-bridge = { version = "0.13.1", optional = true }
+# The receipt is laid out and rendered to PDF here, not in the webview: pdf-lib
+# re-embedded and subset two TrueType faces on every print. `default-features =
+# false` drops printpdf's html/css layout engine (azul), which a 58 mm roll of
+# pre-positioned text does not need.
+printpdf = { version = "0.12", default-features = false }
+# Receipt dates print as the machine's wall clock, so "Kredit 14-11-2023, 9:05"
+# matches what the cashier wrote down.
+chrono = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 winprint = "0.2.0"

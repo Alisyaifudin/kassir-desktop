@@ -16,19 +16,24 @@ pub struct PrinterInfo {
 // Shared PDF validation
 // ============================================================================
 
+/// The sentence shown when the bytes about to reach the spooler are not a PDF.
+/// Nothing outside Rust produces them any more, so this firing means the
+/// renderer is broken — the cashier gets a sentence, the log gets the detail.
+const NOT_A_PDF: &str = "Struk gagal disiapkan. Coba lagi.";
+
 fn validate_pdf(pdf_bytes: &[u8]) -> Result<(), String> {
     if pdf_bytes.len() < 4 {
-        return Err("Data yang dikirim bukan PDF yang sah.".to_string());
+        return Err(NOT_A_PDF.to_string());
     }
 
     if &pdf_bytes[0..4] != b"%PDF" {
         // The raw bytes are a developer detail: log them, do not show them.
         log::error!(
-            "print_pdf received a non-PDF buffer of {} bytes starting with {:?}",
+            "receipt: the generated buffer is not a PDF ({} bytes starting with {:?})",
             pdf_bytes.len(),
             &pdf_bytes[0..4]
         );
-        return Err("Data yang dikirim bukan PDF yang sah.".to_string());
+        return Err(NOT_A_PDF.to_string());
     }
 
     Ok(())
@@ -72,12 +77,13 @@ fn write_temp_pdf(pdf_bytes: &[u8]) -> Result<std::path::PathBuf, String> {
 // Commands
 // ============================================================================
 //
-// Both commands do blocking work: Win32 printer enumeration waits on the
-// spooler, and a print job can take seconds on a slow or offline printer. A
-// synchronous `#[command]` runs on the main thread — the one driving the webview
-// event loop — so the whole POS window would freeze right after Bayar, exactly
-// when the cashier needs to start the next sale. `spawn_blocking` moves it to the
-// blocking pool instead (the same reason `auth.rs` pushes bcrypt there).
+// These commands do blocking work: Win32 printer enumeration waits on the
+// spooler, a print job can take seconds on a slow or offline printer, and laying
+// out a receipt measures and wraps text. A synchronous `#[command]` runs on the
+// main thread — the one driving the webview event loop — so the whole POS window
+// would freeze right after Bayar, exactly when the cashier needs to start the
+// next sale. `spawn_blocking` moves it to the blocking pool instead (the same
+// reason `auth.rs` pushes bcrypt there).
 
 #[command]
 pub async fn get_printers() -> Result<Vec<PrinterInfo>, String> {
@@ -89,17 +95,33 @@ pub async fn get_printers() -> Result<Vec<PrinterInfo>, String> {
         })?
 }
 
+/// Print a receipt from its data. The receipt is laid out and rendered to a PDF
+/// on this side and handed straight to the spooler, so the PDF never crosses the
+/// IPC boundary in either direction — the frontend no longer builds one, and it
+/// never receives the bytes back.
+///
+/// This replaced the generic `print_pdf(printer_name, pdf_bytes)` command: once
+/// the webview stopped producing PDFs its only caller was gone, and an IPC
+/// command that feeds arbitrary bytes to a printer is surface with no purpose.
 #[command]
-pub async fn print_pdf(printer_name: String, pdf_bytes: Vec<u8>) -> Result<String, String> {
-    // Validate PDF before doing anything else: the bytes stay on this side of the
-    // thread hop when they are not a PDF at all.
-    validate_pdf(&pdf_bytes)?;
-    tauri::async_runtime::spawn_blocking(move || platform::print_pdf(&printer_name, &pdf_bytes))
-        .await
-        .map_err(|e| {
-            log::error!("print_pdf task failed: {}", e);
-            "Gagal menjalankan pencetakan. Coba lagi.".to_string()
-        })?
+pub async fn print_receipt(
+    printer_name: String,
+    data: crate::receipt::ReceiptData,
+    option: crate::receipt::ReceiptOption,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let pdf_bytes = crate::receipt::render_pdf(&data, &option)?;
+        // The renderer is the only producer of these bytes now, but a buffer
+        // that is not a PDF must never reach the spooler: it comes out as a
+        // wasted roll of paper and no error anyone can act on.
+        validate_pdf(&pdf_bytes)?;
+        platform::print_pdf(&printer_name, &pdf_bytes)
+    })
+    .await
+    .map_err(|e| {
+        log::error!("print_receipt task failed: {}", e);
+        "Gagal menjalankan pencetakan. Coba lagi.".to_string()
+    })?
 }
 
 // ============================================================================
@@ -314,14 +336,21 @@ mod platform {
 mod tests {
     use super::validate_pdf;
 
-    // `validate_pdf` is the only place IPC-supplied bytes cross into Rust, and
-    // the bytes come from the frontend. The message is what the cashier reads,
-    // so the assertion is on the Indonesian sentence, not just `is_err()`.
-    const NOT_A_PDF: &str = "Data yang dikirim bukan PDF yang sah.";
+    // `validate_pdf` is the only gate between a byte buffer and the spooler. The
+    // message is what the cashier reads, so the assertion is on the Indonesian
+    // sentence, not just `is_err()`.
+    const NOT_A_PDF: &str = "Struk gagal disiapkan. Coba lagi.";
 
     #[test]
     fn a_pdf_header_is_accepted() {
         assert!(validate_pdf(b"%PDF-1.7\n...").is_ok());
+    }
+
+    #[test]
+    fn exactly_four_bytes_are_enough() {
+        // `&pdf_bytes[0..4]` is the whole check, so four bytes is the boundary the
+        // `< 4` guard has to admit instead of slicing past the end.
+        assert!(validate_pdf(b"%PDF").is_ok());
     }
 
     #[test]

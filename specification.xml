@@ -11,8 +11,9 @@
     Offline-first: one SQLite database (data.db) is the source of truth, fronted
     by an Effect services layer (src/services/) whose SubscriptionRefs components
     subscribe to, and read through the page-data layer
-    (src/components/page-data/). Includes thermal receipt printing (pdf-lib +
-    the Windows spooler), role-based access (admin/user), multi-cashier login,
+    (src/components/page-data/). Includes thermal receipt printing (the layout and
+    the PDF are built in Rust with printpdf, then handed to the Windows spooler),
+    role-based access (admin/user), multi-cashier login,
     and a timestamp-based cloud sync protocol that is documented
     (backend-docs/openapi.yaml) but not implemented in the app — see
     &lt;sync_system&gt;.
@@ -37,7 +38,7 @@
         <item name="state">effect 3.22 (Context.Tag + Layer + SubscriptionRef + Stream); @xstate/store 3.17 for the shortcut-legend atom</item>
         <item name="numeric">decimal.js 10.6 (all money), temporal-polyfill 0.3 (all dates)</item>
         <item name="search">@nozbe/microfuzz 1.0</item>
-        <item name="pdf">pdf-lib 1.17, @pdf-lib/fontkit 1.1</item>
+        <item name="pdf">none in the webview: the receipt PDF is rendered in Rust (src-tauri/src/receipt/)</item>
         <item name="id_generation">ulid 3.0</item>
         <item name="theme_switching">next-themes 0.4</item>
         <item name="toasts">sonner 2.0</item>
@@ -51,6 +52,7 @@
         <item name="database">tauri-plugin-sql 2 (sqlite); the migration files are embedded by src-tauri/src/database/mod.rs</item>
         <item name="serialization">serde 1, serde_json 1</item>
         <item name="printing">winprint 0.2 (Windows PDF printing), tempfile 3</item>
+        <item name="receipt_pdf">printpdf 0.12 (layout + PDF; default-features off, so no html/css engine), chrono 0.4 (the receipt's local date and time)</item>
         <item name="logging">log 0.4 + tauri-plugin-log 2 (Info)</item>
         <item name="single_instance">tauri-plugin-single-instance 2 (one process per machine; a second launch focuses the window)</item>
         <item name="dev_only">tauri-plugin-mcp-bridge 0.13 behind the `mcp-bridge` Cargo feature (debug builds only)</item>
@@ -216,7 +218,7 @@
       </dir>
       <dir name="layouts/">root.tsx (UI size → body class) and authenticated/ (AuthLayout guard, Topbar, nav, shortcuts, flush-on-exit).</dir>
       <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
-      <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, receipt/, search/. Plus the three mechanical guards: design-tokens.test.ts, dialog-description.test.ts, tauri-capability.test.ts.</dir>
+      <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, search/. Plus the three mechanical guards: design-tokens.test.ts, dialog-description.test.ts, tauri-capability.test.ts.</dir>
       <dir name="integration/">Cross-layer tests: the real service layers over the real migrations with only the Tauri backends substituted (Beranda's keys over page-data, the Product screen, Setting → Toko's write path).</dir>
       <dir name="e2e/">The in-browser harness: sql.js running the real migrations, a localStorage-backed store, a Tauri shim, and main.tsx that injects the service before the router imports.</dir>
       <file name="route.tsx">Hash router; the only place routes are enabled or disabled.</file>
@@ -306,9 +308,9 @@
         <signature>fn() → Result&lt;Vec&lt;PrinterInfo&gt;, String&gt;</signature>
         <description>Enumerates Windows printers via winprint. The error lists the available printers when a lookup fails.</description>
       </command>
-      <command name="print_pdf" module="printer">
-        <signature>fn(printer_name: String, pdf_bytes: Vec&lt;u8&gt;) → Result&lt;String, String&gt;</signature>
-        <description>Validates the %PDF header, writes the bytes to a named temp file, prints through WinPdfPrinter, removes the file, and returns the cashier-facing sentence ("Dikirim ke printer …") the test-print screen shows.</description>
+      <command name="print_receipt" module="printer">
+        <signature>async fn(printer_name: String, data: ReceiptData, option: ReceiptOption) → Result&lt;String, String&gt;</signature>
+        <description>Lays out the receipt and renders its one-page PDF in Rust (src-tauri/src/receipt/), validates the %PDF header, then prints it through the platform spooler path and returns the cashier-facing "Dikirim ke printer …" sentence. The PDF never crosses the IPC boundary in either direction, so this replaces the old generic print_pdf command (which the webview no longer had a reason to call). Runs on the blocking pool; the error is the cashier-facing "Gagal menyiapkan struk." or spooler sentence.</description>
       </command>
       <command name="export_file" module="export">
         <signature>async fn(default_name: String, contents: String) → Result&lt;Option&lt;String&gt;, String&gt;</signature>
@@ -391,8 +393,8 @@
       <description>
         Hash router (createHashRouter) in src/route.tsx. Pages are imported eagerly except three deliberate lazy
         boundaries: the Home page body (the heaviest dashboard), Analytics' five bodies (recharts + d3), and the
-        product Performance tab. The receipt's pdf-lib is loaded lazily by the shared print program
-        (src/pages/Setting/Printer/util-program-print.ts, `import("~/lib/receipt")`), not by the router. The Dev/PageData and
+        product Performance tab. The receipt adds no bundle: its layout and PDF are rendered by the Rust
+        print_receipt command. The Dev/PageData and
         Dev/PageCache playgrounds only exist when `import.meta.env.DEV` is true.
       </description>
       <route path="/" error_boundary="ErrorBoundary" layout="RootLayout">
@@ -1161,7 +1163,7 @@
       </description>
       <subpages>
         <subpage path="/records/search">Comprehensive search across listing lines by name, mode and date range, with a capped page and the total match count.</subpage>
-        <subpage path="/records/:recordId">One record in full, with Detail | Resi tabs in the URL. Detail shows the ledger (identity band, goods, charges, parties, totals, methods, images) and, admin only, the shelf actions: edit note, move the date, change mode, edit split payments, toggle credit, delete. Resi is the receipt it prints (lazy pdf-lib).</subpage>
+        <subpage path="/records/:recordId">One record in full, with Detail | Resi tabs in the URL. Detail shows the ledger (identity band, goods, charges, parties, totals, methods, images) and, admin only, the shelf actions: edit note, move the date, change mode, edit split payments, toggle credit, delete. Resi is the receipt it prints (laid out and rendered by the Rust print_receipt command).</subpage>
       </subpages>
       <note>The record list does not filter RECORD_FLAG_ADJUSTMENT yet, so a dual charge's extras-only twin shows as a goods-less outcoming row — see &lt;open_questions&gt;.</note>
     </page>
@@ -1276,15 +1278,15 @@
     <module name="lib/auth.ts">The two Tauri bcrypt bridges plus Unauthenticated. The session lives in the auth service.</module>
     <module name="lib/export.ts">saveJson(defaultName, value): serialise, then ask Rust (export_file) where to write. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
     <module name="lib/image.ts">Product-image files under AppData/images: save (mkdir on first use), load → object URL, del. The key is the image_name, never the row id.</module>
-    <module name="lib/printer.ts">The Rust printer bridges: getPrinters and printPdf (which returns the spooler's sentence).</module>
+    <module name="lib/printer.ts">The Rust printer bridges: getPrinters and printReceipt (which sends the receipt's data — record, lines, shop identity, contacts — plus the roll layout, and returns the spooler's sentence). The PDF itself is built in src-tauri/src/receipt/.</module>
     <module name="lib/log.ts">Fire-and-forget logging through plugin-log; a missing plugin or a rejected write never breaks the caller.</module>
     <module name="lib/random.ts">generateId() — a ULID for every row the app creates.</module>
     <module name="lib/range.ts">EARLIEST_EPOCH/FURTHEST_EPOCH and parseRange: URL epoch bounds that are safe for Temporal and fall back per bound.</module>
     <module name="lib/upload.ts">describeUpload + notifyUpload: the one success/warning/error sentence for the three import panels.</module>
     <module name="lib/clipboard.ts">canRead/writeText/readText: the async clipboard first, an execCommand("copy") fallback for the webview, and an honest "cannot read" for the paste-key path.</module>
     <module name="lib/search/">normalize (casefold/accents/punctuation, compact), quality (the match ladder and code grading), index-cache (the signature-gated index, parseQuery, toHit, sortHits), listings (the restock catalogue index).</module>
-    <module name="lib/receipt/">
-      The PDF pipeline: create-receipt-data orchestrates; build-header (shop, datetime, cashier), product-text-data (lines, discounts), build-summary (totals, extras, rounding, pay, change), build-transaction-summary (species/pieces and the split payments), extras-text-data, build-footer (footer lines + contacts); index.ts lays out and saves the PDF (pdf-lib + Roboto via ?arraybuffer, wrapped by splitWrappedText).
+    <module name="src-tauri/src/receipt/">
+      The receipt pipeline, on the Rust side: text.rs turns a record into TextData rows (header, lines and discounts, totals/extras/rounding/pay/change, the species/pieces and split-payment summary, footer and contacts); render.rs wraps the rows against the embedded Roboto metrics and writes the one-page PDF with printpdf, its height grown row by row; format.rs is the Indonesian rupiah formatting and the local dd-MM-yyyy / H:mm date. Covered by cargo test.
     </module>
     <module name="hooks/">
       <hook name="useUser">The signed-in user from the auth service; throws Unauthenticated when there is none.</hook>

@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Effect } from "effect";
+import { mockData } from "~/pages/Setting/Printer/mock-data";
+import type { ReceiptInput, ReceiptOption } from "./printer";
 
 /**
  * The printer boundary. The test-print screen renders the sentence the Rust
  * command returns — "Dikirim ke printer 'X'" rather than a bare success — and a
  * driver failure has to reach it as an `InvokeError` with a sentence, never the
  * raw plugin text.
+ *
+ * `print_receipt` carries the receipt's *data*, not a PDF: the layout and the
+ * rendering happen in Rust, so the payload is the record, its lines, the shop's
+ * identity and the roll layout — and the assertion below pins that shape, since
+ * a renamed field would fail at deserialization in Rust, not here.
  */
 type Call = { cmd: string; args: Record<string, unknown> };
 
@@ -28,7 +35,25 @@ mock.module("@tauri-apps/api/core", () => ({
   },
 }));
 
-const { getPrinters, printPdf } = await import("./printer");
+const { getPrinters, printReceipt } = await import("./printer");
+
+const receipt: ReceiptInput = {
+  ...mockData,
+  info: {
+    name: "Kassir",
+    owner: "Toko Contoh",
+    address: "Jl. Contoh 1",
+    footer: "Terima kasih",
+    header: "Struk",
+    showCashier: false,
+  },
+};
+
+const option: ReceiptOption = {
+  paperWidth: 58,
+  padding: 5,
+  size: { normal: 8, big: 10 },
+};
 
 beforeEach(() => {
   calls.length = 0;
@@ -64,23 +89,26 @@ describe("getPrinters", () => {
   });
 });
 
-describe("printPdf", () => {
-  test("hands the printer name and the bytes to the command, and returns its sentence", async () => {
+describe("printReceipt", () => {
+  test("hands the printer, the receipt and the roll layout to the command", async () => {
     outcome = { kind: "value", value: "Dikirim ke printer 'EPSON TM-T20'. Periksa printer." };
-    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
-    const message = await Effect.runPromise(printPdf("EPSON TM-T20", pdfBytes));
+    const message = await Effect.runPromise(
+      printReceipt("EPSON TM-T20", receipt, option),
+    );
 
     expect(message).toBe("Dikirim ke printer 'EPSON TM-T20'. Periksa printer.");
     expect(calls).toEqual([
-      { cmd: "print_pdf", args: { printerName: "EPSON TM-T20", pdfBytes } },
+      { cmd: "print_receipt", args: { printerName: "EPSON TM-T20", data: receipt, option } },
     ]);
   });
 
   test("a string refusal is shown as-is", async () => {
     outcome = { kind: "error", error: "Kertas habis" };
 
-    const result = await Effect.runPromise(Effect.either(printPdf("EPSON", new Uint8Array())));
+    const result = await Effect.runPromise(
+      Effect.either(printReceipt("EPSON", receipt, option)),
+    );
 
     expect(result._tag === "Left" && result.left.message).toBe("Kertas habis");
   });
@@ -88,7 +116,9 @@ describe("printPdf", () => {
   test("a spooler failure gets a sentence of ours", async () => {
     outcome = { kind: "error", error: new Error("EIO") };
 
-    const result = await Effect.runPromise(Effect.either(printPdf("EPSON", new Uint8Array())));
+    const result = await Effect.runPromise(
+      Effect.either(printReceipt("EPSON", receipt, option)),
+    );
 
     expect(result._tag === "Left" && result.left.message).toBe("Gagal mencetak struk");
   });

@@ -4,6 +4,7 @@ mod auth;
 mod database;
 mod export;
 mod printer;
+mod receipt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -38,7 +39,7 @@ pub fn run() {
             auth::hash_password,
             auth::verify_password,
             printer::get_printers,
-            printer::print_pdf,
+            printer::print_receipt,
             export::export_file,
         ]);
 
