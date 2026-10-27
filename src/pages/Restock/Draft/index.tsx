@@ -42,6 +42,7 @@ export function Draft({
   onExitUp,
   onCredit,
   creditDisabled,
+  onSubmit,
 }: {
   /** `null` while the drafts are still being read: the strip and the stages are drawn anyway. */
   draft: DraftModel | null;
@@ -66,6 +67,8 @@ export function Draft({
   onExitUp: () => void;
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
+  /** Enter on the last payment value pays the purchase; see z-Payment. */
+  onSubmit: () => boolean;
 }) {
   return (
     <section className="m-1 flex flex-1 flex-col overflow-hidden">
@@ -95,6 +98,7 @@ export function Draft({
           onExitUp={onExitUp}
           onCredit={onCredit}
           creditDisabled={creditDisabled}
+          onSubmit={onSubmit}
         />
       </CartPanel>
     </section>
@@ -119,6 +123,7 @@ function StageBody({
   onExitUp,
   onCredit,
   creditDisabled,
+  onSubmit,
 }: {
   stage: Stage;
   draft: DraftModel | null;
@@ -137,6 +142,8 @@ function StageBody({
   onExitUp: () => void;
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
+  /** Enter on the last payment value pays the purchase; see z-Payment. */
+  onSubmit: () => boolean;
 }) {
   if (stage === "listing") {
     return (
@@ -187,6 +194,7 @@ function StageBody({
       onExitUp={onExitUp}
       onCredit={onCredit}
       creditDisabled={creditDisabled}
+      onSubmit={onSubmit}
     />
   );
 }

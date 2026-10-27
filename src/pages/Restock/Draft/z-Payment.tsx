@@ -44,6 +44,7 @@ export function Payment({
   onExitUp,
   onCredit,
   creditDisabled,
+  onSubmit,
 }: {
   draft: Draft;
   grand: Decimal;
@@ -53,6 +54,8 @@ export function Payment({
   onExitUp: () => void;
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
+  /** Enter on the last payment value pays the purchase; see z-Methods. */
+  onSubmit: () => boolean;
 }) {
   // The two catalogues are the page's own keys, so they load beside the drafts
   // rather than after them. Everything around them — the accordion's wording,
@@ -69,6 +72,7 @@ export function Payment({
         onExitUp={onExitUp}
         onCredit={onCredit}
         creditDisabled={creditDisabled}
+        onSubmit={onSubmit}
       />
     </div>
   );
@@ -94,6 +98,7 @@ function Body({
   onExitUp,
   onCredit,
   creditDisabled,
+  onSubmit,
 }: {
   draft: Draft;
   grand: Decimal;
@@ -103,6 +108,8 @@ function Body({
   onExitUp: () => void;
   onCredit: () => Promise<string | null>;
   creditDisabled: boolean;
+  /** Enter on the last payment value pays the purchase; see z-Methods. */
+  onSubmit: () => boolean;
 }) {
   const methodsRes = pageData.use("methods");
   const suppliersRes = pageData.use("suppliers");
@@ -196,6 +203,7 @@ function Body({
           onExitUp={onExitUp}
           focused={true}
           onActivate={() => {}}
+          onSubmit={onSubmit}
         />
         <div className="mt-3 flex items-center justify-between border-t pt-2 ">
           <span className="text-big">

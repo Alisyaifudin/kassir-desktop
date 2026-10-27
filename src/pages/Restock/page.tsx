@@ -236,6 +236,7 @@ function Screen({
           onExitUp={exitUp}
           onCredit={() => submit(true)}
           creditDisabled={hardIssue || creditGrand === null || !creditGrand.gt(0)}
+          onSubmit={() => submitDraft(false)}
         />
         <Bottom
           stage={stage}

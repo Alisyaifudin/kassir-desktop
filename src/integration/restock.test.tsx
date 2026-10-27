@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { Effect } from "effect";
 import {
   flushTill,
@@ -108,6 +108,61 @@ describe("the purchase screen on arrival", () => {
         screen.getByPlaceholderText(/Cari barang untuk dibeli/i),
       ),
     );
+  });
+});
+
+/**
+ * Open the inline amount editor, type a tender, and press Enter in it.
+ *
+ * The pause between typing and Enter is the point: the tender reaches the draft
+ * through the service, and the screen's "is the change negative?" is read on the
+ * render after that — which is the order a cashier's fingers work in, and the one
+ * `typeInlineTender` (same tick) does not reproduce.
+ */
+async function tenderThenEnter(amount: number) {
+  const cell = document.getElementById("cell-payment-amount");
+  if (cell === null) throw new Error("the inline amount cell is not on screen");
+  fireEvent.click(cell);
+
+  const input = await waitFor(() => {
+    const field = document.getElementById("payment-amount-0");
+    if (field === null) throw new Error("the amount editor did not open");
+    return field as HTMLInputElement;
+  });
+  await act(async () => {
+    fireEvent.change(input, { target: { value: String(amount) } });
+  });
+  await flushTill();
+
+  await act(async () => {
+    fireEvent.keyDown(input, { key: "Enter" });
+  });
+}
+
+describe("paying from the amount field", () => {
+  test("Enter on the last payment value pays the purchase", async () => {
+    renderTill("restock");
+    await openDraftId("outcoming");
+    await scan("Teh");
+    await waitFor(() => expect(grand()).toBe("Rp5.000"));
+    await toPayment();
+
+    await tenderThenEnter(5_000);
+
+    expect(await screen.findByRole("heading", { name: "Pembelian berhasil" })).toBeDefined();
+  });
+
+  test("an underpaid amount keeps the editor instead of paying", async () => {
+    renderTill("restock");
+    await openDraftId("outcoming");
+    await scan("Teh");
+    await waitFor(() => expect(grand()).toBe("Rp5.000"));
+    await toPayment();
+
+    await tenderThenEnter(1_000);
+
+    expect(screen.queryByRole("heading", { name: "Pembelian berhasil" })).toBeNull();
+    expect(document.getElementById("payment-amount-0")).not.toBeNull();
   });
 });
 
