@@ -198,7 +198,16 @@ function Screen({
             onRestoreStart={cart.restore.onStart}
             onRestoreEnd={cart.restore.onEnd}
             onRestored={cart.restore.onRestored}
-            onClose={() => setComplete(null)}
+            onClose={() => {
+              setComplete(null);
+              // The purchase is written, so nothing is left to do on the payment
+              // stage: the next one opens on the goods, with the search bar
+              // ready for the next scan. Done here rather than left to the
+              // cart switch, which also fires but only after the replacement
+              // draft arrives.
+              onStage("listing");
+              cart.focusSearchNow();
+            }}
           />
         )
       }

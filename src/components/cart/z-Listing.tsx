@@ -188,7 +188,12 @@ export function Listing({
   const hadDiscount = useRef(false);
   // The page-level F1 token; remembers the value seen at mount so switching
   // stages does not steal focus into the new search bar.
-  const seenFocusSearch = useRef(focusSearch);
+  // `0`, not the value this grid mounts with: a focus request can arrive in the
+  // same commit as the mount — a stage change and its bump from one handler, a
+  // commit that closes its dialog and returns to the goods — and a ref seeded
+  // with the current token would swallow exactly that request. The token only
+  // counts up, so 0 is "nothing asked yet".
+  const seenFocusSearch = useRef(0);
   // The settle strip's hand-off upward; skip the value at mount so a stage
   // switch does not jump the selection.
   const seenFocusLast = useRef(focusLast);

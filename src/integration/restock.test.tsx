@@ -35,6 +35,7 @@ beforeEach(async () => {
 const grand = () => screen.getByTestId("grand-total").textContent;
 const lines = () => screen.queryAllByTestId("cart-line");
 const bayar = () => screen.getByRole("button", { name: "Bayar" });
+const bayar$ = () => screen.queryByRole("button", { name: "Bayar" });
 const next = () => screen.getByRole("button", { name: /Berikutnya/ });
 
 /** Walk goods → charges → payment. */
@@ -163,6 +164,30 @@ describe("paying from the amount field", () => {
 
     expect(screen.queryByRole("heading", { name: "Pembelian berhasil" })).toBeNull();
     expect(document.getElementById("payment-amount-0")).not.toBeNull();
+  });
+});
+
+describe("after a purchase is paid", () => {
+  test("the goods come back, with the cursor in the search bar", async () => {
+    renderTill("restock");
+    await openDraftId("outcoming");
+    await scan("Teh");
+    await waitFor(() => expect(grand()).toBe("Rp5.000"));
+    await toPayment();
+    await setTender("outcoming", 5_000);
+    await waitFor(() => expect((bayar() as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(bayar());
+    expect(await screen.findByRole("heading", { name: "Pembelian berhasil" })).toBeDefined();
+
+    // The X: the record is committed, so closing only starts the next purchase.
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+
+    await waitFor(() => expect(bayar$()).toBeNull());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByPlaceholderText(/Cari barang untuk dibeli/i),
+      ),
+    );
   });
 });
 
