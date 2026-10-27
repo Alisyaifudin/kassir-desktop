@@ -54,16 +54,22 @@ function renderGrid(items: Product[]) {
 }
 
 describe("product card, Modal", () => {
-  test("prints the highest lot's capital, formatted, under the price", () => {
+  test("prints the highest lot's capital, formatted, beside the price", () => {
     renderGrid([product()]);
 
     const modal = screen.getByText("Modal 900");
     expect(modal).toBeDefined();
-    // It sits between the price range and the stock row.
-    const body = modal.parentElement as HTMLElement;
-    const lines = [...body.children].map((child) => child.textContent);
-    expect(lines.slice(0, 3)).toEqual(["Kopi Susu", "899123", "Rp10.000"]);
-    expect(lines[3]).toBe("Modal 900");
+    // The price and the capital share one row, so the card spends one line on the
+    // two money figures instead of two.
+    const row = modal.parentElement as HTMLElement;
+    expect([...row.children].map((child) => child.textContent)).toEqual([
+      "Rp10.000",
+      "Modal 900",
+    ]);
+    // That row sits in the card body, under the name and its codes.
+    const body = row.parentElement as HTMLElement;
+    expect(body.children[0]?.textContent).toBe("Kopi Susu");
+    expect(body.children[1]?.textContent).toBe("899123");
   });
 
   test("shows the number, not the weighted average", () => {

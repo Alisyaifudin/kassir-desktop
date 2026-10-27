@@ -46,7 +46,7 @@ export function Identity({
               title="Tutup pratinjau"
               className="shrink-0"
             >
-              <X className="icon" />
+              <X className="size-5" />
             </Button>
           )}
           {/* A ULID does not break by itself; let it truncate rather than push
@@ -57,7 +57,7 @@ export function Identity({
         </div>
         {action}
       </div>
-      <div className="flex items-center justify-between gap-4 text-small text-muted-foreground">
+      <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
         <p className="min-w-0 truncate ">
           Kasir {capitalize(record.cashier)} · Dibuat {formatDate(record.createdAt, "long")}{" "}
           {formatTime(record.createdAt, "short")}

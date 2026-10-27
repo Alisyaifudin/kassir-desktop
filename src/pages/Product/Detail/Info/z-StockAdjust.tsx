@@ -85,8 +85,8 @@ export function StockAdjust({
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-normal">Sesuaikan stok</DialogTitle>
-          <DialogDescription className="text-small">
+          <DialogTitle className="text-base">Sesuaikan stok</DialogTitle>
+          <DialogDescription className="text-sm">
             Stok sekarang {current.value.toLocaleString("id-ID")} pcs · modal{" "}
             {current.capital.toLocaleString("id-ID")} / pcs. Isi nilai positif untuk menambah,
             negatif untuk mengurangi. Langsung tersimpan.
@@ -114,7 +114,7 @@ export function StockAdjust({
           </Field>
 
           <p
-            className={cn("text-small", problem ? "text-destructive" : "text-muted-foreground")}
+            className={cn("text-sm", problem ? "text-destructive" : "text-muted-foreground")}
           >
             {problem ??
               (hasAmount

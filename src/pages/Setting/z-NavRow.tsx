@@ -22,21 +22,21 @@ export function NavRow({ item }: { item: NavItem }) {
     <li>
       <Link
         to={to}
-        className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-active focus-visible:ring-inset focus-visible:outline-none small:gap-3 small:px-3 small:py-2"
+        className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-active focus-visible:ring-inset focus-visible:outline-none"
       >
         <span
-          className="tone flex size-12 shrink-0 items-center justify-center rounded-md bg-secondary small:size-9"
+          className="tone flex size-12 shrink-0 items-center justify-center rounded-md bg-secondary"
           style={{ "--tone-hue": item.hue } as CSSProperties}
         >
-          <Icon aria-hidden="true" className="size-6 text-[var(--tone)] small:size-5" />
+          <Icon aria-hidden="true" className="size-6 text-[var(--tone)]" />
         </span>
         <span className="flex min-w-0 flex-col">
-          <span className="text-normal font-medium">{item.label}</span>
-          <span className="text-normal text-muted-foreground">{item.description}</span>
+          <span className="text-base font-medium">{item.label}</span>
+          <span className="text-base text-muted-foreground">{item.description}</span>
         </span>
         <ChevronRight
           aria-hidden="true"
-          className="ml-auto size-6 shrink-0 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-active small:size-5"
+          className="ml-auto size-6 shrink-0 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-active"
         />
       </Link>
     </li>

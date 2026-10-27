@@ -8,8 +8,8 @@ import { TextError } from "~/components/TextError";
 export function ItemErrorFallback({ error }: { error: { message: string } }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-      <p className="text-normal font-semibold">Catatan bermasalah</p>
-      <p className="text-small text-muted-foreground">{error.message}</p>
+      <p className="text-base font-semibold">Catatan bermasalah</p>
+      <p className="text-sm text-muted-foreground">{error.message}</p>
     </div>
   );
 }

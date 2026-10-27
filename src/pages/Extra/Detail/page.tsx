@@ -12,7 +12,7 @@ export default function Page({ id }: { id: string }) {
   return (
     <pageData.Provider sources={{ extras: service.extra.get.changes }}>
       <main className="py-2 px-5 mx-auto max-w-5xl w-full flex flex-col gap-2 flex-1 overflow-hidden">
-        <div className="flex gap-2 h-full max-h-[calc(100vh-170px)] overflow-hidden">
+        <div className="flex gap-2 h-full max-h-[calc(100vh-120px)] overflow-hidden">
           <pageData.Gate
             keys={["extras"]}
             pulse={<Loading />}
@@ -36,10 +36,10 @@ function Loading() {
   switch (role) {
     case "admin":
       return (
-        <div className="flex flex-col py-1 gap-2 text-normal mx-auto w-full max-w-4xl">
+        <div className="flex flex-col py-1 gap-2 text-base mx-auto w-full max-w-4xl">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex flex-col gap-1">
-              <div className="grid grid-cols-[120px_1fr] small:grid-cols-[80px_1fr] items-center gap-2">
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
                 <Skeleton className="h-5 w-20" />
                 <Skeleton className="h-10 w-full" />
               </div>

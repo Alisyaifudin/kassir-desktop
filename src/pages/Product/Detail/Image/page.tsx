@@ -166,7 +166,7 @@ function Wrapper({ productId, images }: { productId: string; images: ProductImag
           ref={pill}
           className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-2xl border bg-card px-4 py-2 shadow-lg"
         >
-          <span className="text-normal text-destructive">Belum disimpan</span>
+          <span className="text-base text-destructive">Belum disimpan</span>
           <Button onClick={() => void gallery.save()} disabled={gallery.saving}>
             Simpan <Spinner when={gallery.saving} />
           </Button>
@@ -183,8 +183,8 @@ function Wrapper({ productId, images }: { productId: string; images: ProductImag
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-normal">Gambar belum disimpan</DialogTitle>
-            <DialogDescription className="text-small">
+            <DialogTitle className="text-base">Gambar belum disimpan</DialogTitle>
+            <DialogDescription className="text-sm">
               {gallery.drafts.length} gambar belum disimpan. Simpan dulu sebelum pindah?
             </DialogDescription>
           </DialogHeader>

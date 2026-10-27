@@ -82,8 +82,8 @@ export function ExtraSearch({
                 index === selected && "bg-primary/10",
               )}
             >
-              <span className="min-w-0 truncate text-normal font-medium">{preset.name}</span>
-              <span className="shrink-0 text-normal tabular-nums text-muted-foreground">
+              <span className="min-w-0 truncate text-base font-medium">{preset.name}</span>
+              <span className="shrink-0 text-base tabular-nums text-muted-foreground">
                 {preset.kind === "percent" ? `${preset.value}%` : rupiah(preset.value)}
               </span>
             </button>

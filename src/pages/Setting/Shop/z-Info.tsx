@@ -165,7 +165,7 @@ function FieldText({
 }) {
   return (
     <div className="flex flex-col gap-1 ">
-      <div className="grid grid-cols-[160px_1fr] small:grid-cols-[100px_1fr] text-normal items-center gap-1">
+      <div className="grid grid-cols-[160px_1fr] text-base items-center gap-1">
         {label}
         {children}
       </div>

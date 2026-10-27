@@ -1,4 +1,3 @@
-import { useSize } from "~/hooks/use-size";
 import { cn } from "~/lib/utils";
 import { rupiah } from "~/components/cart/util-rupiah";
 
@@ -55,14 +54,11 @@ export const TOOLTIP = {
   formatter: (value: unknown) => money(Number(value)),
 } as const;
 
-export function useChartGeometry() {
-  const size = useSize();
-  const small = size === "small";
-  return {
-    tick: { fontSize: small ? 12 : 14 },
-    yWidth: small ? 44 : 56,
-  };
-}
+/** Axis geometry. SVG attributes cannot read CSS variables, so these stay concrete. */
+export const chartGeometry = {
+  tick: { fontSize: 14 },
+  yWidth: 56,
+} as const;
 
 export function ChartFrame({
   title,
@@ -87,13 +83,13 @@ export function ChartFrame({
     <section className={cn("flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-3", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex min-w-0 flex-col">
-          <h2 className="text-small font-semibold">{title}</h2>
-          {hint === undefined ? null : <p className="text-small text-muted-foreground">{hint}</p>}
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {hint === undefined ? null : <p className="text-sm text-muted-foreground">{hint}</p>}
         </div>
         {action}
       </div>
       <div
-        className={cn("w-full", chartClassName ?? "h-64 small:h-52")}
+        className={cn("w-full", chartClassName ?? "h-64")}
         role={label === undefined ? undefined : "img"}
         aria-label={label}
       >
@@ -106,7 +102,7 @@ export function ChartFrame({
 /** What a chart shows when the period has no data for it. */
 export function ChartEmpty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center rounded-lg border border-border px-4 text-center text-small text-muted-foreground">
+    <div className="flex h-full items-center justify-center rounded-lg border border-border px-4 text-center text-sm text-muted-foreground">
       {children}
     </div>
   );

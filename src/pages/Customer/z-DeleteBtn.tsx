@@ -40,17 +40,17 @@ export const DeleteBtn = memo(function DeleteBtn({
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button className="p-2 rounded-full" type="button" asChild variant="destructive">
         <DialogTrigger>
-          <X className="icon" />
+          <X className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-normal">Yakin?</DialogTitle>
-          <DialogDescription className="text-small">Kamu akan menghapus:</DialogDescription>
-          <DialogDescription className="text-small">
+          <DialogTitle className="text-base">Yakin?</DialogTitle>
+          <DialogDescription className="text-sm">Kamu akan menghapus:</DialogDescription>
+          <DialogDescription className="text-sm">
             {">"} Nama: {name}
           </DialogDescription>
-          <DialogDescription className="text-small">
+          <DialogDescription className="text-sm">
             {">"} HP: {phone}
           </DialogDescription>
           <form onSubmit={handleSubmit} className="flex justify-between mt-5">

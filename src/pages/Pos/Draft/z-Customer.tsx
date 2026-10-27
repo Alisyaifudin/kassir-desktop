@@ -22,7 +22,7 @@ export function Customer({ draft }: { draft: Draft }) {
     <div className="flex flex-col gap-2">
       <Field draft={draft} customers={customers} />
       {res.type === "error" ? (
-        <p role="alert" className="text-small text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           Daftar pelanggan gagal dimuat ({res.error.message}). Penjualan tetap bisa disimpan,
           tetapi pelanggan harus diketik sebagai pelanggan baru.
         </p>
@@ -70,7 +70,7 @@ function Field({
   return (
     <div className="flex flex-col gap-2">
       <label className="flex flex-col gap-1">
-        <span className="text-small text-muted-foreground select-none">Pelanggan</span>
+        <span className="text-sm text-muted-foreground select-none">Pelanggan</span>
         <Combobox
           value={value}
           onValueChange={handleChange}
@@ -82,7 +82,7 @@ function Field({
       {isNew ? (
         <>
           <label className="flex flex-col gap-1">
-            <span className="text-small text-muted-foreground select-none">Telepon</span>
+            <span className="text-sm text-muted-foreground select-none">Telepon</span>
             <Input
               type="tel"
               inputMode="tel"
@@ -93,12 +93,12 @@ function Field({
               }
             />
           </label>
-          <span className="text-small text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             Pelanggan baru &ldquo;{draft.customerName}&rdquo; akan dibuat saat Bayar.
           </span>
         </>
       ) : selected === undefined ? null : (
-        <span className="text-small text-muted-foreground select-none">
+        <span className="text-sm text-muted-foreground select-none">
           Telepon: {selected.phone.trim() === "" ? "—" : selected.phone}
         </span>
       )}

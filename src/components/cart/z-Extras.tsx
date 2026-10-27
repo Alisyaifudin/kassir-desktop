@@ -488,7 +488,7 @@ export function Extras({
             focused && isSearch && SELECTED_RING,
           )}
         >
-          <Kbd className="py-5 small:py-4">{mode === "sale" ? "F1" : "F2"}</Kbd>
+          <Kbd>{mode === "sale" ? "F1" : "F2"}</Kbd>
           <Input
             ref={searchRef}
             type="search"
@@ -520,7 +520,7 @@ export function Extras({
               insert();
             }}
           >
-            <Plus className="icon" />
+            <Plus className="size-5" />
             Manual
           </Button>
         </div>
@@ -544,11 +544,11 @@ export function Extras({
                   onToggle?.();
                 }}
               >
-                <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
-                  <ArrowLeft className="icon" />
+                <span className="flex items-center gap-1 text-sm leading-none text-muted-foreground select-none">
+                  <ArrowLeft className="size-5" />
                   Produk
                 </span>
-                <span className="w-full truncate text-normal font-bold tabular-nums">
+                <span className="w-full truncate text-base font-bold tabular-nums">
                   {rupiah(subtotal)}
                 </span>
               </Button>
@@ -584,7 +584,7 @@ export function Extras({
               // see the same block in `z-Listing.tsx`.
               <ReservedSkeleton className="divide-y divide-border space-y-1">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={index} className="h-[141px] rounded-none w-full small:h-[113px]" />
+                  <Skeleton key={index} className="h-[88px] rounded-none w-full" />
                 ))}
               </ReservedSkeleton>
             ) : null}
@@ -603,10 +603,10 @@ export function Extras({
                     selection.row.kind === "subtotal" && SELECTED_RING,
                   )}
                 >
-                  <span className="text-normal text-muted-foreground select-none">
+                  <span className="text-base text-muted-foreground select-none">
                     Subtotal Barang
                   </span>
-                  <span className="text-big font-bold tabular-nums">{rupiah(subtotal)}</span>
+                  <span className="text-2xl font-bold tabular-nums">{rupiah(subtotal)}</span>
                 </div>
               </div>
             ) : null}
@@ -659,8 +659,8 @@ export function Extras({
 
           {showTotal ? (
             <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-card px-3 py-2 text-card-foreground">
-              <span className="text-normal text-muted-foreground select-none">Total</span>
-              <span className="text-big font-bold tabular-nums">{rupiah(total)}</span>
+              <span className="text-base text-muted-foreground select-none">Total</span>
+              <span className="text-2xl font-bold tabular-nums">{rupiah(total)}</span>
             </div>
           ) : null}
         </>

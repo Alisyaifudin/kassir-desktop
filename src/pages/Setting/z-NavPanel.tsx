@@ -22,7 +22,7 @@ export function NavPanel() {
   const handleLogout = useLogout();
 
   return (
-    <nav className="hidden h-full w-full flex-col justify-between gap-4 px-3 py-3 xl:flex lg:small:flex">
+    <nav className="hidden h-full w-full flex-col justify-between gap-4 px-3 py-3 xl:flex lg:">
       <ol className="flex flex-col gap-1">
         {items.map(({ path, label, icon: Icon }) => {
           const isActive = pathname === path;
@@ -43,7 +43,7 @@ export function NavPanel() {
                 <Icon
                   aria-hidden="true"
                   className={cn(
-                    "icon shrink-0",
+                    "size-5 shrink-0",
                     isActive ? "text-active" : "text-muted-foreground",
                   )}
                 />
@@ -58,7 +58,7 @@ export function NavPanel() {
           Keluar
           <LogOut aria-hidden="true" />
         </Button>
-        <p className="text-small text-muted-foreground">Versi {version}</p>
+        <p className="text-sm text-muted-foreground">Versi {version}</p>
       </div>
     </nav>
   );

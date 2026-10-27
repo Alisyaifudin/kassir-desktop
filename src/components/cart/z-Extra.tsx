@@ -95,13 +95,13 @@ export function ExtraCard({
     >
       <div role="presentation" className="grid grid-cols-12 items-stretch">
         <div
-          className="col-span-1 flex touch-none cursor-grab items-center justify-center text-normal text-muted-foreground tabular-nums select-none active:cursor-grabbing"
+          className="col-span-1 flex touch-none cursor-grab items-center justify-center text-base text-muted-foreground tabular-nums select-none active:cursor-grabbing"
           {...listeners}
           {...attributes}
           title="Geser untuk mengubah urutan"
         >
           {number}
-          <GripVertical className="icon" />
+          <GripVertical className="size-5" />
         </div>
         <Cell
           id={`extra-${extra.id}-name`}
@@ -147,14 +147,14 @@ export function ExtraCard({
             selected === "kind" && SELECTED_RING,
           )}
         >
-          <span className="text-small leading-none text-muted-foreground select-none">Tipe</span>
+          <span className="text-sm leading-none text-muted-foreground select-none">Tipe</span>
           <Select
             value={extra.kind}
             open={kindOpen}
             onOpenChange={onKindOpenChange}
             onValueChange={(kind) => onChange({ kind: kind as ValueKind })}
           >
-            <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7">
+            <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
               <SelectValue>{KIND_LABELS[extra.kind]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -176,8 +176,8 @@ export function ExtraCard({
             selected === "eff" && SELECTED_RING,
           )}
         >
-          <span className="text-small leading-none text-muted-foreground select-none">Efektif</span>
-          <span className="text-normal font-bold tabular-nums text-primary">
+          <span className="text-sm leading-none text-muted-foreground select-none">Efektif</span>
+          <span className="text-base font-bold tabular-nums text-primary">
             {signedRupiah(eff)}
           </span>
         </div>
@@ -194,7 +194,7 @@ export function ExtraCard({
           >
             <label
               htmlFor={`extra-${extra.id}-dual-box`}
-              className="text-small leading-none text-muted-foreground select-none"
+              className="text-sm leading-none text-muted-foreground select-none"
             >
               dual
             </label>
@@ -229,7 +229,7 @@ export function ExtraCard({
               onRemove();
             }}
           >
-            <X className="icon" />
+            <X className="size-5" />
           </Button>
         </div>
       </div>

@@ -16,15 +16,15 @@ import { RegionError } from "./z-Error";
 const VISIBLE = 6;
 
 /**
- * The rows area is reserved from the first frame — four rows big or small — and
+ * The rows area is reserved from the first frame — four rows — and
  * both the skeleton and the rows live inside it. That is what lets `Gate` keep
  * its anti-flash delay: the placeholder can be held back 200 ms without the card
  * moving, and a quiet day does not shrink the card when the rows arrive.
  */
-const ROWS_FLOOR = "min-h-[275px] small:min-h-[176px]";
-/** One placeholder line, the height of a real row at either app size. */
+const ROWS_FLOOR = "min-h-[211px]";
+/** One placeholder line, the height of a real row. */
 const SKELETON_ROW =
-  "flex min-h-[52px] small:min-h-[44px] items-center justify-between gap-3 px-4";
+  "flex min-h-[40px] items-center justify-between gap-3 px-4";
 
 /**
  * Above `sm` the row is a five-column table line; below it, two lines — when and
@@ -65,7 +65,7 @@ export function Ledger() {
           load, and each thing it says gates on what it reads. */}
       <Show when={frame.status !== "failed"}>
         <div className="mt-auto flex items-center justify-between gap-3 border-t px-4 py-2">
-          <span className="flex items-center gap-1 text-small text-muted-foreground">
+          <span className="flex items-center gap-1 text-sm text-muted-foreground">
             <pageData.Gate
               keys={["records"]}
               delay={0}
@@ -141,7 +141,7 @@ function Row({ record }: { record: RecordModel }) {
         <span className="row-span-2 self-center text-right font-semibold tabular-nums">
           {formatMoney(record.grandTotal)}
         </span>
-        <span className="flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
+        <span className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
           <span className="tabular-nums">{formatTime(record.date)}</span>
           {kind}
           <Status record={record} />
@@ -149,11 +149,11 @@ function Row({ record }: { record: RecordModel }) {
       </Link>
 
       <Link to={to} className={cn(COLS, "hidden py-2", ROW, "sm:grid")}>
-        <span className="text-normal text-muted-foreground tabular-nums">
+        <span className="text-base text-muted-foreground tabular-nums">
           {formatTime(record.date)}
         </span>
         <span className="truncate">{capitalize(record.cashier)}</span>
-        <span className="text-normal text-muted-foreground">{kind}</span>
+        <span className="text-base text-muted-foreground">{kind}</span>
         <span className="text-right font-semibold tabular-nums">
           {formatMoney(record.grandTotal)}
         </span>
@@ -168,7 +168,7 @@ function Status({ record, className }: { record: RecordModel; className?: string
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 text-small",
+        "inline-flex shrink-0 items-center gap-1.5 text-sm",
         credit ? "text-destructive" : "text-emerald-600 dark:text-emerald-500",
         className,
       )}
@@ -187,7 +187,7 @@ function Empty() {
       </span>
       <div className="flex flex-col gap-0.5">
         <p className="font-medium">Belum ada transaksi hari ini</p>
-        <p className="text-small text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Transaksi yang dicatat akan muncul di sini.
         </p>
       </div>

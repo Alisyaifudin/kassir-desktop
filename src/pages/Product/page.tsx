@@ -41,7 +41,7 @@ function List() {
   const urlBack = useGenerateUrlBack("/products");
 
   return (
-    <main className="relative flex h-[calc(100vh-68px)] flex-col overflow-hidden small:h-[calc(100vh-44px)]">
+    <main className="relative flex h-[calc(100vh-52px)] flex-col overflow-hidden">
       <Toolbar state={state} set={set} />
 
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2 pt-2">
@@ -67,7 +67,7 @@ function List() {
           className="absolute bottom-16 right-6 z-20"
         >
           <Button className="size-12 rounded-full shadow-lg" aria-label="Tambah produk">
-            <Plus className="icon" />
+            <Plus className="size-5" />
           </Button>
         </Link>
       ) : null}

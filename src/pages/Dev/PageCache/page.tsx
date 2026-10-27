@@ -49,16 +49,16 @@ export default function Page() {
   }, []);
 
   return (
-    <main className="h-[calc(100vh-68px)] w-full overflow-y-auto bg-muted/40 p-4 small:h-[calc(100vh-44px)] small:p-3">
+    <main className="h-[calc(100vh-52px)] w-full overflow-y-auto bg-muted/40 p-4">
       <header className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline gap-2">
-            <h1 className="text-big font-bold">Page cache playground</h1>
-            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-small text-emerald-600 dark:text-emerald-400">
+            <h1 className="text-2xl font-bold">Page cache playground</h1>
+            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-sm text-emerald-600 dark:text-emerald-400">
               memori · invalidasi eksplisit
             </span>
           </div>
-          <p className="max-w-3xl text-small text-muted-foreground">
+          <p className="max-w-3xl text-sm text-muted-foreground">
             Kiri: perilaku sekarang (setiap mount membaca). Kanan: <code>cache: true</code> — nilai
             terakhir disimpan di luar React, dicat di frame pertama, dan hanya dibaca ulang kalau
             ada yang membatalkannya. Angka di bawah tiap kotak = waktu dari mount sampai nilai
@@ -102,7 +102,7 @@ export default function Page() {
           </Button>
           <Link
             to="/dev/page-data"
-            className="rounded-md border px-2 py-1 text-small hover:bg-accent"
+            className="rounded-md border px-2 py-1 text-sm hover:bg-accent"
           >
             Navigasi ke page-data →
           </Link>
@@ -110,7 +110,7 @@ export default function Page() {
       </header>
 
       <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-background px-3 py-2">
-        <span className="text-small text-muted-foreground">Rentang:</span>
+        <span className="text-sm text-muted-foreground">Rentang:</span>
         {[7, 30].map((option) => (
           <Button
             key={option}
@@ -121,7 +121,7 @@ export default function Page() {
             {option} hari
           </Button>
         ))}
-        <span className="text-small text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {writes} tulis di luar halaman ini · deps = [{days}]
         </span>
       </div>
@@ -152,8 +152,8 @@ export default function Page() {
           </>
         ) : (
           <div className="xl:col-span-2 rounded-xl border border-dashed bg-background p-6 text-center">
-            <p className="text-normal font-medium">Kedua panel dilepas.</p>
-            <p className="text-small text-muted-foreground">
+            <p className="text-base font-medium">Kedua panel dilepas.</p>
+            <p className="text-sm text-muted-foreground">
               Ini yang terjadi saat berpindah halaman. Tekan “Kembali ke halaman” — panel kiri
               mulai dari skeleton lagi, panel kanan sudah berisi.
             </p>
@@ -161,7 +161,7 @@ export default function Page() {
         )}
       </div>
 
-      <footer className="pb-6 text-small text-muted-foreground">
+      <footer className="pb-6 text-sm text-muted-foreground">
         Rute ini hanya ada di build DEV. Sumber palsunya ada di <code>z-sources.ts</code>, store-nya
         di <code>~/components/page-data/z-cache.ts</code>.
       </footer>

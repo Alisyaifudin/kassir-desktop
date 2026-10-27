@@ -13,7 +13,7 @@ const item = navItemOf("/setting/log");
 export default function Page() {
   return (
     <pageData.Provider sources={{ lines: service.logs.lines.changes }}>
-      <div className="flex h-full w-full flex-col gap-6 px-6 py-6 small:gap-4 small:px-3 small:py-3">
+      <div className="flex h-full w-full flex-col gap-6 px-6 py-6">
         <PageHeader title={item.label} description={item.description} />
         <Panel
           title="Riwayat Log"
@@ -43,13 +43,13 @@ function Console() {
       >
         {({ lines }) => (
           <>
-            {/* `text-small` on purpose: this is a console, read line by line and
+            {/* `text-sm` on purpose: this is a console, read line by line and
                 scanned for a timestamp, not a sentence anyone reads at arm's length. */}
-            <p className="text-small text-muted-foreground select-none">{linesNote(lines)}</p>
+            <p className="text-sm text-muted-foreground select-none">{linesNote(lines)}</p>
             {lines.lines.map((line, i) => (
               <p
                 className={cn(
-                  "text-small text-white",
+                  "text-sm text-white",
                   // A warning is part of the history; show it, marked, instead of
                   // silently dropping it from what the page calls the log.
                   line.includes("[WARN]") && "text-amber-300",

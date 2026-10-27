@@ -21,8 +21,8 @@ export const NavLink = memo(function NavLink({
   return (
     <li
       className={cn(
-        "rounded-t-lg px-3 font-bold items-center flex text-normal relative",
-        "px-3 small:px-2 h-[60px] small:h-[35px]",
+        "rounded-t-lg px-3 font-bold items-center flex text-base relative",
+        "px-3 h-11",
         (root ? pathname.startsWith(path) : pathname.includes(path)) ? "bg-white" : "bg-white/50",
       )}
     >

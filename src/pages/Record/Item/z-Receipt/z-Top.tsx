@@ -20,12 +20,12 @@ export const Top = forwardRef<HTMLButtonElement, Props>(function Top(
     <div className="flex flex-col gap-1">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <h2 className="font-bold px-2 rounded-md text-big">{MODE_NAMES[record.mode]}</h2>
+          <h2 className="font-bold px-2 rounded-md text-2xl">{MODE_NAMES[record.mode]}</h2>
           {record.mode === "outcoming" ? (
             record.isCredit ? (
-              <p className="text-normal text-red-500">: Kredit</p>
+              <p className="text-base text-red-500">: Kredit</p>
             ) : (
-              <p className="text-normal text-emerald-500">: Lunas</p>
+              <p className="text-base text-emerald-500">: Lunas</p>
             )
           ) : null}
         </div>

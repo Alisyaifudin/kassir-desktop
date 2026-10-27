@@ -37,15 +37,15 @@ function sources(): string[] {
 /**
  * True when the button's only content is an icon.
  *
- * Two spellings ship here: the shadcn `size="icon"` and the project's own
- * `className="icon"` (the size utility that scales with Besar/Kecil). The guard
- * used to know only the first, so every `className="icon"` button shipped
- * unnamed and untested. `title` is deliberately *not* counted as a name.
+ * Two spellings ship here: the shadcn `size="icon"` variant and the project's
+ * own `className="size-5"` glyph. The guard used to know only the first, so
+ * every `className="icon"` button shipped unnamed and untested. `title` is
+ * deliberately *not* counted as a name.
  */
 function isIconOnly(source: string): boolean {
   if (source.includes('size="icon"')) return true;
   const openTag = source.slice(0, source.indexOf(">"));
-  if (!/(?<![\w-])icon(?![\w-])/.test(openTag)) return false;
+  if (!/(?<![\w-])(?:size-\[30px\]|icon)(?![\w-])/.test(openTag)) return false;
   const inner = source.slice(source.indexOf(">") + 1, source.lastIndexOf("</Button>"));
   // Strip every element and every JSX expression; text is what is left over.
   const stripped = inner
@@ -55,7 +55,7 @@ function isIconOnly(source: string): boolean {
   return stripped === "";
 }
 
-describe("icon buttons", () => {
+describe("icon-only buttons", () => {
   test("no icon-only button ships without an accessible name", () => {
     const offenders: Offender[] = [];
     for (const file of sources()) {

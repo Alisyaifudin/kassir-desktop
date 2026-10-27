@@ -1,6 +1,6 @@
 ---
 name: services
-description: Best practices and patterns for the Kassir service layer and React data flow — Effect services (Context.Tag + Layer + SubscriptionRef), the app-level `service` object, useStream/useMutation, Loader/LoaderMany, createErrorBoundary/createManyErrorBoundary, and Tailwind `small:` sizing. Use whenever adding or modifying a service, writing a component that reads service data, wiring layers, or migrating old `db`/`store`/`use-data`/`Loader-old` code. Page-level async data has its own skill: `page-data`.
+description: Best practices and patterns for the Kassir service layer and React data flow — Effect services (Context.Tag + Layer + SubscriptionRef), the app-level `service` object, useStream/useMutation, Loader/LoaderMany, createErrorBoundary/createManyErrorBoundary, and the single stock-Tailwind type/icon scale. Use whenever adding or modifying a service, writing a component that reads service data, wiring layers, or migrating old `db`/`store`/`use-data`/`Loader-old` code. Page-level async data has its own skill: `page-data`.
 ---
 
 # Kassir Services & Data Flow
@@ -190,7 +190,7 @@ export type Result<T, E> =
 - One-shot Effect? Wrap it: `useStream(Stream.fromEffect(effect))`.
 - Synchronous signal? Pass a snapshot thunk as `initial` to avoid an init flash:
   ```ts
-  useStream(service.config.size.changes, () => Effect.runSync(service.config.size.get()));
+  useStream(service.config.productView.get, () => Effect.runSync(service.config.productView.get()));
   ```
 
 ### `useMutation(run)`
@@ -200,8 +200,8 @@ Runs an Effect on demand (event handlers, submits). Returns
 `Either<A, E>`.
 
 ```tsx
-const { pending, mutate } = useMutation(service.config.size.set);
-<button disabled={pending} onClick={() => void mutate("small")}>Kecil</button>
+const { pending, mutate } = useMutation(service.config.productView.set);
+<button disabled={pending} onClick={() => void mutate("table")}>Tabel</button>
 ```
 
 ### `<Loader>`
@@ -285,49 +285,44 @@ function LoginError({ error }: { error: AuthError | CashierError }) {
 
 ---
 
-## 5. Styling that depends on the app size
+## 5. Type and icon sizing
 
-Do **not** use `useSize()` for icon/size styling. The app toggles `.small` on
-`<body>`, and `src/global.css` defines `@custom-variant small (&:is(.small *))`.
-Use the Tailwind variant — it also overrides `lucide-react`'s `width/height`
-attributes:
+There is **one** type scale, and it is stock Tailwind. The app used to carry four
+custom tokens (`text-big`, `text-normal`, `text-small`, `text-tiny`) re-resolved
+per app size through a `small:` variant. Both the tokens and the variant are gone,
+along with the size setting and the `.small` body class. Do not reintroduce them.
 
-```tsx
-<Settings className="size-6 small:size-5" />
-<div className="h-[52px] small:h-[44px]" />
-```
+| role              | class       | size  | line-height     |
+|-------------------|-------------|-------|-----------------|
+| change / hero     | `text-6xl`  | 60px  | 1 (0.8 in cart) |
+| page / loud money | `text-5xl`  | 48px  | 1               |
+| section title     | `text-2xl`  | 24px  | 32px            |
+| body (default)    | `text-base` | 16px  | 24px            |
+| secondary         | `text-sm`   | 14px  | 20px            |
+| detail / meta     | `text-xs`   | 12px  | 16px            |
 
-Reserve `useSize()` for logic that needs the actual value (e.g. the size select
-in `Setting/Shop/z-SelectSize.tsx`).
-
-### Text scale
-
-`src/global.css` defines four size tokens, re-resolved per app size:
-
-| token | class | `big` (default) | `small` |
-|---|---|---|---|
-| `--text-big` | `text-big` | 48px / 48 | 36px / 40 |
-| `--text-normal` | `text-normal` | 30px / 36 | 20px / 28 |
-| `--text-small` | `text-small` | 24px / 32 | 18px / 28 |
-| `--text-tiny` | `text-tiny` | 14px / 20 | 12px / 16 |
+`src/lib/design-tokens.test.ts` enforces the allowlist, so an off-scale
+`text-xl` fails the suite.
 
 Two things make this easy to get wrong:
 
-- `@layer base` force-applies `text-normal` to
+- `@layer base` force-applies `text-base` to
   `p, textarea, button, a, label, select, input, span`, so a `<span>`/`<p>` with
-  no size class renders at `text-normal` — not inherited.
+  no size class renders at `text-base` — not inherited.
 - Tailwind preflight zeroes `h1..h6` (`font-size: inherit`), so an `<h2>` with no
-  size class renders at **16px**, *smaller* than surrounding body copy.
+  size class renders at the body size. Always give a heading a class that says
+  how it outranks the body copy.
 
-Rules:
+### Icons
 
-- **Do not use `text-tiny`.** It is reserved as a manual escape hatch for the
-  project owner. `text-small` is the smallest size an agent may apply.
-- **Never use raw `text-xs` / `text-sm` / `text-[Npx]`.** They are fixed px and
-  ignore the app size mode entirely, so they break under the `small:` toggle.
-  Always pick from the four tokens above and let `small:` do the scaling.
+Lucide icons take a size **class**, never a numeric `size={N}` attribute — the
+attribute writes `width`/`height` attributes that no class can override, so it
+silently escapes the scale. The house default is `size-[30px]`; a deliberately
+different glyph uses `size-N` / `size-[Npx]`.
 
----
+```tsx
+<Settings className="size-[30px] text-muted-foreground" />
+```
 
 ## 6. Effect essentials
 
@@ -351,7 +346,7 @@ When moving a page off the legacy model:
 3. Replace `Loader-old` (`createLoader` / `Consumer`) with
    `useStream` + `Loader` / `LoaderMany`.
 4. Add typed boundaries with `createErrorBoundary` / `createManyErrorBoundary`.
-5. Replace `size`-driven icon styles with the `small:` variant.
+5. Replace `size={N}` icon attributes with a `size-*` class.
 6. Keep interface files comment-free; put implementation notes in `live.ts`.
 7. Once a page reads from services, replace its top-level `Loader` with
    `createPageData` + per-widget `Gate`s so only the widgets that need data wait.

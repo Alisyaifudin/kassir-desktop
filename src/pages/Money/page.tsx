@@ -35,7 +35,7 @@ function Grid() {
   return (
     <main className="flex flex-col gap-2 w-full px-0.5 mx-auto flex-1 overflow-hidden">
       <div className="py-1 pr-1">
-        <h1 className="text-big font-bold">Catatan Keuangan</h1>
+        <h1 className="text-2xl font-bold">Catatan Keuangan</h1>
       </div>
       {/* The service owns the order, so a drop re-reads it back instead of
           keeping a second copy of the list in this component. */}

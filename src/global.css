@@ -20,7 +20,6 @@
 }
 
 @custom-variant dark (&:is(.dark *));
-@custom-variant small (&:is(.small *));
 
 /* A left-to-right highlight for content that is still on screen but no longer
    fresh (stale while a refetch is in flight). Motion is opt-out: pair it with
@@ -40,15 +39,31 @@ body {
 }
 
 .toast div[data-title] {
-  @apply text-normal;
+  @apply text-base;
 }
 
 .toast div[data-icon] svg {
-  @apply icon;
+  @apply size-5;
 }
 
-.toast div[data-icon]  {
+.toast div[data-icon] {
   @apply w-fit!;
+}
+
+/* A webview zoom scales the whole coordinate system, icon strokes included: the
+   lucide glyphs are stroked at 2 inside a 24-unit box, which reads as a hairline
+   at 100% and as a marker pen at 200%. `--icon-scale` (1/√zoom, written by
+   src/services/zoom/live.ts before the first paint and on every change) meets in
+   the middle: the outline grows with the icon's area, not its size.
+   An icon that wants a different weight declares it as a variable rather than a
+   `strokeWidth` prop, because the prop is an SVG attribute and this rule
+   outranks it:  <ChevronLeft className="size-5 [--icon-stroke:2.5]" /> */
+:root {
+  --icon-scale: 1;
+}
+
+svg.lucide {
+  stroke-width: calc(var(--icon-stroke, 2) * var(--icon-scale));
 }
 
 @layer base {
@@ -115,7 +130,6 @@ body {
   }
 }
 
-
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
     /* display: none; <- Crashes Chrome on hover */
@@ -126,7 +140,6 @@ input::-webkit-inner-spin-button {
 input[type=number] {
     -moz-appearance:textfield; /* Firefox */
 }
-
 
 :root {
   --radius: 0.625rem;
@@ -163,36 +176,6 @@ input[type=number] {
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
-  /* size */
-
-  --text-font-size-big: var(--text-5xl);
-  --text-line-height-big: var(--tw-leading, var(--text-5xl--line-height));
-
-  --text-font-size-normal: var(--text-3xl);
-  --text-line-height-normal: var(--tw-leading, var(--text-3xl--line-height));
-
-  --text-font-size-small: var(--text-2xl);
-  --text-line-height-small: var(--tw-leading, var(--text-2xl--line-height));
-
-  --text-font-size-tiny: var(--text-sm);
-  --text-line-height-tiny: var(--tw-leading, var(--text-sm--line-height));
-
-  --text-font-size-change: 96px;
-  --text-line-height-change: 1;
-
-  --text-font-size-grand-total: 128px;
-  --text-line-height-grand-total: 0.8;
-
-  --icon-size: 30px; 
-
-  /* input {
-    height: 56px;
-  } */
-
-  /* .lucide {
-    width: 30px;
-    height: 30px;
-  } */
 }
 
 #print-container {
@@ -205,71 +188,9 @@ input[type=number] {
   }
 }
 
-/* select {
-  height: 54px;
-} */
 main {
-  max-height: calc(100vh - 68px);
+  max-height: calc(100vh - 52px);
 }
-
-/* body[data-size='small'] {
-  --text-font-size-big: var(--text-4xl);
-  --text-line-height-big: var(--tw-leading, var(--text-4xl--line-height));
-
-  --text-font-size-normal: var(--text-xl);
-  --text-line-height-normal: var(--tw-leading, var(--text-xl--line-height));
-
-  --text-font-size-small: var(--text-lg);
-  --text-line-height-small: var(--tw-leading, var(--text-lg--line-height));
-
-  --text-font-size-tiny: var(--text-xs);
-  --text-line-height-tiny: var(--tw-leading, var(--text-xs--line-height));
-
-  --icon-size: 20px; 
-
-  main {
-    max-height: calc(100vh - 44px);
-  }
-  kbd {
-    font-size: var(--text-sm);
-  }
-} */
-
-.small {
-  --text-font-size-big: var(--text-4xl);
-  --text-line-height-big: var(--tw-leading, var(--text-4xl--line-height));
-
-  --text-font-size-normal: var(--text-xl);
-  --text-line-height-normal: var(--tw-leading, var(--text-xl--line-height));
-
-  --text-font-size-small: var(--text-lg);
-  --text-line-height-small: var(--tw-leading, var(--text-lg--line-height));
-
-  --text-font-size-tiny: var(--text-xs);
-  --text-line-height-tiny: var(--tw-leading, var(--text-xs--line-height));
-
-  --text-font-size-change: 50px;
-  --text-line-height-change: 1;
-
-  --text-font-size-grand-total: 96px;
-  --text-line-height-grand-total: 0.8;
-
-  --icon-size: 20px; 
-
-  main {
-    max-height: calc(100vh - 44px);
-  }
-  kbd {
-    font-size: var(--text-sm);
-  }
-  input {
-    height: 40px;
-  }
-  /* select {
-    height: 40px;
-  } */
-}
-
 
 .dark {
   --background: oklch(0.141 0.005 285.823);
@@ -352,36 +273,7 @@ main {
      `--default-font-family` -> `--font-sans`). */
   --font-sans: "Noto Sans", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-
-  /* size */
-
-  --text-change: var(--text-font-size-change);
-  --text-change--line-height: var(--text-line-height-change);
-
-
-  --text-big: var(--text-font-size-big);
-  --text-big--line-height: var(--text-line-height-big);
-
-  --text-grand-total: var(--text-font-size-grand-total);
-  --text-grand-total--line-height: var(--text-line-height-grand-total);
-
-  --text-normal: var(--text-font-size-normal);
-  --text-normal--line-height: var(--text-line-height-normal);
-
-
-  --text-small: var(--text-font-size-small);
-  --text-small--line-height: var(--text-line-height-small);
-
-
-  --text-tiny: var(--text-font-size-tiny);
-  --text-tiny--line-height: var(--text-line-height-tiny);
 }
-
-@utility icon {
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-
 
 @utility scroll-gutter {
   scrollbar-gutter: stable;
@@ -408,15 +300,6 @@ main {
     @apply bg-background text-foreground;
   }
   p, textarea, button, a, label, select, input, span {
-    @apply text-normal;
+    @apply text-base;
   }
-  kbd {
-    font-size: var(--text-lg);
-  }
-  input {
-    height: 54px;
-  }
-  /* select {
-    height: 60px;
-  } */
 }

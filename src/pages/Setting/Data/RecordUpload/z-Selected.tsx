@@ -104,7 +104,7 @@ export function Selected({
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="icon" />
+                <X className="size-5" />
               </Button>
             </div>
             <div className="space-y-2 rounded-lg border border-input bg-card p-4">
@@ -114,7 +114,7 @@ export function Selected({
                   style={{ width: `${(length === 0 ? 0 : progress / length) * 100}%` }}
                 />
               </div>
-              <p className="text-normal text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 {progress}/{length} data diproses
               </p>
             </div>

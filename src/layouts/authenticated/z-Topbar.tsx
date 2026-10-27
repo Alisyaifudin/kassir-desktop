@@ -40,8 +40,8 @@ export function Topbar() {
   const isHome = pathname === "/";
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-sky-300 h-16 small:h-12">
-      <nav className="flex items-center justify-between h-full px-4 small:px-2 border-b border-black/10">
+    <header className="sticky top-0 z-50 w-full bg-sky-300 h-12">
+      <nav className="flex items-center justify-between h-full px-4 border-b border-black/10">
         <div className="flex items-center gap-3 h-full">
           {!isHome && (
             <Button
@@ -50,12 +50,12 @@ export function Topbar() {
               aria-label="Kembali"
               title="Kembali"
               onClick={() => navigate(backUrl)}
-              className="rounded-full hover:bg-sky-400/50 h-10 w-10 small:h-8 small:w-8"
+              className="rounded-full hover:bg-sky-400/50 h-10 w-10"
             >
-              <ArrowLeft className="size-6 small:size-5" />
+              <ArrowLeft className="size-6" />
             </Button>
           )}
-          <h1 className={cn("font-bold tracking-tight transition-all", "text-big")}>
+          <h1 className={cn("font-bold tracking-tight transition-all", "text-2xl")}>
             {isHome ? "Beranda" : title}
           </h1>
           <Title />
@@ -63,7 +63,7 @@ export function Topbar() {
 
         <div className="flex items-center gap-4 h-full">
           <TopNavList />
-          <div className="flex items-center gap-2 small:gap-1 pl-4 border-l border-black/10 h-10 small:h-8 my-auto">
+          <div className="flex items-center gap-2 pl-4 border-l border-black/10 h-10 my-auto">
             <SettingLink />
             <Refresh />
           </div>

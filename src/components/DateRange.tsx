@@ -15,7 +15,6 @@ import { Temporal } from "temporal-polyfill";
 import { Input } from "~/components/ui/input";
 import { MONTHS, formatDate, monthNames } from "~/lib/date";
 import { tz } from "~/lib/constants";
-import { useSize } from "~/hooks/use-size";
 
 type Interval = "day" | "month" | "year";
 
@@ -124,7 +123,7 @@ function CalendarLabel({ range }: { range: [number, number] }) {
   return (
     <p className="flex items-center gap-2">
       {formatDate(range[0], "long")} &ndash; {formatDate(range[1], "long")}{" "}
-      <CalendarDays className="icon" />
+      <CalendarDays className="size-5" />
     </p>
   );
 }
@@ -177,14 +176,7 @@ type Day = {
   inside: boolean;
 };
 
-const style = {
-  big: {
-    width: "600px",
-  },
-  small: {
-    width: "400px",
-  },
-};
+const style = { width: "600px" };
 
 function DayCalendar({
   setTime,
@@ -206,7 +198,6 @@ function DayCalendar({
     .toZonedDateTimeISO(tz)
     .startOfDay().epochMilliseconds;
   const today = Temporal.Now.zonedDateTimeISO().startOfDay();
-  const size = useSize();
   const { start, end, startOfMonth, endOfMonth } = useMemo(() => {
     const startOfMonth = Temporal.ZonedDateTime.from({
       timeZone: tz,
@@ -246,19 +237,19 @@ function DayCalendar({
     setDate(t);
   };
   return (
-    <div style={style[size]} className="flex flex-col gap-2">
+    <div style={style} className="flex flex-col gap-2">
       <DialogHeader>
         <div className="flex flex-row items-center gap-2">
           <Button onClick={handlePrev} className="p-2">
-            <ChevronLeft className="icon" />
+            <ChevronLeft className="size-5" />
           </Button>
           <Button variant="secondary" onClick={() => setLevel("month")}>
-            <DialogTitle className="text-normal">
+            <DialogTitle className="text-base">
               {monthNames[date.month]} {date.year}
             </DialogTitle>
           </Button>
           <Button onClick={handleNext} className="p-2">
-            <ChevronRight className="icon" />
+            <ChevronRight className="size-5" />
           </Button>
         </div>
       </DialogHeader>
@@ -352,7 +343,6 @@ function MonthCalendar({
   const handleNext = () => {
     setDate(sanitizeTime(date.add(Temporal.Duration.from({ years: 1 }))));
   };
-  const size = useSize();
   const months = useMemo(() => {
     const months: { month: string; start: number; end: number }[] = new Array(12);
     let start = Temporal.ZonedDateTime.from(startOfYear);
@@ -364,17 +354,17 @@ function MonthCalendar({
     return months;
   }, [startOfYear]);
   return (
-    <div style={style[size]} className="flex flex-col gap-2">
+    <div style={style} className="flex flex-col gap-2">
       <DialogHeader>
         <div className="flex flex-row items-center gap-2">
           <Button onClick={handlePrev} className="p-2">
-            <ChevronLeft className="icon" />
+            <ChevronLeft className="size-5" />
           </Button>
           <Button className="w-fit" variant="secondary" onClick={() => setLevel("year")}>
-            <DialogTitle className="text-normal">{date.year}</DialogTitle>
+            <DialogTitle className="text-base">{date.year}</DialogTitle>
           </Button>
           <Button onClick={handleNext} className="p-2">
-            <ChevronRight className="icon" />
+            <ChevronRight className="size-5" />
           </Button>
         </div>
       </DialogHeader>
@@ -425,7 +415,6 @@ function YearCalendar({
   date: Temporal.ZonedDateTime;
   setDate: (date: Temporal.ZonedDateTime) => void;
 }) {
-  const size = useSize();
   const today = Temporal.Now.zonedDateTimeISO().startOfDay();
   const [year, setYear] = useState(date.year);
   const handleSubmitYear = (e: React.FormEvent<HTMLFormElement>) => {
@@ -459,16 +448,16 @@ function YearCalendar({
     setYear(t);
   }
   return (
-    <div style={style[size]} className="flex flex-col gap-2">
+    <div style={style} className="flex flex-col gap-2">
       <DialogHeader className="flex flex-row items-center gap-2">
         <Button onClick={handlePrev} className="p-2">
-          <ChevronLeft className="icon" />
+          <ChevronLeft className="size-5" />
         </Button>
         <Button className="w-fit" variant="secondary" onClick={() => setLevel("day")}>
-          <DialogTitle className="text-normal">Tahun</DialogTitle>
+          <DialogTitle className="text-base">Tahun</DialogTitle>
         </Button>
         <Button onClick={handleNext} className="p-2">
-          <ChevronRight className="icon" />
+          <ChevronRight className="size-5" />
         </Button>
       </DialogHeader>
       <DialogDescription>Pilih tahun yang ingin ditampilkan.</DialogDescription>

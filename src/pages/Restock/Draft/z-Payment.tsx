@@ -132,7 +132,7 @@ function Body({
             <AccordionTrigger className="px-2 py-1 hover:no-underline">
               <span className="flex min-w-0 items-center gap-3">
                 <span className="font-medium">Info pembelian</span>
-                <span className="flex min-w-0 items-center gap-2 text-small text-muted-foreground">
+                <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
                   <CashierName />
                   <span className="flex min-w-0 items-center gap-1 truncate">
                     Pemasok:{" "}
@@ -172,7 +172,7 @@ function Body({
       </div>
 
       {methodsRes.type === "error" ? (
-        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-small text-destructive">
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-sm text-destructive">
           <span role="alert">
             Daftar metode pembayaran gagal dimuat: {methodsRes.error.message}
           </span>
@@ -182,7 +182,7 @@ function Body({
         </div>
       ) : null}
       {suppliersRes.type === "error" ? (
-        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-small text-destructive">
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-sm text-destructive">
           <span role="alert">Daftar pemasok gagal dimuat: {suppliersRes.error.message}</span>
           <Button size="sm" variant="outline" onClick={() => refresh("suppliers")}>
             Coba lagi
@@ -193,7 +193,7 @@ function Body({
       <Images draft={draft} />
 
       <div className="mt-4 px-2 pb-4">
-        <h3 className="mb-2 text-normal font-bold select-none">Pembayaran</h3>
+        <h3 className="mb-2 text-base font-bold select-none">Pembayaran</h3>
         <Methods
           draft={draft}
           catalog={catalog}
@@ -206,14 +206,14 @@ function Body({
           onSubmit={onSubmit}
         />
         <div className="mt-3 flex items-center justify-between border-t pt-2 ">
-          <span className="text-big">
+          <span className="text-2xl">
             Dibayar:{" "}
-            <span className="font-bold text-big tabular-nums">{rupiah(paid, draft.fix)}</span>
+            <span className="font-bold text-2xl tabular-nums">{rupiah(paid, draft.fix)}</span>
           </span>
-          <span className={cn("text-big", change.isNegative() && "text-destructive")}>
+          <span className={cn("text-2xl", change.isNegative() && "text-destructive")}>
             {change.isNegative() ? "Sisa" : "Kembalian"}
             {": "}
-            <span className="font-bold text-change tabular-nums">
+            <span className="font-bold text-5xl tabular-nums">
               {rupiah(change.abs(), draft.fix)}
             </span>
           </span>

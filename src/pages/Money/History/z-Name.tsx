@@ -13,7 +13,7 @@ export function Name({ name: init, pocketId }: { pocketId: string; name: string 
         aria-autocomplete="list"
         value={name}
         onChange={(e) => setName(e.currentTarget.value)}
-        className="text-big focus:outline-none border-0 min-h-17 small:min-h-12 w-full"
+        className="text-2xl focus:outline-none border-0 min-h-17 w-full"
       />
       <Spinner when={loading} />
     </form>

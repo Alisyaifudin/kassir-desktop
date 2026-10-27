@@ -17,7 +17,7 @@ export function Title() {
       <Link
         title={shopName}
         to="/"
-        className="block truncate text-normal font-medium italic opacity-80 pr-2"
+        className="block truncate text-base font-medium italic opacity-80 pr-2"
       >
         {shopName}
       </Link>

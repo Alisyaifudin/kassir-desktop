@@ -26,7 +26,7 @@ export const NewItem = memo(function NewItem() {
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Tambah Kontak</DialogTitle>
+          <DialogTitle className="text-2xl">Tambah Kontak</DialogTitle>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -35,7 +35,7 @@ export const NewItem = memo(function NewItem() {
             }}
             className={cn(
               "grid gap-2 items-center justify-end",
-              "grid-cols-[250px_1fr] small:grid-cols-[210px_1fr]",
+              "grid-cols-[250px_1fr]",
             )}
           >
             <form.Field name="name">

@@ -47,12 +47,12 @@ export function Options({ draft, onStore }: { draft: Draft | null; onStore: () =
         title="Opsi transaksi"
       >
         <DialogTrigger type="button">
-          <SlidersHorizontal className="icon" />
+          <SlidersHorizontal className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Opsi transaksi</DialogTitle>
+          <DialogTitle className="text-2xl">Opsi transaksi</DialogTitle>
         </DialogHeader>
         <DialogDescription>Opsi untuk transaksi yang sedang disusun.</DialogDescription>
         <div className="flex flex-col gap-4">
@@ -64,7 +64,7 @@ export function Options({ draft, onStore }: { draft: Draft | null; onStore: () =
               <Customer draft={draft} />
               <PaymentTime draft={draft} />
               <label className="flex flex-col gap-1">
-                <span className="text-small text-muted-foreground select-none">Catatan</span>
+                <span className="text-sm text-muted-foreground select-none">Catatan</span>
                 <Textarea
                   rows={4}
                   value={draft.note}

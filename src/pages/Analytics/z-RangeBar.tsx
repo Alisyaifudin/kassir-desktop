@@ -25,7 +25,7 @@ export function RangeBar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       {mode === "week" ? (
-        <p className="text-small font-semibold">Transaksi per minggu</p>
+        <p className="text-sm font-semibold">Transaksi per minggu</p>
       ) : (
         <Presets />
       )}
@@ -62,7 +62,7 @@ function CustomRange() {
   const { from, to, setRange } = useRange();
   return (
     <DateRange
-      className="text-small"
+      className="text-sm"
       // `DateRange` speaks inclusive days; the analytics period is exclusive.
       range={[from, to - DAY_MS]}
       setRange={(start, end) => setRange(start, end + DAY_MS)}
@@ -128,7 +128,7 @@ function WeekPicker() {
         aria-label="Minggu sebelumnya"
         onClick={() => shift(-1)}
       >
-        <ChevronLeft className="icon" />
+        <ChevronLeft className="size-5" />
       </Button>
       <Calendar
         time={start}
@@ -136,7 +136,7 @@ function WeekPicker() {
           const next = weekRange(time);
           setRange(next.from, next.to);
         }}
-        className="w-fit justify-center text-small"
+        className="w-fit justify-center text-sm"
       >
         <span className="tabular-nums">
           {formatDate(start)} &ndash; {formatDate(end - DAY_MS)}
@@ -149,7 +149,7 @@ function WeekPicker() {
         aria-label="Minggu berikutnya"
         onClick={() => shift(1)}
       >
-        <ChevronRight className="icon" />
+        <ChevronRight className="size-5" />
       </Button>
     </div>
   );

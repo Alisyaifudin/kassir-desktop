@@ -36,7 +36,7 @@ export const DebtDialog = memo(function DebtDialog({
       </Button>
       <DialogContent className="w-full max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Bayar Kredit</DialogTitle>
+          <DialogTitle className="text-2xl">Bayar Kredit</DialogTitle>
         </DialogHeader>
         <DialogDescription>Bayar utang pelanggan: isi jumlah yang diterima, catatan keluar dari daftar utang setelah lunas.</DialogDescription>
         <form
@@ -83,11 +83,11 @@ export const DebtDialog = memo(function DebtDialog({
               </Field>
             )}
           </form.Field>
-          <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]">
+          <div className="grid grid-cols-[200px_1fr]">
             <span>Total</span>
             <span>: Rp{total.toLocaleString("id-ID")}</span>
           </div>
-          <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]">
+          <div className="grid grid-cols-[200px_1fr]">
             <span>Kembalian</span>
             <span className={cn({ "text-red-500": change < 0 })}>
               : Rp{change.toLocaleString("id-ID")}
@@ -110,7 +110,7 @@ export const DebtDialog = memo(function DebtDialog({
 function Field({ children, error }: { children: React.ReactNode; error: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr] items-center">
+      <div className="grid grid-cols-[200px_1fr] items-center">
         {children}
       </div>
       {error}

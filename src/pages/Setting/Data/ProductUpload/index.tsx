@@ -48,7 +48,7 @@ export function PorductUpload() {
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
-        <h3 className="text-normal font-bold mb-2">Produk</h3>
+        <h3 className="text-base font-bold mb-2">Produk</h3>
         <SchemaDialog />
       </div>
       <TextError>{error}</TextError>

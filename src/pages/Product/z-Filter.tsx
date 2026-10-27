@@ -57,17 +57,17 @@ export function Filter({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="gap-2 text-normal small:h-10">
-          <SlidersHorizontal className="icon" />
+        <Button type="button" variant="outline" className="gap-2 text-base">
+          <SlidersHorizontal className="size-5" />
           Filter
           {activeCount > 0 ? (
-            <span className="rounded-full bg-primary px-1.5 text-small text-primary-foreground">
+            <span className="rounded-full bg-primary px-1.5 text-sm text-primary-foreground">
               {activeCount}
             </span>
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="flex w-72 flex-col gap-4 small:w-60">
+      <PopoverContent align="start" className="flex w-72 flex-col gap-4">
         {/* The only data in this popover: which labels the catalog actually
             uses. Absent until they arrive, exactly as it always was — the rest
             of the filter works without them. */}
@@ -77,10 +77,10 @@ export function Filter({
             if (kinds.length === 0) return null;
             return (
               <div className="flex flex-col gap-2">
-                <span className="text-small font-medium">Jenis</span>
+                <span className="text-sm font-medium">Jenis</span>
                 <div className="flex flex-col gap-2">
                   {kinds.map((kind) => (
-                    <Label key={kind} className="flex cursor-pointer items-center gap-2 text-small">
+                    <Label key={kind} className="flex cursor-pointer items-center gap-2 text-sm">
                       <Checkbox
                         checked={state.kinds.includes(kind)}
                         onCheckedChange={() => toggleKind(kind)}
@@ -95,14 +95,14 @@ export function Filter({
         </pageData.Gate>
 
         <div className="flex flex-col gap-2">
-          <span className="text-small font-medium">Status</span>
+          <span className="text-sm font-medium">Status</span>
           <RadioGroup
             value={state.publish}
             onValueChange={(value) => set({ publish: value as PublishFilter })}
             className="flex flex-col gap-2"
           >
             {(Object.keys(PUBLISH_LABELS) as PublishFilter[]).map((value) => (
-              <Label key={value} className="flex cursor-pointer items-center gap-2 text-small">
+              <Label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
                 <RadioGroupItem value={value} /> {PUBLISH_LABELS[value]}
               </Label>
             ))}
@@ -110,14 +110,14 @@ export function Filter({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-small font-medium">Stok</span>
+          <span className="text-sm font-medium">Stok</span>
           <RadioGroup
             value={state.stock}
             onValueChange={(value) => set({ stock: value as StockFilter })}
             className="flex flex-col gap-2"
           >
             {(Object.keys(STOCK_LABELS) as StockFilter[]).map((value) => (
-              <Label key={value} className="flex cursor-pointer items-center gap-2 text-small">
+              <Label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
                 <RadioGroupItem value={value} /> {STOCK_LABELS[value]}
               </Label>
             ))}
@@ -125,14 +125,14 @@ export function Filter({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-small font-medium">Margin</span>
+          <span className="text-sm font-medium">Margin</span>
           <RadioGroup
             value={state.margin}
             onValueChange={(value) => set({ margin: value as MarginFilter })}
             className="flex flex-col gap-2"
           >
             {(Object.keys(MARGIN_LABELS) as MarginFilter[]).map((value) => (
-              <Label key={value} className="flex cursor-pointer items-center gap-2 text-small">
+              <Label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
                 <RadioGroupItem value={value} /> {MARGIN_LABELS[value]}
               </Label>
             ))}
@@ -142,7 +142,7 @@ export function Filter({
         <Button
           type="button"
           variant="ghost"
-          className="h-11 text-small small:h-9"
+          className="h-11 text-sm"
           disabled={activeCount === 0}
           onClick={() => set({ kinds: [], stock: "all", margin: "all", publish: "all" })}
         >

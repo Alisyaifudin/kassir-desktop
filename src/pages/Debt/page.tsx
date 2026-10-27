@@ -10,7 +10,7 @@ export default function Page() {
     <pageData.Provider sources={{ records: debtSource() }}>
       <div className="flex flex-col gap-4 p-6 h-full  overflow-hidden">
         <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-normal">
+          <p className="text-muted-foreground text-base">
             Pantau dan kelola catatan utang pelanggan
           </p>
         </div>

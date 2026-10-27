@@ -41,22 +41,22 @@ export const DeleteBtn = memo(function DeleteBtn({
       <Button
         type="button"
         asChild
-        className={cn("w-fit p-0 rounded-full", "p-1.5 small:p-1")}
+        className={cn("w-fit p-0 rounded-full", "p-1.5")}
         variant="destructive"
       >
         <DialogTrigger>
-          <X className="icon" />
+          <X className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Hapus Kontak</DialogTitle>
+          <DialogTitle className="text-2xl">Hapus Kontak</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-            <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
+            <div className={cn("grid grid-cols-[200px_1fr]")}>
               <span>Nama Kontak</span>
               <span>: {name}</span>
             </div>
-            <div className={cn("grid grid-cols-[200px_1fr] small:grid-cols-[150px_1fr]")}>
+            <div className={cn("grid grid-cols-[200px_1fr]")}>
               <span>Isian Kontak</span>
               <span>: {value}</span>
             </div>

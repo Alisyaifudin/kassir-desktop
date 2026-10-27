@@ -30,7 +30,7 @@ export function Filter() {
 function Loading() {
   return (
     <div className="flex items-center gap-2">
-      <Skeleton className="h-10 w-[140px] rounded-xl" />
+      <Skeleton className="h-8 w-[96px] rounded-xl" />
       <Skeleton className="h-10 w-10 rounded-xl" />
     </div>
   );
@@ -52,10 +52,10 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
                 : "hover:border-primary/50",
             )}
           >
-            <SlidersHorizontal className="icon" strokeWidth={2.5} />
+            <SlidersHorizontal className="size-5 [--icon-stroke:2.5]" />
             <span className="font-semibold">Filter</span>
             {activeCount > 0 ? (
-              <span className="rounded-full bg-background/25 px-1.5 text-small tabular-nums">
+              <span className="rounded-full bg-background/25 px-1.5 text-sm tabular-nums">
                 {activeCount}
               </span>
             ) : null}
@@ -70,18 +70,18 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
             aria-label="Hapus filter"
             title="Hapus filter"
           >
-            <X className="icon" />
+            <X className="size-5" />
           </Button>
         ) : null}
 
         <DialogContent className="sm:max-w-4xl p-0 gap-0 overflow-hidden rounded-3xl border-none shadow-2xl">
           <DialogHeader className="p-6 pb-4 bg-muted/30">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-big font-black tracking-tight">
+              <DialogTitle className="text-2xl font-black tracking-tight">
                 Kategori Pembayaran
               </DialogTitle>
             </div>
-            <p className="text-normal text-muted-foreground font-medium mt-1">
+            <p className="text-base text-muted-foreground font-medium mt-1">
               Pilih satu atau lebih. Kosongkan untuk menampilkan semua.
             </p>
           </DialogHeader>

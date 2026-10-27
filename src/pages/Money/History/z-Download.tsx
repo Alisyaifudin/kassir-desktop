@@ -26,7 +26,7 @@ export function Download({ pocket }: { pocket: Pocket }) {
   return (
     <Button onClick={handleClick} disabled={pending} variant="secondary">
       <Spinner when={pending} />
-      <DownloadIcon className="icon" />
+      <DownloadIcon className="size-5" />
       Unduh
     </Button>
   );

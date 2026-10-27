@@ -60,7 +60,7 @@ export function Bottom({
         className={cn(prev === null && "invisible")}
         onClick={() => prev && onChange(prev)}
       >
-        <ChevronLeft className="icon" />
+        <ChevronLeft className="size-5" />
         Sebelumnya
       </Button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
@@ -97,7 +97,7 @@ export function Bottom({
           onClick={() => next && onChange(next)}
         >
           Berikutnya
-          <ChevronRight className="icon" />
+          <ChevronRight className="size-5" />
         </Button>
       )}
     </section>

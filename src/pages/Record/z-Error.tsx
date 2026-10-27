@@ -10,8 +10,8 @@ import { RecordError } from "~/services/record";
 export function RecordsErrorFallback({ error }: { error: RecordError }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-      <p className="text-normal font-semibold">Riwayat bermasalah</p>
-      <p className="text-small text-muted-foreground">{error.message}</p>
+      <p className="text-base font-semibold">Riwayat bermasalah</p>
+      <p className="text-sm text-muted-foreground">{error.message}</p>
     </div>
   );
 }
@@ -19,5 +19,5 @@ export function RecordsErrorFallback({ error }: { error: RecordError }) {
 export const MethodErrorBoundary = createErrorBoundary(MethodError);
 
 export function MethodErrorFallback({ error }: { error: MethodError }) {
-  return <p className="text-small text-destructive">{error.message}</p>;
+  return <p className="text-sm text-destructive">{error.message}</p>;
 }

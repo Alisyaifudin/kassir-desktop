@@ -22,7 +22,7 @@ export function CardsLoading() {
 /** Whole-page fallback for the lazy `/money` route. */
 export function TableLoading({ cols = 7 }: { cols?: number }) {
   return (
-    <Table className="text-normal">
+    <Table className="text-base">
       <TableHeader>
         <TableRow>
           {Array.from({ length: cols }).map((_, i) => (

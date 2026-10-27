@@ -31,7 +31,7 @@ export const Item = memo(function Item({
       }}
       className={cn(
         "grid gap-2 py-0.5 px-0.5 items-center",
-        "grid-cols-[250px_1fr_60px] small:grid-cols-[200px_1fr_30px]",
+        "grid-cols-[250px_1fr_60px]",
       )}
     >
       <form.Field name="name">

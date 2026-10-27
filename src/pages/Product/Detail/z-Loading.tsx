@@ -10,10 +10,10 @@ export function Loading() {
     <main className="mx-auto flex h-full w-full flex-col gap-2 overflow-hidden px-5 py-2">
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-[54px] w-full small:h-10" />
-          <Skeleton className="h-[54px] w-full small:h-10" />
-          <Skeleton className="h-[54px] w-full small:h-10" />
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />

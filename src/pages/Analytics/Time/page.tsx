@@ -13,7 +13,7 @@ import {
   TOOLTIP,
   countTick,
   money,
-  useChartGeometry,
+  chartGeometry,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -99,7 +99,7 @@ export default function Page() {
 }
 
 function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   const { hours: window, setHours, save } = useHourWindow();
   const [start, end] = window;
 
@@ -155,11 +155,11 @@ function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] 
         label="Grafik transaksi per jam"
         action={
           <div className="flex items-center gap-3">
-            <span className="text-small text-muted-foreground tabular-nums">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {String(start).padStart(2, "0")}.00 &ndash; {String(end).padStart(2, "0")}.00
             </span>
             <Slider
-              className="w-[240px] small:w-[180px]"
+              className="w-[240px]"
               min={0}
               max={24}
               step={1}
@@ -206,7 +206,7 @@ function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] 
         </ResponsiveContainer>
       </ChartFrame>
 
-      <p className="text-small text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Total omzet pada jam tersibuk: {money(busiestHour.omzet)}.
       </p>
     </div>

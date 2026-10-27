@@ -21,19 +21,19 @@ export const DeletePocketBtn = memo(function DeletePocketBtn({ pocketId }: { poc
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button type="button" asChild variant="destructive">
         <DialogTrigger>
-          <Trash2 className="icon" />
+          <Trash2 className="size-5" />
           Hapus Kantong
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Hapus Kantong</DialogTitle>
+          <DialogTitle className="text-2xl">Hapus Kantong</DialogTitle>
           <DialogDescription>
             Kamu akan menghapus kantong ini. Semua catatan keuangan pada kantong ini akan terhapus
             selamanya!
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-2 text-big">
+        <div className="flex flex-col gap-2 text-2xl">
           <TextError>{error}</TextError>
 
           <div className="col-span-2 flex items-center justify-between">

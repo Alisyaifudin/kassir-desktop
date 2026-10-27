@@ -25,7 +25,7 @@ export function DeleteBtn({ recordId }: { recordId: string }) {
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-big">Hapus catatan riwayat?</DialogTitle>
+          <DialogTitle className="text-2xl">Hapus catatan riwayat?</DialogTitle>
           <div className="flex justify-between mt-5">
             <Button asChild>
               <DialogClose disabled={loading}>Batal</DialogClose>

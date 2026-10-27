@@ -10,8 +10,8 @@ import { cn } from "~/lib/utils";
  * The *real* control is drawn, disabled and empty, with its own box painted as
  * the skeleton — which is the only way a placeholder is never a guessed size. An
  * input is input-height, a `rows={3}` textarea is three lines tall, a combobox
- * keeps its chevron and its padding, and every one of them is right at both app
- * sizes, because no pixel value here is mine.
+ * keeps its chevron and its padding, and every one of them is right because no
+ * pixel value here is mine.
  *
  * The box is painted rather than overlaid: `animate-pulse` on a `bg-muted` box
  * reads as "a value goes here" without a second element to keep in sync with the

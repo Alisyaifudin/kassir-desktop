@@ -12,7 +12,7 @@ export function RecordsLoading() {
         <div className="flex flex-col gap-1 overflow-hidden h-full">
           <div className="flex-1 min-h-0 overflow-hidden">
             <div className="border-b px-2 py-2">
-              <div className="grid grid-cols-[30px_1fr_90px_100px] items-center gap-2 small:grid-cols-[10px_1fr_93px_80px]">
+              <div className="grid grid-cols-[30px_1fr_90px_100px] items-center gap-2">
                 <Skeleton className="h-4 w-6" />
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-4 w-14" />
@@ -23,7 +23,7 @@ export function RecordsLoading() {
               {Array.from({ length: 12 }).map((_, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-[30px_1fr_90px_100px] items-center gap-2 py-1.5 small:grid-cols-[10px_1fr_93px_80px]"
+                  className="grid grid-cols-[30px_1fr_90px_100px] items-center gap-2 py-1.5"
                 >
                   <Skeleton className="h-4 w-5" />
                   <Skeleton className="h-4 w-24" />

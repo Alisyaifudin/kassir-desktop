@@ -13,7 +13,7 @@ export function Parties({ record }: { record: RecordFull }) {
   if (customer === "" && supplier === "" && note === "") return null;
 
   return (
-    <dl className="flex flex-col gap-1 px-1 text-small">
+    <dl className="flex flex-col gap-1 px-1 text-sm">
       <Show when={customer !== ""}>
         <div className="flex gap-2">
           <dt className="w-[110px] shrink-0 text-muted-foreground">Pelanggan</dt>

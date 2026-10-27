@@ -32,7 +32,7 @@ const COLUMNS = [1, 4, 7, 10];
 const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 const EDITING_RING = "z-10 ring-2 ring-primary ring-inset";
 const EDIT_CLASS =
-  "h-9 rounded-none border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7";
+  "h-9 rounded-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0";
 
 const KIND_LABELS: Record<DiscountKind, string> = {
   number: "Angka",
@@ -106,7 +106,7 @@ export function DiscountDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-big font-bold">Diskon</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">Diskon</DialogTitle>
         </DialogHeader>
         <DialogDescription>Diskon per baris: angka rupiah atau persen, tidak boleh melebihi harga baris.</DialogDescription>
         {line !== null ? (
@@ -289,7 +289,7 @@ function Body({
       className="flex flex-col outline-none"
     >
       <div className="flex justify-end border-b py-2">
-        <span className="text-big font-bold tabular-nums">{rupiah(lineSubtotal(line))}</span>
+        <span className="text-2xl font-bold tabular-nums">{rupiah(lineSubtotal(line))}</span>
       </div>
 
       <div className="divide-y divide-border">
@@ -297,7 +297,7 @@ function Body({
           const onRow = index === row;
           return (
             <div key={discount.id} className="grid grid-cols-11 items-stretch">
-              <div className="col-span-1 flex items-center justify-center text-normal text-muted-foreground tabular-nums select-none">
+              <div className="col-span-1 flex items-center justify-center text-base text-muted-foreground tabular-nums select-none">
                 {index + 1}
               </div>
 
@@ -351,7 +351,7 @@ function Body({
                     />
                   )
                 ) : (
-                  <button type="button" tabIndex={-1} className="w-full text-right text-normal select-none">
+                  <button type="button" tabIndex={-1} className="w-full text-right text-base select-none">
                     {formatValue(discount)}
                   </button>
                 )}
@@ -376,7 +376,7 @@ function Body({
                     setEditing(false);
                   }}
                 >
-                  <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7">
+                  <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
                     <SelectValue>{KIND_LABELS[discount.kind]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -395,7 +395,7 @@ function Body({
                   setEditing(false);
                 }}
                 className={cn(
-                  "col-span-3 flex items-center justify-end border-l px-2 py-1 text-normal tabular-nums select-none",
+                  "col-span-3 flex items-center justify-end border-l px-2 py-1 text-base tabular-nums select-none",
                   onRow && cell === 2 && SELECTED_RING,
                 )}
               >
@@ -424,7 +424,7 @@ function Body({
                     remove(index);
                   }}
                 >
-                  <X className="icon" />
+                  <X className="size-5" />
                 </Button>
               </div>
             </div>

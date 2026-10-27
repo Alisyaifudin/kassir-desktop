@@ -11,15 +11,15 @@ export function Empty({ total, onReset }: { total: number; onReset: () => void }
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-      <PackageOpen className="size-12 small:size-8" />
-      <p className="text-small">
+      <PackageOpen className="size-12" />
+      <p className="text-sm">
         {isFiltered ? `Tidak ada dari ${total} produk yang cocok.` : "Belum ada produk."}
       </p>
       {isFiltered ? (
         <Button
           type="button"
           variant="outline"
-          className="h-11 text-small small:h-9"
+          className="h-11 text-sm"
           onClick={onReset}
         >
           Reset filter

@@ -8,7 +8,7 @@ export function NotFound() {
     <div className="flex flex-1 w-full flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors px-4">
       <div className="text-center space-y-6 max-w-md">
         <div className="relative flex justify-center">
-          <span className="text-big font-black text-zinc-200 dark:text-zinc-900 leading-none select-none">
+          <span className="text-2xl font-black text-zinc-200 dark:text-zinc-900 leading-none select-none">
             404
           </span>
           <div className="absolute inset-0 flex items-center justify-center">
@@ -17,7 +17,7 @@ export function NotFound() {
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-big font-bold tracking-tight">Anda tersesat</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Anda tersesat</h2>
           <p className="text-zinc-500 dark:text-zinc-400">
             Halaman yang anda cari tidak ditemukan.
           </p>
@@ -30,7 +30,7 @@ export function NotFound() {
             className="gap-2 border-zinc-300 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900"
             onClick={() => navigate(-1)}
           >
-            <MoveLeft className="icon" />
+            <MoveLeft className="size-5" />
             Kembali
           </Button>
 
@@ -39,7 +39,7 @@ export function NotFound() {
             asChild
           >
             <Link to="/">
-              <Home className="icon" />
+              <Home className="size-5" />
               Halaman Beranda
             </Link>
           </Button>

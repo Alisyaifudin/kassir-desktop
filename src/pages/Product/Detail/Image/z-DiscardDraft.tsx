@@ -16,7 +16,7 @@ export function DiscardDraft({ onDiscard }: { onDiscard: () => void }) {
       className="rounded-full absolute top-1 right-0 p-1"
       aria-label="Buang gambar"
     >
-      <X className="icon" />
+      <X className="size-5" />
     </Button>
   );
 }

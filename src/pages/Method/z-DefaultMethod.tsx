@@ -15,7 +15,7 @@ export function DefaultMethod({
     <input
       type="radio"
       name={kind}
-      className="w-8 small:w-5"
+      className="w-8"
       onClick={handleClick}
       onChange={() => {}}
       checked={id === defVal}

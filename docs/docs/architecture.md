@@ -16,7 +16,6 @@ Dokumentasi teknis untuk pengembang yang ingin memahami arsitektur aplikasi.
 - **@xstate/store** — reactive state management
 - **@tanstack/react-form** — form handling
 - **Zod 4** + **Valibot 1** — validasi schema
-- **pdf-lib** — generate struk PDF
 - **fuzzysort** + **@nozbe/microfuzz** — pencarian fuzzy
 
 ### Backend (Rust/Tauri)
@@ -24,6 +23,7 @@ Dokumentasi teknis untuk pengembang yang ingin memahami arsitektur aplikasi.
 - **bcrypt** — hash password
 - **jsonwebtoken** — JWT encoding/decoding (HS256, 5 hari)
 - **winprint** — Windows printer integration
+- **printpdf** — generate struk PDF (subset font Roboto dengan allsorts)
 - **sqlx** — SQLite via embedded Axum server
 - **Axum 0.7** — embedded HTTP API (port 3000)
 

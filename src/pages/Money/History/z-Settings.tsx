@@ -26,15 +26,15 @@ export function PocketSettings({ pocket }: { pocket: Pocket }) {
         asChild
         size="icon"
         variant="secondary"
-        className="size-12 rounded-full small:size-10"
+        className="size-12 rounded-full"
       >
         <DialogTrigger aria-label="Pengaturan kantong" title="Pengaturan kantong">
-          <SlidersHorizontal className="icon" />
+          <SlidersHorizontal className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-big">Pengaturan Kantong</DialogTitle>
+          <DialogTitle className="text-2xl">Pengaturan Kantong</DialogTitle>
           <DialogDescription>
             Unggah, unduh, atau hapus kantong &ldquo;{pocket.name}&rdquo;.
           </DialogDescription>

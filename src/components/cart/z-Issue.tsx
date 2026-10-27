@@ -6,7 +6,7 @@ import type { CodeIssue } from "./code-issues";
 /** The text under a cell for a problem that blocks (red) or warns (amber). */
 export function CodeIssueView({ issue }: { issue: CodeIssue }) {
   return (
-    <div className="flex flex-col gap-0.5 text-small leading-tight select-none">
+    <div className="flex flex-col gap-0.5 text-sm leading-tight select-none">
       {issue.messages.map((message, index) => (
         <span
           key={index}
@@ -24,7 +24,7 @@ export function CodeIssueView({ issue }: { issue: CodeIssue }) {
               className="inline-flex shrink-0"
               onClick={(event) => event.stopPropagation()}
             >
-              <ExternalLink className="icon" />
+              <ExternalLink className="size-5" />
             </Link>
           ))}
         </span>
@@ -35,5 +35,5 @@ export function CodeIssueView({ issue }: { issue: CodeIssue }) {
 
 /** A one-line hard error under a name/unit cell. */
 export function FieldIssue({ children }: { children: string }) {
-  return <span className="text-small leading-tight text-destructive select-none">{children}</span>;
+  return <span className="text-sm leading-tight text-destructive select-none">{children}</span>;
 }

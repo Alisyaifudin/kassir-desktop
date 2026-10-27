@@ -54,8 +54,8 @@ export function Loading() {
       <div className="flex flex-none flex-col items-stretch border-t lg:flex-row">
         <div className="flex min-w-0 shrink-0 flex-col gap-2 border-b p-2 lg:min-w-[540px] lg:border-r lg:border-b-0">
           <div className="flex items-center gap-2">
-            <Skeleton className="h-11 w-[320px] max-w-full" />
-            <Skeleton className="h-11 w-[216px]" />
+            <Skeleton className="h-7 w-[320px] max-w-full" />
+            <Skeleton className="h-7 w-[136px]" />
           </div>
           <div className="flex items-center gap-2">
             <Skeleton className="size-9 rounded-md" />
@@ -64,7 +64,7 @@ export function Loading() {
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center px-2 py-2">
-            <Skeleton className="h-12 w-[180px]" />
+            <Skeleton className="h-7 w-[112px]" />
           </div>
           <div className="flex flex-1 items-center justify-center px-2 pb-2">
             <Skeleton className="h-16 w-1/2" />

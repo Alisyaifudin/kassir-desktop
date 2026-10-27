@@ -37,7 +37,7 @@ export function Ledger({
       {identity}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1 pr-2">
         {empty ? (
-          <p className="px-1 text-small text-muted-foreground">
+          <p className="px-1 text-sm text-muted-foreground">
             Catatan ini tidak punya barang maupun biaya.
           </p>
         ) : null}

@@ -54,13 +54,13 @@ export function DeleteImg({ productId, item }: { productId: string; item: Galler
     <Dialog open={open} onOpenChange={setOpen}>
       <Button asChild variant="destructive" className="absolute right-0 top-1 rounded-full p-1">
         <DialogTrigger>
-          <X className="icon" />
+          <X className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="flex max-h-[95vh] max-w-7xl">
         <div className="flex flex-1 flex-col">
           <DialogHeader>
-            <DialogTitle className="text-normal">Hapus Gambar</DialogTitle>
+            <DialogTitle className="text-base">Hapus Gambar</DialogTitle>
           </DialogHeader>
           <DialogDescription>Gambar ini dihapus dari galeri produk.</DialogDescription>
           <div className="flex flex-1 items-center justify-center overflow-hidden">

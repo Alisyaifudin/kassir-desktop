@@ -23,18 +23,18 @@ export default function Page() {
 
       <div className="relative flex min-w-0 flex-1">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -right-24 -top-32 size-96 rounded-full bg-sky-400/20 blur-3xl small:size-72" />
-          <div className="absolute -bottom-40 -left-24 size-96 rounded-full bg-indigo-400/20 blur-3xl small:size-72" />
+          <div className="absolute -right-24 -top-32 size-96 rounded-full bg-sky-400/20 blur-3xl" />
+          <div className="absolute -bottom-40 -left-24 size-96 rounded-full bg-indigo-400/20 blur-3xl" />
         </div>
 
         <div className="relative h-full w-full overflow-y-auto ">
-          <div className="flex min-h-full items-center justify-center px-6 py-10 small:px-4 small:py-6">
+          <div className="flex min-h-full items-center justify-center px-6 py-10">
             <div className="w-full max-w-2xl">
-              <div className="mb-8 flex items-center gap-3 small:mb-6 small:gap-2 lg:hidden">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white small:size-10">
-                  <ReceiptText className="size-7 small:size-6" />
+              <div className="mb-8 flex items-center gap-3 lg:hidden">
+                <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                  <ReceiptText className="size-7" />
                 </div>
-                <span className="text-normal font-bold tracking-tight">Kassir</span>
+                <span className="text-base font-bold tracking-tight">Kassir</span>
               </div>
 
               <LoginErrorBoundary fallback={LoginError}>
@@ -43,7 +43,7 @@ export default function Page() {
                     user !== null ? (
                       <Redirect to="/" />
                     ) : (
-                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-2xl border bg-card p-8 shadow-2xl small:p-6">
+                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-2xl border bg-card p-8 shadow-2xl">
                         {cashiers.length > 0 ? <LoginForm cashiers={cashiers} /> : <FreshForm />}
                       </div>
                     )
@@ -66,7 +66,7 @@ function LoginError({ error }: { error: AuthError | CashierError }) {
 function LoadingView() {
   return (
     <div
-      className="flex flex-col gap-3 rounded-2xl border bg-card p-8 shadow-2xl small:p-6"
+      className="flex flex-col gap-3 rounded-2xl border bg-card p-8 shadow-2xl"
       aria-busy="true"
       aria-label="Memuat"
     >

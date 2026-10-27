@@ -36,7 +36,7 @@ export function PropertiesFields({
       action={<SectionAdd onClick={form.addProperty} disabled={disabled} />}
     >
       {draft.properties.length === 0 ? (
-        <p className="text-small text-muted-foreground">Belum ada properti.</p>
+        <p className="text-sm text-muted-foreground">Belum ada properti.</p>
       ) : (
         <div className={rowsClass(flat)}>
           {draft.properties.map((property) => (
@@ -68,12 +68,12 @@ export function PropertiesFields({
               <Button
                 type="button"
                 variant="ghost"
-                className="size-11 small:size-9"
+                className="size-11"
                 disabled={disabled}
                 onClick={() => form.removeProperty(property.key)}
                 aria-label={PROPERTY_ROW.remove}
               >
-                <Trash2 className="icon" />
+                <Trash2 className="size-5" />
               </Button>
             </div>
           ))}
@@ -100,11 +100,11 @@ export function PropertyRowSkeleton() {
       <Button
         type="button"
         variant="ghost"
-        className="size-11 small:size-9"
+        className="size-11"
         disabled
         aria-label={PROPERTY_ROW.remove}
       >
-        <Trash2 className="icon" />
+        <Trash2 className="size-5" />
       </Button>
     </div>
   );

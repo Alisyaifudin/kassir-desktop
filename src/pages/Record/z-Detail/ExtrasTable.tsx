@@ -27,15 +27,15 @@ export function ExtrasTable({
   const running = extrasRunningTotals(record);
 
   return (
-    <Table className="text-normal" parentClass={parentClass}>
+    <Table className="text-base" parentClass={parentClass}>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[57px] font-normal small:w-[41px]">No</TableHead>
+          <TableHead className="w-[57px] font-normal">No</TableHead>
           <TableHead className="font-normal">Nama</TableHead>
-          <TableHead className={cn("text-end w-[340px] font-normal small:w-[300px]")}>
+          <TableHead className={cn("text-end w-[340px] font-normal")}>
             Nilai
           </TableHead>
-          <TableHead className={cn("text-end w-[250px] font-normal small:w-[220px]")}>
+          <TableHead className={cn("text-end w-[250px] font-normal")}>
             Total
           </TableHead>
         </TableRow>

@@ -40,8 +40,8 @@ export function History({
   return (
     <div className="flex h-full flex-col gap-2 rounded-xl border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-small font-semibold">Riwayat</h2>
-        <div className="inline-flex rounded-md border p-0.5 text-small">
+        <h2 className="text-sm font-semibold">Riwayat</h2>
+        <div className="inline-flex rounded-md border p-0.5 text-sm">
           {MODES.map((item) => (
             <button
               key={item.id}
@@ -69,7 +69,7 @@ export function History({
         ) : pending ? (
           <HistorySkeleton />
         ) : loading ? null : (
-          <p className="py-6 text-center text-small text-muted-foreground">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             Belum ada pergerakan stok.
           </p>
         )}
@@ -78,7 +78,7 @@ export function History({
       {!done ? (
         <Button
           variant="outline"
-          className="h-11 text-small small:h-9"
+          className="h-11 text-sm"
           onClick={loadMore}
           disabled={loading}
         >
@@ -92,8 +92,7 @@ export function History({
 /**
  * The first page of the journal before it lands: the row's own two-line shape —
  * a date line, a meta line, and the amount held at the right — with each text
- * pulsing *inside* its line box, so a placeholder row is the height of a real one
- * at both app sizes.
+ * pulsing *inside* its line box, so a placeholder row is the height of a real one.
  */
 function HistorySkeleton() {
   return (
@@ -101,14 +100,14 @@ function HistorySkeleton() {
       {Array.from({ length: 4 }).map((_, index) => (
         <li key={index} className="flex items-center justify-between gap-2 py-2">
           <div className="flex min-w-0 flex-col">
-            <span className="text-small tabular-nums">
+            <span className="text-sm tabular-nums">
               <SkeletonText className="w-32" />
             </span>
-            <span className="truncate text-small text-muted-foreground">
+            <span className="truncate text-sm text-muted-foreground">
               <SkeletonText className="w-24" />
             </span>
           </div>
-          <span className="text-small font-medium tabular-nums">
+          <span className="text-sm font-medium tabular-nums">
             <SkeletonText className="w-10" />
           </span>
         </li>

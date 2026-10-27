@@ -68,7 +68,7 @@ export function SelectCell({
         selected && (editing ? "z-10 ring-2 ring-primary ring-inset" : SELECTED_RING),
       )}
     >
-      <span className="text-small leading-none text-muted-foreground select-none">{label}</span>
+      <span className="text-sm leading-none text-muted-foreground select-none">{label}</span>
       <Select
         open={open}
         onOpenChange={(next) => {
@@ -78,14 +78,14 @@ export function SelectCell({
         value={value}
         onValueChange={onChange}
       >
-        <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7">
+        <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
           <SelectValue>{display}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
             {options.map((option) => (
               <SelectItem
-                className="small:w-[220px] w-[250px]"
+                className=" w-[250px]"
                 key={option.value}
                 value={option.value}
                 kbd={option.kbd === undefined ? undefined : <Kbd>{option.kbd}</Kbd>}

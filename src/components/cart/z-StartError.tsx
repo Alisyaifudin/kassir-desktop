@@ -20,8 +20,8 @@ export function CartStartError({
       className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center"
     >
       <AlertTriangle className="size-8 text-destructive" />
-      <p className="text-big font-bold text-foreground">Tidak bisa memulai transaksi</p>
-      <p className="text-normal text-muted-foreground">{message}</p>
+      <p className="text-2xl font-bold text-foreground">Tidak bisa memulai transaksi</p>
+      <p className="text-base text-muted-foreground">{message}</p>
       <Button type="button" variant="outline" onClick={onRetry}>
         <RotateCcw />
         Coba lagi

@@ -28,7 +28,7 @@ export const NewCashier = memo(function NewCashier() {
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Tambah Kasir</DialogTitle>
+          <DialogTitle className="text-2xl">Tambah Kasir</DialogTitle>
         </DialogHeader>
         <DialogDescription>Kasir baru yang bisa dipilih saat login.</DialogDescription>
         <form

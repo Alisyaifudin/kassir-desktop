@@ -13,7 +13,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useSize } from "~/hooks/use-size";
 import { cn } from "~/lib/utils";
 import type { Bin, ListingAggregate } from "./use-performance";
 
@@ -42,15 +41,11 @@ function formatNumber(value: number): string {
   return Number(value).toLocaleString("id-ID");
 }
 
-/** Tick / axis geometry follows the app size (the sanctioned `useSize()` case). */
-function useChartGeometry() {
-  const size = useSize();
-  const small = size === "small";
-  return {
-    tick: { fontSize: small ? 12 : 14 },
-    yWidth: small ? 44 : 56,
-  };
-}
+/** Tick / axis geometry. SVG attributes cannot read CSS variables, so these stay concrete. */
+const chartGeometry = {
+  tick: { fontSize: 14 },
+  yWidth: 56,
+} as const;
 
 /** Tooltip lands in an inline `style`, so `var()` is safe there. */
 const TOOLTIP = {
@@ -74,14 +69,14 @@ function ChartFrame({
 }) {
   return (
     <div className={cn("flex flex-col gap-2 rounded-xl border bg-card p-3", className)}>
-      <h3 className="text-small font-medium">{title}</h3>
-      <div className="h-56 w-full small:h-48">{children}</div>
+      <h3 className="text-sm font-medium">{title}</h3>
+      <div className="h-56 w-full">{children}</div>
     </div>
   );
 }
 
 export function QtyChart({ data }: { data: Bin[] }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   return (
     <ChartFrame title="Penjualan (qty)">
       <ResponsiveContainer width="100%" height="100%">
@@ -98,7 +93,7 @@ export function QtyChart({ data }: { data: Bin[] }) {
 }
 
 export function RevenueChart({ data }: { data: Bin[] }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   return (
     <ChartFrame title="Omzet">
       <ResponsiveContainer width="100%" height="100%">
@@ -115,7 +110,7 @@ export function RevenueChart({ data }: { data: Bin[] }) {
 }
 
 export function ProfitChart({ data }: { data: Bin[] }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   return (
     <ChartFrame title="Laba">
       <ResponsiveContainer width="100%" height="100%">
@@ -132,7 +127,7 @@ export function ProfitChart({ data }: { data: Bin[] }) {
 }
 
 export function StockChart({ data }: { data: { label: string; value: number }[] }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   return (
     <ChartFrame title="Stok">
       <ResponsiveContainer width="100%" height="100%">
@@ -149,7 +144,7 @@ export function StockChart({ data }: { data: { label: string; value: number }[] 
 }
 
 export function ListingChart({ data }: { data: ListingAggregate[] }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   return (
     <ChartFrame title="Omzet per listing" className="lg:col-span-2">
       <ResponsiveContainer width="100%" height="100%">

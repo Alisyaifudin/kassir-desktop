@@ -62,10 +62,10 @@ export const Calendar = memo(function Calendar({
         setOpen(open);
       }}
     >
-      <Button asChild variant="ghost" className={cn("flex items-center gap-2 w-[320px] small:w-[230px] outline", className)}>
+      <Button asChild variant="ghost" className={cn("flex items-center gap-2 w-[320px] outline", className)}>
         <DialogTrigger>
           {children === undefined ? <CalendarLabel mode={modeInit} time={time} /> : children}
-          <CalendarDays className="icon" />
+          <CalendarDays className="size-5" />
         </DialogTrigger>
       </Button>
       <Content
@@ -174,15 +174,15 @@ function Content({
           <DialogHeader>
             <div className="flex flex-row items-center gap-2">
               <Button onClick={handlePrev} className="p-2">
-                <ChevronLeft className="icon" />
+                <ChevronLeft className="size-5" />
               </Button>
               <Button variant="secondary" onClick={() => changeMode("month")}>
-                <DialogTitle className="text-normal">
+                <DialogTitle className="text-base">
                   {monthNames[date.month]} {date.year}
                 </DialogTitle>
               </Button>
               <Button onClick={handleNext} className="p-2">
-                <ChevronRight className="icon" />
+                <ChevronRight className="size-5" />
               </Button>
             </div>
           </DialogHeader>
@@ -269,13 +269,13 @@ function Content({
           <DialogHeader>
             <div className="flex flex-row items-center gap-2">
               <Button onClick={handlePrev} className="p-2">
-                <ChevronLeft className="icon" />
+                <ChevronLeft className="size-5" />
               </Button>
               <Button className="w-fit" variant="secondary" onClick={() => changeMode("year")}>
-                <DialogTitle className="text-normal">{date.year}</DialogTitle>
+                <DialogTitle className="text-base">{date.year}</DialogTitle>
               </Button>
               <Button onClick={handleNext} className="p-2">
-                <ChevronRight className="icon" />
+                <ChevronRight className="size-5" />
               </Button>
             </div>
           </DialogHeader>
@@ -345,7 +345,7 @@ function Content({
     <DialogContent>
       <DialogHeader>
         <Button className="w-fit" variant="secondary" onClick={() => changeMode("day")}>
-          <DialogTitle className="text-normal">Tahun</DialogTitle>
+          <DialogTitle className="text-base">Tahun</DialogTitle>
         </Button>
       </DialogHeader>
       <DialogDescription>Pilih tahun.</DialogDescription>

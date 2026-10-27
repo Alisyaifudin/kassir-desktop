@@ -21,7 +21,7 @@ export function ProfileCard() {
         {({ profile }) => (
           <div className="flex flex-col gap-1">
             <p className="font-medium">{profile.name}</p>
-            <p className="text-small text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {profile.role} · {profile.shop}
             </p>
           </div>
@@ -91,7 +91,7 @@ export function PairCard() {
           <Stale when={frame.status === "refreshing"} mode="dim">
             <div className="flex flex-col gap-1">
               <p className="font-medium">{profile.name}</p>
-              <p className="text-small text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {stats.orders.toLocaleString("id-ID")} pesanan ·{" "}
                 {stats.revenue.toLocaleString("id-ID", {
                   style: "currency",
@@ -99,7 +99,7 @@ export function PairCard() {
                   maximumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-small text-muted-foreground">{profile.shop}</p>
+              <p className="text-sm text-muted-foreground">{profile.shop}</p>
             </div>
           </Stale>
         )}
@@ -116,7 +116,7 @@ export function FeedCard() {
         {({ feed }) => (
           <ul className="flex flex-col gap-1">
             {feed.map((item) => (
-              <li key={item.id} className="truncate text-small">
+              <li key={item.id} className="truncate text-sm">
                 {item.text}
               </li>
             ))}
@@ -142,7 +142,7 @@ export function ActivityCard() {
           <Stale when={status === "refreshing"} mode="spinner">
             <ul className="flex flex-col gap-1">
               {activity.map((item) => (
-                <li key={item.id} className="truncate text-small">
+                <li key={item.id} className="truncate text-sm">
                   {item.text}
                 </li>
               ))}
@@ -161,7 +161,7 @@ export function BrokenCard() {
       {/* No `error` slot: the gate's default is an inline notice whose own button
           re-reads the keys it blamed, so a retry needs no wiring. */}
       <pageData.Gate keys={["broken"]} pulse={<Rows rows={2} />}>
-        {({ broken }) => <p className="text-small">{broken}</p>}
+        {({ broken }) => <p className="text-sm">{broken}</p>}
       </pageData.Gate>
     </Card>
   );
@@ -175,7 +175,7 @@ export function BeatCard() {
         {({ beat }) => (
           <div className="flex flex-col gap-1">
             <p className="font-medium tabular-nums">Denyut ke-{beat.beat}</p>
-            <p className="text-small text-muted-foreground tabular-nums">
+            <p className="text-sm text-muted-foreground tabular-nums">
               {new Date(beat.at).toLocaleTimeString("id-ID")}
             </p>
           </div>
@@ -229,7 +229,7 @@ export function MutationCard() {
           </Button>
         </div>
 
-        <p className="text-small text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           stats:{" "}
           <span className="font-medium text-foreground">
             {orders.pending ? "menulis…" : orders.refetching ? "menyegarkan…" : "segar"}
@@ -255,7 +255,7 @@ export function MutationCard() {
 function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-small text-muted-foreground">{label}</dt>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="font-semibold tabular-nums">{value}</dd>
     </div>
   );

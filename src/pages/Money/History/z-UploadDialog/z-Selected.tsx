@@ -117,7 +117,7 @@ export function Selected({
                 onClick={cancel}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="icon" />
+                <X className="size-5" />
               </Button>
             </div>
             <div className="space-y-2 rounded-lg border border-input bg-card p-4">
@@ -127,7 +127,7 @@ export function Selected({
                   style={{ width: `${(length === 0 ? 0 : progress / length) * 100}%` }}
                 />
               </div>
-              <p className="text-small text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {progress}/{length} data tersimpan
               </p>
             </div>
@@ -146,7 +146,7 @@ function DuplicateItem({ timestamps, dismiss }: { timestamps: number[]; dismiss:
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-950">
       <div className="flex items-center justify-between">
-        <p className="text-small font-semibold">Catatan keuangan duplikat dilewati</p>
+        <p className="text-sm font-semibold">Catatan keuangan duplikat dilewati</p>
         <Button
           variant="ghost"
           size="icon"
@@ -155,14 +155,14 @@ function DuplicateItem({ timestamps, dismiss }: { timestamps: number[]; dismiss:
           onClick={dismiss}
           className="text-muted-foreground hover:text-foreground"
         >
-          <X className="icon" />
+          <X className="size-5" />
         </Button>
       </div>
-      <p className="mt-1 text-small text-amber-800">
+      <p className="mt-1 text-sm text-amber-800">
         {timestamps.length} catatan yang memiliki waktu yang sama
       </p>
       <div className="mt-3 max-h-32 overflow-y-auto rounded-md bg-background/80 p-2">
-        <ul className="space-y-1 text-small">
+        <ul className="space-y-1 text-sm">
           {timestamps.map((timestamp) => (
             <li key={timestamp} className="truncate">
               {formatDate(timestamp, "long")}, {formatTime(timestamp, "long")}

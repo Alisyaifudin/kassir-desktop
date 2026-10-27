@@ -32,7 +32,7 @@ export function EditDialog({ record }: { record: RecordFull }) {
       </Button>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Sunting catatan</DialogTitle>
+          <DialogTitle className="text-2xl">Sunting catatan</DialogTitle>
         </DialogHeader>
         <DialogDescription>
           Ubah catatan pada catatan riwayat ini.

@@ -14,8 +14,8 @@ export default function Page() {
     <pageData.Provider sources={{ customers: service.customer.get.changes }}>
       <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
         <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold text-foreground">Daftar Pelanggan</h1>
-          <p className="text-muted-foreground text-normal">Kelola informasi pelanggan dan kontak</p>
+          <h1 className="text-2xl font-bold text-foreground">Daftar Pelanggan</h1>
+          <p className="text-muted-foreground text-base">Kelola informasi pelanggan dan kontak</p>
         </div>
         <Customers />
         <NewCustomer />

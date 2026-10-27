@@ -353,7 +353,7 @@ function SaveBar({
             hint="Ctrl+Z"
             disabled={disabled || !canUndo}
             onClick={onUndo}
-            icon={<Undo2 className="icon" />}
+            icon={<Undo2 className="size-5" />}
           />
           <span className="w-px self-stretch bg-border" aria-hidden />
           <HistoryButton
@@ -361,7 +361,7 @@ function SaveBar({
             hint="Ctrl+Shift+Z"
             disabled={disabled || !canRedo}
             onClick={onRedo}
-            icon={<Redo2 className="icon" />}
+            icon={<Redo2 className="size-5" />}
           />
         </div>
         <Button type="submit" disabled={disabled}>

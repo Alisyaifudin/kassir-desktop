@@ -42,7 +42,7 @@ export function Images({ draft }: { draft: Draft }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b px-2 py-2">
-      <span className="text-normal text-muted-foreground select-none">Gambar nota</span>
+      <span className="text-base text-muted-foreground select-none">Gambar nota</span>
 
       {draft.images.map((image) => (
         <Thumb
@@ -59,7 +59,7 @@ export function Images({ draft }: { draft: Draft }) {
         disabled={busy}
         onClick={() => inputRef.current?.click()}
       >
-        <ImagePlus className="icon" />
+        <ImagePlus className="size-5" />
         {busy ? "Menyimpan…" : "Tambah"}
       </Button>
       <input
@@ -76,7 +76,7 @@ export function Images({ draft }: { draft: Draft }) {
         }}
       />
 
-      {error !== null ? <span className="text-small text-destructive">{error}</span> : null}
+      {error !== null ? <span className="text-sm text-destructive">{error}</span> : null}
 
       <Dialog open={preview !== null} onOpenChange={(open) => (open ? undefined : setPreview(null))}>
         <DialogContent className="max-w-3xl">
@@ -100,7 +100,7 @@ function Thumb({
 }) {
   const url = useImageUrl(image.name, image.mime);
   return (
-    <div className="group relative size-16 overflow-hidden rounded-md border small:size-12">
+    <div className="group relative size-16 overflow-hidden rounded-md border">
       <button type="button" className="size-full" onClick={onPreview} aria-label="Lihat gambar">
         {url !== null ? <img src={url} alt="" className="size-full object-cover" /> : null}
       </button>

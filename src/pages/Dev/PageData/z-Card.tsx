@@ -18,8 +18,8 @@ export function Card({
   return (
     <section className="flex flex-col gap-2 rounded-xl border bg-background p-3">
       <header className="flex flex-wrap items-baseline justify-between gap-x-2">
-        <h2 className="text-normal font-semibold">{title}</h2>
-        <code className="text-small text-muted-foreground">{contract}</code>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <code className="text-sm text-muted-foreground">{contract}</code>
       </header>
       <div className="min-h-16">{children}</div>
     </section>

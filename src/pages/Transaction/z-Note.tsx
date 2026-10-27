@@ -35,7 +35,7 @@ export function Note({ value, onChange }: { value: string; onChange: (value: str
       </DialogTrigger>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Catatan</DialogTitle>
+          <DialogTitle className="text-2xl">Catatan</DialogTitle>
         </DialogHeader>
         <DialogDescription>
           Catatan untuk transaksi ini; ikut tersimpan di record.

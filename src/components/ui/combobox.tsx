@@ -201,7 +201,7 @@ export function Combobox({
         className="w-[var(--radix-popover-trigger-width)] min-w-0 overflow-hidden p-1"
       >
         {filtered.length === 0 ? (
-          <p className="px-2 py-2 text-small text-muted-foreground">{emptyText}</p>
+          <p className="px-2 py-2 text-sm text-muted-foreground">{emptyText}</p>
         ) : (
           <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto">
             {filtered.map((option, index) => {
@@ -216,7 +216,7 @@ export function Combobox({
                   onMouseEnter={() => setActive(index)}
                   onClick={() => select(option)}
                   className={cn(
-                    "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-normal transition-colors",
+                    "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-base transition-colors",
                     index === active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
                   )}
                 >

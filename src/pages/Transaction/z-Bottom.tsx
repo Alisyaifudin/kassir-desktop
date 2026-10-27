@@ -101,7 +101,7 @@ export function Bottom({
         <div className="flex flex-1 items-center justify-center overflow-hidden px-2 pb-2">
           <span
             data-testid="transaction-total"
-            className="text-big font-semibold tabular-nums xl:text-grand-total"
+            className="text-2xl font-semibold tabular-nums xl:text-6xl/[0.8]"
           >
             {rupiah(total)}
           </span>
@@ -123,12 +123,12 @@ function MethodFields({
   return (
     <MethodErrorBoundary
       fallback={({ error }) => (
-        <span role="alert" className="text-small text-destructive">
+        <span role="alert" className="text-sm text-destructive">
           Metode gagal dimuat: {error.message}
         </span>
       )}
     >
-      <Loader res={res} fallback={<Skeleton className="h-11 w-[320px] max-w-full" />}>
+      <Loader res={res} fallback={<Skeleton className="h-7 w-[320px] max-w-full" />}>
         {({ data }) => <MethodSelect catalog={data} value={value} onChange={onChange} />}
       </Loader>
     </MethodErrorBoundary>
@@ -181,10 +181,10 @@ function Cashier() {
   const name = capitalize(user.name);
   return (
     <span
-      className="flex min-w-0 items-center gap-1 text-small text-muted-foreground select-none"
+      className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground select-none"
       title={`Kasir: ${name}`}
     >
-      <UserRound className="icon shrink-0" aria-hidden="true" />
+      <UserRound className="size-5 shrink-0" aria-hidden="true" />
       <span className="truncate">{name}</span>
     </span>
   );

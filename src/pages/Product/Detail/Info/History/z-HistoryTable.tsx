@@ -21,17 +21,17 @@ export function HistoryTable({ events }: { events: ProductEvent[] }) {
         return (
           <li key={event.id} className="flex items-center justify-between gap-2 py-2">
             <div className="flex min-w-0 flex-col">
-              <span className="text-small tabular-nums">
+              <span className="text-sm tabular-nums">
                 {formatDate(event.createdAt, "long")} {formatTime(event.createdAt)}
               </span>
               {meta === "" ? null : (
-                <span className="truncate text-small text-muted-foreground">{meta}</span>
+                <span className="truncate text-sm text-muted-foreground">{meta}</span>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span
                 className={cn(
-                  "text-small font-medium tabular-nums",
+                  "text-sm font-medium tabular-nums",
                   event.value > 0
                     ? "text-emerald-600 dark:text-emerald-400"
                     : event.value < 0
@@ -52,7 +52,7 @@ export function HistoryTable({ events }: { events: ProductEvent[] }) {
                     title="Buka catatan"
                     aria-label="Buka catatan"
                   >
-                    <ExternalLink className="icon" />
+                    <ExternalLink className="size-5" />
                   </Link>
                 </Button>
               ) : null}

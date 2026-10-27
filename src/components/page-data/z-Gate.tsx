@@ -84,7 +84,7 @@ export function InlineError({ error, onRetry }: { error: unknown; onRetry?: () =
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-small text-destructive"
+      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
     >
       <span className="min-w-0 truncate">{messageOf(error)}</span>
       {onRetry === undefined ? null : (

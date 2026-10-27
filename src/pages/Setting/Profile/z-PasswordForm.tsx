@@ -19,8 +19,8 @@ export function PasswordForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       <label
         className={cn(
-          "grid items-center gap-2 text-normal",
-          "grid-cols-[250px_1fr] small:grid-cols-[160px_1fr]",
+          "grid items-center gap-2 text-base",
+          "grid-cols-[250px_1fr]",
         )}
       >
         Kata Sandi Baru

@@ -31,8 +31,8 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
 
   return (
     <>
-      <div className="mb-6 flex flex-col gap-1 small:mb-5">
-        <h1 className="text-big font-bold tracking-tight">Selamat datang 👋</h1>
+      <div className="mb-6 flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Selamat datang 👋</h1>
         <p className="text-muted-foreground">Pilih akun dan masukkan kata sandi untuk masuk.</p>
       </div>
 
@@ -41,14 +41,14 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
           e.preventDefault();
           form.handleSubmit();
         }}
-        className="flex flex-col gap-6 small:gap-5"
+        className="flex flex-col gap-6"
       >
-        <FieldGroup className="gap-6 small:gap-5">
+        <FieldGroup className="gap-6">
           <form.Field name="id">
             {(field) => (
-              <div className="flex flex-col gap-3 small:gap-2">
+              <div className="flex flex-col gap-3">
                 <FieldLabel>Pilih Akun</FieldLabel>
-                <div className="grid max-h-64 grid-cols-1 gap-3 overflow-y-auto scroll-gutter pr-1 small:max-h-52 small:gap-2 xs:grid-cols-2">
+                <div className="grid max-h-64 grid-cols-1 gap-3 overflow-y-auto scroll-gutter pr-1 xs:grid-cols-2">
                   {cashiers.map((cashier) => {
                     const selected = field.state.value === cashier.id;
                     return (
@@ -61,7 +61,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
                           passwordRef.current?.focus();
                         }}
                         className={cn(
-                          "flex items-center gap-3 rounded-xl border p-3 text-small text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring small:gap-2 small:p-2",
+                          "flex items-center gap-3 rounded-xl border p-3 text-sm text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           selected
                             ? "border-primary bg-primary/5 ring-1 ring-primary"
                             : "border-border hover:border-primary/40 hover:bg-accent",
@@ -69,17 +69,17 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
                       >
                         <span
                           className={cn(
-                            "flex size-11 shrink-0 items-center justify-center rounded-full text-normal font-semibold text-white small:size-9 small:text-small",
+                            "flex size-11 shrink-0 items-center justify-center rounded-full text-base font-semibold text-white",
                             avatarColor(cashier.id),
                           )}
                         >
                           {capitalize(cashier.name).charAt(0)}
                         </span>
                         <span className="flex min-w-0 flex-col">
-                          <span className="truncate text-small font-semibold">
+                          <span className="truncate text-sm font-semibold">
                             {capitalize(cashier.name)}
                           </span>
-                          <span className="text-small text-muted-foreground">
+                          <span className="text-sm text-muted-foreground">
                             {cashier.role === "admin" ? "Admin" : "Kasir"}
                           </span>
                         </span>
@@ -94,7 +94,7 @@ export function LoginForm({ cashiers }: { cashiers: Cashier[] }) {
 
           <form.Field name="password">
             {(field) => (
-              <div className="flex flex-col gap-3 small:gap-2">
+              <div className="flex flex-col gap-3">
                 <FieldLabel htmlFor={`input-${field.name}`}>Kata sandi</FieldLabel>
                 <Password
                   ref={passwordRef}

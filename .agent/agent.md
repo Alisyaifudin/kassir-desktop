@@ -51,9 +51,12 @@ If yes — ask first. When in doubt, the answer to "should I run this?" is **no*
 ## 🎨 Design Vibe
 - **Premium Desktop Feel**: The app should feel like a native macOS/Windows application, not a website.
 - **Aesthetics**: Clean, minimal, high contrast, smooth transitions (using `lucide-react` icons).
-- **Typography Tokens**:
-  - Always use utility classes: `text-normal` for standard text and `text-big` for headers/prominent text.
-  - **NO HARDCODED** text sizes (e.g., avoid `text-sm`, `text-lg`, `text-[14px]`).
+- **Type scale** (single, stock Tailwind — no custom tokens, no `small:` variant):
+  - `text-base` (16px) is the body default; `text-sm` (14px) secondary; `text-2xl`
+    (24px) section titles; `text-5xl` (48px) page titles / loud money.
+  - **Stay on the scale.** Avoid off-ramp sizes (`text-xl`, `text-3xl`) and
+    arbitrary `text-[14px]`; `src/lib/design-tokens.test.ts` enforces the allowlist.
+  - Icons take a size class (`size-[30px]` default), never a numeric `size={N}`.
 - **Color Awareness**: Ensure high contrast for readability. Never use dark text on dark backgrounds. Use theme-aware colors.
 - **Responsiveness**: Primarily optimized for desktop screens (POS terminals, laptops).
 
@@ -303,8 +306,8 @@ Use `cn()` from `src/lib/utils.ts` (clsx + tailwind-merge):
 ```tsx
 <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
   <div className="flex flex-col gap-1">
-    <h1 className="text-big font-bold text-foreground">Title</h1>
-    <p className="text-muted-foreground text-normal">Description</p>
+    <h1 className="text-2xl font-bold text-foreground">Title</h1>
+    <p className="text-muted-foreground text-base">Description</p>
   </div>
   {/* content */}
 </main>

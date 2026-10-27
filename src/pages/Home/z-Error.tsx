@@ -14,11 +14,11 @@ export function RegionError({ title, error }: { title: string; error: { message:
     >
       <AlertCircle
         aria-hidden="true"
-        className="mt-1 size-5 shrink-0 text-destructive small:size-4"
+        className="mt-1 size-5 shrink-0 text-destructive"
       />
       <div className="flex min-w-0 flex-col">
         <p className="font-medium text-destructive">{title}</p>
-        <p className="text-small text-muted-foreground">{error.message}</p>
+        <p className="text-sm text-muted-foreground">{error.message}</p>
       </div>
     </div>
   );

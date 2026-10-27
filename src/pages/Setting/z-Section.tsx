@@ -13,7 +13,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
       aria-labelledby={id}
       className="grid gap-2 xl:grid-cols-[180px_1fr] xl:items-start xl:gap-6"
     >
-      <h2 id={id} className="text-normal font-semibold xl:pt-3">
+      <h2 id={id} className="text-base font-semibold xl:pt-3">
         {title}
       </h2>
       {children}

@@ -33,7 +33,7 @@ export function PaymentTime({ draft, className }: { draft: Draft; className?: st
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center gap-2">
-        <span className="text-small text-muted-foreground select-none">Waktu pembayaran:</span>
+        <span className="text-sm text-muted-foreground select-none">Waktu pembayaran:</span>
         <Checkbox
           id={id}
           checked={draft.paidAt === null}
@@ -46,7 +46,7 @@ export function PaymentTime({ draft, className }: { draft: Draft; className?: st
             )
           }
         />
-        <label htmlFor={id} className="text-small select-none">
+        <label htmlFor={id} className="text-sm select-none">
           saat ini
         </label>
       </div>

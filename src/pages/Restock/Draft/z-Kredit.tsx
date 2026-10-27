@@ -58,7 +58,7 @@ export function Kredit({
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-big">Catat sebagai utang?</DialogTitle>
+          <DialogTitle className="text-2xl">Catat sebagai utang?</DialogTitle>
           <DialogDescription>
             Tidak ada pembayaran yang dicatat. Pembelian ini masuk sebagai utang dan dibayar
             lewat halaman Utang.

@@ -24,11 +24,11 @@ export function SettingLink() {
           showShortcut(false);
         }}
         className={cn(
-          "rounded-full h-10 w-10 small:h-8 small:w-8 transition-all hover:bg-sky-400/50",
+          "rounded-full h-10 w-10 transition-all hover:bg-sky-400/50",
           pathname.includes("/setting") && "bg-white/80",
         )}
       >
-        <Settings className="size-6 small:size-5" />
+        <Settings className="size-6" />
       </Button>
     </div>
   );

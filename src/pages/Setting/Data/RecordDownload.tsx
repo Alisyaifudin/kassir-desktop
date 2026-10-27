@@ -9,9 +9,9 @@ export default function RecordDownload() {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-normal font-medium">Riwayat</h3>
+        <h3 className="text-base font-medium">Riwayat</h3>
       </div>
-      <form onSubmit={handleSubmit} className="flex items-end justify-between text-normal">
+      <form onSubmit={handleSubmit} className="flex items-end justify-between text-base">
         <input type="hidden" name="action" value="record"></input>
         <div className="flex gap-3 items-end">
           <DateRange range={range} setRange={setRange} />

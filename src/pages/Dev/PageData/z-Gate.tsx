@@ -47,7 +47,7 @@ function StatusChip({ name }: { name: keyof DemoPageData }) {
   return (
     <span
       title="pageData.useStatus(key)"
-      className={cn("w-fit rounded-full border px-2 py-0.5 text-small", STATUS_TONE[status])}
+      className={cn("w-fit rounded-full border px-2 py-0.5 text-sm", STATUS_TONE[status])}
     >
       {name}: {status}
     </span>
@@ -59,7 +59,7 @@ function Retry({ name }: { name: keyof DemoPageData }) {
 
   return (
     <Button variant="outline" size="sm" onClick={() => refresh(name)}>
-      <RefreshCw className="size-4 small:size-3.5" />
+      <RefreshCw className="size-4" />
       Coba lagi
     </Button>
   );
@@ -78,7 +78,7 @@ export function GateOneKey() {
           {({ profile }) => (
             <div className="flex flex-col gap-1">
               <p className="font-medium">{profile.name}</p>
-              <p className="text-small text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {profile.role} · {profile.shop}
               </p>
             </div>
@@ -103,12 +103,12 @@ export function GateFailure() {
           pulse={<Rows rows={2} />}
           error={(error) => (
             <div className="flex flex-col items-start gap-2">
-              <p className="text-small text-destructive">{error.message}</p>
+              <p className="text-sm text-destructive">{error.message}</p>
               <Retry name="broken" />
             </div>
           )}
         >
-          {({ broken }) => <p className="text-small">{broken}</p>}
+          {({ broken }) => <p className="text-sm">{broken}</p>}
         </pageData.Gate>
       </div>
     </Card>
@@ -144,12 +144,12 @@ function FlakyBody({ value }: { value: string }) {
     <div className="flex flex-col items-start gap-2">
       <p className="font-medium">{value}</p>
       <Show when={status === "stale"}>
-        <p className="text-small text-amber-600 dark:text-amber-400">
+        <p className="text-sm text-amber-600 dark:text-amber-400">
           Penyegaran terakhir gagal — nilai lama dipertahankan.
         </p>
       </Show>
       <Button variant="outline" size="sm" onClick={() => refresh("flaky")}>
-        <RefreshCw className="size-4 small:size-3.5" />
+        <RefreshCw className="size-4" />
         Segarkan (akan gagal)
       </Button>
     </div>
@@ -186,9 +186,9 @@ function WriteBody({ value }: { value: string }) {
   return (
     <div className="flex flex-col items-start gap-2">
       <p className="font-medium">{value}</p>
-      <p className="text-small text-muted-foreground">status tulis: {line}</p>
+      <p className="text-sm text-muted-foreground">status tulis: {line}</p>
       <Button size="sm" disabled={save.pending} onClick={() => void save.mutate(undefined)}>
-        <RefreshCw className="size-4 small:size-3.5" />
+        <RefreshCw className="size-4" />
         Tulis, lalu segarkan
       </Button>
     </div>
@@ -246,7 +246,7 @@ export function GateValues() {
 function Figure({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-small text-muted-foreground">{label}</dt>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="font-semibold tabular-nums">{children}</dd>
     </div>
   );

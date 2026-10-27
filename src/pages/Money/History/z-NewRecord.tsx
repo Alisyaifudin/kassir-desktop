@@ -28,15 +28,15 @@ export const NewRecord = memo(function NewRecord({ pocket }: { pocket: Pocket })
       <Button
         asChild
         size="icon"
-        className="fixed bottom-6 right-6 z-40 size-14 rounded-full shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95 small:bottom-4 small:right-4 small:size-12"
+        className="fixed bottom-6 right-6 z-40 size-14 rounded-full shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95"
       >
         <DialogTrigger aria-label="Tambah catatan baru">
-          <Plus className="icon" />
+          <Plus className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Tambah Catatan Keuangan Baru</DialogTitle>
+          <DialogTitle className="text-2xl">Tambah Catatan Keuangan Baru</DialogTitle>
           <DialogDescription>
             Catatan pemasukan atau pengeluaran pada kantong yang sedang dibuka.
           </DialogDescription>

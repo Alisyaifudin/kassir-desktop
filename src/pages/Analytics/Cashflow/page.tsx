@@ -23,7 +23,7 @@ import {
   TOOLTIP,
   money,
   moneyTick,
-  useChartGeometry,
+  chartGeometry,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -75,7 +75,7 @@ function Body({
   to: number;
   interval: Interval;
 }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   const buckets = bucketise(daily, margins, from, to, interval);
   const incoming = daily.filter((row) => row.mode === "incoming");
   const outgoing = daily.filter((row) => row.mode === "outcoming");

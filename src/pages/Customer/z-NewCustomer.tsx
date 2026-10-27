@@ -28,7 +28,7 @@ export const NewCustomer = memo(function NewCustomer() {
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Tambah Pelanggan</DialogTitle>
+          <DialogTitle className="text-2xl">Tambah Pelanggan</DialogTitle>
         </DialogHeader>
         <DialogDescription>Pelanggan baru untuk transaksi kredit dan riwayat pembeliannya.</DialogDescription>
         <form
@@ -39,7 +39,7 @@ export const NewCustomer = memo(function NewCustomer() {
           }}
           className="flex flex-col gap-2"
         >
-          <FieldGroup className="grid grid-cols-[250px_1fr] small:grid-cols-[210px_1fr]">
+          <FieldGroup className="grid grid-cols-[250px_1fr]">
             <form.Field name="name">
               {(field) => (
                 <Field>

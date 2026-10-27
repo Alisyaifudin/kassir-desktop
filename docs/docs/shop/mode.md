@@ -52,7 +52,7 @@ Transaksi disimpan sebagai satu blok atomik (BEGIN/COMMIT) — jika terjadi erro
 
 ## Cetak Struk
 
-Struk dibuat dalam format PDF menggunakan pdf-lib, lalu dikirim ke printer thermal Windows melalui winprint. Struk berisi:
+Struk dibuat dalam format PDF di sisi Rust (printpdf), lalu dikirim ke printer thermal Windows melalui winprint. Struk berisi:
 
 - Header toko (nama, alamat, tanggal)
 - Daftar produk (nama, qty, harga, diskon, subtotal)

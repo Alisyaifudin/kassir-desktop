@@ -17,12 +17,12 @@ import { run } from "~/components/cart/run";
 export function Precision({ draft }: { draft: Draft }) {
   return (
     <label htmlFor="precision" className="flex items-center gap-2 pb-1 select-none">
-      <span className="text-small text-muted-foreground">Presisi</span>
+      <span className="text-sm text-muted-foreground">Presisi</span>
       <Select
         value={draft.fix.toString()}
         onValueChange={(value) => run(service.transaction.set.fix(draft.id, Number(value)))}
       >
-        <SelectTrigger id="precision" className="h-8 small:w-[64px] w-[80px]">
+        <SelectTrigger id="precision" className="h-8 w-[80px]">
           <SelectValue>{draft.fix}</SelectValue>
         </SelectTrigger>
         <SelectContent className="min-w-[50px]">

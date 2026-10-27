@@ -13,12 +13,12 @@ const VISIBLE = 5;
  * Same floor as the ledger: the list area is reserved from the first frame, so
  * `Gate` can hold the skeleton back 200 ms (no flash on a fast read) and the
  * card still keeps its height between the first paint and the first balance.
- * Four rows, big or small — a shape to tune here, not a measurement.
+ * Four rows — a shape to tune here, not a measurement.
  */
-const ROWS_FLOOR = "min-h-[208px] small:min-h-[192px]";
-/** One placeholder line, the height of a real pocket row at either app size. */
+const ROWS_FLOOR = "min-h-[160px]";
+/** One placeholder line, the height of a real pocket row. */
 const SKELETON_ROW =
-  "flex min-h-[52px] small:min-h-[48px] items-center justify-between gap-3 px-4";
+  "flex min-h-[40px] items-center justify-between gap-3 px-4";
 
 /**
  * The money card: what each pocket holds right now. Rendered only for admins
@@ -56,7 +56,7 @@ function Pockets({ pockets }: { pockets: PocketSummary[] }) {
 
   if (shown.length === 0) {
     return (
-      <p className="px-4 py-6 text-small text-muted-foreground">Belum ada kantong uang.</p>
+      <p className="px-4 py-6 text-sm text-muted-foreground">Belum ada kantong uang.</p>
     );
   }
 
@@ -68,10 +68,10 @@ function Pockets({ pockets }: { pockets: PocketSummary[] }) {
             key={item.pocket.id}
             className="flex items-baseline justify-between gap-3 px-4 py-2.5"
           >
-            <span className="min-w-0 truncate text-small text-muted-foreground">
+            <span className="min-w-0 truncate text-sm text-muted-foreground">
               {item.pocket.name}
             </span>
-            <span className="shrink-0 text-small font-semibold tabular-nums">
+            <span className="shrink-0 text-sm font-semibold tabular-nums">
               {item.latest === null ? (
                 <span className="font-normal text-muted-foreground">Masih kosong</span>
               ) : (
@@ -82,7 +82,7 @@ function Pockets({ pockets }: { pockets: PocketSummary[] }) {
         ))}
       </ul>
       {rest > 0 ? (
-        <p className="border-t px-4 py-2 text-small text-muted-foreground">
+        <p className="border-t px-4 py-2 text-sm text-muted-foreground">
           {rest} kantong lain di Uang
         </p>
       ) : null}

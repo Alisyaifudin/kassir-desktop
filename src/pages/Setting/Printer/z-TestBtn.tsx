@@ -16,7 +16,7 @@ export function TestBtn() {
       {/* `role="status"`: the one thing a cashier needs after a test print, and
           it must be announced, not just drawn. It says "sent", never "printed". */}
       {success === null ? null : (
-        <p role="status" className="text-normal text-muted-foreground">
+        <p role="status" className="text-base text-muted-foreground">
           {success}
         </p>
       )}

@@ -10,18 +10,18 @@ import { Loading } from "./z-LoadingTable";
 export default function Page() {
   return (
     <pageData.Provider sources={{ extras: service.extra.get.changes }}>
-      <Layout className="flex flex-col gap-5 py-2 px-0.5 flex-1 overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
+      <Layout className="flex flex-col gap-5 py-2 px-0.5 flex-1 overflow-hidden h-[calc(100vh-48px)]">
         <ExtraPanel />
         <div className="flex-1 overflow-hidden min-h-0 w-full">
           <div className="flex flex-col h-full overflow-hidden">
-            <Table className="text-normal">
+            <Table className="text-base">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]">No</TableHead>
                   <TableHead>Nama</TableHead>
                   <TableHead className="text-right w-[150px]">Jenis</TableHead>
                   <TableHead className="text-right w-[200px]">Nilai Awal</TableHead>
-                  <TableHead className="icon"></TableHead>
+                  <TableHead className="size-5"></TableHead>
                 </TableRow>
               </TableHeader>
               <List />

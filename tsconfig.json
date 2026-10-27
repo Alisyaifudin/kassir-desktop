@@ -6,7 +6,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
-    "types": ["bun-types", "@testing-library/jest-dom", "vite-plugin-arraybuffer"],
+    "types": ["bun-types", "@testing-library/jest-dom"],
 
     "forceConsistentCasingInFileNames": true,
     /* Bundler mode */

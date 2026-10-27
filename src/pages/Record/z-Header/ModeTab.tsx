@@ -9,7 +9,7 @@ export function ModeTab() {
       <Button
         variant="ghost"
         className={cn(
-          "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
+          "px-3 h-10 text-base font-bold rounded-md transition-all duration-200",
           mode === "incoming"
             ? "bg-background text-primary shadow-sm hover:bg-background"
             : "text-muted-foreground hover:text-foreground hover:bg-transparent",
@@ -21,7 +21,7 @@ export function ModeTab() {
       <Button
         variant="ghost"
         className={cn(
-          "px-3 h-10 text-normal font-bold rounded-md transition-all duration-200",
+          "px-3 h-10 text-base font-bold rounded-md transition-all duration-200",
           mode === "outcoming"
             ? "bg-background text-primary shadow-sm hover:bg-background"
             : "text-muted-foreground hover:text-foreground hover:bg-transparent",

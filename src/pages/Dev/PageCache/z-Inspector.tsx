@@ -31,8 +31,8 @@ export function Inspector() {
     <section className="mb-3 rounded-xl border bg-background p-3" data-testid="cache-inspector">
       <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-normal font-semibold">Isi cache</h2>
-          <p className="text-small text-muted-foreground">
+          <h2 className="text-base font-semibold">Isi cache</h2>
+          <p className="text-sm text-muted-foreground">
             {entries.length} entri / {maxEntries} · hit {stats.hits} · miss {stats.misses} · tulis{" "}
             {stats.writes} · invalidasi {stats.invalidations} · evict {stats.evictions}
           </p>
@@ -51,13 +51,13 @@ export function Inspector() {
       </header>
 
       {entries.length === 0 ? (
-        <p className="text-small text-muted-foreground">Kosong. Setiap key akan membaca ulang.</p>
+        <p className="text-sm text-muted-foreground">Kosong. Setiap key akan membaca ulang.</p>
       ) : (
         <ul className="flex flex-col divide-y">
           {entries.map((entry) => (
             <li
               key={`${entry.tag}-${entry.deps}`}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-small"
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-sm"
               data-entry={entry.tag}
               data-stale={entry.stale ? "true" : "false"}
             >
@@ -85,7 +85,7 @@ export function Inspector() {
         </ul>
       )}
 
-      <p className="mt-2 text-small text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground">
         Tag = identitas bacaan · deps = pertanyaan yang dijawab. Nilai dianggap segar sampai ada
         yang membatalkannya — tidak ada TTL.
       </p>

@@ -131,7 +131,7 @@ export function Tabs({
         title="Tab baru (F12)"
         onClick={onCreate}
       >
-        <Plus className="icon" />
+        <Plus className="size-5" />
       </Button>
       <div
         role="tablist"
@@ -156,12 +156,12 @@ export function Tabs({
                 selected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
               )}
             >
-              <span className="max-w-[160px] truncate text-small font-medium select-none">
+              <span className="max-w-[160px] truncate text-sm font-medium select-none">
                 {label}
               </span>
               <span
                 className={cn(
-                  "rounded-full px-1.5 text-small font-bold tabular-nums select-none",
+                  "rounded-full px-1.5 text-sm font-bold tabular-nums select-none",
                   selected ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
                 )}
               >
@@ -182,7 +182,7 @@ export function Tabs({
                   setPendingDelete(draft);
                 }}
               >
-                <X className="icon" />
+                <X className="size-5" />
               </Button>
             </div>
           );
@@ -196,7 +196,7 @@ export function Tabs({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-big">Hapus transaksi?</DialogTitle>
+            <DialogTitle className="text-2xl">Hapus transaksi?</DialogTitle>
             <DialogDescription>
               Tab &ldquo;{pendingDelete?.title ?? "Transaksi Baru"}&rdquo; beserta barisnya akan
               dihapus dari perangkat. Tindakan ini tidak bisa dibatalkan.

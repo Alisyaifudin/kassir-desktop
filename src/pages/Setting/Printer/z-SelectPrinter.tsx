@@ -25,10 +25,10 @@ import { useChangePrinterName } from "./use-change-name";
 export function SelectPrinter() {
   return (
     <div className="flex flex-col gap-1">
-      <Label htmlFor="default-printer" className="text-normal font-semibold">
+      <Label htmlFor="default-printer" className="text-base font-semibold">
         Printer Terpilih
       </Label>
-      <p className="text-normal text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         Pilih printer yang akan digunakan untuk mencetak struk
       </p>
 
@@ -43,7 +43,7 @@ export function SelectPrinter() {
               <Select disabled value="">
                 <SelectTrigger
                   id="default-printer"
-                  className="mt-1 w-56 border-border bg-background small:w-44"
+                  className="mt-1 w-56 border-border bg-background"
                 >
                   <SelectValue placeholder=" " />
                 </SelectTrigger>
@@ -78,7 +78,7 @@ function Picker({ printer, printers }: { printer: Printer; printers: string[] })
         <Select value={name} onValueChange={handleChange}>
           <SelectTrigger
             id="default-printer"
-            className="mt-1 w-56 border-border bg-background small:w-44"
+            className="mt-1 w-56 border-border bg-background"
           >
             <SelectValue placeholder={printer.name} />
           </SelectTrigger>

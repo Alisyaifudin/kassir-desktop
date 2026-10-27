@@ -62,7 +62,7 @@ export function Bottom({
           turned the whole payment column into a scroll box. The panel sizes to
           its content instead, and the goods grid above (flex-1, min-h-0) gives
           up the difference. */}
-      <div className="min-w-[700px] small:min-w-[500px] flex-3 shrink-0 border-r">
+      <div className="min-w-[700px] flex-3 shrink-0 border-r">
         {draft === null ? (
           // The strip's shape is reserved from the first frame but drawn only
           // after the anti-flash window: the drafts usually answer in a few
@@ -164,7 +164,7 @@ function PayStrip(props: PayStripProps) {
     <>
       <Body {...props} catalog={catalog} />
       {res.type !== "error" ? null : (
-        <div className="flex flex-wrap items-center gap-2 border-t px-2 pb-2 text-small text-destructive">
+        <div className="flex flex-wrap items-center gap-2 border-t px-2 pb-2 text-sm text-destructive">
           <span role="alert">Daftar metode pembayaran gagal dimuat: {res.error.message}</span>
           <Button size="sm" variant="outline" onClick={() => refresh("methods")}>
             Coba lagi
@@ -186,15 +186,15 @@ function PaymentLoading() {
   return (
     <div className="flex min-w-0 flex-col" aria-busy="true" aria-label="Memuat pembayaran">
       <div className="flex flex-col items-end border-b px-2">
-        <span className="text-small text-muted-foreground select-none">Pembulatan</span>
-        <Skeleton className="w-full h-[40px] small:h-[30px] rounded-none" />
+        <span className="text-sm text-muted-foreground select-none">Pembulatan</span>
+        <Skeleton className="w-full h-9 rounded-none" />
       </div>
       <div className="p-1">
-        <Skeleton className="h-[73px] w-full small:h-[56px] rounded-none" />
+        <Skeleton className="h-11 w-full rounded-none" />
       </div>
       <div className="flex items-center justify-between gap-2 border-t px-2 pt-2 pb-1">
-        <SkeletonText className=" w-full max-w-[120px] rounded-none" />
-        <SkeletonText className="w-full max-w-[400px] small:max-w-[300px] small:h-[70px] h-[80px]" />
+        <SkeletonText className=" w-full max-w-[80px] rounded-none" />
+        <SkeletonText className="w-full max-w-[240px] h-[48px]" />
       </div>
     </div>
   );
@@ -240,17 +240,17 @@ function Body({
         focusRounding={focusRounding}
         onSubmit={onSubmit}
       />
-      <div className="flex flex-col gap-1 border-t text-small tabular-nums">
+      <div className="flex flex-col gap-1 border-t text-sm tabular-nums">
         <div
           className={cn(
             "flex items-center justify-between gap-2",
             change.isNegative() && "text-destructive",
           )}
         >
-          <span className="text-muted-foreground text-normal">
+          <span className="text-muted-foreground text-base">
             {change.isNegative() ? "Sisa" : "Kembalian"}
           </span>
-          <span className="font-bold text-change">{rupiah(change.abs(), draft.fix)}</span>
+          <span className="font-bold text-5xl">{rupiah(change.abs(), draft.fix)}</span>
         </div>
       </div>
     </div>

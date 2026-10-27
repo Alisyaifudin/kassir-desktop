@@ -4,7 +4,7 @@ import type { Extra } from "~/services/extra";
 export function Info({ extra }: { extra: Extra }) {
   return (
     <div className="grid grid-cols-[150px_1fr] h-fit gap-3 w-full">
-      <h1 className="font-bold text-big col-span-2">Info biaya lainnya</h1>
+      <h1 className="font-bold text-2xl col-span-2">Info biaya lainnya</h1>
       <span>Nama</span>
       <span>{extra.name}</span>
       <span>Jenis</span>

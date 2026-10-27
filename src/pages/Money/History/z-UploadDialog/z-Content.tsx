@@ -45,7 +45,7 @@ export function Content({ pocketId }: { pocketId: string }) {
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
-        <h3 className="text-normal font-bold mb-2">Catatan Keuangan</h3>
+        <h3 className="text-base font-bold mb-2">Catatan Keuangan</h3>
       </div>
       <TextError>{error}</TextError>
       <Selected pocketId={pocketId} data={data} onRemove={removeFile} />

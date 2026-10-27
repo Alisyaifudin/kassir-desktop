@@ -12,11 +12,11 @@ export function FreshForm() {
 
   return (
     <>
-      <div className="mb-6 flex flex-col gap-2 small:mb-5 small:gap-1">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white small:size-12">
-          <Rocket className="size-7 small:size-6" />
+      <div className="mb-6 flex flex-col gap-2">
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+          <Rocket className="size-7" />
         </span>
-        <h1 className="text-big font-bold tracking-tight">Selamat datang di Kassir</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Selamat datang di Kassir</h1>
         <p className="text-muted-foreground">
           Buat akun admin pertama untuk mulai mengelola toko Anda. 😊
         </p>
@@ -27,12 +27,12 @@ export function FreshForm() {
           e.preventDefault();
           form.handleSubmit();
         }}
-        className="flex flex-col gap-6 small:gap-5"
+        className="flex flex-col gap-6"
       >
-        <FieldGroup className="gap-6 small:gap-5">
+        <FieldGroup className="gap-6">
           <form.Field name="name">
             {(field) => (
-              <div className="flex flex-col gap-3 small:gap-2">
+              <div className="flex flex-col gap-3">
                 <FieldLabel htmlFor={`input-${field.name}`}>Nama</FieldLabel>
                 <Input
                   required
@@ -51,7 +51,7 @@ export function FreshForm() {
 
           <form.Field name="password">
             {(field) => (
-              <div className="flex flex-col gap-3 small:gap-2">
+              <div className="flex flex-col gap-3">
                 <FieldLabel htmlFor={`input-${field.name}`}>Kata sandi</FieldLabel>
                 <Password
                   id={`input-${field.name}`}
@@ -69,7 +69,7 @@ export function FreshForm() {
 
           <form.Field name="confirm">
             {(field) => (
-              <div className="flex flex-col gap-3 small:gap-2">
+              <div className="flex flex-col gap-3">
                 <FieldLabel htmlFor={`input-${field.name}`}>Ulangi kata sandi</FieldLabel>
                 <Password
                   id={`input-${field.name}`}

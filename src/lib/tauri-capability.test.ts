@@ -86,8 +86,7 @@ describe("Tauri capability", () => {
     expect(identifiers).toContain("fs:allow-mkdir");
   });
 
-  test("grants the destroy a close needs", () => {
-    // The app could not be quit for a while and nothing said so. Tauri's Rust
+  test("grants the destroy a close needs", () => {    // The app could not be quit for a while and nothing said so. Tauri's Rust
     // handler refuses the OS's close as soon as a JS listener sits on
     // `tauri://close-requested` (`manager/window.rs`: `api.prevent_close()`), so
     // the window lives or dies by a `destroy()` from the webview — and
@@ -99,6 +98,15 @@ describe("Tauri capability", () => {
       capability.permissions.map(identifierOf),
     );
     expect(identifiers).toContain("core:window:allow-destroy");
+  });
+
+  test("grants the webview zoom the Tampilan slider needs", () => {
+    // `src/services/zoom/live.ts` calls `getCurrentWebview().setZoom()`; without
+    // this grant Tauri refuses the call and the slider can only report an error.
+    const identifiers = capabilities().flatMap((capability) =>
+      capability.permissions.map(identifierOf),
+    );
+    expect(identifiers).toContain("core:webview:allow-set-webview-zoom");
   });
 
   test("grants no self-update or process-control permission", () => {

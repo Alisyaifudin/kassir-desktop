@@ -18,10 +18,10 @@ export default function Layout() {
     <main
       className={cn(
         "grid w-full flex-1 overflow-hidden bg-muted/50",
-        "h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]",
+        "h-[calc(100vh-48px)]",
         isHub
           ? "grid-cols-1"
-          : "grid-cols-1 xl:grid-cols-[264px_1fr] lg:small:grid-cols-[180px_1fr]",
+          : "grid-cols-1 xl:grid-cols-[264px_1fr] lg:",
       )}
     >
       {isHub ? null : <NavPanel />}

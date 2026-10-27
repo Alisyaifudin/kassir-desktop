@@ -12,7 +12,7 @@ import { RecordsErrorFallback } from "./z-Error";
 import { RecordsLoading } from "./z-Loading";
 
 const GRID =
-  "grid gap-2 h-full overflow-hidden transition-opacity duration-200 grid-cols-[490px_1px_1fr] small:grid-cols-[335px_1px_1fr]";
+  "grid gap-2 h-full overflow-hidden transition-opacity duration-200 grid-cols-[490px_1px_1fr]";
 
 /**
  * The day's list and the selected record beside it.
@@ -47,7 +47,7 @@ function Screen() {
   const busy = useDelayedFlag(pageData.useStatus("records") === "refreshing");
 
   return (
-    <main className="flex flex-col gap-2 p-0.5 flex-1 overflow-hidden h-[calc(100vh-64px)] small:h-[calc(100vh-48px)]">
+    <main className="flex flex-col gap-2 p-0.5 flex-1 overflow-hidden h-[calc(100vh-48px)]">
       <Header busy={busy} />
       <div className="flex-1 min-h-0">
         <div

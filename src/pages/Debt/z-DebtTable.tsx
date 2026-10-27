@@ -34,12 +34,12 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
   };
 
   return (
-    <Table className="text-normal " parentClass="rounded-md border ">
+    <Table className="text-base " parentClass="rounded-md border ">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">No</TableHead>
           <TableHead
-            className="w-[300px] small:w-[240px]"
+            className="w-[300px]"
             aria-sort={sortBy === "paidAt" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
           >
             <SortBtn sort={sortBy === "paidAt" ? sortDir : undefined} onClick={onSort("paidAt")}>
@@ -48,7 +48,7 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
           </TableHead>
           <TableHead>Catatan</TableHead>
           <TableHead
-            className="w-[170px] text-right small:w-[150px]"
+            className="w-[170px] text-right"
             aria-sort={sortBy === "total" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
           >
             <SortBtn
@@ -88,7 +88,7 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
                       search: `?tab=detail&url_back=${encodeURIComponent(urlBack)}`,
                     }}
                   >
-                    <ExternalLink className="size-8 small:size-6" aria-label="Buka catatan" />
+                    <ExternalLink className="size-8" aria-label="Buka catatan" />
                   </Link>
                 </Button>
               </TableCell>

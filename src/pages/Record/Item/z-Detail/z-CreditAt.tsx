@@ -16,12 +16,12 @@ export function CreditAt({ record }: { record: RecordFull }) {
       <div className="flex items-center gap-1">
         <Spinner when={loading} />
         <Calendar
-          className="w-fit small:w-fit"
+          className="w-fit"
           granularity="instant"
           time={creditAt}
           setTime={change}
         >
-          <p className="text-small tabular-nums">Kredit {formatTime(creditAt, "short")} · {formatDate(creditAt, "long")}</p>
+          <p className="text-sm tabular-nums">Kredit {formatTime(creditAt, "short")} · {formatDate(creditAt, "long")}</p>
         </Calendar>
       </div>
       <TextError>{error}</TextError>

@@ -3,5 +3,5 @@ import { cn } from "~/lib/utils";
 
 export function Spinner({ when, className }: { when: boolean; className?: string }) {
 	if (!when) return null;
-	return <Loader2 className={cn("animate-spin icon", className)} />;
+	return <Loader2 className={cn("animate-spin size-5", className)} />;
 }

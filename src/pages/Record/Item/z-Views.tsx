@@ -29,10 +29,10 @@ export function Views({ busy }: { busy: boolean }) {
     >
       <div className="flex justify-between items-center gap-2 shrink-0">
         <TabsList className="h-fit">
-          <TabsTrigger className="text-normal" value="detail">
+          <TabsTrigger className="text-base" value="detail">
             Detail
           </TabsTrigger>
-          <TabsTrigger className="text-normal" value="receipt">
+          <TabsTrigger className="text-base" value="receipt">
             Resi
           </TabsTrigger>
         </TabsList>

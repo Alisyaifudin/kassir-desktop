@@ -119,7 +119,7 @@ export function StocksFields({
             className={cn("rounded-lg border bg-muted/20 px-3", flat && "rounded-none border-0")}
           >
             <AccordionItem value="folded" className="border-b-0">
-              <AccordionTrigger className="py-2 text-small text-muted-foreground hover:no-underline">
+              <AccordionTrigger className="py-2 text-sm text-muted-foreground hover:no-underline">
                 {foldedLabel(folded)}
               </AccordionTrigger>
               <AccordionContent
@@ -157,7 +157,7 @@ function StockTotals({
   value?: string;
 }) {
   return (
-    <p className="text-small text-muted-foreground">
+    <p className="text-sm text-muted-foreground">
       {STOCK_TOTALS.total} {total ?? <SkeletonText className="w-8" />} {STOCK_TOTALS.unit} ·{" "}
       {STOCK_TOTALS.average} {average ?? <SkeletonText className="w-10" />} ·{" "}
       {STOCK_TOTALS.value} {value ?? <SkeletonText className="w-12" />}
@@ -200,12 +200,12 @@ function StockRow({
             onClick={onAdjust}
             title={STOCK_ROW.adjust}
             className={cn(
-              "flex w-full items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3 py-1 text-left text-normal tabular-nums shadow-sm transition-colors",
+              "flex w-full items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3 py-1 text-left text-base tabular-nums shadow-sm transition-colors",
               "hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
             <span>{parseNumber(stock.value).toLocaleString("id-ID")}</span>
-            <Pencil className="icon shrink-0 text-muted-foreground" />
+            <Pencil className="size-5 shrink-0 text-muted-foreground" />
           </button>
         ) : (
           <NumberField
@@ -227,12 +227,12 @@ function StockRow({
       <Button
         type="button"
         variant="ghost"
-        className="size-11 small:size-9"
+        className="size-11"
         disabled={disabled || !canRemove}
         onClick={onRemove}
         aria-label={STOCK_ROW.remove}
       >
-        <Trash2 className="icon" />
+        <Trash2 className="size-5" />
       </Button>
     </div>
   );
@@ -257,11 +257,11 @@ export function StockRowSkeleton({ index }: { index: number }) {
         <Button
           type="button"
           variant="ghost"
-          className="size-11 small:size-9"
+          className="size-11"
           disabled
           aria-label={STOCK_ROW.remove}
         >
-          <Trash2 className="icon" />
+          <Trash2 className="size-5" />
         </Button>
       </div>
       <StockTotals />

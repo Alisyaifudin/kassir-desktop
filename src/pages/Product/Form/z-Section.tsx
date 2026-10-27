@@ -68,15 +68,15 @@ export function Section({
     >
       <header className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h2 className={cn("font-semibold", flat ? "text-normal" : "text-small")}>{title}</h2>
+          <h2 className={cn("font-semibold", flat ? "text-base" : "text-sm")}>{title}</h2>
           {description ? (
-            <p className="text-small text-muted-foreground">{description}</p>
+            <p className="text-sm text-muted-foreground">{description}</p>
           ) : null}
         </div>
         {action}
       </header>
       {children}
-      {error ? <p className="text-small text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </section>
   );
 }
@@ -101,11 +101,11 @@ export function SectionAdd({
     <Button
       type="button"
       variant="outline"
-      className="h-11 gap-1 text-small small:h-9"
+      className="h-11 gap-1 text-sm"
       disabled={disabled}
       onClick={onClick}
     >
-      <Plus className="icon" /> {label}
+      <Plus className="size-5" /> {label}
     </Button>
   );
 }

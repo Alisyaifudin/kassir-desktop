@@ -20,7 +20,7 @@ export function Supplier({ draft }: { draft: Draft }) {
     <div className="flex flex-col gap-2">
       <Field draft={draft} suppliers={suppliers} />
       {res.type === "error" ? (
-        <p role="alert" className="text-small text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           Daftar pemasok gagal dimuat ({res.error.message}). Pembelian tetap bisa disimpan,
           tetapi pemasok harus diketik sebagai pemasok baru.
         </p>
@@ -62,7 +62,7 @@ function Field({
         emptyText="Pemasok baru"
       />
       {draft.supplierId === null && draft.supplierName.trim() !== "" ? (
-        <p className="text-small text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Pemasok baru &ldquo;{draft.supplierName}&rdquo; akan dibuat saat Bayar.
         </p>
       ) : null}

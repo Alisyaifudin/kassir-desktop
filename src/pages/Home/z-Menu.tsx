@@ -159,7 +159,7 @@ export function Menu() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-normal font-semibold">Menu</h2>
+      <h2 className="text-base font-semibold">Menu</h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {items.map((item) => {
           const meta = item.alt ?? (item.admin === true ? "admin" : null);
@@ -179,7 +179,7 @@ export function Menu() {
                   {meta === null ? null : (
                     <span
                       className={cn(
-                        "text-small text-muted-foreground",
+                        "text-sm text-muted-foreground",
                         item.alt === undefined ? undefined : "tabular-nums",
                       )}
                     >
@@ -188,8 +188,8 @@ export function Menu() {
                   )}
                 </span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-small font-medium">{item.label}</span>
-                  <span className="text-small text-muted-foreground">{item.description}</span>
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-sm text-muted-foreground">{item.description}</span>
                 </span>
               </Link>
             </li>

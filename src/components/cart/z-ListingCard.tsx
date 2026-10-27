@@ -110,7 +110,7 @@ export const ListingCard = memo(function ListingCard({
         <div
           role="gridcell"
           aria-selected={false}
-          className="col-span-1 flex items-center justify-center border-r text-normal text-muted-foreground tabular-nums select-none"
+          className="col-span-1 flex items-center justify-center border-r text-base text-muted-foreground tabular-nums select-none"
         >
           {number}
         </div>
@@ -138,7 +138,7 @@ export const ListingCard = memo(function ListingCard({
           aria-selected={selected === "grandTotal"}
           onClick={() => onSelect("grandTotal")}
           className={cn(
-            "col-span-2 flex items-center justify-end border-r px-2 text-big font-bold tabular-nums select-none",
+            "col-span-2 flex items-center justify-end border-r px-2 text-2xl font-bold tabular-nums select-none",
             selected === "grandTotal" && SELECTED_RING,
           )}
         >
@@ -165,7 +165,7 @@ export const ListingCard = memo(function ListingCard({
               onRemove();
             }}
           >
-            <X className="icon" />
+            <X className="size-5" />
           </Button>
         </div>
       </div>
@@ -177,7 +177,7 @@ export const ListingCard = memo(function ListingCard({
           {...attributes}
           title="Geser untuk mengubah urutan"
         >
-          <GripVertical className="icon" />
+          <GripVertical className="size-5" />
         </div>
         <Cell
           id={`cell-${line.id}-code`}
@@ -255,10 +255,10 @@ export const ListingCard = memo(function ListingCard({
             selected === "diskon" && SELECTED_RING,
           )}
         >
-          <span className="text-small leading-none text-muted-foreground select-none">Diskon</span>
+          <span className="text-sm leading-none text-muted-foreground select-none">Diskon</span>
           <Button
             variant="ghost"
-            className="h-auto w-full justify-start p-0 text-normal"
+            className="h-auto w-full justify-start p-0 text-base"
             onClick={(event) => {
               event.stopPropagation();
               onSelect("diskon");
@@ -269,7 +269,7 @@ export const ListingCard = memo(function ListingCard({
               `-${rupiah(discountTotal)}`
             ) : (
               <>
-                <Plus className="icon" />
+                <Plus className="size-5" />
                 Tambah
               </>
             )}
@@ -340,7 +340,7 @@ function QtyCell({
       <span
         onClick={() => onSelect("value")}
         onDoubleClick={onStartEdit}
-        className="text-small leading-none text-muted-foreground select-none text-center"
+        className="text-sm leading-none text-muted-foreground select-none text-center"
       >
         Kuantitas
       </span>
@@ -362,7 +362,7 @@ function QtyCell({
               onEditingDone();
             }
           }}
-          className="h-9 rounded-none border-0 bg-transparent p-0 text-center text-normal shadow-none focus-visible:ring-0 small:h-7"
+          className="h-9 rounded-none border-0 bg-transparent p-0 text-center text-base shadow-none focus-visible:ring-0"
         />
       ) : (
         <div className="flex items-center justify-between gap-0.5">
@@ -380,7 +380,7 @@ function QtyCell({
               selected && selectedSub === "left" && SELECTED_RING,
             )}
           >
-            <ChevronLeft className="icon" />
+            <ChevronLeft className="size-5" />
           </button>
           <button
             type="button"
@@ -388,7 +388,7 @@ function QtyCell({
             onClick={() => onSelect("value")}
             onDoubleClick={onStartEdit}
             className={cn(
-              "min-w-0 flex-1 truncate rounded-sm text-center text-normal tabular-nums",
+              "min-w-0 flex-1 truncate rounded-sm text-center text-base tabular-nums",
               selected && selectedSub === "value" && SELECTED_RING,
             )}
           >
@@ -408,7 +408,7 @@ function QtyCell({
               selected && selectedSub === "right" && SELECTED_RING,
             )}
           >
-            <ChevronRight className="icon" />
+            <ChevronRight className="size-5" />
           </button>
         </div>
       )}

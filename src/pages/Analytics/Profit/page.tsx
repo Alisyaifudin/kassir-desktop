@@ -21,7 +21,7 @@ import {
   TOOLTIP,
   money,
   moneyTick,
-  useChartGeometry,
+  chartGeometry,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -87,7 +87,7 @@ function Body({
   to: number;
   interval: Interval;
 }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   const buckets = bucketise(daily, margins, from, to, interval);
   const margin = margins.reduce((sum, row) => sum + row.margin, 0);
   const costed = margins.reduce((sum, row) => sum + row.costed, 0);
@@ -152,7 +152,7 @@ function Body({
         </ResponsiveContainer>
       </ChartFrame>
 
-      <p className="text-small text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Laba dihitung dari harga jual dikurangi modal barang pada baris yang menyimpan modal. Baris
         tanpa modal tidak ikut dihitung, dan tidak ditaksir.
       </p>

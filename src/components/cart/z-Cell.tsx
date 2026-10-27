@@ -239,7 +239,7 @@ export function Cell({
   const justifyClass =
     align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
   const editClass =
-    "h-9 rounded-none border-0 bg-transparent p-0 text-normal shadow-none focus-visible:ring-0 small:h-7";
+    "h-9 rounded-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0";
 
   function handleEditKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (onEditKeyDown?.(event) === true) return;
@@ -294,7 +294,7 @@ export function Cell({
         selected && (editing ? EDITING_RING : SELECTED_RING),
       )}
     >
-      <span className={cn("text-small leading-none text-muted-foreground select-none", alignClass)}>
+      <span className={cn("text-sm leading-none text-muted-foreground select-none", alignClass)}>
         {label}
       </span>
       {editing ? (
@@ -316,7 +316,7 @@ export function Cell({
                 onCommit(String(base));
               }}
             >
-              <Undo2 className="icon" />
+              <Undo2 className="size-5" />
             </Button>
           ) : null}
           {percent ? (
@@ -368,7 +368,7 @@ export function Cell({
           type="button"
           tabIndex={-1}
           className={cn(
-            "flex h-9 w-full items-center text-normal select-none small:h-7",
+            "flex h-9 w-full items-center text-base select-none",
             prefix !== undefined ? "justify-between" : justifyClass,
           )}
         >

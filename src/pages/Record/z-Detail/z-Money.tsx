@@ -43,13 +43,13 @@ export function Money({
         title="Sunting pembayaran"
         onClick={pay.start}
       >
-        <Pencil className="icon" />
+        <Pencil className="size-5" />
       </Button>
     ) : null;
 
   return (
     <div className="flex justify-end">
-      <div className="grid w-full grid-cols-12 gap-y-0.5 text-normal">
+      <div className="grid w-full grid-cols-12 gap-y-0.5 text-base">
         {record.rounding === 0 ? (
           <>
             <MoneyRule />

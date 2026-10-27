@@ -39,8 +39,8 @@ export default function Page() {
 
   return (
     <pageData.Provider sources={sources} deps={[dayStart, role]}>
-      <main className="h-[calc(100vh-64px)] w-full overflow-x-hidden overflow-y-auto bg-muted/50 small:h-[calc(100vh-48px)]">
-        <div className="flex w-full flex-col gap-4 px-6 py-6 pb-12 small:gap-3 small:px-3 small:py-3">
+      <main className="h-[calc(100vh-48px)] w-full overflow-x-hidden overflow-y-auto bg-muted/50">
+        <div className="flex w-full flex-col gap-4 px-6 py-6 pb-12">
           <Header dayStart={dayStart} />
           <div className="flex flex-col gap-4">
             <Band />

@@ -21,7 +21,7 @@ export function UploadMoney({ pocketId }: { pocketId: string }) {
     <Dialog>
       <Button asChild variant="secondary">
         <DialogTrigger>
-          <Upload className="icon" />
+          <Upload className="size-5" />
           Unggah
         </DialogTrigger>
       </Button>
@@ -30,8 +30,8 @@ export function UploadMoney({ pocketId }: { pocketId: string }) {
           <DialogTitle>Unggah data keuangan</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-3">
-              <p className="text-small!">File JSON harus mengikuti bentuk data berikut:</p>
-              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
+              <p className="text-sm!">File JSON harus mengikuti bentuk data berikut:</p>
+              <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
                 <code>{moneySchemaFormat}</code>
               </pre>
             </div>

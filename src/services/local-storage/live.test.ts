@@ -45,8 +45,8 @@ describe("LocalStorageLive", () => {
   });
 
   test("a corrupt entry is a LocalStorageError the service can fall back on", async () => {
-    localStorage.setItem("size", "{not json");
-    const result = await run((storage) => Effect.either(storage.get("size")));
+    localStorage.setItem("view", "{not json");
+    const result = await run((storage) => Effect.either(storage.get("view")));
 
     expect(result._tag).toBe("Left");
     if (result._tag === "Left") {
@@ -83,12 +83,12 @@ describe("LocalStorageLive", () => {
   test("a set overwrites without leaving the old entry behind", async () => {
     const read = await run((storage) =>
       Effect.gen(function* () {
-        yield* storage.set("size", "small");
-        yield* storage.set("size", "big");
-        return yield* storage.get<string>("size");
+        yield* storage.set("view", "grid");
+        yield* storage.set("view", "table");
+        return yield* storage.get<string>("view");
       }),
     );
 
-    expect(read).toBe("big");
+    expect(read).toBe("table");
   });
 });

@@ -154,15 +154,16 @@ export function Tabs({
 
   return (
     <div className="flex flex-col border-b">
-      <div className="flex items-end gap-2 px-0.5 pt-0.5">
-        <Kbd className="py-4 mb-1">F12</Kbd>
+      <div className="flex items-center gap-2  px-0.5">
+        <Kbd>F12</Kbd>
         <Button
-          className="rounded-full p-1"
+          className="rounded-full "
           aria-label="Draft baru"
+          size="icon"
           title="Draft baru"
           onClick={create}
         >
-          <Plus className="icon" />
+          <Plus />
         </Button>
         <div
           ref={listRef}
@@ -186,10 +187,10 @@ export function Tabs({
             // its final height (a tab is taller than the F12/`+` chrome beside
             // it) and neither a fast read nor a slow one moves the panel.
             <ReservedSkeleton className="flex items-center gap-1">
-              {/* Sized to a real tab: 123x41 big, 106x37 small. */}
-              <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
-              <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
-              <Skeleton className="h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]" />
+              {/* Sized to a real tab: ~124x33. */}
+              <Skeleton className="h-[32px] w-[128px] rounded-t-md" />
+              <Skeleton className="h-[32px] w-[128px] rounded-t-md" />
+              <Skeleton className="h-[32px] w-[128px] rounded-t-md" />
             </ReservedSkeleton>
           ) : (
             drafts.map((draft, index) => (
@@ -208,7 +209,7 @@ export function Tabs({
             ))
           )}
           <Show when={!loading && drafts.length > 1}>
-            <Kbd className="py-4 mb-1">Ctrl+←/→</Kbd>
+            <Kbd className="mb-1">Ctrl+←/→</Kbd>
           </Show>
         </div>
       </div>
@@ -219,7 +220,7 @@ export function Tabs({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-big">Hapus transaksi?</DialogTitle>
+            <DialogTitle className="text-2xl">Hapus transaksi?</DialogTitle>
             <DialogDescription>
               Transaksi &ldquo;{pendingDelete?.title}&rdquo; beserta gambarnya akan dihapus dari
               perangkat. Tindakan ini tidak bisa dibatalkan.
@@ -268,52 +269,54 @@ function Tab({
   // in the accessibility tree but out of the tab order (Delete does the same
   // thing from the tab), so Tabbing never walks a row of delete buttons.
   return (
-    <div
-      id={id}
-      role="tab"
-      aria-selected={selected}
-      aria-controls={panelId}
-      aria-label={`Transaksi ${title} (${number} dari ${total})`}
-      tabIndex={selected ? 0 : -1}
-      onClick={onSelect}
-      onKeyDown={onKeyDown}
-      title={stored ? title : undefined}
-      className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-1 rounded-t-md border border-b-0 py-1 pl-2 pr-1 transition-colors",
-        "focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
-        selected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
-      )}
-    >
-      {stored ? null : (
-        <span className="max-w-[160px] truncate text-small font-medium select-none">
-          {draft.title}
+    <div className="flex items-end bg-red-500 self-end">
+      <div
+        id={id}
+        role="tab"
+        aria-selected={selected}
+        aria-controls={panelId}
+        aria-label={`Transaksi ${title} (${number} dari ${total})`}
+        tabIndex={selected ? 0 : -1}
+        onClick={onSelect}
+        onKeyDown={onKeyDown}
+        title={stored ? title : undefined}
+        className={cn(
+          "flex shrink-0 cursor-pointer items-center gap-1 rounded-t-md border border-b-0 py-1 pl-2 pr-1 transition-colors",
+          "focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
+          selected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
+        )}
+      >
+        {stored ? null : (
+          <span className="max-w-[160px] truncate text-sm font-medium select-none">
+            {draft.title}
+          </span>
+        )}
+        <span
+          className={cn(
+            "rounded-full px-1.5 text-sm font-bold tabular-nums select-none",
+            selected ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {number}
         </span>
-      )}
-      <span
-        className={cn(
-          "rounded-full px-1.5 text-small font-bold tabular-nums select-none",
-          selected ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
-        )}
-      >
-        {number}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        tabIndex={-1}
-        aria-label={`Hapus ${title}`}
-        title={`Hapus ${title}`}
-        className={cn(
-          "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",
-          selected ? "text-primary-foreground" : "text-muted-foreground",
-        )}
-        onClick={(event) => {
-          event.stopPropagation();
-          onClose();
-        }}
-      >
-        <X className="icon" />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          tabIndex={-1}
+          aria-label={`Hapus ${title}`}
+          title={`Hapus ${title}`}
+          className={cn(
+            "size-6 rounded-full hover:bg-destructive hover:text-primary-foreground",
+            selected ? "text-primary-foreground" : "text-muted-foreground",
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+        >
+          <X className="size-5" />
+        </Button>
+      </div>
     </div>
   );
 }

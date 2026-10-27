@@ -17,29 +17,39 @@ colors:
   background-dark: "oklch(0.141 0.005 285.823)"
   foreground-dark: "oklch(0.985 0 0)"
 typography:
+  hero:
+    fontFamily: "Noto Sans"
+    fontSize: "60px"
+    lineHeight: 1
+    fontWeight: 400
   big:
     fontFamily: "Noto Sans"
     fontSize: "48px"
     lineHeight: 1
     fontWeight: 400
-  normal:
-    fontFamily: "Noto Sans"
-    fontSize: "30px"
-    lineHeight: 36
-    fontWeight: 400
-  small:
+  title:
     fontFamily: "Noto Sans"
     fontSize: "24px"
     lineHeight: 32
+    fontWeight: 600
+  normal:
+    fontFamily: "Noto Sans"
+    fontSize: "16px"
+    lineHeight: 24
     fontWeight: 400
-  tiny:
+  small:
     fontFamily: "Noto Sans"
     fontSize: "14px"
     lineHeight: 20
     fontWeight: 400
+  tiny:
+    fontFamily: "Noto Sans"
+    fontSize: "12px"
+    lineHeight: 16
+    fontWeight: 400
   money:
     fontFamily: "Noto Sans"
-    fontSize: "30px"
+    fontSize: "16px"
     fontWeight: 700
     fontVariantNumeric: "tabular-nums"
 rounded:
@@ -87,9 +97,9 @@ a desk — and the interface is sized for a screen read at arm's length, not for
 tab. It is an **Operate** surface: familiarity is a feature, the tool should disappear
 into the task, and brand lives in precision rather than expression.
 
-The type is deliberately large. The app has two sizes (`big` is the default at the
-counter, `small` for cramped screens), and every text size comes from four tokens so
-both hold up.
+The type is set on one scale, anchored on `text-base` (16px) for body copy. There is no
+second "compact" size any more: the app used to carry four custom tokens re-resolved
+per app size through a `small:` variant, and both the tokens and the variant are gone.
 
 ## Colors
 
@@ -117,31 +127,41 @@ must still read correctly when it is.
 One family: **Noto Sans**, self-hosted variable face (wght 100–900, latin subset). No
 display face, no monospace costume — data is set in Noto Sans with `tabular-nums`.
 
-Four sizes, re-resolved per app size:
+Stock Tailwind sizes, one scale, no custom `text-*` tokens and no `small:` variant:
 
-| token | big | small | line-height |
+| role | class | px | line-height |
 |---|---|---|---|
-| `text-big` | 48px | 36px | 1 |
-| `text-normal` | 30px | 20px | 36 / 28 |
-| `text-small` | 24px | 18px | 32 / 28 |
-| `text-tiny` | 14px | 12px | 20 / 16 |
+| change / hero | `text-6xl` | 60 | 1 (0.8 in the cart) |
+| page title / loud money | `text-5xl` | 48 | 1 |
+| section title | `text-2xl` | 24 | 32 |
+| body (default) | `text-base` | 16 | 24 |
+| secondary | `text-sm` | 14 | 20 |
+| detail / meta | `text-xs` | 12 | 16 |
 
 Rules learned the hard way:
 
-- `@layer base` force-applies `text-normal` to `p, textarea, button, a, label, select,
-  input, span`. Sizing a **parent** does not size those children — put `text-small` on
-  the element itself or it renders at 30px.
-- `dt`/`dd`/`div` inherit, so a `text-small` container is enough for definition lists.
-- `text-tiny` is the owner's escape hatch. Agents stop at `text-small`; never use
-  `text-xs`/`text-sm`/`text-[Npx]`, which ignore the app size.
-- Headings are not styled by default (Tailwind preflight zeroes `h1..h6`); an `<h2>`
-  with no size class renders at 16px — always give headings a token.
+- `@layer base` force-applies `text-base` to `p, textarea, button, a, label, select,
+  input, span`. Sizing a **parent** does not size those children — put the size class
+  on the element itself or it renders at 16px.
+- `dt`/`dd`/`div` inherit, so a `text-sm` container is enough for definition lists.
+- Headings are not styled by default (Tailwind preflight sets `font-size: inherit`); an
+  `<h2>` with no size class renders at the body size — always give headings a class that
+  says how they outrank body copy.
+- `src/lib/design-tokens.test.ts` enforces the allowlist, so an off-ramp `text-xl` fails
+  the suite.
 - Every amount carries `tabular-nums`, so a column of money lines up on the digit.
 
 ## Layout
 
-- The shell has a 64px topbar (`small: 44px`); `main` is capped at
-  `calc(100vh - 68px)` and every page owns its own scroll.
+- The shell has a 48px topbar; `main` is capped at `calc(100vh - 52px)` and every
+  page owns its own scroll.
+- **Controls use shadcn's stock height, `h-9` (36px)** — input, select trigger and the
+  default Button alike, each on its own component so a file input or a native radio is
+  never dragged to a textbox height. `size="sm"` is `h-8`, `lg` is `h-10`. A skeleton
+  standing in for a control is 36px; one standing in for a text line is the line's
+  height.
+- **Icons are 20px** (`size-5`) unless the glyph is deliberately larger: a tile or a
+  nav entry uses `size-6`–`size-8` on the glyph inside its own sized box.
 - **One scroll container per screen.** Panes and bands that must not move are `shrink-0`
   siblings of a single `flex-1 min-h-0 overflow-y-auto` region.
 - A shared component that scrolls internally (`Table`'s wrapper is `overflow-y-auto`)
@@ -150,8 +170,9 @@ Rules learned the hard way:
   and the sticky `thead` tracks the band.
 - Money reads as a column: labels left, amounts right-aligned to a shared edge,
   `tabular-nums`, closing figures separated by a hairline rule.
-- Responsive behaviour is structural, not fluid type: the `small:` variant swaps to the
-  smaller type scale, and grids/tables drop or narrow fixed columns per breakpoint.
+- Responsive behaviour is structural, not fluid type: built-in breakpoints (`sm:`,
+  `xl:`) drop or narrow fixed columns, and grids/tables re-flow. There is no
+  app-size variant swapping the type scale.
 
 ## Elevation & Depth
 
@@ -169,8 +190,8 @@ band may use `rounded-lg`. No pills, no organic masks, no clipped corners.
 ## Components
 
 - **Buttons** (`~/components/ui/button`): cva with `default | destructive | outline |
-  secondary | ghost | link`; base text is `text-normal`, `size="sm"` drops it to
-  `text-small`. The same five variants appear on every screen — a button that looks
+  secondary | ghost | link`; base text is `text-base`, `size="sm"` drops it to
+  `text-sm`. The same five variants appear on every screen — a button that looks
   different in two places is a bug.
 - **Table** (`~/components/ui/table`): `thead` is `sticky top-0` with an opaque
   `bg-primary-foreground` ground; the wrapper scrolls unless told otherwise (see Layout).
@@ -191,11 +212,11 @@ band may use `rounded-lg`. No pills, no organic masks, no clipped corners.
   line with the cashier, creation time and the admin-editable paid/credit dates.
 - **The page card** (`Home/z-Card`): the panel every Beranda region sits in — white on the
   `bg-muted/50` canvas, one hairline border, no shadow. A `CardHead` carries the region's
-  name at `text-small` semibold and the single action that belongs to it ("Kelola",
+  name at `text-sm` semibold and the single action that belongs to it ("Kelola",
   "Riwayat", "Lihat"). Cards are the home screen's structure; no other screen needs them.
 - **The stat row** (`Home/z-Stats`): the day's three figures as equal cards — label, a
   tinted icon tile (emerald for masuk, amber for keluar, destructive for utang), the
-  amount at `text-normal` semibold `tabular-nums`, then one meta line with the count and
+  amount at `text-2xl` semibold `tabular-nums`, then one meta line with the count and
   the day-over-day percentage. Utang is the only stat that is itself a link. This is the
   one place the app tints an icon: the tint names the direction of the money, it is not
   decoration.
@@ -225,7 +246,7 @@ Do
 Don't
 
 - Put `text-muted-foreground` on a tinted ground (4.43:1) — use the foreground.
-- Use `text-tiny`, `text-xs`, `text-sm`, or arbitrary px sizes in the UI.
+- Use a size off the scale (`text-xl`, `text-3xl`) or an arbitrary `text-[14px]`.
 - Tint a destination icon with a raw Tailwind palette (`bg-blue-100 text-blue-600`): it
   ignores the theme and dies in dark mode. The `.tone` ramp is the only per-destination
   colour, and it belongs on the glyph, never on a surface.

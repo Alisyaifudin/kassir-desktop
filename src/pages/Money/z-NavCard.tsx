@@ -65,8 +65,8 @@ export function NavCard({ summary }: { summary: PocketSummary }) {
             <h3 className="font-medium text-slate-900 dark:text-slate-100">{name}</h3>
             <Show value={latest?.timestamp ?? null} fallback={<div>Masih kosong</div>}>
               {(timestamp) => (
-                <div className="flex items-center gap-1.5 text-small text-slate-500 dark:text-slate-400">
-                  <Clock className="icon" />
+                <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                  <Clock className="size-5" />
                   <span>{formatRelativeTime(timestamp)}</span>
                 </div>
               )}

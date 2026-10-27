@@ -23,7 +23,7 @@ export default function Page() {
 
   return (
     <pageData.Provider sources={sources}>
-      <div className="flex w-full flex-col gap-6 px-6 py-6 small:gap-4 small:px-3 small:py-3">
+      <div className="flex w-full flex-col gap-6 px-6 py-6">
         <PageHeader title={item.label} description={item.description} />
         <Panel title="Printer">
           <SelectPrinter />

@@ -12,7 +12,7 @@ import type { PaymentsEditor } from "./use-payments";
 
 /** The `Input` chrome, so the amount cell sits in its row like the method cells. */
 const AMOUNT_CLASS =
-  "flex w-[250px] shrink-0 rounded-md border border-input bg-transparent px-2 py-1 text-normal shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 small:h-7";
+  "flex w-[250px] shrink-0 rounded-md border border-input bg-transparent px-2 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * The payment rows as fields: one method (kind + account) and one amount per
@@ -71,7 +71,7 @@ export function PaymentEditor({ pay }: { pay: PaymentsEditor }) {
                 disabled={pay.pending || pay.draft.length <= 1}
                 onClick={() => pay.remove(payment.id)}
               >
-                <X className="icon" />
+                <X className="size-5" />
               </Button>
             </div>
           ))
@@ -94,7 +94,7 @@ export function PaymentEditor({ pay }: { pay: PaymentsEditor }) {
           disabled={pay.pending}
           onClick={() => pay.add()}
         >
-          <Plus className="icon" />
+          <Plus className="size-5" />
         </Button>
       </div>
       <TextError className="col-span-12 text-right">{pay.error}</TextError>

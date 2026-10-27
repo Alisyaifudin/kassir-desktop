@@ -30,12 +30,12 @@ export function Panel({
       className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card", className)}
     >
       {title === undefined ? null : (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2 small:px-3">
-          <h2 className="text-normal font-semibold">{title}</h2>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
+          <h2 className="text-base font-semibold">{title}</h2>
           {action}
         </div>
       )}
-      <div className={cn("flex flex-col gap-4 p-4 small:gap-3 small:p-3", bodyClassName)}>
+      <div className={cn("flex flex-col gap-4 p-4", bodyClassName)}>
         {children}
       </div>
     </section>

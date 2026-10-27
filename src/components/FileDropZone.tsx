@@ -99,7 +99,7 @@ export function FileDropZone({
             active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
           )}
         >
-          <Cloud className="icon" />
+          <Cloud className="size-5" />
         </div>
         <div className="text-center">
           <p className="font-semibold text-foreground">

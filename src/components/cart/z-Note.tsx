@@ -22,13 +22,13 @@ export function Note({ draft }: { draft: Draft }) {
     <Dialog>
       <Button asChild variant="secondary">
         <DialogTrigger type="button" title="Catatan">
-          <NotepadText className="icon" />
+          <NotepadText className="size-5" />
           Catatan
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Catatan</DialogTitle>
+          <DialogTitle className="text-2xl">Catatan</DialogTitle>
         </DialogHeader>
         <DialogDescription>Catatan untuk transaksi ini; ikut tercetak di struk.</DialogDescription>
         <Textarea

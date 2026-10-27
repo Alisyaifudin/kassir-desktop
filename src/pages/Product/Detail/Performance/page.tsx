@@ -30,7 +30,7 @@ export default function Page() {
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <DateRange range={[from, to]} setRange={setRange} />
-        <div className="inline-flex rounded-md border p-0.5 text-small">
+        <div className="inline-flex rounded-md border p-0.5 text-sm">
           {INTERVALS.map((item) => (
             <button
               key={item.id}

@@ -74,30 +74,30 @@ export default function ErrorBoundary() {
 
         {/* Text Content */}
         <div className="space-y-4">
-          <h1 className="text-big font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {errorStatus && (
-              <span className="text-muted-foreground mr-2 font-mono text-normal">[{errorStatus}]</span>
+              <span className="text-muted-foreground mr-2 font-mono text-base">[{errorStatus}]</span>
             )}
             {errorTitle}
           </h1>
-          <p className="text-muted-foreground text-normal leading-relaxed">{errorMessage}</p>
+          <p className="text-muted-foreground text-base leading-relaxed">{errorMessage}</p>
         </div>
 
         {/* Action Buttons - Pure Flat */}
         <div className="flex flex-col gap-3 w-full max-w-xs shrink-0">
-          <Button onClick={reloadPage} className="h-12 text-normal font-bold tracking-wide uppercase">
+          <Button onClick={reloadPage} className="h-12 text-base font-bold tracking-wide uppercase">
             Muat Ulang
           </Button>
 
           <div className="grid grid-cols-2 gap-3">
             <Button variant="outline" onClick={goBack} className="h-11 font-semibold">
-              <ArrowLeft className="icon mr-2" />
+              <ArrowLeft className="size-5 mr-2" />
               Kembali
             </Button>
 
             <Button variant="ghost" asChild className="h-11 font-semibold">
               <Link to="/">
-                <Home className="icon mr-2" />
+                <Home className="size-5 mr-2" />
                 Home
               </Link>
             </Button>
@@ -108,12 +108,12 @@ export default function ErrorBoundary() {
         {env && technicalDetails && (
           <div className="w-full mt-4 pt-8 border-t text-left">
             <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-              <Terminal className="icon" />
-              <span className="text-small font-bold uppercase tracking-widest text-foreground/50">
+              <Terminal className="size-5" />
+              <span className="text-sm font-bold uppercase tracking-widest text-foreground/50">
                 Detail Teknis (Dev Tool)
               </span>
             </div>
-            <pre className="p-4 bg-muted/40 rounded-lg text-normal font-mono overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all max-h-[300px] text-muted-foreground/80 border leading-relaxed">
+            <pre className="p-4 bg-muted/40 rounded-lg text-base font-mono overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all max-h-[300px] text-muted-foreground/80 border leading-relaxed">
               {technicalDetails}
             </pre>
           </div>

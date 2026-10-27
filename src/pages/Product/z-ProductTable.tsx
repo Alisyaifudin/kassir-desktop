@@ -30,7 +30,7 @@ export function ProductTable({
   urlBack: string;
 }) {
   return (
-    <Table className="text-normal">
+    <Table className="text-base">
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">#</TableHead>
@@ -95,7 +95,7 @@ function ProductRow({
         <StockBadge product={product} />
       </TableCell>
       <TableCell>
-        <Button asChild variant="ghost" className="size-11 small:size-9">
+        <Button asChild variant="ghost" className="size-11">
           <Link
             to={{
               pathname: `/products/${product.id}`,
@@ -103,7 +103,7 @@ function ProductRow({
             }}
             aria-label={`Buka ${product.name}`}
           >
-            <SquareArrowOutUpRight className="icon" />
+            <SquareArrowOutUpRight className="size-5" />
           </Link>
         </Button>
       </TableCell>

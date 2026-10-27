@@ -25,11 +25,11 @@ export function Refresh() {
       size="icon"
       aria-label="Muat ulang aplikasi"
       title="Muat ulang aplikasi"
-      className="rounded-full h-10 w-10 small:h-8 small:w-8 hover:bg-sky-400/50"
+      className="rounded-full h-10 w-10 hover:bg-sky-400/50"
       onClick={() => void reload()}
       variant="ghost"
     >
-      <RefreshCcw className="size-6 small:size-5" />
+      <RefreshCcw className="size-6" />
     </Button>
   );
 }

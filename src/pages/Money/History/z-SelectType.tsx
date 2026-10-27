@@ -22,9 +22,9 @@ export const SelectType = memo(function SelectType({
       value={type}
       onValueChange={(value) => onChange(pocketType.catch("absolute").parse(value))}
     >
-      {/* Same box as the `NumberField` beside it: `text-normal` with the input's
+      {/* Same box as the `NumberField` beside it: `text-base` with the input's
           `py-1`, so the pair reads as one row instead of two heights. */}
-      <SelectTrigger aria-label="Jenis catatan" className="w-fit shrink-0 py-1 text-normal">
+      <SelectTrigger aria-label="Jenis catatan" className="w-fit shrink-0 py-1 text-base">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

@@ -26,7 +26,7 @@ export function Search({ className }: { className?: string }) {
         key="extra"
         id="extra-search"
         placeholder="Cari..."
-        className={cn("w-full pl-8", "pl-10 small:pl-8")}
+        className={cn("w-full pl-8", "pl-10")}
         value={value}
         aria-autocomplete="list"
         onChange={(e) => {

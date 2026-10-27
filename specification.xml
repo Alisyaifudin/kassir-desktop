@@ -78,7 +78,7 @@
         <item name="formatting">Prettier 3.9 (tabWidth=2, useTabs=false, printWidth=100)</item>
         <item name="react_compiler">babel-plugin-react-compiler 1.0 is installed but the Vite plugin is commented out</item>
         <item name="react_scan">Injected into `&lt;head&gt;` in dev by a Vite transformIndexHtml plugin (unpkg CDN); skipped for /e2e.html so screenshots and clicks are clean</item>
-        <item name="vite_plugins">@vanilla-extract/vite-plugin, @vitejs/plugin-react, vite-plugin-arraybuffer (fonts as ArrayBuffer), @tailwindcss/vite, vite-tsconfig-paths (only the app's tsconfigs — docs/ is a separate Docusaurus project)</item>
+        <item name="vite_plugins">@vanilla-extract/vite-plugin, @vitejs/plugin-react, @tailwindcss/vite, vite-tsconfig-paths (only the app's tsconfigs — docs/ is a separate Docusaurus project)</item>
         <item name="type_definitions">@types/bun 1.4, @types/react 19.3, @types/react-dom 19.3, @types/sql.js 1.4 (for the e2e harness)</item>
         <item name="audit">scripts/audit-loop/ (`bun run audit:once`, `bun run audit:loop`) — a read-only auditor plus a fixer that writes reports under audit/</item>
       </category>
@@ -87,13 +87,16 @@
     <design_system>
       <description>
         shadcn/ui new-york style, zinc base, CSS variables, light and dark via next-themes.
-        Typography is a four-token scale declared in global.css and re-resolved per app size:
-        `text-big`, `text-normal`, `text-small`, and the owner-reserved `text-tiny`, plus
-        `text-change` and `text-grand-total` for the cart's money. The UI size preference
-        ("big" | "small") toggles a `small` class on &lt;body&gt;, and every `small:` variant hangs
-        off it. `src/lib/design-tokens.test.ts` guards the rule mechanically: no raw
-        `text-3xl`/`text-sm`, and no lucide `size={N}` (an attribute no `.small` rule can
-        override) — icon size comes from `icon`/`size-*` classes so both modes stay correct.
+        Typography is one scale of stock Tailwind sizes, anchored on `text-base` (16px) for
+        body copy: `text-xs` (12) meta, `text-sm` (14) secondary, `text-base` (16) body,
+        `text-2xl` (24) section titles, `text-5xl` (48) page titles / loud money, and
+        `text-6xl` (60) for the cart's change/grand-total hero. The old custom tokens
+        (`text-big`, `text-normal`, `text-small`, `text-tiny`, `text-change`,
+        `text-grand-total`), the app-size preference ("big" | "small") and the `small:` variant
+        are all removed. `src/lib/design-tokens.test.ts` guards the rule mechanically: every
+        text size must be on the allowlist, no retired token, no `small:`, and no lucide
+        `size={N}` (an attribute no class can override) — icon size comes from `size-*`
+        classes, default `size-[30px]`.
         Every &lt;DialogContent&gt; must render a &lt;DialogDescription&gt; or say
         `aria-describedby={undefined}` on purpose; `src/lib/dialog-description.test.ts` guards it.
       </description>
@@ -157,7 +160,7 @@
         <entry key="strict / noUnusedLocals / noUnusedParameters / noFallthroughCasesInSwitch">true</entry>
         <entry key="jsx">react-jsx</entry>
         <entry key="paths.~/*">./src/*</entry>
-        <entry key="types">bun-types, @testing-library/jest-dom, vite-plugin-arraybuffer</entry>
+        <entry key="types">bun-types, @testing-library/jest-dom</entry>
         <entry key="include">src, test</entry>
       </file>
       <file name="bunfig.toml">
@@ -217,7 +220,7 @@
         <description>Shared UI. page-data/ is the async-data layer (&lt;page_data&gt;); cart/ is the POS machinery (&lt;cart&gt;); Loader.tsx carries useStream/useQuery/useMutation; ui/ holds the shadcn primitives; the rest are app-wide pieces (AdminOnly, ErrorBoundary, createErrorBoundary, DateRange, DateTime, NumberField, Password, MethodPicker, FileDropZone, SaveError, Show, ForEach, Loading, Spinner, TextError, ErrorComponent, NotFound, Calendar, Redirect).</description>
       </dir>
       <dir name="layouts/">root.tsx (UI size → body class) and authenticated/ (AuthLayout guard, Topbar, nav, shortcuts, flush-on-exit).</dir>
-      <dir name="hooks/">use-user, use-size, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
+      <dir name="hooks/">use-user, use-zoom, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
       <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, search/. Plus the three mechanical guards: design-tokens.test.ts, dialog-description.test.ts, tauri-capability.test.ts.</dir>
       <dir name="integration/">Cross-layer tests: the real service layers over the real migrations with only the Tauri backends substituted (Beranda's keys over page-data, the Product screen, Setting → Toko's write path).</dir>
       <dir name="e2e/">The in-browser harness: sql.js running the real migrations, a localStorage-backed store, a Tauri shim, and main.tsx that injects the service before the router imports.</dir>
@@ -340,6 +343,7 @@
       </description>
       <capability name="default" windows="main">
         <permission>core:default</permission>
+        <permission>core:webview:allow-set-webview-zoom → services/zoom/live.ts (getCurrentWebview().setZoom()), called by boot and the Setting → Tampilan slider</permission>
         <permission>core:window:allow-destroy → useFlushOnExit closes the window itself; once a JS listener sits on tauri://close-requested, Rust prevent_close()s, and core:window:default does not include destroy</permission>
         <permission>sql:default, sql:allow-execute → the whole SQLite layer (src/services/db)</permission>
         <permission>store:default, log:default</permission>
@@ -397,7 +401,7 @@
         print_receipt command. The Dev/PageData and
         Dev/PageCache playgrounds only exist when `import.meta.env.DEV` is true.
       </description>
-      <route path="/" error_boundary="ErrorBoundary" layout="RootLayout">
+      <route path="/" error_boundary="ErrorBoundary">
         <route path="login" page="Login" auth="public" />
         <route path="/" guard="AuthLayout">
           <route path="pos" page="Pos" />
@@ -474,10 +478,6 @@
     </guards>
 
     <layouts>
-      <layout name="RootLayout" file="src/layouts/root.tsx">
-        Subscribes to service.config.size.changes and toggles the `small` class on &lt;body&gt; before paint (layout
-        effect), which drives every Tailwind `small:` variant.
-      </layout>
       <layout name="AuthLayout" file="src/layouts/authenticated/index.tsx">
         The session guard, the sticky Topbar, the main-body scrollport, the Outlet, the sonner Toaster, the alt+N
         shortcuts and the close-flush handler. The shell is h-dvh with #main-body as `flex-1 min-h-0
@@ -702,7 +702,8 @@
       <owner service="product">products, listings, properties, images, stocks, product_events, product_names</owner>
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
-      <owner service="config">localStorage keys "size", "product-view"</owner>
+      <owner service="config">localStorage key "product-view"</owner>
+      <owner service="zoom">localStorage key "zoom"</owner>
       <owner service="auth">localStorage key "user"</owner>
       <owner service="info">store keys: name, owner, address, header, footer, show-cashier</owner>
       <owner service="printer">store keys: printer_name, printer_width</owner>
@@ -808,18 +809,38 @@
     </service>
 
     <service name="config" module="src/services/config/">
-      <description>The UI preferences: size, and the product list's layout. Owns the localStorage keys "size" and "product-view".</description>
+      <description>The UI preferences. Owns the localStorage key "product-view". (The old "size" key is no longer read; the interface scale moved to the zoom service.)</description>
       <error name="ConfigError" tag="ConfigError" />
       <interface>
-        <method name="size.get()">Current size: "big" | "small".</method>
-        <method name="size.set(size)">Persist, then push to subscribers.</method>
-        <method name="size.changes">Stream&lt;Size&gt;. RootLayout turns it into the body class; useSize() reads it.</method>
         <method name="productView.get()">Current product layout: "grid" | "table"; anything else stored reads as "grid".</method>
         <method name="productView.set(view)">Set in memory, then persist. A failed write reports ConfigError but keeps the session on the chosen view.</method>
       </interface>
       <note>
         The product list keeps its view in the URL while it is open; productView is only the seed a bare `/products` reads.
-        Unlike `size` there is no `changes` stream — no one subscribes, the URL is the live value.
+        There is no `changes` stream — no one subscribes, the URL is the live value.
+      </note>
+    </service>
+
+    <service name="zoom" module="src/services/zoom/">
+      <description>
+        The interface scale. Owns the localStorage key "zoom" (a number: 1 | 1.5 | 2, default 1) and is the only
+        module that calls getCurrentWebview().setZoom() (the capability grant it needs is
+        core:webview:allow-set-webview-zoom).
+      </description>
+      <error name="ZoomError" tag="ZoomError" />
+      <interface>
+        <method name="get()">The stored level, hydrated when the layer is built, so it answers synchronously.</method>
+        <method name="apply()">Applies the stored level to the webview; main.tsx awaits it before the first paint, so the app never paints at 100% and jumps.</method>
+        <method name="set(zoom)">Applies to the webview, updates the ref, then persists. A refused webview call fails without moving the stored level; a failed localStorage write reports ZoomError but keeps this session at the new scale.</method>
+        <method name="changes">Stream&lt;Zoom&gt;. Feeds the Setting → Tampilan slider (useZoom).</method>
+      </interface>
+      <note>
+        Levels are the allow-list ZOOM_LEVELS = [1, 1.5, 2] — three designed steps, not a continuous range. Anything
+        else stored (1.25, "big", null) reads as 100%; zoomAt/zoomIndexOf map a slider step to a level and
+        zoomPercent formats the readout. Applying a level also writes `--icon-scale` (1/√zoom, `iconScaleOf`) to the
+        document root: global.css multiplies every lucide stroke by it, so a 200% interface grows its glyphs without
+        turning hairline outlines into marker pens. Per-icon weights (the Record header's 2.5) are declared as
+        `--icon-stroke`, never as a `strokeWidth` prop — the prop is an SVG attribute and the CSS rule outranks it.
       </note>
     </service>
 
@@ -1237,7 +1258,7 @@
     </page>
 
     <page name="setting" path="/setting" status="migrated">
-      <description>One nav source (util-nav.ts) drives the index card grid and the sidebar, including which roles may open each destination; each screen's header quotes that row verbatim.</description>
+      <description>One nav source (util-nav.ts) drives the index card grid and the sidebar, including which roles may open each destination; each screen's header quotes that row verbatim. Below the destinations sits the one control that is not a page: the Tampilan zoom slider (100 / 150 / 200%), written through the zoom service.</description>
       <subpages>
         <subpage path="/setting/profile">Signed-in account: rename (cashier.set.name + auth.set) and change password (Rust hash, then cashier.set.password).</subpage>
         <subpage path="/setting/shop" guard="AdminOnly">Shop identity (owner, address, header, footer) through info, plus the show-cashier toggle; every field label and the save button are static and only the values pulse. The form patches the current info instead of overwriting it.</subpage>
@@ -1290,7 +1311,6 @@
     </module>
     <module name="hooks/">
       <hook name="useUser">The signed-in user from the auth service; throws Unauthenticated when there is none.</hook>
-      <hook name="useSize">The UI size from the config service.</hook>
       <hook name="useDayStart">Today's local midnight, re-armed at the next midnight and on focus/visibilitychange.</hook>
       <hook name="useDialogLock / isScreenOwnedByDialog">The "a dialog owns the keyboard" counter + aria-modal fallback, read by every window listener.</hook>
       <hook name="useExtraSearch">Memoised microfuzz over any { name } row.</hook>

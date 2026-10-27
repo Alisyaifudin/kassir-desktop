@@ -34,8 +34,9 @@ footer" and the dashboard reflex of turning a single record into metrics.
 
 **OWN-WORLD.** The app's own: near-white ground, hairline `border` rules, `bg-muted/30`
 for the shelf and tabs, `--active` blue reserved for focus/selection, emerald for Lunas,
-destructive red for Kredit and Hapus, Noto Sans only, `tabular-nums` on every amount, the
-`text-big/normal/small` tokens with the `small:` variant respected.
+destructive red for Kredit and Hapus, Noto Sans only, `tabular-nums` on every amount,
+stock Tailwind sizes on one scale (`text-base` body, `text-2xl` section titles, `text-5xl`
+loud money).
 
 **STORY.** In the first two seconds: Jual, Lunas, which id, when, who. Then the goods, at
 the precision they were rung up. The shelf answers the money question without scrolling —

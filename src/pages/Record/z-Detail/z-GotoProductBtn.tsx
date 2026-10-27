@@ -26,7 +26,7 @@ export const GotoProductBtn = memo(function GotoProductBtn({
               }}
               aria-label="Buka produk"
             >
-              <Pencil className="icon" />
+              <Pencil className="size-5" />
             </Link>
           </Button>
           <div className="flex-1" />

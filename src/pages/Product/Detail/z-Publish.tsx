@@ -48,7 +48,7 @@ export function PublishToggle({ product }: { product: Product | undefined }) {
   return (
     <label
       className={cn(
-        "flex shrink-0 items-center gap-2 rounded-full px-2 py-1 text-small transition-colors",
+        "flex shrink-0 items-center gap-2 rounded-full px-2 py-1 text-sm transition-colors",
         // The same grey the /products list uses for a withdrawn row: the state
         // reads from the chip before the label is read. While the row is still
         // being read the chip wears the quiet grey — it is neither claim.

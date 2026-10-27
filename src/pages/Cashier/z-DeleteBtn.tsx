@@ -37,7 +37,7 @@ export const DeleteBtn = memo(function DeleteBtn({ name, id }: { name: string; i
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-big">Yakin?</DialogTitle>
+          <DialogTitle className="text-2xl">Yakin?</DialogTitle>
           <DialogDescription>Kamu akan menghapus:</DialogDescription>
           <DialogDescription>
             {">"}

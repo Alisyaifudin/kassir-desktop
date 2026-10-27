@@ -31,12 +31,12 @@ export const DeleteBtn = memo(function DeleteBtn({ name, id }: { name: string; i
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button type="button" asChild className="rounded-full p-2" variant="destructive">
         <DialogTrigger>
-          <X className="icon" />
+          <X className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Hapus Metode</DialogTitle>
+          <DialogTitle className="text-2xl">Hapus Metode</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <DialogDescription>Hapus metode: {name}?</DialogDescription>
             <TextError>{error?.message}</TextError>

@@ -88,7 +88,7 @@ function TodayStat({ mode, label, icon, tile }: TodayStatProps) {
 /** The amount needs `today` alone: it appears without waiting for the comparison. */
 function TodayAmount({ mode }: { mode: Mode }) {
   return (
-    <span className="text-normal font-semibold tabular-nums">
+    <span className="text-base font-semibold tabular-nums">
       {/* `Rp` is part of the money format, not of the value, so it does not pulse. */}
       Rp{" "}
       <pageData.Gate
@@ -109,7 +109,7 @@ function TodayAmount({ mode }: { mode: Mode }) {
  */
 function TodayHint({ mode }: { mode: Mode }) {
   return (
-    <span className="flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
+    <span className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
       <span className="flex items-center gap-1">
         <pageData.Gate
           keys={["today"]}
@@ -173,7 +173,7 @@ function DebtStat() {
             pulse={
               <>
                 <SkeletonText className="h-[0.7em] w-32" />
-                <span className="flex items-center gap-1 text-small text-muted-foreground">
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">
                   <SkeletonText className="w-5" /> <span>catatan belum lunas</span>
                 </span>
               </>
@@ -183,7 +183,7 @@ function DebtStat() {
               <>
                 <span
                   className={cn(
-                    "text-normal font-semibold tabular-nums",
+                    "text-base font-semibold tabular-nums",
                     debt.total !== 0 && "text-destructive",
                   )}
                 >
@@ -192,10 +192,10 @@ function DebtStat() {
                 <Show
                   when={debt.total !== 0}
                   fallback={
-                    <span className="text-small text-muted-foreground">Tidak ada utang</span>
+                    <span className="text-sm text-muted-foreground">Tidak ada utang</span>
                   }
                 >
-                  <span className="flex items-center gap-1 text-small text-muted-foreground">
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
                     <span className="tabular-nums">{debt.count}</span>{" "}
                     <span>catatan belum lunas</span>
                   </span>
@@ -264,7 +264,7 @@ function CardFrame({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <span className="text-small text-muted-foreground">{label}</span>
+        <span className="text-sm text-muted-foreground">{label}</span>
         <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", tile)}>
           <Icon aria-hidden="true" className="size-4" />
         </span>

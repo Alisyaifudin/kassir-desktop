@@ -15,10 +15,10 @@ import { useChangePrinterWidth } from "./use-change-width";
 export function PrinterWidth() {
   return (
     <div className="flex flex-col gap-1">
-      <Label htmlFor="receipt-width" className="text-normal font-semibold">
+      <Label htmlFor="receipt-width" className="text-base font-semibold">
         Lebar Struk (mm)
       </Label>
-      <p className="text-normal text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         Atur lebar kertas struk untuk printer thermal
       </p>
 

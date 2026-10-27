@@ -48,7 +48,7 @@ export function RecordUpload() {
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
-        <h3 className="text-normal font-bold">Riwayat</h3>
+        <h3 className="text-base font-bold">Riwayat</h3>
         <SchemaDialog />
       </div>
       <TextError>{error}</TextError>

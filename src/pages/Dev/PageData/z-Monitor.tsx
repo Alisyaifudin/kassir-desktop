@@ -20,8 +20,8 @@ export function Monitor() {
     <section className="mb-3 rounded-xl border bg-background p-3">
       <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-normal font-semibold">Status data halaman</h2>
-          <code className="text-small text-muted-foreground">useSnapshot()</code>
+          <h2 className="text-base font-semibold">Status data halaman</h2>
+          <code className="text-sm text-muted-foreground">useSnapshot()</code>
         </div>
         <Button variant="outline" size="sm" onClick={() => refresh()}>
           Muat ulang semua
@@ -55,14 +55,14 @@ export function Monitor() {
                   res.type === "success" && (refetching ? "bg-amber-500" : "bg-emerald-500"),
                 )}
               />
-              <span className="text-small font-medium">{key}</span>
-              <span className="text-small text-muted-foreground">{status}</span>
+              <span className="text-sm font-medium">{key}</span>
+              <span className="text-sm text-muted-foreground">{status}</span>
             </li>
           );
         })}
       </ul>
 
-      <p className="mt-2 text-small text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground">
         Semua key mulai berlangganan bersamaan; urutan siap mengikuti latensi masing-masing
         ({LATENCY.profile} ms → {LATENCY.broken} ms → {LATENCY.stats} ms → {LATENCY.feed} ms),
         bukan jumlah totalnya.

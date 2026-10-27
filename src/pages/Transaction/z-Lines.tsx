@@ -211,7 +211,7 @@ export function Lines({
                 <div key={line.id} role="row" className={`${GRID} divide-x`}>
                   <span
                     role="gridcell"
-                    className="hidden items-center px-2 text-small text-muted-foreground tabular-nums sm:flex"
+                    className="hidden items-center px-2 text-sm text-muted-foreground tabular-nums sm:flex"
                   >
                     {index + 1}
                   </span>
@@ -285,13 +285,13 @@ export function Lines({
                       removeLine(index);
                     }}
                   >
-                    <X aria-hidden="true" className="icon" />
+                    <X aria-hidden="true" className="size-5" />
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex flex-none items-center text-normal justify-end border-t px-2 py-1">
+          <div className="flex flex-none items-center text-base justify-end border-t px-2 py-1">
             <Button type="button" onClick={add}>
               <Plus aria-hidden="true" />
               Baris Baru

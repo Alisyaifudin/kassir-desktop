@@ -47,17 +47,17 @@ function PaidAtEditor({ recordId, paidAt }: { recordId: string; paidAt: number }
         <Dialog open={open} onOpenChange={setOpen}>
           {/* The same ghost trigger the day-grid editor used: the label is the
               fact, the press is the correction. */}
-          <Button asChild variant="ghost" className="flex w-fit items-center gap-2 outline small:w-fit">
+          <Button asChild variant="ghost" className="flex w-fit items-center gap-2 outline">
             <DialogTrigger>
-              <p className="text-small tabular-nums">
+              <p className="text-sm tabular-nums">
                 Dibayar {formatTime(paidAt, "short")} · {formatDate(paidAt, "long")}
               </p>
-              <CalendarDays className="icon" />
+              <CalendarDays className="size-5" />
             </DialogTrigger>
           </Button>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-big">Waktu pembayaran</DialogTitle>
+              <DialogTitle className="text-2xl">Waktu pembayaran</DialogTitle>
             </DialogHeader>
             <DialogDescription>
               Pindahkan waktu catatan ini dibayar. Waktu setelah sekarang tidak bisa dipilih.

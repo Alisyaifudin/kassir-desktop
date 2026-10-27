@@ -22,7 +22,7 @@ export function Card({ className, children }: { className?: string; children: Re
 export function CardHead({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2">
-      <h2 className="text-small font-semibold">{title}</h2>
+      <h2 className="text-sm font-semibold">{title}</h2>
       {action}
     </div>
   );
@@ -33,7 +33,7 @@ export function CardLink({ to, children }: { to: string; children: ReactNode }) 
   return (
     <Link
       to={to}
-      className="shrink-0 rounded-sm text-small text-muted-foreground underline-offset-4 hover:text-active hover:underline focus-visible:ring-2 focus-visible:ring-active focus-visible:ring-inset focus-visible:outline-none"
+      className="shrink-0 rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-active hover:underline focus-visible:ring-2 focus-visible:ring-active focus-visible:ring-inset focus-visible:outline-none"
     >
       {children}
     </Link>

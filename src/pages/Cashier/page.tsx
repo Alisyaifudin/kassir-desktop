@@ -11,8 +11,8 @@ export default function Page() {
     <pageData.Provider sources={{ cashiers: service.cashier.get.changes }}>
       <main className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
         <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold text-foreground">Daftar Kasir</h1>
-          <p className="text-muted-foreground text-normal">Kelola akun kasir dan peran pengguna</p>
+          <h1 className="text-2xl font-bold text-foreground">Daftar Kasir</h1>
+          <p className="text-muted-foreground text-base">Kelola akun kasir dan peran pengguna</p>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -48,7 +48,7 @@ function LoadingList() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="grid grid-cols-[1fr_140px_40px] small:grid-cols-[1fr_110px_40px] items-center p-3 gap-3 rounded-xl bg-muted/30"
+          className="grid grid-cols-[1fr_140px_40px] items-center p-3 gap-3 rounded-xl bg-muted/30"
         >
           <Skeleton className="h-8 w-full rounded-lg" />
           <Skeleton className="h-8 w-full rounded-lg" />

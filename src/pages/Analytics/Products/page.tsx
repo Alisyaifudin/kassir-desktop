@@ -50,7 +50,7 @@ import {
   TOOLTIP,
   money,
   moneyTick,
-  useChartGeometry,
+  chartGeometry,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton } from "../z-Loading";
@@ -115,7 +115,7 @@ function Body({
   metric: Metric;
   onMetric: (metric: Metric) => void;
 }) {
-  const geo = useChartGeometry();
+  const geo = chartGeometry;
   const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [globalFilter, setGlobalFilter] = useState("");
@@ -138,7 +138,7 @@ function Body({
         header: "No",
         enableSorting: false,
         cell: ({ row }) => (
-          <span className="text-small text-muted-foreground tabular-nums">{row.index + 1}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">{row.index + 1}</span>
         ),
       },
       {
@@ -176,7 +176,7 @@ function Body({
         accessorKey: "lines",
         header: "Baris",
         cell: ({ getValue }) => (
-          <span className="text-small text-muted-foreground tabular-nums">
+          <span className="text-sm text-muted-foreground tabular-nums">
             {getValue<number>()}
           </span>
         ),
@@ -262,7 +262,7 @@ function Body({
               metric === "qty" ? "jumlah terjual" : metric === "margin" ? "laba kotor" : "omzet"
             }
             label="Grafik produk teratas"
-            chartClassName="h-[420px] small:h-[360px]"
+            chartClassName="h-[420px]"
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -317,7 +317,7 @@ function Body({
 
           <section className="flex min-w-0 flex-col rounded-xl border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b p-2">
-              <h2 className="text-small font-semibold">Semua produk</h2>
+              <h2 className="text-sm font-semibold">Semua produk</h2>
               <Input
                 value={globalFilter}
                 onChange={(event) => setGlobalFilter(event.currentTarget.value)}
@@ -328,7 +328,7 @@ function Body({
             </div>
 
             <Table
-              className="text-normal"
+              className="text-base"
               parentClass="max-h-none overflow-visible"
               aria-label="Semua produk pada periode ini"
             >
@@ -362,11 +362,11 @@ function Body({
                             >
                               {flexRender(header.column.columnDef.header, header.getContext())}
                               {sorted === "asc" ? (
-                                <ArrowUp className="icon" aria-hidden="true" />
+                                <ArrowUp className="size-5" aria-hidden="true" />
                               ) : sorted === "desc" ? (
-                                <ArrowDown className="icon" aria-hidden="true" />
+                                <ArrowDown className="size-5" aria-hidden="true" />
                               ) : (
-                                <ArrowUpDown className="icon opacity-40" aria-hidden="true" />
+                                <ArrowUpDown className="size-5 opacity-40" aria-hidden="true" />
                               )}
                             </button>
                           ) : (
@@ -401,7 +401,7 @@ function Body({
             </Table>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
-              <span className="text-small text-muted-foreground tabular-nums">
+              <span className="text-sm text-muted-foreground tabular-nums">
                 {first}–{last} dari {filtered} produk
               </span>
               <div className="flex items-center gap-2">
@@ -411,7 +411,7 @@ function Body({
                 >
                   <SelectTrigger
                     aria-label="Baris per halaman"
-                    className="h-9 w-[180px] small:w-[160px] text-small"
+                    className="h-9 w-[180px] text-sm"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -477,9 +477,9 @@ function ProductCell({
         className="flex min-w-0 items-center gap-1 rounded-sm text-left hover:text-active focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {open ? (
-          <ChevronDown aria-hidden="true" className="icon shrink-0" />
+          <ChevronDown aria-hidden="true" className="size-5 shrink-0" />
         ) : (
-          <ChevronRight aria-hidden="true" className="icon shrink-0" />
+          <ChevronRight aria-hidden="true" className="size-5 shrink-0" />
         )}
         <span className="truncate">{group.name}</span>
       </button>
@@ -490,7 +490,7 @@ function ProductCell({
           title="Buka produk"
           className="shrink-0 rounded-sm text-muted-foreground hover:text-active focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <Pencil aria-hidden="true" className="icon" />
+          <Pencil aria-hidden="true" className="size-5" />
         </Link>
       )}
     </div>
@@ -544,7 +544,7 @@ function InstanceList({
 }) {
   return (
     <div className="overflow-hidden rounded-md border bg-card">
-      <div className="grid grid-cols-[200px_minmax(0,1fr)_80px_140px_140px_44px] gap-2 border-b bg-muted/40 px-2 py-1 text-small text-muted-foreground">
+      <div className="grid grid-cols-[200px_minmax(0,1fr)_80px_140px_140px_44px] gap-2 border-b bg-muted/40 px-2 py-1 text-sm text-muted-foreground">
         <span>Waktu</span>
         <span>Produk</span>
         <span className="text-right">Qty</span>
@@ -558,7 +558,7 @@ function InstanceList({
             key={`${line.recordId}-${index}`}
             className="grid grid-cols-[200px_minmax(0,1fr)_80px_140px_140px_44px] items-center gap-2 px-2 py-1"
           >
-            <span className="text-small text-muted-foreground tabular-nums whitespace-nowrap">
+            <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
               {formatDate(line.at)} {formatTime(line.at)}
             </span>
             <Link
@@ -568,7 +568,7 @@ function InstanceList({
             >
               {line.name}
             </Link>
-            <span className="text-right text-small tabular-nums">
+            <span className="text-right text-sm tabular-nums">
               {line.qty.toLocaleString("id-ID")}
               {line.unit > 1 ? <span className="text-muted-foreground"> × {line.unit}</span> : null}
             </span>
@@ -588,7 +588,7 @@ function InstanceList({
                   title="Buka produk"
                   className="inline-flex rounded-sm text-muted-foreground hover:text-active focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  <Pencil aria-hidden="true" className="icon" />
+                  <Pencil aria-hidden="true" className="size-5" />
                 </Link>
               )}
             </span>
@@ -596,7 +596,7 @@ function InstanceList({
         ))}
       </ul>
       {total > lines.length ? (
-        <p className="border-t px-2 py-1 text-small text-muted-foreground">
+        <p className="border-t px-2 py-1 text-sm text-muted-foreground">
           Menampilkan {lines.length} baris terbaru dari {total}.
         </p>
       ) : null}

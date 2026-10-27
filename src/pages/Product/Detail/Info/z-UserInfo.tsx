@@ -21,8 +21,8 @@ export function UserInfo({ product }: { product: ProductFull | undefined }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Package className="icon text-primary" />
-        <h2 className="text-small font-semibold">Info Barang</h2>
+        <Package className="size-5 text-primary" />
+        <h2 className="text-sm font-semibold">Info Barang</h2>
       </div>
 
       <Row label="Nama" value={product?.name} />
@@ -36,15 +36,15 @@ export function UserInfo({ product }: { product: ProductFull | undefined }) {
       {/* The card and its title are static — a product always has at least one
           listing — so only the rows are pending. */}
       <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-        <span className="text-small font-medium text-muted-foreground">Listing</span>
+        <span className="text-sm font-medium text-muted-foreground">Listing</span>
         {product === undefined ? (
           <ListingRowSkeleton />
         ) : (
           product.listings.map((listing) => (
-            <div key={listing.id} className="flex items-center justify-between gap-2 text-small">
+            <div key={listing.id} className="flex items-center justify-between gap-2 text-sm">
               <span>
                 {listing.name}{" "}
-                <span className="text-small text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   ({listing.kind === "" ? "" : `${getProductKind(listing.kind)} · `}×{listing.unit})
                 </span>
               </span>
@@ -56,9 +56,9 @@ export function UserInfo({ product }: { product: ProductFull | undefined }) {
 
       {product !== undefined && product.productNames.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-          <span className="text-small font-medium text-muted-foreground">Nama Alternatif</span>
+          <span className="text-sm font-medium text-muted-foreground">Nama Alternatif</span>
           {product.productNames.map((name) => (
-            <span key={name.id} className="text-small">
+            <span key={name.id} className="text-sm">
               {name.value}
             </span>
           ))}
@@ -67,9 +67,9 @@ export function UserInfo({ product }: { product: ProductFull | undefined }) {
 
       {product !== undefined && product.properties.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-          <span className="text-small font-medium text-muted-foreground">Properti</span>
+          <span className="text-sm font-medium text-muted-foreground">Properti</span>
           {product.properties.map((property) => (
-            <div key={property.id} className="flex items-center justify-between gap-2 text-small">
+            <div key={property.id} className="flex items-center justify-between gap-2 text-sm">
               <span className="text-muted-foreground">{property.key}</span>
               <span className="break-all text-right">{property.value}</span>
             </div>
@@ -79,10 +79,10 @@ export function UserInfo({ product }: { product: ProductFull | undefined }) {
 
       {product !== undefined && product.note !== "" ? (
         <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-3">
-          <span className="flex items-center gap-2 text-small font-medium text-muted-foreground">
-            <StickyNote className="size-4 small:size-3" /> Catatan
+          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <StickyNote className="size-4" /> Catatan
           </span>
-          <p className="text-small leading-relaxed">{product.note}</p>
+          <p className="text-sm leading-relaxed">{product.note}</p>
         </div>
       ) : null}
     </div>
@@ -93,8 +93,8 @@ export function UserInfo({ product }: { product: ProductFull | undefined }) {
 function Row({ label, value }: { label: string; value: string | undefined }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-transparent p-3 transition-colors hover:border-border hover:bg-muted/50">
-      <span className="text-small font-medium text-muted-foreground">{label}</span>
-      <span className="break-all text-right text-small">
+      <span className="text-sm font-medium text-muted-foreground">{label}</span>
+      <span className="break-all text-right text-sm">
         {value === undefined ? (
           <SkeletonText className="w-24" />
         ) : value === "" ? (
@@ -113,7 +113,7 @@ function Row({ label, value }: { label: string; value: string | undefined }) {
  */
 function ListingRowSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-2 text-small">
+    <div className="flex items-center justify-between gap-2 text-sm">
       <span>
         <SkeletonText className="w-28" />
       </span>

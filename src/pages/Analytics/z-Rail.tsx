@@ -26,7 +26,7 @@ export function Rail() {
           end={leaf.end}
           className={({ isActive }) =>
             cn(
-              "flex items-center gap-2 rounded-md px-2 py-2 text-small transition-colors",
+              "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
               "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
               isActive
                 ? "bg-primary font-medium text-primary-foreground"
@@ -34,7 +34,7 @@ export function Rail() {
             )
           }
         >
-          <leaf.icon aria-hidden="true" className="icon shrink-0" />
+          <leaf.icon aria-hidden="true" className="size-5 shrink-0" />
           <span className="truncate">{leaf.label}</span>
         </NavLink>
       ))}

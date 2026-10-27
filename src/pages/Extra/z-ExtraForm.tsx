@@ -33,7 +33,7 @@ export const ExtraForm = withForm({
           e.preventDefault();
           form.handleSubmit();
         }}
-        className="flex flex-col py-1 gap-2 text-normal mx-auto w-full max-w-4xl"
+        className="flex flex-col py-1 gap-2 text-base mx-auto w-full max-w-4xl"
       >
         <form.AppField name="name">
           {(field) => <field.ShortField type="text">Nama</field.ShortField>}

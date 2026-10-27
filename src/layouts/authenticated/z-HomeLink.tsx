@@ -4,9 +4,9 @@ import { cn } from "~/lib/utils";
 
 export function HomeLink() {
   return (
-    <li className={cn("rounded-t-full flex items-center relative", "h-[60px] small:h-[35px]")}>
+    <li className={cn("rounded-t-full flex items-center relative", "h-11")}>
       <Link to="/" className="relative cursor-pointer">
-        <HomeIcon className="size-10 small:size-5" />
+        <HomeIcon className="size-10" />
       </Link>
     </li>
   );

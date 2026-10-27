@@ -36,7 +36,7 @@ export function Sort({
   return (
     <div className="flex items-center gap-1">
       <Select value={state.sort} onValueChange={(value) => set({ sort: value as SortBy })}>
-        <SelectTrigger className="w-[170px] text-small small:h-10 small:w-[150px]">
+        <SelectTrigger className="w-[170px] text-sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -51,11 +51,11 @@ export function Sort({
         <Button
           type="button"
           variant="outline"
+          size="icon"
           aria-label="Ubah arah urutan"
-          className="size-[54px] small:size-10"
           onClick={() => set({ dir: state.dir === "asc" ? "desc" : "asc" })}
         >
-          {state.dir === "asc" ? <ArrowUp className="icon" /> : <ArrowDown className="icon" />}
+          {state.dir === "asc" ? <ArrowUp  /> : <ArrowDown  />}
         </Button>
       ) : null}
     </div>

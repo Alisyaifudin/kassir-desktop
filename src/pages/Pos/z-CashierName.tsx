@@ -11,10 +11,10 @@ export function CashierName() {
   const name = capitalize(user.name);
   return (
     <span
-      className="flex min-w-0 items-center gap-1 text-small text-muted-foreground select-none"
+      className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground select-none"
       title={`Kasir: ${name}`}
     >
-      <UserRound className="icon shrink-0" />
+      <UserRound className="size-5 shrink-0" />
       <span className="truncate">{name}</span>
     </span>
   );

@@ -27,7 +27,7 @@ export function ExtraList({ all }: { all: Extra[] }) {
                   search: `?url_back=${encodeURIComponent(urlBack)}`,
                 }}
               >
-                <SquareArrowOutUpRight className="icon" />
+                <SquareArrowOutUpRight className="size-5" />
               </Link>
             </Button>
           </TableCell>

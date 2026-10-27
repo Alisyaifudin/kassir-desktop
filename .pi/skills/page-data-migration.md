@@ -75,7 +75,7 @@ function TodayStat({ mode, label, icon, tile }) {
 
 function TodayAmount({ mode }) {
   return (
-    <span className="text-normal font-semibold tabular-nums">
+    <span className="text-2xl font-semibold tabular-nums">
       Rp{" "}
       <pageData.Gate
         keys={["today"]}
@@ -277,8 +277,7 @@ itself instead.
 
 - **`pulse` is required.** A gate without a placeholder has no loading state; a
   value would appear by moving everything around it. Size the pulse to the value
-  it stands in for (see `page-data.md` §13) and give it a `small:` twin where the
-  type scale changes.
+  it stands in for (see `page-data.md` §13), measured from the real element.
 - **Keep the reserved floor outside the gate.** A `delay` blank plus no reserved
   space collapses the card. `min-h` belongs on the container that wraps the gate,
   not in the pulse.
@@ -309,7 +308,7 @@ Then **eyeball it** — none of the following fails a type check:
 - [ ] The card's height is identical before and after the data lands.
 - [ ] The words, labels, `Rp` and icons are on screen from the first frame; only
       values pulse.
-- [ ] Pulse widths match the real values at both app sizes (`big` and `small`).
+- [ ] Pulse dimensions match the real values.
 - [ ] The empty state and the loaded list share the same floor.
 - [ ] A failed key shows one error for the region, not one per value.
 - [ ] A refetch (mutation or `useRefresh`) never blanks the region and never

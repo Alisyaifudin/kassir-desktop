@@ -298,13 +298,13 @@ function Cell({
           )}
         </span>
         <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-2 py-2">
-          <span ref={nameRef} className="truncate text-small font-medium leading-tight">
+          <span ref={nameRef} className="truncate text-sm font-medium leading-tight">
             {listing.name}
           </span>
-          <span className="truncate font-mono text-small leading-tight text-muted-foreground">
+          <span className="truncate font-mono text-sm leading-tight text-muted-foreground">
             {listing.code || "tanpa kode"}
           </span>
-          <span className="flex items-center justify-between gap-2 text-small leading-tight tabular-nums">
+          <span className="flex items-center justify-between gap-2 text-sm leading-tight tabular-nums">
             <span>{rupiah(listing.price)}</span>
             <span className="text-muted-foreground">×{listing.unit}</span>
             <span className={stockClass}>{listing.stock}</span>
@@ -314,7 +314,7 @@ function Cell({
       {pointer !== null
         ? createPortal(
             <div
-              className="pointer-events-none fixed z-50 max-w-xs rounded-md border bg-popover px-2 py-1 text-small text-popover-foreground shadow-md"
+              className="pointer-events-none fixed z-50 max-w-xs rounded-md border bg-popover px-2 py-1 text-sm text-popover-foreground shadow-md"
               style={{ left: pointer.x + 14, top: pointer.y + 14 }}
             >
               {listing.name}
@@ -326,7 +326,7 @@ function Cell({
         ? createPortal(
             <div
               ref={overlayRef}
-              className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md border bg-popover px-1.5 py-0.5 text-small leading-tight text-popover-foreground shadow-md"
+              className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md border bg-popover px-1.5 py-0.5 text-sm leading-tight text-popover-foreground shadow-md"
               style={
                 alignRight
                   ? {

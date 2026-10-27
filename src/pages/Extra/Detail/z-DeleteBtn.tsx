@@ -21,7 +21,7 @@ export function DeleteBtn({ name, id }: { name: string; id: string }) {
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-big">Yakin?</DialogTitle>
+          <DialogTitle className="text-2xl">Yakin?</DialogTitle>
           <DialogDescription>Kamu akan menghapus:</DialogDescription>
           <DialogDescription>
             {">"}

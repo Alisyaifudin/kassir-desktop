@@ -18,7 +18,6 @@ import { analyticsRoute } from "./pages/Analytics/index.tsx";
 import { devPageDataRoute } from "./pages/Dev/PageData/index.tsx";
 import { devPageCacheRoute } from "./pages/Dev/PageCache/index.tsx";
 
-import RootLayout from "./layouts/root.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import AuthLayout from "./layouts/authenticated";
 
@@ -26,7 +25,6 @@ export const router = createHashRouter([
   {
     path: "/",
     ErrorBoundary,
-    Component: RootLayout,
     children: [
       loginRoute,
       {

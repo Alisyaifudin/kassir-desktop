@@ -35,8 +35,8 @@ export default function Page() {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-68px)] w-full max-w-3xl flex-col overflow-y-auto px-4 py-4 small:h-[calc(100vh-44px)]">
-      <h1 className="mb-4 text-big font-bold text-foreground">Tambah Produk</h1>
+    <main className="mx-auto flex h-[calc(100vh-52px)] w-full max-w-3xl flex-col overflow-y-auto px-4 py-4">
+      <h1 className="mb-4 text-2xl font-bold text-foreground">Tambah Produk</h1>
       <ProductForm
         pending={pending}
         error={error}

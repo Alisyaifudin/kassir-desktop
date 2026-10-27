@@ -13,16 +13,16 @@ export default function Page() {
     <pageData.Provider sources={{ socials: service.social.get.changes }}>
       <div className="flex flex-col gap-4 p-6 w-full flex-1 overflow-hidden">
         <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold text-foreground">Kontak Media Sosial</h1>
-          <p className="text-muted-foreground text-normal">
+          <h1 className="text-2xl font-bold text-foreground">Kontak Media Sosial</h1>
+          <p className="text-muted-foreground text-base">
             Kelola kontak yang muncul di struk transaksi
           </p>
         </div>
 
         <div
           className={cn(
-            "grid gap-2 items-center text-normal",
-            "grid-cols-[250px_1fr] small:grid-cols-[200px_1fr]",
+            "grid gap-2 items-center text-base",
+            "grid-cols-[250px_1fr]",
           )}
         >
           <p className="font-semibold text-foreground">Kontak</p>
@@ -47,7 +47,7 @@ function Socials() {
       {({ socials }) => (
         <Show
           when={socials.length > 0}
-          fallback={<p className="text-big">---Belum Ada---</p>}
+          fallback={<p className="text-2xl">---Belum Ada---</p>}
         >
           <div className="flex flex-col gap-1 overflow-y-auto">
             {socials.map((social) => (
@@ -67,8 +67,8 @@ function LoadingList() {
         <div
           key={i}
           className={cn(
-            "grid gap-2 items-center text-normal",
-            "grid-cols-[250px_1fr] small:grid-cols-[200px_1fr]",
+            "grid gap-2 items-center text-base",
+            "grid-cols-[250px_1fr]",
           )}
         >
           <Skeleton className="h-10 w-full" />

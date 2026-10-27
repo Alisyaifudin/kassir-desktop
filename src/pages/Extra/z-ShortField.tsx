@@ -8,7 +8,7 @@ export function ShortField({ children, type }: { children: string; type: "text" 
   const isSubmitting = useStore(field.form.store, (state) => state.isSubmitting);
   return (
     <div className="flex flex-col gap-1">
-      <div className="grid grid-cols-[150px_1fr] small:grid-cols-[100px_1fr] items-center">
+      <div className="grid grid-cols-[150px_1fr] items-center">
         <FieldLabel htmlFor={field.name}>{children}</FieldLabel>
         <Input
           type={type}

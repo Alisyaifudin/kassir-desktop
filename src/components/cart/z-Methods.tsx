@@ -39,7 +39,7 @@ import { useInertApp } from "~/components/cart/use-inert-app";
 
 /** The default `Input` chrome, so a currency field sits in the row like one. */
 const AMOUNT_CLASS =
-  "flex w-full text-normal rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-9 w-full text-base rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * The first amount field, so the settle key — F2 on a sale, F3 on a purchase —
@@ -425,8 +425,8 @@ export function Methods({
             // hold their place with one line the height of a method row —
             // reserved at once, drawn only if the catalogue is slow.
             <ReservedSkeleton className="col-span-12 flex items-center p-1">
-              {/* A real payment row is 70 tall big, 56 small. */}
-              <Skeleton className="h-[70px] w-full small:h-[56px]" />
+              {/* A real payment row is 40 tall. */}
+              <Skeleton className="h-9 w-full" />
             </ReservedSkeleton>
           ) : multiple ? (
             <div
@@ -440,10 +440,10 @@ export function Methods({
               <Button variant="outline" className="w-full justify-between gap-2">
                 <span className="flex min-w-0 items-center truncate">
                   {firstLabel}
-                  <Plus className="icon shrink-0" />
+                  <Plus className="size-5 shrink-0" />
                 </span>
                 <span className="shrink-0 font-bold tabular-nums">{rupiah(total, draft.fix)}</span>
-                <span className="shrink-0 rounded-full bg-muted px-1.5 text-small font-bold tabular-nums text-muted-foreground">
+                <span className="shrink-0 rounded-full bg-muted px-1.5 text-sm font-bold tabular-nums text-muted-foreground">
                   {draft.methods.length}
                 </span>
               </Button>
@@ -458,7 +458,7 @@ export function Methods({
               )}
             >
               <Button variant="outline" className="w-full">
-                <Plus className="icon" />
+                <Plus className="size-5" />
                 Tambah metode
               </Button>
             </div>
@@ -572,7 +572,7 @@ export function Methods({
           }}
         >
           <DialogHeader>
-            <DialogTitle className="text-big font-bold">Metode pembayaran</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Metode pembayaran</DialogTitle>
           </DialogHeader>
           <DialogDescription>
             Metode dan jumlah pembayaran; sisanya menjadi kembalian.
@@ -581,7 +581,7 @@ export function Methods({
             {draft.methods.map((method, index) => (
               <div key={method.id} className="flex flex-col gap-1 rounded-md  border p-2">
                 <div className="flex gap-1 items-center">
-                  <span className="w-4 shrink-0 pt-1.5 text-right text-small  text-muted-foreground tabular-nums select-none">
+                  <span className="w-4 shrink-0 pt-1.5 text-right text-sm text-muted-foreground tabular-nums select-none">
                     {index + 1}.
                   </span>
                   <div className="min-w-0 flex-1">
@@ -605,7 +605,7 @@ export function Methods({
                     disabled={draft.methods.length <= 1}
                     onClick={() => set(draft.methods.filter((row) => row.id !== method.id))}
                   >
-                    <X className="icon" />
+                    <X className="size-5" />
                   </Button>
                 </div>
                 <InputCurrency
@@ -626,15 +626,15 @@ export function Methods({
               disabled={nextKind === null}
               title={nextKind === null ? "Semua metode sudah dipakai" : undefined}
             >
-              <Plus className="icon" />
+              <Plus className="size-5" />
               Tambah metode
             </Button>
             {nextKind === null ? (
-              <p className="text-small text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Semua metode sudah dipakai; satu transaksi memakai tiap metode sekali.
               </p>
             ) : null}
-            <div className="flex items-center justify-between border-t pt-2 text-small tabular-nums">
+            <div className="flex items-center justify-between border-t pt-2 text-sm tabular-nums">
               <span className="text-muted-foreground">Total</span>
               <span className="font-bold">{rupiah(total, draft.fix)}</span>
             </div>
@@ -668,7 +668,7 @@ function AddCell({ selected, onActivate }: { selected: boolean; onActivate: () =
           onActivate();
         }}
       >
-        <Plus className="icon" />
+        <Plus className="size-5" />
       </Button>
     </div>
   );

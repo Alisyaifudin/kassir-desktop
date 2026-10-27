@@ -519,9 +519,7 @@ export function Listing({
   useEffect(() => {
     const wanted = lines.filter(
       (line) =>
-        line.base === undefined &&
-        line.listingId != null &&
-        !askedBase.current.has(line.listingId),
+        line.base === undefined && line.listingId != null && !askedBase.current.has(line.listingId),
     );
     if (wanted.length === 0) return;
     for (const line of wanted) {
@@ -867,7 +865,7 @@ export function Listing({
             focused && isSearch && SELECTED_RING,
           )}
         >
-          <Kbd className="py-5 small:py-4">F1</Kbd>
+          <Kbd>F1</Kbd>
           <Input
             ref={searchRef}
             type="search"
@@ -907,7 +905,7 @@ export function Listing({
               insert();
             }}
           >
-            <Plus className="icon" />
+            <Plus className="size-5" />
             Manual
           </Button>
         </div>
@@ -943,11 +941,11 @@ export function Listing({
                   onToggle?.();
                 }}
               >
-                <span className="flex items-center gap-1 text-small leading-none text-muted-foreground select-none">
+                <span className="flex items-center gap-1 text-sm leading-none text-muted-foreground select-none">
                   Tambahan
-                  <ArrowRight className="icon" />
+                  <ArrowRight className="size-5" />
                 </span>
-                <span className="w-full truncate text-normal font-bold tabular-nums">
+                <span className="w-full truncate text-base font-bold tabular-nums">
                   {rupiah(extraTotal)}
                 </span>
               </Button>
@@ -972,8 +970,8 @@ export function Listing({
             // that replace them.
             <ReservedSkeleton className="divide-y space-y-1 divide-border">
               {Array.from({ length: 3 }).map((_, index) => (
-                // A real cart line is two cell rows: 141 tall big, 113 small.
-                <Skeleton key={index} className="h-[141px] rounded-none w-full small:h-[113px]" />
+                // A real cart line is two cell rows: 88 tall.
+                <Skeleton key={index} className="h-[88px] rounded-none w-full" />
               ))}
             </ReservedSkeleton>
           ) : null}

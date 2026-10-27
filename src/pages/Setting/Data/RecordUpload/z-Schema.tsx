@@ -41,17 +41,17 @@ export function SchemaDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="text-muted-foreground">
-          <HelpCircle className="icon" />
+          <HelpCircle className="size-5" />
           <span className="sr-only">Lihat format data</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-full">
         <DialogHeader>
-          <DialogTitle className="text-big">Format data</DialogTitle>
+          <DialogTitle className="text-2xl">Format data</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-3">
-              <p className="text-small">File JSON harus mengikuti bentuk data berikut:</p>
-              <pre className="max-h-[60vh] overflow-auto rounded-md border border-input bg-muted/50 p-4 text-small text-foreground">
+              <p className="text-sm">File JSON harus mengikuti bentuk data berikut:</p>
+              <pre className="max-h-[60vh] overflow-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
                 <code className="block whitespace-pre">{recordSchema}</code>
               </pre>
             </div>

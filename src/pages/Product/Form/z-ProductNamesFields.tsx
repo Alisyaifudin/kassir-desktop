@@ -36,7 +36,7 @@ export function ProductNamesFields({
       action={<SectionAdd onClick={form.addProductName} disabled={disabled} />}
     >
       {draft.productNames.length === 0 ? (
-        <p className="text-small text-muted-foreground">Belum ada nama alternatif.</p>
+        <p className="text-sm text-muted-foreground">Belum ada nama alternatif.</p>
       ) : (
         <div className={rowsClass(flat)}>
           {draft.productNames.map((productName) => (
@@ -58,12 +58,12 @@ export function ProductNamesFields({
               <Button
                 type="button"
                 variant="ghost"
-                className="size-11 small:size-9"
+                className="size-11"
                 disabled={disabled}
                 onClick={() => form.removeProductName(productName.key)}
                 aria-label={NAMES_ROW.remove}
               >
-                <Trash2 className="icon" />
+                <Trash2 className="size-5" />
               </Button>
             </div>
           ))}
@@ -87,11 +87,11 @@ export function NameRowSkeleton() {
       <Button
         type="button"
         variant="ghost"
-        className="size-11 small:size-9"
+        className="size-11"
         disabled
         aria-label={NAMES_ROW.remove}
       >
-        <Trash2 className="icon" />
+        <Trash2 className="size-5" />
       </Button>
     </div>
   );

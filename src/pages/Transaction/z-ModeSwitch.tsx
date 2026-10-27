@@ -75,7 +75,7 @@ export function ModeSwitch({
               aria-checked={active}
               onClick={() => onChange(mode.value)}
               className={cn(
-                "relative z-10 min-w-[104px] rounded-sm px-3 py-1.5 text-normal transition-colors",
+                "relative z-10 min-w-[104px] rounded-sm px-3 py-1.5 text-base transition-colors",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none",
                 active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}

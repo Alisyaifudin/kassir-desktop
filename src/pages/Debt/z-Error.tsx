@@ -4,8 +4,8 @@ import { RecordError } from "~/services/record";
 export function DebtErrorFallback({ error }: { error: RecordError }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-      <p className="text-normal font-semibold">Utang bermasalah</p>
-      <p className="text-small text-muted-foreground">{error.message}</p>
+      <p className="text-base font-semibold">Utang bermasalah</p>
+      <p className="text-sm text-muted-foreground">{error.message}</p>
     </div>
   );
 }

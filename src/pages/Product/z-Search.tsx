@@ -44,7 +44,7 @@ export function Search({ value, onChange }: { value: string; onChange: (value: s
 
   return (
     <div className="relative flex min-w-[180px] flex-1 items-center">
-      <SearchIcon className="absolute left-3 size-6 text-muted-foreground small:size-5" />
+      <SearchIcon className="absolute left-3 size-6 text-muted-foreground" />
       <Input
         type="search"
         // Arriving on this page is almost always "find a product", so the bar

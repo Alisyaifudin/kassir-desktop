@@ -180,12 +180,12 @@ export function Complete({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-big">{title}</DialogTitle>
+          <DialogTitle className="text-2xl">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         {credit ? (
-          <p className="rounded-lg border bg-muted/30 px-3 py-6 text-small text-muted-foreground">
+          <p className="rounded-lg border bg-muted/30 px-3 py-6 text-sm text-muted-foreground">
             Tidak ada pembayaran pada transaksi ini. Kredit dibayar lewat halaman Utang.
           </p>
         ) : (
@@ -193,13 +193,13 @@ export function Complete({
             {methods.length > 1 ? (
               <>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-normal text-muted-foreground">Pembayaran</span>
-                  <span className="text-big font-bold tabular-nums">{rupiah(paid, fix)}</span>
+                  <span className="text-base text-muted-foreground">Pembayaran</span>
+                  <span className="text-2xl font-bold tabular-nums">{rupiah(paid, fix)}</span>
                 </div>
                 {methods.map((method) => (
                   <div key={method.id} className="flex items-center justify-between gap-3 pl-4">
-                    <span className="text-normal text-muted-foreground">{method.name}</span>
-                    <span className="text-normal text-muted-foreground tabular-nums">
+                    <span className="text-base text-muted-foreground">{method.name}</span>
+                    <span className="text-base text-muted-foreground tabular-nums">
                       {rupiah(method.value, fix)}
                     </span>
                   </div>
@@ -207,24 +207,24 @@ export function Complete({
               </>
             ) : (
               <div className="flex items-center justify-between gap-3">
-                <span className="text-normal text-muted-foreground">
+                <span className="text-base text-muted-foreground">
                   {methods[0] === undefined ? "Pembayaran" : `Pembayaran ${methods[0].name}`}
                 </span>
-                <span className="text-big font-bold tabular-nums">
+                <span className="text-2xl font-bold tabular-nums">
                   {rupiah(methods[0]?.value ?? total, fix)}
                 </span>
               </div>
             )}
             <div className="flex items-center justify-between gap-3">
-              <span className="text-big text-muted-foreground">Kembalian</span>
-              <span className="text-grand-total font-bold tabular-nums">{rupiah(change, fix)}</span>
+              <span className="text-2xl text-muted-foreground">Kembalian</span>
+              <span className="text-6xl/[0.8] font-bold tabular-nums">{rupiah(change, fix)}</span>
             </div>
           </div>
         )}
 
-        {error === null ? null : <p className="text-small text-destructive">{error}</p>}
+        {error === null ? null : <p className="text-sm text-destructive">{error}</p>}
         {countdown === null ? null : (
-          <p className="text-small text-muted-foreground">Menutup dalam {countdown} detik...</p>
+          <p className="text-sm text-muted-foreground">Menutup dalam {countdown} detik...</p>
         )}
 
         <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">

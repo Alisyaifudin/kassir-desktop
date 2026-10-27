@@ -18,7 +18,7 @@ export default function Page() {
 
   return (
     <main className="flex h-full min-h-0 overflow-hidden">
-      <aside className="w-[280px] shrink-0 border-r p-2 small:w-[220px]">
+      <aside className="w-[280px] shrink-0 border-r p-2">
         <Rail />
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">

@@ -81,18 +81,18 @@ export function Complete({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-big">Transaksi tersimpan</DialogTitle>
+          <DialogTitle className="text-2xl">Transaksi tersimpan</DialogTitle>
           <DialogDescription>
             Transaksi manual sudah dicatat; tidak ada stok yang berubah.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-6">
-          <span className="text-normal text-muted-foreground">Total</span>
-          <span className="text-big font-bold tabular-nums">{rupiah(total, 0)}</span>
+          <span className="text-base text-muted-foreground">Total</span>
+          <span className="text-2xl font-bold tabular-nums">{rupiah(total, 0)}</span>
         </div>
 
-        {error === null ? null : <p className="text-small text-destructive">{error}</p>}
+        {error === null ? null : <p className="text-sm text-destructive">{error}</p>}
 
         <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-between">
           <Button variant="destructive" disabled={busy} onClick={() => void cancel()}>

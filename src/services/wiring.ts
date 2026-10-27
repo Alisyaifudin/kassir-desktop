@@ -37,6 +37,8 @@ import { SupplierService } from "./supplier";
 import { SupplierLive } from "./supplier/live";
 import { TransactionService } from "./transaction";
 import { TransactionLive } from "./transaction/live";
+import { ZoomService } from "./zoom";
+import { ZoomLive } from "./zoom/live";
 
 /**
  * Layers that back the public services but are not exposed on `service`.
@@ -66,6 +68,7 @@ export function buildAppLive(hidden: HiddenLive) {
   const printerLive = PrinterLive.pipe(Layer.provide(hidden));
   const socialLive = SocialLive.pipe(Layer.provide(hidden));
   const supplierLive = SupplierLive.pipe(Layer.provide(hidden));
+  const zoomLive = ZoomLive.pipe(Layer.provide(hidden));
   // `record` reverses a deleted record's stock movement, so it needs `product`.
   const recordLive = RecordLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
   // `transaction` commits a cart through `record` and restores one from it.
@@ -91,6 +94,7 @@ export function buildAppLive(hidden: HiddenLive) {
     socialLive,
     supplierLive,
     transactionLive,
+    zoomLive,
     authLive,
     hidden,
   );
@@ -126,6 +130,7 @@ export function makeService(live: typeof appLive) {
         store: yield* StoreService,
         supplier: yield* SupplierService,
         transaction: yield* TransactionService,
+        zoom: yield* ZoomService,
         auth: yield* AuthService,
       };
     }).pipe(Effect.provide(live)),

@@ -71,7 +71,7 @@ function FooterBar({
 
   return (
     <div className="flex items-center justify-between gap-3 border-t bg-background px-4 py-2">
-      <span className="flex items-center gap-1 text-small tabular-nums text-muted-foreground">
+      <span className="flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
         {unknown ? (
           <>
             <SkeletonText className="w-14" />
@@ -84,7 +84,7 @@ function FooterBar({
       </span>
       <div className="flex items-center gap-3">
         <Select value={String(size)} onValueChange={(value) => set({ size: Number(value) })}>
-          <SelectTrigger className="h-11 small:w-[100px] w-[120px] text-small small:h-9">
+          <SelectTrigger className="h-11 w-[120px] text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -99,25 +99,25 @@ function FooterBar({
           <Button
             type="button"
             variant="ghost"
-            className="size-11 small:size-9"
+            className="size-11"
             disabled={unknown || page <= 1}
             onClick={() => set({ page: page - 1 })}
             aria-label="Halaman sebelumnya"
           >
-            <ChevronLeft className="icon" />
+            <ChevronLeft className="size-5" />
           </Button>
-          <span className="flex min-w-12 items-center justify-center text-small tabular-nums">
+          <span className="flex min-w-12 items-center justify-center text-sm tabular-nums">
             {unknown ? <SkeletonText className="w-8" /> : `${page}/${totalPage}`}
           </span>
           <Button
             type="button"
             variant="ghost"
-            className="size-11 small:size-9"
+            className="size-11"
             disabled={unknown || page >= totalPage}
             onClick={() => set({ page: page + 1 })}
             aria-label="Halaman berikutnya"
           >
-            <ChevronRight className="icon" />
+            <ChevronRight className="size-5" />
           </Button>
         </div>
       </div>

@@ -10,7 +10,7 @@ export function ExtraForm({ extra }: { extra: Extra }) {
   const { form, error } = useExtraForm(extra);
   return (
     <main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
-      <h1 className="font-bold text-big">Edit biaya lainnya</h1>
+      <h1 className="font-bold text-2xl">Edit biaya lainnya</h1>
       <ExtraFormRoot form={form}>
         <>
           <div className="flex items-center justify-between">

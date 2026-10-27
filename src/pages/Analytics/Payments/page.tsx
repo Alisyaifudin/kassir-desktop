@@ -118,7 +118,7 @@ function Body({
               </ResponsiveContainer>
             </div>
             {/* As wide as its longest row: "Transfer · 1× · Rp481.341.968" at
-                text-normal is ~385px, and a clipped "Tu…" reads as a bug. */}
+                text-base is ~385px, and a clipped "Tu…" reads as a bug. */}
             <ul className="flex w-fit shrink-0 flex-col gap-1">
               {payments.map((row, index) => (
                 <li key={row.kind} className="flex items-baseline justify-between gap-3">
@@ -131,7 +131,7 @@ function Body({
                     <span className="whitespace-nowrap">{METHOD_NAMES[row.kind]}</span>
                   </span>
                   <span className="flex shrink-0 items-baseline gap-2">
-                    <span className="text-small whitespace-nowrap text-muted-foreground tabular-nums">
+                    <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
                       {row.count}×
                     </span>
                     <span className="font-semibold tabular-nums">{money(row.total)}</span>
@@ -144,7 +144,7 @@ function Body({
       )}
 
       <section className="flex flex-col gap-2 rounded-xl border bg-card p-3">
-        <h2 className="text-small font-semibold">Lunas vs kredit</h2>
+        <h2 className="text-sm font-semibold">Lunas vs kredit</h2>
         <div className="flex h-6 w-full overflow-hidden rounded-md bg-muted">
           <div
             className="h-full bg-emerald-500"
@@ -152,7 +152,7 @@ function Body({
             aria-hidden="true"
           />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-small">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <span className="text-muted-foreground">
             Lunas {money(paid)} ({paidShare}%)
           </span>
@@ -163,7 +163,7 @@ function Body({
         {outstanding > 0 ? (
           <Link
             to="/debt?url_back=/analytics/pembayaran"
-            className="text-small text-muted-foreground underline-offset-4 hover:text-active hover:underline"
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-active hover:underline"
           >
             Lihat {debt.length} catatan utang berjalan →
           </Link>

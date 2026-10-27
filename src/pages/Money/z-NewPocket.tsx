@@ -25,15 +25,15 @@ export const NewPocket = memo(function NewPocket() {
       <Button
         asChild
         size="icon"
-        className="fixed bottom-6 right-6 z-40 size-14 rounded-full shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95 small:bottom-4 small:right-4 small:size-12"
+        className="fixed bottom-6 right-6 z-40 size-14 rounded-full shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95"
       >
         <DialogTrigger aria-label="Tambah kantong baru">
-          <Plus className="icon" />
+          <Plus className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Tambah Kantong Keuangan Baru</DialogTitle>
+          <DialogTitle className="text-2xl">Tambah Kantong Keuangan Baru</DialogTitle>
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <Field>
               <FieldLabel htmlFor="pocket-name">Nama</FieldLabel>

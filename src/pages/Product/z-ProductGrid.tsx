@@ -54,12 +54,7 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
             className={cn("h-full w-full object-cover", !published && "opacity-40 grayscale")}
           />
         ) : (
-          <Package
-            className={cn(
-              "size-10 text-muted-foreground/40 small:size-8",
-              !published && "opacity-50",
-            )}
-          />
+          <Package className={cn("size-10 text-muted-foreground/40", !published && "opacity-50")} />
         )}
         {isLoss(product) || !published ? (
           <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
@@ -71,7 +66,7 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
           asChild
           size="icon"
           variant="secondary"
-          className="absolute right-2 top-2 size-12 rounded-full bg-background/85 shadow-sm backdrop-blur-sm hover:bg-background small:size-10"
+          className="absolute right-2 top-2 size-12 rounded-full bg-background/85 shadow-sm backdrop-blur-sm hover:bg-background"
         >
           <Link
             to={{
@@ -81,37 +76,36 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
             aria-label={`Buka ${product.name}`}
             title="Buka produk"
           >
-            <ExternalLink className="icon" />
+            <ExternalLink className="size-5" />
           </Link>
         </Button>
       </div>
       <div className="flex flex-col gap-1.5 p-2.5">
         <span
           className={cn(
-            "line-clamp-2 text-small font-medium leading-tight",
+            "line-clamp-2 text-sm font-medium leading-tight",
             !published && "text-muted-foreground",
           )}
         >
           {product.name}
         </span>
         <ListingCodes product={product} />
-        <span className="text-normal tabular-nums text-muted-foreground">
-          {priceRange(product)}
-        </span>
-        {/* The dearest lot that still holds stock, not the weighted average:
+        <div className="flex items-center justify-between">
+          <span className="tabular-nums text-muted-foreground">
+            {priceRange(product)}
+          </span>
+          {/* The dearest lot that still holds stock, not the weighted average:
             that is the number that decides whether a price is worth selling at. */}
-        <span
-          className={cn(
-            "text-small tabular-nums text-muted-foreground",
-            !published && "opacity-60",
-          )}
-          title="Modal tertinggi per pcs dari lot stok"
-        >
-          Modal {formatPrice(product.maxCapital)}
-        </span>
+          <span
+            className={cn("tabular-nums text-muted-foreground", !published && "opacity-60")}
+            title="Modal tertinggi per pcs dari lot stok"
+          >
+            Modal {formatPrice(product.maxCapital)}
+          </span>
+        </div>
         <div className="flex items-center justify-between gap-1">
           <StockBadge product={product} />
-          <span className="text-normal text-muted-foreground">{product.listings.length} data</span>
+          <span className="text-base text-muted-foreground">{product.listings.length} data</span>
         </div>
       </div>
     </div>

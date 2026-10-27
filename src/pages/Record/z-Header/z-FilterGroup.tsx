@@ -15,8 +15,8 @@ const ICONS: Record<MethodKind, typeof Banknote> = {
  * A pill that is also a multi-select option, so it carries `role="checkbox"` +
  * `aria-checked` — the same semantics the checkboxes had, in badge clothing.
  *
- * The size arrives as `[font-size:var(--text-*)]` rather than `text-small` /
- * `text-normal` on purpose. `twMerge` reads this project's custom size tokens as
+ * The size arrives as `[font-size:var(--text-*)]` rather than `text-sm` /
+ * `text-base` on purpose. `twMerge` reads this project's custom size tokens as
  * text *colours*, so passing one through `cn` alongside `text-primary-foreground`
  * silently deletes the colour — leaving dark text on a dark pill. The `--text-*`
  * custom properties sit in a different class group and are immune. Callers pass
@@ -90,7 +90,7 @@ export function FilterGroup({
     >
       <Badge
         checked={state === "indeterminate" ? "mixed" : state}
-        icon={<Icon strokeWidth={2.5} className="icon shrink-0" />}
+        icon={<Icon className="size-5 shrink-0 [--icon-stroke:2.5]" />}
         onClick={onToggleKind}
         className="h-12 w-fit px-4 font-medium [font-size:var(--text-normal)]"
       >

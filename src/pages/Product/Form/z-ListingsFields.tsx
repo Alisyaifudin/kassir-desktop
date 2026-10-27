@@ -107,18 +107,18 @@ function ListingRow({
   return (
     <div className={rowClass(flat, ROW, ROW_FLAT)}>
       <div className="flex items-center justify-between">
-        <span className="text-small font-medium text-muted-foreground">
+        <span className="text-sm font-medium text-muted-foreground">
           {LISTING_ROW.title(index)}
         </span>
         <Button
           type="button"
           variant="ghost"
-          className="size-11 small:size-9"
+          className="size-11"
           disabled={disabled || !canRemove}
           onClick={onRemove}
           aria-label={LISTING_ROW.remove}
         >
-          <Trash2 className="icon" />
+          <Trash2 className="size-5" />
         </Button>
       </div>
       <div className={ROW_FIELDS}>
@@ -194,17 +194,17 @@ export function ListingRowSkeleton({ index }: { index: number }) {
   return (
     <div className={rowClass(flat, ROW, ROW_FLAT)}>
       <div className="flex items-center justify-between">
-        <span className="text-small font-medium text-muted-foreground">
+        <span className="text-sm font-medium text-muted-foreground">
           {LISTING_ROW.title(index)}
         </span>
         <Button
           type="button"
           variant="ghost"
-          className="size-11 small:size-9"
+          className="size-11"
           disabled
           aria-label={LISTING_ROW.remove}
         >
-          <Trash2 className="icon" />
+          <Trash2 className="size-5" />
         </Button>
       </div>
       <div className={ROW_FIELDS}>

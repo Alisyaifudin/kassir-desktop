@@ -56,8 +56,8 @@ export function ConfirmDelete({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-normal">{title}</DialogTitle>
-          <DialogDescription className="text-small">{description}</DialogDescription>
+          <DialogTitle className="text-base">{title}</DialogTitle>
+          <DialogDescription className="text-sm">{description}</DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" disabled={busy} onClick={() => handleOpenChange(false)}>

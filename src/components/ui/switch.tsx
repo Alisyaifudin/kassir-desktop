@@ -26,7 +26,7 @@ const Switch = React.forwardRef<
     className={cn(
       "inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
       "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-      "small:h-5 small:w-9",
+      "",
       className,
     )}
     {...props}
@@ -34,8 +34,8 @@ const Switch = React.forwardRef<
     <span
       aria-hidden
       className={cn(
-        "pointer-events-none block size-5 rounded-full bg-background shadow transition-transform small:size-4",
-        checked ? "translate-x-5 small:translate-x-4" : "translate-x-0",
+        "pointer-events-none block size-5 rounded-full bg-background shadow transition-transform",
+        checked ? "translate-x-5" : "translate-x-0",
       )}
     />
   </button>

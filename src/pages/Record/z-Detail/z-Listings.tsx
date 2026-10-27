@@ -21,17 +21,17 @@ export function Listings({ record }: { record: RecordFull }) {
   // the leftover height and scrolls its rows internally, which puts a second
   // scrollbar inside the band and stops the sticky header from tracking the band.
   return (
-    <Table className="text-normal" parentClass="max-h-none overflow-visible">
+    <Table className="text-base" parentClass="max-h-none overflow-visible">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[93px] small:w-[80px]">No</TableHead>
+          <TableHead className="w-[93px]">No</TableHead>
           <TableHead>Nama</TableHead>
-          <TableHead className="text-end w-[170px] small:w-[100px]">Satuan</TableHead>
+          <TableHead className="text-end w-[170px]">Satuan</TableHead>
           <Show when={record.mode === "outcoming"}>
-            <TableHead className="text-end w-[170px] small:w-[100px]">Modal</TableHead>
+            <TableHead className="text-end w-[170px]">Modal</TableHead>
           </Show>
-          <TableHead className="text-end w-[57px] small:w-[40px]">Qty</TableHead>
-          <TableHead className="text-end w-[170px] small:w-[100px]">Total</TableHead>
+          <TableHead className="text-end w-[57px]">Qty</TableHead>
+          <TableHead className="text-end w-[170px]">Total</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="border-b">

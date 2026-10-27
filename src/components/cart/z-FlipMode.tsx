@@ -38,12 +38,12 @@ export function FlipMode({ draft, className }: { draft: Draft; className?: strin
         type="button"
         variant="ghost"
         size="sm"
-        className="text-small text-muted-foreground hover:text-foreground"
+        className="text-sm text-muted-foreground hover:text-foreground"
         title={HINTS[next]}
         disabled={loading}
         onClick={() => void flip(next)}
       >
-        <ArrowLeftRight className="icon" />
+        <ArrowLeftRight className="size-5" />
         {LABELS[next]}
       </Button>
       <TextError>{error}</TextError>

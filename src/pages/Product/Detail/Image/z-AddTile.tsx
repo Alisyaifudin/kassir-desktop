@@ -18,8 +18,8 @@ export function AddTile({
   return (
     <li className="h-32 aspect-square shrink-0 p-0.5">
       <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
-        <Plus className="icon" />
-        <span className="text-small">Tambah</span>
+        <Plus className="size-5" />
+        <span className="text-sm">Tambah</span>
         <input
           type="file"
           multiple

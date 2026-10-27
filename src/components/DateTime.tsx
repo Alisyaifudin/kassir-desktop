@@ -45,27 +45,26 @@ type Field = "day" | "month" | "year" | "hour" | "minute" | "second";
  * The columns, in reading order — which is also the ←/→ order.
  *
  * Widths are sized for what each column has to hold, not eyeballed: the label
- * (`text-small`, 24px on the big layout) is usually the wider of the two — `menit`
- * and `bulan` (which carries `September` at `text-normal`, 30px) set the floor.
- * Each width has a `.small` step because the same tokens resolve to 18px/20px
- * there. The row height is the matching class pair below.
+ * (`text-sm`, 14px) is usually the wider of the two — `menit` and `bulan`
+ * (which carries `September` at `text-base`, 16px) set the floor. The row height
+ * is the matching class below.
  */
 const FIELDS: { key: Field; label: string; gap?: boolean; width: string }[] = [
-  { key: "day", label: "hari", width: "w-14 small:w-11" },
-  { key: "month", label: "bulan", width: "w-40 small:w-32" },
-  { key: "year", label: "tahun", width: "w-20 small:w-16" },
-  { key: "hour", label: "jam", width: "w-12 small:w-10", gap: true },
-  { key: "minute", label: "menit", width: "w-20 small:w-14" },
-  { key: "second", label: "detik", width: "w-16 small:w-14" },
+  { key: "day", label: "hari", width: "w-14" },
+  { key: "month", label: "bulan", width: "w-40" },
+  { key: "year", label: "tahun", width: "w-20" },
+  { key: "hour", label: "jam", width: "w-12", gap: true },
+  { key: "minute", label: "menit", width: "w-20" },
+  { key: "second", label: "detik", width: "w-16" },
 ];
 
 /**
- * A wheel row's height: one `text-normal` line (30px on the big layout, 20px in
- * `.small`) with room either side. `leading-none` is load-bearing — the token's
- * default line-height (36px) is taller than the row, and three of those in an
- * 84px wheel is exactly the overlap the first cut shipped.
+ * A wheel row's height: one `text-base` line (16px) with room either side.
+ * `leading-none` is load-bearing — the default line-height (24px) is taller than
+ * the row, and three of those in a short wheel is exactly the overlap the first
+ * cut shipped.
  */
-const ROW_CLASS = "h-9 leading-none small:h-7";
+const ROW_CLASS = "h-9 leading-none";
 
 /** How long typed digits stay together before they start a new number. */
 const DIGIT_TIMEOUT = 900;
@@ -429,7 +428,7 @@ function Wheel({
 
   return (
     <div className={cn("flex flex-col items-center gap-1", width, gap && "ml-2")}>
-      <span className="text-small leading-none text-muted-foreground select-none">{label}</span>
+      <span className="text-sm leading-none text-muted-foreground select-none">{label}</span>
       <div
         ref={ref}
         id={`date-time-${field}`}
@@ -463,13 +462,13 @@ function Wheel({
                   requestStep(index === 0 ? -1 : 1);
                 }}
                 className={cn(
-                  "flex items-center justify-center text-normal tabular-nums select-none",
+                  "flex items-center justify-center text-base tabular-nums select-none",
                   ROW_CLASS,
                   index === 1 && "font-semibold text-foreground",
                   index !== 1 &&
                     (row.disabled
-                      ? "cursor-not-allowed text-small text-muted-foreground/25"
-                      : "cursor-pointer text-small text-muted-foreground/60"),
+                      ? "cursor-not-allowed text-sm text-muted-foreground/25"
+                      : "cursor-pointer text-sm text-muted-foreground/60"),
                 )}
               >
                 {row.text}

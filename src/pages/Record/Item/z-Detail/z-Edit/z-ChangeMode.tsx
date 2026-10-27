@@ -28,7 +28,7 @@ export function ChangeMode({ record }: { record: RecordFull }) {
       >
         Ubah jadi {MODE_NAMES[next]} <Spinner when={loading} />
       </Button>
-      <p className="text-small text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Catatan ini dibuat ulang sebagai {body[next]} lalu yang lama dihapus.
       </p>
       <TextError>{error}</TextError>

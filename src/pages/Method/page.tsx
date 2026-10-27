@@ -20,8 +20,8 @@ export default function Page() {
     <pageData.Provider sources={{ catalog: service.method.get.catalogChanges }}>
       <div className="flex flex-col gap-4 p-6 flex-1 overflow-auto">
         <div className="flex flex-col gap-1">
-          <h1 className="text-big font-bold text-foreground">Metode Pembayaran</h1>
-          <p className="text-muted-foreground text-normal">
+          <h1 className="text-2xl font-bold text-foreground">Metode Pembayaran</h1>
+          <p className="text-muted-foreground text-base">
             Kelola metode pembayaran yang tersedia
           </p>
         </div>

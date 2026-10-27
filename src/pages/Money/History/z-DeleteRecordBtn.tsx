@@ -27,13 +27,13 @@ export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money:
         variant="destructive"
       >
         <DialogTrigger>
-          <X className="icon" />
+          <X className="size-5" />
         </DialogTrigger>
       </Button>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-big">Hapus Catatan</DialogTitle>
-          <div className="flex flex-col gap-2 text-big">
+          <DialogTitle className="text-2xl">Hapus Catatan</DialogTitle>
+          <div className="flex flex-col gap-2 text-2xl">
             <div className="grid grid-cols-[200px_1fr]">
               <p>Tanggal</p>
               <p>

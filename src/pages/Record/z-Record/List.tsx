@@ -91,15 +91,15 @@ export function List({
   );
 
   return (
-    <Table className="text-normal" aria-label="Daftar transaksi hari ini">
+    <Table className="text-base" aria-label="Daftar transaksi hari ini">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[30px] font-normal small:w-[10px]">No</TableHead>
-          <TableHead className={cn("text-center w-[150px] font-normal small:w-[90px]")}>
+          <TableHead className="w-[30px] font-normal">No</TableHead>
+          <TableHead className={cn("text-center w-[150px] font-normal")}>
             Kasir
           </TableHead>
           <TableHead
-            className="w-[120px] font-normal small:w-[93px]"
+            className="w-[120px] font-normal"
             aria-sort={order === "time" ? (sort === "asc" ? "ascending" : "descending") : "none"}
           >
             <SortBtn

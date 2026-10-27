@@ -119,17 +119,17 @@ describe("parseRange", () => {
 });
 
 describe("cn", () => {
-  // The app sizes text with its own tokens. tailwind-merge would read
-  // `text-small` as a colour and drop it as soon as a real colour class shows
-  // up, so the tokens are declared as font sizes; this is that declaration.
-  test("a size token survives next to a colour class", () => {
-    const merged = cn("text-small", "text-muted-foreground");
-    expect(merged).toContain("text-small");
+  // Text sizes are stock Tailwind now (`text-base`, `text-sm`, …). tailwind-merge
+  // must still read them as a font size rather than a text colour, so a size and
+  // a colour can sit together in one class list.
+  test("a text size survives next to a colour class", () => {
+    const merged = cn("text-sm", "text-muted-foreground");
+    expect(merged).toContain("text-sm");
     expect(merged).toContain("text-muted-foreground");
   });
 
-  test("two size tokens still resolve to the last one", () => {
-    expect(cn("text-small", "text-big")).toBe("text-big");
+  test("two text sizes still resolve to the last one", () => {
+    expect(cn("text-sm", "text-2xl")).toBe("text-2xl");
   });
 
   test("conditional and skipped values are dropped", () => {

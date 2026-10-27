@@ -67,7 +67,7 @@ export function Search() {
     <div className="flex flex-col gap-2 flex-1 overflow-hidden">
       <div className="flex items-center gap-2">
         <form className="flex flex-1 items-center py-0.5 gap-2" onSubmit={handleSubmit}>
-          <Button className="icon" variant="ghost" aria-label="Cari transaksi" type="submit">
+          <Button className="size-5" variant="ghost" aria-label="Cari transaksi" type="submit">
             <SearchIcon />
           </Button>
           <Input
@@ -167,20 +167,20 @@ function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () =>
           ? "Tidak ada yang cocok."
           : `Menampilkan ${page.entries.length} dari ${page.total} hasil.`}
       </p>
-      <Table className="text-normal flex-1">
+      <Table className="text-base flex-1">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[60px] font-normal small:w-[50px]">No</TableHead>
-            <TableHead className="text-center w-[170px] font-normal small:w-[110px]">
+            <TableHead className="w-[60px] font-normal">No</TableHead>
+            <TableHead className="text-center w-[170px] font-normal">
               Tanggal
             </TableHead>
-            <TableHead className="text-center w-[100px] font-normal small:w-[80px]">
+            <TableHead className="text-center w-[100px] font-normal">
               Waktu
             </TableHead>
             <TableHead className="font-normal">Nama</TableHead>
-            <TableHead className="text-center w-[57px] font-normal small:w-[50px]">Qty</TableHead>
+            <TableHead className="text-center w-[57px] font-normal">Qty</TableHead>
             <TableHead className="text-end w-[120px] font-normal">Harga</TableHead>
-            <TableHead className="icon" />
+            <TableHead className="size-5" />
           </TableRow>
         </TableHeader>
         <TableBody className="overflow-auto flex-1 w-full">
@@ -280,7 +280,7 @@ function ForEachRow({
           <TableCell className="text-right">{entry.price.toLocaleString("id-ID")}</TableCell>
           <TableCell>
             {/* The row is the control now; the icon is a hint, not a button. */}
-            <SquareArrowOutUpRight className="icon text-muted-foreground" aria-hidden="true" />
+            <SquareArrowOutUpRight className="size-5 text-muted-foreground" aria-hidden="true" />
           </TableCell>
         </TableRow>
       ))}
@@ -292,20 +292,20 @@ function LoadingTable() {
   return (
     <div className="flex-1 overflow-hidden">
       <div className="max-h-full overflow-hidden flex">
-        <Table className="text-normal flex-1">
+        <Table className="text-base flex-1">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[60px] font-normal small:w-[50px]">No</TableHead>
-              <TableHead className="text-center w-[170px] font-normal small:w-[110px]">
+              <TableHead className="w-[60px] font-normal">No</TableHead>
+              <TableHead className="text-center w-[170px] font-normal">
                 Tanggal
               </TableHead>
-              <TableHead className="text-center w-[100px] font-normal small:w-[80px]">
+              <TableHead className="text-center w-[100px] font-normal">
                 Waktu
               </TableHead>
               <TableHead className="font-normal">Nama</TableHead>
-              <TableHead className="text-center w-[57px] font-normal small:w-[50px]">Qty</TableHead>
+              <TableHead className="text-center w-[57px] font-normal">Qty</TableHead>
               <TableHead className="text-end w-[120px] font-normal">Harga</TableHead>
-              <TableHead className="icon" />
+              <TableHead className="size-5" />
             </TableRow>
           </TableHeader>
           <TableBody className="overflow-auto flex-1 w-full">

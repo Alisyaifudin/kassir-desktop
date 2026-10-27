@@ -25,7 +25,7 @@ export function StockBadge({ product }: { product: Product }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-small font-medium tabular-nums",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium tabular-nums",
         STOCK_STYLE[status],
       )}
     >
@@ -36,8 +36,8 @@ export function StockBadge({ product }: { product: Product }) {
 
 export function LossBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-small font-medium text-destructive">
-      <AlertTriangle className="size-4 small:size-3" /> Rugi
+    <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-sm font-medium text-destructive">
+      <AlertTriangle className="size-4" /> Rugi
     </span>
   );
 }
@@ -52,8 +52,8 @@ export function LossBadge() {
  */
 export function UnpublishedBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-small font-medium text-muted-foreground ring-1 ring-inset ring-foreground/10">
-      <EyeOff className="size-4 small:size-3" /> Tidak terbit
+    <span className="inline-flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-sm font-medium text-muted-foreground ring-1 ring-inset ring-foreground/10">
+      <EyeOff className="size-4" /> Tidak terbit
     </span>
   );
 }
@@ -82,13 +82,13 @@ export function ListingCodes({ product, max = 2 }: { product: Product; max?: num
         <span
           key={code}
           title={code}
-          className="max-w-[18ch] truncate font-mono text-small leading-tight text-muted-foreground"
+          className="max-w-[18ch] truncate font-mono text-sm leading-tight text-muted-foreground"
         >
           {code}
         </span>
       ))}
       {codes.length > max ? (
-        <span title={codes.slice(max).join(", ")} className="text-small text-muted-foreground">
+        <span title={codes.slice(max).join(", ")} className="text-sm text-muted-foreground">
           +{codes.length - max}
         </span>
       ) : null}

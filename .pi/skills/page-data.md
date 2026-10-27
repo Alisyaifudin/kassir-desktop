@@ -166,7 +166,7 @@ Rules:
   gate's `pulse` (an inline-block sized under the line box, so the line does not
   grow):
   ```tsx
-  <span className={cn("text-normal font-semibold tabular-nums", tone)}>
+  <span className={cn("text-2xl font-semibold tabular-nums", tone)}>
     Rp{" "}
     <pageData.Gate keys={["today"]} delay={0} pulse={<SkeletonText className="h-[0.7em] w-32" />} error={null}>
       {({ today }) => today.incoming.total.toLocaleString("id-ID")}
@@ -217,19 +217,19 @@ arrive. Give the region a floor, filled exactly by the skeleton:
 
 ```tsx
 // z-Ledger.tsx
-/** Six rows, big or small — a shape to tune here, not a measurement of the data. */
-const ROWS_FLOOR = "min-h-[275px] small:min-h-[176px]";
-/** One placeholder line, the height of a real row at either app size. */
-const SKELETON_ROW = "flex min-h-[52px] small:min-h-[44px] items-center justify-between gap-3 px-4";
+/** Six rows — a shape to tune here, not a measurement of the data. */
+const ROWS_FLOOR = "min-h-[211px]";
+/** One placeholder line, the height of a real row. */
+const SKELETON_ROW = "flex min-h-[40px] items-center justify-between gap-3 px-4";
 ```
 
 - **The floor belongs on the container that wraps the gate, not inside the
   `pulse`.** The space must exist *before* any placeholder is drawn (see §5).
   With it inside, the page is empty — and short — until the delay expires.
-- **Skeleton rows must match real row height** at both app sizes
-  (`52/44` for `text-normal` rows, `52/48` for `text-small`). The floor, the row
-  height and the skeleton's row count are **one tuned trio**: `Ledger`'s floor is
-  `275/176`, its rows are `52/44`, and its skeleton draws four of them — enough
+- **Skeleton rows must match the real row height** (`40` for `text-2xl` rows).
+  The floor, the row height and the skeleton's row count are **one tuned trio**:
+  `Ledger`'s floor is `211`, its rows are `40`, and its skeleton draws four of
+  them — enough
   that a fast read shows no grey and a slow one fills the reserved height. Change
   any one of the three and re-measure, or the card moves between its shortest and
   its fullest state.
@@ -279,7 +279,7 @@ is otherwise static (`Rp`, `transaksi`), so deferring them would put a hole in a
 sentence. The anti-flash window applies to region-shaped pulses, not to values.
 
 **When the placeholder is itself the shape** — a form: same labels, same
-controls, same gaps — no `min-h` can stay true across app sizes. Mount the
+controls, same gaps — no `min-h` can stay true across restyles. Mount the
 placeholder at once and keep it invisible for the window instead:
 
 ```tsx
@@ -307,7 +307,7 @@ so the real controls are drawn empty and disabled with their own box painted —
 titles come from the same constants the form reads (`INFO_LABELS`,
 `LISTING_ROW`, `STOCK_ROW`, `PROPERTY_ROW`, `NAMES_ROW`). The box *is* the
 placeholder, so it is the control's own size — an input is input-tall, `rows={3}`
-is three lines, a combobox keeps its chevron — at both app sizes, with no px of
+is three lines, a combobox keeps its chevron — with no px of
 ours in it. Nothing is hidden for 200 ms: the form is on screen from the first
 frame and only the values arrive. `pages/Product/Detail/Info` is the worked
 example; keep `ReservedSkeleton` for the case it was made for, a shape (row
@@ -571,47 +571,46 @@ A placeholder is wrong in four separate ways, and each is a decision:
 1. **Count** — how many places to hold (two or three tabs, three rows).
 2. **Box** — full width for a row band, a fixed width for a tab or a chip, a
    `max-w` for a value inside a line.
-3. **Height at both app sizes** — `h-[X] small:h-[Y]`, from the real element, not
-   from a default like `h-4` or `h-11`.
+3. **Height** — `h-[X]`, measured from the real element, not from a default
+   like `h-4` or `h-11`.
 4. **Radius** — the shape of what it stands in for, *not* the primitive's default.
 
 Guessing is what produces "the skeleton doesn't look like the thing": a 44px row
-band standing in for a 141px cart line, a 112px tab for a 200px one.
+band standing in for an 88px cart line, a 40px tab for a 128px one.
 
 ### Radius carries meaning
 
 | standing in for | radius | example |
 |---|---|---|
-| a **row** of a divided list (full width) | `rounded-none` | cart line `h-[141px] rounded-none w-full small:h-[113px]` |
-| a **tab** (rounded on top only) | `rounded-t-md` | `h-[40px] w-[200px] rounded-t-md small:h-[37px] small:w-[106px]` |
-| a **card, thumbnail, control** | keep `rounded-md` | method row `h-[70px] w-full small:h-[56px]` |
+| a **row** of a divided list (full width) | `rounded-none` | cart line `h-[88px] rounded-none w-full` |
+| a **tab** (rounded on top only) | `rounded-t-md` | `h-[32px] w-[128px] rounded-t-md` |
+| a **card, thumbnail, control** | keep `rounded-md` | method row `h-9 w-full` |
 | a **round chip** (avatar, kbd) | `rounded-full` | `size-8 rounded-full` in `CartLoading` |
-| a **line of text** | `SkeletonText`'s `rounded-sm`, or `rounded-none` for a full-width band | payment strip `w-full max-w-[120px] rounded-none` |
+| a **line of text** | `SkeletonText`'s `rounded-sm`, or `rounded-none` for a full-width band | payment strip `w-full max-w-[80px] rounded-none` |
 
 A square row band inside a divided list reads as a row; a `rounded-md` one reads
 as a floating card and makes the list look like a stack of chips.
 
-### Measured reference — the cart screens (big / small)
+### Measured reference — the cart screens
 
 | element | box | radius |
 |---|---|---|
-| cart tab | `w-[200px] h-[40px]` / `w-[106px] h-[37px]` | `rounded-t-md` |
-| cart line | `w-full h-[141px]` / `h-[113px]` | `rounded-none` |
+| cart tab | `w-[128px] h-[32px]` | `rounded-t-md` |
+| cart line | `w-full h-[88px]` | `rounded-none` |
 | extras row | same as a cart line | `rounded-none` |
-| payment method row | `w-full h-[70px]` / `h-[56px]` | `rounded-md` (default) |
-| payment rounding band | `w-full h-[40px]` / `h-[30px]` | `rounded-none` |
-| change row amount | `max-w-[400px] h-[80px]` / `max-w-[300px] h-[70px]` | default |
-| grand total | `w-[400px] h-[120px]` / `w-[300px] h-[100px]` | `rounded-md` (default) |
+| payment method row | `w-full h-9` | `rounded-md` (default) |
+| payment rounding band | `w-full h-9` | `rounded-none` |
+| change row amount | `max-w-[240px] h-[48px]` | default |
+| grand total | `w-[220px] h-[64px]` | `rounded-md` (default) |
 
 Notes from those numbers:
 
-- **A big numeral is a block, not an inline pulse.** `text-grand-total` is ~102px
-  tall, so the grand total is a `Skeleton` sized to the line, not a
-  `SkeletonText`.
-- **A tall glyph needs a tall pulse.** `text-change` is larger than body text, so
-  its pulse is `h-[80px]`/`h-[70px]`, not `0.8em`.
-- **Every dimension has a `small:` twin.** The app's size class changes the type
-  scale, so a single px value is only ever right in one mode.
+- **A big numeral is a block, not an inline pulse.** `text-6xl` is ~60px tall, so
+  the grand total is a `Skeleton` sized to the line, not a `SkeletonText`.
+- **A tall glyph needs a tall pulse.** `text-5xl` is larger than body text, so its
+  pulse is `h-[48px]`, not `0.8em`.
+- **One dimension, measured once.** There is no second app size any more, so a
+  single measured px value is the whole answer.
 
 ### How to measure (10 seconds, no guessing)
 

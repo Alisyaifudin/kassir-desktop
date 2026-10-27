@@ -4,7 +4,7 @@ import { LocalStorageError, LocalStorageService } from ".";
 
 /**
  * An in-memory localStorage for the services that keep a preference there
- * (`config` size, `auth` session).
+ * (`zoom`, `product-view`, `auth` session).
  *
  * A separate fake from the real `LocalStorageLive` in `live.test.ts` on purpose:
  * those tests pin the JSON round-trip and the parse failures that only the real

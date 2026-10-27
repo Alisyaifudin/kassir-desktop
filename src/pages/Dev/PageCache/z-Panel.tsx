@@ -66,16 +66,16 @@ function Box({
       data-paint={paint}
     >
       <header className="flex flex-wrap items-baseline justify-between gap-x-2">
-        <h3 className="text-small font-semibold">{title}</h3>
-        <code className="text-small text-muted-foreground">{contract}</code>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <code className="text-sm text-muted-foreground">{contract}</code>
       </header>
 
       <div className="min-h-12">{children}</div>
 
-      <footer className="flex flex-wrap items-center gap-x-2 text-small text-muted-foreground">
+      <footer className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
         <span
           className={cn(
-            "rounded-full px-1.5 py-0.5 text-small font-medium",
+            "rounded-full px-1.5 py-0.5 text-sm font-medium",
             paint === "cache"
               ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
               : "bg-amber-500/15 text-amber-700 dark:text-amber-400",
@@ -103,7 +103,7 @@ function OrdersWidget({ api }: { api: LabApi }) {
         {({ data, refetching }) => (
           <div className={cn("flex flex-col gap-0.5", refetching && "opacity-50")} aria-busy={refetching || undefined}>
             <p className="font-medium tabular-nums">{data.orders} pesanan</p>
-            <p className="text-small text-muted-foreground tabular-nums">{rupiah(data.revenue)}</p>
+            <p className="text-sm text-muted-foreground tabular-nums">{rupiah(data.revenue)}</p>
           </div>
         )}
       </Gate>
@@ -127,7 +127,7 @@ function LedgerWidget({ api, days }: { api: LabApi; days: number }) {
         {({ data, refetching }) => (
           <ul className={cn("flex flex-col gap-0.5", refetching && "opacity-50")} aria-busy={refetching || undefined}>
             {data.map((row) => (
-              <li key={row.id} className="flex items-baseline justify-between gap-2 text-small">
+              <li key={row.id} className="flex items-baseline justify-between gap-2 text-sm">
                 <span className="truncate">{row.text}</span>
                 <span className="tabular-nums text-muted-foreground">{rupiah(row.amount)}</span>
               </li>
@@ -155,7 +155,7 @@ function ProfileWidget({ api }: { api: LabApi }) {
         {({ data }) => (
           <div className="flex flex-col gap-0.5">
             <p className="font-medium">{data.name}</p>
-            <p className="text-small text-muted-foreground">{data.role}</p>
+            <p className="text-sm text-muted-foreground">{data.role}</p>
           </div>
         )}
       </Gate>
@@ -174,7 +174,7 @@ function ActivityWidget({ api }: { api: LabApi }) {
         {({ data }) => (
           <ul className="flex flex-col gap-0.5">
             {data.map((item) => (
-              <li key={item.id} className="truncate text-small">
+              <li key={item.id} className="truncate text-sm">
                 {item.text}
               </li>
             ))}
@@ -203,7 +203,7 @@ function ClockWidget({ api }: { api: LabApi }) {
       note="jangan di-cache"
     >
       <Gate res={res} skeleton={<Rows rows={1} />}>
-        {({ data }) => <p className="text-small tabular-nums">detak ke-{data.tick}</p>}
+        {({ data }) => <p className="text-sm tabular-nums">detak ke-{data.tick}</p>}
       </Gate>
     </Box>
   );
@@ -223,7 +223,7 @@ function BrokenWidget({ api }: { api: LabApi }) {
       note="tidak pernah di-cache"
     >
       <Gate res={res} skeleton={<Rows rows={2} />}>
-        {({ data }) => <p className="text-small">{data}</p>}
+        {({ data }) => <p className="text-sm">{data}</p>}
       </Gate>
     </Box>
   );
@@ -250,8 +250,8 @@ export function Panel({
   return (
     <section className="flex flex-col gap-2 rounded-xl border bg-muted/20 p-2" data-panel={panel}>
       <header className="flex flex-wrap items-baseline justify-between gap-x-2 px-1">
-        <h2 className="text-normal font-semibold">{title}</h2>
-        <p className="text-small text-muted-foreground">{note}</p>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{note}</p>
       </header>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <OrdersWidget api={api} />

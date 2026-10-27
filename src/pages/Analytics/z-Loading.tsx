@@ -5,7 +5,7 @@ export function ChartSkeleton({ className }: { className?: string }) {
   return (
     <div className={`flex flex-col gap-2 rounded-xl border bg-card p-3 ${className ?? ""}`}>
       <Skeleton className="h-4 w-40" />
-      <Skeleton className="h-64 w-full small:h-52" />
+      <Skeleton className="h-64 w-full" />
     </div>
   );
 }
