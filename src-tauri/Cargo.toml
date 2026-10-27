@@ -50,6 +50,12 @@ tauri-plugin-mcp-bridge = { version = "0.13.1", optional = true }
 # false` drops printpdf's html/css layout engine (azul), which a 58 mm roll of
 # pre-positioned text does not need.
 printpdf = { version = "0.12", default-features = false }
+# Subsetting the receipt's two faces. printpdf only compiles its subsetter behind
+# the `text_layout` feature (the azul html/css engine), so without it the
+# `subset_fonts: true` default is a no-op stub that embeds all ~320 KB of Roboto
+# on every print. This is the same crate — same version, same features, so it is
+# already compiled — and the same call printpdf makes internally.
+allsorts = { version = "0.17", package = "allsorts-azul", default-features = false, features = ["flate2_rust"] }
 # Receipt dates print as the machine's wall clock, so "Kredit 14-11-2023, 9:05"
 # matches what the cashier wrote down.
 chrono = "0.4"

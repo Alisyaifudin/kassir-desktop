@@ -52,7 +52,7 @@
         <item name="database">tauri-plugin-sql 2 (sqlite); the migration files are embedded by src-tauri/src/database/mod.rs</item>
         <item name="serialization">serde 1, serde_json 1</item>
         <item name="printing">winprint 0.2 (Windows PDF printing), tempfile 3</item>
-        <item name="receipt_pdf">printpdf 0.12 (layout + PDF; default-features off, so no html/css engine), chrono 0.4 (the receipt's local date and time)</item>
+        <item name="receipt_pdf">printpdf 0.12 (layout + PDF; default-features off, so no html/css engine), allsorts 0.17 (subsets each Roboto face to the glyphs the receipt draws — printpdf's own subsetter is compiled out without its text_layout feature), chrono 0.4 (the receipt's local date and time)</item>
         <item name="logging">log 0.4 + tauri-plugin-log 2 (Info)</item>
         <item name="single_instance">tauri-plugin-single-instance 2 (one process per machine; a second launch focuses the window)</item>
         <item name="dev_only">tauri-plugin-mcp-bridge 0.13 behind the `mcp-bridge` Cargo feature (debug builds only)</item>

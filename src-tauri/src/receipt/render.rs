@@ -10,8 +10,12 @@
 //! * Text is measured with the same advance widths the PDF is embedded with, so
 //!   wrapping and right-alignment agree with what the printer puts on paper.
 
+use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
+use allsorts::binary::read::ReadScope;
+use allsorts::font_data::FontData;
+use allsorts::subset::{CmapTarget, SubsetProfile};
 use printpdf::{
     Color, FontId, Line, LineDashPattern, LinePoint, Op, ParsedFont, PdfDocument, PdfFontHandle,
     PdfPage, PdfSaveOptions, Point, Pt, Rect, Rgb, TextItem,
@@ -72,7 +76,6 @@ struct Style {
     size: f64,
     font: &'static ParsedFont,
 }
-
 struct Styles {
     big: Style,
     normal: Style,
@@ -85,6 +88,68 @@ impl Styles {
             Size::Normal => &self.normal,
         }
     }
+}
+
+/// Every character the rows will actually draw at one size.
+///
+/// This is the whole input to a subset: nothing else can reach a `ShowText`, so a
+/// glyph that is not in here cannot appear on paper.
+fn used_text(rows: &[TextData], want: Size) -> String {
+    let mut used = String::new();
+    for row in rows {
+        match row {
+            TextData::Center { size, text }
+            | TextData::Long { size, text }
+            | TextData::End { size, text } => {
+                if *size == want {
+                    used.push_str(text);
+                }
+            }
+            TextData::SpaceBetween { size, text, .. } => {
+                if *size == want {
+                    used.push_str(&text.0);
+                    used.push_str(&text.1);
+                }
+            }
+            TextData::LineBreak { .. } | TextData::Line { .. } => {}
+        }
+    }
+    used
+}
+
+/// Subset one face down to the glyphs `used` needs.
+///
+/// The embedded font program is what makes a receipt PDF big: each Roboto face is
+/// 159 KB and no receipt draws more than ~70 glyphs from either one, so the two
+/// programs (~320 KB, and every byte of it has to be deflated on every print)
+/// collapse to a few kilobytes.
+///
+/// `None` means "carry on with the full face": a slightly fat PDF is a much
+/// better outcome than a print that does not happen.
+fn subset_face(raw: &'static [u8], font: &ParsedFont, used: &str) -> Option<ParsedFont> {
+    // allsorts wants glyph 0 (.notdef) first and no duplicates. Omitting .notdef
+    // does not fail loudly — it renumbers and the first *real* glyph lands in slot
+    // 0, so every glyph the receipt does draw comes out as a missing-glyph box.
+    let ids: BTreeSet<u16> = used
+        .chars()
+        .filter_map(|character| font.lookup_glyph_index(character as u32))
+        .filter(|glyph| *glyph != 0)
+        .collect();
+    let glyphs: Vec<u16> = std::iter::once(0).chain(ids).collect();
+
+    let scope = ReadScope::new(raw);
+    let font_file = scope.read::<FontData<'_>>().ok()?;
+    let provider = font_file.table_provider(font.font_index as usize).ok()?;
+    let bytes =
+        allsorts::subset::subset(&provider, &glyphs, &SubsetProfile::Pdf, CmapTarget::Unicode)
+            .ok()?;
+
+    // Parse the subset so its cmap maps the same characters to the *new* glyph ids.
+    // printpdf derives the content stream, the /W widths and the /ToUnicode from
+    // the font it is given; all three have to agree with the embedded program, and
+    // this is what keeps them in step.
+    let mut warnings = Vec::new();
+    ParsedFont::from_bytes(&bytes, 0, &mut warnings)
 }
 
 /// What `pdf-lib`'s `heightAtSize` returns: the face's ascent-to-descent span,
@@ -228,8 +293,28 @@ pub fn render_pdf(data: &ReceiptData, option: &ReceiptOption) -> Result<Vec<u8>,
     let paper_height = page_height(&expanded, &styles, option.padding);
 
     let mut doc = PdfDocument::new("Struk");
-    let regular_id = doc.add_font(&fonts.regular);
-    let bold_id = doc.add_font(&fonts.bold);
+
+    // The faces are subset *after* layout: wrapping is measured against the full
+    // ones (a subset only carries the glyphs it was handed), and subsetting does
+    // not change the advance of a glyph it keeps, so the positions computed above
+    // still hold for the smaller font.
+    let regular_draw = subset_face(
+        ROBOTO_REGULAR,
+        &fonts.regular,
+        &used_text(&expanded, Size::Normal),
+    )
+    .unwrap_or_else(|| {
+        log::warn!("receipt: could not subset Roboto Regular; embedding the full face");
+        fonts.regular.clone()
+    });
+    let bold_draw = subset_face(ROBOTO_BOLD, &fonts.bold, &used_text(&expanded, Size::Big))
+        .unwrap_or_else(|| {
+            log::warn!("receipt: could not subset Roboto Bold; embedding the full face");
+            fonts.bold.clone()
+        });
+
+    let regular_id = doc.add_font(&regular_draw);
+    let bold_id = doc.add_font(&bold_draw);
 
     let mut ops: Vec<Op> = Vec::new();
     // Black is the only colour a receipt uses, and both text and rules need it.
@@ -457,6 +542,21 @@ mod tests {
         assert!(
             bytes.len() > 800,
             "a receipt with a header, totals and a footer is not {} bytes",
+            bytes.len()
+        );
+    }
+
+    /// The optimization has to be visible in the artefact, not just in a setting:
+    /// printpdf's `subset_fonts` default is a no-op without its `text_layout`
+    /// feature, so a regression here silently re-embeds both 159 KB faces and
+    /// nobody notices until the spooler does.
+    #[test]
+    fn a_receipt_embeds_only_the_glyphs_it_draws() {
+        let bytes = render_pdf(&data(), &option()).expect("the receipt should render");
+
+        assert!(
+            bytes.len() < 60_000,
+            "receipt pdf is {} bytes — the faces were embedded whole, not subset",
             bytes.len()
         );
     }
