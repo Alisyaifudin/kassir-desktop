@@ -58,6 +58,30 @@ function release(key: string) {
   });
 }
 
+/**
+ * What Windows sends the webview on Alt release when an Alt code was typed: a
+ * text insertion of its own, in no way tied to the keydown the app already
+ * swallowed. Dispatched on a field, cancelable, so the guard can be observed.
+ */
+function typeAltCode(input: HTMLInputElement) {
+  const event = new InputEvent("beforeinput", {
+    inputType: "insertText",
+    data: "☺",
+    bubbles: true,
+    cancelable: true,
+  });
+  act(() => {
+    input.dispatchEvent(event);
+  });
+  return event;
+}
+
+function field() {
+  const input = document.createElement("input");
+  document.body.append(input);
+  return input;
+}
+
 beforeEach(() => {
   path = "/pos";
   legendOn = false;
@@ -118,5 +142,32 @@ describe("useNavigationShortcuts", () => {
     press("3");
     press("3", { altKey: true, ctrlKey: true });
     expect(path).toBe("/pos");
+  });
+
+  test("the Alt code Windows types after Alt+digit never reaches the field", () => {
+    harness();
+    const input = field();
+
+    press("1", { altKey: true });
+    expect(path).toBe("/restock");
+    expect(typeAltCode(input).defaultPrevented).toBe(true);
+  });
+
+  test("it is swallowed behind a dialog too, where the shortcut only declines", () => {
+    harness(true);
+    const input = field();
+
+    press("1", { altKey: true });
+    expect(path).toBe("/pos");
+    expect(typeAltCode(input).defaultPrevented).toBe(true);
+  });
+
+  test("typing without an Alt+digit is untouched", () => {
+    harness();
+    const input = field();
+
+    press("3");
+    press("5", { altKey: true, ctrlKey: true });
+    expect(typeAltCode(input).defaultPrevented).toBe(false);
   });
 });
