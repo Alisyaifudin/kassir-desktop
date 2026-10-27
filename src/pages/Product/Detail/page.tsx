@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useParams } from "react-router";
 import { pageData } from "./data";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
+import { useEscapeBack } from "./use-escape-back";
 import { useUser } from "~/hooks/use-user";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
@@ -43,6 +44,9 @@ function Content() {
   const { pathname } = useLocation();
   const backUrl = useGetUrlBack("/products");
   const role = useUser().role;
+  // Esc is the way out of the screen — to `url_back`, or to the browser's own
+  // history when the detail was opened without one.
+  useEscapeBack();
 
   if (id === undefined) return null;
 

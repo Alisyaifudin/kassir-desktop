@@ -1,10 +1,11 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { cn } from "~/lib/utils";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
 import { PendingInput } from "./z-Pending";
-import { Section, SectionAdd } from "./z-Section";
+import { rowsClass, Section, SectionAdd, useFlatSection } from "./z-Section";
 
 /** The section's static half, shared with the detail form's pending shape. */
 export const PROPERTIES_SECTION = {
@@ -27,6 +28,7 @@ export function PropertiesFields({
   disabled?: boolean;
 }) {
   const { draft, errors } = form;
+  const flat = useFlatSection();
 
   return (
     <Section
@@ -36,9 +38,9 @@ export function PropertiesFields({
       {draft.properties.length === 0 ? (
         <p className="text-small text-muted-foreground">Belum ada properti.</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className={rowsClass(flat)}>
           {draft.properties.map((property) => (
-            <div key={property.key} className="flex items-end gap-3">
+            <div key={property.key} className={cn("flex items-end gap-3", flat && "py-3")}>
               <Field
                 label={PROPERTY_ROW.key.label}
                 error={errors.propertyErrors?.[property.key]?.name}
@@ -86,8 +88,9 @@ export function PropertiesFields({
  * in the same boxes, empty and pulsing.
  */
 export function PropertyRowSkeleton() {
+  const flat = useFlatSection();
   return (
-    <div className="flex items-end gap-3">
+    <div className={cn("flex items-end gap-3", flat && "py-3")}>
       <Field label={PROPERTY_ROW.key.label} className="flex-1">
         <PendingInput placeholder={PROPERTY_ROW.key.placeholder} />
       </Field>

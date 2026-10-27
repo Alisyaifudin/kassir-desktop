@@ -1,10 +1,11 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { cn } from "~/lib/utils";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
 import { PendingInput } from "./z-Pending";
-import { Section, SectionAdd } from "./z-Section";
+import { rowsClass, Section, SectionAdd, useFlatSection } from "./z-Section";
 
 /** The section's static half, shared with the detail form's pending shape. */
 export const NAMES_SECTION = {
@@ -27,6 +28,7 @@ export function ProductNamesFields({
   disabled?: boolean;
 }) {
   const { draft, errors } = form;
+  const flat = useFlatSection();
 
   return (
     <Section
@@ -36,9 +38,9 @@ export function ProductNamesFields({
       {draft.productNames.length === 0 ? (
         <p className="text-small text-muted-foreground">Belum ada nama alternatif.</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className={rowsClass(flat)}>
           {draft.productNames.map((productName) => (
-            <div key={productName.key} className="flex items-end gap-3">
+            <div key={productName.key} className={cn("flex items-end gap-3", flat && "py-3")}>
               <Field
                 label={NAMES_ROW.label}
                 error={errors.productNameErrors?.[productName.key]?.value}
@@ -76,8 +78,9 @@ export function ProductNamesFields({
  * same input, empty and pulsing.
  */
 export function NameRowSkeleton() {
+  const flat = useFlatSection();
   return (
-    <div className="flex items-end gap-3">
+    <div className={cn("flex items-end gap-3", flat && "py-3")}>
       <Field label={NAMES_ROW.label} className="flex-1">
         <PendingInput placeholder={NAMES_ROW.placeholder} />
       </Field>

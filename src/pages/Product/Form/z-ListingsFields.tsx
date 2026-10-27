@@ -8,7 +8,7 @@ import { LISTING_KIND_SUGGESTIONS, type ListingDraft } from "./types";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
 import { PendingCombobox, PendingInput, PendingNumber } from "./z-Pending";
-import { Section, SectionAdd } from "./z-Section";
+import { rowClass, rowsClass, Section, SectionAdd, useFlatSection } from "./z-Section";
 
 type ListingError = { name?: string; price?: string; unit?: string } | undefined;
 
@@ -55,6 +55,7 @@ export function ListingsFields({
   disabled?: boolean;
 }) {
   const { draft, errors } = form;
+  const flat = useFlatSection();
 
   return (
     <Section
@@ -62,7 +63,7 @@ export function ListingsFields({
       error={errors.listings}
       action={<SectionAdd onClick={form.addListing} disabled={disabled} />}
     >
-      <div className="flex flex-col gap-3">
+      <div className={rowsClass(flat)}>
         {draft.listings.map((listing, index) => (
           <ListingRow
             key={listing.key}
@@ -82,6 +83,7 @@ export function ListingsFields({
 
 /** The row wrapper both the real row and its placeholder are built in. */
 const ROW = "flex flex-col gap-3 rounded-lg border bg-background/50 p-3";
+const ROW_FLAT = "flex flex-col gap-3 py-3";
 const ROW_FIELDS = "grid grid-cols-2 gap-3 md:grid-cols-4";
 
 function ListingRow({
@@ -101,8 +103,9 @@ function ListingRow({
   onChange: (patch: Partial<ListingDraft>) => void;
   onRemove: () => void;
 }) {
+  const flat = useFlatSection();
   return (
-    <div className={ROW}>
+    <div className={rowClass(flat, ROW, ROW_FLAT)}>
       <div className="flex items-center justify-between">
         <span className="text-small font-medium text-muted-foreground">
           {LISTING_ROW.title(index)}
@@ -187,8 +190,9 @@ function ListingRow({
  * re-written: the labels and the layout come from `LISTING_ROW` and `ROW_FIELDS`.
  */
 export function ListingRowSkeleton({ index }: { index: number }) {
+  const flat = useFlatSection();
   return (
-    <div className={ROW}>
+    <div className={rowClass(flat, ROW, ROW_FLAT)}>
       <div className="flex items-center justify-between">
         <span className="text-small font-medium text-muted-foreground">
           {LISTING_ROW.title(index)}

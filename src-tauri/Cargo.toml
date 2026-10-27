@@ -1,6 +1,6 @@
 [package]
 name = "kassir"
-version = "6.10.2"
+version = "6.11.0"
 description = "kassir-desktop"
 authors = ["Muhammad Ali Syaifudin"]
 edition = "2021"

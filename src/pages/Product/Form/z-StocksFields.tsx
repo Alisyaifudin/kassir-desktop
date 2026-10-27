@@ -16,7 +16,7 @@ import { parseNumber } from "./types";
 import type { ProductFormController } from "./useProductForm";
 import { Field } from "./z-Field";
 import { PendingNumber } from "./z-Pending";
-import { Section, SectionAdd } from "./z-Section";
+import { rowClass, rowsClass, Section, SectionAdd, useFlatSection } from "./z-Section";
 
 /** The section's static half, shared with the detail form's pending shape. */
 export const STOCKS_SECTION = {
@@ -55,6 +55,7 @@ export function StocksFields({
   onAdjustValue?: (stock: StockDraft, index: number) => void;
 }) {
   const { draft, errors } = form;
+  const flat = useFlatSection();
 
   const total = draft.stocks.reduce((sum, stock) => sum + parseNumber(stock.value), 0);
   const totalValue = draft.stocks.reduce(
@@ -105,7 +106,7 @@ export function StocksFields({
       error={errors.stocks}
       action={<SectionAdd label="Tambah lot" onClick={form.addStock} disabled={disabled} />}
     >
-      <div className="flex flex-col gap-3">
+      <div className={rowsClass(flat)}>
         {active.map(row)}
         {folded.length === 0 ? null : (
           <Accordion
@@ -115,13 +116,20 @@ export function StocksFields({
             // component's "closed" — Radix's single-collapsible value.
             value={showFolded ? "folded" : ""}
             onValueChange={(value) => setShowFolded(value === "folded")}
-            className="rounded-lg border bg-muted/20 px-3"
+            className={cn("rounded-lg border bg-muted/20 px-3", flat && "rounded-none border-0")}
           >
             <AccordionItem value="folded" className="border-b-0">
               <AccordionTrigger className="py-2 text-small text-muted-foreground hover:no-underline">
                 {foldedLabel(folded)}
               </AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-3">{folded.map(row)}</AccordionContent>
+              <AccordionContent
+                className={cn(
+                  "flex flex-col gap-3",
+                  flat && "gap-0 divide-y divide-border/60",
+                )}
+              >
+                {folded.map(row)}
+              </AccordionContent>
             </AccordionItem>
           </Accordion>
         )}
@@ -158,6 +166,7 @@ function StockTotals({
 }
 
 const ROW = "flex items-end gap-3 rounded-lg border bg-background/50 p-3";
+const ROW_FLAT = "flex items-end gap-3 py-3";
 
 function StockRow({
   stock,
@@ -180,8 +189,9 @@ function StockRow({
   onChange: (patch: Partial<StockDraft>) => void;
   onRemove: () => void;
 }) {
+  const flat = useFlatSection();
   return (
-    <div className={ROW}>
+    <div className={rowClass(flat, ROW, ROW_FLAT)}>
       <Field label={STOCK_ROW.value(index)} error={error?.value} className="flex-1">
         {adjustable ? (
           <button
@@ -234,9 +244,10 @@ function StockRow({
  * figures missing.
  */
 export function StockRowSkeleton({ index }: { index: number }) {
+  const flat = useFlatSection();
   return (
     <>
-      <div className={ROW}>
+      <div className={rowClass(flat, ROW, ROW_FLAT)}>
         <Field label={STOCK_ROW.value(index)} className="flex-1">
           <PendingNumber placeholder={STOCK_ROW.placeholder} />
         </Field>

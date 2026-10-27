@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Effect } from "effect";
+import { toast } from "sonner";
 import { Redo2, Undo2 } from "lucide-react";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
@@ -32,6 +33,7 @@ import {
   PropertyRowSkeleton,
 } from "../../Form/z-PropertiesFields";
 import { Section, SectionAdd } from "../../Form/z-Section";
+import { FlatSectionSurface } from "../../Form/z-Section";
 import { STOCKS_SECTION, StockRowSkeleton, StocksFields } from "../../Form/z-StocksFields";
 import { ConfirmDelete } from "../z-ConfirmDelete";
 import { StockAdjust } from "./z-StockAdjust";
@@ -190,7 +192,12 @@ export function EditPane({ product }: { product: ProductFull }) {
   async function handleSave() {
     if (!form.validate()) return;
     const ops = buildOps();
-    if (ops.length === 0) return;
+    if (ops.length === 0) {
+      // Enter on an untouched form asks "saved?" and deserves an answer, or the
+      // key reads as broken. Nothing was written, so say exactly that.
+      toast("Tidak ada perubahan untuk disimpan.");
+      return;
+    }
 
     setPending(true);
     setError(null);
@@ -209,6 +216,17 @@ export function EditPane({ product }: { product: ProductFull }) {
     const fresh = await Effect.runPromise(service.product.get.byId(product.id).pipe(Effect.either));
     if (fresh._tag === "Right") form.reset(draftFromProduct(fresh.right));
     setPending(false);
+    toast.success("Perubahan disimpan.");
+  }
+
+  /**
+   * The whole pane is a `<form>`, so Enter in any field is `Simpan` — the fast
+   * path a cashier expects after fixing one price. Enter inside a dialog does
+   * not reach here: Radix portals them out of the form.
+   */
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await handleSave();
   }
 
   /** Returns an error message, or `null` on success (the dialog closes itself). */
@@ -224,21 +242,29 @@ export function EditPane({ product }: { product: ProductFull }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <InfoFields form={form} disabled={busy} />
-      <ProductNamesFields form={form} disabled={busy} />
-      <ListingsFields form={form} disabled={busy} />
-      <StocksFields
-        form={form}
-        disabled={busy}
-        lockedKeys={lockedStockKeys}
-        onAdjustValue={(stock) => {
-          const lot = product.stocks.find((item) => item.id === stock.key);
-          if (lot !== undefined) setAdjustLot(lot);
-        }}
-      />
-      <PropertiesFields form={form} disabled={busy} />
-      <TextError>{error}</TextError>
+    <form onSubmit={handleSubmit} className="flex flex-col border bg-card">
+      {/* One card, one sheet: the sections are blocks of it, separated by a
+          thick rule, instead of a card each inside the card. */}
+      <FlatSectionSurface>
+        <div className="flex flex-col divide-y-2 divide-border">
+          <div className="px-4 py-4">
+            <InfoFields form={form} disabled={busy} />
+          </div>
+          <ProductNamesFields form={form} disabled={busy} />
+          <ListingsFields form={form} disabled={busy} />
+          <StocksFields
+            form={form}
+            disabled={busy}
+            lockedKeys={lockedStockKeys}
+            onAdjustValue={(stock) => {
+              const lot = product.stocks.find((item) => item.id === stock.key);
+              if (lot !== undefined) setAdjustLot(lot);
+            }}
+          />
+          <PropertiesFields form={form} disabled={busy} />
+        </div>
+      </FlatSectionSurface>
+      <TextError className="px-4 pb-2">{error}</TextError>
       <SaveBar
         disabled={busy}
         saving={pending}
@@ -247,7 +273,6 @@ export function EditPane({ product }: { product: ProductFull }) {
         onDelete={() => setConfirmOpen(true)}
         onUndo={undo}
         onRedo={redo}
-        onSave={() => void handleSave()}
       />
       <ConfirmDelete
         open={confirmOpen}
@@ -259,7 +284,7 @@ export function EditPane({ product }: { product: ProductFull }) {
       {adjustLot !== null ? (
         <StockAdjust product={product} lot={adjustLot} onClose={() => setAdjustLot(null)} />
       ) : null}
-    </div>
+    </form>
   );
 }
 
@@ -296,6 +321,9 @@ function HistoryButton({
  * The sticky footer of the form. It is chrome — `Hapus`, undo/redo and `Simpan`
  * are the same buttons whether or not a product has been read — so it is drawn
  * once here and once, disabled, by the pending shape below.
+ *
+ * `Simpan` is the form's submit button, so Enter in any field and a click on it
+ * are the same action.
  */
 function SaveBar({
   disabled,
@@ -305,7 +333,6 @@ function SaveBar({
   onDelete,
   onUndo,
   onRedo,
-  onSave,
 }: {
   disabled: boolean;
   saving?: boolean;
@@ -314,10 +341,9 @@ function SaveBar({
   onDelete?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
-  onSave?: () => void;
 }) {
   return (
-    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-background/95 py-3 backdrop-blur">
+    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur">
       <Button type="button" variant="destructive" onClick={onDelete} disabled={disabled}>
         Hapus
       </Button>
@@ -339,7 +365,7 @@ function SaveBar({
             icon={<Redo2 className="icon" />}
           />
         </div>
-        <Button type="button" onClick={onSave} disabled={disabled}>
+        <Button type="submit" disabled={disabled}>
           Simpan
           <Spinner when={saving} />
         </Button>
@@ -359,6 +385,9 @@ function SaveBar({
  * is three lines tall, the combobox keeps its chevron — painted as a skeleton.
  * Nothing here is a guessed height, and nothing moves when the values land.
  *
+ * The card, its dividers and the flat sections come from the same
+ * `FlatSectionSurface` the real pane uses, so the sheet itself never redraws.
+ *
  * Nor are the words copied: they come from the same constants the form reads
  * (`INFO_LABELS`, `LISTING_ROW`, `STOCK_ROW`, `PROPERTY_ROW`, `NAMES_ROW`), and
  * every row's placeholder is exported beside the row it stands in for, so the two
@@ -369,31 +398,39 @@ function SaveBar({
  */
 export function EditPaneSkeleton() {
   return (
-    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat produk">
-      <div className="flex flex-col gap-3">
-        <Field label={INFO_LABELS.name}>
-          <PendingInput placeholder={INFO_PLACEHOLDERS.name} />
-        </Field>
-        <Field label={INFO_LABELS.note}>
-          <PendingTextarea rows={3} placeholder={INFO_PLACEHOLDERS.note} />
-        </Field>
-      </div>
+    <div
+      className="flex flex-col border bg-card"
+      aria-busy="true"
+      aria-label="Memuat produk"
+    >
+      <FlatSectionSurface>
+        <div className="flex flex-col divide-y-2 divide-border">
+          <div className="flex flex-col gap-3 px-4 py-4">
+            <Field label={INFO_LABELS.name}>
+              <PendingInput placeholder={INFO_PLACEHOLDERS.name} />
+            </Field>
+            <Field label={INFO_LABELS.note}>
+              <PendingTextarea rows={3} placeholder={INFO_PLACEHOLDERS.note} />
+            </Field>
+          </div>
 
-      <Section {...NAMES_SECTION} action={<SectionAdd disabled />}>
-        <NameRowSkeleton />
-      </Section>
+          <Section {...NAMES_SECTION} action={<SectionAdd disabled />}>
+            <NameRowSkeleton />
+          </Section>
 
-      <Section {...LISTINGS_SECTION} action={<SectionAdd disabled />}>
-        <ListingRowSkeleton index={0} />
-      </Section>
+          <Section {...LISTINGS_SECTION} action={<SectionAdd disabled />}>
+            <ListingRowSkeleton index={0} />
+          </Section>
 
-      <Section {...STOCKS_SECTION} action={<SectionAdd label="Tambah lot" disabled />}>
-        <StockRowSkeleton index={0} />
-      </Section>
+          <Section {...STOCKS_SECTION} action={<SectionAdd label="Tambah lot" disabled />}>
+            <StockRowSkeleton index={0} />
+          </Section>
 
-      <Section {...PROPERTIES_SECTION} action={<SectionAdd disabled />}>
-        <PropertyRowSkeleton />
-      </Section>
+          <Section {...PROPERTIES_SECTION} action={<SectionAdd disabled />}>
+            <PropertyRowSkeleton />
+          </Section>
+        </div>
+      </FlatSectionSurface>
 
       <SaveBar disabled />
     </div>
