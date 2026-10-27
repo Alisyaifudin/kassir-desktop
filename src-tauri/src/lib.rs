@@ -68,7 +68,6 @@ pub fn run() {
                 tauri_plugin_prevent_default::Flags::CONTEXT_MENU
                     | tauri_plugin_prevent_default::Flags::RELOAD
                     | tauri_plugin_prevent_default::Flags::FOCUS_MOVE
-                    | tauri_plugin_prevent_default::Flags::FIND
                     | tauri_plugin_prevent_default::Flags::PRINT,
             ))
             .build();
