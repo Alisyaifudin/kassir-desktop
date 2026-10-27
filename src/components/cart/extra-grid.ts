@@ -5,11 +5,14 @@
  *
  * Columns are 0-indexed, twelve wide. `no#` is not selectable; `eff` and `x` are
  * selectable but not editable; `dual` is a checkbox cell — selectable, and
- * toggled (Enter or a click) rather than typed into.
+ * toggled (Enter or a click) rather than typed into — and only a sale has one:
+ * the twin record a `dual` charge books is a sale-side rule, so a purchase's
+ * `eff` readout takes that column instead.
  *
  * One grid for both cart screens: `layout` carries the two real differences —
  * the sale screen ends its header with a stage toggle back to the goods, the
- * purchase screen has a `Subtotal Barang` row under the header instead.
+ * purchase screen has a `Subtotal Barang` row under the header instead — plus
+ * whether the `dual` column exists at all.
  */
 
 export type ExtraField = "name" | "value" | "kind" | "eff" | "dual" | "x";
@@ -34,14 +37,26 @@ type ExtraCellDef = {
   numeric?: boolean;
 };
 
-/** Which optional pieces the grid has: the stage toggle and the subtotal row. */
-export type ExtraLayout = { stageToggle: boolean; subtotalRow: boolean };
+/**
+ * Which optional pieces the grid has: the stage toggle, the subtotal row, and
+ * the `dual` column — the last one sale-only, because only a sale books the
+ * extras-only twin a `dual` charge produces.
+ */
+export type ExtraLayout = { stageToggle: boolean; subtotalRow: boolean; dual: boolean };
 
 /** The sale screen: search, `+manual`, a toggle back to the goods; no subtotal row. */
-export const SALE_EXTRA_LAYOUT: ExtraLayout = { stageToggle: true, subtotalRow: false };
+export const SALE_EXTRA_LAYOUT: ExtraLayout = {
+  stageToggle: true,
+  subtotalRow: false,
+  dual: true,
+};
 
 /** The purchase screen: search, `+manual`, and the goods subtotal as a row. */
-export const PURCHASE_EXTRA_LAYOUT: ExtraLayout = { stageToggle: false, subtotalRow: true };
+export const PURCHASE_EXTRA_LAYOUT: ExtraLayout = {
+  stageToggle: false,
+  subtotalRow: true,
+  dual: false,
+};
 
 function headerCells(layout: ExtraLayout): ExtraCellDef[] {
   if (layout.stageToggle) {
@@ -61,23 +76,27 @@ const SUBTOTAL_CELLS: ExtraCellDef[] = [
   { field: "subtotal", start: 0, end: 11, selectable: true, editable: false },
 ];
 
-const EXTRA_CELLS: ExtraCellDef[] = [
+const EXTRA_CELLS = (layout: ExtraLayout): ExtraCellDef[] => [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
   { field: "name", start: 1, end: 3, selectable: true, editable: true },
   { field: "value", start: 4, end: 5, selectable: true, editable: true, numeric: true },
   { field: "kind", start: 6, end: 7, selectable: true, editable: false },
-  { field: "eff", start: 8, end: 9, selectable: true, editable: false },
+  // Without `dual` the readout takes the spare column, so the row still ends on
+  // the delete button at the right edge.
+  { field: "eff", start: 8, end: layout.dual ? 9 : 10, selectable: true, editable: false },
   // A checkbox, not a field: `dual` toggles `DUAL_FLAG` on the extra, which is
   // what makes a sale commit the extras-only twin. A preset carries the flag
   // in; this cell is how the cashier corrects it.
-  { field: "dual", start: 10, end: 10, selectable: true, editable: false },
+  ...(layout.dual
+    ? [{ field: "dual" as const, start: 10, end: 10, selectable: true, editable: false }]
+    : []),
   { field: "x", start: 11, end: 11, selectable: true, editable: false },
 ];
 
 export function extraCellsForRow(row: ExtraRowRef, layout: ExtraLayout): ExtraCellDef[] {
   if (row.kind === "header") return headerCells(layout);
   if (row.kind === "subtotal") return SUBTOTAL_CELLS;
-  return EXTRA_CELLS;
+  return EXTRA_CELLS(layout);
 }
 
 export function selectableExtraCells(row: ExtraRowRef, layout: ExtraLayout): ExtraCellDef[] {
@@ -118,7 +137,9 @@ export function extraRowsFor(extraIds: string[], layout: ExtraLayout): ExtraRowR
   ];
 }
 
-/** The column a field's cell starts at. */
-export function startOfExtraField(field: ExtraField): number {
-  return EXTRA_CELLS.find((cell) => cell.field === field)?.start ?? 1;
+/** The column a field's cell starts at, in this screen's layout. */
+export function startOfExtraField(field: ExtraField, layout: ExtraLayout): number {
+  return extraCellsForRow({ kind: "extra", extraId: "" }, layout).find(
+    (cell) => cell.field === field,
+  )?.start ?? 1;
 }

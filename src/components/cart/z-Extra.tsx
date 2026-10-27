@@ -35,7 +35,9 @@ function signedRupiah(value: Decimal): string {
  *
  * `dual` is the extra's `DUAL_FLAG`: a preset arrives with it already set, and
  * the cashier can turn it off (or on) here — it is what makes the sale commit an
- * extras-only twin. The parent owns selection, editing and the open select, so
+ * extras-only twin. That is a sale-side rule, so `showDual` is false on the
+ * purchase screen and the column is not drawn at all; the effective readout
+ * takes its place. The parent owns selection, editing and the open select, so
  * the whole grid can be driven by the arrow keys; the row only renders what it
  * is told.
  */
@@ -46,6 +48,7 @@ export function ExtraCard({
   selected,
   editing,
   kindOpen,
+  showDual,
   onChange,
   onRemove,
   onSelect,
@@ -60,6 +63,8 @@ export function ExtraCard({
   selected: ExtraField | null;
   editing: boolean;
   kindOpen: boolean;
+  /** Only a sale has the `dual` column; see `ExtraLayout`. */
+  showDual: boolean;
   onChange: (patch: Partial<Extra>) => void;
   onRemove: () => void;
   onSelect: (field: ExtraField) => void;
@@ -166,7 +171,8 @@ export function ExtraCard({
           aria-selected={selected === "eff"}
           onClick={() => onSelect("eff")}
           className={cn(
-            "col-span-2 flex flex-col justify-center gap-0.5 border-l px-2 py-1",
+            "flex flex-col justify-center gap-0.5 border-l px-2 py-1",
+            showDual ? "col-span-2" : "col-span-3",
             selected === "eff" && SELECTED_RING,
           )}
         >
@@ -175,31 +181,33 @@ export function ExtraCard({
             {signedRupiah(eff)}
           </span>
         </div>
-        <div
-          id={`extra-${extra.id}-dual`}
-          role="gridcell"
-          aria-selected={selected === "dual"}
-          onClick={() => onSelect("dual")}
-          className={cn(
-            "col-span-1 flex flex-col items-center justify-center gap-0.5 border-l px-1 py-1",
-            selected === "dual" && SELECTED_RING,
-          )}
-        >
-          <label
-            htmlFor={`extra-${extra.id}-dual-box`}
-            className="text-small leading-none text-muted-foreground select-none"
+        {showDual ? (
+          <div
+            id={`extra-${extra.id}-dual`}
+            role="gridcell"
+            aria-selected={selected === "dual"}
+            onClick={() => onSelect("dual")}
+            className={cn(
+              "col-span-1 flex flex-col items-center justify-center gap-0.5 border-l px-1 py-1",
+              selected === "dual" && SELECTED_RING,
+            )}
           >
-            dual
-          </label>
-          <Checkbox
-            id={`extra-${extra.id}-dual-box`}
-            checked={dual}
-            aria-label={`Tandai biaya ${extra.name === "" ? number : extra.name} sebagai dual`}
-            onCheckedChange={(checked) =>
-              onChange({ flag: checked === true ? extra.flag | DUAL_FLAG : extra.flag & ~DUAL_FLAG })
-            }
-          />
-        </div>
+            <label
+              htmlFor={`extra-${extra.id}-dual-box`}
+              className="text-small leading-none text-muted-foreground select-none"
+            >
+              dual
+            </label>
+            <Checkbox
+              id={`extra-${extra.id}-dual-box`}
+              checked={dual}
+              aria-label={`Tandai biaya ${extra.name === "" ? number : extra.name} sebagai dual`}
+              onCheckedChange={(checked) =>
+                onChange({ flag: checked === true ? extra.flag | DUAL_FLAG : extra.flag & ~DUAL_FLAG })
+              }
+            />
+          </div>
+        ) : null}
         <div
           id={`extra-${extra.id}-x`}
           role="gridcell"

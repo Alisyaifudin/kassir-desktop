@@ -6,7 +6,8 @@
  * cashier.
  *
  * The `dual` column is pinned here too: it sits between `eff` and `x`, is one
- * column wide, and is reached by the same arrow walk as every other cell.
+ * column wide, is reached by the same arrow walk as every other cell — and is
+ * absent on a purchase, whose `eff` readout takes that column instead.
  *
  * Run with:  bun test src/components/cart/extra-grid.test.ts
  */
@@ -81,6 +82,27 @@ describe("extras grid geometry", () => {
     expect(cells.find((cell) => cell.field === "x")?.start).toBe(11);
   });
 
+  test("a purchase has no dual column at all — the twin is a sale-side rule", () => {
+    const cells = extraCellsForRow(ROW("a"), PURCHASE_EXTRA_LAYOUT);
+    expect(cells.map((cell) => cell.field)).toEqual(["no", "name", "value", "kind", "eff", "x"]);
+    // The readout takes the spare column, so the row still ends on delete.
+    expect(cells.find((cell) => cell.field === "eff")).toEqual({
+      field: "eff",
+      start: 8,
+      end: 10,
+      selectable: true,
+      editable: false,
+    });
+    expect(cells.find((cell) => cell.field === "x")?.start).toBe(11);
+    expect(selectableExtraCells(ROW("a"), PURCHASE_EXTRA_LAYOUT).map((cell) => cell.field)).toEqual([
+      "name",
+      "value",
+      "kind",
+      "eff",
+      "x",
+    ]);
+  });
+
   test("a column outside a cell snaps to the nearest one and the remembered column is clamped", () => {
     const name = extraCellAt(HEADER, 5, SALE_EXTRA_LAYOUT);
     expect(name.field).toBe("search");
@@ -96,11 +118,14 @@ describe("extras grid geometry", () => {
   });
 
   test("every extra field starts on a column the row has", () => {
-    expect(startOfExtraField("name")).toBe(1);
-    expect(startOfExtraField("value")).toBe(4);
-    expect(startOfExtraField("kind")).toBe(6);
-    expect(startOfExtraField("eff")).toBe(8);
-    expect(startOfExtraField("dual")).toBe(10);
-    expect(startOfExtraField("x")).toBe(11);
+    expect(startOfExtraField("name", SALE_EXTRA_LAYOUT)).toBe(1);
+    expect(startOfExtraField("value", SALE_EXTRA_LAYOUT)).toBe(4);
+    expect(startOfExtraField("kind", SALE_EXTRA_LAYOUT)).toBe(6);
+    expect(startOfExtraField("eff", SALE_EXTRA_LAYOUT)).toBe(8);
+    expect(startOfExtraField("dual", SALE_EXTRA_LAYOUT)).toBe(10);
+    expect(startOfExtraField("x", SALE_EXTRA_LAYOUT)).toBe(11);
+    // A purchase starts its fields in the same columns; only `eff` is wider.
+    expect(startOfExtraField("eff", PURCHASE_EXTRA_LAYOUT)).toBe(8);
+    expect(startOfExtraField("x", PURCHASE_EXTRA_LAYOUT)).toBe(11);
   });
 });

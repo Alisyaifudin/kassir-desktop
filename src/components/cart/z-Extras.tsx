@@ -262,12 +262,12 @@ export function Extras({
   }
 
   function selectExtra(extraId: string, field: ExtraField) {
-    setSelection({ row: { kind: "extra", extraId }, col: startOfExtraField(field) });
+    setSelection({ row: { kind: "extra", extraId }, col: startOfExtraField(field, layout) });
     setEditing(false);
   }
 
   function startEditExtra(extraId: string, field: ExtraField) {
-    setSelection({ row: { kind: "extra", extraId }, col: startOfExtraField(field) });
+    setSelection({ row: { kind: "extra", extraId }, col: startOfExtraField(field, layout) });
     setSeed(null);
     setEditing(true);
   }
@@ -636,6 +636,7 @@ export function Extras({
                             selected={onRow && focused ? (active.field as ExtraField) : null}
                             editing={onRow && editing}
                             kindOpen={openKindFor === extra.id}
+                            showDual={layout.dual}
                             onChange={(patch) => patchExtra(extra.id, patch)}
                             onRemove={() => removeExtra(extra.id)}
                             onSelect={(field) => selectExtra(extra.id, field)}

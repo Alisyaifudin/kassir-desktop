@@ -176,6 +176,48 @@ describe("Tambahan dual checkbox", () => {
 });
 
 /**
+ * The `dual` column belongs to the sale alone: a `dual` charge books an
+ * extras-only `outcoming` twin, and a purchase is already one. Restock showed the
+ * checkbox anyway — the row was the sale's row with a purchase layout — so this
+ * pins that a purchase has no such cell to click, tab or arrow into.
+ */
+describe("the dual column is a sale's, not a purchase's", () => {
+  function renderPurchase() {
+    render(
+      <Extras
+        mode="purchase"
+        extras={[{ id: "x1", name: "Ongkos Kirim", kind: "number", value: 10_000, flag: 0 }]}
+        subtotal={new Decimal(10_000)}
+        focusSearch={0}
+        onChange={() => {}}
+      />,
+    );
+    return screen.getByRole("grid", { name: "Biaya tambahan" });
+  }
+
+  test("a purchase draws neither the cell nor its checkbox", () => {
+    renderPurchase();
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByText("dual")).toBeNull();
+    expect(document.getElementById("extra-x1-dual")).toBeNull();
+    // The charge is still there, read out where the column used to be.
+    expect(document.getElementById("extra-x1-eff")).not.toBeNull();
+  });
+
+  test("the arrows walk eff straight into x", () => {
+    const grid = renderPurchase();
+
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    for (let step = 0; step < 4; step += 1) fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(grid.getAttribute("aria-activedescendant")).toBe("extra-x1-eff");
+
+    fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(grid.getAttribute("aria-activedescendant")).toBe("extra-x1-x");
+  });
+});
+
+/**
  * When the preset list may cover the rows.
  *
  * The filter waits for the pause (`SEARCH_DELAY`), so making the rows give way on
