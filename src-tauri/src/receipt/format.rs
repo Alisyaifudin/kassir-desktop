@@ -91,7 +91,7 @@ pub fn format_js_number(value: f64) -> String {
 fn push_grouped(out: &mut String, digits: &str) {
     let bytes = digits.as_bytes();
     for (index, byte) in bytes.iter().enumerate() {
-        if index > 0 && (bytes.len() - index) % 3 == 0 {
+        if index > 0 && (bytes.len() - index).is_multiple_of(3) {
             out.push('.');
         }
         out.push(*byte as char);
@@ -196,7 +196,7 @@ mod tests {
         assert_eq!(format_number(0.5), "0,5");
         assert_eq!(format_number(100_500.0), "100.500");
         // Intl's default is at most three fraction digits.
-        assert_eq!(format_number(100_500.4567), "100.500,457");
+        assert_eq!(format_number(100500.4567), "100.500,457");
     }
 
     #[test]

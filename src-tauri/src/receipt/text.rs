@@ -400,6 +400,7 @@ mod tests {
             price: 100_500.0,
             qty: 1.0,
             total: 100_500.0,
+            discounts: Vec::new(),
         }
     }
 
@@ -476,7 +477,7 @@ mod tests {
 
         let text = flatten(&rows);
         assert!(text.contains("Kredit"));
-        let (_, date, _) = crate::receipt::format::local_parts(credit_at);
+        let (date, _) = crate::receipt::format::local_parts(credit_at);
         assert!(text.contains(&date));
     }
 
@@ -1044,8 +1045,8 @@ mod tests {
         );
 
         let text = flatten(&rows);
-        let (_, credit_date, _) = crate::receipt::format::local_parts(credit_at);
-        let (_, created_date, _) = crate::receipt::format::local_parts(created_at);
+        let (credit_date, _) = crate::receipt::format::local_parts(credit_at);
+        let (created_date, _) = crate::receipt::format::local_parts(created_at);
 
         // The two dates differ, so the assertion says which one was printed.
         assert_ne!(credit_date, created_date);

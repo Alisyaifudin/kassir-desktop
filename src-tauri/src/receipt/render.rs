@@ -173,7 +173,7 @@ fn text_width(font: &ParsedFont, text: &str, size: f64) -> f64 {
         .map(|character| {
             font.lookup_glyph_index(character as u32)
                 .and_then(|glyph| font.get_glyph_width(glyph))
-                .map_or(0.0, |width| f64::from(width))
+                .map_or(0.0, f64::from)
         })
         .sum();
     units / f64::from(font.units_per_em) * size
