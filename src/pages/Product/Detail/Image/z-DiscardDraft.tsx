@@ -12,6 +12,7 @@ export function DiscardDraft({ onDiscard }: { onDiscard: () => void }) {
     <Button
       type="button"
       onClick={onDiscard}
+      size="icon"
       variant="destructive"
       className="rounded-full absolute top-1 right-0 p-1"
       aria-label="Buang gambar"

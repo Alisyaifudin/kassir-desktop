@@ -56,7 +56,7 @@ function Body({ id, product }: { id: string; product: ProductFull | undefined })
   const role = useUser().role;
 
   return (
-    <div className="grid h-full grid-cols-1 gap-3 overflow-hidden p-4 lg:grid-cols-[1fr_560px]">
+    <div className="grid h-full grid-cols-1 gap-3 overflow-hidden p-4 md:grid-cols-[5fr_3fr]">
       <div className="min-h-0 overflow-y-auto px-1">
         {role === "admin" ? (
           product === undefined ? <EditPaneSkeleton /> : <EditPane product={product} />

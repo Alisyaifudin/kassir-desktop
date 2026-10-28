@@ -38,7 +38,7 @@ export function History({
   const pending = useDelayedFlag(loading && events.length === 0);
 
   return (
-    <div className="flex h-full flex-col gap-2 rounded-xl border bg-card p-3">
+    <div className="flex h-full flex-col gap-2  border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Riwayat</h2>
         <div className="inline-flex rounded-md border p-0.5 text-sm">
