@@ -24,14 +24,14 @@ export function Listings({ record }: { record: RecordFull }) {
     <Table className="text-base" parentClass="max-h-none overflow-visible">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[93px]">No</TableHead>
+          <TableHead className="w-[40px]">No</TableHead>
           <TableHead>Nama</TableHead>
-          <TableHead className="text-end w-[170px]">Satuan</TableHead>
+          <TableHead className="text-end w-[100px]">Satuan</TableHead>
           <Show when={record.mode === "outcoming"}>
-            <TableHead className="text-end w-[170px]">Modal</TableHead>
+            <TableHead className="text-end w-[100px]">Modal</TableHead>
           </Show>
-          <TableHead className="text-end w-[57px]">Qty</TableHead>
-          <TableHead className="text-end w-[170px]">Total</TableHead>
+          <TableHead className="text-end w-[50px]">Qty</TableHead>
+          <TableHead className="text-end w-[100px]">Total</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="border-b">

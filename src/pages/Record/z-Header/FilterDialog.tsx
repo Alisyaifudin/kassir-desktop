@@ -46,7 +46,7 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
           <Button
             variant={activeCount > 0 ? "default" : "outline"}
             className={cn(
-              "gap-2 rounded-xl transition-all duration-300 h-12 px-4",
+              "gap-2 rounded-xl transition-all duration-300 h-10 px-4",
               activeCount > 0
                 ? "shadow-lg shadow-primary/20 border-primary/50 text-primary-foreground"
                 : "hover:border-primary/50",
@@ -81,11 +81,10 @@ function Wrapper({ filter }: { filter: ReturnType<typeof useMethodFilter> }) {
                 Kategori Pembayaran
               </DialogTitle>
             </div>
-            <p className="text-base text-muted-foreground font-medium mt-1">
-              Pilih satu atau lebih. Kosongkan untuk menampilkan semua.
-            </p>
           </DialogHeader>
-          <DialogDescription>Saring daftar riwayat berdasarkan hari, kasir, metode pembayaran, dan lainnya.</DialogDescription>
+          <DialogDescription className="px-6">
+            Pilih satu atau lebih. Kosongkan untuk menampilkan semua.
+          </DialogDescription>
           <div className="flex flex-col gap-4 p-6 pt-2 max-h-[70vh] overflow-y-auto">
             <ForEach items={groups}>
               {(group) => (

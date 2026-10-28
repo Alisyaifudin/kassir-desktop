@@ -92,20 +92,20 @@ export function FilterGroup({
         checked={state === "indeterminate" ? "mixed" : state}
         icon={<Icon className="size-5 shrink-0 [--icon-stroke:2.5]" />}
         onClick={onToggleKind}
-        className="h-12 w-fit px-4 font-medium [font-size:var(--text-normal)]"
+        className="h-7 w-fit px-4 font-medium [font-size:var(--text-normal)]"
       >
         {METHOD_NAMES[group.base.kind]}
       </Badge>
 
       {group.subs.length > 0 ? (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {group.subs.map((sub) => (
             <Badge
               key={sub.id}
               checked={subChecked(sub)}
               title={sub.name ?? undefined}
               onClick={() => onToggleSub(sub)}
-              className="h-11 w-full px-3 [font-size:var(--text-small)]"
+              className="h-7 w-full px-3 [font-size:var(--text-small)]"
             >
               {sub.name}
             </Badge>

@@ -12,7 +12,7 @@ import type { PaymentsEditor } from "./use-payments";
 
 /** The `Input` chrome, so the amount cell sits in its row like the method cells. */
 const AMOUNT_CLASS =
-  "flex w-[250px] shrink-0 rounded-md border border-input bg-transparent px-2 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+  "flex w-[150px] shrink-0 rounded-md border border-input bg-transparent px-2 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * The payment rows as fields: one method (kind + account) and one amount per
@@ -44,7 +44,7 @@ export function PaymentEditor({ pay }: { pay: PaymentsEditor }) {
           pay.draft.map((payment, index) => (
             <div key={payment.id} className="col-span-12 flex items-center gap-1 border-b py-1">
               <div className="flex-1"/>
-              <div className="min-w-[500px]  w-fit">
+              <div className="min-w-[300px]  w-fit">
                 <MethodPicker
                   methodId={payment.methodId}
                   catalog={catalog}
@@ -78,7 +78,7 @@ export function PaymentEditor({ pay }: { pay: PaymentsEditor }) {
         }
       </Loader>
 
-      <div className="col-span-12 flex items-center justify-end gap-10 py-1">
+      <div className="col-span-12 flex items-center justify-end gap-2 py-1">
         <Button variant="secondary" type="button" disabled={pay.pending} onClick={pay.cancel}>
           Batalkan
         </Button>

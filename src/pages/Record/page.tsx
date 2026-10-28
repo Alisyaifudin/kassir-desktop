@@ -12,7 +12,7 @@ import { RecordsErrorFallback } from "./z-Error";
 import { RecordsLoading } from "./z-Loading";
 
 const GRID =
-  "grid gap-2 h-full overflow-hidden transition-opacity duration-200 grid-cols-[490px_1px_1fr]";
+  "grid gap-2 h-full overflow-hidden transition-opacity duration-200 grid-cols-[300px_1px_1fr]";
 
 /**
  * The day's list and the selected record beside it.

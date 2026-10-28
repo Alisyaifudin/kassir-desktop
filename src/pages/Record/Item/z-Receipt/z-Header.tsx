@@ -22,7 +22,7 @@ export function Header({
 }) {
   return (
     <div className="flex flex-col">
-      <h1 className="text-center font-bold">{owner}</h1>
+      <h1 className="text-center font-bold ">{owner}</h1>
       <ForEach items={headers}>{(text) => <p className="text-center">{text}</p>}</ForEach>
       <p>{address}</p>
       <p>No: {recordId}</p>
