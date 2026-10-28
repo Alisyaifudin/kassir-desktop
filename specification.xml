@@ -827,7 +827,7 @@
 
     <service name="zoom" module="src/services/zoom/">
       <description>
-        The interface scale. Owns the localStorage key "zoom" (a number: 1 | 1.5 | 2, default 1) and is the only
+        The interface scale. Owns the localStorage key "zoom" (a number: 1 | 1.25 | 1.5 | 1.75, default 1) and is the only
         module that calls getCurrentWebview().setZoom() (the capability grant it needs is
         core:webview:allow-set-webview-zoom).
       </description>
@@ -839,8 +839,8 @@
         <method name="changes">Stream&lt;Zoom&gt;. Feeds the Setting → Tampilan slider (useZoom).</method>
       </interface>
       <note>
-        Levels are the allow-list ZOOM_LEVELS = [1, 1.5, 2] — three designed steps, not a continuous range. Anything
-        else stored (1.25, "big", null) reads as 100%; zoomAt/zoomIndexOf map a slider step to a level and
+        Levels are the allow-list ZOOM_LEVELS = [1, 1.25, 1.5, 1.75] — four designed steps, not a continuous range.
+        Anything else stored (2, 0.5, "big", null) reads as 100%; zoomAt/zoomIndexOf map a slider step to a level and
         zoomPercent formats the readout. Applying a level also writes `--icon-scale` (1/√zoom, `iconScaleOf`) to the
         document root: global.css multiplies every lucide stroke by it, so a 200% interface grows its glyphs without
         turning hairline outlines into marker pens. Per-icon weights (the Record header's 2.5) are declared as

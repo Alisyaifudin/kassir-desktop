@@ -4,7 +4,7 @@ export class ZoomError extends Data.TaggedError("ZoomError")<{ message: string }
 
 /**
  * The interface scales the app offers, as the multiplier the webview's
- * `setZoom` takes. Three fixed steps rather than a continuous range: the layout
+ * `setZoom` takes. Four fixed steps rather than a continuous range: the layout
  * is designed at 100%, and every step above it is a legible bigger version of
  * that layout, not an arbitrary scale that can land between two sizes.
  */

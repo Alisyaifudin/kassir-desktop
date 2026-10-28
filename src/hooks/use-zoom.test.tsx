@@ -52,13 +52,13 @@ describe("useZoom", () => {
     const { result } = renderHook(() => useZoom());
 
     act(() => {
-      void result.current.change(2);
+      void result.current.change(1.75);
     });
     // The thumb has moved before the webview answered.
-    expect(result.current.zoom).toBe(2);
+    expect(result.current.zoom).toBe(1.75);
 
     await act(async () => {});
-    expect(calls).toEqual([2]);
+    expect(calls).toEqual([1.75]);
   });
 
   test("a change the webview refuses is rolled back to the stored level", async () => {
@@ -66,7 +66,7 @@ describe("useZoom", () => {
     const { result } = renderHook(() => useZoom());
 
     act(() => {
-      void result.current.change(2);
+      void result.current.change(1.75);
     });
     await act(async () => {});
 
@@ -75,11 +75,11 @@ describe("useZoom", () => {
   });
 
   test("follows a level change from another writer", async () => {
-    changes = Stream.make(2 as Zoom);
+    changes = Stream.make(1.75 as Zoom);
 
     const { result } = renderHook(() => useZoom());
 
-    await waitFor(() => expect(result.current.zoom).toBe(2));
+    await waitFor(() => expect(result.current.zoom).toBe(1.75));
   });
 
   test("a service stream that fails falls back to 100%, not undefined", async () => {

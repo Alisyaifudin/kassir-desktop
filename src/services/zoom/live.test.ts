@@ -66,11 +66,14 @@ describe("ZoomService", () => {
 
   test("a stored level is what the first read returns", async () => {
     expect(await run(setup({ zoom: 1.5 }).layer, (zoom) => zoom.get())).toBe(1.5);
-    expect(await run(setup({ zoom: 2 }).layer, (zoom) => zoom.get())).toBe(2);
+    expect(await run(setup({ zoom: 1.75 }).layer, (zoom) => zoom.get())).toBe(1.75);
   });
 
-  test("a stored value that is not one of the three levels falls back to 100%", async () => {
-    for (const stored of [1.25, 0.5, 3, "big", "2", null, { zoom: 2 }]) {
+  test("a stored value that is not one of the four levels falls back to 100%", async () => {
+    // 2 is the level the app used to offer: it is now out of the allow-list, so a
+    // machine that saved it opens at 100% rather than at a scale the layout no
+    // longer holds.
+    for (const stored of [0.5, 2, 3, "big", "1.5", null, { zoom: 2 }]) {
       const { layer } = setup({ zoom: stored });
 
       expect(await run(layer, (zoom) => zoom.get())).toBe(DEFAULT_ZOOM);
@@ -78,15 +81,15 @@ describe("ZoomService", () => {
   });
 
   test("boot applies the stored level to the webview", async () => {
-    const { layer } = setup({ zoom: 2 });
+    const { layer } = setup({ zoom: 1.75 });
 
     await run(layer, (zoom) => zoom.apply());
 
-    expect(applied).toEqual([2]);
-    // `global.css` multiplies every lucide stroke by this: at 200% the glyph
-    // doubles but its outline grows by √2 instead of doubling, which is between
+    expect(applied).toEqual([1.75]);
+    // `global.css` multiplies every lucide stroke by this: at 175% the glyph
+    // grows but its outline grows by √1.75 instead of by 1.75, which is between
     // the two wrong answers (a marker pen, or a hairline).
-    expect(iconScale()).toBeCloseTo(1 / Math.SQRT2, 5);
+    expect(iconScale()).toBeCloseTo(1 / Math.sqrt(1.75), 5);
   });
 
   test("a chosen level is applied, persisted, and read back on the next launch", async () => {
@@ -117,7 +120,7 @@ describe("ZoomService", () => {
     refused = "zoom tidak diizinkan";
     const { entries, layer } = setup();
 
-    const result = await run(layer, (zoom) => Effect.either(zoom.set(2)));
+    const result = await run(layer, (zoom) => Effect.either(zoom.set(1.75)));
 
     expect(result._tag).toBe("Left");
     expect(entries.has("zoom")).toBe(false);
@@ -132,15 +135,15 @@ describe("ZoomService", () => {
 
     const result = await run(layer, (zoom) =>
       Effect.gen(function* () {
-        const either = yield* Effect.either(zoom.set(2));
+        const either = yield* Effect.either(zoom.set(1.75));
         // Same session: the level the webview is at, read back from the service.
         return { either, current: yield* zoom.get() };
       }),
     );
 
     expect(result.either._tag).toBe("Left");
-    expect(applied).toEqual([2]);
+    expect(applied).toEqual([1.75]);
     expect(entries.has("zoom")).toBe(false);
-    expect(result.current).toBe(2);
+    expect(result.current).toBe(1.75);
   });
 });

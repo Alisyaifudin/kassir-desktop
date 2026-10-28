@@ -7,11 +7,11 @@ import { ZOOM_LEVELS, zoomIndexOf, zoomPercent, type Zoom } from "~/services/zoo
 /**
  * How large the interface is on this machine.
  *
- * A drawn slider rather than a native range input: the control has exactly three
- * stops, and a real `<input type="range">` would spend most of its travel on
+ * A drawn slider rather than a native range input: the control has one stop per
+ * level, and a real `<input type="range">` would spend most of its travel on
  * levels the app does not have — every pixel between two dots would be a scale
  * nobody can pick. So the rule and the fill are just boxes, the dots are radio
- * buttons (arrow keys work for free), and only the three labels can be chosen.
+ * buttons (arrow keys work for free), and only the level labels can be chosen.
  *
  * Nothing is saved by hand: picking a dot applies it and persists it immediately,
  * so the row says so instead of pretending there is a form.
