@@ -22,6 +22,7 @@ export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money:
     <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
       <Button
         type="button"
+        size="icon"
         asChild
         className="rounded-full aspect-square p-1"
         variant="destructive"

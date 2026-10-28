@@ -220,17 +220,17 @@ function noteIndex(row: Row<MoneyRow>): number {
 
 /** Column widths and alignment, keyed by column id — money and counts sit right. */
 const COLUMN: Record<string, { head?: string; cell?: string }> = {
-  no: { head: "w-[60px]", cell: "text-muted-foreground" },
+  no: { head: "w-[30px]", cell: "text-muted-foreground" },
   // `whitespace-nowrap` on the reading columns is what keeps "15 Oktober 2026"
   // on one line: in an auto layout the browser is free to shrink a column to
   // its longest word, which turned the date into three lines.
-  day: { head: "w-[130px] text-center", cell: "whitespace-nowrap text-center" },
-  date: { head: "w-[280px] text-center", cell: "whitespace-nowrap text-center" },
-  time: { head: "w-[150px] text-center", cell: "whitespace-nowrap text-center" },
-  diff: { head: "w-[190px] text-right", cell: "whitespace-nowrap text-right" },
-  value: { head: "w-[190px] text-right", cell: "whitespace-nowrap text-right" },
+  day: { head: "w-[100px] text-center", cell: "whitespace-nowrap text-center" },
+  date: { head: "w-[130px] text-center", cell: "whitespace-nowrap text-center" },
+  time: { head: "w-[100px] text-center", cell: "whitespace-nowrap text-center" },
+  diff: { head: "w-[120px] text-right", cell: "whitespace-nowrap text-right" },
+  value: { head: "w-[120px] text-right", cell: "whitespace-nowrap text-right" },
   note: {},
-  actions: { head: "w-[60px]", cell: "text-right" },
+  actions: { head: "w-[30px]", cell: "text-right" },
 };
 
 /**
