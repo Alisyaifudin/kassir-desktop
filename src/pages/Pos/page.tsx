@@ -11,8 +11,7 @@ import { pageData } from "./data";
 import { service } from "~/services";
 import { Draft, STAGES, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import { useStage } from "~/pages/cart/use-stage";
-import { useDraftId } from "~/pages/cart/use-draft";
+import { useCartQuery } from "~/pages/cart/use-cart-query";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
 import { Complete } from "~/components/cart/z-Complete";
@@ -36,8 +35,7 @@ import { CartStartError } from "~/components/cart/z-StartError";
  * (tab titles, line rows, payment rows, the grand total) fill in or pulse.
  */
 export default function Page() {
-  const [stage, setStage] = useStage(STAGES);
-  const [draftId, setDraftId] = useDraftId();
+  const { stage, setStage, draftId, setDraftId } = useCartQuery(STAGES);
 
   const sources = useMemo(
     () => ({

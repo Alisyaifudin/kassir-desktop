@@ -9,8 +9,7 @@ import {
 } from "~/lib/purchase";
 import { Draft, STAGES, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
-import { useStage } from "~/pages/cart/use-stage";
-import { useDraftId } from "~/pages/cart/use-draft";
+import { useCartQuery } from "~/pages/cart/use-cart-query";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
 import { Complete } from "~/components/cart/z-Complete";
@@ -49,9 +48,7 @@ type CreditComplete = {
  * and `Bayar` are drawn from the first frame — like Pos.
  */
 export default function Page() {
-  const [stage, setStage] = useStage(STAGES);
-  const [draftId, setDraftId] = useDraftId();
-
+  const { stage, setStage, draftId, setDraftId } = useCartQuery(STAGES);
   const sources = useMemo(
     () => ({
       drafts: service.transaction.get.changes,
@@ -146,9 +143,7 @@ function Screen({
   // `null` while there is no cart: the strip's `Rp` and labels stay, the amount
   // pulses, and `Bayar` waits disabled.
   const grand =
-    active === null
-      ? null
-      : roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
+    active === null ? null : roundMoney(transactionGrandTotal(total, active.rounding), active.fix);
   // A credit purchase pays the goods and their charges; the rounding-off line is
   // the cash settlement's, not the debt's.
   const creditGrand = active === null ? null : roundMoney(total, active.fix);
@@ -162,9 +157,8 @@ function Screen({
     blocked: complete !== null || submitting || hardIssue,
     // A credit sale has no change to settle; a cash one may not be underpaid.
     ready: (credit) =>
-      (credit
-        ? creditGrand !== null && creditGrand.gt(0)
-        : grand !== null && grand.gt(0)) && (credit || !change.isNegative()),
+      (credit ? creditGrand !== null && creditGrand.gt(0) : grand !== null && grand.gt(0)) &&
+      (credit || !change.isNegative()),
     setSubmitting: cart.setSubmitting,
     setComplete,
     build: (recordId, credit) => ({

@@ -6,7 +6,7 @@ import { Loader, useMutation, useStream } from "~/components/Loader";
 import { Loading } from "./z-Loading";
 import { useUser } from "~/hooks/use-user";
 import { generateId } from "~/lib/random";
-import { useDraftId } from "~/pages/cart/use-draft";
+import { useDraftId } from "~/pages/cart/use-cart-query";
 import { service } from "~/services";
 import type { RecordAdjustmentInput } from "~/services/record";
 import { ADJUSTMENT_CART_FLAG, type Draft, type DraftExtra } from "~/services/transaction";

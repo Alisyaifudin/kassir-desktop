@@ -160,9 +160,11 @@ function Body({
                   </div>
                   <Precision draft={draft} />
                 </div>
-                <PaymentTime draft={draft} />
-                <div className="flex justify-end">
-                  <FlipMode draft={draft} className="items-end" />
+                <div className="flex justify-between items-center">
+                  <PaymentTime draft={draft} />
+                  <div className="flex justify-end">
+                    <FlipMode draft={draft} className="items-end" />
+                  </div>
                 </div>
               </div>
             </AccordionContent>

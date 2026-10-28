@@ -229,10 +229,10 @@ main {
 }
 
 @theme inline {
-  --breakpoint-sm: 20rem;
-  --breakpoint-md: 30rem;
-  --breakpoint-lg: 40rem;
-  --breakpoint-xl: 50rem;
+  --breakpoint-sm: 10rem;
+  --breakpoint-md: 20rem;
+  --breakpoint-lg: 30rem;
+  --breakpoint-xl: 40rem;
 
   --animate-shimmer: shimmer 1.4s linear infinite;
   --breakpoint-xs: 400px;
