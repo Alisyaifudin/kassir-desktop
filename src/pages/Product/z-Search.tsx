@@ -2,6 +2,8 @@ import { SearchIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "~/components/ui/input";
+import { Kbd } from "~/components/ui/kdb";
+import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
 import { SEARCH_DELAY } from "~/lib/constants";
 
 /**
@@ -26,6 +28,7 @@ import { SEARCH_DELAY } from "~/lib/constants";
  */
 export function Search({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [text, setText] = useState(value);
+  const field = useRef<HTMLInputElement>(null);
   // The query this bar last handed to the URL; anything equal to it is our echo.
   const handled = useRef(value);
   const push = useDebouncedCallback((next: string) => {
@@ -42,18 +45,42 @@ export function Search({ value, onChange }: { value: string; onChange: (value: s
     setText(value);
   }, [value, push]);
 
+  // F1 is the key the field advertises, so `window` hands it back to the field
+  // from anywhere on the page — the filter and sort popovers included. What is
+  // there is *selected*, not just focused: F1 is pressed to type a new query, and
+  // appending to the last one is never what was meant. A dialog owns the
+  // keyboard while it is open (the delete confirmation), so the shortcut waits.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "F1" || isScreenOwnedByDialog()) return;
+      // F1 is the browser's help key; the page has a better use for it.
+      event.preventDefault();
+      const input = field.current;
+      if (input === null) return;
+      input.focus();
+      input.select();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div className="relative flex min-w-[180px] flex-1 items-center">
-      <SearchIcon className="absolute left-3 size-6 text-muted-foreground" />
+      <Kbd className="absolute left-2 size-6 text-muted-foreground">F1</Kbd>
+      <SearchIcon className="absolute right-2 size-6 text-muted-foreground" />
       <Input
+        ref={field}
         type="search"
         // Arriving on this page is almost always "find a product", so the bar
         // takes the cursor on the way in; the alternative is a click before the
         // first keystroke. Same as the Extra page's search.
         autoFocus
+        // The visual hint is the `Kbd` above; this is the same promise to a
+        // screen reader, and it is what the F1 listener honours.
+        aria-keyshortcuts="F1"
         value={text}
         placeholder="Cari produk, listing, atau kode..."
-        className="pl-11 pr-12"
+        className="pl-10 pr-11"
         onChange={(event) => {
           const next = event.currentTarget.value;
           // Only this component re-renders here; the page hears about it once,

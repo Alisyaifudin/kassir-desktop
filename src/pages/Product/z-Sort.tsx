@@ -18,20 +18,14 @@ const SORT_LABELS: Record<SortBy, string> = {
   updated: "Terbaru",
 };
 
-export function Sort({
-  state,
-  set,
-}: {
-  state: ListState;
-  set: (patch: ListStatePatch) => void;
-}) {
+export function Sort({ state, set }: { state: ListState; set: (patch: ListStatePatch) => void }) {
   const hasQuery = state.q.trim() !== "";
   // `Skor` only exists while there is a query to score against.
   const options = (Object.keys(SORT_LABELS) as SortBy[]).filter(
     (value) => value !== "score" || hasQuery,
   );
   // Relevance is always highest-first, so the direction toggle does not apply.
-  const showDirection = state.sort !== "score";
+  const disabled = state.sort === "score";
 
   return (
     <div className="flex items-center gap-1">
@@ -47,17 +41,16 @@ export function Sort({
           ))}
         </SelectContent>
       </Select>
-      {showDirection ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Ubah arah urutan"
-          onClick={() => set({ dir: state.dir === "asc" ? "desc" : "asc" })}
-        >
-          {state.dir === "asc" ? <ArrowUp  /> : <ArrowDown  />}
-        </Button>
-      ) : null}
+      <Button
+        disabled={disabled}
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label="Ubah arah urutan"
+        onClick={() => set({ dir: state.dir === "asc" ? "desc" : "asc" })}
+      >
+        {state.dir === "asc" ? <ArrowUp /> : <ArrowDown />}
+      </Button>
     </div>
   );
 }

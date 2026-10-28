@@ -150,3 +150,48 @@ describe("product search", () => {
     await waitFor(() => expect(field().value).toBe("kopi su"));
   });
 });
+
+/**
+ * F1 is the key the field advertises in its `Kbd`, so it has to be the key that
+ * comes back to it — from anywhere on the page, and without a click.
+ */
+describe("product search, F1", () => {
+  test("puts the cursor back in the bar and selects the query", () => {
+    render(<Harness />);
+    fireEvent.change(field(), { target: { value: "kopi" } });
+    // Somewhere else on the page: the filter popover, the grid, a row.
+    screen.getByRole("button", { name: "reset dari luar" }).focus();
+    expect(document.activeElement).not.toBe(field());
+
+    fireEvent.keyDown(window, { key: "F1" });
+
+    expect(document.activeElement).toBe(field());
+    // Selected, so the next keystroke starts a new query instead of appending.
+    expect(field().selectionStart).toBe(0);
+    expect(field().selectionEnd).toBe("kopi".length);
+  });
+
+  test("waits while a dialog owns the screen", () => {
+    render(
+      <div>
+        <Harness />
+        <div role="dialog" aria-modal="true" />
+      </div>,
+    );
+    screen.getByRole("button", { name: "reset dari luar" }).focus();
+
+    fireEvent.keyDown(window, { key: "F1" });
+
+    // The confirmation dialog keeps the keyboard it took.
+    expect(document.activeElement).not.toBe(field());
+  });
+
+  test("leaves every other key alone", () => {
+    render(<Harness />);
+    screen.getByRole("button", { name: "reset dari luar" }).focus();
+
+    fireEvent.keyDown(window, { key: "F2" });
+
+    expect(document.activeElement).not.toBe(field());
+  });
+});

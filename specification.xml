@@ -514,6 +514,10 @@
         <shortcut key="Ctrl/Cmd+C / V" action="Copy the selected goods cell / paste into it (value, not display text; the paste stays in select mode)" />
         <shortcut key="Ctrl/Cmd+Z" action="Undo the cell editor's last change" />
       </group>
+      <group name="products">
+        <description>Registered by the Product list's search bar, which advertises the key in its own Kbd. Ignored while a dialog owns the screen; the query already in the bar is selected, so the next keystroke starts a new search.</description>
+        <shortcut key="F1" action="Put the cursor in the products search bar on /products" />
+      </group>
     </keyboard_shortcuts>
 
     <error_boundary>
