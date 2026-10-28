@@ -143,7 +143,7 @@ export function ExtraCard({
           aria-selected={selected === "kind"}
           onClick={() => onSelect("kind")}
           className={cn(
-            "col-span-2 flex flex-col justify-center gap-0.5 border-l px-2 py-1",
+            "col-span-2 flex flex-col justify-center border-l px-1 pt-0.5",
             selected === "kind" && SELECTED_RING,
           )}
         >
@@ -154,7 +154,7 @@ export function ExtraCard({
             onOpenChange={onKindOpenChange}
             onValueChange={(kind) => onChange({ kind: kind as ValueKind })}
           >
-            <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
+            <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
               <SelectValue>{KIND_LABELS[extra.kind]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -177,9 +177,7 @@ export function ExtraCard({
           )}
         >
           <span className="text-sm leading-none text-muted-foreground select-none">Efektif</span>
-          <span className="text-base font-bold tabular-nums text-primary">
-            {signedRupiah(eff)}
-          </span>
+          <span className="text-base font-bold tabular-nums text-primary">{signedRupiah(eff)}</span>
         </div>
         {showDual ? (
           <div
@@ -202,36 +200,32 @@ export function ExtraCard({
               id={`extra-${extra.id}-dual-box`}
               checked={dual}
               aria-label={`Tandai biaya ${extra.name === "" ? number : extra.name} sebagai dual`}
+              className="size-5"
               onCheckedChange={(checked) =>
-                onChange({ flag: checked === true ? extra.flag | DUAL_FLAG : extra.flag & ~DUAL_FLAG })
+                onChange({
+                  flag: checked === true ? extra.flag | DUAL_FLAG : extra.flag & ~DUAL_FLAG,
+                })
               }
             />
           </div>
         ) : null}
-        <div
+
+        <Button
           id={`extra-${extra.id}-x`}
+          variant="ghost"
           role="gridcell"
           aria-selected={selected === "x"}
-          onClick={() => onSelect("x")}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
           className={cn(
-            "col-span-1 flex items-center justify-center border-l",
-            selected === "x" && SELECTED_RING,
+            "col-span-1 flex items-center justify-center rounded-none hover:bg-destructive group h-full",
+            selected === "x" && SELECTED_RING + " bg-destructive",
           )}
         >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full hover:bg-destructive hover:text-primary-foreground"
-            aria-label="Hapus biaya"
-            title="Hapus biaya"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove();
-            }}
-          >
-            <X className="size-5" />
-          </Button>
-        </div>
+          <X className={cn("size-5 group-hover:text-white", selected === "x" && "text-white")} />
+        </Button>
       </div>
     </motion.div>
   );

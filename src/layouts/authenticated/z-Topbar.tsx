@@ -55,7 +55,7 @@ export function Topbar() {
               <ArrowLeft className="size-6" />
             </Button>
           )}
-          <h1 className={cn("font-bold tracking-tight transition-all", "text-2xl")}>
+          <h1 className={cn("font-bold tracking-tight transition-all", "text-xl")}>
             {isHome ? "Beranda" : title}
           </h1>
           <Title />

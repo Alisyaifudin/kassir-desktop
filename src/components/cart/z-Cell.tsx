@@ -6,7 +6,7 @@ import { InputCurrency } from "~/components/ui/input-currency";
 import { InputPercent } from "~/components/ui/input-percent";
 import { cn } from "~/lib/utils";
 
-export const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
+export const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset bg-muted";
 export const EDITING_RING = "z-10 ring-2 ring-primary ring-inset";
 
 /**
@@ -239,7 +239,7 @@ export function Cell({
   const justifyClass =
     align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
   const editClass =
-    "h-9 rounded-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0";
+    "h-7 rounded-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0";
 
   function handleEditKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (onEditKeyDown?.(event) === true) return;
@@ -288,13 +288,13 @@ export function Cell({
             : "Klik dua kali untuk mengubah"
       }
       className={cn(
-        "relative flex flex-col justify-center gap-0.5 px-2 py-1",
+        "relative flex flex-col justify-center px-2",
         className,
         changed && "bg-destructive/10",
         selected && (editing ? EDITING_RING : SELECTED_RING),
       )}
     >
-      <span className={cn("text-sm leading-none text-muted-foreground select-none", alignClass)}>
+      <span className={cn("text-sm leading-none text-muted-foreground pt-1 select-none", alignClass)}>
         {label}
       </span>
       {editing ? (
@@ -305,7 +305,7 @@ export function Cell({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-6 shrink-0"
+              className="shrink-0"
               aria-label="Batalkan perubahan"
               title="Batalkan perubahan"
               // Keep the input focused so its blur does not commit first.
@@ -349,7 +349,7 @@ export function Cell({
               autoFocus
               value={draft}
               placeholder={placeholder}
-              className={cn(editClass, alignClass, "placeholder:italic")}
+              className={cn(editClass, alignClass, "placeholder:italic h-7")}
               onChange={(event) =>
                 handleDraft(
                   numeric === undefined
@@ -368,7 +368,7 @@ export function Cell({
           type="button"
           tabIndex={-1}
           className={cn(
-            "flex h-9 w-full items-center text-base select-none",
+            "flex h-7 w-full items-center text-base select-none",
             prefix !== undefined ? "justify-between" : justifyClass,
           )}
         >

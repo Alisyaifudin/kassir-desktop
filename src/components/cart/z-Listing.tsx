@@ -860,7 +860,7 @@ export function Listing({
           role="gridcell"
           aria-selected={focused && isSearch}
           className={cn(
-            "flex items-center gap-2 p-1",
+            "flex items-center px-1 ",
             layout.stageToggle ? "col-span-8" : "col-span-10",
             focused && isSearch && SELECTED_RING,
           )}
@@ -893,13 +893,13 @@ export function Listing({
             setEditing(false);
           }}
           className={cn(
-            "col-span-2 flex items-center border-l p-1",
-            focused && manualSelected && SELECTED_RING,
+            "col-span-2 flex items-center border-l",
+            focused && manualSelected && SELECTED_RING + " bg-muted",
           )}
         >
           <Button
             variant="ghost"
-            className="w-full"
+            className="w-full rounded-none h-full"
             onClick={(event) => {
               event.stopPropagation();
               insert();
@@ -918,12 +918,12 @@ export function Listing({
               setSelection({ row: HEADER, col: TOGGLE_COLUMN });
               setEditing(false);
             }}
-            className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
+            className={cn("col-span-2 border-l p-0", focused && toggleSelected && SELECTED_RING + " bg-muted")}
           >
             {!showExtraTotal ? (
               <Button
                 variant="ghost"
-                className="w-full"
+                className="w-full rounded-none h-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle?.();
@@ -935,13 +935,13 @@ export function Listing({
             ) : (
               <Button
                 variant="ghost"
-                className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
+                className="h-auto w-full flex-col items-start gap-0 rounded-none py-0 "
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle?.();
                 }}
               >
-                <span className="flex items-center gap-1 text-sm leading-none text-muted-foreground select-none">
+                <span className="flex items-center gap-1 text-muted-foreground select-none">
                   Tambahan
                   <ArrowRight className="size-5" />
                 </span>

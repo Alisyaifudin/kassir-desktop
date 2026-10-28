@@ -465,6 +465,7 @@ export function Methods({
           ) : (
             <>
               <SelectCell
+                selectMinWidth={150}
                 id="cell-payment-kind"
                 className={cn("border-r", accounts.length > 0 ? "col-span-3" : "col-span-4")}
                 label="Metode"
@@ -655,21 +656,13 @@ export function Methods({
 /** The small `+` cell that opens the method editor. */
 function AddCell({ selected, onActivate }: { selected: boolean; onActivate: () => void }) {
   return (
-    <div
+    <Button
+      variant="ghost"
       id="cell-payment-add"
       onClick={onActivate}
-      className={cn("col-span-1 flex items-center justify-center", selected && SELECTED_RING)}
+      className={cn("col-span-1 h-full rounded-none flex items-center justify-center", selected && SELECTED_RING)}
     >
-      <Button
-        variant="ghost"
-        title="Metode pembayaran"
-        onClick={(event) => {
-          event.stopPropagation();
-          onActivate();
-        }}
-      >
-        <Plus className="size-5" />
-      </Button>
-    </div>
+      <Plus className="size-5" />
+    </Button>
   );
 }

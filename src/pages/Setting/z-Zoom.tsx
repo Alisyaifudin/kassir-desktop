@@ -60,7 +60,7 @@ export function Zoom() {
           />
           <div className="relative grid" style={columns}>
             {ZOOM_LEVELS.map((level: Zoom) => (
-              <div key={level} className="flex justify-center">
+              <div key={level} className="flex items-center justify-center">
                 <input
                   id={idOf(level)}
                   type="radio"
@@ -73,14 +73,15 @@ export function Zoom() {
                 <label
                   htmlFor={idOf(level)}
                   className={cn(
-                    "size-4 cursor-pointer rounded-full border-2 bg-card transition-colors",
-                    "border-muted-foreground/40 peer-hover:border-foreground/70",
+                    "size-10 cursor-pointer rounded-full hover:border-2 hover:border-muted-foreground/40 hover:bg-card z-10",
+                    "peer-hover:border-foreground/70",
                     "peer-checked:border-foreground peer-checked:bg-foreground",
-                    "peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-card",
+                    "peer-focus-visible:ring-2 relative group peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-card",
                   )}
                 >
                   <span className="sr-only">{zoomPercent(level)}</span>
                 </label>
+                <div className="size-4 border-2 bg-card rounded-full absolute z-0"></div>
               </div>
             ))}
           </div>

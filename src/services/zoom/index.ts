@@ -8,7 +8,7 @@ export class ZoomError extends Data.TaggedError("ZoomError")<{ message: string }
  * is designed at 100%, and every step above it is a legible bigger version of
  * that layout, not an arbitrary scale that can land between two sizes.
  */
-export const ZOOM_LEVELS = [1, 1.5, 2] as const;
+export const ZOOM_LEVELS = [1, 1.25, 1.50, 1.75] as const;
 
 export type Zoom = (typeof ZOOM_LEVELS)[number];
 

@@ -29,6 +29,7 @@ export function SelectCell({
   onSelect,
   onEditingDone,
   onChange,
+  selectMinWidth
 }: {
   id: string;
   className?: string;
@@ -40,6 +41,7 @@ export function SelectCell({
   onSelect: () => void;
   onEditingDone: () => void;
   onChange: (value: string) => void;
+  selectMinWidth?: number
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -63,7 +65,7 @@ export function SelectCell({
         if (!editing) onSelect();
       }}
       className={cn(
-        "flex flex-col justify-center gap-0.5 px-2 py-1",
+        "flex flex-col justify-center gap-0.5 px-2 pt-1",
         className,
         selected && (editing ? "z-10 ring-2 ring-primary ring-inset" : SELECTED_RING),
       )}
@@ -78,14 +80,14 @@ export function SelectCell({
         value={value}
         onValueChange={onChange}
       >
-        <SelectTrigger className="h-9 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
+        <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0">
           <SelectValue>{display}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
             {options.map((option) => (
               <SelectItem
-                className=" w-[250px]"
+                style={{minWidth: selectMinWidth ?? 0}}
                 key={option.value}
                 value={option.value}
                 kbd={option.kbd === undefined ? undefined : <Kbd>{option.kbd}</Kbd>}

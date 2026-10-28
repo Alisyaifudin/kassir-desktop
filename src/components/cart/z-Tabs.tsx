@@ -154,12 +154,11 @@ export function Tabs({
 
   return (
     <div className="flex flex-col border-b">
-      <div className="flex items-center gap-2  px-0.5">
+      <div className="flex items-center gap-2 px-0.5">
         <Kbd>F12</Kbd>
         <Button
-          className="rounded-full "
+          className="rounded-full size-7 p-0"
           aria-label="Draft baru"
-          size="icon"
           title="Draft baru"
           onClick={create}
         >
@@ -169,7 +168,7 @@ export function Tabs({
           ref={listRef}
           role="tablist"
           aria-label="Transaksi terbuka"
-          className="flex flex-1 items-center gap-1 overflow-x-auto"
+          className="flex flex-1 items-center gap-1 self-end overflow-x-auto"
         >
           {loading ? (
             // Three places for the carts that are on their way, *instead of* the
@@ -269,7 +268,7 @@ function Tab({
   // in the accessibility tree but out of the tab order (Delete does the same
   // thing from the tab), so Tabbing never walks a row of delete buttons.
   return (
-    <div className="flex items-end bg-red-500 self-end">
+    <div className="flex items-end ">
       <div
         id={id}
         role="tab"

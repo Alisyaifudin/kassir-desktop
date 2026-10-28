@@ -62,7 +62,7 @@ export function Bottom({
           turned the whole payment column into a scroll box. The panel sizes to
           its content instead, and the goods grid above (flex-1, min-h-0) gives
           up the difference. */}
-      <div className="min-w-[700px] flex-3 shrink-0 border-r">
+      <div className="min-w-[300px] flex-3 shrink-0 border-r">
         {draft === null ? (
           // The strip's shape is reserved from the first frame but drawn only
           // after the anti-flash window: the drafts usually answer in a few
@@ -87,8 +87,8 @@ export function Bottom({
           />
         )}
       </div>
-      <div className="flex min-w-0 flex-4 flex-col  gap-3">
-        <div className="flex items-center px-1 justify-between">
+      <div className="flex min-w-0 flex-4 flex-col gap-3">
+        <div className="flex items-center justify-between">
           <Button
             ref={payRef}
             disabled={draft === null || disabled || change.comparedTo(0) < 0}

@@ -98,7 +98,7 @@ export const ListingCard = memo(function ListingCard({
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
       className={cn(
-        "overflow-hidden bg-card text-card-foreground",
+        "overflow-hidden bg-card text-card-foreground ",
         isDragging && "relative z-10 shadow-lg",
         // A redraw of this card with the flag means "this is the one you scanned"
         // — a translate, not a fade: `animate-in` also animates opacity, and the
@@ -125,7 +125,9 @@ export const ListingCard = memo(function ListingCard({
           empty={line.name === ""}
           placeholder="Nama barang"
           base={line.base?.name}
-          footer={issue?.name === true ? <FieldIssue>Nama barang harus diisi</FieldIssue> : undefined}
+          footer={
+            issue?.name === true ? <FieldIssue>Nama barang harus diisi</FieldIssue> : undefined
+          }
           onSelect={() => onSelect("name")}
           onStartEdit={() => onStartEdit("name")}
           onEditingDone={onEditingDone}
@@ -144,30 +146,24 @@ export const ListingCard = memo(function ListingCard({
         >
           {rupiah(grandTotal)}
         </div>
-        <div
+        <Button
           id={`cell-${line.id}-x`}
+
+          variant="ghost"
           role="gridcell"
           aria-selected={selected === "x"}
-          onClick={() => onSelect("x")}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
           className={cn(
-            "col-span-1 flex items-center justify-center",
-            selected === "x" && SELECTED_RING,
+            "col-span-1 flex items-center justify-center rounded-none hover:bg-destructive group h-full",
+            selected === "x" && SELECTED_RING + " bg-destructive",
+
           )}
         >
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Hapus baris"
-            className="rounded-full hover:bg-destructive hover:text-primary-foreground"
-            title="Hapus baris"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove();
-            }}
-          >
-            <X className="size-5" />
-          </Button>
-        </div>
+          <X className={cn("size-5 group-hover:text-white", selected === "x" && "text-white")} />
+        </Button>
       </div>
 
       <div role="row" className="grid grid-cols-12 items-stretch border-t">
@@ -247,18 +243,18 @@ export const ListingCard = memo(function ListingCard({
           seed={seed}
           onCommit={(raw) => onChange({ price: Number(raw) || 0 })}
         />
-        <div
+        <Button
+          variant="ghost"
           id={`cell-${line.id}-diskon`}
           onClick={() => onSelect("diskon")}
           className={cn(
-            "col-span-3 flex flex-col justify-center gap-0.5 px-2 py-1",
+            "col-span-3 flex flex-col items-start justify-center gap-0.5 rounded-none px-2 py-1 h-fit",
             selected === "diskon" && SELECTED_RING,
           )}
         >
           <span className="text-sm leading-none text-muted-foreground select-none">Diskon</span>
-          <Button
-            variant="ghost"
-            className="h-auto w-full justify-start p-0 text-base"
+          <div
+            className="h-auto flex w-full items-center justify-start p-0 text-base"
             onClick={(event) => {
               event.stopPropagation();
               onSelect("diskon");
@@ -273,11 +269,11 @@ export const ListingCard = memo(function ListingCard({
                 Tambah
               </>
             )}
-          </Button>
+          </div>
           {issue?.discount === true ? (
             <FieldIssue>Diskon melebihi harga barang</FieldIssue>
           ) : undefined}
-        </div>
+        </Button>
       </div>
     </motion.div>
   );
@@ -333,7 +329,7 @@ function QtyCell({
       role="gridcell"
       aria-selected={selected}
       className={cn(
-        "relative flex flex-col justify-center gap-0.5 border-r px-1 py-1",
+        "relative flex flex-col justify-between gap-0.5 border-r pt-1 ",
         editing && EDITING_RING,
       )}
     >
@@ -362,7 +358,7 @@ function QtyCell({
               onEditingDone();
             }
           }}
-          className="h-9 rounded-none border-0 bg-transparent p-0 text-center text-base shadow-none focus-visible:ring-0"
+          className="h-6 rounded-none border-0 bg-transparent p-0 text-center text-base shadow-none focus-visible:ring-0"
         />
       ) : (
         <div className="flex items-center justify-between gap-0.5">
@@ -376,7 +372,7 @@ function QtyCell({
               setQty(line.qty - 1);
             }}
             className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent",
+              "flex size-7 rounded-none shrink-0 items-center justify-center text-muted-foreground hover:bg-accent",
               selected && selectedSub === "left" && SELECTED_RING,
             )}
           >
@@ -388,7 +384,7 @@ function QtyCell({
             onClick={() => onSelect("value")}
             onDoubleClick={onStartEdit}
             className={cn(
-              "min-w-0 flex-1 truncate rounded-sm text-center text-base tabular-nums",
+              "min-w-0 flex-1 h-7  truncate rounded-none text-center text-base tabular-nums",
               selected && selectedSub === "value" && SELECTED_RING,
             )}
           >
@@ -404,7 +400,7 @@ function QtyCell({
               setQty(line.qty + 1);
             }}
             className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent",
+              "flex size-7 shrink-0 items-center justify-center rounded-none text-muted-foreground hover:bg-accent",
               selected && selectedSub === "right" && SELECTED_RING,
             )}
           >

@@ -508,13 +508,13 @@ export function Extras({
             setEditing(false);
           }}
           className={cn(
-            "col-span-2 flex items-center border-l p-1",
-            focused && manualSelected && SELECTED_RING,
+            "col-span-2 flex items-center border-l",
+            focused && manualSelected && SELECTED_RING + " bg-muted",
           )}
         >
           <Button
             variant="ghost"
-            className="w-full"
+            className="w-full rounded-none h-full"
             onClick={(event) => {
               event.stopPropagation();
               insert();
@@ -533,12 +533,12 @@ export function Extras({
               setSelection({ row: HEADER, col: 10 });
               setEditing(false);
             }}
-            className={cn("col-span-2 border-l p-1", focused && toggleSelected && SELECTED_RING)}
+            className={cn("col-span-2 border-l p-0", focused && toggleSelected && SELECTED_RING + " bg-muted")}
           >
             {showToggleTotal ? (
               <Button
                 variant="ghost"
-                className="h-auto w-full flex-col items-start gap-0.5 px-2 py-1"
+                className="h-auto w-full flex-col items-start gap-0 rounded-none py-0"
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle?.();
