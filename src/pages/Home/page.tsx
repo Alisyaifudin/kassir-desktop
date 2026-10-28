@@ -47,7 +47,7 @@ export default function Page() {
             <div
               className={cn(
                 "grid items-start gap-4",
-                isAdmin && "xl:grid-cols-[minmax(0,1fr)_clamp(320px,38%,540px)]",
+                isAdmin && "md:grid-cols-[minmax(0,1fr)_clamp(320px,38%,540px)]",
               )}
             >
               <Ledger />

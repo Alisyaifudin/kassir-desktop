@@ -21,7 +21,7 @@ export function Header({ dayStart }: { dayStart: number }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
       <div className="flex min-w-0 flex-col">
-        <p className="text-base font-semibold tracking-tight break-words">
+        <p className="text-xl font-semibold tracking-tight break-words">
           Selamat datang, {capitalize(user.name)}
         </p>
         <p className="text-sm text-muted-foreground">
