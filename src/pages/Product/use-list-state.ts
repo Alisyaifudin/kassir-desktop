@@ -49,9 +49,7 @@ function oneOf<T extends string>(value: string | null, allowed: readonly T[], fa
  */
 function storedView(): ViewMode {
   return Effect.runSync(
-    service.config.productView
-      .get()
-      .pipe(Effect.catchAll(() => Effect.succeed<ViewMode>("grid"))),
+    service.config.productView.get().pipe(Effect.catchAll(() => Effect.succeed<ViewMode>("grid"))),
   );
 }
 
@@ -67,11 +65,12 @@ export function useListState() {
     // more), so only `score` is treated as the auto case when written back.
     const explicitSort = sortRaw !== null && (SORT_BY as readonly string[]).includes(sortRaw);
     const chosen = oneOf(sortRaw, SORT_BY, "name");
-    const sort = !explicitSort && q.trim() !== ""
-      ? "score"
-      : q.trim() === "" && chosen === "score"
-        ? "name"
-        : chosen;
+    const sort =
+      !explicitSort && q.trim() !== ""
+        ? "score"
+        : q.trim() === "" && chosen === "score"
+          ? "name"
+          : chosen;
     return {
       q,
       kinds: (params.get("kinds") ?? "").split(",").filter(Boolean),
@@ -143,7 +142,15 @@ export function useListState() {
             put("size", patch.size === 20 ? null : String(patch.size));
             resetPage = true;
           }
-          if (patch.view !== undefined) put("view", patch.view === "grid" ? null : patch.view);
+          if (patch.view !== undefined) {
+            // Never elided, unlike every other param here. Their defaults are
+            // constants evaluated in the same render, so dropping the param is
+            // lossless; `view`'s absent-param fallback is `storedView()`, a
+            // separate store whose mirror write above lands a tick later than
+            // this synchronous navigate. Dropping `view=grid` would therefore
+            // read back the old value and the toggle would look dead.
+            put("view", patch.view);
+          }
 
           if (patch.page !== undefined) {
             put("page", patch.page <= 1 ? null : String(patch.page));
@@ -158,6 +165,5 @@ export function useListState() {
     },
     [setParams],
   );
-
   return { state, set } as const;
 }

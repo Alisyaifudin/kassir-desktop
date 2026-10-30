@@ -6,14 +6,16 @@ import type { ProductView } from "~/services/config";
 
 /**
  * The product list's entire view state lives in the URL, so a refresh or a shared
- * link reopens the same filter, sort and page. Two rules are easy to break and
+ * link reopens the same filter, sort and page. One rule is easy to break and
  * expensive when broken: defaults are *absent* params (a URL carrying
- * `sort=name&dir=asc&view=grid` is noise), and any change to a filter resets the
- * page — otherwise you land on page 4 of a three-row result.
+ * `sort=name&dir=asc` is noise), and any change to a filter resets the page —
+ * otherwise you land on page 4 of a three-row result.
  *
  * The view is the exception with a second home: it is mirrored to
  * `config.productView` (localStorage) so a bare `/products` opens on the layout
- * last used, while a `?view=` in a shared link still wins.
+ * last used, while a `?view=` in a shared link still wins. Because that fallback
+ * is a separate store written a tick late, `view` is the one default that is
+ * never elided — see the note in `set`.
  */
 let search = "";
 
@@ -148,7 +150,7 @@ describe("writing the URL", () => {
     expect(params().has("page")).toBe(false);
   });
 
-  test("defaults are removed rather than written", () => {
+  test("defaults are removed rather than written, except the view", () => {
     const { result } = harness(
       "/products?stock=low&margin=loss&publish=unpublished&sort=price&dir=desc&view=table&size=50",
     );
@@ -165,9 +167,12 @@ describe("writing the URL", () => {
       }),
     );
 
-    for (const key of ["stock", "margin", "publish", "sort", "dir", "view", "size"]) {
+    for (const key of ["stock", "margin", "publish", "sort", "dir", "size"]) {
       expect(params().has(key)).toBe(false);
     }
+    // `view` falls back to `storedView()` rather than to a constant, so it is
+    // always written out: eliding it would let a stale preference win.
+    expect(params().get("view")).toBe("grid");
   });
 
   test("a non-default choice is written", () => {
@@ -242,14 +247,29 @@ describe("the stored view", () => {
     expect(persisted).toEqual(["table"]);
   });
 
-  test("picking cards clears the URL param but still remembers cards", () => {
+  test("picking cards writes the URL param and still remembers cards", () => {
     storedView = "table";
     const { result } = harness("/products?view=table");
 
     act(() => result.current.set({ view: "grid" }));
 
-    expect(params().has("view")).toBe(false);
+    expect(params().get("view")).toBe("grid");
     expect(persisted).toEqual(["grid"]);
     expect<ProductView>(storedView).toBe("grid");
+  });
+
+  test("picking cards from a remembered table view flips the state on the spot", () => {
+    // The bare-URL case: no `view` param, the layout comes from the preference,
+    // and the mirror write for the toggle lands after the navigate. If `view`
+    // were elided here the param would stay absent, the search string would not
+    // change, and the list would keep rendering table.
+    storedView = "table";
+    const { result } = harness();
+
+    expect(result.current.state.view).toBe("table");
+
+    act(() => result.current.set({ view: "grid" }));
+
+    expect(result.current.state.view).toBe("grid");
   });
 });

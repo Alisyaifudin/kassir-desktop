@@ -27,6 +27,13 @@ export default defineConfig(({ command, mode }) => {
       }),
       {
         name: "inject-react-scan",
+        // Dev-only React Scan, served from `node_modules` rather than a CDN: the
+        // floating `//unpkg.com` tag resolved to plain HTTP in dev (an extra
+        // redirect before the real script) and to `tauri://unpkg.com` in a
+        // build, and it silently floated to whatever react-scan shipped last.
+        // Loaded as a module script ahead of `/src/main.tsx` so the DevTools
+        // hook is patched before react-dom announces its renderer.
+        //
         // The Playwright harness runs without the overlay: react-scan's root sits
         // over the bottom-right of the page and intercepts clicks, and its FPS
         // bar lands in every screenshot taken from `/e2e.html`.
@@ -34,7 +41,7 @@ export default defineConfig(({ command, mode }) => {
           if (isDev && !ctx.filename.endsWith("e2e.html")) {
             return html.replace(
               "</head>",
-              '<script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js"></script></head>',
+              '<script type="module" src="/src/dev/react-scan.ts"></script></head>',
             );
           }
           return html;
