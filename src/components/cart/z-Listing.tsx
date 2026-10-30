@@ -469,7 +469,7 @@ export function Listing({
       // where a new line would land. Leaving it buried is how the operator talks
       // themselves into scanning a third time because they cannot see the bump.
       onChange([
-        patchLine(existing, { qty: existing.qty + 1 }),
+        patchLine(existing, { qty: existing.qty + 1, cover: listing.cover }),
         ...lines.filter((line) => line.id !== existing.id),
       ]);
       flash(existing.id);
@@ -485,6 +485,7 @@ export function Listing({
         price: listing.price,
         qty: 1,
         discounts: [blank],
+        cover: listing.cover,
         base: {
           name: listing.name,
           code: listing.code ?? "",
@@ -502,12 +503,12 @@ export function Listing({
 
   /**
    * The values a line was taken from — the catalog's name, code, unit and price —
-   * are what its cells undo back to. The draft row remembers them for the session
-   * only: `DraftListing.base` is UI state with no column behind it, so a reload
-   * came back with the line intact and every undo button gone, with no way to
-   * learn the origin again.
+   * are what its cells undo back to, and its cover is what the card draws.
+   * Neither is stored: `DraftListing.base` and `DraftListing.cover` are UI state
+   * with no column behind them, so a reload came back with the line intact and
+   * every undo button gone, with no way to learn the origin again.
    *
-   * So the grid reads it back. One catalog read covers every line that arrived
+   * So the grid reads them back. One catalog read covers every line that arrived
    * without a base — not one per card — and each listing id is asked for at most
    * once: a line whose listing has since been deleted would otherwise re-read the
    * whole catalog on every keystroke, since every edit re-runs this.
@@ -536,6 +537,7 @@ export function Listing({
         if (listing === undefined) return line;
         return {
           ...line,
+          cover: listing.cover,
           base: {
             name: listing.name,
             code: listing.code ?? "",
@@ -990,6 +992,7 @@ export function Listing({
                           key={line.id}
                           {...handlersFor(line.id)}
                           line={line}
+                          cover={line.cover ?? null}
                           bumped={bumped === line.id}
                           seed={seed}
                           priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}

@@ -65,6 +65,11 @@ export type DraftListing = {
   discounts: DraftDiscount[];
   /** Catalog values the line started from (UI-only, not persisted). */
   base?: { name: string; code: string; unit: number; price: number };
+  /**
+   * The catalogue listing's cover image, carried so the card can draw it
+   * (UI-only, not persisted — no column behind it, like `base`).
+   */
+  cover?: { name: string; mime: DraftImageMime } | null;
 };
 
 /** A charge or deduction on the draft as a whole. */

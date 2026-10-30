@@ -7,6 +7,7 @@
  * extra search hand around.
  */
 import type { ValueKind } from "~/lib/constants";
+import type { Mime } from "~/services/listing";
 
 export type DiscountKind = "number" | "percent" | "pcs";
 
@@ -37,6 +38,12 @@ export type Line = {
   listingId?: string | null;
   /** The line's discount stack; the list always ends in one empty line. */
   discounts: DiscountLine[];
+  /**
+   * The catalog photo of the listing this line came from, if it had one — the
+   * card shows it beside the goods. UI-only, like `base`: there is no column
+   * behind it, so a reloaded cart reads it back from the catalogue.
+   */
+  cover?: { name: string; mime: Mime } | null;
   /**
    * The catalog values the line started from, for the dirty marker and its undo.
    * Absent on a hand-entered (`+manual`) line, which has nothing to undo to.

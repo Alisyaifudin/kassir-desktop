@@ -2,9 +2,11 @@ import { memo, useRef } from "react";
 import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeft, ChevronRight, GripVertical, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Package, Plus, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { useImageUrl } from "~/hooks/use-image";
+import type { Mime } from "~/services/listing";
 import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
@@ -41,6 +43,7 @@ type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "
 type QtySub = "left" | "value" | "right";
 export const ListingCard = memo(function ListingCard({
   line,
+  cover,
   number,
   issue,
   selected,
@@ -57,6 +60,12 @@ export const ListingCard = memo(function ListingCard({
   seed,
 }: {
   line: Line;
+  /**
+   * The catalog photo of the listing this line came from, when it has one. A
+   * hand-typed line and a photo-less listing pass `null`, and the card then
+   * spends the width on the cells instead of leaving an empty frame.
+   */
+  cover?: { name: string; mime: Mime } | null;
   number: number;
   issue?: LineIssue;
   selected: Field | null;
@@ -106,178 +115,209 @@ export const ListingCard = memo(function ListingCard({
         bumped && "animate-in slide-in-from-top-4 duration-300 ease-out",
       )}
     >
-      <div role="row" className="grid grid-cols-12 items-stretch">
-        <div
-          role="gridcell"
-          aria-selected={false}
-          className="col-span-1 flex items-center justify-center border-r text-base text-muted-foreground tabular-nums select-none"
-        >
-          {number}
-        </div>
-        <Cell
-          id={`cell-${line.id}-name`}
-          className="col-span-8 border-r"
-          label="Nama"
-          selected={selected === "name"}
-          editing={editing && selected === "name"}
-          value={line.name}
-          display={line.name}
-          empty={line.name === ""}
-          placeholder="Nama barang"
-          base={line.base?.name}
-          footer={
-            issue?.name === true ? <FieldIssue>Nama barang harus diisi</FieldIssue> : undefined
-          }
-          onSelect={() => onSelect("name")}
-          onStartEdit={() => onStartEdit("name")}
-          onEditingDone={onEditingDone}
-          seed={seed}
-          onCommit={(raw) => onChange({ name: raw })}
-        />
-        <div
-          id={`cell-${line.id}-grandTotal`}
-          role="gridcell"
-          aria-selected={selected === "grandTotal"}
-          onClick={() => onSelect("grandTotal")}
-          className={cn(
-            "col-span-2 flex items-center justify-end border-r px-2 text-2xl font-bold tabular-nums select-none",
-            selected === "grandTotal" && SELECTED_RING,
-          )}
-        >
-          {rupiah(grandTotal)}
-        </div>
-        <Button
-          id={`cell-${line.id}-x`}
+      <div className="flex items-stretch">
+        {cover != null ? <LineThumb cover={cover} /> : null}
+        <div className="min-w-0 flex-1">
+          <div role="row" className="grid grid-cols-12 items-stretch">
+            <div
+              role="gridcell"
+              aria-selected={false}
+              className="col-span-1 flex items-center justify-center border-r text-base text-muted-foreground tabular-nums select-none"
+            >
+              {number}
+            </div>
+            <Cell
+              id={`cell-${line.id}-name`}
+              className="col-span-8 border-r"
+              label="Nama"
+              selected={selected === "name"}
+              editing={editing && selected === "name"}
+              value={line.name}
+              display={line.name}
+              empty={line.name === ""}
+              placeholder="Nama barang"
+              base={line.base?.name}
+              footer={
+                issue?.name === true ? <FieldIssue>Nama barang harus diisi</FieldIssue> : undefined
+              }
+              onSelect={() => onSelect("name")}
+              onStartEdit={() => onStartEdit("name")}
+              onEditingDone={onEditingDone}
+              seed={seed}
+              onCommit={(raw) => onChange({ name: raw })}
+            />
+            <div
+              id={`cell-${line.id}-grandTotal`}
+              role="gridcell"
+              aria-selected={selected === "grandTotal"}
+              onClick={() => onSelect("grandTotal")}
+              className={cn(
+                "col-span-2 flex items-center justify-end border-r px-2 text-2xl font-bold tabular-nums select-none",
+                selected === "grandTotal" && SELECTED_RING,
+              )}
+            >
+              {rupiah(grandTotal)}
+            </div>
+            <Button
+              id={`cell-${line.id}-x`}
 
-          variant="ghost"
-          role="gridcell"
-          aria-selected={selected === "x"}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-          className={cn(
-            "col-span-1 flex items-center justify-center rounded-none hover:bg-destructive group h-full",
-            selected === "x" && SELECTED_RING + " bg-destructive",
-
-          )}
-        >
-          <X className={cn("size-5 group-hover:text-white", selected === "x" && "text-white")} />
-        </Button>
-      </div>
-
-      <div role="row" className="grid grid-cols-12 items-stretch border-t">
-        <div
-          className="col-span-1 flex touch-none cursor-grab items-center justify-center border-r text-muted-foreground select-none active:cursor-grabbing"
-          {...listeners}
-          {...attributes}
-          title="Geser untuk mengubah urutan"
-        >
-          <GripVertical className="size-5" />
-        </div>
-        <Cell
-          id={`cell-${line.id}-code`}
-          className="col-span-4 border-r"
-          label="Kode"
-          selected={selected === "code"}
-          editing={editing && selected === "code"}
-          value={line.code}
-          display={line.code}
-          empty={line.code === ""}
-          placeholder="Kode barang"
-          base={line.base?.code}
-          footer={issue?.code === undefined ? undefined : <CodeIssueView issue={issue.code} />}
-          onSelect={() => onSelect("code")}
-          onStartEdit={() => onStartEdit("code")}
-          onEditingDone={onEditingDone}
-          seed={seed}
-          onCommit={(raw) => onChange({ code: raw })}
-        />
-        <QtyCell
-          line={line}
-          seed={seed}
-          selected={selected === "qty"}
-          selectedSub={selectedSub ?? "value"}
-          editing={editing && selected === "qty"}
-          onChange={onChange}
-          onSelect={(sub) => onSelect("qty", sub)}
-          onStartEdit={() => onStartEdit("qty")}
-          onEditingDone={onEditingDone}
-        />
-        <Cell
-          id={`cell-${line.id}-unit`}
-          className="col-span-1 border-r"
-          label="Satuan"
-          align="center"
-          numeric="integer"
-          selected={selected === "unit"}
-          editing={editing && selected === "unit"}
-          value={line.unit}
-          display={`×${line.unit}`}
-          empty={line.unit === 0}
-          placeholder="0"
-          base={line.base?.unit}
-          footer={issue?.unit === true ? <FieldIssue>Satuan minimal 1</FieldIssue> : undefined}
-          onSelect={() => onSelect("unit")}
-          onStartEdit={() => onStartEdit("unit")}
-          onEditingDone={onEditingDone}
-          seed={seed}
-          onCommit={(raw) => onChange({ unit: Number(raw) || 0 })}
-        />
-        <Cell
-          id={`cell-${line.id}-price`}
-          className="col-span-2 border-r"
-          label={priceLabel}
-          align="right"
-          currency
-          selected={selected === "price"}
-          editing={editing && selected === "price"}
-          value={line.price}
-          display={rupiah(line.price)}
-          empty={line.price === 0}
-          placeholder="0"
-          base={line.base?.price}
-          onSelect={() => onSelect("price")}
-          onStartEdit={() => onStartEdit("price")}
-          onEditingDone={onEditingDone}
-          seed={seed}
-          onCommit={(raw) => onChange({ price: Number(raw) || 0 })}
-        />
-        <Button
-          variant="ghost"
-          id={`cell-${line.id}-diskon`}
-          onClick={() => onSelect("diskon")}
-          className={cn(
-            "col-span-3 flex flex-col items-start justify-center gap-0.5 rounded-none px-2 py-1 h-fit",
-            selected === "diskon" && SELECTED_RING,
-          )}
-        >
-          <span className="text-sm leading-none text-muted-foreground select-none">Diskon</span>
-          <div
-            className="h-auto flex w-full items-center justify-start p-0 text-base"
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect("diskon");
-              onDiscount();
-            }}
-          >
-            {discountTotal.gt(0) ? (
-              `-${rupiah(discountTotal)}`
-            ) : (
-              <>
-                <Plus className="size-5" />
-                Tambah
-              </>
-            )}
+              variant="ghost"
+              role="gridcell"
+              aria-selected={selected === "x"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove();
+              }}
+              className={cn(
+                "col-span-1 flex items-center justify-center rounded-none hover:bg-destructive group h-full",
+                selected === "x" && SELECTED_RING + " bg-destructive",
+              )}
+            >
+              <X
+                className={cn("size-5 group-hover:text-white", selected === "x" && "text-white")}
+              />
+            </Button>
           </div>
-          {issue?.discount === true ? (
-            <FieldIssue>Diskon melebihi harga barang</FieldIssue>
-          ) : undefined}
-        </Button>
+
+          <div role="row" className="grid grid-cols-12 items-stretch border-t">
+            <div
+              className="col-span-1 flex touch-none cursor-grab items-center justify-center border-r text-muted-foreground select-none active:cursor-grabbing"
+              {...listeners}
+              {...attributes}
+              title="Geser untuk mengubah urutan"
+            >
+              <GripVertical className="size-5" />
+            </div>
+            <Cell
+              id={`cell-${line.id}-code`}
+              className="col-span-4 border-r"
+              label="Kode"
+              selected={selected === "code"}
+              editing={editing && selected === "code"}
+              value={line.code}
+              display={line.code}
+              empty={line.code === ""}
+              placeholder="Kode barang"
+              base={line.base?.code}
+              footer={issue?.code === undefined ? undefined : <CodeIssueView issue={issue.code} />}
+              onSelect={() => onSelect("code")}
+              onStartEdit={() => onStartEdit("code")}
+              onEditingDone={onEditingDone}
+              seed={seed}
+              onCommit={(raw) => onChange({ code: raw })}
+            />
+            <QtyCell
+              line={line}
+              seed={seed}
+              selected={selected === "qty"}
+              selectedSub={selectedSub ?? "value"}
+              editing={editing && selected === "qty"}
+              onChange={onChange}
+              onSelect={(sub) => onSelect("qty", sub)}
+              onStartEdit={() => onStartEdit("qty")}
+              onEditingDone={onEditingDone}
+            />
+            <Cell
+              id={`cell-${line.id}-unit`}
+              className="col-span-1 border-r"
+              label="Satuan"
+              align="center"
+              numeric="integer"
+              selected={selected === "unit"}
+              editing={editing && selected === "unit"}
+              value={line.unit}
+              display={`×${line.unit}`}
+              empty={line.unit === 0}
+              placeholder="0"
+              base={line.base?.unit}
+              footer={issue?.unit === true ? <FieldIssue>Satuan minimal 1</FieldIssue> : undefined}
+              onSelect={() => onSelect("unit")}
+              onStartEdit={() => onStartEdit("unit")}
+              onEditingDone={onEditingDone}
+              seed={seed}
+              onCommit={(raw) => onChange({ unit: Number(raw) || 0 })}
+            />
+            <Cell
+              id={`cell-${line.id}-price`}
+              className="col-span-2 border-r"
+              label={priceLabel}
+              align="right"
+              currency
+              selected={selected === "price"}
+              editing={editing && selected === "price"}
+              value={line.price}
+              display={rupiah(line.price)}
+              empty={line.price === 0}
+              placeholder="0"
+              base={line.base?.price}
+              onSelect={() => onSelect("price")}
+              onStartEdit={() => onStartEdit("price")}
+              onEditingDone={onEditingDone}
+              seed={seed}
+              onCommit={(raw) => onChange({ price: Number(raw) || 0 })}
+            />
+            <Button
+              variant="ghost"
+              id={`cell-${line.id}-diskon`}
+              onClick={() => onSelect("diskon")}
+              className={cn(
+                "col-span-3 flex flex-col items-start justify-center gap-0.5 rounded-none px-2 py-1 h-fit",
+                selected === "diskon" && SELECTED_RING,
+              )}
+            >
+              <span className="text-sm leading-none text-muted-foreground select-none">Diskon</span>
+              <div
+                className="h-auto flex w-full items-center justify-start p-0 text-base"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect("diskon");
+                  onDiscount();
+                }}
+              >
+                {discountTotal.gt(0) ? (
+                  `-${rupiah(discountTotal)}`
+                ) : (
+                  <>
+                    <Plus className="size-5" />
+                    Tambah
+                  </>
+                )}
+              </div>
+              {issue?.discount === true ? (
+                <FieldIssue>Diskon melebihi harga barang</FieldIssue>
+              ) : undefined}
+            </Button>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
 });
+
+/**
+ * The listing's photo, small and fixed in width, but as tall as the card: the
+ * card's height is set by two rows of cells, so a square thumbnail would size
+ * itself off that height and grow to fill the row. Pinning the width keeps it a
+ * thumbnail, and `object-cover` crops instead of stretching. The bytes live on
+ * disk, not in the row, so the URL is resolved per card — and only for the cards
+ * that have a photo.
+ */
+function LineThumb({ cover }: { cover: { name: string; mime: Mime } }) {
+  const url = useImageUrl(cover.name, cover.mime);
+
+  return (
+    <div
+      aria-hidden
+      className="flex w-16 shrink-0 items-center justify-center self-stretch overflow-hidden border-r bg-muted/40"
+    >
+      {url !== null ? (
+        <img src={url} alt="" className="size-full object-cover" />
+      ) : (
+        <Package className="size-5 text-muted-foreground/40" />
+      )}
+    </div>
+  );
+}
 
 /**
  * The quantity cell, laid out as its own little sub-grid: `‹`, the value, `›`.
