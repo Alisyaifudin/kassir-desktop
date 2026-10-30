@@ -102,3 +102,95 @@ describe("persisted lots arriving mid-edit", () => {
     expect(view.result.current.draft.stocks[0]?.capital).toBe("500");
   });
 });
+
+/**
+ * Single-listing mode: one listing whose name *is* the product name.
+ *
+ * The row hides its name field, so the draft must not hold a second, invisible
+ * name — `Tambah` would expand into a listing carrying a name nobody typed, and a
+ * product renamed while single would keep writing the old one.
+ */
+function priced(name: string, listings: { id: string; name: string }[]): ProductFull {
+  return {
+    id: "p1",
+    name,
+    note: "",
+    flag: 0,
+    stocks: [lot("s1", 1, 100)],
+    listings: listings.map((listing) => ({
+      id: listing.id,
+      productId: "p1",
+      name: listing.name,
+      price: 10000,
+      unit: 1,
+      kind: "",
+      code: null,
+      updatedAt: 0,
+      syncAt: null,
+    })),
+    properties: [],
+    productNames: [],
+    images: [],
+  } as unknown as ProductFull;
+}
+
+function setupPriced(productName: string, listings: { id: string; name: string }[]) {
+  return renderHook(() => useProductForm(draftFromProduct(priced(productName, listings))));
+}
+
+const names = (view: ReturnType<typeof setup>) => ({
+  product: view.result.current.draft.name,
+  listings: view.result.current.draft.listings.map((listing) => listing.name),
+});
+
+describe("single-listing mode", () => {
+  test("the one listing's name is the product name — a legacy name is folded in", () => {
+    const view = setupPriced("Indomie", [{ id: "l1", name: "Eceran" }]);
+
+    expect(names(view)).toEqual({ product: "Indomie", listings: ["Indomie"] });
+  });
+
+  test("renaming the product renames the one listing with it", () => {
+    const view = setupPriced("Kopi", [{ id: "l1", name: "Kopi" }]);
+
+    act(() => view.result.current.setName("Kopi Arabika"));
+
+    expect(names(view)).toEqual({ product: "Kopi Arabika", listings: ["Kopi Arabika"] });
+  });
+
+  test("Tambah expands into a row that already carries the product name", () => {
+    const view = setupPriced("Kopi", [{ id: "l1", name: "Kopi" }]);
+
+    act(() => view.result.current.setName("Kopi Arabika"));
+    act(() => view.result.current.addListing());
+
+    expect(names(view)).toEqual({ product: "Kopi Arabika", listings: ["Kopi Arabika", ""] });
+  });
+
+  test("deleting down to one listing gives the survivor the product name", () => {
+    const view = setupPriced("Kopi", [
+      { id: "l1", name: "Eceran" },
+      { id: "l2", name: "Grosir" },
+    ]);
+
+    // Multi mode: the names are the listings' own, not the product's.
+    expect(names(view)).toEqual({ product: "Kopi", listings: ["Eceran", "Grosir"] });
+
+    act(() => view.result.current.removeListing("l2"));
+
+    expect(names(view)).toEqual({ product: "Kopi", listings: ["Kopi"] });
+  });
+
+  test("an unnamed product is one error, not one per hidden field", () => {
+    const view = setupPriced("", [{ id: "l1", name: "" }]);
+
+    act(() => {
+      view.result.current.validate();
+    });
+
+    expect(view.result.current.errors.name).toBe("Nama produk wajib diisi.");
+    // The listing name field is not on screen in single mode; its error would be
+    // a red message pointing at nothing.
+    expect(view.result.current.errors.listingErrors).toBeUndefined();
+  });
+});

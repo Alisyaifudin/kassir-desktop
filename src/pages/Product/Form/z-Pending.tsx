@@ -20,8 +20,17 @@ import { cn } from "~/lib/utils";
  */
 const BOX = "animate-pulse bg-muted";
 
-export function PendingInput({ type, placeholder }: { type?: string; placeholder?: string }) {
-  return <Input type={type} disabled placeholder={placeholder} className={BOX} />;
+export function PendingInput({
+  type,
+  placeholder,
+  className,
+}: {
+  type?: string;
+  placeholder?: string;
+  /** Extra box classes — e.g. a value painted inline in a line of text. */
+  className?: string;
+}) {
+  return <Input type={type} disabled placeholder={placeholder} className={cn(BOX, className)} />;
 }
 
 /** A number field's box: the same `NumberField` the form uses, holding no number. */

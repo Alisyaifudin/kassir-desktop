@@ -20,7 +20,11 @@ import { draftFromProduct, parseNumber, toListingInput } from "../../Form/types"
 import { useProductForm } from "../../Form/useProductForm";
 import { Field } from "../../Form/z-Field";
 import { INFO_LABELS, INFO_PLACEHOLDERS, InfoFields } from "../../Form/z-InfoFields";
-import { LISTINGS_SECTION, ListingRowSkeleton, ListingsFields } from "../../Form/z-ListingsFields";
+import {
+  ListingRowSkeleton,
+  ListingsFields,
+  listingsSection,
+} from "../../Form/z-ListingsFields";
 import { PendingInput, PendingTextarea } from "../../Form/z-Pending";
 import {
   NAMES_SECTION,
@@ -109,6 +113,9 @@ export function EditPane({ product }: { product: ProductFull }) {
 
     const originalListingIds = new Set(product.listings.map((listing) => listing.id));
     const draftListingKeys = new Set(draft.listings.map((listing) => listing.key));
+    // A single listing's name *is* the product name (`setName` writes both), so a
+    // renamed product turns up here as a listing update as well — that is exactly
+    // the rename the single-listing mode promises.
     for (const listing of draft.listings) {
       const input = toListingInput(listing);
       if (originalListingIds.has(listing.key)) {
@@ -396,7 +403,8 @@ function SaveBar({
  *
  * Every word on this screen is static, so every word is drawn at once: the five
  * section titles and their descriptions, each field's label and hint, the row
- * titles ("Listing 1"), the `Tambah` buttons, and the
+ * titles ("Listing 1", or the single-listing line that stands in for it), the
+ * `Tambah` buttons, and the
  * `Hapus` / `Urungkan` / `Ulangi` / `Simpan` bar. What is missing is the *values*,
  * and a value's placeholder is the real control — an input is input-tall, the note
  * is three lines tall, the combobox keeps its chevron — painted as a skeleton.
@@ -411,7 +419,10 @@ function SaveBar({
  * states cannot drift apart.
  *
  * The row *count* of a section is data, so it is not invented: one row holds each
- * body — the minimum a product always has — and the rest grow downwards.
+ * body — the minimum a product always has — and the rest grow downwards. One
+ * listing is also the shape a product usually has, so the listing section is
+ * drawn in its single-listing form: a second listing is what `Tambah` creates, and
+ * that is the only thing that makes the section taller.
  */
 export function EditPaneSkeleton() {
   return (
@@ -435,8 +446,8 @@ export function EditPaneSkeleton() {
             <NameRowSkeleton />
           </Section>
 
-          <Section {...LISTINGS_SECTION} action={<SectionAdd disabled />}>
-            <ListingRowSkeleton index={0} />
+          <Section {...listingsSection(true)} action={<SectionAdd disabled />}>
+            <ListingRowSkeleton />
           </Section>
 
           <Section {...STOCKS_SECTION} action={<SectionAdd label="Tambah lot" disabled />}>

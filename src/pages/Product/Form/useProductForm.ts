@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { ProductInput } from "~/services/product";
 import {
   emptyDraft,
+  isSingleListing,
   newListing,
   newProductName,
   newProperty,
@@ -100,7 +101,11 @@ function computeErrors(draft: ProductDraft): ProductFormErrors {
     const listingErrors: NonNullable<ProductFormErrors["listingErrors"]> = {};
     for (const listing of draft.listings) {
       const row: { name?: string; price?: string; unit?: string } = {};
-      if (listing.name.trim() === "") row.name = "Nama listing wajib diisi.";
+      // Single-listing mode has no name field: the product name stands in for it,
+      // and a blank one is already reported as `name` above.
+      if (!isSingleListing(draft.listings) && listing.name.trim() === "") {
+        row.name = "Nama listing wajib diisi.";
+      }
       if (listing.price.trim() === "" || parseNumber(listing.price) < 0) {
         row.price = "Harga tidak valid.";
       }
@@ -229,7 +234,18 @@ export function useProductForm(initial?: ProductDraft) {
     [],
   );
 
-  const setName = useCallback((name: string) => edit("name", (d) => ({ ...d, name })), [edit]);
+  // In single-listing mode the product name *is* the listing name, so one edit
+  // writes both — otherwise `Tambah` would expand into listing 1 carrying a stale
+  // name. The coalescing key stays `name`, so a typed word is still one undo step.
+  const setName = useCallback(
+    (name: string) =>
+      edit("name", (d) =>
+        isSingleListing(d.listings)
+          ? { ...d, name, listings: d.listings.map((listing) => ({ ...listing, name })) }
+          : { ...d, name },
+      ),
+    [edit],
+  );
   const setNote = useCallback((note: string) => edit("note", (d) => ({ ...d, note })), [edit]);
 
   const addListing = useCallback(
@@ -238,9 +254,19 @@ export function useProductForm(initial?: ProductDraft) {
   );
   const removeListing = useCallback(
     (key: string) =>
-      edit(null, (d) =>
-        d.listings.length <= 1 ? d : { ...d, listings: d.listings.filter((l) => l.key !== key) },
-      ),
+      edit(null, (d) => {
+        if (d.listings.length <= 1) return d;
+        const listings = d.listings.filter((listing) => listing.key !== key);
+        // Deleting down to one row returns the form to single-listing mode, where
+        // the product name is the listing name: the survivor takes that name, so
+        // the row the form hides is the name the product is already showing.
+        return {
+          ...d,
+          listings: isSingleListing(listings)
+            ? listings.map((listing) => ({ ...listing, name: d.name }))
+            : listings,
+        };
+      }),
     [edit],
   );
   const updateListing = useCallback(
