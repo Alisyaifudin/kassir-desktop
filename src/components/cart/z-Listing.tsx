@@ -39,6 +39,7 @@ import type { Listing } from "~/services/listing";
 import { ListingCard } from "~/components/cart/z-ListingCard";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
+import { ProductDetailDialog } from "~/components/cart/z-ProductDetail";
 import { SearchResults } from "~/components/cart/z-SearchResults";
 import {
   cellAt,
@@ -63,7 +64,14 @@ const HEADER: RowRef = { kind: "header" };
 /** The callbacks one cart card needs; stable, so `memo` can skip the card. */
 type CardHandlers = Pick<
   ComponentProps<typeof ListingCard>,
-  "onChange" | "onRemove" | "onDiscount" | "onSelect" | "onStartEdit" | "onEditingDone"
+  | "onChange"
+  | "onRemove"
+  | "onDiscount"
+  | "onSelect"
+  | "onStartEdit"
+  | "onEditingDone"
+  | "onDetail"
+  | "onLock"
 >;
 const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 
@@ -183,10 +191,20 @@ export function Listing({
   // The digit that opened the editor, if a keystroke did (see `typedDigit`).
   const [seed, setSeed] = useState<string | null>(null);
   const [discountFor, setDiscountFor] = useState<string | null>(null);
+  // The product whose detail sheet is up, with the listing the card holds: the
+  // sheet marks that one in the list. Captured on open so deleting the line
+  // underneath does not empty a sheet the operator is still reading.
+  const [detailFor, setDetailFor] = useState<{
+    productId: string;
+    listingId: string | null;
+  } | null>(null);
+  // The card locked for reordering (see the grip cell): while it is set, the up
+  // and down arrows move that card in the list instead of moving the cursor.
+  const [locked, setLocked] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const hadDiscount = useRef(false);
+  const hadDialog = useRef(false);
   // The page-level F1 token; remembers the value seen at mount so switching
   // stages does not steal focus into the new search bar.
   // `0`, not the value this grid mounts with: a focus request can arrive in the
@@ -264,13 +282,27 @@ export function Listing({
       : `cell-${selection.row.cardId}-${active.field}`;
 
   // A card that was deleted or is covered by the results must not keep the
-  // selection.
+  // selection — nor the lock, which would then move a card nobody can see.
   useEffect(() => {
     if (shown && selection.row.kind === "card") {
       setSelection({ row: HEADER, col: NAME_COLUMN });
       setEditing(false);
     }
+    if (shown) setLocked(null);
   }, [shown, selection.row]);
+
+  // A locked card that was removed (the `x` cell, a delete key, a reload of the
+  // draft) leaves nothing to move: let the list go.
+  useEffect(() => {
+    if (locked !== null && !lines.some((line) => line.id === locked)) setLocked(null);
+  }, [lines, locked]);
+
+  // Only the panel that owns the keyboard may be moving a card: losing the
+  // selection to the settle strip or the stage toggle ends the move, or the
+  // arrows would come back to a lock nobody can see the key for.
+  useEffect(() => {
+    if (!focused) setLocked(null);
+  }, [focused]);
 
   // Focus follows the selection; the editing input owns focus itself. Only the
   // panel that owns the selection may take focus.
@@ -293,16 +325,15 @@ export function Listing({
     input?.select();
   }, [focusSearch]);
 
-  // Unified grid: when the settle strip hands off upward, land on the first
-  // cell of the last row — the code column.
+  // Unified grid: when the settle strip hands off upward, land on the code cell
+  // of the last row. Named rather than "the first selectable cell": column 0 is
+  // the drag handle, which is selectable but is not where a return lands.
   useEffect(() => {
     if (focusLast === undefined || focusLast === seenFocusLast.current) return;
     seenFocusLast.current = focusLast;
     const lastRow = rows[rows.length - 1];
     if (lastRow === undefined) return;
-    const cells = selectableCells(lastRow, layout);
-    const cell = cells[0];
-    if (cell === undefined) return;
+    const cell = cellAt(lastRow, 1, layout);
     setSelection({ row: lastRow, col: cell.start });
     setEditing(false);
     containerRef.current?.focus();
@@ -312,26 +343,28 @@ export function Listing({
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
 
-  // The discount dialog traps focus while it is open; take it back for the grid
-  // once it closes, so the arrows keep working. Radix restores focus in a timer
-  // of its own, so wait one tick to run after it.
+  const dialogOpen = discountFor !== null || detailFor !== null;
+
+  // A dialog traps focus while it is open; take it back for the grid once they
+  // close, so the arrows keep working. Radix restores focus in a timer of its
+  // own, so wait one tick to run after it.
   useEffect(() => {
-    if (discountFor !== null) {
-      hadDiscount.current = true;
+    if (dialogOpen) {
+      hadDialog.current = true;
       return;
     }
-    if (!hadDiscount.current) return;
-    hadDiscount.current = false;
+    if (!hadDialog.current) return;
+    hadDialog.current = false;
     const timer = setTimeout(() => containerRef.current?.focus(), 0);
     return () => clearTimeout(timer);
-  }, [discountFor]);
+  }, [dialogOpen]);
 
   // Stable per-line callbacks: the card is memoised, so a keystroke in the search
   // bar or in one cell must not re-render the other `useSortable`/`motion`
   // nodes. They read the current lines and selection through refs, so their
   // identity survives every render.
-  const latest = useRef({ lines, onChange, removeCard });
-  latest.current = { lines, onChange, removeCard };
+  const latest = useRef({ lines, onChange, removeCard, openDetail, lockCard });
+  latest.current = { lines, onChange, removeCard, openDetail, lockCard };
   const handlersFor = useMemo(() => {
     const cache = new Map<string, CardHandlers>();
     return (id: string) => {
@@ -344,6 +377,8 @@ export function Listing({
         },
         onRemove: () => latest.current.removeCard(id),
         onDiscount: () => setDiscountFor(id),
+        onDetail: () => latest.current.openDetail(id),
+        onLock: () => latest.current.lockCard(id),
         onSelect: (field, sub) => {
           setSelection({
             row: { kind: "card", cardId: id, part: partOf(field) },
@@ -375,7 +410,9 @@ export function Listing({
     if (index === -1) return false;
     const next = rows[index + delta];
     if (next === undefined) return false;
-    const col = next.kind === "card" && selection.col === 0 ? NAME_COLUMN : selection.col;
+    // Column 0 is a real column now — the number above, the drag handle below —
+    // so a move keeps it like any other. A wide neighbour still clamps it.
+    const col = selection.col;
     const cell = cellAt(next, col, layout);
     setSelection({
       row: next,
@@ -469,7 +506,11 @@ export function Listing({
       // where a new line would land. Leaving it buried is how the operator talks
       // themselves into scanning a third time because they cannot see the bump.
       onChange([
-        patchLine(existing, { qty: existing.qty + 1, cover: listing.cover }),
+        patchLine(existing, {
+          qty: existing.qty + 1,
+          cover: listing.cover,
+          productId: listing.productId,
+        }),
         ...lines.filter((line) => line.id !== existing.id),
       ]);
       flash(existing.id);
@@ -486,6 +527,7 @@ export function Listing({
         qty: 1,
         discounts: [blank],
         cover: listing.cover,
+        productId: listing.productId,
         base: {
           name: listing.name,
           code: listing.code ?? "",
@@ -538,6 +580,7 @@ export function Listing({
         return {
           ...line,
           cover: listing.cover,
+          productId: listing.productId,
           base: {
             name: listing.name,
             code: listing.code ?? "",
@@ -735,9 +778,48 @@ export function Listing({
       case "diskon":
         if (selection.row.kind === "card") setDiscountFor(selection.row.cardId);
         return;
+      case "no":
+        if (selection.row.kind === "card") openDetail(selection.row.cardId);
+        return;
+      case "grip":
+        if (selection.row.kind === "card") lockCard(selection.row.cardId);
+        return;
       default:
         return; // the listing's grandTotal is selectable but does nothing
     }
+  }
+
+  /** The number cell: the product behind this line, read-only. */
+  function openDetail(cardId: string) {
+    const line = latest.current.lines.find((candidate) => candidate.id === cardId);
+    // A hand-typed line has no catalogue row behind it.
+    if (line === undefined || line.productId == null) return;
+    setDetailFor({ productId: line.productId, listingId: line.listingId ?? null });
+  }
+
+  /** The drag handle's double click: hand the list to the arrow keys. */
+  function lockCard(cardId: string) {
+    setLocked(cardId);
+    // A double click on a plain div moves focus to the body; the arrows only
+    // reach this grid while it (or a field inside it) has it.
+    containerRef.current?.focus();
+  }
+
+  /**
+   * A locked card and its neighbours. The move is the same `arrayMove` a drag
+   * ends with, so the two ways of reordering cannot disagree — and while a card
+   * is locked the list animates its rows (see `moving` on the card), so the card
+   * slides to its new place instead of jumping there.
+   */
+  function moveCard(cardId: string, delta: number) {
+    const from = lines.findIndex((line) => line.id === cardId);
+    const to = from + delta;
+    if (from === -1 || to < 0 || to >= lines.length) return;
+    onChange(arrayMove(lines, from, to));
+    // The card's id did not change, so the scroll-into-view effect that follows
+    // the selection will not fire for this move.
+    const id = `cell-${cardId}-grip`;
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "nearest" }));
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -750,6 +832,26 @@ export function Listing({
     if (editing) return;
     // Ctrl/Cmd+Arrow belongs to the tab switcher; leave the grid selection alone.
     if ((event.ctrlKey || event.metaKey) && event.key.startsWith("Arrow")) return;
+    // A locked card owns the up and down keys: they move the card through the
+    // list instead of moving the cursor. Esc — or a click anywhere — lets it go.
+    if (locked !== null) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setLocked(null);
+        return;
+      }
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        event.preventDefault();
+        moveCard(locked, event.key === "ArrowUp" ? -1 : 1);
+        return;
+      }
+      if (event.key.startsWith("Arrow")) {
+        // Left and right would walk the cursor off the card that is moving; the
+        // list is holding still until Esc.
+        event.preventDefault();
+        return;
+      }
+    }
     // Copy and paste on the selected cell. A field that has a caret of its own —
     // the search bar, an open editor — keeps the browser's own copy and paste.
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !fromTextField(event)) {
@@ -849,7 +951,13 @@ export function Listing({
         event.preventDefault();
         pasteCell(text);
       }}
-      onClickCapture={onActivate}
+      // A click anywhere lets a locked card go: it is how the move ends. Clicks
+      // from a dialog's portal bubble through this tree too, and clearing a lock
+      // that is already clear is a no-op.
+      onClickCapture={() => {
+        onActivate?.();
+        if (locked !== null) setLocked(null);
+      }}
       onFocusCapture={onActivate}
       className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
     >
@@ -999,6 +1107,8 @@ export function Listing({
                           number={lines.length - index}
                           issue={issues.get(line.id)}
                           selected={cardSelected && focused ? (active.field as Field) : null}
+                          locked={locked === line.id}
+                          moving={locked !== null}
                           selectedSub={
                             cardSelected && active.field === "qty"
                               ? (selection.qtySub ?? "value")
@@ -1032,6 +1142,15 @@ export function Listing({
         onChange={(discounts) =>
           onChange(lines.map((line) => (line.id === discountFor ? { ...line, discounts } : line)))
         }
+      />
+
+      <ProductDetailDialog
+        open={detailFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailFor(null);
+        }}
+        productId={detailFor?.productId ?? null}
+        listingId={detailFor?.listingId ?? null}
       />
     </div>
   );

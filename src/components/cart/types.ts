@@ -45,6 +45,11 @@ export type Line = {
    */
   cover?: { name: string; mime: Mime } | null;
   /**
+   * The catalogue product behind `listingId`, which is what the number cell's
+   * detail sheet reads. UI-only, restored with `cover`.
+   */
+  productId?: string | null;
+  /**
    * The catalog values the line started from, for the dirty marker and its undo.
    * Absent on a hand-entered (`+manual`) line, which has nothing to undo to.
    */

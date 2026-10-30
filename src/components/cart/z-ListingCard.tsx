@@ -2,7 +2,15 @@ import { memo, useRef } from "react";
 import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeft, ChevronRight, GripVertical, Package, Plus, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  MoveVertical,
+  Package,
+  Plus,
+  X,
+} from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useImageUrl } from "~/hooks/use-image";
@@ -19,6 +27,7 @@ import {
   useEditorDraft,
   useSelectAllOnEdit,
 } from "~/components/cart/z-Cell";
+import type { Field } from "~/components/cart/listing-grid";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { CodeIssueView, FieldIssue } from "~/components/cart/z-Issue";
 
@@ -34,10 +43,11 @@ import { CodeIssueView, FieldIssue } from "~/components/cart/z-Issue";
  *
  * The two screens differ only in wording — a purchase reads the line's cost as
  * `Harga Beli` — so the label is a prop rather than a second copy of the file.
+ *
+ * `Field` is the grid's own list of cells, imported rather than copied: the two
+ * cannot drift. The first column is a cell too — `no` opens the product's sheet,
+ * `grip` locks the card for keyboard reordering — and neither is editable.
  */
-
-/** The editable cells of a cart line. Both grids ship this same set. */
-type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
 
 /** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
 type QtySub = "left" | "value" | "right";
@@ -55,6 +65,10 @@ export const ListingCard = memo(function ListingCard({
   onSelect,
   onStartEdit,
   onEditingDone,
+  onDetail,
+  onLock,
+  locked = false,
+  moving = false,
   selectedSub,
   bumped = false,
   seed,
@@ -87,6 +101,18 @@ export const ListingCard = memo(function ListingCard({
   onSelect: (field: Field, sub?: QtySub) => void;
   onStartEdit: (field: Field) => void;
   onEditingDone: () => void;
+  /** The number cell's click: the product's detail sheet, when there is one. */
+  onDetail: () => void;
+  /** The handle's double click: lock this card for keyboard reordering. */
+  onLock: () => void;
+  /** This card is locked: the arrows move it, Esc or a click lets it go. */
+  locked?: boolean;
+  /**
+   * Some card in the list is locked. The list turns its layout animation on
+   * while that is true — a move has to be seen, and the other cards have to
+   * slide out of the way rather than teleport.
+   */
+  moving?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: line.id,
@@ -102,6 +128,9 @@ export const ListingCard = memo(function ListingCard({
       // the active descendant points at a real gridcell inside a real row.
       role="rowgroup"
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      // Position only: the card's own height is owned by the enter/exit
+      // animation, and a reorder must not fight it.
+      layout={moving ? "position" : false}
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
@@ -109,6 +138,8 @@ export const ListingCard = memo(function ListingCard({
       className={cn(
         "overflow-hidden bg-card text-card-foreground ",
         isDragging && "relative z-10 shadow-lg",
+        // Locked for reordering: the card the arrows are about to move says so.
+        locked && "relative z-10 ring-2 ring-primary ring-inset",
         // A redraw of this card with the flag means "this is the one you scanned"
         // — a translate, not a fade: `animate-in` also animates opacity, and the
         // card's own opacity is owned by motion.
@@ -120,9 +151,24 @@ export const ListingCard = memo(function ListingCard({
         <div className="min-w-0 flex-1">
           <div role="row" className="grid grid-cols-12 items-stretch">
             <div
+              id={`cell-${line.id}-no`}
               role="gridcell"
-              aria-selected={false}
-              className="col-span-1 flex items-center justify-center border-r text-base text-muted-foreground tabular-nums select-none"
+              aria-selected={selected === "no"}
+              onClick={() => {
+                onSelect("no");
+                // A hand-typed line has no catalogue row to open.
+                if (line.productId != null) onDetail();
+              }}
+              title={
+                line.productId == null
+                  ? "Baris manual: tidak ada detail produk"
+                  : "Klik untuk melihat detail produk"
+              }
+              className={cn(
+                "col-span-1 flex items-center justify-center border-r text-base text-muted-foreground tabular-nums select-none",
+                line.productId != null && "cursor-pointer hover:bg-accent",
+                selected === "no" && SELECTED_RING,
+              )}
             >
               {number}
             </div>
@@ -181,12 +227,30 @@ export const ListingCard = memo(function ListingCard({
 
           <div role="row" className="grid grid-cols-12 items-stretch border-t">
             <div
-              className="col-span-1 flex touch-none cursor-grab items-center justify-center border-r text-muted-foreground select-none active:cursor-grabbing"
               {...listeners}
               {...attributes}
-              title="Geser untuk mengubah urutan"
+              id={`cell-${line.id}-grip`}
+              // After the spread: `useSortable` names this node a button, and the
+              // grid's active descendant has to be a cell of the grid.
+              role="gridcell"
+              aria-selected={selected === "grip"}
+              onClick={() => onSelect("grip")}
+              onDoubleClick={() => {
+                onSelect("grip");
+                onLock();
+              }}
+              className={cn(
+                "col-span-1 flex touch-none cursor-grab items-center justify-center border-r text-muted-foreground select-none active:cursor-grabbing",
+                selected === "grip" && SELECTED_RING,
+                locked && "cursor-grabbing text-primary",
+              )}
+              title={
+                locked
+                  ? "↑ ↓ memindahkan, Esc atau klik untuk selesai"
+                  : "Klik dua kali untuk mengunci, lalu ↑ ↓ memindahkan"
+              }
             >
-              <GripVertical className="size-5" />
+              {locked ? <MoveVertical className="size-5" /> : <GripVertical className="size-5" />}
             </div>
             <Cell
               id={`cell-${line.id}-code`}

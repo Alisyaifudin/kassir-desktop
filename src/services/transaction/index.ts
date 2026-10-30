@@ -70,6 +70,11 @@ export type DraftListing = {
    * (UI-only, not persisted — no column behind it, like `base`).
    */
   cover?: { name: string; mime: DraftImageMime } | null;
+  /**
+   * The catalogue product this line's listing belongs to, carried for the card's
+   * detail sheet (UI-only, not persisted).
+   */
+  productId?: string | null;
 };
 
 /** A charge or deduction on the draft as a whole. */

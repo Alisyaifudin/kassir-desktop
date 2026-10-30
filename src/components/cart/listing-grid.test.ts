@@ -27,6 +27,8 @@ import {
 const HEADER: RowRef = { kind: "header" };
 const TOP = (cardId: string): RowRef => ({ kind: "card", cardId, part: "top" });
 const BOTTOM = (cardId: string): RowRef => ({ kind: "card", cardId, part: "bottom" });
+const TOP_CELLS_OF = (cardId: string) => cellsForRow(TOP(cardId), SALE_LISTING_LAYOUT);
+const BOTTOM_CELLS_OF = (cardId: string) => cellsForRow(BOTTOM(cardId), SALE_LISTING_LAYOUT);
 
 describe("listing grid geometry", () => {
   test("a sale's header ends in the stage toggle, a purchase's does not", () => {
@@ -55,10 +57,9 @@ describe("listing grid geometry", () => {
     expect(cellAt(BOTTOM("a"), 9, SALE_LISTING_LAYOUT).field).toBe("diskon");
   });
 
-  test("a column outside every cell snaps to the nearest selectable one", () => {
-    // Column 0 is the number / drag handle: not selectable, so it snaps right.
-    expect(cellAt(TOP("a"), 0, SALE_LISTING_LAYOUT).field).toBe("name");
-    expect(cellAt(BOTTOM("a"), 0, SALE_LISTING_LAYOUT).field).toBe("code");
+  test("column 0 is the number above and the drag handle below", () => {
+    expect(cellAt(TOP("a"), 0, SALE_LISTING_LAYOUT).field).toBe("no");
+    expect(cellAt(BOTTOM("a"), 0, SALE_LISTING_LAYOUT).field).toBe("grip");
   });
 
   test("moving into a cell keeps the column when it is inside, clamps when it is not", () => {
@@ -78,6 +79,8 @@ describe("listing grid geometry", () => {
   });
 
   test("every card field starts on a column a card actually has", () => {
+    expect(startOf("no")).toBe(0);
+    expect(startOf("grip")).toBe(0);
     expect(startOf("name")).toBe(1);
     expect(startOf("qty")).toBe(5);
     expect(startOf("price")).toBe(7);
@@ -88,18 +91,25 @@ describe("listing grid geometry", () => {
     const header = selectableCells(HEADER, SALE_LISTING_LAYOUT);
     expect(header.map((cell) => cell.field)).toEqual(["search", "manual", "toggle"]);
     expect(selectableCells(HEADER, PURCHASE_LISTING_LAYOUT)).toHaveLength(2);
-    // `no#` and the drag handle draw but are skipped by the arrows.
+    // `no#` opens the product sheet and the handle locks the card, so both are
+    // cells the cursor can stand on — neither is a field.
     expect(selectableCells(TOP("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).toEqual([
+      "no",
       "name",
       "grandTotal",
       "x",
     ]);
     expect(selectableCells(BOTTOM("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).toEqual([
+      "grip",
       "code",
       "qty",
       "unit",
       "price",
       "diskon",
     ]);
+    // Nothing the cursor reaches is editable unless it holds a value.
+    for (const cell of [...TOP_CELLS_OF("a"), ...BOTTOM_CELLS_OF("a")]) {
+      if (cell.field === "no" || cell.field === "grip") expect(cell.editable).toBe(false);
+    }
   });
 });

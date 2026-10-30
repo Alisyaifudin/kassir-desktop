@@ -5,18 +5,20 @@
  * `nama`, and moving up again uses the remembered column to land in the next
  * card's `kuantitas`.
  *
- * Columns are 0-indexed, twelve wide. `x` is selectable but not editable; `no#`
- * and the drag handle are not selectable.
+ * Columns are 0-indexed, twelve wide. `no#` and the drag handle are selectable
+ * but not editable: the number opens the product's detail sheet, the handle locks
+ * the card so the arrows can move it.
  *
  * One grid for both cart screens: `layout` carries the only real difference —
  * the sale screen ends its header with a stage toggle (`Tambahan`), the purchase
  * screen's header is just search + manual.
  */
 
-export type Field = "name" | "grandTotal" | "x" | "code" | "qty" | "unit" | "price" | "diskon";
+export type Field =
+  "no" | "name" | "grandTotal" | "x" | "grip" | "code" | "qty" | "unit" | "price" | "diskon";
 
-/** Every cell, including the ones that only draw. */
-type AnyField = Field | "search" | "manual" | "toggle" | "no" | "grip";
+/** Every cell, including the header's, which only draw. */
+type AnyField = Field | "search" | "manual" | "toggle";
 
 export type RowRef = { kind: "header" } | { kind: "card"; cardId: string; part: "top" | "bottom" };
 
@@ -62,14 +64,14 @@ function headerCells(layout: ListingLayout): CellDef[] {
 }
 
 const TOP_CELLS: CellDef[] = [
-  { field: "no", start: 0, end: 0, selectable: false, editable: false },
+  { field: "no", start: 0, end: 0, selectable: true, editable: false },
   { field: "name", start: 1, end: 8, selectable: true, editable: true },
   { field: "grandTotal", start: 9, end: 10, selectable: true, editable: false },
   { field: "x", start: 11, end: 11, selectable: true, editable: false },
 ];
 
 const BOTTOM_CELLS: CellDef[] = [
-  { field: "grip", start: 0, end: 0, selectable: false, editable: false },
+  { field: "grip", start: 0, end: 0, selectable: true, editable: false },
   { field: "code", start: 1, end: 4, selectable: true, editable: true },
   { field: "qty", start: 5, end: 5, selectable: true, editable: true, numeric: true },
   { field: "unit", start: 6, end: 6, selectable: true, editable: true, numeric: true },
