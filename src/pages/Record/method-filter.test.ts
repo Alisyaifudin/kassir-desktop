@@ -321,6 +321,40 @@ describe("change comes off the tender that produced it", () => {
     expect(recordPaymentLines(split, qrisOnly).map((line) => line.contribution)).toEqual([10_000]);
   });
 
+  test("no cash, and the filter keeps the last method: it still hands the change back", () => {
+    const overTendered = paid([["1005", "qris", 25_000, "BNI"]], {
+      grandTotal: 20_000,
+      change: 5_000,
+    });
+    const qrisOnly = toggleKindSelection(EMPTY_SELECTION, groups, groupOf("qris"));
+
+    // The line that gave the change back is the one on screen, so the figure it
+    // contributed is what was due — a filter being set is not a reason to stop.
+    expect(
+      recordPaymentLines(overTendered, qrisOnly).map((line) => line.contribution),
+    ).toEqual([20_000]);
+  });
+
+  test("no cash, and the filter hides the last method: nothing is docked off the rest", () => {
+    // QRIS 20.000 and Transfer 5.000 for a 20.000 sale — the transfer, last in
+    // stored order, is the one that gave the 5.000 back.
+    const overTendered = paid(
+      [
+        ["1005", "qris", 20_000, "BNI"],
+        ["1001", "transfer", 5_000, null],
+      ],
+      { grandTotal: 20_000, change: 5_000 },
+    );
+    const qrisOnly = toggleKindSelection(EMPTY_SELECTION, groups, groupOf("qris"));
+
+    expect(
+      recordPaymentLines(overTendered, qrisOnly).map((line) => line.contribution),
+    ).toEqual([20_000]);
+    expect(
+      recordPaymentLines(overTendered, EMPTY_SELECTION).map((line) => line.contribution),
+    ).toEqual([20_000, 0]);
+  });
+
   test("an underpaid record — an open credit — hands nothing back", () => {
     const credit = paid([["1000", "cash", 5_000, null]], {
       grandTotal: 20_000,

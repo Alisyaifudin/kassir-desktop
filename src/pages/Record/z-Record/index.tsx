@@ -1,25 +1,24 @@
 import { useMemo } from "react";
-import Decimal from "decimal.js";
 import type { Record as RecordModel } from "~/services/record";
 import { matchesMethod } from "../method-filter";
 import { useMode } from "../use-mode";
 import { useMethodFilter } from "../use-method";
 import { List } from "./List";
+import { recordsTotal } from "./total";
 
 export function Records({ records }: { records: RecordModel[] }) {
   const [mode] = useMode();
   const { selection } = useMethodFilter();
-
   // The name search already happened in SQL, so this only narrows by the two
   // controls the service doesn't know about.
   const filtered = useMemo(
     () => records.filter((record) => record.mode === mode && matchesMethod(record, selection)),
     [records, mode, selection],
   );
-  const total = useMemo(
-    () => (filtered.length === 0 ? 0 : Decimal.sum(...filtered.map((r) => r.grandTotal)).toNumber()),
-    [filtered],
-  );
+  // The footer adds up what the list actually shows — the filtered methods only,
+  // change taken off the tender that handed it back — so the figure under the
+  // column is the column's own sum. See `total.ts`.
+  const total = useMemo(() => recordsTotal(filtered, selection), [filtered, selection]);
 
   return (
     <div className="flex flex-col gap-1 overflow-hidden h-full">

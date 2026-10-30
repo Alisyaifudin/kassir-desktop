@@ -257,29 +257,39 @@ export function recordPaymentLines(record: RecordModel, selection: MethodSelecti
     lines.push(line);
   }
 
-  return applyChange(record, lines, unfiltered);
+  return applyChange(record, lines);
+}
+
+/** The payments that carry money — an unsettled split keeps zero-pay rows, and
+ *  they are not tenders, so they can neither take the change nor own it. */
+function moneyedPayments(record: RecordModel): RecordModel["methods"] {
+  return record.methods.filter((payment) => payment.pay !== 0);
 }
 
 /**
  * Change is money handed back, not a payment, so it comes off the tender that
  * produced it: the cash line, which is where a cashier counts the coins out. A
  * record that took no cash at all — an over-tendered transfer — gives the change
- * back on its last method instead.
+ * back on its last moneyed method instead.
  *
- * A filter that hides that tender adjusts nothing: the lines left on screen are
- * their own money, and taking a hidden row's change off them would print a
- * figure no method ever paid.
+ * Only a line that is on screen can be docked. A filter that hides that tender
+ * adjusts nothing: the lines left on screen are their own money, and taking a
+ * hidden row's change off them would print a figure no method ever paid. Which
+ * tender owns the change is read from the record, not from the lines — a filter
+ * that hides the cash of a split record has not turned it into a cashless one.
+ * A filter that *keeps* the over-tendered line still has change to take off it.
  */
-function applyChange(
-  record: RecordModel,
-  lines: PaymentLine[],
-  unfiltered: boolean,
-): PaymentLine[] {
+function applyChange(record: RecordModel, lines: PaymentLine[]): PaymentLine[] {
   const change = record.change ?? 0;
   if (change <= 0 || lines.length === 0) return lines;
-  const cash = lines.find((line) => line.kind === "cash");
-  const target = cash ?? (unfiltered ? lines[lines.length - 1] : undefined);
-  if (target === undefined) return lines;
-  target.contribution = roundToFix(target.pay - change, record.fix);
+
+  const moneyed = moneyedPayments(record);
+  const takesCash = moneyed.some((payment) => payment.kind === "cash");
+  const owner = takesCash
+    ? lines.find((line) => line.kind === "cash")
+    : lines.find((line) => line.key === moneyed[moneyed.length - 1]?.methodId);
+  if (owner === undefined) return lines;
+
+  owner.contribution = roundToFix(owner.pay - change, record.fix);
   return lines;
 }
