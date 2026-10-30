@@ -1,5 +1,6 @@
 import { generateId } from "~/lib/random";
 import type { Statement } from "../db";
+import { sameCapital } from "../record/capital";
 
 export type StockLot = { id: string; value: number; capital: number };
 
@@ -193,11 +194,139 @@ export function consumeStatements(
 
 
 /**
+ * Close a product's oversold lots with the stock that has just arrived, before
+ * the purchase lands on them.
+ *
+ * A lot goes negative when its goods are sold before they are booked, so it is a
+ * hole in the inventory, not a lot to add to. Adding the purchase to it anyway —
+ * or, when the capitals differ, leaving the hole beside the fresh lot — keeps the
+ * hole's value in the average and reports a cost per pc nobody paid: a -1 lot at
+ * 10.000 with 6 pcs at 12.000 arriving reads as 22.000 for the one pc that is
+ * left, and the same case with 12 pcs arriving reads as 12.181,82. Filling the
+ * hole first leaves the leftover stock valued at the price actually paid; the
+ * difference is the correction the earlier sale owes, which no write can put on
+ * an immutable record, so it is better spent here than smeared over every future
+ * sale of the product.
+ *
+ * A lot still negative after the fill (`pcs` did not cover the hole) adopts
+ * `capital`: goods bought today are the freshest guess at what the goods still
+ * owed will cost. So does the lot the fill just closed, whenever nothing else
+ * holds stock — an empty lot is read as "what a piece costs now" by
+ * `toProduct`'s `maxCapital` (`product/live.ts`), and adopting the price lets the
+ * rest of the purchase land in it instead of beside an empty husk.
+ *
+ * When every hole already carries the incoming capital there is nothing to
+ * reconcile — adding into those lots values the leftovers exactly as filling
+ * would — so this writes nothing and the receive path stays one event.
+ *
+ * Every step is a journalled event carrying `recordId`, so deleting the record
+ * puts the lots back where they were (`touchedLots` in `record/live.ts` undoes a
+ * record's own movement rather than trusting a replay); a capital-only change is
+ * a delta-0 event, the same shape `adjustStatements` writes. Statements only —
+ * `receiveAtCapital` adds the `touchProduct` when it commits the result.
+ */
+export function settleNegative(
+  productId: string,
+  lots: readonly StockLot[],
+  input: { pcs: number; capital: number },
+  now: number,
+  fix: number,
+  recordId: string | null = null,
+): {
+  statements: Statement[];
+  lots: StockLot[];
+  /** How many of the purchase's pcs the hole absorbed. */
+  filled: number;
+  /** The last journalled fill, which the record's portion points at. */
+  eventId: string | null;
+  stockId: string | null;
+} {
+  const holes = lots.filter((lot) => lot.value < 0);
+  if (holes.every((lot) => sameCapital(lot.capital, input.capital, fix))) {
+    return {
+      statements: [],
+      lots: lots.map((lot) => ({ ...lot })),
+      filled: 0,
+      eventId: null,
+      stockId: null,
+    };
+  }
+
+  const statements: Statement[] = [];
+  const nextLots = lots.map((lot) => ({ ...lot }));
+  let remaining = input.pcs;
+  let eventId: string | null = null;
+  let stockId: string | null = null;
+  let filledIndex: number | null = null;
+
+  // Newest first: `drainStatements` puts the shortage on the last lot, so this
+  // undoes the drain in the order it happened.
+  for (let index = nextLots.length - 1; index >= 0 && remaining > 0; index--) {
+    const lot = nextLots[index];
+    if (lot.value >= 0) continue;
+
+    const fill = Math.min(remaining, -lot.value);
+    eventId = generateId();
+    stockId = lot.id;
+    filledIndex = index;
+    statements.push(
+      {
+        sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
+        bindings: [fill, now, lot.id],
+      },
+      insertEvent(eventId, productId, lot.id, fill, lot.capital, now, "Tutup stok minus", recordId),
+    );
+    lot.value += fill;
+    remaining -= fill;
+  }
+
+  // A bonus line (capital 0) says nothing about what goods cost, so it fills the
+  // hole without revaluing it.
+  if (filledIndex !== null && input.capital > 0) {
+    const empty = nextLots.every((lot) => lot.value === 0);
+    for (let index = 0; index < nextLots.length; index++) {
+      const lot = nextLots[index];
+      // Every lot still owed stock, plus the one this purchase just closed when
+      // no lot holds stock any more — the arrival lands in it, not beside it.
+      const adopt = lot.value < 0 || (empty && index === filledIndex);
+      if (!adopt || sameCapital(lot.capital, input.capital, fix)) continue;
+      lot.capital = input.capital;
+      statements.push(
+        {
+          sql: "UPDATE stocks SET stock_capital = $1, stock_updated_at = $2 WHERE stock_id = $3",
+          bindings: [input.capital, now, lot.id],
+        },
+        insertEvent(
+          generateId(),
+          productId,
+          lot.id,
+          0,
+          input.capital,
+          now,
+          "Modal stok minus",
+          recordId,
+        ),
+      );
+    }
+  }
+
+  return { statements, lots: nextLots, filled: input.pcs - remaining, eventId, stockId };
+}
+
+/**
  * Receive a purchase quantity at `capital` per pc. If a lot already carries the
  * same capital (at the record's precision), the purchase points at it instead of
  * opening a duplicate lot. When several lots match, the newest stock is moved
  * into the oldest with their own journal events, so the chosen lot ends up
  * holding the combined quantity.
+ *
+ * Any oversold lot is closed off first by `settleNegative`, so the quantity that
+ * lands here is the part of the purchase the product's stock did not already
+ * owe. Two things stay the purchase's own either way, because the record paid
+ * them and its total has to tie: `capital` (its price per pc) and the qty the
+ * caller writes on the portion. `eventId` is the fill's event when the whole
+ * quantity went into a hole, and the receipt's otherwise — a portion points at
+ * one event, so a line split between a hole and a lot hangs off the receipt.
  */
 export function receiveAtCapital(
   productId: string,
@@ -213,29 +342,35 @@ export function receiveAtCapital(
   lots: StockLot[];
   capital: number;
 } {
-  const digits = Number.isInteger(fix) && fix >= 0 && fix <= 100 ? fix : 0;
-  const same = (a: number, b: number) => Number(a.toFixed(digits)) === Number(b.toFixed(digits));
-  const matching = lots.filter((lot) => same(lot.capital, input.capital));
+  const settled = settleNegative(productId, lots, input, now, fix, recordId);
+  const statements = settled.statements;
+  const pcs = input.pcs - settled.filled;
 
-  if (matching.length === 0) {
-    const received = receivePortion(
-      productId,
-      { value: input.pcs, capital: input.capital },
-      now,
-      recordId,
-    );
+  if (pcs <= 0) {
     return {
-      statements: received.statements,
-      eventId: received.eventId,
-      stockId: received.stockId,
-      lots: [...lots, { id: received.stockId, value: input.pcs, capital: input.capital }],
+      statements: [...statements, touchProduct(productId, now)],
+      eventId: settled.eventId!,
+      stockId: settled.stockId!,
+      lots: settled.lots,
       capital: input.capital,
     };
   }
 
-  const nextLots = lots.map((lot) => ({ ...lot }));
+  const matching = settled.lots.filter((lot) => sameCapital(lot.capital, input.capital, fix));
+
+  if (matching.length === 0) {
+    const received = receivePortion(productId, { value: pcs, capital: input.capital }, now, recordId);
+    return {
+      statements: [...statements, ...received.statements],
+      eventId: received.eventId,
+      stockId: received.stockId,
+      lots: [...settled.lots, { id: received.stockId, value: pcs, capital: input.capital }],
+      capital: input.capital,
+    };
+  }
+
+  const nextLots = settled.lots;
   const target = nextLots.find((lot) => lot.id === matching[0].id)!;
-  const statements: Statement[] = [];
 
   // Newest matching stock moves into the oldest matching lot. Two rows per
   // transfer keep both lots' journals honest; these are stock-only movements,
@@ -279,12 +414,12 @@ export function receiveAtCapital(
   statements.push(
     {
       sql: "UPDATE stocks SET stock_value = stock_value + $1, stock_updated_at = $2 WHERE stock_id = $3",
-      bindings: [input.pcs, now, target.id],
+      bindings: [pcs, now, target.id],
     },
-    insertEvent(eventId, productId, target.id, input.pcs, target.capital, now, "", recordId),
+    insertEvent(eventId, productId, target.id, pcs, target.capital, now, "", recordId),
     touchProduct(productId, now),
   );
-  target.value += input.pcs;
+  target.value += pcs;
 
   return {
     statements,

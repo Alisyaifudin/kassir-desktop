@@ -457,10 +457,11 @@ const SELECT_LOTS = `
   WHERE product_id = $1
   ORDER BY stock_created_at ASC, stock_id ASC`;
 
-// What a lot is worth once this record's events are struck from the journal:
-// value is what remains, capital the newest of the remaining events.
-const SELECT_SURVIVING_EVENTS = `
-  SELECT product_event_value AS value, product_event_capital AS capital
+// The capital a lot is left with once this record's events are struck from the
+// journal: the newest of the remaining ones. The lot's *value* is not replayed
+// alongside it — see `touchedLots`.
+const SELECT_SURVIVING_CAPITALS = `
+  SELECT product_event_capital AS capital
   FROM product_events
   WHERE stock_id = $1 AND (record_id IS NULL OR record_id <> $2)
   ORDER BY product_event_created_at ASC, product_event_id ASC`;
@@ -744,17 +745,24 @@ export const RecordLive = Layer.effect(
         for (const lot of touched) {
           const surviving = yield* db
             .selectMany<{
-              value: number;
               capital: number;
-            }>(SELECT_SURVIVING_EVENTS, [lot.stock_id, recordId])
+            }>(SELECT_SURVIVING_CAPITALS, [lot.stock_id, recordId])
             .pipe(Effect.mapError(dbErrorToRecordError));
-          let value = 0;
-          for (const event of surviving) value += event.value;
           const last = surviving[surviving.length - 1];
+          // The row minus this record's own movement is exactly what the lot
+          // held before it. Replaying the surviving events instead would lose
+          // the opening balance a migration wrote straight into `stocks`, which
+          // no event ever journalled (see `SELECT_TOUCHED_LOTS`) — a lot that has
+          // been sold from since then carries events, so the replay would not
+          // even fall back to the row.
+          const restored =
+            last === undefined || last === null
+              ? null
+              : { value: lot.stock_value - lot.record_delta, capital: last.capital };
           lots.push({
             stockId: lot.stock_id,
             productId: lot.product_id,
-            restored: last === undefined || last === null ? null : { value, capital: last.capital },
+            restored,
             current: { value: lot.stock_value, capital: lot.stock_capital },
             delta: lot.record_delta,
           });
