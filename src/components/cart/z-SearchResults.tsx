@@ -17,7 +17,7 @@ import { cn } from "~/lib/utils";
 import { rupiah } from "~/components/cart/util-rupiah";
 
 const ESTIMATE_ROW = 320;
-const MIN_CELL = 260;
+const MIN_CELL = 2-0;
 const MAX_COLUMNS = 5;
 const LOW_STOCK = 5;
 
@@ -80,7 +80,7 @@ function Grid({
   onPick: (listing: Listing) => void;
   onExit: () => void;
 }) {
-  const [columns, setColumns] = useState(3);
+  const [columns, setColumns] = useState(4);
   const [selected, setSelected] = useState(0);
   const [keyboard, setKeyboard] = useState(false);
   const [focused, setFocused] = useState(false);

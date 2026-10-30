@@ -56,6 +56,7 @@ import {
   type ListingLayout,
 } from "~/components/cart/listing-grid";
 import { typedDigit } from "~/components/cart/z-Cell";
+import { Show } from "../Show";
 
 const HEADER: RowRef = { kind: "header" };
 
@@ -918,7 +919,10 @@ export function Listing({
               setSelection({ row: HEADER, col: TOGGLE_COLUMN });
               setEditing(false);
             }}
-            className={cn("col-span-2 border-l p-0", focused && toggleSelected && SELECTED_RING + " bg-muted")}
+            className={cn(
+              "col-span-2 border-l p-0",
+              focused && toggleSelected && SELECTED_RING + " bg-muted",
+            )}
           >
             {!showExtraTotal ? (
               <Button
@@ -954,64 +958,67 @@ export function Listing({
         ) : null}
       </div>
 
-      {shown ? (
+      <Show
+        when={shown}
+        fallback={
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
+            {/* // Held back for the anti-flash window, but keeping its places: the
+              // rows are the body of a `flex-1` panel, so the frame does not move
+              // either way, and the three rows are already the height of the lines
+              // that replace them. */}
+            <Show when={loading}>
+              <ReservedSkeleton className="divide-y space-y-1 divide-border">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  // A real cart line is two cell rows: 88 tall.
+                  <Skeleton key={index} className="h-[88px] rounded-none w-full" />
+                ))}
+              </ReservedSkeleton>
+            </Show>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                <div className="divide-y divide-border">
+                  <AnimatePresence initial={false}>
+                    {lines.map((line, index) => {
+                      const cardSelected =
+                        selection.row.kind === "card" && selection.row.cardId === line.id;
+                      return (
+                        <ListingCard
+                          key={line.id}
+                          {...handlersFor(line.id)}
+                          line={line}
+                          bumped={bumped === line.id}
+                          seed={seed}
+                          priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}
+                          number={lines.length - index}
+                          issue={issues.get(line.id)}
+                          selected={cardSelected && focused ? (active.field as Field) : null}
+                          selectedSub={
+                            cardSelected && active.field === "qty"
+                              ? (selection.qtySub ?? "value")
+                              : undefined
+                          }
+                          editing={cardSelected && editing}
+                        />
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        }
+      >
         <SearchResults
           res={results}
           containerRef={resultsRef}
           onPick={addListing}
           onExit={() => searchRef.current?.focus()}
         />
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
-          {loading ? (
-            // Held back for the anti-flash window, but keeping its places: the
-            // rows are the body of a `flex-1` panel, so the frame does not move
-            // either way, and the three rows are already the height of the lines
-            // that replace them.
-            <ReservedSkeleton className="divide-y space-y-1 divide-border">
-              {Array.from({ length: 3 }).map((_, index) => (
-                // A real cart line is two cell rows: 88 tall.
-                <Skeleton key={index} className="h-[88px] rounded-none w-full" />
-              ))}
-            </ReservedSkeleton>
-          ) : null}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <div className="divide-y divide-border">
-                <AnimatePresence initial={false}>
-                  {lines.map((line, index) => {
-                    const cardSelected =
-                      selection.row.kind === "card" && selection.row.cardId === line.id;
-                    return (
-                      <ListingCard
-                        key={line.id}
-                        {...handlersFor(line.id)}
-                        line={line}
-                        bumped={bumped === line.id}
-                        seed={seed}
-                        priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}
-                        number={lines.length - index}
-                        issue={issues.get(line.id)}
-                        selected={cardSelected && focused ? (active.field as Field) : null}
-                        selectedSub={
-                          cardSelected && active.field === "qty"
-                            ? (selection.qtySub ?? "value")
-                            : undefined
-                        }
-                        editing={cardSelected && editing}
-                      />
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-      )}
+      </Show>
 
       <DiscountDialog
         open={discountFor !== null}

@@ -19,12 +19,12 @@ export function Total({ grand, fix }: { grand: Decimal | null; fix: number }) {
   return (
     // A block, not a `<p>`: the placeholder inside is a `div`, and a `<div>` may
     // not live inside a paragraph (React reports the nesting as an error).
-    <div data-testid="grand-total" className="text-center text-6xl/[0.8] tabular-nums">
+    <div data-testid="grand-total" className="text-center text-8xl/[0.8] tabular-nums">
       {grand === null ? (
         <div className="flex items-center gap-1">
           Rp
           <ReservedSkeleton>
-            <Skeleton className="h-[64px] w-[220px]" />
+            <Skeleton className="h-[82px] w-[220px]" />
           </ReservedSkeleton>
         </div>
       ) : (
