@@ -1,5 +1,5 @@
 import { analyze, compact } from "./normalize";
-import { gradeCode, gradeText } from "./quality";
+import { gradeCode, gradeText, TEXT } from "./quality";
 import {
   createIndexCache,
   parseQuery,
@@ -14,17 +14,32 @@ import {
  * a product can have many, and the buyer is picking a specific one. Matching
  * still reaches into the parent product, but the listing's own name outranks it.
  *
- * Field order: code (a scanned identifier) > listing name > product name >
- * alternative name. The query ladder, the score scale and the cache live in
- * `./index-cache`; only the weights below are this unit's own.
+ * Field order: code (a scanned identifier) > listing name > alternative name >
+ * product name. An alternative name sits above the product name because it is a
+ * name the operator *recorded for this product* (`product_names`), while the
+ * product name is the umbrella every listing under it inherits — so "indomie"
+ * typed into the till should reach the listing whose product is aliased
+ * `Indomie Goreng` before it reaches one that merely shares a parent name, and
+ * still rank below a listing that is actually called that.
+ *
+ * The query ladder, the score scale and the cache live in `./index-cache`; only
+ * the weights below are this unit's own.
  */
 
 const FIELD = {
   code: 1,
   listing: 0.92,
+  alt: 0.9,
   product: 0.88,
-  alt: 0.8,
 } as const;
+
+/**
+ * An alias only matched by fuzz (a subsequence or a typo) is a guess about what
+ * the operator once wrote down, not a recorded synonym. Damp it so it cannot
+ * outrank a real word match on a listing or product name; the small factor keeps
+ * a genuine misspelling of a recorded alias inside the query minimum.
+ */
+const FUZZ_ALIAS = 0.9;
 
 export type SearchableListing = {
   id: string;
@@ -129,10 +144,10 @@ export function searchListings(index: ListingIndex, rawQuery: string): ListingHi
     );
 
     for (const alt of entry.altNames) {
-      best = Math.max(
-        best,
-        gradeText(alt.norm, alt.words, query.norm, query.words, query.options) * FIELD.alt,
-      );
+      const quality = gradeText(alt.norm, alt.words, query.norm, query.words, query.options);
+      if (quality === 0) continue;
+      const dampener = quality <= TEXT.subsequence ? FUZZ_ALIAS : 1;
+      best = Math.max(best, quality * dampener * FIELD.alt);
     }
 
     const result = toHit(entry.id, best, query);

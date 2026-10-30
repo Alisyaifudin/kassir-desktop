@@ -55,9 +55,26 @@ describe("listing ladder", () => {
     expect(rank(listings, "indomie").sort()).toEqual(["a", "b"]);
   });
 
-  test("alternative names are matched below the product name", () => {
+  test("an alias finds a listing whose own and product names do not match", () => {
     const listings = [listing("Spesial", { id: "a", product: "Mie", alt: ["Indomie"] })];
     expect(rank(listings, "indomie")).toEqual(["a"]);
+  });
+
+  test("an exact alias outranks the parent product name, but not the listing name", () => {
+    const listings = [
+      listing("Spesial", { id: "alias", product: "Mie", alt: ["Indomie Goreng"] }),
+      listing("Spesial", { id: "product", product: "Indomie Goreng" }),
+      listing("Indomie Goreng", { id: "listing", product: "Mie" }),
+    ];
+    expect(rank(listings, "indomie goreng")).toEqual(["listing", "alias", "product"]);
+  });
+
+  test("a fuzzy alias does not outrank a word match on a name", () => {
+    const listings = [
+      listing("Indomie Spesial", { id: "listing", product: "Mie" }),
+      listing("Mie Spesial", { id: "alias", product: "Mie", alt: ["Indomje"] }),
+    ];
+    expect(rank(listings, "indomie")).toEqual(["listing", "alias"]);
   });
 
   test("a partial listing match also outranks a partial product match", () => {
