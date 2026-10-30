@@ -57,6 +57,10 @@ export function EditPane({ product }: { product: ProductFull }) {
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [adjustLot, setAdjustLot] = useState<Stock | null>(null);
+  // A stock adjustment is written the moment its dialog saves, so the form may
+  // reach `Simpan` with nothing of its own left to write. Remember that a write
+  // already landed, so `Simpan` answers for it instead of denying it.
+  const [adjusted, setAdjusted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { undo, redo, canUndo, canRedo } = form;
@@ -192,6 +196,14 @@ export function EditPane({ product }: { product: ProductFull }) {
     if (!form.validate()) return;
     const ops = buildOps();
     if (ops.length === 0) {
+      // A lot adjusted through the dialog is already committed — nothing is left
+      // for `Simpan` to send, but the change the user just made *is* saved, and
+      // "tidak ada perubahan" would read as a failure of it.
+      if (adjusted) {
+        setAdjusted(false);
+        toast.success("Perubahan disimpan.");
+        return;
+      }
       // Enter on an untouched form asks "saved?" and deserves an answer, or the
       // key reads as broken. Nothing was written, so say exactly that.
       toast("Tidak ada perubahan untuk disimpan.");
@@ -215,6 +227,7 @@ export function EditPane({ product }: { product: ProductFull }) {
     const fresh = await Effect.runPromise(service.product.get.byId(product.id).pipe(Effect.either));
     if (fresh._tag === "Right") form.reset(draftFromProduct(fresh.right));
     setPending(false);
+    setAdjusted(false);
     toast.success("Perubahan disimpan.");
   }
 
@@ -281,7 +294,12 @@ export function EditPane({ product }: { product: ProductFull }) {
         onConfirm={performDelete}
       />
       {adjustLot !== null ? (
-        <StockAdjust product={product} lot={adjustLot} onClose={() => setAdjustLot(null)} />
+        <StockAdjust
+          product={product}
+          lot={adjustLot}
+          onClose={() => setAdjustLot(null)}
+          onSaved={() => setAdjusted(true)}
+        />
       ) : null}
     </form>
   );

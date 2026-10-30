@@ -30,10 +30,13 @@ export function StockAdjust({
   product,
   lot,
   onClose,
+  onSaved,
 }: {
   product: ProductFull;
   lot: Stock;
   onClose: () => void;
+  /** The adjustment committed — reported so the form can answer for it. */
+  onSaved?: () => void;
 }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -78,6 +81,7 @@ export function StockAdjust({
       setError(result.left.message);
       return;
     }
+    onSaved?.();
     onClose();
   }
 
