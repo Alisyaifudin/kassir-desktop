@@ -84,7 +84,7 @@ function Sortable({
         items={summaries.map((summary) => summary.pocket.id)}
         strategy={rectSortingStrategy}
       >
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 overflow-auto">
           {summaries.map((summary) => (
             <NavCard key={summary.pocket.id} summary={summary} />
           ))}
