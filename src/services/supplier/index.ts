@@ -17,6 +17,13 @@ export type SupplierInput = {
 export class SupplierService extends Context.Tag("SupplierService")<
   SupplierService,
   {
+    /**
+     * Re-reads the table after a sync merge. The refs the UI reads are hydrated
+     * once and patched by the write paths, so a row that arrived from the server
+     * (or was replaced by one) is invisible until this runs. Cheap: the table is
+     * a handful of rows.
+     */
+    refresh: () => Effect.Effect<void, SupplierError>;
     get: {
       all: () => Effect.Effect<Supplier[], SupplierError>;
       /** Rows the sync layer has not pushed yet. */

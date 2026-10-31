@@ -59,6 +59,32 @@ allsorts = { version = "0.17", package = "allsorts-azul", default-features = fal
 # Receipt dates print as the machine's wall clock, so "Kredit 14-11-2023, 9:05"
 # matches what the cashier wrote down.
 chrono = "0.4"
+# Sync transport (`src/sync.rs`). The HTTP client is here rather than in the
+# webview because the window CSP forbids the sync host (connect-src 'self' ipc:),
+# and because `fetch` has no reliable streaming body / no `CompressionStream` in
+# the WebViews we ship on. `stream` delivers the response chunk by chunk so NDJSON
+# frames reach the frontend as they arrive; `gzip` is the request/response coding
+# of contract §4.4. `rustls-tls` rather than the default native-tls keeps the
+# transport self-contained: it does not depend on the host's OpenSSL version on
+# the Linux machines the app is developed on, and needs no Windows-specific
+# backend either.
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+  "gzip",
+  "stream",
+  "http2",
+] }
+futures-util = { version = "0.3", default-features = false }
+sha2 = "0.10"
+flate2 = "1"
+# `sync_merge` needs a real transaction, which tauri-plugin-sql does not expose:
+# it keeps its pool private and its `execute` runs a multi-statement string in
+# autocommit. Same version and backend the plugin uses, so the SQLite library is
+# shared (one `libsqlite3-sys`, not two).
+sqlx = { version = "0.8", default-features = false, features = [
+  "sqlite",
+  "runtime-tokio",
+] }
 
 [target.'cfg(windows)'.dependencies]
 winprint = "0.2.0"

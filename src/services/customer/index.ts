@@ -17,6 +17,13 @@ export type CustomerInput = {
 export class CustomerService extends Context.Tag("CustomerService")<
   CustomerService,
   {
+    /**
+     * Re-reads the table after a sync merge. The refs the UI reads are hydrated
+     * once and patched by the write paths, so a row that arrived from the server
+     * (or was replaced by one) is invisible until this runs. Cheap: the table is
+     * a handful of rows.
+     */
+    refresh: () => Effect.Effect<void, CustomerError>;
     get: {
       all: () => Effect.Effect<Customer[], CustomerError>;
       /** Rows the sync layer has not pushed yet. */

@@ -45,6 +45,11 @@ export type NewEntry = {
 export class MoneyService extends Context.Tag("MoneyService")<
   MoneyService,
   {
+    /**
+     * Re-reads every pocket card after a sync merge. Pockets and their latest
+     * entries both arrive from the server; the ref is hydrated once.
+     */
+    refresh: () => Effect.Effect<void, MoneyError>;
     pockets: {
       get: {
         /** The catalog, oldest `ordering` first. */

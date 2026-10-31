@@ -158,6 +158,7 @@ export const SupplierLive = Layer.effect(
           });
         },
       },
+      refresh: () => hydrate(),
     };
   }),
 );

@@ -16,6 +16,7 @@ describe("navOf", () => {
       "Profil",
       "Toko",
       "Data",
+      "Sinkronisasi",
       "Printer",
       "Log",
     ]);
@@ -48,7 +49,12 @@ describe("navGroupsOf", () => {
 
   test("each group keeps the sidebar's item order", () => {
     const sistem = navGroupsOf("admin").find((group) => group.section === "Sistem");
-    expect(sistem?.items.map((item) => item.label)).toEqual(["Data", "Printer", "Log"]);
+    expect(sistem?.items.map((item) => item.label)).toEqual([
+      "Data",
+      "Sinkronisasi",
+      "Printer",
+      "Log",
+    ]);
   });
 
   test("only the listed destinations are marked for admins", () => {

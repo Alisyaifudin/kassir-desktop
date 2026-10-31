@@ -292,7 +292,7 @@
   <rust_backend>
     <entry_point>
       <file name="src-tauri/src/main.rs">Windows entry point (#[windows_subsystem = "windows"] in release); calls kassir_lib::run().</file>
-      <file name="src-tauri/src/lib.rs">Plugin registration (single-instance, dialog, fs, log, store, sql with migrations, prevent-default, optional mcp-bridge), the five-command invoke handler, and the app run loop.</file>
+      <file name="src-tauri/src/lib.rs">Plugin registration (single-instance, dialog, fs, log, store, sql with migrations, prevent-default, optional mcp-bridge), the invoke handler (auth, printer, export, sync), the managed SyncState, and the app run loop.</file>
       <file name="src-tauri/src/database/mod.rs">generate_migration(): embeds every `src-tauri/src/database/&lt;range&gt;/migration-N.sql` as a tauri-plugin-sql Migration for `sqlite:data.db`.</file>
     </entry_point>
 
@@ -319,13 +319,63 @@
         <signature>async fn(default_name: String, contents: String) → Result&lt;Option&lt;String&gt;, String&gt;</signature>
         <description>The JSON download. The Save dialog and the write both live in Rust: the fs plugin's scope is narrowed to the app's own image and log directories, so a frontend writeFile on a user-picked path is rejected. Returns the written path, or None when the dialog was cancelled.</description>
       </command>
+      <command name="sync_health" module="sync">
+        <signature>async fn(base_url, token) → Result&lt;{ protocol, snapshot_seq }, SyncFailure&gt;</signature>
+        <description>GET /v1/health: the protocol version handshake (§12 of the sync contract).</description>
+      </command>
+      <command name="sync_create_session" module="sync">
+        <signature>async fn(base_url, token) → Result&lt;Session, SyncFailure&gt;</signature>
+        <description>POST /v1/upload: opens the one session that covers every entity, returning upload_id / at / frames.</description>
+      </command>
+      <command name="sync_get_session" module="sync">
+        <signature>async fn(base_url, token, upload_id) → Result&lt;Session, SyncFailure&gt;</signature>
+        <description>GET /v1/upload/:id: the server's committed pointer, which is the only truth about progress after a disconnect.</description>
+      </command>
+      <command name="sync_delete_session" module="sync">
+        <signature>async fn(base_url, token, upload_id) → Result&lt;(), SyncFailure&gt;</signature>
+        <description>DELETE /v1/upload/:id: abandons a session. 404 counts as success — that is the state the caller wanted.</description>
+      </command>
+      <command name="sync_pull" module="sync">
+        <signature>async fn(channel, base_url, token, since, limit, request_id) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
+        <description>GET /v1/pull: reads the response body chunk by chunk, cuts it into NDJSON lines at the newlines (holding a split line until it completes), and pushes one line per Channel message followed by an explicit end message. Advertises Accept-Encoding: gzip and lets reqwest decode it, so the lines are always the canonical plaintext (offsets are uncompressed). This is the polyfill for the Streams API the contract is written against; the webview cannot fetch the sync host at all under its CSP.</description>
+      </command>
+      <command name="sync_upload_chunk" module="sync">
+        <signature>async fn(channel, base_url, token, upload_id, offset, prefix_sha, body, compress, request_id) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
+        <description>PATCH /v1/upload/:id: appends one NDJSON chunk and streams the ack lines back over the channel. Upload-Offset and Upload-Prefix-Sha256 address the uncompressed bytes; with compress the body is gzipped and Content-Encoding: gzip set, and a 415 is retried as identity (§4.4).</description>
+      </command>
+      <command name="sync_chain" module="sync">
+        <signature>fn(prev: String, lines: Vec&lt;String&gt;) → { chain, bytes }</signature>
+        <description>The rolling prefix hash of §7.3: C_n = hex(sha256(hex2bytes(C_n-1) || "\n" || line)), with C_0 = sha256("") and the byte count counting the newline terminators. Computed in Rust because crypto.subtle depends on the webview build and the chain is what resume verification rests on.</description>
+      </command>
+      <command name="sync_merge" module="sync_merge">
+        <signature>async fn(app, plan: { statements: [{ sql, bindings }] }) → Result&lt;{ statements }, MergeFailure&gt;</signature>
+        <description>
+          Applies a whole pull in ONE transaction. plugin-sql's surface cannot: it keeps its
+          `execute` statement-by-statement in autocommit and exposes no transaction handle. This
+          command borrows the plugin's own pool instead of opening a second connection — the plugin
+          publishes `DbInstances(pub RwLock&lt;HashMap&lt;String, DbPool&gt;&gt;)` and
+          `DbPool::Sqlite(Pool&lt;Sqlite&gt;)` for exactly this — so there is one set of connections,
+          one configuration and no lock-contention window in which the POS's own writes could fail.
+          Statements are generated in TS (`services/sync/sql.ts`); Rust only binds and executes, so
+          the column order the wire contract freezes is the same one the SQL uses. All-or-nothing:
+          a failing statement rolls the entire merge back, which is what lets the pull cursor advance
+          only after success.
+        </description>
+      </command>
+      <command name="sync_cancel" module="sync">
+        <signature>fn(id: String) → Result&lt;(), String&gt;</signature>
+        <description>Flips the cancellation flag the streaming commands registered under request_id; the read loop checks it between chunks, so leaving the Sinkronisasi screen stops the request instead of draining it in the background.</description>
+      </command>
     </commands>
 
     <security>
       <description>
-        No embedded HTTP server, no JWT, no sync token in the app binary: the cloud sync protocol lives only in
-        backend-docs/openapi.yaml. Passwords hash and verify through the two bcrypt commands above; the session is
-        frontend state (the auth service), persisted in localStorage.
+        No embedded HTTP server and no JWT. Passwords hash and verify through the two bcrypt commands above; the
+        session is frontend state (the auth service), persisted in localStorage. The sync credential is the
+        single-tenant SYNC_TOKEN (§10 of the sync contract), typed by the operator and kept in store.json
+        (sync.base_url / sync.token) — never compiled into the binary. All sync HTTP goes through the Rust client:
+        it keeps the window CSP at connect-src 'self' ipc: instead of allowing every origin, and it is the only way
+        to consume the NDJSON streams.
       </description>
       <single_instance>
         tauri-plugin-single-instance is registered first, before any window or database work. The model is one
@@ -357,7 +407,7 @@
     </capabilities>
 
     <migrations>
-      <database name="data.db" migration_count="46">
+      <database name="data.db" migration_count="47">
         <description>
           The only database. Every migration in src-tauri/src/database/&lt;range&gt;/migration-N.sql is embedded by
           database/mod.rs and applied on boot; the frontend also applies the same files in the e2e harness. The schema
@@ -377,6 +427,9 @@
           - 44: the backfill — every old row copied into the new shape, parent-first, no DDL
           - 45: a no-op bridge slot, so databases that recorded a 46 from another branch still line up
           - 46: adds image/webp to img_mimes
+          - 47: queues every syncable row for its first upload (all `_sync_at` markers cleared), since the sync
+            server was created from zero for the byte-stream protocol and has never seen this device's rows;
+            enables the forcing migration-44 step 13 had left commented out
           Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
           are created in 43.
         </description>
@@ -767,7 +820,9 @@
       preferably, through page-data. Typed errors are caught by createErrorBoundary or rendered per key by
       pageData.Gate. src/services/index.ts composes the layers and exports the app-level `service` object.
       Public services: analytics, auth, cashier, config, customer, extra, info, listing, log, method, money, printer,
-      product, record, social, supplier, transaction. Hidden backends: db, store, local-storage.
+      product, record, social, supplier, sync, transaction, zoom. Hidden backends: db, store, local-storage.
+      Sync additionally injects its transport (SyncTransportService) so the loops can be tested against an
+      in-memory server.
     </description>
 
     <hidden_backends>
@@ -1015,6 +1070,30 @@
       </interface>
     </service>
 
+    <service name="sync" module="src/services/sync/">
+      <description>
+        The device's mirror of the cloud (see &lt;sync_system&gt;). Owns the pull → merge → push loop as one Effect
+        fiber, the store.json cursors, and the mirror SQL. Files: schema.ts (canonical column order for every table),
+        frames.ts (NDJSON encode/decode), sql.ts (LWW upserts, aggregate child replacement, unsync reads), merge.ts
+        (the merge rules, including dangling-reference deferral), pull.ts / push.ts (the loops), stream.ts (the
+        Channel→ReadableStream polyfill), transport.ts (the Rust commands as a service), local.ts (unsync reads and
+        marker writes), live.ts (wiring, cursors, refresh).
+      </description>
+      <error name="SyncError" tag="SyncError">message plus the contract's optional code/status, so the loops can branch on replay_mismatch / offset_conflict / not_found.</error>
+      <interface>
+        <method name="config.get() / config.set({baseUrl, token})">The server and its bearer token, from store.json.</method>
+        <method name="cursor()">The last merged sync_seq.</method>
+        <method name="run(mode)">mode "sync" | "reset": pull → merge → push (reset first clears the cursor, deletes the upload session and marks every row unsynced). Returns { lastPulledSeq, pulled, pushed, stale, cancelled }. Interrupting the fiber cancels the in-flight request.</method>
+        <method name="cancel()">Interrupts the running run's fiber.</method>
+        <method name="progress">Stream&lt;SyncProgress&gt;: phase, current entity, done/total frames, one sentence.</method>
+      </interface>
+      <note>
+        No domain service exposes the raw unsync rows (a soft-deleted row is not in any ref), so the sync service
+        runs the mirror SQL itself and then calls each owning service's refresh() — this is the one place the rule
+        "all reads/writes go through the owning service (or a new sync service)" needs the parenthetical.
+      </note>
+    </service>
+
     <service name="transaction" module="src/services/transaction/">
       <description>
         The open carts in tx_* tables, and the one place a cart becomes history. Owns tx_records, tx_listings,
@@ -1039,71 +1118,64 @@
   </services>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE 5: Cloud API & sync (documented, not implemented)              -->
+  <!-- PHASE 5: Cloud sync (implemented)                                   -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <cloud_api status="no-client">
+  <cloud_api status="implemented">
     <description>
-      The server contract lives in backend-docs/openapi.yaml. The app ships no HTTP client: no VITE_API_URL is read,
-      no plugin-http is installed, and no src/server or src/lib/sync module exists. The protocol is timestamp-based
-      and bidirectional: pull (GET /{entity}/{timestamp}) fetches rows updated after the cursor, push
-      (POST /{entity}) uploads unsynced rows and returns { timestamp, failed[] }, and deletes are soft rows (see
-      &lt;sync_system&gt;). Auth is one of three schemes, never mixed: cookieAdmin, cookieUser, or bearerApp for
-      desktop/mobile sync.
+      The wire contract is backend-docs/sync-contract.md (client mirror of the backend's SYNC-CONTRACT.md), not the
+      retired backend-docs/openapi.yaml. It is a byte-stream protocol: both directions are raw newline-delimited
+      canonical JSON, both are resumable, and LWW on `_updated_at` resolves conflicts with the server winning ties.
+      Routes: GET /v1/health, GET /v1/pull?since=&amp;limit=, POST /v1/upload, PATCH|GET|DELETE /v1/upload/:id, all
+      behind `Authorization: Bearer SYNC_TOKEN`. The HTTP client lives in Rust (src-tauri/src/sync.rs) — see
+      &lt;rust&gt; &lt;commands&gt; — because the window CSP (connect-src 'self' ipc:) forbids the sync host and the
+      webview has no reliable streaming body.
     </description>
-    <entity name="product" base="/api/product">
-      <endpoint method="GET" path="/api/product/{timestamp}">Products updated after the cursor.</endpoint>
-      <endpoint method="GET" path="/api/product/count/{timestamp}">Row count for pull progress.</endpoint>
-      <endpoint method="POST" path="/api/product">Push local products; failed ids come back.</endpoint>
-    </entity>
-    <entity name="product-event" base="/api/product-event">
-      <endpoint method="POST" path="/api/product-event/{timestamp}">Events for the given product ids.</endpoint>
-      <endpoint method="POST" path="/api/product-event">Push local events.</endpoint>
-    </entity>
-    <entity name="record" base="/api/record">
-      <endpoint method="GET" path="/api/record/{timestamp}">Records updated after the cursor, with their lines, discounts, extras and payments.</endpoint>
-      <endpoint method="GET" path="/api/record/count/{timestamp}">Row count for pull progress.</endpoint>
-      <endpoint method="POST" path="/api/record">Push local records.</endpoint>
-    </entity>
-    <entity name="method" base="/api/method">
-      <endpoint method="GET" path="/api/method/{timestamp}">Payment methods.</endpoint>
-      <endpoint method="POST" path="/api/method">Push local methods.</endpoint>
-    </entity>
   </cloud_api>
 
-  <sync_system status="not-implemented">
+  <sync_system status="implemented">
     <description>
-      There is no sync implementation in the repository: src/lib/sync/, src/server/, src/lib/reqwest.ts and the
-      Setting → Sync page are all gone, and nothing in the UI triggers a sync. What survives is the intended
-      protocol (documented in backend-docs/openapi.yaml) and the schema that must be honoured when it is rebuilt:
-      migration 43 replaced the graves tombstone exchange with a soft `&lt;singular&gt;_deleted_at` timestamp on every
-      syncable row (customers, suppliers, socials, pockets, money, products, listings, properties, images, extras,
-      methods, records), which syncs like any other update; products and records are now nested payloads
-      (listings/stocks, record_listings/record_extras/record_methods/discounts); `stocks` is local-only and never
-      pushed (product_events is the journal); cashiers are not synced. /api/grave is dead and should be dropped.
+      The sync service (src/services/sync/) implements pull → merge → push as one Effect fiber. The unit of exchange
+      is a frame: `{"e":entity,"r":{canonical row}}`, plus one aggregate frame for `record` carrying all five child
+      arrays. Entities travel in one fixed order — pocket → money → product → product_name → property → listing →
+      image → customer → supplier → extra → method → social → product_event → record — so a parent always precedes
+      the children that reference it. `stocks` is a local cache of the append-only `product_events` journal and is
+      never sent; `cashiers`, all `tx_*` cart tables and image bytes are out of scope.
     </description>
+    <schema_contract>
+      <item name="canonical_json">schema.ts freezes each table's column order once; both the encoder (frames.ts) and the merge statements (sql.ts) resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. This is what makes the byte stream reproducible for the sha256 chain.</item>
+      <item name="cursor">`sync.last_pulled_seq` in store.json, advanced to `done.s` after every pulled page (not to `meta.snapshot_seq`: rows written after the snapshot belong to the next pull).</item>
+      <item name="upload_cursors">`sync.upload_id` / `sync.upload_offset` / `sync.upload_frames` / `sync.upload_chain` in store.json, rewritten from every ack stream's `done` pointer.</item>
+      <item name="sync_at">`&lt;x&gt;_sync_at` is the push marker: NULL (or older than `_updated_at`) means owed to the server. Merged rows are marked immediately so they are not pushed back. The marker write is guarded on `_updated_at`, so a write that lands while its frame is in flight is not lost.</item>
+      <item name="migration_47">Clears every syncable row's `_sync_at`, so the first run offers the whole database to a server that has never seen it — the forcing migration-44 step 13 left commented out.</item>
+    </schema_contract>
     <shape>
-      <stage name="pull">Read the entity's last-pull cursor (a store key), fetch count + rows, and merge into the local tables.</stage>
-      <stage name="merge">Insert a row the server has and draw has none; update when the server's updatedAt is newer than the local `_updated_at`; a soft-deleted row merges like any other update.</stage>
-      <stage name="push">Read the entity's `unsync` set from its service, POST it, and mark the accepted ids synced (clear `_sync_at`).</stage>
-      <stage name="store">Persist the new cursor.</stage>
+      <stage name="pull">GET /v1/pull?since=last_pulled_seq&amp;limit=1000 in a loop, decoding NDJSON frames as they stream and holding them in memory until `meta.snapshot_seq` is reached. Nothing is written in this stage, so the cursor cannot run ahead of the data.</stage>
+      <stage name="write">The whole pull is handed to the Rust `sync_merge` command, which applies every statement in ONE transaction on the plugin's own pool. Because the entire pull is in hand at that moment, a reference is resolved against `local ∪ incoming` instead of "try again later", and statement order (parents → events → record aggregates → the two circular pointers) means no statement can violate a foreign key. Only after the commit does `last_pulled_seq` move.</stage>
+      <stage name="conflict">LWW: apply iff `incoming.updated_at &gt; local.updated_at` (a tie keeps the local row; the server reaches us as a `stale` ack instead). A winning `record` header replaces all five child arrays in one transaction; a losing one leaves them untouched. `product_event` is INSERT OR IGNORE — appended, never updated. References whose target has not arrived are written NULL and retried after each page (the local schema's FKs are real even where the server's are not).</stage>
+      <stage name="push">Drop any leftover session, open a fresh one, then per entity in order: read the unsync set, encode frames, compute the chain hash, PATCH a chunk (≤200 frames / 512 KB, gzip body), consume the ack stream (applied / stale / noop) and set `_sync_at`. A `stale` payload is merged back unconditionally.</stage>
+      <stage name="refresh">After the pull and again after the push, every domain service that caches a synced table is re-read (product, customer, supplier, extra, method, money, social) so the running UI sees the merged rows.</stage>
+      <stage name="recover">Transport failure, 409 offset_conflict/replay_mismatch or 404 → drop the session and re-send the unsync set (idempotent); 3 attempts, then the run reports the error.</stage>
     </shape>
-    <order>products → product_events → methods → records (records reference products and methods; events reference products).</order>
     <requirements>
-      <item name="service_first">Every merge/push has to go through the owning service (or a new sync service), not SQL from a page — the services own the refs the UI reads.</item>
-      <item name="soft_delete">Deletion is a `_deleted_at` timestamp, not a tombstone table; the server must speak the same contract.</item>
-      <item name="conflict_rule">Last-writer-wins on `_updated_at`, with the server's timestamp as the tiebreak.</item>
-      <item name="ux">One "Sinkronisasi" action with per-entity pull/push progress, plus a resync that resets the cursors, and the floating status pill designed in &lt;sync_ui_design&gt;.</item>
+      <item name="service_first">A new sync service owns the mirror SQL; pages never reach it. It refreshes the owning services' refs after each batch.</item>
+      <item name="soft_delete">A tombstone (`_deleted_at`) is an ordinary row whose payload says "deleted at T" and merges like any update.</item>
+      <item name="conflict_rule">Last-writer-wins on `_updated_at`, server wins ties.</item>
+      <item name="streaming">The contract is written against ReadableStream; the Tauri command sync_pull/sync_upload_chunk polyfill it over an IPC channel (src/services/sync/stream.ts).</item>
     </requirements>
   </sync_system>
 
-  <sync_ui_design status="not-implemented">
+  <sync_ui_design status="implemented">
     <description>
-      The intended UI for the rebuild, kept as a design record only: one Sinkronisasi button running the entities in
-      order, per-entity rows that reveal as each starts, an Unduh (pull+merge) phase then an Unggah (push) phase,
-      determinate pull bars from the /count endpoints (indeterminate for methods, which have no count endpoint),
-      short-circuit on the first failure, and a compact ✓/✗ summary at the end. Sinkronisasi Ulang resets all
-      cursors, marks everything unsynced, and runs the same flow. The button is disabled while a sync runs, and
-      leaving the screen cancels the fiber, leaving the cursors untouched so the next run re-pulls.
+      Manual sync only (automatic sync is a v2 idea). Setting → Sinkronisasi (admin-only) is two numbered panels.
+      "1. Server": base URL + SYNC_TOKEN, saved to store.json, plus the last pull cursor. "2. Sinkronisasi": the
+      action. Its buttons stay DISABLED until both the address and the token are stored — a merge with no credentials
+      can only fail, and the failure would be about the field the operator was already meant to fill in. One press
+      runs the whole loop: Unduh (stream, then write in one transaction, then Unggah), with a progress bar
+      (indeterminate until a phase knows its frame count), the current entity, a Batal button and a
+      "N diunduh, M diunggah" summary. Sinkronisasi Ulang clears the cursors, deletes the upload session and marks
+      every syncable row unsynced before running the same flow. Leaving the screen interrupts the fiber, which
+      cancels the in-flight HTTP request in Rust. There is no floating status pill and no timer: the screen is the
+      only place a sync starts.
     </description>
   </sync_ui_design>
 
@@ -1269,6 +1341,7 @@
         <subpage path="/setting/data" guard="AdminOnly">JSON export (Rust export_file) and import for products and records, with the skipped-row panel and a derived success/warning/error toast (describeUpload).</subpage>
         <subpage path="/setting/log" guard="AdminOnly">The log tail (bounded, newest first, warnings included) and a clear action, over the log service.</subpage>
         <subpage path="/setting/printer">Printer picker, paper width in mm (Lebar Struk) and a test print, over the printer service and the Rust printer commands. The width decides how the receipt PDF is laid out.</subpage>
+        <subpage path="/setting/sync" guard="AdminOnly">Server URL + SYNC_TOKEN, the pull cursor, and the Sinkronisasi / Sinkronisasi Ulang actions with per-phase progress, over the sync service.</subpage>
       </subpages>
     </page>
 
@@ -1327,7 +1400,7 @@
   <!-- Open work                                                            -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <next_features>
-    <feature name="sync_rebuild" status="planned">
+    <feature name="sync_rebuild" status="done">
       <description>Build a sync service over the current schema (soft `_deleted_at`, nested product/record payloads, per-entity unsync reads) and restore the Sinkronisasi screen and floating status pill designed in &lt;sync_ui_design&gt;. The server contract is in backend-docs/openapi.yaml.</description>
     </feature>
     <feature name="record_list_flag_filter" status="planned">
@@ -1336,8 +1409,116 @@
     <feature name="analytics_server_side" status="exploring">
       <description>Analytics currently reads every record in the range and aggregates in SQL per question. If a shop's history outgrows that, the aggregates move behind materialised per-day tables.</description>
     </feature>
-    <feature name="product_event_batching" status="not-wired">
-      <description>When sync is rebuilt: split product-event pull into batches so a shop with many products does not send one oversized list of ids.</description>
+    <feature name="product_event_batching" status="done">
+      <description>Superseded by the byte-stream protocol: events travel as their own frames in the fixed entity order, so there is no per-product id list to batch.</description>
+    </feature>
+    <!-- Sync roadmap. v1 is manual, rows-only, one device; everything below is additive
+         on the wire (backend contract §12), so no item needs a protocol version bump.
+         README.md carries the same list with the full rationale. -->
+    <feature name="sync_automatic" status="planned" priority="1">
+      <description>
+        Manual only today: one button on Setting → Sinkronisasi. `service.sync.run()` is
+        already an Effect fiber with a progress stream and a cancel path, so this is policy,
+        not plumbing. Triggers: debounced ~30 s after a record commit, once on app start after
+        the cart is restored, on window focus / machine resume, and a ~15 min idle safety net;
+        never while `transaction` holds an uncommitted cart (a merge refreshes product refs).
+        Retry transport failures with exponential backoff (5 s → 10 m, jitter); never auto-retry
+        401/400 — a wrong token needs the operator. Single-flight via the existing `running`
+        ref. Requires sync_status_pill so a background write is never invisible.
+      </description>
+    </feature>
+    <feature name="sync_status_pill" status="planned" priority="2">
+      <description>
+        The run is only visible on the Sinkronisasi screen, which is acceptable while sync is
+        manual and wrong once it is automatic. The design exists (&lt;sync_ui_design&gt;): a compact
+        pill in the AuthLayout showing phase, last success and a retry affordance, subscribing to
+        the same `service.sync.progress` stream. UI work plus a decision on where a failure that
+        happened off-screen gets acknowledged.
+      </description>
+    </feature>
+    <feature name="sync_blob_frames" status="planned" priority="3">
+      <description>
+        Image ROWS sync (a restored device knows which picture belongs to which product/record);
+        the bytes under AppData/images/ do not, so it renders placeholders. Needs the reserved
+        `blob` frame (contract §9), /v1/blob/:sha256 backed by R2, and an `image_sha` column on
+        `images` / `record_images` so a row names content rather than a local filename. Upload
+        after the referencing row, download lazily with a placeholder, dedupe by content hash,
+        and a GC pass for the bytes of replaced images.
+      </description>
+    </feature>
+    <feature name="sync_upload_resume" status="explored" priority="4">
+      <description>
+        A run starts a fresh upload session, so a crash mid-push re-sends everything (nothing is
+        lost — frames are idempotent — but a first full push over a slow uplink pays twice). One
+        field fixes it: GET /v1/upload/:id must expose the session's `prefix_sha`. The client
+        already persists `sync.upload_chain`, so `openSession` could verify at + frames + prefix
+        against its own record and continue instead of deleting the session.
+      </description>
+    </feature>
+    <feature name="sync_token_keychain" status="planned" priority="5">
+      <description>
+        `sync.token` is plain text in store.json. Move it to the OS credential store through a
+        small Rust command pair (Windows Credential Manager, Secret Service on Linux), keeping
+        only the endpoint in store.json. `config.get` reports whether a token is stored; a missing
+        token becomes a re-enter state that does not wipe the cursors.
+      </description>
+    </feature>
+    <feature name="sync_stale_notice" status="planned" priority="6">
+      <description>
+        A `stale` ack silently rewrites the local row — correct per contract §5.2, invisible to
+        the operator, and a real event when it is a renamed product or a re-priced listing. Keep
+        the last N stale merges (entity, id, changed columns, both clocks) and surface them on the
+        Sinkronisasi screen ("3 data diperbarui dari server") behind a disclosure. No protocol
+        change: the winning row already arrives in the ack.
+      </description>
+    </feature>
+    <feature name="sync_multi_device" status="exploring" priority="7">
+      <description>
+        The protocol is written for the general case (LWW, server tiebreak, `sync_seq` cursor) and
+        the pull cursor refuses to advance past a second writer's rows. Unproven rather than
+        missing: `stocks` is derived locally from the journal (both devices should reach the same
+        lots — wants a test), `record_pair_id` may name a twin that arrives later, and there is no
+        stable device id. Needs an X-Device-Id header, a two-mirror test over test-backend.ts, and
+        only then the sanctioned `sync_change` log if re-materialising pull snapshots gets heavy.
+      </description>
+    </feature>
+    <feature name="sync_per_entity_sessions" status="explored" priority="8">
+      <description>
+        One upload session covers all fourteen entities, so an oversized entity blocks everything
+        behind it. Contract §12 sanctions a session per entity: simpler failure isolation, at the
+        cost of more sessions. Worth doing only after sync_upload_resume, which removes most of the
+        re-send that a failed session costs today.
+      </description>
+    </feature>
+    <feature name="sync_tombstone_gc" status="planned" priority="9">
+      <description>
+        Soft-deleted rows are never removed on either side, so both databases grow with every
+        deletion. A `_deleted_at` older than ~90 days and already synced could be purged — but only
+        under a protocol rule that also stops a late-joining device from resurrecting it, since the
+        tombstone is the only thing preventing that.
+      </description>
+    </feature>
+    <feature name="sync_diagnostics" status="planned" priority="10">
+      <description>
+        Errors reach the app log (Setting → Log) but there is no sync-specific view: no last-run
+        summary, no per-entity counts, no record of a 409 replay_mismatch or a chain divergence. A
+        panel reading the same progress/report values would turn "it didn't sync" into one line.
+      </description>
+    </feature>
+    <feature name="sync_ranged_first_sync" status="exploring" priority="11">
+      <description>
+        A shop with years of history must upload all of it before the mirror is complete, and a
+        restored device must download all of it to answer a question about today. A first-sync
+        window ("last 12 months, then catch up") needs server support in the pull, plus a decision
+        about what a partial mirror means for reports.
+      </description>
+    </feature>
+    <feature name="sync_mobile_client" status="exploring" priority="12">
+      <description>
+        The protocol admits one (no user table, one token, LWW). It would want the image blobs, a
+        smaller pull page, and a read-only stance that never pushes a `record` — a phone should not
+        become a second author of the sales history without an explicit decision.
+      </description>
     </feature>
   </next_features>
 

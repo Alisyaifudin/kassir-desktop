@@ -196,6 +196,7 @@ export const MethodLive = Layer.effect(
           });
         },
       },
+      refresh: () => hydrate(),
     };
   }),
 );

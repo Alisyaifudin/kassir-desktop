@@ -31,6 +31,9 @@ import { RecordService } from "./record";
 import { RecordLive } from "./record/live";
 import { SocialService } from "./social";
 import { SocialLive } from "./social/live";
+import { SyncService } from "./sync";
+import { SyncLive } from "./sync/live";
+import { SyncTransportLive } from "./sync/transport";
 import { StoreService } from "./store";
 import { StoreLive } from "./store/live";
 import { SupplierService } from "./supplier";
@@ -77,6 +80,26 @@ export function buildAppLive(hidden: HiddenLive) {
   // Auth also needs the cashier service to verify the session's id.
   const authLive = AuthLive.pipe(Layer.provide(hidden), Layer.provide(cashierLive));
 
+  // Sync writes rows straight into SQLite, so it depends on every service whose
+  // ref caches those rows — it refreshes each of them after a merge. The layers
+  // are already built above; providing them again is how the dependency is
+  // declared without re-instantiating the services (and their refs).
+  const syncLive = SyncLive.pipe(
+    Layer.provide(hidden),
+    Layer.provide(SyncTransportLive),
+    Layer.provide(
+      Layer.mergeAll(
+        productLive,
+        customerLive,
+        supplierLive,
+        extraLive,
+        methodLive,
+        moneyLive,
+        socialLive,
+      ),
+    ),
+  );
+
   return Layer.mergeAll(
     analyticsLive,
     configLive,
@@ -96,6 +119,7 @@ export function buildAppLive(hidden: HiddenLive) {
     transactionLive,
     zoomLive,
     authLive,
+    syncLive,
     hidden,
   );
 }
@@ -132,6 +156,7 @@ export function makeService(live: typeof appLive) {
         transaction: yield* TransactionService,
         zoom: yield* ZoomService,
         auth: yield* AuthService,
+        sync: yield* SyncService,
       };
     }).pipe(Effect.provide(live)),
   );

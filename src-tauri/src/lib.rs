@@ -5,11 +5,16 @@ mod database;
 mod export;
 mod printer;
 mod receipt;
+mod sync;
+mod sync_merge;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let database_migs = database::generate_migration();
     let builder = tauri::Builder::default()
+        // The sync transport's state: cancellation flags plus one shared HTTP
+        // client (so one connection pool serves every pull and chunk).
+        .manage(sync::SyncState::default())
         // Registered first, before any window or database plugin initialises: the
         // plugin must win the race on the instance lock. One process per machine
         // is the model — the app preloads a fixed `sqlite:data.db` and keeps the
@@ -41,6 +46,15 @@ pub fn run() {
             printer::get_printers,
             printer::print_receipt,
             export::export_file,
+            sync::sync_health,
+            sync::sync_create_session,
+            sync::sync_get_session,
+            sync::sync_delete_session,
+            sync::sync_pull,
+            sync::sync_upload_chunk,
+            sync::sync_chain,
+            sync::sync_cancel,
+            sync_merge::sync_merge,
         ]);
 
     // Debug-only MCP bridge for AI/e2e automation.

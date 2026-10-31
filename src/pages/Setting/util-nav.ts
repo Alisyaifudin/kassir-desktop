@@ -1,4 +1,12 @@
-import { Building2, Database, Printer, ScrollText, User, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  Database,
+  Printer,
+  RefreshCw,
+  ScrollText,
+  User,
+  type LucideIcon,
+} from "lucide-react";
 import type { Role } from "~/services/cashier";
 
 type Section = "Akun" | "Toko" | "Sistem";
@@ -51,6 +59,15 @@ const settingsNav: NavItem[] = [
     description: "Unduh dan unggah data aplikasi",
     icon: Database,
     hue: 55,
+    section: "Sistem",
+    roles: ["admin"],
+  },
+  {
+    label: "Sinkronisasi",
+    path: "/setting/sync",
+    description: "Hubungkan aplikasi ke server dan kirim data",
+    icon: RefreshCw,
+    hue: 230,
     section: "Sistem",
     roles: ["admin"],
   },

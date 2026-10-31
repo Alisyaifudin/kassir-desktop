@@ -14,6 +14,9 @@ import { DatabaseService, DbError, type Binding, type Statement } from ".";
  */
 export function makeTestDatabase() {
   const db = new Database(":memory:");
+  // Counted so a caller can assert a *batch* really was one call (the sync merge
+  // promises "one transaction for the whole pull").
+  const counters = { transactions: 0 };
   const files = [...new Glob("src-tauri/src/database/**/migration-*.sql").scanSync(".")];
   files.sort((a, b) => {
     const n = (s: string) => Number(s.match(/migration-(\d+)\.sql/)?.[1] ?? 0);
@@ -49,6 +52,7 @@ export function makeTestDatabase() {
       }),
     transaction: (statements: Statement[]) =>
       Effect.gen(function* () {
+        counters.transactions += 1;
         yield* run("BEGIN");
         yield* Effect.forEach(
           statements,
@@ -65,5 +69,5 @@ export function makeTestDatabase() {
       }),
   });
 
-  return { db, layer };
+  return { db, layer, counters };
 }

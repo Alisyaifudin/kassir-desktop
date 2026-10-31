@@ -127,6 +127,7 @@ export const SocialLive = Layer.effect(
           });
         },
       },
+      refresh: () => hydrate(),
     };
   }),
 );

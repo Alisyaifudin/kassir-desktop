@@ -158,6 +158,7 @@ export const CustomerLive = Layer.effect(
           });
         },
       },
+      refresh: () => hydrate(),
     };
   }),
 );

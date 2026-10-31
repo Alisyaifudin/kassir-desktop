@@ -5,14 +5,24 @@ The backend OpenAPI spec is at: `http://192.168.225.187:8787/api/docs/openapi.ya
 VITE_API_URL is in `.env.local` (never read plain `.env`).
 
 ## Sync Pattern
-Sync components follow a pull/merge/push loop pattern. Each entity has:
-- `src/server/{entity}/` — API calls (get.ts, post.ts)
-- `src/lib/sync/{entity}/` — sync logic (pull.ts, merge.ts, push.ts, index.ts)
-- `src/database/{entity}/` — local DB operations
-- `src/store/sync/{entity}.ts` — last-pull timestamp persistence
+The wire contract is `backend-docs/sync-contract.md` (client mirror of the backend's
+`docs/SYNC-CONTRACT.md`). It is a byte-stream protocol, not the old REST/timestamp API:
+NDJSON frames, a sha256 prefix chain, LWW on `_updated_at`.
 
-Sync components are listed in `src/pages/Setting/Sync/z-Sync.tsx`.
-The sync loop runs up to 1000 iterations, stopping when both `count.server === 0` and `count.unsync === 0`.
+- `src-tauri/src/sync.rs` — the HTTP + stream transport. The webview cannot reach the
+  sync host (CSP) and has no streaming body, so pulls and upload acks are read here and
+  pushed to JS over a Tauri `Channel`. Commands: `sync_health`, `sync_create_session`,
+  `sync_get_session`, `sync_delete_session`, `sync_pull`, `sync_upload_chunk`,
+  `sync_chain`, `sync_cancel`.
+- `src/services/sync/` — the service. `schema.ts` is the single source of the canonical
+  column order; `frames.ts` encodes/decodes, `sql.ts` builds the merge SQL, `merge.ts`
+  applies the contract's merge rules, `pull.ts`/`push.ts` are the loops, `stream.ts` is
+  the Streams-API polyfill over the channel, `transport.ts` wraps the Rust commands,
+  `live.ts` wires cursors (store.json `sync.*`), progress and service refreshes.
+- `src/pages/Setting/Sync/` — the Sinkronisasi screen (admin-only).
+
+Merges never go through a page: the sync service owns the mirror SQL and then calls the
+owning service's `refresh()` so the UI refs see the merged rows.
 
 ## Project Structure
 - `src/pages/` — route-based page components

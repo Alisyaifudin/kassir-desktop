@@ -161,6 +161,7 @@ export const ExtraLive = Layer.effect(
           });
         },
       },
+      refresh: () => hydrate(),
     };
   }),
 );

@@ -29,6 +29,11 @@ export type MethodInput = {
 export class MethodService extends Context.Tag("MethodService")<
   MethodService,
   {
+    /**
+     * Re-reads the method catalog after a sync merge. Names, kinds and tombstones
+     * can all arrive from the server; the ref the POS reads is hydrated once.
+     */
+    refresh: () => Effect.Effect<void, MethodError>;
     get: {
       all: () => Effect.Effect<Method[], MethodError>;
       catalog: () => Effect.Effect<MethodCatalog, MethodError>;

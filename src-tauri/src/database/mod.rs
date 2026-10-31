@@ -278,5 +278,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-46.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 47,
+            description: "queue_rows_for_first_sync",
+            sql: include_str!("../../src/database/41-50/migration-47.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
