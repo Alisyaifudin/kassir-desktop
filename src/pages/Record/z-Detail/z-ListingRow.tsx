@@ -24,7 +24,7 @@ export function ListingRow({
         <TableCell>{listing.name}</TableCell>
         <TableCell className="text-end">
           <span className="flex items-center gap-1 justify-end">
-            <GotoProductBtn recordId={record.id} productId={listing.productId ?? undefined} />
+            <GotoProductBtn productId={listing.productId ?? undefined} />
             {roundToFix(listing.price, record.fix).toLocaleString("id-ID")}
           </span>
         </TableCell>
