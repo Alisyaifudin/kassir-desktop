@@ -284,5 +284,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/41-50/migration-47.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 48,
+            description: "drop_parked_old_tables",
+            sql: include_str!("../../src/database/41-50/migration-48.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
