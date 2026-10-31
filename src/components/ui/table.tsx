@@ -4,10 +4,18 @@ import { cn } from "../../lib/utils";
 
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement> & { parentClass?: string }
->(({ className, parentClass, ...props }, ref) => {
+  React.HTMLAttributes<HTMLTableElement> & {
+    parentClass?: string;
+    /**
+     * The scrolling wrapper, for callers that virtualize: the scroll element is
+     * the div around the table, not the table itself.
+     */
+    parentRef?: React.Ref<HTMLDivElement>;
+  }
+>(({ className, parentClass, parentRef, ...props }, ref) => {
   return (
     <div
+      ref={parentRef}
       className={cn("relative w-full overflow-y-auto max-h-full h-auto", parentClass)}
     >
       <table
