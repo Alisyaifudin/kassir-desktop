@@ -7,10 +7,17 @@ import { service } from "~/services";
 import type { DailyStat, PaymentStat } from "~/services/analytics";
 import type { DebtRecord } from "~/services/record";
 import { useRange } from "../use-range";
-import { ChartEmpty, ChartFrame, TOOLTIP, chartColor, money } from "../z-Chart";
+import { ChartEmpty, ChartFrame, TOOLTIP_STYLE, chartColor, money } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
 import { Stat } from "../z-Stat";
+
+/** The slice's method name and its rupiah figure, both stable across renders. */
+function paymentTooltip(value: unknown, name: unknown): [string, string] {
+  const key = String(name ?? "");
+  const label = (METHOD_NAMES as Record<string, string>)[key];
+  return [money(Number(value)), label ?? key];
+}
 
 /** How the money arrived, and how much of the period is still unpaid. */
 export default function Page() {
@@ -94,14 +101,7 @@ function Body({
             <div className="h-full min-w-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Tooltip
-                    {...TOOLTIP}
-                    formatter={(value, name) => {
-                      const key = String(name ?? "");
-                      const label = (METHOD_NAMES as Record<string, string>)[key];
-                      return [money(Number(value)), label ?? key];
-                    }}
-                  />
+                  <Tooltip {...TOOLTIP_STYLE} formatter={paymentTooltip} />
                   <Pie
                     data={payments}
                     dataKey="total"

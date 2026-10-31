@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, memo, useMemo, useState } from "react";
 import { useDebounce } from "use-debounce";
 import { Stream } from "effect";
 import { Link } from "react-router";
@@ -15,7 +15,17 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Pencil } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type TooltipProps,
+  type YAxisTickContentProps,
+} from "recharts";
 import { Loader, useQuery } from "~/components/Loader";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -47,10 +57,12 @@ import {
   ChartEmpty,
   ChartFrame,
   COLORS,
-  TOOLTIP,
+  RADIUS_START,
+  RANK_MARGIN,
+  TOOLTIP_STYLE,
+  chartGeometry,
   money,
   moneyTick,
-  chartGeometry,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton } from "../z-Loading";
@@ -64,6 +76,37 @@ const METRICS: { key: Metric; label: string }[] = [
 ];
 
 const PAGE_SIZES = [25, 50, 100];
+
+/**
+ * One tooltip formatter per metric, resolved once.
+ *
+ * Recharts compares the props it is handed, so a formatter built inside the JSX
+ * is a new function on every render — see the note in `z-Chart` on the update
+ * loop that identity churn used to cause.
+ */
+const TOOLTIP_OF: Record<Metric, TooltipProps["formatter"]> = {
+  revenue: (value) => money(Number(value)),
+  qty: (value) => Number(value).toLocaleString("id-ID"),
+  margin: (value) => money(Number(value)),
+};
+
+/** Category labels down the side of the ranking, truncated to fit the gutter. */
+function ProductTick(props: YAxisTickContentProps) {
+  const label = String((props.payload as { value?: unknown } | undefined)?.value ?? "");
+  return (
+    <text
+      x={props.x}
+      y={props.y}
+      dx={-12}
+      dy={5}
+      textAnchor="end"
+      fill="var(--muted-foreground)"
+      fontSize={chartGeometry.tick.fontSize}
+    >
+      {label.length > 18 ? `${label.slice(0, 17)}…` : label}
+    </text>
+  );
+}
 
 /**
  * Every product that moved in the period, not a top-N: the chart shows the
@@ -98,6 +141,15 @@ export default function Page() {
   );
 }
 
+/**
+ * The period's products, in the two views that read them.
+ *
+ * The controls, the ranking and the table are three components rather than one
+ * because they change for different reasons: picking `Laba` must not re-render a
+ * table of five thousand rows, and typing in the table's search box must not
+ * re-render a chart. `groups` is the same array for all of them, so the memoised
+ * halves only re-render when the period or the metric actually moves.
+ */
 function Body({
   groups,
   from,
@@ -115,21 +167,139 @@ function Body({
   metric: Metric;
   onMetric: (metric: Metric) => void;
 }) {
-  const geo = chartGeometry;
-  const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
-  const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [globalFilter, setGlobalFilter] = useState("");
-  // The field holds every keystroke; the table filters on the settled value.
-  // Filtering and re-sorting the whole product list per keystroke is what made
-  // the box feel slow to type in, and it painted a half-word's rows for a frame
-  // between keys.
-  const settledFilter = useDebounce(globalFilter, SEARCH_DELAY);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1" role="group" aria-label="Jenis transaksi">
+          <Button
+            size="sm"
+            variant={mode === "incoming" ? "default" : "ghost"}
+            aria-pressed={mode === "incoming"}
+            onClick={() => onMode("incoming")}
+          >
+            {MODE_NAMES.incoming}
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === "outcoming" ? "default" : "ghost"}
+            aria-pressed={mode === "outcoming"}
+            onClick={() => onMode("outcoming")}
+          >
+            {MODE_NAMES.outcoming}
+          </Button>
+        </div>
+        <div
+          className="flex items-center gap-0.5 rounded-md border bg-muted p-0.5"
+          role="group"
+          aria-label="Ukuran peringkat"
+        >
+          {METRICS.map((option) => (
+            <Button
+              key={option.key}
+              size="sm"
+              variant={metric === option.key ? "default" : "ghost"}
+              aria-pressed={metric === option.key}
+              className="rounded-sm"
+              onClick={() => onMetric(option.key)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
+      {groups.length === 0 ? (
+        <ChartFrame title="Produk teratas">
+          <ChartEmpty>Belum ada barang pada periode ini.</ChartEmpty>
+        </ChartFrame>
+      ) : (
+        <>
+          <TopChart groups={groups} metric={metric} />
+          <ProductsTable groups={groups} from={from} to={to} mode={mode} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The leaders of the period, ranked by whichever figure the operator picked. */
+const TopChart = memo(function TopChart({
+  groups,
+  metric,
+}: {
+  groups: ProductGroup[];
+  metric: Metric;
+}) {
+  const geo = chartGeometry;
   const top = useMemo(
     () => [...groups].sort((a, b) => b[metric] - a[metric]).slice(0, 8),
     [groups, metric],
   );
   const fill = metric === "margin" ? COLORS.laba : metric === "qty" ? COLORS.net : COLORS.omzet;
+
+  return (
+    <ChartFrame
+      title="Produk teratas"
+      hint={metric === "qty" ? "jumlah terjual" : metric === "margin" ? "laba kotor" : "omzet"}
+      label="Grafik produk teratas"
+      chartClassName="h-[420px]"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={top}
+          layout="vertical"
+          margin={RANK_MARGIN}
+          barCategoryGap="26%"
+        >
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis
+            type="number"
+            tick={geo.tick}
+            tickFormatter={metric === "qty" ? undefined : moneyTick}
+            minTickGap={28}
+            tickMargin={8}
+          />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={geo.yWidth + 140}
+            interval={0}
+            tick={ProductTick}
+          />
+          <Tooltip {...TOOLTIP_STYLE} formatter={TOOLTIP_OF[metric]} />
+          <Bar dataKey={metric} name="Nilai" fill={fill} radius={RADIUS_START} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  );
+});
+
+/**
+ * All of the period's products: the search box, the sortable table, and the
+ * accordion of record lines behind each row.
+ *
+ * The search field holds every keystroke and the table filters on the settled
+ * value — filtering and re-sorting the whole list per keystroke is what made the
+ * box feel slow to type in.
+ */
+const ProductsTable = memo(function ProductsTable({
+  groups,
+  from,
+  to,
+  mode,
+}: {
+  groups: ProductGroup[];
+  from: number;
+  to: number;
+  mode: RecordMode;
+}) {
+  const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [globalFilter, setGlobalFilter] = useState("");
+  // `useDebounce` hands back `[value, controls]`; the filter wants the value.
+  // Passing the tuple made every row fail the match — the table read "0 dari 0
+  // produk" no matter what was typed.
+  const [settledFilter] = useDebounce(globalFilter, SEARCH_DELAY);
 
   const columns = useMemo<ColumnDef<ProductGroup>[]>(
     () => [
@@ -210,243 +380,129 @@ function Body({
   const last = Math.min(filtered, page * size + table.getRowModel().rows.length);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1" role="group" aria-label="Jenis transaksi">
-          <Button
-            size="sm"
-            variant={mode === "incoming" ? "default" : "ghost"}
-            aria-pressed={mode === "incoming"}
-            onClick={() => onMode("incoming")}
-          >
-            {MODE_NAMES.incoming}
-          </Button>
-          <Button
-            size="sm"
-            variant={mode === "outcoming" ? "default" : "ghost"}
-            aria-pressed={mode === "outcoming"}
-            onClick={() => onMode("outcoming")}
-          >
-            {MODE_NAMES.outcoming}
-          </Button>
-        </div>
-        <div
-          className="flex items-center gap-0.5 rounded-md border bg-muted p-0.5"
-          role="group"
-          aria-label="Ukuran peringkat"
-        >
-          {METRICS.map((option) => (
-            <Button
-              key={option.key}
-              size="sm"
-              variant={metric === option.key ? "default" : "ghost"}
-              aria-pressed={metric === option.key}
-              className="rounded-sm"
-              onClick={() => onMetric(option.key)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
+    <section className="flex min-w-0 flex-col rounded-xl border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b p-2">
+        <h2 className="text-sm font-semibold">Semua produk</h2>
+        <Input
+          value={globalFilter}
+          onChange={(event) => setGlobalFilter(event.currentTarget.value)}
+          placeholder="Cari produk"
+          aria-label="Cari produk"
+          className="w-[280px] max-w-full"
+        />
       </div>
 
-      {groups.length === 0 ? (
-        <ChartFrame title="Produk teratas">
-          <ChartEmpty>Belum ada barang pada periode ini.</ChartEmpty>
-        </ChartFrame>
-      ) : (
-        <>
-          <ChartFrame
-            title="Produk teratas"
-            hint={
-              metric === "qty" ? "jumlah terjual" : metric === "margin" ? "laba kotor" : "omzet"
-            }
-            label="Grafik produk teratas"
-            chartClassName="h-[420px]"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={top}
-                layout="vertical"
-                margin={{ top: 8, right: 20, left: 4, bottom: 8 }}
-                barCategoryGap="26%"
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={geo.tick}
-                  tickFormatter={metric === "qty" ? undefined : moneyTick}
-                  minTickGap={28}
-                  tickMargin={8}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={geo.yWidth + 140}
-                  interval={0}
-                  tick={(props) => {
-                    const label = String(
-                      (props.payload as { value?: unknown } | undefined)?.value ?? "",
-                    );
-                    const text = label.length > 18 ? `${label.slice(0, 17)}…` : label;
-                    return (
-                      <text
-                        x={props.x}
-                        y={props.y}
-                        dx={-12}
-                        dy={5}
-                        textAnchor="end"
-                        fill="var(--muted-foreground)"
-                        fontSize={geo.tick.fontSize}
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
-                />
-                <Tooltip
-                  {...TOOLTIP}
-                  formatter={(value) =>
-                    metric === "qty" ? Number(value).toLocaleString("id-ID") : money(Number(value))
-                  }
-                />
-                <Bar dataKey={metric} name="Nilai" fill={fill} radius={[0, 3, 3, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartFrame>
-
-          <section className="flex min-w-0 flex-col rounded-xl border bg-card">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b p-2">
-              <h2 className="text-sm font-semibold">Semua produk</h2>
-              <Input
-                value={globalFilter}
-                onChange={(event) => setGlobalFilter(event.currentTarget.value)}
-                placeholder="Cari produk"
-                aria-label="Cari produk"
-                className="w-[280px] max-w-full"
-              />
-            </div>
-
-            <Table
-              className="text-base"
-              parentClass="max-h-none overflow-visible"
-              aria-label="Semua produk pada periode ini"
-            >
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const sorted = header.column.getIsSorted();
-                      return (
-                        <TableHead
-                          key={header.id}
-                          aria-sort={
-                            sorted === "asc"
-                              ? "ascending"
-                              : sorted === "desc"
-                                ? "descending"
-                                : "none"
-                          }
-                          className={cn("whitespace-nowrap", ALIGN[header.column.id])}
-                        >
-                          {header.column.getCanSort() ? (
-                            <button
-                              type="button"
-                              onClick={header.column.getToggleSortingHandler()}
-                              className={cn(
-                                "flex w-full items-center gap-1 hover:text-foreground",
-                                ALIGN[header.column.id] === "text-right"
-                                  ? "justify-end"
-                                  : "justify-start",
-                              )}
-                            >
-                              {flexRender(header.column.columnDef.header, header.getContext())}
-                              {sorted === "asc" ? (
-                                <ArrowUp className="size-5" aria-hidden="true" />
-                              ) : sorted === "desc" ? (
-                                <ArrowDown className="size-5" aria-hidden="true" />
-                              ) : (
-                                <ArrowUpDown className="size-5 opacity-40" aria-hidden="true" />
-                              )}
-                            </button>
-                          ) : (
-                            flexRender(header.column.columnDef.header, header.getContext())
-                          )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <Fragment key={row.id}>
-                    <TableRow className="hover:bg-muted/40">
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className={ALIGN[cell.column.id]}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                    {row.getIsExpanded() ? (
-                      <TableRow>
-                        <TableCell colSpan={row.getVisibleCells().length} className="p-0">
-                          <Instances group={row.original} from={from} to={to} mode={mode} />
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </Fragment>
-                ))}
-              </TableBody>
-            </Table>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
-              <span className="text-sm text-muted-foreground tabular-nums">
-                {first}–{last} dari {filtered} produk
-              </span>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={String(size)}
-                  onValueChange={(value) => table.setPageSize(Number(value))}
-                >
-                  <SelectTrigger
-                    aria-label="Baris per halaman"
-                    className="h-9 w-[180px] text-sm"
+      <Table
+        className="text-base"
+        parentClass="max-h-none overflow-visible"
+        aria-label="Semua produk pada periode ini"
+      >
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                const sorted = header.column.getIsSorted();
+                return (
+                  <TableHead
+                    key={header.id}
+                    aria-sort={
+                      sorted === "asc"
+                        ? "ascending"
+                        : sorted === "desc"
+                          ? "descending"
+                          : "none"
+                    }
+                    className={cn("whitespace-nowrap", ALIGN[header.column.id])}
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAGE_SIZES.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option} / hal
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!table.getCanPreviousPage()}
-                  onClick={() => table.previousPage()}
-                >
-                  Sebelumnya
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!table.getCanNextPage()}
-                  onClick={() => table.nextPage()}
-                >
-                  Berikutnya
-                </Button>
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-    </div>
+                    {header.column.getCanSort() ? (
+                      <button
+                        type="button"
+                        onClick={header.column.getToggleSortingHandler()}
+                        className={cn(
+                          "flex w-full items-center gap-1 hover:text-foreground",
+                          ALIGN[header.column.id] === "text-right"
+                            ? "justify-end"
+                            : "justify-start",
+                        )}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {sorted === "asc" ? (
+                          <ArrowUp className="size-5" aria-hidden="true" />
+                        ) : sorted === "desc" ? (
+                          <ArrowDown className="size-5" aria-hidden="true" />
+                        ) : (
+                          <ArrowUpDown className="size-5 opacity-40" aria-hidden="true" />
+                        )}
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <Fragment key={row.id}>
+              <TableRow className="hover:bg-muted/40">
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className={ALIGN[cell.column.id]}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+              {row.getIsExpanded() ? (
+                <TableRow>
+                  <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                    <Instances group={row.original} from={from} to={to} mode={mode} />
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </Fragment>
+          ))}
+        </TableBody>
+      </Table>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {first}–{last} dari {filtered} produk
+        </span>
+        <div className="flex items-center gap-2">
+          <Select value={String(size)} onValueChange={(value) => table.setPageSize(Number(value))}>
+            <SelectTrigger aria-label="Baris per halaman" className="h-9 w-[180px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZES.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option} / hal
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!table.getCanPreviousPage()}
+            onClick={() => table.previousPage()}
+          >
+            Sebelumnya
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!table.getCanNextPage()}
+            onClick={() => table.nextPage()}
+          >
+            Berikutnya
+          </Button>
+        </div>
+      </div>
+    </section>
   );
-}
+});
 
 /** Column alignment, keyed by column id — money and counts sit right. */
 const ALIGN: Record<string, string> = {

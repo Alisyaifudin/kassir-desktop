@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
@@ -94,29 +94,44 @@ export function useRange() {
   const raw = params.get("preset");
   const preset = PRESETS.some((option) => option.key === raw) ? (raw as Preset) : null;
 
-  const write = (next: { from: number; to: number; preset?: Preset; interval?: Interval }) => {
-    setParams(
-      (old) => {
-        const s = new URLSearchParams(old);
-        s.set("from", String(next.from));
-        s.set("to", String(next.to));
-        if (next.preset === undefined) s.delete("preset");
-        else s.set("preset", next.preset);
-        if (next.interval !== undefined) s.set("interval", next.interval);
-        return s;
-      },
-      { replace: true },
-    );
-  };
+  // Every setter is `useCallback`-stable. Callers put them in effect deps
+  // (`WeekPicker` snaps a loose range to its week), and a fresh closure each
+  // render made that effect re-run on every render — one of the two loops that
+  // froze this route.
+  const write = useCallback(
+    (next: { from: number; to: number; preset?: Preset; interval?: Interval }) => {
+      setParams(
+        (old) => {
+          const s = new URLSearchParams(old);
+          s.set("from", String(next.from));
+          s.set("to", String(next.to));
+          if (next.preset === undefined) s.delete("preset");
+          else s.set("preset", next.preset);
+          if (next.interval !== undefined) s.set("interval", next.interval);
+          return s;
+        },
+        { replace: true },
+      );
+    },
+    [setParams],
+  );
 
   // A year at one bucket per day is 365 points; a year reads better by month.
-  const setPreset = (next: Preset) =>
-    write({ ...rangeFor(next), preset: next, interval: next === "year" ? "month" : "day" });
-  const setInterval = (next: Interval) =>
-    write({ from, to, preset: preset ?? undefined, interval: next });
+  const setPreset = useCallback(
+    (next: Preset) =>
+      write({ ...rangeFor(next), preset: next, interval: next === "year" ? "month" : "day" }),
+    [write],
+  );
+  const setInterval = useCallback(
+    (next: Interval) => write({ from, to, preset: preset ?? undefined, interval: next }),
+    [write, from, to, preset],
+  );
   /** A hand-picked period: `to` is exclusive, as everywhere else on these pages. */
-  const setRange = (nextFrom: number, nextTo: number) =>
-    write({ from: nextFrom, to: nextTo, interval });
+  const setRange = useCallback(
+    (nextFrom: number, nextTo: number) =>
+      write({ from: nextFrom, to: nextTo, interval }),
+    [write, interval],
+  );
 
   return { from, to, interval, preset, setPreset, setInterval, setRange } as const;
 }

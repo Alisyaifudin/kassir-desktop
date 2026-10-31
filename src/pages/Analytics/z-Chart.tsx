@@ -42,8 +42,30 @@ export function countTick(value: number): string {
   return value.toLocaleString("id-ID");
 }
 
-/** Tooltip lands in an inline style, so `var()` is safe there. */
-export const TOOLTIP = {
+/** Counts in the tooltip, for the two histogram charts. */
+export function countTooltip(value: unknown): string {
+  return `${Number(value).toLocaleString("id-ID")} transaksi`;
+}
+
+/**
+ * Everything recharts is handed, as constants.
+ *
+ * These cannot be object literals in the JSX. Recharts keeps each chart's state
+ * in a store and dispatches into it from effects, comparing the props it is
+ * given: `contentStyle={{…}}`, `margin={{…}}`, `radius={[…]}` and inline
+ * `formatter`/`shape`/`tick` functions are a new identity on every render, so
+ * each render looked like a change, dispatched another update, and the next
+ * render produced another fresh object — a feedback loop that never settles.
+ * It is what froze `/analytics`: `Maximum update depth exceeded` on repeat in
+ * the console, the page's DOM stuck at its last commit, and eventually the
+ * WebKit renderer wedged while every script call timed out.
+ *
+ * So: a prop reaching recharts is either a constant here, or built in a
+ * `useMemo`. Never an inline literal, never an inline function.
+ *
+ * The tooltip's style lands in an inline style, so `var()` is safe there.
+ */
+export const TOOLTIP_STYLE = {
   contentStyle: {
     background: "var(--popover)",
     border: "1px solid var(--border)",
@@ -51,8 +73,21 @@ export const TOOLTIP = {
     color: "var(--popover-foreground)",
   },
   labelStyle: { color: "var(--muted-foreground)" },
-  formatter: (value: unknown) => money(Number(value)),
 } as const;
+
+/** Rupiah in the tooltip, for the pages whose every series is money. */
+export function moneyTooltip(value: unknown): string {
+  return money(Number(value));
+}
+
+/** Plot margins: the default, and the ranked chart's wider label gutter. */
+export const CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 } as const;
+export const RANK_MARGIN = { top: 8, right: 20, left: 4, bottom: 8 } as const;
+
+/** Corner radii. Arrays compare by identity, so they live out here too. */
+export const RADIUS_TOP: [number, number, number, number] = [3, 3, 0, 0];
+export const RADIUS_BOTTOM: [number, number, number, number] = [0, 0, 3, 3];
+export const RADIUS_START: [number, number, number, number] = [0, 3, 3, 0];
 
 /** Axis geometry. SVG attributes cannot read CSS variables, so these stay concrete. */
 export const chartGeometry = {

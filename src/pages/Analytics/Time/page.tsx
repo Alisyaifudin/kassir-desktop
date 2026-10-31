@@ -7,13 +7,16 @@ import { service } from "~/services";
 import type { HourStat, WeekdayStat } from "~/services/analytics";
 import { useRange } from "../use-range";
 import {
+  CHART_MARGIN,
   ChartEmpty,
   ChartFrame,
   COLORS,
-  TOOLTIP,
-  countTick,
-  money,
+  RADIUS_TOP,
+  TOOLTIP_STYLE,
   chartGeometry,
+  countTick,
+  countTooltip,
+  money,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -65,6 +68,11 @@ function useHourWindow() {
   };
 
   return { hours, setHours, save } as const;
+}
+
+/** The tooltip's heading for the hour histogram, stable across renders. */
+function hourLabel(label: unknown): string {
+  return `Pukul ${String(label)}.00`;
 }
 
 /** When the counter is busy: by hour of day, and by weekday of the week. */
@@ -173,16 +181,16 @@ function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] 
         }
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={shown} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <BarChart data={shown} margin={CHART_MARGIN}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" tick={geo.tick} interval={0} minTickGap={12} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={countTick} />
             <Tooltip
-              {...TOOLTIP}
-              labelFormatter={(label) => `Pukul ${label}.00`}
-              formatter={(value) => `${Number(value).toLocaleString("id-ID")} transaksi`}
+              {...TOOLTIP_STYLE}
+              labelFormatter={hourLabel}
+              formatter={countTooltip}
             />
-            <Bar dataKey="count" name="Transaksi" fill={COLORS.omzet} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="count" name="Transaksi" fill={COLORS.omzet} radius={RADIUS_TOP} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>
@@ -193,15 +201,12 @@ function Body({ hours, weekdays }: { hours: HourStat[]; weekdays: WeekdayStat[] 
         label="Grafik transaksi per hari"
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={byDay} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <BarChart data={byDay} margin={CHART_MARGIN}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" tick={geo.tick} minTickGap={28} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={countTick} />
-            <Tooltip
-              {...TOOLTIP}
-              formatter={(value) => `${Number(value).toLocaleString("id-ID")} transaksi`}
-            />
-            <Bar dataKey="count" name="Transaksi" fill={COLORS.net} radius={[3, 3, 0, 0]} />
+            <Tooltip {...TOOLTIP_STYLE} formatter={countTooltip} />
+            <Bar dataKey="count" name="Transaksi" fill={COLORS.net} radius={RADIUS_TOP} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>

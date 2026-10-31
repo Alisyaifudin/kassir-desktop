@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Effect, Stream } from "effect";
 import {
   Bar,
@@ -15,13 +16,17 @@ import type { DailyStat, MarginStat } from "~/services/analytics";
 import { bucketise } from "../util-bucket";
 import { useRange, type Interval } from "../use-range";
 import {
+  CHART_MARGIN,
   ChartEmpty,
   ChartFrame,
   COLORS,
-  TOOLTIP,
+  RADIUS_BOTTOM,
+  RADIUS_TOP,
+  TOOLTIP_STYLE,
+  chartGeometry,
   money,
   moneyTick,
-  chartGeometry,
+  moneyTooltip,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -74,6 +79,22 @@ type MarginBarProps = {
   payload?: { margin?: number };
 };
 
+/**
+ * A loss buckets below zero and reads red, not green — the sign decides the ink.
+ * Hoisted out of the JSX on purpose: a `shape` written inline is a new component
+ * type on every render, which is the identity churn described in `z-Chart`.
+ */
+function MarginBar(props: MarginBarProps) {
+  const negative = (props.payload?.margin ?? 0) < 0;
+  return (
+    <Rectangle
+      {...props}
+      fill={negative ? COLORS.pengeluaran : COLORS.laba}
+      radius={negative ? RADIUS_BOTTOM : RADIUS_TOP}
+    />
+  );
+}
+
 function Body({
   margins,
   daily,
@@ -88,7 +109,12 @@ function Body({
   interval: Interval;
 }) {
   const geo = chartGeometry;
-  const buckets = bucketise(daily, margins, from, to, interval);
+  // `bucketise` walks every row through Temporal, so it is memoised rather than
+  // recomputed on each render — see the note in `z-Chart`.
+  const buckets = useMemo(
+    () => bucketise(daily, margins, from, to, interval),
+    [daily, margins, from, to, interval],
+  );
   const margin = margins.reduce((sum, row) => sum + row.margin, 0);
   const costed = margins.reduce((sum, row) => sum + row.costed, 0);
   const omzet = daily
@@ -129,25 +155,12 @@ function Body({
         label="Grafik laba kotor"
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <BarChart data={buckets} margin={CHART_MARGIN}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" tick={geo.tick} minTickGap={28} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={moneyTick} />
-            <Tooltip {...TOOLTIP} />
-            <Bar
-              dataKey="margin"
-              name="Laba kotor"
-              shape={(props: MarginBarProps) => {
-                const negative = (props.payload?.margin ?? 0) < 0;
-                return (
-                  <Rectangle
-                    {...props}
-                    fill={negative ? COLORS.pengeluaran : COLORS.laba}
-                    radius={negative ? [0, 0, 3, 3] : [3, 3, 0, 0]}
-                  />
-                );
-              }}
-            />
+            <Tooltip {...TOOLTIP_STYLE} formatter={moneyTooltip} />
+            <Bar dataKey="margin" name="Laba kotor" shape={MarginBar} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>

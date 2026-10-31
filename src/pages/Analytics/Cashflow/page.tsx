@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Effect, Stream } from "effect";
 import {
   Area,
@@ -5,7 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  Rectangle,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,17 +18,41 @@ import type { DailyStat, MarginStat } from "~/services/analytics";
 import { bucketise } from "../util-bucket";
 import { useRange, type Interval } from "../use-range";
 import {
+  CHART_MARGIN,
   ChartEmpty,
   ChartFrame,
   COLORS,
-  TOOLTIP,
-  money,
-  moneyTick,
+  RADIUS_TOP,
+  TOOLTIP_STYLE,
   chartGeometry,
+  money,
+  moneyTooltip,
+  moneyTick,
 } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
 import { Stat } from "../z-Stat";
+
+/**
+ * The net bar's ink follows its sign: a period that spent more than it earned
+ * reads red. One `shape` for the whole series rather than a `<Cell>` per bucket —
+ * a year plotted by day meant 365 React elements and 365 SVG rects, and the
+ * function's identity has to be stable or recharts re-renders them forever (see
+ * `z-Chart`).
+ */
+type NetBarProps = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  radius?: number | [number, number, number, number];
+  payload?: { net?: number };
+};
+
+function NetBar(props: NetBarProps) {
+  const negative = (props.payload?.net ?? 0) < 0;
+  return <Rectangle {...props} fill={negative ? COLORS.pengeluaran : COLORS.laba} radius={RADIUS_TOP} />;
+}
 
 /** What came in, what went out, and the difference between them. */
 export default function Page() {
@@ -76,7 +101,13 @@ function Body({
   interval: Interval;
 }) {
   const geo = chartGeometry;
-  const buckets = bucketise(daily, margins, from, to, interval);
+  // Derived once per answer, not once per render: `bucketise` parses a local
+  // date per row through Temporal, and a render triggered by a hover would pay
+  // for all of them again.
+  const buckets = useMemo(
+    () => bucketise(daily, margins, from, to, interval),
+    [daily, margins, from, to, interval],
+  );
   const incoming = daily.filter((row) => row.mode === "incoming");
   const outgoing = daily.filter((row) => row.mode === "outcoming");
   const omzet = incoming.reduce((sum, row) => sum + row.total, 0);
@@ -113,11 +144,11 @@ function Body({
         label="Grafik omzet dan pengeluaran"
       >
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={buckets} margin={CHART_MARGIN}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" tick={geo.tick} minTickGap={28} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={moneyTick} />
-            <Tooltip {...TOOLTIP} />
+            <Tooltip {...TOOLTIP_STYLE} formatter={moneyTooltip} />
             <Area
               type="monotone"
               dataKey="omzet"
@@ -146,16 +177,12 @@ function Body({
         label="Grafik arus kas bersih"
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <BarChart data={buckets} margin={CHART_MARGIN}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" tick={geo.tick} minTickGap={28} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={moneyTick} />
-            <Tooltip {...TOOLTIP} />
-            <Bar dataKey="net" name="Bersih" radius={[3, 3, 0, 0]}>
-              {buckets.map((bucket) => (
-                <Cell key={bucket.start} fill={bucket.net < 0 ? COLORS.pengeluaran : COLORS.laba} />
-              ))}
-            </Bar>
+            <Tooltip {...TOOLTIP_STYLE} formatter={moneyTooltip} />
+            <Bar dataKey="net" name="Bersih" radius={RADIUS_TOP} shape={NetBar} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>
