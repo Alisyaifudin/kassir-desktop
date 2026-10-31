@@ -1,6 +1,6 @@
 import { Pencil } from "lucide-react";
 import { memo } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation } from "~/services/route/react";
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { urlBackOf } from "~/lib/utils";
@@ -18,23 +18,23 @@ import { urlBackOf } from "~/lib/utils";
  * pane that previews a record on `/records` itself has no `url_back` to hand on:
  * the listing *is* the screen, so it says so, selection and all. A record reached
  * by a bare deep link or bookmark has neither and names `/records` plainly.
+ *
+ * The link pushes: the product is a new screen, and the stack is what makes the way
+ * out of it correct without anyone guessing — `Back` returns to this record, and
+ * `Back` again to the list it was read on.
  */
-export const GotoProductBtn = memo(function GotoProductBtn({
-  productId,
-}: {
-  productId?: string;
-}) {
+export const GotoProductBtn = memo(function GotoProductBtn({ productId }: { productId?: string }) {
   const { pathname, search } = useLocation();
   const backURL =
-    urlBackOf(new URLSearchParams(search)) ??
-    (pathname === "/records" ? `${pathname}${search}` : "/records");
-
+    urlBackOf(new URLSearchParams(search), ["/"]) ??
+    (pathname.startsWith("/records") ? `${pathname}${search}` : "/records");
   return (
     <Show value={productId}>
       {(id) => (
         <>
           <Button asChild className="p-0" variant="link">
             <Link
+              behavior="push"
               to={{
                 pathname: `/products/${id}`,
                 search: `?url_back=${encodeURIComponent(backURL)}`,

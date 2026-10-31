@@ -1,5 +1,4 @@
-import { ArrowLeft } from "lucide-react";
-import { useLocation, useNavigate } from "react-router";
+import { useBack, useLocation } from "~/services/route/react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { Refresh } from "./z-Refresh";
@@ -7,6 +6,7 @@ import { SettingLink } from "./z-SettingLink";
 import { Title } from "./z-Title";
 import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { TopNavList } from "./z-TopNavList";
+import { BackBtn } from "~/components/BackBtn";
 
 const routeTitles: Record<string, string> = {
   "/": "Beranda",
@@ -28,8 +28,10 @@ const routeTitles: Record<string, string> = {
 
 export function Topbar() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const backUrl = useGetUrlBack("/");
+  // The screen this one was entered from, not a `url_back` the caller happened to
+  // pass: `useGetUrlBack` is only the fallback for a screen with nothing behind it
+  // — a deep link, or a webview that was relaunched here.
+  const back = useBack(useGetUrlBack("/"));
 
   // Find the title based on the start of the pathname
   const activeRoute = Object.keys(routeTitles)
@@ -45,14 +47,16 @@ export function Topbar() {
         <div className="flex items-center gap-3 h-full">
           {!isHome && (
             <Button
+              asChild
               variant="ghost"
               size="icon"
               aria-label="Kembali"
               title="Kembali"
-              onClick={() => navigate(backUrl)}
+              onClick={back}
               className="rounded-full hover:bg-sky-400/50 h-10 w-10"
             >
-              <ArrowLeft className="size-6" />
+              <BackBtn>
+              </BackBtn>
             </Button>
           )}
           <h1 className={cn("font-bold tracking-tight transition-all", "text-xl")}>

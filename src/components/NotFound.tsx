@@ -1,9 +1,11 @@
 import { MoveLeft, Home, TriangleAlert } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Link, useNavigate } from "react-router";
+import { Link, useBack } from "~/services/route/react";
 
 export function NotFound() {
-  const navigate = useNavigate();
+  // Nothing behind a 404 in particular — a mistyped link has no screen behind it —
+  // so the app's history answers when it can and the home screen is the fallback.
+  const back = useBack("/");
   return (
     <div className="flex flex-1 w-full flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors px-4">
       <div className="text-center space-y-6 max-w-md">
@@ -28,7 +30,7 @@ export function NotFound() {
           <Button
             variant="outline"
             className="gap-2 border-zinc-300 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-            onClick={() => navigate(-1)}
+            onClick={back}
           >
             <MoveLeft className="size-5" />
             Kembali

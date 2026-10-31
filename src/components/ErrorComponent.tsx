@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useBack, useNavigate } from "~/services/route/react";
 
 export function ErrorComponent({
   status,
@@ -9,7 +9,12 @@ export function ErrorComponent({
   children: React.ReactNode;
   title?: string;
 }) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  // A failed screen is still a screen in the history, so leaving it is the app's
+  // own back step; "Beranda" is a restart of the session's position rather than a
+  // new place to be, hence the replace.
+  const back = useBack("/");
+
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center space-y-4">
@@ -20,12 +25,12 @@ export function ErrorComponent({
         <p className="text-gray-600">{children}</p>
 
         <div className="flex gap-3 justify-center pt-4">
-          <button onClick={() => navigate(-1)} className="px-4 py-2 rounded border">
+          <button onClick={back} className="px-4 py-2 rounded border">
             Kembali
           </button>
 
           <button
-            onClick={() => navigate("/", { replace: true })}
+            onClick={() => navigate("/", { behavior: "replace" })}
             className="px-4 py-2 rounded bg-black text-white"
           >
             Beranda

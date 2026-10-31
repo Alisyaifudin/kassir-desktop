@@ -2,19 +2,24 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router";
+import { Effect } from "effect";
 import { useDialogLock } from "~/hooks/use-dialog-lock";
+import { RouteSync } from "~/services/route/react";
+import { route } from "~/services/route/instance";
 import { useEscapeBack } from "./use-escape-back";
 
 /**
  * Leaving the product detail with `Esc`.
  *
- * Two destinations, and which one it picks is the whole point: `url_back` when
- * the tab strip carried one, the router's own history when it did not — pushing
- * `/products` there would leave `Back` pointing at the screen it just left.
+ * It goes to the screen the detail was entered from, which is the app's own
+ * history — the list, the search, the pane, with the query it was left on. That
+ * used to be a `url_back` the caller carried, and the difference is the whole
+ * point: `url_back` is now only what a screen with *nothing* behind it returns to,
+ * because a link can claim a way back that the operator never took.
  *
- * The two reasons to stand down matter as much as the two destinations: Escape
- * is how a dialog closes and how a combobox drops its list, and neither may take
- * the page with it.
+ * The two reasons to stand down matter as much as the destination: Escape is how a
+ * dialog closes and how a combobox drops its list, and neither may take the page
+ * with it.
  */
 
 let at = "";
@@ -25,16 +30,35 @@ function Probe() {
   return null;
 }
 
+/**
+ * The screens behind the one showing, as the app's own history would hold them:
+ * `behind` in the order they were visited, then the screen under test.
+ */
+function seed(behind: string[], showing: string) {
+  const [first, ...rest] = [...behind, showing];
+  Effect.runSync(route.reset(first));
+  for (const url of rest) {
+    Effect.runSync(route.intend(url, "push"));
+    Effect.runSync(route.commit({ url, key: url }));
+  }
+}
+
 function harness({
-  entries,
+  showing,
+  behind = [],
   lock = false,
 }: {
-  entries: string[];
+  showing: string;
+  behind?: string[];
   lock?: boolean;
 }) {
+  seed(behind, showing);
   function wrapper({ children }: { children: ReactNode }) {
     return (
-      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+      <MemoryRouter initialEntries={[showing]}>
+        {/* The app mounts this at the router's root, so a navigation here has to
+            commit to the stack the way the real one does. */}
+        <RouteSync />
         <Probe />
         {children}
       </MemoryRouter>
@@ -68,29 +92,54 @@ beforeEach(() => {
 });
 
 describe("useEscapeBack", () => {
-  test("goes to url_back when the screen carried one", () => {
-    harness({ entries: ["/products", "/products/p1?url_back=%2Fmoney%3Fpage%3D2"] });
+  test("leaves to the screen the detail was entered from", () => {
+    harness({ showing: "/products/p1?url_back=%2Fmoney", behind: ["/products?page=3"] });
 
     expect(escape().defaultPrevented).toBe(true);
-    expect(at).toBe("/money?page=2");
-  });
-
-  test("walks back through history when it did not", () => {
-    harness({ entries: ["/products?page=3", "/products/p1"] });
-
-    escape();
     expect(at).toBe("/products?page=3");
   });
 
+  test("a url_back cannot claim a way back the operator did not take", () => {
+    // The list is where they came from; the link's opinion about `/money` is not
+    // a screen this session has been on.
+    harness({ showing: "/products/p1?url_back=%2Fmoney", behind: ["/products"] });
+
+    escape();
+    expect(at).toBe("/products");
+  });
+
+  test("a detail reached with no history uses the url_back it carries", () => {
+    harness({ showing: "/products/p1?url_back=%2Fmoney%3Fpage%3D2" });
+
+    escape();
+    expect(at).toBe("/money?page=2");
+  });
+
+  test("a detail with neither falls back to the list", () => {
+    harness({ showing: "/products/p1" });
+
+    escape();
+    expect(at).toBe("/products");
+  });
+
+  test("the second Escape keeps leaving, because the first one popped", () => {
+    harness({ showing: "/products/p1", behind: ["/money", "/products"] });
+
+    escape();
+    expect(at).toBe("/products");
+    escape();
+    expect(at).toBe("/money");
+  });
+
   test("an open dialog keeps Escape for itself", () => {
-    harness({ entries: ["/products", "/products/p1?url_back=%2Fmoney"], lock: true });
+    harness({ showing: "/products/p1?url_back=%2Fmoney", lock: true });
 
     escape();
     expect(at).toBe("/products/p1?url_back=%2Fmoney");
   });
 
   test("an Escape something else already handled does not navigate", () => {
-    harness({ entries: ["/products", "/products/p1?url_back=%2Fmoney"] });
+    harness({ showing: "/products/p1?url_back=%2Fmoney" });
 
     const event = new KeyboardEvent("keydown", {
       key: "Escape",
@@ -106,7 +155,7 @@ describe("useEscapeBack", () => {
   });
 
   test("other keys are left alone", () => {
-    harness({ entries: ["/products", "/products/p1?url_back=%2Fmoney"] });
+    harness({ showing: "/products/p1?url_back=%2Fmoney" });
 
     escape({ key: "Enter" });
     expect(at).toBe("/products/p1?url_back=%2Fmoney");

@@ -20,11 +20,16 @@ import { devPageCacheRoute } from "./pages/Dev/PageCache/index.tsx";
 
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import AuthLayout from "./layouts/authenticated";
+// The app's own history is written here and nowhere else: every location change
+// the router lands on passes through this component, including the ones the app
+// did not make. See `~/services/route/react`.
+import { RouteSync } from "./services/route/react";
 
 export const router = createHashRouter([
   {
     path: "/",
     ErrorBoundary,
+    Component: RouteSync,
     children: [
       loginRoute,
       {
