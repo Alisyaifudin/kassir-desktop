@@ -127,6 +127,28 @@ describe("Tambahan grid keyboard", () => {
     expect(writes[0]).toHaveLength(1);
     expect(writes[0]?.[0]?.name).toBe("");
   });
+
+  /**
+   * A manual row is also how a deduction that is not a product discount gets
+   * onto the record. The `Nilai` editor used to be a positive-only rupiah field:
+   * the minus was dropped as it was typed, so `-5.000` came out as `5.000` and
+   * the charge went the wrong way.
+   */
+  test("a minus typed into Nilai makes the extra a deduction", () => {
+    const { writes } = renderGrid();
+    fireEvent.click(screen.getByRole("button", { name: /Manual/ }));
+
+    // The row opens on `Nama`; the amount is the cell beside it.
+    fireEvent.click(screen.getByText("Nilai"));
+    fireEvent.keyDown(screen.getByRole("grid", { name: "Biaya tambahan" }), { key: "Enter" });
+
+    const input = document.querySelector('[id$="-value"] input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "-" } });
+    fireEvent.change(input, { target: { value: "-5.000" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(writes[writes.length - 1]?.[0]?.value).toBe(-5_000);
+  });
 });
 
 describe("Tambahan dual checkbox", () => {

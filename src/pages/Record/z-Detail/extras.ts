@@ -2,11 +2,15 @@ import type { RecordExtra, RecordFull } from "~/services/record";
 import { roundToFix } from "~/services/record/round";
 
 /**
- * Money for the detail pane: the sign leads, so a discount reads "-Rp5.000"
+ * Money for the Record page: the sign leads, so a discount reads "-Rp5.000"
  * rather than "Rp-5.000", and the amount is rounded to the record's own
  * precision. `record_extra_eff` is stored unrounded — 1,840 rows carry more
  * decimals than the record's `fix` (e.g. 1492152.94272 on a `fix = 0` record) —
  * so without this the table would print five decimals of rupiah.
+ *
+ * Shared by the detail pane's extras table and money rows and by the receipt
+ * preview, which has to agree with the paper the Rust renderer draws
+ * (`receipt::text`) down to the placement of the minus.
  */
 export function rupiah(value: number, fix: number): string {
   const amount = roundToFix(Math.abs(value), fix).toLocaleString("id-ID");

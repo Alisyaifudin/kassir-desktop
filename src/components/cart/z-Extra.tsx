@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X } from "lucide-react";
-import type Decimal from "decimal.js";
+import Decimal from "decimal.js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -40,6 +40,12 @@ function signedRupiah(value: Decimal): string {
  * takes its place. The parent owns selection, editing and the open select, so
  * the whole grid can be driven by the arrow keys; the row only renders what it
  * is told.
+ *
+ * `Nilai` takes a negative: a manual row is how a deduction that is not a product
+ * discount gets onto the record — a `-5.000` Ongkos, a rounding-off favour — and
+ * the money layer already carries it (`recalcExtras` has no floor, the submit
+ * service only refuses a grand total that ends up zero or negative). `Persen` is
+ * signed too, clamped to ±100 by `InputPercent`.
  */
 export function ExtraCard({
   extra,
@@ -128,8 +134,11 @@ export function ExtraCard({
           selected={selected === "value"}
           editing={editing && selected === "value"}
           seed={seed}
+          allowNegative
           value={extra.value}
-          display={extra.kind === "percent" ? `${extra.value}%` : rupiah(extra.value)}
+          display={
+            extra.kind === "percent" ? `${extra.value}%` : signedRupiah(new Decimal(extra.value))
+          }
           empty={extra.value === 0}
           placeholder="0"
           onSelect={() => onSelect("value")}
