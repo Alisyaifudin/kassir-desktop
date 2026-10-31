@@ -61,8 +61,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 /// not useful to a server that compares strings, so the digest itself is the
 /// anchor. The TS side owns the constant (`services/sync/chain.ts`) and passes
 /// it in: if the backend settles on the other reading, one constant moves.
-pub const EMPTY_SHA256: &str =
-    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+pub const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 // ============================================================================
 // State
@@ -533,7 +532,16 @@ async fn upload_chunk_stream(
 
     if compress {
         let payload = gzip(body)?;
-        let resp = send_chunk(client, &url, token, offset, prefix_sha, payload, Some("gzip")).await?;
+        let resp = send_chunk(
+            client,
+            &url,
+            token,
+            offset,
+            prefix_sha,
+            payload,
+            Some("gzip"),
+        )
+        .await?;
         // A server that refuses the coding must still get the chunk: retry
         // identity (§4.4 "the client retries identity").
         if resp.status() == reqwest::StatusCode::UNSUPPORTED_MEDIA_TYPE {
