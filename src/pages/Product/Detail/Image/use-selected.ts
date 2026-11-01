@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { useCallback, useMemo } from "react";
 export function useSelected<T extends { id: string }>(images: T[]) {
   const [search, setSearch] = useSearchParams();

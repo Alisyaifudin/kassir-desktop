@@ -156,12 +156,12 @@ describe("the product sheet", () => {
     expect(screen.getByText("Gula aren, tanpa susu kental.")).toBeTruthy();
   });
 
-  test("the way out is a link to the product, with a way back to this cart", async () => {
+  test("the way out is a link to the product", async () => {
     await openSheet();
 
     const link = await screen.findByRole("link", { name: /Buka detail produk/ });
-    const href = link.getAttribute("href") ?? "";
-    expect(href).toContain("/products/p1");
-    expect(href).toContain("url_back=");
+    // The way back is the app's own history now, not a `url_back` the cart had to
+    // hand over: the product is pushed onto the stack, so `Back` returns here.
+    expect(link.getAttribute("href")).toBe("/products/p1");
   });
 });

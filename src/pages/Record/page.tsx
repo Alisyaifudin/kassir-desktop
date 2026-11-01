@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { useDelayedFlag } from "~/components/Loader";
 import { cn } from "~/lib/utils";
 import { pageData, recordsSource } from "./data";

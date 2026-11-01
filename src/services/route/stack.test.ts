@@ -7,6 +7,7 @@ import {
   popOff,
   pushOnto,
   replaceTop,
+  retargetBack,
   rootThenPush,
   type RouteEntry,
   type RouteIntent,
@@ -173,6 +174,20 @@ describe("the building blocks", () => {
 
   test("replaceTop of an empty stack is that entry", () => {
     expect(urlsOf(replaceTop([], entry("/")))).toEqual(["/"]);
+  });
+
+  test("retargetBack rewrites the screen behind, not the one showing", () => {
+    // Flipping a record's mode: the copy is a new screen, but the list behind it
+    // was filtered by the old mode and no longer holds the record.
+    const after = retargetBack(stack("/", "/records?mode=incoming", "/records/r1"), "/records?mode=outcoming");
+
+    expect(urlsOf(after)).toEqual(["/", "/records?mode=outcoming", "/records/r1"]);
+  });
+
+  test("retargetBack has nothing to rewrite at the root", () => {
+    const before = stack("/");
+
+    expect(retargetBack(before, "/records?mode=outcoming")).toBe(before);
   });
 
   test("rootThenPush reuses the root already on the stack", () => {

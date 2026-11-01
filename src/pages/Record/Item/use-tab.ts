@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 
 /**
  * Which face of the record is showing. Lives in the URL so a receipt can be

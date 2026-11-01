@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
 
@@ -23,6 +23,28 @@ export const INTERVALS: { key: Interval; label: string }[] = [
 ];
 
 export const DAY_MS = 86_400_000;
+
+/** The four keys that name the period, in the order a link writes them. */
+const RANGE_KEYS = ["from", "to", "preset", "interval"] as const;
+
+/**
+ * The period as a query string, for a link that must not reset it.
+ *
+ * The rail's leaves are five faces of one screen, and the period belongs to the
+ * screen rather than to a face — so switching faces carries it across instead of
+ * starting over at the default 30 days. Only the range keys travel: a sub-page's
+ * own query stays on that sub-page.
+ */
+export function rangeQuery(search: string): string {
+  const current = new URLSearchParams(search);
+  const next = new URLSearchParams();
+  for (const key of RANGE_KEYS) {
+    const value = current.get(key);
+    if (value !== null) next.set(key, value);
+  }
+  const query = next.toString();
+  return query === "" ? "" : `?${query}`;
+}
 
 /** Monday 00:00 of the week that holds `at`, in the shop's timezone. */
 function startOfWeek(at: number): number {

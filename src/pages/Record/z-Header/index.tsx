@@ -1,9 +1,8 @@
 import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "~/services/route/react";
 import { Calendar } from "~/components/Calendar";
 import { Button } from "~/components/ui/button";
 import { formatDate } from "~/lib/date";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { Filter } from "./FilterDialog";
 import { SearchBars } from "./SearchBars";
 import { ModeTab } from "./ModeTab";
@@ -12,7 +11,6 @@ import { useTime } from "../use-time";
 export function Header({ busy }: { busy: boolean }) {
   const [{ yesterday, time, tomorrow }, setTime] = useTime();
   const navigate = useNavigate();
-  const urlBack = useGenerateUrlBack("/records");
   return (
     /*
       A `fieldset` rather than a `div` so one `disabled` locks every control it
@@ -36,10 +34,8 @@ export function Header({ busy }: { busy: boolean }) {
         className="h-10 w-10 shrink-0 rounded-lg border border-primary/10 transition-all shadow-sm"
         aria-label="Pencarian komprehensif"
         onClick={() => {
-          navigate({
-            pathname: "/records/search",
-            search: `?url_back=${encodeURIComponent(urlBack)}`,
-          });
+          // A step: the search is opened from this day, so `Back` returns to it.
+          navigate("/records/search", { behavior: "push" });
         }}
       >
         <FolderSearch className="size-5 [--icon-stroke:2.5]" />

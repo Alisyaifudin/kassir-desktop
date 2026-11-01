@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { isRouteErrorResponse, Link, useRouteError } from "react-router";
+import { isRouteErrorResponse, useRouteError } from "react-router";
+import { Link, useBack } from "~/services/route/react";
 import { Button } from "./ui/button";
 import { Unauthenticated } from "~/lib/auth";
 import Redirect from "./Redirect";
@@ -23,6 +24,11 @@ function logError(error: unknown) {
 export default function ErrorBoundary() {
   const env = import.meta.env.DEV;
   const error = useRouteError();
+  // `window.history.back()` is not the way out of a screen any more: every
+  // navigation is written as a replace, so the browser holds one entry and a
+  // traversal would leave the app. `useBack` pops the app's own stack, and `/` is
+  // what a screen with nothing behind it returns to.
+  const goBack = useBack("/");
 
   // Record failures once so production issues are diagnosable.
   useEffect(() => {
@@ -35,7 +41,6 @@ export default function ErrorBoundary() {
   }
 
   const reloadPage = () => window.location.reload();
-  const goBack = () => window.history.back();
 
   let errorTitle = "Terjadi Kesalahan";
   let errorMessage = "Aplikasi mengalami kendala yang tidak terduga.";
@@ -96,7 +101,7 @@ export default function ErrorBoundary() {
             </Button>
 
             <Button variant="ghost" asChild className="h-11 font-semibold">
-              <Link to="/">
+              <Link to="/" behavior="root">
                 <Home className="size-5 mr-2" />
                 Home
               </Link>

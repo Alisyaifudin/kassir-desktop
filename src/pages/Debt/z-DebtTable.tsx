@@ -1,5 +1,5 @@
 import { ArrowDownNarrowWide, ArrowDownWideNarrow, ExternalLink } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { useMemo } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -15,11 +15,9 @@ import { cn } from "~/lib/utils";
 import type { DebtRecord } from "~/services/record";
 import { DebtSortBy, DebtSortDir, useSort } from "./use-sort";
 import { sortDebt } from "./util-debt";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 
 export function DebtTable({ records }: { records: DebtRecord[] }) {
   const [{ sortBy, sortDir }, setSort] = useSort();
-  const urlBack = useGenerateUrlBack("/debt");
   const sortedRecords = useMemo(
     () => sortDebt(records, sortBy, sortDir),
     [records, sortBy, sortDir],
@@ -83,10 +81,11 @@ export function DebtTable({ records }: { records: DebtRecord[] }) {
               <TableCell className="text-right">
                 <Button asChild size="icon" variant="link">
                   <Link
-                    to={{
-                      pathname: `/records/${record.id}`,
-                      search: `?tab=detail&url_back=${encodeURIComponent(urlBack)}`,
-                    }}
+                    // A step: the record is opened from this list, so `Back` returns
+                    // to it on the sort it was left on. `tab=detail` is the record's
+                    // own face, not a way back.
+                    to={`/records/${record.id}?tab=detail`}
+                    behavior="push"
                   >
                     <ExternalLink className="size-8" aria-label="Buka catatan" />
                   </Link>

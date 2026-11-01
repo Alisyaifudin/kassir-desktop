@@ -16,10 +16,9 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { useUser } from "~/hooks/use-user";
 import { cn } from "~/lib/utils";
-import { withUrlBack } from "./format";
 
 type Destination = {
   label: string;
@@ -166,7 +165,10 @@ export function Menu() {
           return (
             <li key={item.path}>
               <Link
-                to={withUrlBack(item.path)}
+                // Every tile is a section: it hangs off Beranda, so `Back` from
+                // one returns here rather than to the tile before it.
+                behavior="root"
+                to={item.path}
                 className="group flex h-full flex-col gap-3 rounded-xl border bg-card p-2.5 transition-colors sm:p-4 hover:border-active/50 hover:bg-active/5 focus-visible:ring-2 focus-visible:ring-active focus-visible:outline-none"
               >
                 <span className="flex w-full items-start justify-between gap-2">

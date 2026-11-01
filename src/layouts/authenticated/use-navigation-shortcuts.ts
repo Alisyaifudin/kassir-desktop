@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "~/services/route/react";
 import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
 import { showShortcut } from "./use-shortcut";
 
@@ -65,7 +65,10 @@ export function useNavigationShortcuts() {
       if (link === undefined) return;
       e.preventDefault();
       showShortcut(false);
-      navigate(link);
+      // The same arrival a click on that tab makes: a section, so the stack is
+      // pulled back to the root. A shortcut that pushed where the tab collapses
+      // would give the keyboard and the mouse two different histories.
+      navigate(link, { behavior: "root" });
     }
 
     /**

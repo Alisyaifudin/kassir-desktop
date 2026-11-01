@@ -1,9 +1,9 @@
-import { useLocation, useNavigate } from "react-router";
 import { cn } from "~/lib/utils";
 import { useUser } from "~/hooks/use-user";
 import { Show } from "~/components/Show";
 import { Kbd } from "~/components/ui/kdb";
 import { useShortcut, showShortcut } from "./use-shortcut";
+import { NavLink, useLocation } from "~/services/route/react";
 
 interface TopNavLinkProps {
   path: string;
@@ -14,18 +14,15 @@ interface TopNavLinkProps {
 
 function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const show = useShortcut();
   const isActive = root ? pathname.startsWith(path) : pathname.includes(path);
 
   return (
     <div className="relative flex items-end h-full">
       <Kbd className={cn("absolute -top-1 -left-1 z-30", { hidden: !show })}>{alt}</Kbd>
-      <button
+      <NavLink
+        to={path}
         onClick={() => {
-          const search = new URLSearchParams();
-          search.set("url_back", "/");
-          navigate(`${path}?${search.toString()}`);
           showShortcut(false);
         }}
         className={cn(
@@ -37,7 +34,7 @@ function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
         )}
       >
         {label}
-      </button>
+      </NavLink>
     </div>
   );
 }

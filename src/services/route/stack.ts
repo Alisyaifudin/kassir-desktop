@@ -122,6 +122,23 @@ export function rootThenPush(
 }
 
 /**
+ * The screen behind this one, rewritten.
+ *
+ * For the one flow where the screen the operator came from stops describing where
+ * they are: flipping a record's mode writes a copy and soft-deletes the original,
+ * so the list they opened it from — filtered by the old mode — no longer holds it.
+ * `Back` has to land on that list with its filter moved, and the list is the entry
+ * *below* the one showing, not a `url_back` the record page can rewrite.
+ *
+ * Below two entries there is nothing behind, so there is nothing to rewrite.
+ */
+export function retargetBack(stack: RouteStack, url: string): RouteStack {
+  if (stack.length < 2) return stack;
+  const behind = stack.length - 2;
+  return [...stack.slice(0, behind), { ...stack[behind], url }, stack[stack.length - 1]];
+}
+
+/**
  * The stack after the router landed on `entry`.
  *
  * A recorded intent wins only when it names the URL we actually landed on — the
@@ -191,9 +208,9 @@ function lastIndexUrl(stack: RouteStack, url: string): number {
  * The stored stack, parsed rather than trusted.
  *
  * localStorage outlives app versions: an entry from a build that stored something
- * else has to be dropped, not crash the boot. Within-app paths only, the same rule
- * `urlBackOf` applies to `url_back` — these values become navigation targets, and
- * `//evil.com` is the shape that stops being an in-app path.
+ * else has to be dropped, not crash the boot. Within-app paths only — these values
+ * become navigation targets, and `//evil.com` is the shape that stops being an
+ * in-app path.
  */
 const storedEntry = z.object({
   url: z.string().refine((value) => value.startsWith("/") && !value.startsWith("//")),

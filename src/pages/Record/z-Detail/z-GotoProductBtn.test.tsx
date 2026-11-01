@@ -1,53 +1,93 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
+import { Effect } from "effect";
+import { route } from "~/services/route/instance";
+import { RouteSync } from "~/services/route/react";
 import { GotoProductBtn } from "./z-GotoProductBtn";
 
 /**
- * The pencil beside a record line opens the product, and the product has to come
- * *back to the records list* — the day, the filters, the search — never to the
- * record it was opened from. Naming `/records/:id` there made `Back` from the
- * product return to the screen the line was read in, so the way out undid itself.
+ * The pencil beside a record line opens the product.
+ *
+ * It used to be the hard part of the screen: the product's way back had to be
+ * named *here*, and it had to be the records list rather than the record the line
+ * was read in — so the component recovered a `url_back`, guarded against
+ * `/` and off-app values, and re-encoded it into the link. Now the product is
+ * simply a step: it is pushed onto the app's own stack, and `Back` walks the hops
+ * the operator actually took.
  */
 
-function wrapper(entry: string) {
-  return function RouterWrapper({ children }: { children: ReactNode }) {
-    return <MemoryRouter initialEntries={[entry]}>{children}</MemoryRouter>;
-  };
+let at = "";
+
+function Probe() {
+  const location = useLocation();
+  at = `${location.pathname}${location.search}`;
+  return null;
 }
 
-/** The `url_back` the product is given, already decoded. */
-function urlBackOf(entry: string): string {
-  render(<GotoProductBtn productId="p1" />, { wrapper: wrapper(entry) });
-  const href = screen.getByRole("link", { name: "Buka produk" }).getAttribute("href") ?? "";
-  expect(href.startsWith("/products/p1?url_back=")).toBe(true);
-  return decodeURIComponent(href.slice("/products/p1?url_back=".length));
+/** The screens behind the record, then the record itself. */
+function seed(behind: string[], showing: string) {
+  const [first, ...rest] = [...behind, showing];
+  Effect.runSync(route.reset(first));
+  for (const url of rest) {
+    Effect.runSync(route.intend(url, "push"));
+    Effect.runSync(route.commit({ url, key: url }));
+  }
 }
+
+function renderAt(showing: string, behind: string[] = []) {
+  seed(behind, showing);
+  function wrapper({ children }: { children: ReactNode }) {
+    return (
+      <MemoryRouter initialEntries={[showing]}>
+        <RouteSync />
+        <Probe />
+        {children}
+      </MemoryRouter>
+    );
+  }
+  return render(<GotoProductBtn productId="p1" />, { wrapper });
+}
+
+const urls = () => Effect.runSync(route.get()).map((entry) => entry.url);
 
 describe("GotoProductBtn", () => {
-  test("the record's own way back is the list it was opened from", () => {
-    // `/records/:id` carries the listing that picked it; the product inherits it.
-    expect(
-      urlBackOf(`/records/r1?url_back=${encodeURIComponent("/records?day=1&mode=incoming")}`),
-    ).toBe("/records?day=1&mode=incoming");
+  test("the link is the product, and nothing else", () => {
+    renderAt("/records/r1");
+
+    // No `url_back`: the way back is the stack's, not this link's to name.
+    expect(screen.getByRole("link", { name: "Buka produk" }).getAttribute("href")).toBe(
+      "/products/p1",
+    );
   });
 
-  test("the record's back survives a detour through the comprehensive search", () => {
-    expect(
-      urlBackOf(`/records/r1?url_back=${encodeURIComponent("/records/search?query=kopi&page=2")}`),
-    ).toBe("/records/search?query=kopi&page=2");
+  test("opening the product is a step off the record", async () => {
+    renderAt("/records/r1", ["/records?day=1&mode=incoming"]);
+    await waitFor(() => expect(urls()).toEqual(["/records?day=1&mode=incoming", "/records/r1"]));
+
+    fireEvent.click(screen.getByRole("link", { name: "Buka produk" }));
+
+    await waitFor(() => expect(at).toBe("/products/p1"));
+    // Record → product, and the list is still behind both.
+    expect(urls()).toEqual(["/records?day=1&mode=incoming", "/records/r1", "/products/p1"]);
   });
 
-  test("the pane on the list itself names that screen, selection and all", () => {
-    expect(urlBackOf("/records?day=1&selected=r1")).toBe("/records?day=1&selected=r1");
+  test("a record reached by a deep link still has one screen behind the product", async () => {
+    renderAt("/records/r1");
+    await waitFor(() => expect(urls()).toEqual(["/records/r1"]));
+
+    fireEvent.click(screen.getByRole("link", { name: "Buka produk" }));
+
+    await waitFor(() => expect(urls()).toEqual(["/records/r1", "/products/p1"]));
   });
 
-  test("a record reached by a bare deep link names the list plainly", () => {
-    expect(urlBackOf("/records/r1")).toBe("/records");
-  });
+  test("no product, no link", () => {
+    function wrapper({ children }: { children: ReactNode }) {
+      return <MemoryRouter initialEntries={["/records/r1"]}>{children}</MemoryRouter>;
+    }
+    render(<GotoProductBtn productId={undefined} />, { wrapper });
 
-  test("an off-app url_back is not forwarded", () => {
-    expect(urlBackOf(`/records/r1?url_back=${encodeURIComponent("//evil.com")}`)).toBe("/records");
+    expect(screen.queryByRole("link", { name: "Buka produk" })).toBeNull();
   });
 });

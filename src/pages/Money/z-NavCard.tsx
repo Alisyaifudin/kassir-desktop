@@ -1,5 +1,4 @@
-import { Link } from "react-router";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
+import { Link } from "~/services/route/react";
 import { Clock, GripVertical } from "lucide-react";
 import { Show } from "~/components/Show";
 import { useSortable } from "@dnd-kit/sortable";
@@ -30,7 +29,6 @@ function formatRelativeTime(timestamp: number): string {
 export function NavCard({ summary }: { summary: PocketSummary }) {
   const { pocket, latest } = summary;
   const { id, name } = pocket;
-  const urlBack = useGenerateUrlBack("/money");
 
   const {
     attributes,
@@ -58,7 +56,9 @@ export function NavCard({ summary }: { summary: PocketSummary }) {
           <GripVertical />
         </div>
         <Link
-          to={{ pathname: `/money/${id}`, search: `url_back=${encodeURIComponent(urlBack)}` }}
+          // A step: the pocket is opened from this grid, so `Back` returns to it.
+          to={`/money/${id}`}
+          behavior="push"
           className="group flex flex-1 items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800/50"
         >
           <div className="flex flex-col gap-1.5">

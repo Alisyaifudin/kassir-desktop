@@ -1,16 +1,14 @@
 import { SquareArrowOutUpRight } from "lucide-react";
 import { TableBody, TableCell, TableRow } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import type { Extra } from "~/services/extra";
 import { useFilterExtras } from "./use-filter-extras";
 import { cn } from "~/lib/utils";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { KIND_LABEL } from "./util-extra-options";
 
 export function ExtraList({ all }: { all: Extra[] }) {
   const extras = useFilterExtras(all);
-  const urlBack = useGenerateUrlBack("/extras");
   return (
     <TableBody>
       {extras.map((extra, i) => (
@@ -22,10 +20,9 @@ export function ExtraList({ all }: { all: Extra[] }) {
           <TableCell className="">
             <Button asChild variant="link" className="p-0 cursor-pointer">
               <Link
-                to={{
-                  pathname: `/extras/${extra.id}`,
-                  search: `?url_back=${encodeURIComponent(urlBack)}`,
-                }}
+                // A step: the extra is opened from this row, so `Back` returns here.
+                to={`/extras/${extra.id}`}
+                behavior="push"
               >
                 <SquareArrowOutUpRight className="size-5" />
               </Link>

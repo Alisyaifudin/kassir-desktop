@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 
 export function useQuery() {
   const [search, setSearch] = useSearchParams();

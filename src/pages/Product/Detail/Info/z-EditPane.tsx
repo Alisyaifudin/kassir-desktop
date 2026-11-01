@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useBack } from "~/services/route/react";
 import { Effect } from "effect";
 import { toast } from "sonner";
 import { Redo2, Undo2 } from "lucide-react";
@@ -7,7 +7,6 @@ import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { service } from "~/services";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import type {
   Listing,
   ListingInput,
@@ -55,8 +54,9 @@ function listingChanged(original: Listing, input: ListingInput): boolean {
 
 export function EditPane({ product }: { product: ProductFull }) {
   const form = useProductForm(draftFromProduct(product));
-  const navigate = useNavigate();
-  const backUrl = useGetUrlBack("/products");
+  // The row is gone, so the screen it was on is gone: leaving is the stack's
+  // pop, which also drops the deleted product instead of keeping it behind.
+  const back = useBack("/products");
   const [pending, setPending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -254,7 +254,7 @@ export function EditPane({ product }: { product: ProductFull }) {
     const result = await Effect.runPromise(service.product.delete(product.id).pipe(Effect.either));
     setDeleting(false);
     if (result._tag === "Right") {
-      navigate(backUrl);
+      back();
       return null;
     }
     return result.left.message;

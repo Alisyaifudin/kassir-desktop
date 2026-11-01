@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { Temporal } from "temporal-polyfill";
 import { useDayStart } from "~/hooks/use-day-start";
 import { tz } from "~/lib/constants";

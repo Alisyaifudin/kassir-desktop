@@ -1,5 +1,5 @@
 import { ReceiptText } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
 import { Skeleton, SkeletonText } from "~/components/ui/skeleton";
@@ -8,7 +8,7 @@ import { MODE_NAMES } from "~/lib/constants";
 import { capitalize, cn } from "~/lib/utils";
 import type { Record as RecordModel } from "~/services/record";
 import { pageData } from "./data";
-import { formatMoney, withUrlBack } from "./format";
+import { formatMoney } from "./format";
 import { Card, CardHead, CardLink } from "./z-Card";
 import { RegionError } from "./z-Error";
 
@@ -46,7 +46,11 @@ export function Ledger() {
     <Card>
       <CardHead
         title="Transaksi hari ini"
-        action={<CardLink to={withUrlBack("/records")}>Riwayat</CardLink>}
+        action={
+          <CardLink to="/records" behavior="root">
+            Riwayat
+          </CardLink>
+        }
       />
       <div className={cn("flex flex-col", ROWS_FLOOR)}>
         <pageData.Gate
@@ -82,7 +86,7 @@ export function Ledger() {
           <pageData.Gate keys={["records"]} delay={0} pulse={null} error={null}>
             {({ records }) => (
               <Show when={records.length > VISIBLE}>
-                <CardLink to={withUrlBack("/records")}>
+                <CardLink to="/records" behavior="root">
                   Lihat {records.length - VISIBLE} lagi
                 </CardLink>
               </Show>
@@ -126,7 +130,8 @@ const ROW =
   "px-4 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none";
 
 function Row({ record }: { record: RecordModel }) {
-  const to = withUrlBack(`/records/${record.id}`);
+  // A row is a step, not a section: `Back` returns to this ledger.
+  const to = `/records/${record.id}`;
   const kind = MODE_NAMES[record.mode];
 
   return (
@@ -192,7 +197,9 @@ function Empty() {
         </p>
       </div>
       <Button asChild variant="outline">
-        <Link to={withUrlBack("/pos")}>Buka Toko</Link>
+        <Link to="/pos" behavior="root">
+          Buka Toko
+        </Link>
       </Button>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { Effect, Either } from "effect";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "~/services/route/react";
 import z from "zod";
 import { hash } from "~/lib/auth";
 import { log } from "~/lib/log";
@@ -40,7 +40,9 @@ export function useFreshForm() {
         },
         onRight() {
           setError(null);
-          navigate("/setting");
+          // `replace`: the login screen (or the first-run form) is not a
+          // place to come back to, so it does not stay on the stack.
+          navigate("/setting", { behavior: "replace" });
         },
       });
     },

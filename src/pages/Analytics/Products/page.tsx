@@ -1,7 +1,7 @@
 import { Fragment, memo, useMemo, useState } from "react";
 import { useDebounce } from "use-debounce";
 import { Stream } from "effect";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import {
   flexRender,
   getCoreRowModel,
@@ -45,7 +45,6 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { MODE_NAMES, SEARCH_DELAY } from "~/lib/constants";
 import { formatDate, formatTime } from "~/lib/date";
 import { cn } from "~/lib/utils";
@@ -523,7 +522,6 @@ function ProductCell({
   open: boolean;
   onToggle: () => void;
 }) {
-  const back = useGenerateUrlBack("/analytics/produk");
   return (
     <div className="flex min-w-0 items-center justify-between gap-2">
       <button
@@ -541,7 +539,9 @@ function ProductCell({
       </button>
       {group.productId === null ? null : (
         <Link
-          to={`/products/${group.productId}?url_back=${encodeURIComponent(back)}`}
+          // A step: the product is opened from this row, so `Back` returns to it.
+          to={`/products/${group.productId}`}
+          behavior="push"
           aria-label={`Buka produk ${group.name}`}
           title="Buka produk"
           className="shrink-0 rounded-sm text-muted-foreground hover:text-active focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -565,7 +565,6 @@ function Instances({
   to: number;
   mode: RecordMode;
 }) {
-  const back = useGenerateUrlBack("/analytics/produk");
   const res = useQuery(
     () => Stream.fromEffect(service.analytics.get.productInstances(from, to, mode, group.key, 200)),
     [from, to, mode, group.key],
@@ -583,21 +582,13 @@ function Instances({
           </div>
         }
       >
-        {({ data }) => <InstanceList lines={data} total={group.lines} back={back} />}
+        {({ data }) => <InstanceList lines={data} total={group.lines} />}
       </Loader>
     </div>
   );
 }
 
-function InstanceList({
-  lines,
-  total,
-  back,
-}: {
-  lines: ProductInstance[];
-  total: number;
-  back: string;
-}) {
+function InstanceList({ lines, total }: { lines: ProductInstance[]; total: number }) {
   return (
     <div className="overflow-hidden rounded-md border bg-card">
       <div className="grid grid-cols-[200px_minmax(0,1fr)_80px_140px_140px_44px] gap-2 border-b bg-muted/40 px-2 py-1 text-sm text-muted-foreground">
@@ -618,7 +609,9 @@ function InstanceList({
               {formatDate(line.at)} {formatTime(line.at)}
             </span>
             <Link
-              to={`/records/${line.recordId}?url_back=${encodeURIComponent(back)}`}
+              // A step: the record is opened from this line, so `Back` returns here.
+              to={`/records/${line.recordId}`}
+              behavior="push"
               className="min-w-0 truncate underline-offset-4 hover:text-active hover:underline"
               title="Buka catatan transaksi"
             >
@@ -639,7 +632,8 @@ function InstanceList({
             <span className="text-center">
               {line.productId === null ? null : (
                 <Link
-                  to={`/products/${line.productId}?url_back=${encodeURIComponent(back)}`}
+                  to={`/products/${line.productId}`}
+                  behavior="push"
                   aria-label={`Buka produk ${line.name}`}
                   title="Buka produk"
                   className="inline-flex rounded-sm text-muted-foreground hover:text-active focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

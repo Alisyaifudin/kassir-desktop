@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, type LinkProps } from "~/services/route/react";
 import { cn } from "~/lib/utils";
 
 /**
@@ -28,11 +28,25 @@ export function CardHead({ title, action }: { title: string; action?: ReactNode 
   );
 }
 
-/** The quiet action a card head carries: "Kelola", "Riwayat", "Lihat". */
-export function CardLink({ to, children }: { to: string; children: ReactNode }) {
+/**
+ * The quiet action a card head carries: "Kelola", "Riwayat", "Lihat".
+ *
+ * `behavior` is the caller's call, because a card head is used for both: "Kelola"
+ * and "Riwayat" open a section (`root`), "Lihat" opens one row's detail (`push`).
+ */
+export function CardLink({
+  to,
+  behavior = "push",
+  children,
+}: {
+  to: string;
+  behavior?: LinkProps["behavior"];
+  children: ReactNode;
+}) {
   return (
     <Link
       to={to}
+      behavior={behavior}
       className="shrink-0 rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-active hover:underline focus-visible:ring-2 focus-visible:ring-active focus-visible:ring-inset focus-visible:outline-none"
     >
       {children}

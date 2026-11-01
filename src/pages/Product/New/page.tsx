@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useBack, useNavigate } from "~/services/route/react";
 import { Either } from "effect";
 import Redirect from "~/components/Redirect";
 import { useMutation } from "~/components/Loader";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
 import type { ProductInput } from "~/services/product";
@@ -13,7 +12,10 @@ export default function Page() {
   const role = useUser().role;
   const navigate = useNavigate();
   const { pending, mutate } = useMutation(service.product.add);
-  const backUrl = useGetUrlBack("/products");
+  // Leaving the form is the list it was opened from — the whole list URL, filters
+  // and page included, because that is what the stack kept. `/products` is only
+  // for a form reached by a deep link.
+  const back = useBack("/products");
   const [error, setError] = useState<string | null>(null);
   const [duplicateCode, setDuplicateCode] = useState<string | null>(null);
 
@@ -24,10 +26,9 @@ export default function Page() {
     setDuplicateCode(null);
     const either = await mutate(input);
     if (Either.isRight(either)) {
-      // Forward `url_back` so the new product's detail page returns to the list too.
-      navigate(`/products/${either.right}?url_back=${encodeURIComponent(backUrl)}`, {
-        replace: true,
-      });
+      // The form is replaced by what it created: `Back` from the new product goes
+      // to the list, not to a form whose work is already done.
+      navigate(`/products/${either.right}`, { behavior: "replace" });
       return;
     }
     if (either.left._tag === "ProductDuplicateCode") setDuplicateCode(either.left.value);
@@ -42,7 +43,7 @@ export default function Page() {
         error={error}
         duplicateCode={duplicateCode}
         onSubmit={(input) => void handleSubmit(input)}
-        onCancel={() => navigate(backUrl)}
+        onCancel={back}
       />
     </main>
   );

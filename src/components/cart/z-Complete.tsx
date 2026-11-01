@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Decimal from "decimal.js";
 import { Effect, Either } from "effect";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -234,7 +234,10 @@ export function Complete({
             </Button>
             <Button asChild variant="secondary" disabled={locked}>
               <Link
-                to={`/records/${recordId}?url_back=${encodeURIComponent(mode === "sale" ? "/pos" : "/restock")}`}
+                // A step: the record is opened from this cart, so `Back` comes
+                // back to the screen the sale was rung on.
+                to={`/records/${recordId}`}
+                behavior="push"
                 aria-disabled={locked}
                 className={locked ? "pointer-events-none opacity-50" : undefined}
                 onClick={(event) => {

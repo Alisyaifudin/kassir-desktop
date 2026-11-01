@@ -53,6 +53,25 @@ export class RouteService extends Context.Tag("RouteService")<
     back: () => Effect.Effect<string | null>;
 
     /**
+     * The URL `back` would go to, without arming anything. `null` at the root.
+     *
+     * Reads the entry behind the screen showing, which is what a caller has to
+     * rewrite when the screen it came from stops describing where they are — see
+     * `setBack`.
+     */
+    peekBack: () => Effect.Effect<string | null>;
+
+    /**
+     * Rewrites the screen behind this one.
+     *
+     * One flow uses it: flipping a record's mode. The copy is a new screen, but the
+     * list behind it was filtered by the old mode and no longer holds the record,
+     * so `Back` has to land on that list with the filter moved. There is nothing to
+     * rewrite at the root.
+     */
+    setBack: (url: string) => Effect.Effect<void>;
+
+    /**
      * Forgets every screen. For auth transitions only: once the session is gone,
      * nothing behind the login screen may be reachable, or `Back` would walk back
      * into it.

@@ -26,33 +26,8 @@ export const integer = z
   .refine((val) => Number.isSafeInteger(Number(val)), { message: "Harus angka bulat" })
   .transform((v) => Number(v));
 
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
-}
-
-/**
- * The one parse of `?url_back=`.
- *
- * A `url_back` is an in-app path the caller returns to, so only a rooted,
- * non-protocol-relative value is accepted: `//evil.com` and `https://evil.com`
- * fall back to the caller's default. Under the hash router neither is an open
- * redirect today, but every reader used to validate with a bare `z.string()`
- * (or not at all), so the rule belongs in one place before a future `<a href>`
- * or `window.location` use turns one of them into a real redirect.
- */
-export function urlBackOf(search: URLSearchParams): string | null {
-  const parsed = z
-    .string()
-    .refine((value) => value.startsWith("/") && !value.startsWith("//"), {
-      message: "Bukan alamat di dalam aplikasi",
-    })
-    .safeParse(search.get("url_back"));
-  return parsed.success ? parsed.data : null;
-}
-
-export function getURLBack(defaultURL: string, search: URLSearchParams) {
-  return urlBackOf(search) ?? defaultURL;
 }
 
 /**

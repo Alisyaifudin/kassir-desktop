@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { z } from "zod";
 import { DEFAULTABLE_KINDS, type DefaultableKind } from "~/lib/constants";
 

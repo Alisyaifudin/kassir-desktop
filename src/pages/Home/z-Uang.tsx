@@ -2,7 +2,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 import type { PocketSummary } from "~/services/money";
 import { pageData } from "./data";
-import { formatMoney, withUrlBack } from "./format";
+import { formatMoney } from "./format";
 import { Card, CardHead, CardLink } from "./z-Card";
 import { RegionError } from "./z-Error";
 
@@ -32,7 +32,14 @@ const SKELETON_ROW =
 export function Uang() {
   return (
     <Card>
-      <CardHead title="Uang" action={<CardLink to={withUrlBack("/money")}>Kelola</CardLink>} />
+      <CardHead
+        title="Uang"
+        action={
+          <CardLink to="/money" behavior="root">
+            Kelola
+          </CardLink>
+        }
+      />
       <div className={cn("flex flex-col", ROWS_FLOOR)}>
         <pageData.Gate
           keys={["pockets"]}

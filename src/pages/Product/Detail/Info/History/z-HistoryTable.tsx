@@ -1,16 +1,11 @@
 import { ExternalLink } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { Link } from "~/services/route/react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { formatDate, formatTime } from "~/lib/date";
 import type { ProductEvent } from "~/services/product";
 
 export function HistoryTable({ events }: { events: ProductEvent[] }) {
-  const { pathname, search } = useLocation();
-  // The current product-detail URL is the record's way back — including its own
-  // `url_back`, so the chain (list → product → record) survives the detour.
-  const urlBack = `${pathname}${search}`;
-
   return (
     <ul className="flex flex-col divide-y">
       {events.map((event) => {
@@ -45,10 +40,11 @@ export function HistoryTable({ events }: { events: ProductEvent[] }) {
               {event.recordId !== null ? (
                 <Button asChild size="icon" variant="ghost" className="size-6 shrink-0">
                   <Link
-                    to={{
-                      pathname: `/records/${event.recordId}`,
-                      search: `?url_back=${encodeURIComponent(urlBack)}`,
-                    }}
+                    // A step: the record is opened from this product, so `Back`
+                    // returns here — the chain (list → product → record) is the
+                    // stack's, not a `url_back` re-encoded at every hop.
+                    to={`/records/${event.recordId}`}
+                    behavior="push"
                     title="Buka catatan"
                     aria-label="Buka catatan"
                   >

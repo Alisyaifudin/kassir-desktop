@@ -1,10 +1,9 @@
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { PackagePlus, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useUser } from "~/hooks/use-user";
 import { formatDate, getDayName } from "~/lib/date";
 import { capitalize } from "~/lib/utils";
-import { withUrlBack } from "./format";
 
 /**
  * Who is on the till, what day it is, and the two things a person at the counter
@@ -28,15 +27,17 @@ export function Header({ dayStart }: { dayStart: number }) {
           {getDayName(dayStart)}, {formatDate(dayStart, "long")}
         </p>
       </div>
+      {/* Both buttons open a section, not a step: `Back` from either belongs on
+          Beranda — the stack's root, which is where this page already is. */}
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild variant="outline">
-          <Link to={withUrlBack("/restock")}>
+          <Link to="/restock" behavior="root">
             <PackagePlus aria-hidden="true" />
             Catat pembelian
           </Link>
         </Button>
         <Button asChild className="bg-active text-active-foreground hover:bg-active/90">
-          <Link to={withUrlBack("/pos")}>
+          <Link to="/pos" behavior="root">
             <Plus aria-hidden="true" />
             Transaksi Baru
           </Link>

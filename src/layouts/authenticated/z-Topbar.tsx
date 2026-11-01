@@ -4,7 +4,6 @@ import { cn } from "~/lib/utils";
 import { Refresh } from "./z-Refresh";
 import { SettingLink } from "./z-SettingLink";
 import { Title } from "./z-Title";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { TopNavList } from "./z-TopNavList";
 import { BackBtn } from "~/components/BackBtn";
 
@@ -28,10 +27,11 @@ const routeTitles: Record<string, string> = {
 
 export function Topbar() {
   const { pathname } = useLocation();
-  // The screen this one was entered from, not a `url_back` the caller happened to
-  // pass: `useGetUrlBack` is only the fallback for a screen with nothing behind it
-  // — a deep link, or a webview that was relaunched here.
-  const back = useBack(useGetUrlBack("/"));
+  // The screen this one was entered from, from the app's own history. `/` is the
+  // fallback for a screen with nothing behind it — a deep link, or a webview that
+  // was relaunched here — which is why no `url_back` is consulted: a link can claim
+  // a way back the operator never took, and Beranda is where the app begins.
+  const back = useBack("/");
 
   // Find the title based on the start of the pathname
   const activeRoute = Object.keys(routeTitles)

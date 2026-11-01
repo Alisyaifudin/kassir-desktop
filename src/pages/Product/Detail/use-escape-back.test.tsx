@@ -93,29 +93,13 @@ beforeEach(() => {
 
 describe("useEscapeBack", () => {
   test("leaves to the screen the detail was entered from", () => {
-    harness({ showing: "/products/p1?url_back=%2Fmoney", behind: ["/products?page=3"] });
+    harness({ showing: "/products/p1", behind: ["/products?page=3"] });
 
     expect(escape().defaultPrevented).toBe(true);
     expect(at).toBe("/products?page=3");
   });
 
-  test("a url_back cannot claim a way back the operator did not take", () => {
-    // The list is where they came from; the link's opinion about `/money` is not
-    // a screen this session has been on.
-    harness({ showing: "/products/p1?url_back=%2Fmoney", behind: ["/products"] });
-
-    escape();
-    expect(at).toBe("/products");
-  });
-
-  test("a detail reached with no history uses the url_back it carries", () => {
-    harness({ showing: "/products/p1?url_back=%2Fmoney%3Fpage%3D2" });
-
-    escape();
-    expect(at).toBe("/money?page=2");
-  });
-
-  test("a detail with neither falls back to the list", () => {
+  test("a detail with nothing behind it returns to the list", () => {
     harness({ showing: "/products/p1" });
 
     escape();
@@ -132,14 +116,14 @@ describe("useEscapeBack", () => {
   });
 
   test("an open dialog keeps Escape for itself", () => {
-    harness({ showing: "/products/p1?url_back=%2Fmoney", lock: true });
+    harness({ showing: "/products/p1", behind: ["/products"], lock: true });
 
     escape();
-    expect(at).toBe("/products/p1?url_back=%2Fmoney");
+    expect(at).toBe("/products/p1");
   });
 
   test("an Escape something else already handled does not navigate", () => {
-    harness({ showing: "/products/p1?url_back=%2Fmoney" });
+    harness({ showing: "/products/p1", behind: ["/products"] });
 
     const event = new KeyboardEvent("keydown", {
       key: "Escape",
@@ -151,13 +135,13 @@ describe("useEscapeBack", () => {
       document.body.dispatchEvent(event);
     });
 
-    expect(at).toBe("/products/p1?url_back=%2Fmoney");
+    expect(at).toBe("/products/p1");
   });
 
   test("other keys are left alone", () => {
-    harness({ showing: "/products/p1?url_back=%2Fmoney" });
+    harness({ showing: "/products/p1", behind: ["/products"] });
 
     escape({ key: "Enter" });
-    expect(at).toBe("/products/p1?url_back=%2Fmoney");
+    expect(at).toBe("/products/p1");
   });
 });

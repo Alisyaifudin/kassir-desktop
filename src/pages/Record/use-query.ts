@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 
 function getQuery(search: URLSearchParams): string {
   const query = search.get("query");

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { useStream, type Result } from "~/components/Loader";
 import { service } from "~/services";
 import type { Method, MethodError } from "~/services/method";

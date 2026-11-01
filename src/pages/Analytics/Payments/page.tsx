@@ -1,5 +1,5 @@
 import { Effect, Stream } from "effect";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Loader, useQuery } from "~/components/Loader";
 import { METHOD_NAMES } from "~/lib/constants";
@@ -162,7 +162,9 @@ function Body({
         </div>
         {outstanding > 0 ? (
           <Link
-            to="/debt?url_back=/analytics/pembayaran"
+            // A step: the debts are opened from this figure, so `Back` returns to it.
+            to="/debt"
+            behavior="push"
             className="text-sm text-muted-foreground underline-offset-4 hover:text-active hover:underline"
           >
             Lihat {debt.length} catatan utang berjalan →

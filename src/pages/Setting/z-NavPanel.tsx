@@ -1,5 +1,5 @@
 import { LogOut } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation } from "~/services/route/react";
 import { Button } from "~/components/ui/button";
 import { version } from "~/lib/constants";
 import { cn } from "~/lib/utils";
@@ -26,11 +26,13 @@ export function NavPanel() {
       <ol className="flex flex-col gap-1">
         {items.map(({ path, label, icon: Icon }) => {
           const isActive = pathname === path;
-          const to = `${path}?${new URLSearchParams({ url_back: "/setting" })}`;
           return (
             <li key={path}>
               <Link
-                to={to}
+                // One screen's faces: `Back` leaves Settings for the hub, it does
+                // not walk the rail the operator clicked through.
+                to={path}
+                behavior="replace"
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-md border px-3 py-2 transition-colors",

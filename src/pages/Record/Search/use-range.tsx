@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
 import { parseRange } from "~/lib/range";

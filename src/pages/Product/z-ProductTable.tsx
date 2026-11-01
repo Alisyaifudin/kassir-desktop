@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { SquareArrowOutUpRight } from "lucide-react";
 import {
   Table,
@@ -20,15 +20,7 @@ import {
   UnpublishedBadge,
 } from "./z-ProductBits";
 
-export function ProductTable({
-  items,
-  start,
-  urlBack,
-}: {
-  items: Product[];
-  start: number;
-  urlBack: string;
-}) {
+export function ProductTable({ items, start }: { items: Product[]; start: number }) {
   return (
     <Table className="text-base">
       <TableHeader>
@@ -43,22 +35,14 @@ export function ProductTable({
       </TableHeader>
       <TableBody>
         {items.map((product, index) => (
-          <ProductRow key={product.id} product={product} index={start + index} urlBack={urlBack} />
+          <ProductRow key={product.id} product={product} index={start + index} />
         ))}
       </TableBody>
     </Table>
   );
 }
 
-function ProductRow({
-  product,
-  index,
-  urlBack,
-}: {
-  product: Product;
-  index: number;
-  urlBack: string;
-}) {
+function ProductRow({ product, index }: { product: Product; index: number }) {
   // A withdrawn product is greyed out rather than hidden: `/products` is the
   // only screen that still lists it, so it is also the only place the state is
   // discoverable. The tint wins over the loss tint when a row is both.
@@ -97,10 +81,10 @@ function ProductRow({
       <TableCell>
         <Button asChild variant="ghost" className="size-11">
           <Link
-            to={{
-              pathname: `/products/${product.id}`,
-              search: `url_back=${encodeURIComponent(urlBack)}`,
-            }}
+            // A step: the detail is opened from this list, so `Back` returns to it
+            // on the filters it was left on.
+            to={`/products/${product.id}`}
+            behavior="push"
             aria-label={`Buka ${product.name}`}
           >
             <SquareArrowOutUpRight className="size-5" />

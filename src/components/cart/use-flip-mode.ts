@@ -1,5 +1,5 @@
 import { Either, Effect } from "effect";
-import { useNavigate } from "react-router";
+import { useNavigate } from "~/services/route/react";
 import { useMutation } from "~/components/Loader";
 import { service } from "~/services";
 import { STORED_FLAG, type DraftMode } from "~/services/transaction";
@@ -43,7 +43,10 @@ export function useFlipMode(id: string) {
     const result = await mutate(mode);
     // A refused write leaves the cart where it was, so there is nowhere to go.
     if (Either.isLeft(result)) return;
-    navigate(`${cartOf[mode]}?draft=${id}`);
+    // A section, not a step: the cart just moved to the other screen, so the one
+    // being left no longer holds it — `Back` there would land on a tab strip that
+    // does not contain this cart. The flip hangs off Beranda instead.
+    navigate(`${cartOf[mode]}?draft=${id}`, { behavior: "root" });
   }
 
   return { loading: pending, error: error?.message ?? null, flip } as const;

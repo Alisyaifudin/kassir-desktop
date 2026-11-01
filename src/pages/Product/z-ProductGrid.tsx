@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { ExternalLink, Package } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useImageUrl } from "~/hooks/use-image";
@@ -14,19 +14,19 @@ import {
   priceRange,
 } from "./z-ProductBits";
 
-export function ProductGrid({ items, urlBack }: { items: Product[]; urlBack: string }) {
+export function ProductGrid({ items }: { items: Product[] }) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="grid grid-cols-2 gap-3 pb-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {items.map((product) => (
-          <ProductCard key={product.id} product={product} urlBack={urlBack} />
+          <ProductCard key={product.id} product={product} />
         ))}
       </div>
     </div>
   );
 }
 
-function ProductCard({ product, urlBack }: { product: Product; urlBack: string }) {
+function ProductCard({ product }: { product: Product }) {
   const cover = product.cover;
   const url = useImageUrl(cover?.name ?? null, cover?.mime ?? null);
   // Withdrawn from the till: desaturated cover, muted surfaces, and a badge, so
@@ -69,10 +69,10 @@ function ProductCard({ product, urlBack }: { product: Product; urlBack: string }
           className="absolute right-2 top-2 size-12 rounded-full bg-background/85 shadow-sm backdrop-blur-sm hover:bg-background"
         >
           <Link
-            to={{
-              pathname: `/products/${product.id}`,
-              search: `url_back=${encodeURIComponent(urlBack)}`,
-            }}
+            // A step: the detail is opened from this list, so `Back` returns to it
+            // on the filters it was left on.
+            to={`/products/${product.id}`}
+            behavior="push"
             aria-label={`Buka ${product.name}`}
             title="Buka produk"
           >

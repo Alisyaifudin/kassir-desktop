@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { DAY_MS, useRange, weekRange } from "./use-range";
+import { DAY_MS, rangeQuery, useRange, weekRange } from "./use-range";
 
 /**
  * The period every analytics page reads, kept in the URL. Two rules are money: a
@@ -115,5 +115,27 @@ describe("weekRange", () => {
     expect(to - from).toBe(7 * DAY_MS);
     expect(from).toBeLessThan(wednesday);
     expect(wednesday).toBeLessThan(to);
+  });
+});
+
+/**
+ * The rail's five faces are one screen, so the period has to survive a switch
+ * between them — it is what every face reads. Only the range keys travel: a
+ * sub-page's own query stays where it belongs.
+ */
+describe("rangeQuery", () => {
+  test("carries the period across a switch between the faces", () => {
+    expect(rangeQuery("?from=100&to=200&preset=7d&interval=week")).toBe(
+      "?from=100&to=200&preset=7d&interval=week",
+    );
+  });
+
+  test("nothing to carry is no query at all", () => {
+    expect(rangeQuery("")).toBe("");
+    expect(rangeQuery("?tab=x")).toBe("");
+  });
+
+  test("a param that is not the period stays on the sub-page", () => {
+    expect(rangeQuery("?from=100&to=200&q=kopi")).toBe("?from=100&to=200");
   });
 });

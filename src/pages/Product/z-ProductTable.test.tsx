@@ -46,7 +46,7 @@ function product(options: Partial<Product> = {}): Product {
 function renderTable(items: Product[]) {
   render(
     <MemoryRouter initialEntries={["/products"]}>
-      <ProductTable items={items} start={0} urlBack="/products" />
+      <ProductTable items={items} start={0} />
     </MemoryRouter>,
   );
 }

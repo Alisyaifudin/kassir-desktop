@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { ChevronRight } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { Link } from "~/services/route/react";
 import type { NavItem } from "./util-nav";
 
 /**
@@ -14,14 +14,14 @@ import type { NavItem } from "./util-nav";
  * costs the eye a reason to stop.
  */
 export function NavRow({ item }: { item: NavItem }) {
-  const { pathname } = useLocation();
-  const to = `${item.path}?${new URLSearchParams({ url_back: pathname })}`;
   const Icon = item.icon;
 
   return (
     <li>
       <Link
-        to={to}
+        // A step: the page is opened from the hub, so `Back` returns to the list.
+        to={item.path}
+        behavior="push"
         className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-active focus-visible:ring-inset focus-visible:outline-none"
       >
         <span

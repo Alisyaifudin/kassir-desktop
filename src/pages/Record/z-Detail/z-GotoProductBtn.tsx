@@ -1,46 +1,30 @@
 import { Pencil } from "lucide-react";
 import { memo } from "react";
-import { Link, useLocation } from "~/services/route/react";
+import { Link } from "~/services/route/react";
 import { Show } from "~/components/Show";
 import { Button } from "~/components/ui/button";
-import { urlBackOf } from "~/lib/utils";
 
 /**
- * A linked line goes back to its product, not to an arbitrary listing — and the
- * product's way back is the *records list*, never the record this line was read
- * in. Naming `/records/:id` there undid the step the operator took to get here:
- * `Back` from the product landed on the record they had just left, so the way out
- * of the product was a detour that returned to the detour.
+ * A linked line goes back to its product, not to an arbitrary listing.
  *
- * The list URL is the one this screen already knows. A record opened from
- * somewhere carries that somewhere as its `url_back` — the day's list with its
- * filters, the comprehensive search — so that is what the product inherits. The
- * pane that previews a record on `/records` itself has no `url_back` to hand on:
- * the listing *is* the screen, so it says so, selection and all. A record reached
- * by a bare deep link or bookmark has neither and names `/records` plainly.
+ * This used to be the hard part of the screen: the product's way back had to be
+ * named here, and naming `/records/:id` undid the step the operator took to get
+ * here, so the URL had to be the *records list* — the one this record was opened
+ * from, recovered from its own `url_back`, with `/records` as the answer for a
+ * record reached by a bare deep link.
  *
- * The link pushes: the product is a new screen, and the stack is what makes the way
- * out of it correct without anyone guessing — `Back` returns to this record, and
- * `Back` again to the list it was read on.
+ * None of that is this component's business any more. The product is a step, so it
+ * is pushed: `Back` returns to this record, and `Back` again to the list it was
+ * read on — as many hops as the operator actually took, because the stack kept
+ * them.
  */
 export const GotoProductBtn = memo(function GotoProductBtn({ productId }: { productId?: string }) {
-  const { pathname, search } = useLocation();
-  const backURL =
-    urlBackOf(new URLSearchParams(search), ["/"]) ??
-    (pathname.startsWith("/records") ? `${pathname}${search}` : "/records");
   return (
     <Show value={productId}>
       {(id) => (
         <>
           <Button asChild className="p-0" variant="link">
-            <Link
-              behavior="push"
-              to={{
-                pathname: `/products/${id}`,
-                search: `?url_back=${encodeURIComponent(backURL)}`,
-              }}
-              aria-label="Buka produk"
-            >
+            <Link to={`/products/${id}`} behavior="push" aria-label="Buka produk">
               <Pencil className="size-5" />
             </Link>
           </Button>

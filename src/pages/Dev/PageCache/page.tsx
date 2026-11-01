@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { pageCache } from "~/components/page-data";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
@@ -102,6 +102,7 @@ export default function Page() {
           </Button>
           <Link
             to="/dev/page-data"
+            behavior="push"
             className="rounded-md border px-2 py-1 text-sm hover:bg-accent"
           >
             Navigasi ke page-data →

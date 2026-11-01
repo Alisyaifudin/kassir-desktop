@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { cn } from "~/lib/utils";
 import type { CodeIssue } from "./code-issues";
 
@@ -20,6 +20,7 @@ export function CodeIssueView({ issue }: { issue: CodeIssue }) {
             <Link
               key={productId}
               to={`/products/${productId}`}
+              behavior="push"
               title="Buka produk"
               className="inline-flex shrink-0"
               onClick={(event) => event.stopPropagation()}

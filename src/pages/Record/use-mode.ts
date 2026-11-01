@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { z } from "zod";
 import type { RecordMode } from "~/services/record";
 

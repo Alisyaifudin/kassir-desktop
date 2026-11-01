@@ -1,7 +1,6 @@
 import { Either } from "effect";
-import { useNavigate } from "react-router";
+import { useBack } from "~/services/route/react";
 import { useMutation } from "~/components/Loader";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { service } from "~/services";
 import type { Extra, ExtraInput } from "~/services/extra";
 import { extraSchema, isDual, withDual, type ExtraFormValues } from "./util-extra-options";
@@ -12,8 +11,10 @@ import { useAppForm } from "./z-ExtraForm";
  * serves both, so the only difference is which service write it calls.
  */
 export function useExtraForm(extra?: Extra) {
-  const navigate = useNavigate();
-  const backUrl = useGetUrlBack("/extras");
+  // The list this form was opened from — whether the form is `/extras/new` or the
+  // edit pane on `/extras/:id`, it is one pop away, and the saved row is already
+  // on it.
+  const back = useBack("/extras");
   const { error, mutate } = useMutation((input: ExtraInput) =>
     extra === undefined ? service.extra.add(input) : service.extra.set.info(extra.id, input),
   );
@@ -38,7 +39,7 @@ export function useExtraForm(extra?: Extra) {
         // Other flag bits belong to whatever wrote them; only `dual` is ours.
         flag: withDual(extra?.flag ?? 0, value.dual),
       });
-      if (Either.isRight(result)) navigate(backUrl);
+      if (Either.isRight(result)) back();
     },
   });
 

@@ -6,6 +6,7 @@ import { RouteService } from ".";
 import {
   commitTo,
   parseStack,
+  retargetBack,
   stackOf,
   type RouteEntry,
   type RouteIntent,
@@ -69,6 +70,20 @@ export const RouteLive = Layer.effect(
           const armed: RouteIntent = { url: target, behavior: "pop" };
           yield* Ref.set(intent, armed);
           return target;
+        }),
+
+      peekBack: () =>
+        Effect.map(Ref.get(stack), (current) =>
+          current.length < 2 ? null : current[current.length - 2].url,
+        ),
+
+      setBack: (url) =>
+        Effect.gen(function* () {
+          const before = yield* Ref.get(stack);
+          const after = retargetBack(before, url);
+          if (after === before) return;
+          yield* Ref.set(stack, after);
+          yield* save(after);
         }),
 
       reset: (url) =>

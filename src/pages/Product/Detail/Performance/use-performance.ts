@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { Stream } from "effect";
 import { Temporal } from "temporal-polyfill";
 import { useQuery } from "~/components/Loader";

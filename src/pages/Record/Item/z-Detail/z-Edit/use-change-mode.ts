@@ -1,8 +1,8 @@
-import { Either } from "effect";
-import { useNavigate, useSearchParams } from "react-router";
+import { Either, Effect } from "effect";
+import { useNavigate, useSearchParams } from "~/services/route/react";
 import { useMutation } from "~/components/Loader";
-import { urlBackOf } from "~/lib/utils";
 import { service } from "~/services";
+import { route } from "~/services/route/instance";
 import type { RecordMode } from "~/services/record";
 
 /** The screens whose list is filtered by a record's mode, and so follow a flip. */
@@ -13,6 +13,9 @@ const MODE_LISTS = new Set(["/records", "/records/search"]);
  * filtered by mode, so the tab this record was opened from will no longer hold
  * it — retarget that filter at the mode it moved to, and drop the row the pane
  * had selected: that row is the record the flip replaces.
+ *
+ * The screen to retarget is the one the stack remembers, not a `url_back` in the
+ * query: `useChangeMode` reads it with `peekBack` and rewrites it with `setBack`.
  */
 export function retargetUrlBack(urlBack: string | null, mode: RecordMode): string | null {
   if (urlBack === null) return null;
@@ -45,15 +48,20 @@ export function useChangeMode(id: string) {
     // own id is somewhere else to go.
     if (Either.isLeft(result) || result.right === id) return;
 
-    const next = new URLSearchParams(search);
-    const back = retargetUrlBack(urlBackOf(search), mode);
-    if (back === null) next.delete("url_back");
-    else next.set("url_back", back);
-    const query = next.toString();
+    // The list behind this record no longer holds it, so it is retargeted at the
+    // mode the record moved to. Below two entries there is nothing behind, and
+    // `Back` falls back to the record list anyway.
+    const below = Effect.runSync(route.peekBack());
+    if (below !== null) {
+      Effect.runSync(route.setBack(retargetUrlBack(below, mode) ?? below));
+    }
 
+    // The copy takes this screen's place — the record it replaced is soft-deleted,
+    // so `Back` has nothing to return to — and keeps the face it was open on.
+    const query = search.toString();
     navigate(
       { pathname: `/records/${result.right}`, search: query === "" ? "" : `?${query}` },
-      { replace: true },
+      { behavior: "replace" },
     );
   }
 

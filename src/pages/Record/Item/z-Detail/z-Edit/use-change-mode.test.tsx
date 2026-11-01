@@ -4,6 +4,8 @@ import { Effect } from "effect";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router";
 import { RecordError, type RecordMode } from "~/services/record";
+import { route } from "~/services/route/instance";
+import { RouteSync } from "~/services/route/react";
 
 /**
  * Flipping a record's mode does not rewrite it — the service writes a copy,
@@ -32,6 +34,8 @@ mock.module("~/services", () => ({
 
 const { retargetUrlBack, useChangeMode } = await import("./use-change-mode");
 
+const urls = () => Effect.runSync(route.get()).map((entry) => entry.url);
+
 let current = "";
 
 function Probe() {
@@ -40,10 +44,21 @@ function Probe() {
   return null;
 }
 
-function harness(entry: string) {
+/**
+ * The record opened from `behind`, so the stack has a list to retarget — the
+ * screen `Back` would return to.
+ */
+function harness(entry: string, behind: string[] = []) {
+  const [first, ...rest] = [...behind, entry];
+  Effect.runSync(route.reset(first));
+  for (const url of rest) {
+    Effect.runSync(route.intend(url, "push"));
+    Effect.runSync(route.commit({ url, key: url }));
+  }
   function wrapper({ children }: { children: ReactNode }) {
     return (
       <MemoryRouter initialEntries={[entry]}>
+        <RouteSync />
         <Probe />
         {children}
       </MemoryRouter>
@@ -56,22 +71,23 @@ describe("useChangeMode", () => {
   test("follows the copy and keeps the face the record was open on", async () => {
     calls.length = 0;
     outcome = "ok";
-    const { result } = harness(`/records/r1?tab=receipt&url_back=${encodeURIComponent("/records?mode=incoming")}`);
+    const { result } = harness("/records/r1?tab=receipt", ["/records?mode=incoming"]);
 
     await act(async () => {
       await result.current.change("outcoming");
     });
 
     expect(calls).toEqual([{ id: "r1", mode: "outcoming" }]);
-    expect(current).toBe(
-      `/records/r2?tab=receipt&url_back=${encodeURIComponent("/records?mode=outcoming")}`,
-    );
+    // The copy takes the record's place, on the same tab.
+    expect(current).toBe("/records/r2?tab=receipt");
+    // And the list behind it is retargeted: the old mode no longer holds it.
+    expect(urls()).toEqual(["/records?mode=outcoming", "/records/r2?tab=receipt"]);
   });
 
   test("stays put when the service refuses", async () => {
     calls.length = 0;
     outcome = "fail";
-    const { result } = harness("/records/r1");
+    const { result } = harness("/records/r1", ["/records?mode=incoming"]);
 
     await act(async () => {
       await result.current.change("outcoming");
@@ -80,6 +96,8 @@ describe("useChangeMode", () => {
     expect(calls).toEqual([{ id: "r1", mode: "outcoming" }]);
     expect(result.current.error).toBe("Gagal mengubah mode");
     expect(current).toBe("/records/r1");
+    // Nothing moved, so nothing behind it was rewritten either.
+    expect(urls()).toEqual(["/records?mode=incoming", "/records/r1"]);
   });
 });
 

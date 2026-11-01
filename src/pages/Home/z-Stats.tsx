@@ -7,12 +7,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, type LinkProps } from "~/services/route/react";
 import { Show } from "~/components/Show";
 import { SkeletonText } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 import { pageData } from "./data";
-import { formatMoney, withUrlBack } from "./format";
+import { formatMoney } from "./format";
 import { RegionError } from "./z-Error";
 
 /**
@@ -159,7 +159,7 @@ function DebtStat() {
       label="Utang berjalan"
       icon={HandCoins}
       tile={DEBT_TILE}
-      to={withUrlBack("/debt")}
+      to="/debt"
       busy={frame.status === "pending"}
     >
       <Show
@@ -251,6 +251,7 @@ function CardFrame({
   icon: Icon,
   tile,
   to,
+  behavior = "root",
   busy,
   children,
 }: {
@@ -258,6 +259,8 @@ function CardFrame({
   icon: LucideIcon;
   tile: string;
   to?: string;
+  /** A card leads to a section, so `Back` returns to Beranda. */
+  behavior?: LinkProps["behavior"];
   busy?: boolean;
   children: ReactNode;
 }) {
@@ -284,6 +287,7 @@ function CardFrame({
   return (
     <Link
       to={to}
+      behavior={behavior}
       aria-busy={busy || undefined}
       className={cn(
         SURFACE,

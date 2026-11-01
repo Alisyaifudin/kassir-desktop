@@ -148,6 +148,62 @@ describe("RouteService", () => {
     expect(urlsOf(stack)).toEqual(["/"]);
   });
 
+  test("peekBack names the screen below without arming a pop", async () => {
+    const { layer } = setup({
+      [STACK_KEY]: [
+        { url: "/records?mode=incoming", key: "a" },
+        { url: "/records/r1", key: "b" },
+      ],
+    });
+
+    const { peeked, target } = await run(layer, (route) =>
+      Effect.gen(function* () {
+        const peeked = yield* route.peekBack();
+        // `back` still names the same screen: peeking is a read.
+        return { peeked, target: yield* route.back() };
+      }),
+    );
+
+    expect(peeked).toBe("/records?mode=incoming");
+    expect(target).toBe("/records?mode=incoming");
+  });
+
+  test("peekBack at the root has nothing behind it", async () => {
+    const { layer } = setup({ [STACK_KEY]: [{ url: "/", key: "a" }] });
+
+    expect(await run(layer, (route) => route.peekBack())).toBeNull();
+  });
+
+  test("setBack rewrites the screen behind and leaves the one showing", async () => {
+    const { layer, entries } = setup({
+      [STACK_KEY]: [
+        { url: "/records?mode=incoming", key: "a" },
+        { url: "/records/r1", key: "b" },
+      ],
+    });
+
+    const stack = await run(layer, (route) =>
+      Effect.gen(function* () {
+        yield* route.setBack("/records?mode=outcoming");
+        return yield* route.get();
+      }),
+    );
+
+    expect(urlsOf(stack)).toEqual(["/records?mode=outcoming", "/records/r1"]);
+    expect(entries.get(STACK_KEY)).toEqual([
+      { url: "/records?mode=outcoming", key: "a" },
+      { url: "/records/r1", key: "b" },
+    ]);
+  });
+
+  test("setBack at the root writes nothing", async () => {
+    const { layer, entries } = setup({ [STACK_KEY]: [{ url: "/", key: "a" }] });
+
+    await run(layer, (route) => route.setBack("/records"));
+
+    expect(entries.get(STACK_KEY)).toEqual([{ url: "/", key: "a" }]);
+  });
+
   test("reset forgets every screen behind the one it names", async () => {
     const { layer, entries } = setup({
       [STACK_KEY]: [

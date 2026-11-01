@@ -1,5 +1,5 @@
 import { Settings } from "lucide-react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "~/services/route/react";
 import { cn } from "~/lib/utils";
 import { Kbd } from "~/components/ui/kdb";
 import { showShortcut, useShortcut } from "./use-shortcut";
@@ -20,7 +20,10 @@ export function SettingLink() {
         title="Pengaturan"
         onClick={(e) => {
           e.preventDefault();
-          navigate("/setting");
+          // A section, not a step: the gear is the topbar's own tab, so `Back`
+          // from Settings returns to Beranda rather than to the screen it was
+          // tapped on.
+          navigate("/setting", { behavior: "root" });
           showShortcut(false);
         }}
         className={cn(

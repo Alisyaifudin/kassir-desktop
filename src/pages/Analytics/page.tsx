@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { Outlet, useLocation } from "react-router";
+import { Outlet } from "react-router";
+import { useLocation } from "~/services/route/react";
 import { RangeBar } from "./z-RangeBar";
 import { Rail } from "./z-Rail";
 import { AnalyticsBodyLoading } from "./z-Loading";

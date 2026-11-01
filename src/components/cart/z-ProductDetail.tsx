@@ -1,6 +1,6 @@
 import { Effect, Stream } from "effect";
 import { useRef, type ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { Link } from "~/services/route/react";
 import { ExternalLink, Package } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
@@ -229,23 +229,15 @@ export function ProductDetailDialog({
 }
 
 /**
- * The way out of the cart: the product's own screen, with `url_back` naming this
- * cart so Esc there comes back to the same draft.
- *
- * The location is read here rather than in the sheet for the same reason the
- * link lives here: a route is only known inside a router, and this is the one
- * part of the dialog that needs one.
+ * The way out of the cart: the product's own screen, as a step — `Back` there
+ * returns to this cart, on the draft it was showing, because the stack remembers
+ * the screen it was opened from. It used to carry `url_back` for that; the cart
+ * is the only thing that knew the URL, so it had to hand it over on every link.
  */
 function SheetFooter({ productId }: { productId: string }) {
-  const back = useLocation();
   return (
     <Button variant="outline" asChild>
-      <Link
-        to={{
-          pathname: `/products/${productId}`,
-          search: `url_back=${encodeURIComponent(`${back.pathname}${back.search}`)}`,
-        }}
-      >
+      <Link to={`/products/${productId}`} behavior="push">
         <ExternalLink className="size-4" />
         Buka detail produk
       </Link>

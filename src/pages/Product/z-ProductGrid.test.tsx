@@ -48,7 +48,7 @@ function product(options: Partial<Product> = {}): Product {
 function renderGrid(items: Product[]) {
   render(
     <MemoryRouter initialEntries={["/products"]}>
-      <ProductGrid items={items} urlBack="/products" />
+      <ProductGrid items={items} />
     </MemoryRouter>,
   );
 }

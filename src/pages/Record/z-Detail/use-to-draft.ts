@@ -1,5 +1,5 @@
 import { Either } from "effect";
-import { useNavigate } from "react-router";
+import { useNavigate } from "~/services/route/react";
 import { useMutation } from "~/components/Loader";
 import { service } from "~/services";
 import type { RecordMode } from "~/services/record";
@@ -20,7 +20,10 @@ export function useToDraft(recordId: string, mode: RecordMode) {
 
   async function copy() {
     const result = await mutate(recordId);
-    if (Either.isRight(result)) navigate(`${cartOf[mode]}?draft=${result.right}`);
+    // A step: the copy is a cart opened from this record, so `Back` returns here.
+    if (Either.isRight(result)) {
+      navigate(`${cartOf[mode]}?draft=${result.right}`, { behavior: "push" });
+    }
   }
 
   return { loading: pending, error: error?.message ?? null, copy } as const;

@@ -1,9 +1,8 @@
 import { useMemo } from "react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { Plus } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
 import type { Product } from "~/services/product";
@@ -37,8 +36,6 @@ export default function Page() {
 function List() {
   const { state, set } = useListState();
   const role = useUser().role;
-  // Current list URL (`/products?stock=in&…`), so detail pages can come back to it.
-  const urlBack = useGenerateUrlBack("/products");
 
   return (
     <main className="relative flex h-[calc(100vh-52px)] flex-col overflow-hidden">
@@ -50,22 +47,17 @@ function List() {
           pulse={<Loading view={state.view} />}
           error={(error) => <TextError>{`Produk bermasalah: ${error.message}`}</TextError>}
         >
-          {({ products }) => (
-            <Rows products={products} state={state} set={set} urlBack={urlBack} />
-          )}
+          {({ products }) => <Rows products={products} state={state} set={set} />}
         </pageData.Gate>
       </div>
 
       <ListFooter state={state} set={set} />
 
       {role === "admin" ? (
-        <Link
-          to={{
-            pathname: "/products/new",
-            search: `url_back=${encodeURIComponent(urlBack)}`,
-          }}
-          className="absolute bottom-16 right-6 z-20"
-        >
+        // A step: the form is opened from this list, and `Back` from it — or from
+        // the product it creates — returns to the list on the filters it was left
+        // on, because the stack keeps the whole URL, query included.
+        <Link to="/products/new" behavior="push" className="absolute bottom-16 right-6 z-20">
           <Button className="size-12 rounded-full shadow-lg" aria-label="Tambah produk">
             <Plus className="size-5" />
           </Button>
@@ -84,12 +76,10 @@ function Rows({
   products,
   state,
   set,
-  urlBack,
 }: {
   products: Product[];
   state: ListState;
   set: (patch: ListStatePatch) => void;
-  urlBack: string;
 }) {
   // No pause here: the search bar already waits for it before it writes the URL,
   // so `state.q` arrives settled — a second `SEARCH_DELAY` would only make the
@@ -114,12 +104,8 @@ function Rows({
   }
 
   return state.view === "table" ? (
-    <ProductTable
-      items={filtered.slice(start, start + state.size)}
-      start={start}
-      urlBack={urlBack}
-    />
+    <ProductTable items={filtered.slice(start, start + state.size)} start={start} />
   ) : (
-    <ProductGrid items={filtered.slice(start, start + state.size)} urlBack={urlBack} />
+    <ProductGrid items={filtered.slice(start, start + state.size)} />
   );
 }

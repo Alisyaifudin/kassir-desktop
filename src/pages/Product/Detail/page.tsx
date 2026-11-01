@@ -1,6 +1,6 @@
-import { Link, Outlet, useLocation, useParams } from "react-router";
+import { Outlet } from "react-router";
+import { Link, useLocation, useParams } from "~/services/route/react";
 import { pageData } from "./data";
-import { useGetUrlBack } from "~/hooks/use-get-url-back";
 import { useEscapeBack } from "./use-escape-back";
 import { useUser } from "~/hooks/use-user";
 import { cn } from "~/lib/utils";
@@ -42,16 +42,14 @@ export default function Page() {
 function Content() {
   const { id } = useParams();
   const { pathname } = useLocation();
-  const backUrl = useGetUrlBack("/products");
   const role = useUser().role;
-  // Esc is the way out of the screen — to `url_back`, or to the browser's own
-  // history when the detail was opened without one.
+  // Esc is the way out of the screen: the app's own history, and `/products` only
+  // for a detail with nothing behind it — a deep link, a relaunched webview.
   useEscapeBack();
 
   if (id === undefined) return null;
 
   const base = `/products/${id}`;
-  const search = `url_back=${encodeURIComponent(backUrl)}`;
   const active = activeTab(pathname, id);
 
   return (
@@ -107,7 +105,10 @@ function Content() {
             {TABS.map((tab) => (
               <Link
                 key={tab.id}
-                to={{ pathname: tab.path ? `${base}/${tab.path}` : base, search }}
+                // A tab is the same screen rewritten, not a new one: `Back` leaves
+                // the product instead of stepping through every tab looked at.
+                behavior="replace"
+                to={tab.path ? `${base}/${tab.path}` : base}
                 className={cn(
                   "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
                   active === tab.id && "bg-background text-foreground shadow",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { z } from "zod";
 
 /**
@@ -79,7 +79,7 @@ function useCartParams<S extends string>(stages: readonly [S, ...S[]] | null) {
 
   useEffect(() => {
     // Start from the query the router has committed, so params this hook does
-    // not own (`url_back`, say) survive the write, and touch only our own.
+    // not own survive the write, and touch only our own.
     const next = new URLSearchParams(search);
     if (staged) {
       if (stage === undefined) next.delete("stage");

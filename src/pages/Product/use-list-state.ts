@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 import { Effect } from "effect";
 import { integer } from "~/lib/utils";
 import { service } from "~/services";

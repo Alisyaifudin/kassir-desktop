@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "~/services/route/react";
 
 /**
  * Which record the detail pane is showing, kept in the URL so a refresh keeps

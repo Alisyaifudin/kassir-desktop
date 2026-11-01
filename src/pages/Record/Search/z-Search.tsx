@@ -6,7 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "~/services/route/react";
 import { SearchIcon, SquareArrowOutUpRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -24,7 +24,6 @@ import {
 } from "~/components/ui/table";
 import { formatDate, formatTime } from "~/lib/date";
 import { cn } from "~/lib/utils";
-import { useGenerateUrlBack } from "~/hooks/use-generate-url-back";
 import type { ListingHistoryPage } from "~/services/record";
 import { useMode } from "../use-mode";
 import { useQuery } from "../use-query";
@@ -141,7 +140,6 @@ function Results({
 
 function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () => void }) {
   const navigate = useNavigate();
-  const urlBack = useGenerateUrlBack("/records/search");
   // Roving tabindex, the same model the day list and the POS grids use: the
   // result list is one tab stop, arrows move inside it, Enter opens the record.
   // Before this, the only focusable thing per row was an unnamed icon button, so
@@ -150,13 +148,10 @@ function SearchTable({ page, onMore }: { page: ListingHistoryPage; onMore: () =>
   const tabStop = Math.min(focused, Math.max(0, page.entries.length - 1));
 
   const open = useCallback(
-    (id: string) => {
-      navigate({
-        pathname: `/records/${id}`,
-        search: `?url_back=${encodeURIComponent(urlBack)}`,
-      });
-    },
-    [navigate, urlBack],
+    // A step: the record is opened from these results, so `Back` returns to the
+    // query they were found with.
+    (id: string) => navigate(`/records/${id}`, { behavior: "push" }),
+    [navigate],
   );
 
   return (

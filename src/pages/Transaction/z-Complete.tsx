@@ -1,7 +1,7 @@
 import type Decimal from "decimal.js";
 import { Effect, Either } from "effect";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "~/services/route/react";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -100,7 +100,11 @@ export function Complete({
           </Button>
           <Button asChild variant="secondary" disabled={busy}>
             <Link
-              to={`/records/${recordId}?url_back=${encodeURIComponent("/transaction")}`}
+              // A step: the record is opened from this screen, so `Back` returns to
+              // it. A busy dialog keeps its link inert by preventing the click,
+              // which also keeps the stack from remembering it.
+              to={`/records/${recordId}`}
+              behavior="push"
               aria-disabled={busy}
               className={busy ? "pointer-events-none opacity-50" : undefined}
               onClick={(event) => {

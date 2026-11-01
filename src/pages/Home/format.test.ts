@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { formatMoney, withUrlBack } from "./format";
+import { formatMoney } from "./format";
 
 /**
- * Beranda's two display helpers. `formatMoney` is what a card shows ("Rp 1.000"
- * with a space, Indonesian grouping), and `withUrlBack` is the navigation
- * contract every link back to Beranda uses — the destination has to receive an
- * encoded in-app path, or the screen it opens cannot come back here.
+ * Beranda's display helper: what a card shows ("Rp 1.000" with a space,
+ * Indonesian grouping).
+ *
+ * There used to be a second one, `withUrlBack`, which stamped `url_back=/` onto
+ * every destination so the screen it opened could come back here. Beranda is the
+ * root of the app's own navigation stack, so every screen it opens already has it
+ * behind — the helper, and the tests that pinned its encoding, are gone.
  */
 describe("formatMoney", () => {
   test("writes rupiah with a space and the Indonesian grouping", () => {
@@ -20,17 +23,5 @@ describe("formatMoney", () => {
 
   test("no decimals are invented for a whole amount", () => {
     expect(formatMoney(1_000.5)).toBe("Rp 1.000,5");
-  });
-});
-
-describe("withUrlBack", () => {
-  test("carries Beranda as an encoded in-app path", () => {
-    expect(withUrlBack("/money")).toBe("/money?url_back=%2F");
-  });
-
-  test("an origin screen with its own query is encoded as one value", () => {
-    expect(withUrlBack("/records", "/pos?draft=x")).toBe(
-      "/records?url_back=%2Fpos%3Fdraft%3Dx",
-    );
   });
 });
