@@ -10,8 +10,20 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { Context, Layer } from "effect";
 import { nextRequestId, openLineStream, type LineStream, type StreamSummary } from "./stream";
 
-/** Where the server lives, plus the bearer token (§10). */
-export type Endpoint = { baseUrl: string; token: string };
+/** Where the server lives, the bearer token (§10), and who this install is. */
+export type Endpoint = {
+  baseUrl: string;
+  token: string;
+  /**
+   * Stable per installation — a UUID persisted in the store (`sync.device_id`).
+   *
+   * Without it the server log can only attribute a request to the *token*, and
+   * every till sharing one token looks identical. That is what made the
+   * gzip-of-gzip failure impossible to pin to a device or a build; the backend
+   * records this in `logs.device_id` (kassir-backend/docs/LOGS.md).
+   */
+  deviceId: string;
+};
 
 /** A sync session's server-side pointer (§7.1). */
 export type Session = { uploadId: string; at: number; frames: number };
@@ -94,6 +106,18 @@ async function command<T>(name: string, args: Record<string, unknown>): Promise<
   }
 }
 
+/**
+ * The identifying args every sync command carries.
+ *
+ * `requestId` is generated per call and travels as `X-Kassir-Request-Id`, so the
+ * server's log row and any failure report from this device can be joined on it.
+ * The app version is not sent from here — Rust reads it from the binary, which is
+ * the only authority on which build is running.
+ */
+function identify(endpoint: Endpoint, requestId: string) {
+  return { deviceId: endpoint.deviceId, requestId };
+}
+
 function streaming(
   prefix: string,
   start: (requestId: string, channel: Channel<string>) => Promise<StreamSummary>,
@@ -105,16 +129,25 @@ function streaming(
 /** The real transport: every call is one IPC command. */
 export const tauriTransport: SyncTransport = {
   health(endpoint) {
-    return command("sync_health", { baseUrl: endpoint.baseUrl, token: endpoint.token });
+    return command("sync_health", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      client: identify(endpoint, nextRequestId("health")),
+    });
   },
   createSession(endpoint) {
-    return command("sync_create_session", { baseUrl: endpoint.baseUrl, token: endpoint.token });
+    return command("sync_create_session", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      client: identify(endpoint, nextRequestId("session")),
+    });
   },
   getSession(endpoint, uploadId) {
     return command("sync_get_session", {
       baseUrl: endpoint.baseUrl,
       token: endpoint.token,
       uploadId,
+      client: identify(endpoint, nextRequestId("session")),
     });
   },
   deleteSession(endpoint, uploadId) {
@@ -122,6 +155,7 @@ export const tauriTransport: SyncTransport = {
       baseUrl: endpoint.baseUrl,
       token: endpoint.token,
       uploadId,
+      client: identify(endpoint, nextRequestId("session")),
     });
   },
   pull(endpoint, input) {
@@ -132,7 +166,7 @@ export const tauriTransport: SyncTransport = {
         token: endpoint.token,
         since: input.since,
         limit: input.limit,
-        requestId,
+        client: identify(endpoint, requestId),
       }),
     );
   },
@@ -147,7 +181,7 @@ export const tauriTransport: SyncTransport = {
         prefixSha: input.prefixSha,
         body: input.body,
         compress: input.compress,
-        requestId,
+        client: identify(endpoint, requestId),
       }),
     );
   },

@@ -45,7 +45,7 @@ import { dbFailure, makeMerger, type MergeExecutor } from "./merge";
 import { pull, toSyncError } from "./pull";
 import { push } from "./push";
 import { resetSyncStatements } from "./sql";
-import { SyncTransportService } from "./transport";
+import { SyncTransportService, type Endpoint } from "./transport";
 
 /** Cursor keys, exactly as the contract names them (§3.2). */
 const KEY_LAST_PULLED = "sync.last_pulled_seq";
@@ -57,6 +57,15 @@ const KEY_UPLOAD_CHAIN = "sync.upload_chain";
 /** The device's configured server and token (not cursors, but the same store). */
 const KEY_BASE_URL = "sync.base_url";
 const KEY_TOKEN = "sync.token";
+/**
+ * This installation's identity, created once and never rotated.
+ *
+ * It is what lets the server log tell two tills apart when they share a sync
+ * token (kassir-backend/docs/LOGS.md). It survives a reinstall of the webview
+ * because it lives in the store next to the token, but not a wipe of the app's
+ * data — at which point it is a new install, which is the truth of the matter.
+ */
+const KEY_DEVICE_ID = "sync.device_id";
 
 const IDLE: SyncProgress = { phase: "idle", entity: null, done: 0, total: 0, message: "" };
 
@@ -197,6 +206,24 @@ export const SyncLive = Layer.effect(
       );
     }
 
+    /**
+     * The installation id, minted on first use.
+     *
+     * Failing to persist it would not fail the sync: an unattributable request is
+     * worse than a missing one, but it is not worse than not syncing at all. So a
+     * store write that fails yields the minted id for this run and the next run
+     * mints another.
+     */
+    function deviceId(): Effect.Effect<string> {
+      return Effect.gen(function* () {
+        const stored = yield* read<unknown>(KEY_DEVICE_ID, "");
+        if (typeof stored === "string" && stored !== "") return stored;
+        const minted = crypto.randomUUID();
+        yield* write(KEY_DEVICE_ID, minted).pipe(Effect.orElseSucceed(() => undefined));
+        return minted;
+      });
+    }
+
     function getConfig(): Effect.Effect<SyncConfig, SyncError> {
       return Effect.gen(function* () {
         const baseUrl = yield* read<unknown>(KEY_BASE_URL, SYNC_CONFIG_DEFAULT.baseUrl);
@@ -208,31 +235,33 @@ export const SyncLive = Layer.effect(
       });
     }
 
-    function endpointOf(config: SyncConfig): Effect.Effect<{ baseUrl: string; token: string }, SyncError> {
-      const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
-      const token = config.token.trim();
-      if (baseUrl === "") {
-        return Effect.fail(
-          new SyncError({
-            message: "Alamat server belum diisi. Isi di Pengaturan → Sinkronisasi.",
-            code: "bad_request",
-          }),
-        );
-      }
-      if (token === "") {
-        return Effect.fail(
-          new SyncError({
-            message: "Token sinkronisasi belum diisi. Isi di Pengaturan → Sinkronisasi.",
-            code: "unauthorized",
-            status: 401,
-          }),
-        );
-      }
-      return Effect.succeed({ baseUrl, token });
+    function endpointOf(config: SyncConfig): Effect.Effect<Endpoint, SyncError> {
+      return Effect.gen(function* () {
+        const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
+        const token = config.token.trim();
+        if (baseUrl === "") {
+          return yield* Effect.fail(
+            new SyncError({
+              message: "Alamat server belum diisi. Isi di Pengaturan → Sinkronisasi.",
+              code: "bad_request",
+            }),
+          );
+        }
+        if (token === "") {
+          return yield* Effect.fail(
+            new SyncError({
+              message: "Token sinkronisasi belum diisi. Isi di Pengaturan → Sinkronisasi.",
+              code: "unauthorized",
+              status: 401,
+            }),
+          );
+        }
+        return { baseUrl, token, deviceId: yield* deviceId() };
+      });
     }
 
     /** §3.2 `Sinkronisasi Ulang`: cursors to zero, session dropped, all rows queued. */
-    function resetLocal(endpoint: { baseUrl: string; token: string }): Effect.Effect<void, SyncError> {
+    function resetLocal(endpoint: Endpoint): Effect.Effect<void, SyncError> {
       return Effect.gen(function* () {
         const session = yield* readSession();
         if (session !== null) {

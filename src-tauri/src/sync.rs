@@ -155,6 +155,83 @@ pub struct ChainDto {
     pub bytes: i64,
 }
 
+/// Who is calling, on top of the token.
+///
+/// The server records these in its request log (`kassir-backend/docs/LOGS.md`).
+/// Without them a row can only say *which token* called, and every till sharing a
+/// token is indistinguishable — which is what made the gzip-of-gzip failure
+/// impossible to attribute to a device or to a build.
+///
+/// `device_id` comes from the app's store (it is the only durable per-install
+/// value the webview owns); `request_id` is generated per call on the TS side so
+/// the failure reporter can name the request it is complaining about.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientIdentity {
+    pub device_id: String,
+    pub request_id: String,
+}
+
+/// The identifying headers for one request, already made safe to send.
+struct RequestIdentity {
+    device_id: String,
+    version: String,
+    request_id: String,
+}
+
+impl RequestIdentity {
+    /// `version` comes from the binary itself rather than from the frontend: the
+    /// point of the header is to know which build behaved badly, and the app
+    /// bundle is the only authority on that.
+    fn new(app: &tauri::AppHandle, client: &ClientIdentity) -> Self {
+        Self::with_version(client, &app.package_info().version.to_string())
+    }
+
+    /// Split out from `new` so the header mapping can be tested without an
+    /// `AppHandle` (and so the version stays an argument, not a global).
+    fn with_version(client: &ClientIdentity, version: &str) -> Self {
+        Self {
+            device_id: header_safe(&client.device_id, 64),
+            version: header_safe(version, 40),
+            request_id: header_safe(&client.request_id, 80),
+        }
+    }
+}
+
+///
+/// Restricted to the shapes the server will store (it drops anything else) and
+/// bounded, because these values also land in indexed log columns. An invalid
+/// header value would otherwise fail the request itself.
+fn header_safe(value: &str, max: usize) -> String {
+    value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | ':' | '-'))
+        .take(max)
+        .collect()
+}
+
+/// Applies the identifying headers. Empty values are omitted rather than sent
+/// blank, so the server records "unknown" instead of "".
+fn identify(mut builder: reqwest::RequestBuilder, who: &RequestIdentity) -> reqwest::RequestBuilder {
+    for (name, value) in [
+        ("x-kassir-device-id", &who.device_id),
+        ("x-kassir-version", &who.version),
+        ("x-kassir-request-id", &who.request_id),
+    ] {
+        if !value.is_empty() {
+            builder = builder.header(name, value);
+        }
+    }
+    builder.header(reqwest::header::USER_AGENT, user_agent(&who.version))
+}
+
+/// `KassirDesktop/0.4.2 (windows)` — the platform is part of the identity: a
+/// Windows-only bug in a desktop app is not a rare thing.
+fn user_agent(version: &str) -> String {
+    let version = if version.is_empty() { "unknown" } else { version };
+    format!("KassirDesktop/{version} ({})", std::env::consts::OS)
+}
+
 /// Every failure a command can report. The shape matches the TS
 /// `SyncTransportError`, so the sync service can branch on `code` (§11).
 #[derive(Debug, Serialize)]
@@ -230,16 +307,21 @@ pub fn sync_cancel(state: tauri::State<'_, SyncState>, id: String) -> Result<(),
 #[tauri::command]
 pub async fn sync_health(
     state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
     base_url: String,
     token: String,
+    client: ClientIdentity,
 ) -> Result<HealthDto, SyncFailure> {
-    let client = state.client();
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
     let url = format!("{}/v1/health", trim_base(&base_url));
-    let resp = client
-        .get(url)
-        .bearer_auth(&token)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
+    let resp = identify(
+        http.get(url)
+            .bearer_auth(&token)
+            .header(reqwest::header::ACCEPT, "application/json"),
+        &who,
+    )
+    .send()
         .await
         .map_err(transport)?;
 
@@ -258,16 +340,21 @@ pub async fn sync_health(
 #[tauri::command]
 pub async fn sync_create_session(
     state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
     base_url: String,
     token: String,
+    client: ClientIdentity,
 ) -> Result<SessionDto, SyncFailure> {
-    let client = state.client();
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
     let url = format!("{}/v1/upload", trim_base(&base_url));
-    let resp = client
-        .post(url)
-        .bearer_auth(&token)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
+    let resp = identify(
+        http.post(url)
+            .bearer_auth(&token)
+            .header(reqwest::header::ACCEPT, "application/json"),
+        &who,
+    )
+    .send()
         .await
         .map_err(transport)?;
 
@@ -288,17 +375,22 @@ pub async fn sync_create_session(
 #[tauri::command]
 pub async fn sync_get_session(
     state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
     base_url: String,
     token: String,
     upload_id: String,
+    client: ClientIdentity,
 ) -> Result<SessionDto, SyncFailure> {
-    let client = state.client();
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
     let url = session_url(&base_url, &upload_id);
-    let resp = client
-        .get(url)
-        .bearer_auth(&token)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
+    let resp = identify(
+        http.get(url)
+            .bearer_auth(&token)
+            .header(reqwest::header::ACCEPT, "application/json"),
+        &who,
+    )
+    .send()
         .await
         .map_err(transport)?;
 
@@ -319,16 +411,16 @@ pub async fn sync_get_session(
 #[tauri::command]
 pub async fn sync_delete_session(
     state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
     base_url: String,
     token: String,
     upload_id: String,
+    client: ClientIdentity,
 ) -> Result<(), SyncFailure> {
-    let client = state.client();
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
     let url = session_url(&base_url, &upload_id);
-    let resp = client
-        .delete(url)
-        .bearer_auth(&token)
-        .send()
+    let resp = identify(http.delete(url).bearer_auth(&token), &who).send()
         .await
         .map_err(transport)?;
 
@@ -345,17 +437,20 @@ pub async fn sync_delete_session(
 #[tauri::command]
 pub async fn sync_pull(
     state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
     channel: Channel<String>,
     base_url: String,
     token: String,
     since: i64,
     limit: u32,
-    request_id: String,
+    client: ClientIdentity,
 ) -> Result<StreamSummary, SyncFailure> {
-    let client = state.client();
-    let flag = state.register(&request_id);
-    let outcome = pull_stream(&client, &flag, &base_url, &token, since, limit, &channel).await;
-    state.unregister(&request_id);
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    // The same id names the log row on the server and the cancel flag here.
+    let flag = state.register(&client.request_id);
+    let outcome = pull_stream(&http, &flag, &who, &base_url, &token, since, limit, &channel).await;
+    state.unregister(&client.request_id);
     outcome
 }
 
@@ -369,6 +464,7 @@ pub async fn sync_pull(
 #[allow(clippy::too_many_arguments)]
 pub async fn sync_upload_chunk(
     state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
     channel: Channel<String>,
     base_url: String,
     token: String,
@@ -377,13 +473,15 @@ pub async fn sync_upload_chunk(
     prefix_sha: String,
     body: String,
     compress: bool,
-    request_id: String,
+    client: ClientIdentity,
 ) -> Result<StreamSummary, SyncFailure> {
-    let client = state.client();
-    let flag = state.register(&request_id);
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    let flag = state.register(&client.request_id);
     let outcome = upload_chunk_stream(
-        &client,
+        &http,
         &flag,
+        &who,
         &channel,
         &base_url,
         &token,
@@ -394,7 +492,7 @@ pub async fn sync_upload_chunk(
         compress,
     )
     .await;
-    state.unregister(&request_id);
+    state.unregister(&client.request_id);
     outcome
 }
 
@@ -483,8 +581,9 @@ async fn failure(resp: reqwest::Response) -> SyncFailure {
 }
 
 async fn pull_stream(
-    client: &reqwest::Client,
+    http: &reqwest::Client,
     flag: &AtomicBool,
+    who: &RequestIdentity,
     base_url: &str,
     token: &str,
     since: i64,
@@ -497,16 +596,18 @@ async fn pull_stream(
         since,
         limit
     );
-    let resp = client
-        .get(url)
-        .bearer_auth(token)
-        .header(reqwest::header::ACCEPT, "application/x-ndjson")
-        // reqwest decodes a gzip body transparently, so the splitter below only
-        // ever sees canonical plaintext (§4.4).
-        .header(reqwest::header::ACCEPT_ENCODING, "gzip")
-        .send()
-        .await
-        .map_err(transport)?;
+    let resp = identify(
+        http.get(url)
+            .bearer_auth(token)
+            .header(reqwest::header::ACCEPT, "application/x-ndjson")
+            // reqwest decodes a gzip body transparently, so the splitter below
+            // only ever sees canonical plaintext (§4.4).
+            .header(reqwest::header::ACCEPT_ENCODING, "gzip"),
+        who,
+    )
+    .send()
+    .await
+    .map_err(transport)?;
 
     if !resp.status().is_success() {
         return Err(failure(resp).await);
@@ -517,8 +618,9 @@ async fn pull_stream(
 
 #[allow(clippy::too_many_arguments)]
 async fn upload_chunk_stream(
-    client: &reqwest::Client,
+    http: &reqwest::Client,
     flag: &AtomicBool,
+    who: &RequestIdentity,
     channel: &Channel<String>,
     base_url: &str,
     token: &str,
@@ -532,22 +634,14 @@ async fn upload_chunk_stream(
 
     if compress {
         let payload = gzip(body)?;
-        let resp = send_chunk(
-            client,
-            &url,
-            token,
-            offset,
-            prefix_sha,
-            payload,
-            Some("gzip"),
-        )
-        .await?;
+        let resp = send_chunk(http, who, &url, token, offset, prefix_sha, payload, Some("gzip"))
+            .await?;
         // A server that refuses the coding must still get the chunk: retry
         // identity (§4.4 "the client retries identity").
         if resp.status() == reqwest::StatusCode::UNSUPPORTED_MEDIA_TYPE {
             log::warn!("sync: server refused gzip, retrying identity");
             let resp =
-                send_chunk(client, &url, token, offset, prefix_sha, body.to_vec(), None).await?;
+                send_chunk(http, who, &url, token, offset, prefix_sha, body.to_vec(), None).await?;
             if !resp.status().is_success() {
                 return Err(failure(resp).await);
             }
@@ -559,7 +653,7 @@ async fn upload_chunk_stream(
         return stream_lines(resp, flag, channel).await;
     }
 
-    let resp = send_chunk(client, &url, token, offset, prefix_sha, body.to_vec(), None).await?;
+    let resp = send_chunk(http, who, &url, token, offset, prefix_sha, body.to_vec(), None).await?;
     if !resp.status().is_success() {
         return Err(failure(resp).await);
     }
@@ -568,7 +662,8 @@ async fn upload_chunk_stream(
 
 #[allow(clippy::too_many_arguments)]
 async fn send_chunk(
-    client: &reqwest::Client,
+    http: &reqwest::Client,
+    who: &RequestIdentity,
     url: &str,
     token: &str,
     offset: i64,
@@ -576,15 +671,17 @@ async fn send_chunk(
     payload: Vec<u8>,
     encoding: Option<&str>,
 ) -> Result<reqwest::Response, SyncFailure> {
-    let mut request = client
-        .patch(url)
-        .bearer_auth(token)
-        .header(reqwest::header::CONTENT_TYPE, "application/x-ndjson")
-        .header(reqwest::header::ACCEPT, "application/x-ndjson")
-        .header(reqwest::header::ACCEPT_ENCODING, "gzip")
-        .header("Upload-Offset", offset.to_string())
-        .header("Upload-Prefix-Sha256", prefix_sha)
-        .body(payload);
+    let mut request = identify(
+        http.patch(url)
+            .bearer_auth(token)
+            .header(reqwest::header::CONTENT_TYPE, "application/x-ndjson")
+            .header(reqwest::header::ACCEPT, "application/x-ndjson")
+            .header(reqwest::header::ACCEPT_ENCODING, "gzip")
+            .header("Upload-Offset", offset.to_string())
+            .header("Upload-Prefix-Sha256", prefix_sha),
+        who,
+    )
+    .body(payload);
 
     if let Some(encoding) = encoding {
         request = request.header(reqwest::header::CONTENT_ENCODING, encoding);
@@ -717,6 +814,86 @@ fn to_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // -- identifying headers (docs/LOGS.md on the backend) -------------------
+
+    #[test]
+    fn the_ts_side_can_send_the_identity_as_camel_case() {
+        // The one seam no type checker on either side can see: Tauri hands the
+        // `client` argument to serde as the JS object, so this is the exact shape
+        // `transport.ts` builds. If it ever stops matching, every sync request
+        // fails to deserialize rather than losing a header quietly.
+        let client: ClientIdentity = serde_json::from_value(serde_json::json!({
+            "deviceId": "4f1c9e2a-1111-4222-8333-444455556666",
+            "requestId": "pull-m8x2k1-7",
+        }))
+        .expect("the TS identity shape deserializes");
+        assert_eq!(client.device_id, "4f1c9e2a-1111-4222-8333-444455556666");
+        assert_eq!(client.request_id, "pull-m8x2k1-7");
+    }
+
+    fn identity() -> RequestIdentity {
+        RequestIdentity::with_version(
+            &ClientIdentity {
+                device_id: "4f1c9e2a-1111-4222-8333-444455556666".to_string(),
+                request_id: "pull-m8x2k1-7".to_string(),
+            },
+            "0.4.2",
+        )
+    }
+
+    #[test]
+    fn identity_headers_identify_the_install_and_the_call() {
+        let request = identify(reqwest::Client::new().get("http://localhost/v1/pull"), &identity())
+            .build()
+            .expect("request builds");
+        let headers = request.headers();
+        assert_eq!(
+            headers.get("x-kassir-device-id").unwrap(),
+            "4f1c9e2a-1111-4222-8333-444455556666"
+        );
+        assert_eq!(headers.get("x-kassir-version").unwrap(), "0.4.2");
+        assert_eq!(headers.get("x-kassir-request-id").unwrap(), "pull-m8x2k1-7");
+        // The platform is part of the identity: a Windows-only bug is not rare.
+        assert_eq!(
+            headers.get(reqwest::header::USER_AGENT).unwrap(),
+            format!("KassirDesktop/0.4.2 ({})", std::env::consts::OS).as_str()
+        );
+    }
+
+    #[test]
+    fn header_values_are_restricted_to_what_the_server_will_store() {
+        // The server drops anything outside [A-Za-z0-9._:-] rather than guessing,
+        // so a value that would be stored as NULL must not reach it looking real.
+        assert_eq!(header_safe("a b\tc;d", 64), "abcd");
+        assert_eq!(header_safe("kst_7f-3a.9c:21", 64), "kst_7f-3a.9c:21");
+        // Bounded before it is sent, not after the server clips it: a header that
+        // silently differs from the id in the request is a correlation that lies.
+        assert_eq!(header_safe(&"x".repeat(100), 8), "xxxxxxxx");
+        // An unusable id is omitted rather than sent blank.
+        assert!(header_safe("\u{1f600}", 64).is_empty());
+    }
+
+    #[test]
+    fn a_missing_version_still_names_the_client() {
+        let who = RequestIdentity::with_version(
+            &ClientIdentity {
+                device_id: String::new(),
+                request_id: "health-1".to_string(),
+            },
+            "",
+        );
+        let request = identify(reqwest::Client::new().get("http://localhost/v1/health"), &who)
+            .build()
+            .expect("request builds");
+        let headers = request.headers();
+        assert!(headers.get("x-kassir-device-id").is_none());
+        assert!(headers.get("x-kassir-version").is_none());
+        assert_eq!(
+            headers.get(reqwest::header::USER_AGENT).unwrap(),
+            format!("KassirDesktop/unknown ({})", std::env::consts::OS).as_str()
+        );
+    }
 
     #[test]
     fn hex_round_trips() {

@@ -29,7 +29,11 @@ import type { Context } from "effect";
 /** The database service's shape, as the sync statements use it. */
 type DatabaseServiceImpl = Context.Tag.Service<typeof DatabaseService>;
 
-const endpoint: Endpoint = { baseUrl: "https://sync.test", token: "t" };
+const endpoint: Endpoint = {
+  baseUrl: "https://sync.test",
+  token: "t",
+  deviceId: "4f1c9e2a-1111-4222-8333-444455556666",
+};
 
 /** sha256 hex, the chain's step (§7.3). */
 function chainStep(prevHex: string, line: string): string {
