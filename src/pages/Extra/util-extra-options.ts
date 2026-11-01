@@ -4,22 +4,21 @@ import { DUAL_FLAG, type ValueKind } from "~/lib/constants";
 
 export const { fieldContext, formContext, useFieldContext } = createFormHookContexts();
 
-const numeric = z.string().refine((v) => {
-  const num = Number(v);
-  return !isNaN(num) && isFinite(num);
-}, "Harus angka");
-
-/** The form's own shape: numbers are typed as text, and `dual` is the flag bit. */
+/**
+ * The form's own shape: the amount is a number (the kind decides which field
+ * edits it), and `dual` is the flag bit. `z.number()` in Zod 4 already refuses
+ * `NaN` and the infinities; the message is the one the operator reads.
+ */
 export const extraSchema = z
   .object({
     name: z.string().trim().nonempty("Harus ada"),
-    value: numeric,
+    value: z.number({ error: "Harus angka" }),
     kind: z.enum(["percent", "number"]),
     dual: z.boolean(),
   })
   .refine(
     (data) => {
-      return !(data.kind === "percent" && Math.abs(Number(data.value)) > 100);
+      return !(data.kind === "percent" && Math.abs(data.value) > 100);
     },
     {
       message: "Tidak boleh lebih dari 100 atau kurang dari -100",

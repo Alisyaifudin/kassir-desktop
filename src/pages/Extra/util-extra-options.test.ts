@@ -9,7 +9,7 @@ import { extraSchema, isDual, KIND_LABEL, withDual } from "./util-extra-options"
  */
 const values = (overrides: Record<string, unknown> = {}) => ({
   name: "Ongkir",
-  value: "10000",
+  value: 10_000,
   kind: "number" as const,
   dual: false,
   ...overrides,
@@ -28,20 +28,20 @@ describe("extraSchema", () => {
     }
   });
 
-  test("the value is typed as text and must still read as a number", () => {
-    for (const value of ["abc", "NaN", "Infinity"]) {
+  test("the amount is a number — NaN and the infinities are not", () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       const parsed = extraSchema.safeParse(values({ value }));
       expect(parsed.success).toBe(false);
       expect(parsed.success === false && parsed.error.issues[0].message).toBe("Harus angka");
     }
-    expect(extraSchema.safeParse(values({ value: "12.5" })).success).toBe(true);
-    // An empty box reads as 0 rather than as a missing value: `Number("")` is 0,
-    // and the check only asks whether the text reads as a number.
-    expect(extraSchema.safeParse(values({ value: "" })).success).toBe(true);
+    expect(extraSchema.safeParse(values({ value: 12.5 })).success).toBe(true);
+    // A cleared amount box reads as 0 rather than as a missing value: the field
+    // emits a number, and zero is a charge worth nothing.
+    expect(extraSchema.safeParse(values({ value: 0 })).success).toBe(true);
   });
 
   test("a percent may not exceed 100 in either direction", () => {
-    for (const value of ["150", "-150"]) {
+    for (const value of [150, -150]) {
       const parsed = extraSchema.safeParse(values({ kind: "percent", value }));
       expect(parsed.success).toBe(false);
       expect(parsed.success === false && parsed.error.issues[0].message).toBe(
@@ -51,9 +51,9 @@ describe("extraSchema", () => {
   });
 
   test("100% is a charge; 150 as a flat amount is fine", () => {
-    expect(extraSchema.safeParse(values({ kind: "percent", value: "100" })).success).toBe(true);
-    expect(extraSchema.safeParse(values({ kind: "percent", value: "-100" })).success).toBe(true);
-    expect(extraSchema.safeParse(values({ kind: "number", value: "150" })).success).toBe(true);
+    expect(extraSchema.safeParse(values({ kind: "percent", value: 100 })).success).toBe(true);
+    expect(extraSchema.safeParse(values({ kind: "percent", value: -100 })).success).toBe(true);
+    expect(extraSchema.safeParse(values({ kind: "number", value: 150 })).success).toBe(true);
   });
 });
 

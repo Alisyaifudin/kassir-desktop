@@ -9,15 +9,20 @@ import type { Extra } from "~/services/extra";
 export function ExtraForm({ extra }: { extra: Extra }) {
   const { form, error } = useExtraForm(extra);
   return (
-    <main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-2">
-      <h1 className="font-bold text-2xl">Edit biaya lainnya</h1>
+    <main className="p-2 mx-auto w-full max-w-5xl flex flex-col gap-4">
+      <header className="flex flex-col gap-1">
+        <h1 className="font-bold text-2xl">Edit biaya lainnya</h1>
+        <p className="text-sm text-muted-foreground">
+          Nama, jenis, dan nilai awal biaya ini. Perubahan berlaku untuk transaksi berikutnya.
+        </p>
+      </header>
       <ExtraFormRoot form={form}>
         <>
           <div className="flex items-center justify-between">
             <form.Subscribe selector={(s) => s.isSubmitting}>
               {(isSubmitting) => {
                 return (
-                  <Button className="w-fit" type="submit">
+                  <Button className="w-fit" type="submit" disabled={isSubmitting}>
                     Simpan
                     <Spinner when={isSubmitting} />
                   </Button>

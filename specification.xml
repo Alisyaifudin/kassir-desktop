@@ -1305,7 +1305,7 @@
         see a read-only panel.
       </description>
       <subpages>
-        <subpage path="/extras/new" guard="AdminOnly">Create: name, value, kind, dual.</subpage>
+        <subpage path="/extras/new" guard="AdminOnly">Create: name, kind, the amount in that kind's own field (dotted rupiah or clamped ±100 percent), and the dual flag.</subpage>
         <subpage path="/extras/:id">Detail: edit form for admins (with delete), read-only info panel for users.</subpage>
       </subpages>
     </page>

@@ -21,7 +21,7 @@ export function useExtraForm(extra?: Extra) {
 
   const defaultValues: ExtraFormValues = {
     name: extra?.name ?? "",
-    value: extra?.value.toString() ?? "",
+    value: extra?.value ?? 0,
     kind: extra?.kind ?? "percent",
     dual: isDual(extra?.flag ?? 0),
   };
@@ -34,7 +34,7 @@ export function useExtraForm(extra?: Extra) {
     async onSubmit({ value }: { value: ExtraFormValues }) {
       const result = await mutate({
         name: value.name.trim(),
-        value: Number(value.value),
+        value: value.value,
         kind: value.kind,
         // Other flag bits belong to whatever wrote them; only `dual` is ours.
         flag: withDual(extra?.flag ?? 0, value.dual),
