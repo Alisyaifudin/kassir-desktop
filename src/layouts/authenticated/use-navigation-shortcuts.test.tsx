@@ -63,10 +63,10 @@ function release(key: string) {
  * text insertion of its own, in no way tied to the keydown the app already
  * swallowed. Dispatched on a field, cancelable, so the guard can be observed.
  */
-function typeAltCode(input: HTMLInputElement) {
+function typeAltCode(input: HTMLInputElement, data = "☺") {
   const event = new InputEvent("beforeinput", {
     inputType: "insertText",
-    data: "☺",
+    data,
     bubbles: true,
     cancelable: true,
   });
@@ -74,6 +74,16 @@ function typeAltCode(input: HTMLInputElement) {
     input.dispatchEvent(event);
   });
   return event;
+}
+
+/** One character of real typing: its keydown, then its insertion. */
+function typeChar(input: HTMLInputElement, key: string) {
+  act(() => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+    );
+  });
+  return typeAltCode(input, key);
 }
 
 function field() {
@@ -169,5 +179,39 @@ describe("useNavigationShortcuts", () => {
     press("3");
     press("5", { altKey: true, ctrlKey: true });
     expect(typeAltCode(input).defaultPrevented).toBe(false);
+  });
+
+  /**
+   * The reported bug: after `Alt+1` the operator types, and nothing lands for a
+   * couple of seconds — but a click on the same tab in the topbar is fine.
+   *
+   * The guard ends on Alt's keyup, and on Windows the window's menu takes Alt
+   * before the webview hears it, so that keyup never arrives: the guard stays
+   * armed for its full `ALT_CODE_HELD_MS` and eats whatever is typed meanwhile.
+   * A keystroke of its own is proof the Alt code is over — the character Windows
+   * inserts has no keydown behind it — so the first one has to land.
+   */
+  test("the first character typed after Alt+digit lands, even with no Alt keyup", () => {
+    harness();
+    const input = field();
+
+    press("1", { altKey: true });
+    expect(path).toBe("/restock");
+    release("1");
+    // No `release("Alt")`: the Windows menu took it.
+
+    expect(typeChar(input, "k").defaultPrevented).toBe(false);
+    expect(typeChar(input, "o").defaultPrevented).toBe(false);
+  });
+
+  test("the Alt code itself is still swallowed while Alt is held", () => {
+    harness();
+    const input = field();
+
+    press("1", { altKey: true });
+    // Arm, then the character Windows inserts on release — still no keydown.
+    expect(typeAltCode(input).defaultPrevented).toBe(true);
+    // …and the operator's own next key is still theirs.
+    expect(typeChar(input, "k").defaultPrevented).toBe(false);
   });
 });

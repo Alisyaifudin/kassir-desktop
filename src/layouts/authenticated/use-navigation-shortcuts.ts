@@ -46,15 +46,28 @@ export function useNavigationShortcuts() {
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      // The Alt-code guard: armed by an Alt+digit keydown, and ended by the next
+      // key that goes down. That ending is the important half — the character
+      // Windows inserts has *no keydown* behind it, so a keydown is the operator
+      // typing and its own `beforeinput` has to land. Keyup cannot be the end:
+      // on Windows the window's menu takes Alt before the webview hears it, so
+      // after `Alt+1` the guard used to stay armed for its full two seconds and
+      // ate everything typed in them (a click on the same tab was fine, which is
+      // what made it look like one page's search bar and not another's).
+      // Both branches run before the early returns below: with a dialog open the
+      // shortcut declines to navigate, and its field must still be guarded (that
+      // is why arming is first), and Alt itself must never end the guard
+      // (it is still down).
+      if (e.altKey && !e.ctrlKey && !e.metaKey && isDigit(e.key)) {
+        guardUntil.current = performance.now() + ALT_CODE_HELD_MS;
+      } else if (e.key !== "Alt") {
+        guardUntil.current = 0;
+      }
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
       // Windows turns a held Alt plus digits into a character — the legacy "Alt
       // code", so Alt+1 types ☺ — and it does so *below* the browser: the OS
       // hands the webview a text input of its own, so the `preventDefault()`
-      // under this line cancels the browser's typing but not the character.
-      // Arm the guard here, before any early return: with a dialog open the
-      // shortcut declines to navigate, and the ☺ would land in the dialog's
-      // field instead of in the cart's.
-      if (isDigit(e.key)) guardUntil.current = performance.now() + ALT_CODE_HELD_MS;
+      // below cancels the browser's typing but not the character.
       // A dialog owns the keyboard: `Alt+3` out of "Pembayaran berhasil" would
       // unmount it and take the receipt print and the Batalkan/undo window with
       // it. Same contract the cart's own shortcuts obey.
@@ -100,7 +113,9 @@ export function useNavigationShortcuts() {
       pressed.current = false;
       // Releasing Alt is what flushes the Alt code, so the guard has to outlive
       // it by a few milliseconds — but no longer than that, or the field would
-      // ignore the next character the operator actually types.
+      // ignore the next character the operator actually types. This is the
+      // backstop, not the contract: the keydown rule above ends the guard on the
+      // first key of the operator's own, whether or not this keyup is delivered.
       guardUntil.current = Math.min(
         guardUntil.current,
         performance.now() + ALT_CODE_TAIL_MS,
