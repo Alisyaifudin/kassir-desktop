@@ -230,7 +230,9 @@ function sendChunk(
             children: null,
           });
         }),
-      catch: toSyncError,
+      // Route matters for the failure report: this stream is the upload's, not
+      // the pull's, and the server's log names routes, not stages.
+      catch: (error) => toSyncError(error, stream, "/v1/upload/:id"),
     }).pipe(Effect.onInterrupt(() => Effect.sync(() => stream.cancel())));
 
     return collected;

@@ -66,6 +66,25 @@ function normalizeError(error: unknown): TransportError {
   return new TransportError(0, "ipc", typeof error === "string" ? error : String(error));
 }
 
+/**
+ * A failure only this device can describe (`POST /v1/diagnostics`).
+ *
+ * Field names are the ones the server's endpoint accepts, and `stage`/`route` are
+ * whitelisted there — a typo is a rejected report, not a wrong row.
+ */
+export type DiagnosticReport = {
+  /** The id Rust sent as `X-Kassir-Request-Id` for the failing request. */
+  clientRequestId: string;
+  /** `parse` | `frame` | `stream` | `apply` | `auth` | `connect`. */
+  stage: string;
+  /** `/v1/pull` or `/v1/upload/:id`. */
+  route: string;
+  message: string;
+  /** Leading bytes received, hex. */
+  firstBytesHex: string | null;
+  bytes: number | null;
+};
+
 /** One generated statement, as the Rust merge command receives it. */
 export type MergeStatement = { sql: string; bindings?: (string | number | null)[] };
 
@@ -88,6 +107,11 @@ export type SyncTransport = {
     },
   ) => LineStream;
   chain: (prev: string, lines: string[]) => Promise<ChainState>;
+  /**
+   * Hands the server a failure it cannot see. Best effort: the caller has already
+   * failed a sync, and losing a report must not change that failure.
+   */
+  diagnose: (endpoint: Endpoint, report: DiagnosticReport) => Promise<void>;
   /**
    * Applies a merge in one real transaction (`sync_merge` in Rust).
    *
@@ -187,6 +211,14 @@ export const tauriTransport: SyncTransport = {
   },
   chain(prev, lines) {
     return command("sync_chain", { prev, lines });
+  },
+  diagnose(endpoint, report) {
+    return command("sync_diagnose", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      report,
+      client: identify(endpoint, nextRequestId("diagnose")),
+    });
   },
   merge(statements) {
     return command("sync_merge", { plan: { statements } });

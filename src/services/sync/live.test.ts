@@ -67,6 +67,21 @@ function runSync(
   );
 }
 
+/**
+ * Runs one sync that is expected to fail, returning the `SyncError` itself.
+ *
+ * `Effect.runPromise` rejects with a `FiberFailure` wrapper, which would hide the
+ * very fields these tests are about; `either` keeps the typed error.
+ */
+function runSyncExpectingFailure(layer: ReturnType<typeof setup>["layer"]) {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const sync = yield* SyncService;
+      return yield* sync.run("sync");
+    }).pipe(Effect.provide(layer), Effect.either),
+  );
+}
+
 /** Writes the fake shop data a device would already have on disk. */
 function seedLocalMirror(db: ReturnType<typeof setup>["db"]) {
   // Catalog: a product with a listing, an alias, a property, a cover image and a lot.
@@ -447,5 +462,44 @@ describe("sync through the service", () => {
     expect(backend.get("product", "p1")).toMatchObject({ product_name: "Kopi Susu" });
     expect(backend.aggregate("record", "r1")).not.toBeNull();
     expect(backend.snapshot).toBeGreaterThanOrEqual(synced - 1);
+  });
+
+  // -----------------------------------------------------------------
+  // Phase 4: the failure only this device can describe
+  // -----------------------------------------------------------------
+  test("a corrupt response is reported to the server, with what actually arrived", async () => {
+    const { layer, backend } = setup();
+    // What a double-compressed body looks like from here: the http stack decoded
+    // one layer, so the first line is binary rather than NDJSON.
+    backend.corruptPull("1f8b0800", 1417);
+
+    const outcome = await runSyncExpectingFailure(layer);
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag !== "Left") throw new Error("expected a failure");
+    const error = outcome.left;
+
+    // 1. The user sees the wire bytes in the sentence, not just the symptom.
+    expect(error.message).toContain("awal data: 1f8b0800, 1417 byte");
+    expect(error.stage).toBe("parse");
+
+    // 2. The server gets the half it cannot observe, joined by request id.
+    expect(backend.reports).toHaveLength(1);
+    expect(backend.reports[0]).toEqual({
+      clientRequestId: "pull-m8x2k1-7",
+      stage: "parse",
+      route: "/v1/pull",
+      message: error.message,
+      firstBytesHex: "1f8b0800",
+      bytes: 1417,
+    });
+  });
+
+  test("a failure with nothing on the wire sends no report", async () => {
+    const { layer, backend } = setup({ "sync.base_url": "https://sync.test" }); // no token
+    const outcome = await runSyncExpectingFailure(layer);
+    expect(outcome._tag).toBe("Left");
+    // A missing token is a configuration problem, not a wire failure: reporting it
+    // would be noise, and there is no request id to join on.
+    expect(backend.reports).toHaveLength(0);
   });
 });

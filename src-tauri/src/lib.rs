@@ -54,6 +54,7 @@ pub fn run() {
             sync::sync_upload_chunk,
             sync::sync_chain,
             sync::sync_cancel,
+            sync::sync_diagnose,
             sync_merge::sync_merge,
         ]);
 

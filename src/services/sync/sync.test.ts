@@ -22,7 +22,14 @@ import { CHILD_ORDER, ENTITY_ORDER, TABLES, toCanonicalRow, type Entity, type Wi
 import { countRowsSql, markSyncedStatements, resetSyncStatements } from "./sql";
 import { SyncError } from "./index";
 import type { LineStream, StreamSummary } from "./stream";
-import { TransportError, type ChainState, type Endpoint, type Session, type SyncTransport } from "./transport";
+import {
+  TransportError,
+  type ChainState,
+  type DiagnosticReport,
+  type Endpoint,
+  type Session,
+  type SyncTransport,
+} from "./transport";
 
 import type { Context } from "effect";
 
@@ -76,6 +83,8 @@ function lineStream(lines: readonly string[], summary?: StreamSummary): LineStre
     lines: (async function* () {
       for (const line of lines) yield line;
     })(),
+    requestId: "test-pull",
+    head: null,
     summary: Promise.resolve(summary ?? { lines: lines.length, cancelled: false }),
     cancel: () => undefined,
   };
@@ -84,6 +93,8 @@ function lineStream(lines: readonly string[], summary?: StreamSummary): LineStre
 function failedStream(status: number, code: string): LineStream {
   return {
     lines: (async function* () {})(),
+    requestId: "test-failed",
+    head: null,
     summary: Promise.reject(new TransportError(status, code, code)),
     cancel: () => undefined,
   };
@@ -209,6 +220,13 @@ class FakeServer implements SyncTransport {
 
   chain(prev: string, lines: string[]): Promise<ChainState> {
     return Promise.resolve(chainOf(prev, lines));
+  }
+
+  readonly reports: DiagnosticReport[] = [];
+
+  diagnose(_endpoint: Endpoint, report: DiagnosticReport): Promise<void> {
+    this.reports.push(report);
+    return Promise.resolve();
   }
 
   /**

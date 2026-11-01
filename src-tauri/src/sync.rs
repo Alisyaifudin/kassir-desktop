@@ -105,6 +105,11 @@ impl SyncState {
     }
 }
 
+/// How many leading bytes of the first line the `Head` event reports. Matches
+/// the server's `canonical_head_hex`/`wire_head_hex` width, so the two halves of
+/// a failure are directly comparable.
+const HEAD_BYTES: usize = 8;
+
 // ============================================================================
 // Wire types
 // ============================================================================
@@ -114,6 +119,17 @@ impl SyncState {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum StreamEvent {
+    /// The first bytes of the body, sent once before the first `Line`.
+    ///
+    /// This exists because of a real failure: the server answered `200`, the
+    /// response was labelled gzip and compressed twice, and the only symptom was
+    /// "line cannot be parsed". `from_utf8_lossy` below destroys exactly the
+    /// evidence that would have named it, so the raw head is captured here, in
+    /// Rust, before any decoding.
+    ///
+    /// `hex` is the first bytes of the first line (`1f8b0800` = gzip magic where
+    /// JSON was expected, `7b2274` = `{"t`); `bytes` is that line's length.
+    Head { hex: String, bytes: i64 },
     /// One complete NDJSON line, without its terminating newline.
     Line { line: String },
     /// The last message: every line has already been sent. The frontend closes
@@ -279,6 +295,30 @@ struct SessionWire {
     at: i64,
     #[serde(default)]
     frames: i64,
+}
+
+/// A failure report, in the shape `POST /v1/diagnostics` expects.
+///
+/// camelCase in (from TS), snake_case out (to the server). One struct so the two
+/// sides cannot drift, and so the field the server requires
+/// (`client_request_id`) is impossible to forget here.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
+pub struct DiagnosticReport {
+    /// The id this device gave the failing request (`X-Kassir-Request-Id`), which
+    /// is the server's only way to join the report to its own log row.
+    pub client_request_id: String,
+    /// `parse` when the bytes were never JSON, `frame` when they were JSON of the
+    /// wrong shape. Different investigations, hence a whitelisted field.
+    pub stage: String,
+    /// The route the failing call went to, so the row is readable on its own.
+    pub route: String,
+    pub message: String,
+    /// First bytes received, hex: the observation the server cannot make.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_bytes_hex: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -496,6 +536,47 @@ pub async fn sync_upload_chunk(
     outcome
 }
 
+/// `POST /v1/diagnostics` — hands the server a failure only this device can see.
+///
+/// A Worker cannot observe what the runtime does to its own response body, so for
+/// a wire-level failure the client holds the only evidence. This is the way back.
+///
+/// Best effort by contract: the caller has already failed a sync, and losing the
+/// report must never turn that into a different failure. The frontend invokes this
+/// and ignores the result.
+#[tauri::command]
+pub async fn sync_diagnose(
+    state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
+    base_url: String,
+    token: String,
+    report: DiagnosticReport,
+    client: ClientIdentity,
+) -> Result<(), SyncFailure> {
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    let url = format!("{}/v1/diagnostics", trim_base(&base_url));
+    // Serialised by hand: reqwest's `json` feature is off, and serde_json is
+    // already here for every other body in this file.
+    let body = serde_json::to_vec(&report).map_err(internal)?;
+    let resp = identify(
+        http.post(url)
+            .bearer_auth(&token)
+            .header(reqwest::header::CONTENT_TYPE, "application/json"),
+        &who,
+    )
+    .body(body)
+    .send()
+    .await
+    .map_err(transport)?;
+
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(failure(resp).await)
+    }
+}
+
 /// Computes the rolling prefix hash (§7.3) and the byte count for `lines`,
 /// starting from `prev`.
 ///
@@ -701,6 +782,9 @@ async fn stream_lines(
     let mut body = resp.bytes_stream();
     let mut pending: Vec<u8> = Vec::new();
     let mut lines: i64 = 0;
+    // Emitted once, from the first line's raw bytes — before `from_utf8_lossy`
+    // can destroy them. See `StreamEvent::Head`.
+    let mut head_sent = false;
 
     while let Some(chunk) = body.next().await {
         if flag.load(Ordering::SeqCst) {
@@ -712,14 +796,14 @@ async fn stream_lines(
         }
         let bytes = chunk.map_err(transport)?;
         pending.extend_from_slice(&bytes);
-        emit_complete_lines(&mut pending, channel, &mut lines)?;
+        emit_complete_lines(&mut pending, channel, &mut lines, &mut head_sent)?;
     }
 
     // A stream that ended without its last newline is still a line; the server
     // is supposed to terminate every frame, so this only rescues a broken tail.
     if !pending.is_empty() {
         let tail = std::mem::take(&mut pending);
-        emit_line(&tail, channel, &mut lines)?;
+        emit_line(&tail, channel, &mut lines, &mut head_sent)?;
     }
 
     send_end(channel)?;
@@ -727,6 +811,14 @@ async fn stream_lines(
         lines,
         cancelled: false,
     })
+}
+
+fn send_event(event: &StreamEvent, channel: &Channel<String>) -> Result<(), SyncFailure> {
+    let message = serde_json::to_string(event).map_err(internal)?;
+    channel.send(message).map_err(|error| {
+        SyncFailure::internal(format!("Gagal mengirim data ke aplikasi: {error}"))
+    })?;
+    Ok(())
 }
 
 fn send_end(channel: &Channel<String>) -> Result<(), SyncFailure> {
@@ -741,6 +833,7 @@ fn emit_complete_lines(
     pending: &mut Vec<u8>,
     channel: &Channel<String>,
     lines: &mut i64,
+    head_sent: &mut bool,
 ) -> Result<(), SyncFailure> {
     while let Some(position) = pending.iter().position(|byte| *byte == b'\n') {
         let line: Vec<u8> = pending.drain(..=position).collect();
@@ -748,12 +841,32 @@ fn emit_complete_lines(
         if body.is_empty() {
             continue;
         }
-        emit_line(body, channel, lines)?;
+        emit_line(body, channel, lines, head_sent)?;
     }
     Ok(())
 }
 
-fn emit_line(line: &[u8], channel: &Channel<String>, lines: &mut i64) -> Result<(), SyncFailure> {
+/// The first `HEAD_BYTES` of `line`, hex, plus its length.
+///
+/// Pulled out as a function because it is the whole diagnostic: it must be
+/// captured before the lossy UTF-8 decode turns binary into replacement
+/// characters, and it is worth testing without a socket.
+fn head_of(line: &[u8]) -> (String, i64) {
+    let take = line.len().min(HEAD_BYTES);
+    (to_hex(&line[..take]), line.len() as i64)
+}
+
+fn emit_line(
+    line: &[u8],
+    channel: &Channel<String>,
+    lines: &mut i64,
+    head_sent: &mut bool,
+) -> Result<(), SyncFailure> {
+    if !*head_sent {
+        *head_sent = true;
+        let (hex, bytes) = head_of(line);
+        send_event(&StreamEvent::Head { hex, bytes }, channel)?;
+    }
     let event = StreamEvent::Line {
         line: String::from_utf8_lossy(line).into_owned(),
     };
@@ -893,6 +1006,67 @@ mod tests {
             headers.get(reqwest::header::USER_AGENT).unwrap(),
             format!("KassirDesktop/unknown ({})", std::env::consts::OS).as_str()
         );
+    }
+
+    // -- wire evidence (docs/LOGS.md phase 4) --------------------------------
+
+    #[test]
+    fn the_head_is_captured_before_the_utf8_decode() {
+        // gzip magic where NDJSON belongs: this is the byte sequence the client
+        // saw in the double-compression incident, and the reason the head is
+        // captured in Rust — `from_utf8_lossy` would turn it into U+FFFD.
+        let gzip = [0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03];
+        assert_eq!(head_of(&gzip), ("1f8b080000000000".to_string(), 10));
+
+        let ndjson = b"{\"t\":\"meta\",\"snapshot_seq\":0}";
+        let (hex, bytes) = head_of(ndjson);
+        assert_eq!(hex, "7b2274223a226d65"); // {"t":"me
+        assert_eq!(bytes, ndjson.len() as i64);
+    }
+
+    #[test]
+    fn a_short_head_is_not_padded() {
+        // A one-byte first "line" is itself the diagnosis: a body of binary with a
+        // 0x0a in it. Truncating to what exists keeps that visible.
+        assert_eq!(head_of(&[0x1f]), ("1f".to_string(), 1));
+        assert_eq!(head_of(&[]), (String::new(), 0));
+    }
+
+    #[test]
+    fn the_report_is_sent_in_the_shape_the_server_reads() {
+        // camelCase from TS, snake_case on the wire; the server's endpoint requires
+        // `client_request_id` and whitelists `stage`/`route`.
+        let report: DiagnosticReport = serde_json::from_value(serde_json::json!({
+            "clientRequestId": "pull-m8x2k1-7",
+            "stage": "parse",
+            "route": "/v1/pull",
+            "message": "Baris NDJSON dari server tidak dapat dibaca",
+            "firstBytesHex": "1f8b0800",
+            "bytes": 1417,
+        }))
+        .expect("the TS report shape deserializes");
+
+        let wire: serde_json::Value = serde_json::to_value(&report).expect("report serializes");
+        assert_eq!(wire["client_request_id"], "pull-m8x2k1-7");
+        assert_eq!(wire["first_bytes_hex"], "1f8b0800");
+        assert_eq!(wire["bytes"], 1417);
+        assert_eq!(wire["stage"], "parse");
+        // Absent fields are omitted rather than sent as null: the endpoint treats a
+        // missing `first_bytes_hex` as "nothing was received".
+        let without = DiagnosticReport {
+            first_bytes_hex: None,
+            bytes: None,
+            ..serde_json::from_value(serde_json::json!({
+                "clientRequestId": "pull-1",
+                "stage": "stream",
+                "route": "/v1/pull",
+                "message": "x",
+            }))
+            .expect("minimal report deserializes")
+        };
+        let wire = serde_json::to_value(&without).expect("report serializes");
+        assert!(wire.get("first_bytes_hex").is_none());
+        assert!(wire.get("bytes").is_none());
     }
 
     #[test]

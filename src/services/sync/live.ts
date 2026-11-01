@@ -316,6 +316,44 @@ export const SyncLive = Layer.effect(
       return last;
     }
 
+    /**
+     * Reports a failure the server cannot see for itself (`POST /v1/diagnostics`).
+     *
+     * Only for failures that carry evidence — a real request that died mid-body.
+     * A config error, a cancelled sync or a failed merge has nothing to report and
+     * must not add noise to the server's log.
+     *
+     * Fire-and-forget, and never allowed to change the outcome: the device is
+     * already showing this error, and a failed report is not a second error worth
+     * surfacing. Failure to report is itself logged locally, so a `warn` in the
+     * log page is the worst case.
+     */
+    function reportFailure(endpoint: Endpoint, error: SyncError): Effect.Effect<void> {
+      const evidence = error.evidence;
+      if (evidence === undefined) return Effect.void;
+      return Effect.sync(() => {
+        void transport
+          .diagnose(endpoint, {
+            clientRequestId: evidence.requestId,
+            stage: error.stage ?? "stream",
+            route: evidence.route,
+            message: error.message,
+            firstBytesHex: evidence.firstBytesHex,
+            bytes: evidence.bytes,
+          })
+          .catch((cause: unknown) => {
+            // Warning-level, but logged as an error: the log page only has two
+            // levels, and a report that did not arrive is what makes the next
+            // investigation harder.
+            log.error(
+              `sync: failure report not delivered: ${
+                cause instanceof Error ? cause.message : String(cause)
+              }`,
+            );
+          });
+      });
+    }
+
     /** The whole loop. `reset` clears the cursors and unsync markers first (§3.2). */
     function execute(mode: SyncMode): Effect.Effect<SyncReport, SyncError> {
       return Effect.gen(function* () {
@@ -412,7 +450,18 @@ export const SyncLive = Layer.effect(
           pushed: pushed.pushed,
           stale: pushed.stale,
         };
-      });
+      }).pipe(
+        // `tapError`, not `catchAll`: the failure still reaches the screen, the
+        // report is a side effect on the way out.
+        Effect.tapError((error) =>
+          Effect.gen(function* () {
+            const endpoint = yield* endpointOf(yield* getConfig()).pipe(
+              Effect.catchAll(() => Effect.succeed(null)),
+            );
+            if (endpoint !== null) yield* reportFailure(endpoint, error);
+          }),
+        ),
+      );
     }
 
     return {

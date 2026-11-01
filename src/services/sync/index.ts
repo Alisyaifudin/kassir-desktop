@@ -1,14 +1,39 @@
 import { Context, Data, Effect, Stream } from "effect";
 
 /**
+ * What only this device can see about a failed request.
+ *
+ * The server's own log row for the same request says it answered `200`; whether
+ * the bytes survived the trip is not something it can observe. `requestId` is the
+ * join key, `firstBytesHex` the observation.
+ */
+export type SyncEvidence = {
+  /** The id Rust sent as `X-Kassir-Request-Id` for the failing request. */
+  requestId: string;
+  /** The route it failed on, as the server's log names it. */
+  route: string;
+  /** Leading bytes received, hex. `1f8b0800` is gzip where JSON belongs. */
+  firstBytesHex: string | null;
+  /** Length of the first line received. */
+  bytes: number | null;
+};
+
+/**
  * A sync failure. `message` is the one sentence the Sinkronisasi screen renders;
  * `code` and `status` keep the protocol detail for the log and for the branches
  * in `push.ts`/`pull.ts` (retry vs. restart the upload session, §7.5).
+ *
+ * `stage` and `evidence` exist so the failure can be reported to the server
+ * (`POST /v1/diagnostics`): the stage says where it died, the evidence says what
+ * arrived. Without them a report is just the client repeating the message it
+ * could not interpret.
  */
 export class SyncError extends Data.TaggedError("SyncError")<{
   message: string;
   code?: string;
   status?: number;
+  stage?: string;
+  evidence?: SyncEvidence;
 }> {}
 
 /** A device's sync configuration — the server it talks to and its bearer token. */

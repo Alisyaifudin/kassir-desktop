@@ -17,9 +17,16 @@
  * re-issue `since = last merged seq` at offset 0 (§8.2).
  */
 import { Effect } from "effect";
-import { parseLine, parsePullFrame, type PullAggregateFrame, type PullRowFrame } from "./frames";
+import {
+  FrameError,
+  parseLine,
+  parsePullFrame,
+  type PullAggregateFrame,
+  type PullRowFrame,
+} from "./frames";
 import type { Entity, WireRow } from "./schema";
 import { consumeLines, TransportError, type Endpoint, type SyncTransport } from "./transport";
+import type { LineStream } from "./stream";
 import { SyncError } from "./index";
 import { log } from "~/lib/log";
 
@@ -125,7 +132,7 @@ export function pull(deps: PullDeps): Effect.Effect<PullOutcome, SyncError> {
               total: 0,
             });
           }),
-        catch: toSyncError,
+        catch: (error) => toSyncError(error, stream),
       }).pipe(Effect.onInterrupt(() => Effect.sync(() => stream.cancel())));
 
       pages += 1;
@@ -160,12 +167,66 @@ export function pull(deps: PullDeps): Effect.Effect<PullOutcome, SyncError> {
   });
 }
 
-/** Maps a transport rejection onto the service's error. */
-export function toSyncError(error: unknown): SyncError {
+/**
+ * Maps a transport rejection onto the service's error, attaching the evidence the
+ * server cannot collect for itself.
+ *
+ * `stream` is the request that failed, when there is one: its id is the join key
+ * for the server's log row, and its head is what actually arrived. Without this
+ * the reported message is the one thing we already knew — "cannot be parsed" —
+ * which is exactly the wall the first production failure hit.
+ */
+export function toSyncError(
+  error: unknown,
+  stream?: LineStream,
+  route = "/v1/pull",
+): SyncError {
   if (error instanceof SyncError) return error;
+
+  const head = stream?.head ?? null;
+  const evidence =
+    stream === undefined
+      ? undefined
+      : {
+          requestId: stream.requestId,
+          route,
+          firstBytesHex: head?.hex ?? null,
+          bytes: head?.bytes ?? null,
+        };
+
+  // `parse` vs `frame` are different investigations: one means the bytes were
+  // never JSON, the other that they were JSON of the wrong shape.
+  const stage =
+    error instanceof FrameError ? "parse" : error instanceof TransportError ? "stream" : undefined;
+
   if (error instanceof TransportError) {
-    return new SyncError({ message: error.message, code: error.code, status: error.status });
+    return new SyncError({
+      message: withHead(error.message, head),
+      code: error.code,
+      status: error.status,
+      ...(stage === undefined ? {} : { stage }),
+      ...(evidence === undefined ? {} : { evidence }),
+    });
   }
-  if (error instanceof Error) return new SyncError({ message: error.message });
+  if (error instanceof Error) {
+    return new SyncError({
+      message: withHead(error.message, head),
+      ...(stage === undefined ? {} : { stage }),
+      ...(evidence === undefined ? {} : { evidence }),
+    });
+  }
   return new SyncError({ message: String(error) });
+}
+
+/**
+ * Puts the received bytes into the sentence the user sees.
+ *
+ * Deliberately in the message rather than only in the report: a cashier can read
+ * `awal data: 1f8b0800` off the screen and paste it, which is faster than any
+ * log query — and this exact number is what named the original failure once it
+ * was finally visible.
+ */
+export function withHead(message: string, head: { hex: string; bytes: number } | null): string {
+  if (head === null) return message;
+  return `${message} (awal data: ${head.hex || "kosong"}, ${head.bytes} byte)`;
 }

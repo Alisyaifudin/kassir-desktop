@@ -30,16 +30,44 @@
  */
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+/**
+ * The first bytes of the body, as the socket delivered them.
+ *
+ * Sent once, before the first line. This is the evidence for a wire-level
+ * failure: `hex` is the leading bytes of the first line (`1f8b0800` is gzip magic
+ * where JSON belongs, `7b2274` is `{"t`), and `bytes` is that line's length.
+ * Rust captures it before `from_utf8_lossy` turns binary into replacement
+ * characters, which is why it cannot be reconstructed here.
+ */
+export type StreamHead = { hex: string; bytes: number };
+
 /** One complete NDJSON line (no terminating newline). */
-export type LineStreamEvent = { type: "line"; line: string } | { type: "end" };
+export type LineStreamEvent =
+  | { type: "head"; hex: string; bytes: number }
+  | { type: "line"; line: string }
+  | { type: "end" };
 
 /** What a streaming command reports once its response body is consumed. */
 export type StreamSummary = { lines: number; cancelled: boolean };
 
 /** A `ReadableStream`-shaped reader over one command invocation. */
 export type LineStream = {
+  /**
+   * The id this request was given — the same one Rust sent as
+   * `X-Kassir-Request-Id` and registers the cancel flag under, so a failure
+   * report names the request that is in the server's log.
+   */
+  readonly requestId: string;
   /** Iterate lines as they arrive. Ends when the Rust side sends `end`. */
   readonly lines: AsyncIterable<string>;
+  /**
+   * The head of the body, or `null` if nothing arrived.
+   *
+   * Synchronous on purpose: Rust sends it before the first line, so by the time a
+   * line fails to parse it is already here. A promise would force every error
+   * path to await something that is never late.
+   */
+  readonly head: StreamHead | null;
   /** Resolves when the command returns; rejects with the command's error. */
   readonly summary: Promise<StreamSummary>;
   /** Stops the underlying request (fire-and-forget `sync_cancel`). */
@@ -108,6 +136,7 @@ export function openLineStream(
 ): LineStream {
   const queue = new LineQueue();
   const channel = new Channel<string>();
+  let head: StreamHead | null = null;
 
   channel.onmessage = (raw) => {
     let event: LineStreamEvent;
@@ -116,7 +145,8 @@ export function openLineStream(
     } catch {
       return;
     }
-    if (event.type === "line") queue.push(event.line);
+    if (event.type === "head") head = { hex: event.hex, bytes: event.bytes };
+    else if (event.type === "line") queue.push(event.line);
     else if (event.type === "end") queue.close();
   };
 
@@ -127,6 +157,10 @@ export function openLineStream(
   summary.catch(() => queue.close());
 
   return {
+    requestId,
+    get head() {
+      return head;
+    },
     lines: queue,
     summary,
     cancel: () => {

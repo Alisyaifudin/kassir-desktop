@@ -17,7 +17,14 @@ import type { Database } from "bun:sqlite";
 import { CHILD_ORDER, TABLES, type Entity, type WireRow } from "./schema";
 import type { LineStream, StreamSummary } from "./stream";
 import { EMPTY_CHAIN } from "./chain";
-import { TransportError, type ChainState, type Endpoint, type Session, type SyncTransport } from "./transport";
+import {
+  TransportError,
+  type ChainState,
+  type DiagnosticReport,
+  type Endpoint,
+  type Session,
+  type SyncTransport,
+} from "./transport";
 
 /** One row as the backend holds it. `children` exists for `record` aggregates. */
 export type BackendRow = {
@@ -44,11 +51,16 @@ export function chainOf(prev: string, lines: readonly string[]): ChainState {
   return { chain, bytes };
 }
 
-function lineStream(lines: readonly string[]): LineStream {
+function lineStream(
+  lines: readonly string[],
+  head: { hex: string; bytes: number } | null = null,
+): LineStream {
   return {
     lines: (async function* () {
       for (const line of lines) yield line;
     })(),
+    requestId: "pull-m8x2k1-7",
+    head,
     summary: Promise.resolve<StreamSummary>({ lines: lines.length, cancelled: false }),
     cancel: () => undefined,
   };
@@ -57,6 +69,8 @@ function lineStream(lines: readonly string[]): LineStream {
 function failedStream(status: number, code: string): LineStream {
   return {
     lines: (async function* () {})(),
+    requestId: "test-failed",
+    head: null,
     summary: Promise.reject(new TransportError(status, code, code)),
     cancel: () => undefined,
   };
@@ -74,6 +88,8 @@ export class MockBackend implements SyncTransport {
   readonly applied: AppliedFrame[] = [];
   /** Chunks received, with the pointer each claimed — chain/offset assertions. */
   readonly chunks: { offset: number; prefix: string; lines: number }[] = [];
+  /** Failure reports this device sent — the diagnostic half of a sync failure. */
+  readonly reports: DiagnosticReport[] = [];
   /** Requests served, so a test can prove a re-pull did or did not happen. */
   pulls = 0;
   /** Merge transactions applied (mirrors the Rust command's one-per-pull shape). */
@@ -150,8 +166,24 @@ export class MockBackend implements SyncTransport {
     return Promise.resolve();
   }
 
+  /**
+   * Corrupts the next pull: the body arrives with these leading bytes and one
+   * unparsable line — i.e. exactly what a double-compressed response looks like
+   * to the client, without needing a broken server.
+   */
+  private corruptNextPull: { hex: string; bytes: number } | null = null;
+
+  corruptPull(hex: string, bytes: number): void {
+    this.corruptNextPull = { hex, bytes };
+  }
+
   pull(_endpoint: Endpoint, input: { since: number; limit: number }): LineStream {
     this.pulls += 1;
+    const corrupt = this.corruptNextPull;
+    if (corrupt !== null) {
+      this.corruptNextPull = null;
+      return lineStream(["\u{FFFD}\u{FFFD}\b\u0000"], corrupt);
+    }
     const snapshot = this.seq;
     const page = [...this.mirror.values()]
       .filter((entry) => entry.seq > input.since)
@@ -228,6 +260,12 @@ export class MockBackend implements SyncTransport {
 
   chain(prev: string, lines: string[]): Promise<ChainState> {
     return Promise.resolve(chainOf(prev, lines));
+  }
+
+  /** Records the report instead of POSTing it, so a test can assert on it. */
+  diagnose(_endpoint: Endpoint, report: DiagnosticReport): Promise<void> {
+    this.reports.push(report);
+    return Promise.resolve();
   }
 
   /**
