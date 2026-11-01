@@ -481,7 +481,12 @@ pub async fn sync_delete_session(
 ///
 /// Every NDJSON line is pushed to `channel` as it arrives; the return value only
 /// reports how many were emitted and whether the caller cancelled.
+///
+/// The argument list is flat on purpose and stays that way: a Tauri command takes
+/// one argument per IPC field, so the shape the lint would like to bundle is the
+/// wire shape, not an accident of the code.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn sync_pull(
     state: tauri::State<'_, SyncState>,
     app: tauri::AppHandle,
@@ -670,6 +675,7 @@ async fn failure(resp: reqwest::Response) -> SyncFailure {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn pull_stream(
     http: &reqwest::Client,
     flag: &AtomicBool,
