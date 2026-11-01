@@ -467,6 +467,9 @@ export const SyncLive = Layer.effect(
     return {
       config: {
         get: () => getConfig(),
+        // The same mint-and-persist the sync itself uses: one definition, so the
+        // id on screen is the id that reaches the server's log.
+        deviceId: () => deviceId(),
         set: (config) =>
           Effect.gen(function* () {
             yield* write(KEY_BASE_URL, config.baseUrl.trim());

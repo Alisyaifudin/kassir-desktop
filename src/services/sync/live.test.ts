@@ -502,4 +502,28 @@ describe("sync through the service", () => {
     // would be noise, and there is no request id to join on.
     expect(backend.reports).toHaveLength(0);
   });
+
+  // -----------------------------------------------------------------
+  // The device id on screen must be the id in the server's log
+  // -----------------------------------------------------------------
+  test("the device id is minted once, persisted, and stable", async () => {
+    const { layer, store } = setup();
+    const read = () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const sync = yield* SyncService;
+          return yield* sync.config.deviceId();
+        }).pipe(Effect.provide(layer)),
+      );
+
+    const first = await read();
+    const second = await read();
+
+    // Settings shows this value, and the server stores it as `logs.device_id`;
+    // minting a second id on a later read would break the only thing it is for.
+    expect(second).toBe(first);
+    expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    // Under the key the sync itself reads, so the header and the request agree.
+    expect(store.entries.get("sync.device_id")).toBe(first);
+  });
 });

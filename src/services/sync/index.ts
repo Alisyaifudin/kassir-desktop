@@ -85,6 +85,15 @@ export class SyncService extends Context.Tag("SyncService")<
     config: {
       get: () => Effect.Effect<SyncConfig, SyncError>;
       set: (config: SyncConfig) => Effect.Effect<void, SyncError>;
+      /**
+       * This installation's id — the value the server records as `logs.device_id`
+       * and the reason two tills sharing a token can be told apart.
+       *
+       * Minted on first read rather than only on first sync, so Settings can always
+       * show one: reading an id off the screen is how a shop reports a problem
+       * before anyone has managed to sync successfully.
+       */
+      deviceId: () => Effect.Effect<string>;
     };
     /** The last pull cursor, so a screen can show where the device stands. */
     cursor: () => Effect.Effect<number, SyncError>;
