@@ -54,13 +54,12 @@ use tauri::ipc::Channel;
 /// A host that never answers should not hold the sync fiber forever.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 
-/// sha256("") — the chain's anchor (contract §7.3, `C_0`).
+/// sha256("") — the counter-example to `C_0`, kept for the tests only.
 ///
-/// The contract writes `C_0 = ""` and then explains it as "sha256 of nothing,
-/// defined as e3b0c442…". Sending an empty header value for the first chunk is
-/// not useful to a server that compares strings, so the digest itself is the
-/// anchor. The TS side owns the constant (`services/sync/chain.ts`) and passes
-/// it in: if the backend settles on the other reading, one constant moves.
+/// `C_0` is the empty string, i.e. zero bytes to concatenate. This digest is what
+/// the chain *would* anchor at under the other reading of §7.3, and anchoring
+/// there silently breaks every multi-chunk upload, so the tests assert against it.
+#[cfg(test)]
 pub const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 // ============================================================================
@@ -580,21 +579,20 @@ pub async fn sync_diagnose(
 /// Computes the rolling prefix hash (§7.3) and the byte count for `lines`,
 /// starting from `prev`.
 ///
-///   C_0 = EMPTY_SHA256
+///   C_0 = "" (zero bytes)
 ///   C_n = hex(sha256(hex2bytes(C_{n-1}) || "\n" || line_bytes))
 ///
 /// `line_bytes` excludes the terminating newline; the byte count includes it,
 /// because that is what an offset counts.
 #[tauri::command]
 pub fn sync_chain(prev: String, lines: Vec<String>) -> ChainDto {
-    // An empty prefix means "the chain has not started yet", which is `C_0`. The
-    // TS side passes the anchor explicitly (`services/sync/chain.ts`); accepting
-    // the empty string here keeps the two conventions interchangeable.
-    let mut chain = if prev.is_empty() {
-        EMPTY_SHA256.to_string()
-    } else {
-        prev
-    };
+    // An empty prefix is `C_0`: *no bytes at all*, so the first step hashes
+    // "\n" + line. It is not the digest of the empty string — anchoring at
+    // sha256("") produces a different C_1 from the server's, and the server then
+    // rejects the second chunk of every upload as `replay_mismatch`. Pinned by
+    // `c_0_is_zero_bytes_not_the_digest_of_nothing` below and by the matching
+    // vector in kassir-backend/test/unit/chain.test.ts.
+    let mut chain = prev;
     let mut bytes: i64 = 0;
     for line in lines {
         chain = chain_step(&chain, line.as_bytes());
@@ -1006,6 +1004,54 @@ mod tests {
             headers.get(reqwest::header::USER_AGENT).unwrap(),
             format!("KassirDesktop/unknown ({})", std::env::consts::OS).as_str()
         );
+    }
+
+    // -- the chain anchor (contract §7.3) ------------------------------------
+
+    #[test]
+    fn c_0_is_zero_bytes_not_the_digest_of_nothing() {
+        // The same literal as kassir-backend/test/unit/chain.test.ts and
+        // services/sync/chain.test.ts. Anchoring at sha256("") made C_1 differ from
+        // the server's, so the second chunk of every upload was rejected as
+        // `replay_mismatch` while single-chunk uploads kept passing.
+        let line = "{\"e\":\"product\",\"r\":{\"product_id\":\"01J\"}}".to_string();
+        let anchored_at_nothing = sync_chain(String::new(), vec![line.clone()]);
+        assert_eq!(
+            anchored_at_nothing.chain,
+            "a966ed9adc7ab9fc58fb06b20622ffc5e270a25459a5cb2e3f6a8f4a06a1f3ea"
+        );
+
+        // The counter-example: the reading this used to implement gives another
+        // chain, which is exactly how the divergence went unnoticed.
+        let digest_of_nothing = sync_chain(EMPTY_SHA256.to_string(), vec![line]);
+        assert_ne!(digest_of_nothing.chain, anchored_at_nothing.chain);
+    }
+
+    #[test]
+    fn the_chain_advances_once_per_line_in_order() {
+        let a = "{\"e\":\"product\",\"r\":{\"product_id\":\"01J\"}}".to_string();
+        let b = "{\"e\":\"product\",\"r\":{\"product_id\":\"01K\"}}".to_string();
+        let ab = sync_chain(String::new(), vec![a.clone(), b.clone()]);
+        let ba = sync_chain(String::new(), vec![b.clone(), a.clone()]);
+        assert_ne!(ab.chain, ba.chain);
+        // The byte count includes each line's terminating newline, because that is
+        // what an `Upload-Offset` counts.
+        let line_bytes = |line: &String| line.len() as i64 + 1;
+        assert_eq!(ab.bytes, line_bytes(&a) + line_bytes(&b));
+    }
+
+    #[test]
+    fn c_0_travels_as_an_empty_header() {
+        // `C_0 = ""` goes on the wire as an empty `Upload-Prefix-Sha256`, which the
+        // server ignores at offset 0 but which must not make the request unbuildable.
+        let request = reqwest::Client::new()
+            .patch("http://localhost/v1/upload/ul_1")
+            .header("Upload-Offset", "0")
+            .header("Upload-Prefix-Sha256", "") // C_0 (§7.3)
+            .body(Vec::new())
+            .build()
+            .expect("an empty prefix hash is a legal header value");
+        assert_eq!(request.headers()["upload-prefix-sha256"], "");
     }
 
     // -- wire evidence (docs/LOGS.md phase 4) --------------------------------

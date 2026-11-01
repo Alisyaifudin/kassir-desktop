@@ -129,12 +129,17 @@ export function isSessionFailure(error: SyncError): boolean {
 /**
  * Opens the upload session.
  *
- * A leftover session is re-read first (§5.3 "resume check") and only reused when
+ * A leftover session is re-read first (§5.3 "resume check") and reused only when
  * the server reports it has committed nothing (`at = 0`, `frames = 0`): then the
- * prefix hash is still the chain anchor, so the pointer is provably in step. Any
- * other state is dropped and replaced — the `GET` response does not expose the
- * server's prefix hash, and re-deriving it locally would need the exact bytes of a
- * prefix that this run did not produce (§7.5, and see the module comment).
+ * prefix hash is still the chain anchor, so the pointer is provably in step.
+ *
+ * Any other state is dropped and replaced. `GET /v1/upload/:id` *does* return the
+ * server's `prefix_sha`, so resuming from a real pointer is possible in principle —
+ * but the chunk loop re-encodes every unsync frame from index 0 and would have to
+ * skip the first `frames` lines to match, which nothing exercises today. Restarting
+ * is safe and converges: chunks are committed as they arrive, so rows already
+ * applied are no longer unsync and the next run sends less. The cost is re-sending
+ * one in-flight chunk, which is cheaper than an untested resume path.
  */
 function openSession(deps: PushDeps): Effect.Effect<UploadState, SyncError> {
   return Effect.gen(function* () {
@@ -166,7 +171,8 @@ function openSession(deps: PushDeps): Effect.Effect<UploadState, SyncError> {
 
 /** A chunk's ack stream, collected before anything is written. */
 type ChunkAcks = {
-  done: { at: number; frames: number } | null;
+  /** `chain` is the server's prefix hash at `done.at` (§7.3), or null if omitted. */
+  done: { at: number; frames: number; chain: string | null } | null;
   acks: {
     index: number;
     outcome: "applied" | "stale" | "noop";
@@ -209,7 +215,7 @@ function sendChunk(
           const frame = parseAckFrame(parseLine(line));
           if (frame.t === "error") throw new TransportError(0, frame.code, frame.message);
           if (frame.t === "done") {
-            collected.done = { at: frame.at, frames: frame.frames };
+            collected.done = { at: frame.at, frames: frame.frames, chain: frame.chain };
             return;
           }
           if (frame.outcome === "stale") {
@@ -396,7 +402,11 @@ function pushOnce(
         seqs.push(...applied.seqs);
 
         frameIndex = done.frames;
-        state = { ...state, at: done.at, frames: done.frames, chain: chain.chain };
+        // §7.3: `done.chain` is the server's chain at `done.at`, and the client
+        // adopts it *verbatim* rather than trusting its own arithmetic. That is
+        // what makes a divergence self-correcting instead of a `replay_mismatch`
+        // on the next chunk — the failure this was.
+        state = { ...state, at: done.at, frames: done.frames, chain: done.chain ?? chain.chain };
         yield* deps.writeUploadState(state);
         acked += applied.applied;
         deps.onProgress({ entity, done: acked, total: Math.max(progress.total, acked) });

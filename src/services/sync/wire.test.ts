@@ -213,11 +213,21 @@ describe("frames", () => {
     expect(stale).toMatchObject({ t: "ack", index: 2, outcome: "stale" });
   });
 
-  test("an ack stream's `done` carries the committed pointer", () => {
-    expect(parseAckFrame(parseLine('{"t":"done","at":262144,"frames":90}'))).toEqual({
+  test("an ack stream's `done` carries the committed pointer and the chain", () => {
+    // The chain is the server's own accounting (§7.3); the client adopts it rather
+    // than trusting its own, which is what makes a divergence self-correcting.
+    expect(
+      parseAckFrame(parseLine('{"t":"done","at":262144,"frames":90,"chain":"ab12"}')),
+    ).toEqual({ t: "done", at: 262144, frames: 90, chain: "ab12" });
+  });
+
+  test("a `done` without a chain is tolerated, not a parse failure", () => {
+    // An older server omits it; the client falls back to its own chain.
+    expect(parseAckFrame(parseLine('{"t":"done","at":1,"frames":2}'))).toEqual({
       t: "done",
-      at: 262144,
-      frames: 90,
+      at: 1,
+      frames: 2,
+      chain: null,
     });
   });
 

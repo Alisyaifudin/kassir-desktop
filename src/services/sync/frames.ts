@@ -59,7 +59,19 @@ export type AckStaleFrame = {
   children: Record<string, WireRow[]> | null;
 };
 export type AckNoopFrame = { t: "ack"; index: number; outcome: "noop" };
-export type AckDoneFrame = { t: "done"; at: number; frames: number };
+export type AckDoneFrame = {
+  t: "done";
+  at: number;
+  frames: number;
+  /**
+   * The prefix hash chain at `at` (§7.3) — the server's own accounting of the
+   * bytes it committed, which the client adopts verbatim as its resume state.
+   *
+   * `null` when the server omits it; the client then falls back to its own, which
+   * is only safe while both sides agree on `C_0` (see `chain.ts`).
+   */
+  chain: string | null;
+};
 
 export type AckFrame = AckAppliedFrame | AckStaleFrame | AckNoopFrame | AckDoneFrame;
 
@@ -168,7 +180,12 @@ export function parseAckFrame(value: unknown): AckFrame | StreamErrorFrame {
   const frame = asRecord(value);
   const tag = frame["t"];
   if (tag === "done") {
-    return { t: "done", at: asNumber(frame["at"], "done"), frames: asNumber(frame["frames"], "done") };
+    return {
+      t: "done",
+      at: asNumber(frame["at"], "done"),
+      frames: asNumber(frame["frames"], "done"),
+      chain: typeof frame["chain"] === "string" ? frame["chain"] : null,
+    };
   }
   if (tag === "error") {
     return {
