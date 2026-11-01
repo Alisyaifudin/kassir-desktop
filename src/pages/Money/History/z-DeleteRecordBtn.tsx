@@ -24,6 +24,8 @@ export const DeleteRecordBtn = memo(function DeleteRecordBtn({ money }: { money:
         type="button"
         size="icon"
         asChild
+        aria-label="Hapus catatan"
+        title="Hapus catatan"
         className="rounded-full aspect-square p-1"
         variant="destructive"
       >

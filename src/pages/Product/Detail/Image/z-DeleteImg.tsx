@@ -52,7 +52,14 @@ export function DeleteImg({ productId, item }: { productId: string; item: Galler
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button asChild size="icon" variant="destructive" className="absolute right-0 top-1 rounded-full">
+      <Button
+        asChild
+        size="icon"
+        variant="destructive"
+        aria-label="Hapus gambar"
+        title="Hapus gambar"
+        className="absolute right-0 top-1 rounded-full"
+      >
         <DialogTrigger>
           <X className="size-5" />
         </DialogTrigger>

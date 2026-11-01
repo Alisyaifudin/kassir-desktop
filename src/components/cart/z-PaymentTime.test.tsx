@@ -78,7 +78,15 @@ describe("PaymentTime", () => {
     const picked = Date.now();
     render(<PaymentTime draft={draft(picked)} />);
 
-    fireEvent.keyDown(screen.getByRole("group", { name: "Waktu" }), { key: "ArrowUp" });
+    // Step the `tahun` column, not the `hari` it starts on. A step backwards from
+    // the day clamps to itself on the 1st of the month — and a clamped edge emits
+    // an equal value, which the wheel deliberately does not write — so the day
+    // column is only steppable on 30 days out of 31. A year always has room: its
+    // floor is five years back.
+    const group = screen.getByRole("group", { name: "Waktu" });
+    fireEvent.keyDown(group, { key: "ArrowRight" });
+    fireEvent.keyDown(group, { key: "ArrowRight" });
+    fireEvent.keyDown(group, { key: "ArrowUp" });
 
     expect(writes).toHaveLength(1);
     expect(writes[0]?.paidAt).toBeLessThan(picked);

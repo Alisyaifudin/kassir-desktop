@@ -45,7 +45,7 @@ export function Topbar() {
       <nav className="flex items-center justify-between h-full px-4 border-b border-black/10">
         <div className="flex items-center gap-3 h-full">
           {!isHome && <BackBtn className="h-10 w-10 hover:bg-sky-400/50" />}
-          <h1 className={cn("font-bold tracking-tight transition-all", "text-xl")}>
+          <h1 className={cn("font-bold tracking-tight transition-all", "text-2xl")}>
             {isHome ? "Beranda" : title}
           </h1>
           <Title />

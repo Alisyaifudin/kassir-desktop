@@ -23,7 +23,7 @@ export function Title() {
         title={shopName}
         to="/"
         behavior="root"
-        className="block truncate text-xl font-medium italic opacity-80 pr-2"
+        className="block truncate text-2xl font-medium italic opacity-80 pr-2"
       >
         {shopName}
       </Link>

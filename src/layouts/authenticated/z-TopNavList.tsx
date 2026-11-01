@@ -26,7 +26,7 @@ function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
           showShortcut(false);
         }}
         className={cn(
-          "px-4 h-10 font-bold transition-all flex items-center justify-center text-lg",
+          "px-4 h-10 font-bold transition-all flex items-center justify-center text-base",
           "rounded-t-2xl border-x border-t border-transparent relative",
           isActive
             ? "bg-white text-primary border-black/10 -mb-[1px] z-10"
