@@ -2,6 +2,7 @@ import { version } from "~/lib/constants";
 import { Header } from "./z-Header";
 import { NavRow } from "./z-NavRow";
 import { Section } from "./z-Section";
+import { Theme } from "./z-Theme";
 import { Zoom } from "./z-Zoom";
 import { useNav } from "./use-nav";
 
@@ -14,9 +15,10 @@ import { useNav } from "./use-nav";
  * makes the group names structural rather than another heading to compete with
  * the destinations themselves.
  *
- * Below the destinations sits the one setting that is not a page: the interface
- * scale, which applies the moment the slider moves. It is separated by a hairline
- * because it is a different kind of row — a control, not a door.
+ * Below the destinations sit the two settings that are not pages: the interface
+ * scale and the theme, which apply the moment their control moves. They are
+ * separated by a hairline because they are a different kind of row — controls,
+ * not doors.
  */
 export default function Page() {
   const { groups } = useNav();
@@ -35,8 +37,13 @@ export default function Page() {
       ))}
       <div className="border-t pt-6">
         <Section title="Tampilan">
-          <div className="rounded-xl border bg-card px-4 py-3">
-            <Zoom />
+          <div className="flex flex-col divide-y rounded-xl border bg-card px-4">
+            <div className="py-3">
+              <Zoom />
+            </div>
+            <div className="py-3">
+              <Theme />
+            </div>
           </div>
         </Section>
       </div>

@@ -123,8 +123,10 @@ Colour does jobs, never decoration:
 - **border** — hairlines (`1px`) do the separating. There is no elevation system to
   speak of: shadows only on buttons and popovers, never on content.
 
-Dark theme exists as tokens (`.dark`) and is not yet toggled by the app; every surface
-must still read correctly when it is.
+Dark theme exists as tokens (`.dark`) plus every `dark:` utility, switched by
+`services/theme` — the `dark` class on `<html>` — and chosen in Pengaturan →
+Tampilan. The default preference is `system`, so a fresh install follows the OS;
+every surface must read correctly in both looks.
 
 ## Typography
 

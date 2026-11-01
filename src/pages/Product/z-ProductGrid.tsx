@@ -90,14 +90,16 @@ function ProductCard({ product }: { product: Product }) {
           {product.name}
         </span>
         <ListingCodes product={product} />
-        <div className="flex items-center justify-between">
-          <span className="tabular-nums text-muted-foreground">
-            {priceRange(product)}
-          </span>
+        {/* Price over the cost, not side by side: the two numbers were read as
+            peers in one row, and on a narrow card the pair wrapped or clipped.
+            Stacked, the sale price leads and the cost follows it as the quieter
+            line. */}
+        <div className="flex flex-col gap-0.5">
+          <span className="tabular-nums text-muted-foreground">{priceRange(product)}</span>
           {/* The dearest lot that still holds stock, not the weighted average:
             that is the number that decides whether a price is worth selling at. */}
           <span
-            className={cn("tabular-nums text-muted-foreground", !published && "opacity-60")}
+            className={cn("text-xs tabular-nums text-muted-foreground", !published && "opacity-60")}
             title="Modal tertinggi per pcs dari lot stok"
           >
             Modal {formatPrice(product.maxCapital)}

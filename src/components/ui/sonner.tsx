@@ -1,12 +1,18 @@
-import { useTheme } from "next-themes";
 import { Toaster as Sonner, ToasterProps } from "sonner";
+import { useTheme } from "~/hooks/use-theme";
 
+/**
+ * Toasts follow the app's theme, not the OS's: the stored preference can be
+ * `light` on a dark desktop, and a white toast over a dark app reads as a bug.
+ * `useTheme` already resolves `system` against the OS, so the resolved look is
+ * the right thing to hand sonner.
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
-	const { theme = "system" } = useTheme();
+	const { theme } = useTheme();
 
 	return (
 		<Sonner
-			theme={theme as ToasterProps["theme"]}
+			theme={theme}
 			className="toaster group"
 			style={
 				{

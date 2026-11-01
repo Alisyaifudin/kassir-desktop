@@ -5,6 +5,10 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Paints the stored theme before the stylesheet and the app: on a machine
+       that chose dark, the alternative is a white flash at every launch. See
+       src/theme-boot.ts. -->
+  <script type="module" src="/src/theme-boot.ts"></script>
   <title>Kassir</title>
 </head>
 

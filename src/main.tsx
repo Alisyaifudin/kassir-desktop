@@ -8,14 +8,23 @@ import { router } from "./route";
 import { service } from "./services";
 
 /**
- * The interface scale is a per-machine preference, so it is applied *before* the
- * first paint: a webview that paints at 100% and then jumps to 150% is a flash on
- * every launch, which reads as the app resizing itself rather than remembering.
+ * Two per-machine preferences are applied *before* the first paint: the
+ * interface scale and the theme. A webview that paints at 100% and then jumps to
+ * 150% is a flash on every launch, and one that paints white before the stored
+ * `dark` class lands is a white flash at night — both read as the app resetting
+ * itself rather than remembering.
  *
- * A refused scale must not keep the app closed — the preference is cosmetic, and
- * the Setting slider reports the same failure where it can be retried.
+ * Neither preference may keep the app closed: they are cosmetic, and the Setting
+ * rows report the same failure where it can be retried.
  */
 async function boot() {
+  // Independent on purpose: a refusal of one must not leave the other unapplied.
+  try {
+    await Effect.runPromise(service.theme.apply());
+  } catch (error) {
+    log.error(formatError(error));
+  }
+
   try {
     await Effect.runPromise(service.zoom.apply());
   } catch (error) {

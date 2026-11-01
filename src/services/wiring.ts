@@ -38,6 +38,8 @@ import { StoreService } from "./store";
 import { StoreLive } from "./store/live";
 import { SupplierService } from "./supplier";
 import { SupplierLive } from "./supplier/live";
+import { ThemeService } from "./theme";
+import { ThemeLive } from "./theme/live";
 import { TransactionService } from "./transaction";
 import { TransactionLive } from "./transaction/live";
 import { ZoomService } from "./zoom";
@@ -71,6 +73,7 @@ export function buildAppLive(hidden: HiddenLive) {
   const printerLive = PrinterLive.pipe(Layer.provide(hidden));
   const socialLive = SocialLive.pipe(Layer.provide(hidden));
   const supplierLive = SupplierLive.pipe(Layer.provide(hidden));
+  const themeLive = ThemeLive.pipe(Layer.provide(hidden));
   const zoomLive = ZoomLive.pipe(Layer.provide(hidden));
   // `record` reverses a deleted record's stock movement, so it needs `product`.
   const recordLive = RecordLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
@@ -116,6 +119,7 @@ export function buildAppLive(hidden: HiddenLive) {
     recordLive,
     socialLive,
     supplierLive,
+    themeLive,
     transactionLive,
     zoomLive,
     authLive,
@@ -153,6 +157,7 @@ export function makeService(live: typeof appLive) {
         social: yield* SocialService,
         store: yield* StoreService,
         supplier: yield* SupplierService,
+        theme: yield* ThemeService,
         transaction: yield* TransactionService,
         zoom: yield* ZoomService,
         auth: yield* AuthService,
