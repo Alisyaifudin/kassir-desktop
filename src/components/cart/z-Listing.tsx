@@ -56,7 +56,7 @@ import {
   SALE_LISTING_LAYOUT,
   type ListingLayout,
 } from "~/components/cart/listing-grid";
-import { typedDigit } from "~/components/cart/z-Cell";
+import { SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
 import { Show } from "../Show";
 
 const HEADER: RowRef = { kind: "header" };
@@ -73,7 +73,6 @@ type CardHandlers = Pick<
   | "onDetail"
   | "onLock"
 >;
-const SELECTED_RING = "z-10 ring-1 ring-primary ring-inset";
 
 /** The column a fresh selection remembers when the search bar is the start. */
 const NAME_COLUMN = 1;

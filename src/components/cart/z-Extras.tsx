@@ -483,7 +483,7 @@ export function Extras({
             setEditing(false);
           }}
           className={cn(
-            "flex items-center gap-2 p-1",
+            "flex items-center gap-2 px-1",
             layout.stageToggle ? "col-span-8" : "col-span-10",
             focused && isSearch && SELECTED_RING,
           )}
@@ -555,7 +555,7 @@ export function Extras({
             ) : (
               <Button
                 variant="ghost"
-                className="w-full"
+                className="w-full rounded-none h-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle?.();
