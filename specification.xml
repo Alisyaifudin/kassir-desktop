@@ -1371,7 +1371,7 @@
       <entry key="tz">The runtime time zone, used by every date-range bound and every date format.</entry>
     </module>
     <module name="lib/date.ts">formatDate / formatTime / getDayName / monthNames / MONTHS, and the picker bridge plainFromEpoch / epochFromPlain — all in the shop's zone, built on Temporal.</module>
-    <module name="lib/utils.ts">cn (tailwind-merge with the app's text-size tokens declared), numerish/numeric/integer (Zod string-number schemas that actually reject), urlBackOf/getURLBack (one parse for `?url_back=`: rooted, non-protocol-relative), capitalize (total on padded/empty names), formatError.</module>
+    <module name="lib/utils.ts">cn (tailwind-merge with the app's text-size tokens declared), numerish/numeric/integer (Zod string-number schemas that actually reject), capitalize (total on padded/empty names), formatError.</module>
     <module name="lib/effect-error.ts">NotFound, InvokeError, InvalidCredential, IOError/ArrayBufferError/JsonError, TooBigError, DuplicateError. RedirectError was removed with the redirect loaders.</module>
     <module name="lib/auth.ts">The two Tauri bcrypt bridges plus Unauthenticated. The session lives in the auth service.</module>
     <module name="lib/export.ts">saveJson(defaultName, value): serialise, then ask Rust (export_file) where to write. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
@@ -1392,7 +1392,7 @@
       <hook name="useDialogLock / isScreenOwnedByDialog">The "a dialog owns the keyboard" counter + aria-modal fallback, read by every window listener.</hook>
       <hook name="useExtraSearch">Memoised microfuzz over any { name } row.</hook>
       <hook name="useImageUrl">Resolves a stored image to an object URL; revokes on unmount and on a late load.</hook>
-      <hook name="useGetUrlBack / useGenerateUrlBack">Keep an incoming `url_back` / build a back-link from the current base and query.</hook>
+      <hook name="use-back / useEscapeBack">`useBack(fallback)` pops the app's own navigation stack (`~/services/route`), and `Esc` on a product detail leaves through it. These replaced `useGetUrlBack` / `useGenerateUrlBack`: a return URL no longer travels in the query.</hook>
     </module>
   </utilities>
 
