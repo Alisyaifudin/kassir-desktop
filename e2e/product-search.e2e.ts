@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { boot, cashierSql } from "./harness";
+import { boot, cashierSql, navTab } from "./harness";
 
 /**
  * The products search: a scanned code lands whole, and a burst of typing or
@@ -49,7 +49,7 @@ async function openProducts(page: Page) {
   await page.getByRole("button", { name: /masuk/i }).click();
   await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
 
-  await page.getByRole("button", { name: "Produk", exact: true }).click();
+  await navTab(page, "/products").click();
   await expect(page).toHaveURL(/#\/products/);
 
   // The whole catalogue, so a filter that hides something is visible.

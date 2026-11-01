@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { boot, cashierSql } from "./harness";
+import { boot, cashierSql, navTab } from "./harness";
 
 /**
  * Closing "Pembelian berhasil" hands the goods stage back.
@@ -38,7 +38,7 @@ async function openRestock(page: Page) {
   await page.getByRole("button", { name: /masuk/i }).click();
   await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
 
-  await page.getByRole("button", { name: "Stok", exact: true }).click();
+  await navTab(page, "/restock").click();
   await expect(page).toHaveURL(/#\/restock/);
 
   return errors;

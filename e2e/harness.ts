@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * Shared boot for the Tier-0 harness.
@@ -46,4 +46,38 @@ export async function login(page: Page, name: string, password: string) {
   await page.getByRole("button", { name: new RegExp(name) }).click();
   await page.getByLabel(/kata sandi/i).fill(password);
   await page.getByRole("button", { name: /masuk/i }).click();
+}
+
+/**
+ * A top-nav tab, by the route it opens.
+ *
+ * Selected by `href` inside the topbar's own `<nav>`: the tabs became anchors
+ * when they moved onto the app's own `NavLink`, so a role selector no longer
+ * tells them apart from the brand link ("Toko" is both) or from Beranda's
+ * `Transaksi Baru` button, which is a link to `#/pos` in a `<header>` of its own.
+ */
+export function navTab(page: Page, path: string) {
+  return page.locator(`header nav a[href="#${path}"]`);
+}
+
+/**
+ * The topbar's brand — the shop name beside the page title, which links home.
+ *
+ * By `href`, not by label: an unnamed shop falls back to "Toko", which is also
+ * the label of the Toko nav tab right beside it.
+ */
+export function brand(page: Page) {
+  return page.locator('header nav a[href="#/"]');
+}
+
+/**
+ * Signs in, and waits for the screen the app navigates to.
+ *
+ * `login` returns as soon as the button is clicked, but signing in is async —
+ * verify, write the session, then navigate — so a test that writes the URL
+ * itself right afterwards races the app's own navigation.
+ */
+export async function loginAndSettle(page: Page, name: string, password: string) {
+  await login(page, name, password);
+  await expect(page).not.toHaveURL(/#\/login/);
 }

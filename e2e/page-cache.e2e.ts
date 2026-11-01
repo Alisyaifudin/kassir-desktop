@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { boot, cashierSql, login } from "./harness";
+import { boot, cashierSql, loginAndSettle } from "./harness";
 
 /**
  * The page-data cache, in the real app.
@@ -21,7 +21,7 @@ import { boot, cashierSql, login } from "./harness";
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await boot(page, { sql: [cashierSql("Raisya", "123456")] });
-  await login(page, "Raisya", "123456");
+  await loginAndSettle(page, "Raisya", "123456");
   await page.evaluate(() => {
     window.location.hash = "#/dev/page-cache";
   });
@@ -69,7 +69,9 @@ test("a return visit paints the store instead of reading again", async ({ page }
   // A real route change (not just a component remount) keeps it too.
   await page.getByRole("link", { name: /navigasi ke page-data/i }).click();
   await expect(page.getByRole("heading", { name: "Page data playground" })).toBeVisible();
-  await page.goBack();
+  // The app's own back, not `page.goBack()`: every navigation is written as a
+  // replace, so the browser holds one entry and a traversal would leave the app.
+  await page.getByRole("button", { name: "Kembali" }).click();
   await expect(page.getByRole("heading", { name: "Page cache playground" })).toBeVisible();
   await expect(widget(page, "cached", "Pesanan")).toHaveAttribute("data-paint", "cache");
   await expect(widget(page, "cached", "Pesanan")).toContainText("128 pesanan");

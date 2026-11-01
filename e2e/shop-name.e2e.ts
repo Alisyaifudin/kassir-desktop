@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { boot, cashierSql, login } from "./harness";
+import { boot, brand, cashierSql, login } from "./harness";
 
 /**
  * The topbar's brand — the italic name beside the page title — is the name set
@@ -23,7 +23,7 @@ test("a named shop is what the brand says", async ({ page }) => {
   await login(page, "Raisya", "123456");
 
   await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
-  await expect(page.locator("header").getByRole("link", { name: SHOP })).toBeVisible();
+  await expect(brand(page)).toHaveText(SHOP);
   expect(errors).toEqual([]);
 });
 
@@ -31,13 +31,13 @@ test("an unnamed shop falls back to Toko", async ({ page }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456")] });
   await login(page, "Raisya", "123456");
 
-  await expect(page.locator("header").getByRole("link", { name: "Toko" })).toBeVisible();
+  await expect(brand(page)).toHaveText("Toko");
 });
 
 test("saving the name repaints the brand without a reload", async ({ page }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456")] });
   await login(page, "Raisya", "123456");
-  await expect(page.locator("header").getByRole("link", { name: "Toko" })).toBeVisible();
+  await expect(brand(page)).toHaveText("Toko");
 
   // A hash navigation, not a goto: a reload would hide the thing under test.
   await page.evaluate(() => {
@@ -48,7 +48,7 @@ test("saving the name repaints the brand without a reload", async ({ page }) => 
   await name.fill(SHOP);
   await page.getByRole("button", { name: /Simpan/ }).click();
 
-  await expect(page.locator("header").getByRole("link", { name: SHOP })).toBeVisible();
+  await expect(brand(page)).toHaveText(SHOP);
 });
 
 test("a long name does not push the topbar sideways", async ({ page }) => {
@@ -59,7 +59,7 @@ test("a long name does not push the topbar sideways", async ({ page }) => {
   await login(page, "Raisya", "123456");
 
   await expect(
-    page.locator("header").getByRole("link", { name: /Warung Sumber Rejeki/ }),
+    brand(page),
   ).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,

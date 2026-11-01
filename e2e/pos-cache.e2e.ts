@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { boot, cashierSql, login } from "./harness";
+import { boot, brand, cashierSql, login, navTab } from "./harness";
 
 /**
  * `/pos` with the page-data cache on.
@@ -34,7 +34,7 @@ async function openTill(page: Page) {
   await boot(page, { sql: seed });
   await login(page, "Raisya", "123456");
   await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Toko", exact: true }).click();
+  await navTab(page, "/pos").click();
   await expect(page).toHaveURL(/#\/pos/);
   // The screen always ends up with one open cart.
   await expect(page.getByRole("tab")).toHaveCount(1, { timeout: 5000 });
@@ -60,9 +60,9 @@ test("a return visit reopens the same cart, with its line intact", async ({ page
   // the store, and whose `drafts` key still has to be read. Home is the topbar's
   // brand link (`#/`) — the nav has no "Beranda" button, `Beranda` is only the
   // title the topbar takes while you are there.
-  await page.getByRole("link", { name: "Toko" }).click();
+  await brand(page).click();
   await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Toko", exact: true }).click();
+  await navTab(page, "/pos").click();
   await expect(page).toHaveURL(/#\/pos/);
 
   // One cart, not two: a seeded draft list acted on in the first frame would

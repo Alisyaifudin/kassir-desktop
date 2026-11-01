@@ -43,7 +43,13 @@ test("beranda paints its chrome before any figure, then fills each region", asyn
     page.getByRole("link", { name: "alt+0 Toko Jual ke pelanggan" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Transaksi hari ini" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Riwayat", exact: true })).toBeVisible();
+  // The card head's own action. `Riwayat` is also a nav tab now, so the role
+  // selector alone would match two links.
+  await expect(
+    page
+      .locator("section", { has: page.getByRole("heading", { name: "Transaksi hari ini" }) })
+      .getByRole("link", { name: "Riwayat", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Uang" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Kelola" })).toBeVisible();
 

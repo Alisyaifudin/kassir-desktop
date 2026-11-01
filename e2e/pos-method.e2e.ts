@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { boot, cashierSql } from "./harness";
+import { boot, cashierSql, navTab } from "./harness";
 
 /**
  * Choosing a payment method must close its menu, not bounce it open again.
@@ -44,7 +44,7 @@ async function openPos(page: Page) {
   await page.getByRole("button", { name: /masuk/i }).click();
   await expect(page.getByRole("heading", { name: "Beranda", level: 1 })).toBeVisible();
 
-  await page.getByRole("button", { name: "Toko", exact: true }).click();
+  await navTab(page, "/pos").click();
   await expect(page).toHaveURL(/#\/pos/);
 
   return errors;
