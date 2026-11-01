@@ -41,7 +41,7 @@ export function Topbar() {
   const isHome = pathname === "/";
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-sky-300 h-12">
+    <header className="sticky top-0 z-50 w-full dark:bg-sky-700 bg-sky-300 h-12">
       <nav className="flex items-center justify-between h-full px-4 border-b border-black/10">
         <div className="flex items-center gap-3 h-full">
           {!isHome && <BackBtn className="h-10 w-10 hover:bg-sky-400/50" />}

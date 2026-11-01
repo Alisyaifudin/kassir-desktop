@@ -29,7 +29,7 @@ function TopNavLink({ path, label, alt, root = false }: TopNavLinkProps) {
           "px-4 h-10 font-bold transition-all flex items-center justify-center text-base",
           "rounded-t-2xl border-x border-t border-transparent relative",
           isActive
-            ? "bg-white text-primary border-black/10 -mb-[1px] z-10"
+            ? "bg-white dark:bg-black text-primary border-black/10 -mb-[1px] z-10"
             : "text-primary/70 hover:bg-sky-400/30 hover:text-primary",
         )}
       >

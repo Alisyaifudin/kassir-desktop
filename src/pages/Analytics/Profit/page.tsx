@@ -160,7 +160,7 @@ function Body({
             <XAxis dataKey="label" tick={geo.tick} minTickGap={28} />
             <YAxis tick={geo.tick} width={geo.yWidth} tickFormatter={moneyTick} />
             <Tooltip {...TOOLTIP_STYLE} formatter={moneyTooltip} />
-            <Bar dataKey="margin" name="Laba kotor" shape={MarginBar} />
+            <Bar dataKey="margin" fill="var(--color-popover-foreground)" name="Laba kotor" shape={MarginBar} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>

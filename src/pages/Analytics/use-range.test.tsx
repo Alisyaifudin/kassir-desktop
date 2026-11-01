@@ -85,6 +85,18 @@ describe("presets and intervals", () => {
     expect(params().get("interval")).toBe("month");
   });
 
+  test("the today preset is one day and back to a daily bucket", () => {
+    const { result } = harness("/analytics?preset=year");
+
+    act(() => result.current.setPreset("today"));
+
+    expect(params().get("preset")).toBe("today");
+    expect(params().get("interval")).toBe("day");
+    const span = Number(params().get("to")) - Number(params().get("from"));
+    expect(span).toBeGreaterThanOrEqual(DAY_MS);
+    expect(span).toBeLessThanOrEqual(2 * DAY_MS);
+  });
+
   test("changing the bucket keeps the bounds and the named preset", () => {
     const { result } = harness("/analytics?from=1000&to=2000&preset=90d");
 

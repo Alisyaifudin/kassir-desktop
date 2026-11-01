@@ -72,7 +72,9 @@ export const TOOLTIP_STYLE = {
     borderRadius: "var(--radius)",
     color: "var(--popover-foreground)",
   },
-  labelStyle: { color: "var(--muted-foreground)" },
+  labelStyle: {
+    color: "var(--muted-foreground)",
+  },
 } as const;
 
 /** Rupiah in the tooltip, for the pages whose every series is money. */

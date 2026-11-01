@@ -12,14 +12,15 @@ import { DAY_MS, INTERVALS, PRESETS, useRange, weekRange } from "./use-range";
  *
  * `date` pages keep the presets and add a hand-picked range; `week` pages (only
  * Waktu) move a single week at a time, because an hour-of-day histogram read
- * across 30 days mixes paydays with Mondays. The bucket width only exists where
- * the page plots a time series.
+ * across 30 days mixes paydays with Mondays. `product` is a `date` page that also
+ * asks about today — a best seller is a same-day question. The bucket width only
+ * exists where the page plots a time series.
  */
 export function RangeBar({
   mode = "date",
   showInterval = true,
 }: {
-  mode?: "date" | "week";
+  mode?: "product" | "date" | "week";
   showInterval?: boolean;
 }) {
   return (
@@ -27,7 +28,7 @@ export function RangeBar({
       {mode === "week" ? (
         <p className="text-sm font-semibold">Transaksi per minggu</p>
       ) : (
-        <Presets />
+        <Presets mode={mode} />
       )}
       <div className="flex flex-wrap items-center gap-3">
         {mode === "week" ? <WeekPicker /> : <CustomRange />}
@@ -37,11 +38,14 @@ export function RangeBar({
   );
 }
 
-function Presets() {
+function Presets({ mode }: { mode: "product" | "date" }) {
   const { preset, setPreset } = useRange();
+  // `today` only exists where the page can say something about one day; on the
+  // others `?preset=today` still restores its bounds, it just presses no button.
+  const options = PRESETS.filter((option) => mode === "product" || option.key !== "today");
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Periode">
-      {PRESETS.map((option) => (
+      {options.map((option) => (
         <Button
           key={option.key}
           type="button"

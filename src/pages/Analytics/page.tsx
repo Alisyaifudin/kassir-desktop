@@ -13,9 +13,11 @@ import { AnalyticsBodyLoading } from "./z-Loading";
 export default function Page() {
   const path = useLocation().pathname.replace(/\/$/, "");
   // Waktu reads one week at a time; Pembayaran plots no time series, so the
-  // bucket width would be a control with nothing behind it.
+  // bucket width would be a control with nothing behind it. Produk adds the
+  // `today` preset — a best seller is a same-day question.
   const week = path.endsWith("/waktu");
   const noSeries = week || path.endsWith("/pembayaran");
+  const mode = week ? "week" : path.endsWith("/produk") ? "product" : "date";
 
   return (
     <main className="flex h-full min-h-0 overflow-hidden">
@@ -24,7 +26,7 @@ export default function Page() {
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">
         <header className="flex-none border-b p-2">
-          <RangeBar mode={week ? "week" : "date"} showInterval={!noSeries} />
+          <RangeBar mode={mode} showInterval={!noSeries} />
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {/* The bodies are the chart chunk; the rail and the period above it are

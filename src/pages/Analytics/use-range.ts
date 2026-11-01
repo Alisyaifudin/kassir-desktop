@@ -6,9 +6,11 @@ import { tz } from "~/lib/constants";
 /** How wide each point on the charts is. */
 export type Interval = "day" | "week" | "month";
 
-type Preset = "7d" | "30d" | "90d" | "month" | "year";
+export type Preset = "today" | "7d" | "30d" | "90d" | "month" | "year";
 
+/** Pressed-button order. `today` is only offered where it is a real question. */
 export const PRESETS: { key: Preset; label: string }[] = [
+  { key: "today", label: "Hari ini" },
   { key: "7d", label: "7 hari" },
   { key: "30d", label: "30 hari" },
   { key: "90d", label: "90 hari" },
@@ -71,6 +73,8 @@ function dayStart(daysAgo = 0): number {
 function rangeFor(preset: Preset): { from: number; to: number } {
   const today = Temporal.Now.zonedDateTimeISO(tz).startOfDay();
   switch (preset) {
+    case "today":
+      return { from: today.epochMilliseconds, to: today.add({ days: 1 }).epochMilliseconds };
     case "7d":
       return { from: dayStart(6), to: today.add({ days: 1 }).epochMilliseconds };
     case "90d":
