@@ -31,6 +31,11 @@ import { FlipMode } from "~/components/cart/z-FlipMode";
  *
  * The dialog's footer also hides the way out of a sale that was never one: the
  * cart becomes a purchase and moves to Restock (`FlipMode`).
+ *
+ * Only the fields in between scroll: the dialog is capped to the viewport and
+ * `flex` lays it out as title/description → fields (`flex-1 min-h-0`) → footer,
+ * so a short screen or a long note scrolls the fields while `Simpan keranjang`
+ * stays reachable at the bottom.
  */
 export function Options({ draft, onStore }: { draft: Draft | null; onStore: () => void }) {
   // The button is static, so it is drawn at once; the dialog's fields read and
@@ -50,12 +55,12 @@ export function Options({ draft, onStore }: { draft: Draft | null; onStore: () =
           <SlidersHorizontal className="size-5" />
         </DialogTrigger>
       </Button>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] max-w-5xl flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl">Opsi transaksi</DialogTitle>
         </DialogHeader>
         <DialogDescription>Opsi untuk transaksi yang sedang disusun.</DialogDescription>
-        <div className="flex flex-col gap-4">
+        <div className="scroll-gutter flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           {draft === null ? (
             <OptionsSkeleton />
           ) : (
