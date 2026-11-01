@@ -3,6 +3,7 @@ import { Effect, Layer } from "effect";
 import { NotFound } from "~/lib/effect-error";
 import { Binding, DatabaseService, DbError, Statement } from ".";
 import { flattenTransaction } from "./transaction";
+import { enableWriteAheadLog } from "./journal";
 import {
   DB_OPEN_FAILED,
   DB_READ_FAILED,
@@ -16,7 +17,13 @@ let _getDb: Effect.Effect<Database, DbError> | null = null;
 function getDb() {
   if (_getDb === null) {
     _getDb = Effect.tryPromise({
-      try: () => Database.load(DB_PATH),
+      try: async () => {
+        const db = await Database.load(DB_PATH);
+        // Before the first query, and best effort: a database that cannot host
+        // `-wal` (a network share) keeps its journal mode and the app still opens.
+        await enableWriteAheadLog(db);
+        return db;
+      },
       catch: (e) => dbFailure(DB_OPEN_FAILED, e),
     });
   }

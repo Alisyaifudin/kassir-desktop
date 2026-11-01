@@ -1,11 +1,12 @@
 # Kassir Sync — Client Contract (kassir-desktop side)
 
-**Version:** 1.0-draft · **Status:** agreed architecture, not yet implemented
+**Version:** 1.1 · **Status:** implemented in `src/services/sync/` (v1 behaviour)
 
 The canonical protocol lives in `kassir-backend/docs/SYNC-CONTRACT.md`. This
 file is the client-side mirror: what `kassir-desktop` MUST do, MUST store, and
 MUST NOT assume. If the two files disagree, the backend file wins and this one
-gets patched.
+gets patched. Where a section describes *how* this client meets the protocol
+rather than what the wire requires, it says so.
 
 ---
 
@@ -17,9 +18,8 @@ is no other client to merge against *today*, but the protocol is written for
 the general case (LWW, server tiebreak) so a second device can be added
 without a migration.
 
-No sync implementation exists yet (see `specification.xml` →
-`<sync_system status="not-implemented">`). This file is the contract the
-future `src/services/sync/` implements.
+The implementation is `src/services/sync/` (see `specification.xml` →
+`<sync_system>`); `specification.xml` → `<sync_ui_design>` describes the screens.
 
 ## 2. Sync set
 
@@ -111,10 +111,21 @@ decompression on download (backend contract §4.4).
 
 ## 5. The sync loop (pull → merge → push)
 
-Runs as one Effect fiber owned by a `sync` service (service-first rule: all
-reads/writes go through the owning domain services, never page SQL). UI:
-one `Sinkronisasi` action, per-entity progress, cancel on leaving the screen
-(§ `<sync_ui_design>`).
+Runs in a `sync` service as a **background task**, not as a screen's promise. A
+run outlives whatever started it: closing the status dialog, navigating away,
+even logging out does not stop it (the pill goes with the authenticated shell,
+the run does not), and only an explicit cancel does. That is a requirement, not a
+convenience — a run that dies on unmount silently drops the gap it was merging,
+and a run whose failure disappears with the screen is a failure nobody reports.
+
+One run at a time. A second request while a run is in flight is refused rather
+than started: two loops would pull the same gap and fight over one upload
+session, and the cursors only have one writer.
+
+Cancelling is cooperative: the interrupt is delivered at the run's next async
+boundary, so an in-flight merge transaction or upload chunk settles first. The
+run's state says `cancelling` for however long that takes — a state that said
+`cancelled` while a transaction was still committing would be a lie.
 
 ### 5.1 Pull
 
@@ -123,16 +134,23 @@ loop:
   GET /v1/pull?since=<last_pulled_seq>&limit=1000
        Accept-Encoding: gzip
   for each line:
-    row frame  → merge per §6
-    ag frame   → record aggregate merge per §6
-    done.s     → last_pulled_seq = done.s ; persist cursor
-  until meta.snapshot_seq <= last merged seq
+    row frame  → hold for the merge (§5.2)
+    ag frame   → hold for the merge (§5.2)
+    done.s     → the next `since` (not the cursor — see below)
+  until meta.snapshot_seq <= the last seq received
 ```
 
 Resume after disconnect: re-issue the same `since` (rows are idempotent to
 merge). Byte-offset resume (`Download-Offset` + `Download-Prefix-Sha256`,
 backend §8.2) is an **optimization** the client may skip entirely — on
 `409 snapshot_moved`, fall back to `since = last merged seq`, offset 0.
+
+**`last_pulled_seq` is persisted after the merge, not after each page.** The
+gap is merged first and the cursor moves only once that merge has been applied
+(§5.5), so a crash between two pages re-pulls the same range and re-merges it
+into the same result, instead of advancing past rows that were never written.
+The cursor is a claim about the local mirror, so it can only move after the
+mirror has the rows.
 
 ### 5.2 Merge rules (client)
 
@@ -149,6 +167,33 @@ backend §8.2) is an **optimization** the client may skip entirely — on
 - Dangling references are legal (events may precede records; snapshots may
   point at rows the server doesn't FK-check) — reads must already tolerate
   this; keep it that way.
+
+Known limit of this client: the deferred pointer writes are the one statement in
+a merge that is not clock-guarded — `UPDATE … SET <ptr> = <id> WHERE … AND <ptr>
+IS NULL`. `IS NULL` is read as "this row has no opinion", so a pointer the
+server's frame carries is filled in even when the local row is newer. It only
+writes a hole that was empty, which is why it is left alone rather than
+branched on.
+
+**Both decisions are made inside the transaction, in SQL.** A run is a
+background task, so the operator is working while it writes: a clock read in
+the client and compared before the batch would be a decision about a row that
+may have changed by the time the statements run. Concretely:
+
+- the header upsert carries its own comparison (`WHERE excluded.updated_at >
+  <table>.updated_at`, or `= <uploaded clock>` for a forced payload), evaluated
+  at statement time;
+- the child rewrites of a `record` carry *"the header in the table is the one
+  this plan just wrote"* — its `_sync_at` is this batch's stamp and its
+  `updated_at` is the incoming clock, a pair no other writer produces. Without
+  it, a local edit that landed after the plan would lose its children even
+  though its header correctly survived.
+- a `stale` payload applies only if the local row still carries the
+  `updated_at` this device uploaded. If the row moved, the payload is dropped,
+  the row stays unsynced, and the next push compares the two properly:
+  applying it would overwrite the edit **and** move `updated_at` past the
+  marker guard that would have re-pushed it, losing the edit in both
+  directions.
 
 ### 5.3 Push
 
@@ -195,6 +240,37 @@ contract. In-memory streams are welcome when the transport allows them.
 The server pointer is the only truth about progress; nothing is lost by
 dropping in-memory state.
 
+### 5.5 Applying a pull: sliced, not one transaction
+
+How this client meets §5.2 (the wire does not care, the till does).
+
+The plan for a pull is built for the whole gap at once — that is what lets a
+reference be resolved against `local ∪ incoming` instead of "try again later" —
+but it is applied in **bounded slices** (≈200 statements), one transaction
+each, and an aggregate's header never travels in a different slice from its
+five child arrays: half an aggregate is a record with the wrong lines.
+
+The reason is contention, not correctness. A first sync can be tens of
+thousands of statements; one transaction that long holds SQLite's writer lock
+while the shop is selling. The cart flushes on a 100 ms debounce, so the POS's
+own write queues behind it and then fails with `SQLITE_BUSY` once the driver's
+busy timeout runs out — a failed sale caused by a sync nobody started.
+
+Slicing gives up "all or nothing", and that is safe because:
+
+- every statement is idempotent (LWW upserts, `INSERT OR IGNORE` events, a
+  guarded aggregate replacement);
+- merged rows are marked `_sync_at`, so nothing is pushed back;
+- the cursor only moves after the last slice, so a crash mid-merge re-pulls the
+  same gap and re-merges it into the same result;
+- between slices the mirror is half-merged, and every reader already tolerates
+  that (dangling references are legal).
+
+The database is also opened in WAL mode, once per file and best effort: readers
+then never block writers and are never blocked by them, so only writers queue —
+and the slices are what keep those short. In rollback-journal mode a writer
+blocks readers at the commit, and this app reads constantly.
+
 ## 6. Local schema impact
 
 None. The current schema (migration 43/44) already carries everything the
@@ -208,5 +284,8 @@ when the sync service ships, so existing data pushes in the new shape.
 - Image bytes (reserved `blob` frame / R2 endpoints, backend §9).
 - Per-entity sessions, `sync_change` log pull (backend §12 upgrades).
 - Mobile clients (the protocol is designed to admit one later).
-- Any UI beyond the designed `Sinkronisasi` screen — this file does not
-  specify UI; see `<sync_ui_design>` in `specification.xml`.
+- Automatic or scheduled sync. The run is a background task (§5), but nothing
+  starts it except the operator: no timer, no sync-on-launch, no push-per-sale.
+  The service's single-flight `start` is the seam a future trigger would use.
+- Any UI beyond the designed screens — this file does not specify UI; see
+  `<sync_ui_design>` in `specification.xml`.

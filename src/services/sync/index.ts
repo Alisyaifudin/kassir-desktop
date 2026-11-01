@@ -41,21 +41,32 @@ export type SyncConfig = { baseUrl: string; token: string };
 
 export const SYNC_CONFIG_DEFAULT: SyncConfig = { baseUrl: "", token: "" };
 
-export type SyncPhase =
-  /** Nothing running; the last outcome is in `lastRun`. */
+export type SyncStatus =
+  /** Nothing running; the last outcome is in `report` / `error`. */
   | "idle"
+  /** Clearing the cursors and the unsync markers before a `reset` run (§3.2). */
+  | "preparing"
   /** Streaming server rows (§8). */
   | "pull"
-  /** Writing the whole pull to SQLite in one batch (§5.2). */
+  /** Writing the pull to SQLite (§5.2). */
   | "merge"
   /** Uploading local rows (§5.3). */
   | "push"
+  /** A cancel was asked for and the run has not stopped yet. */
+  | "cancelling"
   | "done"
   | "failed"
   | "cancelled";
 
-export type SyncProgress = {
-  phase: SyncPhase;
+/**
+ * Everything the UI may know about the last or current run.
+ *
+ * One value, not four pieces of React state: a run is a background task, so its
+ * "running" flag, its progress, its report and its error all outlive the screen
+ * that started it, and they must never disagree with each other.
+ */
+export type SyncState = {
+  status: SyncStatus;
   /** The entity currently moving, when a phase has one. */
   entity: string | null;
   /** Frames merged (pull) or acknowledged (push) in this phase. */
@@ -64,7 +75,44 @@ export type SyncProgress = {
   total: number;
   /** One plain sentence for the screen. */
   message: string;
+  /** When the current (or last) run started, so a pill can count up. */
+  startedAt: number | null;
+  /** When it stopped; null while it is still going. */
+  finishedAt: number | null;
+  /** What the last run did, once it succeeded. */
+  report: SyncReport | null;
+  /** The sentence to show when the last run failed. */
+  error: string | null;
 };
+
+/** The value a fresh subscription sees, and the state of an app that never synced. */
+export const SYNC_IDLE: SyncState = {
+  status: "idle",
+  entity: null,
+  done: 0,
+  total: 0,
+  message: "",
+  startedAt: null,
+  finishedAt: null,
+  report: null,
+  error: null,
+};
+
+const IN_FLIGHT: ReadonlySet<SyncStatus> = new Set<SyncStatus>([
+  "preparing",
+  "pull",
+  "merge",
+  "push",
+  "cancelling",
+]);
+
+/** True while a run is in flight — what the status pill shows for. */
+export function isRunning(state: SyncState): boolean {
+  return IN_FLIGHT.has(state.status);
+}
+
+/** What `start` did: `already-running` is a refusal, not an error. */
+export type SyncStart = "started" | "already-running";
 
 export type SyncReport = {
   /** Highest `sync_seq` merged locally. */
@@ -97,11 +145,34 @@ export class SyncService extends Context.Tag("SyncService")<
     };
     /** The last pull cursor, so a screen can show where the device stands. */
     cursor: () => Effect.Effect<number, SyncError>;
-    /** `sync` runs pull → merge → push; `reset` clears the cursors and the
-     * upload session and marks every syncable row for re-push first (§3.2). */
+    /**
+     * The loop itself — pull → merge → push (`sync`), or cursors and unsync
+     * markers cleared first (`reset`, §3.2) — owned by the caller's fiber.
+     *
+     * The app does not call this: `start` forks it as a background task. It stays
+     * public because the tests drive it directly and own the fiber.
+     */
     run: (mode: SyncMode) => Effect.Effect<SyncReport, SyncError>;
-    /** Interrupts the running fiber's in-flight request. */
+    /**
+     * Starts the loop as a background task. One run at a time: a second call while
+     * a run is in flight is refused (`already-running`) instead of starting a
+     * second pull/push pair over the same cursors and upload session.
+     */
+    start: (mode: SyncMode) => Effect.Effect<SyncStart>;
+    /**
+     * Asks the running loop to stop; a no-op when nothing runs.
+     *
+     * Cooperative by construction: the interrupt is delivered at the loop's next
+     * async boundary, so an in-flight merge or upload settles first. The activity
+     * is `cancelling` until it does.
+     */
     cancel: () => Effect.Effect<void>;
-    progress: Stream.Stream<SyncProgress, SyncError>;
+    /**
+     * The run's state, replayed to every new subscriber.
+     *
+     * A stream rather than a context: the pill and its dialog subscribe at their
+     * own leaves, so a progress tick re-renders those two and nothing else.
+     */
+    state: Stream.Stream<SyncState>;
   }
 >() {}

@@ -61,17 +61,46 @@ export function mergeRowStatement(def: EntityDef, row: WireRow, syncedAt: number
 /**
  * One row, unconditionally — the shape used for a `stale` ack payload, where the
  * server has already decided it wins (§5.2 "merge that payload unconditionally").
+ *
+ * `onlyIfClock` is the exception to "unconditionally": the local row must still be
+ * the one the client uploaded. A cashier can edit a row while its frame is in
+ * flight, and the server's `stale` verdict was reached against the values that
+ * frame carried — not against the edit that landed after it. Applying the payload
+ * anyway would overwrite a newer local value *and* move `updated_at` past the
+ * marker guard in `markSyncedStatements`, so the edit would never be pushed back
+ * either. When the clocks differ the row keeps its local value, stays unsynced,
+ * and the next push pass compares the two properly.
+ *
+ * A row that does not exist locally is still inserted: there is no edit to protect.
  */
-export function forceRowStatement(def: EntityDef, row: WireRow, syncedAt: number): Statement {
+export function forceRowStatement(
+  def: EntityDef,
+  row: WireRow,
+  syncedAt: number,
+  onlyIfClock?: number,
+): Statement {
   const columns = insertColumns(def);
   const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
   const assignments = [...updateColumns(def), def.syncAt]
     .map((column) => `${column} = excluded.${column}`)
     .join(", ");
+  const bindings: (string | number | null)[] = [
+    ...def.columns.map((column) => row[column] ?? null),
+    syncedAt,
+  ];
+  if (onlyIfClock === undefined) {
+    return {
+      sql: `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${placeholders})
+        ON CONFLICT(${def.pk}) DO UPDATE SET ${assignments}`,
+      bindings,
+    };
+  }
+  bindings.push(onlyIfClock);
   return {
     sql: `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${placeholders})
-      ON CONFLICT(${def.pk}) DO UPDATE SET ${assignments}`,
-    bindings: [...def.columns.map((column) => row[column] ?? null), syncedAt],
+      ON CONFLICT(${def.pk}) DO UPDATE SET ${assignments}
+      WHERE ${def.table}.${def.updatedAt} = $${bindings.length}`,
+    bindings,
   };
 }
 
@@ -92,7 +121,13 @@ export function mergeEventStatement(def: EntityDef, row: WireRow, syncedAt: numb
   };
 }
 
-function childInsert(def: ChildDef, row: WireRow, recordId: string): Statement {
+function childInsert(
+  def: ChildDef,
+  row: WireRow,
+  recordId: string,
+  won: ((at: number) => string) | null,
+  guard: readonly (string | number)[],
+): Statement {
   const columns = [...def.columns];
   const bindings: (string | number | null)[] = def.columns.map((column) => row[column] ?? null);
   if (def.scope.kind === "record") {
@@ -101,8 +136,19 @@ function childInsert(def: ChildDef, row: WireRow, recordId: string): Statement {
     bindings.push(recordId);
   }
   const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
+  if (won === null) {
+    return {
+      sql: `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${placeholders})`,
+      bindings,
+    };
+  }
+  // `SELECT … WHERE <header won>` inserts nothing when the header lost, which is
+  // how §5.2 "if it loses, touch nothing" is enforced inside the transaction.
+  const at = bindings.length + 1;
+  bindings.push(...guard);
   return {
-    sql: `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${placeholders})`,
+    sql: `INSERT INTO ${def.table} (${columns.join(", ")}) SELECT ${placeholders}
+      WHERE ${won(at)}`,
     bindings,
   };
 }
@@ -112,39 +158,64 @@ function childInsert(def: ChildDef, row: WireRow, recordId: string): Statement {
  *
  * Order matters. The children are deleted deepest-first (`discounts` hangs off
  * `record_listings`) and inserted parent-first, so foreign keys hold at every
- * step. The header insert/delete pair is guarded by the caller: this function is
- * only called once the caller has decided the header wins.
+ * step.
+ *
+ * ## The guard
+ *
+ * Every child statement carries the same condition: *the header in the table is
+ * the one this plan just wrote*. The header's own clock comparison lives in the
+ * upsert (`excluded.<updated_at> > records.<updated_at>`, or `= $clock` for a
+ * forced payload), but that comparison is evaluated while the statement runs — the
+ * child rewrites run after it, in the same transaction, and must not replace the
+ * arrays of a header that lost.
+ *
+ * Deciding it here rather than in TypeScript is what makes a local write during a
+ * merge safe. The merge plans in JS from clocks read before the transaction, so a
+ * JS-side decision would be about a row that may have changed by the time the SQL
+ * runs — exactly the race a background sync makes routine. The row answers for
+ * itself instead: a header this plan wrote carries this plan's `_sync_at` stamp and
+ * the incoming clock, and no other writer can produce that pair. (A second merge in
+ * the same millisecond would; it would then rewrite the children with the same
+ * frame's values, which is what re-merging means and is why it is harmless.)
  */
 export function recordAggregateStatements(
   row: WireRow,
   children: Record<string, WireRow[]>,
   syncedAt: number,
-  options: { force: boolean },
+  options: { force: boolean; onlyIfClock?: number },
 ): Statement[] {
   const def = TABLES.record;
   const recordId = String(row[def.pk]);
+  const incomingAt = Number(row[def.updatedAt]);
   const header = options.force
-    ? forceRowStatement(def, row, syncedAt)
+    ? forceRowStatement(def, row, syncedAt, options.onlyIfClock)
     : mergeRowStatement(def, row, syncedAt);
+
+  /** "The header is mine": the record id, then this plan's stamp and clock. */
+  const guard: (string | number)[] = [recordId, syncedAt, incomingAt];
+  const won = (at: number): string =>
+    `EXISTS (SELECT 1 FROM ${def.table} WHERE ${def.pk} = $${at}
+      AND ${def.syncAt} = $${at + 1} AND ${def.updatedAt} = $${at + 2})`;
+  const guardedDelete = (sql: string): Statement => ({
+    sql: `${sql} AND ${won(2)}`,
+    bindings: [recordId, ...guard],
+  });
 
   const statements: Statement[] = [
     header,
-    {
-      sql: `DELETE FROM discounts WHERE record_listing_id IN (
-          SELECT record_listing_id FROM record_listings WHERE record_id = $1)`,
-      bindings: [recordId],
-    },
-    { sql: "DELETE FROM record_listings WHERE record_id = $1", bindings: [recordId] },
-    { sql: "DELETE FROM record_methods WHERE record_id = $1", bindings: [recordId] },
-    { sql: "DELETE FROM record_extras WHERE record_id = $1", bindings: [recordId] },
-    { sql: "DELETE FROM record_images WHERE record_id = $1", bindings: [recordId] },
+    guardedDelete(`DELETE FROM discounts WHERE record_listing_id IN (
+        SELECT record_listing_id FROM record_listings WHERE record_id = $1)`),
+    guardedDelete("DELETE FROM record_listings WHERE record_id = $1"),
+    guardedDelete("DELETE FROM record_methods WHERE record_id = $1"),
+    guardedDelete("DELETE FROM record_extras WHERE record_id = $1"),
+    guardedDelete("DELETE FROM record_images WHERE record_id = $1"),
   ];
 
   for (const key of CHILD_ORDER) {
     const def = CHILDREN.find((child) => child.key === key);
     if (def === undefined) continue;
     for (const child of children[key] ?? []) {
-      statements.push(childInsert(def, child, recordId));
+      statements.push(childInsert(def, child, recordId, won, guard));
     }
   }
 

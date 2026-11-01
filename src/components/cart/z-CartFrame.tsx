@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Loading } from "~/components/Loading";
-import { SaveError } from "~/components/SaveError";
 
 /**
  * The parts of the Pos and Restock screens that were literally the same file
@@ -49,7 +48,6 @@ export function CartPanels({ submitting, children }: { submitting: boolean; chil
       inert={submitting}
     >
       {children}
-      <SaveError />
       {submitting ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60">
           <Loading />

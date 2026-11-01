@@ -1,5 +1,6 @@
 import { Outlet } from "react-router";
 import { Toaster } from "~/components/ui/sonner";
+import { BottomRail } from "~/components/sync/z-Rail";
 import { Loader, useStream } from "~/components/Loader";
 import { service } from "~/services";
 import Redirect from "~/components/Redirect";
@@ -30,6 +31,8 @@ export default function Layout() {
             <div id="main-body" className="flex-1 min-h-0 overflow-y-auto">
               <Outlet />
             </div>
+            {/* Outside `#main-body`, so the pill does not scroll with the page. */}
+            <BottomRail />
             <Toaster className="toast" />
           </div>
         )

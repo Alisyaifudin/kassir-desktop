@@ -9,6 +9,11 @@ import { service } from "~/services";
  * invisible: the screen said "saved", the disk disagreed, and a crash lost the
  * sale with no trace. This renders the message the transaction service keeps in
  * `get.saveError` (and toasts it once) until a later write succeeds.
+ *
+ * Rendered by the shell's bottom-left rail (`components/sync/z-Rail`), not by the
+ * cart panel: a failed write is the app's problem, not that screen's, and the
+ * corner already belongs to the sync status pill. It carries no positioning of
+ * its own — the rail does the stacking.
  */
 export function SaveError() {
   const res = useStream(service.transaction.get.saveError);
@@ -24,7 +29,7 @@ export function SaveError() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-4 left-4 z-50 flex max-w-md items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive shadow-lg"
+      className="pointer-events-none flex max-w-md items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive shadow-lg"
     >
       <AlertTriangle className="size-5 shrink-0" />
       <span>{message}</span>

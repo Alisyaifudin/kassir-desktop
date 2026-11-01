@@ -119,11 +119,16 @@ class FakeServer implements SyncTransport {
     return this.seq;
   }
 
-  seed(entity: Entity, row: Record<string, unknown>): void {
+  /** Seeds one row, or one record aggregate when `children` is given. */
+  seed(
+    entity: Entity,
+    row: Record<string, unknown>,
+    children: Record<string, WireRow[]> = {},
+  ): void {
     const def = TABLES[entity];
     const canonical = toCanonicalRow(def, row);
     const line =
-      entity === "record" ? encodeRecordFrame(canonical, {}) : encodeRowFrame(entity, canonical);
+      entity === "record" ? encodeRecordFrame(canonical, children) : encodeRowFrame(entity, canonical);
     this.seq += 1;
     this.stored.push({ entity, seq: this.seq, line });
   }
@@ -325,7 +330,7 @@ function pullAndMerge(
   server: FakeServer,
   state: { cursor: number },
   execute: MergeExecutor,
-): Effect.Effect<{ merged: number; skipped: number; pages: number; cursor: number }, SyncError> {
+): Effect.Effect<{ merged: number; pages: number; cursor: number }, SyncError> {
   return Effect.gen(function* () {
     const pulled = yield* pull({
       transport: server,
@@ -333,12 +338,12 @@ function pullAndMerge(
       readCursor: () => Effect.sync(() => state.cursor),
       onProgress: () => undefined,
     });
-    const merger = makeMerger(db, 1_000, execute);
+    // A fixed clock: these tests assert on `_sync_at` landing at a known stamp.
+    const merger = makeMerger(db, () => 1_000, execute);
     const stats = yield* merger.mergeFrames(pulled.frames);
     state.cursor = pulled.lastPulledSeq;
     return {
       merged: stats.merged,
-      skipped: stats.skipped,
       pages: pulled.pages,
       cursor: state.cursor,
     };
@@ -557,9 +562,30 @@ describe("push", () => {
 });
 
 describe("merge batching", () => {
-  test("a whole pull is applied in exactly one transaction", async () => {
+  /**
+   * An executor that records what each transaction carried.
+   *
+   * `beforeFirst` runs once, inside the first transaction, which is how a test
+   * reproduces a local write landing between the plan and the apply.
+   */
+  function recordingExecutor(
+    db: ReturnType<typeof makeTestDatabase>["db"],
+    beforeFirst?: () => void,
+  ): { run: MergeExecutor; slices: { sql: string }[][] } {
+    const slices: { sql: string }[][] = [];
+    const inner = testExecutor(db).run;
+    const run: MergeExecutor = (statements, what) => {
+      if (slices.length === 0 && beforeFirst !== undefined) beforeFirst();
+      slices.push(statements.map((statement) => ({ sql: statement.sql })));
+      return inner(statements, what);
+    };
+    return { run, slices };
+  }
+
+  test("a pull under the slice bound is still one transaction", async () => {
     const { db, layer, server } = setup();
-    // Several entities and many rows: no split, no per-row commit.
+    // Several entities and many rows, but few enough to fit one slice: nothing is
+    // split for the sake of it.
     for (let index = 0; index < 60; index++) {
       server.seed("customer", {
         customer_id: `c${String(index).padStart(4, "0")}`,
@@ -585,13 +611,242 @@ describe("merge batching", () => {
     expect(result.merged).toBe(120);
     expect(executor.counter.calls).toBe(1);
     expect(executor.counter.statements).toBe(120);
-
-    const customers = db.query<{ total: number }, []>("SELECT COUNT(*) AS total FROM customers").get();
-    // 120 incoming + the rows the migrations seed.
-    expect(customers?.total).toBeGreaterThanOrEqual(60);
   });
 
-  test("a failing statement rolls the whole pull back", async () => {
+  test("a large pull is applied in bounded slices, in order", async () => {
+    const { db, layer, server } = setup();
+    for (let index = 0; index < 500; index++) {
+      server.seed("customer", {
+        customer_id: `c${String(index).padStart(4, "0")}`,
+        customer_name: `Pelanggan ${index}`,
+        customer_phone: "0812",
+        customer_updated_at: 100,
+        customer_deleted_at: null,
+      });
+    }
+
+    const executor = recordingExecutor(db);
+    const result = await withDb(layer, (service) =>
+      pullAndMerge(service, server, { cursor: 0 }, executor.run),
+    );
+
+    expect(result.merged).toBe(500);
+    // 500 one-row frames at 200 statements per transaction.
+    expect(executor.slices.map((slice) => slice.length)).toEqual([200, 200, 100]);
+    const rows = db
+      .query<{ total: number }, []>("SELECT COUNT(*) AS total FROM customers WHERE customer_id LIKE 'c%'")
+      .get();
+    expect(rows?.total).toBe(500);
+  });
+
+  test("a slice never splits a record's header from its child arrays", async () => {
+    const { db, layer, server } = setup();
+    // 199 single-statement frames, then one aggregate. The aggregate does not fit
+    // beside them, so a planner that counted statements blindly would cut it.
+    for (let index = 0; index < 199; index++) {
+      server.seed("customer", {
+        customer_id: `c${String(index).padStart(4, "0")}`,
+        customer_name: `Pelanggan ${index}`,
+        customer_phone: "0812",
+        customer_updated_at: 100,
+        customer_deleted_at: null,
+      });
+    }
+    const methodId = String(
+      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
+        ?.method_id,
+    );
+    server.seed(
+      "record",
+      {
+        record_id: "r1",
+        record_created_at: 100,
+        record_paid_at: 100,
+        record_rounding: 0,
+        record_credit_at: null,
+        record_cashier: "kasir",
+        record_mode: "incoming",
+        record_pay: 5000,
+        record_note: "",
+        record_fix: 0,
+        record_customer_name: "",
+        record_customer_phone: "",
+        record_sub_total: 5000,
+        record_total: 5000,
+        record_updated_at: 100,
+        record_deleted_at: null,
+        record_supplier_id: null,
+        record_supplier_name: "",
+        record_flag: 0,
+        record_pair_id: null,
+      },
+      {
+        record_listings: [],
+        record_methods: [
+          { record_method_id: "m1", method_id: methodId, record_method_pay: 5000 },
+        ],
+        record_extras: [],
+        record_images: [],
+        discounts: [],
+      },
+    );
+
+    const executor = recordingExecutor(db);
+    const result = await withDb(layer, (service) =>
+      pullAndMerge(service, server, { cursor: 0 }, executor.run),
+    );
+
+    expect(result.merged).toBe(200);
+    expect(executor.slices.length).toBe(2);
+    expect(executor.slices[0]?.length).toBe(199);
+    // The whole aggregate moved to the second transaction: header, five child
+    // deletes and the one child row.
+    const second = executor.slices[1] ?? [];
+    expect(second.length).toBe(7);
+    expect(second[0]?.sql).toContain("INSERT INTO records");
+
+    // The invariant, stated once: every aggregate contributes exactly one header
+    // insert and one `discounts` delete, so a slice holding one without the other
+    // is a split aggregate.
+    for (const slice of executor.slices) {
+      const headers = slice.filter((statement) => statement.sql.includes("INSERT INTO records")).length;
+      const discounts = slice.filter((statement) =>
+        statement.sql.includes("DELETE FROM discounts"),
+      ).length;
+      expect(headers).toBe(discounts);
+    }
+  });
+
+  test("the deferred pointers are written after every aggregate", async () => {
+    const { db, layer, server } = setup();
+    const methodId = String(
+      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
+        ?.method_id,
+    );
+    server.seed("product", {
+      product_id: "p1",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 100,
+      product_deleted_at: null,
+    });
+    // The event arrives before the record that names it, so its `record_id` can
+    // only be written by the trailing UPDATE.
+    server.seed("product_event", {
+      product_event_id: "e1",
+      product_event_created_at: 100,
+      product_event_value: -1,
+      product_event_capital: 1000,
+      product_event_note: "",
+      product_id: "p1",
+      stock_id: null,
+      record_id: "r1",
+    });
+    server.seed(
+      "record",
+      {
+        record_id: "r1",
+        record_created_at: 100,
+        record_paid_at: 100,
+        record_rounding: 0,
+        record_credit_at: null,
+        record_cashier: "kasir",
+        record_mode: "incoming",
+        record_pay: 1000,
+        record_note: "",
+        record_fix: 0,
+        record_customer_name: "",
+        record_customer_phone: "",
+        record_sub_total: 1000,
+        record_total: 1000,
+        record_updated_at: 100,
+        record_deleted_at: null,
+        record_supplier_id: null,
+        record_supplier_name: "",
+        record_flag: 0,
+        record_pair_id: null,
+      },
+      {
+        record_listings: [
+          {
+            record_listing_id: "rl1",
+            record_listing_group_id: "g1",
+            product_event_id: "e1",
+            product_id: "p1",
+            record_listing_name: "Kopi",
+            record_listing_kind: "retail",
+            record_listing_unit: 1,
+            record_listing_price: 1000,
+            record_listing_qty: 1,
+            record_listing_capital: 900,
+            record_listing_total: 1000,
+          },
+        ],
+        record_methods: [
+          { record_method_id: "m1", method_id: methodId, record_method_pay: 1000 },
+        ],
+        record_extras: [],
+        record_images: [],
+        discounts: [],
+      },
+    );
+
+    const executor = recordingExecutor(db);
+    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, executor.run));
+
+    const flat = executor.slices.flat();
+    const lastAggregate = flat.reduce(
+      (last, statement, index) =>
+        statement.sql.includes("INSERT INTO records") ? index : last,
+      -1,
+    );
+    const link = flat.findIndex((statement) =>
+      statement.sql.includes("UPDATE product_events SET record_id"),
+    );
+    expect(lastAggregate).toBeGreaterThanOrEqual(0);
+    expect(link).toBeGreaterThan(lastAggregate);
+
+    const event = db
+      .query<{ record_id: string | null }, []>(
+        "SELECT record_id FROM product_events WHERE product_event_id = 'e1'",
+      )
+      .get();
+    expect(event?.record_id).toBe("r1");
+  });
+
+  test("progress is reported per slice, and ends at the frame count", async () => {
+    const { db, layer, server } = setup();
+    for (let index = 0; index < 300; index++) {
+      server.seed("customer", {
+        customer_id: `c${String(index).padStart(4, "0")}`,
+        customer_name: `Pelanggan ${index}`,
+        customer_phone: "0812",
+        customer_updated_at: 100,
+        customer_deleted_at: null,
+      });
+    }
+
+    const seen: { done: number; total: number }[] = [];
+    await withDb(layer, (service) =>
+      Effect.gen(function* () {
+        const pulled = yield* pull({
+          transport: server,
+          endpoint,
+          readCursor: () => Effect.succeed(0),
+          onProgress: () => undefined,
+        });
+        const merger = makeMerger(service, () => 1_000, testExecutor(db).run);
+        return yield* merger.mergeFrames(pulled.frames, (progress) => seen.push(progress));
+      }),
+    );
+
+    expect(seen.length).toBe(2);
+    expect(seen[0]).toEqual({ done: 200, total: 300 });
+    expect(seen[1]).toEqual({ done: 300, total: 300 });
+  });
+
+  test("a failing slice applies nothing", async () => {
     const { db, layer, server } = setup();
     server.seed("customer", {
       customer_id: "c1",
@@ -601,8 +856,8 @@ describe("merge batching", () => {
       customer_deleted_at: null,
     });
 
-    // The executor refuses before writing, which is exactly what the Rust command
-    // does when a statement fails: nothing of the pull is applied.
+    // The executor refuses before writing, which is what the Rust command does when
+    // a statement fails: nothing of that slice is applied.
     const broken: MergeExecutor = () => Effect.fail(new SyncError({ message: "boom" }));
     const outcome = await withDb(layer, (service) =>
       pullAndMerge(service, server, { cursor: 0 }, broken).pipe(Effect.either),
@@ -615,6 +870,235 @@ describe("merge batching", () => {
       )
       .get();
     expect(row?.total).toBe(0);
+  });
+
+  test("a local edit between the plan and the apply is not overwritten", async () => {
+    const { db, layer, server } = setup();
+    db.query(
+      `INSERT INTO records (record_id, record_created_at, record_rounding, record_cashier,
+        record_mode, record_pay, record_note, record_fix, record_customer_name,
+        record_customer_phone, record_sub_total, record_total, record_updated_at)
+        VALUES ('r1', 100, 0, 'kasir', 'incoming', 0, '', 0, '', '', 0, 0, 50)`,
+    ).run();
+    db.query(
+      "INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay) VALUES ('m_old', 'r1', (SELECT method_id FROM methods LIMIT 1), 1)",
+    ).run();
+
+    const header = {
+      record_id: "r1",
+      record_created_at: 100,
+      record_paid_at: 100,
+      record_rounding: 0,
+      record_credit_at: null,
+      record_cashier: "kasir",
+      record_mode: "incoming",
+      record_pay: 5000,
+      record_note: "",
+      record_fix: 0,
+      record_customer_name: "",
+      record_customer_phone: "",
+      record_sub_total: 5000,
+      record_total: 5000,
+      record_updated_at: 200,
+      record_deleted_at: null,
+      record_supplier_id: null,
+      record_supplier_name: "",
+      record_flag: 0,
+      record_pair_id: null,
+    };
+    const methodId = String(
+      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
+        ?.method_id,
+    );
+    server.stored.push({
+      entity: "record",
+      seq: 1,
+      line: encodeRecordFrame(toCanonicalRow(TABLES.record, header), {
+        record_listings: [],
+        record_methods: [{ record_method_id: "m_new", method_id: methodId, record_method_pay: 5000 }],
+        record_extras: [],
+        record_images: [],
+        discounts: [],
+      }),
+    });
+
+    // The cashier edits the record while the merge is between planning and
+    // writing — the window a background sync makes ordinary.
+    const executor = recordingExecutor(db, () => {
+      db.query("UPDATE records SET record_updated_at = 300 WHERE record_id = 'r1'").run();
+    });
+    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, executor.run));
+
+    // The header's clock comparison runs inside the transaction, so the newer local
+    // row wins and the child arrays stay exactly as the editor left them.
+    const updated = db
+      .query<{ record_updated_at: number }, []>(
+        "SELECT record_updated_at FROM records WHERE record_id = 'r1'",
+      )
+      .get();
+    expect(updated?.record_updated_at).toBe(300);
+    const methods = db
+      .query<{ record_method_id: string }, []>(
+        "SELECT record_method_id FROM record_methods WHERE record_id = 'r1'",
+      )
+      .all();
+    expect(methods.map((row) => row.record_method_id)).toEqual(["m_old"]);
+  });
+});
+
+describe("merge guards", () => {
+  const customer = (name: string, at: number, phone = "0812"): WireRow => ({
+    customer_id: "c1",
+    customer_name: name,
+    customer_phone: phone,
+    customer_updated_at: at,
+    customer_deleted_at: null,
+  });
+
+  /** Runs one `mergeStaleRow` against the real merger and a real transaction. */
+  function applyStale(
+    layer: ReturnType<typeof setup>["layer"],
+    db: ReturnType<typeof setup>["db"],
+    row: WireRow,
+    onlyIfClock: number,
+  ) {
+    return withDb(layer, (service) =>
+      makeMerger(service, () => 1_000, testExecutor(db).run).mergeStaleRow(
+        "customer",
+        row,
+        onlyIfClock,
+      ),
+    );
+  }
+
+  test("a stale payload replaces a row that has not moved", async () => {
+    const { db, layer } = setup();
+    db.query(
+      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Lokal', '0812', 100)",
+    ).run();
+
+    // The local row is still exactly what was uploaded, so the server's verdict
+    // stands and the payload is applied (§5.2).
+    await applyStale(layer, db, customer("Server", 200), 100);
+
+    const row = db
+      .query<{ customer_name: string; customer_sync_at: number | null }, []>(
+        "SELECT customer_name, customer_sync_at FROM customers WHERE customer_id = 'c1'",
+      )
+      .get();
+    expect(row?.customer_name).toBe("Server");
+    expect(row?.customer_sync_at).toBe(1_000);
+  });
+
+  test("a stale payload leaves a row edited while its frame was in flight", async () => {
+    const { db, layer } = setup();
+    db.query(
+      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Lokal', '0812', 100)",
+    ).run();
+    // The cashier renames the customer after the frame went out but before the ack
+    // came back: the server judged `100`, and this row is no longer that row.
+    db.query(
+      "UPDATE customers SET customer_name = 'Diedit', customer_updated_at = 300 WHERE customer_id = 'c1'",
+    ).run();
+
+    await applyStale(layer, db, customer("Server", 200, "0813"), 100);
+
+    const row = db
+      .query<{ customer_name: string; customer_phone: string; customer_sync_at: number | null }, []>(
+        "SELECT customer_name, customer_phone, customer_sync_at FROM customers WHERE customer_id = 'c1'",
+      )
+      .get();
+    // The local edit stands and stays queued: the next push compares the two
+    // properly instead of the edit disappearing in both directions.
+    expect(row?.customer_name).toBe("Diedit");
+    expect(row?.customer_phone).toBe("0812");
+    expect(row?.customer_sync_at).toBeNull();
+  });
+
+  test("a stale payload for a row this device never held is still written", async () => {
+    const { db, layer } = setup();
+
+    await applyStale(layer, db, customer("Server", 200), 100);
+
+    const row = db
+      .query<{ customer_name: string }, []>(
+        "SELECT customer_name FROM customers WHERE customer_id = 'c1'",
+      )
+      .get();
+    // There is no local edit to protect, so the guard has nothing to refuse.
+    expect(row?.customer_name).toBe("Server");
+  });
+
+  test("a stale aggregate leaves the children of a moved header alone", async () => {
+    const { db, layer } = setup();
+    const methodId = String(
+      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
+        ?.method_id,
+    );
+    const header = (pay: number, at: number): WireRow => ({
+      record_id: "r1",
+      record_created_at: 100,
+      record_paid_at: 100,
+      record_rounding: 0,
+      record_credit_at: null,
+      record_cashier: "kasir",
+      record_mode: "incoming",
+      record_pay: pay,
+      record_note: "",
+      record_fix: 0,
+      record_customer_name: "",
+      record_customer_phone: "",
+      record_sub_total: pay,
+      record_total: pay,
+      record_updated_at: at,
+      record_deleted_at: null,
+      record_supplier_id: null,
+      record_supplier_name: "",
+      record_flag: 0,
+      record_pair_id: null,
+    });
+    const children = (id: string) => ({
+      record_listings: [],
+      record_methods: [{ record_method_id: id, method_id: methodId, record_method_pay: 100 }],
+      record_extras: [],
+      record_images: [],
+      discounts: [],
+    });
+
+    db.query(
+      `INSERT INTO records (record_id, record_created_at, record_rounding, record_cashier,
+        record_mode, record_pay, record_note, record_fix, record_customer_name,
+        record_customer_phone, record_sub_total, record_total, record_updated_at)
+        VALUES ('r1', 100, 0, 'kasir', 'incoming', 100, '', 0, '', '', 100, 100, 100)`,
+    ).run();
+    db.query(
+      `INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay)
+        VALUES ('m_local', 'r1', '${methodId}', 100)`,
+    ).run();
+    // The record moved after its frame was encoded.
+    db.query("UPDATE records SET record_updated_at = 300 WHERE record_id = 'r1'").run();
+
+    await withDb(layer, (service) =>
+      makeMerger(service, () => 1_000, testExecutor(db).run).mergeStaleAggregate(
+        header(5000, 200),
+        children("m_server"),
+        100,
+      ),
+    );
+
+    const methods = db
+      .query<{ record_method_id: string }, []>(
+        "SELECT record_method_id FROM record_methods WHERE record_id = 'r1'",
+      )
+      .all();
+    expect(methods.map((row) => row.record_method_id)).toEqual(["m_local"]);
+    const updated = db
+      .query<{ record_updated_at: number; record_sync_at: number | null }, []>(
+        "SELECT record_updated_at, record_sync_at FROM records WHERE record_id = 'r1'",
+      )
+      .get();
+    expect(updated?.record_updated_at).toBe(300);
+    expect(updated?.record_sync_at).toBeNull();
   });
 });
 

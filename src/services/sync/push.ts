@@ -76,10 +76,16 @@ export type PushDeps = {
   writeUploadState: (state: UploadState) => Effect.Effect<void>;
   clearUploadState: () => Effect.Effect<void>;
   /** Applies the server's winning row/aggregate from a `stale` ack (§5.2). */
-  mergeStaleRow: (entity: Entity, row: WireRow) => Effect.Effect<void, SyncError>;
+  mergeStaleRow: (
+    entity: Entity,
+    row: WireRow,
+    /** The `updated_at` this device uploaded; the payload is void if it moved. */
+    onlyIfClock: number,
+  ) => Effect.Effect<void, SyncError>;
   mergeStaleAggregate: (
     row: WireRow,
     children: Record<string, WireRow[]>,
+    onlyIfClock: number,
   ) => Effect.Effect<void, SyncError>;
   onProgress: (progress: { entity: Entity | null; done: number; total: number }) => void;
 };
@@ -276,11 +282,18 @@ function applyAcks(
         stale += 1;
         // `product_event` is append-only (§6.3): even a stale answer must never
         // rewrite a journal row, so the marker below is all that is applied.
+        //
+        // `frame.updatedAt` is the clock the server judged, not the row's clock
+        // now: a cashier can edit this row while its frame is in flight, and that
+        // edit is newer than anything the server compared. The merge applies the
+        // payload only if the row still carries the value that was uploaded;
+        // otherwise the local edit stands, the row stays unsynced, and the next
+        // pass compares the two properly.
         if (frame.entity !== "product_event") {
           if (frame.entity === "record" && ack.children !== null && ack.row !== null) {
-            yield* deps.mergeStaleAggregate(ack.row, ack.children);
+            yield* deps.mergeStaleAggregate(ack.row, ack.children, frame.updatedAt);
           } else if (ack.row !== null) {
-            yield* deps.mergeStaleRow(frame.entity, ack.row);
+            yield* deps.mergeStaleRow(frame.entity, ack.row, frame.updatedAt);
           }
         }
       }

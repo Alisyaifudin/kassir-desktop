@@ -9,7 +9,7 @@
  * Run with:  bun test src/services/sync/live.test.ts
  */
 import { describe, expect, test } from "bun:test";
-import { Effect, Layer } from "effect";
+import { Effect, Fiber, Layer, Option, Stream } from "effect";
 import { CustomerLive } from "../customer/live";
 import { makeTestDatabase } from "../db/test-support";
 import { ExtraLive } from "../extra/live";
@@ -19,15 +19,56 @@ import { ProductLive } from "../product/live";
 import { SocialLive } from "../social/live";
 import { makeTestStore } from "../store/test-support";
 import { SupplierLive } from "../supplier/live";
-import { SyncService } from ".";
+import { SyncService, type SyncState } from ".";
 import { SyncLive } from "./live";
 import { MockBackend } from "./test-backend";
-import { SyncTransportService } from "./transport";
+import { SyncTransportService, type SyncTransport } from "./transport";
+import type { LineStream } from "./stream";
 
 /** A store already pointed at a server, which is what enables the run button. */
 const CONFIGURED = { "sync.base_url": "https://sync.test", "sync.token": "token" };
 
-function setup(seedStore: Record<string, unknown> = CONFIGURED) {
+/**
+ * Wraps the mock backend's streams so nothing arrives until `gate` opens.
+ *
+ * The background-task tests need a run that is provably *in flight*: without a
+ * held stream the whole loop can finish between two `await`s, and "a second start
+ * is refused" would pass for the wrong reason (there was nothing running).
+ */
+function gated(inner: SyncTransport, gate: Promise<void>): SyncTransport {
+  const hold = (stream: LineStream): LineStream => ({
+    ...stream,
+    lines: (async function* () {
+      await gate;
+      yield* stream.lines;
+    })(),
+  });
+  return {
+    health: (endpoint) => inner.health(endpoint),
+    createSession: (endpoint) => inner.createSession(endpoint),
+    getSession: (endpoint, uploadId) => inner.getSession(endpoint, uploadId),
+    deleteSession: (endpoint, uploadId) => inner.deleteSession(endpoint, uploadId),
+    pull: (endpoint, input) => hold(inner.pull(endpoint, input)),
+    uploadChunk: (endpoint, input) => hold(inner.uploadChunk(endpoint, input)),
+    chain: (prev, lines) => inner.chain(prev, lines),
+    diagnose: (endpoint, report) => inner.diagnose(endpoint, report),
+    merge: (statements) => inner.merge(statements),
+  };
+}
+
+/** A gate that stays shut until the test opens it. */
+function makeGate(): { open: () => void; wait: Promise<void> } {
+  let release: () => void = () => undefined;
+  const wait = new Promise<void>((resolve) => {
+    release = () => resolve();
+  });
+  return { open: () => release(), wait };
+}
+
+function setup(
+  seedStore: Record<string, unknown> = CONFIGURED,
+  wrapTransport: (backend: MockBackend) => SyncTransport = (backend) => backend,
+) {
   const { db, layer: dbLayer } = makeTestDatabase();
   const store = makeTestStore(seedStore);
   const backend = new MockBackend().attachDatabase(db);
@@ -47,11 +88,41 @@ function setup(seedStore: Record<string, unknown> = CONFIGURED) {
 
   const layer = SyncLive.pipe(
     Layer.provide(hidden),
-    Layer.provide(Layer.succeed(SyncTransportService, backend)),
+    Layer.provide(Layer.succeed(SyncTransportService, wrapTransport(backend))),
     Layer.provide(domain),
   );
 
   return { db, layer, backend, store };
+}
+
+/** Statuses a run never leaves. */
+const TERMINAL = new Set(["done", "failed", "cancelled"]);
+
+/**
+ * The one `SyncService` instance for a layer.
+ *
+ * The tests below call `start` and then watch `state`, so they need the same
+ * instance across effect runs — `Effect.provide(layer)` per call would build a
+ * fresh service with a fresh, `idle` state stream every time.
+ */
+function syncOf(layer: ReturnType<typeof setup>["layer"]) {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      return yield* SyncService;
+    }).pipe(Effect.provide(layer)),
+  );
+}
+
+/** Waits for the run to reach a terminal status; fails if it never does. */
+function settle(sync: { state: Stream.Stream<SyncState> }): Promise<SyncState> {
+  return Effect.runPromise(
+    sync.state.pipe(
+      Stream.takeUntil((state) => TERMINAL.has(state.status)),
+      Stream.runLast,
+      Effect.timeout("4 seconds"),
+      Effect.map((last) => Option.getOrThrow(last)),
+    ),
+  );
 }
 
 /** Runs one sync the way the Sinkronisasi button does. */
@@ -525,5 +596,93 @@ describe("sync through the service", () => {
     expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     // Under the key the sync itself reads, so the header and the request agree.
     expect(store.entries.get("sync.device_id")).toBe(first);
+  });
+
+  // -----------------------------------------------------------------
+  // A background task, not a screen's promise
+  // -----------------------------------------------------------------
+  test("the run outlives the fiber that started it", async () => {
+    const gate = makeGate();
+    const { db, layer, backend } = setup(CONFIGURED, (inner) => gated(inner, gate.wait));
+    seedLocalMirror(db);
+    const sync = await syncOf(layer);
+
+    // The caller is the screen that pressed the button, and it is interrupted while
+    // the pull is still parked — the same shape as an unmount or a closed dialog.
+    const caller = Effect.runFork(sync.start("sync"));
+    await Effect.runPromise(Fiber.interrupt(caller));
+    gate.open();
+
+    const final = await settle(sync);
+    expect(final.status).toBe("done");
+    // It really synced: the rows reached the backend after its starter was gone.
+    expect(backend.get("product", "p1")).toMatchObject({ product_name: "Kopi Susu" });
+    expect(final.report?.pushed).toBeGreaterThan(0);
+  });
+
+  test("a second start while one is in flight is refused, not run twice", async () => {
+    const gate = makeGate();
+    const { db, layer, backend } = setup(CONFIGURED, (inner) => gated(inner, gate.wait));
+    seedLocalMirror(db);
+    const sync = await syncOf(layer);
+
+    expect(await Effect.runPromise(sync.start("sync"))).toBe("started");
+    // Parked in the pull, so this is genuinely a second caller while one runs.
+    expect(await Effect.runPromise(sync.start("sync"))).toBe("already-running");
+    expect(await Effect.runPromise(sync.start("reset"))).toBe("already-running");
+
+    gate.open();
+    expect((await settle(sync)).status).toBe("done");
+    // One loop, not two: a second loop would have issued its own pull.
+    expect(backend.pulls).toBe(1);
+  });
+
+  test("the state stream replays every phase and ends on the report", async () => {
+    const { db, layer } = setup();
+    seedLocalMirror(db);
+    const sync = await syncOf(layer);
+
+    const seen = await Effect.runPromise(
+      Effect.gen(function* () {
+        // Subscribe first, so no phase can land before the collector is attached.
+        const collector = yield* sync.state.pipe(
+          Stream.takeUntil((state) => TERMINAL.has(state.status)),
+          Stream.runCollect,
+          Effect.fork,
+        );
+        yield* Effect.sleep("10 millis");
+        yield* sync.start("sync");
+        return yield* Fiber.join(collector);
+      }).pipe(Effect.timeout("4 seconds")),
+    );
+
+    const states = [...seen];
+    const statuses = states.map((state) => state.status);
+    expect(statuses[0]).toBe("idle");
+    expect(statuses).toContain("pull");
+    expect(statuses).toContain("merge");
+    expect(statuses).toContain("push");
+
+    const final = states[states.length - 1];
+    expect(final?.status).toBe("done");
+    expect(final?.report).not.toBeNull();
+    expect(final?.error).toBeNull();
+    expect(typeof final?.startedAt).toBe("number");
+    expect(typeof final?.finishedAt).toBe("number");
+  });
+
+  test("a failure is a state, not a rejection nobody is listening for", async () => {
+    const { layer } = setup({ "sync.base_url": "https://sync.test" }); // no token
+    const sync = await syncOf(layer);
+
+    // `start` resolves as soon as the fiber is forked: the failure cannot surface
+    // through it, or a background run's error would be unhandled.
+    expect(await Effect.runPromise(sync.start("sync"))).toBe("started");
+
+    const final = await settle(sync);
+    expect(final.status).toBe("failed");
+    expect(final.error).toContain("Token");
+    expect(final.report).toBeNull();
+    expect(final.finishedAt).not.toBeNull();
   });
 });

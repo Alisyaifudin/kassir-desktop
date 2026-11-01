@@ -16,10 +16,16 @@
  *
  * ## Cancellation
  *
- * The screen forks `run` and interrupts that fiber when it is left. The
- * interrupt finalizers in `pull.ts`/`push.ts` call `sync_cancel` in Rust, so the
- * HTTP request really stops rather than draining in the background. `cancel` here
- * is the explicit-button version of the same thing.
+ * A run is a background task: `start` forks it as a daemon, so leaving the screen
+ * that started it does not stop it. That makes `cancel` the only way a run ends
+ * early, and it goes through the fiber's finalizers — `pull.ts`/`push.ts` call
+ * `sync_cancel` in Rust, so the HTTP request really stops rather than draining in
+ * the background.
+ *
+ * Interruption is delivered at the run's current async boundary, so an in-flight
+ * `sync_merge` or upload chunk settles before the loop unwinds. That is why the
+ * activity is `cancelling` for however long it takes: a state that said
+ * `cancelled` while a transaction was still committing would be a lie.
  */
 import { Effect, Fiber, Layer, Ref, SubscriptionRef } from "effect";
 import { log } from "~/lib/log";
@@ -34,11 +40,13 @@ import { StoreService } from "../store";
 import { SupplierService } from "../supplier";
 import {
   SYNC_CONFIG_DEFAULT,
+  SYNC_IDLE,
   SyncError,
   SyncService,
   type SyncConfig,
   type SyncMode,
-  type SyncProgress,
+  type SyncState,
+  type SyncStatus,
   type SyncReport,
 } from ".";
 import { dbFailure, makeMerger, type MergeExecutor } from "./merge";
@@ -67,7 +75,15 @@ const KEY_TOKEN = "sync.token";
  */
 const KEY_DEVICE_ID = "sync.device_id";
 
-const IDLE: SyncProgress = { phase: "idle", entity: null, done: 0, total: 0, message: "" };
+/**
+ * How often a running state may be painted.
+ *
+ * `pull`/`push` report once per frame, and every subscriber re-renders on a
+ * publish. Four paints a second is faster than a cashier can read and slow enough
+ * that a 5 000-frame pull is 40 renders instead of 5 000. Transitions are never
+ * coalesced — see `publishNow`.
+ */
+const PAINT_INTERVAL_MS = 150;
 
 function numeric(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -87,26 +103,58 @@ export const SyncLive = Layer.effect(
     const money = yield* MoneyService;
     const social = yield* SocialService;
 
-    const progressRef = yield* SubscriptionRef.make<SyncProgress>(IDLE);
-    // The running fiber, so `cancel` can stop an in-flight request.
+    const stateRef = yield* SubscriptionRef.make<SyncState>(SYNC_IDLE);
+    /**
+     * The single-flight gate. A run outlives whoever started it, so the button, the
+     * pill's dialog and any future trigger all reach the same loop: whoever wins
+     * this flag runs, everyone else is told `already-running`.
+     */
+    const busy = yield* Ref.make(false);
+    // The loop's fiber, however it was started, so `cancel` can reach it.
     const running = yield* Ref.make<Fiber.RuntimeFiber<SyncReport, SyncError> | null>(null);
 
-    /**
-     * Publishes progress. Synchronous on purpose: `pull`/`push` report from inside
-     * their loops, and a `SubscriptionRef` update is a plain ref write.
-     */
-    function publish(progress: SyncProgress): void {
-      Effect.runSync(SubscriptionRef.set(progressRef, progress));
+    /** The newest state, and when it was last painted — see `publish`. */
+    let latest: SyncState = SYNC_IDLE;
+    let paintedAt = 0;
+    let paintTimer: ReturnType<typeof setTimeout> | null = null;
+
+    /** Writes `latest` to the ref, and stops any paint that was waiting for it. */
+    function paint(): void {
+      if (paintTimer !== null) {
+        clearTimeout(paintTimer);
+        paintTimer = null;
+      }
+      paintedAt = Date.now();
+      Effect.runSync(SubscriptionRef.set(stateRef, latest));
     }
 
-    function phase(
-      phase: SyncProgress["phase"],
-      entity: string | null,
-      done: number,
-      total: number,
-      message: string,
-    ): SyncProgress {
-      return { phase, entity, done, total, message };
+    /**
+     * Publishes progress, coalesced to one paint per `PAINT_INTERVAL_MS`.
+     *
+     * Synchronous on purpose: `pull`/`push` report from inside their loops, and a
+     * `SubscriptionRef` update is a plain ref write. The timer only decides *when*
+     * the write happens; the value is always the newest one.
+     */
+    function publish(next: SyncState): void {
+      latest = next;
+      const since = Date.now() - paintedAt;
+      if (since >= PAINT_INTERVAL_MS) {
+        paint();
+        return;
+      }
+      if (paintTimer === null) paintTimer = setTimeout(paint, PAINT_INTERVAL_MS - since);
+    }
+
+    /**
+     * Publishes a transition immediately.
+     *
+     * A dropped or delayed phase change is a worse lie than a cheap render: the
+     * pill would say "Mengunduh" while the merge is already writing. Every state a
+     * run enters goes through here; only the counters inside a phase use `publish`.
+     */
+    function publishNow(next: SyncState): void {
+      latest = next;
+      paint();
     }
 
     /** Reads a store key, treating "absent" as the default. */
@@ -354,49 +402,80 @@ export const SyncLive = Layer.effect(
       });
     }
 
-    /** The whole loop. `reset` clears the cursors and unsync markers first (§3.2). */
+    /**
+     * The whole loop. `reset` clears the cursors and unsync markers first (§3.2).
+     *
+     * Every state published here carries this run's `startedAt`, so the pill can
+     * count elapsed time and a finished run still says when it began. The builder
+     * is per-run on purpose: two runs must never blend their counters.
+     */
     function execute(mode: SyncMode): Effect.Effect<SyncReport, SyncError> {
+      const startedAt = Date.now();
+      const state = (status: SyncStatus, fields: Partial<SyncState> = {}): SyncState => ({
+        status,
+        entity: null,
+        done: 0,
+        total: 0,
+        message: "",
+        startedAt,
+        finishedAt: null,
+        report: null,
+        error: null,
+        ...fields,
+      });
+
       return Effect.gen(function* () {
         const endpoint = yield* endpointOf(yield* getConfig());
 
         if (mode === "reset") {
-          publish(phase("idle", null, 0, 0, "Menyiapkan sinkronisasi ulang…"));
+          publishNow(state("preparing", { message: "Menyiapkan sinkronisasi ulang…" }));
           yield* resetLocal(endpoint);
         }
 
         // 1. Pull: stream the whole gap. Nothing is written yet.
-        publish(phase("pull", null, 0, 0, "Mengunduh perubahan…"));
+        publishNow(state("pull", { message: "Mengunduh perubahan…" }));
         const pulled = yield* pull({
           transport,
           endpoint,
           readCursor,
           onProgress: (progress) => {
             publish(
-              phase(
-                "pull",
-                progress.entity,
-                progress.done,
-                progress.total,
-                progress.entity === null
-                  ? "Mengunduh perubahan…"
-                  : `Mengunduh ${progress.entity}…`,
-              ),
+              state("pull", {
+                entity: progress.entity,
+                done: progress.done,
+                total: progress.total,
+                message:
+                  progress.entity === null
+                    ? "Mengunduh perubahan…"
+                    : `Mengunduh ${progress.entity}…`,
+              }),
             );
           },
         });
 
-        // 2. Merge: one batch, conflict-resolved, then the cursor moves — so a
-        //    failure re-pulls the same gap instead of skipping it.
-        const merger = makeMerger(db, Date.now(), mergeExecutor);
+        // 2. Merge: the whole pull planned at once, applied in bounded slices, then
+        //    the cursor moves — so a failure, a cancel or a crash re-pulls the same
+        //    gap instead of skipping it.
+        //    `now` is a thunk: a run that took minutes to pull must stamp `_sync_at`
+        //    with the time of the write, not the time the run began.
+        const merger = makeMerger(db, () => Date.now(), mergeExecutor);
         const frameCount = pulled.frames.rows.length + pulled.frames.aggregates.length;
-        publish(phase("merge", null, 0, frameCount, "Menyimpan hasil unduhan…"));
-        const merged = yield* merger.mergeFrames(pulled.frames);
+        publishNow(state("merge", { total: frameCount, message: "Menyimpan hasil unduhan…" }));
+        const merged = yield* merger.mergeFrames(pulled.frames, (progress) => {
+          publish(
+            state("merge", {
+              done: progress.done,
+              total: progress.total,
+              message: "Menyimpan hasil unduhan…",
+            }),
+          );
+        });
         yield* writeCursor(pulled.lastPulledSeq);
-        publish(phase("merge", null, frameCount, frameCount, "Hasil unduhan tersimpan"));
+        publish(state("merge", { done: frameCount, total: frameCount, message: "Hasil unduhan tersimpan" }));
         yield* refreshServices();
 
         // 3. Push: upload what this device owes the server.
-        publish(phase("push", null, 0, 0, "Mengunggah perubahan…"));
+        publishNow(state("push", { message: "Mengunggah perubahan…" }));
         const pushed = yield* push({
           db,
           transport,
@@ -406,17 +485,21 @@ export const SyncLive = Layer.effect(
           writeUploadState: (state) =>
             writeSession(state).pipe(Effect.catchAll(() => Effect.void)),
           clearUploadState: () => clearSession().pipe(Effect.catchAll(() => Effect.void)),
-          mergeStaleRow: (entity, row) => merger.mergeStaleRow(entity, row),
-          mergeStaleAggregate: (row, children) => merger.mergeStaleAggregate(row, children),
+          mergeStaleRow: (entity, row, onlyIfClock) =>
+            merger.mergeStaleRow(entity, row, onlyIfClock),
+          mergeStaleAggregate: (row, children, onlyIfClock) =>
+            merger.mergeStaleAggregate(row, children, onlyIfClock),
           onProgress: (progress) => {
             publish(
-              phase(
-                "push",
-                progress.entity,
-                progress.done,
-                progress.total,
-                progress.entity === null ? "Mengunggah perubahan…" : `Mengunggah ${progress.entity}…`,
-              ),
+              state("push", {
+                entity: progress.entity,
+                done: progress.done,
+                total: progress.total,
+                message:
+                  progress.entity === null
+                    ? "Mengunggah perubahan…"
+                    : `Mengunggah ${progress.entity}…`,
+              }),
             );
           },
         });
@@ -435,23 +518,24 @@ export const SyncLive = Layer.effect(
         }
 
         const lastPulledSeq = yield* readCursor();
-        publish(
-          phase(
-            "done",
-            null,
-            merged.merged,
-            pushed.pushed,
-            `Selesai — ${merged.merged} diunduh, ${pushed.pushed} diunggah`,
-          ),
-        );
-        return {
+        const report: SyncReport = {
           lastPulledSeq,
           pulled: merged.merged,
           pushed: pushed.pushed,
           stale: pushed.stale,
         };
+        publishNow(
+          state("done", {
+            done: merged.merged,
+            total: pushed.pushed,
+            message: `Selesai — ${merged.merged} diunduh, ${pushed.pushed} diunggah`,
+            report,
+            finishedAt: Date.now(),
+          }),
+        );
+        return report;
       }).pipe(
-        // `tapError`, not `catchAll`: the failure still reaches the screen, the
+        // `tapError`, not `catchAll`: the failure still reaches the caller, the
         // report is a side effect on the way out.
         Effect.tapError((error) =>
           Effect.gen(function* () {
@@ -461,6 +545,46 @@ export const SyncLive = Layer.effect(
             if (endpoint !== null) yield* reportFailure(endpoint, error);
           }),
         ),
+        // The terminal states belong to the run, not to whoever is watching: a
+        // background run's failure must be visible after the screen that started it
+        // is long gone.
+        Effect.catchAll((error) =>
+          Effect.gen(function* () {
+            publishNow(
+              state("failed", {
+                message: error.message,
+                error: error.message,
+                finishedAt: Date.now(),
+              }),
+            );
+            return yield* Effect.fail(error);
+          }),
+        ),
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            publishNow(
+              state("cancelled", {
+                message: "Sinkronisasi dibatalkan",
+                finishedAt: Date.now(),
+              }),
+            );
+          }),
+        ),
+      );
+    }
+
+    /**
+     * The loop, registering itself so `cancel` can interrupt it.
+     *
+     * Shared by `run` and `start` on purpose: `cancel` should not care which of the
+     * two began the run.
+     */
+    function loop(mode: SyncMode): Effect.Effect<SyncReport, SyncError> {
+      return Effect.withFiberRuntime((fiber) =>
+        Effect.gen(function* () {
+          yield* Ref.set(running, fiber);
+          return yield* execute(mode).pipe(Effect.ensuring(Ref.set(running, null)));
+        }),
       );
     }
 
@@ -477,33 +601,50 @@ export const SyncLive = Layer.effect(
           }),
       },
       cursor: () => readCursor(),
-      run: (mode) =>
-        Effect.withFiberRuntime((fiber) =>
-          Effect.gen(function* () {
-            yield* Ref.set(running, fiber);
-            const report = yield* execute(mode).pipe(
-              Effect.catchAll((error) =>
-                Effect.gen(function* () {
-                  publish(phase("failed", null, 0, 0, error.message));
-                  return yield* Effect.fail(error);
-                }),
-              ),
-              Effect.onInterrupt(() =>
-                Effect.sync(() => publish(phase("cancelled", null, 0, 0, "Sinkronisasi dibatalkan"))),
-              ),
-              Effect.ensuring(Ref.set(running, null)),
-            );
-            return report;
-          }),
+      run: (mode) => loop(mode),
+      start: (mode) =>
+        Effect.gen(function* () {
+          // Atomic claim: two callers that both saw "not busy" must not both fork.
+          const free = yield* Ref.modify(
+            busy,
+            (current): readonly [boolean, boolean] =>
+              current ? [false, current] : [true, true],
+          );
+          if (!free) return "already-running" as const;
+
+          // A daemon, not a child of the caller: the run must outlive the fiber
+          // that asked for it (a screen that unmounts, a dialog that closes). The
+          // layer's own scope is not an option either — `makeService` builds the
+          // layer with `Effect.runSync`, which closes that scope immediately.
+          yield* loop(mode).pipe(
+            Effect.ensuring(Ref.set(busy, false)),
+            Effect.forkDaemon,
+          );
+          return "started" as const;
+        }).pipe(
+          // Between the claim and the fork there is no fiber to inherit the
+          // release, so an interrupt here would leave the gate shut for the rest
+          // of the session — every later `start` answering `already-running`.
+          Effect.onInterrupt(() => Ref.set(busy, false)),
         ),
       cancel: () =>
         Effect.gen(function* () {
           const current = yield* Ref.get(running);
-          if (current !== null) yield* Fiber.interrupt(current);
+          if (current === null) return;
+          // Said before the interrupt: delivery happens at the loop's next async
+          // boundary, so an in-flight merge or upload chunk settles first. The
+          // loop's own finalizer turns this into `cancelled`.
+          publishNow({
+            ...latest,
+            status: "cancelling",
+            message: "Membatalkan…",
+            finishedAt: null,
+          });
+          yield* Fiber.interrupt(current);
         }),
-      // A `SubscriptionRef.changes` stream already replays the current value, so
-      // the screen has something to paint before the first run starts.
-      progress: progressRef.changes,
+      // A `SubscriptionRef.changes` stream already replays the current value, so a
+      // pill that mounts in the middle of a run paints immediately.
+      state: stateRef.changes,
     };
   }),
 );

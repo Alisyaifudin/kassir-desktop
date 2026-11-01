@@ -1,26 +1,8 @@
 import { RefreshCw, RotateCcw, X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
-import type { SyncProgress } from "~/services/sync";
-import { useSyncRun } from "./use-sync-run";
-
-const PHASE_LABEL: Record<SyncProgress["phase"], string> = {
-  idle: "Siap",
-  pull: "Mengunduh",
-  merge: "Menyimpan",
-  push: "Mengunggah",
-  done: "Selesai",
-  failed: "Gagal",
-  cancelled: "Dibatalkan",
-};
-
-/** `product_event` → `Product event`, for a label a cashier can read. */
-function entityLabel(entity: string): string {
-  const words = entity.split("_");
-  return words
-    .map((word, index) => (index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
-    .join(" ");
-}
+import { useSyncRun } from "~/components/sync/use-sync";
+import { entityLabel, isDeterminate, PHASE_LABEL, SyncBar } from "~/components/sync/z-Progress";
 
 /**
  * The Sinkronisasi action (contract § "The sync loop", `<sync_ui_design>`).
@@ -28,16 +10,13 @@ function entityLabel(entity: string): string {
  * One button runs the whole loop: pull → merge → push, in the contract's order.
  * The progress line is the only animation — a determinate bar while a phase knows
  * its frame count, indeterminate before the first page lands. The buttons disable
- * each other while a run is in flight, and leaving the screen interrupts the run
- * (`useSyncRun` owns the fiber).
+ * each other while a run is in flight, but the run is not theirs: it is a
+ * background task (`service.sync.start`), so leaving this screen keeps it going
+ * and the status pill takes over from here.
  */
 export function RunPanel({ configured }: { configured: boolean }) {
-  const { running, error, report, progress, start, cancel } = useSyncRun();
-
-  const determinate = progress.total > 0;
-  const percent = determinate
-    ? Math.min(100, Math.round((progress.done / progress.total) * 100))
-    : 0;
+  const { state, running, start, cancel } = useSyncRun();
+  const determinate = isDeterminate(state);
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,40 +51,24 @@ export function RunPanel({ configured }: { configured: boolean }) {
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-base">
-            {progress.message === "" ? PHASE_LABEL[progress.phase] : progress.message}
+            {state.message === "" ? PHASE_LABEL[state.status] : state.message}
           </p>
           <p className="text-sm text-muted-foreground tabular-nums">
-            {progress.entity === null ? "\u00a0" : entityLabel(progress.entity)}
-            {determinate ? ` ${progress.done}/${progress.total}` : ""}
+            {state.entity === null ? "\u00a0" : entityLabel(state.entity)}
+            {determinate ? ` ${state.done}/${state.total}` : ""}
           </p>
         </div>
         {/* Indeterminate until the phase knows how many frames it owes the server. */}
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={determinate ? progress.total : undefined}
-          aria-valuenow={determinate ? progress.done : undefined}
-          aria-label="Kemajuan sinkronisasi"
-          className="h-1.5 overflow-hidden rounded-full bg-secondary"
-        >
-          <div
-            className={
-              determinate
-                ? "h-full rounded-full bg-active transition-[width] duration-200"
-                : "h-full w-1/3 animate-pulse rounded-full bg-active"
-            }
-            style={determinate ? { width: `${percent}%` } : undefined}
-          />
-        </div>
+        <SyncBar state={state} />
       </div>
 
-      {report === null ? null : (
+      {state.report === null ? null : (
         <p className="text-sm text-muted-foreground">
-          {report.pulled} diunduh, {report.pushed} diunggah
-          {report.stale > 0 ? `, ${report.stale} diambil dari server` : ""}.
+          {state.report.pulled} diunduh, {state.report.pushed} diunggah
+          {state.report.stale > 0 ? `, ${state.report.stale} diambil dari server` : ""}.
         </p>
       )}
-      <TextError>{error}</TextError>
+      <TextError>{state.error}</TextError>
       <p className="text-xs text-muted-foreground">
         Sinkronisasi berjalan manual: unduh perubahan, simpan sekaligus, lalu unggah. Sinkronisasi
         Ulang mengosongkan posisi unduh, menghapus sesi unggah, dan mengirim ulang seluruh data —

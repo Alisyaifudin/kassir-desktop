@@ -115,7 +115,11 @@ Colour does jobs, never decoration:
 - **secondary** — chips, secondary buttons, the shelf band.
 - **active** (blue, `oklch(0.588 0.158 241.966)`) — selection and the focused grid cell.
 - **destructive** (red) — `Kredit` state, `Hapus`, and refusals.
-- **pay-settled** (emerald 600/500 by theme) — `Lunas` only, always paired with the word.
+- **pay-settled** (emerald 600/500 by theme) — `Lunas` only, always paired with the word,
+  and the sync status pill (`components/sync/z-Pill`): green there means "a background
+  sync is running", which is the same claim as emerald's other job — *this is fine, no
+  action needed*. It is the only place emerald is a ground rather than a text colour,
+  because it is a floating badge and needs to be seen across the counter.
 - **border** — hairlines (`1px`) do the separating. There is no elevation system to
   speak of: shadows only on buttons and popovers, never on content.
 
@@ -185,7 +189,10 @@ of preference.
 
 Radius comes from `--radius: 0.625rem` (`rounded-lg`), `-2px` for `rounded-md`, `-4px`
 for `rounded-sm`. Buttons, chips, inputs and panels use `rounded-md`; a full-height
-band may use `rounded-lg`. No pills, no organic masks, no clipped corners.
+band may use `rounded-lg`. No pills, no organic masks, no clipped corners — with one
+exception: the floating sync status pill (`components/sync/z-Pill`) is `rounded-full`,
+because a badge that sits over content reads as a bubble rather than as a panel, and
+nothing behind it should look like a corner to align to.
 
 ## Components
 

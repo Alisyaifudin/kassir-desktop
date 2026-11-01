@@ -12,8 +12,11 @@ Aplikasi untuk kasir.
 # Sinkronisasi
 
 One device mirrors its SQLite database to a Cloudflare Worker over a **byte-stream**
-protocol (contract: `backend-docs/sync-contract.md`). It runs **manually** — the
-operator presses a button; there is no timer and nothing syncs in the background.
+protocol (contract: `backend-docs/sync-contract.md`). It is **started manually** —
+the operator presses a button; there is no timer and no sync-on-launch. The run
+itself is a background task: it belongs to the sync service, not to the screen, so
+leaving Pengaturan → Sinkronisasi keeps it going, a small status pill in the
+bottom-left corner follows it on every screen, and only an explicit cancel stops it.
 
 The transport lives in Rust, not the webview: the window CSP is
 `connect-src 'self' ipc:`, so a `fetch` to the sync host is blocked before it leaves,
@@ -27,12 +30,15 @@ and the WebViews we ship on have no reliable streaming request body.
 1. **Unduh (pull)** — `GET /v1/pull?since=&limit=` in a loop, decoding frames as they
    arrive and holding them. Nothing is written in this stage, so the cursor cannot run
    ahead of the data.
-2. **Simpan (merge)** — the whole pull is applied in **one transaction** through the
-   `sync_merge` command. `tauri-plugin-sql` has no transaction handle (its `execute`
-   runs a multi-statement string statement by statement in autocommit), so that command
-   borrows the plugin's own pool — it publishes `DbInstances` and `DbPool::Sqlite` — and
-   runs `BEGIN … COMMIT` on one connection. All or nothing; the pull cursor advances only
-   after the commit returns.
+2. **Simpan (merge)** — the whole pull is planned at once and applied in bounded
+   slices (≈200 statements), one transaction per slice, through the `sync_merge`
+   command. `tauri-plugin-sql` has no transaction handle (its `execute` runs a
+   multi-statement string statement by statement in autocommit), so that command
+   borrows the plugin's own pool — it publishes `DbInstances` and `DbPool::Sqlite` —
+   and runs `BEGIN … COMMIT` on one connection. Slicing keeps the writer lock short
+   enough that a sale on the same till queues behind a slice instead of failing; a
+   partial merge is safe because every statement is idempotent and the pull cursor
+   advances only after the last slice.
 3. **Unggah (push)** — the unsync set, entity by entity in a fixed order, in chunks of
    ≤200 frames / 512 KB. Each `PATCH` carries the uncompressed byte offset plus the
    sha256 prefix hash of the bytes before it, and the gateway streams one ack per frame

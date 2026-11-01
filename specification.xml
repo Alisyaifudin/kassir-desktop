@@ -14,12 +14,12 @@
     (src/components/page-data/). Includes thermal receipt printing (the layout and
     the PDF are built in Rust with printpdf, then handed to the Windows spooler),
     role-based access (admin/user), multi-cashier login,
-    and a timestamp-based cloud sync protocol that is documented
-    (backend-docs/openapi.yaml) but not implemented in the app — see
-    &lt;sync_system&gt;.
+    and a timestamp-based cloud sync implemented as a background task
+    (pull → merge → push, manual trigger, status pill) whose client contract is
+    backend-docs/sync-contract.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>6.23.4</version>
+  <version>6.24.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -108,7 +108,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">6.23.4</entry>
+        <entry key="version">6.24.0</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -124,7 +124,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">6.23.4</entry>
+        <entry key="package.version">6.24.0</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -217,9 +217,9 @@
         <description>cart/ is shared UI and hooks for Pos and Restock, not a route.</description>
       </dir>
       <dir name="components/">
-        <description>Shared UI. page-data/ is the async-data layer (&lt;page_data&gt;); cart/ is the POS machinery (&lt;cart&gt;); Loader.tsx carries useStream/useQuery/useMutation; ui/ holds the shadcn primitives; the rest are app-wide pieces (AdminOnly, ErrorBoundary, createErrorBoundary, DateRange, DateTime, NumberField, Password, MethodPicker, FileDropZone, SaveError, Show, ForEach, Loading, Spinner, TextError, ErrorComponent, NotFound, Calendar, Redirect).</description>
+        <description>Shared UI. page-data/ is the async-data layer (&lt;page_data&gt;); cart/ is the POS machinery (&lt;cart&gt;); sync/ is the status pill, its dialog, the shell's bottom-left rail and the run-state reader hook (&lt;sync_ui_design&gt;); Loader.tsx carries useStream/useQuery/useMutation; ui/ holds the shadcn primitives; the rest are app-wide pieces (AdminOnly, ErrorBoundary, createErrorBoundary, DateRange, DateTime, NumberField, Password, MethodPicker, FileDropZone, SaveError, Show, ForEach, Loading, Spinner, TextError, ErrorComponent, NotFound, Calendar, Redirect).</description>
       </dir>
-      <dir name="layouts/">root.tsx (UI size → body class) and authenticated/ (AuthLayout guard, Topbar, nav, shortcuts, flush-on-exit).</dir>
+      <dir name="layouts/">root.tsx (UI size → body class) and authenticated/ (AuthLayout guard, Topbar, nav, shortcuts, flush-on-exit; renders the BottomRail outside the scrollport so the status pill does not scroll away).</dir>
       <dir name="hooks/">use-user, use-zoom, use-day-start, use-dialog-lock, use-extra-search, use-image, use-get-url-back, use-generate-url-back.</dir>
       <dir name="lib/">auth, clipboard, constants, date, effect-error, export, image, log, printer, purchase, random, range, upload, utils, search/. Plus the three mechanical guards: design-tokens.test.ts, dialog-description.test.ts, tauri-capability.test.ts.</dir>
       <dir name="integration/">Cross-layer tests: the real service layers over the real migrations with only the Tauri backends substituted (Beranda's keys over page-data, the Product screen, Setting → Toko's write path).</dir>
@@ -357,14 +357,15 @@
           `DbPool::Sqlite(Pool&lt;Sqlite&gt;)` for exactly this — so there is one set of connections,
           one configuration and no lock-contention window in which the POS's own writes could fail.
           Statements are generated in TS (`services/sync/sql.ts`); Rust only binds and executes, so
-          the column order the wire contract freezes is the same one the SQL uses. All-or-nothing:
-          a failing statement rolls the entire merge back, which is what lets the pull cursor advance
-          only after success.
+          the column order the wire contract freezes is the same one the SQL uses. One call = one transaction —
+          all-or-nothing per slice, and the frontend sends several calls for one pull (see &lt;sync_system&gt;
+          stage "write"). A failing statement rolls back the slice it is in and the pull cursor stays where it was,
+          so the next run re-merges the same gap (idempotent).
         </description>
       </command>
       <command name="sync_cancel" module="sync">
         <signature>fn(id: String) → Result&lt;(), String&gt;</signature>
-        <description>Flips the cancellation flag the streaming commands registered under request_id; the read loop checks it between chunks, so leaving the Sinkronisasi screen stops the request instead of draining it in the background.</description>
+        <description>Flips the cancellation flag the streaming commands registered under request_id; the read loop checks it between chunks, so a cancelled sync stops the HTTP request instead of draining it in the background. Reached by an explicit cancel (the status pill's dialog or the Sinkronisasi panel) — leaving a screen no longer cancels anything, because the run is a background task.</description>
       </command>
     </commands>
 
@@ -700,10 +701,15 @@
         never touch plugin-sql themselves. DatabaseService exposes execute, selectMany, selectOne and transaction,
         each wrapped in Effect with a DbError. `transaction` joins its statements into one execute call: plugin-sql
         has no transaction handle, but a single execute is atomic, so a cross-table write is one multi-statement
-        string with renumbered placeholders. Raw SQL, parameterized; no ORM.
+        string with renumbered placeholders. Raw SQL, parameterized; no ORM. The handle is opened in WAL mode on
+        first load (`journal.ts`, best effort, one `PRAGMA journal_mode = WAL`): the mode is a property of the file and
+        sqlx deliberately leaves it alone, so without it a fresh install ran in rollback-journal mode — writers were
+        blocking the constant reads behind them, and a background merge would have made that visible mid-sale. A
+        filesystem that refuses `-wal` (a network share) keeps its mode; the app still opens.
       </description>
       <file name="src/services/db/index.ts">DatabaseService interface, Binding/Statement types, DbError { message, detail }.</file>
-      <file name="src/services/db/live.ts">DatabaseLive — a lazily loaded handle behind Layer.succeed.</file>
+      <file name="src/services/db/live.ts">DatabaseLive — a lazily loaded handle behind Layer.succeed, opened through journal.ts.</file>
+      <file name="src/services/db/journal.ts">enableWriteAheadLog — the one PRAGMA, best effort, logged, never fatal.</file>
     </connection>
 
     <schema>
@@ -1072,20 +1078,22 @@
 
     <service name="sync" module="src/services/sync/">
       <description>
-        The device's mirror of the cloud (see &lt;sync_system&gt;). Owns the pull → merge → push loop as one Effect
-        fiber, the store.json cursors, and the mirror SQL. Files: schema.ts (canonical column order for every table),
-        frames.ts (NDJSON encode/decode), sql.ts (LWW upserts, aggregate child replacement, unsync reads), merge.ts
-        (the merge rules, including dangling-reference deferral), pull.ts / push.ts (the loops), stream.ts (the
+        The device's mirror of the cloud (see &lt;sync_system&gt;). Owns the pull → merge → push loop as a background
+        task (a daemon fiber in the service, one run at a time), the store.json cursors, and the mirror SQL. Files:
+        schema.ts (canonical column order for every table), frames.ts (NDJSON encode/decode), sql.ts (LWW upserts,
+        guarded aggregate child replacement, unsync reads), merge.ts (the merge rules, the slice planner, the
+        in-transaction guards, dangling-reference deferral), pull.ts / push.ts (the loops), stream.ts (the
         Channel→ReadableStream polyfill), transport.ts (the Rust commands as a service), local.ts (unsync reads and
-        marker writes), live.ts (wiring, cursors, refresh).
+        marker writes), live.ts (wiring, cursors, single-flight start, coalesced progress, refresh).
       </description>
       <error name="SyncError" tag="SyncError">message plus the contract's optional code/status, so the loops can branch on replay_mismatch / offset_conflict / not_found.</error>
       <interface>
         <method name="config.get() / config.set({baseUrl, token})">The server and its bearer token, from store.json.</method>
         <method name="cursor()">The last merged sync_seq.</method>
-        <method name="run(mode)">mode "sync" | "reset": pull → merge → push (reset first clears the cursor, deletes the upload session and marks every row unsynced). Returns { lastPulledSeq, pulled, pushed, stale, cancelled }. Interrupting the fiber cancels the in-flight request.</method>
-        <method name="cancel()">Interrupts the running run's fiber.</method>
-        <method name="progress">Stream&lt;SyncProgress&gt;: phase, current entity, done/total frames, one sentence.</method>
+        <method name="run(mode)">The loop itself, owned by the caller's fiber: mode "sync" | "reset" (reset first clears the cursor, deletes the upload session and marks every row unsynced), returning { lastPulledSeq, pulled, pushed, stale }. Used by `start` and by the tests; the app never calls it directly.</method>
+        <method name="start(mode)">Forks the loop as a daemon and returns "started" | "already-running". Single-flight: a second call while a run is in flight is refused, never started alongside it. Resolves as soon as the fiber exists — the outcome arrives through `state`.</method>
+        <method name="state">Stream&lt;SyncState&gt;: status (idle | preparing | pull | merge | push | cancelling | done | failed | cancelled), entity, done/total, message, startedAt/finishedAt, report, error. Replays the current value to every subscriber, so the pill can mount mid-run. Progress is coalesced to ~150 ms; every transition is published immediately.</method>
+        <method name="cancel()">Asks the running loop to stop. Cooperative: the interrupt lands at the next async boundary (a slice boundary or an upload chunk), so the activity reads `cancelling` until it does, then `cancelled`.</method>
       </interface>
       <note>
         No domain service exposes the raw unsync rows (a soft-deleted row is not in any ref), so the sync service
@@ -1134,7 +1142,8 @@
 
   <sync_system status="implemented">
     <description>
-      The sync service (src/services/sync/) implements pull → merge → push as one Effect fiber. The unit of exchange
+      The sync service (src/services/sync/) implements pull → merge → push as one run owned by the service and
+      forked as a background task (a daemon fiber), so it outlives the screen that started it. The unit of exchange
       is a frame: `{"e":entity,"r":{canonical row}}`, plus one aggregate frame for `record` carrying all five child
       arrays. Entities travel in one fixed order — pocket → money → product → product_name → property → listing →
       image → customer → supplier → extra → method → social → product_event → record — so a parent always precedes
@@ -1150,9 +1159,9 @@
     </schema_contract>
     <shape>
       <stage name="pull">GET /v1/pull?since=last_pulled_seq&amp;limit=1000 in a loop, decoding NDJSON frames as they stream and holding them in memory until `meta.snapshot_seq` is reached. Nothing is written in this stage, so the cursor cannot run ahead of the data.</stage>
-      <stage name="write">The whole pull is handed to the Rust `sync_merge` command, which applies every statement in ONE transaction on the plugin's own pool. Because the entire pull is in hand at that moment, a reference is resolved against `local ∪ incoming` instead of "try again later", and statement order (parents → events → record aggregates → the two circular pointers) means no statement can violate a foreign key. Only after the commit does `last_pulled_seq` move.</stage>
-      <stage name="conflict">LWW: apply iff `incoming.updated_at &gt; local.updated_at` (a tie keeps the local row; the server reaches us as a `stale` ack instead). A winning `record` header replaces all five child arrays in one transaction; a losing one leaves them untouched. `product_event` is INSERT OR IGNORE — appended, never updated. References whose target has not arrived are written NULL and retried after each page (the local schema's FKs are real even where the server's are not).</stage>
-      <stage name="push">Drop any leftover session, open a fresh one, then per entity in order: read the unsync set, encode frames, compute the chain hash, PATCH a chunk (≤200 frames / 512 KB, gzip body), consume the ack stream (applied / stale / noop) and set `_sync_at`. A `stale` payload is merged back unconditionally.</stage>
+      <stage name="write">The whole pull is planned at once — which is what lets a reference be resolved against `local ∪ incoming` instead of "try again later" — and then applied in bounded slices (≈200 statements) by the Rust `sync_merge` command, one transaction per slice on the plugin's own pool. Slicing is about contention, not correctness: a first sync is tens of thousands of statements, and one transaction that long holds SQLite's writer lock while the till is selling (the cart flushes on a 100 ms debounce, so the POS's own write would fail with SQLITE_BUSY). An aggregate's header never travels in a different slice from its five child arrays, slices keep the plan's order (parents → events → record aggregates → the two circular pointers), and a partial merge is safe: every statement is idempotent, merged rows are marked synced, and `last_pulled_seq` moves only after the last slice.</stage>
+      <stage name="conflict">LWW, decided in SQL inside the transaction: apply iff `incoming.updated_at &gt; local.updated_at` (a tie keeps the local row; the server reaches us as a `stale` ack instead). A winning `record` header replaces all five child arrays, and its child statements carry the condition "the header in the table is the one this plan just wrote" (`_sync_at` = this batch's stamp and `updated_at` = the incoming clock), so a losing header — including one that lost to a local edit made after the plan — leaves them untouched. `product_event` is INSERT OR IGNORE — appended, never updated. A `stale` payload is applied only if the local row still carries the clock this device uploaded; if the row moved, the payload is dropped and the next push compares the two properly. References whose target has not arrived are written NULL and linked by a trailing UPDATE in the same batch (the local schema's FKs are real even where the server's are not).</stage>
+      <stage name="push">Drop any leftover session, open a fresh one, then per entity in order: read the unsync set, encode frames, compute the chain hash, PATCH a chunk (≤200 frames / 512 KB, gzip body), consume the ack stream (applied / stale / noop) and set `_sync_at`. A `stale` payload is merged back under the clock guard above; a row edited after its frame was encoded is kept, left unsynced, and pushed again.</stage>
       <stage name="refresh">After the pull and again after the push, every domain service that caches a synced table is re-read (product, customer, supplier, extra, method, money, social) so the running UI sees the merged rows.</stage>
       <stage name="recover">Transport failure, 409 offset_conflict/replay_mismatch or 404 → drop the session and re-send the unsync set (idempotent); 3 attempts, then the run reports the error.</stage>
     </shape>
@@ -1170,13 +1179,26 @@
       "1. Server": base URL + SYNC_TOKEN, saved to store.json, plus the last pull cursor. "2. Sinkronisasi": the
       action. Its buttons stay DISABLED until both the address and the token are stored — a merge with no credentials
       can only fail, and the failure would be about the field the operator was already meant to fill in. One press
-      runs the whole loop: Unduh (stream, then write in one transaction, then Unggah), with a progress bar
-      (indeterminate until a phase knows its frame count), the current entity, a Batal button and a
-      "N diunduh, M diunggah" summary. Sinkronisasi Ulang clears the cursors, deletes the upload session and marks
-      every syncable row unsynced before running the same flow. Leaving the screen interrupts the fiber, which
-      cancels the in-flight HTTP request in Rust. There is no floating status pill and no timer: the screen is the
-      only place a sync starts.
+      runs the whole loop: Unduh (stream, then write in slices, then Unggah), with a progress bar (indeterminate until
+      a phase knows its frame count), the current entity, a Batal button and a "N diunduh, M diunggah" summary.
+      Sinkronisasi Ulang clears the cursors, deletes the upload session and marks every syncable row unsynced before
+      running the same flow.
     </description>
+    <background_task>
+      The run is not the screen's: the service forks it as a background task and the screen only reads it. Leaving the
+      screen keeps the run going, one run at a time, and only Batal stops it (cooperatively: the state reads
+      "Membatalkan" until the in-flight transaction or upload chunk settles). Closing anything never cancels.
+    </background_task>
+    <status_pill>
+      A small floating pill at the bottom-left corner, on every authenticated screen (the shell's BottomRail, which the
+      cart's SaveError banner also uses so the two cannot overlap). Green, `rounded-full`, with a pulsing dot while a
+      run is in flight; red with an alert glyph when the last run failed, staying until its dialog is closed or the
+      next run starts — a background failure has no other way of reaching the operator. No pill while nothing runs and
+      the last run succeeded. Its text never changes during a run (no counters, no entity names), so the `aria-live`
+      region announces "Menyinkronkan" once instead of narrating every frame. Clicking it opens a dialog: phase
+      sentence, progress bar, elapsed seconds, current entity and frame count, the "N diunduh, M diunggah" summary or
+      the error, Batal (only while running) and Tutup. Nothing starts a sync but the operator.
+    </status_pill>
   </sync_ui_design>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -1402,6 +1424,9 @@
   <next_features>
     <feature name="sync_rebuild" status="done">
       <description>Build a sync service over the current schema (soft `_deleted_at`, nested product/record payloads, per-entity unsync reads) and restore the Sinkronisasi screen and floating status pill designed in &lt;sync_ui_design&gt;. The server contract is in backend-docs/openapi.yaml.</description>
+    </feature>
+    <feature name="sync_background" status="done">
+      <description>Move the sync run out of the Sinkronisasi screen: the service forks it as a daemon (single-flight), progress becomes one coalesced SyncState stream, and the merge is applied in bounded slices with both conflict decisions moved into SQL inside the transaction, so a write that lands mid-merge (a sale, an edit) is never lost. Adds the bottom-left status pill + dialog and hoists the cart's SaveError banner into the same rail.</description>
     </feature>
     <feature name="record_list_flag_filter" status="planned">
       <description>Filter RECORD_FLAG_ADJUSTMENT out of the /records list (or show the twin differently). Noted as the open piece in FLAGS.md: a dual charge's extras-only twin currently shows as a goods-less outcoming row.</description>
