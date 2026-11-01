@@ -9,6 +9,7 @@
  *
  * | role              | class        | size  | line-height |
  * |-------------------|--------------|-------|-------------|
+ * | till grand total  | `text-8xl`   | 96px  | 0.8         |
  * | change / hero     | `text-6xl`   | 60px  | 1 (0.8 in cart) |
  * | page / loud money | `text-5xl`   | 48px  | 1           |
  * | section title     | `text-2xl`   | 24px  | 32px        |
@@ -25,8 +26,14 @@ import { describe, expect, test } from "bun:test";
 import { Glob } from "bun";
 import { readFileSync } from "node:fs";
 
-/** The only text sizes the UI is allowed to use (see the table above). */
-const SIZES = new Set(["xs", "sm", "base", "2xl", "5xl", "6xl"]);
+/**
+ * The only text sizes the UI is allowed to use (see the table above).
+ *
+ * `8xl` is the one size above the scale, and it is deliberate: the till's grand
+ * total is the number the cashier reads across the counter, so it sits louder
+ * than the "hero" tier rather than inside it. Nothing else may use it.
+ */
+const SIZES = new Set(["xs", "sm", "base", "2xl", "5xl", "6xl", "8xl"]);
 
 /**
  * The retired tokens and the `small:` variant. They emit no rule any more, so a
