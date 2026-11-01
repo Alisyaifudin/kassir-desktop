@@ -227,7 +227,10 @@ fn header_safe(value: &str, max: usize) -> String {
 
 /// Applies the identifying headers. Empty values are omitted rather than sent
 /// blank, so the server records "unknown" instead of "".
-fn identify(mut builder: reqwest::RequestBuilder, who: &RequestIdentity) -> reqwest::RequestBuilder {
+fn identify(
+    mut builder: reqwest::RequestBuilder,
+    who: &RequestIdentity,
+) -> reqwest::RequestBuilder {
     for (name, value) in [
         ("x-kassir-device-id", &who.device_id),
         ("x-kassir-version", &who.version),
@@ -243,7 +246,11 @@ fn identify(mut builder: reqwest::RequestBuilder, who: &RequestIdentity) -> reqw
 /// `KassirDesktop/0.4.2 (windows)` — the platform is part of the identity: a
 /// Windows-only bug in a desktop app is not a rare thing.
 fn user_agent(version: &str) -> String {
-    let version = if version.is_empty() { "unknown" } else { version };
+    let version = if version.is_empty() {
+        "unknown"
+    } else {
+        version
+    };
     format!("KassirDesktop/{version} ({})", std::env::consts::OS)
 }
 
@@ -361,8 +368,8 @@ pub async fn sync_health(
         &who,
     )
     .send()
-        .await
-        .map_err(transport)?;
+    .await
+    .map_err(transport)?;
 
     if !resp.status().is_success() {
         return Err(failure(resp).await);
@@ -394,8 +401,8 @@ pub async fn sync_create_session(
         &who,
     )
     .send()
-        .await
-        .map_err(transport)?;
+    .await
+    .map_err(transport)?;
 
     if !resp.status().is_success() {
         return Err(failure(resp).await);
@@ -430,8 +437,8 @@ pub async fn sync_get_session(
         &who,
     )
     .send()
-        .await
-        .map_err(transport)?;
+    .await
+    .map_err(transport)?;
 
     if !resp.status().is_success() {
         return Err(failure(resp).await);
@@ -459,7 +466,8 @@ pub async fn sync_delete_session(
     let http = state.client();
     let who = RequestIdentity::new(&app, &client);
     let url = session_url(&base_url, &upload_id);
-    let resp = identify(http.delete(url).bearer_auth(&token), &who).send()
+    let resp = identify(http.delete(url).bearer_auth(&token), &who)
+        .send()
         .await
         .map_err(transport)?;
 
@@ -488,7 +496,10 @@ pub async fn sync_pull(
     let who = RequestIdentity::new(&app, &client);
     // The same id names the log row on the server and the cancel flag here.
     let flag = state.register(&client.request_id);
-    let outcome = pull_stream(&http, &flag, &who, &base_url, &token, since, limit, &channel).await;
+    let outcome = pull_stream(
+        &http, &flag, &who, &base_url, &token, since, limit, &channel,
+    )
+    .await;
     state.unregister(&client.request_id);
     outcome
 }
@@ -713,14 +724,32 @@ async fn upload_chunk_stream(
 
     if compress {
         let payload = gzip(body)?;
-        let resp = send_chunk(http, who, &url, token, offset, prefix_sha, payload, Some("gzip"))
-            .await?;
+        let resp = send_chunk(
+            http,
+            who,
+            &url,
+            token,
+            offset,
+            prefix_sha,
+            payload,
+            Some("gzip"),
+        )
+        .await?;
         // A server that refuses the coding must still get the chunk: retry
         // identity (§4.4 "the client retries identity").
         if resp.status() == reqwest::StatusCode::UNSUPPORTED_MEDIA_TYPE {
             log::warn!("sync: server refused gzip, retrying identity");
-            let resp =
-                send_chunk(http, who, &url, token, offset, prefix_sha, body.to_vec(), None).await?;
+            let resp = send_chunk(
+                http,
+                who,
+                &url,
+                token,
+                offset,
+                prefix_sha,
+                body.to_vec(),
+                None,
+            )
+            .await?;
             if !resp.status().is_success() {
                 return Err(failure(resp).await);
             }
@@ -732,7 +761,17 @@ async fn upload_chunk_stream(
         return stream_lines(resp, flag, channel).await;
     }
 
-    let resp = send_chunk(http, who, &url, token, offset, prefix_sha, body.to_vec(), None).await?;
+    let resp = send_chunk(
+        http,
+        who,
+        &url,
+        token,
+        offset,
+        prefix_sha,
+        body.to_vec(),
+        None,
+    )
+    .await?;
     if !resp.status().is_success() {
         return Err(failure(resp).await);
     }
@@ -955,9 +994,12 @@ mod tests {
 
     #[test]
     fn identity_headers_identify_the_install_and_the_call() {
-        let request = identify(reqwest::Client::new().get("http://localhost/v1/pull"), &identity())
-            .build()
-            .expect("request builds");
+        let request = identify(
+            reqwest::Client::new().get("http://localhost/v1/pull"),
+            &identity(),
+        )
+        .build()
+        .expect("request builds");
         let headers = request.headers();
         assert_eq!(
             headers.get("x-kassir-device-id").unwrap(),
@@ -994,9 +1036,12 @@ mod tests {
             },
             "",
         );
-        let request = identify(reqwest::Client::new().get("http://localhost/v1/health"), &who)
-            .build()
-            .expect("request builds");
+        let request = identify(
+            reqwest::Client::new().get("http://localhost/v1/health"),
+            &who,
+        )
+        .build()
+        .expect("request builds");
         let headers = request.headers();
         assert!(headers.get("x-kassir-device-id").is_none());
         assert!(headers.get("x-kassir-version").is_none());
