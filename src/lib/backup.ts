@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { IOError } from "./effect-error";
 import { log } from "./log";
 
@@ -20,10 +20,26 @@ export type BackupSaved = {
 };
 
 /**
+ * Which step is running, and how far through the whole cycle it is.
+ *
+ * `stage` is a keyword; the Indonesian words for it live in the panel that draws
+ * them (`BackupData.tsx`), the same split the sync phases use. `percent` covers the
+ * cycle, not the step, so the bar fills once instead of restarting five times.
+ */
+export type BackupProgress = {
+  stage: "snapshot" | "verify" | "hash" | "compress" | "finalize";
+  percent: number;
+};
+
+/**
  * `store` is the loaded `store.json` as an object, not a file read: the plugin
  * writes on a debounce, so a read here could miss the preference the cashier just
  * changed. Passed through as JSON because Rust should not know the store's keys —
  * it only ships the bytes.
+ *
+ * `onProgress` is called as the Rust side works. It is deliberately fire-and-forget:
+ * a dropped frame leaves the bar where it was, and no progress at all still leaves
+ * a working backup.
  *
  * The result is `null` when the cashier cancelled the save dialog. A caller must
  * be able to tell "wrote 4 MB to D:\\kassir-backup.zip" from "pressed Esc":
@@ -31,9 +47,17 @@ export type BackupSaved = {
  */
 export function saveBackup(
   store: Record<string, unknown>,
+  onProgress?: (progress: BackupProgress) => void,
 ): Effect.Effect<BackupSaved | null, IOError> {
   return Effect.tryPromise({
-    try: () => invoke<BackupSaved | null>("backup_data", { storeJson: JSON.stringify(store) }),
+    try: () => {
+      const channel = new Channel<BackupProgress>();
+      channel.onmessage = (progress) => onProgress?.(progress);
+      return invoke<BackupSaved | null>("backup_data", {
+        storeJson: JSON.stringify(store),
+        onProgress: channel,
+      });
+    },
     catch: (e) => {
       log.error(e instanceof Error ? e : String(e));
       return new IOError(e, FAILED);

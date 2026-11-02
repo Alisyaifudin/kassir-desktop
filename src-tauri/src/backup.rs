@@ -36,12 +36,17 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{ConnectOptions, Connection, SqlitePool};
+use tauri::ipc::Channel;
 use tauri::{command, Manager, Runtime};
 use tauri_plugin_dialog::DialogExt;
 use zip::write::SimpleFileOptions;
@@ -63,6 +68,85 @@ const DB_BUSY: &str = "Database sibuk. Coba lagi sebentar lagi.";
 const NOT_READY: &str = "Database belum siap. Jalankan ulang aplikasi.";
 const CORRUPT: &str = "Cadangan gagal diperiksa dan tidak disimpan. Coba lagi.";
 
+// The cycle's slices, in percent. Four of the five stages read the whole database
+// (snapshot copies it, then verify, hash and compress each read it once), so the
+// slices follow the work rather than the number of stages — the snapshot gets the
+// largest one because it is the only stage that both reads and writes every page.
+// A guess is fine here: the bar's job is to answer "is it still working?", and it
+// is monotonic, so a slice that turns out too small costs accuracy, never truth.
+const SNAPSHOT_END: u8 = 35;
+const VERIFY_END: u8 = 50;
+const HASH_END: u8 = 62;
+const COMPRESS_END: u8 = 96;
+
+/// How often the snapshot's growing file is measured. Fast enough that the bar
+/// moves visibly, slow enough that a `stat` per 150 ms is noise beside the copy.
+const POLL: Duration = Duration::from_millis(150);
+
+/// One progress frame.
+///
+/// `stage` is a keyword, not a sentence: the words live beside the rest of the UI
+/// copy (`BackupData.tsx`), the same split the sync phases use. `percent` covers
+/// the whole cycle, not the stage, so the bar fills once instead of restarting
+/// five times — a bar that empties when a stage changes reads as failing rather
+/// than working.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupProgress {
+    pub stage: &'static str,
+    pub percent: u8,
+}
+
+/// The one bar's state, shared between the thread that polls the snapshot and the
+/// thread that compresses.
+///
+/// `percent` is an atomic and only ever moves forward (`report` takes the max), so
+/// a late report from a stage that has already finished cannot make the bar jump
+/// back. `stage` is behind a mutex because a caption is not monotonic in the same
+/// way: it changes exactly when a stage starts.
+#[derive(Clone)]
+struct Reporter {
+    channel: Channel<BackupProgress>,
+    percent: Arc<AtomicU8>,
+    stage: Arc<Mutex<&'static str>>,
+}
+
+impl Reporter {
+    fn new(channel: Channel<BackupProgress>) -> Self {
+        Self {
+            channel,
+            percent: Arc::new(AtomicU8::new(0)),
+            stage: Arc::new(Mutex::new("snapshot")),
+        }
+    }
+
+    /// Reports `fraction` (0…1) of the way through `stage`, whose slice of the
+    /// cycle is `from`…`to` percent.
+    fn report(&self, stage: &'static str, from: u8, to: u8, fraction: f64) {
+        let fraction = fraction.clamp(0.0, 1.0);
+        let span = f64::from(to.saturating_sub(from));
+        let next = (f64::from(from) + span * fraction).round() as u8;
+        // Never backwards: a poll that lands after the stage ended must not rewind.
+        let percent = next.min(100).max(self.percent.load(Ordering::Relaxed));
+        let previous = self.percent.swap(percent, Ordering::Relaxed);
+
+        let entered = match self.stage.lock() {
+            Ok(mut current) if *current != stage => {
+                *current = stage;
+                true
+            }
+            // A poisoned lock means a panic on another thread; keep reporting the
+            // bar rather than failing a backup over the caption.
+            Ok(_) => false,
+            Err(_) => true,
+        };
+
+        if entered || previous != percent {
+            let _ = self.channel.send(BackupProgress { stage, percent });
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupSaved {
@@ -81,16 +165,26 @@ pub struct BackupSaved {
 /// instance it already has, which is also the only copy that includes a write
 /// still waiting for the debounce.
 ///
+/// `on_progress` carries one bar for the whole cycle: the dialog is the cashier's
+/// own time (no frames are sent while it is open), and from `snapshot` to
+/// `finalize` every frame moves the same bar forward.
+///
 /// `Ok(None)` means the save dialog was cancelled: nothing was written, and the
 /// caller must not report success.
 #[command]
 pub async fn backup_data<R: Runtime>(
     app: tauri::AppHandle<R>,
+    on_progress: Channel<BackupProgress>,
     store_json: String,
 ) -> Result<Option<BackupSaved>, String> {
     let Some(target) = ask_where(&app).await? else {
         return Ok(None);
     };
+
+    // Stage timings are logged, not shown: 15 s is either the database or the CPU
+    // and there is no way to tell them apart from the outside.
+    let started = Instant::now();
+    let reporter = Reporter::new(on_progress);
 
     // The snapshot needs a second copy of the database on disk while it exists,
     // so it lives in the OS temp directory rather than next to the user's file:
@@ -101,8 +195,13 @@ pub async fn backup_data<R: Runtime>(
     })?;
 
     let snapshot = dir.path().join("data.db");
-    vacuum_into(&app, &snapshot).await?;
-    let schema = verify_snapshot(&snapshot).await?;
+    let at = Instant::now();
+    vacuum_into(&app, &snapshot, &reporter).await?;
+    log::info!("backup: snapshot in {} ms", at.elapsed().as_millis());
+
+    let at = Instant::now();
+    let schema = verify_snapshot(&snapshot, &reporter).await?;
+    log::info!("backup: verify in {} ms", at.elapsed().as_millis());
 
     let store_path = dir.path().join(STORE_FILE);
     fs::write(&store_path, store_json.as_bytes()).map_err(|error| {
@@ -110,15 +209,30 @@ pub async fn backup_data<R: Runtime>(
         FAILED.to_string()
     })?;
 
+    let at = Instant::now();
+    let files = describe_files(
+        &reporter,
+        &[
+            ("data.db", "appConfig", &snapshot),
+            (STORE_FILE, "appData", &store_path),
+        ],
+    )?;
+    log::info!("backup: hash in {} ms", at.elapsed().as_millis());
+
     let manifest_path = dir.path().join("manifest.json");
-    write_manifest(&manifest_path, &store_json, schema, &snapshot, &store_path)?;
+    write_manifest(&manifest_path, &files, schema, &store_json)?;
 
     let payload = vec![
-        ("data.db".to_string(), snapshot),
-        (STORE_FILE.to_string(), store_path),
-        ("manifest.json".to_string(), manifest_path),
+        files[0].path.clone(),
+        files[1].path.clone(),
+        manifest_path,
     ];
-    let archive = zip_into(&target, payload).await?;
+    let at = Instant::now();
+    let archive = zip_into(&target, payload, &reporter).await?;
+    log::info!("backup: compress in {} ms", at.elapsed().as_millis());
+
+    reporter.report("finalize", COMPRESS_END, 100, 1.0);
+    log::info!("backup: done in {} ms", started.elapsed().as_millis());
 
     Ok(Some(archive))
 }
@@ -173,23 +287,78 @@ async fn pool<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<SqlitePool, Strin
 async fn vacuum_into<R: Runtime>(
     app: &tauri::AppHandle<R>,
     destination: &Path,
+    reporter: &Reporter,
 ) -> Result<(), String> {
+    reporter.report("snapshot", 0, SNAPSHOT_END, 0.0);
+    let pool = pool(app).await?;
+    let expected = expected_bytes(&pool).await;
+
+    // `VACUUM INTO` reports nothing while it runs, but the file it writes grows
+    // page by page, so its size against the source's logical size is the only
+    // honest measure available without an API SQLite does not offer. The estimate
+    // runs high when the vacuum drops free pages; the clamp and the stage's own
+    // final report absorb that.
+    let done = Arc::new(AtomicBool::new(false));
+    let poller = {
+        let done = Arc::clone(&done);
+        let reporter = reporter.clone();
+        let path = destination.to_path_buf();
+        tauri::async_runtime::spawn_blocking(move || {
+            while !done.load(Ordering::Relaxed) {
+                std::thread::sleep(POLL);
+                if done.load(Ordering::Relaxed) {
+                    break;
+                }
+                let written = fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
+                let fraction = if expected == 0 {
+                    0.0
+                } else {
+                    written as f64 / expected as f64
+                };
+                reporter.report("snapshot", 0, SNAPSHOT_END, fraction);
+            }
+        })
+    };
+
     // `VACUUM INTO` refuses to overwrite, which is what makes it safe to point at
     // a path inside a fresh temp dir.
     let destination = destination.to_string_lossy().to_string();
-    let pool = pool(app).await?;
-    sqlx::query("VACUUM INTO ?1")
+    let result = sqlx::query("VACUUM INTO ?1")
         .bind(destination)
         .execute(&pool)
-        .await
-        .map_err(|error| {
-            // A long-running `VACUUM` reader can lose the race with a writer on a
-            // loaded till; that is retryable, not a broken install.
-            log::error!("backup_data VACUUM INTO failed: {error}");
-            let busy = error.to_string().contains("database is locked");
-            if busy { DB_BUSY.to_string() } else { FAILED.to_string() }
-        })?;
+        .await;
+
+    // The poller is awaited before the next stage reports: a frame that arrived
+    // after verify started would move the caption back to "snapshot".
+    done.store(true, Ordering::Relaxed);
+    let _ = poller.await;
+
+    result.map_err(|error| {
+        // A long-running `VACUUM` reader can lose the race with a writer on a
+        // loaded till; that is retryable, not a broken install.
+        log::error!("backup_data VACUUM INTO failed: {error}");
+        let busy = error.to_string().contains("database is locked");
+        if busy { DB_BUSY.to_string() } else { FAILED.to_string() }
+    })?;
+    reporter.report("snapshot", 0, SNAPSHOT_END, 1.0);
     Ok(())
+}
+
+/// The snapshot's expected size: the source's logical size in bytes, WAL included
+/// (which is why it is `page_count × page_size` rather than the file's length).
+async fn expected_bytes(pool: &SqlitePool) -> u64 {
+    let pages: Option<i64> = sqlx::query_scalar("PRAGMA page_count")
+        .fetch_one(pool)
+        .await
+        .ok();
+    let page_size: Option<i64> = sqlx::query_scalar("PRAGMA page_size")
+        .fetch_one(pool)
+        .await
+        .ok();
+    match (pages, page_size) {
+        (Some(pages), Some(page_size)) => pages.max(0) as u64 * page_size.max(0) as u64,
+        _ => 0,
+    }
 }
 
 /// Checks the snapshot before it is shipped, and answers its schema version.
@@ -203,7 +372,8 @@ async fn vacuum_into<R: Runtime>(
 /// The snapshot is also switched to rollback-journal mode: the archive ships one
 /// file with no `-wal` beside it, so a restore has nothing to replay and no sidecar
 /// to recreate.
-async fn verify_snapshot(snapshot: &Path) -> Result<Option<i64>, String> {
+async fn verify_snapshot(snapshot: &Path, reporter: &Reporter) -> Result<Option<i64>, String> {
+    reporter.report("verify", SNAPSHOT_END, VERIFY_END, 0.0);
     let mut conn = SqliteConnectOptions::new()
         .filename(snapshot)
         .connect()
@@ -240,6 +410,10 @@ async fn verify_snapshot(snapshot: &Path) -> Result<Option<i64>, String> {
     // the temp directory is removed right after this returns.
     let _ = conn.close().await;
 
+    if result.is_ok() {
+        reporter.report("verify", SNAPSHOT_END, VERIFY_END, 1.0);
+    }
+
     result.map_err(|detail| {
         log::error!("backup_data refused a snapshot: {detail}");
         CORRUPT.to_string()
@@ -254,10 +428,9 @@ async fn verify_snapshot(snapshot: &Path) -> Result<Option<i64>, String> {
 /// are what tell a support workflow that the file arrived intact.
 fn write_manifest(
     path: &Path,
-    store_json: &str,
+    files: &[ManifestFile],
     schema: Option<i64>,
-    snapshot: &Path,
-    store_path: &Path,
+    store_json: &str,
 ) -> Result<(), String> {
     // The store is a flat key map, so the sync credential is the literal key.
     // Only a warning: the archive is the shop's own file, but its presence is the
@@ -267,25 +440,17 @@ fn write_manifest(
         .and_then(|value| value.get("sync.token").map(|token| !token.is_null()))
         .unwrap_or(false);
 
-    let files = [
-        ("data.db", "appConfig", snapshot),
-        (STORE_FILE, "appData", store_path),
-    ];
-    let mut described = Vec::with_capacity(files.len());
-    for (name, dir, file) in files {
-        let bytes = fs::metadata(file)
-            .map_err(|error| {
-                log::error!("backup_data could not size {name}: {error}");
-                FAILED.to_string()
-            })?
-            .len();
-        described.push(json!({
-            "name": name,
-            "dir": dir,
-            "bytes": bytes,
-            "sha256": sha256_hex(file)?,
-        }));
-    }
+    let described: Vec<Value> = files
+        .iter()
+        .map(|file| {
+            json!({
+                "name": file.name,
+                "dir": file.dir,
+                "bytes": file.bytes,
+                "sha256": file.sha256,
+            })
+        })
+        .collect();
 
     let manifest = json!({
         "app": "kassir",
@@ -314,13 +479,28 @@ fn write_manifest(
 /// backup untouched.
 async fn zip_into(
     target: &Path,
-    payload: Vec<(String, PathBuf)>,
+    payload: Vec<PathBuf>,
+    reporter: &Reporter,
 ) -> Result<BackupSaved, String> {
     let mut part_name = target.as_os_str().to_owned();
     part_name.push(".part");
     let part = PathBuf::from(part_name);
 
+    // The bar tracks the bytes going *in*, since the archive's own size is only
+    // known once the last entry is flushed.
+    let mut total = 0_u64;
+    for source in &payload {
+        total += fs::metadata(source)
+            .map_err(|error| {
+                log::error!("backup_data could not size {}: {error}", source.display());
+                FAILED.to_string()
+            })?
+            .len();
+    }
+    reporter.report("compress", HASH_END, COMPRESS_END, 0.0);
+
     let part_for_task = part.clone();
+    let reporter = reporter.clone();
     let written = tauri::async_runtime::spawn_blocking(move || -> Result<u64, String> {
         let file = fs::File::create(&part_for_task).map_err(|error| {
             log::error!("backup_data could not create {}: {error}", part_for_task.display());
@@ -333,22 +513,48 @@ async fn zip_into(
             .compression_method(CompressionMethod::Deflated)
             .compression_level(Some(6));
 
-        for (name, source) in &payload {
+        let mut done = 0_u64;
+        for source in &payload {
             // Every entry is stored flat under its file name: the manifest carries
             // the destination, so the archive stays readable by hand (and by any
             // unzip tool) whatever a future restore decides.
+            let name = source
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_default();
             zip.start_file(name.as_str(), options).map_err(|error| {
                 log::error!("backup_data could not add {name}: {error}");
                 FAILED.to_string()
             })?;
-            let mut reader = fs::File::open(source).map_err(|error| {
+
+            let file = fs::File::open(source).map_err(|error| {
                 log::error!("backup_data could not read {}: {error}", source.display());
                 FAILED.to_string()
             })?;
-            std::io::copy(&mut reader, &mut zip).map_err(|error| {
-                log::error!("backup_data could not compress {name}: {error}");
-                FAILED.to_string()
-            })?;
+
+            // The read count is observed inside the reader because `io::copy` is a
+            // black box; the offset of the entries before this one is added here.
+            let read_here = {
+                let mut on_read = |bytes: u64| {
+                    reporter.report(
+                        "compress",
+                        HASH_END,
+                        COMPRESS_END,
+                        (done as f64 + bytes as f64) / total as f64,
+                    );
+                };
+                let mut reader = CountingReader {
+                    inner: file,
+                    read: 0,
+                    on_read: &mut on_read,
+                };
+                std::io::copy(&mut reader, &mut zip).map_err(|error| {
+                    log::error!("backup_data could not compress {name}: {error}");
+                    FAILED.to_string()
+                })?;
+                reader.read
+            };
+            done += read_here;
         }
 
         zip.finish().map_err(|error| {
@@ -396,13 +602,14 @@ async fn zip_into(
     })
 }
 
-fn sha256_hex(path: &Path) -> Result<String, String> {
+fn sha256_hex(path: &Path, on_read: &mut dyn FnMut(u64)) -> Result<String, String> {
     let mut file = fs::File::open(path).map_err(|error| {
         log::error!("backup_data could not hash {}: {error}", path.display());
         FAILED.to_string()
     })?;
     let mut hasher = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];
+    let mut total = 0_u64;
     loop {
         let read = file.read(&mut buffer).map_err(|error| {
             log::error!("backup_data could not hash {}: {error}", path.display());
@@ -412,10 +619,97 @@ fn sha256_hex(path: &Path) -> Result<String, String> {
             break;
         }
         hasher.update(&buffer[..read]);
+        total += read as u64;
+        on_read(total);
     }
     Ok(hasher
         .finalize()
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect())
+}
+
+/// One payload file as the manifest records it.
+struct ManifestFile {
+    name: &'static str,
+    /// Which app directory a restore puts it back into: `data.db` lives under
+    /// `app_config_dir`, `store.json` under `app_data_dir`.
+    dir: &'static str,
+    path: PathBuf,
+    bytes: u64,
+    sha256: String,
+}
+
+/// Sizes and digests for the payload, reported as the hash stage's progress.
+fn describe_files(
+    reporter: &Reporter,
+    files: &[(&'static str, &'static str, &Path)],
+) -> Result<Vec<ManifestFile>, String> {
+    let total: u64 = files
+        .iter()
+        .map(|(name, _, path)| {
+            fs::metadata(path)
+                .map(|meta| meta.len())
+                .map_err(|error| {
+                    log::error!("backup_data could not size {name}: {error}");
+                    FAILED.to_string()
+                })
+        })
+        .collect::<Result<Vec<u64>, String>>()?
+        .into_iter()
+        .sum();
+
+    let mut done = 0_u64;
+    let mut described = Vec::with_capacity(files.len());
+    for (name, dir, path) in files {
+        let bytes = fs::metadata(path)
+            .map_err(|error| {
+                log::error!("backup_data could not size {name}: {error}");
+                FAILED.to_string()
+            })?
+            .len();
+        // The closure is scoped so its borrow of `done` ends before `done` is
+        // advanced — the offset is what makes the bar continuous across files.
+        let sha256 = {
+            let mut on_read = |read: u64| {
+                reporter.report(
+                    "hash",
+                    VERIFY_END,
+                    HASH_END,
+                    (done as f64 + read as f64) / total as f64,
+                );
+            };
+            sha256_hex(path, &mut on_read)?
+        };
+        done += bytes;
+        described.push(ManifestFile {
+            name,
+            dir,
+            path: path.to_path_buf(),
+            bytes,
+            sha256,
+        });
+    }
+    reporter.report("hash", VERIFY_END, HASH_END, 1.0);
+    Ok(described)
+}
+
+/// A reader that reports how many bytes it has handed out.
+///
+/// `std::io::copy` is a black box, so progress has to be observed at the reader
+/// rather than in the loop. The callback receives the cumulative count for this
+/// file; the caller adds the offset of the files before it.
+struct CountingReader<'a, R> {
+    inner: R,
+    read: u64,
+    on_read: &'a mut dyn FnMut(u64),
+}
+
+impl<R: Read> Read for CountingReader<'_, R> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.inner.read(buffer)?;
+        self.read += read as u64;
+        (self.on_read)(self.read);
+        Ok(read)
+    }
 }

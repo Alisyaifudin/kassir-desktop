@@ -1,16 +1,22 @@
+import { useState } from "react";
 import { Effect, Either } from "effect";
 import { toast } from "sonner";
 import { useMutation } from "~/components/Loader";
-import { saveBackup } from "~/lib/backup";
+import { saveBackup, type BackupProgress } from "~/lib/backup";
 import { log } from "~/lib/log";
 import { service } from "~/services";
 import { formatSize, messageOf } from "./util-file";
 
 export function useBackup() {
   const { pending, error, mutate } = useMutation(program);
+  // `null` until the first frame: the bar's indeterminate state, and what tells
+  // the panel that a run has not started yet.
+  const [progress, setProgress] = useState<BackupProgress | null>(null);
 
   async function handleBackup() {
-    const result = await mutate(undefined);
+    setProgress(null);
+    const result = await mutate(setProgress);
+    setProgress(null);
     if (Either.isLeft(result)) {
       log.error(messageOf(result.left));
       return;
@@ -23,6 +29,7 @@ export function useBackup() {
 
   return {
     handleBackup,
+    progress,
     loading: pending,
     error: error === null ? null : messageOf(error),
   };
@@ -32,9 +39,9 @@ export function useBackup() {
  * The store is read before the dialog opens, so the archive is a moment in time
  * rather than two reads seconds apart.
  */
-function program() {
+function program(onProgress: (progress: BackupProgress) => void) {
   return Effect.gen(function* () {
     const store = yield* service.store.entries();
-    return yield* saveBackup(store);
+    return yield* saveBackup(store, onProgress);
   });
 }

@@ -20,7 +20,7 @@
     &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.1.0</version>
+  <version>8.2.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -322,8 +322,8 @@
         <description>The JSON download. The Save dialog and the write both live in Rust: the fs plugin's scope is narrowed to the app's own image and log directories, so a frontend writeFile on a user-picked path is rejected. Returns the written path, or None when the dialog was cancelled.</description>
       </command>
       <command name="backup_data" module="backup">
-        <signature>async fn(store_json: String) → Result&lt;Option&lt;BackupSaved&gt;, String&gt;</signature>
-        <description>The whole-install backup: Save dialog, then one `.zip` holding `data.db`, `store.json` and `manifest.json`. The database is snapshotted with `VACUUM INTO` through the live pool (not `fs::copy`) because `data.db` runs in WAL mode and a plain copy would silently omit every commit since the last checkpoint. The snapshot is `PRAGMA integrity_check`ed and switched to rollback-journal mode before it is shipped, the manifest records app version, `_sqlx_migrations` version, file digests and the destination directory of each file, and the archive is built beside the target and renamed into place so a failure never leaves a truncated `.zip` under the chosen name. `store_json` arrives from the frontend because the store plugin writes on a debounce and only the loaded instance knows the latest preference. Returns the path and byte size, or None when the dialog was cancelled.</description>
+        <signature>async fn(on_progress: Channel&lt;BackupProgress&gt;, store_json: String) → Result&lt;Option&lt;BackupSaved&gt;, String&gt;</signature>
+        <description>The whole-install backup: Save dialog, then one `.zip` holding `data.db`, `store.json` and `manifest.json`. The database is snapshotted with `VACUUM INTO` through the live pool (not `fs::copy`) because `data.db` runs in WAL mode and a plain copy would silently omit every commit since the last checkpoint. The snapshot is `PRAGMA integrity_check`ed and switched to rollback-journal mode before it is shipped, the manifest records app version, `_sqlx_migrations` version, file digests and the destination directory of each file, and the archive is built beside the target and renamed into place so a failure never leaves a truncated `.zip` under the chosen name. `store_json` arrives from the frontend because the store plugin writes on a debounce and only the loaded instance knows the latest preference. Returns the path and byte size, or None when the dialog was cancelled. Progress comes back on a Channel as one monotonic bar for the whole run (snapshot → verify → hash → compress → finalize): the snapshot's slice is estimated from the growing temp file against `page_count × page_size`, because `VACUUM INTO` reports nothing while it runs, and the hash and compress slices count the bytes they read. Stage timings are logged.</description>
       </command>
       <command name="sync_pull" module="sync">
         <signature>async fn(channel, base_url, token, after, limit, client) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
@@ -1395,7 +1395,7 @@
     <module name="lib/utils.ts">cn (tailwind-merge with the app's text-size tokens declared), numerish/numeric/integer (Zod string-number schemas that actually reject), capitalize (total on padded/empty names), formatError.</module>
     <module name="lib/effect-error.ts">NotFound, InvokeError, InvalidCredential, IOError/ArrayBufferError/JsonError, TooBigError, DuplicateError. RedirectError was removed with the redirect loaders.</module>
     <module name="lib/auth.ts">The two Tauri bcrypt bridges plus Unauthenticated. The session lives in the auth service.</module>
-    <module name="lib/backup.ts">saveBackup(store): serialise the loaded store.json, then ask Rust (backup_data) for a `.zip` of the database, the store and a manifest. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
+    <module name="lib/backup.ts">saveBackup(store, onProgress): serialise the loaded store.json, then ask Rust (backup_data) for a `.zip` of the database, the store and a manifest, relaying one monotonic progress bar (stage keyword + whole-cycle percent) off a Tauri Channel. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
     <module name="lib/export.ts">saveJson(defaultName, value): serialise, then ask Rust (export_file) where to write. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
     <module name="lib/image.ts">Product-image files under AppData/images: save (mkdir on first use), load → object URL, del. The key is the image_name, never the row id.</module>
     <module name="lib/printer.ts">The Rust printer bridges: getPrinters and printReceipt (which sends the receipt's data — record, lines, shop identity, contacts — plus the roll layout, and returns the spooler's sentence). The PDF itself is built in src-tauri/src/receipt/.</module>

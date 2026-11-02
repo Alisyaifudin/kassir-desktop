@@ -1,3 +1,4 @@
+import { ProgressBar } from "~/components/ProgressBar";
 import type { GroupState, SyncGroup, SyncState } from "~/services/sync";
 
 /**
@@ -65,28 +66,12 @@ export function captionOf(group: GroupState): string {
  * short transition so a page landing glides instead of jumping.
  */
 export function SyncBar({ group }: { group: GroupState }) {
-  const determinate = isDeterminate(group);
-  const percent = percentOf(group);
-  const failed = group.phase === "failed";
   return (
-    <div
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={determinate ? percent : undefined}
-      aria-label={`Kemajuan sinkronisasi ${groupLabel(group.group)}`}
-      className="relative h-2 overflow-hidden rounded-full bg-secondary"
-    >
-      <div
-        data-failed={failed ? "" : undefined}
-        className={
-          determinate
-            ? "h-full rounded-full bg-active transition-[width] duration-500 ease-out data-[failed]:bg-destructive"
-            : "h-full w-1/4 animate-pulse rounded-full bg-active motion-reduce:animate-none"
-        }
-        style={determinate ? { width: `${percent}%` } : undefined}
-      />
-    </div>
+    <ProgressBar
+      percent={isDeterminate(group) ? percentOf(group) : null}
+      failed={group.phase === "failed"}
+      label={`Kemajuan sinkronisasi ${groupLabel(group.group)}`}
+    />
   );
 }
 
