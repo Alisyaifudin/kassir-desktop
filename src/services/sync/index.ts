@@ -12,16 +12,22 @@ export class SyncError extends Data.TaggedError("SyncError")<{
 }> {}
 
 /**
- * Where the sync backend lives. One build talks to one server: the address is
- * not an operator setting, so a device cannot be pointed at a host that is not
- * ours, and there is only ever one URL to get wrong.
+ * The address a fresh install starts with.
+ *
+ * The backend is an operator setting (Settings → Sinkronisasi), not a
+ * compiled-in constant: a shop running its own worker — staging, a self-hosted
+ * deployment — points the till at it without waiting for a rebuild. This is
+ * only the value the field is seeded with.
  */
-export const SYNC_BASE_URL = "https://api.kassir.store";
+export const SYNC_DEFAULT_BASE_URL = "https://api.kassir.store";
 
-/** A device's sync configuration — its bearer token for `SYNC_BASE_URL`. */
-export type SyncConfig = { token: string };
+/** A device's sync configuration — the server it talks to and its bearer token. */
+export type SyncConfig = { baseUrl: string; token: string };
 
-export const SYNC_CONFIG_DEFAULT: SyncConfig = { token: "" };
+export const SYNC_CONFIG_DEFAULT: SyncConfig = {
+  baseUrl: SYNC_DEFAULT_BASE_URL,
+  token: "",
+};
 
 /**
  * What a health check (`GET /v2/health`) learned.
@@ -204,13 +210,14 @@ export class SyncService extends Context.Tag("SyncService")<
       deviceId: () => Effect.Effect<string>;
     };
     /**
-     * Pings `GET /v2/health` with `token` — what the Cek button asks.
+     * Pings `GET /v2/health` at `config.baseUrl` with `config.token` — what the
+     * Cek button asks.
      *
-     * The token is an argument rather than the stored value: the point is to
-     * verify what is in the field *before* it is saved, so an operator can
-     * catch a typo without writing it to disk first.
+     * The config is an argument rather than the stored value: the point is to
+     * verify what is in the fields *before* it is saved, so an operator can
+     * catch a typo in either half without writing it to disk first.
      */
-    check: (token: string) => Effect.Effect<SyncHealth, SyncError>;
+    check: (config: SyncConfig) => Effect.Effect<SyncHealth, SyncError>;
     /**
      * One group's bookmark: the highest `seq` this device has durably stored for
      * it (§2.2). One integer per group — never one per table.

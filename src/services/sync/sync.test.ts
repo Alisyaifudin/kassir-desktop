@@ -164,6 +164,7 @@ function setup(server = new FakeServer(), seed: Record<string, unknown> = {}) {
   // test here starts from an empty group so the log it asserts is its own.
   db.exec("DELETE FROM money; DELETE FROM pockets;");
   const { entries, layer: storeLayer } = makeTestStore({
+    "sync.base_url": "https://sync.test",
     "sync.token": "kst_test",
     ...seed,
   });

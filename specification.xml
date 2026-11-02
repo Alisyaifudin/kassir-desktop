@@ -20,7 +20,7 @@
     &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.2.0</version>
+  <version>8.3.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -363,8 +363,9 @@
         No embedded HTTP server and no JWT. Passwords hash and verify through the two bcrypt commands above; the
         session is frontend state (the auth service), persisted in localStorage. The sync credential is the
         single-tenant SYNC_TOKEN (§10 of the sync contract), typed by the operator and kept in store.json
-        (sync.token) — never compiled into the binary; the server address is compiled in (SYNC_BASE_URL = https://api.kassir.store,
-        one build talks to one backend). All sync HTTP goes through the Rust client:
+        (sync.token) — never compiled into the binary; the server address is an operator setting too
+        (sync.base_url, seeded with SYNC_DEFAULT_BASE_URL = https://api.kassir.store), so one build can talk to
+        a self-hosted backend. All sync HTTP goes through the Rust client:
         it keeps the window CSP at connect-src 'self' ipc: instead of allowing every origin, and it is the only way
         to consume the NDJSON streams.
       </description>
@@ -1078,8 +1079,8 @@
       </description>
       <error name="SyncError" tag="SyncError">message plus the contract's optional code/status, so the loops can branch on bad_request / too_old / bad_frame / payload_too_large.</error>
       <interface>
-        <method name="config.get() / config.set({token})">The bearer token, from store.json; the server is the compiled-in SYNC_BASE_URL.</method>
-        <method name="check(token)">Pings GET /v2/health with the token currently in the Settings field (not the stored one), returning the server's status and one-line message — what the Cek button asks before a token is saved.</method>
+        <method name="config.get() / config.set({baseUrl, token})">The server address and bearer token, from store.json (sync.base_url / sync.token); the address is seeded with SYNC_DEFAULT_BASE_URL when unset.</method>
+        <method name="check(config)">Pings GET /v2/health at the address currently in the Settings field with the token currently in it (not the stored pair), returning the server's status and one-line message — what the Cek button asks before anything is saved.</method>
         <method name="config.deviceId()">This installation's id, minted on first read and persisted in store.json (sync.device_id), sent as X-Kassir-Device-Id and shown in Settings.</method>
         <method name="cursor()">The money group's bookmark: the highest `seq` durably stored, one integer for both tables.</method>
         <method name="run(mode)">The cycle itself, owned by the caller's fiber: mode "sync" | "reset" (reset first clears the bookmark, drops the park and marks every pocket and money row unsynced), returning { lastPulledSeq, pulled, pushed, stale }. Used by `start` and by the tests; the app never calls it directly.</method>
@@ -1169,10 +1170,10 @@
   <sync_ui_design status="implemented">
     <description>
       Manual sync only (automatic sync is a v2 idea). Setting → Sinkronisasi (admin-only) is two numbered panels.
-      "1. Server": the fixed server address (SYNC_BASE_URL, shown but not editable) and a SYNC_TOKEN field saved to store.json,
-      plus the last pull cursor and a Cek button that pings /v2/health and renders the answer inline next to Simpan —
+      "1. Server": the server address (an operator setting seeded with SYNC_DEFAULT_BASE_URL) and a SYNC_TOKEN field, both saved to store.json,
+      plus the last pull cursor and a Cek button that pings /v2/health at that address with that token and renders the answer inline next to Simpan —
       so a typo is caught before it is written to disk. "2. Sinkronisasi": the
-      action. Its buttons stay DISABLED until the token is stored — a sync with no credential
+      action. Its buttons stay DISABLED until the address and token are stored — a sync with no credential
       can only fail, and the failure would be about the field the operator was already meant to fill in. One press
       runs the whole cycle: every group in turn (today one), each with its OWN progress bar — group name, a
       one-sentence caption of what it is doing, and a percentage — plus a Batal button and a "N diunduh, M
@@ -1362,7 +1363,7 @@
         <subpage path="/setting/data" guard="AdminOnly">JSON export (Rust export_file) and import for products and records, with the skipped-row panel and a derived success/warning/error toast (describeUpload). Above them sits the whole-install backup (Rust backup_data): one .zip of data.db (VACUUM INTO snapshot), store.json and a manifest, written through a Save dialog.</subpage>
         <subpage path="/setting/log" guard="AdminOnly">The log tail (bounded, newest first, warnings included) and a clear action, over the log service.</subpage>
         <subpage path="/setting/printer">Printer picker, paper width in mm (Lebar Struk) and a test print, over the printer service and the Rust printer commands. The width decides how the receipt PDF is laid out.</subpage>
-        <subpage path="/setting/sync" guard="AdminOnly">The fixed server address (SYNC_BASE_URL) + SYNC_TOKEN with a Cek button that pings /v2/health inline, the pull cursor, and the Sinkronisasi / Sinkronisasi Ulang actions with per-phase progress, over the sync service.</subpage>
+        <subpage path="/setting/sync" guard="AdminOnly">The server address (editable, seeded with SYNC_DEFAULT_BASE_URL) + SYNC_TOKEN with a Cek button that pings /v2/health inline, the pull cursor, and the Sinkronisasi / Sinkronisasi Ulang actions with per-phase progress, over the sync service.</subpage>
       </subpages>
     </page>
 

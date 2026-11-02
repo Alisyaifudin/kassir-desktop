@@ -111,7 +111,7 @@ server disagree, and the way a database written before v2 gets its rows uploaded
 | `src/services/sync/pull.ts`, `push.ts` | the two loops |
 | `src/services/sync/stream.ts`, `transport.ts` | the Channel→stream polyfill, and the Rust commands as a service |
 | `src/services/sync/live.ts` | the service: bookmark, park, progress, service refresh |
-| `src/pages/Setting/Sync/` | Sinkronisasi (admin-only): token + health check, then run |
+| `src/pages/Setting/Sync/` | Sinkronisasi (admin-only): server address + token with a health check, then run |
 
 Tests: `src/services/sync/sync.test.ts` — the merge rule, plus whole cycles against a
 real SQLite and a protocol-faithful fake server (second device, note edit vs amount edit,
@@ -119,10 +119,11 @@ duplicate push, parked money, refused bookmark).
 
 ## Turning it on
 
-Pengaturan → **Sinkronisasi** (admin only). The server address is compiled in
-(`SYNC_BASE_URL` = `https://api.kassir.store`); fill in the sync token, press **Cek** to
-ping `/v2/health` and see the answer inline, then save and press **Sinkronisasi** — the
-buttons stay disabled until a token is stored.
+Pengaturan → **Sinkronisasi** (admin only). The server address is a setting, seeded with
+`SYNC_DEFAULT_BASE_URL` (`https://api.kassir.store`) — change it for a self-hosted or
+staging backend; fill in the sync token, press **Cek** to ping that address's
+`/v2/health` and see the answer inline, then save and press **Sinkronisasi** — the
+buttons stay disabled until both fields are stored.
 
 Rows written before v2 existed have no server-side counterpart, so the first run after
 this upgrade will not upload them by itself: press **Sinkronisasi Ulang** once, which

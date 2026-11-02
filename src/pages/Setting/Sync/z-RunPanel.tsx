@@ -40,7 +40,8 @@ export function RunPanel({ configured }: { configured: boolean }) {
 
       {configured ? null : (
         <p className="text-sm text-muted-foreground">
-          Isi token di atas, lalu simpan. Tombol sinkronisasi aktif setelah token tersimpan.
+          Isi alamat server dan token di atas, lalu simpan. Tombol sinkronisasi aktif setelah
+          keduanya tersimpan.
         </p>
       )}
 

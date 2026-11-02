@@ -7,38 +7,40 @@ import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { service } from "~/services";
-import { SYNC_BASE_URL, type SyncConfig } from "~/services/sync";
+import type { SyncConfig } from "~/services/sync";
 
-/** The only thing left to configure: a token, for the one server this build knows. */
+/** A merge needs both halves: an endpoint to call and a token to call it with. */
 function isConfigured(config: SyncConfig): boolean {
-  return config.token.trim() !== "";
+  return config.baseUrl.trim() !== "" && config.token.trim() !== "";
 }
 
 /** What the last Cek did, rendered inline next to the buttons. */
 type CheckResult = { ok: boolean; message: string };
 
 /**
- * The device's sync credential (contract §10).
+ * The server this device syncs with (contract §10).
  *
- * The server address is `SYNC_BASE_URL`, compiled in: one build talks to one
- * backend, so there is nothing to point somewhere else and nothing to get wrong.
- * The token lives in `store.json` under `sync.token` — the same store the cursors
- * use. There is no account and no login: one token protects the whole endpoint,
- * and the desktop is its only participant.
+ * The values live in `store.json` under `sync.base_url` / `sync.token` — the same
+ * store the cursors use. There is no account and no login: one token protects the
+ * whole endpoint, and the desktop is its only participant.
+ *
+ * The address is an operator setting, seeded with `SYNC_DEFAULT_BASE_URL`: a shop
+ * running its own backend points the till at it without a rebuild, and a fresh
+ * install has the public server already filled in.
  *
  * The token is rendered as a password field but is not masked in the store: it is
  * a shared secret for a single-tenant endpoint, and hiding it on screen while
  * leaving it in cleartext on disk would be security theatre.
  *
- * `Cek` asks the server (`GET /v2/health`) whether the token in the field works
- * *before* it is saved, so a typo is caught without writing it to disk first.
- * The answer is rendered inline; a failure is the server's own sentence, not a
- * generic "gagal".
+ * `Cek` asks the server at the address in the field (`GET /v2/health`, with the
+ * token in the field) whether both halves work *before* they are saved, so a typo
+ * is caught without writing it to disk first. The answer is rendered inline; a
+ * failure is the server's own sentence, not a generic "gagal".
  */
-export function TokenForm({
+export function ServerForm({
   onConfigured,
 }: {
-  /** Reports whether a token is stored, so the run button can gate on it. */
+  /** Reports whether a server + token are stored, so the run button can gate on it. */
   onConfigured?: (configured: boolean) => void;
 }) {
   const loaded = useQuery(() => Stream.fromEffect(service.sync.config.get()), []);
@@ -49,7 +51,7 @@ export function TokenForm({
   const [check, setCheck] = useState<CheckResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Seed the field once the stored config arrives, without fighting later edits.
+  // Seed the fields once the stored config arrives, without fighting later edits.
   useEffect(() => {
     if (loaded.type === "success" && form === null) {
       setForm(loaded.data);
@@ -81,10 +83,10 @@ export function TokenForm({
     if (form === null) return;
     setChecking(true);
     setError(null);
-    // The previous answer belongs to the previous token, so it goes before the
+    // The previous answer belongs to the previous fields, so it goes before the
     // request rather than sitting there looking current while the new one runs.
     setCheck(null);
-    const outcome = await Effect.runPromise(service.sync.check(form.token).pipe(Effect.either));
+    const outcome = await Effect.runPromise(service.sync.check(form).pipe(Effect.either));
     setChecking(false);
     if (outcome._tag === "Left") {
       setCheck({ ok: false, message: outcome.left.message });
@@ -100,9 +102,22 @@ export function TokenForm({
 
   return (
     <form onSubmit={save} className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
-        Server: <span className="font-mono text-foreground">{SYNC_BASE_URL}</span>
-      </p>
+      <label className="grid grid-cols-1 gap-1 text-base sm:grid-cols-[140px_1fr] sm:items-center sm:gap-2">
+        <span>Alamat server</span>
+        <Input
+          value={form.baseUrl}
+          onChange={(event) => {
+            const baseUrl = event.currentTarget.value;
+            setSaved(false);
+            // A check is about one endpoint; editing either field invalidates it.
+            setCheck(null);
+            setForm({ ...form, baseUrl });
+          }}
+          placeholder="https://kassir.example.workers.dev"
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </label>
       <label className="grid grid-cols-1 gap-1 text-base sm:grid-cols-[140px_1fr] sm:items-center sm:gap-2">
         <span>Token</span>
         <Input
@@ -111,7 +126,6 @@ export function TokenForm({
           onChange={(event) => {
             const token = event.currentTarget.value;
             setSaved(false);
-            // A check is about one token; editing the field invalidates it.
             setCheck(null);
             setForm({ ...form, token });
           }}
@@ -128,7 +142,7 @@ export function TokenForm({
           type="button"
           variant="outline"
           onClick={verify}
-          disabled={checking || form.token.trim() === ""}
+          disabled={checking || !isConfigured(form)}
         >
           Cek <Spinner when={checking} />
         </Button>
