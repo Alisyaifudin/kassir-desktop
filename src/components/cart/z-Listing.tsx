@@ -40,6 +40,7 @@ import { ListingCard } from "~/components/cart/z-ListingCard";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
 import { ProductDetailDialog } from "~/components/cart/z-ProductDetail";
+import { ProductImagesDialog } from "~/components/cart/z-ProductImages";
 import { SearchResults } from "~/components/cart/z-SearchResults";
 import {
   cellAt,
@@ -71,6 +72,7 @@ type CardHandlers = Pick<
   | "onStartEdit"
   | "onEditingDone"
   | "onDetail"
+  | "onViewImages"
   | "onLock"
 >;
 
@@ -196,6 +198,13 @@ export function Listing({
   const [detailFor, setDetailFor] = useState<{
     productId: string;
     listingId: string | null;
+  } | null>(null);
+  // The photos of the product behind a card, opened from the card's photo with
+  // the cover already in hand: the gallery itself is read by the dialog, since a
+  // cart line only ever carries that one cover.
+  const [imagesFor, setImagesFor] = useState<{
+    productId: string | null;
+    cover: Line["cover"];
   } | null>(null);
   // The card locked for reordering (see the grip cell): while it is set, the up
   // and down arrows move that card in the list instead of moving the cursor.
@@ -342,7 +351,7 @@ export function Listing({
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
 
-  const dialogOpen = discountFor !== null || detailFor !== null;
+  const dialogOpen = discountFor !== null || detailFor !== null || imagesFor !== null;
 
   // A dialog traps focus while it is open; take it back for the grid once they
   // close, so the arrows keep working. Radix restores focus in a timer of its
@@ -362,8 +371,8 @@ export function Listing({
   // bar or in one cell must not re-render the other `useSortable`/`motion`
   // nodes. They read the current lines and selection through refs, so their
   // identity survives every render.
-  const latest = useRef({ lines, onChange, removeCard, openDetail, lockCard });
-  latest.current = { lines, onChange, removeCard, openDetail, lockCard };
+  const latest = useRef({ lines, onChange, removeCard, openDetail, openImages, lockCard });
+  latest.current = { lines, onChange, removeCard, openDetail, openImages, lockCard };
   const handlersFor = useMemo(() => {
     const cache = new Map<string, CardHandlers>();
     return (id: string) => {
@@ -377,6 +386,7 @@ export function Listing({
         onRemove: () => latest.current.removeCard(id),
         onDiscount: () => setDiscountFor(id),
         onDetail: () => latest.current.openDetail(id),
+        onViewImages: () => latest.current.openImages(id),
         onLock: () => latest.current.lockCard(id),
         onSelect: (field, sub) => {
           setSelection({
@@ -796,6 +806,18 @@ export function Listing({
     setDetailFor({ productId: line.productId, listingId: line.listingId ?? null });
   }
 
+  /**
+   * The card's photo: the product's gallery. It opens on the cover the line is
+   * drawn with, so the sheet never starts on a photo the operator was not already
+   * looking at, and it opens before the read: the cover is a photo of the product
+   * whether or not the rest of the gallery answers.
+   */
+  function openImages(cardId: string) {
+    const line = latest.current.lines.find((candidate) => candidate.id === cardId);
+    if (line === undefined) return;
+    setImagesFor({ productId: line.productId ?? null, cover: line.cover ?? null });
+  }
+
   /** The drag handle's double click: hand the list to the arrow keys. */
   function lockCard(cardId: string) {
     setLocked(cardId);
@@ -1150,6 +1172,15 @@ export function Listing({
         }}
         productId={detailFor?.productId ?? null}
         listingId={detailFor?.listingId ?? null}
+      />
+
+      <ProductImagesDialog
+        open={imagesFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setImagesFor(null);
+        }}
+        productId={imagesFor?.productId ?? null}
+        cover={imagesFor?.cover ?? null}
       />
     </div>
   );

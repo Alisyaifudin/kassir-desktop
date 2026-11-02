@@ -10,6 +10,7 @@ import {
   Package,
   Plus,
   X,
+  ZoomIn,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -66,6 +67,7 @@ export const ListingCard = memo(function ListingCard({
   onStartEdit,
   onEditingDone,
   onDetail,
+  onViewImages,
   onLock,
   locked = false,
   moving = false,
@@ -103,6 +105,8 @@ export const ListingCard = memo(function ListingCard({
   onEditingDone: () => void;
   /** The number cell's click: the product's detail sheet, when there is one. */
   onDetail: () => void;
+  /** The photo's click: the product's gallery, opened on the photo the card shows. */
+  onViewImages: () => void;
   /** The handle's double click: lock this card for keyboard reordering. */
   onLock: () => void;
   /** This card is locked: the arrows move it, Esc or a click lets it go. */
@@ -147,7 +151,7 @@ export const ListingCard = memo(function ListingCard({
       )}
     >
       <div className="flex items-stretch">
-        {cover != null ? <LineThumb cover={cover} /> : null}
+        {cover != null ? <LineThumb cover={cover} onView={onViewImages} /> : null}
         <div className="min-w-0 flex-1">
           <div role="row" className="grid grid-cols-12 items-stretch">
             <div
@@ -365,20 +369,34 @@ export const ListingCard = memo(function ListingCard({
  * thumbnail, and `object-cover` crops instead of stretching. The bytes live on
  * disk, not in the row, so the URL is resolved per card — and only for the cards
  * that have a photo.
+ *
+ * Its click opens the product's gallery. It is a clickable frame rather than a
+ * `<button>` on purpose: the grid's keyboard model is one focus target (the grid
+ * itself) with the cursor moved through cells, and a second Tab stop in the mid-
+ * dle of it would be a hole in that model — the keyboard's way to a product is
+ * the number cell, which opens the sheet. `cursor-zoom-in`, the title and the
+ * icon on hover are what tell a mouse that this photo is one you can open.
  */
-function LineThumb({ cover }: { cover: { name: string; mime: Mime } }) {
+function LineThumb({ cover, onView }: { cover: { name: string; mime: Mime }; onView: () => void }) {
   const url = useImageUrl(cover.name, cover.mime);
 
   return (
     <div
-      aria-hidden
-      className="flex w-16 shrink-0 items-center justify-center self-stretch overflow-hidden border-r bg-muted/40"
+      onClick={onView}
+      title="Lihat gambar produk"
+      className="group relative flex w-16 shrink-0 cursor-zoom-in items-center justify-center self-stretch overflow-hidden border-r bg-muted/40"
     >
       {url !== null ? (
         <img src={url} alt="" className="size-full object-cover" />
       ) : (
         <Package className="size-5 text-muted-foreground/40" />
       )}
+      <span
+        aria-hidden
+        className="absolute inset-0 flex items-center justify-center bg-foreground/40 opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <ZoomIn className="size-5 text-background" />
+      </span>
     </div>
   );
 }
