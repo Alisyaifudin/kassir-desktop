@@ -389,8 +389,8 @@ export function List({
               onKeyDown={handleRowKeyDown(index)}
               onClick={() => setSelected(record.id)}
               className={cn("cursor-pointer peer hover:bg-muted", hoverTint, {
-                "bg-sky-200 text-foreground font-semibold": isSelected,
-              }, { "bg-red-300 text-foreground": record.isCredit })}
+                "bg-sky-200 dark:bg-sky-800 text-foreground font-semibold": isSelected,
+              }, { "bg-red-300 dark:bg-red-700 text-foreground": record.isCredit })}
             >
               {/* Vertically centred over the record's rows: the number labels
                   the group, not its first payment. The cashier and the time
@@ -417,8 +417,8 @@ export function List({
                 key={line.key}
                 onClick={() => setSelected(record.id)}
                 className={cn("cursor-pointer peer-hover:bg-muted", hoverTint, {
-                  "bg-sky-200 text-foreground": isSelected,
-                  "bg-red-300 text-foreground": record.isCredit,
+                  "bg-sky-200 dark:bg-sky-800 text-foreground": isSelected,
+                  "bg-red-300 dark:bg-red-700 text-foreground": record.isCredit,
                 })}
               >
                 <TableCell className={cn("align-middle", COLUMN.total?.cell)}>

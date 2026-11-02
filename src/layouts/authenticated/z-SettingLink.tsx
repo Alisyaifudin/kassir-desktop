@@ -28,7 +28,7 @@ export function SettingLink() {
         }}
         className={cn(
           "rounded-full h-10 w-10 transition-all hover:bg-sky-400/50",
-          pathname.includes("/setting") && "bg-white/80",
+          pathname.includes("/setting") && "bg-white/80 dark:bg-black/80",
         )}
       >
         <Settings className="size-6" />
