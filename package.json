@@ -1,7 +1,7 @@
 {
   "name": "kassir",
   "private": true,
-  "version": "6.28.0",
+  "version": "6.29.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "audit:loop": "bun scripts/audit-loop/index.ts",
-    "audit:once": "bun scripts/audit-loop/index.ts --dry-run --max-iterations 1000"
+    "audit:once": "bun scripts/audit-loop/index.ts --dry-run --max-iterations 1000",
+    "eval:search": "bun src/lib/search/eval/run.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

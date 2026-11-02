@@ -2,11 +2,13 @@ import { analyze, compact } from "./normalize";
 import { gradeCode, gradeText, TEXT } from "./quality";
 import {
   createIndexCache,
+  createMatcher,
   parseQuery,
-  sortHits,
-  toHit,
+  rankHits,
   type Hit,
   type Index,
+  type Query,
+  type Ranked,
 } from "./index-cache";
 
 /**
@@ -26,7 +28,13 @@ import {
  * the weights below are this unit's own.
  */
 
-const FIELD = {
+/**
+ * Exported so the evaluation harness in `./eval` scores candidates with the same
+ * weights the app ships instead of copying them. Copying is what the three-fold
+ * index duplication was made of; a candidate that wins there must change *this*
+ * constant, not a parallel one.
+ */
+export const LISTING_FIELD = {
   code: 1,
   listing: 0.92,
   alt: 0.9,
@@ -39,7 +47,7 @@ const FIELD = {
  * outrank a real word match on a listing or product name; the small factor keeps
  * a genuine misspelling of a recorded alias inside the query minimum.
  */
-const FUZZ_ALIAS = 0.9;
+export const FUZZ_ALIAS_DAMPENER = 0.9;
 
 export type SearchableListing = {
   id: string;
@@ -122,37 +130,54 @@ export function resetListingIndex(): void {
 export function searchListings(index: ListingIndex, rawQuery: string): ListingHit[] {
   const query = parseQuery(rawQuery);
   if (query === null) return [];
+  return rankHits(scoreListings(index, query), query);
+}
 
-  const hits: ListingHit[] = [];
+/**
+ * Every listing that matches `query` at all, with the tie-break signals its
+ * winning field earned. The ranking itself is `rankHits` in `./index-cache`.
+ *
+ * Exported so the harness in `./eval` can score alternative orderings over the
+ * *same* matches: a ranking experiment must never be able to change which
+ * listings match, only their order.
+ */
+export function scoreListings(index: ListingIndex, query: Query): Ranked[] {
+  const rows: Ranked[] = [];
+
   for (const entry of index.entries) {
-    let best = 0;
+    const matcher = createMatcher(entry.id, query);
 
     if (entry.codeCompact !== null) {
-      const quality = gradeCode(entry.codeCompact, query.code);
-      if (quality > 0) best = Math.max(best, quality * FIELD.code);
+      matcher.offerCode(
+        gradeCode(entry.codeCompact, query.code),
+        LISTING_FIELD.code,
+        entry.codeCompact,
+      );
     }
 
-    best = Math.max(
-      best,
-      gradeText(entry.nameNorm, entry.nameWords, query.norm, query.words, query.options) *
-        FIELD.listing,
+    matcher.offerText(
+      gradeText(entry.nameNorm, entry.nameWords, query.norm, query.words, query.options),
+      LISTING_FIELD.listing,
+      entry.nameNorm,
+      entry.nameWords,
     );
-    best = Math.max(
-      best,
-      gradeText(entry.productNorm, entry.productWords, query.norm, query.words, query.options) *
-        FIELD.product,
+    matcher.offerText(
+      gradeText(entry.productNorm, entry.productWords, query.norm, query.words, query.options),
+      LISTING_FIELD.product,
+      entry.productNorm,
+      entry.productWords,
     );
 
     for (const alt of entry.altNames) {
       const quality = gradeText(alt.norm, alt.words, query.norm, query.words, query.options);
       if (quality === 0) continue;
-      const dampener = quality <= TEXT.subsequence ? FUZZ_ALIAS : 1;
-      best = Math.max(best, quality * dampener * FIELD.alt);
+      const dampener = quality <= TEXT.subsequence ? FUZZ_ALIAS_DAMPENER : 1;
+      matcher.offerText(quality * dampener, LISTING_FIELD.alt, alt.norm, alt.words);
     }
 
-    const result = toHit(entry.id, best, query);
-    if (result !== null) hits.push(result);
+    const row = matcher.result();
+    if (row !== null) rows.push(row);
   }
 
-  return sortHits(hits);
+  return rows;
 }

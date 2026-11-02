@@ -1404,7 +1404,7 @@
     <module name="lib/range.ts">EARLIEST_EPOCH/FURTHEST_EPOCH and parseRange: URL epoch bounds that are safe for Temporal and fall back per bound.</module>
     <module name="lib/upload.ts">describeUpload + notifyUpload: the one success/warning/error sentence for the three import panels.</module>
     <module name="lib/clipboard.ts">canRead/writeText/readText: the async clipboard first, an execCommand("copy") fallback for the webview, and an honest "cannot read" for the paste-key path.</module>
-    <module name="lib/search/">normalize (casefold/accents/punctuation, compact), quality (the match ladder and code grading), index-cache (the signature-gated index, parseQuery, toHit, sortHits), listings (the restock catalogue index).</module>
+    <module name="lib/search/">normalize (casefold/accents/punctuation, compact), quality (the match ladder, code grading and matchPosition), index-cache (the signature-gated index, parseQuery, the shared createMatcher/rankHits scoring and tie-breaks, toHit), listings (the restock catalogue index), eval (the labelled fixture set, metrics and ranking ablations behind `bun run eval:search`).</module>
     <module name="src-tauri/src/receipt/">
       The receipt pipeline, on the Rust side: text.rs turns a record into TextData rows (header, lines and discounts, totals/extras/rounding/pay/change, the species/pieces and split-payment summary, footer and contacts); render.rs wraps the rows against the embedded Roboto metrics and writes the one-page PDF with printpdf, its height grown row by row; format.rs is the Indonesian rupiah formatting and the local dd-MM-yyyy / H:mm date. Covered by cargo test.
     </module>

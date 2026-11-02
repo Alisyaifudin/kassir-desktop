@@ -3,11 +3,13 @@ import { analyze, compact } from "~/lib/search/normalize";
 import { gradeCode, gradeText } from "~/lib/search/quality";
 import {
   createIndexCache,
+  createMatcher,
   parseQuery,
-  sortHits,
-  toHit,
+  rankHits,
   type Hit,
   type Index,
+  type Query,
+  type Ranked,
 } from "~/lib/search/index-cache";
 
 /**
@@ -111,41 +113,58 @@ export function resetIndex(): void {
 export function search(index: SearchIndex, rawQuery: string): Hit[] {
   const query = parseQuery(rawQuery);
   if (query === null) return [];
+  return rankHits(scoreProducts(index, query), query);
+}
 
-  const hits: Hit[] = [];
+/**
+ * Every product that matches at all, with the tie-break signals its winning field
+ * earned. Shared shape with `scoreListings` in `~/lib/search/listings`: the
+ * ranking and the hit floor live in `./index-cache` so a product and a listing
+ * cannot drift apart on how ties are broken.
+ */
+export function scoreProducts(index: SearchIndex, query: Query): Ranked[] {
+  const rows: Ranked[] = [];
+
   for (const entry of index.entries) {
-    let best = 0;
+    const matcher = createMatcher(entry.id, query);
 
     for (const listing of entry.listings) {
       if (listing.codeCompact === null) continue;
-      const quality = gradeCode(listing.codeCompact, query.code);
-      if (quality > 0) best = Math.max(best, quality * FIELD.code);
+      matcher.offerCode(
+        gradeCode(listing.codeCompact, query.code),
+        FIELD.code,
+        listing.codeCompact,
+      );
     }
 
-    best = Math.max(
-      best,
-      gradeText(entry.nameNorm, entry.nameWords, query.norm, query.words, query.options) *
-        FIELD.product,
+    matcher.offerText(
+      gradeText(entry.nameNorm, entry.nameWords, query.norm, query.words, query.options),
+      FIELD.product,
+      entry.nameNorm,
+      entry.nameWords,
     );
 
     for (const listing of entry.listings) {
-      best = Math.max(
-        best,
-        gradeText(listing.nameNorm, listing.nameWords, query.norm, query.words, query.options) *
-          FIELD.listing,
+      matcher.offerText(
+        gradeText(listing.nameNorm, listing.nameWords, query.norm, query.words, query.options),
+        FIELD.listing,
+        listing.nameNorm,
+        listing.nameWords,
       );
     }
 
     for (const alt of entry.altNames) {
-      best = Math.max(
-        best,
-        gradeText(alt.norm, alt.words, query.norm, query.words, query.options) * FIELD.alt,
+      matcher.offerText(
+        gradeText(alt.norm, alt.words, query.norm, query.words, query.options),
+        FIELD.alt,
+        alt.norm,
+        alt.words,
       );
     }
 
-    const result = toHit(entry.id, best, query);
-    if (result !== null) hits.push(result);
+    const row = matcher.result();
+    if (row !== null) rows.push(row);
   }
 
-  return sortHits(hits);
+  return rows;
 }

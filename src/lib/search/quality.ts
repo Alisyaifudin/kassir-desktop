@@ -72,6 +72,35 @@ export function gradeCode(code: string, query: string): number {
   return 0;
 }
 
+/**
+ * Index of the first word of `fieldWords` that equals or prefixes a query word.
+ *
+ * The tiers cannot carry this: `TEXT.tokenSet` is `queryWords.every((word) =>
+ * fieldWords.includes(word))`, an *unordered set* test, so `roll` as word 0 of
+ * "Roll Rambut Besar" and `roll` as word 1 of "Barenbliss Roll To Clean Mascara"
+ * earn the identical quality and are separated only by array order. `0` means the
+ * name *starts* with something the operator typed, which is what a cashier means;
+ * `Infinity` (no word matches) sorts last.
+ *
+ * `startsWith` rather than `===` so a typed fragment counts at the word it begins:
+ * `ha` is a position-0 hit on `Hanasui` and a position-2 hit on `2IN1 Volume
+ * HairPin`.
+ */
+export function matchPosition(fieldWords: string[], queryWords: string[]): number {
+  let earliest = Number.POSITIVE_INFINITY;
+  for (const queryWord of queryWords) {
+    if (queryWord === "") continue;
+    for (let index = 0; index < fieldWords.length; index++) {
+      const word = fieldWords[index];
+      if (word === queryWord || word.startsWith(queryWord)) {
+        if (index < earliest) earliest = index;
+        break;
+      }
+    }
+  }
+  return earliest;
+}
+
 /** True when `query` occurs at index 0 or right after a space. */
 function hasBoundaryMatch(field: string, query: string): boolean {
   let from = 0;

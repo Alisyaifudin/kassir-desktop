@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createIndexCache, parseQuery, sortHits, toHit, type Hit } from "./index-cache";
+import { createIndexCache, createMatcher, parseQuery, rankHits, toHit, type Hit, type Ranked } from "./index-cache";
 
 /**
  * One query ladder and one cache for every search box. The ladder is what keeps a
@@ -61,24 +61,74 @@ describe("toHit", () => {
   });
 });
 
-describe("sortHits", () => {
-  test("highest score first and ties keep the index order", () => {
-    const hits: Hit[] = [
-      { id: "a", score: 100 },
-      { id: "b", score: 300 },
-      { id: "c", score: 100 },
-      { id: "d", score: 200 },
-    ];
+describe("rankHits", () => {
+  const query = parseQuery("nas")!;
 
-    expect(sortHits(hits).map((hit) => hit.id)).toEqual(["b", "d", "a", "c"]);
+  function ranked(id: string, score: number, position: number, tightness: number): Ranked {
+    return { id, score, position, tightness };
+  }
+
+  test("highest score first", () => {
+    const rows = [ranked("a", 0.5, 0, 1), ranked("b", 0.9, 0, 1), ranked("c", 0.7, 0, 1)];
+    expect(rankHits(rows, query).map((hit) => hit.id)).toEqual(["b", "c", "a"]);
   });
 
-  test("sorts in place, since the caller just finished building the array", () => {
-    const hits: Hit[] = [
-      { id: "a", score: 1 },
-      { id: "b", score: 2 },
+  test("a tie goes to the name that starts with the query", () => {
+    // Both score 0.86 * 0.92: `roll` as word 0 of "Roll Rambut Besar" against
+    // `roll` as word 1 of "Barenbliss Roll To Clean Mascara".
+    const rows = [ranked("mid-name", 0.7912, 1, 0.9), ranked("leading", 0.7912, 0, 0.3)];
+    expect(rankHits(rows, query).map((hit) => hit.id)).toEqual(["leading", "mid-name"]);
+  });
+
+  test("then the tighter name, then the catalogue order", () => {
+    const rows = [
+      ranked("loose", 0.7912, 0, 0.2),
+      ranked("tight", 0.7912, 0, 0.8),
+      ranked("tied-first", 0.7912, 0, 0.8),
     ];
-    expect(sortHits(hits)).toBe(hits);
+    expect(rankHits(rows, query).map((hit) => hit.id)).toEqual(["tight", "tied-first", "loose"]);
+  });
+
+  test("a tie-break never reorders entries whose scores differ", () => {
+    // The whole safety argument for lexicographic comparison: a leading, tight
+    // match on a worse tier still loses to a mid-name match on a better one.
+    const rows = [ranked("worse-tier", 0.736, 0, 1), ranked("better-tier", 0.7912, 9, 0)];
+    expect(rankHits(rows, query).map((hit) => hit.id)).toEqual(["better-tier", "worse-tier"]);
+  });
+
+  test("drops what the query's floor rejects and returns plain hits", () => {
+    const hits: Hit[] = rankHits([ranked("a", 0.1499, 0, 1), ranked("b", 0.5, 0, 1)], query);
+    expect(hits).toEqual([{ id: "b", score: 5_000 }]);
+  });
+});
+
+describe("createMatcher", () => {
+  const query = parseQuery("ha")!;
+
+  test("keeps the best-scoring field and the signals that field earned", () => {
+    const matcher = createMatcher("id", query);
+    // A product-name prefix match at 0.8 * 0.88 = 0.704 …
+    matcher.offerText(0.8, 0.88, "hanasui", ["hanasui"]);
+    // … loses to a listing-name match at 0.8 * 0.92, whose word 2 is the hit.
+    matcher.offerText(0.8, 0.92, "2in1 volume hairpin", ["2in1", "volume", "hairpin"]);
+
+    const row = matcher.result();
+    expect(row?.score).toBeCloseTo(0.8 * 0.92, 10);
+    expect(row?.position).toBe(2);
+  });
+
+  test("an exact code is pinned to position 0 so a scan always leads", () => {
+    const matcher = createMatcher("id", query);
+    matcher.offerCode(1, 1, "8998866200012");
+    matcher.offerText(0.8, 0.92, "hanasui", ["hanasui"]);
+
+    const row = matcher.result();
+    expect(row?.score).toBe(1);
+    expect(row?.position).toBe(0);
+  });
+
+  test("nothing offered means no row, not a zero score", () => {
+    expect(createMatcher("id", query).result()).toBeNull();
   });
 });
 
