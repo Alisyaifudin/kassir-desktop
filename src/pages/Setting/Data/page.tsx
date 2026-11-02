@@ -1,4 +1,5 @@
 import RecordDownload from "./RecordDownload";
+import { BackupData } from "./BackupData";
 import { ProductDownload } from "./ProductDownload";
 import { RecordUpload } from "./RecordUpload";
 import { PorductUpload } from "./ProductUpload";
@@ -12,6 +13,9 @@ export default function Page() {
   return (
     <div className="flex w-full flex-col gap-6 px-6 py-6">
       <PageHeader title={item.label} description={item.description} />
+      <Panel title="Cadangan">
+        <BackupData />
+      </Panel>
       <Panel title="Unduh Data">
         <ProductDownload />
         <RecordDownload />

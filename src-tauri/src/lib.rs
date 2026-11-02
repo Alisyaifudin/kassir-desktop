@@ -1,6 +1,7 @@
 use log::LevelFilter;
 use tauri::Manager;
 mod auth;
+mod backup;
 mod database;
 mod export;
 mod printer;
@@ -46,6 +47,7 @@ pub fn run() {
             printer::get_printers,
             printer::print_receipt,
             export::export_file,
+            backup::backup_data,
             sync::sync_pull,
             sync::sync_push,
             sync::sync_health,

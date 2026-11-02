@@ -22,6 +22,9 @@ export function makeTestStore(seed: Record<string, unknown> = {}) {
         ? Effect.succeed(entries.get(id) as T)
         : Effect.fail(new NotFound({ message: `Store "${id}" tidak ditemukan` }));
     },
+    entries() {
+      return Effect.sync(() => Object.fromEntries(entries));
+    },
     set<T>(id: string, value: T) {
       return Effect.sync(() => {
         entries.set(id, value);

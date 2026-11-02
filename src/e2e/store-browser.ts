@@ -26,6 +26,22 @@ export const StoreBrowserLive = Layer.succeed(StoreService, {
       return yield* Effect.try({ try: () => JSON.parse(raw) as T, catch: fail });
     });
   },
+  entries() {
+    return Effect.try({
+      try: () => {
+        const snapshot: Record<string, unknown> = {};
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index);
+          if (key === null || !key.startsWith(PREFIX)) continue;
+          const raw = localStorage.getItem(key);
+          if (raw === null) continue;
+          snapshot[key.slice(PREFIX.length)] = JSON.parse(raw) as unknown;
+        }
+        return snapshot;
+      },
+      catch: fail,
+    });
+  },
   set<T>(id: string, value: T) {
     return Effect.try({
       try: () => localStorage.setItem(PREFIX + id, JSON.stringify(value)),

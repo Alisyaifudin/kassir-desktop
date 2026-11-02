@@ -1,6 +1,6 @@
 [package]
 name = "kassir"
-version = "8.0.0"
+version = "8.1.0"
 description = "kassir-desktop"
 authors = ["Muhammad Ali Syaifudin"]
 edition = "2021"
@@ -40,6 +40,15 @@ log = "0.4"
 tauri-plugin-fs = "2"
 tempfile = "3"
 tauri-plugin-dialog = "2"
+# Whole-install backups (`src/backup.rs`): the archive is a zip because every OS
+# opens one by double-click and no non-free binary is involved. `deflate-flate2`
+# reuses the `flate2` reqwest already pulled in, so the compression backend costs
+# no extra crate. `default-features = false` drops the bzip2/lzma/zstd/aes stack,
+# none of which a backup needs.
+zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
+# The manifest's per-file digests. Already in the tree (transitively), so naming
+# it adds one line to Cargo.lock and no new build.
+sha2 = "0.10"
 # One process per machine: the app preloads a fixed `sqlite:data.db` and keeps the
 # cart and the catalogue in process-local refs, so a second launch would write
 # over the first one's state from a stale snapshot.

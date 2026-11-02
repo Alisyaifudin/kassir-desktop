@@ -20,7 +20,7 @@
     &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.0.0</version>
+  <version>8.1.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -54,6 +54,7 @@
         <item name="serialization">serde 1, serde_json 1</item>
         <item name="printing">winprint 0.2 (Windows PDF printing), tempfile 3</item>
         <item name="receipt_pdf">printpdf 0.12 (layout + PDF; default-features off, so no html/css engine), allsorts 0.17 (subsets each Roboto face to the glyphs the receipt draws — printpdf's own subsetter is compiled out without its text_layout feature), chrono 0.4 (the receipt's local date and time)</item>
+        <item name="backup">zip 8 (deflate-flate2 only, reusing reqwest's flate2; default-features off so no bzip2/lzma/zstd/aes), sha2 0.10 (manifest digests), tempfile 3 (the snapshot's scratch directory)</item>
         <item name="logging">log 0.4 + tauri-plugin-log 2 (Info)</item>
         <item name="single_instance">tauri-plugin-single-instance 2 (one process per machine; a second launch focuses the window)</item>
         <item name="dev_only">tauri-plugin-mcp-bridge 0.13 behind the `mcp-bridge` Cargo feature (debug builds only)</item>
@@ -64,7 +65,7 @@
         <item name="store" version="2">store.json — settings that outlive the database</item>
         <item name="log" version="2">log file under $APPLOCALDATA/logs</item>
         <item name="fs" version="2">Scoped to $APPDATA/images and $APPLOCALDATA/logs only</item>
-        <item name="dialog" version="2">Save dialog used by the Rust `export_file` command</item>
+        <item name="dialog" version="2">Save dialog used by the Rust `export_file` and `backup_data` commands</item>
         <item name="process" version="2">Cargo dependency only — not initialised in lib.rs and granted no permission; relaunch/exit are not used</item>
         <item name="single-instance" version="2">Instance lock + window focus</item>
         <item name="prevent-default" version="4">Prod only: blocks browser defaults, keeps context menu, reload, focus move, find and print</item>
@@ -293,7 +294,7 @@
   <rust_backend>
     <entry_point>
       <file name="src-tauri/src/main.rs">Windows entry point (#[windows_subsystem = "windows"] in release); calls kassir_lib::run().</file>
-      <file name="src-tauri/src/lib.rs">Plugin registration (single-instance, dialog, fs, log, store, sql with migrations, prevent-default, optional mcp-bridge), the invoke handler (auth, printer, export, sync), the managed SyncState, and the app run loop.</file>
+      <file name="src-tauri/src/lib.rs">Plugin registration (single-instance, dialog, fs, log, store, sql with migrations, prevent-default, optional mcp-bridge), the invoke handler (auth, printer, export, backup, sync), the managed SyncState, and the app run loop.</file>
       <file name="src-tauri/src/database/mod.rs">generate_migration(): embeds every `src-tauri/src/database/&lt;range&gt;/migration-N.sql` as a tauri-plugin-sql Migration for `sqlite:data.db`.</file>
     </entry_point>
 
@@ -319,6 +320,10 @@
       <command name="export_file" module="export">
         <signature>async fn(default_name: String, contents: String) → Result&lt;Option&lt;String&gt;, String&gt;</signature>
         <description>The JSON download. The Save dialog and the write both live in Rust: the fs plugin's scope is narrowed to the app's own image and log directories, so a frontend writeFile on a user-picked path is rejected. Returns the written path, or None when the dialog was cancelled.</description>
+      </command>
+      <command name="backup_data" module="backup">
+        <signature>async fn(store_json: String) → Result&lt;Option&lt;BackupSaved&gt;, String&gt;</signature>
+        <description>The whole-install backup: Save dialog, then one `.zip` holding `data.db`, `store.json` and `manifest.json`. The database is snapshotted with `VACUUM INTO` through the live pool (not `fs::copy`) because `data.db` runs in WAL mode and a plain copy would silently omit every commit since the last checkpoint. The snapshot is `PRAGMA integrity_check`ed and switched to rollback-journal mode before it is shipped, the manifest records app version, `_sqlx_migrations` version, file digests and the destination directory of each file, and the archive is built beside the target and renamed into place so a failure never leaves a truncated `.zip` under the chosen name. `store_json` arrives from the frontend because the store plugin writes on a debounce and only the loaded instance knows the latest preference. Returns the path and byte size, or None when the dialog was cancelled.</description>
       </command>
       <command name="sync_pull" module="sync">
         <signature>async fn(channel, base_url, token, after, limit, client) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
@@ -1354,7 +1359,7 @@
       <subpages>
         <subpage path="/setting/profile">Signed-in account: rename (cashier.set.name + auth.set) and change password (Rust hash, then cashier.set.password).</subpage>
         <subpage path="/setting/shop" guard="AdminOnly">Shop identity (owner, address, header, footer) through info, plus the show-cashier toggle; every field label and the save button are static and only the values pulse. The form patches the current info instead of overwriting it.</subpage>
-        <subpage path="/setting/data" guard="AdminOnly">JSON export (Rust export_file) and import for products and records, with the skipped-row panel and a derived success/warning/error toast (describeUpload).</subpage>
+        <subpage path="/setting/data" guard="AdminOnly">JSON export (Rust export_file) and import for products and records, with the skipped-row panel and a derived success/warning/error toast (describeUpload). Above them sits the whole-install backup (Rust backup_data): one .zip of data.db (VACUUM INTO snapshot), store.json and a manifest, written through a Save dialog.</subpage>
         <subpage path="/setting/log" guard="AdminOnly">The log tail (bounded, newest first, warnings included) and a clear action, over the log service.</subpage>
         <subpage path="/setting/printer">Printer picker, paper width in mm (Lebar Struk) and a test print, over the printer service and the Rust printer commands. The width decides how the receipt PDF is laid out.</subpage>
         <subpage path="/setting/sync" guard="AdminOnly">The fixed server address (SYNC_BASE_URL) + SYNC_TOKEN with a Cek button that pings /v2/health inline, the pull cursor, and the Sinkronisasi / Sinkronisasi Ulang actions with per-phase progress, over the sync service.</subpage>
@@ -1390,6 +1395,7 @@
     <module name="lib/utils.ts">cn (tailwind-merge with the app's text-size tokens declared), numerish/numeric/integer (Zod string-number schemas that actually reject), capitalize (total on padded/empty names), formatError.</module>
     <module name="lib/effect-error.ts">NotFound, InvokeError, InvalidCredential, IOError/ArrayBufferError/JsonError, TooBigError, DuplicateError. RedirectError was removed with the redirect loaders.</module>
     <module name="lib/auth.ts">The two Tauri bcrypt bridges plus Unauthenticated. The session lives in the auth service.</module>
+    <module name="lib/backup.ts">saveBackup(store): serialise the loaded store.json, then ask Rust (backup_data) for a `.zip` of the database, the store and a manifest. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
     <module name="lib/export.ts">saveJson(defaultName, value): serialise, then ask Rust (export_file) where to write. Cancelling is null, a failure is an IOError with the cashier sentence.</module>
     <module name="lib/image.ts">Product-image files under AppData/images: save (mkdir on first use), load → object URL, del. The key is the image_name, never the row id.</module>
     <module name="lib/printer.ts">The Rust printer bridges: getPrinters and printReceipt (which sends the receipt's data — record, lines, shop identity, contacts — plus the roll layout, and returns the spooler's sentence). The PDF itself is built in src-tauri/src/receipt/.</module>

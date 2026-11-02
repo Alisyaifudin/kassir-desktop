@@ -31,6 +31,16 @@ export const StoreLive = Layer.succeed(StoreService, {
       return value;
     });
   },
+  entries() {
+    return Effect.gen(function* () {
+      const store = yield* getStore();
+      const list = yield* Effect.tryPromise({
+        try: () => store.entries(),
+        catch: (e) => new StoreError({ message: `Gagal membaca store: \n${formatError(e)}` }),
+      });
+      return Object.fromEntries(list);
+    });
+  },
   set<T>(id: string, value: T) {
     return Effect.gen(function* () {
       const store = yield* getStore();
