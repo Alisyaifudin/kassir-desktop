@@ -6,7 +6,8 @@ import type { Draft } from "~/services/transaction";
 /**
  * The control that decides *when* a record is settled. `saat ini` is the normal
  * case and must leave `paid_at` alone; turning it off is what writes a pick to
- * the draft, and the picker that appears is capped at the moment it was opened.
+ * the draft, and the picker that appears is walled at the moment it was opened —
+ * a reading past the wall is a complaint under the wheels, not a refusal by them.
  *
  * The service is stubbed at its boundary — the component only needs
  * `set.paidAt` — so the test can see exactly what a click writes.
@@ -64,14 +65,40 @@ describe("PaymentTime", () => {
     expect(screen.getByRole("group", { name: "Waktu" })).toBeTruthy();
   });
 
-  test("the picker is capped at the moment it was opened", () => {
-    const { container } = render(<PaymentTime draft={draft(Date.now())} />);
+  test("a pick past the opening moment is written, not clamped", () => {
+    const picked = Date.now();
+    render(<PaymentTime draft={draft(picked)} />);
+    const group = screen.getByRole("group", { name: "Waktu" });
 
-    // At the wall the day column cannot advance, so its max is its current
-    // reading, and the future row is drawn disabled rather than hidden.
-    const day = screen.getByRole("spinbutton", { name: "hari" });
-    expect(day.getAttribute("aria-valuemax")).toBe(day.getAttribute("aria-valuenow"));
-    expect(container.querySelectorAll('[aria-disabled="true"]').length).toBeGreaterThan(0);
+    // The wall narrows no column: each keeps the bound its own scale has.
+    expect(screen.getByRole("spinbutton", { name: "jam" }).getAttribute("aria-valuemax")).toBe(
+      "23",
+    );
+
+    // The year is always steppable (its floor is five years back), so it crosses
+    // the wall without the day-of-month clamps a forward day step runs into.
+    // The draft keeps the later instant: holding the commit is the picker's
+    // complaint and `submit`'s clamp to `Date.now()`, not this control's.
+    fireEvent.keyDown(group, { key: "ArrowRight" });
+    fireEvent.keyDown(group, { key: "ArrowRight" }); // tahun
+    fireEvent.keyDown(group, { key: "ArrowDown" });
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.paidAt).toBeGreaterThan(picked);
+  });
+
+  test("a post-dated pick is complained about only once the field is left", () => {
+    // The draft already holds a later instant than the wall — the operator's own
+    // pick, read back after a re-render.
+    render(<PaymentTime draft={draft(Date.now() + 60 * 60 * 1000)} />);
+    const group = screen.getByRole("group", { name: "Waktu" });
+
+    // Still being looked at: nothing is accused while the wheel is in hand.
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    fireEvent.blur(group);
+
+    expect(screen.getByRole("alert").textContent).toContain("masa depan");
   });
 
   test("a wheel step writes the chosen instant back to the draft", () => {

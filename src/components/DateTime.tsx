@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { Temporal } from "temporal-polyfill";
 import { monthNames } from "~/lib/date";
@@ -25,11 +25,14 @@ import { cn } from "~/lib/utils";
  * roll past its bound. Scrolling is prevented from escaping to the dialog
  * underneath.
  *
- * `max` (an optional `Temporal.PlainDateTime`) is a wall: a reading beyond it is
- * still drawn — so the operator can see what is out there — but greyed and
- * unsnappable, and every commit path (wheel, click, arrow keys, typed digits)
- * clamps to it. The bound is a whole datetime, not a per-column number: at
- * `13:59` the hour wheel may reach `14` only while `14:59` is still allowed.
+ * `max` (an optional `Temporal.PlainDateTime`) is a wall, not a fence. Nothing
+ * is clamped and nothing is greyed: a reading past it is picked like any other,
+ * because the operator is allowed to *say* the wrong thing and needs to see it
+ * before it is committed. The picker never accuses a pick by itself — it
+ * complains only once the caller sets `showError`, which is after a commit was
+ * refused (or, for a control with no Simpan of its own, after focus left the
+ * field via `onBlur`). The wall is a whole datetime rather than a per-column
+ * number because that line prints it: `13:59`, not `13`.
  *
  * Both mouse paths move the strip with a spring (`motion`): the new reading is
  * committed at once, the strip is nudged one row so the frame does not jump,
@@ -82,7 +85,7 @@ const SHIFT_SPRING = { type: "spring", stiffness: 900, damping: 32, mass: 0.45 }
 const TWO_DIGIT: ReadonlySet<Field> = new Set(["day", "hour", "minute", "second"]);
 
 /** One drawn reading; `null` means the column has no such row at its bound. */
-type WheelRow = { text: string; disabled: boolean } | null;
+type WheelRow = string | null;
 
 function valueOf(plain: Temporal.PlainDateTime, field: Field): number {
   switch (field) {
@@ -150,49 +153,60 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-/**
- * The furthest a column may move with the other fields held still. Scanning from
- * where it is (rather than comparing a single field against `max`) is what makes
- * the cap a datetime: `13:59` may step the hour to `14` when `14:59` is still
- * allowed, and must stop at `13` when `14:59` is not.
- */
-function pickBound(
-  plain: Temporal.PlainDateTime,
-  field: Field,
-  max: Temporal.PlainDateTime | undefined,
-  today: Temporal.PlainDateTime,
-): number {
-  const [, hardMax] = rangeOf(plain, field, today);
-  if (max === undefined) return hardMax;
-  let bound = valueOf(plain, field);
-  for (let candidate = bound + 1; candidate <= hardMax; candidate += 1) {
-    if (Temporal.PlainDateTime.compare(withValue(plain, field, candidate), max) > 0) break;
-    bound = candidate;
-  }
-  return bound;
-}
-
 function step(
   plain: Temporal.PlainDateTime,
   field: Field,
   delta: 1 | -1,
   today: Temporal.PlainDateTime,
-  wall?: Temporal.PlainDateTime,
 ): Temporal.PlainDateTime {
-  const [min] = rangeOf(plain, field, today);
-  const bound = pickBound(plain, field, wall, today);
-  return withValue(plain, field, clamp(valueOf(plain, field) + delta, min, bound));
+  const [min, max] = rangeOf(plain, field, today);
+  return withValue(plain, field, clamp(valueOf(plain, field) + delta, min, max));
+}
+
+/**
+ * Is this reading past the wall? The one comparison the picker makes to complain
+ * and the caller makes to hold its commit, so the two can never disagree.
+ */
+export function isFuture(
+  value: Temporal.PlainDateTime,
+  max: Temporal.PlainDateTime | undefined,
+): boolean {
+  return max !== undefined && Temporal.PlainDateTime.compare(value, max) > 0;
+}
+
+/**
+ * The complaint, naming the wall the way it is picked: `<YYYY mmmm DD, HH.MM>`.
+ * The seconds are left off on purpose — they are the picker's finest column and
+ * nobody reads a wall to the second.
+ */
+export function futureTimeError(max: Temporal.PlainDateTime): string {
+  const day = String(max.day).padStart(2, "0");
+  const hour = String(max.hour).padStart(2, "0");
+  const minute = String(max.minute).padStart(2, "0");
+  return `Tidak bisa memilih waktu di masa depan setelah ${max.year} ${monthNames[max.month]} ${day}, ${hour}.${minute}`;
 }
 
 export function DateTime({
   value,
   max,
+  showError = false,
+  onBlur,
   onChange,
   className,
 }: {
   value: Temporal.PlainDateTime;
-  /** The latest allowed reading; anything beyond it is shown disabled. */
+  /**
+   * The wall, if any: a reading past it stays pickable, and `isFuture` is the
+   * comparison the caller uses to hold its commit.
+   */
   max?: Temporal.PlainDateTime;
+  /**
+   * Reveal the wall's complaint. Off until the caller has something to refuse:
+   * a pick is never accused while it is still being made.
+   */
+  showError?: boolean;
+  /** Focus left the group — the only "done" a picker with no submit has. */
+  onBlur?: () => void;
   onChange: (value: Temporal.PlainDateTime) => void;
   className?: string;
 }) {
@@ -221,7 +235,7 @@ export function DateTime({
 
   /** One step of a column — the shared path for arrow keys and the wheels. */
   function stepOnce(field: Field, delta: 1 | -1) {
-    const next = step(valueRef.current, field, delta, todayRef.current, max);
+    const next = step(valueRef.current, field, delta, todayRef.current);
     if (next.equals(valueRef.current)) return;
     setActive(field);
     emit(next);
@@ -243,9 +257,8 @@ export function DateTime({
       digits.current = null;
     }, DIGIT_TIMEOUT);
     digits.current = { field, text, timer };
-    const [min] = rangeOf(valueRef.current, field, todayRef.current);
-    const bound = pickBound(valueRef.current, field, max, todayRef.current);
-    emit(withValue(valueRef.current, field, clamp(Number(text), min, bound)));
+    const [min, hardMax] = rangeOf(valueRef.current, field, todayRef.current);
+    emit(withValue(valueRef.current, field, clamp(Number(text), min, hardMax)));
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -280,57 +293,69 @@ export function DateTime({
     }
   }
 
+  // The wall is the caller's and the moment to speak is the caller's: nothing
+  // here is clamped, and the complaint waits for `showError`.
+  const error = showError && max !== undefined && isFuture(value, max) ? futureTimeError(max) : null;
+  const errorId = useId();
+
   return (
-    <div
-      role="group"
-      tabIndex={0}
-      aria-label="Waktu"
-      onKeyDown={handleKeyDown}
-      onFocus={() => setFocused(true)}
-      onBlur={(event) => {
-        const next = event.relatedTarget;
-        if (next instanceof Node && event.currentTarget.contains(next)) return;
-        setFocused(false);
-      }}
-      className={cn(
-        "flex items-start gap-3 self-start rounded-lg border bg-muted/20 px-3 py-2 outline-none",
-        focused && "ring-1 ring-primary/40",
-        className,
+    <div className="flex flex-col items-start gap-1">
+      <div
+        role="group"
+        tabIndex={0}
+        aria-label="Waktu"
+        aria-invalid={error === null ? undefined : true}
+        aria-describedby={error === null ? undefined : errorId}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={(event) => {
+          const next = event.relatedTarget;
+          if (next instanceof Node && event.currentTarget.contains(next)) return;
+          setFocused(false);
+          onBlur?.();
+        }}
+        className={cn(
+          "flex items-start gap-3 self-start rounded-lg border bg-muted/20 px-3 py-2 outline-none",
+          focused && "ring-1 ring-primary/40",
+          className,
+        )}
+      >
+        {FIELDS.map((field) => {
+          const [min, hardMax] = rangeOf(value, field.key, today);
+          const current = valueOf(value, field.key);
+          // The column's own bound is the calendar's, never the wall's: a reading
+          // past the wall is still reachable — the error line is what stops it
+          // from being committed.
+          const previous = step(value, field.key, -1, today);
+          const next = step(value, field.key, 1, today);
+          const rows: WheelRow[] = [
+            current > min ? textOf(previous, field.key) : null,
+            textOf(value, field.key),
+            current < hardMax ? textOf(next, field.key) : null,
+          ];
+          return (
+            <Wheel
+              key={field.key}
+              field={field.key}
+              label={field.label}
+              width={field.width}
+              gap={field.gap === true}
+              min={min}
+              max={hardMax}
+              current={current}
+              rows={rows}
+              active={focused && active === field.key}
+              onSelect={() => setActive(field.key)}
+              onStep={(delta) => stepOnce(field.key, delta)}
+            />
+          );
+        })}
+      </div>
+      {error === null ? null : (
+        <p id={errorId} role="alert" className="max-w-xs text-sm text-red-500">
+          {error}
+        </p>
       )}
-    >
-      {FIELDS.map((field) => {
-        const [min, hardMax] = rangeOf(value, field.key, today);
-        const current = valueOf(value, field.key);
-        // A reading is *drawn* whenever the hard range has it (so the operator
-        // sees what is out there) and *disabled* when the wall refuses it.
-        const beyond = (candidate: Temporal.PlainDateTime) =>
-          max !== undefined && Temporal.PlainDateTime.compare(candidate, max) > 0;
-        const previous = step(value, field.key, -1, today);
-        const next = step(value, field.key, 1, today);
-        const rows: WheelRow[] = [
-          current > min ? { text: textOf(previous, field.key), disabled: beyond(previous) } : null,
-          { text: textOf(value, field.key), disabled: false },
-          current < hardMax ? { text: textOf(next, field.key), disabled: beyond(next) } : null,
-        ];
-        return (
-          <Wheel
-            key={field.key}
-            field={field.key}
-            label={field.label}
-            width={field.width}
-            gap={field.gap === true}
-            min={min}
-            // The cap is the *pickable* max, which the wall may pull below the
-            // column's hard bound.
-            max={pickBound(value, field.key, max, today)}
-            current={current}
-            rows={rows}
-            active={focused && active === field.key}
-            onSelect={() => setActive(field.key)}
-            onStep={(delta) => stepOnce(field.key, delta)}
-          />
-        );
-      })}
     </div>
   );
 }
@@ -391,10 +416,9 @@ function Wheel({
     settle.current = animate(shift, 0, { ...SHIFT_SPRING, velocity });
   }
 
-  /** A step, refused when the target row is missing or the wall blocks it. */
+  /** A step, refused only when the column has no row there (its hard bound). */
   function requestStep(delta: 1 | -1) {
-    const target = delta === 1 ? rows[2] : rows[0];
-    if (target === null || target === undefined || target.disabled) return;
+    if ((delta === 1 ? rows[2] : rows[0]) === null) return;
     nudge(delta);
     onStep(delta);
   }
@@ -437,7 +461,7 @@ function Wheel({
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={current}
-        aria-valuetext={rows[1]?.text ?? ""}
+        aria-valuetext={rows[1] ?? ""}
         data-active={active ? "true" : "false"}
         onClick={onSelect}
         className={cn(
@@ -452,7 +476,6 @@ function Wheel({
             ) : (
               <div
                 key={index}
-                aria-disabled={row.disabled ? true : undefined}
                 onClick={(event) => {
                   if (index === 1) {
                     onSelect();
@@ -465,13 +488,10 @@ function Wheel({
                   "flex items-center justify-center text-base tabular-nums select-none",
                   ROW_CLASS,
                   index === 1 && "font-semibold text-foreground",
-                  index !== 1 &&
-                    (row.disabled
-                      ? "cursor-not-allowed text-sm text-muted-foreground/25"
-                      : "cursor-pointer text-sm text-muted-foreground/60"),
+                  index !== 1 && "cursor-pointer text-sm text-muted-foreground/60",
                 )}
               >
-                {row.text}
+                {row}
               </div>
             ),
           )}

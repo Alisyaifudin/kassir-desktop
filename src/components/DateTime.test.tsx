@@ -13,10 +13,12 @@ import { DateTime } from "./DateTime";
 function Harness({
   initial,
   max,
+  showError,
   writes,
 }: {
   initial: Temporal.PlainDateTime;
   max?: Temporal.PlainDateTime;
+  showError?: boolean;
   writes: Temporal.PlainDateTime[];
 }) {
   const [value, setValue] = useState(initial);
@@ -24,6 +26,7 @@ function Harness({
     <DateTime
       value={value}
       max={max}
+      showError={showError}
       onChange={(next) => {
         writes.push(next);
         setValue(next);
@@ -41,9 +44,13 @@ const START = Temporal.PlainDateTime.from({
   second: 7,
 });
 
-function renderPicker(initial = START, max?: Temporal.PlainDateTime) {
+function renderPicker(
+  initial = START,
+  max?: Temporal.PlainDateTime,
+  showError = false,
+) {
   const writes: Temporal.PlainDateTime[] = [];
-  render(<Harness initial={initial} max={max} writes={writes} />);
+  render(<Harness initial={initial} max={max} showError={showError} writes={writes} />);
   const group = screen.getByRole("group", { name: "Waktu" });
   const wheel = (label: string) => screen.getByRole("spinbutton", { name: label });
   return { writes, group, wheel };
@@ -187,72 +194,107 @@ describe("DateTime", () => {
   });
 });
 
-describe("DateTime max", () => {
-  /** A reading is disabled when the wall refuses it; the row is still drawn. */
+describe("DateTime wall", () => {
+  /** The row a column draws with this reading on it. */
   function rowOf(wheel: HTMLElement, text: string) {
     return Array.from(wheel.querySelectorAll("div")).find((row) => row.textContent === text);
   }
 
-  test("a reading past max is drawn but disabled, and cannot be clicked", () => {
+  test("a reading past the wall is drawn like any other, and can be taken", () => {
     const { writes, wheel } = renderPicker(START, START);
-    const day = wheel("hari");
-    const tomorrow = rowOf(day, "24");
+    const tomorrow = rowOf(wheel("hari"), "24");
 
     expect(tomorrow).toBeDefined();
-    expect(tomorrow?.getAttribute("aria-disabled")).toBe("true");
+    expect(tomorrow?.getAttribute("aria-disabled")).toBeNull();
 
     if (tomorrow !== undefined) fireEvent.click(tomorrow);
-    expect(writes).toHaveLength(0);
+    expect(writes.at(-1)?.day).toBe(24);
   });
 
-  test("the wheel cannot scroll past max", () => {
+  test("the wheel rolls past the wall instead of stopping at it", () => {
     const { writes, wheel } = renderPicker(START, START);
 
     fireEvent.wheel(wheel("hari"), { deltaY: 120 });
 
-    expect(writes).toHaveLength(0);
+    expect(writes.at(-1)?.day).toBe(24);
   });
 
-  test("stepping back is still allowed", () => {
-    const { writes, group, wheel } = renderPicker(START, START);
-    const yesterday = rowOf(wheel("hari"), "22");
+  test("the columns keep their own bounds — the wall does not narrow them", () => {
+    const { wheel } = renderPicker(START, START);
 
-    expect(yesterday?.getAttribute("aria-disabled")).toBeNull();
-    if (yesterday !== undefined) fireEvent.click(yesterday);
-    expect(writes.at(-1)?.day).toBe(22);
-
-    fireEvent.keyDown(group, { key: "ArrowUp" });
-    expect(writes.at(-1)?.day).toBe(21);
+    expect(wheel("jam").getAttribute("aria-valuemax")).toBe("23");
+    expect(wheel("menit").getAttribute("aria-valuemax")).toBe("59");
+    expect(wheel("hari").getAttribute("aria-valuemax")).toBe("31");
   });
 
-  test("max is a datetime, not a per-column number", () => {
-    // An hour earlier than max: the hour wheel may reach max's hour — 14:58:07
-    // is the wall — but not the hour after it.
-    const { writes, wheel } = renderPicker(START.with({ hour: 13 }), START);
-    const hour = () => wheel("jam");
+  test("a reading up to and including the wall is silent", () => {
+    const { group, wheel } = renderPicker(START.with({ hour: 13 }), START, true);
 
-    const toFourteen = rowOf(hour(), "14");
-    expect(toFourteen?.getAttribute("aria-disabled")).toBeNull();
+    // 14:58:07 is the wall itself, and a wall includes its own reading.
+    fireEvent.click(rowOf(wheel("jam"), "14") as HTMLElement);
 
-    if (toFourteen !== undefined) fireEvent.click(toFourteen);
-    expect(writes.at(-1)?.hour).toBe(14);
-
-    // From 14:58, the next hour (15:58) is past the wall: drawn, disabled.
-    const toFifteen = rowOf(hour(), "15");
-    expect(toFifteen?.getAttribute("aria-disabled")).toBe("true");
-
-    // And at 14:58 the minute wheel may not move either: 14:59 is past it.
-    const minute = rowOf(wheel("menit"), "59");
-    expect(minute?.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(group.getAttribute("aria-invalid")).toBeNull();
   });
 
-  test("typed digits clamp to max", () => {
-    const { writes, group } = renderPicker(START, START);
+  test("nothing is said until the caller asks for it", () => {
+    // `showError` is off: the picker is being used, not judged. Stepping past the
+    // wall is silent — the refusal, if any, is the caller's to make.
+    const { group, wheel } = renderPicker(START, START);
+
+    fireEvent.click(rowOf(wheel("menit"), "59") as HTMLElement);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(group.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  test("past the wall the complaint names it as <YYYY mmmm DD, HH.MM>", () => {
+    const { group, wheel } = renderPicker(START, START, true);
+
+    fireEvent.click(rowOf(wheel("menit"), "59") as HTMLElement);
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe(
+      "Tidak bisa memilih waktu di masa depan setelah 2026 Oktober 23, 14.58",
+    );
+    expect(group.getAttribute("aria-invalid")).toBe("true");
+    // The group is described by the line, so a screen reader reads the reason
+    // with the wheel rather than as a stray paragraph.
+    expect(group.getAttribute("aria-describedby")).toBe(alert.getAttribute("id"));
+  });
+
+  test("the complaint clears when the reading comes back inside the wall", () => {
+    const { group, wheel } = renderPicker(START, START, true);
+
+    fireEvent.wheel(wheel("menit"), { deltaY: 120 });
+    expect(screen.queryByRole("alert")).not.toBeNull();
+
+    fireEvent.wheel(wheel("menit"), { deltaY: -120 });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(group.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  test("typed digits are not clamped to the wall", () => {
+    const { group, writes } = renderPicker(START, START, true);
 
     fireEvent.keyDown(group, { key: "ArrowRight" });
     fireEvent.keyDown(group, { key: "ArrowRight" }); // tahun
     for (const digit of ["2", "0", "2", "7"]) fireEvent.keyDown(group, { key: digit });
-    // 2027 is past the wall; the year parks on 2026 instead of stepping over.
-    expect(writes.every((written) => written.year <= 2026)).toBe(true);
+
+    expect(writes.at(-1)?.year).toBe(2027);
+    expect(screen.queryByRole("alert")).not.toBeNull();
+  });
+
+  test("stepping back stays silent and allowed", () => {
+    const { writes, group, wheel } = renderPicker(START, START);
+
+    if (rowOf(wheel("hari"), "22") !== undefined) {
+      fireEvent.click(rowOf(wheel("hari"), "22") as HTMLElement);
+      expect(writes.at(-1)?.day).toBe(22);
+    }
+
+    fireEvent.keyDown(group, { key: "ArrowUp" });
+    expect(writes.at(-1)?.day).toBe(21);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

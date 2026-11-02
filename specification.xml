@@ -642,7 +642,7 @@
       <component name="AdminOnly / Redirect">Role guard / hash-router-aware redirect (optional hard reload).</component>
       <component name="Show / ForEach">Conditional render (by `when`, or by `value` where only null/undefined fall through) and the keyed array map.</component>
       <component name="NumberField / Password / FileDropZone / MethodPicker">The locale-aware numeric input (caret survives grouping dots), the password field with reveal, the import file panel (keyboard-reachable, drop or click), and the payment-method picker (kind + account).</component>
-      <component name="Calendar / DateRange / DateTime">The date picker, the URL-driven range picker, and the Temporal-backed date+time field (a DateTimeField, never a native datetime-local).</component>
+      <component name="Calendar / DateRange / DateTime">The date picker, the URL-driven range picker, and the Temporal-backed date+time field (a DateTimeField, never a native datetime-local). DateTime's optional `max` is a wall, not a fence: a reading past it stays pickable, and the complaint (`Tidak bisa memilih waktu di masa depan setelah &lt;YYYY mmmm DD, HH.MM&gt;`) waits for `showError` — set after a refused Simpan, or by the picker's own `onBlur` where the control has no submit. Holding the commit is the caller's job.</component>
       <component name="Loading / Spinner / TextError / ErrorComponent / NotFound / SaveError">The small states: centered spinner, inline spinner, one-line error, full-page error, 404 panel, and the cart's failed-save banner (toasted once, cleared by a later success).</component>
     </shared_components>
 

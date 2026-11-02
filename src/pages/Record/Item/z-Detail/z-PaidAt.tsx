@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
-import { DateTime } from "~/components/DateTime";
+import { DateTime, isFuture } from "~/components/DateTime";
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { epochFromPlain, formatDate, formatTime, plainFromEpoch } from "~/lib/date";
@@ -27,8 +27,9 @@ import { useChangePaidAt } from "./use-change-paid-at";
  * time along. The pick is held by the dialog and written once on Simpan, so a
  * wheel step does not fire a record update (and a full re-read) per notch, and
  * Batal really does nothing. The wall is the moment the dialog opened: a
- * correction may move a payment earlier, never into the future — the same rule
- * `submit` applies to a fresh one.
+ * correction may move a payment earlier, never into the future — a reading past
+ * the wall is still pickable, but Simpan refuses it and the picker says why
+ * inline. `submit` enforces the same rule for a fresh payment.
  */
 export function PaidAt({ record }: { record: RecordFull }) {
   const paidAt = record.paidAt;
@@ -60,7 +61,8 @@ function PaidAtEditor({ recordId, paidAt }: { recordId: string; paidAt: number }
               <DialogTitle className="text-2xl">Waktu pembayaran</DialogTitle>
             </DialogHeader>
             <DialogDescription>
-              Pindahkan waktu catatan ini dibayar. Waktu setelah sekarang tidak bisa dipilih.
+              Pindahkan waktu catatan ini dibayar. Waktu setelah sekarang tidak bisa
+              disimpan.
             </DialogDescription>
             <Picker
               initial={paidAt}
@@ -102,6 +104,9 @@ function Picker({
   // attempted *here* shows its message.
   const [attempted, setAttempted] = useState(false);
   const dirty = !value.equals(start);
+  // A refusal and a save are the same press: `attempted` is what makes the
+  // picker speak, so a pick is never accused while it is still being made.
+  const future = isFuture(value, wall);
 
   return (
     <>
@@ -109,6 +114,7 @@ function Picker({
         <DateTime
           value={value}
           max={wall}
+          showError={attempted}
           className="border-none outline-none"
           onChange={setValue}
         />
@@ -122,9 +128,12 @@ function Picker({
         </DialogClose>
         <Button
           type="button"
+          // A future pick leaves Simpan pressable on purpose: the press is what
+          // asks the picker to explain, and it is refused instead of saving.
           disabled={loading || !dirty}
           onClick={() => {
             setAttempted(true);
+            if (future) return;
             void onSave(epochFromPlain(value));
           }}
         >

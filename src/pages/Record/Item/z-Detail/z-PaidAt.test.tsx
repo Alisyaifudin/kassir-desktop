@@ -107,4 +107,60 @@ describe("PaidAt", () => {
     fireEvent.keyDown(wheel, { key: "ArrowUp" });
     expect(save.disabled).toBe(false);
   });
+
+  test("a pick past the opening moment can be made, but not saved", async () => {
+    render(<PaidAt record={record()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Dibayar/ }));
+    const wheel = await screen.findByRole("group", { name: "Waktu" });
+    const save = screen.getByRole("button", { name: "Simpan" }) as HTMLButtonElement;
+
+    // A year ahead is past the wall (the moment the dialog opened).
+    fireEvent.keyDown(wheel, { key: "ArrowRight" });
+    fireEvent.keyDown(wheel, { key: "ArrowRight" }); // tahun
+    fireEvent.keyDown(wheel, { key: "ArrowDown" });
+
+    // The pick is still being made: nothing is said, and Simpan stays pressable
+    // because pressing it is what asks the picker to explain.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(save.disabled).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(save);
+    });
+
+    // Refused, and now the reason is on the screen.
+    expect(writes).toHaveLength(0);
+    expect(screen.getByRole("alert").textContent).toContain("masa depan");
+  });
+
+  test("a refused pick saves once it is moved back inside the wall", async () => {
+    render(<PaidAt record={record()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Dibayar/ }));
+    const wheel = await screen.findByRole("group", { name: "Waktu" });
+    const save = screen.getByRole("button", { name: "Simpan" }) as HTMLButtonElement;
+
+    fireEvent.keyDown(wheel, { key: "ArrowRight" });
+    fireEvent.keyDown(wheel, { key: "ArrowRight" }); // tahun
+    fireEvent.keyDown(wheel, { key: "ArrowDown" }); // 2027, past the wall
+    await act(async () => {
+      fireEvent.click(save);
+    });
+    expect(writes).toHaveLength(0);
+
+    // Back a year (to the record's own reading), then a day earlier: inside the
+    // wall again, and the same press now saves.
+    fireEvent.keyDown(wheel, { key: "ArrowUp" });
+    fireEvent.keyDown(wheel, { key: "ArrowLeft" });
+    fireEvent.keyDown(wheel, { key: "ArrowLeft" }); // hari
+    fireEvent.keyDown(wheel, { key: "ArrowUp" });
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(save);
+    });
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.paidAt).toBeLessThan(PAID_AT);
+  });
 });
