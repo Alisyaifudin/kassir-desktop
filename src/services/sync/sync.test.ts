@@ -164,12 +164,16 @@ function setup(server = new FakeServer(), seed: Record<string, unknown> = {}) {
   // test here starts from an empty group so the log it asserts is its own.
   db.exec("DELETE FROM money; DELETE FROM pockets;");
   const { entries, layer: storeLayer } = makeTestStore({
-    "sync.base_url": "https://sync.test",
     "sync.token": "kst_test",
     ...seed,
   });
 
   const transport: SyncTransport = {
+    // The Cek button is not part of the money cycle: the tests here drive
+    // pull/push/merge only, so there is no health endpoint to fake.
+    health() {
+      return Promise.resolve({ status: 200, message: "ok" });
+    },
     pull(_endpoint, input) {
       try {
         return lineStream(server.pull(input.after, input.limit));

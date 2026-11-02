@@ -48,6 +48,7 @@ pub fn run() {
             export::export_file,
             sync::sync_pull,
             sync::sync_push,
+            sync::sync_health,
             sync::sync_cancel,
             sync_merge::sync_merge,
         ]);

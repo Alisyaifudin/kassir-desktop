@@ -124,6 +124,18 @@ pub struct StreamSummary {
     pub cancelled: bool,
 }
 
+/// What `GET /v2/health` answered, as the Cek button shows it.
+///
+/// Only a 2xx response becomes one of these; a rejection or a failed connection
+/// is a `SyncFailure`, so the two outcomes never overlap.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthReport {
+    pub status: u16,
+    /// The body, collapsed to one bounded line.
+    pub message: String,
+}
+
 /// Who is calling, on top of the token.
 ///
 /// The server records these in its request log. Without them a row can only say
@@ -314,6 +326,26 @@ pub async fn sync_push(
     outcome
 }
 
+/// `GET /v2/health` — the Cek button's one question: is this token good for this
+/// server right now?
+///
+/// Not a sync call: nothing is stored and no cancellation flag is registered,
+/// because there is no stream to drain. It lives next to pull/push because it
+/// answers the same question with the same credentials and headers — a token that
+/// passes here is the token those commands will send.
+#[tauri::command]
+pub async fn sync_health(
+    state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
+    base_url: String,
+    token: String,
+    client: ClientIdentity,
+) -> Result<HealthReport, SyncFailure> {
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    health(&http, &who, &base_url, &token).await
+}
+
 // ============================================================================
 // Internals
 // ============================================================================
@@ -424,6 +456,52 @@ async fn push_stream(
     }
 
     stream_lines(resp, flag, channel).await
+}
+
+/// A health check is a button someone is watching, not a sync that may take a
+/// minute: fifteen seconds answers before the operator starts clicking again.
+const HEALTH_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// `GET /v2/health` with the same token and identity headers the sync sends.
+async fn health(
+    http: &reqwest::Client,
+    who: &RequestIdentity,
+    base_url: &str,
+    token: &str,
+) -> Result<HealthReport, SyncFailure> {
+    let url = format!("{}/v2/health", trim_base(base_url));
+    let resp = identify(
+        http.get(url)
+            .bearer_auth(token)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .timeout(HEALTH_TIMEOUT),
+        who,
+    )
+    .send()
+    .await
+    .map_err(transport)?;
+
+    let status = resp.status().as_u16();
+    if !resp.status().is_success() {
+        return Err(failure(resp).await);
+    }
+    // A health endpoint's body is informative, not actionable: it is shown on one
+    // line next to the button, so a proxy's HTML page must not become a paragraph.
+    let body = resp.text().await.unwrap_or_default();
+    Ok(HealthReport {
+        status,
+        message: one_line(&body),
+    })
+}
+
+/// Whitespace collapsed and bounded, so any body fits the Cek button's one line.
+fn one_line(body: &str) -> String {
+    body.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(200)
+        .collect()
 }
 
 /// Reads the body chunk by chunk, cutting it into lines at the newlines. A line
@@ -589,5 +667,12 @@ mod tests {
         assert_eq!(who.device_id, "dev-01");
         assert_eq!(who.request_id, "req-01");
         assert_eq!(who.version, "1.2.3");
+    }
+
+    #[test]
+    fn a_health_body_is_collapsed_to_one_bounded_line() {
+        assert_eq!(one_line("{\n  \"ok\": true\n}\n"), "{ \"ok\": true }");
+        assert_eq!(one_line("   \n\t "), "");
+        assert_eq!(one_line(&"a".repeat(300)).len(), 200);
     }
 }

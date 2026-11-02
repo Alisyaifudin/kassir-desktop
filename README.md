@@ -88,11 +88,11 @@ means adding a group with its own bookmark and the same shape, not widening this
 
 ## Cursors
 
-In `store.json`, next to the server config:
+In `store.json`:
 
 - `sync.money.bookmark` — one integer for the whole group: the highest `seq` durably stored.
 - `sync.money.parked` — money rows waiting for their pocket.
-- `sync.base_url`, `sync.token`, `sync.device_id`.
+- `sync.token`, `sync.device_id`.
 
 `Sinkronisasi Ulang` clears the bookmark, drops the park and marks **every** pocket and
 money row unsynced before running the same cycle — the remedy when the device and the
@@ -111,7 +111,7 @@ server disagree, and the way a database written before v2 gets its rows uploaded
 | `src/services/sync/pull.ts`, `push.ts` | the two loops |
 | `src/services/sync/stream.ts`, `transport.ts` | the Channel→stream polyfill, and the Rust commands as a service |
 | `src/services/sync/live.ts` | the service: bookmark, park, progress, service refresh |
-| `src/pages/Setting/Sync/` | Sinkronisasi (admin-only): server + token, then run |
+| `src/pages/Setting/Sync/` | Sinkronisasi (admin-only): token + health check, then run |
 
 Tests: `src/services/sync/sync.test.ts` — the merge rule, plus whole cycles against a
 real SQLite and a protocol-faithful fake server (second device, note edit vs amount edit,
@@ -119,9 +119,10 @@ duplicate push, parked money, refused bookmark).
 
 ## Turning it on
 
-Pengaturan → **Sinkronisasi** (admin only). Fill in the server address and the sync
-token, save, then press **Sinkronisasi** — the buttons stay disabled until both are
-stored.
+Pengaturan → **Sinkronisasi** (admin only). The server address is compiled in
+(`SYNC_BASE_URL` = `https://api.kassir.store`); fill in the sync token, press **Cek** to
+ping `/v2/health` and see the answer inline, then save and press **Sinkronisasi** — the
+buttons stay disabled until a token is stored.
 
 Rows written before v2 existed have no server-side counterpart, so the first run after
 this upgrade will not upload them by itself: press **Sinkronisasi Ulang** once, which

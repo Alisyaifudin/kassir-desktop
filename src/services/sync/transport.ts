@@ -10,6 +10,7 @@
  */
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { Context, Layer } from "effect";
+import type { SyncHealth } from ".";
 import { nextRequestId, openLineStream, type LineStream } from "./stream";
 
 /** Where the server lives, the bearer token (§5), and who this install is. */
@@ -60,6 +61,14 @@ export type MergeStatement = { sql: string; bindings?: (string | number | null)[
 
 /** The slice of the Rust sync API the pull/push loops depend on. */
 export type SyncTransport = {
+  /**
+   * `GET /v2/health` — is this token good for this server right now?
+   *
+   * One plain request rather than a stream: the Cek button wants an answer, not
+   * a body to drain, and a health endpoint that streams would be a health
+   * endpoint nobody can call from a settings screen.
+   */
+  health: (endpoint: Endpoint) => Promise<SyncHealth>;
   /** `GET /v2/money/pull/:seq?limit=…` — one page of changes, streamed. */
   pull: (endpoint: Endpoint, input: { after: number; limit: number }) => LineStream;
   /** `POST /v2/money/push` — one NDJSON batch, one ack per frame, streamed. */
@@ -103,6 +112,13 @@ function streaming(
 
 /** The real transport: every call is one IPC command. */
 export const tauriTransport: SyncTransport = {
+  health(endpoint) {
+    return command("sync_health", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      client: identify(endpoint, nextRequestId("health")),
+    }).then((report) => report as SyncHealth);
+  },
   pull(endpoint, input) {
     return streaming("pull", (requestId, channel) =>
       command("sync_pull", {

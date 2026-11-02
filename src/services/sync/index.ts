@@ -11,10 +11,31 @@ export class SyncError extends Data.TaggedError("SyncError")<{
   status?: number;
 }> {}
 
-/** A device's sync configuration — the server it talks to and its bearer token. */
-export type SyncConfig = { baseUrl: string; token: string };
+/**
+ * Where the sync backend lives. One build talks to one server: the address is
+ * not an operator setting, so a device cannot be pointed at a host that is not
+ * ours, and there is only ever one URL to get wrong.
+ */
+export const SYNC_BASE_URL = "https://api.kassir.store";
 
-export const SYNC_CONFIG_DEFAULT: SyncConfig = { baseUrl: "", token: "" };
+/** A device's sync configuration — its bearer token for `SYNC_BASE_URL`. */
+export type SyncConfig = { token: string };
+
+export const SYNC_CONFIG_DEFAULT: SyncConfig = { token: "" };
+
+/**
+ * What a health check (`GET /v2/health`) learned.
+ *
+ * Only a *successful* check becomes one of these: a non-2xx answer or a failed
+ * connection is a `SyncError`, so the screen never has to interpret a status
+ * that is already an error.
+ */
+export type SyncHealth = {
+  /** The HTTP status the server answered with (2xx). */
+  status: number;
+  /** The response body, collapsed to one bounded line — the server's own words. */
+  message: string;
+};
 
 /**
  * One synced group of tables.
@@ -182,6 +203,14 @@ export class SyncService extends Context.Tag("SyncService")<
        */
       deviceId: () => Effect.Effect<string>;
     };
+    /**
+     * Pings `GET /v2/health` with `token` — what the Cek button asks.
+     *
+     * The token is an argument rather than the stored value: the point is to
+     * verify what is in the field *before* it is saved, so an operator can
+     * catch a typo without writing it to disk first.
+     */
+    check: (token: string) => Effect.Effect<SyncHealth, SyncError>;
     /**
      * One group's bookmark: the highest `seq` this device has durably stored for
      * it (§2.2). One integer per group — never one per table.

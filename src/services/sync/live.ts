@@ -43,6 +43,7 @@ import { DatabaseService } from "../db";
 import { MoneyService } from "../money";
 import { StoreService } from "../store";
 import {
+  SYNC_BASE_URL,
   SYNC_CONFIG_DEFAULT,
   SYNC_GROUPS,
   SYNC_IDLE,
@@ -52,13 +53,14 @@ import {
   type GroupState,
   type SyncConfig,
   type SyncGroup,
+  type SyncHealth,
   type SyncMode,
   type SyncReport,
   type SyncState,
   type SyncStatus,
 } from ".";
 import { mergePage, type MergeExecutor, type ParkedMoney } from "./merge";
-import { pullPage } from "./pull";
+import { pullPage, toSyncError } from "./pull";
 import { push } from "./push";
 import { discardSyncedStatements, markAllUnsyncedStatements } from "./sql";
 import { SyncTransportService, type Endpoint } from "./transport";
@@ -76,8 +78,7 @@ function parkedKey(group: SyncGroup): string {
   return `sync.${group}.parked`;
 }
 
-/** The device's configured server and token (not cursors, but the same store). */
-const KEY_BASE_URL = "sync.base_url";
+/** The device's bearer token for `SYNC_BASE_URL` (not cursors, but the same store). */
 const KEY_TOKEN = "sync.token";
 /**
  * This installation's identity, created once and never rotated.
@@ -264,27 +265,14 @@ export const SyncLive = Layer.effect(
 
     function getConfig(): Effect.Effect<SyncConfig, SyncError> {
       return Effect.gen(function* () {
-        const baseUrl = yield* read<unknown>(KEY_BASE_URL, SYNC_CONFIG_DEFAULT.baseUrl);
         const token = yield* read<unknown>(KEY_TOKEN, SYNC_CONFIG_DEFAULT.token);
-        return {
-          baseUrl: typeof baseUrl === "string" ? baseUrl : "",
-          token: typeof token === "string" ? token : "",
-        };
+        return { token: typeof token === "string" ? token : "" };
       });
     }
 
     function endpointOf(config: SyncConfig): Effect.Effect<Endpoint, SyncError> {
       return Effect.gen(function* () {
-        const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
         const token = config.token.trim();
-        if (baseUrl === "") {
-          return yield* Effect.fail(
-            new SyncError({
-              message: "Alamat server belum diisi. Isi di Pengaturan → Sinkronisasi.",
-              code: "bad_request",
-            }),
-          );
-        }
         if (token === "") {
           return yield* Effect.fail(
             new SyncError({
@@ -294,7 +282,38 @@ export const SyncLive = Layer.effect(
             }),
           );
         }
-        return { baseUrl, token, deviceId: yield* deviceId() };
+        return { baseUrl: SYNC_BASE_URL, token, deviceId: yield* deviceId() };
+      });
+    }
+
+    /**
+     * The Cek button's one question: does this token work against `/v2/health`?
+     *
+     * Only a 2xx becomes a `SyncHealth`; everything else — a rejected token, an
+     * unreachable host, a proxy's HTML error page — is a `SyncError` carrying the
+     * sentence the screen shows inline.
+     */
+    function checkHealth(token: string): Effect.Effect<SyncHealth, SyncError> {
+      return Effect.gen(function* () {
+        const trimmed = token.trim();
+        if (trimmed === "") {
+          return yield* Effect.fail(
+            new SyncError({
+              message: "Token sinkronisasi belum diisi.",
+              code: "unauthorized",
+              status: 401,
+            }),
+          );
+        }
+        const endpoint: Endpoint = {
+          baseUrl: SYNC_BASE_URL,
+          token: trimmed,
+          deviceId: yield* deviceId(),
+        };
+        return yield* Effect.tryPromise({
+          try: () => transport.health(endpoint),
+          catch: toSyncError,
+        });
       });
     }
 
@@ -651,12 +670,9 @@ export const SyncLive = Layer.effect(
         // The same mint-and-persist the sync itself uses: one definition, so the
         // id on screen is the id that reaches the server's log.
         deviceId: () => deviceId(),
-        set: (config) =>
-          Effect.gen(function* () {
-            yield* write(KEY_BASE_URL, config.baseUrl.trim());
-            yield* write(KEY_TOKEN, config.token.trim());
-          }),
+        set: (config) => write(KEY_TOKEN, config.token.trim()),
       },
+      check: (token) => checkHealth(token),
       cursor: (group: SyncGroup = "money") => readBookmark(group),
       run: (mode) => loop(mode),
       start: (mode) =>
