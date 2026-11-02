@@ -1,81 +1,60 @@
 /**
- * Frame encoding and decoding (contract §5).
+ * NDJSON frame encoding and decoding for the v2 money group (§4, §6.2, §7.3).
  *
- * Outbound: one canonical `JSON.stringify` per frame, with the envelope keys in
- * the contract's order (`e` then `r`, then `ch`), and child keys in `CHILD_ORDER`.
- * Inbound: the server's tagged envelopes, parsed into discriminated unions so the
- * pull and ack loops never poke at raw JSON.
+ * Outbound a push body is *bare row frames*, one per line, with no `t` wrapper:
+ * `{"e":"pocket","r":{…}}`. Inbound every line starts with `t`, which is what
+ * makes a pull response and a push response distinguishable while streaming.
+ *
+ * Parsing is strict on purpose: a frame this client cannot interpret is a bug or
+ * a protocol mismatch, and guessing would write the wrong row. `FrameError` names
+ * the line, the caller turns it into a `SyncError` with the sentence on screen.
  */
-import { CHILDREN, CHILD_ORDER, type Entity, type WireRow, type WireValue } from "./schema";
+import { isEntity, TABLES, toCanonicalRow, type Entity, type WireRow } from "./schema";
 
 // ============================================================================
-// Outbound (client → server): raw frame payloads, no `t` wrapper (§5.1)
+// Outbound (client → server): bare row frames, no `t` (§4.3, §7.1)
 // ============================================================================
 
-/** `{"e":"product","r":{...}}` */
+/** `{"e":"money","r":{…}}`, keys in canonical column order. */
 export function encodeRowFrame(entity: Entity, row: WireRow): string {
   return JSON.stringify({ e: entity, r: row });
-}
-
-/**
- * `{"e":"record","r":{...},"ch":{...}}`
- *
- * `ch` always carries all five arrays — empty ones included — because a reader
- * (and the server's wholesale replacement) must be able to tell "no children"
- * from "children omitted" (§5.2).
- */
-export function encodeRecordFrame(row: WireRow, children: Record<string, WireRow[]>): string {
-  const ch: Record<string, WireRow[]> = {};
-  for (const key of CHILD_ORDER) {
-    ch[key] = children[key] ?? [];
-  }
-  return JSON.stringify({ e: "record", r: row, ch });
 }
 
 // ============================================================================
 // Inbound (server → client)
 // ============================================================================
 
-export type PullMetaFrame = { t: "meta"; snapshotSeq: number };
-export type PullRowFrame = { t: "row"; seq: number; entity: Entity; row: WireRow };
-export type PullAggregateFrame = {
-  t: "ag";
-  seq: number;
-  entity: "record";
-  row: WireRow;
-  children: Record<string, WireRow[]>;
-};
-export type PullDoneFrame = { t: "done"; seq: number };
-export type StreamErrorFrame = { t: "error"; code: string; message: string };
+/** First line of a pull response: the highest seq that existed when it started. */
+export type PullMetaFrame = { t: "meta"; snapshot: number };
 
-export type PullFrame = PullMetaFrame | PullRowFrame | PullAggregateFrame | PullDoneFrame;
+/** One change whose row exists. `s` is the change's seq. */
+export type PullRowFrame = { t: "row"; s: number; e: Entity; r: WireRow };
 
-export type AckAppliedFrame = { t: "ack"; index: number; outcome: "applied"; seq: number };
-export type AckStaleFrame = {
-  t: "ack";
-  index: number;
-  outcome: "stale";
-  row: WireRow;
-  children: Record<string, WireRow[]> | null;
-};
-export type AckNoopFrame = { t: "ack"; index: number; outcome: "noop" };
-export type AckDoneFrame = {
-  t: "done";
-  at: number;
-  frames: number;
-  /**
-   * The prefix hash chain at `at` (§7.3) — the server's own accounting of the
-   * bytes it committed, which the client adopts verbatim as its resume state.
-   *
-   * `null` when the server omits it; the client then falls back to its own, which
-   * is only safe while both sides agree on `C_0` (see `chain.ts`).
-   */
-  chain: string | null;
-};
+/**
+ * One change whose row is gone (§9.3).
+ *
+ * Reserved: nothing produces this today. Applied anyway — deleting a local row
+ * is the only sane reading — rather than crashing a run on a legal frame.
+ */
+export type PullDelFrame = { t: "del"; s: number; e: Entity; id: string };
 
-export type AckFrame = AckAppliedFrame | AckStaleFrame | AckNoopFrame | AckDoneFrame;
+/** Last line of a pull response. `s` is the highest seq actually sent. */
+export type PullDoneFrame = { t: "done"; s: number; more: boolean };
 
-/** A frame the client cannot interpret — the run stops rather than guessing. */
+export type PullFrame = PullMetaFrame | PullRowFrame | PullDelFrame | PullDoneFrame;
+
+/** One ack per pushed frame, in the order the frames were sent (§7.3). */
+export type AckFrame =
+  | { t: "ack"; i: number; e: Entity; s: "applied"; seq: number }
+  | { t: "ack"; i: number; e: Entity; s: "noop"; seq: number }
+  | { t: "ack"; i: number; e: Entity; s: "stale"; seq: number; row: WireRow };
+
+/** Last line of a push response. */
+export type PushDoneFrame = { t: "done"; frames: number };
+
+export type PushFrame = AckFrame | PushDoneFrame;
+
+/** A line the client cannot interpret — the run stops rather than guessing. */
 export class FrameError extends Error {
   constructor(message: string) {
     super(message);
@@ -83,135 +62,111 @@ export class FrameError extends Error {
   }
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
+/** Parses one NDJSON line into a JSON object, or explains why it is not one. */
+export function parseLine(line: string): Record<string, unknown> {
+  let value: unknown;
+  try {
+    value = JSON.parse(line);
+  } catch {
+    throw new FrameError(`Baris server tidak bisa dibaca: ${line.slice(0, 120)}`);
+  }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new FrameError("Bingkai dari server bukan objek");
+    throw new FrameError(`Baris server bukan objek: ${line.slice(0, 120)}`);
   }
   return value as Record<string, unknown>;
 }
 
-function asNumber(value: unknown, what: string): number {
+function requireNumber(value: unknown, what: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new FrameError(`Bingkai "${what}" tidak valid`);
+    throw new FrameError(`Server tidak mengirim ${what} yang valid`);
   }
   return value;
 }
 
-function asString(value: unknown, what: string): string {
-  if (typeof value !== "string") throw new FrameError(`Bingkai "${what}" tidak valid`);
+function requireId(value: unknown, what: string): string {
+  if (typeof value !== "string" || value === "") {
+    throw new FrameError(`Server tidak mengirim ${what} yang valid`);
+  }
   return value;
 }
 
-function asRow(value: unknown): WireRow {
-  const record = asRecord(value);
-  const row: WireRow = {};
-  for (const [key, item] of Object.entries(record)) {
-    row[key] = item as WireValue;
+function requireEntity(value: unknown): Entity {
+  if (!isEntity(value)) {
+    throw new FrameError(`Server mengirim entitas yang tidak dikenal: ${String(value)}`);
   }
-  return row;
+  return value;
 }
 
-function asChildren(value: unknown): Record<string, WireRow[]> {
-  const record = asRecord(value);
-  const children: Record<string, WireRow[]> = {};
-  for (const key of CHILD_ORDER) children[key] = [];
-  for (const [key, rows] of Object.entries(record)) {
-    if (!Array.isArray(rows)) continue;
-    children[key] = rows.map(asRow);
+/** Parses a row payload against the entity's column dictionary. */
+function requireRow(entity: Entity, value: unknown): WireRow {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new FrameError(`Server tidak mengirim data ${entity} yang valid`);
   }
-  return children;
-}
-
-export function parseLine(line: string): unknown {
   try {
-    return JSON.parse(line);
-  } catch {
-    throw new FrameError("Baris NDJSON dari server tidak dapat dibaca");
+    return toCanonicalRow(TABLES[entity], value as Record<string, unknown>);
+  } catch (error) {
+    throw new FrameError(error instanceof Error ? error.message : String(error));
   }
 }
 
 /**
- * Decodes one pull-stream line. Returns `null` for a `{"t":"error"}` frame's
- * sibling types the caller handles itself (none today) so the switch stays
- * exhaustive at the call site.
+ * Decodes one pull line.
+ *
+ * An unexpected `t` is a protocol mismatch, not something to skip: skipping it
+ * silently would advance the bookmark past a change this device never applied.
  */
-export function parsePullFrame(value: unknown): PullFrame | StreamErrorFrame {
-  const frame = asRecord(value);
-  const tag = frame["t"];
-  switch (tag) {
+export function parsePullFrame(value: Record<string, unknown>): PullFrame {
+  switch (value["t"]) {
     case "meta":
-      return { t: "meta", snapshotSeq: asNumber(frame["snapshot_seq"], "meta") };
+      return { t: "meta", snapshot: requireNumber(value["snapshot"], "snapshot") };
     case "row": {
-      const entity = asString(frame["e"], "row");
+      const e = requireEntity(value["e"]);
       return {
         t: "row",
-        seq: asNumber(frame["s"], "row"),
-        entity: entity as Entity,
-        row: asRow(frame["r"]),
+        s: requireNumber(value["s"], "urutan perubahan"),
+        e,
+        r: requireRow(e, value["r"]),
       };
     }
-    case "ag": {
-      // §5.2: the seq precedes `t` on the wire, but key order does not matter to
-      // the parser — only to the encoder.
+    case "del": {
+      const e = requireEntity(value["e"]);
       return {
-        t: "ag",
-        seq: asNumber(frame["s"], "ag"),
-        entity: "record",
-        row: asRow(frame["r"]),
-        children: asChildren(frame["ch"]),
+        t: "del",
+        s: requireNumber(value["s"], "urutan perubahan"),
+        e,
+        id: requireId(value["id"], "id baris"),
       };
     }
     case "done":
-      return { t: "done", seq: asNumber(frame["s"], "done") };
-    case "error":
       return {
-        t: "error",
-        code: typeof frame["code"] === "string" ? frame["code"] : "internal",
-        message:
-          typeof frame["message"] === "string" ? frame["message"] : "Server mengirim kesalahan",
+        t: "done",
+        s: requireNumber(value["s"], "urutan akhir"),
+        more: value["more"] === true,
       };
     default:
-      throw new FrameError(`Bingkai "${String(tag)}" tidak dikenal`);
+      throw new FrameError(`Baris unduhan tidak dikenal: ${String(value["t"])}`);
   }
 }
 
-/** Decodes one upload ack-stream line (§5.3, §5.4). */
-export function parseAckFrame(value: unknown): AckFrame | StreamErrorFrame {
-  const frame = asRecord(value);
-  const tag = frame["t"];
-  if (tag === "done") {
-    return {
-      t: "done",
-      at: asNumber(frame["at"], "done"),
-      frames: asNumber(frame["frames"], "done"),
-      chain: typeof frame["chain"] === "string" ? frame["chain"] : null,
-    };
+/** Decodes one push (ack) line. */
+export function parsePushFrame(value: Record<string, unknown>): PushFrame {
+  if (value["t"] === "done") {
+    return { t: "done", frames: requireNumber(value["frames"], "jumlah frame") };
   }
-  if (tag === "error") {
-    return {
-      t: "error",
-      code: typeof frame["code"] === "string" ? frame["code"] : "internal",
-      message: typeof frame["message"] === "string" ? frame["message"] : "Server mengirim kesalahan",
-    };
+  if (value["t"] !== "ack") {
+    throw new FrameError(`Baris unggahan tidak dikenal: ${String(value["t"])}`);
   }
-  if (tag !== "ack") throw new FrameError(`Bingkai "${String(tag)}" tidak dikenal`);
-
-  const index = asNumber(frame["i"], "ack");
-  const outcome = frame["s"];
-  if (outcome === "applied") {
-    return { t: "ack", index, outcome, seq: asNumber(frame["seq"], "ack") };
+  const e = requireEntity(value["e"]);
+  const i = requireNumber(value["i"], "indeks frame");
+  const seq = requireNumber(value["seq"], "urutan baris");
+  switch (value["s"]) {
+    case "applied":
+      return { t: "ack", i, e, s: "applied", seq };
+    case "noop":
+      return { t: "ack", i, e, s: "noop", seq };
+    case "stale":
+      return { t: "ack", i, e, s: "stale", seq, row: requireRow(e, value["row"]) };
+    default:
+      throw new FrameError(`Jawaban unggahan tidak dikenal: ${String(value["s"])}`);
   }
-  if (outcome === "noop") {
-    return { t: "ack", index, outcome };
-  }
-  if (outcome === "stale") {
-    // A stale ack for a `record` frame carries the whole aggregate (§5.2), so
-    // `ch` is present exactly when the payload is an aggregate.
-    const children = frame["ch"] === undefined ? null : asChildren(frame["ch"]);
-    return { t: "ack", index, outcome, row: asRow(frame["row"]), children };
-  }
-  throw new FrameError(`Hasil unggah "${String(outcome)}" tidak dikenal`);
 }
-
-/** The child definitions in wire order — re-exported for the statement builders. */
-export { CHILDREN };

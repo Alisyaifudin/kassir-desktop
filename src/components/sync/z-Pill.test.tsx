@@ -42,12 +42,15 @@ const { SyncPill } = await import("./z-Pill");
 function runningState(): SyncState {
   return {
     ...SYNC_IDLE,
-    status: "pull",
-    message: "Mengunduh perubahan…",
-    entity: "product",
-    done: 3,
-    total: 10,
+    status: "running",
+    message: "Menyinkronkan…",
     startedAt: 1_000,
+    groups: SYNC_IDLE.groups.map((group) => ({
+      ...group,
+      phase: "pull" as const,
+      message: "Mengunduh perubahan…",
+      progress: 0.3,
+    })),
   };
 }
 
@@ -87,9 +90,10 @@ describe("SyncPill", () => {
     fireEvent.click(screen.getByRole("button", { name: /menyinkronkan/i }));
 
     expect(await screen.findByRole("dialog")).toBeTruthy();
-    expect(screen.getByText("Mengunduh perubahan…")).toBeTruthy();
-    // The entity and its frame count share one line, as on the Sinkronisasi panel.
-    expect(screen.getByText("Product 3/10")).toBeTruthy();
+    // One row per synced group: its name, its phase, its counters.
+    expect(screen.getByText("Kas & Uang")).toBeTruthy();
+    expect(screen.getByText(/Mengunduh perubahan…/)).toBeTruthy();
+    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("30");
   });
 
   test("Batal asks the service to cancel; closing asks nothing of it", async () => {

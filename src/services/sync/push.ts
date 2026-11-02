@@ -1,432 +1,238 @@
 /**
- * Push → acknowledge (contract §5.3, §7).
+ * Push → acknowledge (§7).
  *
- * One upload session covers every entity in the fixed order of §2.3. Frames are
- * encoded from the local unsync set and appended in chunks (≤ 200 frames and well
- * under the server's 1 MB commit bound), each PATCH carrying the uncompressed
- * offset plus the chain hash of the bytes before it (§7.3). The server streams one
- * ack per committed frame, which is where `_sync_at` finally gets set.
+ * One batch is a list of bare row frames, **every pocket before any money row**,
+ * at most 1000 frames — a fresh request with no session, no upload id and no
+ * offset (§7.1 "state: none"). Each frame is idempotent in both directions, so a
+ * failed batch is simply sent again whole (§7.5).
  *
- * ## Why a chunk is a whole frame list, not a live stream
- *
- * The contract says this explicitly (§5.3): "a single PATCH need not carry the
- * whole upload … plain sequential PATCH calls satisfy the contract". A streaming
- * request body is not reliable on this webview, and the chain hash has to be
- * computed over the plaintext bytes anyway, so the client materialises the frames
- * it is about to send and then PATCHes them.
- *
- * ## Why a run starts with a fresh session
- *
- * Resuming costs a byte offset plus the prefix hash the server can verify. The
- * `GET /v1/upload/:id` response does not expose that hash, and re-deriving it
- * locally is only possible when the exact prefix bytes can be regenerated — true
- * only if nothing was written locally in between. Since every frame is idempotent
- * (§7.5), the contract's own recovery path is always available: drop the session
- * and re-send the unsync set. Work already acknowledged is gone from the unsync
- * set, so a retry resumes at the first unacked row.
+ * The ack is where `*_sync_at` finally moves: the server's `seq` becomes the
+ * row's marker, which is what takes it out of the next batch. A `stale` ack
+ * carries the server's winning row, which is merged immediately (merge point C)
+ * so this device repairs itself instead of waiting for the next pull.
  */
 import { Context, Effect } from "effect";
 import type { DatabaseService } from "../db";
-import { EMPTY_CHAIN } from "./chain";
-import { encodeRecordFrame, encodeRowFrame, parseAckFrame, parseLine } from "./frames";
-import { ENTITY_ORDER, TABLES, type Entity, type WireRow } from "./schema";
-import { countUnsynced, encodeEntityFrames, markSynced } from "./local";
-import { consumeLines, TransportError, type Endpoint, type Session, type SyncTransport } from "./transport";
-import { SyncError } from "./index";
-import { toSyncError } from "./pull";
 import { log } from "~/lib/log";
+import { SyncError } from ".";
+import { type AckFrame, encodeRowFrame, parseLine, parsePushFrame } from "./frames";
+import { staleStatement, type MergeExecutor } from "./merge";
+import { toSyncError } from "./pull";
+import { TABLES, clockOf, idOf, toCanonicalRow, type Entity, type WireRow } from "./schema";
+import { countUnsyncedSql, markSyncedStatement, selectUnsyncedSql } from "./sql";
+import { consumeLines, type Endpoint, type MergeStatement, type SyncTransport } from "./transport";
 
 type DatabaseServiceImpl = Context.Tag.Service<typeof DatabaseService>;
 
-/** Server commit bound is 256 frames; stay under it so one PATCH is one commit. */
-const MAX_FRAMES_PER_CHUNK = 200;
-/** Stay well under the 1 MB bound, so even a fat record aggregate fits a chunk. */
-const MAX_BYTES_PER_CHUNK = 512 * 1024;
-/** Attempts at one pass, restarted with a fresh session on a session failure. */
+/** The server's batch bound (§7.1). */
+export const MAX_FRAMES_PER_BATCH = 1000;
+/** Passes over the unsync set, for writes that land while a push runs. */
+const MAX_PASSES = 5;
+/** Attempts at one batch: the contract's "retry the same batch with backoff". */
 const MAX_ATTEMPTS = 3;
-/** Passes over the unsync set, for writes that land while the push runs. */
-const MAX_PASSES = 3;
 
-/** The open session's pointer plus the chain hash at `at` (§7.3). */
-export type UploadState = Session & { chain: string };
-
-export type PushOutcome = {
-  pushed: number;
-  stale: number;
-  /**
-   * The `sync_seq` values the server assigned to frames this run pushed.
-   *
-   * §5.3: "for `applied`, `seq` is the server-assigned sync_seq — the client MAY
-   * advance its pull cursor to `seq` after merging its own pushed row". `live.ts`
-   * uses it only when the values run contiguously from the pull snapshot, so a
-   * second writer's rows can never be skipped.
-   */
-  appliedSeqs: number[];
+/** One encoded row, ready to send and to match an ack against. */
+export type Frame = {
+  entity: Entity;
+  id: string;
+  /** The clock this device uploaded — the guard for a `stale` merge. */
+  updatedAt: number;
+  line: string;
 };
-
-type Frame = { entity: Entity; id: string; updatedAt: number; line: string };
 
 export type PushDeps = {
   db: DatabaseServiceImpl;
   transport: SyncTransport;
   endpoint: Endpoint;
-  /** The persisted session id, if one was left behind (§3.2). */
-  readUploadId: () => Effect.Effect<string | null>;
-  /** Persists the session pointer and chain, for diagnostics. */
-  writeUploadState: (state: UploadState) => Effect.Effect<void>;
-  clearUploadState: () => Effect.Effect<void>;
-  /** Applies the server's winning row/aggregate from a `stale` ack (§5.2). */
-  mergeStaleRow: (
-    entity: Entity,
-    row: WireRow,
-    /** The `updated_at` this device uploaded; the payload is void if it moved. */
-    onlyIfClock: number,
-  ) => Effect.Effect<void, SyncError>;
-  mergeStaleAggregate: (
-    row: WireRow,
-    children: Record<string, WireRow[]>,
-    onlyIfClock: number,
-  ) => Effect.Effect<void, SyncError>;
-  onProgress: (progress: { entity: Entity | null; done: number; total: number }) => void;
+  execute: MergeExecutor;
+  onProgress?: (progress: { entity: Entity | null; done: number; total: number }) => void;
 };
 
-/** Groups encoded frames into PATCH-sized chunks, never splitting a line. */
-export function chunkFrames(frames: readonly Frame[]): Frame[][] {
-  const chunks: Frame[][] = [];
-  let current: Frame[] = [];
-  let bytes = 0;
-  for (const frame of frames) {
-    const size = frame.line.length + 1;
-    if (
-      current.length > 0 &&
-      (current.length >= MAX_FRAMES_PER_CHUNK || bytes + size > MAX_BYTES_PER_CHUNK)
-    ) {
-      chunks.push(current);
-      current = [];
-      bytes = 0;
+export type PushOutcome = {
+  /** Frames the server acknowledged, whatever the outcome. */
+  pushed: number;
+  /** Frames the server's copy won. */
+  stale: number;
+};
+
+/** Reads the next batch: pockets first, then the money rows, up to the bound. */
+function readBatch(db: DatabaseServiceImpl): Effect.Effect<Frame[], SyncError> {
+  return Effect.gen(function* () {
+    const frames: Frame[] = [];
+    for (const def of [TABLES.pocket, TABLES.money]) {
+      const remaining = MAX_FRAMES_PER_BATCH - frames.length;
+      if (remaining <= 0) break;
+      const rows = yield* db
+        .selectMany<Record<string, unknown>>(selectUnsyncedSql(def, remaining))
+        .pipe(
+          Effect.mapError(
+            (error) =>
+              new SyncError({
+                message: `Sinkronisasi ${def.entity} gagal dibaca: ${error.message}`,
+              }),
+          ),
+        );
+      for (const raw of rows) {
+        const row = toCanonicalRow(def, raw);
+        frames.push({
+          entity: def.entity,
+          id: idOf(def, row),
+          updatedAt: clockOf(def, row),
+          line: encodeRowFrame(def.entity, row),
+        });
+      }
     }
-    current.push(frame);
-    bytes += size;
-  }
-  if (current.length > 0) chunks.push(current);
-  return chunks;
+    return frames;
+  });
 }
 
-/** How many frames the push still owes the server, for progress. */
-function countFrames(deps: PushDeps): Effect.Effect<number, SyncError> {
+/**
+ * How many rows this device owes the server right now.
+ *
+ * Read once per push so the progress bar has a denominator that does not move
+ * with every batch: a total recomputed per batch makes the bar jump around, and
+ * the user reads that as going backwards.
+ */
+function countUnsynced(db: DatabaseServiceImpl): Effect.Effect<number, SyncError> {
   return Effect.gen(function* () {
     let total = 0;
-    for (const entity of ENTITY_ORDER) {
-      total += yield* countUnsynced(deps.db, TABLES[entity]);
+    for (const def of [TABLES.pocket, TABLES.money]) {
+      const rows = yield* db.selectMany<{ total: number }>(countUnsyncedSql(def)).pipe(
+        Effect.mapError(
+          (error) =>
+            new SyncError({
+              message: `Sinkronisasi ${def.entity} gagal dibaca: ${error.message}`,
+            }),
+        ),
+      );
+      total += rows[0]?.total ?? 0;
     }
     return total;
   });
 }
 
-/** True when the failure is one the "new session" recovery path can fix (§7.5). */
-export function isSessionFailure(error: SyncError): boolean {
-  if (error.code === "replay_mismatch" || error.code === "offset_conflict") return true;
-  if (error.code === "not_found") return true;
-  // A dropped connection mid-PATCH (status 0) and a gateway hiccup are resolved
-  // by re-sending the unsync set in a fresh session.
+/** True when the failure is worth re-sending the same batch for (§7.6). */
+export function isRetryable(error: SyncError): boolean {
   return error.status === 0 || (error.status ?? 0) >= 500;
 }
 
-/**
- * Opens the upload session.
- *
- * A leftover session is re-read first (§5.3 "resume check") and reused only when
- * the server reports it has committed nothing (`at = 0`, `frames = 0`): then the
- * prefix hash is still the chain anchor, so the pointer is provably in step.
- *
- * Any other state is dropped and replaced. `GET /v1/upload/:id` *does* return the
- * server's `prefix_sha`, so resuming from a real pointer is possible in principle —
- * but the chunk loop re-encodes every unsync frame from index 0 and would have to
- * skip the first `frames` lines to match, which nothing exercises today. Restarting
- * is safe and converges: chunks are committed as they arrive, so rows already
- * applied are no longer unsync and the next run sends less. The cost is re-sending
- * one in-flight chunk, which is cheaper than an untested resume path.
- */
-function openSession(deps: PushDeps): Effect.Effect<UploadState, SyncError> {
-  return Effect.gen(function* () {
-    const existing = yield* deps.readUploadId();
-    if (existing !== null) {
-      const current = yield* Effect.tryPromise({
-        try: () => deps.transport.getSession(deps.endpoint, existing),
-        catch: () => null,
-      }).pipe(Effect.orElseSucceed(() => null));
-      if (current !== null && current.at === 0 && current.frames === 0) {
-        const state: UploadState = { ...current, chain: EMPTY_CHAIN };
-        yield* deps.writeUploadState(state);
-        return state;
-      }
-      yield* Effect.tryPromise({
-        try: () => deps.transport.deleteSession(deps.endpoint, existing),
-        catch: toSyncError,
-      }).pipe(Effect.catchAll(() => Effect.void));
-    }
-    const session = yield* Effect.tryPromise({
-      try: () => deps.transport.createSession(deps.endpoint),
-      catch: toSyncError,
-    });
-    const state: UploadState = { ...session, chain: EMPTY_CHAIN };
-    yield* deps.writeUploadState(state);
-    return state;
-  });
-}
-
-/** A chunk's ack stream, collected before anything is written. */
-type ChunkAcks = {
-  /** `chain` is the server's prefix hash at `done.at` (§7.3), or null if omitted. */
-  done: { at: number; frames: number; chain: string | null } | null;
-  acks: {
-    index: number;
-    outcome: "applied" | "stale" | "noop";
-    /** The server-assigned seq for an `applied` frame (§5.3). */
-    seq: number | null;
-    row: WireRow | null;
-    children: Record<string, WireRow[]> | null;
-  }[];
-};
+type Acks = { acks: AckFrame[] };
 
 /**
- * PATCHes one chunk and collects the ack stream.
+ * Posts one batch and collects the ack stream.
  *
- * Collecting first and writing second keeps every `_sync_at` update in Effect
- * land (where the clock guard lives, `sql.ts`) and keeps an interrupted fiber from
- * leaving a half-applied ack batch. The reader is cancelled explicitly on
- * interruption, so leaving the Sinkronisasi screen stops the request.
+ * Collecting first and writing second keeps every `*_sync_at` update in Effect
+ * land and keeps an interrupted fiber from leaving a half-applied ack batch.
  */
-function sendChunk(
-  deps: PushDeps,
-  state: UploadState,
-  body: string,
-): Effect.Effect<ChunkAcks, SyncError> {
+function postBatch(deps: PushDeps, frames: readonly Frame[]): Effect.Effect<Acks, SyncError> {
   return Effect.gen(function* () {
-    const stream = deps.transport.uploadChunk(deps.endpoint, {
-      uploadId: state.uploadId,
-      offset: state.at,
-      prefixSha: state.chain,
-      body,
-      // §4.3: gzip is a transport layer only; offsets and hashes are over the
-      // plaintext above. A server that refuses the coding gets an identity retry
-      // inside the Rust command.
-      compress: true,
-    });
+    const body = `${frames.map((frame) => frame.line).join("\n")}\n`;
+    const stream = deps.transport.push(deps.endpoint, { body });
 
-    const collected: ChunkAcks = { done: null, acks: [] };
+    const acks: AckFrame[] = [];
     yield* Effect.tryPromise({
       try: () =>
         consumeLines(stream, (line) => {
-          const frame = parseAckFrame(parseLine(line));
-          if (frame.t === "error") throw new TransportError(0, frame.code, frame.message);
-          if (frame.t === "done") {
-            collected.done = { at: frame.at, frames: frame.frames, chain: frame.chain };
-            return;
-          }
-          if (frame.outcome === "stale") {
-            collected.acks.push({
-              index: frame.index,
-              outcome: "stale",
-              seq: null,
-              row: frame.row,
-              children: frame.children,
-            });
-            return;
-          }
-          collected.acks.push({
-            index: frame.index,
-            outcome: frame.outcome,
-            seq: frame.outcome === "applied" ? frame.seq : null,
-            row: null,
-            children: null,
-          });
+          const frame = parsePushFrame(parseLine(line));
+          if (frame.t === "ack") acks.push(frame);
         }),
-      // Route matters for the failure report: this stream is the upload's, not
-      // the pull's, and the server's log names routes, not stages.
-      catch: (error) => toSyncError(error, stream, "/v1/upload/:id"),
+      catch: toSyncError,
     }).pipe(Effect.onInterrupt(() => Effect.sync(() => stream.cancel())));
 
-    return collected;
+    return { acks };
   });
 }
 
-/** Applies one chunk's acks: stale payloads first, then the sync markers. */
+/** Posts one batch, retrying a transport/5xx failure with backoff. */
+function postWithRetry(deps: PushDeps, frames: readonly Frame[]): Effect.Effect<Acks, SyncError> {
+  const attempt = (remaining: number): Effect.Effect<Acks, SyncError> =>
+    postBatch(deps, frames).pipe(
+      Effect.catchAll((error) => {
+        if (remaining <= 1 || !isRetryable(error)) return Effect.fail(error);
+        log.info(`sync: push retry after "${error.code ?? "transport"}": ${error.message}`);
+        return Effect.sleep(`${400 * (MAX_ATTEMPTS - remaining + 1)} millis`).pipe(
+          Effect.flatMap(() => attempt(remaining - 1)),
+        );
+      }),
+    );
+  return attempt(MAX_ATTEMPTS);
+}
+
+/**
+ * Applies one batch's acks: markers for `applied`/`noop`, the server's row for
+ * `stale`, all in one transaction.
+ *
+ * An ack whose index has no frame is a server/client disagreement about the
+ * batch; the frame cannot be identified, so it is dropped rather than marking the
+ * wrong row as sent.
+ */
 function applyAcks(
   deps: PushDeps,
-  chunk: readonly Frame[],
-  firstIndex: number,
-  acks: ChunkAcks["acks"],
-): Effect.Effect<{ applied: number; stale: number; seqs: number[] }, SyncError> {
+  frames: readonly Frame[],
+  acks: readonly AckFrame[],
+): Effect.Effect<{ pushed: number; stale: number }, SyncError> {
   return Effect.gen(function* () {
-    const syncedAt = Date.now();
-    const acked = new Map<Entity, { id: string; updatedAt: number }[]>();
-    const seqs: number[] = [];
+    const statements: MergeStatement[] = [];
     let stale = 0;
+    let pushed = 0;
 
     for (const ack of acks) {
-      const frame = chunk[ack.index - firstIndex];
-      if (frame === undefined) {
-        // An index outside the chunk means the server and client disagree about
-        // the session: drop it rather than marking the wrong row as sent.
+      const frame = frames[ack.i];
+      if (frame === undefined) continue;
+      pushed += 1;
+      const def = TABLES[ack.e];
+      if (ack.s === "stale") {
+        stale += 1;
+        // The server's copy is the truth; overwrite it unless the local row was
+        // edited after this frame left (`since` = the clock we uploaded).
+        statements.push(staleStatement(ack.e, ack.row as WireRow, ack.seq, frame.updatedAt));
+        continue;
+      }
+      statements.push(markSyncedStatement(def, frame.id, ack.seq, frame.updatedAt));
+    }
+
+    yield* deps.execute(statements, "push");
+    return { pushed, stale };
+  });
+}
+
+/** Pushes every row this device owes the server, batch by batch (§7.4). */
+export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
+  return Effect.gen(function* () {
+    let pushed = 0;
+    let stale = 0;
+    // One denominator for the whole push, so the bar advances instead of jumping.
+    const expected = yield* countUnsynced(deps.db);
+    deps.onProgress?.({ entity: null, done: 0, total: expected });
+
+    for (let pass = 0; pass < MAX_PASSES; pass++) {
+      const frames = yield* readBatch(deps.db);
+      if (frames.length === 0) break;
+
+      deps.onProgress?.({ entity: null, done: pushed, total: Math.max(expected, pushed) });
+      const acks = yield* postWithRetry(deps, frames);
+      if (acks.acks.length === 0 && frames.length > 0) {
+        // A batch with no ack would be re-sent forever; the batch was accepted
+        // by nobody, so surface it rather than spinning.
         return yield* Effect.fail(
           new SyncError({
-            message: "Server dan aplikasi tidak sepakat soal posisi unggahan",
-            code: "replay_mismatch",
-            status: 409,
+            message: "Server tidak mengonfirmasi data yang dikirim",
+            code: "bad_frame",
           }),
         );
       }
-      if (ack.seq !== null) seqs.push(ack.seq);
-      if (ack.outcome === "stale") {
-        stale += 1;
-        // `product_event` is append-only (§6.3): even a stale answer must never
-        // rewrite a journal row, so the marker below is all that is applied.
-        //
-        // `frame.updatedAt` is the clock the server judged, not the row's clock
-        // now: a cashier can edit this row while its frame is in flight, and that
-        // edit is newer than anything the server compared. The merge applies the
-        // payload only if the row still carries the value that was uploaded;
-        // otherwise the local edit stands, the row stays unsynced, and the next
-        // pass compares the two properly.
-        if (frame.entity !== "product_event") {
-          if (frame.entity === "record" && ack.children !== null && ack.row !== null) {
-            yield* deps.mergeStaleAggregate(ack.row, ack.children, frame.updatedAt);
-          } else if (ack.row !== null) {
-            yield* deps.mergeStaleRow(frame.entity, ack.row, frame.updatedAt);
-          }
-        }
-      }
-      const list = acked.get(frame.entity) ?? [];
-      list.push({ id: frame.id, updatedAt: frame.updatedAt });
-      acked.set(frame.entity, list);
+
+      const applied = yield* applyAcks(deps, frames, acks.acks);
+      pushed += applied.pushed;
+      stale += applied.stale;
+      deps.onProgress?.({ entity: null, done: pushed, total: Math.max(expected, pushed) });
+
+      // A local write during the push leaves more rows unsynced; loop again. If
+      // the batch changed nothing at all, another pass would spin, so the next
+      // iteration reads the batch and breaks on empty.
+      if (acks.acks.length < frames.length) break;
     }
 
-    // One marker write per entity per chunk instead of one per frame.
-    for (const [entity, entries] of acked) {
-      yield* markSynced(deps.db, entity, entries, syncedAt);
-    }
-
-    return { applied: acks.length, stale, seqs };
-  });
-}
-
-/** Pushes every unsync row in the contract's entity order (§2.3). */
-export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
-  return Effect.gen(function* () {
-    let total = yield* countFrames(deps);
-    deps.onProgress({ entity: null, done: 0, total });
-
-    let pushed = 0;
-    let stale = 0;
-    const appliedSeqs: number[] = [];
-
-    for (let pass = 0; pass < MAX_PASSES; pass++) {
-      let ackedThisPass = 0;
-
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        const outcome = yield* pushOnce(deps, { total, doneBefore: pushed }).pipe(Effect.either);
-        if (outcome._tag === "Right") {
-          ackedThisPass += outcome.right.acked;
-          pushed += outcome.right.acked;
-          stale += outcome.right.stale;
-          appliedSeqs.push(...outcome.right.seqs);
-          break;
-        }
-
-        const error = outcome.left;
-        if (!isSessionFailure(error) || attempt === MAX_ATTEMPTS - 1) {
-          return yield* Effect.fail(error);
-        }
-        log.info(`sync: push retry after "${error.code ?? "transport"}": ${error.message}`);
-      }
-
-      total = yield* countFrames(deps);
-      if (total === 0) break;
-      // A local write during the push is unsync again, so one more pass drains it
-      // — unless nothing was acknowledged, in which case another pass would spin.
-      if (ackedThisPass === 0) break;
-      pushed = 0;
-      deps.onProgress({ entity: null, done: 0, total });
-    }
-
-    return { pushed, stale, appliedSeqs };
-  });
-}
-
-/** One pass over the unsync set, inside one session. */
-function pushOnce(
-  deps: PushDeps,
-  progress: { total: number; doneBefore: number },
-): Effect.Effect<{ acked: number; stale: number; seqs: number[] }, SyncError> {
-  return Effect.gen(function* () {
-    let state = yield* openSession(deps);
-    let frameIndex = state.frames;
-    let acked = progress.doneBefore;
-    let stale = 0;
-    const seqs: number[] = [];
-
-    for (const entity of ENTITY_ORDER) {
-      deps.onProgress({ entity, done: acked, total: Math.max(progress.total, acked) });
-
-      const encoded = yield* encodeEntityFrames(
-        deps.db,
-        TABLES[entity],
-        encodeRowFrame,
-        encodeRecordFrame,
-      );
-      if (encoded.length === 0) continue;
-
-      for (const chunk of chunkFrames(encoded)) {
-        const lines = chunk.map((frame) => frame.line);
-        // §7.3: the chain is over the plaintext lines, one step per line, and the
-        // header carries the hash *before* these bytes, not after.
-        const chain = yield* Effect.tryPromise({
-          try: () => deps.transport.chain(state.chain, lines),
-          catch: toSyncError,
-        });
-        const firstIndex = frameIndex;
-
-        const result = yield* sendChunk(deps, state, `${lines.join("\n")}\n`);
-
-        const done = result.done;
-        if (done === null) {
-          return yield* Effect.fail(
-            new SyncError({
-              message: "Server tidak mengirim posisi unggahan",
-              code: "bad_frame",
-            }),
-          );
-        }
-        if (done.at !== state.at + chain.bytes || done.frames !== frameIndex + chunk.length) {
-          // The server committed a different amount than the bytes we sent, so the
-          // local pointer cannot be trusted: a fresh session re-sends.
-          return yield* Effect.fail(
-            new SyncError({
-              message: "Posisi unggahan tidak cocok dengan server",
-              code: "offset_conflict",
-              status: 409,
-            }),
-          );
-        }
-
-        const applied = yield* applyAcks(deps, chunk, firstIndex, result.acks);
-        stale += applied.stale;
-        seqs.push(...applied.seqs);
-
-        frameIndex = done.frames;
-        // §7.3: `done.chain` is the server's chain at `done.at`, and the client
-        // adopts it *verbatim* rather than trusting its own arithmetic. That is
-        // what makes a divergence self-correcting instead of a `replay_mismatch`
-        // on the next chunk — the failure this was.
-        state = { ...state, at: done.at, frames: done.frames, chain: done.chain ?? chain.chain };
-        yield* deps.writeUploadState(state);
-        acked += applied.applied;
-        deps.onProgress({ entity, done: acked, total: Math.max(progress.total, acked) });
-      }
-    }
-
-    yield* deps.clearUploadState();
-    return { acked: acked - progress.doneBefore, stale, seqs };
+    return { pushed, stale };
   });
 }

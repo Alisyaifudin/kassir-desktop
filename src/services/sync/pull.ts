@@ -1,232 +1,131 @@
 /**
- * The pull half of the loop (contract §5.1, §8): **stream only**.
+ * The pull half of the loop: one request, one page (§6).
  *
- * This module owns the HTTP side and nothing else. It walks `GET /v1/pull` page by
- * page, decoding frames as they arrive, and returns the whole gap for the merge to
- * write in one batch. Two consequences are deliberate:
- *
- *   * the merge sees every frame of the pull at once, so a reference can be
- *     resolved against the pull itself instead of "maybe later" (`merge.ts`);
- *   * the cursor is *not* advanced here. It moves only after the merge has been
- *     applied, so a failure or an interruption re-pulls the same gap and nothing
- *     is silently skipped. Frames are idempotent to re-merge (LWW).
- *
- * Byte-offset resume (`Download-Offset`) is deliberately not implemented: the
- * contract calls it an optimization the client may skip entirely, and on
- * `409 snapshot_moved` the sanctioned fallback is what this loop does every time —
- * re-issue `since = last merged seq` at offset 0 (§8.2).
+ * This module owns the HTTP side and nothing else. It walks
+ * `GET /v2/money/pull/:seq` one page at a time, decoding lines as they arrive,
+ * and hands the page to the merge. The bookmark is *not* advanced here: it moves
+ * only after the merge has committed, so a failure or an interruption re-pulls
+ * the same page and nothing is silently skipped (§6.5).
  */
 import { Effect } from "effect";
-import {
-  FrameError,
-  parseLine,
-  parsePullFrame,
-  type PullAggregateFrame,
-  type PullRowFrame,
-} from "./frames";
+import { FrameError, parseLine, parsePullFrame } from "./frames";
+import type { PullChange, PullDelete, PullPage } from "./merge";
 import type { Entity, WireRow } from "./schema";
+import { SyncError } from ".";
 import { consumeLines, TransportError, type Endpoint, type SyncTransport } from "./transport";
 import type { LineStream } from "./stream";
-import { SyncError } from "./index";
-import { log } from "~/lib/log";
 
-/** Frames per pull request. The server defaults to 1000; say it explicitly. */
+/**
+ * Changes per pull request.
+ *
+ * The server's default is 5000 and its maximum 20000. 1000 keeps one page one
+ * modest transaction — a first full sync of a large ledger is a few hundred
+ * round trips instead of a handful, which is the right trade while the merge is
+ * still being proven: a smaller page is a smaller rollback.
+ */
 export const PULL_LIMIT = 1000;
 
-export type PullFrames = {
-  rows: { entity: Entity; row: WireRow }[];
-  aggregates: { row: WireRow; children: Record<string, WireRow[]> }[];
-};
-
-export type PullOutcome = {
-  frames: PullFrames;
-  /** The last seq the server emitted — the cursor to persist once merged. */
-  lastPulledSeq: number;
-  /** The server's max seq when the stream started; null if it sent no `meta`. */
-  snapshotSeq: number | null;
-  pages: number;
+export type PullPageOutcome = {
+  page: PullPage;
+  /** The highest seq that existed when the response started (progress only). */
+  snapshot: number | null;
+  /** The highest seq actually sent — the new bookmark (§6.2). */
+  lastSeq: number;
+  /** More changes exist above `lastSeq`; ask again. */
+  more: boolean;
 };
 
 export type PullDeps = {
   transport: SyncTransport;
   endpoint: Endpoint;
-  /** Where the local mirror currently stands (§3.2). */
-  readCursor: () => Effect.Effect<number, SyncError>;
+  /** The bookmark: the highest seq durably stored. `0` on first sync. */
+  after: number;
   /** Per-entity progress, so the screen can show what is arriving. */
-  onProgress: (progress: { entity: Entity | null; done: number; total: number }) => void;
+  onProgress?: (progress: { entity: Entity | null; done: number; total: number }) => void;
 };
 
-type Page = {
-  rows: { entity: Entity; row: WireRow }[];
-  aggregates: { row: WireRow; children: Record<string, WireRow[]> }[];
-  snapshotSeq: number | null;
-  lastSeq: number | null;
-};
+/** Drains one pull response into a page, merging nothing. */
+async function collectPage(stream: LineStream): Promise<PullPageOutcome> {
+  const changes: PullChange[] = [];
+  const deletions: PullDelete[] = [];
+  let snapshot: number | null = null;
+  let lastSeq: number | null = null;
+  let more = false;
 
-/**
- * Drains one pull response into a page.
- *
- * Kept as one promise rather than an Effect per line: the frames are decoded by an
- * async iterator, and the caller writes in Effect land afterwards, so an
- * interrupted fiber stops the stream (via `sync_cancel`) instead of leaving a
- * half-read page.
- */
-async function collectPage(
-  stream: ReturnType<SyncTransport["pull"]>,
-  onFrame: (frame: PullRowFrame | PullAggregateFrame) => void,
-): Promise<Page> {
-  const page: Page = { rows: [], aggregates: [], snapshotSeq: null, lastSeq: null };
   await consumeLines(stream, (line) => {
     const frame = parsePullFrame(parseLine(line));
     switch (frame.t) {
       case "meta":
-        page.snapshotSeq = frame.snapshotSeq;
+        snapshot = frame.snapshot;
         return;
       case "row":
-        page.rows.push({ entity: frame.entity, row: frame.row });
-        onFrame(frame);
+        changes.push({ seq: frame.s, entity: frame.e, row: frame.r as WireRow });
         return;
-      case "ag":
-        page.aggregates.push({ row: frame.row, children: frame.children });
-        onFrame(frame);
+      case "del":
+        deletions.push({ seq: frame.s, entity: frame.e, id: frame.id });
         return;
       case "done":
-        page.lastSeq = frame.seq;
-        return;
-      case "error":
-        throw new TransportError(0, frame.code, frame.message);
-      default:
+        lastSeq = frame.s;
+        more = frame.more;
         return;
     }
   });
-  return page;
+
+  return { page: { changes, deletions }, snapshot, lastSeq: lastSeq ?? -1, more };
 }
 
-/**
- * Streams the whole gap since the cursor. Nothing is written.
- *
- * Stops when the merged cursor reaches `meta.snapshot_seq` (§5.1), or when a page
- * makes no progress — a server that reports a snapshot it will not serve would
- * otherwise spin forever.
- */
-export function pull(deps: PullDeps): Effect.Effect<PullOutcome, SyncError> {
-  return Effect.gen(function* () {
-    const start = yield* deps.readCursor();
-    const frames: PullFrames = { rows: [], aggregates: [] };
-    const counts = new Map<Entity, number>();
-    let cursor = start;
-    let snapshotSeq: number | null = null;
-    let pages = 0;
-
-    // A safety stop, not a page goal: the loop ends on `snapshot_seq`.
-    for (let pageIndex = 0; pageIndex < 100_000; pageIndex++) {
-      const stream = deps.transport.pull(deps.endpoint, { since: cursor, limit: PULL_LIMIT });
-      const page = yield* Effect.tryPromise({
-        try: () =>
-          collectPage(stream, (frame) => {
-            const entity = frame.t === "ag" ? "record" : frame.entity;
-            counts.set(entity, (counts.get(entity) ?? 0) + 1);
-            deps.onProgress({
-              entity,
-              done: [...counts.values()].reduce((total, value) => total + value, 0),
-              total: 0,
-            });
-          }),
-        catch: (error) => toSyncError(error, stream),
-      }).pipe(Effect.onInterrupt(() => Effect.sync(() => stream.cancel())));
-
-      pages += 1;
-      frames.rows.push(...page.rows);
-      frames.aggregates.push(...page.aggregates);
-      if (page.snapshotSeq !== null) snapshotSeq = page.snapshotSeq;
-
-      // §5.1: `done.s` is the last seq emitted — the next `since`. It is not
-      // `snapshot_seq`: rows written after the snapshot belong to the next pull.
-      const next = Math.max(cursor, page.lastSeq ?? cursor);
-      const empty = page.rows.length === 0 && page.aggregates.length === 0;
-      const caughtUp = snapshotSeq === null || next >= snapshotSeq;
-      if (caughtUp) {
-        cursor = next;
-        break;
-      }
-      if (empty || next === cursor) {
-        // No progress: the next request would ask for the same `since`.
-        log.info(`sync: pull stalled at seq ${cursor} (snapshot ${snapshotSeq})`);
-        cursor = next;
-        break;
-      }
-      cursor = next;
-    }
-
-    return {
-      frames,
-      lastPulledSeq: cursor,
-      snapshotSeq,
-      pages,
-    };
-  });
-}
-
-/**
- * Maps a transport rejection onto the service's error, attaching the evidence the
- * server cannot collect for itself.
- *
- * `stream` is the request that failed, when there is one: its id is the join key
- * for the server's log row, and its head is what actually arrived. Without this
- * the reported message is the one thing we already knew — "cannot be parsed" —
- * which is exactly the wall the first production failure hit.
- */
-export function toSyncError(
-  error: unknown,
-  stream?: LineStream,
-  route = "/v1/pull",
-): SyncError {
+/** Maps a transport rejection onto the service's error. */
+export function toSyncError(error: unknown): SyncError {
   if (error instanceof SyncError) return error;
-
-  const head = stream?.head ?? null;
-  const evidence =
-    stream === undefined
-      ? undefined
-      : {
-          requestId: stream.requestId,
-          route,
-          firstBytesHex: head?.hex ?? null,
-          bytes: head?.bytes ?? null,
-        };
-
-  // `parse` vs `frame` are different investigations: one means the bytes were
-  // never JSON, the other that they were JSON of the wrong shape.
-  const stage =
-    error instanceof FrameError ? "parse" : error instanceof TransportError ? "stream" : undefined;
-
+  if (error instanceof FrameError) {
+    return new SyncError({ message: error.message, code: "bad_frame" });
+  }
   if (error instanceof TransportError) {
     return new SyncError({
-      message: withHead(error.message, head),
+      message: error.message,
       code: error.code,
       status: error.status,
-      ...(stage === undefined ? {} : { stage }),
-      ...(evidence === undefined ? {} : { evidence }),
     });
   }
-  if (error instanceof Error) {
-    return new SyncError({
-      message: withHead(error.message, head),
-      ...(stage === undefined ? {} : { stage }),
-      ...(evidence === undefined ? {} : { evidence }),
-    });
-  }
+  if (error instanceof Error) return new SyncError({ message: error.message });
   return new SyncError({ message: String(error) });
 }
 
 /**
- * Puts the received bytes into the sentence the user sees.
+ * Streams one page of changes.
  *
- * Deliberately in the message rather than only in the report: a cashier can read
- * `awal data: 1f8b0800` off the screen and paste it, which is faster than any
- * log query — and this exact number is what named the original failure once it
- * was finally visible.
+ * `done.s` is the bookmark, not `meta.snapshot`: a page can stop early
+ * (`more: true`), and storing the snapshot would skip everything after `done.s`
+ * (§6.4).
  */
-export function withHead(message: string, head: { hex: string; bytes: number } | null): string {
-  if (head === null) return message;
-  return `${message} (awal data: ${head.hex || "kosong"}, ${head.bytes} byte)`;
+export function pullPage(deps: PullDeps): Effect.Effect<PullPageOutcome, SyncError> {
+  return Effect.gen(function* () {
+    const stream = deps.transport.pull(deps.endpoint, {
+      after: deps.after,
+      limit: PULL_LIMIT,
+    });
+
+    let seen = 0;
+    const outcome = yield* Effect.tryPromise({
+      try: () =>
+        collectPage(stream).then((result) => {
+          seen = result.page.changes.length + result.page.deletions.length;
+          return result;
+        }),
+      catch: toSyncError,
+    }).pipe(Effect.onInterrupt(() => Effect.sync(() => stream.cancel())));
+
+    deps.onProgress?.({ entity: null, done: seen, total: seen });
+    if (outcome.lastSeq < 0) {
+      // No `done` line: the page has no bookmark to move to, and guessing one
+      // would either skip changes or loop forever on the same page.
+      return yield* Effect.fail(
+        new SyncError({
+          message: "Server tidak mengirim penanda akhir unduhan",
+          code: "bad_frame",
+        }),
+      );
+    }
+    return outcome;
+  });
 }

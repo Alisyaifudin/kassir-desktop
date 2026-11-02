@@ -1,86 +1,97 @@
 /**
- * The sync service: one fiber that owns pull → merge → push (contract §5).
+ * The sync service: one fiber that owns pull → merge → push → pull per group
+ * (`SYNC-V2-MONEY.md`).
  *
  * Everything that decides *what* happens lives in `pull.ts`/`push.ts`/`merge.ts`
  * so those can be tested against a fake transport. This file is the wiring: the
- * store-backed cursors (§3.2), the progress ref the screen paints, and the
- * refresh calls that make a merged row visible to the running app.
+ * store-backed bookmarks and parks, the progress ref the screen paints, and the
+ * refresh call that makes a merged row visible to the running app.
  *
- * ## Why the domain services are refreshed here
+ * ## Groups
  *
- * Every domain service hydrates its `SubscriptionRef` once and patches it from its
- * own write paths. A row that arrives from the server is written by this service,
- * so without a refresh the POS would keep selling yesterday's price until the app
- * restarts. The owning service's `refresh()` re-reads its table — the same call
- * `product.refresh()` already exposes for imports and deletes.
+ * A group is a pair of endpoints plus its own tables and its own bookmark. Today
+ * there is exactly one — `money` (`pockets` + `money`) — and the cycle visits the
+ * groups in `SYNC_GROUPS` order. Each group reports into its own `GroupState`, so
+ * the screen renders one progress bar per group and a finished group keeps saying
+ * so while the next one runs; adding a group means adding a case to `syncGroup`,
+ * not touching the money flow.
+ *
+ * ## The only state this service keeps
+ *
+ * One integer per group — its bookmark, the highest `seq` durably stored — plus
+ * each group's park of money rows still waiting for their pocket (§10.1). There
+ * is no session, no upload id, no offset and no hash chain: v2 has none of those
+ * (§7.1).
+ *
+ * ## Why the domain service is refreshed here
+ *
+ * `MoneyService` hydrates its `SubscriptionRef` once and patches it from its own
+ * write paths. A row that arrives from the server is written by this service, so
+ * without a refresh the Money screen would keep showing yesterday's balance until
+ * the app restarts.
  *
  * ## Cancellation
  *
  * A run is a background task: `start` forks it as a daemon, so leaving the screen
- * that started it does not stop it. That makes `cancel` the only way a run ends
- * early, and it goes through the fiber's finalizers — `pull.ts`/`push.ts` call
- * `sync_cancel` in Rust, so the HTTP request really stops rather than draining in
- * the background.
- *
- * Interruption is delivered at the run's current async boundary, so an in-flight
- * `sync_merge` or upload chunk settles before the loop unwinds. That is why the
- * activity is `cancelling` for however long it takes: a state that said
- * `cancelled` while a transaction was still committing would be a lie.
+ * that started it does not stop it. `cancel` goes through the fiber, and the
+ * streaming commands stop their socket in Rust (`sync_cancel`), so the HTTP
+ * request really stops rather than draining in the background.
  */
 import { Effect, Fiber, Layer, Ref, SubscriptionRef } from "effect";
 import { log } from "~/lib/log";
-import { CustomerService } from "../customer";
 import { DatabaseService } from "../db";
-import { ExtraService } from "../extra";
-import { MethodService } from "../method";
 import { MoneyService } from "../money";
-import { ProductService } from "../product";
-import { SocialService } from "../social";
 import { StoreService } from "../store";
-import { SupplierService } from "../supplier";
 import {
   SYNC_CONFIG_DEFAULT,
+  SYNC_GROUPS,
   SYNC_IDLE,
   SyncError,
   SyncService,
+  type GroupReport,
+  type GroupState,
   type SyncConfig,
+  type SyncGroup,
   type SyncMode,
+  type SyncReport,
   type SyncState,
   type SyncStatus,
-  type SyncReport,
 } from ".";
-import { dbFailure, makeMerger, type MergeExecutor } from "./merge";
-import { pull, toSyncError } from "./pull";
+import { mergePage, type MergeExecutor, type ParkedMoney } from "./merge";
+import { pullPage } from "./pull";
 import { push } from "./push";
-import { resetSyncStatements } from "./sql";
+import { discardSyncedStatements, markAllUnsyncedStatements } from "./sql";
 import { SyncTransportService, type Endpoint } from "./transport";
 
-/** Cursor keys, exactly as the contract names them (§3.2). */
-const KEY_LAST_PULLED = "sync.last_pulled_seq";
-const KEY_UPLOAD_ID = "sync.upload_id";
-const KEY_UPLOAD_OFFSET = "sync.upload_offset";
-const KEY_UPLOAD_FRAMES = "sync.upload_frames";
-/** Not in §3.2: the chain hash at `upload_offset`, for diagnostics and resume. */
-const KEY_UPLOAD_CHAIN = "sync.upload_chain";
+/**
+ * A group's bookmark (§2.2). One key per group — never one per table — and the
+ * only thing that says how far this device has durably got in that group.
+ */
+function bookmarkKey(group: SyncGroup): string {
+  return `sync.${group}.bookmark`;
+}
+
+/** Money rows waiting for their pocket (§10.1), as `[{seq,row}]`. */
+function parkedKey(group: SyncGroup): string {
+  return `sync.${group}.parked`;
+}
+
 /** The device's configured server and token (not cursors, but the same store). */
 const KEY_BASE_URL = "sync.base_url";
 const KEY_TOKEN = "sync.token";
 /**
  * This installation's identity, created once and never rotated.
  *
- * It is what lets the server log tell two tills apart when they share a sync
- * token (kassir-backend/docs/LOGS.md). It survives a reinstall of the webview
- * because it lives in the store next to the token, but not a wipe of the app's
- * data — at which point it is a new install, which is the truth of the matter.
+ * It is what lets the server's request log tell two tills apart when they share a
+ * sync token, and the value Settings shows when someone has to report a problem.
  */
 const KEY_DEVICE_ID = "sync.device_id";
 
 /**
  * How often a running state may be painted.
  *
- * `pull`/`push` report once per frame, and every subscriber re-renders on a
- * publish. Four paints a second is faster than a cashier can read and slow enough
- * that a 5 000-frame pull is 40 renders instead of 5 000. Transitions are never
+ * Four paints a second is faster than a cashier can read and slow enough that a
+ * long pull is tens of renders instead of thousands. Transitions are never
  * coalesced — see `publishNow`.
  */
 const PAINT_INTERVAL_MS = 150;
@@ -89,28 +100,35 @@ function numeric(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/** A store value that is not the shape we expect is treated as absent. */
+function parkedFrom(value: unknown): ParkedMoney[] {
+  if (!Array.isArray(value)) return [];
+  const out: ParkedMoney[] = [];
+  for (const item of value) {
+    if (typeof item !== "object" || item === null) continue;
+    const candidate = item as { seq?: unknown; row?: unknown };
+    const seq = numeric(candidate.seq);
+    if (seq === null || typeof candidate.row !== "object" || candidate.row === null) continue;
+    out.push({ seq, row: candidate.row as ParkedMoney["row"] });
+  }
+  return out;
+}
+
 export const SyncLive = Layer.effect(
   SyncService,
   Effect.gen(function* () {
     const db = yield* DatabaseService;
     const store = yield* StoreService;
     const transport = yield* SyncTransportService;
-    const product = yield* ProductService;
-    const customer = yield* CustomerService;
-    const supplier = yield* SupplierService;
-    const extra = yield* ExtraService;
-    const method = yield* MethodService;
     const money = yield* MoneyService;
-    const social = yield* SocialService;
 
     const stateRef = yield* SubscriptionRef.make<SyncState>(SYNC_IDLE);
     /**
-     * The single-flight gate. A run outlives whoever started it, so the button, the
-     * pill's dialog and any future trigger all reach the same loop: whoever wins
-     * this flag runs, everyone else is told `already-running`.
+     * The single-flight gate. A run outlives whoever started it, so the button,
+     * the pill's dialog and any future trigger all reach the same loop: whoever
+     * wins this flag runs, everyone else is told `already-running`.
      */
     const busy = yield* Ref.make(false);
-    // The loop's fiber, however it was started, so `cancel` can reach it.
     const running = yield* Ref.make<Fiber.RuntimeFiber<SyncReport, SyncError> | null>(null);
 
     /** The newest state, and when it was last painted — see `publish`. */
@@ -118,7 +136,6 @@ export const SyncLive = Layer.effect(
     let paintedAt = 0;
     let paintTimer: ReturnType<typeof setTimeout> | null = null;
 
-    /** Writes `latest` to the ref, and stops any paint that was waiting for it. */
     function paint(): void {
       if (paintTimer !== null) {
         clearTimeout(paintTimer);
@@ -128,15 +145,8 @@ export const SyncLive = Layer.effect(
       Effect.runSync(SubscriptionRef.set(stateRef, latest));
     }
 
-    /**
-     * Publishes progress, coalesced to one paint per `PAINT_INTERVAL_MS`.
-     *
-     * Synchronous on purpose: `pull`/`push` report from inside their loops, and a
-     * `SubscriptionRef` update is a plain ref write. The timer only decides *when*
-     * the write happens; the value is always the newest one.
-     */
-    function publish(next: SyncState): void {
-      latest = next;
+    /** Publishes progress, coalesced to one paint per `PAINT_INTERVAL_MS`. */
+    function publish(): void {
       const since = Date.now() - paintedAt;
       if (since >= PAINT_INTERVAL_MS) {
         paint();
@@ -145,22 +155,48 @@ export const SyncLive = Layer.effect(
       if (paintTimer === null) paintTimer = setTimeout(paint, PAINT_INTERVAL_MS - since);
     }
 
-    /**
-     * Publishes a transition immediately.
-     *
-     * A dropped or delayed phase change is a worse lie than a cheap render: the
-     * pill would say "Mengunduh" while the merge is already writing. Every state a
-     * run enters goes through here; only the counters inside a phase use `publish`.
-     */
+    /** Publishes a transition immediately — a delayed phase change is a lie. */
     function publishNow(next: SyncState): void {
       latest = next;
       paint();
     }
 
+    /**
+     * Replaces one group's slice of `latest`, leaving the other groups alone.
+     *
+     * `progress` is clamped upward: a bar that can shrink is a bar that runs
+     * backwards, and no phase boundary — let alone a page of a growing backlog —
+     * should ever take it back. Everything else is a plain replacement, so the
+     * caption and phase still change freely.
+     */
+    function setGroup(group: SyncGroup, fields: Partial<GroupState>): void {
+      latest = {
+        ...latest,
+        groups: latest.groups.map((entry) => {
+          if (entry.group !== group) return entry;
+          const next = { ...entry, ...fields };
+          if (fields.progress !== undefined && fields.progress !== null) {
+            next.progress = Math.max(entry.progress ?? 0, fields.progress);
+          }
+          return next;
+        }),
+      };
+    }
+
+    /** A group's progress tick (coalesced). */
+    function publishGroup(group: SyncGroup, fields: Partial<GroupState>): void {
+      setGroup(group, fields);
+      publish();
+    }
+
+    /** A group's phase change (immediate). */
+    function publishGroupNow(group: SyncGroup, fields: Partial<GroupState>): void {
+      setGroup(group, fields);
+      publishNow(latest);
+    }
+
     /** Reads a store key, treating "absent" as the default. */
     function read<T>(key: string, fallback: T): Effect.Effect<T> {
-      // A missing key and an unreadable store are both "use the default": the
-      // cursors are the only thing here, and a fresh device has none.
       return store.get<T>(key).pipe(Effect.orElseSucceed(() => fallback));
     }
 
@@ -170,81 +206,37 @@ export const SyncLive = Layer.effect(
         .pipe(Effect.mapError((error) => new SyncError({ message: error.message })));
     }
 
-    function remove(key: string): Effect.Effect<void, SyncError> {
-      return store
-        .remove(key)
-        .pipe(Effect.mapError((error) => new SyncError({ message: error.message })), Effect.asVoid)
-        .pipe(Effect.orElseSucceed(() => undefined));
+    function remove(key: string): Effect.Effect<void> {
+      return store.remove(key).pipe(
+        Effect.orElseSucceed(() => undefined),
+        Effect.asVoid,
+      );
     }
 
-    /** §3.2: `last_pulled_seq`, persisted after every page. */
-    function readCursor(): Effect.Effect<number, SyncError> {
-      return read<unknown>(KEY_LAST_PULLED, 0).pipe(Effect.map((value) => numeric(value) ?? 0));
+    function readBookmark(group: SyncGroup): Effect.Effect<number> {
+      return read<unknown>(bookmarkKey(group), 0).pipe(Effect.map((value) => numeric(value) ?? 0));
     }
 
-    function writeCursor(seq: number): Effect.Effect<void, SyncError> {
-      return write(KEY_LAST_PULLED, seq);
+    function writeBookmark(group: SyncGroup, seq: number): Effect.Effect<void, SyncError> {
+      return write(bookmarkKey(group), seq);
     }
 
-    function readSession(): Effect.Effect<{
-      uploadId: string;
-      at: number;
-      frames: number;
-      chain: string;
-    } | null> {
-      return Effect.gen(function* () {
-        const uploadId = yield* read<unknown>(KEY_UPLOAD_ID, null);
-        if (typeof uploadId !== "string" || uploadId === "") return null;
-        const at = numeric(yield* read<unknown>(KEY_UPLOAD_OFFSET, 0)) ?? 0;
-        const frames = numeric(yield* read<unknown>(KEY_UPLOAD_FRAMES, 0)) ?? 0;
-        const chain = yield* read<unknown>(KEY_UPLOAD_CHAIN, "");
-        return { uploadId, at, frames, chain: typeof chain === "string" ? chain : "" };
-      });
+    function readParked(group: SyncGroup): Effect.Effect<ParkedMoney[]> {
+      return read<unknown>(parkedKey(group), []).pipe(Effect.map(parkedFrom));
     }
 
-    function writeSession(state: {
-      uploadId: string;
-      at: number;
-      frames: number;
-      chain: string;
-    }): Effect.Effect<void, SyncError> {
-      return Effect.all(
-        [
-          write(KEY_UPLOAD_ID, state.uploadId),
-          write(KEY_UPLOAD_OFFSET, state.at),
-          write(KEY_UPLOAD_FRAMES, state.frames),
-          write(KEY_UPLOAD_CHAIN, state.chain),
-        ],
-        { concurrency: "unbounded" },
-      ).pipe(Effect.asVoid);
+    function writeParked(
+      group: SyncGroup,
+      parked: readonly ParkedMoney[],
+    ): Effect.Effect<void, SyncError> {
+      return parked.length === 0
+        ? remove(parkedKey(group)).pipe(Effect.asVoid)
+        : write(parkedKey(group), parked);
     }
 
-    function clearSession(): Effect.Effect<void, SyncError> {
-      return Effect.all(
-        [
-          remove(KEY_UPLOAD_ID),
-          remove(KEY_UPLOAD_OFFSET),
-          remove(KEY_UPLOAD_FRAMES),
-          remove(KEY_UPLOAD_CHAIN),
-        ],
-        { concurrency: "unbounded" },
-      ).pipe(Effect.asVoid);
-    }
-
-    /** Re-reads the refs a merged row must be visible in, after a pull or a push. */
-    function refreshServices(): Effect.Effect<void> {
-      return Effect.all(
-        [
-          product.refresh(),
-          customer.refresh(),
-          supplier.refresh(),
-          extra.refresh(),
-          method.refresh(),
-          money.refresh(),
-          social.refresh(),
-        ],
-        { concurrency: "unbounded" },
-      ).pipe(
+    /** Re-reads the money ref after a merge, so the screen shows the new rows. */
+    function refreshMoney(): Effect.Effect<void> {
+      return money.refresh().pipe(
         Effect.asVoid,
         // A refresh is a convenience for the running UI; the merge itself is on
         // disk and correct. Failing the whole sync over it would be worse.
@@ -258,9 +250,7 @@ export const SyncLive = Layer.effect(
      * The installation id, minted on first use.
      *
      * Failing to persist it would not fail the sync: an unattributable request is
-     * worse than a missing one, but it is not worse than not syncing at all. So a
-     * store write that fails yields the minted id for this run and the next run
-     * mints another.
+     * worse than a missing one, but it is not worse than not syncing at all.
      */
     function deviceId(): Effect.Effect<string> {
       return Effect.gen(function* () {
@@ -308,19 +298,35 @@ export const SyncLive = Layer.effect(
       });
     }
 
-    /** §3.2 `Sinkronisasi Ulang`: cursors to zero, session dropped, all rows queued. */
-    function resetLocal(endpoint: Endpoint): Effect.Effect<void, SyncError> {
+    /** The statements, applied as one real transaction by `sync_merge` in Rust. */
+    const mergeExecutor: MergeExecutor = (statements, what) =>
+      statements.length === 0
+        ? Effect.void
+        : Effect.tryPromise({
+            try: () => transport.merge(statements),
+            catch: (error) =>
+              new SyncError({
+                message: `Sinkronisasi ${what} gagal disimpan: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              }),
+          }).pipe(Effect.asVoid);
+
+    /**
+     * `Sinkronisasi Ulang`: every bookmark to zero, every park dropped, every row
+     * queued.
+     *
+     * The queueing is what gives a device whose rows predate v2 a server-side
+     * counterpart: they are not marked synced because there is nothing to be
+     * synced with yet (§17.2.2).
+     */
+    function resetLocal(): Effect.Effect<void, SyncError> {
       return Effect.gen(function* () {
-        const session = yield* readSession();
-        if (session !== null) {
-          yield* Effect.tryPromise({
-            try: () => transport.deleteSession(endpoint, session.uploadId),
-            catch: () => new SyncError({ message: "Sesi unggahan lama gagal dihapus" }),
-          }).pipe(Effect.catchAll(() => Effect.void));
+        for (const group of SYNC_GROUPS) {
+          yield* writeBookmark(group, 0);
+          yield* writeParked(group, []);
         }
-        yield* clearSession();
-        yield* writeCursor(0);
-        yield* db.transaction(resetSyncStatements()).pipe(
+        yield* db.transaction(markAllUnsyncedStatements()).pipe(
           Effect.mapError(
             (error) =>
               new SyncError({
@@ -328,82 +334,203 @@ export const SyncLive = Layer.effect(
               }),
           ),
         );
-        log.info("sync: reset — cursors cleared, every row queued for push");
+        log.info("sync: reset — bookmarks cleared, every pocket and money row queued for push");
       });
     }
 
     /**
-     * Hands a merge batch to the Rust `sync_merge` command, which runs it as one
-     * transaction on its own connection — plugin-sql has no transaction handle, so
-     * this is the only way the pull commits atomically.
+     * The recovery for a bookmark the server will not serve (§6.6): `400` (the
+     * bookmark is ahead of the server) and `410` (older than its retained
+     * history) both mean "this device's mirror came from somewhere else", so the
+     * synced rows go and the group is pulled from zero. Unsynced rows survive and
+     * are re-pushed afterwards.
      */
-    const mergeExecutor: MergeExecutor = (statements, what) =>
-      Effect.tryPromise({
-        try: () => transport.merge(statements),
-        catch: (error) => {
-          const failure = toSyncError(error);
-          return dbFailure(what, { message: failure.message, detail: failure.message });
-        },
-      }).pipe(Effect.asVoid);
+    function discardSynced(group: SyncGroup): Effect.Effect<void, SyncError> {
+      return Effect.gen(function* () {
+        yield* writeBookmark(group, 0);
+        yield* writeParked(group, []);
+        yield* db
+          .transaction(discardSyncedStatements())
+          .pipe(
+            Effect.mapError(
+              (error) =>
+                new SyncError({ message: `Gagal membersihkan data lama: ${error.message}` }),
+            ),
+          );
+        yield* refreshMoney();
+        log.info("sync: bookmark was refused — discarded synced rows and restarting the pull");
+      });
+    }
 
-    /**
-     * The seq the cursor may safely jump to after a push, or `null`.
-     *
-     * Contiguity from the pull snapshot is the whole check: `snapshot + 1 …` with no
-     * gaps means every seq in that range was assigned to a frame this run pushed, so
-     * nothing was skipped. A gap means another writer interleaved, and the cursor
-     * must not move past rows this device has not merged.
-     */
-    function advanceCursor(snapshot: number | null, seqs: number[]): number | null {
-      if (snapshot === null || seqs.length === 0) return null;
-      const ordered = [...new Set(seqs)].sort((a, b) => a - b);
-      const first = ordered[0];
-      const last = ordered[ordered.length - 1];
-      if (first === undefined || last === undefined) return null;
-      if (first !== snapshot + 1 || last !== snapshot + ordered.length) return null;
-      return last;
+    function isRefusedBookmark(error: SyncError): boolean {
+      return error.status === 400 || error.status === 410;
     }
 
     /**
-     * Reports a failure the server cannot see for itself (`POST /v1/diagnostics`).
+     * How the cycle's work is spread over its one bar, as fractions of the whole.
      *
-     * Only for failures that carry evidence — a real request that died mid-body.
-     * A config error, a cancelled sync or a failed merge has nothing to report and
-     * must not add noise to the server's log.
-     *
-     * Fire-and-forget, and never allowed to change the outcome: the device is
-     * already showing this error, and a failed report is not a second error worth
-     * surfacing. Failure to report is itself logged locally, so a `warn` in the
-     * log page is the worst case.
+     * Pulling is the bulk of a run (a first sync is all pull), pushing is one
+     * round trip per 1000 rows, and the closing pull is usually empty. Weights, not
+     * phase-local bars: the bar must never restart, so each phase gets a slice of
+     * the single fraction instead of a fraction of its own.
      */
-    function reportFailure(endpoint: Endpoint, error: SyncError): Effect.Effect<void> {
-      const evidence = error.evidence;
-      if (evidence === undefined) return Effect.void;
-      return Effect.sync(() => {
-        void transport
-          .diagnose(endpoint, {
-            clientRequestId: evidence.requestId,
-            stage: error.stage ?? "stream",
-            route: evidence.route,
-            message: error.message,
-            firstBytesHex: evidence.firstBytesHex,
-            bytes: evidence.bytes,
-          })
-          .catch((cause: unknown) => {
-            // Warning-level, but logged as an error: the log page only has two
-            // levels, and a report that did not arrive is what makes the next
-            // investigation harder.
-            log.error(
-              `sync: failure report not delivered: ${
-                cause instanceof Error ? cause.message : String(cause)
-              }`,
-            );
+    const STAGE_WEIGHT = {
+      pull: [0, 0.6],
+      push: [0.6, 0.95],
+      settle: [0.95, 1],
+    } as const;
+
+    type Stage = keyof typeof STAGE_WEIGHT;
+
+    /** Places a phase-local fraction (0…1) inside its slice of the cycle's bar. */
+    function withinStage(stage: Stage, fraction: number): number {
+      const [from, to] = STAGE_WEIGHT[stage];
+      const clamped = Number.isFinite(fraction) ? Math.min(1, Math.max(0, fraction)) : 0;
+      return from + (to - from) * clamped;
+    }
+
+    /**
+     * The money group's cycle: pull until caught up, push what is owed, pull once
+     * more (§11.4).
+     *
+     * One page = one request + one merge + one bookmark write (§6.4). A refused
+     * bookmark is recovered once per group per run; a second refusal is a real
+     * failure and stops the run instead of looping.
+     *
+     * ## The one bar
+     *
+     * `meta.snapshot` of the first page is the run's target, and `done.s` is how
+     * far the ledger has actually been stored, so the pull has a real
+     * denominator: `(stored - start) / (target - start)`. That is why the bar
+     * advances page by page instead of filling and emptying per phase.
+     */
+    function moneyCycle(endpoint: Endpoint): Effect.Effect<GroupReport, SyncError> {
+      return Effect.gen(function* () {
+        const group: SyncGroup = "money";
+        let parked = yield* readParked(group);
+        let pulled = 0;
+        let stale = 0;
+
+        // The bookmark this run started from, and the first snapshot it saw.
+        const startAt = yield* readBookmark(group);
+        let target: number | null = null;
+
+        /** How far the pull is, as a 0…1 fraction of the changes this run must fetch. */
+        const pullFraction = (stored: number): number => {
+          if (target === null) return 0;
+          const span = target - startAt;
+          if (span <= 0) return 1;
+          return (stored - startAt) / span;
+        };
+
+        const pullAll = (recover: boolean, stage: Stage): Effect.Effect<void, SyncError> =>
+          Effect.gen(function* () {
+            for (;;) {
+              const after = yield* readBookmark(group);
+
+              publishGroupNow(group, {
+                phase: "pull",
+                message: after === 0 ? "Mengunduh semua perubahan…" : "Mengunduh perubahan…",
+              });
+              const outcome = yield* pullPage({
+                transport,
+                endpoint,
+                after,
+                onProgress: () =>
+                  // A page arrives whole, so there is nothing to report mid-request.
+                  publishGroup(group, { phase: "pull", message: "Mengunduh perubahan…" }),
+              }).pipe(Effect.either);
+
+              if (outcome._tag === "Left") {
+                if (!recover || !isRefusedBookmark(outcome.left)) {
+                  return yield* Effect.fail(outcome.left);
+                }
+                yield* discardSynced(group);
+                // The target of a discarded mirror is meaningless; the restart
+                // sizes it again from the first page of the fresh pull.
+                target = null;
+                return yield* pullAll(false, stage);
+              }
+
+              const page = outcome.right;
+              if (target === null && page.snapshot !== null && page.snapshot > startAt) {
+                target = page.snapshot;
+              }
+
+              const frames = page.page.changes.length + page.page.deletions.length;
+              publishGroupNow(group, { phase: "merge", message: "Menyimpan hasil unduhan…" });
+              const merged = yield* mergePage({ db, execute: mergeExecutor }, page.page, parked);
+              parked = merged.parked;
+              yield* writeParked(group, parked);
+              // §6.4: `done.s`, never `meta.snapshot` — the page can stop early.
+              // Never backwards: a page that reports a seq below the bookmark is
+              // a broken server, and moving back would loop on the same page.
+              const stored = Math.max(after, page.lastSeq);
+              yield* writeBookmark(group, stored);
+              yield* refreshMoney();
+
+              pulled += frames;
+              stale += merged.stats.stale;
+              // Progress is published after the commit, so the bar only ever
+              // reports data that is actually on disk.
+              publishGroup(group, {
+                phase: "pull",
+                progress: withinStage(stage, pullFraction(stored)),
+                message: page.more ? "Mengunduh perubahan…" : "Unduhan selesai",
+              });
+              if (!page.more) return;
+            }
           });
+
+        yield* pullAll(true, "pull");
+
+        publishGroupNow(group, { phase: "push", message: "Mengunggah perubahan…" });
+        const pushed = yield* push({
+          db,
+          transport,
+          endpoint,
+          execute: mergeExecutor,
+          onProgress: (progress) =>
+            publishGroup(group, {
+              phase: "push",
+              progress: withinStage(
+                "push",
+                progress.total === 0 ? 1 : progress.done / progress.total,
+              ),
+              message:
+                progress.entity === null
+                  ? "Mengunggah perubahan…"
+                  : `Mengunggah ${progress.entity}…`,
+            }),
+        });
+        yield* refreshMoney();
+
+        // §11.3 "pull → push → pull": the final pull picks up whatever another
+        // till wrote while this one was pushing, and is usually one empty page.
+        yield* pullAll(false, "settle");
+
+        return {
+          bookmark: yield* readBookmark(group),
+          pulled,
+          pushed: pushed.pushed,
+          stale: stale + pushed.stale,
+        };
       });
     }
 
+    /** Runs one group's cycle. Today there is one; a new group adds a case here. */
+    function syncGroup(
+      group: SyncGroup,
+      endpoint: Endpoint,
+    ): Effect.Effect<GroupReport, SyncError> {
+      switch (group) {
+        case "money":
+          return moneyCycle(endpoint);
+      }
+    }
+
     /**
-     * The whole loop. `reset` clears the cursors and unsync markers first (§3.2).
+     * The whole run: every group in order, one progress bar each.
      *
      * Every state published here carries this run's `startedAt`, so the pill can
      * count elapsed time and a finished run still says when it began. The builder
@@ -413,9 +540,7 @@ export const SyncLive = Layer.effect(
       const startedAt = Date.now();
       const state = (status: SyncStatus, fields: Partial<SyncState> = {}): SyncState => ({
         status,
-        entity: null,
-        done: 0,
-        total: 0,
+        groups: SYNC_IDLE.groups.map((entry) => ({ ...entry })),
         message: "",
         startedAt,
         finishedAt: null,
@@ -429,129 +554,65 @@ export const SyncLive = Layer.effect(
 
         if (mode === "reset") {
           publishNow(state("preparing", { message: "Menyiapkan sinkronisasi ulang…" }));
-          yield* resetLocal(endpoint);
+          yield* resetLocal();
         }
 
-        // 1. Pull: stream the whole gap. Nothing is written yet.
-        publishNow(state("pull", { message: "Mengunduh perubahan…" }));
-        const pulled = yield* pull({
-          transport,
-          endpoint,
-          readCursor,
-          onProgress: (progress) => {
-            publish(
-              state("pull", {
-                entity: progress.entity,
-                done: progress.done,
-                total: progress.total,
-                message:
-                  progress.entity === null
-                    ? "Mengunduh perubahan…"
-                    : `Mengunduh ${progress.entity}…`,
-              }),
-            );
-          },
-        });
+        // A fresh run starts every bar at idle, so a previous run's "Selesai"
+        // does not sit next to a group that is working again.
+        publishNow(state("running", { message: "Menyinkronkan…" }));
 
-        // 2. Merge: the whole pull planned at once, applied in bounded slices, then
-        //    the cursor moves — so a failure, a cancel or a crash re-pulls the same
-        //    gap instead of skipping it.
-        //    `now` is a thunk: a run that took minutes to pull must stamp `_sync_at`
-        //    with the time of the write, not the time the run began.
-        const merger = makeMerger(db, () => Date.now(), mergeExecutor);
-        const frameCount = pulled.frames.rows.length + pulled.frames.aggregates.length;
-        publishNow(state("merge", { total: frameCount, message: "Menyimpan hasil unduhan…" }));
-        const merged = yield* merger.mergeFrames(pulled.frames, (progress) => {
-          publish(
-            state("merge", {
-              done: progress.done,
-              total: progress.total,
-              message: "Menyimpan hasil unduhan…",
-            }),
+        const reports = {} as Record<SyncGroup, GroupReport>;
+        for (const group of SYNC_GROUPS) {
+          const report = yield* syncGroup(group, endpoint).pipe(
+            Effect.catchAll((error) =>
+              Effect.gen(function* () {
+                // The failure belongs to the group that hit it; the run-level
+                // terminal state is published below, once.
+                publishGroupNow(group, {
+                  phase: "failed",
+                  message: error.message,
+                  error: error.message,
+                });
+                return yield* Effect.fail(error);
+              }),
+            ),
           );
-        });
-        yield* writeCursor(pulled.lastPulledSeq);
-        publish(state("merge", { done: frameCount, total: frameCount, message: "Hasil unduhan tersimpan" }));
-        yield* refreshServices();
-
-        // 3. Push: upload what this device owes the server.
-        publishNow(state("push", { message: "Mengunggah perubahan…" }));
-        const pushed = yield* push({
-          db,
-          transport,
-          endpoint,
-          readUploadId: () =>
-            readSession().pipe(Effect.map((session) => session?.uploadId ?? null)),
-          writeUploadState: (state) =>
-            writeSession(state).pipe(Effect.catchAll(() => Effect.void)),
-          clearUploadState: () => clearSession().pipe(Effect.catchAll(() => Effect.void)),
-          mergeStaleRow: (entity, row, onlyIfClock) =>
-            merger.mergeStaleRow(entity, row, onlyIfClock),
-          mergeStaleAggregate: (row, children, onlyIfClock) =>
-            merger.mergeStaleAggregate(row, children, onlyIfClock),
-          onProgress: (progress) => {
-            publish(
-              state("push", {
-                entity: progress.entity,
-                done: progress.done,
-                total: progress.total,
-                message:
-                  progress.entity === null
-                    ? "Mengunggah perubahan…"
-                    : `Mengunggah ${progress.entity}…`,
-              }),
-            );
-          },
-        });
-        yield* refreshServices();
-
-        // §5.3: an `applied` ack carries the server's `sync_seq`, and the client may
-        // move its pull cursor past rows it just pushed. Without this the next run
-        // re-downloads everything this one uploaded — for a first full sync, the
-        // whole database. The move is taken only when the assigned seqs run
-        // contiguously on from the pull snapshot, which proves no other writer
-        // interleaved rows this run never saw; otherwise the cursor stays put and
-        // the next pull picks those rows up.
-        const advanced = advanceCursor(pulled.snapshotSeq, pushed.appliedSeqs);
-        if (advanced !== null && advanced > pulled.lastPulledSeq) {
-          yield* writeCursor(advanced);
+          reports[group] = report;
+          publishGroupNow(group, {
+            phase: "done",
+            progress: 1,
+            message: `Selesai — ${report.pulled} diunduh, ${report.pushed} diunggah`,
+            report,
+          });
         }
 
-        const lastPulledSeq = yield* readCursor();
-        const report: SyncReport = {
-          lastPulledSeq,
-          pulled: merged.merged,
-          pushed: pushed.pushed,
-          stale: pushed.stale,
-        };
+        const totals = Object.values(reports).reduce(
+          (sum, report) => ({
+            pulled: sum.pulled + report.pulled,
+            pushed: sum.pushed + report.pushed,
+            stale: sum.stale + report.stale,
+          }),
+          { pulled: 0, pushed: 0, stale: 0 },
+        );
+        const report: SyncReport = { groups: reports, ...totals };
         publishNow(
           state("done", {
-            done: merged.merged,
-            total: pushed.pushed,
-            message: `Selesai — ${merged.merged} diunduh, ${pushed.pushed} diunggah`,
+            groups: latest.groups,
+            message: `Selesai — ${totals.pulled} diunduh, ${totals.pushed} diunggah`,
             report,
             finishedAt: Date.now(),
           }),
         );
         return report;
       }).pipe(
-        // `tapError`, not `catchAll`: the failure still reaches the caller, the
-        // report is a side effect on the way out.
-        Effect.tapError((error) =>
-          Effect.gen(function* () {
-            const endpoint = yield* endpointOf(yield* getConfig()).pipe(
-              Effect.catchAll(() => Effect.succeed(null)),
-            );
-            if (endpoint !== null) yield* reportFailure(endpoint, error);
-          }),
-        ),
         // The terminal states belong to the run, not to whoever is watching: a
-        // background run's failure must be visible after the screen that started it
-        // is long gone.
+        // background run's failure must be visible after the screen that started
+        // it is long gone.
         Effect.catchAll((error) =>
           Effect.gen(function* () {
             publishNow(
               state("failed", {
+                groups: latest.groups,
                 message: error.message,
                 error: error.message,
                 finishedAt: Date.now(),
@@ -564,6 +625,7 @@ export const SyncLive = Layer.effect(
           Effect.sync(() => {
             publishNow(
               state("cancelled", {
+                groups: latest.groups,
                 message: "Sinkronisasi dibatalkan",
                 finishedAt: Date.now(),
               }),
@@ -573,12 +635,7 @@ export const SyncLive = Layer.effect(
       );
     }
 
-    /**
-     * The loop, registering itself so `cancel` can interrupt it.
-     *
-     * Shared by `run` and `start` on purpose: `cancel` should not care which of the
-     * two began the run.
-     */
+    /** The loop, registering itself so `cancel` can interrupt it. */
     function loop(mode: SyncMode): Effect.Effect<SyncReport, SyncError> {
       return Effect.withFiberRuntime((fiber) =>
         Effect.gen(function* () {
@@ -600,26 +657,19 @@ export const SyncLive = Layer.effect(
             yield* write(KEY_TOKEN, config.token.trim());
           }),
       },
-      cursor: () => readCursor(),
+      cursor: (group: SyncGroup = "money") => readBookmark(group),
       run: (mode) => loop(mode),
       start: (mode) =>
         Effect.gen(function* () {
           // Atomic claim: two callers that both saw "not busy" must not both fork.
-          const free = yield* Ref.modify(
-            busy,
-            (current): readonly [boolean, boolean] =>
-              current ? [false, current] : [true, true],
+          const free = yield* Ref.modify(busy, (current): readonly [boolean, boolean] =>
+            current ? [false, current] : [true, true],
           );
           if (!free) return "already-running" as const;
 
           // A daemon, not a child of the caller: the run must outlive the fiber
-          // that asked for it (a screen that unmounts, a dialog that closes). The
-          // layer's own scope is not an option either — `makeService` builds the
-          // layer with `Effect.runSync`, which closes that scope immediately.
-          yield* loop(mode).pipe(
-            Effect.ensuring(Ref.set(busy, false)),
-            Effect.forkDaemon,
-          );
+          // that asked for it (a screen that unmounts, a dialog that closes).
+          yield* loop(mode).pipe(Effect.ensuring(Ref.set(busy, false)), Effect.forkDaemon);
           return "started" as const;
         }).pipe(
           // Between the claim and the fork there is no fiber to inherit the
@@ -632,8 +682,7 @@ export const SyncLive = Layer.effect(
           const current = yield* Ref.get(running);
           if (current === null) return;
           // Said before the interrupt: delivery happens at the loop's next async
-          // boundary, so an in-flight merge or upload chunk settles first. The
-          // loop's own finalizer turns this into `cancelled`.
+          // boundary, so an in-flight request or merge settles first.
           publishNow({
             ...latest,
             status: "cancelling",
@@ -642,8 +691,8 @@ export const SyncLive = Layer.effect(
           });
           yield* Fiber.interrupt(current);
         }),
-      // A `SubscriptionRef.changes` stream already replays the current value, so a
-      // pill that mounts in the middle of a run paints immediately.
+      // A `SubscriptionRef.changes` stream already replays the current value, so
+      // a pill that mounts in the middle of a run paints immediately.
       state: stateRef.changes,
     };
   }),

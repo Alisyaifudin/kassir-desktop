@@ -1,1424 +1,559 @@
 /**
- * Tests for the sync loops against an in-memory server.
+ * The v2 money-group sync (`SYNC-V2-MONEY.md`), end to end against a fake server
+ * that follows the same contract the real one does.
  *
- * The fake server speaks the same NDJSON protocol the backend contract specifies
- * (`backend-docs/sync-contract.md`), including the prefix hash chain, so these
- * tests exercise the client's wire duties — canonical framing, chunk offsets, ack
- * handling, LWW merge — rather than a mock of them.
- *
- * Run with:  bun test src/services/sync/sync.test.ts
+ * The fake server assigns `seq` on every applied change, keeps a change log, and
+ * answers `applied`/`noop`/`stale` by the §7.2 rules — so a test asserts the
+ * *outcome* (what both sides end up holding) instead of the calls made. The
+ * client's SQL runs against a real SQLite (`makeTestDatabase`), so a statement
+ * that would not run in the app fails here.
  */
 import { describe, expect, test } from "bun:test";
-import { createHash } from "node:crypto";
-import { Effect, Layer } from "effect";
-import { DatabaseService } from "../db";
+import { Effect, Fiber, Layer, Option, Stream } from "effect";
 import { makeTestDatabase } from "../db/test-support";
-import { EMPTY_CHAIN } from "./chain";
-import { encodeRecordFrame, encodeRowFrame } from "./frames";
-import { makeMerger, type MergeExecutor } from "./merge";
-import { pull } from "./pull";
-import { push } from "./push";
-import { CHILD_ORDER, ENTITY_ORDER, TABLES, toCanonicalRow, type Entity, type WireRow } from "./schema";
-import { countRowsSql, markSyncedStatements, resetSyncStatements } from "./sql";
-import { SyncError } from "./index";
-import type { LineStream, StreamSummary } from "./stream";
-import {
-  TransportError,
-  type ChainState,
-  type DiagnosticReport,
-  type Endpoint,
-  type Session,
-  type SyncTransport,
-} from "./transport";
+import { MoneyLive } from "../money/live";
+import { makeTestStore } from "../store/test-support";
+import { SyncService, type SyncReport } from ".";
+import { SyncLive } from "./live";
+import { moneyDecision, pocketDecision } from "./merge";
+import { TABLES, clockOf, idOf, type Entity, type WireRow } from "./schema";
+import { SyncTransportService, TransportError, type SyncTransport } from "./transport";
+import type { LineStream } from "./stream";
 
-import type { Context } from "effect";
+// ============================================================================
+// A server that behaves like the contract says it must (§6.2, §7.2)
+// ============================================================================
 
-/** The database service's shape, as the sync statements use it. */
-type DatabaseServiceImpl = Context.Tag.Service<typeof DatabaseService>;
+type Change = { seq: number; entity: Entity; row: WireRow };
 
-const endpoint: Endpoint = {
-  baseUrl: "https://sync.test",
-  token: "t",
-  deviceId: "4f1c9e2a-1111-4222-8333-444455556666",
-};
+class FakeServer {
+  counter = 0;
+  readonly changes: Change[] = [];
+  readonly rows = new Map<string, WireRow>();
 
-/** sha256 hex, the chain's step (§7.3). */
-function chainStep(prevHex: string, line: string): string {
-  const prev = prevHex === "" ? Buffer.alloc(0) : Buffer.from(prevHex, "hex");
-  return createHash("sha256").update(prev).update("\n").update(line, "utf8").digest("hex");
-}
-
-function chainOf(prev: string, lines: readonly string[]): ChainState {
-  let chain = prev;
-  let bytes = 0;
-  for (const line of lines) {
-    chain = chainStep(chain, line);
-    bytes += Buffer.byteLength(line, "utf8") + 1;
+  private key(entity: Entity, id: string): string {
+    return `${entity}:${id}`;
   }
-  return { chain, bytes };
-}
 
-/**
- * Renders a stored *upload* frame (`{"e":…,"r":…}`) as the tagged *pull* line the
- * server would send (`{"t":"row","s":…,…}`), which is how the same payload travels
- * in each direction.
- */
-function toPullLines(frames: { seq: number; line: string }[]): string[] {
-  return frames.map((frame) => {
-    const raw = JSON.parse(frame.line) as {
-      e: Entity;
-      r: WireRow;
-      ch?: Record<string, WireRow[]>;
-    };
-    if (raw.ch !== undefined) {
-      return JSON.stringify({ t: "ag", s: frame.seq, e: raw.e, r: raw.r, ch: raw.ch });
+  private store(entity: Entity, row: WireRow): number {
+    this.counter += 1;
+    this.rows.set(this.key(entity, idOf(TABLES[entity], row)), row);
+    this.changes.push({ seq: this.counter, entity, row });
+    return this.counter;
+  }
+
+  /** The seq of the current version of a row, as an ack must report it. */
+  private seqOf(entity: Entity, id: string): number {
+    for (let index = this.changes.length - 1; index >= 0; index -= 1) {
+      const change = this.changes[index];
+      if (change === undefined) continue;
+      if (change.entity === entity && idOf(TABLES[entity], change.row) === id) return change.seq;
     }
-    return JSON.stringify({ t: "row", s: frame.seq, e: raw.e, r: raw.r });
-  });
+    return 0;
+  }
+
+  /** §7.2: per-entity decisions, exactly one log entry per `applied` frame. */
+  private apply(entity: Entity, row: WireRow): { s: string; seq: number; row?: WireRow } {
+    const id = idOf(TABLES[entity], row);
+    const stored = this.rows.get(this.key(entity, id));
+    if (stored === undefined) {
+      return { s: "applied", seq: this.store(entity, row) };
+    }
+
+    if (entity === "money") {
+      const revalued = (["timestamp", "money_value", "pocket_id"] as const).some(
+        (column) => stored[column] !== row[column],
+      );
+      if (revalued) return { s: "stale", seq: this.seqOf(entity, id), row: stored };
+    }
+
+    const identical = TABLES[entity].columns.every((column) => stored[column] === row[column]);
+    if (identical) return { s: "noop", seq: this.seqOf(entity, id) };
+
+    if (clockOf(TABLES[entity], row) > clockOf(TABLES[entity], stored)) {
+      // `money` takes only the note, the tombstone and the newer clock; the rest
+      // is immutable. Without the clock the row would look unedited and every
+      // later client would judge the note stale.
+      const next: WireRow =
+        entity === "money"
+          ? {
+              ...stored,
+              money_note: row["money_note"],
+              money_deleted_at: row["money_deleted_at"],
+              money_updated_at: row["money_updated_at"],
+            }
+          : row;
+      return { s: "applied", seq: this.store(entity, next) };
+    }
+    return { s: "stale", seq: this.seqOf(entity, id), row: stored };
+  }
+
+  /** §7.3 ack catalog: one ack per frame, in order, then `done`. */
+  push(body: string): string[] {
+    const lines = body.split("\n").filter((line) => line !== "");
+    const out: string[] = [];
+    lines.forEach((line, index) => {
+      const frame = JSON.parse(line) as { e: Entity; r: WireRow };
+      const outcome = this.apply(frame.e, frame.r);
+      out.push(
+        JSON.stringify({
+          t: "ack",
+          i: index,
+          e: frame.e,
+          s: outcome.s,
+          seq: outcome.seq,
+          ...(outcome.row === undefined ? {} : { row: outcome.row }),
+        }),
+      );
+    });
+    out.push(JSON.stringify({ t: "done", frames: lines.length }));
+    return out;
+  }
+
+  /** §6.2: `meta`, the changes in `(after, snapshot]`, then `done`. */
+  pull(after: number, limit: number): string[] {
+    if (after > this.counter) {
+      throw new TransportError(400, "bad_request", "bookmark ahead of the server");
+    }
+    const snapshot = this.counter;
+    const page = this.changes.filter((change) => change.seq > after).slice(0, limit);
+    const last = page.length > 0 ? page[page.length - 1]!.seq : after;
+    const more = this.changes.some((change) => change.seq > last);
+    return [
+      JSON.stringify({ t: "meta", snapshot }),
+      ...page.map((change) =>
+        JSON.stringify({ t: "row", s: change.seq, e: change.entity, r: change.row }),
+      ),
+      JSON.stringify({ t: "done", s: last, more }),
+    ];
+  }
 }
 
-/** A `LineStream` over a fixed list of lines. */
-function lineStream(lines: readonly string[], summary?: StreamSummary): LineStream {
+// ============================================================================
+// Harness
+// ============================================================================
+
+function lineStream(lines: readonly string[]): LineStream {
   return {
+    requestId: "test",
+    head: null,
     lines: (async function* () {
       for (const line of lines) yield line;
     })(),
-    requestId: "test-pull",
-    head: null,
-    summary: Promise.resolve(summary ?? { lines: lines.length, cancelled: false }),
+    summary: Promise.resolve({ lines: lines.length, cancelled: false }),
     cancel: () => undefined,
   };
 }
 
-function failedStream(status: number, code: string): LineStream {
+function failedStream(error: unknown): LineStream {
   return {
-    lines: (async function* () {})(),
-    requestId: "test-failed",
+    requestId: "test",
     head: null,
-    summary: Promise.reject(new TransportError(status, code, code)),
+    lines: (async function* () {
+      // A failed request sends no line at all.
+    })(),
+    summary: Promise.reject(error),
     cancel: () => undefined,
   };
 }
 
-type Stored = { entity: Entity; seq: number; line: string };
+/** A client device: its own database, its own store, one shared server. */
+function setup(server = new FakeServer(), seed: Record<string, unknown> = {}) {
+  const { db, layer: dbLayer } = makeTestDatabase();
+  // The migrations seed the built-in pockets (Simpanan/Utang/Selisih). Every
+  // test here starts from an empty group so the log it asserts is its own.
+  db.exec("DELETE FROM money; DELETE FROM pockets;");
+  const { entries, layer: storeLayer } = makeTestStore({
+    "sync.base_url": "https://sync.test",
+    "sync.token": "kst_test",
+    ...seed,
+  });
 
-/** The smallest server that can answer the client (§7, §8). */
-class FakeServer implements SyncTransport {
-  readonly stored: Stored[] = [];
-  readonly sessions = new Map<string, { at: number; frames: number; chain: string }>();
-  readonly pushes: { offset: number; prefix: string; lines: string[] }[] = [];
-  /** Forces the next upload to fail, once. */
-  failNextUpload: { status: number; code: string } | null = null;
-  /** When set, the next matching frame is answered `stale` with this payload. */
-  staleReply: { entity: Entity; row: WireRow; children?: Record<string, WireRow[]> } | null = null;
-  /** Counts `createSession` calls, to assert a session is re-opened on failure. */
-  sessionsCreated = 0;
-  private seq = 0;
-
-  get snapshot(): number {
-    return this.seq;
-  }
-
-  /** Seeds one row, or one record aggregate when `children` is given. */
-  seed(
-    entity: Entity,
-    row: Record<string, unknown>,
-    children: Record<string, WireRow[]> = {},
-  ): void {
-    const def = TABLES[entity];
-    const canonical = toCanonicalRow(def, row);
-    const line =
-      entity === "record" ? encodeRecordFrame(canonical, children) : encodeRowFrame(entity, canonical);
-    this.seq += 1;
-    this.stored.push({ entity, seq: this.seq, line });
-  }
-
-  health() {
-    return Promise.resolve({ protocol: 1, snapshotSeq: this.seq });
-  }
-
-  createSession(): Promise<Session> {
-    this.sessionsCreated += 1;
-    const id = `ul_${this.sessionsCreated}`;
-    this.sessions.set(id, { at: 0, frames: 0, chain: EMPTY_CHAIN });
-    return Promise.resolve({ uploadId: id, at: 0, frames: 0 });
-  }
-
-  getSession(_endpoint: Endpoint, uploadId: string): Promise<Session> {
-    const session = this.sessions.get(uploadId);
-    if (session === undefined) {
-      return Promise.reject(new TransportError(404, "not_found", "unknown session"));
-    }
-    return Promise.resolve({ uploadId, at: session.at, frames: session.frames });
-  }
-
-  deleteSession(_endpoint: Endpoint, uploadId: string): Promise<void> {
-    this.sessions.delete(uploadId);
-    return Promise.resolve();
-  }
-
-  pull(_endpoint: Endpoint, input: { since: number; limit: number }): LineStream {
-    const snapshot = this.seq;
-    const page = this.stored.filter((frame) => frame.seq > input.since).slice(0, input.limit);
-    const lastSeq = page.length === 0 ? input.since : (page[page.length - 1]?.seq ?? input.since);
-    return lineStream([
-      JSON.stringify({ t: "meta", snapshot_seq: snapshot }),
-      ...toPullLines(page),
-      JSON.stringify({ t: "done", s: lastSeq }),
-    ]);
-  }
-
-  uploadChunk(
-    _endpoint: Endpoint,
-    input: { uploadId: string; offset: number; prefixSha: string; body: string; compress: boolean },
-  ): LineStream {
-    if (this.failNextUpload !== null) {
-      const failure = this.failNextUpload;
-      this.failNextUpload = null;
-      return failedStream(failure.status, failure.code);
-    }
-
-    const session = this.sessions.get(input.uploadId);
-    if (session === undefined) return failedStream(404, "not_found");
-    if (session.at !== input.offset || session.chain !== input.prefixSha) {
-      return failedStream(409, "replay_mismatch");
-    }
-
-    const lines = input.body.split("\n").filter((line) => line !== "");
-    this.pushes.push({ offset: input.offset, prefix: input.prefixSha, lines });
-
-    const acks: string[] = [];
-    let chain = session.chain;
-    for (const [index, line] of lines.entries()) {
-      const frameIndex = session.frames + index;
-      // Upload lines carry no `t` wrapper — the session defines the direction.
-      const frame = JSON.parse(line) as { e: Entity; r: WireRow };
-      const entity: Entity = frame.e;
-      if (this.staleReply !== null && this.staleReply.entity === entity) {
-        acks.push(
-          JSON.stringify({
-            t: "ack",
-            i: frameIndex,
-            s: "stale",
-            row: this.staleReply.row,
-            ch: this.staleReply.children,
-          }),
-        );
-        this.staleReply = null;
-      } else {
-        this.seq += 1;
-        acks.push(JSON.stringify({ t: "ack", i: frameIndex, s: "applied", seq: this.seq }));
+  const transport: SyncTransport = {
+    pull(_endpoint, input) {
+      try {
+        return lineStream(server.pull(input.after, input.limit));
+      } catch (error) {
+        return failedStream(error);
       }
-      chain = chainStep(chain, line);
-    }
-
-    const bytes = lines.reduce((total, line) => total + Buffer.byteLength(line, "utf8") + 1, 0);
-    session.at += bytes;
-    session.frames += lines.length;
-    session.chain = chain;
-
-    return lineStream([
-      ...acks,
-      JSON.stringify({ t: "done", at: session.at, frames: session.frames }),
-    ]);
-  }
-
-  chain(prev: string, lines: string[]): Promise<ChainState> {
-    return Promise.resolve(chainOf(prev, lines));
-  }
-
-  readonly reports: DiagnosticReport[] = [];
-
-  diagnose(_endpoint: Endpoint, report: DiagnosticReport): Promise<void> {
-    this.reports.push(report);
-    return Promise.resolve();
-  }
-
-  /**
-   * Not used by these tests: merging goes to the Rust `sync_merge` command, and the
-   * tests drive `merge.ts` directly with a real `BEGIN … COMMIT` on `bun:sqlite`
-   * (see `testExecutor`). Kept on the interface so the transport stays one type.
-   */
-  merge(): Promise<{ statements: number }> {
-    return Promise.reject(new Error("merge is exercised through testExecutor, not the fake server"));
-  }
-}
-
-/**
- * A `MergeExecutor` backed by a real transaction on the in-memory database — the
- * same atomicity the Rust command provides for the app.
- */
-function testExecutor(
-  db: ReturnType<typeof makeTestDatabase>["db"],
-  counter: { calls: number; statements: number } = { calls: 0, statements: 0 },
-): { run: MergeExecutor; counter: { calls: number; statements: number } } {
-  const run: MergeExecutor = (statements) =>
-    Effect.try({
-      try: () => {
-        counter.calls += 1;
-        counter.statements += statements.length;
-        db.exec("BEGIN");
-        try {
-          for (const statement of statements) {
-            db.query(statement.sql).run(...(statement.bindings ?? []));
-          }
-          db.exec("COMMIT");
-        } catch (error) {
-          db.exec("ROLLBACK");
-          throw error;
+    },
+    push(_endpoint, input) {
+      return lineStream(server.push(input.body));
+    },
+    // One transaction, like `sync_merge` in Rust: a page either lands whole or
+    // not at all.
+    merge(statements) {
+      db.exec("BEGIN");
+      try {
+        for (const statement of statements) {
+          db.query(statement.sql).run(...(statement.bindings ?? []));
         }
-      },
-      catch: (error) => new SyncError({ message: String(error) }),
-    });
-  return { run, counter };
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+      return Promise.resolve({ statements: statements.length });
+    },
+  };
+
+  const moneyLayer = MoneyLive.pipe(Layer.provide(dbLayer));
+  const transportLayer = Layer.succeed(SyncTransportService, transport);
+  const appLayer = SyncLive.pipe(
+    Layer.provide(Layer.mergeAll(dbLayer, storeLayer, transportLayer, moneyLayer)),
+  );
+
+  return { db, entries, storeLayer, server, layer: appLayer };
 }
 
-/** The unsync set's size, straight from SQLite. */
-function countUnsync(db: ReturnType<typeof makeTestDatabase>["db"]): number {
-  return ENTITY_ORDER.reduce((total, entity) => {
-    const row = db
-      .query<{ total: number }, []>(countRowsSql(TABLES[entity]))
-      .get();
-    return total + (row?.total ?? 0);
-  }, 0);
-}
-
-function setup() {
-  const { db, layer } = makeTestDatabase();
-  const server = new FakeServer();
-  return { db, layer, server };
-}
-
-/** Runs `program` with the test database service. */
-function withDb<A, E>(
-  layer: Layer.Layer<DatabaseService>,
-  program: (db: DatabaseServiceImpl) => Effect.Effect<A, E>,
-) {
+function runSync(
+  layer: Layer.Layer<SyncService>,
+  mode: "sync" | "reset" = "sync",
+): Promise<SyncReport> {
   return Effect.runPromise(
     Effect.gen(function* () {
-      const db = yield* DatabaseService;
-      return yield* program(db);
+      const sync = yield* SyncService;
+      return yield* sync.run(mode);
     }).pipe(Effect.provide(layer)),
   );
 }
 
-function pushDeps(
-  db: DatabaseServiceImpl,
-  server: FakeServer,
-  overrides: Partial<Parameters<typeof push>[0]> = {},
-): Parameters<typeof push>[0] {
+// — local writes, as the app's own services make them ————————————————————————
+
+function addPocket(
+  db: ReturnType<typeof makeTestDatabase>["db"],
+  input: { id: string; name: string; updatedAt: number; ordering?: number; syncAt?: number | null },
+): void {
+  db.query(
+    `INSERT INTO pockets
+      (pocket_id, pocket_name, pocket_type, pocket_ordering, pocket_updated_at, pocket_sync_at)
+     VALUES (?, ?, 'absolute', ?, ?, ?)`,
+  ).run(input.id, input.name, input.ordering ?? 1, input.updatedAt, input.syncAt ?? null);
+}
+
+function addMoney(
+  db: ReturnType<typeof makeTestDatabase>["db"],
+  input: {
+    id: string;
+    pocketId: string;
+    value: number;
+    timestamp: number;
+    note?: string;
+    updatedAt: number;
+    syncAt?: number | null;
+  },
+): void {
+  db.query(
+    `INSERT INTO money
+      (money_id, timestamp, money_value, pocket_id, money_note, money_updated_at, money_sync_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    input.id,
+    input.timestamp,
+    input.value,
+    input.pocketId,
+    input.note ?? "",
+    input.updatedAt,
+    input.syncAt ?? null,
+  );
+}
+
+type MoneyRow = { money_value: number; money_note: string; money_sync_at: number | null };
+
+function moneyRows(db: ReturnType<typeof makeTestDatabase>["db"]): MoneyRow[] {
+  return db
+    .query("SELECT money_value, money_note, money_sync_at FROM money ORDER BY money_id")
+    .all() as MoneyRow[];
+}
+
+function editMoney(
+  db: ReturnType<typeof makeTestDatabase>["db"],
+  id: string,
+  fields: { value?: number; note?: string; updatedAt: number },
+): void {
+  db.query(
+    `UPDATE money SET
+       money_value = COALESCE(?, money_value),
+       money_note = COALESCE(?, money_note),
+       money_updated_at = ?,
+       money_sync_at = NULL
+     WHERE money_id = ?`,
+  ).run(fields.value ?? null, fields.note ?? null, fields.updatedAt, id);
+}
+
+// ============================================================================
+// The merge rule (§8.2) — the same decisions on both sides
+// ============================================================================
+
+function pocket(id: string, name: string, updatedAt: number): WireRow {
   return {
-    db,
-    transport: server,
-    endpoint,
-    readUploadId: () => Effect.succeed(null),
-    writeUploadState: () => Effect.void,
-    clearUploadState: () => Effect.void,
-    mergeStaleRow: () => Effect.void,
-    mergeStaleAggregate: () => Effect.void,
-    onProgress: () => undefined,
-    ...overrides,
+    pocket_id: id,
+    pocket_name: name,
+    pocket_type: "absolute",
+    pocket_ordering: 1,
+    pocket_updated_at: updatedAt,
+    pocket_deleted_at: null,
   };
 }
 
-/**
- * The pull + merge pair, as `live.ts` runs it: stream the whole gap, then write it
- * as one batch, then move the cursor.
- */
-function pullAndMerge(
-  db: DatabaseServiceImpl,
-  server: FakeServer,
-  state: { cursor: number },
-  execute: MergeExecutor,
-): Effect.Effect<{ merged: number; pages: number; cursor: number }, SyncError> {
-  return Effect.gen(function* () {
-    const pulled = yield* pull({
-      transport: server,
-      endpoint,
-      readCursor: () => Effect.sync(() => state.cursor),
-      onProgress: () => undefined,
-    });
-    // A fixed clock: these tests assert on `_sync_at` landing at a known stamp.
-    const merger = makeMerger(db, () => 1_000, execute);
-    const stats = yield* merger.mergeFrames(pulled.frames);
-    state.cursor = pulled.lastPulledSeq;
-    return {
-      merged: stats.merged,
-      pages: pulled.pages,
-      cursor: state.cursor,
-    };
-  });
+function money(id: string, value: number, updatedAt: number, note = ""): WireRow {
+  return {
+    money_id: id,
+    timestamp: 1_000,
+    money_value: value,
+    pocket_id: "p_01",
+    money_note: note,
+    money_updated_at: updatedAt,
+    money_deleted_at: null,
+  };
 }
 
-describe("push", () => {
-  test("uploads the unsync set in the contract's entity order and marks it synced", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO pockets (pocket_id, pocket_name, pocket_type, pocket_ordering, pocket_updated_at) VALUES ('p1', 'Kas', 'absolute', 0, 100)",
-    ).run();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Ani', '0812', 100)",
-    ).run();
+describe("the merge rule", () => {
+  test("pockets are last-writer-wins, and a tie keeps the stored copy", () => {
+    expect(pocketDecision(pocket("p_01", "Kas", 10), pocket("p_01", "Bank", 11))).toBe("applied");
+    expect(pocketDecision(pocket("p_01", "Kas", 11), pocket("p_01", "Bank", 10))).toBe("stale");
+    expect(pocketDecision(pocket("p_01", "Kas", 10), pocket("p_01", "Bank", 10))).toBe("stale");
+    expect(pocketDecision(pocket("p_01", "Kas", 10), pocket("p_01", "Kas", 10))).toBe("noop");
+  });
 
-    // The seeded database already carries rows (the base payment methods, the
-    // pocket copied out of `money_kind`), so the pushed count is whatever the
-    // unsync set was — not a hand-counted 2.
-    const expected = countUnsync(db);
-    const outcome = await withDb(layer, (service) => push(pushDeps(service, server)));
-
-    expect(outcome.pushed).toBe(expected);
-    const entities = server.pushes.flatMap((push) =>
-      push.lines.map((line) => (JSON.parse(line) as { e: Entity }).e),
+  test("a money note edit is accepted, an amount edit is not", () => {
+    expect(moneyDecision(money("m_01", 5_000, 10), money("m_01", 5_000, 11, "kopi"))).toBe(
+      "applied",
     );
-    // §2.3: the stream is emitted in the fixed entity order, parent first.
-    const order = entities.map((entity) => ENTITY_ORDER.indexOf(entity));
-    expect(order).toEqual([...order].sort((a, b) => a - b));
-    expect(entities).toContain("pocket");
-    expect(entities).toContain("customer");
-    expect(entities.indexOf("pocket")).toBeLessThan(entities.indexOf("customer"));
-
-    const pocket = db
-      .query<{ pocket_sync_at: number | null }, []>("SELECT pocket_sync_at FROM pockets")
-      .get();
-    expect(pocket?.pocket_sync_at).not.toBeNull();
-    const customer = db
-      .query<{ customer_sync_at: number | null }, []>("SELECT customer_sync_at FROM customers")
-      .get();
-    expect(customer?.customer_sync_at).not.toBeNull();
-  });
-
-  test("chunks a large entity and keeps offset/prefix continuity across chunks", async () => {
-    const { db, layer, server } = setup();
-    for (let index = 0; index < 250; index++) {
-      db.query(
-        "INSERT INTO pockets (pocket_id, pocket_name, pocket_type, pocket_ordering, pocket_updated_at) VALUES (?, 'K', 'absolute', 0, 100)",
-      ).run(`p${String(index).padStart(4, "0")}`);
-    }
-
-    const expected = countUnsync(db);
-    const outcome = await withDb(layer, (service) => push(pushDeps(service, server)));
-
-    expect(outcome.pushed).toBe(expected);
-    // 200 frames per chunk (§7.4 bound), so the first chunk is exactly 200.
-    expect(server.pushes[0]!.lines.length).toBe(200);
-    expect(server.pushes.length).toBeGreaterThan(1);
-    // The second chunk starts exactly where the first ended, and carries the
-    // chain hash of the bytes before it.
-    const first = chainOf(EMPTY_CHAIN, server.pushes[0]!.lines);
-    expect(server.pushes[1]!.offset).toBe(first.bytes);
-    expect(server.pushes[1]!.prefix).toBe(first.chain);
-  });
-
-  test("re-opens the session after a replay mismatch and finishes the push", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO pockets (pocket_id, pocket_name, pocket_type, pocket_ordering, pocket_updated_at) VALUES ('p1', 'Kas', 'absolute', 0, 100)",
-    ).run();
-    server.failNextUpload = { status: 409, code: "replay_mismatch" };
-
-    const expected = countUnsync(db);
-    const outcome = await withDb(layer, (service) => push(pushDeps(service, server)));
-
-    expect(outcome.pushed).toBe(expected);
-    expect(server.sessionsCreated).toBe(2);
-    const pocket = db
-      .query<{ pocket_sync_at: number | null }, []>("SELECT pocket_sync_at FROM pockets")
-      .get();
-    expect(pocket?.pocket_sync_at).not.toBeNull();
-  });
-
-  test("a stale ack hands the winning server row back to the app", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Lokal', '0812', 100)",
-    ).run();
-    const merged: { entity: Entity; row: WireRow }[] = [];
-    server.staleReply = {
-      entity: "customer",
-      row: {
-        customer_id: "c1",
-        customer_name: "Server",
-        customer_phone: "0813",
-        customer_updated_at: 200,
-        customer_deleted_at: null,
-      },
-    };
-
-    await withDb(layer, (service) =>
-      push(
-        pushDeps(service, server, {
-          mergeStaleRow: (entity, row) =>
-            Effect.sync(() => {
-              merged.push({ entity, row });
-            }),
-          // The real merger writes it; this test only proves the ack reaches it
-          // with the payload intact.
-        }),
-      ),
-    );
-
-    expect(merged).toEqual([
-      {
-        entity: "customer",
-        row: {
-          customer_id: "c1",
-          customer_name: "Server",
-          customer_phone: "0813",
-          customer_updated_at: 200,
-          customer_deleted_at: null,
-        },
-      },
-    ]);
-    const row = db
-      .query<{ customer_sync_at: number | null }, []>("SELECT customer_sync_at FROM customers")
-      .get();
-    expect(row?.customer_sync_at).not.toBeNull();
-  });
-
-  test("a record goes out as one aggregate frame carrying all five child arrays", async () => {
-    const { db, layer, server } = setup();
-    const methodId = String(
-      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
-        ?.method_id,
-    );
-    db.query(
-      "INSERT INTO products (product_id, product_name, product_updated_at) VALUES ('p1', 'Kopi', 100)",
-    ).run();
-    db.query(
-      "INSERT INTO product_events (product_event_id, product_event_created_at, product_event_value, product_event_capital, product_event_note, product_id) VALUES ('e1', 100, -1, 1000, '', 'p1')",
-    ).run();
-    db.query(
-      `INSERT INTO records (record_id, record_created_at, record_paid_at, record_rounding, record_cashier,
-        record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone,
-        record_sub_total, record_total, record_updated_at)
-        VALUES ('r1', 100, 100, 0, 'kasir', 'incoming', 15000, '', 0, 'Ani', '0812', 15000, 15000, 100)`,
-    ).run();
-    db.query(
-      `INSERT INTO record_listings (record_listing_id, record_listing_group_id, record_id, product_event_id,
-        product_id, record_listing_name, record_listing_kind, record_listing_unit, record_listing_price,
-        record_listing_qty, record_listing_capital, record_listing_total)
-        VALUES ('rl1', 'g1', 'r1', 'e1', 'p1', 'Kopi', '', 1, 15000, 1, 1000, 15000)`,
-    ).run();
-    db.query(
-      "INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay) VALUES ('rm1', 'r1', ?, 15000)",
-    ).run(methodId);
-    db.query(
-      "INSERT INTO record_extras (record_extra_id, record_extra_name, record_id, record_extra_value, record_extra_eff, record_extra_kind) VALUES ('re1', 'Pajak', 'r1', 0, 0, 'percent')",
-    ).run();
-    db.query(
-      "INSERT INTO record_images (record_image_id, record_image_order, record_image_name, record_image_mime, record_id) VALUES ('ri1', 0, 'a.png', 'image/png', 'r1')",
-    ).run();
-    db.query(
-      "INSERT INTO discounts (discount_id, discount_group_id, record_listing_id, discount_kind, discount_value, discount_eff) VALUES ('d1', 'dg1', 'rl1', 'number', 500, 500)",
-    ).run();
-
-    await withDb(layer, (service) => push(pushDeps(service, server)));
-
-    // The record is the last frame, after the product and the event (§2.3).
-    const lines = server.pushes.flatMap((push) => push.lines);
-    const records = lines
-      .map((line) => JSON.parse(line) as { e: string; r?: WireRow; ch?: Record<string, unknown[]> })
-      .filter((frame) => frame.e === "record");
-    expect(records.length).toBe(1);
-
-    const aggregate = records[0]!;
-    // All five arrays, and every row that belongs to the record — including the
-    // discount, which only reaches the record through its listing.
-    expect(Object.keys(aggregate.ch!)).toEqual([...CHILD_ORDER]);
-    expect(aggregate.ch!["record_listings"]).toHaveLength(1);
-    expect(aggregate.ch!["record_methods"]).toHaveLength(1);
-    expect(aggregate.ch!["record_extras"]).toHaveLength(1);
-    expect(aggregate.ch!["record_images"]).toHaveLength(1);
-    expect(aggregate.ch!["discounts"]).toEqual([
-      {
-        discount_id: "d1",
-        discount_group_id: "dg1",
-        record_listing_id: "rl1",
-        discount_kind: "number",
-        discount_value: 500,
-        discount_eff: 500,
-      },
-    ]);
-  });
-
-  test("the sync marker refuses a row that moved after its frame was encoded", () => {
-    const { db } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Ani', '0812', 100)",
-    ).run();
-    db.query("UPDATE customers SET customer_updated_at = 999 WHERE customer_id = 'c1'").run();
-
-    // The ack was for the 100-clock frame, not the row as it stands now.
-    const statements = markSyncedStatements(TABLES.customer, [{ id: "c1", updatedAt: 100 }], 5000);
-    for (const statement of statements) {
-      db.query(statement.sql).run(...(statement.bindings ?? []));
-    }
-
-    const row = db
-      .query<{ customer_sync_at: number | null }, []>("SELECT customer_sync_at FROM customers")
-      .get();
-    expect(row?.customer_sync_at).toBeNull();
+    expect(moneyDecision(money("m_01", 5_000, 10), money("m_01", 9_999, 11))).toBe("stale");
+    expect(moneyDecision(money("m_01", 5_000, 10), money("m_01", 5_000, 10))).toBe("noop");
+    expect(moneyDecision(money("m_01", 5_000, 11), money("m_01", 5_000, 10, "kopi"))).toBe("stale");
   });
 });
 
-describe("merge batching", () => {
-  /**
-   * An executor that records what each transaction carried.
-   *
-   * `beforeFirst` runs once, inside the first transaction, which is how a test
-   * reproduces a local write landing between the plan and the apply.
-   */
-  function recordingExecutor(
-    db: ReturnType<typeof makeTestDatabase>["db"],
-    beforeFirst?: () => void,
-  ): { run: MergeExecutor; slices: { sql: string }[][] } {
-    const slices: { sql: string }[][] = [];
-    const inner = testExecutor(db).run;
-    const run: MergeExecutor = (statements, what) => {
-      if (slices.length === 0 && beforeFirst !== undefined) beforeFirst();
-      slices.push(statements.map((statement) => ({ sql: statement.sql })));
-      return inner(statements, what);
-    };
-    return { run, slices };
-  }
+// ============================================================================
+// A whole cycle
+// ============================================================================
 
-  test("a pull under the slice bound is still one transaction", async () => {
-    const { db, layer, server } = setup();
-    // Several entities and many rows, but few enough to fit one slice: nothing is
-    // split for the sake of it.
-    for (let index = 0; index < 60; index++) {
-      server.seed("customer", {
-        customer_id: `c${String(index).padStart(4, "0")}`,
-        customer_name: `Pelanggan ${index}`,
-        customer_phone: "0812",
-        customer_updated_at: 100,
-        customer_deleted_at: null,
-      });
-      server.seed("supplier", {
-        supplier_id: `s${String(index).padStart(4, "0")}`,
-        supplier_name: `Pemasok ${index}`,
-        supplier_note: "",
-        supplier_updated_at: 100,
-        supplier_deleted_at: null,
-      });
-    }
-
-    const executor = testExecutor(db);
-    const result = await withDb(layer, (service) =>
-      pullAndMerge(service, server, { cursor: 0 }, executor.run),
-    );
-
-    expect(result.merged).toBe(120);
-    expect(executor.counter.calls).toBe(1);
-    expect(executor.counter.statements).toBe(120);
-  });
-
-  test("a large pull is applied in bounded slices, in order", async () => {
-    const { db, layer, server } = setup();
-    for (let index = 0; index < 500; index++) {
-      server.seed("customer", {
-        customer_id: `c${String(index).padStart(4, "0")}`,
-        customer_name: `Pelanggan ${index}`,
-        customer_phone: "0812",
-        customer_updated_at: 100,
-        customer_deleted_at: null,
-      });
-    }
-
-    const executor = recordingExecutor(db);
-    const result = await withDb(layer, (service) =>
-      pullAndMerge(service, server, { cursor: 0 }, executor.run),
-    );
-
-    expect(result.merged).toBe(500);
-    // 500 one-row frames at 200 statements per transaction.
-    expect(executor.slices.map((slice) => slice.length)).toEqual([200, 200, 100]);
-    const rows = db
-      .query<{ total: number }, []>("SELECT COUNT(*) AS total FROM customers WHERE customer_id LIKE 'c%'")
-      .get();
-    expect(rows?.total).toBe(500);
-  });
-
-  test("a slice never splits a record's header from its child arrays", async () => {
-    const { db, layer, server } = setup();
-    // 199 single-statement frames, then one aggregate. The aggregate does not fit
-    // beside them, so a planner that counted statements blindly would cut it.
-    for (let index = 0; index < 199; index++) {
-      server.seed("customer", {
-        customer_id: `c${String(index).padStart(4, "0")}`,
-        customer_name: `Pelanggan ${index}`,
-        customer_phone: "0812",
-        customer_updated_at: 100,
-        customer_deleted_at: null,
-      });
-    }
-    const methodId = String(
-      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
-        ?.method_id,
-    );
-    server.seed(
-      "record",
-      {
-        record_id: "r1",
-        record_created_at: 100,
-        record_paid_at: 100,
-        record_rounding: 0,
-        record_credit_at: null,
-        record_cashier: "kasir",
-        record_mode: "incoming",
-        record_pay: 5000,
-        record_note: "",
-        record_fix: 0,
-        record_customer_name: "",
-        record_customer_phone: "",
-        record_sub_total: 5000,
-        record_total: 5000,
-        record_updated_at: 100,
-        record_deleted_at: null,
-        record_supplier_id: null,
-        record_supplier_name: "",
-        record_flag: 0,
-        record_pair_id: null,
-      },
-      {
-        record_listings: [],
-        record_methods: [
-          { record_method_id: "m1", method_id: methodId, record_method_pay: 5000 },
-        ],
-        record_extras: [],
-        record_images: [],
-        discounts: [],
-      },
-    );
-
-    const executor = recordingExecutor(db);
-    const result = await withDb(layer, (service) =>
-      pullAndMerge(service, server, { cursor: 0 }, executor.run),
-    );
-
-    expect(result.merged).toBe(200);
-    expect(executor.slices.length).toBe(2);
-    expect(executor.slices[0]?.length).toBe(199);
-    // The whole aggregate moved to the second transaction: header, five child
-    // deletes and the one child row.
-    const second = executor.slices[1] ?? [];
-    expect(second.length).toBe(7);
-    expect(second[0]?.sql).toContain("INSERT INTO records");
-
-    // The invariant, stated once: every aggregate contributes exactly one header
-    // insert and one `discounts` delete, so a slice holding one without the other
-    // is a split aggregate.
-    for (const slice of executor.slices) {
-      const headers = slice.filter((statement) => statement.sql.includes("INSERT INTO records")).length;
-      const discounts = slice.filter((statement) =>
-        statement.sql.includes("DELETE FROM discounts"),
-      ).length;
-      expect(headers).toBe(discounts);
-    }
-  });
-
-  test("the deferred pointers are written after every aggregate", async () => {
-    const { db, layer, server } = setup();
-    const methodId = String(
-      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
-        ?.method_id,
-    );
-    server.seed("product", {
-      product_id: "p1",
-      product_name: "Kopi",
-      product_note: "",
-      product_flag: 0,
-      product_updated_at: 100,
-      product_deleted_at: null,
+describe("syncMoneyGroup", () => {
+  test("a first sync uploads the local rows and pulls them back marked synced", async () => {
+    const device = setup();
+    addPocket(device.db, { id: "p_01", name: "Kas", updatedAt: 1_000 });
+    addMoney(device.db, {
+      id: "m_01",
+      pocketId: "p_01",
+      value: 5_000,
+      timestamp: 1_000,
+      updatedAt: 1_000,
     });
-    // The event arrives before the record that names it, so its `record_id` can
-    // only be written by the trailing UPDATE.
-    server.seed("product_event", {
-      product_event_id: "e1",
-      product_event_created_at: 100,
-      product_event_value: -1,
-      product_event_capital: 1000,
-      product_event_note: "",
-      product_id: "p1",
-      stock_id: null,
-      record_id: "r1",
-    });
-    server.seed(
-      "record",
-      {
-        record_id: "r1",
-        record_created_at: 100,
-        record_paid_at: 100,
-        record_rounding: 0,
-        record_credit_at: null,
-        record_cashier: "kasir",
-        record_mode: "incoming",
-        record_pay: 1000,
-        record_note: "",
-        record_fix: 0,
-        record_customer_name: "",
-        record_customer_phone: "",
-        record_sub_total: 1000,
-        record_total: 1000,
-        record_updated_at: 100,
-        record_deleted_at: null,
-        record_supplier_id: null,
-        record_supplier_name: "",
-        record_flag: 0,
-        record_pair_id: null,
-      },
-      {
-        record_listings: [
-          {
-            record_listing_id: "rl1",
-            record_listing_group_id: "g1",
-            product_event_id: "e1",
-            product_id: "p1",
-            record_listing_name: "Kopi",
-            record_listing_kind: "retail",
-            record_listing_unit: 1,
-            record_listing_price: 1000,
-            record_listing_qty: 1,
-            record_listing_capital: 900,
-            record_listing_total: 1000,
-          },
-        ],
-        record_methods: [
-          { record_method_id: "m1", method_id: methodId, record_method_pay: 1000 },
-        ],
-        record_extras: [],
-        record_images: [],
-        discounts: [],
-      },
-    );
 
-    const executor = recordingExecutor(db);
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, executor.run));
+    const report = await runSync(device.layer);
 
-    const flat = executor.slices.flat();
-    const lastAggregate = flat.reduce(
-      (last, statement, index) =>
-        statement.sql.includes("INSERT INTO records") ? index : last,
-      -1,
-    );
-    const link = flat.findIndex((statement) =>
-      statement.sql.includes("UPDATE product_events SET record_id"),
-    );
-    expect(lastAggregate).toBeGreaterThanOrEqual(0);
-    expect(link).toBeGreaterThan(lastAggregate);
-
-    const event = db
-      .query<{ record_id: string | null }, []>(
-        "SELECT record_id FROM product_events WHERE product_event_id = 'e1'",
-      )
-      .get();
-    expect(event?.record_id).toBe("r1");
+    expect(device.server.counter).toBe(2);
+    expect(report.groups.money.bookmark).toBe(2);
+    expect(device.entries.get("sync.money.bookmark")).toBe(2);
+    // Both rows carry the server's seq, so neither is owed on the next run.
+    expect(moneyRows(device.db)[0]?.money_sync_at).toBe(2);
+    const pocket = device.db
+      .query("SELECT pocket_sync_at FROM pockets WHERE pocket_id = 'p_01'")
+      .get() as { pocket_sync_at: number };
+    expect(pocket.pocket_sync_at).toBe(1);
   });
 
-  test("progress is reported per slice, and ends at the frame count", async () => {
-    const { db, layer, server } = setup();
-    for (let index = 0; index < 300; index++) {
-      server.seed("customer", {
-        customer_id: `c${String(index).padStart(4, "0")}`,
-        customer_name: `Pelanggan ${index}`,
-        customer_phone: "0812",
-        customer_updated_at: 100,
-        customer_deleted_at: null,
-      });
-    }
+  test("a run reports one bar per group, each with its own numbers", async () => {
+    const device = setup();
+    addPocket(device.db, { id: "p_01", name: "Kas", updatedAt: 1_000 });
+    addMoney(device.db, {
+      id: "m_01",
+      pocketId: "p_01",
+      value: 5_000,
+      timestamp: 1_000,
+      updatedAt: 1_000,
+    });
 
-    const seen: { done: number; total: number }[] = [];
-    await withDb(layer, (service) =>
+    const { report, state } = await Effect.runPromise(
       Effect.gen(function* () {
-        const pulled = yield* pull({
-          transport: server,
-          endpoint,
-          readCursor: () => Effect.succeed(0),
-          onProgress: () => undefined,
-        });
-        const merger = makeMerger(service, () => 1_000, testExecutor(db).run);
-        return yield* merger.mergeFrames(pulled.frames, (progress) => seen.push(progress));
-      }),
+        const sync = yield* SyncService;
+        const report = yield* sync.run("sync");
+        const head = yield* Stream.runHead(sync.state);
+        return { report, state: Option.getOrNull(head) };
+      }).pipe(Effect.provide(device.layer)),
     );
 
-    expect(seen.length).toBe(2);
-    expect(seen[0]).toEqual({ done: 200, total: 300 });
-    expect(seen[1]).toEqual({ done: 300, total: 300 });
+    // One bar per group today, and the shape that makes a second group a row.
+    expect(state?.groups.map((group) => group.group)).toEqual(["money"]);
+    expect(state?.groups[0]?.phase).toBe("done");
+    expect(state?.groups[0]?.report).toEqual(report.groups.money);
+    expect(report.groups.money.bookmark).toBe(2);
+    expect(report.groups.money.pushed).toBe(2);
   });
 
-  test("a failing slice applies nothing", async () => {
-    const { db, layer, server } = setup();
-    server.seed("customer", {
-      customer_id: "c1",
-      customer_name: "Ani",
-      customer_phone: "0812",
-      customer_updated_at: 100,
-      customer_deleted_at: null,
-    });
-
-    // The executor refuses before writing, which is what the Rust command does when
-    // a statement fails: nothing of that slice is applied.
-    const broken: MergeExecutor = () => Effect.fail(new SyncError({ message: "boom" }));
-    const outcome = await withDb(layer, (service) =>
-      pullAndMerge(service, server, { cursor: 0 }, broken).pipe(Effect.either),
-    );
-
-    expect(outcome._tag).toBe("Left");
-    const row = db
-      .query<{ total: number }, []>(
-        "SELECT COUNT(*) AS total FROM customers WHERE customer_id = 'c1'",
-      )
-      .get();
-    expect(row?.total).toBe(0);
-  });
-
-  test("a local edit between the plan and the apply is not overwritten", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      `INSERT INTO records (record_id, record_created_at, record_rounding, record_cashier,
-        record_mode, record_pay, record_note, record_fix, record_customer_name,
-        record_customer_phone, record_sub_total, record_total, record_updated_at)
-        VALUES ('r1', 100, 0, 'kasir', 'incoming', 0, '', 0, '', '', 0, 0, 50)`,
-    ).run();
-    db.query(
-      "INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay) VALUES ('m_old', 'r1', (SELECT method_id FROM methods LIMIT 1), 1)",
-    ).run();
-
-    const header = {
-      record_id: "r1",
-      record_created_at: 100,
-      record_paid_at: 100,
-      record_rounding: 0,
-      record_credit_at: null,
-      record_cashier: "kasir",
-      record_mode: "incoming",
-      record_pay: 5000,
-      record_note: "",
-      record_fix: 0,
-      record_customer_name: "",
-      record_customer_phone: "",
-      record_sub_total: 5000,
-      record_total: 5000,
-      record_updated_at: 200,
-      record_deleted_at: null,
-      record_supplier_id: null,
-      record_supplier_name: "",
-      record_flag: 0,
-      record_pair_id: null,
-    };
-    const methodId = String(
-      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
-        ?.method_id,
-    );
-    server.stored.push({
-      entity: "record",
-      seq: 1,
-      line: encodeRecordFrame(toCanonicalRow(TABLES.record, header), {
-        record_listings: [],
-        record_methods: [{ record_method_id: "m_new", method_id: methodId, record_method_pay: 5000 }],
-        record_extras: [],
-        record_images: [],
-        discounts: [],
-      }),
-    });
-
-    // The cashier edits the record while the merge is between planning and
-    // writing — the window a background sync makes ordinary.
-    const executor = recordingExecutor(db, () => {
-      db.query("UPDATE records SET record_updated_at = 300 WHERE record_id = 'r1'").run();
-    });
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, executor.run));
-
-    // The header's clock comparison runs inside the transaction, so the newer local
-    // row wins and the child arrays stay exactly as the editor left them.
-    const updated = db
-      .query<{ record_updated_at: number }, []>(
-        "SELECT record_updated_at FROM records WHERE record_id = 'r1'",
-      )
-      .get();
-    expect(updated?.record_updated_at).toBe(300);
-    const methods = db
-      .query<{ record_method_id: string }, []>(
-        "SELECT record_method_id FROM record_methods WHERE record_id = 'r1'",
-      )
-      .all();
-    expect(methods.map((row) => row.record_method_id)).toEqual(["m_old"]);
-  });
-});
-
-describe("merge guards", () => {
-  const customer = (name: string, at: number, phone = "0812"): WireRow => ({
-    customer_id: "c1",
-    customer_name: name,
-    customer_phone: phone,
-    customer_updated_at: at,
-    customer_deleted_at: null,
-  });
-
-  /** Runs one `mergeStaleRow` against the real merger and a real transaction. */
-  function applyStale(
-    layer: ReturnType<typeof setup>["layer"],
-    db: ReturnType<typeof setup>["db"],
-    row: WireRow,
-    onlyIfClock: number,
-  ) {
-    return withDb(layer, (service) =>
-      makeMerger(service, () => 1_000, testExecutor(db).run).mergeStaleRow(
-        "customer",
-        row,
-        onlyIfClock,
-      ),
-    );
-  }
-
-  test("a stale payload replaces a row that has not moved", async () => {
-    const { db, layer } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Lokal', '0812', 100)",
-    ).run();
-
-    // The local row is still exactly what was uploaded, so the server's verdict
-    // stands and the payload is applied (§5.2).
-    await applyStale(layer, db, customer("Server", 200), 100);
-
-    const row = db
-      .query<{ customer_name: string; customer_sync_at: number | null }, []>(
-        "SELECT customer_name, customer_sync_at FROM customers WHERE customer_id = 'c1'",
-      )
-      .get();
-    expect(row?.customer_name).toBe("Server");
-    expect(row?.customer_sync_at).toBe(1_000);
-  });
-
-  test("a stale payload leaves a row edited while its frame was in flight", async () => {
-    const { db, layer } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Lokal', '0812', 100)",
-    ).run();
-    // The cashier renames the customer after the frame went out but before the ack
-    // came back: the server judged `100`, and this row is no longer that row.
-    db.query(
-      "UPDATE customers SET customer_name = 'Diedit', customer_updated_at = 300 WHERE customer_id = 'c1'",
-    ).run();
-
-    await applyStale(layer, db, customer("Server", 200, "0813"), 100);
-
-    const row = db
-      .query<{ customer_name: string; customer_phone: string; customer_sync_at: number | null }, []>(
-        "SELECT customer_name, customer_phone, customer_sync_at FROM customers WHERE customer_id = 'c1'",
-      )
-      .get();
-    // The local edit stands and stays queued: the next push compares the two
-    // properly instead of the edit disappearing in both directions.
-    expect(row?.customer_name).toBe("Diedit");
-    expect(row?.customer_phone).toBe("0812");
-    expect(row?.customer_sync_at).toBeNull();
-  });
-
-  test("a stale payload for a row this device never held is still written", async () => {
-    const { db, layer } = setup();
-
-    await applyStale(layer, db, customer("Server", 200), 100);
-
-    const row = db
-      .query<{ customer_name: string }, []>(
-        "SELECT customer_name FROM customers WHERE customer_id = 'c1'",
-      )
-      .get();
-    // There is no local edit to protect, so the guard has nothing to refuse.
-    expect(row?.customer_name).toBe("Server");
-  });
-
-  test("a stale aggregate leaves the children of a moved header alone", async () => {
-    const { db, layer } = setup();
-    const methodId = String(
-      (db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)
-        ?.method_id,
-    );
-    const header = (pay: number, at: number): WireRow => ({
-      record_id: "r1",
-      record_created_at: 100,
-      record_paid_at: 100,
-      record_rounding: 0,
-      record_credit_at: null,
-      record_cashier: "kasir",
-      record_mode: "incoming",
-      record_pay: pay,
-      record_note: "",
-      record_fix: 0,
-      record_customer_name: "",
-      record_customer_phone: "",
-      record_sub_total: pay,
-      record_total: pay,
-      record_updated_at: at,
-      record_deleted_at: null,
-      record_supplier_id: null,
-      record_supplier_name: "",
-      record_flag: 0,
-      record_pair_id: null,
-    });
-    const children = (id: string) => ({
-      record_listings: [],
-      record_methods: [{ record_method_id: id, method_id: methodId, record_method_pay: 100 }],
-      record_extras: [],
-      record_images: [],
-      discounts: [],
-    });
-
-    db.query(
-      `INSERT INTO records (record_id, record_created_at, record_rounding, record_cashier,
-        record_mode, record_pay, record_note, record_fix, record_customer_name,
-        record_customer_phone, record_sub_total, record_total, record_updated_at)
-        VALUES ('r1', 100, 0, 'kasir', 'incoming', 100, '', 0, '', '', 100, 100, 100)`,
-    ).run();
-    db.query(
-      `INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay)
-        VALUES ('m_local', 'r1', '${methodId}', 100)`,
-    ).run();
-    // The record moved after its frame was encoded.
-    db.query("UPDATE records SET record_updated_at = 300 WHERE record_id = 'r1'").run();
-
-    await withDb(layer, (service) =>
-      makeMerger(service, () => 1_000, testExecutor(db).run).mergeStaleAggregate(
-        header(5000, 200),
-        children("m_server"),
-        100,
-      ),
-    );
-
-    const methods = db
-      .query<{ record_method_id: string }, []>(
-        "SELECT record_method_id FROM record_methods WHERE record_id = 'r1'",
-      )
-      .all();
-    expect(methods.map((row) => row.record_method_id)).toEqual(["m_local"]);
-    const updated = db
-      .query<{ record_updated_at: number; record_sync_at: number | null }, []>(
-        "SELECT record_updated_at, record_sync_at FROM records WHERE record_id = 'r1'",
-      )
-      .get();
-    expect(updated?.record_updated_at).toBe(300);
-    expect(updated?.record_sync_at).toBeNull();
-  });
-});
-
-describe("pull", () => {
-  test("merges a new row and advances the cursor to done.s", async () => {
-    const { db, layer, server } = setup();
-    server.seed("customer", {
-      customer_id: "c1",
-      customer_name: "Ani",
-      customer_phone: "0812",
-      customer_updated_at: 100,
-      customer_deleted_at: null,
-    });
-
-    const result = await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    expect(result.merged).toBe(1);
-    expect(result.cursor).toBe(1);
-  });
-
-  test("a pulled row is marked synced so it is not pushed straight back", async () => {
-    const { db, layer, server } = setup();
-    server.seed("customer", {
-      customer_id: "c1",
-      customer_name: "Ani",
-      customer_phone: "0812",
-      customer_updated_at: 100,
-      customer_deleted_at: null,
-    });
-
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    const row = db
-      .query<{ customer_sync_at: number | null }, []>("SELECT customer_sync_at FROM customers")
-      .get();
-    expect(row?.customer_sync_at).not.toBeNull();
-  });
-
-  test("a local row that is newer wins over the pulled one", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Lokal', '0800', 500)",
-    ).run();
-    server.seed("customer", {
-      customer_id: "c1",
-      customer_name: "Server",
-      customer_phone: "0812",
-      customer_updated_at: 100,
-      customer_deleted_at: null,
-    });
-
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    const row = db
-      .query<{ customer_name: string; customer_sync_at: number | null }, []>(
-        "SELECT customer_name, customer_sync_at FROM customers WHERE customer_id = 'c1'",
-      )
-      .get();
-    expect(row?.customer_name).toBe("Lokal");
-    // The losing pull row left the marker alone, so the local edit is still queued.
-    expect(row?.customer_sync_at).toBeNull();
-  });
-
-  test("a tombstone merges like any other update", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at) VALUES ('c1', 'Ani', '0812', 100)",
-    ).run();
-    server.seed("customer", {
-      customer_id: "c1",
-      customer_name: "Ani",
-      customer_phone: "0812",
-      customer_updated_at: 200,
-      customer_deleted_at: 200,
-    });
-
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    const row = db
-      .query<{ customer_deleted_at: number | null }, []>(
-        "SELECT customer_deleted_at FROM customers WHERE customer_id = 'c1'",
-      )
-      .get();
-    expect(row?.customer_deleted_at).toBe(200);
-  });
-
-  test("a product_event is appended, never updated", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO products (product_id, product_name, product_updated_at) VALUES ('p1', 'Kopi', 100)",
-    ).run();
-    const event = {
-      product_event_id: "e1",
-      product_event_created_at: 100,
-      product_event_value: 5,
-      product_event_capital: 1000,
-      product_event_note: "awal",
-      product_id: "p1",
-      stock_id: null,
-      record_id: null,
-    };
-    db.query(
-      `INSERT INTO product_events (product_event_id, product_event_created_at, product_event_value,
-        product_event_capital, product_event_note, product_id) VALUES ('e1', 100, 5, 1000, 'awal', 'p1')`,
-    ).run();
-    server.seed("product_event", event);
-
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    const rows = db
-      .query<{ product_event_note: string }, []>("SELECT product_event_note FROM product_events")
-      .all();
-    expect(rows.length).toBe(1);
-    expect(rows[0]?.product_event_note).toBe("awal");
-  });
-
-  test("a record aggregate replaces every child array when the header wins", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO records (record_id, record_created_at, record_rounding, record_cashier, record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone, record_sub_total, record_total, record_updated_at) VALUES ('r1', 100, 0, 'kasir', 'incoming', 0, '', 0, '', '', 0, 0, 50)",
-    ).run();
-    db.query(
-      "INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay) VALUES ('m_old', 'r1', (SELECT method_id FROM methods LIMIT 1), 1)",
-    ).run();
-
-    const header = {
-      record_id: "r1",
-      record_created_at: 100,
-      record_paid_at: 100,
-      record_rounding: 0,
-      record_credit_at: null,
-      record_cashier: "kasir",
-      record_mode: "incoming",
-      record_pay: 5000,
-      record_note: "",
-      record_fix: 0,
-      record_customer_name: "",
-      record_customer_phone: "",
-      record_sub_total: 5000,
-      record_total: 5000,
-      record_updated_at: 200,
-      record_deleted_at: null,
-      record_supplier_id: null,
-      record_supplier_name: "",
-      record_flag: 0,
-      record_pair_id: null,
-    };
-    const children = {
-      record_listings: [],
-      record_methods: [
-        {
-          record_method_id: "m_new",
-          method_id: String((db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)?.method_id),
-          record_method_pay: 5000,
-        },
-      ],
-      record_extras: [],
-      record_images: [],
-      discounts: [],
-    };
-    const canonical = toCanonicalRow(TABLES.record, header);
-    server.stored.push({
-      entity: "record",
-      seq: 1,
-      line: encodeRecordFrame(canonical, children),
-    });
-
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    const methods = db
-      .query<{ record_method_id: string }, []>(
-        "SELECT record_method_id FROM record_methods WHERE record_id = 'r1'",
-      )
-      .all();
-    expect(methods.map((row) => row.record_method_id)).toEqual(["m_new"]);
-    const updated = db
-      .query<{ record_updated_at: number }, []>(
-        "SELECT record_updated_at FROM records WHERE record_id = 'r1'",
-      )
-      .get();
-    expect(updated?.record_updated_at).toBe(200);
-  });
-
-  test("a losing record header leaves the children untouched", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO records (record_id, record_created_at, record_rounding, record_cashier, record_mode, record_pay, record_note, record_fix, record_customer_name, record_customer_phone, record_sub_total, record_total, record_updated_at) VALUES ('r1', 100, 0, 'kasir', 'incoming', 0, '', 0, '', '', 0, 0, 900)",
-    ).run();
-    db.query(
-      "INSERT INTO record_methods (record_method_id, record_id, method_id, record_method_pay) VALUES ('mine', 'r1', (SELECT method_id FROM methods LIMIT 1), 1)",
-    ).run();
-
-    const canonical = toCanonicalRow(TABLES.record, {
-      record_id: "r1",
-      record_created_at: 100,
-      record_paid_at: 100,
-      record_rounding: 0,
-      record_credit_at: null,
-      record_cashier: "kasir",
-      record_mode: "incoming",
-      record_pay: 5000,
-      record_note: "",
-      record_fix: 0,
-      record_customer_name: "",
-      record_customer_phone: "",
-      record_sub_total: 5000,
-      record_total: 5000,
-      record_updated_at: 200,
-      record_deleted_at: null,
-      record_supplier_id: null,
-      record_supplier_name: "",
-      record_flag: 0,
-      record_pair_id: null,
-    });
-    server.stored.push({
-      entity: "record",
-      seq: 1,
-      line: encodeRecordFrame(canonical, {
-        record_listings: [],
-        record_methods: [
-          {
-            record_method_id: "theirs",
-            method_id: String((db.query("SELECT method_id FROM methods LIMIT 1").get() as { method_id: string } | null)?.method_id),
-            record_method_pay: 5000,
-          },
-        ],
-        record_extras: [],
-        record_images: [],
-        discounts: [],
-      }),
-    });
-
-    await withDb(layer, (service) => pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run));
-
-    const methods = db
-      .query<{ record_method_id: string }, []>(
-        "SELECT record_method_id FROM record_methods WHERE record_id = 'r1'",
-      )
-      .all();
-    expect(methods.map((row) => row.record_method_id)).toEqual(["mine"]);
-  });
-
-  test("an event whose record has not arrived keeps the link and repairs it later", async () => {
-    const { db, layer, server } = setup();
-    db.query(
-      "INSERT INTO products (product_id, product_name, product_updated_at) VALUES ('p1', 'Kopi', 100)",
-    ).run();
-    // The event points at a record the page does not carry (§6.4: may dangle).
-    server.seed("product_event", {
-      product_event_id: "e1",
-      product_event_created_at: 100,
-      product_event_value: -1,
-      product_event_capital: 1000,
-      product_event_note: "",
-      product_id: "p1",
-      stock_id: null,
-      record_id: "r1",
-    });
-    // Its record is in the same pull, one frame later — the normal case for a shop
-    // that has never synced: events are emitted before records (§2.3).
-    server.seed("record", {
-      record_id: "r1",
-      record_created_at: 100,
-      record_paid_at: 100,
-      record_rounding: 0,
-      record_credit_at: null,
-      record_cashier: "kasir",
-      record_mode: "incoming",
-      record_pay: 5000,
-      record_note: "",
-      record_fix: 0,
-      record_customer_name: "",
-      record_customer_phone: "",
-      record_sub_total: 5000,
-      record_total: 5000,
-      record_updated_at: 100,
-      record_deleted_at: null,
-      record_supplier_id: null,
-      record_supplier_name: "",
-      record_flag: 0,
-      record_pair_id: null,
-    });
-
-    // The event and the record arrive in the same pull but the event's frame comes
-    // first (§2.3), so the pointer cannot be written when the event is inserted.
-    // The batch's trailing UPDATE links it once the record exists.
-    const result = await withDb(layer, (service) =>
-      pullAndMerge(service, server, { cursor: 0 }, testExecutor(db).run),
-    );
-    expect(result.merged).toBe(2);
-
-    const linked = db
-      .query<{ record_id: string | null }, []>(
-        "SELECT record_id FROM product_events WHERE product_event_id = 'e1'",
-      )
-      .get();
-    expect(linked?.record_id).toBe("r1");
-  });
-});
-
-describe("Sinkronisasi Ulang", () => {
-  test("marks every syncable table unsynced, including the tombstones", () => {
-    const { db } = setup();
-    db.query(
-      "INSERT INTO customers (customer_id, customer_name, customer_phone, customer_updated_at, customer_sync_at, customer_deleted_at) VALUES ('c1', 'Ani', '0812', 100, 100, 100)",
-    ).run();
-    db.query(
-      "INSERT INTO products (product_id, product_name, product_updated_at, product_sync_at) VALUES ('p1', 'Kopi', 100, 100)",
-    ).run();
-
-    // The two rows above are already marked synced.
-    const before = countUnsync(db);
-    for (const statement of resetSyncStatements()) {
-      db.query(statement.sql).run(...(statement.bindings ?? []));
+  test("a group's bar only ever moves forward, across phases and pages", async () => {
+    const device = setup();
+    addPocket(device.db, { id: "p_01", name: "Kas", updatedAt: 1_000 });
+    // Enough rows to make the pull take more than one page (limit is 1000).
+    for (let index = 0; index < 1_200; index += 1) {
+      addMoney(device.db, {
+        id: `m_${String(index).padStart(4, "0")}`,
+        pocketId: "p_01",
+        value: 1_000 + index,
+        timestamp: 1_000 + index,
+        updatedAt: 1_000,
+      });
     }
-    // Both rows are owed again, plus the handful the migrations seeded.
-    expect(countUnsync(db)).toBe(before + 2);
-    const customer = db
-      .query<{ customer_sync_at: number | null }, []>("SELECT customer_sync_at FROM customers")
-      .get();
-    expect(customer?.customer_sync_at).toBeNull();
+
+    const progress: number[] = [];
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        // Every published state, in order — the same sequence the screen paints.
+        const watcher = yield* Stream.runForEach(sync.state, (state) =>
+          Effect.sync(() => {
+            const value = state.groups[0]?.progress;
+            if (typeof value === "number") progress.push(value);
+          }),
+        ).pipe(Effect.fork);
+        yield* sync.run("sync");
+        yield* Fiber.interrupt(watcher);
+      }).pipe(Effect.provide(device.layer)),
+    );
+
+    // pull → merge → push → pull-again must never reset the bar: a bar that
+    // runs backwards reads as an error, not as progress.
+    expect(progress.length).toBeGreaterThan(3);
+    for (let index = 1; index < progress.length; index += 1) {
+      expect(progress[index]!).toBeGreaterThanOrEqual(progress[index - 1]!);
+    }
+    expect(progress[progress.length - 1]).toBe(1);
+  });
+
+  test("a second device pulls what the first pushed, pocket first", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    addPocket(first.db, { id: "p_01", name: "Kas", updatedAt: 1_000 });
+    addMoney(first.db, {
+      id: "m_01",
+      pocketId: "p_01",
+      value: 5_000,
+      timestamp: 1_000,
+      updatedAt: 1_000,
+    });
+    await runSync(first.layer);
+
+    const second = setup(server);
+    await runSync(second.layer);
+
+    // The order in the log is exactly the order the push sent them.
+    expect(server.changes.map((change) => change.entity)).toEqual(["pocket", "money"]);
+    expect(moneyRows(second.db)).toEqual([
+      { money_value: 5_000, money_note: "", money_sync_at: 2 },
+    ]);
+    expect(second.entries.get("sync.money.bookmark")).toBe(2);
+  });
+
+  test("a note edit travels; an amount edit is repaired by the server's row", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    addPocket(first.db, { id: "p_01", name: "Kas", updatedAt: 1_000 });
+    addMoney(first.db, {
+      id: "m_01",
+      pocketId: "p_01",
+      value: 5_000,
+      timestamp: 1_000,
+      updatedAt: 1_000,
+    });
+    await runSync(first.layer);
+
+    const second = setup(server);
+    await runSync(second.layer);
+
+    // The one field a human is expected to correct.
+    editMoney(second.db, "m_01", { note: "kopi", updatedAt: 2_000 });
+    await runSync(second.layer);
+    expect(moneyRows(second.db)[0]?.money_note).toBe("kopi");
+
+    // The first device sees the new note on its next pull.
+    await runSync(first.layer);
+    expect(moneyRows(first.db)[0]?.money_note).toBe("kopi");
+
+    // A buggy edit of the amount is refused and repaired locally: nothing new
+    // was logged, and the ledger did not change.
+    const before = server.counter;
+    editMoney(second.db, "m_01", { value: 9_999, updatedAt: 3_000 });
+    const report = await runSync(second.layer);
+    expect(server.counter).toBe(before);
+    expect(report.stale).toBeGreaterThan(0);
+    expect(moneyRows(second.db)[0]?.money_value).toBe(5_000);
+    expect(moneyRows(second.db)[0]?.money_sync_at).toBe(before);
+  });
+
+  test("re-pushing a row the server already has spends no seq", async () => {
+    const device = setup();
+    addPocket(device.db, { id: "p_01", name: "Kas", updatedAt: 1_000 });
+    addMoney(device.db, {
+      id: "m_01",
+      pocketId: "p_01",
+      value: 5_000,
+      timestamp: 1_000,
+      updatedAt: 1_000,
+    });
+    await runSync(device.layer);
+    expect(device.server.counter).toBe(2);
+
+    // A lost ack: the row is owed again, and the server already has it.
+    device.db.query("UPDATE money SET money_sync_at = NULL").run();
+    await runSync(device.layer);
+
+    expect(device.server.counter).toBe(2);
+    expect(moneyRows(device.db)[0]?.money_sync_at).toBe(2);
+  });
+
+  test("a money row whose pocket is unknown is parked, then written once it arrives", async () => {
+    const device = setup();
+    // The server learns about a money row before its pocket — legal (§10), and a
+    // normal race when two tills push at once.
+    device.server.push(`${JSON.stringify({ e: "money", r: money("m_09", 7_000, 1_000) })}\n`);
+
+    await runSync(device.layer);
+    expect(moneyRows(device.db)).toEqual([]);
+    expect(device.entries.get("sync.money.parked")).toEqual([
+      { seq: 1, row: money("m_09", 7_000, 1_000) },
+    ]);
+
+    // The pocket arrives on the next cycle, and the parked row is retried.
+    device.server.push(`${JSON.stringify({ e: "pocket", r: pocket("p_01", "Kas", 1_000) })}\n`);
+    await runSync(device.layer);
+
+    expect(moneyRows(device.db)).toEqual([
+      { money_value: 7_000, money_note: "", money_sync_at: 1 },
+    ]);
+    expect(device.entries.has("sync.money.parked")).toBe(false);
+  });
+
+  test("a bookmark the server refuses is discarded and the group is pulled from zero", async () => {
+    const device = setup(undefined, { "sync.money.bookmark": 999 });
+    device.server.push(`${JSON.stringify({ e: "pocket", r: pocket("p_01", "Kas", 1_000) })}\n`);
+
+    await runSync(device.layer);
+
+    expect(device.entries.get("sync.money.bookmark")).toBe(1);
+    expect(device.db.query("SELECT pocket_name, pocket_sync_at FROM pockets").all()).toEqual([
+      { pocket_name: "Kas", pocket_sync_at: 1 },
+    ]);
+  });
+
+  test("Sinkronisasi Ulang queues every row so a device from before v2 gets uploaded", async () => {
+    const device = setup();
+    // A row that claims it is already on the server (a v1 marker), which v2 has
+    // never seen.
+    addPocket(device.db, { id: "p_01", name: "Kas", updatedAt: 1_000, syncAt: 123_456 });
+    addMoney(device.db, {
+      id: "m_01",
+      pocketId: "p_01",
+      value: 5_000,
+      timestamp: 1_000,
+      updatedAt: 1_000,
+      syncAt: 123_456,
+    });
+
+    await runSync(device.layer, "reset");
+
+    expect(device.server.counter).toBe(2);
+    expect(moneyRows(device.db)[0]?.money_sync_at).toBe(2);
   });
 });

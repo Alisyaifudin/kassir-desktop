@@ -46,15 +46,9 @@ pub fn run() {
             printer::get_printers,
             printer::print_receipt,
             export::export_file,
-            sync::sync_health,
-            sync::sync_create_session,
-            sync::sync_get_session,
-            sync::sync_delete_session,
             sync::sync_pull,
-            sync::sync_upload_chunk,
-            sync::sync_chain,
+            sync::sync_push,
             sync::sync_cancel,
-            sync::sync_diagnose,
             sync_merge::sync_merge,
         ]);
 

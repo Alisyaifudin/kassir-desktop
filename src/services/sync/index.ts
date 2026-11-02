@@ -1,39 +1,14 @@
 import { Context, Data, Effect, Stream } from "effect";
 
 /**
- * What only this device can see about a failed request.
- *
- * The server's own log row for the same request says it answered `200`; whether
- * the bytes survived the trip is not something it can observe. `requestId` is the
- * join key, `firstBytesHex` the observation.
- */
-export type SyncEvidence = {
-  /** The id Rust sent as `X-Kassir-Request-Id` for the failing request. */
-  requestId: string;
-  /** The route it failed on, as the server's log names it. */
-  route: string;
-  /** Leading bytes received, hex. `1f8b0800` is gzip where JSON belongs. */
-  firstBytesHex: string | null;
-  /** Length of the first line received. */
-  bytes: number | null;
-};
-
-/**
  * A sync failure. `message` is the one sentence the Sinkronisasi screen renders;
  * `code` and `status` keep the protocol detail for the log and for the branches
- * in `push.ts`/`pull.ts` (retry vs. restart the upload session, §7.5).
- *
- * `stage` and `evidence` exist so the failure can be reported to the server
- * (`POST /v1/diagnostics`): the stage says where it died, the evidence says what
- * arrived. Without them a report is just the client repeating the message it
- * could not interpret.
+ * in `pull.ts`/`push.ts` (retry vs. restart, §6.6/§7.6).
  */
 export class SyncError extends Data.TaggedError("SyncError")<{
   message: string;
   code?: string;
   status?: number;
-  stage?: string;
-  evidence?: SyncEvidence;
 }> {}
 
 /** A device's sync configuration — the server it talks to and its bearer token. */
@@ -41,17 +16,81 @@ export type SyncConfig = { baseUrl: string; token: string };
 
 export const SYNC_CONFIG_DEFAULT: SyncConfig = { baseUrl: "", token: "" };
 
+/**
+ * One synced group of tables.
+ *
+ * The protocol is grouped, and every group has its own endpoint pair, its own
+ * column dictionaries and — crucially — its own **bookmark**: a group is an
+ * independent stream of `seq` values, so `money` can be at seq 40 while
+ * `catalogue` is at seq 900. Today there is exactly one group (§1 of
+ * `SYNC-V2-MONEY.md`); a second one is a new entry here plus its own
+ * `syncGroup` case, not a change to the money flow.
+ */
+export type SyncGroup = "money";
+
+/** Every group this build syncs, in the order the cycle visits them. */
+export const SYNC_GROUPS: readonly SyncGroup[] = ["money"];
+
+/** A group's phase inside a run. */
+export type GroupPhase =
+  /** Not started yet in this run. */
+  | "idle"
+  /** Streaming server changes into the page buffer (§6.4). */
+  | "pull"
+  /** Writing the page and the bookmark (§6.4 "one transaction per page"). */
+  | "merge"
+  /** Uploading the rows this device owes the server (§7.4). */
+  | "push"
+  | "done"
+  | "failed"
+  | "cancelled";
+
+/**
+ * One group's progress — what a progress bar renders.
+ *
+ * Per group, not per run: the end state of this screen is one bar per synced
+ * group, each with its own phase and outcome, so a group that is finished keeps
+ * saying so while the next one runs.
+ *
+ * `progress` is **one fraction for the whole cycle**, not one per phase: a bar
+ * that resets at every pull → merge → push boundary runs backwards four times a
+ * run and reads as an error, not as progress. The phases are weighted into the
+ * single fraction (and never allowed to decrease), so the bar only ever moves
+ * forward while the caption says what is happening.
+ */
+export type GroupState = {
+  group: SyncGroup;
+  phase: GroupPhase;
+  /** 0…1 across the whole cycle; `null` until the first page sizes the work. */
+  progress: number | null;
+  /** One plain sentence for the bar. */
+  message: string;
+  /** What this group did in the last run, once it succeeded. */
+  report: GroupReport | null;
+  /** The sentence to show when this group failed. */
+  error: string | null;
+};
+
+/** What one group's cycle did. */
+export type GroupReport = {
+  /** This group's bookmark after the run. */
+  bookmark: number;
+  /** Changes merged from the server. */
+  pulled: number;
+  /** Frames the server acknowledged while pushing. */
+  pushed: number;
+  /** Frames the server won and this device took back. */
+  stale: number;
+};
+
+/** The run's phase — the pill's state, above the per-group phases. */
 export type SyncStatus =
   /** Nothing running; the last outcome is in `report` / `error`. */
   | "idle"
-  /** Clearing the cursors and the unsync markers before a `reset` run (§3.2). */
+  /** Clearing bookmarks and sync markers before a `reset` run. */
   | "preparing"
-  /** Streaming server rows (§8). */
-  | "pull"
-  /** Writing the pull to SQLite (§5.2). */
-  | "merge"
-  /** Uploading local rows (§5.3). */
-  | "push"
+  /** At least one group is moving. */
+  | "running"
   /** A cancel was asked for and the run has not stopped yet. */
   | "cancelling"
   | "done"
@@ -67,13 +106,9 @@ export type SyncStatus =
  */
 export type SyncState = {
   status: SyncStatus;
-  /** The entity currently moving, when a phase has one. */
-  entity: string | null;
-  /** Frames merged (pull) or acknowledged (push) in this phase. */
-  done: number;
-  /** Frames expected in this phase; 0 until known. */
-  total: number;
-  /** One plain sentence for the screen. */
+  /** Every group in `SYNC_GROUPS` order — one progress bar each. */
+  groups: GroupState[];
+  /** One plain sentence for the run as a whole. */
   message: string;
   /** When the current (or last) run started, so a pill can count up. */
   startedAt: number | null;
@@ -85,12 +120,19 @@ export type SyncState = {
   error: string | null;
 };
 
+/** The state of a group that has not started, and of an app that never synced. */
+export function idleGroup(group: SyncGroup): GroupState {
+  return { group, phase: "idle", progress: null, message: "", report: null, error: null };
+}
+
+function idleGroups(): GroupState[] {
+  return SYNC_GROUPS.map(idleGroup);
+}
+
 /** The value a fresh subscription sees, and the state of an app that never synced. */
 export const SYNC_IDLE: SyncState = {
   status: "idle",
-  entity: null,
-  done: 0,
-  total: 0,
+  groups: idleGroups(),
   message: "",
   startedAt: null,
   finishedAt: null,
@@ -100,9 +142,7 @@ export const SYNC_IDLE: SyncState = {
 
 const IN_FLIGHT: ReadonlySet<SyncStatus> = new Set<SyncStatus>([
   "preparing",
-  "pull",
-  "merge",
-  "push",
+  "running",
   "cancelling",
 ]);
 
@@ -115,13 +155,11 @@ export function isRunning(state: SyncState): boolean {
 export type SyncStart = "started" | "already-running";
 
 export type SyncReport = {
-  /** Highest `sync_seq` merged locally. */
-  lastPulledSeq: number;
-  /** Frames merged from the server. */
+  /** Each group's outcome, so a bar can report its own numbers afterwards. */
+  groups: Record<SyncGroup, GroupReport>;
+  /** Totals across groups, for the one-line summary. */
   pulled: number;
-  /** Frames the server acknowledged while pushing. */
   pushed: number;
-  /** Rows the server won on a last-writer-wins tie and the device took back. */
   stale: number;
 };
 
@@ -134,37 +172,40 @@ export class SyncService extends Context.Tag("SyncService")<
       get: () => Effect.Effect<SyncConfig, SyncError>;
       set: (config: SyncConfig) => Effect.Effect<void, SyncError>;
       /**
-       * This installation's id — the value the server records as `logs.device_id`
-       * and the reason two tills sharing a token can be told apart.
+       * This installation's id — the value the server records as
+       * `logs.device_id` and the reason two tills sharing a token can be told
+       * apart.
        *
-       * Minted on first read rather than only on first sync, so Settings can always
-       * show one: reading an id off the screen is how a shop reports a problem
-       * before anyone has managed to sync successfully.
+       * Minted on first read rather than only on first sync, so Settings can
+       * always show one: reading an id off the screen is how a shop reports a
+       * problem before anyone has managed to sync successfully.
        */
       deviceId: () => Effect.Effect<string>;
     };
-    /** The last pull cursor, so a screen can show where the device stands. */
-    cursor: () => Effect.Effect<number, SyncError>;
     /**
-     * The loop itself — pull → merge → push (`sync`), or cursors and unsync
-     * markers cleared first (`reset`, §3.2) — owned by the caller's fiber.
+     * One group's bookmark: the highest `seq` this device has durably stored for
+     * it (§2.2). One integer per group — never one per table.
+     */
+    cursor: (group?: SyncGroup) => Effect.Effect<number, SyncError>;
+    /**
+     * The loop itself — pull → merge → push → pull (`sync`), or with the
+     * bookmark cleared and every row queued for push first (`reset`, §11.4).
      *
      * The app does not call this: `start` forks it as a background task. It stays
      * public because the tests drive it directly and own the fiber.
      */
     run: (mode: SyncMode) => Effect.Effect<SyncReport, SyncError>;
     /**
-     * Starts the loop as a background task. One run at a time: a second call while
-     * a run is in flight is refused (`already-running`) instead of starting a
-     * second pull/push pair over the same cursors and upload session.
+     * Starts the loop as a background task. One run at a time: a second call
+     * while a run is in flight is refused (`already-running`) instead of starting
+     * a second pull/push pair over the same bookmark.
      */
     start: (mode: SyncMode) => Effect.Effect<SyncStart>;
     /**
      * Asks the running loop to stop; a no-op when nothing runs.
      *
      * Cooperative by construction: the interrupt is delivered at the loop's next
-     * async boundary, so an in-flight merge or upload settles first. The activity
-     * is `cancelling` until it does.
+     * async boundary, so an in-flight request or merge settles first.
      */
     cancel: () => Effect.Effect<void>;
     /**

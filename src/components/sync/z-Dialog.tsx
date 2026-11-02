@@ -13,7 +13,7 @@ import {
 } from "~/components/ui/dialog";
 import type { SyncState } from "~/services/sync";
 import { useSyncRun } from "./use-sync";
-import { entityLabel, isDeterminate, PHASE_LABEL, SyncBar } from "./z-Progress";
+import { GroupBars, PHASE_LABEL, summaryOf } from "./z-Progress";
 
 /**
  * How long the run has been going, in seconds.
@@ -36,7 +36,7 @@ function useElapsed(state: SyncState): string {
 }
 
 /**
- * What the pill opens into: the run, in full.
+ * What the pill opens into: the run, in full — one bar per synced group.
  *
  * Modal because it is opened deliberately (a click on the pill, never by itself),
  * and because the one thing it can do besides report — Batal — should not be
@@ -63,7 +63,7 @@ export function SyncDialog({
 function SyncDialogBody() {
   const { state, running, cancel } = useSyncRun();
   const elapsed = useElapsed(state);
-  const determinate = isDeterminate(state);
+  const summary = summaryOf(state);
 
   return (
     <DialogContent className="max-w-md">
@@ -75,24 +75,13 @@ function SyncDialogBody() {
       </DialogHeader>
 
       <div className="flex flex-col gap-2">
-        <SyncBar state={state} />
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {elapsed === "" ? "\u00a0" : elapsed}
-          </p>
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {state.entity === null ? "\u00a0" : entityLabel(state.entity)}
-            {determinate ? ` ${state.done}/${state.total}` : ""}
-          </p>
-        </div>
+        <GroupBars groups={state.groups} />
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {elapsed === "" ? "\u00a0" : elapsed}
+        </p>
       </div>
 
-      {state.report === null ? null : (
-        <p className="text-sm text-muted-foreground">
-          {state.report.pulled} diunduh, {state.report.pushed} diunggah
-          {state.report.stale > 0 ? `, ${state.report.stale} diambil dari server` : ""}.
-        </p>
-      )}
+      {summary === null ? null : <p className="text-sm text-muted-foreground">{summary}</p>}
       <TextError>{state.error}</TextError>
 
       <p className="text-xs text-muted-foreground">

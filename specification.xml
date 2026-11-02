@@ -14,9 +14,10 @@
     (src/components/page-data/). Includes thermal receipt printing (the layout and
     the PDF are built in Rust with printpdf, then handed to the Windows spooler),
     role-based access (admin/user), multi-cashier login,
-    and a timestamp-based cloud sync implemented as a background task
-    (pull → merge → push, manual trigger, status pill) whose client contract is
-    backend-docs/sync-contract.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
+    and a seq-based cloud sync of the money group (pockets + money) implemented
+    as a background task (pull → merge → push → pull, manual trigger, status pill)
+    whose contract is SYNC-V2-MONEY.md — see &lt;sync_system&gt; and
+    &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
   <version>6.24.0</version>
@@ -319,33 +320,13 @@
         <signature>async fn(default_name: String, contents: String) → Result&lt;Option&lt;String&gt;, String&gt;</signature>
         <description>The JSON download. The Save dialog and the write both live in Rust: the fs plugin's scope is narrowed to the app's own image and log directories, so a frontend writeFile on a user-picked path is rejected. Returns the written path, or None when the dialog was cancelled.</description>
       </command>
-      <command name="sync_health" module="sync">
-        <signature>async fn(base_url, token) → Result&lt;{ protocol, snapshot_seq }, SyncFailure&gt;</signature>
-        <description>GET /v1/health: the protocol version handshake (§12 of the sync contract).</description>
-      </command>
-      <command name="sync_create_session" module="sync">
-        <signature>async fn(base_url, token) → Result&lt;Session, SyncFailure&gt;</signature>
-        <description>POST /v1/upload: opens the one session that covers every entity, returning upload_id / at / frames.</description>
-      </command>
-      <command name="sync_get_session" module="sync">
-        <signature>async fn(base_url, token, upload_id) → Result&lt;Session, SyncFailure&gt;</signature>
-        <description>GET /v1/upload/:id: the server's committed pointer, which is the only truth about progress after a disconnect.</description>
-      </command>
-      <command name="sync_delete_session" module="sync">
-        <signature>async fn(base_url, token, upload_id) → Result&lt;(), SyncFailure&gt;</signature>
-        <description>DELETE /v1/upload/:id: abandons a session. 404 counts as success — that is the state the caller wanted.</description>
-      </command>
       <command name="sync_pull" module="sync">
-        <signature>async fn(channel, base_url, token, since, limit, request_id) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
-        <description>GET /v1/pull: reads the response body chunk by chunk, cuts it into NDJSON lines at the newlines (holding a split line until it completes), and pushes one line per Channel message followed by an explicit end message. Advertises Accept-Encoding: gzip and lets reqwest decode it, so the lines are always the canonical plaintext (offsets are uncompressed). This is the polyfill for the Streams API the contract is written against; the webview cannot fetch the sync host at all under its CSP.</description>
+        <signature>async fn(channel, base_url, token, after, limit, client) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
+        <description>GET /v2/money/pull/:seq?limit=N: reads the response body chunk by chunk, cuts it into NDJSON lines at the newlines (holding a split line until it completes), and pushes one line per Channel message followed by an explicit end message. Advertises Accept-Encoding: gzip and lets reqwest decode it, so the lines are always canonical plaintext. This is the polyfill for the Streams API the contract is written against; the webview cannot fetch the sync host at all under its CSP, nor read a streamed body under ipc:.</description>
       </command>
-      <command name="sync_upload_chunk" module="sync">
-        <signature>async fn(channel, base_url, token, upload_id, offset, prefix_sha, body, compress, request_id) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
-        <description>PATCH /v1/upload/:id: appends one NDJSON chunk and streams the ack lines back over the channel. Upload-Offset and Upload-Prefix-Sha256 address the uncompressed bytes; with compress the body is gzipped and Content-Encoding: gzip set, and a 415 is retried as identity (§4.4).</description>
-      </command>
-      <command name="sync_chain" module="sync">
-        <signature>fn(prev: String, lines: Vec&lt;String&gt;) → { chain, bytes }</signature>
-        <description>The rolling prefix hash of §7.3: C_n = hex(sha256(hex2bytes(C_n-1) || "\n" || line)), with C_0 = sha256("") and the byte count counting the newline terminators. Computed in Rust because crypto.subtle depends on the webview build and the chain is what resume verification rests on.</description>
+      <command name="sync_push" module="sync">
+        <signature>async fn(channel, base_url, token, body, client) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
+        <description>POST /v2/money/push: sends one NDJSON batch (bare `{"e":…,"r":{…}}` lines, ≤1000 frames, pockets first) and streams the ack lines back over the channel. Stateless: no session, no offset, no content coding to negotiate — the batch is small enough that identity is always used.</description>
       </command>
       <command name="sync_merge" module="sync_merge">
         <signature>async fn(app, plan: { statements: [{ sql, bindings }] }) → Result&lt;{ statements }, MergeFailure&gt;</signature>
@@ -357,10 +338,9 @@
           `DbPool::Sqlite(Pool&lt;Sqlite&gt;)` for exactly this — so there is one set of connections,
           one configuration and no lock-contention window in which the POS's own writes could fail.
           Statements are generated in TS (`services/sync/sql.ts`); Rust only binds and executes, so
-          the column order the wire contract freezes is the same one the SQL uses. One call = one transaction —
-          all-or-nothing per slice, and the frontend sends several calls for one pull (see &lt;sync_system&gt;
-          stage "write"). A failing statement rolls back the slice it is in and the pull cursor stays where it was,
-          so the next run re-merges the same gap (idempotent).
+          the column order the wire contract freezes is the same one the SQL uses. One call = one transaction:
+          a pull page, or one push batch's acks, land whole or not at all. The bookmark is written after the
+          commit, so a failure re-pulls the same page (idempotent, §6.5).
         </description>
       </command>
       <command name="sync_cancel" module="sync">
@@ -1078,27 +1058,29 @@
 
     <service name="sync" module="src/services/sync/">
       <description>
-        The device's mirror of the cloud (see &lt;sync_system&gt;). Owns the pull → merge → push loop as a background
-        task (a daemon fiber in the service, one run at a time), the store.json cursors, and the mirror SQL. Files:
-        schema.ts (canonical column order for every table), frames.ts (NDJSON encode/decode), sql.ts (LWW upserts,
-        guarded aggregate child replacement, unsync reads), merge.ts (the merge rules, the slice planner, the
-        in-transaction guards, dangling-reference deferral), pull.ts / push.ts (the loops), stream.ts (the
-        Channel→ReadableStream polyfill), transport.ts (the Rust commands as a service), local.ts (unsync reads and
-        marker writes), live.ts (wiring, cursors, single-flight start, coalesced progress, refresh).
+        The device's mirror of the money group (see &lt;sync_system&gt;). Owns the pull → merge → push → pull
+        cycle as a background task (a daemon fiber in the service, one run at a time), the store.json bookmark
+        and park, and the mirror SQL. Files: schema.ts (the two column dictionaries), frames.ts (NDJSON
+        encode/decode), sql.ts (guarded upserts, markers, unsync reads, reset statements), merge.ts (the merge
+        rule, the page apply, the missing-pocket park), pull.ts / push.ts (the two loops), stream.ts (the
+        Channel→stream polyfill), transport.ts (the Rust commands as a service), live.ts (wiring, bookmark,
+        single-flight start, coalesced progress, refresh).
       </description>
-      <error name="SyncError" tag="SyncError">message plus the contract's optional code/status, so the loops can branch on replay_mismatch / offset_conflict / not_found.</error>
+      <error name="SyncError" tag="SyncError">message plus the contract's optional code/status, so the loops can branch on bad_request / too_old / bad_frame / payload_too_large.</error>
       <interface>
         <method name="config.get() / config.set({baseUrl, token})">The server and its bearer token, from store.json.</method>
-        <method name="cursor()">The last merged sync_seq.</method>
-        <method name="run(mode)">The loop itself, owned by the caller's fiber: mode "sync" | "reset" (reset first clears the cursor, deletes the upload session and marks every row unsynced), returning { lastPulledSeq, pulled, pushed, stale }. Used by `start` and by the tests; the app never calls it directly.</method>
+        <method name="config.deviceId()">This installation's id, minted on first read and persisted in store.json (sync.device_id), sent as X-Kassir-Device-Id and shown in Settings.</method>
+        <method name="cursor()">The money group's bookmark: the highest `seq` durably stored, one integer for both tables.</method>
+        <method name="run(mode)">The cycle itself, owned by the caller's fiber: mode "sync" | "reset" (reset first clears the bookmark, drops the park and marks every pocket and money row unsynced), returning { lastPulledSeq, pulled, pushed, stale }. Used by `start` and by the tests; the app never calls it directly.</method>
         <method name="start(mode)">Forks the loop as a daemon and returns "started" | "already-running". Single-flight: a second call while a run is in flight is refused, never started alongside it. Resolves as soon as the fiber exists — the outcome arrives through `state`.</method>
         <method name="state">Stream&lt;SyncState&gt;: status (idle | preparing | pull | merge | push | cancelling | done | failed | cancelled), entity, done/total, message, startedAt/finishedAt, report, error. Replays the current value to every subscriber, so the pill can mount mid-run. Progress is coalesced to ~150 ms; every transition is published immediately.</method>
-        <method name="cancel()">Asks the running loop to stop. Cooperative: the interrupt lands at the next async boundary (a slice boundary or an upload chunk), so the activity reads `cancelling` until it does, then `cancelled`.</method>
+        <method name="cancel()">Asks the running loop to stop. Cooperative: the interrupt lands at the next async boundary (a page commit or a batch), so the activity reads `cancelling` until it does, then `cancelled`.</method>
       </interface>
       <note>
         No domain service exposes the raw unsync rows (a soft-deleted row is not in any ref), so the sync service
-        runs the mirror SQL itself and then calls each owning service's refresh() — this is the one place the rule
-        "all reads/writes go through the owning service (or a new sync service)" needs the parenthetical.
+        runs the mirror SQL itself and then calls the owning service's refresh() — MoneyService owns both pockets
+        and money. This is the one place the rule "all reads/writes go through the owning service (or a new sync
+        service)" needs the parenthetical.
       </note>
     </service>
 
@@ -1130,46 +1112,46 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <cloud_api status="implemented">
     <description>
-      The wire contract is backend-docs/sync-contract.md (client mirror of the backend's SYNC-CONTRACT.md), not the
-      retired backend-docs/openapi.yaml. It is a byte-stream protocol: both directions are raw newline-delimited
-      canonical JSON, both are resumable, and LWW on `_updated_at` resolves conflicts with the server winning ties.
-      Routes: GET /v1/health, GET /v1/pull?since=&amp;limit=, POST /v1/upload, PATCH|GET|DELETE /v1/upload/:id, all
-      behind `Authorization: Bearer SYNC_TOKEN`. The HTTP client lives in Rust (src-tauri/src/sync.rs) — see
+      The wire contract is SYNC-V2-MONEY.md (protocol 2, group `money`), not the retired
+      backend-docs/sync-contract.md or backend-docs/openapi.yaml. Both directions are newline-delimited JSON and
+      both are stateless — no session, no offset, no hash chain: a pull is `GET /v2/money/pull/:seq?limit=`,
+      a push is `POST /v2/money/push` with a bare row-frame NDJSON body, both behind
+      `Authorization: Bearer kst_…`. The server numbers every applied change (`seq`), keeps the history, and the
+      client stores one integer — its bookmark. The HTTP client lives in Rust (src-tauri/src/sync.rs) — see
       &lt;rust&gt; &lt;commands&gt; — because the window CSP (connect-src 'self' ipc:) forbids the sync host and the
-      webview has no reliable streaming body.
+      webview cannot read a streamed body under ipc:.
     </description>
   </cloud_api>
 
   <sync_system status="implemented">
     <description>
-      The sync service (src/services/sync/) implements pull → merge → push as one run owned by the service and
-      forked as a background task (a daemon fiber), so it outlives the screen that started it. The unit of exchange
-      is a frame: `{"e":entity,"r":{canonical row}}`, plus one aggregate frame for `record` carrying all five child
-      arrays. Entities travel in one fixed order — pocket → money → product → product_name → property → listing →
-      image → customer → supplier → extra → method → social → product_event → record — so a parent always precedes
-      the children that reference it. `stocks` is a local cache of the append-only `product_events` journal and is
-      never sent; `cashiers`, all `tx_*` cart tables and image bytes are out of scope.
+      Sync v2, grouped by tables. Today exactly one group ships — `money`, covering `pockets` and `money`
+      (contract: SYNC-V2-MONEY.md). A group is an independent stream: its own endpoint pair, its own column
+      dictionaries, its own bookmark. The service runs pull → merge → push → pull per group, in `SYNC_GROUPS`
+      order, and reports one `GroupState` per group so the UI can show a progress bar each (one bar today).
+      Everything else in the app — products, records, customers, … — is local for now; each will become its own
+      group with the same shape, not a widening of the money group.
     </description>
     <schema_contract>
-      <item name="canonical_json">schema.ts freezes each table's column order once; both the encoder (frames.ts) and the merge statements (sql.ts) resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. This is what makes the byte stream reproducible for the sha256 chain.</item>
-      <item name="cursor">`sync.last_pulled_seq` in store.json, advanced to `done.s` after every pulled page (not to `meta.snapshot_seq`: rows written after the snapshot belong to the next pull).</item>
-      <item name="upload_cursors">`sync.upload_id` / `sync.upload_offset` / `sync.upload_frames` / `sync.upload_chain` in store.json, rewritten from every ack stream's `done` pointer.</item>
-      <item name="sync_at">`&lt;x&gt;_sync_at` is the push marker: NULL (or older than `_updated_at`) means owed to the server. Merged rows are marked immediately so they are not pushed back. The marker write is guarded on `_updated_at`, so a write that lands while its frame is in flight is not lost.</item>
-      <item name="migration_47">Clears every syncable row's `_sync_at`, so the first run offers the whole database to a server that has never seen it — the forcing migration-44 step 13 left commented out.</item>
+      <item name="canonical_json">schema.ts freezes each table's column order once (pocket 6 columns, money 7); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing any more: v2 has no hashing.</item>
+      <item name="bookmark">`sync.&lt;group&gt;.bookmark` in store.json — one integer per group, advanced to `done.s` after each page commits (not to `meta.snapshot`: a page can stop early). Written after the page transaction, so a crash re-pulls the page (idempotent).</item>
+      <item name="park">`sync.&lt;group&gt;.parked` holds money rows whose pocket is not on the device yet. They are never dropped and never abort a page; every later page retries them, keyed by id so a re-pulled page parks one row once.</item>
+      <item name="sync_at">`&lt;x&gt;_sync_at` is the push marker and holds the server's `seq`: NULL means owed. Merged rows are marked immediately so they are not pushed back. Every marker write is guarded on `&lt;x&gt;_updated_at`, so a write that lands while its frame is in flight is not lost.</item>
+      <item name="migration_47">Left the whole database's `_sync_at` NULL. Rows written before v2 have no server-side counterpart, so `Sinkronisasi Ulang` (bookmark 0 + every pocket and money row queued) is how they get uploaded.</item>
     </schema_contract>
     <shape>
-      <stage name="pull">GET /v1/pull?since=last_pulled_seq&amp;limit=1000 in a loop, decoding NDJSON frames as they stream and holding them in memory until `meta.snapshot_seq` is reached. Nothing is written in this stage, so the cursor cannot run ahead of the data.</stage>
-      <stage name="write">The whole pull is planned at once — which is what lets a reference be resolved against `local ∪ incoming` instead of "try again later" — and then applied in bounded slices (≈200 statements) by the Rust `sync_merge` command, one transaction per slice on the plugin's own pool. Slicing is about contention, not correctness: a first sync is tens of thousands of statements, and one transaction that long holds SQLite's writer lock while the till is selling (the cart flushes on a 100 ms debounce, so the POS's own write would fail with SQLITE_BUSY). An aggregate's header never travels in a different slice from its five child arrays, slices keep the plan's order (parents → events → record aggregates → the two circular pointers), and a partial merge is safe: every statement is idempotent, merged rows are marked synced, and `last_pulled_seq` moves only after the last slice.</stage>
-      <stage name="conflict">LWW, decided in SQL inside the transaction: apply iff `incoming.updated_at &gt; local.updated_at` (a tie keeps the local row; the server reaches us as a `stale` ack instead). A winning `record` header replaces all five child arrays, and its child statements carry the condition "the header in the table is the one this plan just wrote" (`_sync_at` = this batch's stamp and `updated_at` = the incoming clock), so a losing header — including one that lost to a local edit made after the plan — leaves them untouched. `product_event` is INSERT OR IGNORE — appended, never updated. A `stale` payload is applied only if the local row still carries the clock this device uploaded; if the row moved, the payload is dropped and the next push compares the two properly. References whose target has not arrived are written NULL and linked by a trailing UPDATE in the same batch (the local schema's FKs are real even where the server's are not).</stage>
-      <stage name="push">Drop any leftover session, open a fresh one, then per entity in order: read the unsync set, encode frames, compute the chain hash, PATCH a chunk (≤200 frames / 512 KB, gzip body), consume the ack stream (applied / stale / noop) and set `_sync_at`. A `stale` payload is merged back under the clock guard above; a row edited after its frame was encoded is kept, left unsynced, and pushed again.</stage>
-      <stage name="refresh">After the pull and again after the push, every domain service that caches a synced table is re-read (product, customer, supplier, extra, method, money, social) so the running UI sees the merged rows.</stage>
-      <stage name="recover">Transport failure, 409 offset_conflict/replay_mismatch or 404 → drop the session and re-send the unsync set (idempotent); 3 attempts, then the run reports the error.</stage>
+      <stage name="pull">`GET /v2/money/pull/:seq?limit=1000` per page, decoding `meta` / `row` / `del` / `done` lines as they stream. The page is held only until its merge; nothing is written during the read, so the bookmark cannot run ahead of the data.</stage>
+      <stage name="write">One page = one statement batch through the Rust `sync_merge` command, i.e. one real transaction on the plugin's own pool (plugin-sql exposes no transaction handle). Pockets are written before money, so a page whose rows arrive out of order still lands; a money row whose pocket is unknown is parked. The bookmark moves after the commit.</stage>
+      <stage name="conflict">The §8.2 rule, applied in three places with the same result: pockets are full last-writer-wins on `pocket_updated_at` (a tie keeps the stored copy); money is insert / note edit / soft delete only — `timestamp`, `money_value` and `pocket_id` are immutable, so a copy that disagrees on any of them loses and is repaired from the server's row. Each write repeats the comparison in SQL (`WHERE excluded.&lt;updated_at&gt; &gt; &lt;table&gt;.&lt;updated_at&gt;`) so a cashier's edit during the merge is not overwritten.</stage>
+      <stage name="push">The rows whose `_sync_at IS NULL`, pockets before money, ≤1000 frames per batch, `POST /v2/money/push`. One ack per frame: `applied` / `noop` set `_sync_at = seq`; `stale` carries the server's winning row, which is force-written unless the local row was edited after its frame left (then it stays unsynced and is re-pushed). A failed batch is re-sent whole, with backoff on transport/5xx.</stage>
+      <stage name="refresh">After every page and again after the push, `MoneyService.refresh()` re-reads the pockets and the journal so the running UI sees the merged rows.</stage>
+      <stage name="recover">Pull `400`/`410` → the bookmark came from somewhere else: bookmark 0, discard the synced rows (unsynced ones survive), pull the group from zero. Push `413` → smaller batch; `401` → stop; transport/5xx → retry the same batch.</stage>
     </shape>
     <requirements>
-      <item name="service_first">A new sync service owns the mirror SQL; pages never reach it. It refreshes the owning services' refs after each batch.</item>
-      <item name="soft_delete">A tombstone (`_deleted_at`) is an ordinary row whose payload says "deleted at T" and merges like any update.</item>
-      <item name="conflict_rule">Last-writer-wins on `_updated_at`, server wins ties.</item>
-      <item name="streaming">The contract is written against ReadableStream; the Tauri command sync_pull/sync_upload_chunk polyfill it over an IPC channel (src/services/sync/stream.ts).</item>
+      <item name="service_first">The sync service owns the mirror SQL; pages never reach it. It refreshes the owning service's ref after each page and each batch.</item>
+      <item name="soft_delete">A tombstone (`_deleted_at`) is an ordinary row whose payload says "deleted at T" and merges like any update; deleting a pocket soft-deletes its money rows in the same local transaction.</item>
+      <item name="groups">A group is independent: own bookmark, own park, own progress entry, own `syncGroup` case. Adding one must not change the money flow.</item>
+      <item name="streaming">The contract is written against ReadableStream; the Tauri commands `sync_pull` / `sync_push` polyfill it over an IPC channel (src/services/sync/stream.ts).</item>
     </requirements>
   </sync_system>
 
@@ -1177,12 +1159,16 @@
     <description>
       Manual sync only (automatic sync is a v2 idea). Setting → Sinkronisasi (admin-only) is two numbered panels.
       "1. Server": base URL + SYNC_TOKEN, saved to store.json, plus the last pull cursor. "2. Sinkronisasi": the
-      action. Its buttons stay DISABLED until both the address and the token are stored — a merge with no credentials
+      action. Its buttons stay DISABLED until both the address and the token are stored — a sync with no credentials
       can only fail, and the failure would be about the field the operator was already meant to fill in. One press
-      runs the whole loop: Unduh (stream, then write in slices, then Unggah), with a progress bar (indeterminate until
-      a phase knows its frame count), the current entity, a Batal button and a "N diunduh, M diunggah" summary.
-      Sinkronisasi Ulang clears the cursors, deletes the upload session and marks every syncable row unsynced before
-      running the same flow.
+      runs the whole cycle: every group in turn (today one), each with its OWN progress bar — group name, a
+      one-sentence caption of what it is doing, and a percentage — plus a Batal button and a "N diunduh, M
+      diunggah" summary totalled across groups. One bar per group spans the WHOLE cycle: pull, merge, push and the
+      closing pull are weighted into a single fraction that is clamped upward, so the bar never restarts or runs
+      backwards at a phase boundary; only before the first page returns (no denominator yet) is it an
+      indeterminate sliver. One bar per group is the point of the layout: a second group is
+      another row, not another redesign. Sinkronisasi Ulang clears every group's bookmark, drops the parks and marks
+      every pocket and money row unsynced before running the same flow.
     </description>
     <background_task>
       The run is not the screen's: the service forks it as a background task and the screen only reads it. Leaving the

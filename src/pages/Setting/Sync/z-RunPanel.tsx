@@ -2,21 +2,22 @@ import { RefreshCw, RotateCcw, X } from "lucide-react";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { useSyncRun } from "~/components/sync/use-sync";
-import { entityLabel, isDeterminate, PHASE_LABEL, SyncBar } from "~/components/sync/z-Progress";
+import { GroupBars, PHASE_LABEL, summaryOf } from "~/components/sync/z-Progress";
 
 /**
  * The Sinkronisasi action (contract § "The sync loop", `<sync_ui_design>`).
  *
- * One button runs the whole loop: pull → merge → push, in the contract's order.
- * The progress line is the only animation — a determinate bar while a phase knows
- * its frame count, indeterminate before the first page lands. The buttons disable
+ * One button runs the whole run: every group in turn, each with its own bar
+ * (today one — `Kas & Uang`). That bar covers the group's entire cycle, so it
+ * fills once instead of restarting at pull → merge → push; it is an indeterminate
+ * sliver only until the first page gives it a denominator. The buttons disable
  * each other while a run is in flight, but the run is not theirs: it is a
  * background task (`service.sync.start`), so leaving this screen keeps it going
  * and the status pill takes over from here.
  */
 export function RunPanel({ configured }: { configured: boolean }) {
   const { state, running, start, cancel } = useSyncRun();
-  const determinate = isDeterminate(state);
+  const summary = summaryOf(state);
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,11 +26,7 @@ export function RunPanel({ configured }: { configured: boolean }) {
           <RefreshCw className="size-4" />
           Sinkronisasi
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => start("reset")}
-          disabled={running || !configured}
-        >
+        <Button variant="outline" onClick={() => start("reset")} disabled={running || !configured}>
           <RotateCcw className="size-4" />
           Sinkronisasi Ulang
         </Button>
@@ -48,31 +45,20 @@ export function RunPanel({ configured }: { configured: boolean }) {
         </p>
       )}
 
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-base">
-            {state.message === "" ? PHASE_LABEL[state.status] : state.message}
-          </p>
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {state.entity === null ? "\u00a0" : entityLabel(state.entity)}
-            {determinate ? ` ${state.done}/${state.total}` : ""}
-          </p>
-        </div>
-        {/* Indeterminate until the phase knows how many frames it owes the server. */}
-        <SyncBar state={state} />
+      <div className="flex flex-col gap-2">
+        <p className="text-base">
+          {state.message === "" ? PHASE_LABEL[state.status] : state.message}
+        </p>
+        <GroupBars groups={state.groups} />
       </div>
 
-      {state.report === null ? null : (
-        <p className="text-sm text-muted-foreground">
-          {state.report.pulled} diunduh, {state.report.pushed} diunggah
-          {state.report.stale > 0 ? `, ${state.report.stale} diambil dari server` : ""}.
-        </p>
-      )}
+      {summary === null ? null : <p className="text-sm text-muted-foreground">{summary}</p>}
       <TextError>{state.error}</TextError>
       <p className="text-xs text-muted-foreground">
-        Sinkronisasi berjalan manual: unduh perubahan, simpan sekaligus, lalu unggah. Sinkronisasi
-        Ulang mengosongkan posisi unduh, menghapus sesi unggah, dan mengirim ulang seluruh data —
-        gunakan hanya bila data terlihat tidak cocok dengan server.
+        Sinkronisasi berjalan manual: unduh perubahan, simpan sekaligus, lalu unggah. Yang
+        disinkronkan baru kas (pocket) dan catatan uang. Sinkronisasi Ulang mengosongkan posisi
+        unduh dan mengirim ulang seluruh data kas dan uang — gunakan hanya bila data terlihat tidak
+        cocok dengan server, atau sekali setelah pembaruan ke sinkronisasi baru.
       </p>
     </div>
   );

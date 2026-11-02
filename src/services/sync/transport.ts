@@ -1,37 +1,26 @@
 /**
- * The typed transport for the sync commands in `src-tauri/src/sync.rs`.
+ * The typed transport for the v2 sync commands in `src-tauri/src/sync.rs`.
  *
- * Every call here is a promise (or a `LineStream`), not an Effect: the transport
- * is the dumb edge. The Effect wrapper, progress reporting and retry policy live
- * in `push.ts`/`pull.ts` so they can be tested against a fake transport without
- * a webview or a network.
+ * Two streaming calls and one atomic write, nothing else. There is no session,
+ * no upload id, no byte offset and no hash chain in v2 (§7.1 "state: none"), so
+ * this file is a thin promise wrapper around three IPC commands.
+ *
+ * The socket lives in Rust because the window CSP (`connect-src 'self' ipc:`)
+ * blocks a webview `fetch` to the user-configured sync host. See `sync.rs`.
  */
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { Context, Layer } from "effect";
-import { nextRequestId, openLineStream, type LineStream, type StreamSummary } from "./stream";
+import { nextRequestId, openLineStream, type LineStream } from "./stream";
 
-/** Where the server lives, the bearer token (§10), and who this install is. */
+/** Where the server lives, the bearer token (§5), and who this install is. */
 export type Endpoint = {
   baseUrl: string;
   token: string;
-  /**
-   * Stable per installation — a UUID persisted in the store (`sync.device_id`).
-   *
-   * Without it the server log can only attribute a request to the *token*, and
-   * every till sharing one token looks identical. That is what made the
-   * gzip-of-gzip failure impossible to pin to a device or a build; the backend
-   * records this in `logs.device_id` (kassir-backend/docs/LOGS.md).
-   */
+  /** Stable per installation, so the server's request log can tell tills apart. */
   deviceId: string;
 };
 
-/** A sync session's server-side pointer (§7.1). */
-export type Session = { uploadId: string; at: number; frames: number };
-
-/** The chain hash after a sequence of lines, and their byte count (§7.3). */
-export type ChainState = { chain: string; bytes: number };
-
-/** A command failure. `code` is the contract's error code (§11). */
+/** A command failure. `code` is the contract's machine-readable code (§18.2). */
 export class TransportError extends Error {
   readonly status: number;
   readonly code: string;
@@ -66,58 +55,21 @@ function normalizeError(error: unknown): TransportError {
   return new TransportError(0, "ipc", typeof error === "string" ? error : String(error));
 }
 
-/**
- * A failure only this device can describe (`POST /v1/diagnostics`).
- *
- * Field names are the ones the server's endpoint accepts, and `stage`/`route` are
- * whitelisted there — a typo is a rejected report, not a wrong row.
- */
-export type DiagnosticReport = {
-  /** The id Rust sent as `X-Kassir-Request-Id` for the failing request. */
-  clientRequestId: string;
-  /** `parse` | `frame` | `stream` | `apply` | `auth` | `connect`. */
-  stage: string;
-  /** `/v1/pull` or `/v1/upload/:id`. */
-  route: string;
-  message: string;
-  /** Leading bytes received, hex. */
-  firstBytesHex: string | null;
-  bytes: number | null;
-};
-
 /** One generated statement, as the Rust merge command receives it. */
 export type MergeStatement = { sql: string; bindings?: (string | number | null)[] };
 
-/** The slice of the Rust sync API the push/pull loops depend on. */
+/** The slice of the Rust sync API the pull/push loops depend on. */
 export type SyncTransport = {
-  health: (endpoint: Endpoint) => Promise<{ protocol: number; snapshotSeq: number }>;
-  createSession: (endpoint: Endpoint) => Promise<Session>;
-  getSession: (endpoint: Endpoint, uploadId: string) => Promise<Session>;
-  deleteSession: (endpoint: Endpoint, uploadId: string) => Promise<void>;
-  pull: (endpoint: Endpoint, input: { since: number; limit: number }) => LineStream;
-  uploadChunk: (
-    endpoint: Endpoint,
-    input: {
-      uploadId: string;
-      offset: number;
-      prefixSha: string;
-      /** Canonical NDJSON text, newline-terminated. */
-      body: string;
-      compress: boolean;
-    },
-  ) => LineStream;
-  chain: (prev: string, lines: string[]) => Promise<ChainState>;
+  /** `GET /v2/money/pull/:seq?limit=…` — one page of changes, streamed. */
+  pull: (endpoint: Endpoint, input: { after: number; limit: number }) => LineStream;
+  /** `POST /v2/money/push` — one NDJSON batch, one ack per frame, streamed. */
+  push: (endpoint: Endpoint, input: { body: string }) => LineStream;
   /**
-   * Hands the server a failure it cannot see. Best effort: the caller has already
-   * failed a sync, and losing a report must not change that failure.
-   */
-  diagnose: (endpoint: Endpoint, report: DiagnosticReport) => Promise<void>;
-  /**
-   * Applies a merge in one real transaction (`sync_merge` in Rust).
+   * Applies a statement batch in one real transaction (`sync_merge` in Rust).
    *
-   * This is the one call that is not a `plugin-sql` statement: the plugin keeps
-   * its pool private and runs a multi-statement string in autocommit, so "the whole
-   * pull is one commit" needs a connection of its own. See `src-tauri/src/sync_merge.rs`.
+   * `plugin-sql` exposes no transaction handle and runs a multi-statement string
+   * in autocommit, so "one transaction per page" (§6.4) needs a connection of
+   * its own. See `src-tauri/src/sync_merge.rs`.
    */
   merge: (statements: MergeStatement[]) => Promise<{ statements: number }>;
 };
@@ -130,21 +82,20 @@ async function command<T>(name: string, args: Record<string, unknown>): Promise<
   }
 }
 
-/**
- * The identifying args every sync command carries.
- *
- * `requestId` is generated per call and travels as `X-Kassir-Request-Id`, so the
- * server's log row and any failure report from this device can be joined on it.
- * The app version is not sent from here — Rust reads it from the binary, which is
- * the only authority on which build is running.
- */
+/** The identifying args every sync command carries, on top of the token. */
 function identify(endpoint: Endpoint, requestId: string) {
   return { deviceId: endpoint.deviceId, requestId };
 }
 
 function streaming(
   prefix: string,
-  start: (requestId: string, channel: Channel<string>) => Promise<StreamSummary>,
+  start: (
+    requestId: string,
+    channel: Channel<string>,
+  ) => Promise<{
+    lines: number;
+    cancelled: boolean;
+  }>,
 ): LineStream {
   const requestId = nextRequestId(prefix);
   return openLineStream(requestId, (channel) => start(requestId, channel));
@@ -152,73 +103,28 @@ function streaming(
 
 /** The real transport: every call is one IPC command. */
 export const tauriTransport: SyncTransport = {
-  health(endpoint) {
-    return command("sync_health", {
-      baseUrl: endpoint.baseUrl,
-      token: endpoint.token,
-      client: identify(endpoint, nextRequestId("health")),
-    });
-  },
-  createSession(endpoint) {
-    return command("sync_create_session", {
-      baseUrl: endpoint.baseUrl,
-      token: endpoint.token,
-      client: identify(endpoint, nextRequestId("session")),
-    });
-  },
-  getSession(endpoint, uploadId) {
-    return command("sync_get_session", {
-      baseUrl: endpoint.baseUrl,
-      token: endpoint.token,
-      uploadId,
-      client: identify(endpoint, nextRequestId("session")),
-    });
-  },
-  deleteSession(endpoint, uploadId) {
-    return command("sync_delete_session", {
-      baseUrl: endpoint.baseUrl,
-      token: endpoint.token,
-      uploadId,
-      client: identify(endpoint, nextRequestId("session")),
-    });
-  },
   pull(endpoint, input) {
     return streaming("pull", (requestId, channel) =>
       command("sync_pull", {
         channel,
         baseUrl: endpoint.baseUrl,
         token: endpoint.token,
-        since: input.since,
+        after: input.after,
         limit: input.limit,
         client: identify(endpoint, requestId),
       }),
     );
   },
-  uploadChunk(endpoint, input) {
-    return streaming("upload", (requestId, channel) =>
-      command("sync_upload_chunk", {
+  push(endpoint, input) {
+    return streaming("push", (requestId, channel) =>
+      command("sync_push", {
         channel,
         baseUrl: endpoint.baseUrl,
         token: endpoint.token,
-        uploadId: input.uploadId,
-        offset: input.offset,
-        prefixSha: input.prefixSha,
         body: input.body,
-        compress: input.compress,
         client: identify(endpoint, requestId),
       }),
     );
-  },
-  chain(prev, lines) {
-    return command("sync_chain", { prev, lines });
-  },
-  diagnose(endpoint, report) {
-    return command("sync_diagnose", {
-      baseUrl: endpoint.baseUrl,
-      token: endpoint.token,
-      report,
-      client: identify(endpoint, nextRequestId("diagnose")),
-    });
   },
   merge(statements) {
     return command("sync_merge", { plan: { statements } });
@@ -228,23 +134,18 @@ export const tauriTransport: SyncTransport = {
 /**
  * Drains a line stream through `handle`, returning the command's summary.
  *
- * Errors are rethrown as `TransportError` so callers only handle one failure
- * type. A `cancel` closure is exposed through `onStreamOpen` so an Effect
- * finalizer can stop the request when the fiber is interrupted.
+ * Both the reader and the summary settle independently: the reader ends on the
+ * explicit `end` message Rust sends after the last line, the summary on the
+ * command's return value. Reading the summary last means every line has been
+ * handled before the caller learns the outcome.
  */
 export async function consumeLines(
   stream: LineStream,
-  handle: (line: string) => void | Promise<void>,
-): Promise<StreamSummary> {
-  // Both the reader and the summary settle independently: the reader ends on the
-  // explicit `end` message, the summary on the command's return value. Reading
-  // the summary last (after the reader drains) means every line has been handled
-  // before the caller learns the outcome.
-  for await (const line of stream.lines) {
-    await handle(line);
-  }
+  handle: (line: string) => void,
+): Promise<void> {
+  for await (const line of stream.lines) handle(line);
   try {
-    return await stream.summary;
+    await stream.summary;
   } catch (error) {
     throw normalizeError(error);
   }
@@ -253,10 +154,9 @@ export async function consumeLines(
 /**
  * The transport as a service.
  *
- * Injected rather than imported by `live.ts` for one reason: the push and pull
- * loops are the part of sync that must be provably correct, and they can only be
- * exercised against a server that streams NDJSON — which the bun tests do with an
- * in-memory fake. Everything else in the app gets `SyncTransportLive`.
+ * Injected rather than imported by `live.ts` so the pull/push loops can be tested
+ * against an in-memory server, which is the only way to exercise them without a
+ * webview and a network.
  */
 export class SyncTransportService extends Context.Tag("SyncTransportService")<
   SyncTransportService,
