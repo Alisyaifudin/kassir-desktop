@@ -575,7 +575,7 @@ mod tests {
     fn a_short_head_is_not_padded() {
         let (hex, bytes) = head_of(b"{\"t");
         assert_eq!(hex, "7b2274");
-        assert_eq!(bytes, 4);
+        assert_eq!(bytes, 3);
     }
 
     #[test]

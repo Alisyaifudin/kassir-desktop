@@ -20,7 +20,7 @@
     &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>6.24.0</version>
+  <version>7.0.1</version>
   <language>id</language>
 
   <ui_notes>
