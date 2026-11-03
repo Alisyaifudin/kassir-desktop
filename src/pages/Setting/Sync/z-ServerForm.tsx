@@ -170,13 +170,15 @@ export function ServerForm({
   );
 }
 
-/** The pull cursor, read once per mount (it only moves while a run is active). */
+/** The money group's pull cursor, read once per mount (it only moves during a run). */
 export function CursorLine() {
   const cursor = useStream(Stream.fromEffect(service.sync.cursor()));
   const value = cursor.type === "success" ? cursor.data : null;
   return (
     <p className="text-sm text-muted-foreground">
-      {value === null ? "Belum pernah sinkron" : `Terakhir menerima sampai urutan ${value}`}
+      {value === null || value === 0
+        ? "Belum pernah sinkron"
+        : `Kas & Uang terakhir menerima sampai urutan ${value}`}
     </p>
   );
 }

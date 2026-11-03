@@ -25,12 +25,18 @@ export const PHASE_LABEL: Record<string, string> = {
 /**
  * A group's name on screen.
  *
- * Today the only group is `money` (`pockets` + `money`); when the catalogue and
- * the records get their own groups they get their own lines here, and the panel
- * grows a bar each without any layout change.
+ * One line per synced group, in the order the cycle visits them. The panel grows
+ * a bar for each without any layout change.
  */
 export const GROUP_LABEL: Record<SyncGroup, string> = {
   money: "Kas & Uang",
+  customer: "Pelanggan",
+  supplier: "Pemasok",
+  method: "Metode Pembayaran",
+  social: "Media Sosial",
+  extra: "Biaya Tambahan",
+  product: "Produk & Stok",
+  record: "Catatan Transaksi",
 };
 
 export function groupLabel(group: SyncGroup): string {

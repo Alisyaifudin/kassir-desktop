@@ -24,8 +24,8 @@
 //! There is no session, no upload id, no byte offset and no hash chain any more
 //! (§7.1 "state: none"). Both endpoints are stateless:
 //!
-//!   * `sync_pull`  → `GET  {base}/v2/money/pull/{after}?limit=N`
-//!   * `sync_push`  → `POST {base}/v2/money/push` with an NDJSON body
+//!   * `sync_pull`  → `GET  {base}/v2/{group}/pull/{after}?limit=N`
+//!   * `sync_push`  → `POST {base}/v2/{group}/push` with an NDJSON body
 //!
 //! The server's snapshot, seqs and acks are all in the lines themselves, so this
 //! file only has to move bytes and report why a request failed.
@@ -65,7 +65,7 @@ pub struct SyncState {
 }
 
 impl SyncState {
-    fn client(&self) -> reqwest::Client {
+    pub(crate) fn client(&self) -> reqwest::Client {
         self.http
             .get_or_init(|| {
                 reqwest::Client::builder()
@@ -148,7 +148,7 @@ pub struct ClientIdentity {
 }
 
 /// The identifying headers for one request, already made safe to send.
-struct RequestIdentity {
+pub(crate) struct RequestIdentity {
     device_id: String,
     version: String,
     request_id: String,
@@ -157,7 +157,7 @@ struct RequestIdentity {
 impl RequestIdentity {
     /// `version` comes from the binary itself rather than from the frontend: the
     /// point of the header is to know which build behaved badly.
-    fn new(app: &tauri::AppHandle, client: &ClientIdentity) -> Self {
+    pub(crate) fn new(app: &tauri::AppHandle, client: &ClientIdentity) -> Self {
         Self::with_version(client, &app.package_info().version.to_string())
     }
 
@@ -182,7 +182,7 @@ fn header_safe(value: &str, max: usize) -> String {
 
 /// Applies the identifying headers. Empty values are omitted rather than sent
 /// blank, so the server records "unknown" instead of "".
-fn identify(
+pub(crate) fn identify(
     mut builder: reqwest::RequestBuilder,
     who: &RequestIdentity,
 ) -> reqwest::RequestBuilder {
@@ -210,7 +210,7 @@ fn user_agent(version: &str) -> String {
 }
 
 /// Every failure a command can report. The shape matches the TS
-/// `TransportError`, so the sync service can branch on `code` (§18.2).
+/// `TransportError`, so the sync service can branch on `code` (§16.2).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncFailure {
@@ -218,6 +218,9 @@ pub struct SyncFailure {
     pub status: u16,
     pub code: String,
     pub message: String,
+    /// Only on a `410 too_old`: the lowest seq the group still serves (§15.1).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floor: Option<i64>,
 }
 
 impl SyncFailure {
@@ -226,6 +229,7 @@ impl SyncFailure {
             status: 0,
             code: "transport".to_string(),
             message,
+            floor: None,
         }
     }
 
@@ -234,6 +238,16 @@ impl SyncFailure {
             status: 0,
             code: "internal".to_string(),
             message,
+            floor: None,
+        }
+    }
+
+    fn bad_group(group: &str) -> Self {
+        Self {
+            status: 0,
+            code: "bad_request".to_string(),
+            message: format!("Grup sinkronisasi tidak dikenal: {group}"),
+            floor: None,
         }
     }
 }
@@ -247,6 +261,20 @@ struct ErrorEnvelope {
 struct WireError {
     code: String,
     message: String,
+    #[serde(default)]
+    floor: Option<i64>,
+}
+
+/// The eight groups the desktop speaks, exactly as the routes name them (§1.4).
+///
+/// Validated here rather than trusted from the frontend: `group` becomes a path
+/// segment, and an unvalidated value could escape the `/v2/` prefix.
+const GROUPS: [&str; 8] = [
+    "money", "customer", "supplier", "method", "social", "extra", "product", "record",
+];
+
+fn valid_group(group: &str) -> bool {
+    GROUPS.contains(&group)
 }
 
 // ============================================================================
@@ -265,7 +293,7 @@ pub fn sync_cancel(state: tauri::State<'_, SyncState>, id: String) -> Result<(),
     Ok(())
 }
 
-/// `GET /v2/money/pull/{after}?limit=N` — one page of changes (§6).
+/// `GET /v2/<group>/pull/{after}?limit=N` — one page of changes (§3).
 ///
 /// `after` is the device's bookmark: the highest `seq` it has durably stored, or
 /// `0` on first sync. Every NDJSON line is pushed to `channel` as it arrives.
@@ -277,16 +305,20 @@ pub async fn sync_pull(
     channel: Channel<String>,
     base_url: String,
     token: String,
+    group: String,
     after: i64,
     limit: u32,
     client: ClientIdentity,
 ) -> Result<StreamSummary, SyncFailure> {
+    if !valid_group(&group) {
+        return Err(SyncFailure::bad_group(&group));
+    }
     let http = state.client();
     let who = RequestIdentity::new(&app, &client);
     // The same id names the log row on the server and the cancel flag here.
     let flag = state.register(&client.request_id);
     let outcome = pull_stream(
-        &http, &flag, &who, &base_url, &token, after, limit, &channel,
+        &http, &flag, &who, &base_url, &token, &group, after, limit, &channel,
     )
     .await;
     state.unregister(&client.request_id);
@@ -306,9 +338,13 @@ pub async fn sync_push(
     channel: Channel<String>,
     base_url: String,
     token: String,
+    group: String,
     body: String,
     client: ClientIdentity,
 ) -> Result<StreamSummary, SyncFailure> {
+    if !valid_group(&group) {
+        return Err(SyncFailure::bad_group(&group));
+    }
     let http = state.client();
     let who = RequestIdentity::new(&app, &client);
     let flag = state.register(&client.request_id);
@@ -318,6 +354,7 @@ pub async fn sync_push(
         &who,
         &base_url,
         &token,
+        &group,
         body.as_bytes(),
         &channel,
     )
@@ -350,26 +387,26 @@ pub async fn sync_health(
 // Internals
 // ============================================================================
 
-fn trim_base(base_url: &str) -> &str {
+pub(crate) fn trim_base(base_url: &str) -> &str {
     base_url.trim().trim_end_matches('/')
 }
 
-fn transport(error: reqwest::Error) -> SyncFailure {
+pub(crate) fn transport(error: reqwest::Error) -> SyncFailure {
     // The URL is user-configured, so the message is about the connection, not a
     // raw reqwest chain the cashier could act on.
     log::warn!("sync transport error: {error}");
     SyncFailure::transport(format!("Koneksi ke server gagal: {error}"))
 }
 
-fn internal<E: std::fmt::Display>(error: E) -> SyncFailure {
+pub(crate) fn internal<E: std::fmt::Display>(error: E) -> SyncFailure {
     log::error!("sync internal error: {error}");
     SyncFailure::internal(format!("Kesalahan internal sinkronisasi: {error}"))
 }
 
-/// Turns a non-2xx response into the contract's error shape (§4.5, §18.2).
+/// Turns a non-2xx response into the contract's error shape (§4.8, §16.2).
 /// Falls back to the HTTP status when the body is not the documented envelope (a
 /// proxy or a Cloudflare error page, say).
-async fn failure(resp: reqwest::Response) -> SyncFailure {
+pub(crate) async fn failure(resp: reqwest::Response) -> SyncFailure {
     let status = resp.status().as_u16();
     let text = resp.text().await.unwrap_or_default();
     match serde_json::from_str::<ErrorEnvelope>(&text) {
@@ -377,6 +414,7 @@ async fn failure(resp: reqwest::Response) -> SyncFailure {
             status,
             code: envelope.error.code,
             message: envelope.error.message,
+            floor: envelope.error.floor,
         },
         Err(_) => SyncFailure {
             status,
@@ -386,6 +424,7 @@ async fn failure(resp: reqwest::Response) -> SyncFailure {
             } else {
                 text
             },
+            floor: None,
         },
     }
 }
@@ -397,13 +436,15 @@ async fn pull_stream(
     who: &RequestIdentity,
     base_url: &str,
     token: &str,
+    group: &str,
     after: i64,
     limit: u32,
     channel: &Channel<String>,
 ) -> Result<StreamSummary, SyncFailure> {
     let url = format!(
-        "{}/v2/money/pull/{}?limit={}",
+        "{}/v2/{}/pull/{}?limit={}",
         trim_base(base_url),
+        group,
         after.max(0),
         limit
     );
@@ -434,10 +475,11 @@ async fn push_stream(
     who: &RequestIdentity,
     base_url: &str,
     token: &str,
+    group: &str,
     body: &[u8],
     channel: &Channel<String>,
 ) -> Result<StreamSummary, SyncFailure> {
-    let url = format!("{}/v2/money/push", trim_base(base_url));
+    let url = format!("{}/v2/{}/push", trim_base(base_url), group);
     let resp = identify(
         http.post(url)
             .bearer_auth(token)
@@ -667,6 +709,19 @@ mod tests {
         assert_eq!(who.device_id, "dev-01");
         assert_eq!(who.request_id, "req-01");
         assert_eq!(who.version, "1.2.3");
+    }
+
+    #[test]
+    fn only_the_eight_groups_reach_a_path() {
+        for group in [
+            "money", "customer", "supplier", "method", "social", "extra", "product", "record",
+        ] {
+            assert!(valid_group(group));
+        }
+        // A path segment must not be able to escape `/v2/`.
+        assert!(!valid_group("../admin"));
+        assert!(!valid_group("money/pull/1"));
+        assert!(!valid_group(""));
     }
 
     #[test]

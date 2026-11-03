@@ -136,7 +136,7 @@ export const ExtraLive = Layer.effect(
               {
                 sql: `UPDATE extras SET
                     extra_name = $1, extra_value = $2, extra_kind = $3, extra_flag = $4,
-                    extra_updated_at = $5, extra_sync_at = NULL
+                    extra_updated_at = max($5, extra_updated_at + 1), extra_sync_at = NULL
                   WHERE extra_id = $6`,
                 bindings: [input.name, input.value, input.kind, input.flag, now, id],
               },
@@ -152,7 +152,8 @@ export const ExtraLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE extras SET
-                    extra_deleted_at = $1, extra_updated_at = $1, extra_sync_at = NULL
+                    extra_deleted_at = max($1, extra_updated_at + 1),
+                    extra_updated_at = max($1, extra_updated_at + 1), extra_sync_at = NULL
                   WHERE extra_id = $2`,
                 bindings: [now, id],
               },

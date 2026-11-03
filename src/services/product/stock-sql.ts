@@ -24,7 +24,7 @@ export type StockPortion = {
 /** Bump the aggregate timestamp and clear its sync flag. */
 export function touchProduct(productId: string, now: number): Statement {
   return {
-    sql: "UPDATE products SET product_updated_at = $1, product_sync_at = NULL WHERE product_id = $2",
+    sql: "UPDATE products SET product_updated_at = max($1, product_updated_at + 1), product_sync_at = NULL WHERE product_id = $2",
     bindings: [now, productId],
   };
 }

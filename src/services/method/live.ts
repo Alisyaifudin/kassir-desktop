@@ -156,7 +156,7 @@ export const MethodLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE methods SET
-                    method_name = $1, method_updated_at = $2, method_sync_at = NULL
+                    method_name = $1, method_updated_at = max($2, method_updated_at + 1), method_sync_at = NULL
                   WHERE method_id = $3`,
                 bindings: [name, now, id],
               },
@@ -187,7 +187,8 @@ export const MethodLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE methods SET
-                    method_deleted_at = $1, method_updated_at = $1, method_sync_at = NULL
+                    method_deleted_at = max($1, method_updated_at + 1),
+                    method_updated_at = max($1, method_updated_at + 1), method_sync_at = NULL
                   WHERE method_id = $2`,
                 bindings: [now, id],
               },

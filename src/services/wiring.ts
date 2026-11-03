@@ -99,6 +99,9 @@ export function buildAppLive(hidden: HiddenLive) {
         methodLive,
         moneyLive,
         socialLive,
+        // Records are pulled as whole aggregates; the service holds no row cache,
+        // so a merge only bumps its revision counter — but it has to be told.
+        recordLive,
       ),
     ),
   );

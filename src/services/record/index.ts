@@ -403,5 +403,10 @@ export class RecordService extends Context.Tag("RecordService")<
        */
       byId: (id: string) => Effect.Effect<void, RecordError>;
     };
+    /**
+     * Re-reads every queried page (bumps the `revision` counter). Sync calls this
+     * after it merged records from the server, since it writes SQL directly.
+     */
+    refresh: () => Effect.Effect<void>;
   }
 >() {}

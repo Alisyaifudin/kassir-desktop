@@ -53,12 +53,24 @@ export function RunPanel({ configured }: { configured: boolean }) {
       </div>
 
       {summary === null ? null : <p className="text-sm text-muted-foreground">{summary}</p>}
+      {state.report !== null && (state.report.pending > 0 || state.report.orphans > 0) ? (
+        <p className="text-sm text-muted-foreground">
+          {state.report.pending > 0
+            ? `${state.report.pending} baris uang menunggu kas yang belum masuk`
+            : null}
+          {state.report.pending > 0 && state.report.orphans > 0 ? " · " : null}
+          {state.report.orphans > 0
+            ? `${state.report.orphans} baris tersembunyi karena induknya dihapus`
+            : null}
+        </p>
+      ) : null}
       <TextError>{state.error}</TextError>
       <p className="text-xs text-muted-foreground">
-        Sinkronisasi berjalan manual: unduh perubahan, simpan sekaligus, lalu unggah. Yang
-        disinkronkan baru kas (pocket) dan catatan uang. Sinkronisasi Ulang mengosongkan posisi
-        unduh dan mengirim ulang seluruh data kas dan uang — gunakan hanya bila data terlihat tidak
-        cocok dengan server, atau sekali setelah pembaruan ke sinkronisasi baru.
+        Sinkronisasi berjalan manual: unduh perubahan, simpan sekaligus, lalu unggah — untuk kas,
+        pelanggan, pemasok, metode pembayaran, media sosial, biaya tambahan, produk dan stok, serta
+        catatan transaksi. Sinkronisasi Ulang mengosongkan posisi unduh dan mengirim ulang seluruh
+        data lokal — gunakan hanya bila data terlihat tidak cocok dengan server, atau sekali setelah
+        pembaruan ke sinkronisasi baru.
       </p>
     </div>
   );

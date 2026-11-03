@@ -708,6 +708,35 @@ export const RecordLive = Layer.effect(
       });
     }
 
+    /**
+     * Fails when a payment names a method the catalog does not have.
+     *
+     * `record_methods.method_id` is no longer a foreign key (SYNC-V2 §7.2: a
+     * record pulled from another till may name a method this device does not
+     * have), so the local write paths have to check for themselves instead of
+     * relying on a constraint violation to surface as a driver error.
+     */
+    function ensureMethodsKnown(ids: Iterable<string>): Effect.Effect<void, RecordError> {
+      return Effect.gen(function* () {
+        const wanted = [...new Set(ids)].filter((id) => id !== "");
+        if (wanted.length === 0) return;
+        const list = wanted.map((_, index) => `$${index + 1}`).join(", ");
+        const rows = yield* db
+          .selectMany<{ method_id: string }>(
+            `SELECT method_id FROM methods
+             WHERE method_deleted_at IS NULL AND method_id IN (${list})`,
+            wanted,
+          )
+          .pipe(Effect.mapError(dbErrorToRecordError));
+        const known = new Set(rows.map((row) => row.method_id));
+        for (const id of wanted) {
+          if (!known.has(id)) {
+            return yield* Effect.fail(new RecordError({ message: "Metode tidak ditemukan" }));
+          }
+        }
+      });
+    }
+
     /** The row a write needs before it can decide anything. */
     function readRecord(id: string): Effect.Effect<RecordRow, RecordError> {
       return db
@@ -911,6 +940,7 @@ export const RecordLive = Layer.effect(
                 new RecordError({ message: "Total transaksi tidak boleh nol atau negatif" }),
               );
             }
+            yield* ensureMethodsKnown([input.methodId]);
 
             const now = Date.now();
             const recordId = generateId();
@@ -981,6 +1011,7 @@ export const RecordLive = Layer.effect(
                 }),
               );
             }
+            yield* ensureMethodsKnown(input.methods.map((method) => method.methodId));
 
             const recordId = generateId();
             const now = Date.now();
@@ -1184,6 +1215,7 @@ export const RecordLive = Layer.effect(
                 new RecordError({ message: "Total transaksi tidak boleh nol atau negatif" }),
               );
             }
+            yield* ensureMethodsKnown(input.methods.map((method) => method.methodId));
 
             const isPurchase = input.mode === "outcoming";
             const allocations = isPurchase
@@ -1645,7 +1677,7 @@ export const RecordLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE records SET
-                    record_paid_at = $1, record_updated_at = $2, record_sync_at = NULL
+                    record_paid_at = $1, record_updated_at = max($2, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $3`,
                 bindings: [paidAt, now, id],
               },
@@ -1659,7 +1691,7 @@ export const RecordLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE records SET
-                    record_credit_at = $1, record_updated_at = $2, record_sync_at = NULL
+                    record_credit_at = $1, record_updated_at = max($2, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $3`,
                 bindings: [creditAt, now, id],
               },
@@ -1673,7 +1705,7 @@ export const RecordLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE records SET
-                    record_note = $1, record_updated_at = $2, record_sync_at = NULL
+                    record_note = $1, record_updated_at = max($2, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $3`,
                 bindings: [note, now, id],
               },
@@ -1734,7 +1766,7 @@ export const RecordLive = Layer.effect(
               ...payments.map((payment) => insertMethod(id, payment.methodId, payment.pay)),
               {
                 sql: `UPDATE records SET
-                    record_pay = $1, record_updated_at = $2, record_sync_at = NULL
+                    record_pay = $1, record_updated_at = max($2, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $3`,
                 bindings: [paid, now, id],
               },
@@ -1757,7 +1789,7 @@ export const RecordLive = Layer.effect(
                 sql: `UPDATE records SET
                     record_credit_at = $1, record_paid_at = NULL,
                     record_pay = 0, record_rounding = 0,
-                    record_updated_at = $1, record_sync_at = NULL
+                    record_updated_at = max($1, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $2`,
                 bindings: [now, id],
               },
@@ -1814,7 +1846,7 @@ export const RecordLive = Layer.effect(
               // concurrent settlement fails instead of overwriting the first.
               sql: `UPDATE records SET
                   record_pay = $1, record_rounding = $2,
-                  record_paid_at = $3, record_updated_at = $3, record_sync_at = NULL
+                  record_paid_at = $3, record_updated_at = max($3, record_updated_at + 1), record_sync_at = NULL
                 WHERE record_id = $4
                   AND record_credit_at IS NOT NULL AND record_paid_at IS NULL`,
               bindings: [input.pay, input.rounding, now, id],
@@ -1906,7 +1938,8 @@ export const RecordLive = Layer.effect(
 
             statements.push({
               sql: `UPDATE records SET
-                  record_deleted_at = $1, record_updated_at = $1, record_sync_at = NULL
+                  record_deleted_at = max($1, record_updated_at + 1),
+                  record_updated_at = max($1, record_updated_at + 1), record_sync_at = NULL
                 WHERE record_id = $2`,
               bindings: [now, id],
             });
@@ -1939,7 +1972,8 @@ export const RecordLive = Layer.effect(
             const statements: Statement[] = [
               {
                 sql: `UPDATE records SET
-                    record_deleted_at = $1, record_updated_at = $1, record_sync_at = NULL
+                    record_deleted_at = max($1, record_updated_at + 1),
+                    record_updated_at = max($1, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $2`,
                 bindings: [now, id],
               },
@@ -1960,7 +1994,8 @@ export const RecordLive = Layer.effect(
             if (pairId !== null) {
               statements.push({
                 sql: `UPDATE records SET
-                    record_deleted_at = $1, record_updated_at = $1, record_sync_at = NULL
+                    record_deleted_at = max($1, record_updated_at + 1),
+                    record_updated_at = max($1, record_updated_at + 1), record_sync_at = NULL
                   WHERE record_id = $2 AND record_deleted_at IS NULL`,
                 bindings: [now, pairId],
               });
@@ -2025,6 +2060,14 @@ export const RecordLive = Layer.effect(
           });
         },
       },
+      /**
+       * Re-reads every queried record page.
+       *
+       * The record service holds no row cache — pages read SQL and re-run on the
+       * `revision` counter — so a merge that wrote records from the server only
+       * has to bump that counter. Sync calls this after the record group commits.
+       */
+      refresh: () => bumpRevision(),
     };
   }),
 );

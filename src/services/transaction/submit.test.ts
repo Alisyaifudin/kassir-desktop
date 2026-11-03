@@ -649,9 +649,9 @@ describe("TransactionService.submit — payment", () => {
 
   test("rejects a method the catalog does not know", async () => {
     const { db, result } = await submit({ methods: [makeMethod(40000, "nope")] });
-    // The FK violation is a developer detail: the cashier gets a sentence, and
-    // the driver text (`FOREIGN KEY constraint failed`) goes to the log only.
-    expectTransactionMessage(result, "Data gagal disimpan. Coba lagi.");
+    // `record_methods.method_id` is deliberately not a foreign key any more
+    // (SYNC-V2 §7.2), so the write path names the missing method itself.
+    expectTransactionMessage(result, "Metode tidak ditemukan");
     expect(transactionError(result)?.message).not.toContain("FOREIGN KEY");
     expect(count(db, "records")).toBe(0);
     expect(stocksOf(db)).toEqual([

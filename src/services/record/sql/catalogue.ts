@@ -59,7 +59,7 @@ export function catalogueStatements(
   if (renamed) {
     statements.push({
       sql: `UPDATE listings SET
-          listing_name = $1, listing_updated_at = $2, listing_sync_at = NULL
+          listing_name = $1, listing_updated_at = max($2, listing_updated_at + 1), listing_sync_at = NULL
         WHERE listing_id = $3`,
       bindings: [name, now, link.listingId],
     });
@@ -69,13 +69,13 @@ export function catalogueStatements(
       link.siblings === 1
         ? {
             sql: `UPDATE products SET
-                product_name = $1, product_updated_at = $2, product_sync_at = NULL
+                product_name = $1, product_updated_at = max($2, product_updated_at + 1), product_sync_at = NULL
               WHERE product_id = $3`,
             bindings: [name, now, link.productId],
           }
         : {
             sql: `UPDATE products SET
-                product_updated_at = $1, product_sync_at = NULL
+                product_updated_at = max($1, product_updated_at + 1), product_sync_at = NULL
               WHERE product_id = $2`,
             bindings: [now, link.productId],
           },
@@ -91,7 +91,7 @@ export function catalogueStatements(
   if (repriced) {
     statements.push({
       sql: `UPDATE listings SET
-          listing_price = $1, listing_updated_at = $2, listing_sync_at = NULL
+          listing_price = $1, listing_updated_at = max($2, listing_updated_at + 1), listing_sync_at = NULL
         WHERE listing_id = $3`,
       bindings: [line.price, now, link.listingId],
     });
@@ -99,7 +99,7 @@ export function catalogueStatements(
     if (!renamed) {
       statements.push({
         sql: `UPDATE products SET
-            product_updated_at = $1, product_sync_at = NULL
+            product_updated_at = max($1, product_updated_at + 1), product_sync_at = NULL
           WHERE product_id = $2`,
         bindings: [now, link.productId],
       });

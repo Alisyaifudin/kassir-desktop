@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Effect, Stream } from "effect";
-import { SYNC_IDLE, type SyncState } from "~/services/sync";
+import { SYNC_GROUPS, SYNC_IDLE, type SyncState } from "~/services/sync";
 
 /**
  * The bottom-left status pill.
@@ -92,8 +92,10 @@ describe("SyncPill", () => {
     expect(await screen.findByRole("dialog")).toBeTruthy();
     // One row per synced group: its name, its phase, its counters.
     expect(screen.getByText("Kas & Uang")).toBeTruthy();
-    expect(screen.getByText(/Mengunduh perubahan…/)).toBeTruthy();
-    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("30");
+    expect(screen.getAllByText(/Mengunduh perubahan…/)).toHaveLength(SYNC_GROUPS.length);
+    const bars = screen.getAllByRole("progressbar");
+    expect(bars).toHaveLength(SYNC_GROUPS.length);
+    expect(bars[0]?.getAttribute("aria-valuenow")).toBe("30");
   });
 
   test("Batal asks the service to cancel; closing asks nothing of it", async () => {

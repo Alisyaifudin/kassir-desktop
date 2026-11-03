@@ -123,7 +123,7 @@ export const CustomerLive = Layer.effect(
             const now = Date.now();
             yield* mutate(
               `UPDATE customers SET customer_name = $1, customer_phone = $2,
-               customer_sync_at = null, customer_updated_at = $3
+               customer_sync_at = null, customer_updated_at = max($3, customer_updated_at + 1)
                WHERE customer_id = $4`,
               [info.name, info.phone, now, id],
             );
@@ -147,8 +147,8 @@ export const CustomerLive = Layer.effect(
             // `graves` table, which that migration renamed away, so this write
             // used to fail outright.
             yield* mutate(
-              `UPDATE customers SET customer_deleted_at = $1,
-               customer_updated_at = $1, customer_sync_at = null
+              `UPDATE customers SET customer_deleted_at = max($1, customer_updated_at + 1),
+               customer_updated_at = max($1, customer_updated_at + 1), customer_sync_at = null
                WHERE customer_id = $2`,
               [now, id],
             );

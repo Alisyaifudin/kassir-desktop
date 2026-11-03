@@ -125,7 +125,7 @@ export const SupplierLive = Layer.effect(
             const now = Date.now();
             yield* mutate(
               `UPDATE suppliers SET supplier_name = $1, supplier_note = $2,
-               supplier_sync_at = null, supplier_updated_at = $3
+               supplier_sync_at = null, supplier_updated_at = max($3, supplier_updated_at + 1)
                WHERE supplier_id = $4`,
               [info.name, info.note, now, id],
             );
@@ -147,8 +147,8 @@ export const SupplierLive = Layer.effect(
             const now = Date.now();
             // Soft delete, per migration-43: a tombstone rather than a row drop.
             yield* mutate(
-              `UPDATE suppliers SET supplier_deleted_at = $1,
-               supplier_updated_at = $1, supplier_sync_at = null
+              `UPDATE suppliers SET supplier_deleted_at = max($1, supplier_updated_at + 1),
+               supplier_updated_at = max($1, supplier_updated_at + 1), supplier_sync_at = null
                WHERE supplier_id = $2`,
               [now, id],
             );

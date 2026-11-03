@@ -27,7 +27,6 @@ import {
   adjustStatements,
   consumeStatements,
   receiveStatements,
-  touchProduct,
   type StockLot,
 } from "./stock-sql";
 
@@ -319,7 +318,7 @@ function listingUpdate(input: ListingInput, listingId: string, now: number): Sta
   return {
     sql: `UPDATE listings SET
         listing_name = $1, listing_price = $2, listing_unit = $3, listing_kind = $4,
-        listing_code = $5, listing_updated_at = $6, listing_sync_at = NULL
+        listing_code = $5, listing_updated_at = max($6, listing_updated_at + 1), listing_sync_at = NULL
       WHERE listing_id = $7`,
     bindings: [input.name, input.price, input.unit, input.kind, code, now, listingId],
   };
@@ -338,6 +337,29 @@ function propertyInsert(
       ) VALUES ($1, $2, $3, $4, $5, NULL, NULL)`,
     bindings: [propertyId, productId, input.key, input.value, now],
   };
+}
+
+/**
+ * The child tombstones a product delete sends (§6.2).
+ *
+ * The server has no cascade: the deleting device soft-deletes every live child
+ * in the same push batch. Events are audit and stock history and are left alone.
+ */
+function childTombstones(productId: string, now: number): Statement[] {
+  const children = [
+    { table: "product_names", prefix: "product_name" },
+    { table: "properties", prefix: "property" },
+    { table: "listings", prefix: "listing" },
+    { table: "images", prefix: "image" },
+  ] as const;
+  return children.map(({ table, prefix }) => ({
+    sql: `UPDATE ${table} SET
+        ${prefix}_deleted_at = max($1, ${prefix}_updated_at + 1),
+        ${prefix}_updated_at = max($1, ${prefix}_updated_at + 1),
+        ${prefix}_sync_at = NULL
+      WHERE product_id = $2 AND ${prefix}_deleted_at IS NULL`,
+    bindings: [now, productId],
+  }));
 }
 
 function productNameInsert(
@@ -815,7 +837,7 @@ export const ProductLive = Layer.effect(
               {
                 sql: `UPDATE products SET
                     product_name = $1, product_note = $2,
-                    product_updated_at = $3, product_sync_at = NULL
+                    product_updated_at = max($3, product_updated_at + 1), product_sync_at = NULL
                   WHERE product_id = $4`,
                 bindings: [info.name, info.note, now, id],
               },
@@ -835,7 +857,7 @@ export const ProductLive = Layer.effect(
               {
                 sql: `UPDATE products SET
                     product_flag = ${next},
-                    product_updated_at = $1, product_sync_at = NULL
+                    product_updated_at = max($1, product_updated_at + 1), product_sync_at = NULL
                   WHERE product_id = $2`,
                 bindings: [now, id],
               },
@@ -851,7 +873,6 @@ export const ProductLive = Layer.effect(
               yield* db
                 .transaction([
                   listingInsert(productId, listingId, input, now),
-                  touchProduct(productId, now),
                 ])
                 .pipe(Effect.mapError((error) => codeErrorToProductError(error, input.code)));
               yield* hydrateMany([productId]);
@@ -862,7 +883,7 @@ export const ProductLive = Layer.effect(
             return Effect.gen(function* () {
               const now = Date.now();
               yield* db
-                .transaction([listingUpdate(input, listingId, now), touchProduct(productId, now)])
+                .transaction([listingUpdate(input, listingId, now)])
                 .pipe(Effect.mapError((error) => codeErrorToProductError(error, input.code)));
               yield* hydrateMany([productId]);
             });
@@ -872,10 +893,12 @@ export const ProductLive = Layer.effect(
               const now = Date.now();
               yield* commit([
                 {
-                  sql: "UPDATE listings SET listing_deleted_at = $1, listing_sync_at = NULL WHERE listing_id = $2",
+                  sql: `UPDATE listings SET
+                      listing_deleted_at = max($1, listing_updated_at + 1),
+                      listing_updated_at = max($1, listing_updated_at + 1), listing_sync_at = NULL
+                    WHERE listing_id = $2`,
                   bindings: [now, listingId],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
             });
@@ -888,7 +911,6 @@ export const ProductLive = Layer.effect(
               const now = Date.now();
               yield* commit([
                 propertyInsert(productId, propertyId, input, now),
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
               return propertyId;
@@ -901,11 +923,10 @@ export const ProductLive = Layer.effect(
                 {
                   sql: `UPDATE properties SET
                       property_key = $1, property_value = $2,
-                      property_updated_at = $3, property_sync_at = NULL
+                      property_updated_at = max($3, property_updated_at + 1), property_sync_at = NULL
                     WHERE property_id = $4`,
                   bindings: [input.key, input.value, now, propertyId],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
             });
@@ -915,10 +936,12 @@ export const ProductLive = Layer.effect(
               const now = Date.now();
               yield* commit([
                 {
-                  sql: "UPDATE properties SET property_deleted_at = $1, property_sync_at = NULL WHERE property_id = $2",
+                  sql: `UPDATE properties SET
+                      property_deleted_at = max($1, property_updated_at + 1),
+                      property_updated_at = max($1, property_updated_at + 1), property_sync_at = NULL
+                    WHERE property_id = $2`,
                   bindings: [now, propertyId],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
             });
@@ -931,7 +954,6 @@ export const ProductLive = Layer.effect(
               const now = Date.now();
               yield* commit([
                 productNameInsert(productId, productNameId, input, now),
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
               return productNameId;
@@ -944,11 +966,10 @@ export const ProductLive = Layer.effect(
                 {
                   sql: `UPDATE product_names SET
                       product_name_value = $1,
-                      product_name_updated_at = $2, product_name_sync_at = NULL
+                      product_name_updated_at = max($2, product_name_updated_at + 1), product_name_sync_at = NULL
                     WHERE product_name_id = $3`,
                   bindings: [input.value, now, productNameId],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
             });
@@ -958,10 +979,12 @@ export const ProductLive = Layer.effect(
               const now = Date.now();
               yield* commit([
                 {
-                  sql: "UPDATE product_names SET product_name_deleted_at = $1, product_name_sync_at = NULL WHERE product_name_id = $2",
+                  sql: `UPDATE product_names SET
+                      product_name_deleted_at = max($1, product_name_updated_at + 1),
+                      product_name_updated_at = max($1, product_name_updated_at + 1), product_name_sync_at = NULL
+                    WHERE product_name_id = $2`,
                   bindings: [now, productNameId],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
             });
@@ -974,18 +997,23 @@ export const ProductLive = Layer.effect(
               const now = Date.now();
               yield* commit([
                 {
+                  // The row's clock and `image_blob_version` are the same `now`:
+                  // this write is what produces the bytes, so the file the caller
+                  // saves next belongs to this version (§8.7.1). `image_blob_sha256`
+                  // stays NULL until the server answers an upload with the digest it
+                  // computed, and `image_blob_sync_at` stays NULL until then too.
                   sql: `INSERT INTO images (
                       image_id, image_order, image_name, image_mime, product_id,
-                      image_updated_at, image_sync_at, image_deleted_at
+                      image_updated_at, image_sync_at, image_deleted_at,
+                      image_blob_version, image_blob_sha256, image_blob_sync_at
                     ) VALUES (
                       $1,
                       (SELECT COALESCE(MAX(image_order), -1) + 1 FROM images
                         WHERE product_id = $2 AND image_deleted_at IS NULL),
-                      $3, $4, $2, $5, NULL, NULL
+                      $3, $4, $2, $5, NULL, NULL, $5, NULL, NULL
                     )`,
                   bindings: [imageId, productId, input.name, input.mime, now],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
               return imageId;
@@ -1001,19 +1029,30 @@ export const ProductLive = Layer.effect(
                   return {
                     sql: `INSERT INTO images (
                         image_id, image_order, image_name, image_mime, product_id,
-                        image_updated_at, image_sync_at, image_deleted_at
-                      ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)`,
+                        image_updated_at, image_sync_at, image_deleted_at,
+                        image_blob_version, image_blob_sha256, image_blob_sync_at
+                      ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $6, NULL, NULL)`,
                     bindings: [imageId, index, draft.name, draft.mime, productId, now],
                   };
                 }
                 return {
+                  // A reorder is a metadata-only edit: the file is still the right
+                  // picture, but it is the right picture for the **new** clock now,
+                  // so the version moves with the clock and the bytes have to be
+                  // claimed for it again (`image_blob_sync_at = NULL`). The digest
+                  // is kept — the bytes did not change. Without this an image would
+                  // stop being servable the moment it was reordered, because the
+                  // manifest joins on `version = image_updated_at` (§8.7.1).
                   sql: `UPDATE images SET
-                      image_order = $1, image_updated_at = $2, image_sync_at = NULL
+                      image_order = $1,
+                      image_updated_at = max($2, image_updated_at + 1),
+                      image_blob_version = max($2, image_updated_at + 1),
+                      image_blob_sync_at = NULL,
+                      image_sync_at = NULL
                     WHERE image_id = $3 AND product_id = $4`,
                   bindings: [index, now, imageId, productId],
                 };
               });
-              statements.push(touchProduct(productId, now));
               yield* commit(statements);
               yield* hydrateMany([productId]);
             });
@@ -1021,12 +1060,17 @@ export const ProductLive = Layer.effect(
           remove(productId, imageId) {
             return Effect.gen(function* () {
               const now = Date.now();
+              // The blob columns are left alone: a deleted row is neither uploaded
+              // nor downloaded (§8.7.1), and the file stays on disk so a restored
+              // row brings its picture back with it.
               yield* commit([
                 {
-                  sql: "UPDATE images SET image_deleted_at = $1, image_sync_at = NULL WHERE image_id = $2",
+                  sql: `UPDATE images SET
+                      image_deleted_at = max($1, image_updated_at + 1),
+                      image_updated_at = max($1, image_updated_at + 1), image_sync_at = NULL
+                    WHERE image_id = $2`,
                   bindings: [now, imageId],
                 },
-                touchProduct(productId, now),
               ]);
               yield* hydrateMany([productId]);
             });
@@ -1035,12 +1079,18 @@ export const ProductLive = Layer.effect(
             return Effect.gen(function* () {
               const now = Date.now();
               const statements: Statement[] = imageIds.map((imageId, index) => ({
+                // Same rule as `commit`'s renumbering above: the picture did not
+                // change, so its bytes move to the new version instead of being
+                // forgotten.
                 sql: `UPDATE images SET
-                    image_order = $1, image_updated_at = $2, image_sync_at = NULL
+                    image_order = $1,
+                    image_updated_at = max($2, image_updated_at + 1),
+                    image_blob_version = max($2, image_updated_at + 1),
+                    image_blob_sync_at = NULL,
+                    image_sync_at = NULL
                   WHERE image_id = $3`,
                 bindings: [index, now, imageId],
               }));
-              statements.push(touchProduct(productId, now));
               yield* commit(statements);
               yield* hydrateMany([productId]);
             });
@@ -1151,10 +1201,14 @@ export const ProductLive = Layer.effect(
           yield* commit([
             {
               sql: `UPDATE products SET
-                  product_deleted_at = $1, product_sync_at = NULL, product_updated_at = $2
-                WHERE product_id = $3`,
-              bindings: [now, now, id],
+                  product_deleted_at = max($1, product_updated_at + 1),
+                  product_updated_at = max($1, product_updated_at + 1), product_sync_at = NULL
+                WHERE product_id = $2`,
+              bindings: [now, id],
             },
+            // §6.2: the server has no cascade, so the deleting device sends the
+            // child tombstones in the same push batch.
+            ...childTombstones(id, now),
           ]);
           yield* hydrateMany([id]);
         });

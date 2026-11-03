@@ -7,6 +7,7 @@ mod export;
 mod printer;
 mod receipt;
 mod sync;
+mod sync_blob;
 mod sync_merge;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -52,6 +53,11 @@ pub fn run() {
             sync::sync_push,
             sync::sync_health,
             sync::sync_cancel,
+            // The product group's image-byte side channel: the row travels in the
+            // change log, its bytes do not (`SYNC-V2.md` §8.7.1).
+            sync_blob::sync_blob_manifest,
+            sync_blob::sync_blob_put,
+            sync_blob::sync_blob_get,
             sync_merge::sync_merge,
         ]);
 

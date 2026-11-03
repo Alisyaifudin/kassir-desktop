@@ -1,14 +1,20 @@
 import { Context, Data, Effect, Stream } from "effect";
+import { SYNC_GROUPS, type SyncGroup } from "./schema";
+
+export { SYNC_GROUPS };
+export type { SyncGroup };
 
 /**
  * A sync failure. `message` is the one sentence the Sinkronisasi screen renders;
  * `code` and `status` keep the protocol detail for the log and for the branches
- * in `pull.ts`/`push.ts` (retry vs. restart, §6.6/§7.6).
+ * in `pull.ts`/`push.ts` (retry vs. re-seed, §4.11/§9.8). `floor` is present only
+ * on a `410 too_old`, and is the lowest seq the server still serves.
  */
 export class SyncError extends Data.TaggedError("SyncError")<{
   message: string;
   code?: string;
   status?: number;
+  floor?: number;
 }> {}
 
 /**
@@ -49,14 +55,9 @@ export type SyncHealth = {
  * The protocol is grouped, and every group has its own endpoint pair, its own
  * column dictionaries and — crucially — its own **bookmark**: a group is an
  * independent stream of `seq` values, so `money` can be at seq 40 while
- * `catalogue` is at seq 900. Today there is exactly one group (§1 of
- * `SYNC-V2-MONEY.md`); a second one is a new entry here plus its own
- * `syncGroup` case, not a change to the money flow.
+ * `product` is at seq 900. The catalog of groups lives in `schema.ts`; this file
+ * re-exports it so callers have one import.
  */
-export type SyncGroup = "money";
-
-/** Every group this build syncs, in the order the cycle visits them. */
-export const SYNC_GROUPS: readonly SyncGroup[] = ["money"];
 
 /** A group's phase inside a run. */
 export type GroupPhase =
@@ -108,6 +109,27 @@ export type GroupReport = {
   pushed: number;
   /** Frames the server won and this device took back. */
   stale: number;
+  /** Money rows still waiting for a pocket that has not arrived (§7.5). */
+  pending: number;
+  /**
+   * Live rows hidden behind a soft-deleted parent: a money row whose pocket is
+   * deleted, a product child whose product is (§6.6, §15.13). Kept and counted,
+   * never deleted; surfaced so they are not invisible.
+   */
+  orphans: number;
+  /**
+   * Image files this device sent to the server in this run (§8.7.1). Only the
+   * `product` group moves bytes, so every other group reports `0`.
+   */
+  imagesUp: number;
+  /**
+   * Image files this device received from the server in this run.
+   *
+   * Bytes are a second channel with no bookmark: they travel after the rows, never
+   * before, and never delay one — a picture still missing is a placeholder, not a
+   * failed sync.
+   */
+  imagesDown: number;
 };
 
 /** The run's phase — the pill's state, above the per-group phases. */
@@ -188,6 +210,10 @@ export type SyncReport = {
   pulled: number;
   pushed: number;
   stale: number;
+  /** Parked money rows across the run. */
+  pending: number;
+  /** Orphans kept and hidden across the run. */
+  orphans: number;
 };
 
 export type SyncMode = "sync" | "reset";

@@ -159,6 +159,20 @@ pub async fn sync_merge<R: Runtime>(
         .await
         .map_err(|error| MergeFailure::pool(format!("Database sibuk: {error}")))?;
 
+    // §7.4: a pull page may deliver a child before its parent (two concurrent
+    // pushes interleave in the log). The page is one transaction, so deferring
+    // the foreign-key check to the commit lets the page land in whatever order
+    // the server sent it. `defer_foreign_keys` resets automatically at COMMIT.
+    if let Err(error) = sqlx::query("PRAGMA defer_foreign_keys = ON")
+        .execute(&mut *transaction)
+        .await
+    {
+        let _ = transaction.rollback().await;
+        return Err(MergeFailure::pool(format!(
+            "Database tidak bisa menyiapkan transaksi: {error}"
+        )));
+    }
+
     for (index, statement) in plan.statements.iter().enumerate() {
         let mut query = sqlx::query(&statement.sql);
         for value in &statement.bindings {

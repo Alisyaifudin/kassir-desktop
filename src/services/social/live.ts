@@ -102,7 +102,7 @@ export const SocialLive = Layer.effect(
               {
                 sql: `UPDATE socials SET
                     social_name = $1, social_value = $2,
-                    social_updated_at = $3, social_sync_at = NULL
+                    social_updated_at = max($3, social_updated_at + 1), social_sync_at = NULL
                   WHERE social_id = $4`,
                 bindings: [input.name, input.value, now, id],
               },
@@ -118,7 +118,8 @@ export const SocialLive = Layer.effect(
             yield* commit([
               {
                 sql: `UPDATE socials SET
-                    social_deleted_at = $1, social_updated_at = $1, social_sync_at = NULL
+                    social_deleted_at = max($1, social_updated_at + 1),
+                    social_updated_at = max($1, social_updated_at + 1), social_sync_at = NULL
                   WHERE social_id = $2`,
                 bindings: [now, id],
               },

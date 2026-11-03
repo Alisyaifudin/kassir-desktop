@@ -1,16 +1,18 @@
 /**
- * The typed transport for the v2 sync commands in `src-tauri/src/sync.rs`.
+ * The typed transport for the v2 sync commands in `src-tauri/src/sync.rs` and
+ * `src-tauri/src/sync_blob.rs`.
  *
- * Two streaming calls and one atomic write, nothing else. There is no session,
- * no upload id, no byte offset and no hash chain in v2 (§7.1 "state: none"), so
- * this file is a thin promise wrapper around three IPC commands.
+ * Two streaming calls, one atomic write and the three image-byte calls — nothing
+ * else. There is no session, no upload id, no byte offset and no hash chain in v2
+ * (§7.1 "state: none"), so this file is a thin promise wrapper around the IPC
+ * commands.
  *
  * The socket lives in Rust because the window CSP (`connect-src 'self' ipc:`)
  * blocks a webview `fetch` to the user-configured sync host. See `sync.rs`.
  */
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { Context, Layer } from "effect";
-import type { SyncHealth } from ".";
+import type { SyncHealth, SyncGroup } from ".";
 import { nextRequestId, openLineStream, type LineStream } from "./stream";
 
 /** Where the server lives, the bearer token (§5), and who this install is. */
@@ -21,16 +23,19 @@ export type Endpoint = {
   deviceId: string;
 };
 
-/** A command failure. `code` is the contract's machine-readable code (§18.2). */
+/** A command failure. `code` is the contract's machine-readable code (§16.2). */
 export class TransportError extends Error {
   readonly status: number;
   readonly code: string;
+  /** Present only on a `410 too_old`: the lowest seq the group still serves. */
+  readonly floor?: number;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, floor?: number) {
     super(message);
     this.name = "TransportError";
     this.status = status;
     this.code = code;
+    this.floor = floor;
   }
 }
 
@@ -44,12 +49,13 @@ export class TransportError extends Error {
  */
 function normalizeError(error: unknown): TransportError {
   if (typeof error === "object" && error !== null) {
-    const candidate = error as { status?: unknown; code?: unknown; message?: unknown };
+    const candidate = error as { status?: unknown; code?: unknown; message?: unknown; floor?: unknown };
     if (typeof candidate.code === "string") {
       return new TransportError(
         typeof candidate.status === "number" ? candidate.status : 0,
         candidate.code,
         typeof candidate.message === "string" ? candidate.message : candidate.code,
+        typeof candidate.floor === "number" ? candidate.floor : undefined,
       );
     }
   }
@@ -58,6 +64,50 @@ function normalizeError(error: unknown): TransportError {
 
 /** One generated statement, as the Rust merge command receives it. */
 export type MergeStatement = { sql: string; bindings?: (string | number | null)[] };
+
+/**
+ * One manifest entry: the bytes the server will serve for one `image_id`.
+ *
+ * `version` is the `image_updated_at` those bytes were produced for, so the entry
+ * only describes the bytes of a row at exactly that clock (§8.7.1).
+ */
+export type BlobRef = {
+  imageId: string;
+  version: number;
+  sha256: string;
+  byteSize: number;
+  mime: string;
+};
+
+/** One page of `GET /v2/product/image/manifest`, paged by `image_id`. */
+export type BlobManifest = {
+  blobs: BlobRef[];
+  more: boolean;
+  /** The `image_id` to continue from; `null` when the page is the last one. */
+  next: string | null;
+};
+
+/** What `PUT /v2/product/image/blob/:image_id` stored, or already had. */
+export type BlobPut = {
+  status: number;
+  imageId: string;
+  version: number;
+  /** The digest the server holds for `(imageId, version)` — the local row records it. */
+  sha256: string;
+  byteSize: number;
+  mime: string;
+  /** The same bytes were already stored (a retry, or another image shares them). */
+  deduped: boolean;
+  /** False when a newer clock already owns this image: stored, never served. */
+  current: boolean;
+};
+
+/** What `GET /v2/blob/:sha256` wrote to disk. */
+export type BlobGet = {
+  sha256: string;
+  byteSize: number;
+  mime: string;
+};
 
 /** The slice of the Rust sync API the pull/push loops depend on. */
 export type SyncTransport = {
@@ -69,10 +119,13 @@ export type SyncTransport = {
    * endpoint nobody can call from a settings screen.
    */
   health: (endpoint: Endpoint) => Promise<SyncHealth>;
-  /** `GET /v2/money/pull/:seq?limit=…` — one page of changes, streamed. */
-  pull: (endpoint: Endpoint, input: { after: number; limit: number }) => LineStream;
-  /** `POST /v2/money/push` — one NDJSON batch, one ack per frame, streamed. */
-  push: (endpoint: Endpoint, input: { body: string }) => LineStream;
+  /** `GET /v2/<group>/pull/:seq?limit=…` — one page of changes, streamed. */
+  pull: (
+    endpoint: Endpoint,
+    input: { group: SyncGroup; after: number; limit: number },
+  ) => LineStream;
+  /** `POST /v2/<group>/push` — one NDJSON batch, one ack per frame, streamed. */
+  push: (endpoint: Endpoint, input: { group: SyncGroup; body: string }) => LineStream;
   /**
    * Applies a statement batch in one real transaction (`sync_merge` in Rust).
    *
@@ -81,6 +134,37 @@ export type SyncTransport = {
    * its own. See `src-tauri/src/sync_merge.rs`.
    */
   merge: (statements: MergeStatement[]) => Promise<{ statements: number }>;
+
+  // --------------------------------------------------------------------------
+  // The image-byte side channel (§2.10, §8.7.1)
+  //
+  // Three calls that are not frames: no `seq`, no log entry, no bookmark. They
+  // live on this type because they use the same base URL, token and identity
+  // headers as every other sync call, and because the bytes themselves have to
+  // be moved in Rust (the window CSP blocks the sync host — see `sync.rs`).
+  // --------------------------------------------------------------------------
+
+  /** `GET /v2/product/image/manifest` — which hash is current for each image. */
+  blobManifest: (
+    endpoint: Endpoint,
+    input: { after: string | null; limit: number },
+  ) => Promise<BlobManifest>;
+  /**
+   * `PUT /v2/product/image/blob/:image_id?version=…` — one image's bytes, read
+   * from `AppData/images/<fileName>` and sent as a raw body.
+   */
+  blobPut: (
+    endpoint: Endpoint,
+    input: { imageId: string; version: number; fileName: string; mime: string },
+  ) => Promise<BlobPut>;
+  /**
+   * `GET /v2/blob/:sha256` — one image's bytes, written to
+   * `AppData/images/<fileName>` and verified against the digest before it lands.
+   */
+  blobGet: (
+    endpoint: Endpoint,
+    input: { sha256: string; fileName: string },
+  ) => Promise<BlobGet>;
 };
 
 async function command<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -125,6 +209,7 @@ export const tauriTransport: SyncTransport = {
         channel,
         baseUrl: endpoint.baseUrl,
         token: endpoint.token,
+        group: input.group,
         after: input.after,
         limit: input.limit,
         client: identify(endpoint, requestId),
@@ -137,6 +222,7 @@ export const tauriTransport: SyncTransport = {
         channel,
         baseUrl: endpoint.baseUrl,
         token: endpoint.token,
+        group: input.group,
         body: input.body,
         client: identify(endpoint, requestId),
       }),
@@ -144,6 +230,35 @@ export const tauriTransport: SyncTransport = {
   },
   merge(statements) {
     return command("sync_merge", { plan: { statements } });
+  },
+  blobManifest(endpoint, input) {
+    return command("sync_blob_manifest", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      after: input.after,
+      limit: input.limit,
+      client: identify(endpoint, nextRequestId("blob-manifest")),
+    });
+  },
+  blobPut(endpoint, input) {
+    return command("sync_blob_put", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      imageId: input.imageId,
+      version: input.version,
+      fileName: input.fileName,
+      mime: input.mime,
+      client: identify(endpoint, nextRequestId("blob-put")),
+    });
+  },
+  blobGet(endpoint, input) {
+    return command("sync_blob_get", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      sha256: input.sha256,
+      fileName: input.fileName,
+      client: identify(endpoint, nextRequestId("blob-get")),
+    });
   },
 };
 

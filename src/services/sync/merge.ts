@@ -1,19 +1,20 @@
 /**
- * The merge half of the loop: the one rule, applied at merge point A (§8, §11.2).
+ * The merge half of the loop: the one rule per merge kind, applied at merge point
+ * A (`SYNC-V2.md` §5, §5.8).
  *
- * The same two decisions (pocket LWW, money insert/note/soft-delete) are used by
- * the pull here and by the `stale` ack path in `push.ts`, with "stored" meaning
- * the local row in both cases. That is what makes the two sides converge instead
- * of oscillating: whichever copy is newer wins, wherever the comparison happens.
+ * The same decisions are used by the pull here and by the `stale` ack path in
+ * `push.ts`, with "stored" meaning the local row/aggregate in both cases. That is
+ * what makes the two sides converge instead of oscillating: whichever copy is
+ * newer wins, wherever the comparison happens.
  *
  * ## One page, one transaction
  *
  * A pull page is applied as a single statement batch through `sync_merge`, so the
- * rows and their `*_sync_at` markers appear together or not at all (§6.4). The
+ * rows and their `*_sync_at` markers appear together or not at all (§3.3). The
  * bookmark is written after that commit — a crash in between re-pulls the same
  * page, which is harmless because every write is idempotent.
  *
- * ## Missing pockets (§10.1)
+ * ## Missing pockets (§7.5)
  *
  * The local schema enforces `money.pocket_id REFERENCES pockets`, which the server
  * deliberately does not. A page may therefore carry a money row before its pocket
@@ -26,19 +27,32 @@ import type { DatabaseService } from "../db";
 import type { MergeStatement } from "./transport";
 import { SyncError } from ".";
 import {
+  GROUPS,
   TABLES,
   clockOf,
   idOf,
+  toCanonicalChild,
   toCanonicalRow,
-  type Entity,
+  type ChildDef,
   type EntityDef,
+  type SyncGroup,
+  type WireChildren,
   type WireRow,
 } from "./schema";
 import {
+  bookmarkStatement,
+  deleteAggregateStatements,
   deleteRowStatement,
-  markSyncedStatement,
+  forceAggregateStatements,
   forceUpsertStatement,
+  insertIfAbsentStatement,
+  markAggregateSyncedStatement,
+  markSyncedStatement,
+  parkedStatements,
+  rebuildStockStatements,
   selectByIdsSql,
+  selectChildrenByRecordsSql,
+  upsertAggregateStatements,
   upsertIfNewerStatement,
 } from "./sql";
 
@@ -47,16 +61,23 @@ type DatabaseServiceImpl = Context.Tag.Service<typeof DatabaseService>;
 /** Bound on `IN (...)` lists so a huge page cannot exceed SQLite's variable cap. */
 const IN_CHUNK = 400;
 
-/** What one frame decided (§8.2). */
+/** What one frame decided (§4.3). */
 export type MergeDecision = "applied" | "noop" | "stale";
 
 /** One `row` line from a pull. */
-export type PullChange = { seq: number; entity: Entity; row: WireRow };
+export type PullChange = { seq: number; entity: string; row: WireRow };
 
-/** One `del` line from a pull (reserved, §9.3). */
-export type PullDelete = { seq: number; entity: Entity; id: string };
+/** One `ag` line from a pull — the record aggregate. */
+export type PullAggregate = { seq: number; row: WireRow; children: WireChildren };
 
-export type PullPage = { changes: PullChange[]; deletions: PullDelete[] };
+/** One `del` line from a pull (reserved, §6). */
+export type PullDelete = { seq: number; entity: string; id: string };
+
+export type PullPage = {
+  changes: PullChange[];
+  aggregates: PullAggregate[];
+  deletions: PullDelete[];
+};
 
 /**
  * A money row whose pocket was not on this device yet, kept with the `seq` it
@@ -65,9 +86,9 @@ export type PullPage = { changes: PullChange[]; deletions: PullDelete[] };
 export type ParkedMoney = { seq: number; row: WireRow };
 
 export type MergeStats = {
-  /** Frames that changed a local row. */
+  /** Frames that changed a local row/aggregate. */
   applied: number;
-  /** Frames whose local row was already identical. */
+  /** Frames whose local row/aggregate was already identical. */
   noop: number;
   /** Frames the local copy won. */
   stale: number;
@@ -78,7 +99,7 @@ export type MergeStats = {
 /** Applies statements as one transaction. Injected: Rust in the app, SQLite in tests. */
 export type MergeExecutor = (
   statements: MergeStatement[],
-  what: Entity | "pull" | "push",
+  what: string,
 ) => Effect.Effect<void, SyncError>;
 
 export type MergeDeps = {
@@ -87,7 +108,7 @@ export type MergeDeps = {
 };
 
 // ============================================================================
-// The rule (§8.2)
+// The rules (§5)
 // ============================================================================
 
 function value(value: unknown): string | number | null {
@@ -101,77 +122,170 @@ export function sameRow(def: EntityDef, left: WireRow, right: WireRow): boolean 
   return def.columns.every((column) => value(left[column]) === value(right[column]));
 }
 
-/**
- * `pockets` — full last-writer-wins (§8.2).
- *
- * A tie goes to the stored copy: an equal clock with different content is not a
- * newer change, and the server compares the same way.
- */
-export function pocketDecision(local: WireRow, incoming: WireRow): MergeDecision {
-  if (sameRow(TABLES.pocket, local, incoming)) return "noop";
-  return clockOf(TABLES.pocket, incoming) > clockOf(TABLES.pocket, local) ? "applied" : "stale";
-}
-
-/** The three money columns a later push must never rewrite (§8.1). */
+/** The three money columns a later push must never rewrite (§5.4). */
 const MONEY_IMMUTABLE = ["timestamp", "money_value", "pocket_id"] as const;
 
 /**
- * `money` — insert, note edit, soft delete; never re-price (§8.2).
+ * The decision for one row entity (§5.2–§5.4).
  *
- * A copy whose amount, business time or pocket differs is not a newer version of
- * the row, it is a different row wearing the same id, so the stored copy wins.
+ * - `lww`: identical → `noop`; newer clock → `applied`; tie/older → `stale`.
+ * - `money`: an immutable financial field differs → `stale` (the ledger never
+ *   re-prices); otherwise the plain rule.
+ * - `append`: the id is the whole identity — present → `noop`, absent → insert.
  */
-export function moneyDecision(local: WireRow, incoming: WireRow): MergeDecision {
-  const revalued = MONEY_IMMUTABLE.some(
-    (column) => value(local[column]) !== value(incoming[column]),
-  );
-  if (revalued) return "stale";
-  if (sameRow(TABLES.money, local, incoming)) return "noop";
-  return clockOf(TABLES.money, incoming) > clockOf(TABLES.money, local) ? "applied" : "stale";
+export function decide(def: EntityDef, local: WireRow, incoming: WireRow): MergeDecision {
+  if (def.kind === "append") return "noop";
+  if (def.kind === "money") {
+    const revalued = MONEY_IMMUTABLE.some(
+      (column) => value(local[column]) !== value(incoming[column]),
+    );
+    if (revalued) return "stale";
+  }
+  if (sameRow(def, local, incoming)) return "noop";
+  return clockOf(def, incoming) > clockOf(def, local) ? "applied" : "stale";
 }
 
-/** The decision for one table. */
-export function decide(entity: Entity, local: WireRow, incoming: WireRow): MergeDecision {
-  return entity === "pocket" ? pocketDecision(local, incoming) : moneyDecision(local, incoming);
+/** True when every child column of every row is equal, as a set keyed by pk. */
+function sameChildren(child: ChildDef, left: WireRow[], right: WireRow[]): boolean {
+  if (left.length !== right.length) return false;
+  const byPk = new Map(right.map((row) => [String(row[child.pk]), row]));
+  for (const row of left) {
+    const other = byPk.get(String(row[child.pk]));
+    if (other === undefined) return false;
+    for (const column of child.columns) {
+      if (value(row[column]) !== value(other[column])) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * `sameAggregate` (§5.5): every header column by value, and each child set as a
+ * set keyed by primary key. Child array order is not semantic.
+ */
+export function sameAggregate(
+  def: EntityDef,
+  children: readonly ChildDef[],
+  leftHeader: WireRow,
+  leftChildren: WireChildren,
+  rightHeader: WireRow,
+  rightChildren: WireChildren,
+): boolean {
+  if (!sameRow(def, leftHeader, rightHeader)) return false;
+  return children.every((child) =>
+    sameChildren(child, leftChildren[child.key] ?? [], rightChildren[child.key] ?? []),
+  );
+}
+
+/** The aggregate decision (§5.5): identical → `noop`; newer → `applied`; else `stale`. */
+export function decideAggregate(
+  def: EntityDef,
+  children: readonly ChildDef[],
+  localHeader: WireRow,
+  localChildren: WireChildren,
+  incomingHeader: WireRow,
+  incomingChildren: WireChildren,
+): MergeDecision {
+  if (sameAggregate(def, children, localHeader, localChildren, incomingHeader, incomingChildren)) {
+    return "noop";
+  }
+  return clockOf(def, incomingHeader) > clockOf(def, localHeader) ? "applied" : "stale";
 }
 
 // ============================================================================
 // Applying a page
 // ============================================================================
 
-type LocalRows = Map<Entity, Map<string, WireRow>>;
+type LocalRows = Map<string, Map<string, WireRow>>;
 
 function dbError(error: { message: string }): SyncError {
   return new SyncError({ message: `Sinkronisasi gagal disimpan: ${error.message}` });
 }
 
+function chunks<T>(items: readonly T[]): T[][] {
+  const out: T[][] = [];
+  for (let start = 0; start < items.length; start += IN_CHUNK) {
+    out.push(items.slice(start, start + IN_CHUNK));
+  }
+  return out;
+}
+
 /** Reads the local copies of every id this page (and the park) mentions. */
 function readLocal(
   db: DatabaseServiceImpl,
-  ids: Map<Entity, Set<string>>,
+  group: SyncGroup,
+  ids: Map<string, Set<string>>,
 ): Effect.Effect<LocalRows, SyncError> {
   return Effect.gen(function* () {
     const out: LocalRows = new Map();
-    for (const [entity, set] of ids) {
-      const def = TABLES[entity];
+    for (const def of GROUPS[group].entities) {
+      if (def.kind === "aggregate") continue;
+      const set = ids.get(def.entity);
       const map = new Map<string, WireRow>();
-      const list = [...set];
-      for (let start = 0; start < list.length; start += IN_CHUNK) {
-        const slice = list.slice(start, start + IN_CHUNK);
-        if (slice.length === 0) continue;
-        const { sql, bindings } = selectByIdsSql(def, slice);
-        const rows = yield* db
-          .selectMany<Record<string, unknown>>(sql, bindings)
-          .pipe(Effect.mapError(dbError));
-        for (const row of rows) {
-          const canonical = toCanonicalRow(def, row);
-          map.set(idOf(def, canonical), canonical);
+      if (set !== undefined && set.size > 0) {
+        for (const slice of chunks([...set])) {
+          if (slice.length === 0) continue;
+          const { sql, bindings } = selectByIdsSql(def, slice);
+          const rows = yield* db
+            .selectMany<Record<string, unknown>>(sql, bindings)
+            .pipe(Effect.mapError(dbError));
+          for (const row of rows) {
+            const canonical = toCanonicalRow(def, row);
+            map.set(idOf(def, canonical), canonical);
+          }
         }
       }
-      out.set(entity, map);
+      out.set(def.entity, map);
     }
     return out;
   });
+}
+
+type LocalAggregate = { header: WireRow; children: WireChildren };
+
+/** Reads the local headers and child sets of the records a page mentions. */
+function readLocalAggregates(
+  db: DatabaseServiceImpl,
+  group: SyncGroup,
+  ids: readonly string[],
+): Effect.Effect<Map<string, LocalAggregate>, SyncError> {
+  return Effect.gen(function* () {
+    const out = new Map<string, LocalAggregate>();
+    const def = GROUPS[group].entities.find((entry) => entry.kind === "aggregate");
+    const children = GROUPS[group].children;
+    if (def === undefined || children === undefined) return out;
+    for (const slice of chunks(ids)) {
+      if (slice.length === 0) continue;
+      const { sql, bindings } = selectByIdsSql(def, slice);
+      const headers = yield* db
+        .selectMany<Record<string, unknown>>(sql, bindings)
+        .pipe(Effect.mapError(dbError));
+      for (const raw of headers) {
+        const header = toCanonicalRow(def, raw);
+        out.set(idOf(def, header), { header, children: emptyAggregateChildren(children) });
+      }
+      for (const child of children) {
+        const query = selectChildrenByRecordsSql(child, slice.length);
+        const rows = yield* db
+          .selectMany<Record<string, unknown>>(query, slice)
+          .pipe(Effect.mapError(dbError));
+        for (const raw of rows) {
+          const recordId = String(raw["record_id"]);
+          const aggregate = out.get(recordId);
+          if (aggregate === undefined) continue;
+          aggregate.children[child.key] ??= [];
+          aggregate.children[child.key]!.push(toCanonicalChild(child, raw));
+        }
+      }
+    }
+    return out;
+  });
+}
+
+function emptyAggregateChildren(children: readonly ChildDef[]): WireChildren {
+  const out: WireChildren = {};
+  for (const child of children) out[child.key] = [];
+  return out;
 }
 
 /**
@@ -179,23 +293,24 @@ function readLocal(
  *
  * That last part is what makes the two-pass rule work: a page carrying only money
  * changes has to be able to answer "is this row's pocket already on this device?",
- * and the answer lives in `pockets`, not in the page (§10.1).
+ * and the answer lives in `pockets`, not in the page (§7.5).
  */
-function idsIn(page: PullPage, parked: readonly ParkedMoney[]): Map<Entity, Set<string>> {
-  const ids = new Map<Entity, Set<string>>([
-    ["pocket", new Set<string>()],
-    ["money", new Set<string>()],
-  ]);
+function idsIn(group: SyncGroup, page: PullPage, parked: readonly ParkedMoney[]): Map<string, Set<string>> {
+  const ids = new Map<string, Set<string>>();
+  for (const def of GROUPS[group].entities) ids.set(def.entity, new Set<string>());
   const addPocketRef = (row: WireRow): void => {
     ids.get("pocket")?.add(String(row["pocket_id"]));
   };
   for (const change of page.changes) {
-    ids.get(change.entity)?.add(String(change.row[TABLES[change.entity].pk]));
+    ids.get(change.entity)?.add(String(change.row[TABLES[change.entity]!.pk]));
     if (change.entity === "money") addPocketRef(change.row);
+  }
+  for (const aggregate of page.aggregates) {
+    ids.get("record")?.add(String(aggregate.row["record_id"]));
   }
   for (const deletion of page.deletions) ids.get(deletion.entity)?.add(deletion.id);
   for (const parkedRow of parked) {
-    ids.get("money")?.add(String(parkedRow.row[TABLES.money.pk]));
+    ids.get("money")?.add(String(parkedRow.row["money_id"]));
     addPocketRef(parkedRow.row);
   }
   return ids;
@@ -204,9 +319,10 @@ function idsIn(page: PullPage, parked: readonly ParkedMoney[]): Map<Entity, Set<
 /**
  * Plans one row into statements.
  *
- * `applied` overwrites, `noop` only marks the row synced, `stale` writes nothing:
- * the local copy already won, and (being unsynced) it will be pushed, where the
- * server will either accept it or answer `stale` with its own copy.
+ * `applied` overwrites (or inserts), `noop` only marks the row synced, `stale`
+ * writes nothing: the local copy already won, and (being unsynced) it will be
+ * pushed, where the server will either accept it or answer `stale` with its own
+ * copy.
  */
 function planRow(
   def: EntityDef,
@@ -217,11 +333,15 @@ function planRow(
   stats: MergeStats,
 ): void {
   if (local === undefined) {
-    statements.push(upsertIfNewerStatement(def, incoming, seq));
+    statements.push(
+      def.kind === "append"
+        ? insertIfAbsentStatement(def, incoming, seq)
+        : upsertIfNewerStatement(def, incoming, seq),
+    );
     stats.applied += 1;
     return;
   }
-  const decision = decide(def.entity, local, incoming);
+  const decision = decide(def, local, incoming);
   stats[decision] += 1;
   if (decision === "applied") {
     statements.push(upsertIfNewerStatement(def, incoming, seq));
@@ -233,81 +353,178 @@ function planRow(
 /**
  * Applies one pull page and returns what is still parked.
  *
- * The two passes matter (§10.1): every pocket in the page is written before any
- * money row is considered, so a page that carries a pocket and its first money
- * row in the wrong order still lands. Rows whose pocket is nowhere on this device
- * are carried into `parked`, which the caller persists with the bookmark.
+ * Row entities are processed in the group's dependency order (`product` before
+ * its children, every pocket before any money) so a page that carries a parent
+ * and its child in the "wrong" seq order still lands. Within one entity the
+ * changes keep their seq order, so a row that appears twice ends on the newer
+ * version (§3.2, P4).
  */
 export function mergePage(
   deps: MergeDeps,
+  group: SyncGroup,
   page: PullPage,
   parked: readonly ParkedMoney[] = [],
+  /** The commit unit: the page's rows, its parked rows and its bookmark together. */
+  commit?: { bookmark: number },
 ): Effect.Effect<{ stats: MergeStats; parked: ParkedMoney[] }, SyncError> {
   return Effect.gen(function* () {
     const stats: MergeStats = { applied: 0, noop: 0, stale: 0, parked: 0 };
     const statements: MergeStatement[] = [];
+    const defs = GROUPS[group];
+    const aggregateDef = defs.entities.find((entry) => entry.kind === "aggregate");
 
-    const local = yield* readLocal(deps.db, idsIn(page, parked));
+    const local = yield* readLocal(deps.db, group, idsIn(group, page, parked));
 
+    // `del` lines first: a row that is gone locally is then re-inserted by a
+    // later `row` in the same page, which is exactly the order the log has.
     for (const deletion of page.deletions) {
-      statements.push(deleteRowStatement(TABLES[deletion.entity], deletion.id));
-    }
-
-    // Pass 1: pockets, so a money row in this same page can rely on them.
-    const pockets = page.changes.filter((change) => change.entity === "pocket");
-    for (const change of pockets) {
-      planRow(
-        TABLES.pocket,
-        local.get("pocket")?.get(String(change.row[TABLES.pocket.pk])),
-        change.row,
-        change.seq,
-        statements,
-        stats,
-      );
-    }
-
-    // Pass 2: money, parked when its pocket is not known.
-    const knownPockets = new Set<string>(local.get("pocket")?.keys() ?? []);
-    for (const change of pockets) knownPockets.add(String(change.row[TABLES.pocket.pk]));
-
-    // Keyed by `money_id`, so a page re-pulled after a crash (the bookmark only
-    // moves on commit) parks the same row once, not once per attempt.
-    const stillParked = new Map<string, ParkedMoney>();
-    const writeMoney = (row: WireRow, seq: number): void => {
-      const id = idOf(TABLES.money, row);
-      if (!knownPockets.has(String(row["pocket_id"]))) {
-        stillParked.set(id, { seq, row });
-        return;
+      const def = TABLES[deletion.entity];
+      if (def === undefined) continue;
+      if (def.kind === "aggregate") {
+        statements.push(...deleteAggregateStatements(def, deletion.id));
+      } else {
+        statements.push(deleteRowStatement(def, deletion.id));
       }
-      stillParked.delete(id);
-      planRow(TABLES.money, local.get("money")?.get(id), row, seq, statements, stats);
-    };
-
-    // The park from earlier pages first: their pocket may have just arrived.
-    for (const waiting of parked) writeMoney(waiting.row, waiting.seq);
-    for (const change of page.changes) {
-      if (change.entity === "money") writeMoney(change.row, change.seq);
     }
 
-    stats.parked = stillParked.size;
-    yield* deps.execute(statements, "pull");
-    return { stats, parked: [...stillParked.values()] };
+    // Aggregates: one frame, one whole record (§5.5).
+    if (aggregateDef !== undefined && defs.children !== undefined) {
+      const ids = page.aggregates.map((aggregate) => String(aggregate.row["record_id"]));
+      const locals = yield* readLocalAggregates(deps.db, group, ids);
+      for (const aggregate of page.aggregates) {
+        const id = String(aggregate.row["record_id"]);
+        const stored = locals.get(id);
+        if (stored === undefined) {
+          statements.push(
+            ...upsertAggregateStatements(aggregateDef, aggregate.row, aggregate.children, aggregate.seq),
+          );
+          stats.applied += 1;
+          continue;
+        }
+        const decision = decideAggregate(
+          aggregateDef,
+          defs.children,
+          stored.header,
+          stored.children,
+          aggregate.row,
+          aggregate.children,
+        );
+        stats[decision] += 1;
+        if (decision === "applied") {
+          statements.push(
+            ...upsertAggregateStatements(aggregateDef, aggregate.row, aggregate.children, aggregate.seq),
+          );
+        } else if (decision === "noop") {
+          statements.push(
+            markAggregateSyncedStatement(
+              aggregateDef,
+              id,
+              aggregate.seq,
+              clockOf(aggregateDef, aggregate.row),
+            ),
+          );
+        }
+      }
+    }
+
+    // Row entities, in dependency order.
+    const byEntity = new Map<string, PullChange[]>();
+    for (const change of page.changes) {
+      const list = byEntity.get(change.entity);
+      if (list === undefined) byEntity.set(change.entity, [change]);
+      else list.push(change);
+    }
+
+    const moneyDef = TABLES["money"];
+    const pocketDef = TABLES["pocket"];
+    const isMoneyGroup = group === "money" && moneyDef !== undefined && pocketDef !== undefined;
+    // The park after this page. Only the money group ever changes it; every
+    // other group passes the incoming park through untouched.
+    let parkedNext: readonly ParkedMoney[] = parked;
+
+    for (const def of defs.entities) {
+      if (def.kind === "aggregate") continue;
+      const changes = byEntity.get(def.entity) ?? [];
+
+      if (isMoneyGroup && def.entity === "money") {
+        // Pass 2: money, parked when its pocket is not known.
+        const knownPockets = new Set<string>(local.get("pocket")?.keys() ?? []);
+        for (const change of byEntity.get("pocket") ?? []) {
+          knownPockets.add(String(change.row["pocket_id"]));
+        }
+        // Keyed by `money_id`, so a page re-pulled after a crash (the bookmark
+        // only moves on commit) parks the same row once, not once per attempt.
+        const stillParked = new Map<string, ParkedMoney>();
+        const writeMoney = (row: WireRow, seq: number): void => {
+          const id = idOf(moneyDef, row);
+          if (!knownPockets.has(String(row["pocket_id"]))) {
+            stillParked.set(id, { seq, row });
+            return;
+          }
+          stillParked.delete(id);
+          planRow(moneyDef, local.get("money")?.get(id), row, seq, statements, stats);
+        };
+        // The park from earlier pages first: their pocket may have just arrived.
+        for (const waiting of parked) writeMoney(waiting.row, waiting.seq);
+        for (const change of changes) writeMoney(change.row, change.seq);
+        stats.parked = stillParked.size;
+        parkedNext = [...stillParked.values()];
+        continue;
+      }
+
+      for (const change of changes) {
+        planRow(def, local.get(def.entity)?.get(idOf(def, change.row)), change.row, change.seq, statements, stats);
+      }
+    }
+
+    // The product group's `stocks` is a projection of the journal, not a synced
+    // table (§8.7). Every product whose events arrived (or whose row did) is
+    // re-folded from the local journal in the same transaction, so a device that
+    // pulled another till's sale shows the right stock immediately.
+    if (group === "product") {
+      const products = new Set<string>();
+      for (const change of page.changes) {
+        if (change.entity === "product") products.add(String(change.row["product_id"]));
+        if (change.entity === "product_event" && change.row["product_id"] != null) {
+          products.add(String(change.row["product_id"]));
+        }
+      }
+      if (products.size > 0) {
+        statements.push(...rebuildStockStatements([...products]));
+      }
+    }
+
+    // §9.4.1: the rows, the parked rows and the bookmark are one transaction. A
+    // crash between them would either re-fetch a page (harmless) or skip one
+    // (unrecoverable), so they must never be written separately.
+    if (commit !== undefined) {
+      if (group === "money") statements.push(...parkedStatements(parkedNext));
+      statements.push(bookmarkStatement(group, commit.bookmark));
+    }
+
+    yield* deps.execute(statements, group);
+    return { stats, parked: [...parkedNext] };
   });
 }
 
 /**
- * Applies the server's winning row from a `stale` ack (merge point C, §7.3).
+ * Applies the server's winning row from a `stale` ack (merge point C, §5.8).
  *
  * The guard (`since`) is the clock this device uploaded: a row the cashier edited
  * after its frame left keeps the local value, stays unsynced, and is compared
  * again on the next pass. Without that, an edit made while the request was in
  * flight would be silently overwritten by the answer to the old one.
  */
-export function staleStatement(
-  entity: Entity,
+export function staleStatements(
+  def: EntityDef,
+  children: readonly ChildDef[] | undefined,
   row: WireRow,
+  ch: WireChildren | null,
   seq: number,
   since: number,
-): MergeStatement {
-  return forceUpsertStatement(TABLES[entity], row, seq, since);
+): MergeStatement[] {
+  if (def.kind === "aggregate" && children !== undefined) {
+    return forceAggregateStatements(def, row, ch ?? emptyAggregateChildren(children), seq, since);
+  }
+  return [forceUpsertStatement(def, row, seq, since)];
 }

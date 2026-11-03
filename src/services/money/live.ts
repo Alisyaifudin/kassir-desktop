@@ -279,7 +279,7 @@ export const MoneyLive = Layer.effect(
               yield* commit([
                 {
                   sql: `UPDATE pockets SET
-                      pocket_name = $1, pocket_updated_at = $2, pocket_sync_at = NULL
+                      pocket_name = $1, pocket_updated_at = max($2, pocket_updated_at + 1), pocket_sync_at = NULL
                     WHERE pocket_id = $3`,
                   bindings: [name, now, id],
                 },
@@ -296,7 +296,7 @@ export const MoneyLive = Layer.effect(
               yield* commit([
                 {
                   sql: `UPDATE pockets SET
-                      pocket_type = $1, pocket_updated_at = $2, pocket_sync_at = NULL
+                      pocket_type = $1, pocket_updated_at = max($2, pocket_updated_at + 1), pocket_sync_at = NULL
                     WHERE pocket_id = $3`,
                   bindings: [type, now, id],
                 },
@@ -314,7 +314,7 @@ export const MoneyLive = Layer.effect(
               yield* commit(
                 items.map(({ id, order }) => ({
                   sql: `UPDATE pockets SET
-                      pocket_ordering = $1, pocket_updated_at = $2, pocket_sync_at = NULL
+                      pocket_ordering = $1, pocket_updated_at = max($2, pocket_updated_at + 1), pocket_sync_at = NULL
                     WHERE pocket_id = $3`,
                   bindings: [order, now, id],
                 })),
@@ -344,13 +344,15 @@ export const MoneyLive = Layer.effect(
               yield* commit([
                 {
                   sql: `UPDATE money SET
-                      money_deleted_at = $1, money_updated_at = $1, money_sync_at = NULL
+                      money_deleted_at = max($1, money_updated_at + 1),
+                      money_updated_at = max($1, money_updated_at + 1), money_sync_at = NULL
                     WHERE pocket_id = $2 AND money_deleted_at IS NULL`,
                   bindings: [now, id],
                 },
                 {
                   sql: `UPDATE pockets SET
-                      pocket_deleted_at = $1, pocket_updated_at = $1, pocket_sync_at = NULL
+                      pocket_deleted_at = max($1, pocket_updated_at + 1),
+                      pocket_updated_at = max($1, pocket_updated_at + 1), pocket_sync_at = NULL
                     WHERE pocket_id = $2`,
                   bindings: [now, id],
                 },
@@ -425,7 +427,8 @@ export const MoneyLive = Layer.effect(
               yield* commit([
                 {
                   sql: `UPDATE money SET
-                      money_deleted_at = $1, money_updated_at = $1, money_sync_at = NULL
+                      money_deleted_at = max($1, money_updated_at + 1),
+                      money_updated_at = max($1, money_updated_at + 1), money_sync_at = NULL
                     WHERE money_id = $2`,
                   bindings: [now, id],
                 },
