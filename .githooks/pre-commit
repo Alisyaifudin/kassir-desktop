@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# The cheap half of the CI mirror. ~18 s, and it catches the three failures that
+# do not need a compiler at full speed: rustfmt, tsc, eslint.
+#
+# WIP commits: `git commit --no-verify`. pre-push runs the full blocking set, so
+# skipping here does not skip the gate — it only defers it.
+#
+# Installed by `bun install` (package.json "prepare") via core.hooksPath.
+
+set -e
+
+if ! command -v bun >/dev/null 2>&1; then
+  echo "pre-commit: bun is not on PATH — skipping the CI mirror." >&2
+  echo "pre-commit: install bun, or commit with --no-verify." >&2
+  exit 0
+fi
+
+exec bun scripts/ci.ts --fast

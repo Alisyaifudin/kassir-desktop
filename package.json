@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
+    "ci": "bun scripts/ci.ts",
+    "ci:fast": "bun scripts/ci.ts --fast",
+    "ci:full": "bun scripts/ci.ts --full",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",

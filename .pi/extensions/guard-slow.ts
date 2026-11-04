@@ -16,6 +16,10 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const SLOW: RegExp[] = [
+  // The CI mirror's default and full tiers compile Rust and drive a browser.
+  // Its --fast tier is the pre-commit gate and is allowed below.
+  /\bscripts\/ci\.ts\b/i,
+  /\b(bun|npm|pnpm|yarn)\s+run\s+ci(?::full)?\b/i,
   // e2e / app
   /\b(npx|bunx|pnpm|yarn|bun|npm)\s+(exec\s+)?playwright\b/i,
   /^\s*playwright\b/i,
@@ -35,11 +39,20 @@ const SLOW: RegExp[] = [
 
 const ALLOW_FILE = join(process.cwd(), ".pi", "allow-slow");
 
+/**
+ * rustfmt + tsc + eslint, ~18 s — the same set `.githooks/pre-commit` runs. Being
+ * able to say "this is red" without interrupting the user is the difference
+ * between catching a type error now and catching it in CI. Everything the mirror
+ * does beyond this (clippy, cargo test, vite build, playwright) stays gated.
+ */
+const FAST_CI = /(?:\bci:fast\b|\bscripts\/ci\.ts\b[^\n]*--fast\b)/i;
+
 export default function (pi) {
   pi.on("tool_call", async (event) => {
     if (event.toolName !== "bash") return undefined;
 
     const command = String(event.input?.command ?? "");
+    if (FAST_CI.test(command)) return undefined;
     if (!SLOW.some((pattern) => pattern.test(command))) return undefined;
     if (existsSync(ALLOW_FILE)) return undefined;
 

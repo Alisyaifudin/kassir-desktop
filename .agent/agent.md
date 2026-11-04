@@ -20,9 +20,33 @@ Verification is a *proposal*, never a reflex.
 
 ### Allowed without asking (they finish in seconds)
 
+- `bun scripts/ci.ts --fast` — rustfmt + `tsc --noEmit` + eslint, ~18 s, and it is
+  the exact set the pre-commit hook runs. If this is red, CI will be red.
 - `tsc --noEmit`, `eslint <touched paths>`, `bun test <touched paths>`
+- `bun scripts/ci.ts --only=<gate>` — re-run one gate after fixing it
 - `git status`, `git diff`, `git add`, `git commit`, `git log -n`
 - reading files, `grep`, `ls`, `sed -n`
+
+### The CI mirror is the definition of "verified"
+
+`scripts/ci.ts` is a line-for-line mirror of `.github/workflows/windows-release.yml`:
+same commands, same flags, same blocking/advisory posture. Three tiers:
+
+| command | covers | cost | when |
+| --- | --- | --- | --- |
+| `bun scripts/ci.ts --fast` | rustfmt, typecheck, lint | ~18 s | allowed freely; pre-commit |
+| `bun scripts/ci.ts` | + clippy, cargo test, bun test, vite build | ~2-3 min | **ask**; pre-push |
+| `bun scripts/ci.ts --full` | + playwright e2e | ~4 min | **ask**; before a release push |
+
+When a change touches Rust, this is not optional advice: every one of the red
+`master` runs in the 2026-10-26 → 11-04 window was a Rust gate (rustfmt ×3,
+clippy ×2, `cargo test` ×1) that nobody ran locally. If you cannot run the
+tier a change needs — ask, in one line, naming the tier and its cost. Do not
+report "done" and leave a Rust edit unformatted and unlinted.
+
+A gate that can only fail in CI is a gate that only fails in CI. If you add a
+workflow step, add the matching entry to `GATES` in `scripts/ci.ts` in the same
+commit, or you have just built the next red `master`.
 
 ### When verification seems useful
 

@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# The last gate before code leaves the machine. Runs every *blocking* gate the
+# `Publish Windows App` workflow runs, in the same order and with the same flags.
+#
+# e2e is deliberately not here: it is the last phase, it needs a browser, and the
+# 20-run history that motivated this hook has zero e2e failures (the harness is
+# solid; the Rust job was the recurring one). Run `bun scripts/ci.ts --full`
+# yourself before a release push — that is the one job you cannot cheaply undo.
+#
+# If a gate here is red, CI will be red. That is the whole point: ~2 minutes now
+# beats a 10-minute Windows build and a red master.
+
+set -e
+
+if ! command -v bun >/dev/null 2>&1; then
+  echo "pre-push: bun is not on PATH — skipping the CI mirror." >&2
+  exit 0
+fi
+
+exec bun scripts/ci.ts

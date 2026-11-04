@@ -1,0 +1,28 @@
+# The toolchain is pinned, not floated — and the pin is the whole point.
+#
+# `windows-release.yml` used to install whatever `dtolnay/rust-toolchain@stable`
+# resolved to on the day of the run, while this workstation sat on rustc 1.95.0.
+# During the 2026-10-26 → 11-04 stretch CI was compiling with 1.99.1, four
+# releases ahead. Clippy lints are added in minor releases, so the local tree
+# passed `cargo clippy` on a toolchain that did not yet know about
+# `manual_is_multiple_of` or `redundant_closure` — and CI, on the 1.99.1 that did,
+# went red twice. `cargo fmt --check` has the same failure mode: rustfmt's line
+# breaking changes between versions.
+#
+# `components` is the second half of it: without rustfmt/clippy listed, a fresh
+# rustup installs neither, `cargo fmt` fails with "no such command", and the check
+# that CI treats as blocking simply never happens locally.
+#
+# This file sits at the repo root, not in `src-tauri/`, on purpose: rustup resolves
+# the override from the *current working directory* upward, and every cargo command
+# in the workflow (`cargo fmt/clippy/test --manifest-path src-tauri/Cargo.toml`) is
+# run from the root. A copy in `src-tauri/` would be invisible to all of them — the
+# pin has to be where the commands start, not where the crate lives.
+#
+# CI still runs `dtolnay/rust-toolchain@stable`, but rustup honours this file for
+# every command started from the repo root, so both sides resolve to the same
+# compiler. Bump this line deliberately, in its own commit, so the toolchain change
+# is visible in the log next to any lint it introduces.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
