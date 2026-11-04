@@ -413,7 +413,15 @@ pub async fn sync_product_pull(
     let who = RequestIdentity::new(&app, &client);
     let flag = state.register(&client.request_id);
     let outcome = pull_one_stream(
-        &http, &flag, &who, &base_url, &token, &product_id, after.as_deref(), limit, &channel,
+        &http,
+        &flag,
+        &who,
+        &base_url,
+        &token,
+        &product_id,
+        after.as_deref(),
+        limit,
+        &channel,
     )
     .await;
     state.unregister(&client.request_id);
@@ -675,13 +683,12 @@ fn one_product_url(
     action: &str,
     product_id: &str,
 ) -> Result<reqwest::Url, SyncFailure> {
-    let mut url = reqwest::Url::parse(&format!(
-        "{}/v2/product/one/{action}",
-        trim_base(base_url)
-    ))
-    .map_err(|error| SyncFailure::internal(format!("Alamat server tidak valid: {error}")))?;
+    let mut url = reqwest::Url::parse(&format!("{}/v2/product/one/{action}", trim_base(base_url)))
+        .map_err(|error| SyncFailure::internal(format!("Alamat server tidak valid: {error}")))?;
     url.path_segments_mut()
-        .map_err(|_| SyncFailure::internal("Alamat server tidak bisa dipakai sebagai base URL".to_string()))?
+        .map_err(|_| {
+            SyncFailure::internal("Alamat server tidak bisa dipakai sebagai base URL".to_string())
+        })?
         .push(product_id);
     Ok(url)
 }

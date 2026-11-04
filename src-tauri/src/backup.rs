@@ -222,11 +222,7 @@ pub async fn backup_data<R: Runtime>(
     let manifest_path = dir.path().join("manifest.json");
     write_manifest(&manifest_path, &files, schema, &store_json)?;
 
-    let payload = vec![
-        files[0].path.clone(),
-        files[1].path.clone(),
-        manifest_path,
-    ];
+    let payload = vec![files[0].path.clone(), files[1].path.clone(), manifest_path];
     let at = Instant::now();
     let archive = zip_into(&target, payload, &reporter).await?;
     log::info!("backup: compress in {} ms", at.elapsed().as_millis());
@@ -338,7 +334,11 @@ async fn vacuum_into<R: Runtime>(
         // loaded till; that is retryable, not a broken install.
         log::error!("backup_data VACUUM INTO failed: {error}");
         let busy = error.to_string().contains("database is locked");
-        if busy { DB_BUSY.to_string() } else { FAILED.to_string() }
+        if busy {
+            DB_BUSY.to_string()
+        } else {
+            FAILED.to_string()
+        }
     })?;
     reporter.report("snapshot", 0, SNAPSHOT_END, 1.0);
     Ok(())
@@ -503,7 +503,10 @@ async fn zip_into(
     let reporter = reporter.clone();
     let written = tauri::async_runtime::spawn_blocking(move || -> Result<u64, String> {
         let file = fs::File::create(&part_for_task).map_err(|error| {
-            log::error!("backup_data could not create {}: {error}", part_for_task.display());
+            log::error!(
+                "backup_data could not create {}: {error}",
+                part_for_task.display()
+            );
             FAILED.to_string()
         })?;
         let mut zip = ZipWriter::new(file);
@@ -585,7 +588,10 @@ async fn zip_into(
     // not do it for us.
     if let Err(error) = fs::remove_file(target) {
         if error.kind() != std::io::ErrorKind::NotFound {
-            log::error!("backup_data could not replace {}: {error}", target.display());
+            log::error!(
+                "backup_data could not replace {}: {error}",
+                target.display()
+            );
             let _ = fs::remove_file(&part);
             return Err(FAILED.to_string());
         }
@@ -648,12 +654,10 @@ fn describe_files(
     let total: u64 = files
         .iter()
         .map(|(name, _, path)| {
-            fs::metadata(path)
-                .map(|meta| meta.len())
-                .map_err(|error| {
-                    log::error!("backup_data could not size {name}: {error}");
-                    FAILED.to_string()
-                })
+            fs::metadata(path).map(|meta| meta.len()).map_err(|error| {
+                log::error!("backup_data could not size {name}: {error}");
+                FAILED.to_string()
+            })
         })
         .collect::<Result<Vec<u64>, String>>()?
         .into_iter()
