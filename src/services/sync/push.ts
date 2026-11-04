@@ -37,6 +37,7 @@ import {
   idOf,
   toCanonicalChild,
   toCanonicalRow,
+  type ChildDef,
   type EntityDef,
   type SyncGroup,
   type WireChildren,
@@ -45,7 +46,7 @@ import {
   countUnsyncedProductSql,
   countUnsyncedSql,
   markSyncedStatement,
-  selectChildrenSql,
+  selectChildrenByRecordsSql,
   selectUnsyncedAggregateSql,
   selectUnsyncedProductSql,
   selectUnsyncedSql,
@@ -53,6 +54,15 @@ import {
 import { consumeLines, type Endpoint, type MergeStatement, type SyncTransport } from "./transport";
 
 type DatabaseServiceImpl = Context.Tag.Service<typeof DatabaseService>;
+
+/**
+ * Records whose ids one child query may name.
+ *
+ * A batch is at most `pushFrames` (1000) records, and this mirrors `merge.ts`'s
+ * `IN_CHUNK` so both sides of sync stay inside the same conservative
+ * placeholder bound.
+ */
+const CHILD_READ_CHUNK = 400;
 
 /**
  * Batches one push may send before it stops and says what is still owed.
@@ -157,27 +167,43 @@ export type PushOutcome = {
   remaining: number;
 };
 
-/** Reads one record's five child sets. */
-function readChildren(
+/** Reads one batch of records' five child sets, five queries at a time. */
+function readChildrenFor(
   db: DatabaseServiceImpl,
-  recordId: string,
-): Effect.Effect<WireChildren, SyncError> {
+  childrenOf: readonly ChildDef[],
+  recordIds: readonly string[],
+): Effect.Effect<Map<string, WireChildren>, SyncError> {
   return Effect.gen(function* () {
-    const children = emptyChildren();
-    for (const child of RECORD_CHILD_TABLES) {
-      const rows = yield* db
-        .selectMany<Record<string, unknown>>(selectChildrenSql(child), [recordId])
-        .pipe(
-          Effect.mapError(
-            (error) =>
-              new SyncError({
-                message: `Sinkronisasi ${child.key} gagal dibaca: ${error.message}`,
-              }),
-          ),
-        );
-      children[child.key] = rows.map((row) => toCanonicalChild(child, row));
+    const byRecord = new Map<string, WireChildren>();
+    for (const id of recordIds) byRecord.set(id, emptyChildren());
+
+    // Ids per statement, matching `merge.ts`'s IN bound: one placeholder each.
+    for (let start = 0; start < recordIds.length; start += CHILD_READ_CHUNK) {
+      const slice = recordIds.slice(start, start + CHILD_READ_CHUNK);
+      for (const child of childrenOf) {
+        const rows = yield* db
+          .selectMany<Record<string, unknown>>(
+            selectChildrenByRecordsSql(child, slice.length),
+            [...slice],
+          )
+          .pipe(
+            Effect.mapError(
+              (error) =>
+                new SyncError({
+                  message: `Sinkronisasi ${child.key} gagal dibaca: ${error.message}`,
+                }),
+            ),
+          );
+        for (const raw of rows) {
+          const children = byRecord.get(String(raw["record_id"]));
+          if (children === undefined) continue;
+          // `toCanonicalChild` reads only the child's own columns, so the extra
+          // `record_id` the batched select returns is not part of the frame.
+          (children[child.key] ??= []).push(toCanonicalChild(child, raw));
+        }
+      }
     }
-    return children;
+    return byRecord;
   });
 }
 
@@ -226,10 +252,19 @@ function readBatch(
                 }),
             ),
           );
-        for (const raw of rows) {
-          const row = toCanonicalRow(entity, raw);
+        // The children of the whole batch in five round trips, not five per
+        // record: `readChildrenFor` is the reason a push batch is not 5,000
+        // statements. Read for every candidate header, including ones the byte
+        // bound drops below — the rows come back together either way.
+        const headers = rows.map((raw) => toCanonicalRow(entity, raw));
+        const childSets = yield* readChildrenFor(
+          db,
+          def.children ?? RECORD_CHILD_TABLES,
+          headers.map((row) => idOf(entity, row)),
+        );
+        for (const row of headers) {
           const id = idOf(entity, row);
-          const children = yield* readChildren(db, id);
+          const children = childSets.get(id) ?? emptyChildren();
           const line = encodeAggregateFrame(row, children);
           const size = bytesOf(line);
           if (!fits(size)) {

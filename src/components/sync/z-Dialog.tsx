@@ -66,7 +66,7 @@ function SyncDialogBody() {
   const summary = summaryOf(state);
 
   return (
-    <DialogContent className="flex max-h-[calc(100vh-2rem)] max-w-md flex-col">
+    <DialogContent className="flex max-h-[calc(100vh-2rem)] max-w-3xl flex-col">
       <DialogHeader>
         <DialogTitle>Sinkronisasi</DialogTitle>
         <DialogDescription>
