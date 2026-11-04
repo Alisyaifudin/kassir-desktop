@@ -105,6 +105,12 @@ export type BlobTick = {
   bytes: number;
   /** Bytes this pass expects to move, when every size is known. */
   bytesTotal: number | null;
+  /**
+   * The file this tick is about — the row's `image_name`, or `null` when the row
+   * has none. The screen's log names the picture, so a pass of twenty reads as
+   * twenty files instead of twenty counts.
+   */
+  name: string | null;
 };
 
 /** What one upload pass did. */
@@ -338,9 +344,9 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
     }
 
     let done = 0;
-    const tick = (): void => {
+    const tick = (name: string | null): void => {
       done += 1;
-      deps.onProgress?.({ done, total: rows.length, bytes, bytesTotal });
+      deps.onProgress?.({ done, total: rows.length, bytes, bytesTotal, name });
     };
 
     for (const row of rows) {
@@ -361,7 +367,7 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
         );
         uploaded += 1;
         bytes += outcome.right.byteSize;
-        tick();
+        tick(row.image_name);
         continue;
       }
 
@@ -371,13 +377,13 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
         // are somewhere else. The version it claimed is a lie, so it goes.
         statements.push(forgetFile(row.image_id, row.image_updated_at));
         skipped += 1;
-        tick();
+        tick(row.image_name);
         continue;
       }
       if (code === "blob_conflict") {
         statements.push(forgetFile(row.image_id, row.image_updated_at));
         skipped += 1;
-        tick();
+        tick(row.image_name);
         log.info(`sync: gambar ${row.image_id} sudah ada versi lain di server — mengikuti server`);
         continue;
       }
@@ -385,12 +391,12 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
         // The server's row is missing or tombstoned. The next pull settles which
         // copy is current, so nothing is written here.
         skipped += 1;
-        tick();
+        tick(row.image_name);
         continue;
       }
 
       failed += 1;
-      tick();
+      tick(row.image_name);
       log.error(
         new Error(
           `sync: upload gambar ${row.image_id} gagal (${code || "?"}): ${messageOf(outcome.left)}`,
@@ -490,9 +496,9 @@ export function fetchImageBlobs(deps: ImageBlobDeps): Effect.Effect<FetchReport>
     }
 
     let done = 0;
-    const tick = (): void => {
+    const tick = (name: string | null): void => {
       done += 1;
-      deps.onProgress?.({ done, total: planned, bytes, bytesTotal });
+      deps.onProgress?.({ done, total: planned, bytes, bytesTotal, name });
     };
 
     for (const row of rows) {
@@ -532,7 +538,7 @@ export function fetchImageBlobs(deps: ImageBlobDeps): Effect.Effect<FetchReport>
         // a version nobody serves any more): the row keeps its state and the next
         // manifest call tells the truth.
         missing += 1;
-        tick();
+        tick(row.image_name);
         log.error(
           new Error(
             `sync: unduh gambar ${row.image_id} gagal (${codeOf(outcome.left) || "?"}): ${messageOf(outcome.left)}`,
@@ -544,7 +550,7 @@ export function fetchImageBlobs(deps: ImageBlobDeps): Effect.Effect<FetchReport>
       statements.push(markStored(row.image_id, row.image_updated_at, entry.sha256, Date.now()));
       fetched += 1;
       bytes += outcome.right.byteSize;
-      tick();
+      tick(row.image_name);
     }
 
     if (statements.length > 0) yield* deps.db.transaction(statements);

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Effect, Stream } from "effect";
-import { SYNC_GROUPS, SYNC_IDLE, type SyncState } from "~/services/sync";
+import { SYNC_IDLE, type SyncState } from "~/services/sync";
 
 /**
  * The bottom-left status pill.
@@ -90,12 +90,15 @@ describe("SyncPill", () => {
     fireEvent.click(screen.getByRole("button", { name: /menyinkronkan/i }));
 
     expect(await screen.findByRole("dialog")).toBeTruthy();
-    // One row per synced group: its name, its phase, its counters.
+    // One bar, for the group being worked on: the other seven are not on screen,
+    // and their turn is told in the log below rather than as rows of "Menunggu".
     expect(screen.getByText("Kas & Uang")).toBeTruthy();
-    expect(screen.getAllByText(/Mengunduh perubahan…/)).toHaveLength(SYNC_GROUPS.length);
+    expect(screen.getAllByText(/Mengunduh perubahan…/)).toHaveLength(1);
     const bars = screen.getAllByRole("progressbar");
-    expect(bars).toHaveLength(SYNC_GROUPS.length);
+    expect(bars).toHaveLength(1);
     expect(bars[0]?.getAttribute("aria-valuenow")).toBe("30");
+    // The detail box is there from the start, not only once a row has arrived.
+    expect(screen.getByLabelText("Rincian sinkronisasi")).toBeTruthy();
   });
 
   test("Batal asks the service to cancel; closing asks nothing of it", async () => {

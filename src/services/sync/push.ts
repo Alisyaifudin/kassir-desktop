@@ -28,6 +28,7 @@ import {
 import { staleStatements, type MergeExecutor } from "./merge";
 import { toSyncError } from "./pull";
 import { backoffMs, isRetryable } from "./retry";
+import { labelOf } from "./label";
 import {
   GROUPS,
   RECORD_CHILD_TABLES,
@@ -130,6 +131,23 @@ export type PushDeps = {
     /** Bytes posted so far, across every batch of this push. */
     bytes: number;
   }) => void;
+  /**
+   * One callback per batch that reached an ack, with each frame's own status.
+   *
+   * The screen's log wants a line per row, and the ack is per frame: this is the
+   * one place where `stale` can be attributed to a row instead of counted. A
+   * batch that failed before its ack never reports — nothing happened to those
+   * rows, and the next run sends them again.
+   */
+  onFrames?: (frames: readonly PushLogFrame[]) => void;
+};
+
+/** One acknowledged frame, as the log sees it. */
+export type PushLogFrame = {
+  entity: string;
+  /** The row's own name, or `null` when it has none (`label.ts`). */
+  label: string | null;
+  ack: "applied" | "noop" | "stale";
 };
 
 export type PushOutcome = {
@@ -219,7 +237,7 @@ function bytesOf(line: string): number {
  * is measured in (§4.1, §16.1) — and, since the batch is sent as it is built,
  * also the upload byte counter the screen shows.
  */
-type Batch = { frames: Frame[]; bytes: number };
+type Batch = { frames: Frame[]; bytes: number; labels: (string | null)[] };
 
 /**
  * Reads the next batch: entities in the group's push order, within the frame and
@@ -233,6 +251,10 @@ function readBatch(
   return Effect.gen(function* () {
     const def = GROUPS[group];
     const frames: Frame[] = [];
+    // Parallel to `frames`: the row's name, read from the same canonical row the
+    // frame was encoded from. Not on `Frame` — that is the wire contract, and a
+    // display label has no business crossing it.
+    const labels: (string | null)[] = [];
     let bytes = 0;
 
     const fits = (lineBytes: number): boolean => bytes + lineBytes <= def.pushBytes;
@@ -279,9 +301,10 @@ function readBatch(
                 }),
               );
             }
-            return { frames, bytes };
+            return { frames, bytes, labels };
           }
           frames.push({ entity: entity.entity, id, clock: clockOf(entity, row), line, children });
+          labels.push(labelOf(entity.entity, row));
           bytes += size;
         }
         continue;
@@ -318,7 +341,7 @@ function readBatch(
               }),
             );
           }
-          return { frames, bytes };
+          return { frames, bytes, labels };
         }
         const productId = row["product_id"];
         frames.push({
@@ -328,10 +351,11 @@ function readBatch(
           line,
           ...(typeof productId === "string" ? { productId } : {}),
         });
+        labels.push(labelOf(entity.entity, row));
         bytes += size;
       }
     }
-    return { frames, bytes };
+    return { frames, bytes, labels };
   });
 }
 
@@ -535,6 +559,17 @@ export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
       stale += applied.stale;
       written.push(...applied.written);
       for (const productId of applied.appliedJournal) appliedJournal.add(productId);
+      // After the acks are committed: a line reports what the server decided, and
+      // a batch that failed above has no decision to report.
+      if (deps.onFrames !== undefined) {
+        const lines: PushLogFrame[] = [];
+        for (const ack of acks.acks) {
+          const frame = frames[ack.i];
+          if (frame === undefined) continue;
+          lines.push({ entity: frame.entity, label: batch.labels[ack.i] ?? null, ack: ack.s });
+        }
+        if (lines.length > 0) deps.onFrames(lines);
+      }
       deps.onProgress?.({ entity: null, done: pushed, total: Math.max(expected, pushed), bytes: sent });
 
       // A local write during the push leaves more rows unsynced; loop again. If

@@ -140,37 +140,69 @@ export function SyncBar({ group }: { group: GroupState }) {
 }
 
 /**
- * Every group's bar, one per line: name, phase sentence, percentage, the bar, then
- * the byte counters.
+ * The phases in which a group is actually moving.
  *
- * The list is the point of the shape — a second group is another row, not another
- * redesign. With one group it reads exactly like a single sync's progress.
+ * `idle` is before its turn, and `done`/`failed`/`cancelled` are after it: none of
+ * them is work, and the screen shows one bar at a time — the group being worked
+ * on.
  */
-export function GroupBars({ groups }: { groups: readonly GroupState[] }) {
+const WORKING: ReadonlySet<string> = new Set(["pull", "merge", "push", "settle"]);
+
+/**
+ * The group the screen is about — the one working, or the one that failed.
+ *
+ * Two claims, in this order: a run works one group at a time, so "working" names
+ * exactly one. With nothing working, a failure is still the thing a reader needs
+ * to see; a *finished* run shows no bar at all, because eight groups have already
+ * gone by and any one of them would be a misleading pick. Its numbers are in the
+ * summary line and its detail in the log.
+ */
+export function activeGroup(groups: readonly GroupState[]): GroupState | null {
   return (
-    <div className="flex flex-col gap-4">
-      {groups.map((group) => {
-        const transfer = transferOf(group);
-        return (
-          <div key={group.group} className="flex flex-col gap-1.5">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-base">
-                <span className="font-medium">{groupLabel(group.group)}</span>
-                <span className="text-muted-foreground"> · {captionOf(group)}</span>
-              </p>
-              <p className="text-sm text-muted-foreground tabular-nums">
-                {isDeterminate(group) ? `${percentOf(group)}%` : "\u00a0"}
-              </p>
-            </div>
-            <SyncBar group={group} />
-            {transfer === null ? null : (
-              <p className="text-xs text-muted-foreground tabular-nums">{transfer}</p>
-            )}
-          </div>
-        );
-      })}
+    groups.find((group) => WORKING.has(group.phase)) ??
+    groups.find((group) => group.phase === "failed") ??
+    null
+  );
+}
+
+/**
+ * One group's bar: name, phase sentence, percentage, the bar, then the byte
+ * counters.
+ *
+ * One bar for the whole cycle, not one per phase — see `SyncBar`.
+ */
+export function GroupBar({ group }: { group: GroupState }) {
+  const transfer = transferOf(group);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-base">
+          <span className="font-medium">{groupLabel(group.group)}</span>
+          <span className="text-muted-foreground"> · {captionOf(group)}</span>
+        </p>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {isDeterminate(group) ? `${percentOf(group)}%` : "\u00a0"}
+        </p>
+      </div>
+      <SyncBar group={group} />
+      {transfer === null ? null : (
+        <p className="text-xs text-muted-foreground tabular-nums">{transfer}</p>
+      )}
     </div>
   );
+}
+
+/**
+ * The one bar the run shows.
+ *
+ * Eight bars at once asked the reader to find the moving one on every paint, and
+ * a bar per group was eight rows of "Menunggu" until the group's turn came. The
+ * run works one group at a time, so the screen does too; the rest of the run is
+ * in the log underneath.
+ */
+export function ActiveBar({ groups }: { groups: readonly GroupState[] }) {
+  const group = activeGroup(groups);
+  return group === null ? null : <GroupBar group={group} />;
 }
 
 /** The one-line summary of a finished run, totalled across groups. */

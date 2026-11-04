@@ -53,6 +53,7 @@ import {
   SYNC_CONFIG_DEFAULT,
   SYNC_GROUPS,
   SYNC_IDLE,
+  SYNC_LOG_LIMIT,
   SyncError,
   SyncService,
   idleTransfer,
@@ -62,12 +63,14 @@ import {
   type SyncConfig,
   type SyncGroup,
   type SyncHealth,
+  type SyncLogEntry,
   type SyncMode,
   type SyncReport,
   type SyncState,
   type SyncStatus,
   type TransferSide,
 } from ".";
+import { labelOf } from "./label";
 import {
   mergePage,
   stockFoldStatements,
@@ -79,7 +82,7 @@ import { countImageBlobs, fetchImageBlobs, uploadImageBlobs, type BlobTick } fro
 import { syncOneProduct } from "./one-product";
 import { pullLimit, pullPageWithRetry, toSyncError } from "./pull";
 import { countUnsynced, push } from "./push";
-import type { WireRow } from "./schema";
+import { GROUPS, type WireRow } from "./schema";
 import { bookmarkStatement, forgetUploadedBlobsStatement, markAllUnsyncedStatements } from "./sql";
 import { SyncTransportService, type Endpoint } from "./transport";
 
@@ -311,6 +314,14 @@ export const SyncLive = Layer.effect(
 
     /** The newest state, and when it was last painted — see `publish`. */
     let latest: SyncState = SYNC_IDLE;
+    /**
+     * Log lines added since the last paint, flushed by `paint`.
+     *
+     * A page appends one line per row, and each append is a copy of the ring; the
+     * buffer makes a page cost one copy instead of forty. It also keeps a line
+     * from painting the state on its own — `publish` already owns that clock.
+     */
+    let pendingLogs: SyncLogEntry[] = [];
     let paintedAt = 0;
     let paintTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -318,6 +329,18 @@ export const SyncLive = Layer.effect(
       if (paintTimer !== null) {
         clearTimeout(paintTimer);
         paintTimer = null;
+      }
+      if (pendingLogs.length > 0) {
+        const all = latest.logs.concat(pendingLogs);
+        // The ring is trimmed here and nowhere else: one bound, one place, so a
+        // second caller cannot grow the list past what a publish can afford.
+        const overflow = Math.max(0, all.length - SYNC_LOG_LIMIT);
+        latest = {
+          ...latest,
+          logs: overflow === 0 ? all : all.slice(overflow),
+          logsDropped: latest.logsDropped + overflow,
+        };
+        pendingLogs = [];
       }
       paintedAt = Date.now();
       Effect.runSync(SubscriptionRef.set(stateRef, latest));
@@ -378,6 +401,20 @@ export const SyncLive = Layer.effect(
     function publishGroupNow(group: SyncGroup, fields: Partial<GroupState>): void {
       setGroup(group, fields);
       publishNow(latest);
+    }
+
+    /**
+     * Adds lines to the run's detail log.
+     *
+     * Never `publishNow`: a line is not a transition, and forty paints of the whole
+     * state per page is how a log makes a sync slower than the sync it describes.
+     * The lines land on the next paint, which is also what makes a page's arrival
+     * and the lines describing it visible in the same frame.
+     */
+    function pushLog(entries: readonly SyncLogEntry[]): void {
+      if (entries.length === 0) return;
+      pendingLogs.push(...entries);
+      publish();
     }
 
     /** Reads a store key, treating "absent" as the default. */
@@ -807,6 +844,9 @@ export const SyncLive = Layer.effect(
         let imagesUp = 0;
         let imagesDown = 0;
         const movesBytes = group === "product";
+        /** The wire name of this group's aggregate entity, for the log (`record`). */
+        const aggregateEntity =
+          GROUPS[group].entities.find((entity) => entity.kind === "aggregate")?.entity ?? null;
 
         // The bookmark this run started from, and the first snapshot it saw.
         const startAt = yield* readBookmark(group);
@@ -977,6 +1017,56 @@ export const SyncLive = Layer.effect(
               parked = merged.parked;
               if (!echoPage) yield* refreshGroup(group);
 
+              // The page's lines, written **after** its transaction committed: a
+              // line may say "downloaded" only for data that is on disk, and a
+              // page that failed to merge has nothing to announce. They describe
+              // the incoming page minus the entries this device's own push
+              // created — those were dropped above and never landed.
+              const now = Date.now();
+              const lines: SyncLogEntry[] = [];
+              for (const change of incoming.changes) {
+                lines.push({
+                  kind: "pull",
+                  at: now,
+                  group,
+                  entity: change.entity,
+                  label: labelOf(change.entity, change.row),
+                });
+              }
+              for (const aggregate of incoming.aggregates) {
+                if (aggregateEntity === null) continue;
+                lines.push({
+                  kind: "pull",
+                  at: now,
+                  group,
+                  entity: aggregateEntity,
+                  label: labelOf(aggregateEntity, aggregate.row),
+                });
+              }
+              for (const deletion of incoming.deletions) {
+                // No name: a `del` frame carries an id alone (§6).
+                lines.push({ kind: "delete", at: now, group, entity: deletion.entity });
+              }
+              const { applied, noop, stale: lost, parked: stillParked } = merged.stats;
+              // The page's rows are listed one by one above, so summarising them
+              // again would be the same sentence twice. The line exists for what a
+              // row cannot say: a lost row, a parked one, and the page that came
+              // back carrying nothing but this device's own entries
+              // (`Melewati 12 data yang sudah ada`).
+              const skipped = echoPage ? arrived : 0;
+              if (lost > 0 || stillParked > 0 || skipped > 0) {
+                lines.push({
+                  kind: "merge",
+                  at: now,
+                  group,
+                  applied,
+                  noop: noop + skipped,
+                  stale: lost,
+                  parked: stillParked,
+                });
+              }
+              pushLog(lines);
+
               changesDone += frames;
               moved.rowsDown += echoPage ? 0 : page.bytes;
 
@@ -1008,6 +1098,17 @@ export const SyncLive = Layer.effect(
                         up: transfer().up,
                       },
                     });
+                    pushLog([
+                      {
+                        kind: "image",
+                        at: Date.now(),
+                        group,
+                        direction: "down",
+                        name: tick.name,
+                        done: tick.done,
+                        total: tick.total,
+                      },
+                    ]);
                   },
                 });
                 moved.imagesDown += passBytes;
@@ -1062,6 +1163,22 @@ export const SyncLive = Layer.effect(
               transfer: transfer(),
             });
           },
+          // One line per acknowledged frame. The server answers each frame with
+          // its own status, so this is the only place `stale` can be said per
+          // row: a merge only knows how many rows it lost, not which.
+          onFrames: (frames) => {
+            const now = Date.now();
+            pushLog(
+              frames.map((frame) => ({
+                kind: "push" as const,
+                at: now,
+                group,
+                entity: frame.entity,
+                label: frame.label,
+                ack: frame.ack,
+              })),
+            );
+          },
         });
         yield* refreshGroup(group);
         // The acked rows are the row half of the push; the entries it created are
@@ -1109,6 +1226,17 @@ export const SyncLive = Layer.effect(
                   up: side(moved.rowsUp + moved.imagesUp + tick.bytes, left),
                 },
               });
+              pushLog([
+                {
+                  kind: "image",
+                  at: Date.now(),
+                  group,
+                  direction: "up",
+                  name: tick.name,
+                  done: tick.done,
+                  total: tick.total,
+                },
+              ]);
             },
           });
           imagesUp += uploads.uploaded;
@@ -1120,7 +1248,22 @@ export const SyncLive = Layer.effect(
         // The entries this device's own push created are dropped as they arrive
         // (`ownSeqs`) — they are this device's rows coming back, and re-merging
         // them is a page of `noop`s that costs a page's worth of waiting.
+        const beforeSettle = pulled;
         yield* pullAll(false, "settle", false, ownSeqs);
+        // The closing pull is usually one empty page, and saying so is the
+        // difference between "it checked and there was nothing" and "it never
+        // checked". A settle that did find something has its own lines above.
+        if (pulled === beforeSettle) {
+          pushLog([
+            {
+              kind: "note",
+              at: Date.now(),
+              group,
+              text: "Tidak ada perubahan lain",
+              level: "info",
+            },
+          ]);
+        }
 
         return {
           bookmark: yield* readBookmark(group),
@@ -1159,17 +1302,33 @@ export const SyncLive = Layer.effect(
         message: "",
         startedAt,
         finishedAt: null,
+        // Empty on purpose at the start of a run: the log belongs to *this* run,
+        // and the terminal publishes below carry the lines it has collected.
+        logs: [],
+        logsDropped: 0,
         report: null,
         error: null,
         ...fields,
       });
 
       return Effect.gen(function* () {
+        // A run starts with an empty log, and a line still buffered from the
+        // previous run must not land in it.
+        pendingLogs = [];
         const endpoint = yield* endpointOf(yield* getConfig());
         yield* ensureProtocol(endpoint);
 
         if (mode === "reset") {
           publishNow(state("preparing", { message: "Menyiapkan sinkronisasi ulang…" }));
+          pushLog([
+            {
+              kind: "note",
+              at: Date.now(),
+              group: null,
+              text: "Menghapus posisi sinkronisasi dan mengantrekan ulang semua data",
+              level: "info",
+            },
+          ]);
           yield* resetLocal();
         }
 
@@ -1190,6 +1349,12 @@ export const SyncLive = Layer.effect(
 
           if (outcome.error !== null) {
             const error = outcome.error;
+            // The failure is a line in the log as well as the bar's caption: the
+            // log is what an operator reads after the fact, and a group that
+            // stopped says where.
+            pushLog([
+              { kind: "note", at: Date.now(), group, text: error.message, level: "error" },
+            ]);
             publishGroupNow(group, {
               phase: "failed",
               message: error.message,
@@ -1264,6 +1429,10 @@ export const SyncLive = Layer.effect(
           state("done", {
             groups: latest.groups,
             message: `Selesai — ${totals.pulled} diunduh, ${totals.pushed} diunggah${owed}`,
+            // The lines this run wrote, carried over: `state` empties the log
+            // because it also builds the run's *first* publish.
+            logs: latest.logs,
+            logsDropped: latest.logsDropped,
             report,
             finishedAt: Date.now(),
           }),
@@ -1280,6 +1449,8 @@ export const SyncLive = Layer.effect(
                 groups: latest.groups,
                 message: error.message,
                 error: error.message,
+                logs: latest.logs,
+                logsDropped: latest.logsDropped,
                 finishedAt: Date.now(),
               }),
             );
@@ -1292,6 +1463,8 @@ export const SyncLive = Layer.effect(
               state("cancelled", {
                 groups: latest.groups,
                 message: "Sinkronisasi dibatalkan",
+                logs: latest.logs,
+                logsDropped: latest.logsDropped,
                 finishedAt: Date.now(),
               }),
             );

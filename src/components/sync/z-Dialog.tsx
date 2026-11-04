@@ -13,7 +13,8 @@ import {
 } from "~/components/ui/dialog";
 import type { SyncState } from "~/services/sync";
 import { useSyncRun } from "./use-sync";
-import { GroupBars, PHASE_LABEL, summaryOf } from "./z-Progress";
+import { SyncLog } from "./z-Log";
+import { ActiveBar, PHASE_LABEL, summaryOf } from "./z-Progress";
 
 /**
  * How long the run has been going, in seconds.
@@ -36,7 +37,13 @@ function useElapsed(state: SyncState): string {
 }
 
 /**
- * What the pill opens into: the run, in full — one bar per synced group.
+ * What the pill opens into: the run, in full — one bar for the group being worked
+ * on, and the detail log underneath.
+ *
+ * One bar rather than one per group: the run visits the eight groups in turn, and
+ * eight bars meant eight rows of "Menunggu" above the single one that was moving.
+ * The groups that already had their turn are in the log, which is also what says
+ * *what* moved rather than only how far.
  *
  * Modal because it is opened deliberately (a click on the pill, never by itself),
  * and because the one thing it can do besides report — Batal — should not be
@@ -76,11 +83,13 @@ function SyncDialogBody() {
 
       <div className="scroll-gutter flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
         <div className="flex flex-col gap-2">
-          <GroupBars groups={state.groups} />
+          <ActiveBar groups={state.groups} />
           <p className="text-sm text-muted-foreground tabular-nums">
             {elapsed === "" ? "\u00a0" : elapsed}
           </p>
         </div>
+
+        <SyncLog logs={state.logs} dropped={state.logsDropped} />
 
         {summary === null ? null : <p className="text-sm text-muted-foreground">{summary}</p>}
         <TextError>{state.error}</TextError>

@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { idleGroup, type GroupPhase, type GroupState, type GroupTransfer } from "~/services/sync";
-import { PHASE_LABEL, formatBytes, transferOf } from "./z-Progress";
+import {
+  SYNC_GROUPS,
+  idleGroup,
+  type GroupPhase,
+  type GroupState,
+  type GroupTransfer,
+} from "~/services/sync";
+import { PHASE_LABEL, activeGroup, formatBytes, transferOf } from "./z-Progress";
 
 /**
  * The two numbers under a sync bar.
@@ -113,5 +119,36 @@ describe("transferOf", () => {
         ),
       ).toBe("↓ 1 KB dari ~4 KB");
     }
+  });
+});
+
+describe("activeGroup", () => {
+  test("names the group that is working, whatever its neighbour says", () => {
+    const groups = SYNC_GROUPS.map((name) =>
+      group({
+        group: name,
+        phase: name === "customer" ? "push" : name === "money" ? "done" : "idle",
+      }),
+    );
+    expect(activeGroup(groups)?.group).toBe("customer");
+  });
+
+  test("a finished run shows no bar: eight groups have gone by and none of them is it", () => {
+    const groups = SYNC_GROUPS.map((name) => group({ group: name, phase: "done" }));
+    expect(activeGroup(groups)).toBeNull();
+  });
+
+  test("a failure is still shown once the run has stopped", () => {
+    const groups = SYNC_GROUPS.map((name) =>
+      group({
+        group: name,
+        phase: name === "supplier" ? "failed" : name === "money" || name === "customer" ? "done" : "idle",
+      }),
+    );
+    expect(activeGroup(groups)?.group).toBe("supplier");
+  });
+
+  test("nothing to show before the first group has started", () => {
+    expect(activeGroup(SYNC_GROUPS.map((name) => group({ group: name })))).toBeNull();
   });
 });

@@ -198,6 +198,65 @@ export type GroupReport = {
   imagesDown: number;
 };
 
+/**
+ * One line in the run's detail log.
+ *
+ * Structured, not a finished sentence: the service knows *what* crossed and the
+ * row's own name, while the wording (`Mengunduh`, `stok keluar`, the entity's
+ * noun) belongs to the screen — the same split `PHASE_LABEL` and `GROUP_LABEL`
+ * already use for the bar's captions.
+ *
+ * The union is discriminated by `kind` so a renderer cannot read a field the
+ * event does not carry: a `delete` has no `label` because a `del` frame names
+ * only an id, and pretending otherwise would print an empty name.
+ */
+export type SyncLogEntry =
+  /** One row arrived in a pull and was committed with its page. */
+  | { kind: "pull"; at: number; group: SyncGroup; entity: string; label: string | null }
+  /** One tombstone arrived; the frame carries an id and nothing else. */
+  | { kind: "delete"; at: number; group: SyncGroup; entity: string }
+  /** One frame this device owed the server came back acknowledged. */
+  | {
+      kind: "push";
+      at: number;
+      group: SyncGroup;
+      entity: string;
+      label: string | null;
+      ack: "applied" | "noop" | "stale";
+    }
+  /** One image file finished its turn in a pass. */
+  | {
+      kind: "image";
+      at: number;
+      group: SyncGroup;
+      direction: "down" | "up";
+      name: string | null;
+      done: number;
+      total: number;
+    }
+  /** One page's merge outcomes, counted rather than listed. */
+  | {
+      kind: "merge";
+      at: number;
+      group: SyncGroup;
+      applied: number;
+      noop: number;
+      stale: number;
+      parked: number;
+    }
+  /** A boundary or an outcome the counts cannot say (§ `SyncLogNote`). */
+  | { kind: "note"; at: number; group: SyncGroup | null; text: string; level: "info" | "error" };
+
+/**
+ * How many log lines a run keeps.
+ *
+ * A first sync writes one line per row, which is tens of thousands for a real
+ * catalogue. The list rides in every published `SyncState`, so it has to be
+ * bounded — the virtualizer makes *drawing* those lines free, not copying them
+ * once per frame.
+ */
+export const SYNC_LOG_LIMIT = 2_000;
+
 /** The run's phase — the pill's state, above the per-group phases. */
 export type SyncStatus =
   /** Nothing running; the last outcome is in `report` / `error`. */
@@ -229,6 +288,15 @@ export type SyncState = {
   startedAt: number | null;
   /** When it stopped; null while it is still going. */
   finishedAt: number | null;
+  /**
+   * The run's detail log, oldest first, at most `SYNC_LOG_LIMIT` lines.
+   *
+   * Run-level rather than per group: only one group is on screen at a time, and a
+   * per-group copy would multiply the same bound by eight.
+   */
+  logs: SyncLogEntry[];
+  /** Lines trimmed off the front of `logs`, so the screen can say how many. */
+  logsDropped: number;
   /** What the last run did, once it succeeded. */
   report: SyncReport | null;
   /** The sentence to show when the last run failed. */
@@ -259,6 +327,8 @@ export const SYNC_IDLE: SyncState = {
   message: "",
   startedAt: null,
   finishedAt: null,
+  logs: [],
+  logsDropped: 0,
   report: null,
   error: null,
 };
