@@ -51,6 +51,8 @@ pub fn run() {
             backup::backup_data,
             sync::sync_pull,
             sync::sync_push,
+            sync::sync_product_pull,
+            sync::sync_product_push,
             sync::sync_health,
             sync::sync_cancel,
             // The product group's image-byte side channel: the row travels in the

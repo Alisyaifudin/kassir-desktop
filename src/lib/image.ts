@@ -1,4 +1,12 @@
-import { exists, mkdir, writeFile, readFile, remove, BaseDirectory } from "@tauri-apps/plugin-fs";
+import {
+  exists,
+  mkdir,
+  writeFile,
+  readFile,
+  remove,
+  stat,
+  BaseDirectory,
+} from "@tauri-apps/plugin-fs";
 import * as path from "@tauri-apps/api/path";
 import { Effect } from "effect";
 import { ArrayBufferError, IOError } from "./effect-error";
@@ -79,8 +87,35 @@ function del(fileKey: string) {
   });
 }
 
+/**
+ * The size of an image file on disk, in bytes.
+ *
+ * `fileKey` is the row's `image_name`, like every other reader here. The one
+ * caller (`services/sync/blob.ts`) totals it to say how many bytes an upload
+ * pass will move — the sync service otherwise only ever learns a file's size
+ * from the server, after the fact.
+ *
+ * Fails like `load` does when the file is not there. That is not an error at the
+ * call site: a pulled row names bytes that may only ever have lived on the
+ * device that produced them, and the upload answers `local_missing` for exactly
+ * that case.
+ */
+function size(fileKey: string) {
+  return Effect.gen(function* () {
+    const pathname = yield* Effect.tryPromise({
+      try: () => path.join("images", fileKey),
+      catch: (e) => new IOError(e, "Gagal menggabungkan path images dengan nama file"),
+    });
+    return yield* Effect.tryPromise({
+      try: async () => (await stat(pathname, { baseDir: BaseDirectory.AppData })).size,
+      catch: (e) => new IOError(e, "Gagal membaca ukuran gambar"),
+    });
+  });
+}
+
 export const image = {
   save,
   load,
   del,
+  size,
 } as const;

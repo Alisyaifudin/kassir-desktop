@@ -171,6 +171,30 @@ export function countUnsyncedSql(def: EntityDef): string {
   return `SELECT COUNT(*) AS total FROM ${def.table} WHERE ${def.syncAt} IS NULL`;
 }
 
+/**
+ * The dirty rows of **one product** (`SYNC-V2-ONE-PRODUCT.md` §3.4).
+ *
+ * Every entity in the product group carries `product_id` — for `product` it is
+ * the primary key — so the same predicate scopes the header and its baggage. The
+ * order and the dirty flag are the full push's: a scoped push is the same batch
+ * shape, just narrowed.
+ */
+export function selectUnsyncedProductSql(
+  def: EntityDef,
+  limit: number,
+): string {
+  return `SELECT ${def.columns.join(", ")} FROM ${def.table}
+    WHERE ${def.syncAt} IS NULL AND product_id = $1
+    ORDER BY ${def.order}
+    LIMIT ${limit}`;
+}
+
+/** How many rows one product still owes the server, for progress reporting. */
+export function countUnsyncedProductSql(def: EntityDef): string {
+  return `SELECT COUNT(*) AS total FROM ${def.table}
+    WHERE ${def.syncAt} IS NULL AND product_id = $1`;
+}
+
 // ============================================================================
 // The record aggregate (§5.5, §8.8)
 // ============================================================================
@@ -397,8 +421,13 @@ function stockChunks(ids: readonly string[]): string[][] {
  * no stock for a product another till sold. The replay is per lot:
  *
  * - `stock_value` = the sum of the lot's signed deltas;
- * - `stock_capital` = the newest event's capital (a capital correction is a
- *   delta-0 event, so the newest one is the lot's current cost);
+ * - `stock_capital` = the capital of the **newest event that carries one** — a
+ *   capital correction is a delta-0 event, so the newest one is the lot's current
+ *   cost. `0` is not a cost between devices: it is what an event says when it has
+ *   nothing to say (an oversold lot opened with no cost to copy, a bonus fill —
+ *   see `settleNegative`). Taking the newest event blindly let such an event zero
+ *   out a lot that was bought for 5000, so the newest **non-zero** capital wins
+ *   and a lot whose events are all zero still ends at 0;
  * - `stock_created_at` = the oldest event's time.
  *
  * Only lots that have at least one event are touched, so a lot the journal never
@@ -435,7 +464,14 @@ export function rebuildStockStatements(productIds: readonly string[]): Statement
           e.stock_id,
           e.product_id,
           (SELECT SUM(v.product_event_value) FROM product_events v WHERE v.stock_id = e.stock_id),
-          e.product_event_capital,
+          COALESCE(
+            (SELECT c.product_event_capital
+               FROM product_events c
+              WHERE c.stock_id = e.stock_id AND c.product_event_capital <> 0
+              ORDER BY c.product_event_created_at DESC, c.product_event_id DESC
+              LIMIT 1),
+            e.product_event_capital
+          ),
           (SELECT MIN(m.product_event_created_at) FROM product_events m WHERE m.stock_id = e.stock_id),
           (SELECT MAX(m.product_event_created_at) FROM product_events m WHERE m.stock_id = e.stock_id)
         FROM product_events e

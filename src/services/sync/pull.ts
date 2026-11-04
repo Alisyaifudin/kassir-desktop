@@ -33,6 +33,14 @@ export type PullPageOutcome = {
   page: PullPage;
   /** The highest seq that existed when the response started (progress only). */
   snapshot: number | null;
+  /**
+   * How many entries this group still had when the page was cut — `meta.count`,
+   * sent only when the request asked for it. `null` on an older server, and on
+   * every page but the first, where it says nothing new.
+   */
+  count: number | null;
+  /** Canonical bytes of this response (each line plus its newline). */
+  bytes: number;
   /** The highest seq actually sent — the new bookmark (§3.2). */
   lastSeq: number;
   /** More changes exist above `lastSeq`; ask again. */
@@ -47,9 +55,28 @@ export type PullDeps = {
   after: number;
   /** Per-request limit; defaults to the group's. */
   limit?: number;
+  /**
+   * Ask the server to size this group's backlog (`meta.count`).
+   *
+   * Set on the **first** page of a pull sequence only: the answer is a count of
+   * the whole remaining range, which is exactly what a later page already knows.
+   */
+  count?: boolean;
   /** Progress, so the screen can show what is arriving. */
   onProgress?: (progress: { entity: string | null; done: number; total: number }) => void;
 };
+
+/**
+ * UTF-8 bytes of one framed line, newline included.
+ *
+ * The wire is UTF-8 NDJSON, so this is the number the server logs as
+ * `canonical_bytes` — the same figure, measured from the same lines.
+ */
+const encoder = new TextEncoder();
+
+function lineBytes(line: string): number {
+  return encoder.encode(line).length + 1;
+}
 
 /** Drains one pull response into a page, merging nothing. */
 async function collectPage(group: SyncGroup, stream: LineStream): Promise<PullPageOutcome> {
@@ -57,10 +84,13 @@ async function collectPage(group: SyncGroup, stream: LineStream): Promise<PullPa
   const aggregates: PullAggregate[] = [];
   const deletions: PullDelete[] = [];
   let snapshot: number | null = null;
+  let count: number | null = null;
+  let bytes = 0;
   let lastSeq: number | null = null;
   let more = false;
 
   await consumeLines(stream, (line) => {
+    bytes += lineBytes(line);
     const frame = parsePullFrame(group, parseLine(line));
     // `null` = a line this group does not carry (an unknown `t`, another
     // group's entity). §2.9 requires skipping it, not aborting the page.
@@ -68,6 +98,7 @@ async function collectPage(group: SyncGroup, stream: LineStream): Promise<PullPa
     switch (frame.t) {
       case "meta":
         snapshot = frame.snapshot;
+        count = frame.count;
         return;
       case "row":
         changes.push({ seq: frame.s, entity: frame.e, row: frame.r });
@@ -85,7 +116,14 @@ async function collectPage(group: SyncGroup, stream: LineStream): Promise<PullPa
     }
   });
 
-  return { page: { changes, aggregates, deletions }, snapshot, lastSeq: lastSeq ?? -1, more };
+  return {
+    page: { changes, aggregates, deletions },
+    snapshot,
+    count,
+    bytes,
+    lastSeq: lastSeq ?? -1,
+    more,
+  };
 }
 
 /** Maps a transport rejection onto the service's error. */
@@ -120,6 +158,7 @@ export function pullPage(deps: PullDeps): Effect.Effect<PullPageOutcome, SyncErr
       group: deps.group,
       after: deps.after,
       limit,
+      count: deps.count === true,
     });
 
     let seen = 0;

@@ -24,7 +24,7 @@
 //! There is no session, no upload id, no byte offset and no hash chain any more
 //! (§7.1 "state: none"). Both endpoints are stateless:
 //!
-//!   * `sync_pull`  → `GET  {base}/v2/{group}/pull/{after}?limit=N`
+//!   * `sync_pull`  → `GET  {base}/v2/{group}/pull/{after}?limit=N[&count=1]`
 //!   * `sync_push`  → `POST {base}/v2/{group}/push` with an NDJSON body
 //!
 //! The server's snapshot, seqs and acks are all in the lines themselves, so this
@@ -250,6 +250,15 @@ impl SyncFailure {
             floor: None,
         }
     }
+
+    fn bad_request(message: &str) -> Self {
+        Self {
+            status: 0,
+            code: "bad_request".to_string(),
+            message: message.to_string(),
+            floor: None,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -297,6 +306,12 @@ pub fn sync_cancel(state: tauri::State<'_, SyncState>, id: String) -> Result<(),
 ///
 /// `after` is the device's bookmark: the highest `seq` it has durably stored, or
 /// `0` on first sync. Every NDJSON line is pushed to `channel` as it arrives.
+///
+/// `count` asks the server to size this group's remaining log (`meta.count`). The
+/// frontend sends it on the first page of a pull sequence only: the answer costs
+/// the server a scan of the whole remaining range, and it is the difference
+/// between a progress bar that knows where it is going and one that infers it
+/// from a counter shared by every group.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn sync_pull(
@@ -308,6 +323,7 @@ pub async fn sync_pull(
     group: String,
     after: i64,
     limit: u32,
+    count: Option<bool>,
     client: ClientIdentity,
 ) -> Result<StreamSummary, SyncFailure> {
     if !valid_group(&group) {
@@ -318,7 +334,16 @@ pub async fn sync_pull(
     // The same id names the log row on the server and the cancel flag here.
     let flag = state.register(&client.request_id);
     let outcome = pull_stream(
-        &http, &flag, &who, &base_url, &token, &group, after, limit, &channel,
+        &http,
+        &flag,
+        &who,
+        &base_url,
+        &token,
+        &group,
+        after,
+        limit,
+        count.unwrap_or(false),
+        &channel,
     )
     .await;
     state.unregister(&client.request_id);
@@ -355,6 +380,74 @@ pub async fn sync_push(
         &base_url,
         &token,
         &group,
+        body.as_bytes(),
+        &channel,
+    )
+    .await;
+    state.unregister(&client.request_id);
+    outcome
+}
+
+/// `GET /v2/product/one/pull/{product_id}` — one snapshot page for the scoped
+/// one-product manual sync (`docs/SYNC-V2-ONE-PRODUCT.md` §2).
+///
+/// `after` is an opaque cursor from the previous `done.cursor`; `None` starts at
+/// the first page. This route has no bookmark and allocates no seq.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn sync_product_pull(
+    state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
+    channel: Channel<String>,
+    base_url: String,
+    token: String,
+    product_id: String,
+    after: Option<String>,
+    limit: u32,
+    client: ClientIdentity,
+) -> Result<StreamSummary, SyncFailure> {
+    if product_id.trim().is_empty() {
+        return Err(SyncFailure::bad_request("product_id must not be empty"));
+    }
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    let flag = state.register(&client.request_id);
+    let outcome = pull_one_stream(
+        &http, &flag, &who, &base_url, &token, &product_id, after.as_deref(), limit, &channel,
+    )
+    .await;
+    state.unregister(&client.request_id);
+    outcome
+}
+
+/// `POST /v2/product/one/push/{product_id}` — the scoped product push
+/// (`docs/SYNC-V2-ONE-PRODUCT.md` §3). The body is the same bare-frame NDJSON
+/// the normal product push takes; the server refuses a frame outside the scope.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn sync_product_push(
+    state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
+    channel: Channel<String>,
+    base_url: String,
+    token: String,
+    product_id: String,
+    body: String,
+    client: ClientIdentity,
+) -> Result<StreamSummary, SyncFailure> {
+    if product_id.trim().is_empty() {
+        return Err(SyncFailure::bad_request("product_id must not be empty"));
+    }
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    let flag = state.register(&client.request_id);
+    let outcome = push_one_stream(
+        &http,
+        &flag,
+        &who,
+        &base_url,
+        &token,
+        &product_id,
         body.as_bytes(),
         &channel,
     )
@@ -439,14 +532,18 @@ async fn pull_stream(
     group: &str,
     after: i64,
     limit: u32,
+    count: bool,
     channel: &Channel<String>,
 ) -> Result<StreamSummary, SyncFailure> {
     let url = format!(
-        "{}/v2/{}/pull/{}?limit={}",
+        "{}/v2/{}/pull/{}?limit={}{}",
         trim_base(base_url),
         group,
         after.max(0),
-        limit
+        limit,
+        // `meta.count` — this group's remaining log, which only the first page
+        // of a sequence needs and only the server can count.
+        if count { "&count=1" } else { "" }
     );
     let resp = identify(
         http.get(url)
@@ -498,6 +595,95 @@ async fn push_stream(
     }
 
     stream_lines(resp, flag, channel).await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn pull_one_stream(
+    http: &reqwest::Client,
+    flag: &AtomicBool,
+    who: &RequestIdentity,
+    base_url: &str,
+    token: &str,
+    product_id: &str,
+    after: Option<&str>,
+    limit: u32,
+    channel: &Channel<String>,
+) -> Result<StreamSummary, SyncFailure> {
+    let mut url = one_product_url(base_url, "pull", product_id)?;
+    {
+        let mut query = url.query_pairs_mut();
+        query.append_pair("limit", &limit.to_string());
+        if let Some(after) = after {
+            query.append_pair("after", after);
+        }
+    }
+    let resp = identify(
+        http.get(url)
+            .bearer_auth(token)
+            .header(reqwest::header::ACCEPT, "application/x-ndjson")
+            .header(reqwest::header::ACCEPT_ENCODING, "gzip"),
+        who,
+    )
+    .send()
+    .await
+    .map_err(transport)?;
+
+    if !resp.status().is_success() {
+        return Err(failure(resp).await);
+    }
+
+    stream_lines(resp, flag, channel).await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn push_one_stream(
+    http: &reqwest::Client,
+    flag: &AtomicBool,
+    who: &RequestIdentity,
+    base_url: &str,
+    token: &str,
+    product_id: &str,
+    body: &[u8],
+    channel: &Channel<String>,
+) -> Result<StreamSummary, SyncFailure> {
+    let url = one_product_url(base_url, "push", product_id)?;
+    let resp = identify(
+        http.post(url)
+            .bearer_auth(token)
+            .header(reqwest::header::CONTENT_TYPE, "application/x-ndjson")
+            .header(reqwest::header::ACCEPT, "application/x-ndjson")
+            .header(reqwest::header::ACCEPT_ENCODING, "gzip"),
+        who,
+    )
+    .body(body.to_vec())
+    .send()
+    .await
+    .map_err(transport)?;
+
+    if !resp.status().is_success() {
+        return Err(failure(resp).await);
+    }
+
+    stream_lines(resp, flag, channel).await
+}
+
+/// `{base}/v2/product/one/{action}/{product_id}` with the id as a real path
+/// segment. `path_segments_mut` percent-encodes it, so an id containing `:` or
+/// `/` cannot escape the prefix.
+fn one_product_url(
+    base_url: &str,
+    action: &str,
+    product_id: &str,
+) -> Result<reqwest::Url, SyncFailure> {
+    let mut url = reqwest::Url::parse(&format!(
+        "{}/v2/product/one/{action}",
+        trim_base(base_url)
+    ))
+    .map_err(|error| SyncFailure::internal(format!("Alamat server tidak valid: {error}")))?;
+    url.path_segments_mut()
+        .map_err(|_| SyncFailure::internal("Alamat server tidak bisa dipakai sebagai base URL".to_string()))?
+        .push(product_id);
+    Ok(url)
 }
 
 /// A health check is a button someone is watching, not a sync that may take a

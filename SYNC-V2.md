@@ -657,18 +657,21 @@ Accept-Encoding: gzip
 | --- | --- | --- |
 | `:seq` | yes | the client's bookmark: the highest `seq` it has **durably stored**. `0` on first sync |
 | `limit` | no | maximum entries in this response. Below `1` falls back to the default; above the group's maximum is capped |
+| `count` | no | `1` adds `count` to the `meta` line: how many entries this group has left in `(seq, snapshot]`. Asked for on the first page of a sequence only — it is an index scan of the whole remaining range, and it is the only way a client can size a pull |
 
 The client never sends a snapshot. Only the response carries one.
 
 The pull request is per group. `:seq` is that group's bookmark, not the global
-counter.
+counter, so **`count` is the only per-group figure on the wire**: `snapshot`
+moves for every group, and a client that used it as a denominator would read a
+group with three changes among five hundred seqs as 0% done.
 
 ### 3.2 Response
 
 `200`, `Content-Type: application/x-ndjson`, `Cache-Control: no-store`, streamed.
 
 ```jsonl
-{"t":"meta","snapshot":41}
+{"t":"meta","snapshot":41,"count":2}
 {"t":"row","s":38,"e":"pocket","r":{…}}
 {"t":"row","s":39,"e":"money","r":{…}}
 {"t":"done","s":39,"more":false}
@@ -676,7 +679,7 @@ counter.
 
 | line | fields | meaning |
 | --- | --- | --- |
-| `meta` | `snapshot` | highest `seq` that existed when the response started. Always first |
+| `meta` | `snapshot`, `count?` | `snapshot` = highest `seq` that existed when the response started. Always first. `count` = entries left in `(bookmark, snapshot]` for **this group**, present only when the request asked (`?count=1`) |
 | `row` | `s`, `e`, `r` | `s` = seq of this change, `e` = entity, `r` = the row |
 | `ag` | `s`, `e`, `r`, `ch` | record aggregate: `s` = seq, `e` = `"record"`, `r` = header, `ch` = five child arrays |
 | `del` | `s`, `e`, `id` | row/record no longer exists; delete locally. **Reserved — nothing produces this today** |
@@ -1967,6 +1970,9 @@ and set the flag to `NULL` on every edit; soft-delete; apply the `stale` winner.
 `product_event`
 **Log:** `product_group_change_log` · **Bookmark:** `product_bookmark`
 **Row endpoints:** `GET /v2/product/pull/:seq`, `POST /v2/product/push`
+**One-product endpoints:** `GET /v2/product/one/pull/:product_id`,
+`POST /v2/product/one/push/:product_id` — a scoped snapshot and a scoped push;
+no bookmark, no new tables (`SYNC-V2-ONE-PRODUCT.md`)
 **Byte endpoints:** `PUT /v2/product/image/blob/:image_id`,
 `GET /v2/blob/:sha256`, `GET /v2/product/image/manifest` (§8.7.1)
 
@@ -2045,13 +2051,23 @@ record_id                 TEXT?              -- may dangle
 
 ```
 for each product:
-    qty     = fold(events.product_event_value)
-    capital = fold(events.product_event_capital)
+    qty     = fold(events.product_event_value)                    -- sum of the signed deltas
+    capital = fold(events.product_event_capital)                  -- the newest event that carries one
 ```
+
+`capital` is the **newest non-zero** `product_event_capital`: a capital
+correction is a delta-0 event, so the newest one is the lot's current cost, and
+`0` is what an event says when it has nothing to say about cost (a lot opened
+with no cost to copy, a bonus fill) — it must not wipe a cost that a purchase
+already stated.
 
 Replay order is `(product_event_created_at, product_event_id)` ascending, **not
 pull order**. The journal is the source of truth; the stock row is a cache. Do
-not sync a stock row and the journal as two independent LWW entities.
+not sync a stock row and the journal as two independent LWW entities — and note
+what that implies: a pull **rebuilds** the cost from the journal, so a device
+whose journal carries the wrong cost (a database migrated from the pre-v2 schema,
+rows imported with the price in the `capital` field) sees it on the first sync.
+The merge logs every lot whose cached cost the rebuild moves.
 
 `stock_id` is opaque and device-local: store it, never join on it, and do not
 enforce a FK on it. `record_id` may dangle.
@@ -2549,7 +2565,14 @@ syncGroup():
   single empty page.
 - The final pull may return the rows/records this client just pushed, as `noop`
   lines. That is expected: the client's bookmark did not move during the push.
-  Applying them again is free.
+  Applying them again is free — but not costless: on a first upload they *are* the
+  whole catalogue, tens of pages of rows the device wrote minutes ago. So the
+  client drops them as they arrive, keyed on the `seq` each `applied` ack carried
+  (a `noop`/`stale` ack created no entry, so its seq is not the client's to skip),
+  and still advances the bookmark past them. A page that was entirely its own is
+  then one bookmark write. The cost is bandwidth on a slow link; what it buys is a
+  closing pull that cannot re-merge — or re-fold `stocks` for — a catalogue that
+  has not changed.
 - If there is nothing to push, the push loop is skipped entirely.
 - If nothing changed anywhere, the whole cycle is two requests (pull → empty,
   push → skipped, final pull → empty).
@@ -2843,8 +2866,8 @@ applyMoneyPage(lines):
 **Product**
 
 ```
-rebuildStock(product_id):
-  qty = 0; capital = 0
+rebuildStock(product_id):                      # only for products whose journal
+  qty = 0; capital = 0                         # actually changed in this page
   for each event of product_id in (created_at, event_id) order:
     qty += event.product_event_value
     capital += event.product_event_capital

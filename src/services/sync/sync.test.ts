@@ -21,7 +21,7 @@ import { RecordLive } from "../record/live";
 import { SocialLive } from "../social/live";
 import { makeTestStore } from "../store/test-support";
 import { SupplierLive } from "../supplier/live";
-import { SYNC_GROUPS, SyncService, type SyncReport } from ".";
+import { SYNC_GROUPS, SyncService, type SyncReport, type SyncState } from ".";
 import { SyncLive } from "./live";
 import { decide, decideAggregate, sameAggregate } from "./merge";
 import { parsePullFrame } from "./frames";
@@ -147,8 +147,60 @@ class FakeServer {
     return out;
   }
 
-  /** §3.2: `meta`, the group's changes in `(after, snapshot]`, then `done`. */
-  pull(group: string, after: number, limit: number): string[] {
+  /**
+   * The scoped snapshot of the one-product manual sync
+   * (`SYNC-V2-ONE-PRODUCT.md` §2), as a single page. Small fake products never
+   * need more than one page; the server suite owns the cursor boundary cases.
+   */
+  productPull(productId: string): string[] {
+    const order = ["product", "product_name", "property", "listing", "image", "product_event"];
+    const rows = [...this.rows.entries()]
+      .filter(([, row]) => String(row["product_id"]) === productId)
+      .map(([key, row]) => {
+        const entity = key.slice(0, key.indexOf(":"));
+        return { entity, row, seq: this.seqOf(entity, String(row[TABLES[entity]!.pk])) };
+      })
+      .sort((left, right) => {
+        const byEntity = order.indexOf(left.entity) - order.indexOf(right.entity);
+        if (byEntity !== 0) return byEntity;
+        return String(left.row[TABLES[left.entity]!.pk]).localeCompare(
+          String(right.row[TABLES[right.entity]!.pk]),
+        );
+      });
+    const last = rows.length > 0 ? rows[rows.length - 1]!.seq : 0;
+    return [
+      JSON.stringify({ t: "meta", snapshot: this.counter, product_id: productId }),
+      ...rows.map((entry) =>
+        JSON.stringify({ t: "row", s: entry.seq, e: entry.entity, r: entry.row }),
+      ),
+      JSON.stringify({ t: "done", s: last, more: false, cursor: null }),
+    ];
+  }
+
+  /** §3.2 plus the one-product scope rule: every frame must be in scope. */
+  productPush(productId: string, body: string): string[] {
+    const lines = body.split("\n").filter((line) => line !== "");
+    lines.forEach((line, index) => {
+      const frame = JSON.parse(line) as { e: string; r: WireRow };
+      if (String(frame.r["product_id"]) !== productId) {
+        throw new TransportError(
+          400,
+          "bad_frame",
+          `frame ${index}: product_id is not the scoped product`,
+        );
+      }
+    });
+    return this.push(body);
+  }
+
+  /**
+   * §3.2: `meta`, the group's changes in `(after, snapshot]`, then `done`.
+   *
+   * `count` is answered only when the caller asked for it, like the real route:
+   * it is this group's own backlog, which is the only figure that can size a
+   * pull — `snapshot` is the counter every group shares.
+   */
+  pull(group: string, after: number, limit: number, count = false): string[] {
     this.pulls.push({ group, after });
     if (this.floor !== null && after < this.floor) {
       throw new TransportError(410, "too_old", "bookmark below the floor", this.floor);
@@ -163,8 +215,9 @@ class FakeServer {
     const page = ofGroup.slice(0, limit);
     const last = page.length > 0 ? page[page.length - 1]!.seq : after;
     const more = ofGroup.some((change) => change.seq > last);
+    const remaining = ofGroup.length;
     return [
-      JSON.stringify({ t: "meta", snapshot }),
+      JSON.stringify(count ? { t: "meta", snapshot, count: remaining } : { t: "meta", snapshot }),
       ...page.map((change) =>
         change.entity === "record"
           ? JSON.stringify({
@@ -255,13 +308,18 @@ function setup(
     ...seed,
   });
 
+  /** Every statement batch the merge applied, in order. */
+  const merges: { sql: string }[][] = [];
+
   const transport: SyncTransport = {
     health() {
       return Promise.resolve({ status: 200, message: "ok" });
     },
     pull(_endpoint, input) {
       try {
-        return lineStream(server.pull(input.group, input.after, input.limit));
+        return lineStream(
+          server.pull(input.group, input.after, input.limit, input.count === true),
+        );
       } catch (error) {
         return failedStream(error);
       }
@@ -269,6 +327,20 @@ function setup(
     push(_endpoint, input) {
       beforePush?.();
       return lineStream(server.push(input.body));
+    },
+    productPull(_endpoint, input) {
+      try {
+        return lineStream(server.productPull(input.productId));
+      } catch (error) {
+        return failedStream(error);
+      }
+    },
+    productPush(_endpoint, input) {
+      try {
+        return lineStream(server.productPush(input.productId, input.body));
+      } catch (error) {
+        return failedStream(error);
+      }
     },
     // The image-byte side channel (§8.7.1). None of the group tests here exercise
     // it — `blob.test.ts` owns that — but the transport is one type, so the fake
@@ -294,6 +366,9 @@ function setup(
     // One transaction, like `sync_merge` in Rust: a page either lands whole or
     // not at all.
     merge(statements) {
+      // Recorded so a test can assert on the *work* a page caused: a page of this
+      // device's own rows coming back must be one bookmark write, nothing more.
+      merges.push(statements);
       db.exec("BEGIN");
       try {
         for (const statement of statements) {
@@ -335,7 +410,7 @@ function setup(
     ),
   );
 
-  return { db, dbLayer, entries, storeLayer, server, layer: appLayer };
+  return { db, dbLayer, entries, storeLayer, server, merges, layer: appLayer };
 }
 
 function runSync(
@@ -616,6 +691,48 @@ describe("sync cycle", () => {
     expect(pocket.pocket_sync_at).toBe(1);
   });
 
+  test("the closing pull reads this device's own upload without merging it", async () => {
+    // §9.2: the final pull hands back the entries this device's push created. They
+    // are `noop`s — the row is already here, with the seq the ack carried — but they
+    // used to be re-merged page by page: 1,200 rows meant three more pages of
+    // statements describing changes that had already happened.
+    const device = setup();
+    insertRow(device.db, "pocket", {
+      pocket_id: "p_01",
+      pocket_name: "Kas",
+      pocket_type: "absolute",
+      pocket_ordering: 1,
+      pocket_updated_at: 1_000,
+    });
+    for (let index = 0; index < 1_200; index += 1) {
+      insertRow(device.db, "money", {
+        money_id: `m_${String(index).padStart(4, "0")}`,
+        timestamp: 1_000 + index,
+        money_value: 1_000 + index,
+        pocket_id: "p_01",
+        money_note: "",
+        money_updated_at: 1_000,
+      });
+    }
+
+    const report = await runSync(device.layer);
+
+    // Everything this device owed went up.
+    expect(report.pushed).toBe(1_201);
+    // Nothing came back down: the entries it just created were dropped as they
+    // arrived, so the run does not report downloading its own upload.
+    expect(report.pulled).toBe(0);
+    // The bookmark still moved past them — the rows were read, and re-asking for
+    // the same seq would be the same page forever.
+    expect(report.groups.money.bookmark).toBe(device.server.counter);
+    // Only the two push batches wrote anything substantial. Every other merge in
+    // the run is a bookmark write.
+    const substantial = device.merges
+      .filter((batch) => batch.length > 2)
+      .map((batch) => batch.length);
+    expect(substantial).toEqual([1_000, 201]);
+  });
+
   test("a second device pulls what the first pushed, in log order", async () => {
     const server = new FakeServer();
     const first = setup(server);
@@ -813,6 +930,178 @@ describe("product stock projection", () => {
         .query("SELECT stock_id, stock_value, stock_capital FROM stocks ORDER BY stock_id")
         .all(),
     ).toEqual([{ stock_id: "s_01", stock_value: 7, stock_capital: 5_000 }]);
+  });
+
+  test("a rebuild that moves a lot's cost is logged, not silent", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_event", {
+      product_event_id: "pe_01",
+      product_event_created_at: 1_000,
+      product_event_value: 10,
+      product_event_capital: 5_000,
+      product_event_note: "",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: null,
+    });
+    // A cached lot that disagrees with the journal — the shape of the reported
+    // "my capital changed after syncing".
+    first.db
+      .query(
+        `INSERT INTO stocks (stock_id, product_id, stock_value, stock_capital,
+            stock_created_at, stock_updated_at) VALUES ('s_01', 'p_01', 10, 8_000, 1_000, 1_000)`,
+      )
+      .run();
+
+    await runSync(first.layer);
+
+    expect(
+      first.db.query("SELECT stock_capital FROM stocks WHERE stock_id = 's_01'").get(),
+    ).toEqual({ stock_capital: 5_000 });
+  });
+
+  test("a page of rows this device already had folds no stock lots", async () => {
+    // Two tills holding the same catalogue. The second one pulls a page of `noop`s —
+    // rows it already has, byte for byte — and that page used to re-derive a lot for
+    // *every product on it*: on a shop-sized journal, seconds per page spent proving
+    // that nothing had changed.
+    const server = new FakeServer();
+    const first = setup(server);
+    const product = {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    };
+    const event = {
+      product_event_id: "pe_01",
+      product_event_created_at: 1_000,
+      product_event_value: 10,
+      product_event_capital: 5_000,
+      product_event_note: "",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: null,
+    };
+    insertRow(first.db, "product", product);
+    insertRow(first.db, "product_event", event);
+    await runSync(first.layer);
+
+    const second = setup(server);
+    insertRow(second.db, "product", product);
+    insertRow(second.db, "product_event", event);
+    // The fold this device would have done when its own copy was written.
+    second.db
+      .query(
+        `INSERT INTO stocks (stock_id, product_id, stock_value, stock_capital,
+            stock_created_at, stock_updated_at) VALUES ('s_01', 'p_01', 10, 5_000, 1_000, 1_000)`,
+      )
+      .run();
+    const before = second.merges.length;
+
+    const report = await runSync(second.layer);
+
+    // The page did arrive, and every row on it was a `noop`.
+    expect(report.pulled).toBe(2);
+    expect(report.groups.product.stale).toBe(0);
+    const sql = second.merges
+      .slice(before)
+      .flat()
+      .map((statement) => statement.sql);
+    expect(sql.some((text) => text.includes("INSERT INTO stocks"))).toBe(false);
+    expect(
+      second.db.query("SELECT stock_value, stock_capital FROM stocks").all(),
+    ).toEqual([{ stock_value: 10, stock_capital: 5_000 }]);
+  });
+
+  test("an event that carries no cost does not erase the lot's cost", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_event", {
+      product_event_id: "pe_01",
+      product_event_created_at: 1_000,
+      product_event_value: 10,
+      product_event_capital: 5_000,
+      product_event_note: "",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: null,
+    });
+    // A later movement with capital 0: a bonus fill, or a lot opened with no cost
+    // to copy. `0` is how the journal says "this says nothing about the cost", so
+    // it must not overwrite the 5 000 the lot was actually bought for.
+    insertRow(first.db, "product_event", {
+      product_event_id: "pe_02",
+      product_event_created_at: 2_000,
+      product_event_value: 0,
+      product_event_capital: 0,
+      product_event_note: "Bonus",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: null,
+    });
+    await runSync(first.layer);
+
+    const second = setup(server);
+    await runSync(second.layer);
+
+    expect(
+      second.db
+        .query("SELECT stock_id, stock_value, stock_capital FROM stocks ORDER BY stock_id")
+        .all(),
+    ).toEqual([{ stock_id: "s_01", stock_value: 10, stock_capital: 5_000 }]);
+  });
+
+  test("the newest cost wins, not the oldest", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    for (const [id, at, value, capital] of [
+      ["pe_01", 1_000, 10, 5_000],
+      ["pe_02", 2_000, 0, 6_000],
+    ] as const) {
+      insertRow(first.db, "product_event", {
+        product_event_id: id,
+        product_event_created_at: at,
+        product_event_value: value,
+        product_event_capital: capital,
+        product_event_note: "",
+        product_id: "p_01",
+        stock_id: "s_01",
+        record_id: null,
+      });
+    }
+    await runSync(first.layer);
+
+    const second = setup(server);
+    await runSync(second.layer);
+
+    // A capital correction is a delta-0 event, so the newest figure is the lot's.
+    expect(
+      second.db.query("SELECT stock_capital FROM stocks WHERE stock_id = 's_01'").get(),
+    ).toEqual({ stock_capital: 6_000 });
   });
 });
 
@@ -1046,6 +1335,58 @@ describe("local state", () => {
 // ============================================================================
 
 describe("progress", () => {
+  /** Runs one sync while recording every state it published. */
+  async function runObserved(device: ReturnType<typeof setup>): Promise<SyncState[]> {
+    const seen: SyncState[] = [];
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        const watcher = yield* Stream.runForEach(sync.state, (state) =>
+          Effect.sync(() => seen.push(state)),
+        ).pipe(Effect.fork);
+        yield* sync.run("sync");
+        yield* Fiber.interrupt(watcher);
+      }).pipe(Effect.provide(device.layer)),
+    );
+    return seen;
+  }
+
+  /** One `pocket`, dirty by omission of `syncAt`, plus a synced cash row. */
+  function seedPockets(db: Db): void {
+    insertRow(db, "pocket", {
+      pocket_id: "p_01",
+      pocket_name: "Kas",
+      pocket_type: "absolute",
+      pocket_ordering: 1,
+      pocket_updated_at: 1_000,
+      syncAt: 500,
+    });
+    insertRow(db, "money", {
+      money_id: "m_01",
+      timestamp: 1_000,
+      money_value: 1_000,
+      pocket_id: "p_01",
+      money_note: "",
+      money_updated_at: 1_000,
+      syncAt: 500,
+    });
+  }
+
+  /** What the server would answer a `push` with, as one NDJSON line. */
+  function pocketFrame(id: string, name: string): string {
+    return `${JSON.stringify({
+      e: "pocket",
+      r: wireRow("pocket", {
+        pocket_id: id,
+        pocket_name: name,
+        pocket_type: "absolute",
+        pocket_ordering: 2,
+        pocket_updated_at: 1_000,
+        pocket_deleted_at: null,
+      }),
+    })}\n`;
+  }
+
   test("a group's bar only ever moves forward, across phases and pages", async () => {
     const device = setup();
     insertRow(device.db, "pocket", {
@@ -1086,5 +1427,377 @@ describe("progress", () => {
       expect(progress[index]!).toBeGreaterThanOrEqual(progress[index - 1]!);
     }
     expect(progress[progress.length - 1]).toBe(1);
+  });
+
+  test("the closing pull is its own phase, and the bar never reads 100% during it", async () => {
+    // The third stage of the cycle is another pull (§9.2), and it used to publish
+    // itself as one: the bar sat at 100% — the settle slice was five units out of
+    // thousands, which rounds to nothing — next to the word "Mengunduh", after this
+    // device had already finished uploading. On a first sync that stage walks the
+    // whole catalogue it just sent, so it read as a hung download.
+    const device = setup();
+    seedPockets(device.db);
+    device.server.push(pocketFrame("p_02", "Bank"));
+    for (let index = 0; index < 40; index += 1) {
+      insertRow(device.db, "money", {
+        money_id: `m_${String(index).padStart(4, "0")}`,
+        timestamp: 2_000 + index,
+        money_value: 1_000 + index,
+        pocket_id: "p_01",
+        money_note: "",
+        money_updated_at: 1_000,
+      });
+    }
+
+    const seen = await runObserved(device);
+    const money = seen.map((state) => state.groups.find((entry) => entry.group === "money")!);
+    const settle = money.filter((entry) => entry.phase === "settle");
+
+    expect(settle.length).toBeGreaterThan(0);
+    for (const entry of settle) {
+      // The bar holds a visible slice for this phase, so it has not filled yet.
+      expect(entry.progress ?? 1).toBeLessThan(1);
+      // And the caption says what is happening: a check, not a download.
+      expect(entry.message).toBe("Memeriksa perubahan lain…");
+    }
+    // The slice is not a rounding error either — a shop watching the dialog can see
+    // the bar sitting short of the end while this phase runs.
+    expect((settle[0]?.progress ?? 1) * 100).toBeLessThanOrEqual(99);
+  });
+
+  test("a run that is almost all push does not spend its bar on the pull", async () => {
+    const device = setup();
+    seedPockets(device.db);
+    // One change waiting on the server, and three hundred rows this device owes
+    // it — a normal day at a till, and the shape that used to jump the bar to 60%
+    // at the phase boundary and crawl from there.
+    device.server.push(pocketFrame("p_02", "Bank"));
+    for (let index = 0; index < 300; index += 1) {
+      insertRow(device.db, "money", {
+        money_id: `m_${String(index).padStart(4, "0")}`,
+        timestamp: 2_000 + index,
+        money_value: 1_000 + index,
+        pocket_id: "p_01",
+        money_note: "",
+        money_updated_at: 1_000,
+      });
+    }
+
+    const seen = await runObserved(device);
+    const money = seen.map((state) => state.groups.find((entry) => entry.group === "money")!);
+
+    // The pull's own share of the bar: everything published while pulling, before
+    // the first push tick. (The closing pull reports as `pull` too, which is why
+    // this is a range and not a filter.)
+    const firstPush = money.findIndex((entry) => entry.phase === "push");
+    expect(firstPush).toBeGreaterThan(0);
+    const lastPull = money.slice(0, firstPush).at(-1);
+    expect(lastPull?.progress ?? 0).toBeLessThan(0.05);
+    // The push starts where the pull ended — no cliff, no 60% plateau.
+    expect(money[firstPush]?.progress ?? 1).toBeLessThan(0.1);
+    expect(money.at(-1)?.progress).toBe(1);
+  });
+
+  test("the byte counters add up what crossed, in both directions", async () => {
+    const device = setup();
+    seedPockets(device.db);
+    device.server.push(pocketFrame("p_02", "Bank"));
+    insertRow(device.db, "money", {
+      money_id: "m_02",
+      timestamp: 2_000,
+      money_value: 2_500,
+      pocket_id: "p_01",
+      money_note: "",
+      money_updated_at: 2_000,
+    });
+
+    const seen = await runObserved(device);
+    const money = seen.at(-1)?.groups.find((entry) => entry.group === "money");
+    const transfer = money?.transfer;
+    expect(transfer).toBeDefined();
+    if (transfer === undefined) return;
+
+    // Both directions carried the pocket's and the money row's JSON.
+    expect(transfer.down.bytes).toBeGreaterThan(0);
+    expect(transfer.up.bytes).toBeGreaterThan(0);
+    // A finished pass has nothing left to size, so it states no total at all — the
+    // screen shows a bare byte count rather than a denominator it would have to
+    // invent. (A row pass never had a byte total to offer: a page says how many
+    // changes it holds, not how big they are.)
+    expect(transfer.down.total).toBeNull();
+    expect(transfer.up.total).toBeNull();
+  });
+
+  test("a total is only ever known work, never a projection that grows", async () => {
+    // The reported shape: a first upload, where the early batches are cheap rows and
+    // the later ones are not. The old total was "average row size × rows owed", so it
+    // *rose* with every batch that carried bigger rows, and being clamped upward it
+    // could never come back down: a denominator that grew the longer the sync ran.
+    const device = setup();
+    for (let index = 0; index < 900; index += 1) {
+      insertRow(device.db, "product", {
+        product_id: `P${String(index).padStart(4, "0")}`,
+        product_name: `Barang ${index}`,
+        product_note: index < 500 ? "" : "x".repeat(600),
+        product_flag: 0,
+        product_updated_at: 1_000,
+      });
+    }
+
+    const seen = await runObserved(device);
+    const product = seen.map((state) => state.groups.find((entry) => entry.group === "product")!);
+
+    for (const entry of product) {
+      const { up } = entry.transfer;
+      // A total, when present, is where the running pass ends — never below what has
+      // already crossed.
+      if (up.total !== null) expect(up.total).toBeGreaterThanOrEqual(up.bytes);
+    }
+    // And nothing here ever claimed a total for a row pass.
+    expect(product.every((entry) => entry.transfer.up.total === null)).toBe(true);
+  });
+});
+
+// ============================================================================
+// Paging: neither direction stops on a count
+// ============================================================================
+//
+// Both loops were bounded by a pass count instead of by the work left, and both
+// were silent about it: a first upload stopped at `5 × 1000` frames, and a pull
+// stopped as soon as its page came back short. The shape of that bug is a shop
+// that synced and ended up with exactly 5000 of every group on the other device,
+// with both runs reporting success.
+
+describe("paging", () => {
+  test("a first upload larger than five batches does not stop at five", async () => {
+    const device = setup();
+    // 6000 dirty rows: five batches of 1000 is 5000, which is exactly the shape
+    // of the reported "I only got 5000" — a first upload must not stop on a pass
+    // count while rows are still owed.
+    for (let index = 0; index < 6_000; index += 1) {
+      insertRow(device.db, "product", {
+        product_id: `P${String(index).padStart(6, "0")}`,
+        product_name: `Barang ${index}`,
+        product_note: "",
+        product_flag: 0,
+        product_updated_at: 1_000,
+      });
+    }
+
+    const report = await runSync(device.layer);
+
+    expect(report.groups.product.pushed).toBe(6_000);
+    // Nothing is left owing, so the run is allowed to call itself finished.
+    expect(report.groups.product.remaining).toBe(0);
+    expect(report.remaining).toBe(0);
+    const unsynced = device.db
+      .query("SELECT COUNT(*) AS total FROM products WHERE product_sync_at IS NULL")
+      .get() as { total: number };
+    expect(unsynced.total).toBe(0);
+  });
+
+  test("a pull that needs more than one page keeps asking", async () => {
+    const device = setup();
+    // 5000 is the money group's page size, so 6000 looks exactly like the
+    // clamped-to-one-page bug: the second page must happen, and everything must
+    // land.
+    const body = Array.from({ length: 6_000 }, (_, index) =>
+      JSON.stringify({
+        e: "money",
+        r: wireRow("money", {
+          money_id: `m_${String(index).padStart(5, "0")}`,
+          timestamp: 1_000 + index,
+          money_value: 1_000 + index,
+          pocket_id: "p_01",
+          money_note: "",
+          money_updated_at: 1_000,
+          money_deleted_at: null,
+        }),
+      }),
+    ).join("\n");
+    device.server.push(
+      `${JSON.stringify({
+        e: "pocket",
+        r: wireRow("pocket", {
+          pocket_id: "p_01",
+          pocket_name: "Kas",
+          pocket_type: "absolute",
+          pocket_ordering: 1,
+          pocket_updated_at: 1_000,
+          pocket_deleted_at: null,
+        }),
+      })}\n${body}\n`,
+    );
+
+    await runSync(device.layer);
+
+    const money = device.db.query("SELECT COUNT(*) AS total FROM money").get() as { total: number };
+    expect(money.total).toBe(6_000);
+    // One page at the 5000 size, then one from where it stopped — and the closing
+    // pull after the push, from the bookmark that second page left.
+    const pages = device.server.pulls
+      .filter((pull) => pull.group === "money")
+      .map((pull) => pull.after);
+    expect(pages.slice(0, 2)).toEqual([0, 5_000]);
+    // 6001: the pocket holds seq 1, so the last money row is seq 6001, and the
+    // closing pull starts from the bookmark the second page committed.
+    expect(pages.at(-1)).toBe(6_001);
+  });
+});
+
+// ============================================================================
+// The one-product manual sync (`SYNC-V2-ONE-PRODUCT.md`)
+// ============================================================================
+
+function runProductSync(
+  layer: Layer.Layer<SyncService>,
+  productId: string,
+): Promise<import(".").OneProductReport> {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const sync = yield* SyncService;
+      return yield* sync.syncProduct(productId);
+    }).pipe(Effect.provide(layer)),
+  );
+}
+
+function insertProduct(db: Db, id: string, name: string, updatedAt: number): void {
+  insertRow(db, "product", {
+    product_id: id,
+    product_name: name,
+    product_note: "",
+    product_flag: 0,
+    product_updated_at: updatedAt,
+  });
+}
+
+function insertListing(
+  db: Db,
+  id: string,
+  productId: string,
+  name: string,
+  updatedAt: number,
+): void {
+  insertRow(db, "listing", {
+    listing_id: id,
+    product_id: productId,
+    listing_name: name,
+    listing_price: 1000,
+    listing_unit: 1,
+    listing_kind: "",
+    listing_code: null,
+    listing_updated_at: updatedAt,
+  });
+}
+
+function insertEvent(db: Db, id: string, productId: string): void {
+  insertRow(db, "product_event", {
+    product_event_id: id,
+    product_event_created_at: 1500,
+    product_event_value: 5,
+    product_event_capital: 500,
+    product_event_note: "",
+    product_id: productId,
+    stock_id: null,
+    record_id: null,
+  });
+}
+
+describe("one-product sync", () => {
+  test("pushes only the selected product and pulls its whole baggage", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertProduct(first.db, "P1", "Kopi", 1_000);
+    insertListing(first.db, "L1", "P1", "250ml", 1_000);
+    insertEvent(first.db, "E1", "P1");
+    insertProduct(first.db, "P2", "Teh", 1_000);
+    insertListing(first.db, "L2", "P2", "1L", 1_000);
+
+    const report = await runProductSync(first.layer, "P1");
+    expect(report.pushed).toBe(3);
+    expect(report.pulled).toBe(3);
+
+    // The selected product's rows are on the server and marked synced.
+    const pushed = [...server.rows.entries()]
+      .filter(([, row]) => row["product_id"] === "P1")
+      .map(([key]) => key)
+      .sort();
+    expect(pushed).toEqual(["listing:L1", "product:P1", "product_event:E1"]);
+    for (const table of ["products", "listings", "product_events"]) {
+      expect(
+        first.db
+          .query(`SELECT COUNT(*) AS n FROM ${table} WHERE product_id = 'P1' AND ${table.slice(0, -1)}_sync_at IS NULL`)
+          .get(),
+      ).toEqual({ n: 0 });
+    }
+
+    // Another product is untouched by both directions.
+    expect(server.rows.has("product:P2")).toBe(false);
+    expect(
+      first.db.query("SELECT product_sync_at FROM products WHERE product_id = 'P2'").get(),
+    ).toEqual({ product_sync_at: null });
+
+    // A fresh device receives the snapshot and records the server seqs.
+    const second = setup(server);
+    const pulled = await runProductSync(second.layer, "P1");
+    expect(pulled.pushed).toBe(0);
+    expect(pulled.pulled).toBe(3);
+    expect(
+      second.db.query("SELECT product_name FROM products WHERE product_id = 'P1'").get(),
+    ).toEqual({ product_name: "Kopi" });
+    expect(
+      second.db.query("SELECT COUNT(*) AS n FROM listings WHERE product_id = 'P1'").get(),
+    ).toEqual({ n: 1 });
+    expect(
+      second.db.query("SELECT product_sync_at FROM products WHERE product_id = 'P1'").get(),
+    ).toEqual({ product_sync_at: 1 });
+  });
+
+  test("never moves the product group's bookmark", async () => {
+    const device = setup();
+    insertRow(device.db, "pocket", {
+      pocket_id: "p_01",
+      pocket_name: "Kas",
+      pocket_type: "absolute",
+      pocket_ordering: 1,
+      pocket_updated_at: 1_000,
+    });
+    insertProduct(device.db, "P1", "Kopi", 1_000);
+
+    // A full cycle establishes a non-zero bookmark for the product group.
+    await runSync(device.layer);
+    const before = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        return yield* sync.cursor("product");
+      }).pipe(Effect.provide(device.layer)),
+    );
+    expect(before).toBeGreaterThan(0);
+
+    insertListing(device.db, "L1", "P1", "250ml", 2_000);
+    await runProductSync(device.layer, "P1");
+
+    const after = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        return yield* sync.cursor("product");
+      }).pipe(Effect.provide(device.layer)),
+    );
+    expect(after).toBe(before);
+  });
+
+  test("a scoped pull repairs an older local row from the server", async () => {
+    const server = new FakeServer();
+    const writer = setup(server);
+    insertProduct(writer.db, "P1", "Server Name", 5_000);
+    await runProductSync(writer.layer, "P1");
+
+    const reader = setup(server);
+    insertProduct(reader.db, "P1", "Local Name", 1_000);
+    const report = await runProductSync(reader.layer, "P1");
+    expect(report.pulled).toBeGreaterThan(0);
+    expect(
+      reader.db.query("SELECT product_name FROM products WHERE product_id = 'P1'").get(),
+    ).toEqual({ product_name: "Server Name" });
   });
 });

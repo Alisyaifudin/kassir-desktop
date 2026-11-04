@@ -122,10 +122,27 @@ export type SyncTransport = {
   /** `GET /v2/<group>/pull/:seq?limit=…` — one page of changes, streamed. */
   pull: (
     endpoint: Endpoint,
-    input: { group: SyncGroup; after: number; limit: number },
+    input: { group: SyncGroup; after: number; limit: number; count?: boolean },
   ) => LineStream;
   /** `POST /v2/<group>/push` — one NDJSON batch, one ack per frame, streamed. */
   push: (endpoint: Endpoint, input: { group: SyncGroup; body: string }) => LineStream;
+  /**
+   * `GET /v2/product/one/pull/:product_id` — one snapshot page for the scoped
+   * one-product manual sync (`SYNC-V2-ONE-PRODUCT.md` §2). `after` is the opaque
+   * `done.cursor` of the previous page, or `null` for the first one.
+   */
+  productPull: (
+    endpoint: Endpoint,
+    input: { productId: string; after: string | null; limit: number },
+  ) => LineStream;
+  /**
+   * `POST /v2/product/one/push/:product_id` — a product push whose every frame
+   * the server checks against the path scope.
+   */
+  productPush: (
+    endpoint: Endpoint,
+    input: { productId: string; body: string },
+  ) => LineStream;
   /**
    * Applies a statement batch in one real transaction (`sync_merge` in Rust).
    *
@@ -147,7 +164,7 @@ export type SyncTransport = {
   /** `GET /v2/product/image/manifest` — which hash is current for each image. */
   blobManifest: (
     endpoint: Endpoint,
-    input: { after: string | null; limit: number },
+    input: { after: string | null; limit: number; productId?: string },
   ) => Promise<BlobManifest>;
   /**
    * `PUT /v2/product/image/blob/:image_id?version=…` — one image's bytes, read
@@ -212,6 +229,9 @@ export const tauriTransport: SyncTransport = {
         group: input.group,
         after: input.after,
         limit: input.limit,
+        // `?count=1` sizes the pull (`meta.count`); the first page of a sequence
+        // is the only one that asks, because the server has to count the range.
+        count: input.count === true,
         client: identify(endpoint, requestId),
       }),
     );
@@ -228,6 +248,31 @@ export const tauriTransport: SyncTransport = {
       }),
     );
   },
+  productPull(endpoint, input) {
+    return streaming("product-pull", (requestId, channel) =>
+      command("sync_product_pull", {
+        channel,
+        baseUrl: endpoint.baseUrl,
+        token: endpoint.token,
+        productId: input.productId,
+        after: input.after,
+        limit: input.limit,
+        client: identify(endpoint, requestId),
+      }),
+    );
+  },
+  productPush(endpoint, input) {
+    return streaming("product-push", (requestId, channel) =>
+      command("sync_product_push", {
+        channel,
+        baseUrl: endpoint.baseUrl,
+        token: endpoint.token,
+        productId: input.productId,
+        body: input.body,
+        client: identify(endpoint, requestId),
+      }),
+    );
+  },
   merge(statements) {
     return command("sync_merge", { plan: { statements } });
   },
@@ -237,6 +282,7 @@ export const tauriTransport: SyncTransport = {
       token: endpoint.token,
       after: input.after,
       limit: input.limit,
+      productId: input.productId,
       client: identify(endpoint, nextRequestId("blob-manifest")),
     });
   },

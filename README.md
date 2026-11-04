@@ -20,6 +20,12 @@ screen, so leaving Pengaturan → Sinkronisasi keeps it going, a small status pi
 the bottom-left corner follows it on every screen, and only an explicit cancel stops
 it.
 
+A product detail page also has a scoped **one-product sync** (Sinkronkan produk,
+admin only): push that product's dirty rows, then pull the server's snapshot of the
+same product, then move that product's image bytes. It never moves the product
+group's bookmark and never touches another group. Contract:
+`docs/SYNC-V2-ONE-PRODUCT.md`; implementation: `src/services/sync/one-product.ts`.
+
 The transport lives in Rust, not the webview: the window CSP is
 `connect-src 'self' ipc:`, so a `fetch` to the sync host is blocked before it leaves,
 and the WebView cannot read a streamed NDJSON body under `ipc:`.
@@ -150,6 +156,7 @@ either path.
 | `src/services/sync/pull.ts`, `push.ts`, `retry.ts` | the two loops and the shared backoff policy |
 | `src/services/sync/stream.ts`, `transport.ts` | the Channel→stream polyfill, and the Rust commands as a service |
 | `src/services/sync/live.ts` | the service: per-group cycle, bookmarks, park, progress, re-seed, service refresh |
+| `src/services/sync/one-product.ts` | the scoped one-product cycle: push → snapshot pull → scoped image bytes (`SYNC-V2-ONE-PRODUCT.md`) |
 | `src/pages/Setting/Sync/` | Sinkronisasi (admin-only): server address + token with a health check, then run |
 
 Tests: `src/services/sync/sync.test.ts` — the four merge rules, plus whole cycles
@@ -160,11 +167,16 @@ floor).
 ## Turning it on
 
 Pengaturan → **Sinkronisasi** (admin only). The server address is a setting, seeded with
-`SYNC_DEFAULT_BASE_URL` (`https://api.kassir.store`) — change it for a self-hosted or
+`SYNC_DEFAULT_BASE_URL` (`https://api.kassir.store/api`) — change it for a self-hosted or
 staging backend; fill in the sync token, press **Cek** to ping that address's
 `/v2/health` and see the answer inline, then save and press **Sinkronisasi** — the
 buttons stay disabled until both fields are stored. A plain-`http` address is refused
 unless it names the local machine, because the token is a full read/write credential.
+
+For a local server, the address depends on how it runs: the full Docker/dev stack
+exposes the API under `/api`, so use `http://localhost:8787/api`; a bare backend
+(`cd kassir-server/backend && bun run dev`) serves the routes directly, so use
+`http://127.0.0.1:8788` with no `/api`.
 
 Rows written before v2 existed have no server-side counterpart, so the first run after
 this upgrade will not upload them by itself: press **Sinkronisasi Ulang** once, which

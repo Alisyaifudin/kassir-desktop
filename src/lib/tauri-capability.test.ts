@@ -79,7 +79,9 @@ describe("Tauri capability", () => {
     const identifiers = capabilities().flatMap((capability) =>
       capability.permissions.map(identifierOf),
     );
-    // image.ts: exists, mkdir, readFile, writeFile, remove.
+    // image.ts: exists, mkdir, readFile, writeFile, remove — and `stat`, which a
+    // sync pass uses to size the images it is about to upload (it rides in
+    // `fs:read-files`, so no grant changed when it was added).
     // log/live.ts: readTextFile, writeTextFile.
     expect(identifiers).toContain("fs:read-files");
     expect(identifiers).toContain("fs:write-files");

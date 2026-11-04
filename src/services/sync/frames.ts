@@ -45,8 +45,17 @@ export function encodeAggregateFrame(row: WireRow, children: WireChildren): stri
 // Inbound (server → client)
 // ============================================================================
 
-/** First line of a pull response: the highest seq that existed when it started. */
-export type PullMetaFrame = { t: "meta"; snapshot: number };
+/**
+ * First line of a pull response: the highest seq that existed when it started.
+ *
+ * `count` is how many entries **this group** has left in `(bookmark, snapshot]`,
+ * and it is only there when the client asked for it (`?count=1`, the first page
+ * of a pull sequence). It is the bar's only honest denominator: `snapshot` is the
+ * shared counter, so a group with three changes among five hundred seqs would
+ * otherwise look 0% done while it is in fact finished. `null` when the server
+ * did not send one — an older server, or a page that was not the first.
+ */
+export type PullMetaFrame = { t: "meta"; snapshot: number; count: number | null };
 
 /** One change whose row exists. `s` is the change's seq. */
 export type PullRowFrame = { t: "row"; s: number; e: string; r: WireRow };
@@ -113,6 +122,11 @@ function requireNumber(value: unknown, what: string): number {
     throw new FrameError(`Server tidak mengirim ${what} yang valid`);
   }
   return value;
+}
+
+/** A number the server may omit — absent and non-numeric both mean "not sent". */
+function optionalNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function requireId(value: unknown, what: string): string {
@@ -189,7 +203,11 @@ function entityIn(group: SyncGroup, value: unknown): EntityDef | null {
 export function parsePullFrame(group: SyncGroup, value: Record<string, unknown>): PullFrame | null {
   switch (value["t"]) {
     case "meta":
-      return { t: "meta", snapshot: requireNumber(value["snapshot"], "snapshot") };
+      return {
+        t: "meta",
+        snapshot: requireNumber(value["snapshot"], "snapshot"),
+        count: optionalNumber(value["count"]),
+      };
     case "row": {
       const def = entityIn(group, value["e"]);
       if (def === null) return null;

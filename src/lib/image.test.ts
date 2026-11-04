@@ -2,10 +2,11 @@ import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { Effect } from "effect";
 
 /**
- * Product images on disk. Three rules the app depends on: every path is relative
+ * Product images on disk. Four rules the app depends on: every path is relative
  * to `AppData` (the fs scope is narrowed to it), the folder is created on first
- * save, and the key readers and deleters pass is the `image_name` from the row —
- * not the row's id, or they look for a file that was never written.
+ * save, the key readers and deleters pass is the `image_name` from the row — not
+ * the row's id, or they look for a file that was never written — and a size read
+ * names the same path the bytes do.
  *
  * The plugin is stubbed on this side of the boundary; the Rust fs scope itself is
  * what actually enforces the base dir.
@@ -34,7 +35,13 @@ mock.module("@tauri-apps/plugin-fs", () => ({
     record("readFile", args);
     return bytes;
   },
-  remove: async (...args: unknown[]) => record("remove", args),
+  remove: async (...args: unknown[]) => {
+    record("remove", args);
+  },
+  stat: async (...args: unknown[]) => {
+    record("stat", args);
+    return { size: bytes.byteLength };
+  },
 }));
 
 mock.module("@tauri-apps/api/path", () => ({
@@ -108,6 +115,27 @@ describe("image.load", () => {
     const result = await Effect.runPromise(Effect.either(image.load("img.png", "image/png")));
 
     expect(result._tag === "Left" && result.left.e.message).toBe("Gagal membaca gambar");
+  });
+});
+
+describe("image.size", () => {
+  test("asks for the size of the same path the bytes live at", async () => {
+    const size = await Effect.runPromise(image.size("img-1.png"));
+
+    expect(size).toBe(4);
+    expect(callTo("stat")[0].args).toEqual(["images/img-1.png", { baseDir: 1 }]);
+  });
+
+  test("a file that is not there fails, so the caller can treat it as unknown", async () => {
+    // Not an error the sync can do anything about: a pulled row may name bytes
+    // that only ever lived on the device that produced them.
+    failing.add("stat");
+
+    const result = await Effect.runPromise(Effect.either(image.size("gone.png")));
+
+    expect(result._tag === "Left" && result.left.e.message).toBe(
+      "Gagal membaca ukuran gambar",
+    );
   });
 });
 

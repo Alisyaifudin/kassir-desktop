@@ -30,6 +30,8 @@ function sha(tag: string): string {
 
 type ImageSeed = {
   id?: string;
+  /** The product the row belongs to; two are enough for the scoped passes. */
+  productId?: string;
   mime?: string;
   /** The row's LWW clock. */
   clock?: number;
@@ -47,19 +49,21 @@ type Db = ReturnType<typeof makeTestDatabase>["db"];
 
 function seedImage(db: Db, seed: ImageSeed = {}): void {
   const id = seed.id ?? "img_1";
+  const productId = seed.productId ?? "prod_1";
   const clock = seed.clock ?? 1000;
   db.query(
-    "INSERT INTO products (product_id, product_name, product_note, product_updated_at, product_sync_at) VALUES ('prod_1', 'Kopi', '', ?, 1)",
-  ).run(clock);
+    "INSERT OR IGNORE INTO products (product_id, product_name, product_note, product_updated_at, product_sync_at) VALUES (?, 'Kopi', '', ?, 1)",
+  ).run(productId, clock);
   db.query(
     `INSERT INTO images (
         image_id, image_order, image_name, image_mime, product_id, image_updated_at,
         image_sync_at, image_deleted_at, image_blob_version, image_blob_sha256, image_blob_sync_at
-      ) VALUES (?, 0, ?, ?, 'prod_1', ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     `${id}.png`,
     seed.mime ?? "image/png",
+    productId,
     clock,
     seed.rowSynced === false ? null : 7,
     seed.deleted === true ? clock : null,
@@ -84,16 +88,21 @@ function imageRow(db: Db, id = "img_1") {
 }
 
 type Script = {
-  manifest?: (input: { after: string | null }) => Promise<BlobManifest>;
+  manifest?: (input: { after: string | null; productId?: string }) => Promise<BlobManifest>;
   put?: SyncTransport["blobPut"];
   get?: SyncTransport["blobGet"];
 };
 
 /** A database at the current schema, plus a transport that answers the byte routes. */
-function harness(script: Script = {}) {
+function harness(script: Script = {}, productId?: string) {
   const { db, layer } = makeTestDatabase();
   const dbService = Context.get(Effect.runSync(Effect.scoped(Layer.build(layer))), DatabaseService);
-  const calls = { manifest: [] as (string | null)[], put: [] as string[], get: [] as string[] };
+  const calls = {
+    manifest: [] as (string | null)[],
+    scoped: [] as (string | undefined)[],
+    put: [] as string[],
+    get: [] as string[],
+  };
 
   const transport: SyncTransport = {
     health: () => Promise.resolve({ status: 200, message: "ok" }),
@@ -103,9 +112,16 @@ function harness(script: Script = {}) {
     push: () => {
       throw new Error("push is not part of the byte channel");
     },
+    productPull: () => {
+      throw new Error("productPull is not part of the byte channel");
+    },
+    productPush: () => {
+      throw new Error("productPush is not part of the byte channel");
+    },
     merge: () => Promise.resolve({ statements: 0 }),
     blobManifest(_endpoint, input) {
       calls.manifest.push(input.after);
+      calls.scoped.push(input.productId);
       return (
         script.manifest?.(input) ?? Promise.resolve({ blobs: [], more: false, next: null })
       );
@@ -135,7 +151,12 @@ function harness(script: Script = {}) {
     },
   };
 
-  const deps = { db: dbService, transport, endpoint: ENDPOINT };
+  const deps = {
+    db: dbService,
+    transport,
+    endpoint: ENDPOINT,
+    ...(productId === undefined ? {} : { productId }),
+  };
   return {
     db,
     calls,
@@ -150,7 +171,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 1, skipped: 0, failed: 0 });
+    expect(report).toEqual({ uploaded: 1, skipped: 0, failed: 0, bytes: 128 });
     expect(h.calls.put).toEqual(["img_1"]);
     const row = imageRow(h.db);
     expect(row.image_blob_sha256).toBe(sha("img_1"));
@@ -193,7 +214,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 0, skipped: 1, failed: 0 });
+    expect(report).toEqual({ uploaded: 0, skipped: 1, failed: 0, bytes: 0 });
     const row = imageRow(h.db);
     expect(row.image_blob_version).toBeNull();
     expect(row.image_blob_sha256).toBeNull();
@@ -206,7 +227,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 0, skipped: 1, failed: 0 });
+    expect(report).toEqual({ uploaded: 0, skipped: 1, failed: 0, bytes: 0 });
     expect(imageRow(h.db).image_blob_version).toBeNull();
   });
 
@@ -230,7 +251,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 0, skipped: 0, failed: 1 });
+    expect(report).toEqual({ uploaded: 0, skipped: 0, failed: 1, bytes: 0 });
     expect(imageRow(h.db).image_blob_version).toBe(1000);
   });
 
@@ -280,8 +301,8 @@ describe("uploadImageBlobs", () => {
   test("a deleted image is neither uploaded nor fetched", async () => {
     const h = harness();
     seedImage(h.db, { deleted: true });
-    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 0, failed: 0 });
-    expect(await h.fetch()).toEqual({ fetched: 0, adopted: 0, missing: 0 });
+    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 0, failed: 0, bytes: 0 });
+    expect(await h.fetch()).toEqual({ fetched: 0, adopted: 0, missing: 0, bytes: 0 });
     expect(h.calls.put).toEqual([]);
     expect(h.calls.manifest).toEqual([]);
   });
@@ -302,7 +323,7 @@ describe("fetchImageBlobs", () => {
     seedImage(h.db, { blobVersion: null });
     const report = await h.fetch();
 
-    expect(report).toEqual({ fetched: 1, adopted: 0, missing: 0 });
+    expect(report).toEqual({ fetched: 1, adopted: 0, missing: 0, bytes: 128 });
     expect(h.calls.get).toEqual([sha("server")]);
     const row = imageRow(h.db);
     expect(row.image_blob_version).toBe(1000);
@@ -318,7 +339,7 @@ describe("fetchImageBlobs", () => {
     seedImage(h.db, { clock: 1200, blobVersion: 1000, blobSha: shared });
     const report = await h.fetch();
 
-    expect(report).toEqual({ fetched: 0, adopted: 1, missing: 0 });
+    expect(report).toEqual({ fetched: 0, adopted: 1, missing: 0, bytes: 0 });
     expect(h.calls.get).toEqual([]);
     expect(imageRow(h.db).image_blob_version).toBe(1200);
     expect(imageRow(h.db).image_blob_sync_at).not.toBeNull();
@@ -329,7 +350,7 @@ describe("fetchImageBlobs", () => {
     seedImage(h.db, { clock: 1000, blobVersion: null });
     const report = await h.fetch();
 
-    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 0 });
+    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 0, bytes: 0 });
     expect(h.calls.get).toEqual([]);
   });
 
@@ -338,7 +359,7 @@ describe("fetchImageBlobs", () => {
     seedImage(h.db, { blobVersion: null });
     const report = await h.fetch();
 
-    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 1 });
+    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 1, bytes: 0 });
     expect(h.calls.get).toEqual([]);
   });
 
@@ -350,7 +371,7 @@ describe("fetchImageBlobs", () => {
     seedImage(h.db, { blobVersion: null });
     const report = await h.fetch();
 
-    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 1 });
+    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 1, bytes: 0 });
     expect(imageRow(h.db).image_blob_version).toBeNull();
   });
 
@@ -359,7 +380,7 @@ describe("fetchImageBlobs", () => {
     seedImage(h.db, { blobSha: sha("current"), blobSynced: true });
     const report = await h.fetch();
 
-    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 0 });
+    expect(report).toEqual({ fetched: 0, adopted: 0, missing: 0, bytes: 0 });
     expect(h.calls.manifest).toEqual([]);
   });
 
@@ -445,5 +466,49 @@ describe("the row merge and the byte bookkeeping", () => {
     expect(row.image_blob_version).toBe(1000);
     expect(row.image_blob_sha256).toBe(sha("local"));
     expect(row.image_blob_sync_at).not.toBeNull();
+  });
+});
+
+
+describe("a product scope", () => {
+  test("narrows upload and fetch to one product, and asks for that product's manifest", async () => {
+    const h = harness({}, "prod_2");
+    seedImage(h.db, { id: "img_p1", productId: "prod_1" });
+    seedImage(h.db, { id: "img_p2", productId: "prod_2" });
+
+    const up = await h.upload();
+    expect(up.uploaded).toBe(1);
+    expect(h.calls.put).toEqual(["img_p2"]);
+
+    // Both local files are gone, so both rows would fetch. The manifest call is
+    // scoped; only the row the server lists is downloaded.
+    h.db.query("UPDATE images SET image_blob_version = NULL, image_blob_sha256 = NULL").run();
+    const scoped = harness(
+      {
+        manifest: async (input) => {
+          expect(input.productId).toBe("prod_2");
+          return {
+            blobs: [
+              {
+                imageId: "img_p2",
+                version: 1000,
+                sha256: sha("p2"),
+                byteSize: 1,
+                mime: "image/png",
+              },
+            ],
+            more: false,
+            next: null,
+          };
+        },
+      },
+      "prod_2",
+    );
+    seedImage(scoped.db, { id: "img_p1", productId: "prod_1", blobVersion: null });
+    seedImage(scoped.db, { id: "img_p2", productId: "prod_2", blobVersion: null });
+    const fetched = await scoped.fetch();
+    expect(fetched.fetched + fetched.adopted).toBe(1);
+    expect(scoped.calls.scoped).toEqual(["prod_2"]);
+    expect(scoped.calls.get).toEqual([sha("p2")]);
   });
 });

@@ -7,6 +7,7 @@ import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import { SkeletonText } from "~/components/ui/skeleton";
 import { PublishToggle } from "./z-Publish";
+import { ProductSyncButton } from "./z-Sync";
 import { ProductErrorBoundary, ProductErrorFallback } from "../z-Error";
 
 const TABS = [
@@ -92,9 +93,12 @@ function Content() {
                       <span className="truncate">{product.name}</span>
                     </span>
                     {role === "admin" ? (
-                      // The chip is chrome: it is here before the row is, disabled.
-                      // Only the word inside it — the published state — is a value.
-                      <PublishToggle product={product} />
+                      <>
+                        {/* The chip is chrome: it is here before the row is, disabled.
+                            Only the word inside it — the published state — is a value. */}
+                        <PublishToggle product={product} />
+                        <ProductSyncButton productId={product.id} productName={product.name} />
+                      </>
                     ) : null}
                   </>
                 );

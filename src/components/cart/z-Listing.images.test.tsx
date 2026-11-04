@@ -19,6 +19,7 @@ mock.module("~/lib/image", () => ({
     load: (name: string) => Effect.succeed(`blob:${name}`),
     save: () => Effect.succeed(new ArrayBuffer(0)),
     del: () => Effect.succeed(undefined),
+    size: () => Effect.succeed(0),
   },
 }));
 

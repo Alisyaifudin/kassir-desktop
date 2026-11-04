@@ -1,5 +1,8 @@
 import { Context, Data, Effect, Stream } from "effect";
+import type { OneProductReport } from "./one-product";
 import { SYNC_GROUPS, type SyncGroup } from "./schema";
+
+export type { OneProductReport } from "./one-product";
 
 export { SYNC_GROUPS };
 export type { SyncGroup };
@@ -25,7 +28,7 @@ export class SyncError extends Data.TaggedError("SyncError")<{
  * deployment — points the till at it without waiting for a rebuild. This is
  * only the value the field is seeded with.
  */
-export const SYNC_DEFAULT_BASE_URL = "https://api.kassir.store";
+export const SYNC_DEFAULT_BASE_URL = "https://api.kassir.store/api";
 
 /** A device's sync configuration — the server it talks to and its bearer token. */
 export type SyncConfig = { baseUrl: string; token: string };
@@ -69,9 +72,61 @@ export type GroupPhase =
   | "merge"
   /** Uploading the rows this device owes the server (§7.4). */
   | "push"
+  /**
+   * The closing pull: reading past this device's own push to see whether another
+   * till wrote anything while it ran (§9.2 "pull → push → pull").
+   *
+   * Its own phase rather than a second `pull` because it is not the same act: by
+   * then this device has already sent everything, and a bar reading 100% next to
+   * the word "downloading" is a screen implying work it is not doing.
+   */
+  | "settle"
   | "done"
   | "failed"
   | "cancelled";
+
+/** One direction of a group's transfer — the byte counter under its bar. */
+export type TransferSide = {
+  /**
+   * Bytes of work this group did: the framed lines it stored, plus the file bytes
+   * it sent or received.
+   *
+   * The closing pull's own upload does not count. Those bytes did cross the wire,
+   * but the device already had every row in them — counting them would make the
+   * counter climb through a phase that is changing nothing.
+   */
+  bytes: number;
+  /**
+   * Where the pass that is running will end, or `null` when nothing is left to
+   * size.
+   *
+   * Only ever a *known* figure: a file pass is told every size by the manifest (or
+   * by the files on disk) before it moves one, so `total - bytes` is the work left
+   * in it. A row pass has no byte total to offer — a page states how many changes
+   * it holds, not how big they are — and says so with `null` rather than projecting
+   * one from the average of the rows that arrived so far. That projection rose as
+   * bigger rows turned up and could never be corrected down, which is exactly a
+   * denominator that grows the longer the sync runs.
+   *
+   * A `~` on screen: even an exact per-pass figure is not a total for the whole
+   * group, because the next pass will add to it.
+   */
+  total: number | null;
+};
+
+/**
+ * Bytes moved by one group, both directions.
+ *
+ * A separate channel from the fraction: the bar says *how far*, this says *how
+ * much*. They are not the same question — a hundred small rows and one photo can
+ * be the same percentage and a very different amount of waiting.
+ */
+export type GroupTransfer = { down: TransferSide; up: TransferSide };
+
+/** Zeroed counters, for a group that has not moved a byte yet. */
+export function idleTransfer(): GroupTransfer {
+  return { down: { bytes: 0, total: null }, up: { bytes: 0, total: null } };
+}
 
 /**
  * One group's progress — what a progress bar renders.
@@ -82,9 +137,9 @@ export type GroupPhase =
  *
  * `progress` is **one fraction for the whole cycle**, not one per phase: a bar
  * that resets at every pull → merge → push boundary runs backwards four times a
- * run and reads as an error, not as progress. The phases are weighted into the
- * single fraction (and never allowed to decrease), so the bar only ever moves
- * forward while the caption says what is happening.
+ * run and reads as an error, not as progress. The phases are weighted by the work
+ * each one actually owes (see `PLAN_UNITS` in `live.ts`), so the bar only ever
+ * moves forward while the caption says what is happening.
  */
 export type GroupState = {
   group: SyncGroup;
@@ -93,6 +148,8 @@ export type GroupState = {
   progress: number | null;
   /** One plain sentence for the bar. */
   message: string;
+  /** Bytes moved so far, and what the pass expects in total. */
+  transfer: GroupTransfer;
   /** What this group did in the last run, once it succeeded. */
   report: GroupReport | null;
   /** The sentence to show when this group failed. */
@@ -107,6 +164,15 @@ export type GroupReport = {
   pulled: number;
   /** Frames the server acknowledged while pushing. */
   pushed: number;
+  /**
+   * Rows/records this group still owes after the cycle.
+   *
+   * Normally `0`: a push ends when nothing is left to send. It is non-zero only
+   * when the push hit its runaway guard or the server acked fewer frames than it
+   * received, and the screen says so rather than showing a finished run over a
+   * half-uploaded catalogue.
+   */
+  remaining: number;
   /** Frames the server won and this device took back. */
   stale: number;
   /** Money rows still waiting for a pocket that has not arrived (§7.5). */
@@ -171,7 +237,15 @@ export type SyncState = {
 
 /** The state of a group that has not started, and of an app that never synced. */
 export function idleGroup(group: SyncGroup): GroupState {
-  return { group, phase: "idle", progress: null, message: "", report: null, error: null };
+  return {
+    group,
+    phase: "idle",
+    progress: null,
+    message: "",
+    transfer: idleTransfer(),
+    report: null,
+    error: null,
+  };
 }
 
 function idleGroups(): GroupState[] {
@@ -214,6 +288,8 @@ export type SyncReport = {
   pending: number;
   /** Orphans kept and hidden across the run. */
   orphans: number;
+  /** Rows/records still owed the server when the run finished; `0` on a clean run. */
+  remaining: number;
 };
 
 export type SyncMode = "sync" | "reset";
@@ -277,5 +353,16 @@ export class SyncService extends Context.Tag("SyncService")<
      * own leaves, so a progress tick re-renders those two and nothing else.
      */
     state: Stream.Stream<SyncState>;
+    /**
+     * The scoped one-product manual sync (`docs/SYNC-V2-ONE-PRODUCT.md`): push
+     * that product's dirty rows, pull the server's snapshot of it, then move its
+     * image bytes. It is mutually exclusive with the full run (both sides
+     * refuse while the other is active), moves no bookmark, and never touches
+     * another group.
+     *
+     * It is a foreground Effect, not a background run: the detail page owns the
+     * spinner and the toast. A `busy` `SyncError` means another sync was active.
+     */
+    syncProduct: (productId: string) => Effect.Effect<OneProductReport, SyncError>;
   }
 >() {}

@@ -55,8 +55,10 @@ import {
   SYNC_IDLE,
   SyncError,
   SyncService,
+  idleTransfer,
   type GroupReport,
   type GroupState,
+  type GroupTransfer,
   type SyncConfig,
   type SyncGroup,
   type SyncHealth,
@@ -64,11 +66,19 @@ import {
   type SyncReport,
   type SyncState,
   type SyncStatus,
+  type TransferSide,
 } from ".";
-import { mergePage, type MergeExecutor, type ParkedMoney } from "./merge";
-import { fetchImageBlobs, uploadImageBlobs } from "./blob";
-import { pullPageWithRetry, toSyncError } from "./pull";
-import { push } from "./push";
+import {
+  mergePage,
+  stockFoldStatements,
+  type MergeExecutor,
+  type ParkedMoney,
+  type PullPage,
+} from "./merge";
+import { countImageBlobs, fetchImageBlobs, uploadImageBlobs, type BlobTick } from "./blob";
+import { syncOneProduct } from "./one-product";
+import { pullLimit, pullPageWithRetry, toSyncError } from "./pull";
+import { countUnsynced, push } from "./push";
 import type { WireRow } from "./schema";
 import { bookmarkStatement, forgetUploadedBlobsStatement, markAllUnsyncedStatements } from "./sql";
 import { SyncTransportService, type Endpoint } from "./transport";
@@ -137,6 +147,134 @@ function isLocalHost(hostname: string): boolean {
   );
 }
 
+/** A group's cycle, in the order it runs (§9.2). */
+type Stage = "pull" | "push" | "settle";
+
+/**
+ * What one unit of the bar's plan is worth, in the only currency that matters
+ * here: how long the operator waits.
+ *
+ * A fixed share per phase was the old shape — pull 60%, push 35%, settle 5% — and
+ * it was wrong at both ends. An incremental run is *all* push: three changes
+ * arrive in one page and then nine hundred rows go up, so the bar jumped straight
+ * to 60% at the phase boundary and spent the rest of the run crawling through the
+ * half of the bar that was left. A first sync is the opposite (all pull) and the
+ * same 60% covered what was in fact the whole job.
+ *
+ * So the shares are now decided by what each phase owes, counted before it starts.
+ * The numbers below only have to be right *relative to each other*: a row is a
+ * row in both directions, one image file is a few hundred kilobytes over HTTPS
+ * and lands near fifty rows' worth of waiting, and the closing pull is one empty
+ * round trip.
+ */
+const PLAN_UNITS = { row: 1, image: 50, settle: 5 } as const;
+
+/**
+ * The least share of the bar the closing pull may hold, as a fraction.
+ *
+ * It is one empty round trip most of the time, so a fixed five units is honest
+ * weight — but five units out of a hundred thousand rounds to nothing, which put
+ * the bar at 100% *before* the closing pull started and left it there, saying
+ * "downloading", for however long that pull took. A visible slice is the price of
+ * a bar that never claims to be finished while a phase is still running.
+ */
+const SETTLE_SHARE = 0.015;
+
+/** One phase's slice of the whole bar, as fractions of it. */
+type Slice = { from: number; to: number };
+
+/** How the cycle's single bar is divided, and what each division is worth. */
+type CyclePlan = { slices: Record<Stage, Slice>; units: Record<Stage, number> };
+
+/**
+ * Divides the cycle's one bar between its phases in proportion to the work each
+ * one owes.
+ *
+ * Pure, and called once per cycle: a plan re-fitted while it runs is a bar that
+ * stutters, and the caller clamps progress upward anyway, so re-planning could
+ * only ever stall it.
+ */
+function planCycle(input: {
+  pullChanges: number;
+  pushRows: number;
+  images: { up: number; down: number };
+}): CyclePlan {
+  const units: Record<Stage, number> = {
+    pull:
+      Math.max(0, input.pullChanges) * PLAN_UNITS.row +
+      Math.max(0, input.images.down) * PLAN_UNITS.image,
+    push:
+      Math.max(0, input.pushRows) * PLAN_UNITS.row +
+      Math.max(0, input.images.up) * PLAN_UNITS.image,
+    settle: 0,
+  };
+  // The closing pull's slice, sized against the work the other two phases owe (see
+  // `SETTLE_SHARE`): a visible share of the bar, never a rounding error.
+  units.settle = Math.max(PLAN_UNITS.settle, Math.ceil((units.pull + units.push) * SETTLE_SHARE));
+  const total = units.pull + units.push + units.settle;
+  const at = (value: number): number => value / total;
+  return {
+    units,
+    slices: {
+      pull: { from: 0, to: at(units.pull) },
+      push: { from: at(units.pull), to: at(units.pull + units.push) },
+      settle: { from: at(units.pull + units.push), to: 1 },
+    },
+  };
+}
+
+/** Places a phase-local fraction (0…1) inside its slice of the cycle's bar. */
+function place(slice: Slice, fraction: number): number {
+  const clamped = Number.isFinite(fraction) ? Math.min(1, Math.max(0, fraction)) : 0;
+  return slice.from + (slice.to - slice.from) * clamped;
+}
+
+/**
+ * One direction's counter for a pass that is running: what has crossed, and where
+ * that pass will end.
+ *
+ * `remaining` is the bytes the pass still owes **and knows about** — a file pass
+ * sums its manifest sizes before the first request, so it can say where it will
+ * end; a row pass cannot, and passes `0` rather than inventing a denominator from
+ * the average size of the rows that happen to have arrived. That distinction is
+ * the whole point: an estimate built from the rows seen so far *rises* as bigger
+ * rows turn up and can never be corrected downwards once painted, which read as a
+ * total that grew the longer the sync ran.
+ */
+function side(bytes: number, remaining: number): TransferSide {
+  return remaining > 0 ? { bytes, total: bytes + remaining } : { bytes, total: null };
+}
+
+/**
+ * One direction of a byte counter, never allowed to go backwards.
+ *
+ * `bytes` is a sum, so it only grows; a `total` that is no longer known is `null`
+ * — "nothing left to size", which is what the screen reads as a bare byte count.
+ * The total is never clamped upward: it means "where the running pass ends", and
+ * a pass that ends closer than the last one was honest to say has simply finished.
+ */
+function monotoneSide(previous: TransferSide, next: TransferSide): TransferSide {
+  const bytes = Math.max(previous.bytes, next.bytes);
+  return { bytes, total: next.total === null ? null : Math.max(bytes, next.total) };
+}
+
+/**
+ * A page without the entries whose `seq` is in `drop`.
+ *
+ * Pure, and used for exactly one thing: the closing pull dropping the entries this
+ * device's own push created (§9.2 — "the final pull may return the rows/records
+ * this client just pushed, as `noop` lines"). Filtering *before* the merge is what
+ * makes those pages cost nothing: the merge, the stock fold and the service
+ * refresh all key off what is left of the page.
+ */
+function withoutSeqs(page: PullPage, drop: ReadonlySet<number>): PullPage {
+  return {
+    changes: page.changes.filter((change) => !drop.has(change.seq)),
+    aggregates: page.aggregates.filter((aggregate) => !drop.has(aggregate.seq)),
+    deletions: page.deletions.filter((deletion) => !drop.has(deletion.seq)),
+  };
+}
+
 export const SyncLive = Layer.effect(
   SyncService,
   Effect.gen(function* () {
@@ -159,6 +297,12 @@ export const SyncLive = Layer.effect(
      * wins this flag runs, everyone else asks for one more pass (§9.11).
      */
     const busy = yield* Ref.make(false);
+    /**
+     * The scoped one-product gate. Separate from `busy` because a scoped run is
+     * foreground and has no loop to consume `rerun`; a full `start` that arrives
+     * while it runs is refused instead of queued.
+     */
+    const scopedBusy = yield* Ref.make(false);
     const rerun = yield* Ref.make(false);
     const running = yield* Ref.make<Fiber.RuntimeFiber<SyncReport, SyncError> | null>(null);
 
@@ -200,8 +344,9 @@ export const SyncLive = Layer.effect(
      *
      * `progress` is clamped upward: a bar that can shrink is a bar that runs
      * backwards, and no phase boundary — let alone a page of a growing backlog —
-     * should ever take it back. Everything else is a plain replacement, so the
-     * caption and phase still change freely.
+     * should ever take it back. The byte counters get the same treatment through
+     * `monotoneSide`, because their totals are projections. Everything else is a
+     * plain replacement, so the caption and phase still change freely.
      */
     function setGroup(group: SyncGroup, fields: Partial<GroupState>): void {
       latest = {
@@ -211,6 +356,12 @@ export const SyncLive = Layer.effect(
           const next = { ...entry, ...fields };
           if (fields.progress !== undefined && fields.progress !== null) {
             next.progress = Math.max(entry.progress ?? 0, fields.progress);
+          }
+          if (fields.transfer !== undefined) {
+            next.transfer = {
+              down: monotoneSide(entry.transfer.down, fields.transfer.down),
+              up: monotoneSide(entry.transfer.up, fields.transfer.up),
+            };
           }
           return next;
         }),
@@ -525,6 +676,22 @@ export const SyncLive = Layer.effect(
           yield* store.remove(legacyBookmarkKey(group)).pipe(Effect.orElseSucceed(() => undefined));
         }
         yield* store.remove(LEGACY_PARKED_KEY).pipe(Effect.orElseSucceed(() => undefined));
+        // `stocks` is a projection of the journal this reset is re-seeding, so it is
+        // re-folded from it: Sinkronisasi Ulang is the operator's repair path, and a
+        // catalogue whose cached costs came from somewhere else is exactly what they
+        // are asking to be put right.
+        const products = yield* db
+          .selectMany<{ product_id: string }>(
+            "SELECT DISTINCT product_id FROM product_events WHERE stock_id IS NOT NULL",
+          )
+          .pipe(Effect.orElseSucceed(() => []));
+        yield* mergeExecutor(
+          yield* stockFoldStatements(
+            db,
+            products.map((row) => row.product_id),
+          ),
+          "product stocks",
+        );
         yield* Effect.forEach(SYNC_GROUPS, (group) => refreshGroup(group), { discard: true });
         log.info("sync: reset — every bookmark cleared, every synced row queued for push");
       });
@@ -562,29 +729,6 @@ export const SyncLive = Layer.effect(
 
     function isRefusedBookmark(error: SyncError): boolean {
       return error.status === 400 || error.status === 410;
-    }
-
-    /**
-     * How the cycle's work is spread over its one bar, as fractions of the whole.
-     *
-     * Pulling is the bulk of a run (a first sync is all pull), pushing is one
-     * round trip per batch, and the closing pull is usually empty. Weights, not
-     * phase-local bars: the bar must never restart, so each phase gets a slice of
-     * the single fraction instead of a fraction of its own.
-     */
-    const STAGE_WEIGHT = {
-      pull: [0, 0.6],
-      push: [0.6, 0.95],
-      settle: [0.95, 1],
-    } as const;
-
-    type Stage = keyof typeof STAGE_WEIGHT;
-
-    /** Places a phase-local fraction (0…1) inside its slice of the cycle's bar. */
-    function withinStage(stage: Stage, fraction: number): number {
-      const [from, to] = STAGE_WEIGHT[stage];
-      const clamped = Number.isFinite(fraction) ? Math.min(1, Math.max(0, fraction)) : 0;
-      return from + (to - from) * clamped;
     }
 
     /** Parked money rows left after a cycle (§7.5) — a visible, retried state. */
@@ -635,10 +779,23 @@ export const SyncLive = Layer.effect(
      *
      * ## The one bar
      *
-     * `meta.snapshot` of the first page is the run's target, and `done.s` is how
-     * far the ledger has actually been stored, so the pull has a real denominator:
-     * `(stored - start) / (target - start)`. That is why the bar advances page by
-     * page instead of filling and emptying per phase.
+     * The cycle's work is counted **before** it starts: this group's remaining log
+     * (`meta.count`, asked for on the first page), the rows this device still owes,
+     * and the image files each direction. `planCycle` turns those counts into the
+     * three slices of one bar, so a run that is all push does not spend its first
+     * 60% on a pull that had three changes in it. Within a slice the fraction is
+     * measured — changes stored, rows acked, files landed — never guessed.
+     *
+     * ## The byte counters
+     *
+     * Under the bar, in both directions: bytes that actually crossed, and — while a
+     * file pass is running — where that pass will end. The `bytes` are sums of real
+     * lines and real files. A `total` exists only when it is *known* (the manifest
+     * states every file's size before the pass starts); a row pass has no byte
+     * total to offer, so it says so with `null` rather than projecting one from the
+     * rows that happened to arrive. That projection rose as bigger rows turned up,
+     * and being clamped upward it could never come back down — a denominator that
+     * grew the longer the sync ran.
      */
     function groupCycle(group: SyncGroup, endpoint: Endpoint): Effect.Effect<GroupReport, SyncError> {
       return Effect.gen(function* () {
@@ -655,32 +812,107 @@ export const SyncLive = Layer.effect(
         const startAt = yield* readBookmark(group);
         let target: number | null = null;
 
-        /** How far the pull is, as a 0…1 fraction of the changes this run must fetch. */
-        const pullFraction = (stored: number): number => {
-          if (target === null) return 0;
-          const span = target - startAt;
-          if (span <= 0) return 1;
-          return (stored - startAt) / span;
+        // --- what this cycle owes, counted before the first request -----------
+        //
+        // The push backlog is a local count; the pull's size arrives with the first
+        // page (`meta.count`), and the image work follows from it (one fetch pass
+        // per page). Counted once: the plan is fixed for the whole cycle, and
+        // `push` is handed the backlog so it does not scan every unsynced table a
+        // second time.
+        const pushRows = yield* countUnsynced(db, group);
+        let plan: CyclePlan | null = null;
+        /** Changes this cycle's pulls owe, once the server said (best estimate otherwise). */
+        let pullChanges: number | null = null;
+
+        // --- what has crossed so far ----------------------------------------
+        let changesDone = 0;
+        let pushedRows = 0;
+        const moved = { rowsDown: 0, rowsUp: 0, imagesDown: 0, imagesUp: 0 };
+        /**
+         * The log entries this device's own push created in this cycle.
+         *
+         * Handed to the closing pull, which drops them on sight: they are this
+         * device's rows coming straight back as `noop`s, and after a first upload
+         * that is the whole catalogue — thirty-odd pages re-merged to change
+         * nothing, with the bar already reading 100%.
+         */
+        const ownSeqs = new Set<number>();
+
+        /** The group's byte counters, as the screen reads them (nothing owed right now). */
+        const transfer = (sides?: { down?: TransferSide; up?: TransferSide }): GroupTransfer => ({
+          down: sides?.down ?? side(moved.rowsDown + moved.imagesDown, 0),
+          up: sides?.up ?? side(moved.rowsUp + moved.imagesUp, 0),
+        });
+
+        /** How far a stage is, as a 0…1 fraction of the units it was planned with. */
+        const stageFraction = (stage: Stage, done: number): number => {
+          if (plan === null) return 0;
+          const units = plan.units[stage];
+          if (units <= 0) return 1;
+          return done / units;
         };
 
-        const pullAll = (recover: boolean, stage: Stage): Effect.Effect<void, SyncError> =>
+        /** Places this stage's own fraction on the cycle's single bar. */
+        const staged = (stage: Stage, done: number): number =>
+          plan === null ? 0 : place(plan.slices[stage], stageFraction(stage, done));
+
+        const pullAll = (
+          recover: boolean,
+          stage: Stage,
+          askCount: boolean,
+          /** Entries this cycle's own push created — dropped, not merged (§9.2). */
+          skip: ReadonlySet<number> | null = null,
+        ): Effect.Effect<void, SyncError> =>
           Effect.gen(function* () {
+            const settling = stage === "settle";
+            /**
+             * Where this pull sits on the cycle's bar.
+             *
+             * The main pull counts what it has stored — changes plus image files
+             * landed, against the units it was planned with. The closing pull has a
+             * small fixed slice instead (`plan.units.settle`): it is one empty page
+             * most of the time, and occasionally everything another till wrote in
+             * the last minute, so a row count would swing its share mid-run. It
+             * cannot measure itself, so the slice sits where it starts until the
+             * last page lands — which is why the slice is a visible 1.5% instead of
+             * rounding the bar up to 100% before this phase has begun.
+             */
+            const at = (imagesLanded: number, finished: boolean): number => {
+              if (settling) {
+                return place(plan?.slices.settle ?? { from: 0, to: 1 }, finished ? 1 : 0);
+              }
+              return staged(stage, changesDone * PLAN_UNITS.row + imagesLanded * PLAN_UNITS.image);
+            };
+
             for (;;) {
               const after = yield* readBookmark(group);
 
               publishGroupNow(group, {
-                phase: "pull",
-                message: after === 0 ? "Mengunduh semua perubahan…" : "Mengunduh perubahan…",
+                phase: settling ? "settle" : "pull",
+                message: settling
+                  ? "Memeriksa perubahan lain…"
+                  : after === 0
+                    ? "Mengunduh semua perubahan…"
+                    : "Mengunduh perubahan…",
               });
               const outcome = yield* pullPageWithRetry({
                 transport,
                 endpoint,
                 group,
                 after,
+                // Only the first request of a sequence asks: `count` costs the
+                // server a scan of the whole remaining range, and a later page
+                // already knows what was left.
+                count: askCount,
                 onProgress: () =>
                   // A page arrives whole, so there is nothing to report mid-request.
-                  publishGroup(group, { phase: "pull", message: "Mengunduh perubahan…" }),
+                  publishGroup(group, {
+                    phase: settling ? "settle" : "pull",
+                    message: settling ? "Memeriksa perubahan lain…" : "Mengunduh perubahan…",
+                  }),
               }).pipe(Effect.either);
+              // Only the first request of this sequence asks for a count.
+              askCount = false;
 
               if (outcome._tag === "Left") {
                 if (!recover || !isRefusedBookmark(outcome.left)) {
@@ -690,36 +922,96 @@ export const SyncLive = Layer.effect(
                 // The target of a re-seeded mirror is meaningless; the restart
                 // sizes it again from the first page of the fresh pull.
                 target = null;
-                return yield* pullAll(false, stage);
+                pullChanges = null;
+                plan = null;
+                return yield* pullAll(false, stage, true, skip);
               }
 
               const page = outcome.right;
               if (target === null && page.snapshot !== null && page.snapshot > startAt) {
                 target = page.snapshot;
               }
+              if (pullChanges === null) {
+                // `meta.count` is this group's own backlog; without it (an older
+                // server) the shared counter is the only denominator there is, so
+                // the bar falls back to its old, coarser estimate.
+                pullChanges = page.count ?? (target === null ? 0 : Math.max(0, target - startAt));
+                // The image passes run once per pull page, so their planned share
+                // depends on how many pages this pull will take.
+                const pages = Math.max(1, Math.ceil(pullChanges / pullLimit(group)));
+                const images = movesBytes ? yield* countImageBlobs(db, pages) : { up: 0, down: 0 };
+                plan = planCycle({ pullChanges, pushRows, images });
+              }
 
+              // §9.2: the closing pull hands back the entries this device's own push
+              // created. They are `noop`s by construction — the row is already here,
+              // with the seq the ack carried — so dropping them costs nothing and
+              // saves re-merging (and re-folding stocks for) a whole catalogue. The
+              // bookmark still advances past them: they were read, and skipping the
+              // seq would make the next page the same page forever.
+              const incoming = skip === null ? page.page : withoutSeqs(page.page, skip);
+              const arrived =
+                page.page.changes.length + page.page.aggregates.length + page.page.deletions.length;
               const frames =
-                page.page.changes.length +
-                page.page.aggregates.length +
-                page.page.deletions.length;
-              publishGroupNow(group, { phase: "merge", message: "Menyimpan hasil unduhan…" });
+                incoming.changes.length + incoming.aggregates.length + incoming.deletions.length;
+              // A page that carried something and had all of it dropped revealed
+              // nothing: no merge to write, no refresh to do, and nothing that could
+              // have brought a picture this device is still missing.
+              const echoPage = arrived > 0 && frames === 0;
+
+              publishGroupNow(group, {
+                phase: "merge",
+                message: echoPage ? "Melewati data yang sudah ada…" : "Menyimpan hasil unduhan…",
+              });
               // §3.3: `done.s`, never `meta.snapshot` — the page can stop early.
               // Never backwards: a page that reports a seq below the bookmark is
               // a broken server, and moving back would loop on the same page.
               const stored = Math.max(after, page.lastSeq);
-              const merged = yield* mergePage({ db, execute: mergeExecutor }, group, page.page, parked, {
-                bookmark: stored,
-              });
+              const merged = yield* mergePage(
+                { db, execute: mergeExecutor },
+                group,
+                incoming,
+                parked,
+                { bookmark: stored },
+              );
               parked = merged.parked;
-              yield* refreshGroup(group);
+              if (!echoPage) yield* refreshGroup(group);
+
+              changesDone += frames;
+              moved.rowsDown += echoPage ? 0 : page.bytes;
 
               // §8.7.1 "bytes after the page": the page and its bookmark are
               // committed, so a picture that is still missing cannot hold either of
               // them back. The pass is bounded, and whatever it leaves is still owed
               // on the next cycle.
-              if (movesBytes) {
-                const bytes = yield* fetchImageBlobs({ db, transport, endpoint });
-                imagesDown += bytes.fetched + bytes.adopted;
+              if (movesBytes && !echoPage) {
+                // A pass reports its own running total (`bytes` is cumulative
+                // within the pass), so the state add-up happens once it returns.
+                let passBytes = 0;
+                const report = yield* fetchImageBlobs({
+                  db,
+                  transport,
+                  endpoint,
+                  onProgress: (tick: BlobTick) => {
+                    passBytes = tick.bytes;
+                    // What is left of *this* pass, stated by the manifest before the
+                    // first file moved. The only byte total in the whole cycle that
+                    // is known rather than guessed.
+                    const left =
+                      tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
+                    publishGroup(group, {
+                      phase: settling ? "settle" : "pull",
+                      progress: at(imagesDown + tick.done, false),
+                      message: `Mengunduh gambar ${tick.done}/${tick.total}…`,
+                      transfer: {
+                        down: side(moved.rowsDown + moved.imagesDown + tick.bytes, left),
+                        up: transfer().up,
+                      },
+                    });
+                  },
+                });
+                moved.imagesDown += passBytes;
+                imagesDown += report.fetched + report.adopted;
               }
 
               pulled += frames;
@@ -727,15 +1019,22 @@ export const SyncLive = Layer.effect(
               // Progress is published after the commit, so the bar only ever
               // reports data that is actually on disk.
               publishGroup(group, {
-                phase: "pull",
-                progress: withinStage(stage, pullFraction(stored)),
-                message: page.more ? "Mengunduh perubahan…" : "Unduhan selesai",
+                phase: settling ? "settle" : "pull",
+                progress: at(imagesDown, !page.more),
+                message: settling
+                  ? page.more
+                    ? "Memeriksa perubahan lain…"
+                    : "Pemeriksaan selesai"
+                  : page.more
+                    ? "Mengunduh perubahan…"
+                    : "Unduhan selesai",
+                transfer: transfer(),
               });
               if (!page.more) return;
             }
           });
 
-        yield* pullAll(true, "pull");
+        yield* pullAll(true, "pull", true);
 
         publishGroupNow(group, { phase: "push", message: "Mengunggah perubahan…" });
         const pushed = yield* push({
@@ -744,20 +1043,42 @@ export const SyncLive = Layer.effect(
           endpoint,
           group,
           execute: mergeExecutor,
-          onProgress: (progress) =>
+          // The same count the bar was planned with: counting again would scan
+          // every unsynced table twice for a number already in hand.
+          expected: pushRows,
+          onProgress: (progress) => {
+            pushedRows = progress.done;
+            moved.rowsUp = progress.bytes;
             publishGroup(group, {
               phase: "push",
-              progress: withinStage(
+              progress: staged(
                 "push",
-                progress.total === 0 ? 1 : progress.done / progress.total,
+                progress.done * PLAN_UNITS.row + imagesUp * PLAN_UNITS.image,
               ),
               message:
                 progress.entity === null
                   ? "Mengunggah perubahan…"
                   : `Mengunggah ${progress.entity}…`,
-            }),
+              transfer: transfer(),
+            });
+          },
         });
         yield* refreshGroup(group);
+        // The acked rows are the row half of the push; the entries it created are
+        // the half the closing pull must not re-download.
+        moved.rowsUp = pushed.bytes;
+        pushedRows = pushed.pushed;
+        for (const seq of pushed.written) ownSeqs.add(seq);
+
+        // `stocks` is a projection of the journal, and a device folds it as it
+        // writes its own events — but a journal that predates the projection (or
+        // came from a schema migration) has never been folded, and its own rows no
+        // longer come back through the closing pull to be folded there. So the fold
+        // for what this push uploaded happens here, in its own transaction.
+        if (movesBytes && pushed.appliedJournal.length > 0) {
+          yield* mergeExecutor(yield* stockFoldStatements(db, pushed.appliedJournal), "product");
+          yield* refreshGroup(group);
+        }
 
         // §8.7.1 "rows, then bytes": an upload carries the `version` the file was
         // produced for, and the server accepts bytes only for a row it already has.
@@ -765,18 +1086,49 @@ export const SyncLive = Layer.effect(
         // version the server answered `stale` never happens, because a stale row is
         // no longer the local clock.
         if (movesBytes) {
-          const uploads = yield* uploadImageBlobs({ db, transport, endpoint });
+          let passBytes = 0;
+          const uploads = yield* uploadImageBlobs({
+            db,
+            transport,
+            endpoint,
+            onProgress: (tick: BlobTick) => {
+              passBytes = tick.bytes;
+              // The files this pass is going to send, sized from disk before the
+              // first one left — a real total, unlike a projection from average row
+              // sizes.
+              const left = tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
+              publishGroup(group, {
+                phase: "push",
+                progress: staged(
+                  "push",
+                  pushedRows * PLAN_UNITS.row + (imagesUp + tick.done) * PLAN_UNITS.image,
+                ),
+                message: `Mengunggah gambar ${tick.done}/${tick.total}…`,
+                transfer: {
+                  down: transfer().down,
+                  up: side(moved.rowsUp + moved.imagesUp + tick.bytes, left),
+                },
+              });
+            },
+          });
           imagesUp += uploads.uploaded;
+          moved.imagesUp += passBytes;
         }
 
         // §9.2 "pull → push → pull": the final pull picks up whatever another
         // till wrote while this one was pushing, and is usually one empty page.
-        yield* pullAll(false, "settle");
+        // The entries this device's own push created are dropped as they arrive
+        // (`ownSeqs`) — they are this device's rows coming back, and re-merging
+        // them is a page of `noop`s that costs a page's worth of waiting.
+        yield* pullAll(false, "settle", false, ownSeqs);
 
         return {
           bookmark: yield* readBookmark(group),
           pulled,
           pushed: pushed.pushed,
+          // Anything the push could not send is part of this group's outcome, not
+          // a footnote: the screen must not say "Selesai" over owed rows.
+          remaining: pushed.remaining,
           stale: stale + pushed.stale,
           pending: yield* pendingCount(group),
           orphans: yield* orphanCount(group),
@@ -800,7 +1152,10 @@ export const SyncLive = Layer.effect(
       const startedAt = Date.now();
       const state = (status: SyncStatus, fields: Partial<SyncState> = {}): SyncState => ({
         status,
-        groups: SYNC_IDLE.groups.map((entry) => ({ ...entry })),
+        // A fresh counter pair per group per run: the byte totals are mutable state
+        // with a lifetime, and a copy of `SYNC_IDLE`'s objects would be shared by
+        // every run that ever started.
+        groups: SYNC_IDLE.groups.map((entry) => ({ ...entry, transfer: idleTransfer() })),
         message: "",
         startedAt,
         finishedAt: null,
@@ -856,6 +1211,11 @@ export const SyncLive = Layer.effect(
           const parts = [`${report.pulled} diunduh`, `${report.pushed} diunggah`];
           if (report.imagesUp > 0) parts.push(`${report.imagesUp} gambar diunggah`);
           if (report.imagesDown > 0) parts.push(`${report.imagesDown} gambar diunduh`);
+          // A group that still owes rows says so here. It is not an error — the
+          // rows are on disk and the next run sends them — but a bar that claims
+          // to be finished while a catalogue is half-uploaded is worse than a
+          // slower run.
+          if (report.remaining > 0) parts.push(`${report.remaining} belum terkirim`);
           publishGroupNow(group, {
             phase: "done",
             progress: 1,
@@ -891,14 +1251,19 @@ export const SyncLive = Layer.effect(
             stale: sum.stale + report.stale,
             pending: sum.pending + report.pending,
             orphans: sum.orphans + report.orphans,
+            remaining: sum.remaining + report.remaining,
           }),
-          { pulled: 0, pushed: 0, stale: 0, pending: 0, orphans: 0 },
+          { pulled: 0, pushed: 0, stale: 0, pending: 0, orphans: 0, remaining: 0 },
         );
         const report: SyncReport = { groups: complete, ...totals };
+        // A run with rows still owed is not "selesai" in the one sense an operator
+        // cares about; say it in the same sentence as the totals.
+        const owed =
+          totals.remaining > 0 ? ` — ${totals.remaining} baris belum terkirim` : "";
         publishNow(
           state("done", {
             groups: latest.groups,
-            message: `Selesai — ${totals.pulled} diunduh, ${totals.pushed} diunggah`,
+            message: `Selesai — ${totals.pulled} diunduh, ${totals.pushed} diunggah${owed}`,
             report,
             finishedAt: Date.now(),
           }),
@@ -973,6 +1338,10 @@ export const SyncLive = Layer.effect(
       run: (mode) => loop(mode),
       start: (mode) =>
         Effect.gen(function* () {
+          // A scoped product sync is foreground and has no loop to consume
+          // `rerun`; refuse a full run rather than queue a phantom extra pass.
+          if (yield* Ref.get(scopedBusy)) return "already-running" as const;
+
           // Atomic claim: two callers that both saw "not busy" must not both fork.
           const free = yield* Ref.modify(busy, (current): readonly [boolean, boolean] =>
             current ? [false, current] : [true, true],
@@ -994,6 +1363,54 @@ export const SyncLive = Layer.effect(
           // of the session — every later `start` answering `already-running`.
           Effect.onInterrupt(() => Ref.set(busy, false)),
         ),
+      syncProduct: (productId) =>
+        Effect.gen(function* () {
+          const id = productId.trim();
+          if (id === "") {
+            return yield* Effect.fail(
+              new SyncError({ message: "Produk tidak dikenal untuk sinkronisasi", code: "bad_request" }),
+            );
+          }
+
+          // Claim the scoped gate atomically; two clicks must not run two pushes
+          // over the same rows. The full-run gate is checked after, and the
+          // `ensuring` releases this one on that failure too.
+          const free = yield* Ref.modify(scopedBusy, (current): readonly [boolean, boolean] =>
+            current ? [false, current] : [true, true],
+          );
+          if (!free) {
+            return yield* Effect.fail(
+              new SyncError({
+                message: "Sinkronisasi produk lain sedang berjalan",
+                code: "busy",
+              }),
+            );
+          }
+
+          return yield* Effect.gen(function* () {
+            const fullRunning = yield* Ref.get(busy);
+            if (fullRunning) {
+              return yield* Effect.fail(
+                new SyncError({
+                  message: "Sinkronisasi lain sedang berjalan. Coba lagi setelah selesai.",
+                  code: "busy",
+                }),
+              );
+            }
+
+            const endpoint = yield* endpointOf(yield* getConfig());
+            yield* ensureProtocol(endpoint);
+
+            return yield* syncOneProduct({
+              db,
+              transport,
+              endpoint,
+              productId: id,
+              execute: mergeExecutor,
+              refresh: () => refreshGroup("product"),
+            });
+          }).pipe(Effect.ensuring(Ref.set(scopedBusy, false)));
+        }),
       cancel: () =>
         Effect.gen(function* () {
           const current = yield* Ref.get(running);

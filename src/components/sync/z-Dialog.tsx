@@ -66,7 +66,7 @@ function SyncDialogBody() {
   const summary = summaryOf(state);
 
   return (
-    <DialogContent className="max-w-md">
+    <DialogContent className="flex max-h-[calc(100vh-2rem)] max-w-md flex-col">
       <DialogHeader>
         <DialogTitle>Sinkronisasi</DialogTitle>
         <DialogDescription>
@@ -74,20 +74,22 @@ function SyncDialogBody() {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex flex-col gap-2">
-        <GroupBars groups={state.groups} />
-        <p className="text-sm text-muted-foreground tabular-nums">
-          {elapsed === "" ? "\u00a0" : elapsed}
+      <div className="scroll-gutter flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2">
+          <GroupBars groups={state.groups} />
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {elapsed === "" ? "\u00a0" : elapsed}
+          </p>
+        </div>
+
+        {summary === null ? null : <p className="text-sm text-muted-foreground">{summary}</p>}
+        <TextError>{state.error}</TextError>
+
+        <p className="text-xs text-muted-foreground">
+          Sinkronisasi berjalan di latar belakang. Menutup jendela ini tidak menghentikannya, dan
+          penjualan tetap bisa dilakukan selama proses berjalan.
         </p>
       </div>
-
-      {summary === null ? null : <p className="text-sm text-muted-foreground">{summary}</p>}
-      <TextError>{state.error}</TextError>
-
-      <p className="text-xs text-muted-foreground">
-        Sinkronisasi berjalan di latar belakang. Menutup jendela ini tidak menghentikannya, dan
-        penjualan tetap bisa dilakukan selama proses berjalan.
-      </p>
 
       <DialogFooter className="gap-2">
         {running ? (

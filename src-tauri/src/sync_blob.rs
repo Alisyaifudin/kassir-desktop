@@ -180,8 +180,10 @@ pub struct BlobGet {
 // Commands
 // ============================================================================
 
-/// `GET /v2/product/image/manifest?after=&limit=` — which hash is current for
-/// each live image row whose blob version equals its `image_updated_at`.
+/// `GET /v2/product/image/manifest?after=&limit=&product_id=` — which hash is
+/// current for each live image row whose blob version equals its
+/// `image_updated_at`. `product_id` is the additive scope used by the
+/// one-product manual sync (`SYNC-V2-ONE-PRODUCT.md` §4).
 ///
 /// One request, not a stream: a manifest page is a JSON array the caller wants
 /// whole before it starts downloading, and it is a join over the entity tables
@@ -194,6 +196,7 @@ pub async fn sync_blob_manifest(
     token: String,
     after: Option<String>,
     limit: u32,
+    product_id: Option<String>,
     client: ClientIdentity,
 ) -> Result<BlobManifest, SyncFailure> {
     let http = state.client();
@@ -206,6 +209,10 @@ pub async fn sync_blob_manifest(
     if let Some(after) = after.filter(|value| !value.is_empty()) {
         url.push_str("&after=");
         url.push_str(&encode_query(&after));
+    }
+    if let Some(product_id) = product_id.filter(|value| !value.is_empty()) {
+        url.push_str("&product_id=");
+        url.push_str(&encode_query(&product_id));
     }
 
     let resp = identify(

@@ -23,6 +23,7 @@
  * is only written once its pocket is known.
  */
 import { Context, Effect } from "effect";
+import { log } from "~/lib/log";
 import type { DatabaseService } from "../db";
 import type { MergeStatement } from "./transport";
 import { SyncError } from ".";
@@ -210,6 +211,114 @@ function chunks<T>(items: readonly T[]): T[][] {
   return out;
 }
 
+/**
+ * Reports every lot whose cached cost the fold is about to change, then hands back
+ * the statements that fold them.
+ *
+ * `stocks` is a projection of the journal, so a fold is also the only thing that can
+ * move a cached cost — including on a device whose cache came from somewhere else
+ * (a database migrated from the pre-v2 schema, rows imported with a `capital` field
+ * that held the price). That is legitimate: the journal is the source of truth. What
+ * is *not* acceptable is moving it with no trace, so the disagreement is named
+ * before the statements that cause it are built.
+ *
+ * Both halves of the cycle use this: a page that carries other devices' journal, and
+ * a push that has just uploaded this device's own (its rows never come back, so the
+ * closing pull cannot fold them).
+ */
+export function stockFoldStatements(
+  db: DatabaseServiceImpl,
+  productIds: readonly string[],
+): Effect.Effect<MergeStatement[]> {
+  const ids = [...new Set(productIds)];
+  if (ids.length === 0) return Effect.succeed([]);
+  return logCapitalDrift(db, ids).pipe(Effect.map(() => rebuildStockStatements(ids)));
+}
+
+/**
+ * Lots whose cached cost the fold is about to change, logged before it does.
+ *
+ * Best effort in two ways: the first chunk of the page's products only, and
+ * `info`. It is a pointer to the rows and the two numbers, not a ledger.
+ */
+function logCapitalDrift(
+  db: DatabaseServiceImpl,
+  productIds: readonly string[],
+): Effect.Effect<void> {
+  const ids = productIds.slice(0, IN_CHUNK);
+  if (ids.length === 0) return Effect.void;
+  const list = ids.map((_, index) => `$${index + 1}`).join(", ");
+  const sql = `SELECT s.product_id, s.stock_id, s.stock_capital AS cached,
+      COALESCE(
+        (SELECT c.product_event_capital FROM product_events c
+          WHERE c.stock_id = s.stock_id AND c.product_event_capital <> 0
+          ORDER BY c.product_event_created_at DESC, c.product_event_id DESC LIMIT 1),
+        (SELECT n.product_event_capital FROM product_events n
+          WHERE n.stock_id = s.stock_id
+          ORDER BY n.product_event_created_at DESC, n.product_event_id DESC LIMIT 1)
+      ) AS journal
+    FROM stocks s
+    WHERE s.product_id IN (${list})
+    LIMIT 500`;
+  return db.selectMany<{ product_id: string; stock_id: string; cached: number; journal: number }>(
+    sql,
+    ids,
+  ).pipe(
+    Effect.flatMap((rows) => {
+      const drift = rows.filter((row) => row.cached !== row.journal);
+      if (drift.length === 0) return Effect.void;
+      const sample = drift
+        .slice(0, 5)
+        .map((row) => `${row.stock_id} ${row.cached}→${row.journal}`)
+        .join(", ");
+      return Effect.sync(() =>
+        log.info(
+          `sync: ${drift.length} lot modalnya dihitung ulang dari jurnal (${sample}${drift.length > 5 ? ", …" : ""})`,
+        ),
+      );
+    }),
+    // A diagnostic must never fail a page.
+    Effect.catchAllCause(() => Effect.void),
+  );
+}
+
+/**
+ * The products among `ids` that own a lot with no `stocks` row.
+ *
+ * The one hole a pulled **product** row can leave in the projection: the journal of
+ * a lot can arrive before the product it hangs off, and the fold skips a lot whose
+ * product is not on the device yet. When the product finally lands its journal is
+ * already stored and nothing else will re-fold it — so this is the question that
+ * decides whether a product row needs a rebuild at all.
+ *
+ * A handful of index probes per product, which is what makes it usable on a page
+ * of five thousand catalogue rows. "Rebuild every product on this page" instead
+ * costs seconds per page on a shop-sized journal, and answers the question for the
+ * four thousand products whose lots were already folded.
+ */
+function productsWithUnfoldedLots(
+  db: DatabaseServiceImpl,
+  ids: readonly string[],
+): Effect.Effect<string[]> {
+  return Effect.gen(function* () {
+    const out: string[] = [];
+    for (const slice of chunks(ids)) {
+      if (slice.length === 0) continue;
+      const list = slice.map((_, index) => `$${index + 1}`).join(", ");
+      const rows = yield* db
+        .selectMany<{ product_id: string }>(
+          `SELECT DISTINCT e.product_id FROM product_events e
+            WHERE e.product_id IN (${list}) AND e.stock_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM stocks s WHERE s.stock_id = e.stock_id)`,
+          slice,
+        )
+        .pipe(Effect.orElseSucceed(() => []));
+      for (const row of rows) out.push(row.product_id);
+    }
+    return out;
+  });
+}
+
 /** Reads the local copies of every id this page (and the park) mentions. */
 function readLocal(
   db: DatabaseServiceImpl,
@@ -323,6 +432,9 @@ function idsIn(group: SyncGroup, page: PullPage, parked: readonly ParkedMoney[])
  * writes nothing: the local copy already won, and (being unsynced) it will be
  * pushed, where the server will either accept it or answer `stale` with its own
  * copy.
+ *
+ * The decision is returned because one caller has follow-up work that is only
+ * owed when a row actually changed: the product group's stock fold.
  */
 function planRow(
   def: EntityDef,
@@ -331,7 +443,7 @@ function planRow(
   seq: number,
   statements: MergeStatement[],
   stats: MergeStats,
-): void {
+): MergeDecision {
   if (local === undefined) {
     statements.push(
       def.kind === "append"
@@ -339,7 +451,7 @@ function planRow(
         : upsertIfNewerStatement(def, incoming, seq),
     );
     stats.applied += 1;
-    return;
+    return "applied";
   }
   const decision = decide(def, local, incoming);
   stats[decision] += 1;
@@ -348,6 +460,7 @@ function planRow(
   } else if (decision === "noop") {
     statements.push(markSyncedStatement(def, idOf(def, incoming), seq, clockOf(def, incoming)));
   }
+  return decision;
 }
 
 /**
@@ -441,6 +554,10 @@ export function mergePage(
     // The park after this page. Only the money group ever changes it; every
     // other group passes the incoming park through untouched.
     let parkedNext: readonly ParkedMoney[] = parked;
+    // The products whose journal (or catalogue row) actually changed on this
+    // page — the only ones whose stock fold can be out of date afterwards.
+    const appliedProducts = new Set<string>();
+    const appliedEvents = new Set<string>();
 
     for (const def of defs.entities) {
       if (def.kind === "aggregate") continue;
@@ -473,25 +590,38 @@ export function mergePage(
       }
 
       for (const change of changes) {
-        planRow(def, local.get(def.entity)?.get(idOf(def, change.row)), change.row, change.seq, statements, stats);
+        const stored = local.get(def.entity)?.get(idOf(def, change.row));
+        const decision = planRow(def, stored, change.row, change.seq, statements, stats);
+        // A row that changed nothing needs nothing folded: a page of five
+        // thousand catalogue rows that this device already had is not a reason to
+        // re-derive five thousand stock lots.
+        if (decision !== "applied") continue;
+        if (def.entity === "product") {
+          appliedProducts.add(String(change.row["product_id"]));
+        } else if (def.entity === "product_event" && change.row["product_id"] != null) {
+          appliedEvents.add(String(change.row["product_id"]));
+        }
       }
     }
 
     // The product group's `stocks` is a projection of the journal, not a synced
-    // table (§8.7). Every product whose events arrived (or whose row did) is
-    // re-folded from the local journal in the same transaction, so a device that
-    // pulled another till's sale shows the right stock immediately.
+    // table (§8.7). A product whose events arrived is re-folded from the local
+    // journal in the same transaction, so a device that pulled another till's sale
+    // shows the right stock immediately.
+    //
+    // A product whose *row* arrived is only folded when a lot of its journal has
+    // no `stocks` row yet — the one hole the fold can leave behind, because it
+    // skips a lot whose product is not on the device. Everything else (the other
+    // four thousand rows of a catalogue page) was folded when its events landed,
+    // and re-deriving it costs seconds per page on a shop-sized journal.
     if (group === "product") {
-      const products = new Set<string>();
-      for (const change of page.changes) {
-        if (change.entity === "product") products.add(String(change.row["product_id"]));
-        if (change.entity === "product_event" && change.row["product_id"] != null) {
-          products.add(String(change.row["product_id"]));
-        }
-      }
-      if (products.size > 0) {
-        statements.push(...rebuildStockStatements([...products]));
-      }
+      const unfolded =
+        appliedProducts.size === 0
+          ? []
+          : yield* productsWithUnfoldedLots(deps.db, [...appliedProducts]);
+      statements.push(
+        ...(yield* stockFoldStatements(deps.db, [...appliedEvents, ...unfolded])),
+      );
     }
 
     // §9.4.1: the rows, the parked rows and the bookmark are one transaction. A
