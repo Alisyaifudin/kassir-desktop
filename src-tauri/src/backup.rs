@@ -577,11 +577,10 @@ async fn zip_into(
         log::error!("backup_data zip task failed: {error}");
         FAILED.to_string()
     })?
-    .map_err(|error| {
+    .inspect_err(|_| {
         // A half-written `.part` in the cashier's folder would outlive the
         // failure otherwise, and look like a backup by name.
         let _ = fs::remove_file(&part);
-        error
     })?;
 
     // The save dialog already asked about overwriting; on Windows the rename will

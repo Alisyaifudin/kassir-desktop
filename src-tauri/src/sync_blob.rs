@@ -189,6 +189,7 @@ pub struct BlobGet {
 /// whole before it starts downloading, and it is a join over the entity tables
 /// rather than a log, so it has no bookmark and no ordering meaning (§8.7.1).
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn sync_blob_manifest(
     state: tauri::State<'_, SyncState>,
     app: tauri::AppHandle,
