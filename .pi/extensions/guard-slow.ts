@@ -47,11 +47,42 @@ const ALLOW_FILE = join(process.cwd(), ".pi", "allow-slow");
  */
 const FAST_CI = /(?:\bci:fast\b|\bscripts\/ci\.ts\b[^\n]*--fast\b)/i;
 
+/**
+ * Drops heredoc *bodies*, keeping the command that opened them.
+ *
+ * Learned the hard way: `git commit -F - <<'EOF' … bun install … EOF` was refused
+ * as an install command because the pattern matched a sentence inside the commit
+ * message, not anything that would run. A gate that fires on prose teaches people
+ * to work around it, which is the opposite of the point — so the body is removed
+ * before the patterns see the command.
+ */
+function stripHeredocBodies(command: string): string {
+  const kept: string[] = [];
+  let delimiter: string | null = null;
+
+  for (const line of command.split("\n")) {
+    if (delimiter !== null) {
+      if (line.trim() === delimiter) {
+        delimiter = null;
+        kept.push(line);
+      }
+      // Otherwise this line is message text, not a command: drop it.
+      continue;
+    }
+
+    kept.push(line);
+    const opened = line.match(/<<-?\s*['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?/);
+    if (opened) delimiter = opened[1];
+  }
+
+  return kept.join("\n");
+}
+
 export default function (pi) {
   pi.on("tool_call", async (event) => {
     if (event.toolName !== "bash") return undefined;
 
-    const command = String(event.input?.command ?? "");
+    const command = stripHeredocBodies(String(event.input?.command ?? ""));
     if (FAST_CI.test(command)) return undefined;
     if (!SLOW.some((pattern) => pattern.test(command))) return undefined;
     if (existsSync(ALLOW_FILE)) return undefined;
