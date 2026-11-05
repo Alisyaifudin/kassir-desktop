@@ -55,23 +55,49 @@ CREATE TABLE _cost_repair (
   capital           REAL NOT NULL
 );
 
--- 1. The replacement capital, from the product's last purchase before the sale.
+-- 1a. The purchase timeline, folded once. Asking each of the ~100.000 polluted
+--     lines for "the last purchase of this product before me" against the two
+--     joined tables took two minutes on a 154 MB database; the same question
+--     against an indexed table of the 23.000 purchase lines answers in a seek.
+CREATE TABLE _purchase_cost (
+  product_id TEXT NOT NULL,
+  at         INTEGER NOT NULL,
+  seq        INTEGER NOT NULL,
+  capital    REAL NOT NULL
+);
+
+-- `seq` is the line's rowid: when one purchase entered the same product twice at
+-- the same instant, the later-entered line wins, deterministically. Without a
+-- tiebreak the answer would depend on which row the planner happened to return.
+INSERT INTO _purchase_cost (product_id, at, seq, capital)
+SELECT
+  p.product_id,
+  COALESCE(pr.record_paid_at, pr.record_credit_at, pr.record_created_at),
+  p.rowid,
+  p.record_listing_capital
+FROM record_listings p
+JOIN records pr ON pr.record_id = p.record_id
+WHERE pr.record_mode = 'outcoming'
+  AND pr.record_deleted_at IS NULL
+  AND p.product_id IS NOT NULL
+  AND p.record_listing_capital > 0;
+
+-- `product_id, at` is the as-of query's own shape: the leading column groups a
+-- product's purchases and the second one holds them in time order, so the
+-- replacement cost is the last row at or before the sale with no sort step.
+CREATE INDEX _purchase_cost_idx ON _purchase_cost (product_id, at);
+
+-- 1b. The replacement capital, from the product's last purchase before the sale.
 INSERT INTO _cost_repair (record_listing_id, capital)
 SELECT id, capital FROM (
   SELECT
     l.record_listing_id AS id,
     (
-      SELECT p.record_listing_capital
-      FROM record_listings p
-      JOIN records pr ON pr.record_id = p.record_id
-      WHERE p.product_id = l.product_id
-        AND pr.record_mode = 'outcoming'
-        AND pr.record_deleted_at IS NULL
-        AND p.record_listing_capital > 0
-        AND COALESCE(pr.record_paid_at, pr.record_credit_at, pr.record_created_at)
-            <= COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at)
-      ORDER BY COALESCE(pr.record_paid_at, pr.record_credit_at, pr.record_created_at) DESC,
-               p.record_listing_id DESC
+      SELECT pc.capital
+      FROM _purchase_cost pc
+      WHERE pc.product_id = l.product_id
+        AND pc.at <= COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at)
+      ORDER BY pc.at DESC, pc.seq DESC
       LIMIT 1
     ) AS capital
   FROM record_listings l
@@ -125,4 +151,6 @@ WHERE stock_id IN (
   SELECT stock_id FROM product_events WHERE product_event_capital <> 0
 );
 
+DROP INDEX _purchase_cost_idx;
+DROP TABLE _purchase_cost;
 DROP TABLE _cost_repair;
