@@ -66,6 +66,7 @@ describe("textOf", () => {
       name: "masker-1.jpg",
       done: 3,
       total: 12,
+      outcome: "ok",
     });
     expect(line.text).toBe("Mengunduh gambar masker-1.jpg (3/12)");
     expect(line.mark).toBe("down");
@@ -78,8 +79,30 @@ describe("textOf", () => {
         name: null,
         done: 1,
         total: 2,
+        outcome: "ok",
       }).text,
     ).toBe("Mengunggah gambar (1/2)");
+  });
+
+  test("a skipped or failed file is not reported as an upload", () => {
+    const base = {
+      kind: "image",
+      at: 0,
+      group: "product",
+      direction: "up",
+      name: "masker-1.jpg",
+      done: 1,
+      total: 20,
+    } as const;
+    // Same pass, three different fates — and only one of them moved the file.
+    expect(textOf({ ...base, outcome: "skipped" })).toMatchObject({
+      text: "Gambar dilewati masker-1.jpg",
+      mark: "note",
+    });
+    expect(textOf({ ...base, outcome: "failed" })).toMatchObject({
+      text: "Gagal mengunggah gambar masker-1.jpg",
+      mark: "error",
+    });
   });
 
   test("turns one page of merge counts into one sentence", () => {

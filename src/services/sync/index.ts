@@ -196,6 +196,15 @@ export type GroupReport = {
    * failed sync.
    */
   imagesDown: number;
+  /**
+   * Image files still owed to the server when the cycle ended.
+   *
+   * Normally `0`: the upload drains until nothing is owed. Non-zero only when the
+   * drain stopped because a pass resolved nothing — a row the server refuses, a
+   * file this device does not have — and the screen must not say "Selesai" over a
+   * half-uploaded gallery.
+   */
+  imagesOwed: number;
 };
 
 /**
@@ -233,6 +242,12 @@ export type SyncLogEntry =
       name: string | null;
       done: number;
       total: number;
+      /**
+       * What happened to it: `ok` moved bytes, `skipped` was deliberately left
+       * alone (the server holds other bytes, the local file is gone, the row is
+       * tombstoned), `failed` will be retried.
+       */
+      outcome: "ok" | "skipped" | "failed";
     }
   /** One page's merge outcomes, counted rather than listed. */
   | {
@@ -360,6 +375,8 @@ export type SyncReport = {
   orphans: number;
   /** Rows/records still owed the server when the run finished; `0` on a clean run. */
   remaining: number;
+  /** Image files still owed the server across the run; `0` on a clean run. */
+  imagesOwed: number;
 };
 
 export type SyncMode = "sync" | "reset";

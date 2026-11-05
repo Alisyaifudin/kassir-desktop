@@ -157,11 +157,13 @@ function harness(script: Script = {}, productId?: string) {
     endpoint: ENDPOINT,
     ...(productId === undefined ? {} : { productId }),
   };
+  const withPasses = (passes?: number) =>
+    passes === undefined ? deps : { ...deps, maxPasses: passes };
   return {
     db,
     calls,
-    upload: () => Effect.runPromise(uploadImageBlobs(deps)),
-    fetch: () => Effect.runPromise(fetchImageBlobs(deps)),
+    upload: (passes?: number) => Effect.runPromise(uploadImageBlobs(withPasses(passes))),
+    fetch: (passes?: number) => Effect.runPromise(fetchImageBlobs(withPasses(passes))),
   };
 }
 
@@ -510,5 +512,75 @@ describe("a product scope", () => {
     expect(fetched.fetched + fetched.adopted).toBe(1);
     expect(scoped.calls.scoped).toEqual(["prod_2"]);
     expect(scoped.calls.get).toEqual([sha("p2")]);
+  });
+});
+
+/**
+ * A run has to leave a full copy.
+ *
+ * The passes are bounded so no single request batch stalls a page, but the *call*
+ * is not: a sync that stops at twenty pictures is a sync the operator has to press
+ * forty times, and the second machine never holds the whole gallery.
+ */
+describe("draining the backlog", () => {
+  test("one upload call moves every file owed, not one pass of twenty", async () => {
+    const h = harness();
+    for (let index = 0; index < 45; index += 1) {
+      seedImage(h.db, { id: `img_${index}`, clock: 1000 + index });
+    }
+
+    const report = await h.upload();
+
+    expect(report.uploaded).toBe(45);
+    expect(h.calls.put).toHaveLength(45);
+    // Drained: the next call has nothing to select, and nothing is sent twice.
+    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 0, failed: 0, bytes: 0 });
+  });
+
+  test("one fetch call downloads every missing file", async () => {
+    const h = harness({
+      manifest: () =>
+        Promise.resolve({
+          blobs: Array.from({ length: 45 }, (_, index) => ({
+            imageId: `img_${index}`,
+            version: 1000 + index,
+            sha256: sha(`server_${index}`),
+            byteSize: 1,
+            mime: "image/png",
+          })),
+          more: false,
+          next: null,
+        }),
+    });
+    for (let index = 0; index < 45; index += 1) {
+      seedImage(h.db, { id: `img_${index}`, clock: 1000 + index, blobVersion: null });
+    }
+
+    const report = await h.fetch();
+
+    expect(report.fetched).toBe(45);
+    expect(h.calls.get).toHaveLength(45);
+    expect(await h.fetch()).toEqual({ fetched: 0, adopted: 0, missing: 0, bytes: 0 });
+  });
+
+  test("a single pass is still available, for a page that must not wait on pictures", async () => {
+    const h = harness();
+    for (let index = 0; index < 45; index += 1) {
+      seedImage(h.db, { id: `img_${index}`, clock: 1000 + index });
+    }
+
+    expect((await h.upload(1)).uploaded).toBe(20);
+    // The rest is still owed, and still selectable: nothing was lost by stopping.
+    expect((await h.upload()).uploaded).toBe(25);
+  });
+
+  test("a row the server refuses does not spin the drain", async () => {
+    const h = harness({
+      put: () => Promise.reject(new TransportError(404, "image_unknown", "baris belum ada")),
+    });
+    seedImage(h.db);
+    // One pass, one skip: the row cannot change this cycle, so the loop stops
+    // rather than selecting it a hundred times.
+    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 1, failed: 0, bytes: 0 });
   });
 });

@@ -210,5 +210,9 @@ export function summaryOf(state: SyncState): string | null {
   const report = state.report;
   if (report === null) return null;
   const stale = report.stale > 0 ? `, ${report.stale} diambil dari server` : "";
-  return `${report.pulled} diunduh, ${report.pushed} diunggah${stale}.`;
+  // Pictures are the half a number of rows cannot describe: a run that moved the
+  // whole catalogue and half its gallery is not a finished run, and saying so is
+  // what stops an operator from wondering why the other till is missing photos.
+  const images = report.imagesOwed > 0 ? ` · ${report.imagesOwed} gambar belum terkirim` : "";
+  return `${report.pulled} diunduh, ${report.pushed} diunggah${stale}${images}.`;
 }

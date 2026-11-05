@@ -80,7 +80,7 @@ import {
 } from "./merge";
 import { countImageBlobs, fetchImageBlobs, uploadImageBlobs, type BlobTick } from "./blob";
 import { syncOneProduct } from "./one-product";
-import { pullLimit, pullPageWithRetry, toSyncError } from "./pull";
+import { pullPageWithRetry, toSyncError } from "./pull";
 import { countUnsynced, push } from "./push";
 import { GROUPS, type WireRow } from "./schema";
 import { bookmarkStatement, forgetUploadedBlobsStatement, markAllUnsyncedStatements } from "./sql";
@@ -924,6 +924,58 @@ export const SyncLive = Layer.effect(
               return staged(stage, changesDone * PLAN_UNITS.row + imagesLanded * PLAN_UNITS.image);
             };
 
+            /**
+             * Downloads the bytes this device is missing, `passes` at a time.
+             *
+             * A *pass* is bounded so a pull page never waits behind a thousand
+             * photographs. The **sequence** is not: once the pages are done the drain
+             * takes the whole budget, which is what makes one run leave a full copy
+             * instead of twenty files per press.
+             */
+            const fetchBlobs = (passes?: number): Effect.Effect<void, SyncError> =>
+              Effect.gen(function* () {
+                // Bytes are cumulative across the call's passes, so the add-up
+                // happens once it returns.
+                let passBytes = 0;
+                const report = yield* fetchImageBlobs({
+                  db,
+                  transport,
+                  endpoint,
+                  ...(passes === undefined ? {} : { maxPasses: passes }),
+                  onProgress: (tick: BlobTick) => {
+                    passBytes = tick.bytes;
+                    // What is left of *this* pass, stated by the manifest before the
+                    // first file moved. The only byte total in the whole cycle that
+                    // is known rather than guessed.
+                    const left =
+                      tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
+                    publishGroup(group, {
+                      phase: settling ? "settle" : "pull",
+                      progress: at(imagesDown + tick.done, false),
+                      message: `Mengunduh gambar ${tick.done}/${tick.total}…`,
+                      transfer: {
+                        down: side(moved.rowsDown + moved.imagesDown + tick.bytes, left),
+                        up: transfer().up,
+                      },
+                    });
+                    pushLog([
+                      {
+                        kind: "image",
+                        at: Date.now(),
+                        group,
+                        direction: "down",
+                        name: tick.name,
+                        done: tick.done,
+                        total: tick.total,
+                        outcome: tick.outcome,
+                      },
+                    ]);
+                  },
+                });
+                moved.imagesDown += passBytes;
+                imagesDown += report.fetched + report.adopted;
+              });
+
             for (;;) {
               const after = yield* readBookmark(group);
 
@@ -976,10 +1028,9 @@ export const SyncLive = Layer.effect(
                 // server) the shared counter is the only denominator there is, so
                 // the bar falls back to its old, coarser estimate.
                 pullChanges = page.count ?? (target === null ? 0 : Math.max(0, target - startAt));
-                // The image passes run once per pull page, so their planned share
-                // depends on how many pages this pull will take.
-                const pages = Math.max(1, Math.ceil(pullChanges / pullLimit(group)));
-                const images = movesBytes ? yield* countImageBlobs(db, pages) : { up: 0, down: 0 };
+                // The byte channel's whole backlog: this run drains it, so the bar
+                // is sized to the files that will cross, not to one pass of twenty.
+                const images = movesBytes ? yield* countImageBlobs(db) : { up: 0, down: 0 };
                 plan = planCycle({ pullChanges, pushRows, images });
               }
 
@@ -1072,48 +1123,9 @@ export const SyncLive = Layer.effect(
 
               // §8.7.1 "bytes after the page": the page and its bookmark are
               // committed, so a picture that is still missing cannot hold either of
-              // them back. The pass is bounded, and whatever it leaves is still owed
-              // on the next cycle.
-              if (movesBytes && !echoPage) {
-                // A pass reports its own running total (`bytes` is cumulative
-                // within the pass), so the state add-up happens once it returns.
-                let passBytes = 0;
-                const report = yield* fetchImageBlobs({
-                  db,
-                  transport,
-                  endpoint,
-                  onProgress: (tick: BlobTick) => {
-                    passBytes = tick.bytes;
-                    // What is left of *this* pass, stated by the manifest before the
-                    // first file moved. The only byte total in the whole cycle that
-                    // is known rather than guessed.
-                    const left =
-                      tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
-                    publishGroup(group, {
-                      phase: settling ? "settle" : "pull",
-                      progress: at(imagesDown + tick.done, false),
-                      message: `Mengunduh gambar ${tick.done}/${tick.total}…`,
-                      transfer: {
-                        down: side(moved.rowsDown + moved.imagesDown + tick.bytes, left),
-                        up: transfer().up,
-                      },
-                    });
-                    pushLog([
-                      {
-                        kind: "image",
-                        at: Date.now(),
-                        group,
-                        direction: "down",
-                        name: tick.name,
-                        done: tick.done,
-                        total: tick.total,
-                      },
-                    ]);
-                  },
-                });
-                moved.imagesDown += passBytes;
-                imagesDown += report.fetched + report.adopted;
-              }
+              // them back. One pass here; the rest of the backlog follows when the
+              // pages are done (`fetchBlobs` below), so a run ends with every byte.
+              if (movesBytes && !echoPage) yield* fetchBlobs(1);
 
               pulled += frames;
               stale += merged.stats.stale;
@@ -1131,7 +1143,13 @@ export const SyncLive = Layer.effect(
                     : "Unduhan selesai",
                 transfer: transfer(),
               });
-              if (!page.more) return;
+              if (!page.more) {
+                // The pages are done; the rest of the pictures follow now. This is
+                // the difference between "synced" and "downloaded the rows and
+                // twenty photos".
+                if (movesBytes) yield* fetchBlobs();
+                return;
+              }
             }
           });
 
@@ -1235,6 +1253,7 @@ export const SyncLive = Layer.effect(
                   name: tick.name,
                   done: tick.done,
                   total: tick.total,
+                  outcome: tick.outcome,
                 },
               ]);
             },
@@ -1265,6 +1284,23 @@ export const SyncLive = Layer.effect(
           ]);
         }
 
+        // What the byte channel still owes, counted at the end of the cycle rather
+        // than assumed: the drain stops early when a pass resolves nothing (a
+        // tombstoned row, a file the server refuses), and a run that leaves
+        // pictures behind must say so instead of calling itself finished.
+        const imagesOwed = movesBytes ? (yield* countImageBlobs(db)).up : 0;
+        if (imagesOwed > 0) {
+          pushLog([
+            {
+              kind: "note",
+              at: Date.now(),
+              group,
+              text: `${imagesOwed} gambar belum terkirim, dicoba lagi nanti`,
+              level: "info",
+            },
+          ]);
+        }
+
         return {
           bookmark: yield* readBookmark(group),
           pulled,
@@ -1277,6 +1313,7 @@ export const SyncLive = Layer.effect(
           orphans: yield* orphanCount(group),
           imagesUp,
           imagesDown,
+          imagesOwed,
         };
       });
     }
@@ -1376,6 +1413,7 @@ export const SyncLive = Layer.effect(
           const parts = [`${report.pulled} diunduh`, `${report.pushed} diunggah`];
           if (report.imagesUp > 0) parts.push(`${report.imagesUp} gambar diunggah`);
           if (report.imagesDown > 0) parts.push(`${report.imagesDown} gambar diunduh`);
+          if (report.imagesOwed > 0) parts.push(`${report.imagesOwed} gambar belum terkirim`);
           // A group that still owes rows says so here. It is not an error — the
           // rows are on disk and the next run sends them — but a bar that claims
           // to be finished while a catalogue is half-uploaded is worse than a
@@ -1417,14 +1455,17 @@ export const SyncLive = Layer.effect(
             pending: sum.pending + report.pending,
             orphans: sum.orphans + report.orphans,
             remaining: sum.remaining + report.remaining,
+            imagesOwed: sum.imagesOwed + report.imagesOwed,
           }),
-          { pulled: 0, pushed: 0, stale: 0, pending: 0, orphans: 0, remaining: 0 },
+          { pulled: 0, pushed: 0, stale: 0, pending: 0, orphans: 0, remaining: 0, imagesOwed: 0 },
         );
         const report: SyncReport = { groups: complete, ...totals };
         // A run with rows still owed is not "selesai" in the one sense an operator
         // cares about; say it in the same sentence as the totals.
-        const owed =
-          totals.remaining > 0 ? ` — ${totals.remaining} baris belum terkirim` : "";
+        const owedParts: string[] = [];
+        if (totals.remaining > 0) owedParts.push(`${totals.remaining} baris belum terkirim`);
+        if (totals.imagesOwed > 0) owedParts.push(`${totals.imagesOwed} gambar belum terkirim`);
+        const owed = owedParts.length > 0 ? ` — ${owedParts.join(", ")}` : "";
         publishNow(
           state("done", {
             groups: latest.groups,

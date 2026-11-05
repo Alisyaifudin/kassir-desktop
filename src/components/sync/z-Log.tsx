@@ -102,7 +102,24 @@ export function textOf(entry: SyncLogEntry): LogLine {
     case "image": {
       const where = entry.name === null ? "" : ` ${entry.name}`;
       const verb = entry.direction === "down" ? "Mengunduh" : "Mengunggah";
-      return { at: entry.at, mark: entry.direction, text: `${verb} gambar${where} (${entry.done}/${entry.total})` };
+      // The outcome decides the sentence. Without it, a pass that *skipped* twenty
+      // files read exactly like a pass that uploaded them — which is how a run can
+      // look like it is retrying the same pictures forever.
+      if (entry.outcome === "failed") {
+        return {
+          at: entry.at,
+          mark: "error",
+          text: `Gagal ${verb.toLowerCase()} gambar${where}`,
+        };
+      }
+      if (entry.outcome === "skipped") {
+        return { at: entry.at, mark: "note", text: `Gambar dilewati${where}` };
+      }
+      return {
+        at: entry.at,
+        mark: entry.direction,
+        text: `${verb} gambar${where} (${entry.done}/${entry.total})`,
+      };
     }
     case "merge": {
       const parts: string[] = [];

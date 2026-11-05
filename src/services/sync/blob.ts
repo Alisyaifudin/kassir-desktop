@@ -18,9 +18,10 @@
  * The bookmark is written inside the page's transaction (§9.4.1) and these passes
  * run **after** it. A missing picture is a placeholder, never a page failure, and
  * never a reason to hold the group back — a catalogue that arrives without its
- * photos is still a correct catalogue, and the photos follow on a later cycle.
- * That is also why nothing here fails the group: every error is per-image, logged
- * and counted, and the next cycle tries again.
+ * photos is still a correct catalogue, and the bytes that are still missing when
+ * the pages end are drained before the run finishes (§ "One run leaves a full
+ * copy"). That is also why nothing here fails the group: every error is per-image,
+ * logged and counted, and the next cycle tries again.
  *
  * ## The state that decides everything
  *
@@ -53,12 +54,19 @@
  * of a pulled row are written under that row's own `image_name`, which is the
  * value its readers will use.
  *
- * ## Bounded work
+ * ## One run leaves a full copy
  *
- * A pass uploads or downloads at most `BLOB_LIMIT` images, so a shop's first sync
- * interleaves pictures with the rest of the cycle instead of stalling on them. A
- * catalogue larger than one pass converges over the following cycles, because the
- * predicates are state, not a queue: whatever is still owed is still owed.
+ * A *pass* moves at most `BLOB_LIMIT` images, so no single request batch grows
+ * into a stall and a page is never held back by pictures. A **run** does not stop
+ * at one pass: `uploadImageBlobs` and `fetchImageBlobs` loop passes until nothing
+ * is owed (`MAX_PASSES` is only a runaway guard). A first sync of a catalogue
+ * therefore ends with every picture on the device — a sync that leaves twenty
+ * files behind per press is not a sync, it is a queue the operator drains by
+ * hand.
+ *
+ * The loop stops early when a pass resolved nothing: the rows it selected are
+ * still owed and still unchangeable this cycle (the server's row is gone, the
+ * file is missing), so another pass would select the same rows forever.
  */
 import { Context, Effect } from "effect";
 import { image } from "~/lib/image";
@@ -70,6 +78,16 @@ type DatabaseImpl = Context.Tag.Service<typeof DatabaseService>;
 
 /** How many images one pass may transfer. */
 const BLOB_LIMIT = 20;
+
+/**
+ * Passes one call may run, in each direction.
+ *
+ * A runaway guard, not a budget: 500 passes is 10.000 files, beyond any shop's
+ * gallery, and the loop normally ends on an empty pass long before. It exists so a
+ * server that keeps answering "select these rows again" cannot pin the run open
+ * forever.
+ */
+const MAX_PASSES = 500;
 
 /** The manifest's page size, and the most pages one pass reads (§8.7.1 limits). */
 const MANIFEST_PAGE = 5000;
@@ -86,6 +104,14 @@ export type ImageBlobDeps = {
   productId?: string;
   /** One tick per file, so the screen can show which of twenty is in flight. */
   onProgress?: (tick: BlobTick) => void;
+  /**
+   * How many passes this call may run (default `MAX_PASSES`).
+   *
+   * The cycle asks the *per-page* fetch for exactly one pass: a pull page must not
+   * wait behind a thousand photographs. The drain at the end of the pull sequence
+   * then takes the whole budget, which is what leaves a full copy after one run.
+   */
+  maxPasses?: number;
 };
 
 /**
@@ -111,7 +137,19 @@ export type BlobTick = {
    * twenty files instead of twenty counts.
    */
   name: string | null;
+  /**
+   * What happened to that file.
+   *
+   * Without it every outcome printed the same sentence, so a pass that *skipped*
+   * twenty files (a missing local copy, or the server already holding other bytes)
+   * was indistinguishable from one that uploaded twenty — and a run that moved
+   * nothing looked like a run that was retrying the same pictures.
+   */
+  outcome: BlobOutcome;
 };
+
+/** What one file's turn in a pass did. */
+export type BlobOutcome = "ok" | "skipped" | "failed";
 
 /** What one upload pass did. */
 export type UploadReport = {
@@ -205,20 +243,16 @@ function fetchSql(productId: string | undefined): string {
 }
 
 /**
- * How many image files each direction of the byte channel will move in a cycle
- * of `pages` pull pages.
+ * How many image files each direction of the byte channel still owes.
  *
- * An **upper bound on one cycle**, not the size of the backlog, because that is
- * what the bar needs to be proportioned correctly: the upload pass runs once and
- * takes at most `BLOB_LIMIT` files, and the fetch pass runs after every pull page
- * with the same cap. A catalogue of five thousand photographs moves twenty of
- * them this cycle and the rest over the following ones (§ "Bounded work"), so
- * planning for five thousand would park the bar at a fifth of the pull slice for
- * the whole run.
+ * The **whole backlog**, because the run moves the whole backlog: the bar is
+ * sized to the files that will cross, and the summary says how many are left. An
+ * earlier version capped these at one pass so the bar would be "proportioned",
+ * which made a run that moved twenty files look like a run that moved everything
+ * — the number has to describe the work, not the batch.
  */
 export function countImageBlobs(
   db: DatabaseImpl,
-  pages: number,
   productId?: string,
 ): Effect.Effect<{ up: number; down: number }> {
   const count = (where: string): Effect.Effect<number> =>
@@ -232,13 +266,10 @@ export function countImageBlobs(
         Effect.map((rows) => rows[0]?.total ?? 0),
         Effect.orElseSucceed(() => 0),
       );
-  const pageCount = Math.max(1, Math.ceil(pages));
   return Effect.all(
     {
-      up: count(UPLOAD_WHERE).pipe(Effect.map((total) => Math.min(total, BLOB_LIMIT))),
-      down: count(FETCH_WHERE).pipe(
-        Effect.map((total) => Math.min(total, BLOB_LIMIT * pageCount)),
-      ),
+      up: count(UPLOAD_WHERE),
+      down: count(FETCH_WHERE),
     },
     { concurrency: 1 },
   );
@@ -316,102 +347,129 @@ function messageOf(error: unknown): string {
  */
 export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadReport> {
   return Effect.gen(function* () {
-    const rows = yield* deps.db.selectMany<UploadRow>(
-      uploadSql(deps.productId),
-      deps.productId === undefined ? undefined : [deps.productId],
-    );
-    if (rows.length === 0) return { uploaded: 0, skipped: 0, failed: 0, bytes: 0 };
-
-    const statements: { sql: string; bindings: (string | number | null)[] }[] = [];
+    // Cumulative across passes: the screen shows one byte counter for the whole
+    // drain, and the report belongs to the call, not to its last pass.
     let uploaded = 0;
     let skipped = 0;
     let failed = 0;
     let bytes = 0;
-
-    // What this pass will put on the wire. The sizes are on disk, not in the row,
-    // so they are read before the first upload rather than discovered from each
-    // answer — a byte counter that only ever shows its own past is not a bar.
-    // One missing file makes it `null`: a partial total under a byte counter is
-    // worse than none, and that file is about to answer `local_missing` anyway.
+    /** Known byte total so far; `null` once any pass could not size a file. */
     let bytesTotal: number | null = 0;
-    for (const row of rows) {
-      const size = yield* image.size(row.image_name).pipe(Effect.orElseSucceed(() => null));
-      if (size === null) {
-        bytesTotal = null;
-        break;
-      }
-      bytesTotal += size;
-    }
 
-    let done = 0;
-    const tick = (name: string | null): void => {
-      done += 1;
-      deps.onProgress?.({ done, total: rows.length, bytes, bytesTotal, name });
-    };
-
-    for (const row of rows) {
-      const outcome = yield* Effect.tryPromise({
-        try: () =>
-          deps.transport.blobPut(deps.endpoint, {
-            imageId: row.image_id,
-            version: row.image_updated_at,
-            fileName: row.image_name,
-            mime: row.image_mime,
-          }),
-        catch: (error: unknown) => error,
-      }).pipe(Effect.either);
-
-      if (outcome._tag === "Right") {
-        statements.push(
-          markStored(row.image_id, row.image_updated_at, outcome.right.sha256, Date.now()),
-        );
-        uploaded += 1;
-        bytes += outcome.right.byteSize;
-        tick(row.image_name);
-        continue;
-      }
-
-      const code = codeOf(outcome.left);
-      if (code === "local_missing") {
-        // The row was never this device's picture — it was pulled, and its bytes
-        // are somewhere else. The version it claimed is a lie, so it goes.
-        statements.push(forgetFile(row.image_id, row.image_updated_at));
-        skipped += 1;
-        tick(row.image_name);
-        continue;
-      }
-      if (code === "blob_conflict") {
-        statements.push(forgetFile(row.image_id, row.image_updated_at));
-        skipped += 1;
-        tick(row.image_name);
-        log.info(`sync: gambar ${row.image_id} sudah ada versi lain di server — mengikuti server`);
-        continue;
-      }
-      if (code === "image_unknown" || code === "image_deleted") {
-        // The server's row is missing or tombstoned. The next pull settles which
-        // copy is current, so nothing is written here.
-        skipped += 1;
-        tick(row.image_name);
-        continue;
-      }
-
-      failed += 1;
-      tick(row.image_name);
-      log.error(
-        new Error(
-          `sync: upload gambar ${row.image_id} gagal (${code || "?"}): ${messageOf(outcome.left)}`,
-        ),
+    const maxPasses = deps.maxPasses ?? MAX_PASSES;
+    for (let pass = 0; pass < maxPasses; pass += 1) {
+      const rows = yield* deps.db.selectMany<UploadRow>(
+        uploadSql(deps.productId),
+        deps.productId === undefined ? undefined : [deps.productId],
       );
+      // An empty pass is the drain signal: nothing is owed, so the loop is done.
+      if (rows.length === 0) break;
+
+      // What *this pass* will put on the wire. The sizes are on disk, not in the
+      // row, so they are read before the first upload rather than discovered from
+      // each answer — a byte counter that only ever shows its own past is not a
+      // bar. One missing file makes this pass `null`: a partial total under a byte
+      // counter is worse than none, and that file is about to answer
+      // `local_missing` anyway.
+      let passTotal: number | null = 0;
+      for (const row of rows) {
+        const size = yield* image.size(row.image_name).pipe(Effect.orElseSucceed(() => null));
+        if (size === null) {
+          passTotal = null;
+          break;
+        }
+        passTotal += size;
+      }
+      bytesTotal = bytesTotal === null || passTotal === null ? null : bytesTotal + passTotal;
+
+      const statements: { sql: string; bindings: (string | number | null)[] }[] = [];
+      let done = 0;
+      /**
+       * Rows whose state this pass actually changed.
+       *
+       * A statement is what removes a row from the predicate, so a `skipped` row
+       * with nothing written is *not* progress: an `image_unknown` row keeps
+       * matching the upload predicate, and another pass would select it forever.
+       */
+      let changed = 0;
+      const tick = (name: string | null, outcome: BlobOutcome): void => {
+        done += 1;
+        deps.onProgress?.({ done, total: rows.length, bytes, bytesTotal, name, outcome });
+      };
+
+      for (const row of rows) {
+        const outcome = yield* Effect.tryPromise({
+          try: () =>
+            deps.transport.blobPut(deps.endpoint, {
+              imageId: row.image_id,
+              version: row.image_updated_at,
+              fileName: row.image_name,
+              mime: row.image_mime,
+            }),
+          catch: (error: unknown) => error,
+        }).pipe(Effect.either);
+
+        if (outcome._tag === "Right") {
+          statements.push(
+            markStored(row.image_id, row.image_updated_at, outcome.right.sha256, Date.now()),
+          );
+          uploaded += 1;
+          changed += 1;
+          bytes += outcome.right.byteSize;
+          tick(row.image_name, "ok");
+          continue;
+        }
+
+        const code = codeOf(outcome.left);
+        if (code === "local_missing") {
+          // The row was never this device's picture — it was pulled, and its bytes
+          // are somewhere else. The version it claimed is a lie, so it goes.
+          statements.push(forgetFile(row.image_id, row.image_updated_at));
+          skipped += 1;
+          changed += 1;
+          tick(row.image_name, "skipped");
+          continue;
+        }
+        if (code === "blob_conflict") {
+          statements.push(forgetFile(row.image_id, row.image_updated_at));
+          skipped += 1;
+          changed += 1;
+          tick(row.image_name, "skipped");
+          log.info(`sync: gambar ${row.image_id} sudah ada versi lain di server — mengikuti server`);
+          continue;
+        }
+        if (code === "image_unknown" || code === "image_deleted") {
+          // The server's row is missing or tombstoned. The next pull settles which
+          // copy is current, so nothing is written here — and nothing changed, which
+          // is why this does not count as progress.
+          skipped += 1;
+          tick(row.image_name, "skipped");
+          continue;
+        }
+
+        failed += 1;
+        tick(row.image_name, "failed");
+        log.error(
+          new Error(
+            `sync: upload gambar ${row.image_id} gagal (${code || "?"}): ${messageOf(outcome.left)}`,
+          ),
+        );
+      }
+
+      if (statements.length > 0) yield* deps.db.transaction(statements);
+      // A pass that changed nothing selected rows this cycle cannot change — a
+      // tombstoned row, a file that is gone, a server that keeps answering 500.
+      // Another pass would pick the same rows and spin; the next cycle retries.
+      if (changed === 0) break;
     }
 
-    if (statements.length > 0) yield* deps.db.transaction(statements);
     return { uploaded, skipped, failed, bytes };
   }).pipe(
     // Bytes are a cache of the row: a failure here must never fail the group, or
     // one bad picture would block a catalogue that is already on disk.
     Effect.catchAllCause((cause) =>
       Effect.sync(() => {
-        log.error(new Error(`sync: pass unggah gambar gagal: ${String(cause)}`));
+        log.error(new Error(`sync: unggah gambar gagal: ${String(cause)}`));
         return { uploaded: 0, skipped: 0, failed: 0, bytes: 0 };
       }),
     ),
@@ -465,100 +523,127 @@ function readManifest(
  */
 export function fetchImageBlobs(deps: ImageBlobDeps): Effect.Effect<FetchReport> {
   return Effect.gen(function* () {
-    const rows = yield* deps.db.selectMany<FetchRow>(
-      fetchSql(deps.productId),
-      deps.productId === undefined ? undefined : [deps.productId],
-    );
-    if (rows.length === 0) return { fetched: 0, adopted: 0, missing: 0, bytes: 0 };
-
-    const manifest = yield* readManifest(deps);
-    const statements: { sql: string; bindings: (string | number | null)[] }[] = [];
+    // Cumulative across passes: one byte counter for the whole drain.
     let fetched = 0;
     let adopted = 0;
     let missing = 0;
     let bytes = 0;
-
-    // What this pass will download, decided before the first request so the bar
-    // has a denominator while the first photo is still arriving. The same three
-    // tests the loop below applies, in the same order (which is what makes the
-    // per-pass cap land on the same rows), plus the sizes from the manifest —
-    // the one place a byte total for a pull exists before it starts.
-    let planned = 0;
+    /** Known byte total so far; the manifest sizes every file it lists. */
     let bytesTotal = 0;
-    for (const row of rows) {
-      if (planned >= BLOB_LIMIT) break;
-      const entry = manifest.get(row.image_id);
-      if (entry === undefined) continue;
-      if (entry.version !== row.image_updated_at) continue;
-      if (row.image_blob_sha256 === entry.sha256) continue;
-      planned += 1;
-      bytesTotal += entry.byteSize;
-    }
 
-    let done = 0;
-    const tick = (name: string | null): void => {
-      done += 1;
-      deps.onProgress?.({ done, total: planned, bytes, bytesTotal, name });
-    };
+    const maxPasses = deps.maxPasses ?? MAX_PASSES;
+    for (let pass = 0; pass < maxPasses; pass += 1) {
+      const rows = yield* deps.db.selectMany<FetchRow>(
+        fetchSql(deps.productId),
+        deps.productId === undefined ? undefined : [deps.productId],
+      );
+      // An empty pass is the drain signal: every file this device can vouch for is
+      // already on disk.
+      if (rows.length === 0) break;
 
-    for (const row of rows) {
-      const entry = manifest.get(row.image_id);
-      if (entry === undefined) {
-        // No bytes on the server for this row: a placeholder, not a failure, and
-        // not a download — that is what keeps a shop with pictures only on one
-        // till from asking for them forever.
-        missing += 1;
-        continue;
+      const manifest = yield* readManifest(deps);
+      const statements: { sql: string; bindings: (string | number | null)[] }[] = [];
+
+      // What *this pass* will download, decided before the first request so the bar
+      // has a denominator while the first photo is still arriving. The same three
+      // tests the loop below applies, in the same order (which is what makes the
+      // per-pass cap land on the same rows), plus the sizes from the manifest —
+      // the one place a byte total for a pull exists before it starts.
+      let planned = 0;
+      let passTotal = 0;
+      for (const row of rows) {
+        if (planned >= BLOB_LIMIT) break;
+        const entry = manifest.get(row.image_id);
+        if (entry === undefined) continue;
+        if (entry.version !== row.image_updated_at) continue;
+        if (row.image_blob_sha256 === entry.sha256) continue;
+        planned += 1;
+        passTotal += entry.byteSize;
       }
-      if (entry.version !== row.image_updated_at) continue;
+      bytesTotal += passTotal;
 
-      // The server's bytes for exactly this version. If this device already holds
-      // that byte sequence (a reorder elsewhere moved the clock, not the picture),
-      // only the bookkeeping moves: no download, and the bytes are already on the
-      // server, so they must never be uploaded again.
-      if (row.image_blob_sha256 === entry.sha256) {
+      let done = 0;
+      /**
+       * Rows whose state this pass actually changed.
+       *
+       * A statement is what removes a row from the predicate, so a `skipped` row
+       * with nothing written is *not* progress: an `image_unknown` row keeps
+       * matching the upload predicate, and another pass would select it forever.
+       */
+      let changed = 0;
+      const tick = (name: string | null, outcome: BlobOutcome): void => {
+        done += 1;
+        deps.onProgress?.({ done, total: planned, bytes, bytesTotal, name, outcome });
+      };
+
+      for (const row of rows) {
+        const entry = manifest.get(row.image_id);
+        if (entry === undefined) {
+          // No bytes on the server for this row: a placeholder, not a failure, and
+          // not a download — that is what keeps a shop with pictures only on one
+          // till from asking for them forever.
+          missing += 1;
+          continue;
+        }
+        if (entry.version !== row.image_updated_at) continue;
+
+        // The server's bytes for exactly this version. If this device already holds
+        // that byte sequence (a reorder elsewhere moved the clock, not the picture),
+        // only the bookkeeping moves: no download, and the bytes are already on the
+        // server, so they must never be uploaded again.
+        if (row.image_blob_sha256 === entry.sha256) {
+          statements.push(markStored(row.image_id, row.image_updated_at, entry.sha256, Date.now()));
+          adopted += 1;
+          changed += 1;
+          continue;
+        }
+        // Everything above is bookkeeping; this is the pass's cap — a page is never
+        // held back by pictures, and the drain at the end of the pull takes the
+        // rest.
+        if (done >= BLOB_LIMIT) continue;
+
+        const outcome = yield* Effect.tryPromise({
+          try: () =>
+            deps.transport.blobGet(deps.endpoint, {
+              sha256: entry.sha256,
+              fileName: row.image_name,
+            }),
+          catch: (error: unknown) => error,
+        }).pipe(Effect.either);
+
+        if (outcome._tag === "Left") {
+          // `blob_missing` means the manifest was stale (the object was collected for
+          // a version nobody serves any more): the row keeps its state and the next
+          // manifest call tells the truth.
+          missing += 1;
+          tick(row.image_name, "skipped");
+          log.error(
+            new Error(
+              `sync: unduh gambar ${row.image_id} gagal (${codeOf(outcome.left) || "?"}): ${messageOf(outcome.left)}`,
+            ),
+          );
+          continue;
+        }
+
         statements.push(markStored(row.image_id, row.image_updated_at, entry.sha256, Date.now()));
-        adopted += 1;
-        continue;
-      }
-      // Everything above is bookkeeping; this is the pass's cap (§ "Bounded work").
-      if (done >= BLOB_LIMIT) continue;
-
-      const outcome = yield* Effect.tryPromise({
-        try: () =>
-          deps.transport.blobGet(deps.endpoint, {
-            sha256: entry.sha256,
-            fileName: row.image_name,
-          }),
-        catch: (error: unknown) => error,
-      }).pipe(Effect.either);
-
-      if (outcome._tag === "Left") {
-        // `blob_missing` means the manifest was stale (the object was collected for
-        // a version nobody serves any more): the row keeps its state and the next
-        // manifest call tells the truth.
-        missing += 1;
-        tick(row.image_name);
-        log.error(
-          new Error(
-            `sync: unduh gambar ${row.image_id} gagal (${codeOf(outcome.left) || "?"}): ${messageOf(outcome.left)}`,
-          ),
-        );
-        continue;
+        fetched += 1;
+        changed += 1;
+        bytes += outcome.right.byteSize;
+        tick(row.image_name, "ok");
       }
 
-      statements.push(markStored(row.image_id, row.image_updated_at, entry.sha256, Date.now()));
-      fetched += 1;
-      bytes += outcome.right.byteSize;
-      tick(row.image_name);
+      if (statements.length > 0) yield* deps.db.transaction(statements);
+      // Nothing changed means nothing will change this cycle: a stale manifest, a
+      // manifest entry for a version this device has not merged yet, or a file the
+      // server no longer serves.
+      if (changed === 0) break;
     }
 
-    if (statements.length > 0) yield* deps.db.transaction(statements);
     return { fetched, adopted, missing, bytes };
   }).pipe(
     Effect.catchAllCause((cause) =>
       Effect.sync(() => {
-        log.error(new Error(`sync: pass unduh gambar gagal: ${String(cause)}`));
+        log.error(new Error(`sync: unduh gambar gagal: ${String(cause)}`));
         return { fetched: 0, adopted: 0, missing: 0, bytes: 0 };
       }),
     ),
