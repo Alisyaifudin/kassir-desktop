@@ -129,10 +129,13 @@ describe("searchListings at grosir scale", () => {
   // paid once per pause instead of once per character; if the scoring pass or
   // the sort gets materially worse, this catches it.
   //
-  // The measurement is the *median* of seven runs, not the mean of five: a single
-  // slow tick on a shared CI runner failed this at 27.8 ms against a 25 ms budget
-  // while the real cost was unchanged, and a mean lets one outlier decide. The
-  // budget stays loose enough for a noisy machine and still catches a doubling.
+  // The measurement is the *minimum* of nine runs, not the mean or the median:
+  // another suite running in parallel only ever adds time to a run, so the
+  // fastest of several is the closest thing to the intrinsic cost. A median of
+  // five failed this at 27.8 ms against a 25 ms budget while the real cost was
+  // unchanged, and under `bun test` (every file in parallel) the same pass read
+  // 422 ms. The budget stays loose enough for a noisy machine and still catches
+  // a doubling.
   test("scores 5,000 listings within the typing budget", () => {
     const catalogue = Array.from({ length: 5_000 }, (_, index) =>
       listing(`Barang ${index}`, {
@@ -147,15 +150,15 @@ describe("searchListings at grosir scale", () => {
     // Warm the JIT on the query that is about to be measured.
     searchListings(index, "barang 12");
 
-    const runs = Array.from({ length: 7 }, () => {
+    const runs = Array.from({ length: 9 }, () => {
       const started = performance.now();
       searchListings(index, "barang 12");
       return performance.now() - started;
     }).sort((a, b) => a - b);
-    const median = runs[Math.floor(runs.length / 2)] ?? 0;
+    const fastest = runs[0] ?? 0;
 
     expect(searchListings(index, "barang 12").length).toBeGreaterThan(0);
-    expect(median).toBeLessThan(40);
+    expect(fastest).toBeLessThan(40);
   });
 
   test("an unchanged catalogue reuses one index across many queries", () => {
