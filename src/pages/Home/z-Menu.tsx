@@ -12,6 +12,7 @@ import {
   ReceiptText,
   Settings,
   ShoppingCart,
+  Tags,
   Users,
   Wallet,
   type LucideIcon,
@@ -77,6 +78,14 @@ const DESTINATIONS: Destination[] = [
     alt: "alt+2",
     hue: 115,
     description: "Katalog dan stok",
+  },
+  {
+    label: "Kategori",
+    path: "/categories",
+    icon: Tags,
+    admin: true,
+    hue: 160,
+    description: "Kelompok produk",
   },
   {
     label: "Biaya Lainnya",

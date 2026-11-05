@@ -46,6 +46,7 @@ import {
 import {
   countUnsyncedProductSql,
   countUnsyncedSql,
+  inProductScope,
   markSyncedStatement,
   selectChildrenByRecordsSql,
   selectUnsyncedAggregateSql,
@@ -262,6 +263,9 @@ function readBatch(
     for (const entity of def.entities) {
       const remaining = def.pushFrames - frames.length;
       if (remaining <= 0) break;
+      // A scoped push covers one product's baggage; a group-wide entity (a
+      // category) is not in it, and has no `product_id` to filter on.
+      if (productId !== undefined && !inProductScope(entity)) continue;
 
       if (entity.kind === "aggregate") {
         const rows = yield* db
@@ -376,6 +380,7 @@ export function countUnsynced(
   return Effect.gen(function* () {
     let total = 0;
     for (const entity of GROUPS[group].entities) {
+      if (productId !== undefined && !inProductScope(entity)) continue;
       const rows = yield* db
         .selectMany<{ total: number }>(
           productId === undefined

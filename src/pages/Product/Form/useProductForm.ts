@@ -183,6 +183,7 @@ function buildProductInput(draft: ProductDraft): ProductInput {
       key: property.name.trim(),
       value: property.value,
     })),
+    categoryIds: [...draft.categories],
   };
 }
 
@@ -351,6 +352,21 @@ export function useProductForm(initial?: ProductDraft) {
     [edit],
   );
 
+  /**
+   * Tick or untick one category. A tick is its own undo step — it is a discrete
+   * decision, not a typed word — so it never coalesces.
+   */
+  const toggleCategory = useCallback(
+    (id: string) =>
+      edit(null, (d) => ({
+        ...d,
+        categories: d.categories.includes(id)
+          ? d.categories.filter((entry) => entry !== id)
+          : [...d.categories, id],
+      })),
+    [edit],
+  );
+
   const undo = useCallback(() => {
     setErrors({});
     setState((s) => {
@@ -416,6 +432,7 @@ export function useProductForm(initial?: ProductDraft) {
     addProductName,
     removeProductName,
     updateProductName,
+    toggleCategory,
     undo,
     redo,
     canUndo: state.past.length > 0,

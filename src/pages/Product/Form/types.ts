@@ -34,6 +34,16 @@ export type ProductDraft = {
   stocks: StockDraft[];
   properties: PropertyDraft[];
   productNames: ProductNameDraft[];
+  /**
+   * The ids of the categories the product is filed under.
+   *
+   * Ids, not names: a category is its own row (`categories`) and the picker reads
+   * the list, so a rename reaches every product without touching a draft. Seeded
+   * from the product's live links and only ever added to or removed from here —
+   * an id whose category this device has not received yet stays in the list, so a
+   * save cannot drop a link the screen could not draw.
+   */
+  categories: string[];
 };
 
 /**
@@ -82,6 +92,7 @@ export function emptyDraft(): ProductDraft {
     stocks: [newStock()],
     properties: [],
     productNames: [],
+    categories: [],
   };
 }
 
@@ -121,6 +132,7 @@ export function draftFromProduct(product: ProductFull): ProductDraft {
       key: name.id,
       value: name.value,
     })),
+    categories: [...product.categoryIds],
   };
 }
 

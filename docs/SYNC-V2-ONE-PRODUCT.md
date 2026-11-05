@@ -73,6 +73,13 @@ re-parent; the B detail page (or the full product cycle) will. This is the same
 rule the full sync uses — a listing is a normal LWW row, and its `product_id` is
 an ordinary editable column.
 
+`category` is the one exception: it carries no `product_id`, because a category
+is a shared label rather than a child of a product. A scoped push skips it and
+leaves it to the full product cycle. The link row `product_category` **is** in
+scope (it has a `product_id`), so it can arrive naming a category neither side
+has received yet — the dangling reference `SYNC-V2.md` §7.2 tolerates: store it,
+keep it, do not draw it.
+
 ### 1.2 Endpoints
 
 | Direction | Call | What comes back |
@@ -94,6 +101,7 @@ gzip rules and error envelope as every other v2 route (`SYNC-V2.md` §2).
 | `listing` | all rows with `product_id = P`, including tombstones |
 | `image` | all rows with `product_id = P`, including tombstones |
 | `product_event` | all events with `product_id = P`; append-only, never deleted |
+| `category` | none — a group-wide row with no `product_id`; the full product cycle carries it |
 
 `stocks` is **not** in the baggage. It is a local projection of the event
 journal and is rebuilt by the client's existing `mergePage` rule after events

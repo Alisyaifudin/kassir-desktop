@@ -17,6 +17,7 @@ import type {
 } from "~/services/product";
 import { draftFromProduct, parseNumber, toListingInput } from "../../Form/types";
 import { useProductForm } from "../../Form/useProductForm";
+import { CategoriesFields } from "../../Form/z-CategoriesFields";
 import { Field } from "../../Form/z-Field";
 import { INFO_LABELS, INFO_PLACEHOLDERS, InfoFields } from "../../Form/z-InfoFields";
 import {
@@ -196,6 +197,19 @@ export function EditPane({ product }: { product: ProductFull }) {
       }
     }
 
+    // Categories are a set, not a list: order means nothing here, so compare as
+    // sets and send one write — it adds the new links and tombstones the dropped
+    // ones in a single transaction. An id the picker could not draw (a category
+    // this device has not received yet) is still in the draft, so it is kept.
+    const originalCategories = new Set(product.categoryIds);
+    const draftCategories = new Set(draft.categories);
+    const categoriesChanged =
+      originalCategories.size !== draftCategories.size ||
+      [...draftCategories].some((id) => !originalCategories.has(id));
+    if (categoriesChanged) {
+      ops.push(service.product.set.categories(product.id, draft.categories));
+    }
+
     return ops;
   }
 
@@ -269,6 +283,7 @@ export function EditPane({ product }: { product: ProductFull }) {
           <div className="px-4 py-4">
             <InfoFields form={form} disabled={busy} />
           </div>
+          <CategoriesFields form={form} disabled={busy} />
           <ProductNamesFields form={form} disabled={busy} />
           <ListingsFields form={form} disabled={busy} />
           <StocksFields

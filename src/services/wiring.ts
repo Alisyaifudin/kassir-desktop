@@ -5,6 +5,8 @@ import { AuthService } from "./auth";
 import { AuthLive } from "./auth/live";
 import { CashierService } from "./cashier";
 import { CashierLive } from "./cashier/live";
+import { CategoryService } from "./category";
+import { CategoryLive } from "./category/live";
 import { ConfigService } from "./config";
 import { ConfigLive } from "./config/live";
 import { CustomerService } from "./customer";
@@ -60,6 +62,7 @@ export type HiddenLive = typeof hiddenLive;
 export function buildAppLive(hidden: HiddenLive) {
   const analyticsLive = AnalyticsLive.pipe(Layer.provide(hidden));
   const cashierLive = CashierLive.pipe(Layer.provide(hidden));
+  const categoryLive = CategoryLive.pipe(Layer.provide(hidden));
   const extraLive = ExtraLive.pipe(Layer.provide(hidden));
   const configLive = ConfigLive.pipe(Layer.provide(hidden));
   const customerLive = CustomerLive.pipe(Layer.provide(hidden));
@@ -93,6 +96,7 @@ export function buildAppLive(hidden: HiddenLive) {
     Layer.provide(
       Layer.mergeAll(
         productLive,
+        categoryLive,
         customerLive,
         supplierLive,
         extraLive,
@@ -110,6 +114,7 @@ export function buildAppLive(hidden: HiddenLive) {
     analyticsLive,
     configLive,
     cashierLive,
+    categoryLive,
     customerLive,
     extraLive,
     infoLive,
@@ -147,6 +152,7 @@ export function makeService(live: typeof appLive) {
         analytics: yield* AnalyticsService,
         config: yield* ConfigService,
         cashier: yield* CashierService,
+        category: yield* CategoryService,
         customer: yield* CustomerService,
         extra: yield* ExtraService,
         info: yield* InfoService,

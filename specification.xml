@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.7.1</version>
+  <version>8.8.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -745,6 +745,8 @@
         <table name="listings">one priced unit of a product; listing_name/price/unit/kind/code (code unique across live listings, NOCASE), soft delete</table>
         <table name="stocks">the local lot cache: stock_value, stock_capital, created/updated; never synced</table>
         <table name="product_events">append-only stock journal (manual/inc/dec), linked to the record and the stock lot; indexed by product, stock and record</table>
+        <table name="categories">a product's labels: category_name (one live row per name, NOCASE) + sync trio. Group-wide, so it carries no product_id and is outside the one-product scope</table>
+        <table name="product_category">the many-to-many link (product_id, category_id) with an id of its own + sync trio; one live link per pair, a dropped link is a tombstone. See migration 53</table>
         <table name="product_names / properties / images">alternative names, key/value properties, image references (name + mime under AppData/images); img_mimes is the allowed set (png/jpeg/webp). Since migration 50 `images` also carries the three client-only byte columns: image_blob_version (the image_updated_at the local file belongs to), image_blob_sha256 (its digest) and image_blob_sync_at (NULL = the server never accepted the bytes). None of them is on the wire.</table>
       </group>
       <group name="history">
@@ -781,7 +783,8 @@
       <owner service="extra">extras</owner>
       <owner service="social">socials</owner>
       <owner service="money">pockets, money</owner>
-      <owner service="product">products, listings, properties, images, stocks, product_events, product_names</owner>
+      <owner service="product">products, listings, properties, images, stocks, product_events, product_names, product_category</owner>
+      <owner service="category">categories</owner>
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
       <owner service="config">localStorage key "product-view"</owner>
@@ -941,6 +944,26 @@
       </interface>
     </service>
 
+    <service name="category" module="src/services/category/">
+      <description>
+        The category catalog: a label a product can be filed under, and nothing else (no colour, no order, no nesting).
+        A product belongs to zero or more categories through `product_category`, which `ProductService` writes — the
+        link is a child of the product, the name is this service's. One live row per name, case-insensitively, so
+        "Minuman" and "minuman" are the same category.
+      </description>
+      <error name="CategoryError" tag="CategoryError" />
+      <error name="CategoryDuplicateName" tag="CategoryDuplicateName" field="value">
+        A live category already holds that name. The one failure the shop can fix, so the screens word it as advice.
+      </error>
+      <interface>
+        <method name="get.all() / get.changes">Ordered by name (NOCASE) in SQL; a write re-reads the row and re-sorts locally.</method>
+        <method name="add(input) => id">category_name_unique refuses a duplicate live name.</method>
+        <method name="set.name(id, name)">Bumps category_updated_at, clears category_sync_at.</method>
+        <method name="delete.byId(id)">Soft delete via category_deleted_at. The product links that named it are kept as orphans, not deleted.</method>
+        <method name="refresh()">Re-reads the table after a product-group sync merge.</method>
+      </interface>
+    </service>
+
     <service name="extra" module="src/services/extra/">
       <description>
         The surcharge/discount catalog. The DUAL_FLAG bit in `flag` marks an extra that books twice: a sale carrying
@@ -1039,13 +1062,16 @@
         The product aggregate: a product with its listings (priced units, at most one code each, unique across live
         listings), properties, alternative names, images and stock lots. The read model's `stock` and `capital` are
         derived — the sum of the lots and their weighted-average cost. Owns products, listings, properties,
-        product_names, images, stocks and product_events.
+        product_names, images, stocks, product_events and the `product_category` links; the category names are
+        `CategoryService`'s. `ProductFull.categoryIds` carries the live link ids so the form can tick them, and
+        `ProductInput.categoryIds` files a new product in the same transaction that creates it.
       </description>
       <error name="ProductError" tag="ProductError">Plus ProductDuplicateCode, carrying the code that was already taken.</error>
       <state>One SubscriptionRef of the whole read model; a write re-hydrates the touched rows, and get.changes / changesFull / unsync read from it.</state>
       <interface>
         <method name="get.all / get.byId / get.byCode / get.unsync / get.performance(id, range) / get.changes / get.changesFull" />
-        <method name="add(input) => id">One transaction: the product, at least one listing, optional codes, and one stock lot. Values are validated here (no negative price or cost basis from any writer).</method>
+        <method name="add(input) => id">One transaction: the product, at least one listing, optional codes, one stock lot and the category links. Values are validated here (no negative price or cost basis from any writer).</method>
+        <method name="set.categories(id, categoryIds)">Make the live links exactly this list: insert the new ones, tombstone the dropped ones, one transaction. A list that changes nothing writes nothing (no clock bump, so nothing re-enters the push queue).</method>
         <method name="set.info / set.publish(id, published) / set.listing.{add, update, remove} / set.property.{add, update, remove} / set.productName.{add, update, remove} / set.image.{add, commit, remove, reorder}" />
         <method name="stock.{receive, consume, adjust, history}">FIFO consume and cost-lot receive; the pure builders in product/stock-sql.ts are shared with the record service.</method>
         <method name="delete(id)">Soft-delete the product; children ride the aggregate.</method>
@@ -1170,7 +1196,8 @@
   <sync_system status="implemented">
     <description>
       Sync v2, grouped by tables. All eight groups ship: `money` (pockets + ledger), `customer`, `supplier`,
-      `method`, `social`, `extra`, `product` (catalog + stock journal) and `record` (the sale aggregate).
+      `method`, `social`, `extra`, `product` (catalog, categories and stock journal) and `record` (the sale
+      aggregate).
       Contract: SYNC-V2.md. A group is an independent stream: its own endpoint pair, its own column dictionaries,
       its own bookmark. The service runs pull → merge → push → pull per group, in `SYNC_GROUPS` order, and reports
       one `GroupState` per group so the UI shows a progress bar each. `cashiers`, `cashier_roles`, `stocks` (derived
@@ -1179,7 +1206,7 @@
       no log entry, no bookmark.
     </description>
     <schema_contract>
-      <item name="canonical_json">schema.ts freezes every entity's column order once (16 row entities plus the record header and its five child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
+      <item name="canonical_json">schema.ts freezes every entity's column order once (18 row entities plus the record header and its five child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
       <item name="bookmark">`sync_bookmark(group_name, seq)` in SQLite — one integer per group, advanced to `done.s` (not `meta.snapshot`: a page can stop early) and written in the SAME transaction as the page's rows. A pre-table database reads its `sync.&lt;group&gt;.bookmark` store key once and migrates it.</item>
       <item name="park">`sync_parked_money(money_id, seq, row_json)` holds money rows whose pocket is not on the device yet. They are never dropped and never abort a page; every later page retries them, keyed by id so a re-pulled page parks one row once. Written with the page's bookmark.</item>
       <item name="sync_at">`&lt;x&gt;_sync_at` is the push marker and holds the server's `seq`: NULL means owed. Merged rows are marked immediately so they are not pushed back. Every marker and `stale` write is guarded on the row's clock, so an edit that lands while its frame is in flight is not lost (§4.12).</item>
@@ -1334,6 +1361,14 @@
       <subpages>
         <subpage path="/money/:pocketId" guard="in-page admin">One pocket's ledger over a date range in the URL: editable name and type, the entries table (day, date, time, diff for `change` pockets, value, note), expandable rows, a settings dialog with delete-pocket / JSON upload / JSON download, and the new-entry button.</subpage>
       </subpages>
+    </page>
+
+    <page name="category" path="/categories" status="new">
+      <description>
+        The category catalog, for admins: a list of names with inline rename and a delete dialog, plus a create dialog.
+        The product form's picker reads the same list (its own page-data key), and `product.set.categories` writes the
+        links. Deleting a category keeps the products and leaves their links as orphans.
+      </description>
     </page>
 
     <page name="extra" path="/extras" status="migrated">

@@ -89,6 +89,7 @@ const product: ProductFull = {
   ],
   productNames: [],
   images: [],
+  categoryIds: [],
 };
 
 mock.module("~/services", () => ({

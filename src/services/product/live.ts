@@ -78,6 +78,14 @@ type ImageRow = {
   image_sync_at: number | null;
 };
 
+type ProductCategoryRow = {
+  product_category_id: string;
+  product_id: string;
+  category_id: string;
+  product_category_updated_at: number;
+  product_category_sync_at: number | null;
+};
+
 type StockRow = {
   stock_id: string;
   product_id: string;
@@ -124,6 +132,22 @@ type ProductState = {
   properties: Property[];
   productNames: ProductName[];
   images: ProductImage[];
+  /**
+   * The live `product_category` rows for this product.
+   *
+   * The link row is kept, not just its `category_id`: a save has to soft-delete
+   * the row it drops, and a row has an id of its own (the pair is not the key —
+   * see migration-53).
+   */
+  links: ProductCategoryLink[];
+};
+
+/** One live `product_category` row: which category, and the row that says so. */
+type ProductCategoryLink = {
+  id: string;
+  categoryId: string;
+  updatedAt: number;
+  syncAt: number | null;
 };
 
 function rowToListing(row: ListingRow): Listing {
@@ -170,6 +194,15 @@ function rowToImage(row: ImageRow): ProductImage {
     mime: row.image_mime,
     updatedAt: row.image_updated_at,
     syncAt: row.image_sync_at,
+  };
+}
+
+function rowToLink(row: ProductCategoryRow): ProductCategoryLink {
+  return {
+    id: row.product_category_id,
+    categoryId: row.category_id,
+    updatedAt: row.product_category_updated_at,
+    syncAt: row.product_category_sync_at,
   };
 }
 
@@ -256,6 +289,7 @@ function toProductFull(state: ProductState): ProductFull {
     properties: state.properties,
     productNames: state.productNames,
     images: [...state.images].sort((a, b) => a.order - b.order),
+    categoryIds: state.links.map((link) => link.categoryId),
   };
 }
 
@@ -351,6 +385,9 @@ function childTombstones(productId: string, now: number): Statement[] {
     { table: "properties", prefix: "property" },
     { table: "listings", prefix: "listing" },
     { table: "images", prefix: "image" },
+    // The category links are children of the product too: a product that is gone
+    // must not keep showing up in a category's list.
+    { table: "product_category", prefix: "product_category" },
   ] as const;
   return children.map(({ table, prefix }) => ({
     sql: `UPDATE ${table} SET
@@ -377,6 +414,17 @@ function productNameInsert(
   };
 }
 
+/** One live link row. The pair is not the key — the row has an id of its own. */
+function categoryLinkInsert(productId: string, categoryId: string, now: number): Statement {
+  return {
+    sql: `INSERT INTO product_category (
+        product_category_id, product_id, category_id,
+        product_category_updated_at, product_category_sync_at, product_category_deleted_at
+      ) VALUES ($1, $2, $3, $4, NULL, NULL)`,
+    bindings: [generateId(), productId, categoryId, now],
+  };
+}
+
 const SELECT_PRODUCTS =
   "SELECT product_id, product_name, product_note, product_flag, product_updated_at, product_sync_at FROM products WHERE product_deleted_at IS NULL";
 const SELECT_LISTINGS =
@@ -387,6 +435,10 @@ const SELECT_PRODUCT_NAMES =
   "SELECT product_name_id, product_id, product_name_value, product_name_updated_at, product_name_sync_at FROM product_names WHERE product_name_deleted_at IS NULL";
 const SELECT_IMAGES =
   "SELECT image_id, product_id, image_order, image_name, image_mime, image_updated_at, image_sync_at FROM images WHERE image_deleted_at IS NULL";
+// Live links only: a soft-deleted link is a tombstone for the sync, not a
+// category the product is filed under.
+const SELECT_PRODUCT_CATEGORIES =
+  "SELECT product_category_id, product_id, category_id, product_category_updated_at, product_category_sync_at FROM product_category WHERE product_category_deleted_at IS NULL";
 const SELECT_STOCKS =
   "SELECT stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at FROM stocks";
 // `record_listings` no longer carries `listing_id` (the product snapshot is the
@@ -437,15 +489,23 @@ export const ProductLive = Layer.effect(
 
     function loadAll(): Effect.Effect<ProductState[], ProductError> {
       return Effect.gen(function* () {
-        const [productRows, listingRows, propertyRows, productNameRows, imageRows, stockRows] =
-          yield* Effect.all([
-            db.selectMany<ProductRow>(SELECT_PRODUCTS),
-            db.selectMany<ListingRow>(SELECT_LISTINGS),
-            db.selectMany<PropertyRow>(SELECT_PROPERTIES),
-            db.selectMany<ProductNameRow>(SELECT_PRODUCT_NAMES),
-            db.selectMany<ImageRow>(SELECT_IMAGES),
-            db.selectMany<StockRow>(SELECT_STOCKS),
-          ]).pipe(Effect.mapError(dbErrorToProductError));
+        const [
+          productRows,
+          listingRows,
+          propertyRows,
+          productNameRows,
+          imageRows,
+          stockRows,
+          categoryRows,
+        ] = yield* Effect.all([
+          db.selectMany<ProductRow>(SELECT_PRODUCTS),
+          db.selectMany<ListingRow>(SELECT_LISTINGS),
+          db.selectMany<PropertyRow>(SELECT_PROPERTIES),
+          db.selectMany<ProductNameRow>(SELECT_PRODUCT_NAMES),
+          db.selectMany<ImageRow>(SELECT_IMAGES),
+          db.selectMany<StockRow>(SELECT_STOCKS),
+          db.selectMany<ProductCategoryRow>(SELECT_PRODUCT_CATEGORIES),
+        ]).pipe(Effect.mapError(dbErrorToProductError));
 
         return toStates({
           productRows,
@@ -454,6 +514,7 @@ export const ProductLive = Layer.effect(
           productNameRows,
           imageRows,
           stockRows,
+          categoryRows,
         });
       });
     }
@@ -467,21 +528,32 @@ export const ProductLive = Layer.effect(
     function loadMany(ids: string[]): Effect.Effect<ProductState[], ProductError> {
       const inList = ids.map((_, index) => `$${index + 1}`).join(", ");
       return Effect.gen(function* () {
-        const [productRows, listingRows, propertyRows, productNameRows, imageRows, stockRows] =
-          yield* Effect.all([
-            db.selectMany<ProductRow>(`${SELECT_PRODUCTS} AND product_id IN (${inList})`, ids),
-            db.selectMany<ListingRow>(`${SELECT_LISTINGS} AND product_id IN (${inList})`, ids),
-            db.selectMany<PropertyRow>(`${SELECT_PROPERTIES} AND product_id IN (${inList})`, ids),
-            db.selectMany<ProductNameRow>(
-              `${SELECT_PRODUCT_NAMES} AND product_id IN (${inList})`,
-              ids,
-            ),
-            db.selectMany<ImageRow>(`${SELECT_IMAGES} AND product_id IN (${inList})`, ids),
-            db.selectMany<StockRow>(
-              `${SELECT_STOCKS} WHERE product_id IN (${inList})`,
-              ids,
-            ),
-          ]).pipe(Effect.mapError(dbErrorToProductError));
+        const [
+          productRows,
+          listingRows,
+          propertyRows,
+          productNameRows,
+          imageRows,
+          stockRows,
+          categoryRows,
+        ] = yield* Effect.all([
+          db.selectMany<ProductRow>(`${SELECT_PRODUCTS} AND product_id IN (${inList})`, ids),
+          db.selectMany<ListingRow>(`${SELECT_LISTINGS} AND product_id IN (${inList})`, ids),
+          db.selectMany<PropertyRow>(`${SELECT_PROPERTIES} AND product_id IN (${inList})`, ids),
+          db.selectMany<ProductNameRow>(
+            `${SELECT_PRODUCT_NAMES} AND product_id IN (${inList})`,
+            ids,
+          ),
+          db.selectMany<ImageRow>(`${SELECT_IMAGES} AND product_id IN (${inList})`, ids),
+          db.selectMany<StockRow>(
+            `${SELECT_STOCKS} WHERE product_id IN (${inList})`,
+            ids,
+          ),
+          db.selectMany<ProductCategoryRow>(
+            `${SELECT_PRODUCT_CATEGORIES} AND product_id IN (${inList})`,
+            ids,
+          ),
+        ]).pipe(Effect.mapError(dbErrorToProductError));
 
         return toStates({
           productRows,
@@ -490,6 +562,7 @@ export const ProductLive = Layer.effect(
           productNameRows,
           imageRows,
           stockRows,
+          categoryRows,
         });
       });
     }
@@ -501,9 +574,17 @@ export const ProductLive = Layer.effect(
       productNameRows: ProductNameRow[];
       imageRows: ImageRow[];
       stockRows: StockRow[];
+      categoryRows: ProductCategoryRow[];
     }): ProductState[] {
-      const { productRows, listingRows, propertyRows, productNameRows, imageRows, stockRows } =
-        rows;
+      const {
+        productRows,
+        listingRows,
+        propertyRows,
+        productNameRows,
+        imageRows,
+        stockRows,
+        categoryRows,
+      } = rows;
       const byId = new Map<string, ProductState>();
       for (const row of productRows) {
         byId.set(row.product_id, {
@@ -518,6 +599,7 @@ export const ProductLive = Layer.effect(
           properties: [],
           productNames: [],
           images: [],
+          links: [],
         });
       }
       for (const row of listingRows) byId.get(row.product_id)?.listings.push(rowToListing(row));
@@ -526,6 +608,7 @@ export const ProductLive = Layer.effect(
         byId.get(row.product_id)?.productNames.push(rowToProductName(row));
       for (const row of imageRows) byId.get(row.product_id)?.images.push(rowToImage(row));
       for (const row of stockRows) byId.get(row.product_id)?.stocks.push(rowToStock(row));
+      for (const row of categoryRows) byId.get(row.product_id)?.links.push(rowToLink(row));
 
       const states = [...byId.values()];
       for (const state of states) {
@@ -609,6 +692,15 @@ export const ProductLive = Layer.effect(
       );
     }
 
+    function sameLink(a: ProductCategoryLink, b: ProductCategoryLink): boolean {
+      return (
+        a.id === b.id &&
+        a.categoryId === b.categoryId &&
+        a.updatedAt === b.updatedAt &&
+        a.syncAt === b.syncAt
+      );
+    }
+
     function sameState(a: ProductState, b: ProductState): boolean {
       return (
         a.name === b.name &&
@@ -620,7 +712,8 @@ export const ProductLive = Layer.effect(
         sameChildren(a.stocks, b.stocks, sameStock) &&
         sameChildren(a.properties, b.properties, sameProperty) &&
         sameChildren(a.productNames, b.productNames, sameProductName) &&
-        sameChildren(a.images, b.images, sameImage)
+        sameChildren(a.images, b.images, sameImage) &&
+        sameChildren(a.links, b.links, sameLink)
       );
     }
 
@@ -820,6 +913,11 @@ export const ProductLive = Layer.effect(
           for (const property of input.properties) {
             statements.push(propertyInsert(productId, generateId(), property, now));
           }
+          // `Set` because the form hands over ticks: two of them can never mean
+          // two rows (the pair index refuses the second), so dedupe here.
+          for (const categoryId of new Set(input.categoryIds ?? [])) {
+            statements.push(categoryLinkInsert(productId, categoryId, now));
+          }
 
           const code = input.listings.find((listing) => listing.code)?.code ?? null;
           yield* db
@@ -862,6 +960,45 @@ export const ProductLive = Layer.effect(
                 bindings: [now, id],
               },
             ]);
+            yield* hydrateMany([id]);
+          });
+        },
+        categories(id, categoryIds) {
+          return Effect.gen(function* () {
+            yield* ensureLoaded();
+            const states = yield* SubscriptionRef.get(productsRef);
+            const state = states.find((entry) => entry.id === id);
+            if (state === undefined) {
+              return yield* Effect.fail(new ProductError({ message: "Produk tidak ditemukan" }));
+            }
+
+            const desired = new Set(categoryIds);
+            const live = new Set(state.links.map((link) => link.categoryId));
+            const now = Date.now();
+            const statements: Statement[] = [];
+
+            // Only the links that are actually gone: a save that changed nothing
+            // about categories must not touch a single row (and must not bump a
+            // clock, which would put the product back in the push queue).
+            for (const link of state.links) {
+              if (desired.has(link.categoryId)) continue;
+              statements.push({
+                sql: `UPDATE product_category SET
+                    product_category_deleted_at = max($1, product_category_updated_at + 1),
+                    product_category_updated_at = max($1, product_category_updated_at + 1),
+                    product_category_sync_at = NULL
+                  WHERE product_category_id = $2`,
+                bindings: [now, link.id],
+              });
+            }
+            for (const categoryId of desired) {
+              if (!live.has(categoryId)) {
+                statements.push(categoryLinkInsert(id, categoryId, now));
+              }
+            }
+            if (statements.length === 0) return;
+
+            yield* commit(statements);
             yield* hydrateMany([id]);
           });
         },

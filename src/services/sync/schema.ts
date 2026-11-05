@@ -381,6 +381,38 @@ export const TABLES: Record<string, EntityDef> = {
     "lww",
     "product_name COLLATE NOCASE, product_id",
   ),
+  category: row(
+    "product",
+    "category",
+    "categories",
+    "category_id",
+    ["category_id", "category_name", "category_updated_at", "category_deleted_at"],
+    ["category_deleted_at"],
+    "category_updated_at",
+    "category_deleted_at",
+    "category_sync_at",
+    "lww",
+    "category_name COLLATE NOCASE, category_id",
+  ),
+  product_category: row(
+    "product",
+    "product_category",
+    "product_category",
+    "product_category_id",
+    [
+      "product_category_id",
+      "product_id",
+      "category_id",
+      "product_category_updated_at",
+      "product_category_deleted_at",
+    ],
+    ["product_category_deleted_at"],
+    "product_category_updated_at",
+    "product_category_deleted_at",
+    "product_category_sync_at",
+    "lww",
+    "product_id, category_id, product_category_id",
+  ),
   product_name: row(
     "product",
     "product_name",
@@ -544,7 +576,18 @@ export const GROUPS: Record<SyncGroup, GroupDef> = {
   extra: group("extra", ["extra"], SIMPLE_LIMITS),
   product: group(
     "product",
-    ["product", "product_name", "property", "listing", "image", "product_event"],
+    [
+      // Parents before children (§7.1): a link row names both a product and a
+      // category, so both land first when one page carries the three of them.
+      "product",
+      "category",
+      "product_category",
+      "product_name",
+      "property",
+      "listing",
+      "image",
+      "product_event",
+    ],
     SIMPLE_LIMITS,
   ),
   record: group(

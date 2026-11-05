@@ -301,7 +301,9 @@ describe("product writes read narrowly", () => {
       }),
     );
 
-    expect(queries).toHaveLength(6);
+    // One SELECT per table of the aggregate: products, listings, properties,
+    // product_names, images, stocks, product_category.
+    expect(queries).toHaveLength(7);
     for (const query of queries) expect(query).toContain("product_id IN");
   });
 
@@ -647,5 +649,125 @@ describe("listing codes and kinds", () => {
       listing_kind: string;
     };
     expect(row).toEqual({ listing_kind: "" });
+  });
+});
+
+// ============================================================================
+// Categories: the many-to-many link, written with the product it belongs to
+// ============================================================================
+//
+// `product_category` is a row with an id of its own (migration-53), not a pair
+// key, so "remove a category" is a soft delete and "add it back" is a new row.
+// The service owns that shape: the form hands over the ids it wants and
+// `set.categories` works out which rows to insert and which to tombstone.
+
+describe("categories on a product", () => {
+  function seedCategory(db: ReturnType<typeof makeTestDatabase>["db"], id: string, name: string) {
+    db.query(
+      `INSERT INTO categories (category_id, category_name, category_updated_at)
+       VALUES (?, ?, 1)`,
+    ).run(id, name);
+  }
+
+  test("add files the product under the categories it was given", async () => {
+    const { db, layer } = setup();
+    seedCategory(db, "c-minuman", "Minuman");
+    seedCategory(db, "c-sabun", "Sabun");
+
+    const ids = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add({ ...input("Kopi"), categoryIds: ["c-minuman"] });
+        const full = yield* product.get.byId(id);
+        return full.categoryIds;
+      }),
+    );
+
+    expect(ids).toEqual(["c-minuman"]);
+  });
+
+  test("set.categories makes the live links exactly the list it was given", async () => {
+    const { db, layer } = setup();
+    seedCategory(db, "c-minuman", "Minuman");
+    seedCategory(db, "c-sabun", "Sabun");
+
+    const ids = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add({ ...input("Kopi"), categoryIds: ["c-minuman"] });
+        yield* product.set.categories(id, ["c-minuman", "c-sabun"]);
+        const added = (yield* product.get.byId(id)).categoryIds;
+        yield* product.set.categories(id, ["c-sabun"]);
+        const dropped = (yield* product.get.byId(id)).categoryIds;
+        return { added, dropped };
+      }),
+    );
+
+    expect(ids.added).toEqual(["c-minuman", "c-sabun"]);
+    expect(ids.dropped).toEqual(["c-sabun"]);
+  });
+
+  test("a dropped link is a tombstone, not a deleted row", async () => {
+    const { db, layer } = setup();
+    seedCategory(db, "c-minuman", "Minuman");
+
+    await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add({ ...input("Kopi"), categoryIds: ["c-minuman"] });
+        yield* product.set.categories(id, []);
+      }),
+    );
+
+    const row = db
+      .query(
+        `SELECT product_category_deleted_at, product_category_sync_at
+         FROM product_category WHERE product_id IN (SELECT product_id FROM products)`,
+      )
+      .get() as { product_category_deleted_at: number | null; product_category_sync_at: number | null };
+
+    expect(row.product_category_deleted_at).not.toBeNull();
+    // Dirty: the tombstone still owes the server a push.
+    expect(row.product_category_sync_at).toBeNull();
+  });
+
+  test("a save that changes no category writes nothing", async () => {
+    const { db, layer } = setup();
+    seedCategory(db, "c-minuman", "Minuman");
+
+    const clock = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add({ ...input("Kopi"), categoryIds: ["c-minuman"] });
+        const before = db
+          .query(
+            "SELECT product_category_updated_at FROM product_category WHERE category_id = ?",
+          )
+          .get("c-minuman") as { product_category_updated_at: number };
+        yield* product.set.categories(id, ["c-minuman"]);
+        const after = db
+          .query(
+            "SELECT product_category_updated_at FROM product_category WHERE category_id = ?",
+          )
+          .get("c-minuman") as { product_category_updated_at: number };
+        return { before: before.product_category_updated_at, after: after.product_category_updated_at };
+      }),
+    );
+
+    // Bumping the clock would put the row back in the push queue for nothing.
+    expect(clock.after).toBe(clock.before);
+  });
+
+  test("deleting a product tombstones its category links", async () => {
+    const { db, layer } = setup();
+    seedCategory(db, "c-minuman", "Minuman");
+
+    await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add({ ...input("Kopi"), categoryIds: ["c-minuman"] });
+        yield* product.delete(id);
+      }),
+    );
+
+    const row = db
+      .query("SELECT product_category_deleted_at FROM product_category WHERE category_id = ?")
+      .get("c-minuman") as { product_category_deleted_at: number | null };
+    expect(row.product_category_deleted_at).not.toBeNull();
   });
 });

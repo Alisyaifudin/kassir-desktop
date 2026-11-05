@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/button";
 import type { ProductFull, ProductInput } from "~/services/product";
 import { draftFromProduct } from "./types";
 import { useProductForm } from "./useProductForm";
+import { CategoriesFields } from "./z-CategoriesFields";
 import { InfoFields } from "./z-InfoFields";
 import { ListingsFields } from "./z-ListingsFields";
 import { PropertiesFields } from "./z-PropertiesFields";
@@ -37,6 +38,7 @@ export function ProductForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <InfoFields form={form} disabled={pending} />
+      <CategoriesFields form={form} disabled={pending} />
       <ListingsFields form={form} disabled={pending} />
       <StocksFields form={form} disabled={pending} />
       <PropertiesFields form={form} disabled={pending} />

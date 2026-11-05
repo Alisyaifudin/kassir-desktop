@@ -333,7 +333,7 @@ between groups: `money_bookmark` says nothing about the product log.
 | `method` | `method` | `method_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
 | `social` | `social` | `social_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
 | `extra` | `extra` | `extra_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
-| `product` | `product`, `product_name`, `property`, `listing`, `image`, `product_event` | `product_group_change_log` | catalog LWW; event append-only | 5000 / 20000 | 1000 / 1 MB |
+| `product` | `product`, `category`, `product_category`, `product_name`, `property`, `listing`, `image`, `product_event` | `product_group_change_log` | catalog LWW; event append-only | 5000 / 20000 | 1000 / 1 MB |
 | `record` | `record` aggregate (header + five child tables) | `record_group_change_log` | full LWW aggregate | 1000 / 5000 | 1000 frames / 8 MB |
 
 `limit` is `default / maximum` entries. The record group additionally has an
@@ -1621,7 +1621,7 @@ Recommended push order:
 | group | order |
 | --- | --- |
 | `money` | every `pocket` before the `money` rows that reference it |
-| `product` | `product` → `product_name` → `property` → `listing` → `image` → `product_event` |
+| `product` | `product` → `category` → `product_category` → `product_name` → `property` → `listing` → `image` → `product_event` |
 | `record` | no dependency order inside the group; each frame is a complete aggregate |
 | all others | no dependency order |
 
@@ -1639,6 +1639,8 @@ dangle, and a pull may deliver them in either order:
 | --- | --- | --- |
 | `money.pocket_id` | `pocket` | same group; the server has no FK, so a money row may arrive before its pocket |
 | `product_names.product_id`, `properties.product_id`, `listings.product_id`, `images.product_id` | `product` | same group; child may precede parent after concurrent pushes |
+| `product_category.product_id` | `product` | same group; a link may arrive before its product |
+| `product_category.category_id` | `category` | same group; a link may arrive before its category |
 | `product_events.product_id` | `product` | same group; event may precede product |
 | `product_events.record_id` | `record` | cross-group; may arrive before the record |
 | `record_listings.product_id` | `product` | cross-group; may dangle |
@@ -1966,8 +1968,8 @@ and set the flag to `NULL` on every edit; soft-delete; apply the `stale` winner.
 
 ### 8.7 `product` — catalog and stock journal
 
-**Entities:** `product`, `product_name`, `property`, `listing`, `image`,
-`product_event`
+**Entities:** `product`, `category`, `product_category`, `product_name`,
+`property`, `listing`, `image`, `product_event`
 **Log:** `product_group_change_log` · **Bookmark:** `product_bookmark`
 **Row endpoints:** `GET /v2/product/pull/:seq`, `POST /v2/product/push`
 **One-product endpoints:** `GET /v2/product/one/pull/:product_id`,
@@ -1986,6 +1988,19 @@ product_note        TEXT     NOT NULL
 product_flag        INTEGER  NOT NULL   -- bitfield; bit 0 = unpublished
 product_updated_at  INTEGER  NOT NULL   -- LWW clock
 product_deleted_at  INTEGER?            -- null = live
+
+category (4)
+category_id          TEXT     PK, non-empty
+category_name        TEXT     NOT NULL   -- one live row per name, case-insensitively
+category_updated_at  INTEGER  NOT NULL
+category_deleted_at  INTEGER?
+
+product_category (5)   -- the many-to-many link
+product_category_id          TEXT     PK, non-empty
+product_id                   TEXT     NOT NULL, non-empty
+category_id                  TEXT     NOT NULL, non-empty
+product_category_updated_at  INTEGER  NOT NULL
+product_category_deleted_at  INTEGER?
 
 product_name (5)   -- aliases, not the primary name
 product_name_id          TEXT     PK, non-empty
@@ -2035,8 +2050,17 @@ record_id                 TEXT?              -- may dangle
 
 #### Merge
 
-- The five catalog entities — plain LWW on their own `*_updated_at`; every
+- The six catalog entities — plain LWW on their own `*_updated_at`; every
   column editable; tie → stored wins.
+- `category` is a group-wide row, not a product child: it carries no
+  `product_id` and is therefore **outside** the one-product scope
+  (`SYNC-V2-ONE-PRODUCT.md` §1.1). The link (`product_category`) is a child and
+  is in scope. A link may name a category this device has not received yet — the
+  usual dangling reference (§7.2): store it, keep it, do not draw it.
+- A product may be filed under zero or more categories. Un-ticking a category
+  soft-deletes that link row and re-ticking it creates a new one (the pair is not
+  the key — `product_category_id` is), so two devices ticking the same box do not
+  fight over one row.
 - `product_event` — append-only: new id → `applied`; existing id → `noop`
   (payload not compared).
 - A `product_name` alias is not the primary name: renaming the primary name
@@ -2499,7 +2523,7 @@ entity/aggregate:
 | `method` | `method_bookmark` | `method_sync_at` |
 | `social` | `social_bookmark` | `social_sync_at` |
 | `extra` | `extra_bookmark` | `extra_sync_at` |
-| `product` | `product_bookmark` | `product_sync_at`, `product_name_sync_at`, `property_sync_at`, `listing_sync_at`, `image_sync_at`, `product_event_sync_at` |
+| `product` | `product_bookmark` | `product_sync_at`, `category_sync_at`, `product_category_sync_at`, `product_name_sync_at`, `property_sync_at`, `listing_sync_at`, `image_sync_at`, `product_event_sync_at` |
 | `record` | `record_bookmark` | `record_sync_at` only; the five child tables have none |
 
 The entity map:
@@ -2514,6 +2538,8 @@ The entity map:
 | `social` | social | row | `social_updated_at` | `social_sync_at` |
 | `extra` | extra | row | `extra_updated_at` | `extra_sync_at` |
 | `product` | product | row | `product_updated_at` | `product_sync_at` |
+| `category` | product | row | `category_updated_at` | `category_sync_at` |
+| `product_category` | product | row | `product_category_updated_at` | `product_category_sync_at` |
 | `product_name` | product | row | `product_name_updated_at` | `product_name_sync_at` |
 | `property` | product | row | `property_updated_at` | `property_sync_at` |
 | `listing` | product | row | `listing_updated_at` | `listing_sync_at` |

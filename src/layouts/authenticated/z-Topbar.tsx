@@ -16,6 +16,7 @@ const routeTitles: Record<string, string> = {
   "/cashier": "Kasir",
   "/social": "Kontak",
   "/products": "Produk",
+  "/categories": "Kategori",
   "/debt": "Utang",
   "/extras": "Biaya Lainnya",
   "/records": "Riwayat",

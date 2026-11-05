@@ -22,6 +22,7 @@ const NAME_COLUMN: Record<string, string> = {
   social: "social_name",
   extra: "extra_name",
   product: "product_name",
+  category: "category_name",
   product_name: "product_name_value",
   property: "property_key",
   listing: "listing_name",

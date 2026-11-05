@@ -20,6 +20,9 @@ const ENTITY_NOUN: Record<string, string> = {
   social: "media sosial",
   extra: "biaya tambahan",
   product: "produk",
+  category: "kategori",
+  // A link has no name of its own; the log says the noun and stops there.
+  product_category: "kategori produk",
   product_name: "nama lain produk",
   property: "properti",
   listing: "listing",

@@ -13,6 +13,7 @@ import { Effect, Fiber, Layer, Option, Stream } from "effect";
 import { makeTestDatabase } from "../db/test-support";
 import { CustomerService } from "../customer";
 import { CustomerLive } from "../customer/live";
+import { CategoryLive } from "../category/live";
 import { ExtraLive } from "../extra/live";
 import { MethodLive } from "../method/live";
 import { MoneyLive } from "../money/live";
@@ -389,6 +390,7 @@ function setup(
   const methodLayer = MethodLive.pipe(Layer.provide(dbLayer), Layer.provide(storeLayer));
   const socialLayer = SocialLive.pipe(Layer.provide(dbLayer));
   const extraLayer = ExtraLive.pipe(Layer.provide(dbLayer));
+  const categoryLayer = CategoryLive.pipe(Layer.provide(dbLayer));
   const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
   const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
   const transportLayer = Layer.succeed(SyncTransportService, transport);
@@ -404,6 +406,7 @@ function setup(
         methodLayer,
         socialLayer,
         extraLayer,
+        categoryLayer,
         productLayer,
         recordLayer,
       ),
@@ -731,6 +734,121 @@ describe("sync cycle", () => {
       .filter((batch) => batch.length > 2)
       .map((batch) => batch.length);
     expect(substantial).toEqual([1_000, 201]);
+  });
+
+  test("a category and its link travel in the product group", async () => {
+    // Categories are catalogue rows in the product group (migration-53): one
+    // bookmark, one log, plain LWW. The link is what a product form writes, and
+    // it must arrive after the two rows it names — the order the group's entity
+    // list fixes.
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi Susu",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    insertRow(first.db, "category", {
+      category_id: "c_01",
+      category_name: "Minuman",
+      category_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_category", {
+      product_category_id: "pc_01",
+      product_id: "p_01",
+      category_id: "c_01",
+      product_category_updated_at: 1_000,
+    });
+
+    await runSync(first.layer);
+
+    // Parents before children, and the category ahead of the link that names it.
+    expect(server.changes.map((change) => change.entity)).toEqual([
+      "product",
+      "category",
+      "product_category",
+    ]);
+
+    const second = setup(server);
+    await runSync(second.layer);
+
+    expect(second.db.query("SELECT category_name, category_sync_at FROM categories").all()).toEqual([
+      { category_name: "Minuman", category_sync_at: 2 },
+    ]);
+    expect(
+      second.db
+        .query("SELECT product_id, category_id, product_category_sync_at FROM product_category")
+        .all(),
+    ).toEqual([{ product_id: "p_01", category_id: "c_01", product_category_sync_at: 3 }]);
+  });
+
+  test("un-ticking a category is a tombstone, and re-ticking is a new link row", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi Susu",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    insertRow(first.db, "category", {
+      category_id: "c_01",
+      category_name: "Minuman",
+      category_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_category", {
+      product_category_id: "pc_01",
+      product_id: "p_01",
+      category_id: "c_01",
+      product_category_updated_at: 1_000,
+    });
+    await runSync(first.layer);
+
+    first.db
+      .query(
+        `UPDATE product_category SET product_category_deleted_at = 2000,
+             product_category_updated_at = 2000, product_category_sync_at = NULL
+           WHERE product_category_id = 'pc_01'`,
+      )
+      .run();
+    insertRow(first.db, "product_category", {
+      product_category_id: "pc_02",
+      product_id: "p_01",
+      category_id: "c_01",
+      product_category_updated_at: 3_000,
+    });
+    await runSync(first.layer);
+
+    // Both lifetimes are on the server: the tombstone and the new link.
+    expect(
+      server.changes
+        .filter((change) => change.entity === "product_category")
+        .map((change) => [
+          change.row["product_category_id"],
+          change.row["product_category_deleted_at"],
+        ]),
+    ).toEqual([
+      ["pc_01", null],
+      ["pc_01", 2_000],
+      ["pc_02", null],
+    ]);
+
+    const second = setup(server);
+    await runSync(second.layer);
+    expect(
+      second.db
+        .query(
+          `SELECT product_category_id, product_category_deleted_at FROM product_category
+            ORDER BY product_category_id`,
+        )
+        .all(),
+    ).toEqual([
+      { product_category_id: "pc_01", product_category_deleted_at: 2_000 },
+      { product_category_id: "pc_02", product_category_deleted_at: null },
+    ]);
   });
 
   test("a second device pulls what the first pushed, in log order", async () => {

@@ -189,6 +189,21 @@ export function selectUnsyncedProductSql(
     LIMIT ${limit}`;
 }
 
+/**
+ * Whether a row of this entity belongs to exactly one product.
+ *
+ * The scoped product routes (`docs/SYNC-V2-ONE-PRODUCT.md` §1.1) define the
+ * baggage of `P` as "every row whose current `product_id` is `P`", which works
+ * for every entity that carries a `product_id`. `category` does not: a category is
+ * a shared label, not a child, and the same row belongs to every product filed
+ * under it. So it is skipped by a scoped push and left to the full group cycle —
+ * a link that arrives through the scoped route simply names a category this device
+ * (or the server) has not received yet, which §7.2 tolerates.
+ */
+export function inProductScope(def: EntityDef): boolean {
+  return def.columns.includes("product_id");
+}
+
 /** How many rows one product still owes the server, for progress reporting. */
 export function countUnsyncedProductSql(def: EntityDef): string {
   return `SELECT COUNT(*) AS total FROM ${def.table}

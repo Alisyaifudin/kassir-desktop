@@ -33,6 +33,7 @@ function product(stocks: Lot[]): ProductFull {
     properties: [],
     productNames: [],
     images: [],
+    categoryIds: [],
   } as unknown as ProductFull;
 }
 
@@ -131,6 +132,7 @@ function priced(name: string, listings: { id: string; name: string }[]): Product
     properties: [],
     productNames: [],
     images: [],
+    categoryIds: [],
   } as unknown as ProductFull;
 }
 

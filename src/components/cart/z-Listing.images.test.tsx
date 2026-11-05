@@ -79,6 +79,7 @@ const product: ProductFull = {
       syncAt: null,
     },
   ],
+  categoryIds: [],
 };
 
 mock.module("~/services", () => ({

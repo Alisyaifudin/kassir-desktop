@@ -40,6 +40,7 @@
 import { Effect, Fiber, Layer, Ref, SubscriptionRef } from "effect";
 import { log } from "~/lib/log";
 import { DatabaseService } from "../db";
+import { CategoryService } from "../category";
 import { CustomerService } from "../customer";
 import { ExtraService } from "../extra";
 import { MethodService } from "../method";
@@ -290,6 +291,7 @@ export const SyncLive = Layer.effect(
     const method = yield* MethodService;
     const social = yield* SocialService;
     const extra = yield* ExtraService;
+    const category = yield* CategoryService;
     const product = yield* ProductService;
     const record = yield* RecordService;
 
@@ -512,6 +514,9 @@ export const SyncLive = Layer.effect(
      * is on disk and correct, so failing the whole sync over it would be worse.
      */
     function refreshGroup(group: SyncGroup): Effect.Effect<void> {
+      // The product group is the one group with two services behind it: the
+      // catalogue ref and the category ref cache different tables of the same
+      // bookmark, so a merged page has to reach both.
       const refresh: Effect.Effect<void, unknown> =
         group === "money"
           ? money.refresh()
@@ -526,7 +531,7 @@ export const SyncLive = Layer.effect(
                   : group === "extra"
                     ? extra.refresh()
                     : group === "product"
-                      ? product.refresh()
+                      ? Effect.all([product.refresh(), category.refresh()], { discard: true })
                       : record.refresh();
       return refresh.pipe(
         Effect.asVoid,
@@ -794,7 +799,15 @@ export const SyncLive = Layer.effect(
                + (SELECT COUNT(*) FROM listings c JOIN products p ON p.product_id = c.product_id
                    WHERE c.listing_deleted_at IS NULL AND p.product_deleted_at IS NOT NULL)
                + (SELECT COUNT(*) FROM images c JOIN products p ON p.product_id = c.product_id
-                   WHERE c.image_deleted_at IS NULL AND p.product_deleted_at IS NOT NULL) AS total`
+                   WHERE c.image_deleted_at IS NULL AND p.product_deleted_at IS NOT NULL)
+               -- A link is hidden by either end being deleted: the category is
+               -- its other parent, and a live link under a dead one must not be
+               -- drawn (and must not be lost either).
+               + (SELECT COUNT(*) FROM product_category c
+                   LEFT JOIN products p ON p.product_id = c.product_id
+                   LEFT JOIN categories g ON g.category_id = c.category_id
+                   WHERE c.product_category_deleted_at IS NULL
+                     AND (p.product_deleted_at IS NOT NULL OR g.category_deleted_at IS NOT NULL)) AS total`
             : null;
       if (query === null) return Effect.succeed(0);
       return db

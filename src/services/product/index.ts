@@ -132,6 +132,16 @@ export type ProductFull = Product & {
   properties: Property[];
   productNames: ProductName[];
   images: ProductImage[];
+  /**
+   * The ids of the live categories this product is filed under, in link order.
+   *
+   * Ids only: the names come from `CategoryService`, which is its own read (the
+   * picker needs the whole catalogue anyway, and a rename must reach every screen
+   * without re-reading every product). A link whose category row this device has
+   * not received yet is still listed here, so a save cannot silently drop it —
+   * see `set.categories`.
+   */
+  categoryIds: string[];
 };
 
 export type ProductSale = {
@@ -174,6 +184,14 @@ export type ProductInput = {
   listings: ListingInput[];
   stocks: { value: number; capital: number }[];
   properties: PropertyInput[];
+  /**
+   * The categories to file the product under, written with it in one transaction.
+   *
+   * Optional because the Settings → Data JSON import has no category ids to
+   * carry (an import creates fresh rows, and another device's ids would mean
+   * nothing here); an absent value means "no categories", not "leave as is".
+   */
+  categoryIds?: string[];
 };
 
 export class ProductService extends Context.Tag("ProductService")<
@@ -229,6 +247,15 @@ export class ProductService extends Context.Tag("ProductService")<
         ) => Effect.Effect<void, ProductError>;
         remove: (productId: string, productNameId: string) => Effect.Effect<void, ProductError>;
       };
+      /**
+       * Makes the product's live categories exactly `categoryIds` — one write that
+       * adds the new links and soft-deletes the dropped ones, in one transaction.
+       *
+       * A link whose category is unknown to this device is preserved when it is
+       * still in the list (a save from a screen that could not draw it must not
+       * delete it), so callers pass the ids they mean, not a delta.
+       */
+      categories: (id: string, categoryIds: string[]) => Effect.Effect<void, ProductError>;
       image: {
         add: (productId: string, input: ImageInput) => Effect.Effect<string, ProductError>;
         /** Insert the drafts and renumber the gallery in one transaction. */
