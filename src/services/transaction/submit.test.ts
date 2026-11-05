@@ -1932,6 +1932,56 @@ describe("TransactionService.add.fromRecord", () => {
     expect(count(db, "product_events")).toBe(outcome.events);
   });
 
+  test("rings the goods up at the record's price, not the catalogue's", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    // A second product sold by the carton: 2 pcs per unit, 10.000 a carton.
+    db.exec(`
+      INSERT INTO products (product_id, product_name, product_note, product_updated_at)
+        VALUES ('p2', 'Paket', '', 1);
+      INSERT INTO listings (
+        listing_id, product_id, listing_name, listing_price, listing_unit,
+        listing_kind, listing_updated_at
+      ) VALUES ('l2', 'p2', 'Paket', 10000, 2, 'retail', 1);
+      INSERT INTO stocks (
+        stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at
+      ) VALUES ('z1', 'p2', 10, 4000, 1, 1);
+    `);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const id = yield* tx.add.new("incoming");
+        yield* tx.listings.set(id, [
+          makeLine({ price: 9000, qty: 2 }),
+          makeLine({ listingId: "l2", name: "Paket", price: 10000, qty: 2, unit: 2 }),
+        ]);
+        yield* tx.methods.set(id, [makeMethod(38000)]);
+        const recordId = yield* tx.submit(id, { cashier: "Kasir" });
+        // The catalogue moves on after the sale: a new price and a rename.
+        db.exec(`
+          UPDATE listings SET listing_price = 12000, listing_name = 'Kopi Susu'
+            WHERE listing_id = 'l1';
+          UPDATE listings SET listing_price = 30000 WHERE listing_id = 'l2';
+        `);
+        const draftId = yield* tx.add.fromRecord(recordId);
+        return { draftId, copied: yield* tx.get.drafts("incoming") };
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    const copy = outcome.copied.find((draft) => draft.id === outcome.draftId);
+    // A record is history: re-ringing it at today's price would turn a repeat
+    // sale into a different sale. The unit factor still converts, because the
+    // draft works in units and the record stores pcs.
+    expect(copy?.listings.map((line) => [line.name, line.price, line.qty, line.unit])).toEqual([
+      ["Kopi", 9000, 2, 1],
+      ["Paket", 10000, 2, 2],
+    ]);
+    // Still linked, so re-submitting moves stock; the catalogue price is only
+    // the undo target, not the line's price.
+    expect(copy?.listings.map((line) => line.listingId)).toEqual(["l1", "l2"]);
+    expect(copy?.listings[1].base?.price).toBe(30000);
+  });
+
   test("copies one record twice, keeping each cart's own rows", async () => {
     const { db, transactionLayer } = setup();
     seed(db);

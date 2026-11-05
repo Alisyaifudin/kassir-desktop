@@ -683,10 +683,18 @@ export const TransactionLive = Layer.effect(
     /**
      * A saved record, rebuilt as an editable cart. Two conversions matter: the
      * record keeps pcs and a per-pc price while a draft line works in catalog
-     * units, so each line is matched to its listing again (falling back to the
-     * record's own numbers when the listing is gone); and every discount is run
-     * through the cart's own math, because only the record knows what each one
-     * took off.
+     * units, so the line's own numbers are turned back into units; and every
+     * discount is run through the cart's own math, because only the record
+     * knows what each one took off.
+     *
+     * The money is the record's, never the catalog's. A record is history — the
+     * price it was rung up at, the name it went out under — and re-reading the
+     * listing's current price would silently re-price the copy every time the
+     * catalog moved on. The listing is matched only for what the record cannot
+     * hold: its id (so the copy still moves stock), its code, and the unlabelled
+     * `base` the grid undoes back to. Today's price only picks between a
+     * product's variants: the record keeps no listing id, so the listing priced
+     * nearest the record's own line is the one it was sold from.
      *
      * Every id is fresh. This backs `unsubmit` — where the record is then
      * deleted — and `add.fromRecord`, which may copy the same record more than
@@ -730,8 +738,9 @@ export const TransactionLive = Layer.effect(
             catalog = rows[0] ?? null;
           }
           // The record's qty is in pcs and its price is per pc; the draft
-          // works in listing units.
-          const price = catalog?.listing_price ?? line.price * line.unit;
+          // works in listing units. Both come from `record_listings` — the
+          // price the customer actually paid, not the listing's price today.
+          const price = line.price * line.unit;
           const qty = line.unit > 0 ? Math.max(0, Math.round(line.qty / line.unit)) : line.qty;
           const discounts = recalcDiscounts(
             price,
