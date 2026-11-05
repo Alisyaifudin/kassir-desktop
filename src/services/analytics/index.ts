@@ -23,14 +23,55 @@ export type DailyStat = {
 };
 
 /**
- * The gross margin of one day, from the lines that stored a cost. `costed` is
- * the number of lines behind it — zero means "no cost data", which the page
- * shows as such instead of inventing a margin.
+ * What a line without a believable cost is worth as margin: `min(total ×
+ * percent, raw)`. Both halves matter — a percentage alone turns a lucky big
+ * ticket into a margin it never made, and a rupiah alone says nothing about a
+ * cheap line — so a line's estimate is the smaller of the two.
+ *
+ * This is the page's one deliberate estimate (see migration-54: the old app
+ * copied the *selling price* into the cost column for a year of sales), which is
+ * why the operator can move both numbers.
+ */
+export type MarginEstimate = {
+  /** Percent of the line total, 0–100. */
+  percent: number;
+  /** Ceiling in rupiah, per line. */
+  raw: number;
+};
+
+/** Rp5.000 or 10%, whichever is lower: the shop's own rule of thumb. */
+export const DEFAULT_MARGIN_ESTIMATE: MarginEstimate = { percent: 10, raw: 5000 };
+
+/**
+ * An estimate held inside the range the query assumes: a percent of a line, and
+ * a ceiling of at least nothing. Stored and hand-typed values both come through
+ * here, so a `-5` in localStorage cannot make the page subtract money it never
+ * earned.
+ */
+export function normalizeMarginEstimate(estimate: Partial<MarginEstimate>): MarginEstimate {
+  const percent = Number(estimate.percent);
+  const raw = Number(estimate.raw);
+  return {
+    percent: Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : DEFAULT_MARGIN_ESTIMATE.percent,
+    raw: Number.isFinite(raw) ? Math.max(raw, 0) : DEFAULT_MARGIN_ESTIMATE.raw,
+  };
+}
+
+/**
+ * The gross margin of one local day.
+ *
+ * `margin` comes only from lines that stored a cost worth believing (above zero
+ * and below the line's own price); `estimatedMargin` is the same day's `min(total
+ * × percent, raw)` over every other line. Both counts ride along, because "how
+ * much of this bar was guessed" is a number the page has to be able to print —
+ * zero `costed` and zero `estimated` means the day had no sales at all.
  */
 export type MarginStat = {
   day: string;
   margin: number;
   costed: number;
+  estimatedMargin: number;
+  estimated: number;
 };
 
 /** Sales per local hour of day (0–23) — when the counter is busy. */
@@ -91,8 +132,16 @@ export class AnalyticsService extends Context.Tag("AnalyticsService")<
     get: {
       /** Per local day, per direction. */
       daily: (from: number, to: number) => Effect.Effect<DailyStat[], AnalyticsError>;
-      /** Per local day, only for lines that stored a cost. */
-      margins: (from: number, to: number) => Effect.Effect<MarginStat[], AnalyticsError>;
+      /**
+       * Per local day: the margin of the lines whose cost can be believed, plus
+       * `min(total × estimate.percent, estimate.raw)` for every line whose cost
+       * is missing or is really its selling price.
+       */
+      margins: (
+        from: number,
+        to: number,
+        estimate?: MarginEstimate,
+      ) => Effect.Effect<MarginStat[], AnalyticsError>;
       /** Sales (`incoming` only) per local hour. */
       hours: (from: number, to: number) => Effect.Effect<HourStat[], AnalyticsError>;
       /** Sales per ISO weekday. */

@@ -48,7 +48,7 @@ describe("bucketise", () => {
 
     const buckets = bucketise(
       [sale(d0.key, 100), buy(d0.key, 40), sale(d2.key, 60)],
-      [{ day: d0.key, margin: 25, costed: 2 }],
+      [{ day: d0.key, margin: 25, costed: 2, estimatedMargin: 5, estimated: 3 }],
       from,
       to,
       "day",
@@ -58,7 +58,9 @@ describe("bucketise", () => {
     expect(buckets.map((b) => b.omzet)).toEqual([100, 0, 60]);
     expect(buckets.map((b) => b.pengeluaran)).toEqual([40, 0, 0]);
     expect(buckets.map((b) => b.net)).toEqual([60, 0, 60]);
-    expect(buckets.map((b) => b.margin)).toEqual([25, 0, 0]);
+    // One bar carries both: what the record knows and what the estimate filled in.
+    expect(buckets.map((b) => b.margin)).toEqual([30, 0, 0]);
+    expect(buckets.map((b) => b.estimated)).toEqual([3, 0, 0]);
     // the gap day exists; it is not skipped
     expect(buckets[1]).toMatchObject({ omzet: 0, count: 0, margin: 0 });
     void d1;
@@ -70,7 +72,7 @@ describe("bucketise", () => {
     const to = day(31).start;
     const buckets = bucketise(
       [sale(day(0).key, 100), sale(day(20).key, 50)],
-      [{ day: day(20).key, margin: 10, costed: 1 }],
+      [{ day: day(20).key, margin: 10, costed: 1, estimatedMargin: 0, estimated: 0 }],
       from,
       to,
       "month",

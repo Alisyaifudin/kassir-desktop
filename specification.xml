@@ -411,7 +411,7 @@
     </capabilities>
 
     <migrations>
-      <database name="data.db" migration_count="47">
+      <database name="data.db" migration_count="54">
         <description>
           The only database. Every migration in src-tauri/src/database/&lt;range&gt;/migration-N.sql is embedded by
           database/mod.rs and applied on boot; the frontend also applies the same files in the e2e harness. The schema
@@ -434,8 +434,24 @@
           - 47: queues every syncable row for its first upload (all `_sync_at` markers cleared), since the sync
             server was created from zero for the byte-stream protocol and has never seen this device's rows;
             enables the forcing migration-44 step 13 had left commented out
+          - 48: drops the parked `&lt;name&gt;_old` tables
+          - 49: the sync client contract — opaque cross-device references, `record_flag`, `record_pair_id`
+          - 50: `image_blob_*` columns (the image-byte side channel)
+          - 51: the stock-fold index (product_events by stock)
+          - 52: the record-dirty partial index on `records (record_updated_at, record_id)`
+          - 53: categories and the product_category join, carried in the product sync group
+          - 54: repairs `record_listing_capital` — see below
           Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
           are created in 43.
+
+          Migration 54 is the one data-repair step, and the reason `get.margins` has an estimate at all. The v1 app
+          wrote the *selling price* into `record_product_capital_raw` from ~2026-01, and migration-44 copied that
+          column into `record_listings.record_listing_capital` and the journal it rebuilt — so 98% of 2026 revenue
+          carried a cost equal to its price and every margin read zero or negative. The old tables are gone (48), so
+          54 reconstructs each polluted sale's cost from the last purchase of the same product at or before it, fixes
+          the matching `product_events.product_event_capital`, and re-folds `stocks.stock_capital` from the journal
+          with the sync projection's rule (newest non-zero event). Idempotent; lines with no cost at all and products
+          never purchased are left for the Profit page's estimate.
         </description>
       </database>
     </migrations>
@@ -845,7 +861,7 @@
       <error name="AnalyticsError" tag="AnalyticsError" />
       <interface>
         <method name="get.daily(from, to)">Per local day, per direction, with the unpaid part of the day.</method>
-        <method name="get.margins(from, to)">Per day, from lines that stored a cost; `costed` says whether a margin means anything.</method>
+        <method name="get.margins(from, to, estimate?)">Per day: `margin` from lines whose stored cost is a cost (above zero, below the line's price) with `costed` behind it, plus `estimatedMargin` = Σ min(line total × estimate.percent, estimate.raw) over every other line, with `estimated` behind it. Defaults to DEFAULT_MARGIN_ESTIMATE (10%, Rp5.000).</method>
         <method name="get.hours(from, to) / get.weekdays(from, to)">Sales per local hour, and per ISO weekday (1 = Monday).</method>
         <method name="get.productGroups(from, to, mode)">Every product that moved, with qty, revenue, margin, costed lines.</method>
         <method name="get.productInstances(from, to, mode, key, limit)">The lines behind one group, newest first.</method>
@@ -877,11 +893,13 @@
     </service>
 
     <service name="config" module="src/services/config/">
-      <description>The UI preferences. Owns the localStorage key "product-view". (The old "size" key is no longer read; the interface scale moved to the zoom service.)</description>
+      <description>The UI preferences. Owns the localStorage keys "product-view" and "margin-estimate". (The old "size" key is no longer read; the interface scale moved to the zoom service.)</description>
       <error name="ConfigError" tag="ConfigError" />
       <interface>
         <method name="productView.get()">Current product layout: "grid" | "table"; anything else stored reads as "grid".</method>
         <method name="productView.set(view)">Set in memory, then persist. A failed write reports ConfigError but keeps the session on the chosen view.</method>
+        <method name="marginEstimate.get()">The Profit page's estimate: { percent, raw }, normalised into 0–100 and ≥ 0. Hydrated at build time, like the view, so the page's first query carries the operator's numbers instead of running twice.</method>
+        <method name="marginEstimate.set(estimate)">Normalise, set in memory, then persist. The same optimistic posture as the view.</method>
       </interface>
       <note>
         The product list keeps its view in the URL while it is open; productView is only the seed a bare `/products` reads.
@@ -1368,7 +1386,7 @@
       </description>
       <subpages>
         <subpage path="/analytics/">Arus Kas (Cashflow): money in vs out per bucket, with totals.</subpage>
-        <subpage path="/analytics/laba">Laba (Profit): margin over the period, from lines that stored a cost; days with no cost data say so.</subpage>
+        <subpage path="/analytics/laba">Laba (Profit): margin over the period — the stored cost where it is believable, and `min(10% of the line, Rp5.000)` per line where it is not (migration-54's repair plus an operator-set estimate, edited under the chart). The stat says how many lines were costed and how many were estimated.</subpage>
         <subpage path="/analytics/produk">Products: per-product qty/revenue/margin, sortable and paginated, expandable to the individual lines.</subpage>
         <subpage path="/analytics/waktu">Time: sales per weekday and per hour, one week at a time.</subpage>
         <subpage path="/analytics/pembayaran">Payments: what was tendered per method kind, plus the unpaid part of the period.</subpage>

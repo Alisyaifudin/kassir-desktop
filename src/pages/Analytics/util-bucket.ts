@@ -6,8 +6,9 @@ import type { Interval } from "./use-range";
 
 /**
  * One point on the time charts: the money that moved inside a local day, week
- * or month. `margin`/`costed` only count lines that stored a cost, so an empty
- * `costed` means "no cost data in this bucket", not "zero profit".
+ * or month. `margin` is the day's believable margin *plus* the estimate for the
+ * lines that had none (see `MarginEstimate`), and `estimated` counts the lines
+ * the estimate covers, so a bar can say how much of itself was guessed.
  */
 type Bucket = {
   start: number;
@@ -18,6 +19,7 @@ type Bucket = {
   unpaid: number;
   margin: number;
   costed: number;
+  estimated: number;
   /** `omzet − pengeluaran`, computed once so charts can bind to it. */
   net: number;
 };
@@ -93,6 +95,7 @@ export function bucketise(
       unpaid: 0,
       margin: 0,
       costed: 0,
+      estimated: 0,
       net: 0,
     });
     cursor = step(cursor, interval);
@@ -115,8 +118,11 @@ export function bucketise(
     const start = align(fromDay(row.day), interval).epochMilliseconds;
     const bucket = buckets.get(start);
     if (bucket === undefined) continue;
-    bucket.margin += row.margin;
+    // One bar per bucket: what the record knows and what the estimate fills in.
+    // Splitting them into two bars would read as two answers to one question.
+    bucket.margin += row.margin + row.estimatedMargin;
     bucket.costed += row.costed;
+    bucket.estimated += row.estimated;
   }
 
   const rows = [...buckets.values()];

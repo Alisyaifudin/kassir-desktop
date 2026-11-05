@@ -3,6 +3,8 @@ import { Temporal } from "temporal-polyfill";
 import {
   AnalyticsError,
   AnalyticsService,
+  DEFAULT_MARGIN_ESTIMATE,
+  normalizeMarginEstimate,
   type DailyStat,
   type HourStat,
   type MarginStat,
@@ -48,18 +50,57 @@ const dailySql = (offset: number) => `
   GROUP BY day, record_mode
   ORDER BY day`;
 
-type MarginRow = { day: string; margin: number; costed: number };
+type MarginRow = {
+  day: string;
+  margin: number;
+  costed: number;
+  estimated_margin: number;
+  estimated: number;
+};
 
+/**
+ * A line whose stored cost can be believed: a cost above zero, below what the
+ * line sold for. `capital >= price` is the fingerprint of the v1 migration that
+ * copied the selling price into the cost column (migration-54 repairs what it
+ * can from the purchase side and the page estimates the rest) — reading it as a
+ * cost is what made every bar read zero or negative.
+ */
+const COSTED = "capital > 0 AND capital < price";
+
+/**
+ * `$3` is the percent and `$4` the per-line ceiling of the estimate the page
+ * carries (see `MarginEstimate`). The `min` is per line, not per day: a day of
+ * one large sale and ten small ones must not give the large one a margin capped
+ * as if it were the whole day.
+ *
+ * The CTE is load-bearing, not decoration. `@tauri-apps/plugin-sql` binds `$N` by
+ * its number, but `bun:sqlite` (the unit tests) binds an argument list **in the
+ * order the placeholders appear in the statement** — so a `$3` written above a
+ * `$1` receives the first argument and the period silently matches nothing. The
+ * scope is written first, its `$1`/`$2` come first, and the two estimate numbers
+ * only appear after it.
+ */
 const marginsSql = (offset: number) => `
+  WITH scoped AS (
+    SELECT
+      l.record_listing_total AS total,
+      l.record_listing_capital AS capital,
+      l.record_listing_price AS price,
+      l.record_listing_qty AS qty,
+      date((${EFF_R} + ${offset}) / 1000, 'unixepoch') AS day
+    FROM record_listings l
+    JOIN records r ON r.record_id = l.record_id
+    WHERE ${SCOPE}
+      AND r.record_mode = 'incoming'
+  )
   SELECT
-    date((${EFF_R} + ${offset}) / 1000, 'unixepoch') AS day,
-    COALESCE(SUM(l.record_listing_total - l.record_listing_capital * l.record_listing_qty), 0) AS margin,
-    COUNT(*) AS costed
-  FROM record_listings l
-  JOIN records r ON r.record_id = l.record_id
-  WHERE ${SCOPE}
-    AND r.record_mode = 'incoming'
-    AND l.record_listing_capital > 0
+    day,
+    COALESCE(SUM(CASE WHEN ${COSTED} THEN total - capital * qty ELSE 0 END), 0) AS margin,
+    SUM(CASE WHEN ${COSTED} THEN 1 ELSE 0 END) AS costed,
+    COALESCE(SUM(CASE WHEN ${COSTED} THEN 0
+      ELSE min(total * $3 / 100.0, $4) END), 0) AS estimated_margin,
+    SUM(CASE WHEN ${COSTED} THEN 0 ELSE 1 END) AS estimated
+  FROM scoped
   GROUP BY day
   ORDER BY day`;
 
@@ -201,13 +242,20 @@ export const AnalyticsLive = Layer.effect(
             );
           });
         },
-        margins(from, to) {
+        margins(from, to, estimate = DEFAULT_MARGIN_ESTIMATE) {
           return Effect.gen(function* () {
+            const { percent, raw } = normalizeMarginEstimate(estimate);
             const rows = yield* db
-              .selectMany<MarginRow>(marginsSql(offsetMs(from)), [from, to])
+              .selectMany<MarginRow>(marginsSql(offsetMs(from)), [from, to, percent, raw])
               .pipe(Effect.mapError(failure));
             return rows.map(
-              (row): MarginStat => ({ day: row.day, margin: row.margin, costed: row.costed }),
+              (row): MarginStat => ({
+                day: row.day,
+                margin: row.margin,
+                costed: row.costed,
+                estimatedMargin: row.estimated_margin,
+                estimated: row.estimated,
+              }),
             );
           });
         },

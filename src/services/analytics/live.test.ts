@@ -129,24 +129,56 @@ describe("AnalyticsService", () => {
     expect(outgoing[0]).toMatchObject({ total: 40000, count: 1 });
   });
 
-  test("margin comes only from lines that stored a cost", async () => {
+  test("margin believes a stored cost only when it is one, and estimates the rest", async () => {
     const { analyticsLayer, db } = setup();
-    const stats = await run(analyticsLayer, (a) => a.get.margins(FROM, TO));
-    console.log(
-      "LISTINGS",
-      db
-        .query(
-          "SELECT record_listing_id, record_id, record_listing_capital, record_listing_qty, record_listing_total FROM record_listings",
-        )
-        .all(),
-    );
-    console.log("MARGINS", stats);
+    // l4 is the shape the v1 migration left behind: its "cost" is exactly the
+    // price it sold for, which is not a cost at all. Reading it as one is what
+    // made a normal week's chart read zero.
+    db.exec(`
+      INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES ('l4', 'g4', 'r1', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 20000, 20000);
+    `);
 
-    const total = stats.reduce((sum, row) => sum + row.margin, 0);
-    const costed = stats.reduce((sum, row) => sum + row.costed, 0);
-    // l1: 100k − 30k×2 = 40k. l2 and l3 have no cost and contribute nothing.
-    expect(total).toBe(40000);
-    expect(costed).toBe(1);
+    const stats = await run(analyticsLayer, (a) =>
+      a.get.margins(FROM, TO, { percent: 10, raw: 5000 }),
+    );
+    const sum = (pick: (row: (typeof stats)[number]) => number) =>
+      stats.reduce((total, row) => total + pick(row), 0);
+
+    // l1: 100k − 30k×2 = 40k. l2, l3 and l4 have no believable cost: 10% of 20k
+    // each, under the 5k cap.
+    expect(sum((row) => row.margin)).toBe(40000);
+    expect(sum((row) => row.costed)).toBe(1);
+    expect(sum((row) => row.estimatedMargin)).toBe(6000);
+    expect(sum((row) => row.estimated)).toBe(3);
+  });
+
+  test("the estimate is capped per line, not per day", async () => {
+    const { analyticsLayer, db } = setup();
+    db.exec(`
+      INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES
+        ('l4', 'g4', 'r1', NULL, 'p1', 'Kopi', 'retail', 1, 200000, 1, 0, 200000),
+        ('l5', 'g5', 'r1', NULL, 'p1', 'Kopi', 'retail', 1, 60000, 1, 0, 60000);
+    `);
+
+    const stats = await run(analyticsLayer, (a) =>
+      a.get.margins(FROM, TO, { percent: 10, raw: 5000 }),
+    );
+    const estimatedMargin = stats.reduce((sum, row) => sum + row.estimatedMargin, 0);
+
+    // 200k × 10% is 20k and 60k × 10% is 6k; both are cut to 5k, and the two
+    // lines with no cost in the seed add 2k each. One 5k ceiling for the whole
+    // day would have been 5k in total, not 10k from the two big lines.
+    expect(estimatedMargin).toBe(5000 + 5000 + 2000 + 2000);
   });
 
   test("hours and weekdays cover the sales, not the adjustments", async () => {
