@@ -44,6 +44,15 @@ export type ProductDraft = {
    * save cannot drop a link the screen could not draw.
    */
   categories: string[];
+  /**
+   * The names typed in the picker that no category row carries yet.
+   *
+   * A name, not an id: until something creates it there is no row to point at.
+   * They are kept apart from `categories` for that reason — `Simpan` creates each
+   * one and files the product under the ids it gets back, in that order, so a
+   * draft that is never saved costs the catalogue nothing.
+   */
+  newCategories: string[];
 };
 
 /**
@@ -93,6 +102,7 @@ export function emptyDraft(): ProductDraft {
     properties: [],
     productNames: [],
     categories: [],
+    newCategories: [],
   };
 }
 
@@ -133,6 +143,7 @@ export function draftFromProduct(product: ProductFull): ProductDraft {
       value: name.value,
     })),
     categories: [...product.categoryIds],
+    newCategories: [],
   };
 }
 

@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.8.0</version>
+  <version>8.9.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -671,7 +671,7 @@
       <component name="input / textarea / label / field">Text controls plus the Field/FieldLabel/FieldError wrapper.</component>
       <component name="input-currency">Rupiah input: grouped `Rp`, comma decimals, caret by digit, optional sign.</component>
       <component name="input-percent">Percent input: `%` suffix, comma decimals, clamped to [min, max].</component>
-      <component name="checkbox / radio-group / select / combobox / slider / switch / tabs / accordion / popover / dialog / separator">Radix primitives, plus a custom Combobox (Popover + Input over a filtered list, search debounced by SEARCH_DELAY). Dialog requires a description or an explicit `aria-describedby={undefined}`.</component>
+      <component name="checkbox / radio-group / select / combobox / slider / switch / tabs / accordion / popover / dialog / separator">Radix primitives, plus a custom Combobox (Popover + Input over a filtered list, search debounced by SEARCH_DELAY). Two additions serve "select that also accepts free text": a create row (`createLabel`/`onCreate`) offered for a value the list does not hold — Enter uses it, since no option is armed — and an `adder` mode for a field that only ever adds, where typing is a query and the box clears after a pick (the product's category picker, with its picks as badges). Dialog requires a description or an explicit `aria-describedby={undefined}`.</component>
       <component name="table / skeleton / kdb / sonner">Table parts, Skeleton + SkeletonText, Kbd/KbdGroup, and the sonner Toaster.</component>
     </ui_primitives>
   </frontend>
@@ -1063,8 +1063,10 @@
         listings), properties, alternative names, images and stock lots. The read model's `stock` and `capital` are
         derived — the sum of the lots and their weighted-average cost. Owns products, listings, properties,
         product_names, images, stocks, product_events and the `product_category` links; the category names are
-        `CategoryService`'s. `ProductFull.categoryIds` carries the live link ids so the form can tick them, and
-        `ProductInput.categoryIds` files a new product in the same transaction that creates it.
+        `CategoryService`'s. `ProductFull.categoryIds` carries the live link ids, which the form draws as one badge
+        each, and a name typed into its picker is a *draft* name (`ProductDraft.newCategories`) rather than a row: the
+        save creates it and files the product under the id that comes back, so a name typed and never saved costs the
+        catalogue nothing. `ProductInput.categoryIds` files a new product in the same transaction that creates it.
       </description>
       <error name="ProductError" tag="ProductError">Plus ProductDuplicateCode, carrying the code that was already taken.</error>
       <state>One SubscriptionRef of the whole read model; a write re-hydrates the touched rows, and get.changes / changesFull / unsync read from it.</state>
@@ -1367,7 +1369,8 @@
       <description>
         The category catalog, for admins: a list of names with inline rename and a delete dialog, plus a create dialog.
         The product form's picker reads the same list (its own page-data key), and `product.set.categories` writes the
-        links. Deleting a category keeps the products and leaves their links as orphans.
+        links. A name typed into that picker is created by the product's own save, not here, so the catalogue gains a
+        row only where one was needed. Deleting a category keeps the products and leaves their links as orphans.
       </description>
     </page>
 

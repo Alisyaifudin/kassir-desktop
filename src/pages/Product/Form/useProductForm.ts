@@ -183,6 +183,9 @@ function buildProductInput(draft: ProductDraft): ProductInput {
       key: property.name.trim(),
       value: property.value,
     })),
+    // Ids only: `newCategories` are names with no row yet, so the caller that
+    // saves creates them first and appends what `add` returns. See
+    // `z-CategoriesFields` and the two save paths.
     categoryIds: [...draft.categories],
   };
 }
@@ -353,16 +356,51 @@ export function useProductForm(initial?: ProductDraft) {
   );
 
   /**
-   * Tick or untick one category. A tick is its own undo step — it is a discrete
-   * decision, not a typed word — so it never coalesces.
+   * File the product under a category the catalogue already holds. A pick is its
+   * own undo step — it is a discrete decision, not a typed word — so it never
+   * coalesces. Picking what is already on the product is a no-op: the badge is
+   * the truth, and the picker does not offer it.
    */
-  const toggleCategory = useCallback(
+  const addCategory = useCallback(
     (id: string) =>
+      edit(null, (d) =>
+        d.categories.includes(id) ? d : { ...d, categories: [...d.categories, id] },
+      ),
+    [edit],
+  );
+
+  const removeCategory = useCallback(
+    (id: string) =>
+      edit(null, (d) => ({ ...d, categories: d.categories.filter((entry) => entry !== id) })),
+    [edit],
+  );
+
+  /**
+   * A name the catalogue does not hold yet, kept as text until the save creates it.
+   *
+   * Deduped case-insensitively against the other pending names: `Minuman` typed
+   * twice is one badge, because the table holds one live row per name and the
+   * second create would be refused. A name that is already on the product is
+   * refused by the picker, which is the only place that can see it.
+   */
+  const addNewCategory = useCallback(
+    (name: string) => {
+      const value = name.trim();
+      if (value === "") return;
+      edit(null, (d) =>
+        d.newCategories.some((entry) => entry.toLowerCase() === value.toLowerCase())
+          ? d
+          : { ...d, newCategories: [...d.newCategories, value] },
+      );
+    },
+    [edit],
+  );
+
+  const removeNewCategory = useCallback(
+    (name: string) =>
       edit(null, (d) => ({
         ...d,
-        categories: d.categories.includes(id)
-          ? d.categories.filter((entry) => entry !== id)
-          : [...d.categories, id],
+        newCategories: d.newCategories.filter((entry) => entry !== name),
       })),
     [edit],
   );
@@ -432,7 +470,10 @@ export function useProductForm(initial?: ProductDraft) {
     addProductName,
     removeProductName,
     updateProductName,
-    toggleCategory,
+    addCategory,
+    removeCategory,
+    addNewCategory,
+    removeNewCategory,
     undo,
     redo,
     canUndo: state.past.length > 0,

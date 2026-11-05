@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useDebounce } from "use-debounce";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { SEARCH_DELAY } from "~/lib/constants";
 import { Input } from "./input";
@@ -18,6 +18,29 @@ function labelFor(value: string, options: readonly ComboboxOption[]): string {
 }
 
 /**
+ * The text of the "create" row for what is typed, or `null` to offer no row.
+ *
+ * A row is offered only for text the list does not already hold: an exact hit —
+ * `Minuman` for `minuman` — is a pick, not a new value, and creating it again is
+ * the duplicate the store refuses. `createLabel` can return `null` as well, which
+ * is how a caller vetoes a name it knows the list cannot be asked about: an
+ * "adder" field only ever shows the options it does *not* hold, so a name already
+ * on the record is absent from `options` and still must not be created twice.
+ */
+function createTextFor(
+  text: string,
+  values: ReadonlyMap<string, string>,
+  createLabel: ((text: string) => string | null) | undefined,
+  onCreate: ((text: string) => void) | undefined,
+): string | null {
+  const candidate = text.trim();
+  if (onCreate === undefined || candidate === "") return null;
+  if (values.has(candidate.toLowerCase())) return null;
+  const label = createLabel === undefined ? candidate : createLabel(candidate);
+  return label === null || label === "" ? null : label;
+}
+
+/**
  * Text input with a filterable suggestion list, showing each option's `label`
  * while storing its `value` (like a select that also accepts free text).
  *
@@ -30,6 +53,11 @@ function labelFor(value: string, options: readonly ComboboxOption[]): string {
  * `aria-activedescendant`, arrow keys, and Enter. The highlight starts empty, so
  * Enter submits the surrounding form until an arrow key arms a row — the same
  * rule the Shop search overlay uses.
+ *
+ * `onCreate` adds the other half of "select that also accepts free text": the row
+ * that turns the typed text into a value the list does not have yet. It sits above
+ * the list, so a near-miss query can still be created while its suggestions are
+ * on screen.
  */
 export function Combobox({
   value,
@@ -39,6 +67,9 @@ export function Combobox({
   disabled,
   emptyText = "Tidak ada pilihan",
   className,
+  createLabel,
+  onCreate,
+  adder = false,
   "aria-label": ariaLabel,
   id,
 }: {
@@ -49,6 +80,20 @@ export function Combobox({
   disabled?: boolean;
   emptyText?: string;
   className?: string;
+  /**
+   * The row offering to turn the typed text into a value the list does not hold —
+   * given the text, so it can quote it. `null` hides the row. When the field's
+   * text matches nothing and this row is the only one, Enter uses it.
+   */
+  createLabel?: (text: string) => string | null;
+  /** Called with the typed text when that row is used. */
+  onCreate?: (text: string) => void;
+  /**
+   * An "adder" field holds no value of its own, only a query: a category picker
+   * whose picks are badges above it. Typing therefore reports nothing, and the box
+   * is cleared after a pick and after a create instead of keeping the label.
+   */
+  adder?: boolean;
   "aria-label"?: string;
   id?: string;
 }) {
@@ -93,6 +138,10 @@ export function Combobox({
     );
   }, [options, query, browsing]);
 
+  // The create row's text, or `null` when the field offers none. Read by the
+  // keyboard handler below, so it is derived before it.
+  const createText = createTextFor(text, valuesByNeedle, createLabel, onCreate);
+
   // A new query or a fresh open re-arms against nothing.
   useEffect(() => {
     setActive(null);
@@ -105,8 +154,18 @@ export function Combobox({
   }, [active, open, listId]);
 
   function select(option: ComboboxOption) {
-    setText(option.label ?? option.value);
+    setText(adder ? "" : (option.label ?? option.value));
     onValueChange(option.value);
+    setOpen(false);
+    inputRef.current?.focus();
+  }
+
+  /** The typed text is not in the list: hand it to the caller to create. */
+  function create() {
+    const name = text.trim();
+    if (name === "" || onCreate === undefined) return;
+    onCreate(name);
+    setText(adder ? "" : name);
     setOpen(false);
     inputRef.current?.focus();
   }
@@ -127,10 +186,22 @@ export function Combobox({
       );
       return;
     }
-    if (event.key === "Enter" && open && active !== null && filtered[active] !== undefined) {
-      event.preventDefault();
-      select(filtered[active]);
-      return;
+    // Enter uses what the field is showing: the armed row if an arrow key picked
+    // one, otherwise the create row. Both are driven by the text, not by the
+    // debounced list, so a fast typist is not told to wait for the list. With
+    // neither to use — nothing typed, or a query that already names an option —
+    // Enter falls through to the surrounding form, as it always has.
+    if (event.key === "Enter" && open) {
+      if (active !== null && filtered[active] !== undefined) {
+        event.preventDefault();
+        select(filtered[active]);
+        return;
+      }
+      if (createText !== null) {
+        event.preventDefault();
+        create();
+        return;
+      }
     }
     if (event.key === "Escape" && open) {
       event.preventDefault();
@@ -152,9 +223,7 @@ export function Combobox({
             aria-expanded={open}
             aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
-            aria-activedescendant={
-              activeOption === undefined ? undefined : `${listId}-${active}`
-            }
+            aria-activedescendant={activeOption === undefined ? undefined : `${listId}-${active}`}
             autoComplete="off"
             spellCheck={false}
             value={text}
@@ -163,7 +232,9 @@ export function Combobox({
             onChange={(event) => {
               const next = event.currentTarget.value;
               setText(next);
-              onValueChange(valuesByNeedle.get(next.trim().toLowerCase()) ?? next);
+              // An adder's text is a query, not a value: reporting it would file
+              // the half-typed word as a pick on the very first keystroke.
+              if (!adder) onValueChange(valuesByNeedle.get(next.trim().toLowerCase()) ?? next);
               setOpen(true);
             }}
             onBlur={() => setText(labelFor(value, options))}
@@ -200,10 +271,29 @@ export function Combobox({
         }}
         className="w-[var(--radix-popover-trigger-width)] min-w-0 overflow-hidden p-1"
       >
-        {filtered.length === 0 ? (
+        {createText === null ? null : (
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={create}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-base text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <PlusIcon className="size-4 shrink-0" />
+            <span className="truncate">{createText}</span>
+          </button>
+        )}
+
+        {filtered.length === 0 && createText === null ? (
           <p className="px-2 py-2 text-sm text-muted-foreground">{emptyText}</p>
-        ) : (
-          <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto">
+        ) : null}
+
+        {filtered.length > 0 ? (
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label={ariaLabel}
+            className="max-h-72 overflow-y-auto"
+          >
             {filtered.map((option, index) => {
               const selected = option.value === value;
               return (
@@ -226,7 +316,7 @@ export function Combobox({
               );
             })}
           </ul>
-        )}
+        ) : null}
       </PopoverContent>
     </Popover>
   );

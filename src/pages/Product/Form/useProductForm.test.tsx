@@ -196,3 +196,85 @@ describe("single-listing mode", () => {
     expect(view.result.current.errors.listingErrors).toBeUndefined();
   });
 });
+
+/**
+ * Categories in the draft.
+ *
+ * The promise the picker makes is that nothing reaches the catalogue before
+ * `Simpan`: a name typed there is only a string in the draft, which is why it is
+ * kept in `newCategories` and not as an id in `categories`. These pin that split
+ * and the undo behaviour that follows from it — every one of these edits is a
+ * draft edit like any other.
+ */
+describe("categories in the draft", () => {
+  const categoriesView = () => renderHook(() => useProductForm());
+
+  test("a typed name is text, never an id — there is nothing to write yet", () => {
+    const view = categoriesView();
+
+    act(() => view.result.current.addNewCategory("  Teh  "));
+
+    expect(view.result.current.draft.newCategories).toEqual(["Teh"]);
+    // The link write is built from ids, so a name that has no row cannot become
+    // one: the create belongs to the save.
+    expect(view.result.current.draft.categories).toEqual([]);
+  });
+
+  test("the same name typed twice is one badge, whatever the case", () => {
+    const view = categoriesView();
+
+    act(() => {
+      view.result.current.addNewCategory("Minuman");
+      view.result.current.addNewCategory("minuman");
+      view.result.current.addNewCategory("MINUMAN");
+    });
+
+    // The table holds one live row per name, case-insensitively, so a second
+    // create would be refused — and two badges for one name is already wrong.
+    expect(view.result.current.draft.newCategories).toEqual(["Minuman"]);
+  });
+
+  test("a blank name is refused — it would be a nameless row", () => {
+    const view = categoriesView();
+
+    act(() => view.result.current.addNewCategory("   "));
+
+    expect(view.result.current.draft.newCategories).toEqual([]);
+  });
+
+  test("an un-pick is an undo step, and undo puts the category back", () => {
+    const view = categoriesView();
+
+    act(() => view.result.current.addCategory("c-minuman"));
+    act(() => view.result.current.removeCategory("c-minuman"));
+    expect(view.result.current.draft.categories).toEqual([]);
+
+    act(() => view.result.current.undo());
+
+    expect(view.result.current.draft.categories).toEqual(["c-minuman"]);
+  });
+
+  test("picking what is already on the product writes nothing, not even a step", () => {
+    const view = categoriesView();
+
+    act(() => view.result.current.addCategory("c-minuman"));
+    act(() => view.result.current.addCategory("c-minuman"));
+
+    act(() => view.result.current.undo());
+
+    // One step back is "no category", not "the same one again".
+    expect(view.result.current.draft.categories).toEqual([]);
+  });
+
+  test("a pending name can be cancelled, and undo brings it back", () => {
+    const view = categoriesView();
+
+    act(() => view.result.current.addNewCategory("Teh"));
+    act(() => view.result.current.removeNewCategory("Teh"));
+    expect(view.result.current.draft.newCategories).toEqual([]);
+
+    act(() => view.result.current.undo());
+
+    expect(view.result.current.draft.newCategories).toEqual(["Teh"]);
+  });
+});

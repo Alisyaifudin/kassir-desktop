@@ -7,6 +7,7 @@ import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { Button } from "~/components/ui/button";
 import { service } from "~/services";
+import type { CategoryDuplicateName, CategoryError } from "~/services/category";
 import type {
   Listing,
   ListingInput,
@@ -15,6 +16,7 @@ import type {
   ProductFull,
   Stock,
 } from "~/services/product";
+import { categoryMessage } from "~/pages/Category/util-category";
 import { draftFromProduct, parseNumber, toListingInput } from "../../Form/types";
 import { useProductForm } from "../../Form/useProductForm";
 import { CategoriesFields } from "../../Form/z-CategoriesFields";
@@ -41,7 +43,28 @@ import { STOCKS_SECTION, StockRowSkeleton, StocksFields } from "../../Form/z-Sto
 import { ConfirmDelete } from "../z-ConfirmDelete";
 import { StockAdjust } from "./z-StockAdjust";
 
-type Op = Effect.Effect<unknown, ProductError | ProductDuplicateCode>;
+type Op = Effect.Effect<
+  unknown,
+  ProductError | ProductDuplicateCode | CategoryError | CategoryDuplicateName
+>;
+
+/**
+ * The sentence for whichever write failed.
+ *
+ * A category failure is worded by the Category page's own helper, so a taken name
+ * reads the same here as it does there — the constraint is one constraint.
+ */
+function failureMessage(
+  error: ProductError | ProductDuplicateCode | CategoryError | CategoryDuplicateName,
+): string {
+  if (error._tag === "ProductDuplicateCode") {
+    return `Kode "${error.value}" sudah dipakai produk lain.`;
+  }
+  if (error._tag === "CategoryError" || error._tag === "CategoryDuplicateName") {
+    return categoryMessage(error) ?? "Kategori gagal disimpan.";
+  }
+  return error.message;
+}
 
 function listingChanged(original: Listing, input: ListingInput): boolean {
   return (
@@ -197,17 +220,30 @@ export function EditPane({ product }: { product: ProductFull }) {
       }
     }
 
-    // Categories are a set, not a list: order means nothing here, so compare as
-    // sets and send one write — it adds the new links and tombstones the dropped
-    // ones in a single transaction. An id the picker could not draw (a category
-    // this device has not received yet) is still in the draft, so it is kept.
+    // Categories are a set of ids plus the names that have no id yet, and the two
+    // are resolved by different things: the ids can be written now, a name has to
+    // be created first. So the whole thing is one op — the creates return the ids
+    // the link write needs, and `Effect.all`'s order is preserved inside it.
+    //
+    // Nothing here has been written before `Simpan`: a name typed in the picker is
+    // only a draft entry until this runs, and a create that succeeds followed by a
+    // link that fails leaves a category no product is filed under (harmless, and
+    // visible on the Category page) — the product row itself is untouched.
     const originalCategories = new Set(product.categoryIds);
     const draftCategories = new Set(draft.categories);
     const categoriesChanged =
       originalCategories.size !== draftCategories.size ||
       [...draftCategories].some((id) => !originalCategories.has(id));
-    if (categoriesChanged) {
-      ops.push(service.product.set.categories(product.id, draft.categories));
+    if (categoriesChanged || draft.newCategories.length > 0) {
+      ops.push(
+        Effect.gen(function* () {
+          const created: string[] = [];
+          for (const name of draft.newCategories) {
+            created.push(yield* service.category.add({ name }));
+          }
+          yield* service.product.set.categories(product.id, [...draft.categories, ...created]);
+        }),
+      );
     }
 
     return ops;
@@ -236,11 +272,7 @@ export function EditPane({ product }: { product: ProductFull }) {
     const result = await Effect.runPromise(Effect.all(ops, { concurrency: 1 }).pipe(Effect.either));
 
     if (result._tag === "Left") {
-      setError(
-        result.left._tag === "ProductDuplicateCode"
-          ? `Kode "${result.left.value}" sudah dipakai produk lain.`
-          : result.left.message,
-      );
+      setError(failureMessage(result.left));
       setPending(false);
       return;
     }
@@ -441,11 +473,7 @@ function SaveBar({
  */
 export function EditPaneSkeleton() {
   return (
-    <div
-      className="flex flex-col border bg-card"
-      aria-busy="true"
-      aria-label="Memuat produk"
-    >
+    <div className="flex flex-col border bg-card" aria-busy="true" aria-label="Memuat produk">
       <FlatSectionSurface>
         <div className="flex flex-col divide-y-2 divide-border">
           <div className="flex flex-col gap-3 px-4 py-4">
