@@ -128,6 +128,36 @@ describe("Tambahan grid keyboard", () => {
     expect(writes[0]?.[0]?.name).toBe("");
   });
 
+  test("typing on the selected Nama cell opens its editor with that character", () => {
+    renderGrid();
+    fireEvent.click(screen.getByRole("button", { name: /Manual/ }));
+    const grid = screen.getByRole("grid", { name: "Biaya tambahan" });
+    // The manual row opens in the editor; leave it, keeping the cursor there.
+    fireEvent.keyDown(document.querySelector('[id$="-name"] input') as HTMLInputElement, {
+      key: "Escape",
+    });
+
+    fireEvent.keyDown(grid, { key: "O" });
+
+    expect((document.querySelector('[id$="-name"] input') as HTMLInputElement | null)?.value).toBe(
+      "O",
+    );
+  });
+
+  test("Right at the end of a value commits it and moves to the next cell", () => {
+    const { writes } = renderGrid();
+    fireEvent.click(screen.getByRole("button", { name: /Manual/ }));
+    const name = document.querySelector('[id$="-name"] input') as HTMLInputElement;
+    fireEvent.change(name, { target: { value: "Ongkos" } });
+    name.setSelectionRange(name.value.length, name.value.length);
+
+    fireEvent.keyDown(name, { key: "ArrowRight" });
+
+    expect(document.querySelector('[id$="-name"] input')).toBeNull();
+    expect(writes.at(-1)?.[0]?.name).toBe("Ongkos");
+    expect(document.querySelector('[id$="-value"]')?.getAttribute("aria-selected")).toBe("true");
+  });
+
   /**
    * A manual row is also how a deduction that is not a product discount gets
    * onto the record. The `Nilai` editor used to be a positive-only rupiah field:

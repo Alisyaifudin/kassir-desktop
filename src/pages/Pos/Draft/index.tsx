@@ -73,6 +73,7 @@ export function Draft({
         <StageBody
           stage={stage}
           rounding={draft?.rounding ?? 0}
+          fix={draft?.fix ?? 0}
           focusSearch={focusSearch}
           focusLast={focusLast}
           onExitDown={onExitDown}
@@ -95,6 +96,7 @@ export function Draft({
 function StageBody({
   stage,
   rounding,
+  fix,
   focusSearch,
   focusLast,
   onExitDown,
@@ -111,6 +113,7 @@ function StageBody({
 }: {
   stage: Stage;
   rounding: number;
+  fix: number;
   focusSearch: number;
   focusLast: number;
   onExitDown: () => void;
@@ -133,6 +136,7 @@ function StageBody({
         lines={lines}
         loading={loading}
         issues={issues}
+        fix={fix}
         extraTotal={extras.length === 0 ? null : extrasTotal(extras, subtotal)}
         onChange={onLines}
         onToggle={onToggle}
@@ -150,6 +154,7 @@ function StageBody({
       extras={extras}
       subtotal={linesSubtotal(lines)}
       rounding={rounding}
+      fix={fix}
       presets={presets}
       loading={loading}
       onChange={onExtras}

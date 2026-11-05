@@ -74,6 +74,7 @@ export const ListingCard = memo(function ListingCard({
   selectedSub,
   bumped = false,
   seed,
+  fix = 0,
 }: {
   line: Line;
   /**
@@ -93,8 +94,10 @@ export const ListingCard = memo(function ListingCard({
    * that the qty went up somewhere down there.
    */
   bumped?: boolean;
-  /** A digit typed while a cell was selected: that cell's editor opens with it. */
+  /** A digit or character typed while a cell was selected: that cell's editor opens with it. */
   seed?: string | null;
+  /** The record's decimal places, so a decimal price is not rounded on screen. */
+  fix?: number;
   /** `Harga Jual` on the sale screen, `Harga Beli` on the purchase screen. */
   priceLabel: string;
   onChange: (patch: Partial<Line>) => void;
@@ -151,7 +154,14 @@ export const ListingCard = memo(function ListingCard({
       )}
     >
       <div className="flex items-stretch">
-        {cover != null ? <LineThumb cover={cover} onView={onViewImages} /> : null}
+        {cover != null ? (
+          <LineThumb
+            id={`cell-${line.id}-image`}
+            selected={selected === "image"}
+            cover={cover}
+            onView={onViewImages}
+          />
+        ) : null}
         <div className="min-w-0 flex-1">
           <div role="row" className="grid grid-cols-12 items-stretch">
             <div
@@ -206,7 +216,7 @@ export const ListingCard = memo(function ListingCard({
                 selected === "grandTotal" && SELECTED_RING,
               )}
             >
-              {rupiah(grandTotal)}
+              {rupiah(grandTotal, fix)}
             </div>
             <Button
               id={`cell-${line.id}-x`}
@@ -314,7 +324,7 @@ export const ListingCard = memo(function ListingCard({
               selected={selected === "price"}
               editing={editing && selected === "price"}
               value={line.price}
-              display={rupiah(line.price)}
+              display={rupiah(line.price, fix)}
               empty={line.price === 0}
               placeholder="0"
               base={line.base?.price}
@@ -343,7 +353,7 @@ export const ListingCard = memo(function ListingCard({
                 }}
               >
                 {discountTotal.gt(0) ? (
-                  `-${rupiah(discountTotal)}`
+                  `-${rupiah(discountTotal, fix)}`
                 ) : (
                   <>
                     <Plus className="size-5" />
@@ -376,15 +386,35 @@ export const ListingCard = memo(function ListingCard({
  * dle of it would be a hole in that model — the keyboard's way to a product is
  * the number cell, which opens the sheet. `cursor-zoom-in`, the title and the
  * icon on hover are what tell a mouse that this photo is one you can open.
+ *
+ * The cursor can reach it too (`image`, at column -1): the photo is a real cell,
+ * and Enter on it opens the same gallery. The ring is drawn on the frame itself,
+ * which is the whole of that cell.
  */
-function LineThumb({ cover, onView }: { cover: { name: string; mime: Mime }; onView: () => void }) {
+function LineThumb({
+  id,
+  cover,
+  selected,
+  onView,
+}: {
+  id: string;
+  cover: { name: string; mime: Mime };
+  selected: boolean;
+  onView: () => void;
+}) {
   const url = useImageUrl(cover.name, cover.mime);
 
   return (
     <div
+      id={id}
+      role="gridcell"
+      aria-selected={selected}
       onClick={onView}
-      title="Lihat gambar produk"
-      className="group relative flex w-16 shrink-0 cursor-zoom-in items-center justify-center self-stretch overflow-hidden border-r bg-muted/40"
+      title="Lihat gambar produk (Enter)"
+      className={cn(
+        "group relative flex w-16 shrink-0 cursor-zoom-in items-center justify-center self-stretch overflow-hidden border-r bg-muted/40",
+        selected && SELECTED_RING,
+      )}
     >
       {url !== null ? (
         <img src={url} alt="" className="size-full object-cover" />

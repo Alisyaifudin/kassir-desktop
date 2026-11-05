@@ -103,6 +103,44 @@ export function typedDigit(event: KeyboardEvent<Element>): string | null {
 }
 
 /**
+ * The printable character a keystroke stands for, or `null` for anything else.
+ *
+ * A text cell uses this the way a numeric cell uses `typedDigit`: typing on the
+ * selected cell *is* the new value, so the character opens the editor already in
+ * it. Single-character `key` is the criterion — it covers digits, letters, and
+ * punctuation, and leaves Enter, Tab and the arrows alone.
+ */
+export function typedCharacter(event: KeyboardEvent<Element>): string | null {
+  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  return event.key.length === 1 ? event.key : null;
+}
+
+/**
+ * Whether the caret sits at the start of an editor's *value*.
+ *
+ * An editor is not always bare text: a currency field is drawn as `Rp12.000`,
+ * so column 0 is inside the `Rp` prefix and the first raw character is further
+ * in. Only a collapsed caret counts — with a selection there is something to
+ * collapse first, and an arrow press means that, not leaving the cell.
+ */
+export function caretAtValueStart(input: HTMLInputElement): boolean {
+  if (input.selectionStart !== input.selectionEnd) return false;
+  const caret = input.selectionStart ?? 0;
+  if (caret === 0) return true;
+  // A negative money field parks its raw start at column 0 (before the sign), so
+  // only that column counts; the `Rp` case starts one column in.
+  if (input.value.startsWith("-")) return false;
+  const prefix = /^Rp/.exec(input.value)?.[0].length ?? 0;
+  return prefix > 0 && caret <= prefix;
+}
+
+/** Whether the caret sits at the end of an editor's value, with nothing selected. */
+export function caretAtValueEnd(input: HTMLInputElement): boolean {
+  if (input.selectionStart !== input.selectionEnd) return false;
+  return (input.selectionStart ?? 0) === input.value.length;
+}
+
+/**
  * A cell editor's text, seeded by the key that opened it.
  *
  * `seed` is applied on the render where `editing` flips — as a render-phase

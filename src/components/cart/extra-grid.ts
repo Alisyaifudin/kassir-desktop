@@ -35,6 +35,8 @@ type ExtraCellDef = {
   editable: boolean;
   /** The cell holds a number: a digit typed while selected opens its editor. */
   numeric?: boolean;
+  /** A text cell: any printable character typed while selected opens its editor. */
+  textSeed?: boolean;
 };
 
 /**
@@ -78,7 +80,7 @@ const SUBTOTAL_CELLS: ExtraCellDef[] = [
 
 const EXTRA_CELLS = (layout: ExtraLayout): ExtraCellDef[] => [
   { field: "no", start: 0, end: 0, selectable: false, editable: false },
-  { field: "name", start: 1, end: 3, selectable: true, editable: true },
+  { field: "name", start: 1, end: 3, selectable: true, editable: true, textSeed: true },
   { field: "value", start: 4, end: 5, selectable: true, editable: true, numeric: true },
   { field: "kind", start: 6, end: 7, selectable: true, editable: false },
   // Without `dual` the readout takes the spare column, so the row still ends on

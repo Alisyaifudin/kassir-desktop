@@ -23,8 +23,8 @@ import type { ExtraField } from "~/components/cart/extra-grid";
 const KIND_LABELS: Record<ValueKind, string> = { number: "Angka", percent: "Persen" };
 
 /** Show an extra's rupiah effect with its sign in front, not inside. */
-function signedRupiah(value: Decimal): string {
-  return value.isNegative() ? `-${rupiah(value.abs())}` : rupiah(value);
+function signedRupiah(value: Decimal, fix = 0): string {
+  return value.isNegative() ? `-${rupiah(value.abs(), fix)}` : rupiah(value, fix);
 }
 
 /**
@@ -62,6 +62,7 @@ export function ExtraCard({
   onEditingDone,
   onKindOpenChange,
   seed,
+  fix = 0,
 }: {
   extra: Extra;
   number: number;
@@ -71,6 +72,8 @@ export function ExtraCard({
   kindOpen: boolean;
   /** Only a sale has the `dual` column; see `ExtraLayout`. */
   showDual: boolean;
+  /** The record's decimal places, so an extra with decimals is not rounded. */
+  fix?: number;
   onChange: (patch: Partial<Extra>) => void;
   onRemove: () => void;
   onSelect: (field: ExtraField) => void;
@@ -122,6 +125,7 @@ export function ExtraCard({
           onSelect={() => onSelect("name")}
           onStartEdit={() => onStartEdit("name")}
           onEditingDone={onEditingDone}
+          seed={seed}
           onCommit={(raw) => onChange({ name: raw })}
         />
         <Cell
@@ -137,7 +141,7 @@ export function ExtraCard({
           allowNegative
           value={extra.value}
           display={
-            extra.kind === "percent" ? `${extra.value}%` : signedRupiah(new Decimal(extra.value))
+            extra.kind === "percent" ? `${extra.value}%` : signedRupiah(new Decimal(extra.value), fix)
           }
           empty={extra.value === 0}
           placeholder="0"
@@ -186,7 +190,7 @@ export function ExtraCard({
           )}
         >
           <span className="text-sm leading-none text-muted-foreground select-none">Efektif</span>
-          <span className="text-base font-bold tabular-nums text-primary">{signedRupiah(eff)}</span>
+          <span className="text-base font-bold tabular-nums text-primary">{signedRupiah(eff, fix)}</span>
         </div>
         {showDual ? (
           <div

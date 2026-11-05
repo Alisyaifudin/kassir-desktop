@@ -24,7 +24,7 @@ import { DUAL_FLAG, SEARCH_DELAY } from "~/lib/constants";
 import { useExtraPresets } from "~/components/cart/use-extra-presets";
 import { recalcExtras } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
+import { SELECTED_RING, caretAtValueEnd, caretAtValueStart, typedCharacter, typedDigit } from "~/components/cart/z-Cell";
 import { ExtraCard } from "~/components/cart/z-Extra";
 import { ExtraSearch } from "~/components/cart/z-ExtraSearch";
 import {
@@ -89,6 +89,7 @@ export function Extras({
   extras,
   subtotal,
   rounding = 0,
+  fix = 0,
   onChange,
   onToggle,
   focusSearch,
@@ -111,6 +112,8 @@ export function Extras({
   subtotal: Decimal;
   /** The record's rounding, drawn on the sale's stage toggle when it is not zero. */
   rounding?: number;
+  /** The record's decimal places, so an amount with decimals is not rounded. */
+  fix?: number;
   onChange: (extras: Extra[]) => void;
   /** Back to the goods; present on a sale, where the stages are siblings. */
   onToggle?: () => void;
@@ -283,14 +286,14 @@ export function Extras({
     return true;
   }
 
-  function moveHorizontal(delta: number) {
+  function moveHorizontal(delta: number, wrap = false) {
     const flat = rows.flatMap((row) =>
       selectableExtraCells(row, layout).map((cell) => ({ row, cell })),
     );
     const index = flat.findIndex(
       (entry) => sameExtraRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
-    const next = flat[index + delta];
+    const next = flat[index + delta] ?? (wrap ? flat[delta < 0 ? flat.length - 1 : 0] : undefined);
     if (next === undefined) return;
     setSelection({ row: next.row, col: next.cell.start });
     setEditing(false);
@@ -382,6 +385,35 @@ export function Extras({
     }
   }
 
+  /**
+   * Arrow keys inside an open editor: an arrow that would leave the value
+   * commits it, closes the editor and moves the cursor. Capture phase, because
+   * `InputCurrency` moves its own caret on Left/Right before the grid sees them.
+   */
+  function handleKeyDownCapture(event: KeyboardEvent<HTMLDivElement>) {
+    if (!editing) return;
+    const field = event.target;
+    if (!(field instanceof HTMLInputElement)) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = event.key;
+    if (!key.startsWith("Arrow")) return;
+    if (key === "ArrowLeft" && !caretAtValueStart(field)) return;
+    if (key === "ArrowRight" && !caretAtValueEnd(field)) return;
+    event.preventDefault();
+    // Blur is the editor's own commit; unmounting the input would drop the draft.
+    field.blur();
+    if (key === "ArrowUp") {
+      moveVertical(-1);
+      return;
+    }
+    if (key === "ArrowDown") {
+      // Nothing below the last row: hand the selection to the settle strip.
+      if (!moveVertical(1)) onExitDown?.();
+      return;
+    }
+    moveHorizontal(key === "ArrowLeft" ? -1 : 1, true);
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     // Portaled popups (the kind select) bubble their keys through the React
     // tree, not the DOM; ignore anything that did not start inside this grid.
@@ -398,6 +430,14 @@ export function Extras({
     if (typed !== null) {
       event.preventDefault();
       setSeed(typed);
+      setEditing(true);
+      return;
+    }
+    // A name: any printable character opens the editor with it.
+    const character = active.textSeed === true ? typedCharacter(event) : null;
+    if (character !== null) {
+      event.preventDefault();
+      setSeed(character);
       setEditing(true);
       return;
     }
@@ -468,6 +508,7 @@ export function Extras({
       role="grid"
       aria-label="Biaya tambahan"
       aria-activedescendant={activeId}
+      onKeyDownCapture={handleKeyDownCapture}
       onKeyDown={handleKeyDown}
       onClickCapture={onActivate}
       onFocusCapture={onActivate}
@@ -549,7 +590,7 @@ export function Extras({
                   Produk
                 </span>
                 <span className="w-full truncate text-base font-bold tabular-nums">
-                  {rupiah(subtotal)}
+                  {rupiah(subtotal, fix)}
                 </span>
               </Button>
             ) : (
@@ -606,7 +647,7 @@ export function Extras({
                   <span className="text-base text-muted-foreground select-none">
                     Subtotal Barang
                   </span>
-                  <span className="text-2xl font-bold tabular-nums">{rupiah(subtotal)}</span>
+                  <span className="text-2xl font-bold tabular-nums">{rupiah(subtotal, fix)}</span>
                 </div>
               </div>
             ) : null}
@@ -637,6 +678,7 @@ export function Extras({
                             editing={onRow && editing}
                             kindOpen={openKindFor === extra.id}
                             showDual={layout.dual}
+                            fix={fix}
                             onChange={(patch) => patchExtra(extra.id, patch)}
                             onRemove={() => removeExtra(extra.id)}
                             onSelect={(field) => selectExtra(extra.id, field)}
@@ -660,7 +702,7 @@ export function Extras({
           {showTotal ? (
             <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-card px-3 py-2 text-card-foreground">
               <span className="text-base text-muted-foreground select-none">Total</span>
-              <span className="text-2xl font-bold tabular-nums">{rupiah(total)}</span>
+              <span className="text-2xl font-bold tabular-nums">{rupiah(total, fix)}</span>
             </div>
           ) : null}
         </>

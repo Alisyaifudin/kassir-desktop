@@ -131,7 +131,7 @@ async function openGallery() {
   const line = writes[0]?.[0];
   if (line === undefined) throw new Error("no line");
 
-  fireEvent.click(screen.getByTitle("Lihat gambar produk"));
+  fireEvent.click(screen.getByTitle("Lihat gambar produk (Enter)"));
   await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
   return line;
 }
@@ -165,12 +165,37 @@ describe("the card's photo", () => {
     await waitFor(() => expect(writes).toHaveLength(1));
     const before = selectedCells();
 
-    fireEvent.click(screen.getByTitle("Lihat gambar produk"));
+    fireEvent.click(screen.getByTitle("Lihat gambar produk (Enter)"));
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
 
-    // The photo sits outside the grid's rows, so the click leaves the cursor where
-    // it was — and it is the gallery, not the detail sheet, that came up.
+    // Clicking with the mouse opens the gallery without moving the keyboard's
+    // cursor — and it is the gallery, not the detail sheet, that came up.
     expect(selectedCells()).toEqual(before);
+    expect(screen.queryByText("Di keranjang")).toBeNull();
+  });
+
+  test("the arrows reach the photo and Enter opens the gallery", async () => {
+    const writes: Line[][] = [];
+    render(<Harness writes={writes} />);
+    const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+    fireEvent.change(search, { target: { value: "899123" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const line = writes[0]?.[0];
+    if (line === undefined) throw new Error("no line");
+    const grid = screen.getByRole("grid", { name: "Barang yang dijual" });
+
+    // Down out of the search bar into the goods, then left past `no#` onto the
+    // photo. A card with a cover has that cell; one without has nothing to land on.
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(document.getElementById(`cell-${line.id}-image`)?.getAttribute("aria-selected")).toBe(
+      "true",
+    );
+
+    fireEvent.keyDown(grid, { key: "Enter" });
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
     expect(screen.queryByText("Di keranjang")).toBeNull();
   });
 

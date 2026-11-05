@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Effect } from "effect";
 import type { Listing } from "~/services/listing";
 import type { Line } from "./types";
+import { DISCOUNT_CLIPBOARD_PREFIX, parseDiscounts } from "~/components/cart/discount-clipboard";
 
 /**
  * Copy and paste on the grid's cells.
@@ -169,6 +170,30 @@ describe("pasting into a selected cell", () => {
     expect(writes[1]?.[0]?.price).toBe(12_500);
   });
 
+  test("a copy with a decimal point keeps its decimals", async () => {
+    const { cell, grid, writes } = await renderWithLine();
+    // What `cellText` writes for Rp20.000,2: English, dot decimal, no grouping.
+    copyBuffer = "20000.2";
+
+    fireEvent.click(cell("price"));
+    fireEvent.keyDown(grid, { key: "v", ctrlKey: true });
+
+    await waitFor(() => expect(writes).toHaveLength(2));
+    // Used to read as 200.002: the digits-only parse ate the separator.
+    expect(writes[1]?.[0]?.price).toBe(20_000.2);
+  });
+
+  test("an Indonesian display string with decimals pastes as the same number", async () => {
+    const { cell, grid, writes } = await renderWithLine();
+    copyBuffer = "Rp20.000,2";
+
+    fireEvent.click(cell("price"));
+    fireEvent.keyDown(grid, { key: "v", ctrlKey: true });
+
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1]?.[0]?.price).toBe(20_000.2);
+  });
+
   test("a numeric cell keeps only digits; a name takes text", async () => {
     const { cell, grid, writes } = await renderWithLine();
 
@@ -221,5 +246,60 @@ describe("pasting into a selected cell", () => {
 
     await waitFor(() => expect(writes).toHaveLength(2));
     expect(writes[1]?.[0]?.unit).toBe(3);
+  });
+});
+
+describe("copying and pasting a discount", () => {
+  const stack = `${DISCOUNT_CLIPBOARD_PREFIX}${JSON.stringify([
+    { value: 10, kind: "percent" },
+    { value: 500, kind: "number" },
+  ])}`;
+
+  test("a discount cell copies its whole stack", async () => {
+    const { cell, grid, line } = await renderWithLine();
+
+    fireEvent.click(cell("diskon"));
+    fireEvent.keyDown(grid, { key: "c", ctrlKey: true });
+
+    await waitFor(() => expect(written).toHaveLength(1));
+    expect(written[0]?.startsWith(DISCOUNT_CLIPBOARD_PREFIX)).toBe(true);
+    expect(parseDiscounts(written[0] ?? "")).toEqual(
+      line.discounts
+        .filter((discount) => discount.value !== 0)
+        .map(({ value, kind }) => ({ value, kind })),
+    );
+    expect(toasts).toEqual(["Diskon kosong disalin"]);
+  });
+
+  test("pasting one lands on the target line, re-derived there", async () => {
+    const { cell, grid, writes } = await renderWithLine();
+    copyBuffer = stack;
+
+    fireEvent.click(cell("diskon"));
+    fireEvent.keyDown(grid, { key: "v", ctrlKey: true });
+
+    await waitFor(() => expect(writes).toHaveLength(2));
+    const discounts = writes[1]?.[0]?.discounts ?? [];
+    // Two copied rows, plus the trailing blank the dialog always keeps.
+    expect(discounts.map(({ value, kind }) => ({ value, kind }))).toEqual([
+      { value: 10, kind: "percent" },
+      { value: 500, kind: "number" },
+      { value: 0, kind: "percent" },
+    ]);
+    // Against this line's Rp10.000 × 1: 10% takes 1.000, then 500 more.
+    expect(discounts[0]?.eff).toBe(1_000);
+    expect(discounts[1]?.eff).toBe(500);
+  });
+
+  test("ordinary text does not paste into a discount cell", async () => {
+    const { cell, grid, writes } = await renderWithLine();
+    copyBuffer = "Kopi Susu";
+
+    fireEvent.click(cell("diskon"));
+    fireEvent.keyDown(grid, { key: "v", ctrlKey: true });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(writes).toHaveLength(1);
+    expect(toasts).toEqual(["error: Papan klip tidak berisi diskon"]);
   });
 });

@@ -152,6 +152,7 @@ function StageBody({
         lines={lines}
         loading={loading}
         issues={issues}
+        fix={draft?.fix ?? 0}
         onChange={onLines}
         focusSearch={focusSearch}
         focusLast={focusLast}
@@ -165,6 +166,7 @@ function StageBody({
         extras={extras}
         loading={loading}
         subtotal={linesSubtotal(lines)}
+        fix={draft?.fix ?? 0}
         onChange={onExtras}
         focusSearch={focusSearch}
       />

@@ -33,7 +33,13 @@ import * as clipboard from "~/lib/clipboard";
 import { generateId } from "~/lib/random";
 import { service } from "~/services";
 import type { DiscountLine, Line } from "~/components/cart/types";
-import { withDerivedDiscounts } from "~/lib/purchase";
+import { recalcDiscounts, withDerivedDiscounts } from "~/lib/purchase";
+import { parseClipboardNumber } from "~/components/cart/clipboard-number";
+import {
+  parseDiscounts,
+  serializeDiscounts,
+  type CopiedDiscount,
+} from "~/components/cart/discount-clipboard";
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Listing } from "~/services/listing";
 import { ListingCard } from "~/components/cart/z-ListingCard";
@@ -57,7 +63,7 @@ import {
   SALE_LISTING_LAYOUT,
   type ListingLayout,
 } from "~/components/cart/listing-grid";
-import { SELECTED_RING, typedDigit } from "~/components/cart/z-Cell";
+import { SELECTED_RING, caretAtValueEnd, caretAtValueStart, typedCharacter, typedDigit } from "~/components/cart/z-Cell";
 import { Show } from "../Show";
 
 const HEADER: RowRef = { kind: "header" };
@@ -133,7 +139,9 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
  *
  * The whole grid is keyboard-driven: a `(row, column)` selection moves with the
  * arrows, keeps its column across rows (so a wide cell acts like a merged one),
- * and only enters edit mode on Enter or a double-click. See `listing-grid.ts`
+ * and enters edit mode on Enter, a double-click, or — as a spreadsheet does — the
+ * first printable character typed over a text or numeric cell. An arrow that has
+ * run to the edge of an open editor commits it and moves on. See `listing-grid.ts`
  * for the geometry.
  *
  * The lines are the draft's `tx_listings` rows; the parent writes each edit
@@ -152,10 +160,13 @@ export function Listing({
   focused = true,
   onActivate,
   loading = false,
+  fix = 0,
 }: {
   /** A sale reads `Harga Jual` and has a stage toggle; a purchase reads `Harga Beli`. */
   mode: "sale" | "purchase";
   lines: Line[];
+  /** The record's decimal places, so a decimal price is drawn as it was typed. */
+  fix?: number;
   /** The draft is still being read: hold three row places under the header. */
   loading?: boolean;
   /** The inline problems, keyed by line id. */
@@ -280,7 +291,10 @@ export function Listing({
     wantListFocus.current = false;
     list.focus();
   }, [shown, results]);
-  const rows = useMemo(() => rowsFor(shown ? [] : ids), [shown, ids]);
+  const rows = useMemo(() => {
+    const withCover = new Set(lines.filter((line) => line.cover != null).map((line) => line.id));
+    return rowsFor(shown ? [] : ids, (id) => withCover.has(id));
+  }, [shown, ids, lines]);
 
   const active = cellAt(selection.row, selection.col, layout);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -432,7 +446,12 @@ export function Listing({
     return true;
   }
 
-  function moveHorizontal(delta: number) {
+  /**
+   * Walk the flat row-major order of cells. `wrap` is for leaving an editor: an
+   * arrow that has nowhere to go inside the value wraps around the grid instead
+   * of doing nothing, so the key never feels ignored.
+   */
+  function moveHorizontal(delta: number, wrap = false) {
     // Inside Kuantitas the three sub-cells walk before leaving the cell.
     if (active.field === "qty" && selection.row.kind === "card") {
       const sub = selection.qtySub ?? "value";
@@ -464,12 +483,13 @@ export function Listing({
     const index = flat.findIndex(
       (entry) => sameRow(entry.row, selection.row) && entry.cell.field === active.field,
     );
-    const next = flat[index + delta];
+    const next = flat[index + delta] ?? (wrap ? flat[delta < 0 ? flat.length - 1 : 0] : undefined);
     if (next === undefined) return;
     setSelection({
       row: next.row,
       col: next.cell.start,
-      qtySub: next.cell.field === "qty" ? (delta > 0 ? "left" : "right") : undefined,
+      qtySub:
+        next.cell.field === "qty" ? (delta > 0 ? "left" : "right") : undefined,
     });
     setEditing(false);
   }
@@ -624,12 +644,34 @@ export function Listing({
         return String(line.unit);
       case "price":
         return String(line.price);
+      case "diskon":
+        // The stack, not one number: see `discount-clipboard.ts`.
+        return serializeDiscounts(line.discounts);
       default:
-        return null; // totals, the remove cell, the discount: nothing to carry
+        return null; // totals, the remove cell: nothing to carry
     }
   }
 
-  function patchFor(field: Field, text: string): Partial<Line> | null {
+  /**
+   * A copied discount stack, re-derived against the line it is pasted onto.
+   *
+   * The values travel, the money does not: `10%` of the source line is not `10%`
+   * of this one, and `number` is clamped to what is left so a stack copied from a
+   * bigger line cannot overrun this one. A `pcs` discount cannot exceed the qty.
+   * The trailing blank row the dialog always keeps is added back here.
+   */
+  function discountsFrom(line: Line, copied: readonly CopiedDiscount[]): DiscountLine[] {
+    const rows: DiscountLine[] = copied.map((entry) => {
+      let value = entry.value;
+      if (entry.kind === "percent") value = Math.min(value, 100);
+      if (entry.kind === "pcs") value = Math.min(value, Math.max(line.qty, 0));
+      return { id: generateId(), value, kind: entry.kind, eff: 0, total: 0 };
+    });
+    const blank: DiscountLine = { id: generateId(), value: 0, kind: "percent", eff: 0, total: 0 };
+    return recalcDiscounts(line.price, line.qty, [...rows, blank]);
+  }
+
+  function patchFor(line: Line, field: Field, text: string): Partial<Line> | null {
     // One line of text, whatever the clipboard held.
     const flat = text.replace(/\s+/g, " ").trim();
     const digits = text.replace(/\D/g, "");
@@ -642,8 +684,17 @@ export function Listing({
         return digits === "" ? null : { qty: Math.max(0, Number(digits)) };
       case "unit":
         return digits === "" ? null : { unit: Math.max(0, Number(digits)) };
-      case "price":
-        return digits === "" ? null : { price: Number(digits) };
+      case "price": {
+        // A copy travels in English (`20000.2`); a display string is Indonesian
+        // (`Rp20.000,2`). Both have to land on the same number — the old
+        // digits-only read turned `20000.2` into `200.002`.
+        const price = parseClipboardNumber(text);
+        return price === null ? null : { price: Math.max(0, price) };
+      }
+      case "diskon": {
+        const copied = parseDiscounts(text);
+        return copied === null ? null : { discounts: discountsFrom(line, copied) };
+      }
       default:
         return null;
     }
@@ -652,12 +703,14 @@ export function Listing({
   /** The line and field under the cursor, when that cell can hold a value. */
   function clipboardCell(): { line: Line; field: Field } | null {
     const row = selection.row;
-    if (row.kind !== "card" || !active.editable) return null;
+    if (row.kind !== "card") return null;
     const line = lines.find((candidate) => candidate.id === row.cardId);
     if (line === undefined) return null;
-    const field = active.field;
-    if (cellText(line, field as Field) === null) return null;
-    return { line, field: field as Field };
+    const field = active.field as Field;
+    // Diskon is not typed into, but it is still a value worth carrying.
+    if (field !== "diskon" && !active.editable) return null;
+    if (cellText(line, field) === null) return null;
+    return { line, field };
   }
 
   async function copyCell() {
@@ -668,6 +721,11 @@ export function Listing({
     const copied = await clipboard.writeText(text);
     if (!copied) {
       toast.error("Tidak bisa menyalin ke papan klip");
+      return;
+    }
+    if (cell.field === "diskon") {
+      const count = cell.line.discounts.filter((discount) => discount.value !== 0).length;
+      toast.success(count === 0 ? "Diskon kosong disalin" : `Disalin: diskon ${count} baris`);
       return;
     }
     toast.success(text === "" ? "Sel kosong disalin" : `Disalin: ${brief(text)}`);
@@ -681,8 +739,11 @@ export function Listing({
   function pasteCell(text: string) {
     const cell = clipboardCell();
     if (cell === null) return;
-    const patch = patchFor(cell.field, text);
-    if (patch === null) return;
+    const patch = patchFor(cell.line, cell.field, text);
+    if (patch === null) {
+      if (cell.field === "diskon") toast.error("Papan klip tidak berisi diskon");
+      return;
+    }
     onChange(lines.map((line) => (line.id === cell.line.id ? patchLine(line, patch) : line)));
   }
 
@@ -790,6 +851,10 @@ export function Listing({
       case "no":
         if (selection.row.kind === "card") openDetail(selection.row.cardId);
         return;
+      case "image":
+        // The photo is a cell the cursor can stand on; Enter opens the gallery.
+        if (selection.row.kind === "card") openImages(selection.row.cardId);
+        return;
       case "grip":
         if (selection.row.kind === "card") lockCard(selection.row.cardId);
         return;
@@ -841,6 +906,40 @@ export function Listing({
     // the selection will not fire for this move.
     const id = `cell-${cardId}-grip`;
     requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "nearest" }));
+  }
+
+  /**
+   * Arrow keys inside an open editor: at the very edge of the value the arrow
+   * commits what is typed, leaves the editor and moves the cursor — the row of
+   * cells is walked without Enter, the way a spreadsheet behaves.
+   *
+   * Runs in the capture phase on purpose: `InputCurrency` moves its own caret on
+   * Left/Right, so by the bubble phase a caret that was one step in is already
+   * at the edge and the cell would be left on the first press. In capture the
+   * caret is still where the operator left it.
+   */
+  function handleKeyDownCapture(event: KeyboardEvent<HTMLDivElement>) {
+    if (!editing) return;
+    const field = event.target;
+    if (!(field instanceof HTMLInputElement)) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = event.key;
+    if (!key.startsWith("Arrow")) return;
+    if (key === "ArrowLeft" && !caretAtValueStart(field)) return;
+    if (key === "ArrowRight" && !caretAtValueEnd(field)) return;
+    event.preventDefault();
+    // Blur is the editor's own commit; unmounting the input would drop the draft.
+    field.blur();
+    if (key === "ArrowUp") {
+      moveVertical(-1);
+      return;
+    }
+    if (key === "ArrowDown") {
+      // Nothing below the last row: hand the selection to the settle strip.
+      if (!moveVertical(1)) onExitDown?.();
+      return;
+    }
+    moveHorizontal(key === "ArrowLeft" ? -1 : 1, true);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -905,6 +1004,15 @@ export function Listing({
       setEditing(true);
       return;
     }
+    // A name or a code: any printable character opens the editor with it, the
+    // way a spreadsheet does. A digit counts — a code can be all digits.
+    const character = active.textSeed === true ? typedCharacter(event) : null;
+    if (character !== null) {
+      event.preventDefault();
+      setSeed(character);
+      setEditing(true);
+      return;
+    }
     switch (event.key) {
       case "ArrowUp":
         if (isSearch) return;
@@ -962,6 +1070,7 @@ export function Listing({
       role="grid"
       aria-label={mode === "sale" ? "Barang yang dijual" : "Barang yang dibeli"}
       aria-activedescendant={activeId}
+      onKeyDownCapture={handleKeyDownCapture}
       onKeyDown={handleKeyDown}
       // The fallback path for a webview where `navigator.clipboard.readText` is
       // missing: the browser still hands the text to a `paste` event.
@@ -1125,6 +1234,7 @@ export function Listing({
                           bumped={bumped === line.id}
                           seed={seed}
                           priceLabel={mode === "sale" ? "Harga Jual" : "Harga Beli"}
+                          fix={fix}
                           number={lines.length - index}
                           issue={issues.get(line.id)}
                           selected={cardSelected && focused ? (active.field as Field) : null}

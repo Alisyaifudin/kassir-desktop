@@ -7,7 +7,9 @@
  *
  * Columns are 0-indexed, twelve wide. `no#` and the drag handle are selectable
  * but not editable: the number opens the product's detail sheet, the handle locks
- * the card so the arrows can move it.
+ * the card so the arrows can move it. The product's photo sits at column `-1`,
+ * left of both rows: it only exists when the line actually has a cover, and it is
+ * selectable so the keyboard can reach the gallery too.
  *
  * One grid for both cart screens: `layout` carries the only real difference —
  * the sale screen ends its header with a stage toggle (`Tambahan`), the purchase
@@ -15,12 +17,25 @@
  */
 
 export type Field =
-  "no" | "name" | "grandTotal" | "x" | "grip" | "code" | "qty" | "unit" | "price" | "diskon";
+  | "image"
+  | "no"
+  | "name"
+  | "grandTotal"
+  | "x"
+  | "grip"
+  | "code"
+  | "qty"
+  | "unit"
+  | "price"
+  | "diskon";
 
 /** Every cell, including the header's, which only draw. */
 type AnyField = Field | "search" | "manual" | "toggle";
 
-export type RowRef = { kind: "header" } | { kind: "card"; cardId: string; part: "top" | "bottom" };
+export type RowRef =
+  | { kind: "header" }
+  /** `image` is set on a card's top row when the line has a cover to show. */
+  | { kind: "card"; cardId: string; part: "top" | "bottom"; image?: boolean };
 
 /** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
 export type QtySub = "left" | "value" | "right";
@@ -38,6 +53,12 @@ type CellDef = {
    * with that digit instead of doing nothing (see `typedDigit`).
    */
   numeric?: boolean;
+  /**
+   * A text cell: typing any printable character while it is selected opens its
+   * editor with that character, the way a spreadsheet does. A digit also counts
+   * — a name or a code can start with one.
+   */
+  textSeed?: boolean;
 };
 
 /** Which optional columns the grid has. A sale has a stage toggle; a purchase does not. */
@@ -63,27 +84,37 @@ function headerCells(layout: ListingLayout): CellDef[] {
   ];
 }
 
+/** The product photo: left of both rows, so it only lives on the card's top row. */
+const IMAGE_CELL: CellDef = {
+  field: "image",
+  start: -1,
+  end: -1,
+  selectable: true,
+  editable: false,
+};
+
 const TOP_CELLS: CellDef[] = [
   { field: "no", start: 0, end: 0, selectable: true, editable: false },
-  { field: "name", start: 1, end: 8, selectable: true, editable: true },
+  { field: "name", start: 1, end: 8, selectable: true, editable: true, textSeed: true },
   { field: "grandTotal", start: 9, end: 10, selectable: true, editable: false },
   { field: "x", start: 11, end: 11, selectable: true, editable: false },
 ];
 
 const BOTTOM_CELLS: CellDef[] = [
   { field: "grip", start: 0, end: 0, selectable: true, editable: false },
-  { field: "code", start: 1, end: 4, selectable: true, editable: true },
+  { field: "code", start: 1, end: 4, selectable: true, editable: true, textSeed: true },
   { field: "qty", start: 5, end: 5, selectable: true, editable: true, numeric: true },
   { field: "unit", start: 6, end: 6, selectable: true, editable: true, numeric: true },
   { field: "price", start: 7, end: 8, selectable: true, editable: true, numeric: true },
   { field: "diskon", start: 9, end: 11, selectable: true, editable: false },
 ];
 
-const CARD_CELLS = [...TOP_CELLS, ...BOTTOM_CELLS];
+const CARD_CELLS = [IMAGE_CELL, ...TOP_CELLS, ...BOTTOM_CELLS];
 
 export function cellsForRow(row: RowRef, layout: ListingLayout): CellDef[] {
   if (row.kind === "header") return headerCells(layout);
-  return row.part === "top" ? TOP_CELLS : BOTTOM_CELLS;
+  if (row.part === "bottom") return BOTTOM_CELLS;
+  return row.image === true ? [IMAGE_CELL, ...TOP_CELLS] : TOP_CELLS;
 }
 
 export function selectableCells(row: RowRef, layout: ListingLayout): CellDef[] {
@@ -114,12 +145,21 @@ export function sameRow(a: RowRef, b: RowRef): boolean {
   return a.cardId === b.cardId && a.part === b.part;
 }
 
-/** The vertical order: header, then each card's top and bottom rows. */
-export function rowsFor(cardIds: string[]): RowRef[] {
+/**
+ * The vertical order: header, then each card's top and bottom rows.
+ *
+ * `hasImage` says which cards draw a photo; those get the extra `image` cell at
+ * the start of their top row. Only the cards that have one, so the cursor never
+ * lands on a photo that is not drawn.
+ */
+export function rowsFor(
+  cardIds: readonly string[],
+  hasImage?: (cardId: string) => boolean,
+): RowRef[] {
   return [
     { kind: "header" },
     ...cardIds.flatMap((cardId): RowRef[] => [
-      { kind: "card", cardId, part: "top" },
+      { kind: "card", cardId, part: "top", ...(hasImage?.(cardId) === true ? { image: true } : {}) },
       { kind: "card", cardId, part: "bottom" },
     ]),
   ];
@@ -127,6 +167,7 @@ export function rowsFor(cardIds: string[]): RowRef[] {
 
 /** Which half of a card a field lives in. */
 export function partOf(field: Field): "top" | "bottom" {
+  if (field === "image") return "top";
   return TOP_CELLS.some((cell) => cell.field === field) ? "top" : "bottom";
 }
 

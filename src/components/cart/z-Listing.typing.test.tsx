@@ -6,16 +6,17 @@ import type { Listing } from "~/services/listing";
 import type { Line } from "./types";
 
 /**
- * Typing a number over a selected cell.
+ * Typing over a selected cell.
  *
  * On a till the operator does not press Enter and then clear a field: a number
  * typed on a selected cell *is* the new value. So the keypress commits it and the
  * editor opens with the caret after it — never over a selection, which is what
  * turned `1` then `2` into `2`.`
  *
- * The cells this applies to are the numeric ones (`price`, `unit`, `qty`, and the
- * payment strip's `Pembulatan`/`Nilai`); `nama` and `kode` still need Enter,
- * because a digit is a legitimate first character of a name.
+ * The numeric cells (`price`, `unit`, `qty`, and the payment strip's
+ * `Pembulatan`/`Nilai`) seed on a digit. A text cell (`nama`, `kode`) seeds on any
+ * printable character: the row is filled by typing, not by Enter-then-type. A
+ * digit seeds a name too — a code is often all digits.
  */
 const listing: Listing = {
   id: "l1",
@@ -106,13 +107,30 @@ describe("a digit typed on a selected cell", () => {
     expect(editor(`cell-${line.id}-qty`)?.value).toBe("37");
   });
 
-  test("a name cell keeps Enter as its way in — a digit is part of a name", async () => {
+  test("a name cell opens on the character typed, digit or not", async () => {
     const { line, grid } = await renderWithLine();
 
     fireEvent.click(document.getElementById(`cell-${line.id}-name`) as HTMLElement);
     fireEvent.keyDown(grid, { key: "5" });
 
+    // A name (and a code) can start with a digit, so a digit is a seed too.
+    expect(editor(`cell-${line.id}-name`)?.value).toBe("5");
+
+    fireEvent.keyDown(editor(`cell-${line.id}-name`) as HTMLInputElement, { key: "Escape" });
     expect(editor(`cell-${line.id}-name`)).toBeNull();
+
+    // Escape leaves the cursor on the cell, so typing again seeds it.
+    fireEvent.keyDown(grid, { key: "a" });
+    expect(editor(`cell-${line.id}-name`)?.value).toBe("a");
+  });
+
+  test("a code cell opens on the character typed too", async () => {
+    const { line, grid } = await renderWithLine();
+
+    fireEvent.click(document.getElementById(`cell-${line.id}-code`) as HTMLElement);
+    fireEvent.keyDown(grid, { key: "8" });
+
+    expect(editor(`cell-${line.id}-code`)?.value).toBe("8");
   });
 
   test("the digit is the cell's value from that keypress on", async () => {

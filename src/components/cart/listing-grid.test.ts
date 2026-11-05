@@ -26,6 +26,12 @@ import {
 
 const HEADER: RowRef = { kind: "header" };
 const TOP = (cardId: string): RowRef => ({ kind: "card", cardId, part: "top" });
+const TOP_WITH_IMAGE = (cardId: string): RowRef => ({
+  kind: "card",
+  cardId,
+  part: "top",
+  image: true,
+});
 const BOTTOM = (cardId: string): RowRef => ({ kind: "card", cardId, part: "bottom" });
 const TOP_CELLS_OF = (cardId: string) => cellsForRow(TOP(cardId), SALE_LISTING_LAYOUT);
 const BOTTOM_CELLS_OF = (cardId: string) => cellsForRow(BOTTOM(cardId), SALE_LISTING_LAYOUT);
@@ -71,11 +77,39 @@ describe("listing grid geometry", () => {
 
   test("the rows are the header then each card's two halves, in order", () => {
     const rows = rowsFor(["a", "b"]);
-    expect(rows).toEqual([HEADER, TOP("a"), BOTTOM("a"), TOP("b"), BOTTOM("b")]);
+    expect(rows).toEqual([HEADER, TOP("a"), { kind: "card", cardId: "a", part: "bottom" }, TOP("b"), { kind: "card", cardId: "b", part: "bottom" }]);
     expect(sameRow(TOP("a"), BOTTOM("a"))).toBe(false);
     expect(sameRow(TOP("a"), TOP("a"))).toBe(true);
     expect(sameRow(HEADER, HEADER)).toBe(true);
     expect(sameRow(HEADER, TOP("a"))).toBe(false);
+  });
+
+  test("a card with a cover gets an image cell at column -1; one without does not", () => {
+    expect(selectableCells(TOP("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).toEqual([
+      "no",
+      "name",
+      "grandTotal",
+      "x",
+    ]);
+    expect(selectableCells(TOP_WITH_IMAGE("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).toEqual([
+      "image",
+      "no",
+      "name",
+      "grandTotal",
+      "x",
+    ]);
+    // Only above both rows: the photo spans the card, so the bottom row has none.
+    expect(selectableCells(BOTTOM("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).not.toContain(
+      "image",
+    );
+    expect(startOf("image")).toBe(-1);
+  });
+
+  test("rowsFor only marks the cards the caller says have a cover", () => {
+    const rows = rowsFor(["a", "b"], (id) => id === "b");
+
+    expect(rows[1]).not.toHaveProperty("image");
+    expect(rows[3]).toEqual({ kind: "card", cardId: "b", part: "top", image: true });
   });
 
   test("every card field starts on a column a card actually has", () => {
