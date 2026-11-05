@@ -441,6 +441,13 @@
           - 52: the record-dirty partial index on `records (record_updated_at, record_id)`
           - 53: categories and the product_category join, carried in the product sync group
           - 54: repairs `record_listing_capital` — see below
+          - 55: makes the category tables mergeable: no key from a link to its category and no unique name or
+            pair index, because a pull page may carry a link before its category (or a name/pair a second till
+            created) and must store it rather than fail the commit. The one-live-row rules move to
+            `CategoryService`
+          - 56: the same treatment for the three product children `migration-43` keyed: one live barcode, one live
+            property key and one live alias are rules of `ProductService`, not indexes, so a second till's row is
+            stored instead of failing the page
           Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
           are created in 43.
 
@@ -742,12 +749,12 @@
       </description>
       <group name="catalog">
         <table name="products">product_id, product_name, product_note, product_flag (bit 0 = unpublished), sync trio</table>
-        <table name="listings">one priced unit of a product; listing_name/price/unit/kind/code (code unique across live listings, NOCASE), soft delete</table>
+        <table name="listings">one priced unit of a product; listing_name/price/unit/kind/code (one live code per catalogue, NOCASE — a rule of `ProductService` since migration 56), soft delete</table>
         <table name="stocks">the local lot cache: stock_value, stock_capital, created/updated; never synced</table>
         <table name="product_events">append-only stock journal (manual/inc/dec), linked to the record and the stock lot; indexed by product, stock and record</table>
-        <table name="categories">a product's labels: category_name (one live row per name, NOCASE) + sync trio. Group-wide, so it carries no product_id and is outside the one-product scope</table>
-        <table name="product_category">the many-to-many link (product_id, category_id) with an id of its own + sync trio; one live link per pair, a dropped link is a tombstone. See migration 53</table>
-        <table name="product_names / properties / images">alternative names, key/value properties, image references (name + mime under AppData/images); img_mimes is the allowed set (png/jpeg/webp). Since migration 50 `images` also carries the three client-only byte columns: image_blob_version (the image_updated_at the local file belongs to), image_blob_sha256 (its digest) and image_blob_sync_at (NULL = the server never accepted the bytes). None of them is on the wire.</table>
+        <table name="categories">a product's labels: category_name + sync trio. Group-wide, so it carries no product_id and is outside the one-product scope. One live row per name is a rule of `CategoryService`, not an index: two tills may create the same name offline and both rows are kept (migration 55)</table>
+        <table name="product_category">the many-to-many link (product_id, category_id) with an id of its own + sync trio; a dropped link is a tombstone. No key to `categories` and no unique pair: the scoped product sync never carries categories and two tills may tick the same box, so both rows are kept and the form draws one. See migrations 53 and 55</table>
+        <table name="product_names / properties / images">alternative names, key/value properties, image references (name + mime under AppData/images); img_mimes is the allowed set (png/jpeg/webp). One live alias per value and one live property per key per product are rules of `ProductService`, not indexes (migration 56). Since migration 50 `images` also carries the three client-only byte columns: image_blob_version (the image_updated_at the local file belongs to), image_blob_sha256 (its digest) and image_blob_sync_at (NULL = the server never accepted the bytes). None of them is on the wire.</table>
       </group>
       <group name="history">
         <table name="records">header: created/paid/credit dates, mode (incoming|outcoming), flag, totals, customer/supplier snapshots, sync trio, deleted_at</table>
@@ -949,16 +956,18 @@
         The category catalog: a label a product can be filed under, and nothing else (no colour, no order, no nesting).
         A product belongs to zero or more categories through `product_category`, which `ProductService` writes — the
         link is a child of the product, the name is this service's. One live row per name, case-insensitively, so
-        "Minuman" and "minuman" are the same category.
+        "Minuman" and "minuman" are the same category — a rule this service asks, because the table cannot carry a
+        unique index without making a legal sync page uncommittable (migration 55).
       </description>
       <error name="CategoryError" tag="CategoryError" />
       <error name="CategoryDuplicateName" tag="CategoryDuplicateName" field="value">
         A live category already holds that name. The one failure the shop can fix, so the screens word it as advice.
+        A duplicate that arrives through sync is not an error: it is kept and shown.
       </error>
       <interface>
         <method name="get.all() / get.changes">Ordered by name (NOCASE) in SQL; a write re-reads the row and re-sorts locally.</method>
-        <method name="add(input) => id">category_name_unique refuses a duplicate live name.</method>
-        <method name="set.name(id, name)">Bumps category_updated_at, clears category_sync_at.</method>
+        <method name="add(input) => id">Refuses a duplicate live name (`CategoryDuplicateName`) before the insert.</method>
+        <method name="set.name(id, name)">Refuses a duplicate live name, then bumps category_updated_at and clears category_sync_at.</method>
         <method name="delete.byId(id)">Soft delete via category_deleted_at. The product links that named it are kept as orphans, not deleted.</method>
         <method name="refresh()">Re-reads the table after a product-group sync merge.</method>
       </interface>
@@ -1067,6 +1076,10 @@
         each, and a name typed into its picker is a *draft* name (`ProductDraft.newCategories`) rather than a row: the
         save creates it and files the product under the id that comes back, so a name typed and never saved costs the
         catalogue nothing. `ProductInput.categoryIds` files a new product in the same transaction that creates it.
+        The child keys a shop thinks of as unique — one live barcode, one live property key per product, one live
+        alias per product — are this service's rules (`listing.add/update`, `product.add`, `property.add/update`,
+        `productName.add/update`), not indexes on the tables: migration 56 dropped them so a second till's row is
+        stored by the sync instead of failing the page.
       </description>
       <error name="ProductError" tag="ProductError">Plus ProductDuplicateCode, carrying the code that was already taken.</error>
       <state>One SubscriptionRef of the whole read model; a write re-hydrates the touched rows, and get.changes / changesFull / unsync read from it.</state>
@@ -1208,13 +1221,15 @@
       no log entry, no bookmark.
     </description>
     <schema_contract>
-      <item name="canonical_json">schema.ts freezes every entity's column order once (18 row entities plus the record header and its five child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
+      <item name="canonical_json">schema.ts freezes every entity's column order once (the 16 row entities, of which one is the record aggregate, plus its five child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
       <item name="bookmark">`sync_bookmark(group_name, seq)` in SQLite — one integer per group, advanced to `done.s` (not `meta.snapshot`: a page can stop early) and written in the SAME transaction as the page's rows. A pre-table database reads its `sync.&lt;group&gt;.bookmark` store key once and migrates it.</item>
       <item name="park">`sync_parked_money(money_id, seq, row_json)` holds money rows whose pocket is not on the device yet. They are never dropped and never abort a page; every later page retries them, keyed by id so a re-pulled page parks one row once. Written with the page's bookmark.</item>
       <item name="sync_at">`&lt;x&gt;_sync_at` is the push marker and holds the server's `seq`: NULL means owed. Merged rows are marked immediately so they are not pushed back. Every marker and `stale` write is guarded on the row's clock, so an edit that lands while its frame is in flight is not lost (§4.12).</item>
       <item name="clock">Every local edit writes `&lt;x&gt;_updated_at = max(now, &lt;x&gt;_updated_at + 1)` (SQL scalar max) and clears the dirty flag in the same statement, so two edits in one millisecond cannot tie (§5.1.1). A soft delete sets both `_deleted_at` and `_updated_at` to that clock.</item>
       <item name="migration_49">Dropped the cross-group foreign keys a pulled aggregate may dangle against (`records.record_supplier_id`, `records.record_pair_id`, `record_listings.product_id`/`product_event_id`, `record_methods.method_id`, `product_events.product_id`/`stock_id`/`record_id`), and added `sync_bookmark` + `sync_parked_money`. The local write paths that relied on those constraints (payment methods) now check explicitly.</item>
       <item name="migration_50">Added the three client-only byte columns to `images` (`image_blob_version` / `image_blob_sha256` / `image_blob_sync_at`) and set every live row's version to its clock: in this product the bytes of one image_id never change and a file under images/ was written by whichever device created the row, so an existing file is the current version's bytes. A row whose file is missing is cleared again on its first upload attempt (`local_missing`) and fetched instead. A pull merge never touches the trio.</item>
+      <item name="migration_55">Made the category tables mergeable, because every constraint 53 added could be violated by a legal frame and a page that fails to commit is a group that never moves again. `product_category` lost its key to `categories` (the scoped product sync never carries categories, so a link can arrive before its category) and its unique `(product_id, category_id)` pair (the server keeps both rows when two tills tick the same box). `categories` lost its unique live name (two tills may create "Minuman" offline; `kassir-server` keeps no such key either). The one-live-row-per-name and one-live-link-per-pair rules stay, as checks in `CategoryService` and the product form, where a duplicate a user creates is refused but one that arrives through sync is kept.</item>
+      <item name="migration_56">The same rule for the last three keys `migration-43` put on a synced table: `listings (listing_code NOCASE)`, `properties (product_id, property_key)` and `product_names (product_id, product_name_value)`, one live row each. Two tills that were offline can assign the same barcode, add the same key or record the same alias, and the server keeps both; a unique index here made that legal page fail its commit and stranded the product group. The rules moved into `ProductService` (and `validateProductInput` for the two rows one import can carry), which is where the operator is told about them.</item>
     </schema_contract>
     <shape>
       <stage name="pull">`GET /v2/&lt;group&gt;/pull/:seq?limit=&lt;default&gt;` per page, decoding `meta` / `row` / `ag` / `del` / `done` lines as they stream; an unknown `t` or another group's entity is skipped, never fatal. A transport/5xx failure is retried with exponential full jitter (base 1 s, cap 60 s). Nothing is written during the read, so the bookmark cannot run ahead of the data.</stage>

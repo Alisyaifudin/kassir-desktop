@@ -17,8 +17,9 @@ type CategoryRow = {
 };
 
 // A shop has a handful of categories, so the whole table fits the one-ref model.
-// Ordering lives in SQL so every reader sees the same list, and it is the same
-// order `category_name_unique` already holds the rows in.
+// Ordering lives in SQL so every reader sees the same list, over the same
+// `category_name_idx` (name, `COLLATE NOCASE`) the list and the duplicate check
+// share. `category_id` breaks the tie so two same-named rows stay put.
 const SELECT_CATEGORIES = `
   SELECT category_id, category_name, category_updated_at, category_sync_at
   FROM categories
@@ -30,6 +31,20 @@ const SELECT_CATEGORY_ONE = `
   FROM categories
   WHERE category_deleted_at IS NULL AND category_id = $1`;
 
+/**
+ * Does a live row other than `exceptId` already carry this name?
+ *
+ * `$2 IS NULL` is the "no row to exclude" case (a create), so one statement
+ * serves both `add` and `set.name`. `COLLATE NOCASE` is the same comparison the
+ * form makes: "Minuman" and "minuman" are one category to a human.
+ */
+const SELECT_CATEGORY_BY_NAME = `
+  SELECT category_id FROM categories
+  WHERE category_deleted_at IS NULL
+    AND category_name = $1 COLLATE NOCASE
+    AND ($2 IS NULL OR category_id <> $2)
+  LIMIT 1`;
+
 /** Mirrors `ORDER BY category_name COLLATE NOCASE ASC, category_id ASC`. */
 function byCategoryOrder(a: Category, b: Category): number {
   const byName = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
@@ -37,25 +52,6 @@ function byCategoryOrder(a: Category, b: Category): number {
 }
 
 function dbErrorToCategoryError(error: DbError): CategoryError {
-  return new CategoryError({ message: error.message });
-}
-
-/**
- * A name that is already taken is not a failure the shop can do nothing about —
- * it is the one thing the form can fix, so it gets its own error.
- *
- * `DbError.message` is the cashier-facing sentence; the driver text (where SQLite
- * names the failed index) lives in `detail`. Both are checked so this still works
- * against a layer that folds them together.
- */
-function nameErrorToCategoryError(
-  error: DbError,
-  name: string,
-): CategoryError | CategoryDuplicateName {
-  const driver = `${error.message} ${error.detail}`;
-  if (/UNIQUE constraint failed/i.test(driver) && /category_name/i.test(driver)) {
-    return new CategoryDuplicateName({ value: name });
-  }
   return new CategoryError({ message: error.message });
 }
 
@@ -120,6 +116,27 @@ export const CategoryLive = Layer.effect(
       });
     }
 
+    /**
+     * The one-live-row-per-name rule, asked before a write.
+     *
+     * It lives here rather than in the schema because it is a rule of the picker,
+     * not of the wire: `migration-55` dropped `category_name_unique` when a
+     * category named the same on two devices became a legal row that a pull page
+     * must store (`SYNC-V2.md` §8.7, migration-55). A rename is the same question
+     * with its own row excluded.
+     */
+    function nameTaken(
+      name: string,
+      exceptId: string | null,
+    ): Effect.Effect<boolean, CategoryError> {
+      return db
+        .selectMany<{ category_id: string }>(SELECT_CATEGORY_BY_NAME, [name, exceptId])
+        .pipe(
+          Effect.mapError(dbErrorToCategoryError),
+          Effect.map((rows) => rows.length > 0),
+        );
+    }
+
     function commit(statements: { sql: string; bindings: (string | number | null)[] }[]) {
       return db.transaction(statements).pipe(Effect.mapError(dbErrorToCategoryError));
     }
@@ -133,6 +150,9 @@ export const CategoryLive = Layer.effect(
       },
       add(input: CategoryInput) {
         return Effect.gen(function* () {
+          const taken = yield* nameTaken(input.name, null);
+          if (taken) return yield* Effect.fail(new CategoryDuplicateName({ value: input.name }));
+
           const id = generateId();
           const now = Date.now();
           yield* db
@@ -145,7 +165,7 @@ export const CategoryLive = Layer.effect(
                 bindings: [id, input.name, now],
               },
             ])
-            .pipe(Effect.mapError((error) => nameErrorToCategoryError(error, input.name)));
+            .pipe(Effect.mapError(dbErrorToCategoryError));
           yield* refreshCategory(id);
           return id;
         });
@@ -153,6 +173,9 @@ export const CategoryLive = Layer.effect(
       set: {
         name(id, name) {
           return Effect.gen(function* () {
+            const taken = yield* nameTaken(name, id);
+            if (taken) return yield* Effect.fail(new CategoryDuplicateName({ value: name }));
+
             const now = Date.now();
             yield* db
               .transaction([
@@ -165,7 +188,7 @@ export const CategoryLive = Layer.effect(
                   bindings: [name, now, id],
                 },
               ])
-              .pipe(Effect.mapError((error) => nameErrorToCategoryError(error, name)));
+              .pipe(Effect.mapError(dbErrorToCategoryError));
             yield* refreshCategory(id);
           });
         },

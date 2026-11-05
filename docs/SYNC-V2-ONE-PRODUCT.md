@@ -17,8 +17,8 @@ adds three things to the product group; it changes none of the existing rules.
 3. `product_id` as an optional filter on the existing image manifest.
 
 There is **no new table, no new column, no migration and no new merge rule**.
-The six product-group dictionaries, clocks, tombstones, LWW/append-only rules
-and image-byte side channel are exactly those of the product group.
+The product-group dictionaries, clocks, tombstones, LWW/append-only rules and
+image-byte side channel are exactly those of the product group.
 
 ---
 
@@ -101,6 +101,7 @@ gzip rules and error envelope as every other v2 route (`SYNC-V2.md` §2).
 | `listing` | all rows with `product_id = P`, including tombstones |
 | `image` | all rows with `product_id = P`, including tombstones |
 | `product_event` | all events with `product_id = P`; append-only, never deleted |
+| `product_category` | all links with `product_id = P`, including tombstones |
 | `category` | none — a group-wide row with no `product_id`; the full product cycle carries it |
 
 `stocks` is **not** in the baggage. It is a local projection of the event
@@ -187,7 +188,7 @@ Rows are returned in the product group's fixed order, then primary key
 ascending:
 
 ```
-product → product_name → property → listing → image → product_event
+product → product_name → property → listing → image → product_event → product_category
 ```
 
 Within one entity, the primary key is unique, so `(entity_index, primary key)` is
@@ -330,8 +331,10 @@ for (index, frame) in frames:
             `"r.product_id" is "${frame.r.product_id}", not the scoped product "${product_id}"`)
 ```
 
-This applies to all six entities. For `product`, `product_id` is both the scope
-and the primary key, so the check is the same expression.
+This applies to every entity in scope (`product`, `product_name`, `property`,
+`listing`, `image`, `product_event`, `product_category`), and never to
+`category`, which has no `product_id`. For `product`, `product_id` is both the
+scope and the primary key, so the check is the same expression.
 
 Nothing is applied when the check fails: the batch is `400 bad_frame` with the
 offending `index`, exactly like a malformed frame. A client must never send
@@ -523,7 +526,7 @@ correctness.
 2. **Scoped pull**:
    - validate `product_id` is non-empty;
    - decode `after` as an opaque cursor; malformed → `400 bad_request`;
-   - read rows from the six entity tables, filtered by `product_id`, in
+   - read rows from the scope's entity tables, filtered by `product_id`, in
      `(entity order, primary key)` order;
    - include live rows and tombstones; never emit `del`; never read or write
      `product_group_change_log` for this route;
@@ -571,7 +574,7 @@ returns an empty page and the push may create it.
 - [ ] `GET /v2/product/one/pull/{id}` returns only rows whose `product_id` is
   `id`; `product` itself included; tombstones included; no `del`.
 - [ ] Rows are ordered `product → product_name → property → listing → image →
-  product_event`, then primary key ascending.
+  product_event → product_category`, then primary key ascending.
 - [ ] Paging uses an opaque cursor; page 2 with `after` never repeats or skips a
   row that existed in the same snapshot.
 - [ ] `limit` defaults to 5000, caps at 20000, and a non-positive/invalid value
@@ -613,6 +616,10 @@ returns an empty page and the push may create it.
   full sync while it runs.
 - [ ] Cancellation/failure leaves the local database in a state that the next
   run (scoped or full) converges from; nothing is deleted.
+- [ ] A `product_category` row is stored even when its `category_id` names a
+  category this device has not received: the scoped route never carries
+  categories, so a link whose category is unknown must not fail the page
+  (`SYNC-V2.md` §7.2, migration-55).
 
 ### Tests that must exist
 

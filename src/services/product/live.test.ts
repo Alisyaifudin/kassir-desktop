@@ -771,3 +771,165 @@ describe("categories on a product", () => {
     expect(row.product_category_deleted_at).not.toBeNull();
   });
 });
+
+// ============================================================================
+// Child keys: one live value per code, property key and alias
+// ============================================================================
+//
+// Three rules `migration-43` held with partial unique indexes and `migration-56`
+// moved here: the index turned a duplicate another device wrote while offline
+// into a failed pull page (a group that could never move again), so the rule is
+// asked by the service for the rows an operator creates on this device, and a
+// duplicate that arrives through sync is stored instead of refused.
+
+describe("child keys on one device", () => {
+  test("listing.add refuses a code another live listing already holds", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(input("Kopi"));
+        return yield* Effect.either(
+          product.set.listing.add(id, {
+            name: "Kopi Besar",
+            price: 2_000,
+            unit: 1,
+            kind: "retail",
+            code: "kopi",
+          }),
+        );
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") {
+      expect((outcome.left as { _tag: string })._tag).toBe("ProductDuplicateCode");
+    }
+  });
+
+  test("listing.update keeps the row's own code and refuses another's", async () => {
+    const { layer } = setup();
+
+    const codes = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(input("Kopi"));
+        const listing = (yield* product.get.byId(id)).listings[0]!;
+        // Its own code, different case: still its own row.
+        yield* product.set.listing.update(id, listing.id, {
+          name: listing.name,
+          price: listing.price,
+          unit: listing.unit,
+          kind: listing.kind,
+          code: "KOPI",
+        });
+        const made = yield* product.set.listing.add(id, {
+          name: "Kopi Besar",
+          price: 2_000,
+          unit: 1,
+          kind: "retail",
+          code: "Lain",
+        });
+        const refused = yield* Effect.either(
+          product.set.listing.update(id, made, {
+            name: "Kopi Besar",
+            price: 2_000,
+            unit: 1,
+            kind: "retail",
+            code: "kopi",
+          }),
+        );
+        return { own: (yield* product.get.byId(id)).listings.map((l) => l.code), refused };
+      }),
+    );
+
+    expect(codes.own).toEqual(["KOPI", "Lain"]);
+    expect(codes.refused._tag).toBe("Left");
+  });
+
+  test("property.add refuses a key the product already has", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add({
+          ...input("Kopi"),
+          properties: [{ key: "origin", value: "Aceh" }],
+        });
+        return yield* Effect.either(
+          product.set.property.add(id, { key: "origin", value: "Java" }),
+        );
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") {
+      const message = (outcome.left as { message?: string }).message ?? "";
+      expect(message).toContain("origin");
+    }
+  });
+
+  test("productName.add refuses an alias the product already has", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(input("Kopi"));
+        yield* product.set.productName.add(id, { value: "Kopi Susu" });
+        return yield* Effect.either(
+          product.set.productName.add(id, { value: "Kopi Susu" }),
+        );
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") {
+      expect((outcome.left as { message?: string }).message).toContain("Kopi Susu");
+    }
+  });
+
+  test("product.add refuses two listings that share one code in a single input", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const base = input("Kopi");
+        return yield* Effect.either(
+          product.add({
+            ...base,
+            listings: [base.listings[0]!, { ...base.listings[0]!, name: "Kopi Dua" }],
+          }),
+        );
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") {
+      expect((outcome.left as { message?: string }).message).toContain("dipakai dua kali");
+    }
+  });
+
+  test("product.add refuses two properties that share one key in a single input", async () => {
+    // The form refuses this as you type; a JSON import goes straight to
+    // `product.add`, and `migration-56` no longer has an index to catch it.
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        return yield* Effect.either(
+          product.add({
+            ...input("Kopi"),
+            properties: [
+              { key: "origin", value: "Aceh" },
+              { key: "origin", value: "Java" },
+            ],
+          }),
+        );
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") {
+      expect((outcome.left as { message?: string }).message).toContain("origin");
+    }
+  });
+});

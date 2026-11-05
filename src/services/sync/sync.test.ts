@@ -154,7 +154,17 @@ class FakeServer {
    * need more than one page; the server suite owns the cursor boundary cases.
    */
   productPull(productId: string): string[] {
-    const order = ["product", "product_name", "property", "listing", "image", "product_event"];
+    // `PRODUCT_ONE_ENTITIES` order: `product_category` is appended, and `category`
+    // is not here at all (it has no `product_id`, so the filter would drop it).
+    const order = [
+      "product",
+      "product_name",
+      "property",
+      "listing",
+      "image",
+      "product_event",
+      "product_category",
+    ];
     const rows = [...this.rows.entries()]
       .filter(([, row]) => String(row["product_id"]) === productId)
       .map(([key, row]) => {
@@ -281,6 +291,8 @@ const TRUNCATE = [
   "DELETE FROM images",
   "DELETE FROM listings",
   "DELETE FROM properties",
+  "DELETE FROM product_category",
+  "DELETE FROM categories",
   "DELETE FROM product_names",
   "DELETE FROM products",
   "DELETE FROM money",
@@ -849,6 +861,197 @@ describe("sync cycle", () => {
       { product_category_id: "pc_01", product_category_deleted_at: 2_000 },
       { product_category_id: "pc_02", product_category_deleted_at: null },
     ]);
+  });
+
+  test("a link survives when its category has not been pushed yet", async () => {
+    // The scoped push skips `category` on purpose (`SYNC-V2-ONE-PRODUCT.md` §1.1),
+    // so a till that ticks a category it just created lands a link whose category
+    // the server has never seen. That page is legal (§7.2) and has to be stored:
+    // before migration-55 the hard key to `categories` aborted the page commit and
+    // the group never moved past it again.
+    const server = new FakeServer();
+    const first = setup(server);
+    insertProduct(first.db, "P1", "Kopi", 1_000);
+    insertRow(first.db, "category", {
+      category_id: "C1",
+      category_name: "Minuman",
+      category_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_category", {
+      product_category_id: "PC1",
+      product_id: "P1",
+      category_id: "C1",
+      product_category_updated_at: 1_000,
+    });
+
+    // Only the product and its link go up; the category waits for a full cycle.
+    await runProductSync(first.layer, "P1");
+    expect(server.changes.map((change) => change.entity)).toEqual([
+      "product",
+      "product_category",
+    ]);
+
+    // The other till pulls the scope without ever seeing a category.
+    const second = setup(server);
+    const pulled = await runProductSync(second.layer, "P1");
+    expect(pulled.pulled).toBe(2);
+    expect(second.db.query("SELECT COUNT(*) AS n FROM categories").get()).toEqual({ n: 0 });
+    expect(
+      second.db
+        .query("SELECT category_id, product_category_sync_at FROM product_category")
+        .all(),
+    ).toEqual([{ category_id: "C1", product_category_sync_at: 2 }]);
+
+    // The full cycle finally supplies the category: the stored link was already
+    // pointing at it, so it starts drawing with no second pull of its own.
+    await runSync(first.layer);
+    await runSync(second.layer);
+    expect(second.db.query("SELECT category_name FROM categories").all()).toEqual([
+      { category_name: "Minuman" },
+    ]);
+    expect(
+      second.db.query("SELECT COUNT(*) AS n FROM product_category").get(),
+    ).toEqual({ n: 1 });
+  });
+
+  test("two tills ticking the same box keep both link rows", async () => {
+    // The server keeps both (its `0019` migration says so: "the client's existing
+    // merge keeps both"), and the local unique pair index used to abort the page
+    // instead. One category is still drawn once, because the form reads links by
+    // `category_id`.
+    const server = new FakeServer();
+    const first = setup(server);
+    insertProduct(first.db, "P1", "Kopi", 1_000);
+    insertRow(first.db, "category", {
+      category_id: "C1",
+      category_name: "Minuman",
+      category_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_category", {
+      product_category_id: "PC1",
+      product_id: "P1",
+      category_id: "C1",
+      product_category_updated_at: 1_000,
+    });
+    await runSync(first.layer);
+
+    // A second till ticks the same category for the same product while offline.
+    const second = setup(server);
+    insertProduct(second.db, "P1", "Kopi", 1_000);
+    insertRow(second.db, "category", {
+      category_id: "C1",
+      category_name: "Minuman",
+      category_updated_at: 1_000,
+    });
+    insertRow(second.db, "product_category", {
+      product_category_id: "PC2",
+      product_id: "P1",
+      category_id: "C1",
+      product_category_updated_at: 1_000,
+    });
+    await runSync(second.layer);
+
+    await runSync(first.layer);
+    expect(
+      first.db
+        .query(
+          `SELECT product_category_id FROM product_category
+            WHERE product_category_deleted_at IS NULL ORDER BY product_category_id`,
+        )
+        .all(),
+    ).toEqual([{ product_category_id: "PC1" }, { product_category_id: "PC2" }]);
+  });
+
+  test("the same category name created on two tills is kept", async () => {
+    // `category_name_unique` used to make the second name abort the page on both
+    // devices. It is a rule of the picker, not of the wire, so the service asks it
+    // (migration-55) and a row another till created is stored and shown.
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "category", {
+      category_id: "C1",
+      category_name: "Minuman",
+      category_updated_at: 1_000,
+    });
+    await runSync(first.layer);
+
+    const second = setup(server);
+    insertRow(second.db, "category", {
+      category_id: "C2",
+      category_name: "minuman",
+      category_updated_at: 1_000,
+    });
+    await runSync(second.layer);
+
+    await runSync(first.layer);
+    expect(
+      first.db
+        .query(
+          `SELECT category_name FROM categories
+            WHERE category_deleted_at IS NULL ORDER BY category_id`,
+        )
+        .all(),
+    ).toEqual([{ category_name: "Minuman" }, { category_name: "minuman" }]);
+  });
+
+  test("a duplicate barcode, property key or alias from another till is kept", async () => {
+    // Three more rules `migration-43` held with unique indexes and `migration-56`
+    // moved into `ProductService`. The server has no such index, so a second till
+    // that was offline may legally have written the same code, key or alias; an
+    // index here aborted the page and stranded the whole product group.
+    const server = new FakeServer();
+    const first = setup(server);
+    const seed = (device: ReturnType<typeof setup>, suffix: string) => {
+      insertProduct(device.db, "P1", "Kopi", 1_000);
+      insertRow(device.db, "listing", {
+        listing_id: `L${suffix}`,
+        product_id: "P1",
+        listing_name: `Kopi ${suffix}`,
+        listing_price: 1_000,
+        listing_unit: 1,
+        listing_kind: "",
+        listing_code: "ABC",
+        listing_updated_at: 1_000,
+      });
+      insertRow(device.db, "property", {
+        property_id: `PR${suffix}`,
+        product_id: "P1",
+        property_key: "origin",
+        property_value: "Aceh",
+        property_updated_at: 1_000,
+      });
+      insertRow(device.db, "product_name", {
+        product_name_id: `N${suffix}`,
+        product_id: "P1",
+        product_name_value: "Kopi Susu",
+        product_name_updated_at: 1_000,
+      });
+    };
+
+    seed(first, "1");
+    await runSync(first.layer);
+
+    const second = setup(server);
+    seed(second, "2");
+    await runSync(second.layer);
+
+    // The first device stores the second one's rows rather than failing the page.
+    await runSync(first.layer);
+    expect(
+      first.db
+        .query(
+          "SELECT listing_code FROM listings WHERE listing_deleted_at IS NULL ORDER BY listing_id",
+        )
+        .all(),
+    ).toEqual([{ listing_code: "ABC" }, { listing_code: "ABC" }]);
+    expect(
+      first.db.query("SELECT property_key FROM properties ORDER BY property_id").all(),
+    ).toEqual([{ property_key: "origin" }, { property_key: "origin" }]);
+    expect(
+      first.db
+        .query("SELECT product_name_value FROM product_names ORDER BY product_name_id")
+        .all(),
+    ).toEqual([{ product_name_value: "Kopi Susu" }, { product_name_value: "Kopi Susu" }]);
   });
 
   test("a second device pulls what the first pushed, in log order", async () => {

@@ -23,6 +23,10 @@ export function makeTestDatabase() {
     return n(a) - n(b);
   });
   for (const file of files) db.exec(readFileSync(file, "utf8"));
+  // The app runs on sqlx, which turns enforcement on by default, so a statement
+  // that violates a key would fail there and pass here. Match the app: a merge
+  // path that inserts a row before its parent has to be shown to survive it.
+  db.exec("PRAGMA foreign_keys = ON");
 
   const run = (query: string, bindings: Binding[] = []): Effect.Effect<void, DbError> =>
     Effect.try({

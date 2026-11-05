@@ -38,10 +38,10 @@ export function validateProductInput(input: ProductInput): string | null {
   }
 
   // A code identifies one listing; two rows sharing one is a lookup that can
-  // never be resolved, so it is refused before the write rather than by the
-  // database's unique index half way through the transaction. Case-folded,
-  // because the unique index is COLLATE NOCASE — `ABC` and `abc` are the same
-  // code to a scanned barcode.
+  // never be resolved, so it is refused before the write. Case-folded, because a
+  // scanned barcode does not know its case — `ABC` and `abc` are the same code.
+  // (`product.add` also asks the table, so a code another product already holds
+  // is refused; this is the half that can be answered from the input alone.)
   const codes = new Set<string>();
   for (const listing of input.listings) {
     const row = label(listing.name, product);
@@ -74,6 +74,18 @@ export function validateProductInput(input: ProductInput): string | null {
     if (!Number.isFinite(stock.capital) || stock.capital < 0) {
       return `Modal ${product} tidak valid`;
     }
+  }
+
+  // One live value per key per product, exact (the form compares case-folded, the
+  // table compares bytes — this is the table's rule, so it matches `property.add`
+  // and the index `migration-56` removed). A JSON import is the one writer that
+  // can carry two rows with one key, since the form refuses it as you type.
+  const keys = new Set<string>();
+  for (const property of input.properties) {
+    if (keys.has(property.key)) {
+      return `Properti ${property.key} dipakai dua kali di ${product}`;
+    }
+    keys.add(property.key);
   }
 
   return null;

@@ -110,7 +110,7 @@ describe("validateProductInput", () => {
     expect(validateProductInput(twice)).toBe("Kode 8991 dipakai dua kali di Kopi Susu");
   });
 
-  test("the same code in different cases is refused — the unique index is NOCASE", () => {
+  test("the same code in different cases is refused — a barcode has no case", () => {
     const twice = product({
       listings: [listing({ code: "AbC" }), listing({ name: "Kopi Susu 1L", code: "abc" })],
     });

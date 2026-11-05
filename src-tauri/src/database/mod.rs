@@ -326,5 +326,17 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/51-60/migration-54.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 55,
+            description: "merge_safe_category_links",
+            sql: include_str!("../../src/database/51-60/migration-55.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 56,
+            description: "merge_safe_catalog_keys",
+            sql: include_str!("../../src/database/51-60/migration-56.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

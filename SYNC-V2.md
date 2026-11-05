@@ -1991,7 +1991,7 @@ product_deleted_at  INTEGER?            -- null = live
 
 category (4)
 category_id          TEXT     PK, non-empty
-category_name        TEXT     NOT NULL   -- one live row per name, case-insensitively
+category_name        TEXT     NOT NULL   -- a label; one live row per name is a form rule, not a key
 category_updated_at  INTEGER  NOT NULL
 category_deleted_at  INTEGER?
 
@@ -2050,21 +2050,38 @@ record_id                 TEXT?              -- may dangle
 
 #### Merge
 
-- The six catalog entities — plain LWW on their own `*_updated_at`; every
+- The eight catalog entities — plain LWW on their own `*_updated_at`; every
   column editable; tie → stored wins.
 - `category` is a group-wide row, not a product child: it carries no
   `product_id` and is therefore **outside** the one-product scope
   (`SYNC-V2-ONE-PRODUCT.md` §1.1). The link (`product_category`) is a child and
   is in scope. A link may name a category this device has not received yet — the
-  usual dangling reference (§7.2): store it, keep it, do not draw it.
+  usual dangling reference (§7.2): store it, keep it, do not draw it. The client
+  therefore keeps **no key from a link to its category** (migration-55): the
+  scoped route never carries categories, so a keyed link would make a legal page
+  uncommittable.
 - A product may be filed under zero or more categories. Un-ticking a category
   soft-deletes that link row and re-ticking it creates a new one (the pair is not
   the key — `product_category_id` is), so two devices ticking the same box do not
-  fight over one row.
+  fight over one row. Both rows are kept when two devices tick it offline: the
+  server stores both (`kassir-server` migration `0019`) and the client stores
+  both (migration-55). The form still draws the category once, because it reads
+  links by `category_id`.
+- One live row per category **name** is likewise a rule of the desktop's forms,
+  not a key on `categories`: two devices may create "Minuman" offline, both rows
+  are legal, and `CategoryService` is what refuses a duplicate on one device. A
+  duplicate that arrives through sync is kept and shown — dropping it would lose
+  a category another till is filing products under.
 - `product_event` — append-only: new id → `applied`; existing id → `noop`
   (payload not compared).
 - A `product_name` alias is not the primary name: renaming the primary name
   updates `products`, not `product_names`.
+- One live barcode, property key and alias are rules of the desktop's forms, not
+  keys on the tables (migration-56). Two tills may assign the same code, add the
+  same key or record the same alias while offline; both rows are legal and the
+  client stores both, because a unique key would make a legal page uncommittable
+  — exactly as for a category name. `ProductService` is what refuses a duplicate
+  on one device.
 - A listing's `product_id` may be re-parented; it is a normal LWW edit, not an
   immutable violation.
 - `listing_code` is `null` or a non-empty string. `""` is `bad_frame`.

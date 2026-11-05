@@ -1250,7 +1250,8 @@ export const RecordLive = Layer.effect(
             // A new listing's code collides with nothing: every code is unique
             // across live listings (case-insensitively), so two codes in one
             // cart, or one that already belongs to a catalogue listing, is
-            // refused before the write rather than by the unique index.
+            // refused before the write. The rule is the app's — the table has no
+            // unique index since `migration-56` — so this check is what keeps it.
             const manualCodes = new Map<string, string>();
             for (const line of lines) {
               if (line.listingId !== null) continue;

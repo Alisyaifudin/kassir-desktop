@@ -297,25 +297,14 @@ function dbErrorToProductError(error: DbError): ProductError {
   return new ProductError({ message: error.message });
 }
 
-function codeErrorToProductError(
-  error: DbError,
-  code: string | null,
-): ProductError | ProductDuplicateCode {
-  // `DbError.message` is the cashier-facing sentence; the driver text (where
-  // SQLite names the failed constraint) lives in `detail`. Both are checked so
-  // this still works against a layer that folds them together.
-  const driver = `${error.message} ${error.detail}`;
-  if (code !== null && /UNIQUE constraint failed/i.test(driver) && /listing_code/i.test(driver)) {
-    return new ProductDuplicateCode({ value: code });
-  }
-  return new ProductError({ message: error.message });
-}
-
 /**
- * `null` for "no code": an empty string is stored as NULL, so the unique index
- * (which ignores NULLs) always agrees with the app's "this listing has no
- * code" reading. The value itself is stored as given; uniqueness is
- * case-insensitive because the index is COLLATE NOCASE.
+ * `null` for "no code": an empty string is stored as NULL, which is what
+ * "this listing has no code" means. The value itself is stored as given;
+ * uniqueness is case-insensitive, the same comparison a scan makes.
+ *
+ * The rule is asked by the service (see `codeTaken`) rather than held by an
+ * index: a code another till assigned is a legal row that a pull page must
+ * store (migration-56), and a unique index would fail the whole page instead.
  */
 function normalizeCode(input: ListingInput): string | null {
   const code = input.code?.trim() ?? "";
@@ -441,6 +430,34 @@ const SELECT_PRODUCT_CATEGORIES =
   "SELECT product_category_id, product_id, category_id, product_category_updated_at, product_category_sync_at FROM product_category WHERE product_category_deleted_at IS NULL";
 const SELECT_STOCKS =
   "SELECT stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at FROM stocks";
+
+// The three "is this value taken?" questions the writers ask before an insert.
+//
+// They live here, not in the schema, because none of them is a rule of the wire:
+// two devices may assign the same code, property key or alias while offline, and
+// the row the second one wrote is a legal row the merge must store rather than
+// fail the page on (migration-56). The comparison each one makes is the one the
+// old unique index made: NOCASE for a code a scan may type in either case, exact
+// for a key and an alias, which the app normalises before it writes.
+const SELECT_LISTING_BY_CODE = `
+  SELECT listing_id AS id FROM listings
+  WHERE listing_deleted_at IS NULL
+    AND listing_code = $1 COLLATE NOCASE
+    AND ($2 IS NULL OR listing_id <> $2)
+  LIMIT 1`;
+const SELECT_PROPERTY_BY_KEY = `
+  SELECT property_id AS id FROM properties
+  WHERE property_deleted_at IS NULL
+    AND product_id = $1 AND property_key = $2
+    AND ($3 IS NULL OR property_id <> $3)
+  LIMIT 1`;
+const SELECT_PRODUCT_NAME_BY_VALUE = `
+  SELECT product_name_id AS id FROM product_names
+  WHERE product_name_deleted_at IS NULL
+    AND product_id = $1 AND product_name_value = $2
+    AND ($3 IS NULL OR product_name_id <> $3)
+  LIMIT 1`;
+
 // `record_listings` no longer carries `listing_id` (the product snapshot is the
 // link now), so the sale is selected by its `product_id`; the listing id is not
 // part of the sale row.
@@ -810,6 +827,51 @@ export const ProductLive = Layer.effect(
       return db.transaction(statements).pipe(Effect.mapError(dbErrorToProductError));
     }
 
+    /**
+     * The "one live row per value" rules, asked before a write.
+     *
+     * `migration-56` dropped the three unique indexes that used to hold them:
+     * a value another device chose while offline is a legal row that a pull page
+     * must store, and an index turned that page into a failed commit — a group
+     * that could never move again. So the rule is the service's, asked here for
+     * the rows the operator creates, and deliberately not asked for a row that
+     * arrives through the merge (which goes straight to SQL).
+     */
+    function taken(
+      query: string,
+      bindings: (string | number | null)[],
+    ): Effect.Effect<boolean, ProductError> {
+      return db
+        .selectMany<{ id: string }>(query, bindings)
+        .pipe(
+          Effect.mapError(dbErrorToProductError),
+          Effect.map((rows) => rows.length > 0),
+        );
+    }
+
+    /** Is `code` on another live listing? `exceptId` is the row being edited. */
+    function codeTaken(code: string, exceptId: string | null): Effect.Effect<boolean, ProductError> {
+      return taken(SELECT_LISTING_BY_CODE, [code, exceptId]);
+    }
+
+    /** Is `key` already a live property of this product? */
+    function propertyKeyTaken(
+      productId: string,
+      key: string,
+      exceptId: string | null,
+    ): Effect.Effect<boolean, ProductError> {
+      return taken(SELECT_PROPERTY_BY_KEY, [productId, key, exceptId]);
+    }
+
+    /** Is `value` already a live alias of this product? */
+    function productNameTaken(
+      productId: string,
+      value: string,
+      exceptId: string | null,
+    ): Effect.Effect<boolean, ProductError> {
+      return taken(SELECT_PRODUCT_NAME_BY_VALUE, [productId, value, exceptId]);
+    }
+
     function byId(id: string): Effect.Effect<ProductFull, ProductError | NotFound> {
       return ensureLoaded().pipe(
         Effect.zipRight(SubscriptionRef.get(productsRef)),
@@ -895,6 +957,19 @@ export const ProductLive = Layer.effect(
 
           const productId = generateId();
           const now = Date.now();
+
+          // A code this device already uses on another product is refused here,
+          // before the write: `migration-56` dropped the unique index so a pull
+          // page can store a code another till assigned, which means the service
+          // is the only place that keeps the shop's "one code" rule.
+          for (const listing of input.listings) {
+            const code = normalizeCode(listing);
+            if (code === null) continue;
+            if (yield* codeTaken(code, null)) {
+              return yield* Effect.fail(new ProductDuplicateCode({ value: code }));
+            }
+          }
+
           const statements: Statement[] = [
             {
               sql: `INSERT INTO products (
@@ -913,16 +988,13 @@ export const ProductLive = Layer.effect(
           for (const property of input.properties) {
             statements.push(propertyInsert(productId, generateId(), property, now));
           }
-          // `Set` because the form hands over ticks: two of them can never mean
-          // two rows (the pair index refuses the second), so dedupe here.
+          // `Set` because the form hands over ticks: one category can never mean
+          // two rows, so dedupe here (the old pair index is gone, migration-55).
           for (const categoryId of new Set(input.categoryIds ?? [])) {
             statements.push(categoryLinkInsert(productId, categoryId, now));
           }
 
-          const code = input.listings.find((listing) => listing.code)?.code ?? null;
-          yield* db
-            .transaction(statements)
-            .pipe(Effect.mapError((error) => codeErrorToProductError(error, code)));
+          yield* db.transaction(statements).pipe(Effect.mapError(dbErrorToProductError));
           yield* hydrateMany([productId]);
           return productId;
         });
@@ -1005,23 +1077,27 @@ export const ProductLive = Layer.effect(
         listing: {
           add(productId, input) {
             return Effect.gen(function* () {
+              const code = normalizeCode(input);
+              if (code !== null && (yield* codeTaken(code, null))) {
+                return yield* Effect.fail(new ProductDuplicateCode({ value: code }));
+              }
+
               const listingId = generateId();
               const now = Date.now();
-              yield* db
-                .transaction([
-                  listingInsert(productId, listingId, input, now),
-                ])
-                .pipe(Effect.mapError((error) => codeErrorToProductError(error, input.code)));
+              yield* commit([listingInsert(productId, listingId, input, now)]);
               yield* hydrateMany([productId]);
               return listingId;
             });
           },
           update(productId, listingId, input) {
             return Effect.gen(function* () {
+              const code = normalizeCode(input);
+              if (code !== null && (yield* codeTaken(code, listingId))) {
+                return yield* Effect.fail(new ProductDuplicateCode({ value: code }));
+              }
+
               const now = Date.now();
-              yield* db
-                .transaction([listingUpdate(input, listingId, now)])
-                .pipe(Effect.mapError((error) => codeErrorToProductError(error, input.code)));
+              yield* commit([listingUpdate(input, listingId, now)]);
               yield* hydrateMany([productId]);
             });
           },
@@ -1044,6 +1120,12 @@ export const ProductLive = Layer.effect(
         property: {
           add(productId, input) {
             return Effect.gen(function* () {
+              if (yield* propertyKeyTaken(productId, input.key, null)) {
+                return yield* Effect.fail(
+                  new ProductError({ message: `Properti "${input.key}" sudah ada.` }),
+                );
+              }
+
               const propertyId = generateId();
               const now = Date.now();
               yield* commit([
@@ -1055,6 +1137,12 @@ export const ProductLive = Layer.effect(
           },
           update(productId, propertyId, input) {
             return Effect.gen(function* () {
+              if (yield* propertyKeyTaken(productId, input.key, propertyId)) {
+                return yield* Effect.fail(
+                  new ProductError({ message: `Properti "${input.key}" sudah ada.` }),
+                );
+              }
+
               const now = Date.now();
               yield* commit([
                 {
@@ -1087,6 +1175,12 @@ export const ProductLive = Layer.effect(
         productName: {
           add(productId, input) {
             return Effect.gen(function* () {
+              if (yield* productNameTaken(productId, input.value, null)) {
+                return yield* Effect.fail(
+                  new ProductError({ message: `Nama lain "${input.value}" sudah ada.` }),
+                );
+              }
+
               const productNameId = generateId();
               const now = Date.now();
               yield* commit([
@@ -1098,6 +1192,12 @@ export const ProductLive = Layer.effect(
           },
           update(productId, productNameId, input) {
             return Effect.gen(function* () {
+              if (yield* productNameTaken(productId, input.value, productNameId)) {
+                return yield* Effect.fail(
+                  new ProductError({ message: `Nama lain "${input.value}" sudah ada.` }),
+                );
+              }
+
               const now = Date.now();
               yield* commit([
                 {

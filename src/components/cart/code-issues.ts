@@ -54,9 +54,10 @@ function buildCatalogByCode(catalog: readonly Listing[]): CatalogByCode {
  * Only hand-entered lines (`listingId == null`) create catalog rows at submit,
  * so only they are checked. Every code is unique across live listings, so a code
  * colliding with another new line or with an existing catalogue listing is
- * always hard — the unique index would reject the second row at submit anyway,
- * and it compares case-insensitively, which is also what a shopkeeper expects
- * (`ABC` and `abc` are the same barcode).
+ * always hard — `RecordService` asks the catalogue before it writes the row
+ * (the table has no unique index, migration-56) — and the comparison is
+ * case-insensitive, which is also what a shopkeeper expects (`ABC` and `abc` are
+ * the same barcode).
  *
  * `lines` must be in display order (newest first), which is also the order the
  * card numbers use.

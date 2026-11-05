@@ -3,10 +3,14 @@ import { Effect, Context, Data, Stream } from "effect";
 export class CategoryError extends Data.TaggedError("CategoryError")<{ message: string }> {}
 
 /**
- * A live category name was taken. The table holds one live row per name,
- * case-insensitively (`category_name_unique`), so "Minuman" and "minuman" are the
- * same category and the second one is refused rather than shown twice in the
- * product form's picker.
+ * A live category name was taken. The picker treats one name as one category,
+ * case-insensitively ("Minuman" and "minuman" are the same label), so the second
+ * one is refused rather than shown twice.
+ *
+ * The rule is the service's, not the table's: `categories` carries no unique
+ * index because a name another device created offline is a legal row that a pull
+ * page must store (migration-55). So this error guards the forms — `add` and
+ * `set.name` — and a duplicate that arrives through sync is kept and shown.
  */
 export class CategoryDuplicateName extends Data.TaggedError("CategoryDuplicateName")<{
   value: string;
