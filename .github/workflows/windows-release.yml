@@ -14,8 +14,8 @@ on:
       - "**/*.md"
   # Manual "Run workflow" button. GitHub only offers this trigger for workflows
   # that exist on the default branch, so this file lives on master -- the ref
-  # dropdown can then build any branch, e.g. run it against `prod` to produce the
-  # installer for that branch's package.json version.
+  # dropdown can then build any branch, and the installer it produces carries
+  # whatever version that branch's package.json names.
   workflow_dispatch:
     inputs:
       tag:
