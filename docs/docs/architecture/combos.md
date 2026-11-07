@@ -22,19 +22,19 @@ Migration 57 adds:
 - `combo_listings`: ordered listing references and positive integer quantities.
 - `combo_extras`: ordered references to the existing Extra catalog.
 
-The child rows are part of the combo template. `combo_sync_at` is reserved for a future sync implementation; current service writes do not register or run a sync group. The `tx_*` cart tables remain local-only.
+The child rows are part of the combo template. `combo_sync_at` is the dirty marker for the `combo` sync group: a service write bumps `combo_updated_at` and clears it, and the cycle pushes the whole aggregate (header plus both ordered child sets). The `tx_*` cart tables remain local-only.
 
-## Future sync design (not implemented)
+## Sync (implemented)
 
-Combos should sync as catalogue master data, separately from transaction records and local carts. Do not add combo provenance to transaction history merely to sync the template: committed sales already preserve the listing and Extra snapshots used at the time of selection.
+Combos sync as catalogue master data, separately from transaction records and local carts. Committed sales already preserve the listing and Extra snapshots used at the time of selection; the template is never attached to the cart rows, so editing or deleting it cannot change a past receipt.
 
-A future protocol change should:
+The `combo` group is its own independently synced unit (`SYNC-V2.md` §1.4, `docs/SYNC-V2-COMBO.md` on the server side):
 
-1. Add a dedicated `combo` group (or an explicit versioned addition to the catalog protocol) with its own bookmark and endpoint contract. Coordinate the client and server rollout; this feature currently has no wire representation.
-2. Send a combo as one logical parent aggregate: the header plus the ordered `combo_listings` and `combo_extras` children. Pull merge should replace that aggregate atomically, so a client cannot see a new header with an old or partial component list. Child ordering and quantities are business data, not incidental row order.
-3. Use `combo_id` as the stable aggregate identity; include `combo_updated_at` and `combo_deleted_at` in the wire contract. Child edits must bump the parent clock and clear its sync marker. Deletion must upload a tombstone rather than physically removing the parent. Define and test conflict resolution and clock guards against the active SYNC-V2 contract before shipping.
-4. Treat `listing_id` and `extra_id` as opaque cross-group references. The product and extra groups may arrive later or contain a tombstoned/unavailable row. The pull must still store the combo aggregate without failing a page; POS should only offer a combo after all its references resolve to currently usable catalog rows. Never silently drop one component or preset during expansion.
-5. Extend the image-byte protocol for combo covers. A cover needs a stable blob identity, version/dirty marker, digest and MIME in the manifest; uploads and downloads must use the same verified file-write lifecycle as product images. Decide whether to retain the current one-cover columns or migrate to a `combo_images` child table before defining the wire schema. Removing/replacing a cover must make the old blob collectible without invalidating a still-referenced file.
-6. Keep `tx_records`, `tx_listings`, `tx_extras`, and other `tx_*` tables out of the combo sync group. They are unsynced working state, and committed records continue through the existing record aggregate with frozen values.
+1. A combo travels as one aggregate frame: the `combos` header plus the ordered `combo_listings` and `combo_extras` children. Merge replaces the aggregate atomically, so a client never sees a new header with an old or partial component list.
+2. `combo_id` is the stable aggregate identity; `combo_updated_at` is the LWW clock and `combo_deleted_at` is the soft-delete tombstone. Child edits bump the parent clock and clear `combo_sync_at`; the service writes both in one transaction.
+3. `listing_id` and `extra_id` are opaque cross-group references. Migration 58 removes the local foreign keys, so a combo page can arrive before the product or extra page that supplies its references. POS only offers a combo whose components and presets resolve to currently usable rows, and never silently drops one during expansion.
+4. `tx_records`, `tx_listings`, `tx_extras` and the other `tx_*` tables stay out of the group. They are unsynced working state, and committed records continue through the existing record aggregate with frozen values.
 
-Before implementing sync, update the client schema, frames, SQL/merge paths, group order and blob manifest; add the server contract and server storage/merge support; update `SYNC-V2.md`, migration checksums and sync tests; then verify two offline devices with concurrent edits, deletion, missing references, and cover replacement. None of those sync code changes are part of migration 57.
+Cover **bytes** are not part of this group yet: the row carries `combo_cover_name`/`combo_cover_mime`, and the file lives under `AppData/images/`. Extending the product image-blob channel to combo covers is a follow-up. A device that has not received the file shows its placeholder.
+
+Rollout has no backfill: set the `combo` bookmark to 0, mark every `combos` row dirty, and let the next cycle push them. `Sinkronisasi Ulang` does this for every group in one action.

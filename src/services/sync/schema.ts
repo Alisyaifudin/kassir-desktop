@@ -12,9 +12,9 @@
  * bookkeeping (`NULL` = still owes the server a push) and never crosses the wire
  * (§3.2, §9.4).
  *
- * The record group is the one aggregate: one header row plus five child sets,
- * pushed and pulled as one frame (§5.5, §8.8). Its child rows carry no clock and
- * no dirty flag — the header owns the whole aggregate.
+ * The record and combo groups are aggregates: one header row plus its child sets,
+ * pushed and pulled as one frame (§5.5, §8.8). Their child rows carry no clock
+ * and no dirty flag — the header owns the whole aggregate.
  */
 
 /** One independently synced unit: one log, one bookmark, one endpoint pair. */
@@ -26,6 +26,7 @@ export type SyncGroup =
   | "social"
   | "extra"
   | "product"
+  | "combo"
   | "record";
 
 /** Every group this build syncs, in the order the cycle visits them. */
@@ -37,6 +38,10 @@ export const SYNC_GROUPS: readonly SyncGroup[] = [
   "social",
   "extra",
   "product",
+  // A combo names listings and extras, so it is visited after both catalogues
+  // have had their turn. A dangling reference is still tolerated (§7.2), and a
+  // page carrying only a combo still merges.
+  "combo",
   "record",
 ];
 
@@ -83,11 +88,16 @@ export type ChildDef = {
   columns: readonly string[];
   nullable: readonly string[];
   /**
-   * How the child reaches its record: directly through `record_id`, or (for
-   * `discounts`) through the `record_listing_id` it belongs to. The child rows
-   * never carry `record_id` on the wire either way.
+   * How the child reaches its aggregate header: directly through `parent`, or
+   * (for a record's `discounts`) through the `record_listing_id` it belongs to.
+   * The child rows never carry the parent column on the wire either way.
    */
-  via: "record" | "listing";
+  via: "parent" | "listing";
+  /**
+   * The child column naming the aggregate root (`record_id`, `combo_id`), or, for
+   * a `via: "listing"` child, the link row it hangs off (`record_listing_id`).
+   */
+  parent: string;
 };
 
 /** One group's contract: its entities, its limits, its aggregate children. */
@@ -101,7 +111,7 @@ export type GroupDef = {
   /** Push batch bounds (§4.1, §16.1): frames and uncompressed bytes. */
   pushFrames: number;
   pushBytes: number;
-  /** The record group's five child sets; absent for every other group. */
+  /** The aggregate group's child sets; absent for every row-only group. */
   children?: readonly ChildDef[];
 };
 
@@ -149,7 +159,8 @@ const RECORD_CHILDREN: readonly ChildDef[] = [
       "record_listing_total",
     ],
     nullable: ["product_event_id", "product_id"],
-    via: "record",
+    via: "parent",
+    parent: "record_id",
   },
   {
     key: "record_methods",
@@ -157,7 +168,8 @@ const RECORD_CHILDREN: readonly ChildDef[] = [
     pk: "record_method_id",
     columns: ["record_method_id", "method_id", "record_method_pay"],
     nullable: [],
-    via: "record",
+    via: "parent",
+    parent: "record_id",
   },
   {
     key: "record_extras",
@@ -172,7 +184,8 @@ const RECORD_CHILDREN: readonly ChildDef[] = [
       "record_extra_flag",
     ],
     nullable: [],
-    via: "record",
+    via: "parent",
+    parent: "record_id",
   },
   {
     key: "record_images",
@@ -185,7 +198,8 @@ const RECORD_CHILDREN: readonly ChildDef[] = [
       "record_image_mime",
     ],
     nullable: [],
-    via: "record",
+    via: "parent",
+    parent: "record_id",
   },
   {
     key: "discounts",
@@ -202,6 +216,29 @@ const RECORD_CHILDREN: readonly ChildDef[] = [
     nullable: [],
     // A discount hangs off a listing, and the listing hangs off the record.
     via: "listing",
+    parent: "record_listing_id",
+  },
+];
+
+/** The combo aggregate: one header plus its two ordered child sets. */
+const COMBO_CHILDREN: readonly ChildDef[] = [
+  {
+    key: "combo_listings",
+    table: "combo_listings",
+    pk: "combo_listing_id",
+    columns: ["combo_listing_id", "listing_id", "combo_listing_qty", "combo_listing_order"],
+    nullable: [],
+    via: "parent",
+    parent: "combo_id",
+  },
+  {
+    key: "combo_extras",
+    table: "combo_extras",
+    pk: "combo_extra_id",
+    columns: ["combo_extra_id", "extra_id", "combo_extra_order"],
+    nullable: [],
+    via: "parent",
+    parent: "combo_id",
   },
 ];
 
@@ -519,6 +556,27 @@ export const TABLES: Record<string, EntityDef> = {
     "append",
     "product_event_created_at, product_event_id",
   ),
+  combo: row(
+    "combo",
+    "combo",
+    "combos",
+    "combo_id",
+    [
+      "combo_id",
+      "combo_name",
+      "combo_active",
+      "combo_cover_name",
+      "combo_cover_mime",
+      "combo_updated_at",
+      "combo_deleted_at",
+    ],
+    ["combo_cover_name", "combo_cover_mime", "combo_deleted_at"],
+    "combo_updated_at",
+    "combo_deleted_at",
+    "combo_sync_at",
+    "aggregate",
+    "combo_name COLLATE NOCASE, combo_id",
+  ),
   record: row(
     "record",
     "record",
@@ -590,6 +648,19 @@ export const GROUPS: Record<SyncGroup, GroupDef> = {
     ],
     SIMPLE_LIMITS,
   ),
+  combo: group(
+    "combo",
+    ["combo"],
+    {
+      pullLimit: 1000,
+      pullMax: 5000,
+      pushFrames: 1000,
+      // An aggregate can be larger than a row; the budget is on the body, so
+      // leave a little room for the line terminator.
+      pushBytes: 8 * 1024 * 1024,
+    },
+    COMBO_CHILDREN,
+  ),
   record: group(
     "record",
     ["record"],
@@ -605,7 +676,7 @@ export const GROUPS: Record<SyncGroup, GroupDef> = {
   ),
 };
 
-/** True when `group` is one of the eight. */
+/** True when `group` is one of the synced groups. */
 export function isGroup(value: unknown): value is SyncGroup {
   return typeof value === "string" && (SYNC_GROUPS as readonly string[]).includes(value);
 }
@@ -623,12 +694,31 @@ export function groupOf(entity: string): SyncGroup | null {
   return TABLES[entity]?.group ?? null;
 }
 
-/** The child def for a `ch` key, or `undefined` when it is not a record child. */
+/** The child def for a `ch` key, or `undefined` when no aggregate owns it. */
 export function childOf(key: string): ChildDef | undefined {
-  return RECORD_CHILDREN.find((child) => child.key === key);
+  for (const group of SYNC_GROUPS) {
+    const child = GROUPS[group]?.children?.find((entry) => entry.key === key);
+    if (child !== undefined) return child;
+  }
+  return undefined;
 }
 
-/** Every record child table, in dependency order (parents before dependants). */
+/** The aggregate entity of a group, or `undefined` for a row-only group. */
+export function aggregateOf(group: SyncGroup): EntityDef | undefined {
+  return GROUPS[group]?.entities.find((entity) => entity.kind === "aggregate");
+}
+
+/** A group's child sets, in dependency order (parents before dependants). */
+export function childrenOf(group: SyncGroup): readonly ChildDef[] {
+  return GROUPS[group]?.children ?? [];
+}
+
+/** Every child table in the group, parents before dependants. */
+export function childTablesOf(group: SyncGroup): readonly string[] {
+  return childrenOf(group).map((child) => child.table);
+}
+
+/** The record child tables, kept for the record-specific callers. */
 export const RECORD_CHILD_TABLES: readonly ChildDef[] = RECORD_CHILDREN;
 
 /**
@@ -640,7 +730,7 @@ export type WireValue = string | number | null;
 /** A canonical row, keyed in `columns` order. */
 export type WireRow = Record<string, WireValue>;
 
-/** The five child arrays of a record aggregate, keyed by table name. */
+/** The child arrays of an aggregate, keyed by table name. */
 export type WireChildren = Record<string, WireRow[]>;
 
 /** Coerces one driver/JSON value to a wire value. */
@@ -684,10 +774,16 @@ export function toCanonicalChild(child: ChildDef, source: Record<string, unknown
   return out;
 }
 
-/** An empty `ch` map with every key present — a record frame always sends all five. */
-export function emptyChildren(): WireChildren {
+/**
+ * An empty `ch` map with every key of the group present — an aggregate frame
+ * always sends all of its child sets.
+ *
+ * `group` defaults to `record` only for the record-specific test helpers and
+ * legacy call sites; new callers pass their group explicitly.
+ */
+export function emptyChildren(group: SyncGroup = "record"): WireChildren {
   const out: WireChildren = {};
-  for (const child of RECORD_CHILDREN) out[child.key] = [];
+  for (const child of childrenOf(group)) out[child.key] = [];
   return out;
 }
 

@@ -352,7 +352,7 @@ function readLocal(
 
 type LocalAggregate = { header: WireRow; children: WireChildren };
 
-/** Reads the local headers and child sets of the records a page mentions. */
+/** Reads the local headers and child sets of the aggregates a page mentions. */
 function readLocalAggregates(
   db: DatabaseServiceImpl,
   group: SyncGroup,
@@ -379,8 +379,8 @@ function readLocalAggregates(
           .selectMany<Record<string, unknown>>(query, slice)
           .pipe(Effect.mapError(dbError));
         for (const raw of rows) {
-          const recordId = String(raw["record_id"]);
-          const aggregate = out.get(recordId);
+          const parentId = String(raw["parent_key"]);
+          const aggregate = out.get(parentId);
           if (aggregate === undefined) continue;
           aggregate.children[child.key] ??= [];
           aggregate.children[child.key]!.push(toCanonicalChild(child, raw));
@@ -415,7 +415,9 @@ function idsIn(group: SyncGroup, page: PullPage, parked: readonly ParkedMoney[])
     if (change.entity === "money") addPocketRef(change.row);
   }
   for (const aggregate of page.aggregates) {
-    ids.get("record")?.add(String(aggregate.row["record_id"]));
+    const aggregateDef = GROUPS[group].entities.find((entry) => entry.kind === "aggregate");
+    if (aggregateDef === undefined) continue;
+    ids.get(aggregateDef.entity)?.add(String(aggregate.row[aggregateDef.pk]));
   }
   for (const deletion of page.deletions) ids.get(deletion.entity)?.add(deletion.id);
   for (const parkedRow of parked) {
@@ -500,12 +502,14 @@ export function mergePage(
       }
     }
 
-    // Aggregates: one frame, one whole record (§5.5).
+    // Aggregates: one frame, one whole aggregate (§5.5).
     if (aggregateDef !== undefined && defs.children !== undefined) {
-      const ids = page.aggregates.map((aggregate) => String(aggregate.row["record_id"]));
+      const ids = page.aggregates.map((aggregate) =>
+        String(aggregate.row[aggregateDef.pk]),
+      );
       const locals = yield* readLocalAggregates(deps.db, group, ids);
       for (const aggregate of page.aggregates) {
-        const id = String(aggregate.row["record_id"]);
+        const id = String(aggregate.row[aggregateDef.pk]);
         const stored = locals.get(id);
         if (stored === undefined) {
           statements.push(

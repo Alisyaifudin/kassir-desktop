@@ -1,10 +1,10 @@
 # Kassir Sync v2 — complete contract
 
 **Protocol:** 2 · **Groups:** money, customer, supplier, method, social, extra,
-product, record
-**Status:** server implemented for every group, including the image-byte side
-channel; the desktop client is tracked per group (record pending, image bytes
-pending)
+product, combo, record
+**Status:** server and desktop implement every group, including the combo and
+record aggregates; the image-byte side channel is implemented for product
+images, with combo cover bytes still local-only
 **Date:** 2026-11-03
 **Revision:** the same contract plus the gaps closed in §0.6; retention is now
 implemented (§15.1); image **bytes** now have a documented, server-implemented
@@ -19,13 +19,13 @@ side channel (§8.7.1)
 > It also adds the **image-byte side channel** (§2.10, §8.7.1): `image` rows keep
 > syncing through `product_group_change_log` exactly as before, while the bytes
 > travel over three routes that are **not** the change log and spend **no**
-> `seq`. Nothing about the row wire, the merge rules or the eight groups
+> `seq`. Nothing about the row wire, the merge rules or the nine groups
 > changes; a client that does not implement the side channel keeps showing
 > placeholders and loses nothing. The server half is implemented; the desktop
 > half is an open item (§15.6).
 
 This is the consolidated reference for **all** of Kassir Sync v2. It combines
-the shared protocol with the eight group contracts, the cross-group rules, the
+the shared protocol with the nine group contracts, the cross-group rules, the
 client checklist, the server requirements, the rollout procedures, and the
 operational surface.
 
@@ -57,7 +57,7 @@ tracked as open items rather than as gaps in this contract.
 - §5 Merge
 - §6 Deletion
 - §7 Ordering and dependencies
-- §8 Group reference: money, customer, supplier, method, social, extra, product, record
+- §8 Group reference: money, customer, supplier, method, social, extra, product, combo, record
 - §9 Client state and cycles
 - §10 Guarantees and non-guarantees
 - §11 Client contract and conformance checklist
@@ -334,12 +334,13 @@ between groups: `money_bookmark` says nothing about the product log.
 | `social` | `social` | `social_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
 | `extra` | `extra` | `extra_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
 | `product` | `product`, `category`, `product_category`, `product_name`, `property`, `listing`, `image`, `product_event` | `product_group_change_log` | catalog LWW; event append-only | 5000 / 20000 | 1000 / 1 MB |
+| `combo` | `combo` aggregate (header + `combo_listings`, `combo_extras`) | `combo_group_change_log` | full LWW aggregate | 1000 / 5000 | 1000 frames / 8 MB |
 | `record` | `record` aggregate (header + five child tables) | `record_group_change_log` | full LWW aggregate | 1000 / 5000 | 1000 frames / 8 MB |
 
 `limit` is `default / maximum` entries. The record group additionally has an
 8 MB pull-page payload budget (§3.5).
 
-All eight groups use the same wire format, auth, compression, error codes and
+All nine groups use the same wire format, auth, compression, error codes and
 pull/push cycle. The differences are the entities, the merge rule, the limits,
 and—for record—the aggregate frame and the full-refresh rollout.
 
@@ -974,6 +975,7 @@ The decision depends on the entity's merge kind:
 | money ledger | `money` | new → `applied`; immutable field differs → `stale`; identical → `noop`; newer `money_updated_at` → `applied` (note + deleted flag); else `stale` |
 | append-only | `product_event` | new id → `applied`; existing id → `noop` (payload not compared) |
 | aggregate LWW | `record` | new → `applied`; identical aggregate → `noop`; newer `record_updated_at` → `applied` (header + all five children); tie/older → `stale` |
+| aggregate LWW | `combo` | new → `applied`; identical aggregate → `noop`; newer `combo_updated_at` → `applied` (header + both children); tie/older → `stale` |
 
 A `noop` or `stale` frame writes nothing and spends no `seq`.
 
@@ -1622,6 +1624,7 @@ Recommended push order:
 | --- | --- |
 | `money` | every `pocket` before the `money` rows that reference it |
 | `product` | `product` → `category` → `product_category` → `product_name` → `property` → `listing` → `image` → `product_event` |
+| `combo` | `combo_listings` and `combo_extras` travel inside the header aggregate; no standalone `combo_id` in a child |
 | `record` | no dependency order inside the group; each frame is a complete aggregate |
 | all others | no dependency order |
 
@@ -2525,6 +2528,44 @@ record dirty, then re-push.
   local record, keep the rows and children, then sync. Do **not** bump
   `record_updated_at`; the existing clocks are what the LWW merge should use.
 
+### 8.9 `combo` — catalogue template aggregate
+
+A combo is a named template with ordered listing components, ordered Extra
+presets, an active flag and an optional cover reference. It is catalogue data,
+not a sale: selecting one expands its current references into ordinary cart
+rows, and a committed record keeps frozen sale snapshots. The full group
+contract is `docs/SYNC-V2-COMBO.md`.
+
+Header (`combos`, 7 columns):
+
+```
+combo_id           TEXT PK
+combo_name         TEXT NOT NULL
+combo_active       INTEGER NOT NULL   (0 | 1)
+combo_cover_name   TEXT?              (null together with combo_cover_mime)
+combo_cover_mime   TEXT?
+combo_updated_at   INTEGER NOT NULL
+combo_deleted_at   INTEGER?
+```
+
+Children (`ch` keys, parent `combo_id` inherited and never on the wire):
+
+```
+combo_listings: combo_listing_id TEXT PK, listing_id TEXT, combo_listing_qty INTEGER, combo_listing_order INTEGER
+combo_extras:   combo_extra_id   TEXT PK, extra_id   TEXT, combo_extra_order   INTEGER
+```
+
+Merge is full last-writer-wins on `combo_updated_at` over the whole aggregate;
+children are compared as a set keyed by primary key and replaced wholesale when
+the header wins. An identical aggregate is a `noop` before the clock is
+compared. `listing_id` and `extra_id` are opaque cross-group references: the
+page that carries a combo may arrive before the product or extra page, and a
+reference may be tombstoned, so neither side enforces a foreign key.
+
+Cover **bytes** do not sync in this group yet; the row carries the name and MIME
+so a device can show a placeholder until the file is available. Push bounds:
+1000 frames / 8 MB; pull: 1000 default / 5000 maximum, 8 MB page budget.
+
 ## 9. Client state and cycles
 
 ### 9.1 Bookmarks and dirty flags
@@ -2541,6 +2582,7 @@ entity/aggregate:
 | `social` | `social_bookmark` | `social_sync_at` |
 | `extra` | `extra_bookmark` | `extra_sync_at` |
 | `product` | `product_bookmark` | `product_sync_at`, `category_sync_at`, `product_category_sync_at`, `product_name_sync_at`, `property_sync_at`, `listing_sync_at`, `image_sync_at`, `product_event_sync_at` |
+| `combo` | `combo_bookmark` | `combo_sync_at` only; both child tables have none |
 | `record` | `record_bookmark` | `record_sync_at` only; the five child tables have none |
 
 The entity map:
@@ -2562,6 +2604,9 @@ The entity map:
 | `listing` | product | row | `listing_updated_at` | `listing_sync_at` |
 | `image` | product | row | `image_updated_at` | `image_sync_at` |
 | `product_event` | product | row, append-only | none; `product_event_created_at` is event time | `product_event_sync_at` |
+| `combo` | combo | aggregate header | `combo_updated_at` | `combo_sync_at` |
+| `combo_listings` | combo | child of the aggregate | none | none |
+| `combo_extras` | combo | child of the aggregate | none | none |
 | `record` | record | aggregate header | `record_updated_at` | `record_sync_at` |
 | `record_listings` | record | child of the aggregate | none | none |
 | `record_methods` | record | child of the aggregate | none | none |
@@ -2576,8 +2621,8 @@ The entity map:
 - After a push ack: `*_sync_at = ack.seq`.
 - On a local edit: set `*_sync_at = NULL` and bump `*_updated_at` in the same
   transaction, only when a column actually changed.
-- For record, any header or child edit bumps the **header's**
-  `record_updated_at` and sets the **header's** `record_sync_at = NULL`.
+- For record and combo, any header or child edit bumps the **header's**
+  `*_updated_at` and sets the **header's** `*_sync_at = NULL`.
 
 Never share a bookmark between groups. Never advance a bookmark past `done.s`.
 
@@ -3001,7 +3046,7 @@ of the client contract, not an optimisation.
   page/ack transaction; the bookmark stays where the last commit left it and
   the next cycle resumes there.
 - **`401` stops every group,** not only the one that hit it: the device is not
-  authorised, so continuing with the other seven just produces eight errors.
+  authorised, so continuing with the other eight just produces nine errors.
 - **A cycle that is already pushing is never cancelled by a pull trigger**; the
   request is queued behind the running batch, so an ack transaction is never
   abandoned mid-batch.
@@ -3507,7 +3552,7 @@ Integration:
 
 ### 13.1 What the server serves
 
-Every synced table belongs to exactly one of the eight v2 groups:
+Every synced table belongs to exactly one of the nine v2 groups:
 
 | group | entities |
 | --- | --- |
@@ -3518,6 +3563,7 @@ Every synced table belongs to exactly one of the eight v2 groups:
 | social | `social` |
 | extra | `extra` |
 | product | `product`, `product_name`, `property`, `listing`, `image`, `product_event` |
+| combo | `combo` (with `combo_listings`, `combo_extras` inside the aggregate) |
 | record | `record` (with its five child sets inside the aggregate) |
 
 A group's pull emits only that group's entities, and its push rejects a frame
@@ -3817,7 +3863,7 @@ to end.
 
    - **What is recorded.** Every pull upserts `(token_id, group_name, last_seq,
      last_seen_at)` into `client_bookmark`, with `MAX` on `last_seq` so progress
-     is monotonic. Enrolment writes `last_seq = 0` for all eight groups, so a
+     is monotonic. Enrolment writes `last_seq = 0` for all nine groups, so a
      device that has never pulled pins its groups at `0`; revoking the token
      cascades those rows away and releases the pin.
    - **The floor.** `floor = min(last_seq)` over the tokens whose `last_seen_at`
@@ -3969,6 +4015,9 @@ drop the batch.
 | `listing` | `listings` | `listing_id` | 9: id, product_id, name, price, unit, kind, code?, updated_at, deleted_at |
 | `image` | `images` | `image_id` | 7: id, order, name, mime, product_id, updated_at, deleted_at |
 | `product_event` | `product_events` | `product_event_id` | 8: id, created_at, value, capital, note, product_id, stock_id?, record_id? |
+| `combo` | `combos` | `combo_id` | 7: id, name, active, cover_name?, cover_mime?, updated_at, deleted_at |
+| `combo_listings` | `combo_listings` | `combo_listing_id` | 5 inside the aggregate: id, listing_id, qty, order |
+| `combo_extras` | `combo_extras` | `combo_extra_id` | 4 inside the aggregate: id, extra_id, order |
 | `record` | `records` | `record_id` | 20: see §8.8 |
 | `record_listings` | `record_listings` | `record_listing_id` | 11: see §8.8 |
 | `record_methods` | `record_methods` | `record_method_id` | 3: id, method_id, pay |

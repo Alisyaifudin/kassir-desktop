@@ -133,7 +133,7 @@ describe("activeGroup", () => {
     expect(activeGroup(groups)?.group).toBe("customer");
   });
 
-  test("a finished run shows no bar: eight groups have gone by and none of them is it", () => {
+  test("a finished run shows no bar: nine groups have gone by and none of them is it", () => {
     const groups = SYNC_GROUPS.map((name) => group({ group: name, phase: "done" }));
     expect(activeGroup(groups)).toBeNull();
   });

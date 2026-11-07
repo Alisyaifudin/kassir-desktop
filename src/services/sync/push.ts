@@ -31,7 +31,6 @@ import { backoffMs, isRetryable } from "./retry";
 import { labelOf } from "./label";
 import {
   GROUPS,
-  RECORD_CHILD_TABLES,
   TABLES,
   clockOf,
   emptyChildren,
@@ -186,19 +185,20 @@ export type PushOutcome = {
   remaining: number;
 };
 
-/** Reads one batch of records' five child sets, five queries at a time. */
+/** Reads one batch of aggregates' child sets, one query per set at a time. */
 function readChildrenFor(
   db: DatabaseServiceImpl,
+  group: SyncGroup,
   childrenOf: readonly ChildDef[],
-  recordIds: readonly string[],
+  parentIds: readonly string[],
 ): Effect.Effect<Map<string, WireChildren>, SyncError> {
   return Effect.gen(function* () {
-    const byRecord = new Map<string, WireChildren>();
-    for (const id of recordIds) byRecord.set(id, emptyChildren());
+    const byParent = new Map<string, WireChildren>();
+    for (const id of parentIds) byParent.set(id, emptyChildren(group));
 
     // Ids per statement, matching `merge.ts`'s IN bound: one placeholder each.
-    for (let start = 0; start < recordIds.length; start += CHILD_READ_CHUNK) {
-      const slice = recordIds.slice(start, start + CHILD_READ_CHUNK);
+    for (let start = 0; start < parentIds.length; start += CHILD_READ_CHUNK) {
+      const slice = parentIds.slice(start, start + CHILD_READ_CHUNK);
       for (const child of childrenOf) {
         const rows = yield* db
           .selectMany<Record<string, unknown>>(
@@ -214,15 +214,15 @@ function readChildrenFor(
             ),
           );
         for (const raw of rows) {
-          const children = byRecord.get(String(raw["record_id"]));
+          const children = byParent.get(String(raw["parent_key"]));
           if (children === undefined) continue;
           // `toCanonicalChild` reads only the child's own columns, so the extra
-          // `record_id` the batched select returns is not part of the frame.
+          // parent key the batched select returns is not part of the frame.
           (children[child.key] ??= []).push(toCanonicalChild(child, raw));
         }
       }
     }
-    return byRecord;
+    return byParent;
   });
 }
 
@@ -278,20 +278,21 @@ function readBatch(
                 }),
             ),
           );
-        // The children of the whole batch in five round trips, not five per
-        // record: `readChildrenFor` is the reason a push batch is not 5,000
-        // statements. Read for every candidate header, including ones the byte
-        // bound drops below — the rows come back together either way.
+        // The children of the whole batch in one query per child set, not one
+        // per aggregate: `readChildrenFor` is the reason a push batch is not
+        // 5,000 statements. Read for every candidate header, including ones the
+        // byte bound drops below — the rows come back together either way.
         const headers = rows.map((raw) => toCanonicalRow(entity, raw));
         const childSets = yield* readChildrenFor(
           db,
-          def.children ?? RECORD_CHILD_TABLES,
+          group,
+          def.children ?? [],
           headers.map((row) => idOf(entity, row)),
         );
         for (const row of headers) {
           const id = idOf(entity, row);
-          const children = childSets.get(id) ?? emptyChildren();
-          const line = encodeAggregateFrame(row, children);
+          const children = childSets.get(id) ?? emptyChildren(group);
+          const line = encodeAggregateFrame(entity.entity, row, children);
           const size = bytesOf(line);
           if (!fits(size)) {
             if (frames.length === 0) {

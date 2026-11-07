@@ -14,6 +14,7 @@ import { makeTestDatabase } from "../db/test-support";
 import { CustomerService } from "../customer";
 import { CustomerLive } from "../customer/live";
 import { CategoryLive } from "../category/live";
+import { ComboLive } from "../combo/live";
 import { ExtraLive } from "../extra/live";
 import { MethodLive } from "../method/live";
 import { MoneyLive } from "../money/live";
@@ -61,8 +62,8 @@ class FakeServer {
   private store(change: Omit<Change, "seq">): number {
     this.counter += 1;
     this.rows.set(this.key(change.entity, idOf(TABLES[change.entity]!, change.row)), change.row);
-    if (change.entity === "record" && change.children !== undefined) {
-      this.children.set(idOf(TABLES["record"]!, change.row), change.children);
+    if (TABLES[change.entity]!.kind === "aggregate" && change.children !== undefined) {
+      this.children.set(idOf(TABLES[change.entity]!, change.row), change.children);
     }
     this.changes.push({ ...change, seq: this.counter });
     return this.counter;
@@ -96,15 +97,23 @@ class FakeServer {
     if (def.kind === "append") return { s: "noop", seq: this.seqOf(entity, id) };
 
     if (def.kind === "aggregate") {
-      const children = GROUPS.record.children;
-      if (children === undefined) throw new Error("record has no children");
-      const storedChildren = this.children.get(id) ?? emptyChildren();
-      const decision = decideAggregate(def, children, stored, storedChildren, row, ch ?? emptyChildren());
+      const group = def.group;
+      const children = GROUPS[group].children;
+      if (children === undefined) throw new Error(`${group} has no children`);
+      const storedChildren = this.children.get(id) ?? emptyChildren(group);
+      const decision = decideAggregate(
+        def,
+        children,
+        stored,
+        storedChildren,
+        row,
+        ch ?? emptyChildren(group),
+      );
       if (decision === "noop") return { s: "noop", seq: this.seqOf(entity, id) };
       if (decision === "stale") {
         return { s: "stale", seq: this.seqOf(entity, id), row: stored, ch: storedChildren };
       }
-      return { s: "applied", seq: this.store({ entity, row, children: ch ?? emptyChildren() }) };
+      return { s: "applied", seq: this.store({ entity, row, children: ch ?? emptyChildren(group) }) };
     }
 
     const decision = decide(def, stored, row);
@@ -229,17 +238,18 @@ class FakeServer {
     const remaining = ofGroup.length;
     return [
       JSON.stringify(count ? { t: "meta", snapshot, count: remaining } : { t: "meta", snapshot }),
-      ...page.map((change) =>
-        change.entity === "record"
+      ...page.map((change) => {
+        const def = TABLES[change.entity];
+        return def?.kind === "aggregate"
           ? JSON.stringify({
               t: "ag",
               s: change.seq,
               e: change.entity,
               r: change.row,
-              ch: change.children ?? emptyChildren(),
+              ch: change.children ?? emptyChildren(def.group),
             })
-          : JSON.stringify({ t: "row", s: change.seq, e: change.entity, r: change.row }),
-      ),
+          : JSON.stringify({ t: "row", s: change.seq, e: change.entity, r: change.row });
+      }),
       JSON.stringify({ t: "done", s: last, more }),
     ];
   }
@@ -280,6 +290,9 @@ function shaOf(imageId: string, version: number): string {
 
 /** Every synced table, children before parents, so a fresh test starts empty. */
 const TRUNCATE = [
+  "DELETE FROM combo_extras",
+  "DELETE FROM combo_listings",
+  "DELETE FROM combos",
   "DELETE FROM discounts",
   "DELETE FROM record_listings",
   "DELETE FROM record_methods",
@@ -403,6 +416,7 @@ function setup(
   const socialLayer = SocialLive.pipe(Layer.provide(dbLayer));
   const extraLayer = ExtraLive.pipe(Layer.provide(dbLayer));
   const categoryLayer = CategoryLive.pipe(Layer.provide(dbLayer));
+  const comboLayer = ComboLive.pipe(Layer.provide(dbLayer));
   const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
   const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
   const transportLayer = Layer.succeed(SyncTransportService, transport);
@@ -419,6 +433,7 @@ function setup(
         socialLayer,
         extraLayer,
         categoryLayer,
+        comboLayer,
         productLayer,
         recordLayer,
       ),
@@ -453,17 +468,25 @@ function insertRow(db: Db, entity: string, values: Record<string, unknown>): voi
   ).run(...(bindings as (string | number | null)[]));
 }
 
-/** Inserts a record child; `record_id` is inherited, never a wire column. */
+/** Finds a child definition across every aggregate group. */
+function childOfKey(key: string) {
+  for (const group of SYNC_GROUPS) {
+    const child = GROUPS[group].children?.find((entry) => entry.key === key);
+    if (child !== undefined) return child;
+  }
+  throw new Error(`unknown child ${key}`);
+}
+
+/** Inserts an aggregate child; the parent key is inherited, never a wire column. */
 function insertChild(
   db: Db,
   key: string,
-  recordId: string,
+  parentId: string,
   values: Record<string, unknown>,
 ): void {
-  const child = GROUPS.record.children?.find((entry) => entry.key === key);
-  if (child === undefined) throw new Error(`unknown child ${key}`);
-  const columns = ["record_id", ...child.columns];
-  const bindings = [recordId, ...child.columns.map((column) => values[column] ?? null)];
+  const child = childOfKey(key);
+  const columns = [child.parent, ...child.columns];
+  const bindings = [parentId, ...child.columns.map((column) => values[column] ?? null)];
   db.query(
     `INSERT INTO ${child.table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
   ).run(...(bindings as (string | number | null)[]));
@@ -516,8 +539,7 @@ function recordHeader(id: string, updatedAt: number, note = ""): WireRow {
 }
 
 function wireChild(key: string, values: Record<string, unknown>): WireRow {
-  const child = GROUPS.record.children?.find((entry) => entry.key === key);
-  if (child === undefined) throw new Error(`unknown child ${key}`);
+  const child = childOfKey(key);
   const out: WireRow = {};
   for (const column of child.columns) {
     const value = values[column];
@@ -548,6 +570,38 @@ function recordChildren(): WireChildren {
       record_method_id: "rm_01",
       method_id: "m_remote",
       record_method_pay: 25_000,
+    }),
+  ];
+  return children;
+}
+
+function comboHeader(id: string, updatedAt: number, name = "Kopi Susu"): WireRow {
+  return wireRow("combo", {
+    combo_id: id,
+    combo_name: name,
+    combo_active: 1,
+    combo_cover_name: null,
+    combo_cover_mime: null,
+    combo_updated_at: updatedAt,
+    combo_deleted_at: null,
+  });
+}
+
+function comboChildren(): WireChildren {
+  const children = emptyChildren("combo");
+  children["combo_listings"] = [
+    wireChild("combo_listings", {
+      combo_listing_id: "cl_01",
+      listing_id: "l_remote",
+      combo_listing_qty: 2,
+      combo_listing_order: 0,
+    }),
+  ];
+  children["combo_extras"] = [
+    wireChild("combo_extras", {
+      combo_extra_id: "ce_01",
+      extra_id: "ex_remote",
+      combo_extra_order: 0,
     }),
   ];
   return children;
@@ -1532,6 +1586,72 @@ describe("record aggregate", () => {
 // ============================================================================
 // Local edits, the clock and the dirty flag (§5.1.1, §9.4)
 // ============================================================================
+
+describe("combo aggregate", () => {
+  test("a whole combo travels as one frame, children included", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "combo", comboHeader("cb_01", 1_000) as Record<string, unknown>);
+    for (const [key, rows] of Object.entries(comboChildren())) {
+      for (const row of rows) insertChild(first.db, key, "cb_01", row as Record<string, unknown>);
+    }
+
+    await runSync(first.layer);
+    expect(server.changes.map((change) => change.entity)).toEqual(["combo"]);
+
+    const second = setup(server);
+    await runSync(second.layer);
+
+    expect(second.db.query("SELECT combo_id FROM combos").all()).toEqual([{ combo_id: "cb_01" }]);
+    expect(second.db.query("SELECT combo_listing_id FROM combo_listings").all()).toEqual([
+      { combo_listing_id: "cl_01" },
+    ]);
+    expect(second.db.query("SELECT combo_extra_id FROM combo_extras").all()).toEqual([
+      { combo_extra_id: "ce_01" },
+    ]);
+  });
+
+  test("a newer combo replaces both child sets wholesale", async () => {
+    const server = new FakeServer();
+    const device = setup(server);
+    insertRow(device.db, "combo", comboHeader("cb_01", 1_000) as Record<string, unknown>);
+    for (const [key, rows] of Object.entries(comboChildren())) {
+      for (const row of rows) insertChild(device.db, key, "cb_01", row as Record<string, unknown>);
+    }
+    await runSync(device.layer);
+
+    const fewer = comboChildren();
+    fewer["combo_extras"] = [];
+    server.push(
+      `${JSON.stringify({ e: "combo", r: comboHeader("cb_01", 2_000, "Kopi Susu Besar"), ch: fewer })}\n`,
+    );
+
+    await runSync(device.layer);
+
+    expect(device.db.query("SELECT combo_name FROM combos").all()).toEqual([
+      { combo_name: "Kopi Susu Besar" },
+    ]);
+    expect(device.db.query("SELECT combo_extra_id FROM combo_extras").all()).toEqual([]);
+  });
+
+  test("a dangling listing reference is stored, not rejected", async () => {
+    // The combo group runs after `product`, but a page may still name a listing
+    // this device never received. Migration 58 drops the cross-group FK, so the
+    // aggregate lands whole and the POS treats the missing component as
+    // unavailable when it expands the combo.
+    const server = new FakeServer();
+    const device = setup(server);
+    server.push(
+      `${JSON.stringify({ e: "combo", r: comboHeader("cb_01", 1_000), ch: comboChildren() })}\n`,
+    );
+
+    await runSync(device.layer);
+
+    expect(device.db.query("SELECT listing_id FROM combo_listings").all()).toEqual([
+      { listing_id: "l_remote" },
+    ]);
+  });
+});
 
 describe("local state", () => {
   test("an edit bumps the clock strictly above the stored one", async () => {

@@ -14,9 +14,9 @@
  * fatal, because the bookmark still has to move past them.
  */
 import {
-  GROUPS,
   TABLES,
-  childOf,
+  aggregateOf,
+  childrenOf,
   emptyChildren,
   isEntity,
   toCanonicalChild,
@@ -36,9 +36,13 @@ export function encodeRowFrame(entity: string, row: WireRow): string {
   return JSON.stringify({ e: entity, r: row });
 }
 
-/** `{"e":"record","r":{…},"ch":{…}}` — one whole aggregate, never a child alone. */
-export function encodeAggregateFrame(row: WireRow, children: WireChildren): string {
-  return JSON.stringify({ e: "record", r: row, ch: children });
+/** `{"e":"record","r":{…},"ch":{…}}` (or `combo`) — one whole aggregate, never a child alone. */
+export function encodeAggregateFrame(
+  entity: string,
+  row: WireRow,
+  children: WireChildren,
+): string {
+  return JSON.stringify({ e: entity, r: row, ch: children });
 }
 
 // ============================================================================
@@ -60,8 +64,8 @@ export type PullMetaFrame = { t: "meta"; snapshot: number; count: number | null 
 /** One change whose row exists. `s` is the change's seq. */
 export type PullRowFrame = { t: "row"; s: number; e: string; r: WireRow };
 
-/** One change whose record aggregate exists (§3.2, §8.8). */
-export type PullAggregateFrame = { t: "ag"; s: number; e: "record"; r: WireRow; ch: WireChildren };
+/** One change whose aggregate exists (§3.2, §8.8). */
+export type PullAggregateFrame = { t: "ag"; s: number; e: string; r: WireRow; ch: WireChildren };
 
 /**
  * One change whose row is gone (§6).
@@ -153,28 +157,29 @@ function requireRow(def: EntityDef, value: unknown): WireRow {
 }
 
 /**
- * Parses the five child arrays of a record aggregate.
+ * Parses the child arrays of an aggregate.
  *
- * All five keys must be present and no unknown key may appear: the children are
- * replaced wholesale, so a missing key would silently delete a child set (§8.8).
+ * Every key the group declares must be present and no unknown key may appear:
+ * the children are replaced wholesale, so a missing key would silently delete a
+ * child set (§8.8).
  */
 function requireChildren(group: SyncGroup, value: unknown): WireChildren {
-  const def = GROUPS[group];
-  const children = def.children;
-  if (children === undefined) {
+  const children = childrenOf(group);
+  if (children.length === 0) {
     throw new FrameError(`Grup ${group} tidak punya agregat`);
   }
-  const source = requireObject(value, "data anak rekaman");
+  const source = requireObject(value, "data anak agregat");
+  const known = new Set(children.map((child) => child.key));
   for (const key of Object.keys(source)) {
-    if (childOf(key) === undefined) {
-      throw new FrameError(`Server mengirim kumpulan anak rekaman yang tidak dikenal: ${key}`);
+    if (!known.has(key)) {
+      throw new FrameError(`Server mengirim kumpulan anak agregat yang tidak dikenal: ${key}`);
     }
   }
-  const out = emptyChildren();
+  const out = emptyChildren(group);
   for (const child of children) {
     const rows = source[child.key];
     if (!Array.isArray(rows)) {
-      throw new FrameError(`Server tidak mengirim ${child.key} pada rekaman`);
+      throw new FrameError(`Server tidak mengirim ${child.key} pada agregat`);
     }
     try {
       out[child.key] = rows.map((row) => toCanonicalChild(child, requireObject(row, child.key)));
@@ -224,16 +229,15 @@ export function parsePullFrame(group: SyncGroup, value: Record<string, unknown>)
       };
     }
     case "ag": {
-      if (group !== "record") return null;
-      if (value["e"] !== "record") {
-        throw new FrameError(`Server mengirim agregat bukan rekaman: ${String(value["e"])}`);
-      }
-      const def = TABLES["record"];
+      const def = aggregateOf(group);
       if (def === undefined) return null;
+      if (value["e"] !== def.entity) {
+        throw new FrameError(`Server mengirim agregat bukan ${def.entity}: ${String(value["e"])}`);
+      }
       return {
         t: "ag",
         s: requireNumber(value["s"], "urutan perubahan"),
-        e: "record",
+        e: def.entity,
         r: requireRow(def, value["r"]),
         ch: requireChildren(group, value["ch"]),
       };

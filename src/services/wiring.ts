@@ -106,6 +106,9 @@ export function buildAppLive(hidden: HiddenLive) {
         methodLive,
         moneyLive,
         socialLive,
+        // Combos are pulled as whole aggregates too; the service re-reads its ref
+        // after the merge so the POS/catalog screens see the new template.
+        comboLive,
         // Records are pulled as whole aggregates; the service holds no row cache,
         // so a merge only bumps its revision counter — but it has to be told.
         recordLive,

@@ -10,7 +10,7 @@
  * ## Groups
  *
  * A group is a pair of endpoints plus its own tables and its own bookmark. The
- * eight groups are visited in `SYNC_GROUPS` order, one cycle at a time: a group
+ * nine groups are visited in `SYNC_GROUPS` order, one cycle at a time: a group
  * has exactly one bookmark, so two cycles over it would interleave pages and acks
  * over the same cursor (§9.11). A trigger that arrives while a run is going does
  * not start a second cycle — it sets a "run again" flag and the run loops once
@@ -41,6 +41,7 @@ import { Effect, Fiber, Layer, Ref, SubscriptionRef } from "effect";
 import { log } from "~/lib/log";
 import { DatabaseService } from "../db";
 import { CategoryService } from "../category";
+import { ComboService } from "../combo";
 import { CustomerService } from "../customer";
 import { ExtraService } from "../extra";
 import { MethodService } from "../method";
@@ -292,6 +293,7 @@ export const SyncLive = Layer.effect(
     const social = yield* SocialService;
     const extra = yield* ExtraService;
     const category = yield* CategoryService;
+    const combo = yield* ComboService;
     const product = yield* ProductService;
     const record = yield* RecordService;
 
@@ -532,7 +534,9 @@ export const SyncLive = Layer.effect(
                     ? extra.refresh()
                     : group === "product"
                       ? Effect.all([product.refresh(), category.refresh()], { discard: true })
-                      : record.refresh();
+                      : group === "combo"
+                        ? combo.refresh()
+                        : record.refresh();
       return refresh.pipe(
         Effect.asVoid,
         Effect.catchAllCause((cause) =>

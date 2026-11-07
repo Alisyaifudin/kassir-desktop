@@ -11,14 +11,14 @@
  * the write, so each write repeats the comparison in SQL — the row that lands is
  * the one that is still newest, whichever side of the race it came from.
  *
- * A record is one aggregate: the header upsert and the wholesale replacement of
- * its five child sets are guarded by the header clock the incoming frame carried,
- * so a concurrent local edit cannot leave a newer header with an older child set.
+ * An aggregate is one unit: the header upsert and the wholesale replacement of
+ * its child sets are guarded by the header clock the incoming frame carried, so
+ * a concurrent local edit cannot leave a newer header with an older child set.
  */
 import type { Statement } from "../db";
 import {
   GROUPS,
-  RECORD_CHILD_TABLES,
+  childrenOf,
   type ChildDef,
   type EntityDef,
   type SyncGroup,
@@ -211,26 +211,32 @@ export function countUnsyncedProductSql(def: EntityDef): string {
 }
 
 // ============================================================================
-// The record aggregate (§5.5, §8.8)
+// The aggregate (record, combo) (§5.5, §8.8)
 // ============================================================================
 
 /**
- * Deletes one child set for a record, but only while the header still carries the
- * clock the incoming aggregate had. After the header upsert that is exactly the
- * condition "the incoming aggregate won"; a concurrent local edit bumps the
+ * Deletes one child set for an aggregate, but only while the header still carries
+ * the clock the incoming aggregate had. After the header upsert that is exactly
+ * the condition "the incoming aggregate won"; a concurrent local edit bumps the
  * header past it and the child set is left alone.
  */
-function deleteChildrenStatement(child: ChildDef, recordId: string, clock: number): Statement {
+function deleteChildrenStatement(
+  child: ChildDef,
+  def: EntityDef,
+  parentId: string,
+  clock: number,
+): Statement {
   const scope =
-    child.via === "record"
-      ? `record_id = $1`
-      : `record_listing_id IN (SELECT record_listing_id FROM record_listings WHERE record_id = $1)`;
+    child.via === "parent"
+      ? `${child.parent} = $1`
+      : `${child.parent} IN (SELECT record_listing_id FROM record_listings WHERE record_id = $1)`;
+  const clockCol = def.updatedAt ?? def.pk;
   return {
     sql: `DELETE FROM ${child.table} WHERE ${scope}
       AND EXISTS (
-        SELECT 1 FROM records WHERE record_id = $1 AND record_updated_at = $2
+        SELECT 1 FROM ${def.table} WHERE ${def.pk} = $1 AND ${clockCol} = $2
       )`,
-    bindings: [recordId, clock],
+    bindings: [parentId, clock],
   };
 }
 
@@ -238,47 +244,45 @@ function deleteChildrenStatement(child: ChildDef, recordId: string, clock: numbe
  * Inserts one child row, guarded by the same header clock so a stale child set
  * cannot land over a newer header.
  *
- * A child that reaches its record through `record_id` has that column filled in
+ * A child that reaches its aggregate through `parent` has that column filled in
  * here; a `discounts` row names its listing instead, and the listing names the
  * record.
  */
-function insertChildStatement(child: ChildDef, row: WireRow, recordId: string, clock: number): Statement {
-  const columns = child.via === "record" ? ["record_id", ...child.columns] : [...child.columns];
+function insertChildStatement(
+  child: ChildDef,
+  def: EntityDef,
+  row: WireRow,
+  parentId: string,
+  clock: number,
+): Statement {
+  const columns = child.via === "parent" ? [child.parent, ...child.columns] : [...child.columns];
   const values =
-    child.via === "record"
-      ? [recordId, ...child.columns.map((column) => row[column] ?? null)]
+    child.via === "parent"
+      ? [parentId, ...child.columns.map((column) => row[column] ?? null)]
       : child.columns.map((column) => row[column] ?? null);
   const placeholdersList = values.map((_, index) => `$${index + 1}`).join(", ");
+  const clockCol = def.updatedAt ?? def.pk;
   return {
     sql: `INSERT INTO ${child.table} (${columns.join(", ")})
       SELECT ${placeholdersList}
       WHERE EXISTS (
-        SELECT 1 FROM records WHERE record_id = $${values.length + 1} AND record_updated_at = $${values.length + 2}
+        SELECT 1 FROM ${def.table} WHERE ${def.pk} = $${values.length + 1} AND ${clockCol} = $${values.length + 2}
       )`,
-    bindings: [...values, recordId, clock],
+    bindings: [...values, parentId, clock],
   };
 }
 
-/** Child tables in the order a delete must visit them (dependants first). */
-function childDeletionOrder(): ChildDef[] {
-  const byKey = new Map(RECORD_CHILD_TABLES.map((child) => [child.key, child]));
-  const order = ["discounts", "record_listings", "record_methods", "record_extras", "record_images"];
-  return order.map((key) => {
-    const child = byKey.get(key);
-    if (child === undefined) throw new Error(`anak rekaman tidak dikenal: ${key}`);
-    return child;
-  });
+/** Child tables in the order an insert must visit them (parents first). */
+function childInsertionOrder(children: readonly ChildDef[]): ChildDef[] {
+  return [
+    ...children.filter((child) => child.via === "parent"),
+    ...children.filter((child) => child.via === "listing"),
+  ];
 }
 
-/** Child tables in the order an insert must visit them (parents first). */
-function childInsertionOrder(): ChildDef[] {
-  const byKey = new Map(RECORD_CHILD_TABLES.map((child) => [child.key, child]));
-  const order = ["record_listings", "discounts", "record_methods", "record_extras", "record_images"];
-  return order.map((key) => {
-    const child = byKey.get(key);
-    if (child === undefined) throw new Error(`anak rekaman tidak dikenal: ${key}`);
-    return child;
-  });
+/** Child tables in the order a delete must visit them (dependants first). */
+function childDeletionOrder(children: readonly ChildDef[]): ChildDef[] {
+  return [...childInsertionOrder(children)].reverse();
 }
 
 /**
@@ -316,13 +320,14 @@ export function upsertAggregateStatements(
   const id = String(header[def.pk]);
   const clock = Number(header[def.updatedAt ?? def.pk]);
   const incoming = sanitizeChildren(children);
+  const childDefs = childrenOf(def.group);
   const statements: Statement[] = [upsertIfNewerStatement(def, header, seq)];
-  for (const child of childDeletionOrder()) {
-    statements.push(deleteChildrenStatement(child, id, clock));
+  for (const child of childDeletionOrder(childDefs)) {
+    statements.push(deleteChildrenStatement(child, def, id, clock));
   }
-  for (const child of childInsertionOrder()) {
+  for (const child of childInsertionOrder(childDefs)) {
     for (const row of incoming[child.key] ?? []) {
-      statements.push(insertChildStatement(child, row, id, clock));
+      statements.push(insertChildStatement(child, def, row, id, clock));
     }
   }
   return statements;
@@ -342,13 +347,14 @@ export function forceAggregateStatements(
   const id = String(header[def.pk]);
   const clock = Number(header[def.updatedAt ?? def.pk]);
   const incoming = sanitizeChildren(children);
+  const childDefs = childrenOf(def.group);
   const statements: Statement[] = [forceUpsertStatement(def, header, seq, since)];
-  for (const child of childDeletionOrder()) {
-    statements.push(deleteChildrenStatement(child, id, clock));
+  for (const child of childDeletionOrder(childDefs)) {
+    statements.push(deleteChildrenStatement(child, def, id, clock));
   }
-  for (const child of childInsertionOrder()) {
+  for (const child of childInsertionOrder(childDefs)) {
     for (const row of incoming[child.key] ?? []) {
-      statements.push(insertChildStatement(child, row, id, clock));
+      statements.push(insertChildStatement(child, def, row, id, clock));
     }
   }
   return statements;
@@ -364,7 +370,7 @@ export function markAggregateSyncedStatement(
   return markSyncedStatement(def, id, seq, since);
 }
 
-/** The dirty record headers, oldest clock first, within the frame bound. */
+/** The dirty aggregate headers, oldest clock first, within the frame bound. */
 export function selectUnsyncedAggregateSql(def: EntityDef, limit: number): string {
   return `SELECT ${def.columns.join(", ")} FROM ${def.table}
     WHERE ${def.syncAt} IS NULL
@@ -372,41 +378,41 @@ export function selectUnsyncedAggregateSql(def: EntityDef, limit: number): strin
     LIMIT ${limit}`;
 }
 
-/** Reads one record's five child sets, in canonical order. */
+/** Reads one aggregate's child sets, in canonical order. */
 export function selectChildrenSql(child: ChildDef): string {
   if (child.via === "listing") {
     return `SELECT d.${child.columns.join(", d.")} FROM ${child.table} d
-      JOIN record_listings l ON l.record_listing_id = d.record_listing_id
+      JOIN record_listings l ON l.record_listing_id = d.${child.parent}
       WHERE l.record_id = $1
       ORDER BY d.${child.pk}`;
   }
   return `SELECT ${child.columns.join(", ")} FROM ${child.table}
-    WHERE record_id = $1
+    WHERE ${child.parent} = $1
     ORDER BY ${child.pk}`;
 }
 
-/** Reads many records' children at once, for a pull page's local comparison. */
+/** Reads many aggregates' children at once, for a pull page's local comparison. */
 export function selectChildrenByRecordsSql(child: ChildDef, count: number): string {
   const list = Array.from({ length: count }, (_, index) => `$${index + 1}`).join(", ");
   if (child.via === "listing") {
-    return `SELECT l.record_id, d.${child.columns.join(", d.")} FROM ${child.table} d
-      JOIN record_listings l ON l.record_listing_id = d.record_listing_id
+    return `SELECT l.record_id AS parent_key, d.${child.columns.join(", d.")} FROM ${child.table} d
+      JOIN record_listings l ON l.record_listing_id = d.${child.parent}
       WHERE l.record_id IN (${list})
       ORDER BY l.record_id, d.${child.pk}`;
   }
-  return `SELECT record_id, ${child.columns.join(", ")} FROM ${child.table}
-    WHERE record_id IN (${list})
-    ORDER BY record_id, ${child.pk}`;
+  return `SELECT ${child.parent} AS parent_key, ${child.columns.join(", ")} FROM ${child.table}
+    WHERE ${child.parent} IN (${list})
+    ORDER BY ${child.parent}, ${child.pk}`;
 }
 
-/** Deletes a record and all its children (`del` frames, §6). */
+/** Deletes an aggregate and all its children (`del` frames, §6). */
 export function deleteAggregateStatements(def: EntityDef, id: string): Statement[] {
   const statements: Statement[] = [];
-  for (const child of childDeletionOrder()) {
+  for (const child of childDeletionOrder(childrenOf(def.group))) {
     const scope =
-      child.via === "record"
-        ? `record_id = $1`
-        : `record_listing_id IN (SELECT record_listing_id FROM record_listings WHERE record_id = $1)`;
+      child.via === "parent"
+        ? `${child.parent} = $1`
+        : `${child.parent} IN (SELECT record_listing_id FROM record_listings WHERE record_id = $1)`;
     statements.push({ sql: `DELETE FROM ${child.table} WHERE ${scope}`, bindings: [id] });
   }
   statements.push({ sql: `DELETE FROM ${def.table} WHERE ${def.pk} = $1`, bindings: [id] });

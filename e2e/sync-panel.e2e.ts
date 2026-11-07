@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { boot, cashierSql, loginAndSettle } from "./harness";
 
 /**
- * Sinkronisasi is eight groups behind **one** bar.
+ * Sinkronisasi is nine groups behind **one** bar.
  *
  * The run works one group at a time and the panel draws only the one being
  * worked on, so an idle screen has no bar at all — the group catalogue is the
@@ -18,6 +18,7 @@ const GROUPS = [
   "media sosial",
   "biaya tambahan",
   "produk dan stok",
+  "paket combo",
   "catatan transaksi",
 ];
 
@@ -40,7 +41,7 @@ test("Sinkronisasi boots idle: one action, no bar, no error", async ({ page }) =
   await expect(sync).toBeDisabled();
   await expect(reset).toBeDisabled();
 
-  // Idle: the status sentence, and the eight groups the run will visit.
+  // Idle: the status sentence, and the nine groups the run will visit.
   await expect(page.getByText("Siap", { exact: true })).toBeVisible();
   const intro = page.getByText(/Sinkronisasi berjalan manual/);
   for (const group of GROUPS) await expect(intro).toContainText(group);
