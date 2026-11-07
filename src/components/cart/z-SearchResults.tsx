@@ -7,11 +7,13 @@ import {
   type RefObject,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Package } from "lucide-react";
+import { Package, PackageOpen } from "lucide-react";
 import { Loader, type Result } from "~/components/Loader";
 import { Skeleton } from "~/components/ui/skeleton";
 import { createPortal } from "react-dom";
 import { useImageUrl } from "~/hooks/use-image";
+import type { Combo, ComboError } from "~/services/combo";
+import type { ExtraError } from "~/services/extra";
 import type { Listing, ListingError } from "~/services/listing";
 import { cn } from "~/lib/utils";
 import { rupiah } from "~/components/cart/util-rupiah";
@@ -21,31 +23,27 @@ const MIN_CELL = 2-0;
 const MAX_COLUMNS = 5;
 const LOW_STOCK = 5;
 
-/**
- * The catalog listings under a search query, replacing the draft lines. A
- * product may have several listings, so these are listings — each with its
- * parent's cover and stock joined in.
- *
- * Rows are virtualized; arrows move a selection across the grid, Enter (or a
- * click) adds the listing to the draft, and Up from the top row returns to the
- * search field.
- */
+export type SearchHit =
+  | { kind: "listing"; listing: Listing }
+  | { kind: "combo"; combo: Combo; components: Listing[]; extraNames: string[] };
+
+export type SearchError = ListingError | ComboError | ExtraError;
+
+/** Search results keep listings and combo templates visibly distinct. */
 export function SearchResults({
   res,
   containerRef,
   onPick,
   onExit,
 }: {
-  res: Result<Listing[], ListingError>;
+  res: Result<SearchHit[], SearchError>;
   containerRef: RefObject<HTMLDivElement | null>;
-  onPick: (listing: Listing) => void;
+  onPick: (hit: SearchHit) => void;
   onExit: () => void;
 }) {
   return (
     <Loader res={res} fallback={<SearchResultsLoading />}>
-      {({ data }) => (
-        <Grid listings={data} containerRef={containerRef} onPick={onPick} onExit={onExit} />
-      )}
+      {({ data }) => <Grid hits={data} containerRef={containerRef} onPick={onPick} onExit={onExit} />}
     </Loader>
   );
 }
@@ -70,14 +68,14 @@ function SearchResultsLoading() {
 }
 
 function Grid({
-  listings,
+  hits,
   containerRef,
   onPick,
   onExit,
 }: {
-  listings: Listing[];
+  hits: SearchHit[];
   containerRef: RefObject<HTMLDivElement | null>;
-  onPick: (listing: Listing) => void;
+  onPick: (hit: SearchHit) => void;
   onExit: () => void;
 }) {
   const [columns, setColumns] = useState(4);
@@ -101,10 +99,10 @@ function Grid({
   useEffect(() => {
     setSelected(0);
     setKeyboard(false);
-  }, [listings]);
+  }, [hits]);
 
   const virtualizer = useVirtualizer({
-    count: Math.ceil(listings.length / columns),
+    count: Math.ceil(hits.length / columns),
     getScrollElement: () => containerRef.current,
     estimateSize: () => ESTIMATE_ROW,
     overscan: 4,
@@ -115,11 +113,11 @@ function Grid({
   }, [selected, columns, virtualizer]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (listings.length === 0) return;
+    if (hits.length === 0) return;
     switch (event.key) {
       case "ArrowRight":
         event.preventDefault();
-        setSelected((i) => Math.min(i + 1, listings.length - 1));
+        setSelected((i) => Math.min(i + 1, hits.length - 1));
         setKeyboard(true);
         return;
       case "ArrowLeft":
@@ -129,7 +127,7 @@ function Grid({
         return;
       case "ArrowDown":
         event.preventDefault();
-        setSelected((i) => Math.min(i + columns, listings.length - 1));
+        setSelected((i) => Math.min(i + columns, hits.length - 1));
         setKeyboard(true);
         return;
       case "ArrowUp":
@@ -142,7 +140,7 @@ function Grid({
         return;
       case "Enter":
         event.preventDefault();
-        if (listings[selected] !== undefined) onPick(listings[selected]);
+        if (hits[selected] !== undefined) onPick(hits[selected]);
         return;
       case "Escape":
         event.preventDefault();
@@ -166,8 +164,8 @@ function Grid({
       }}
       className="min-h-0 flex-1 overflow-y-auto outline-none"
     >
-      {listings.length === 0 ? (
-        <p className="p-4 text-muted-foreground select-none">Tidak ada listing.</p>
+      {hits.length === 0 ? (
+        <p className="p-4 text-muted-foreground select-none">Tidak ada hasil.</p>
       ) : (
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualizer.getVirtualItems().map((row) => (
@@ -187,19 +185,31 @@ function Grid({
             >
               {Array.from({ length: columns }).map((_, column) => {
                 const index = row.index * columns + column;
-                const listing = listings[index];
-                if (listing === undefined) return <div key={column} />;
-                return (
+                const hit = hits[index];
+                if (hit === undefined) return <div key={column} />;
+                const onHover = () => {
+                  setSelected(index);
+                  setKeyboard(false);
+                };
+                const selectedHere = focused && index === selected;
+                return hit.kind === "listing" ? (
                   <Cell
-                    key={listing.id}
-                    listing={listing}
-                    selected={focused && index === selected}
+                    key={`listing:${hit.listing.id}`}
+                    listing={hit.listing}
+                    selected={selectedHere}
                     keyboard={keyboard}
-                    onHover={() => {
-                      setSelected(index);
-                      setKeyboard(false);
-                    }}
-                    onClick={() => onPick(listing)}
+                    onHover={onHover}
+                    onClick={() => onPick(hit)}
+                  />
+                ) : (
+                  <ComboCell
+                    key={`combo:${hit.combo.id}`}
+                    combo={hit.combo}
+                    components={hit.components}
+                    extraNames={hit.extraNames}
+                    selected={selectedHere}
+                    onHover={onHover}
+                    onClick={() => onPick(hit)}
                   />
                 );
               })}
@@ -208,6 +218,67 @@ function Grid({
         </div>
       )}
     </div>
+  );
+}
+
+function ComboCell({
+  combo,
+  components,
+  extraNames,
+  selected,
+  onHover,
+  onClick,
+}: {
+  combo: Combo;
+  components: Listing[];
+  extraNames: string[];
+  selected: boolean;
+  onHover: () => void;
+  onClick: () => void;
+}) {
+  const url = useImageUrl(combo.cover?.name ?? null, combo.cover?.mime ?? null);
+  const componentSummary = components
+    .slice(0, 2)
+    .map((listing) => listing.name)
+    .join(", ");
+  const remaining = components.length - 2;
+  const summary = remaining > 0 ? `${componentSummary} +${remaining}` : componentSummary;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={onHover}
+      onMouseMove={onHover}
+      title={`${combo.name}: ${components.length} listing, ${extraNames.length} biaya/potongan; tambahan berlaku untuk seluruh transaksi`}
+      aria-label={`Tambah combo ${combo.name}, ${components.length} listing, ${extraNames.length} biaya atau potongan yang berlaku untuk seluruh transaksi`}
+      className={cn(
+        "flex min-w-0 flex-col overflow-hidden border-b border-r text-left transition-colors hover:bg-accent/50",
+        selected && "z-10 bg-primary/10 ring-2 ring-primary ring-inset",
+      )}
+    >
+      <span className="relative flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden bg-muted/40">
+        {url !== null ? (
+          <img src={url} alt="" className="size-full object-cover" />
+        ) : (
+          <PackageOpen className="size-8 text-muted-foreground/40" />
+        )}
+        <span className="absolute left-2 top-2 rounded-md border bg-background/95 px-2 py-0.5 text-xs font-medium">
+          Paket
+        </span>
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-2 py-2">
+        <span className="truncate text-sm font-medium leading-tight">{combo.name}</span>
+        <span className="truncate text-sm leading-tight text-muted-foreground">
+          {summary || `${components.length} listing`}
+        </span>
+        <span className="truncate text-xs text-muted-foreground" title={extraNames.join(", ")}>
+          {extraNames.length === 0
+            ? `${components.length} listing`
+            : `${extraNames[0]}${extraNames.length > 1 ? ` +${extraNames.length - 1}` : ""} · seluruh transaksi`}
+        </span>
+      </span>
+    </button>
   );
 }
 

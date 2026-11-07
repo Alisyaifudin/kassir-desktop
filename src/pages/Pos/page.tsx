@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { Effect } from "effect";
+import { toast } from "sonner";
 import Decimal from "decimal.js";
 import {
   linesSubtotal,
@@ -18,6 +20,7 @@ import { Complete } from "~/components/cart/z-Complete";
 import { paidMethods } from "~/components/cart/paid-methods";
 import { CartBody, CartPanels } from "~/components/cart/z-CartFrame";
 import { CartStartError } from "~/components/cart/z-StartError";
+import type { Combo } from "~/services/combo";
 
 /**
  * The Pos screen: the restock screen's shape, selling instead of buying.
@@ -103,6 +106,49 @@ function Screen({
     onF2: () => setFocusPayment((count) => count + 1),
   });
   const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
+
+  async function addCombo(combo: Combo) {
+    if (active === null) {
+      toast.error("Transaksi penjualan belum siap.");
+      return;
+    }
+    try {
+      const [listings, catalogExtras] = await Promise.all([
+        Effect.runPromise(service.listing.get.all()),
+        Effect.runPromise(service.extra.get.all()),
+      ]);
+      const listingById = new Map(listings.map((listing) => [listing.id, listing]));
+      const extraById = new Map(catalogExtras.map((extra) => [extra.id, extra]));
+      const components = combo.components.map((component) => {
+        const listing = listingById.get(component.listingId);
+        if (listing === undefined) throw new Error("Satu atau lebih listing combo sudah tidak tersedia.");
+        return { listing, quantity: component.quantity };
+      });
+      const extrasForCombo = combo.extras.map((item) => {
+        const extra = extraById.get(item.extraId);
+        if (extra === undefined) throw new Error("Satu atau lebih biaya atau potongan combo sudah tidak tersedia.");
+        return extra;
+      });
+      await Effect.runPromise(
+        service.transaction.add.combo(active.id, {
+          components: components.map(({ listing, quantity }) => ({
+            listingId: listing.id,
+            productId: listing.productId,
+            name: listing.name,
+            code: listing.code,
+            kind: listing.kind,
+            unit: listing.unit,
+            price: listing.price,
+            cover: listing.cover,
+            quantity,
+          })),
+          extras: extrasForCombo.map(({ name, kind, value, flag }) => ({ name, kind, value, flag })),
+        }),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menambahkan combo ke transaksi.");
+    }
+  }
 
   const methodsRes = pageData.use("methods");
   // The tender as the completion dialog will print it: one row per method that
@@ -201,6 +247,7 @@ function Screen({
             onActivate={() => setArea("main")}
             lines={lines}
             onLines={cart.setLines}
+            onPickCombo={addCombo}
             issues={cart.issues}
             extras={extras}
             onExtras={cart.setExtras}

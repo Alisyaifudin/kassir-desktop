@@ -7,6 +7,8 @@ import { CashierService } from "./cashier";
 import { CashierLive } from "./cashier/live";
 import { CategoryService } from "./category";
 import { CategoryLive } from "./category/live";
+import { ComboService } from "./combo";
+import { ComboLive } from "./combo/live";
 import { ConfigService } from "./config";
 import { ConfigLive } from "./config/live";
 import { CustomerService } from "./customer";
@@ -63,6 +65,7 @@ export function buildAppLive(hidden: HiddenLive) {
   const analyticsLive = AnalyticsLive.pipe(Layer.provide(hidden));
   const cashierLive = CashierLive.pipe(Layer.provide(hidden));
   const categoryLive = CategoryLive.pipe(Layer.provide(hidden));
+  const comboLive = ComboLive.pipe(Layer.provide(hidden));
   const extraLive = ExtraLive.pipe(Layer.provide(hidden));
   const configLive = ConfigLive.pipe(Layer.provide(hidden));
   const customerLive = CustomerLive.pipe(Layer.provide(hidden));
@@ -115,6 +118,7 @@ export function buildAppLive(hidden: HiddenLive) {
     configLive,
     cashierLive,
     categoryLive,
+    comboLive,
     customerLive,
     extraLive,
     infoLive,
@@ -153,6 +157,7 @@ export function makeService(live: typeof appLive) {
         config: yield* ConfigService,
         cashier: yield* CashierService,
         category: yield* CategoryService,
+        combo: yield* ComboService,
         customer: yield* CustomerService,
         extra: yield* ExtraService,
         info: yield* InfoService,

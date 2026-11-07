@@ -7,6 +7,7 @@ import {
   TransactionService,
   type Draft,
   type DraftExtra,
+  type ComboCartInput,
   type DraftImage,
   type DraftImageMime,
   type DraftListing,
@@ -1248,6 +1249,82 @@ export const TransactionLive = Layer.effect(
             // debounced writer already has it in `written`.
             yield* persistDraft(draft);
             return draft.id;
+          });
+        },
+        combo(id, input: ComboCartInput) {
+          return Effect.gen(function* () {
+            yield* ensureLoaded();
+            const drafts = yield* SubscriptionRef.get(draftsRef);
+            const draft = drafts.find((candidate) => candidate.id === id);
+            if (draft === undefined) {
+              return yield* Effect.fail(new TransactionError({ message: "Transaksi tidak ditemukan." }));
+            }
+            if (draft.mode !== "incoming") {
+              return yield* Effect.fail(new TransactionError({ message: "Combo hanya bisa ditambahkan ke transaksi penjualan." }));
+            }
+            if (input.components.length === 0) {
+              return yield* Effect.fail(new TransactionError({ message: "Combo tidak memiliki listing yang tersedia." }));
+            }
+
+            let listings = [...draft.listings];
+            for (const component of input.components) {
+              if (!Number.isInteger(component.quantity) || component.quantity < 1) {
+                return yield* Effect.fail(new TransactionError({ message: "Jumlah listing combo tidak valid." }));
+              }
+              const existing = listings.find((line) => line.listingId === component.listingId);
+              if (existing !== undefined) {
+                const qty = existing.qty + component.quantity;
+                const discounts = recalcDiscounts(
+                  existing.price,
+                  qty,
+                  existing.discounts.map((discount) => ({
+                    id: discount.id,
+                    value: discount.value,
+                    kind: discount.kind,
+                    eff: 0,
+                    total: 0,
+                  })),
+                );
+                listings = [
+                  { ...existing, qty, discounts, cover: component.cover, productId: component.productId },
+                  ...listings.filter((line) => line.id !== existing.id),
+                ];
+              } else {
+                const discount = { id: generateId(), value: 0, kind: "percent" as const };
+                listings = [
+                  {
+                    id: generateId(),
+                    listingId: component.listingId,
+                    name: component.name,
+                    code: component.code ?? "",
+                    kind: component.kind,
+                    unit: component.unit,
+                    price: component.price,
+                    qty: component.quantity,
+                    discounts: recalcDiscounts(component.price, component.quantity, [
+                      { ...discount, eff: 0, total: 0 },
+                    ]),
+                    base: {
+                      name: component.name,
+                      code: component.code ?? "",
+                      unit: component.unit,
+                      price: component.price,
+                    },
+                    cover: component.cover,
+                    productId: component.productId,
+                  },
+                  ...listings,
+                ];
+              }
+            }
+            const extras = [
+              ...draft.extras,
+              ...input.extras.map((extra) => ({ id: generateId(), ...extra })),
+            ];
+            // Both arrays move in one SubscriptionRef update. The debounced
+            // flush writes their diff with one DatabaseService.transaction, so
+            // a combo can never persist only its listings or only its extras.
+            yield* update(id, (current) => ({ ...current, listings, extras }));
           });
         },
       },

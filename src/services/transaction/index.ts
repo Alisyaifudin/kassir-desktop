@@ -108,6 +108,27 @@ export type DraftImage = {
   mime: DraftImageMime;
 };
 
+/** A live listing snapshot and quantity to expand into an ordinary sale line. */
+export type ComboCartComponent = {
+  listingId: string;
+  productId: string;
+  name: string;
+  code: string | null;
+  kind: string;
+  unit: number;
+  price: number;
+  cover: { name: string; mime: DraftImageMime } | null;
+  quantity: number;
+};
+
+/** The live Extra values copied into the cart when a combo is selected. */
+export type ComboCartExtra = Pick<DraftExtra, "name" | "kind" | "value" | "flag">;
+
+export type ComboCartInput = {
+  components: ComboCartComponent[];
+  extras: ComboCartExtra[];
+};
+
 /**
  * The in-progress cart being assembled: the counterparty, the money settings,
  * and the payments. `tx_*` in the database; `records` is written by `submit`,
@@ -184,6 +205,12 @@ export class TransactionService extends Context.Tag("TransactionService")<
        * Returns the new draft id, which the cart screen opens by `?draft=`.
        */
       fromRecord: (recordId: string) => Effect.Effect<string, TransactionError>;
+      /**
+       * Expands one combo selection into listing snapshots and transaction-wide
+       * Extra snapshots in one draft update. The rows are intentionally not
+       * linked back to the template after they enter the cart.
+       */
+      combo: (draftId: string, input: ComboCartInput) => Effect.Effect<void, TransactionError>;
     };
     /**
      * Commit the draft as a record, in one transaction: the record and its

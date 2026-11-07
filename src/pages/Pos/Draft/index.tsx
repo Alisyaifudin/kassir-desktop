@@ -3,6 +3,7 @@ import { extrasTotal, linesSubtotal } from "~/lib/purchase";
 import { Extras } from "~/components/cart/z-Extras";
 import { Listing } from "~/components/cart/z-Listing";
 import { CartPanel, Tabs } from "~/components/cart/z-Tabs";
+import type { Combo } from "~/services/combo";
 import type { Draft as DraftModel } from "~/services/transaction";
 import type { LineIssue } from "~/components/cart/code-issues";
 
@@ -33,6 +34,7 @@ export function Draft({
   onActivate,
   lines,
   onLines,
+  onPickCombo,
   issues,
   extras,
   onExtras,
@@ -52,6 +54,7 @@ export function Draft({
   onActivate: () => void;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  onPickCombo: (combo: Combo) => void;
   issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
@@ -81,6 +84,7 @@ export function Draft({
           onActivate={onActivate}
           lines={lines}
           onLines={onLines}
+          onPickCombo={onPickCombo}
           issues={issues}
           extras={extras}
           onExtras={onExtras}
@@ -104,6 +108,7 @@ function StageBody({
   onActivate,
   lines,
   onLines,
+  onPickCombo,
   issues,
   extras,
   onExtras,
@@ -121,6 +126,7 @@ function StageBody({
   onActivate: () => void;
   lines: Line[];
   onLines: (lines: Line[]) => void;
+  onPickCombo: (combo: Combo) => void;
   issues: Map<string, LineIssue>;
   extras: Extra[];
   onExtras: (extras: Extra[]) => void;
@@ -139,6 +145,7 @@ function StageBody({
         fix={fix}
         extraTotal={extras.length === 0 ? null : extrasTotal(extras, subtotal)}
         onChange={onLines}
+        onPickCombo={onPickCombo}
         onToggle={onToggle}
         focusSearch={focusSearch}
         focusLast={focusLast}

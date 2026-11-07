@@ -132,6 +132,52 @@ describe("cart flush", () => {
     );
   });
 
+  test("a combo expands listings and Extras in one cart write", async () => {
+    const { db, state, layer } = setup();
+    db.query(
+      `INSERT INTO products (product_id, product_name, product_note, product_updated_at, product_sync_at, product_deleted_at, product_flag)
+       VALUES ('p1', 'Mangkok', '', 1, NULL, NULL, 0)`,
+    ).run();
+    db.query(
+      `INSERT INTO listings (listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_updated_at, listing_sync_at, listing_deleted_at)
+       VALUES ('l1', 'p1', 'Mangkok 1 pcs', 2500, 1, '', NULL, 1, NULL, NULL)`,
+    ).run();
+    db.query(
+      `INSERT INTO extras (extra_id, extra_name, extra_value, extra_kind, extra_flag, extra_updated_at, extra_sync_at, extra_deleted_at)
+       VALUES ('e1', 'Diskon combo', -1000, 'number', 0, 1, NULL, NULL)`,
+    ).run();
+
+    const draft = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("incoming");
+        yield* tx.add.combo(id, {
+          components: [
+            {
+              listingId: "l1",
+              productId: "p1",
+              name: "Mangkok 1 pcs",
+              code: null,
+              kind: "",
+              unit: 1,
+              price: 2500,
+              cover: null,
+              quantity: 2,
+            },
+          ],
+          extras: [{ name: "Diskon combo", kind: "number", value: -1000, flag: 0 }],
+        });
+        yield* tx.flush();
+        return yield* tx.get.byId(id);
+      }),
+    );
+
+    expect(state.written).toHaveLength(1);
+    expect(state.written[0]?.some((statement) => statement.sql.includes("INSERT INTO tx_listings"))).toBe(true);
+    expect(state.written[0]?.some((statement) => statement.sql.includes("INSERT INTO tx_extras"))).toBe(true);
+    expect(draft.listings.map((line) => [line.name, line.qty])).toEqual([["Mangkok 1 pcs", 2]]);
+    expect(draft.extras.map((extra) => [extra.name, extra.value])).toEqual([["Diskon combo", -1000]]);
+  });
+
   test("an extra's dual flag survives the write and the reload", async () => {
     const { db, dbLayer, layer } = setup();
 

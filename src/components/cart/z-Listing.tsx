@@ -41,13 +41,16 @@ import {
   type CopiedDiscount,
 } from "~/components/cart/discount-clipboard";
 import { rupiah } from "~/components/cart/util-rupiah";
+import type { Combo } from "~/services/combo";
 import type { Listing } from "~/services/listing";
+import { searchCombos } from "~/lib/search/combos";
+import { norm } from "~/lib/search/normalize";
 import { ListingCard } from "~/components/cart/z-ListingCard";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
 import { ProductDetailDialog } from "~/components/cart/z-ProductDetail";
 import { ProductImagesDialog } from "~/components/cart/z-ProductImages";
-import { SearchResults } from "~/components/cart/z-SearchResults";
+import { SearchResults, type SearchHit } from "~/components/cart/z-SearchResults";
 import {
   cellAt,
   columnIn,
@@ -153,6 +156,7 @@ export function Listing({
   extraTotal = null,
   issues,
   onChange,
+  onPickCombo,
   onToggle,
   focusSearch,
   focusLast,
@@ -174,6 +178,8 @@ export function Listing({
   /** The rupiah all extras come to, or null when there are none. */
   extraTotal?: Decimal | null;
   onChange: (lines: Line[]) => void;
+  /** Adds a combo template to the active sale; absent from purchase carts. */
+  onPickCombo?: (combo: Combo) => void;
   /** The stage toggle in the header; present on a sale, absent on a purchase. */
   onToggle?: () => void;
   focusSearch: number;
@@ -241,9 +247,45 @@ export function Listing({
   // digit a keystroke stands for, and a shadowed name here would compare that.
   const typedText = input.trim();
   const ids = useMemo(() => lines.map((line) => line.id), [lines]);
-  const results = useQuery(() => Stream.fromEffect(service.listing.get.search(query)), [query], {
-    keepPrevious: true,
-  });
+  const searchCombosEnabled = mode === "sale" && onPickCombo !== undefined;
+  const results = useQuery(
+    () =>
+      Stream.fromEffect(
+        Effect.gen(function* () {
+          const listingMatches = yield* service.listing.get.search(query);
+          const hits: SearchHit[] = listingMatches.map((listing) => ({ kind: "listing", listing }));
+          if (!searchCombosEnabled || query.trim() === "") return hits;
+
+          const [catalog, combos, extras] = yield* Effect.all([
+            service.listing.get.all(),
+            service.combo.get.all(),
+            service.extra.get.all(),
+          ]);
+          const extraById = new Map(extras.map((extra) => [extra.id, extra]));
+          const catalogById = new Map(catalog.map((listing) => [listing.id, listing]));
+          const comboMatches = searchCombos(combos, query, catalog, new Set(extraById.keys()));
+          hits.push(
+            ...comboMatches.map((combo) => ({
+              kind: "combo" as const,
+              combo,
+              components: combo.components.flatMap((component) => {
+                const listing = catalogById.get(component.listingId);
+                return listing === undefined ? [] : [listing];
+              }),
+              extraNames: combo.extras.flatMap((extra) => {
+                const preset = extraById.get(extra.extraId);
+                if (preset === undefined) return [];
+                const value = preset.kind === "percent" ? `${preset.value}%` : rupiah(preset.value);
+                return [`${preset.name} ${value}`];
+              }),
+            })),
+          );
+          return hits;
+        }),
+      ),
+    [query, mode, searchCombosEnabled],
+    { keepPrevious: true },
+  );
   // Which text the answers in `results` belong to. `useQuery` hands back a new
   // array per answer, so one that survived a render still belongs to the query of
   // the render that replaced it — tracked by identity rather than by reading
@@ -747,10 +789,15 @@ export function Listing({
     onChange(lines.map((line) => (line.id === cell.line.id ? patchLine(line, patch) : line)));
   }
 
-  /** What Enter takes from a result set: the exact code match, else the first. */
-  function bestResult(listings: Listing[], query: string): Listing | undefined {
+  /** Exact listing codes win; otherwise an exact combo name beats a fuzzy listing hit. */
+  function bestResult(hits: SearchHit[], query: string): SearchHit | undefined {
     const code = query.trim().toLowerCase();
-    return listings.find((listing) => listing.code?.toLowerCase() === code) ?? listings[0];
+    const exactCode = hits.find(
+      (hit) => hit.kind === "listing" && hit.listing.code?.toLowerCase() === code,
+    );
+    if (exactCode !== undefined) return exactCode;
+    const exactCombo = hits.find((hit) => hit.kind === "combo" && norm(hit.combo.name) === norm(query));
+    return exactCombo ?? hits[0];
   }
 
   /**
@@ -776,7 +823,8 @@ export function Listing({
     if (results.type !== "success") return;
     setArmed(null);
     const pick = bestResult(results.data, armed);
-    if (pick !== undefined) addListing(pick);
+    if (pick?.kind === "listing") addListing(pick.listing);
+    else if (pick?.kind === "combo") pickCombo(pick.combo);
     // `addListing` and `bestResult` are re-created each render and read the fresh
     // `lines`/`input` from this render, which is what the pick wants.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -788,6 +836,20 @@ export function Listing({
   // submission put them in the cart unasked. Deliberately no "a scan ends on an
   // exact code" shortcut: a scan is unaffected, because its Enter arrives before
   // the pause, which is the case `armed` exists for.
+
+  function pickCombo(combo: Combo) {
+    if (onPickCombo === undefined) return;
+    onPickCombo(combo);
+    pushQuery.cancel();
+    setInput("");
+    setQuery("");
+    searchRef.current?.focus();
+  }
+
+  function pickHit(hit: SearchHit) {
+    if (hit.kind === "listing") addListing(hit.listing);
+    else pickCombo(hit.combo);
+  }
 
   function removeCard(cardId: string) {
     const index = lines.findIndex((line) => line.id === cardId);
@@ -1112,7 +1174,7 @@ export function Listing({
             type="search"
             className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
             placeholder={
-              mode === "sale" ? "Cari barang untuk dijual..." : "Cari barang untuk dibeli..."
+              mode === "sale" ? "Cari barang atau combo untuk dijual..." : "Cari barang untuk dibeli..."
             }
             aria-autocomplete="list"
             value={input}
@@ -1259,7 +1321,7 @@ export function Listing({
         <SearchResults
           res={results}
           containerRef={resultsRef}
-          onPick={addListing}
+          onPick={pickHit}
           onExit={() => searchRef.current?.focus()}
         />
       </Show>

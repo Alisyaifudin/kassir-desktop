@@ -7,6 +7,7 @@ import {
   HandCoins,
   History,
   Package,
+  PackageOpen,
   PackagePlus,
   Phone,
   ReceiptText,
@@ -86,6 +87,14 @@ const DESTINATIONS: Destination[] = [
     admin: true,
     hue: 160,
     description: "Kelompok produk",
+  },
+  {
+    label: "Combo",
+    path: "/combos",
+    icon: PackageOpen,
+    admin: true,
+    hue: 185,
+    description: "Paket listing dan tambahan",
   },
   {
     label: "Biaya Lainnya",

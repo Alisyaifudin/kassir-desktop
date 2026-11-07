@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.9.0</version>
+  <version>8.11.0</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">6.24.0</entry>
+        <entry key="version">8.11.0</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">6.24.0</entry>
+        <entry key="package.version">8.11.0</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -411,7 +411,7 @@
     </capabilities>
 
     <migrations>
-      <database name="data.db" migration_count="54">
+      <database name="data.db" migration_count="57">
         <description>
           The only database. Every migration in src-tauri/src/database/&lt;range&gt;/migration-N.sql is embedded by
           database/mod.rs and applied on boot; the frontend also applies the same files in the e2e harness. The schema
@@ -448,6 +448,8 @@
           - 56: the same treatment for the three product children `migration-43` keyed: one live barcode, one live
             property key and one live alias are rules of `ProductService`, not indexes, so a second till's row is
             stored instead of failing the page
+          - 57: combo templates with ordered listing/quantity and Extra-preset children plus an optional cover reference;
+            the sync marker is reserved, but combos are not registered in a sync group
           Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
           are created in 43.
 
@@ -510,6 +512,7 @@
             <route path="new" page="ExtraNew" guard="AdminOnly" />
             <route path=":id" page="ExtraDetail" guard="in-page role switch" />
           </route>
+          <route path="combos" page="Combo" guard="AdminOnly" />
           <route path="debt" page="Debt" />
           <route path="cashier" page="Cashier" />
           <route path="customer" page="Customer" />
@@ -546,7 +549,7 @@
         /login. Wraps every route but /login.
       </guard>
       <guard name="AdminOnly" file="src/components/AdminOnly.tsx">
-        Children for admins, `&lt;Redirect to={fallback}&gt;` for everyone else. Used by Setting shop/data/log and Extra new.
+        Children for admins, `&lt;Redirect to={fallback}&gt;` for everyone else. Used by Setting shop/data/log, Extra new and Combo management.
       </guard>
       <guard name="in-page admin" file="src/pages/Money/page.tsx, src/pages/Money/History/page.tsx, src/pages/Product/New/page.tsx">
         Renders `&lt;Redirect to="/"&gt;` itself when useUser().role is not admin.
@@ -754,6 +757,8 @@
         <table name="product_events">append-only stock journal (manual/inc/dec), linked to the record and the stock lot; indexed by product, stock and record</table>
         <table name="categories">a product's labels: category_name + sync trio. Group-wide, so it carries no product_id and is outside the one-product scope. One live row per name is a rule of `CategoryService`, not an index: two tills may create the same name offline and both rows are kept (migration 55)</table>
         <table name="product_category">the many-to-many link (product_id, category_id) with an id of its own + sync trio; a dropped link is a tombstone. No key to `categories` and no unique pair: the scoped product sync never carries categories and two tills may tick the same box, so both rows are kept and the form draws one. See migrations 53 and 55</table>
+        <table name="combos">combo_id, name, active state, optional cover reference, update/sync/delete bookkeeping. `combo_sync_at` is reserved; no combo sync group is registered yet.</table>
+        <table name="combo_listings / combo_extras">ordered template children: listing_id + quantity, and references to existing Extra preset ids. These rows expand into ordinary cart rows when selected.</table>
         <table name="product_names / properties / images">alternative names, key/value properties, image references (name + mime under AppData/images); img_mimes is the allowed set (png/jpeg/webp). One live alias per value and one live property per key per product are rules of `ProductService`, not indexes (migration 56). Since migration 50 `images` also carries the three client-only byte columns: image_blob_version (the image_updated_at the local file belongs to), image_blob_sha256 (its digest) and image_blob_sync_at (NULL = the server never accepted the bytes). None of them is on the wire.</table>
       </group>
       <group name="history">
@@ -792,6 +797,7 @@
       <owner service="money">pockets, money</owner>
       <owner service="product">products, listings, properties, images, stocks, product_events, product_names, product_category</owner>
       <owner service="category">categories</owner>
+      <owner service="combo">combos, combo_listings, combo_extras</owner>
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
       <owner service="config">localStorage key "product-view"</owner>
@@ -854,8 +860,8 @@
       changes Stream; a write goes to SQLite first and then the ref. Components subscribe with useStream/useQuery or,
       preferably, through page-data. Typed errors are caught by createErrorBoundary or rendered per key by
       pageData.Gate. src/services/index.ts composes the layers and exports the app-level `service` object.
-      Public services: analytics, auth, cashier, config, customer, extra, info, listing, log, method, money, printer,
-      product, record, social, supplier, sync, transaction, zoom. Hidden backends: db, store, local-storage.
+      Public services: analytics, auth, cashier, category, combo, config, customer, extra, info, listing, log, method,
+      money, printer, product, record, social, supplier, sync, transaction, zoom. Hidden backends: db, store, local-storage.
       Sync additionally injects its transport (SyncTransportService) so the loops can be tested against an
       in-memory server.
     </description>
@@ -971,6 +977,21 @@
         <method name="delete.byId(id)">Soft delete via category_deleted_at. The product links that named it are kept as orphans, not deleted.</method>
         <method name="refresh()">Re-reads the table after a product-group sync merge.</method>
       </interface>
+    </service>
+
+    <service name="combo" module="src/services/combo/">
+      <description>
+        Local catalogue templates that expand into ordinary POS cart rows. Owns combos, combo_listings and
+        combo_extras. Components reference live listings with a quantity; extras reference the existing Extra
+        catalog. An optional cover is stored under AppData/images. The combo is not attached to the resulting cart.
+      </description>
+      <error name="ComboError" tag="ComboError" />
+      <interface>
+        <method name="get.all() / get.changes">Live non-deleted combo templates with ordered children.</method>
+        <method name="add(input) / set.info(id, input)">Validate live listing and Extra references, then write the parent and ordered children atomically.</method>
+        <method name="delete.byId(id)">Soft-delete the template and remove its cover file.</method>
+      </interface>
+      <note>combo_sync_at is reserved only; no sync group is implemented. Future sync design: docs/docs/architecture/combos.md.</note>
     </service>
 
     <service name="extra" module="src/services/extra/">
@@ -1181,7 +1202,7 @@
         <method name="get.drafts(mode) / get.byId(id) / get.changes">The open carts, oldest order first.</method>
         <method name="get.saveError">Stream&lt;string | null&gt;: null while every edit is on disk, a sentence once a write failed.</method>
         <method name="flush() / reportError(message)">Write pending edits now; put a failure on the same channel.</method>
-        <method name="add.new(mode, flag?) => id / add.fromRecord(recordId) => id" />
+        <method name="add.new(mode, flag?) => id / add.fromRecord(recordId) => id / add.combo(draftId, input)" />
         <method name="submit(id, {cashier, credit?}) => recordId">Commit the cart and delete it; returns the record id.</method>
         <method name="unsubmit(recordId) => id">Write the record back as a draft, then delete the record (reversing its stock movement).</method>
         <method name="set.{title, mode, fix, note, customer, customerName, customerPhone, supplier, supplierName, paidAt, rounding, store, restore}" />
@@ -1220,6 +1241,11 @@
       `product` group, and image **bytes** travel over that group's content-addressed side channel (§8.7.1) — no seq,
       no log entry, no bookmark.
     </description>
+    <note name="combo_future_sync">
+      Combo templates are not one of the eight implemented groups and must not be mistaken for synced catalog data.
+      A future parent aggregate, cross-group reference, deletion and image-byte design is documented in
+      docs/docs/architecture/combos.md; no combo sync code ships yet.
+    </note>
     <schema_contract>
       <item name="canonical_json">schema.ts freezes every entity's column order once (the 16 row entities, of which one is the record aggregate, plus its five child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
       <item name="bookmark">`sync_bookmark(group_name, seq)` in SQLite — one integer per group, advanced to `done.s` (not `meta.snapshot`: a page can stop early) and written in the SAME transaction as the page's rows. A pre-table database reads its `sync.&lt;group&gt;.bookmark` store key once and migrates it.</item>
@@ -1313,10 +1339,11 @@
       <description>
         The sale screen. Two panels: the top walks the goods then the charges (two stages), the bottom carries the
         split payment rows, the change and the grand total. The cart and the stage live in the URL (`?draft=`,
-        `?stage=`); F1/F2/F12, Ctrl+←/→ and Ctrl+0..3 are the operator's path. Nothing waits as a block: drafts,
-        methods, customers and extras are registered on one page-data provider and start together. Bayar is the
-        shared useSubmitCart flow (mode incoming): submit → transaction.add.draft, then the completion dialog with
-        print and undo. See &lt;cart&gt;.
+        `?stage=`); F1/F2/F12, Ctrl+←/→ and Ctrl+0..3 are the operator's path. Listing search also returns active
+        combos; choosing one adds ordinary listing rows and transaction-wide Extra snapshots in one draft update.
+        Nothing waits as a block: drafts, methods, customers and extras are registered on one page-data provider and
+        start together. Bayar is the shared useSubmitCart flow (mode incoming): submit → transaction.add.draft, then
+        the completion dialog with print and undo. See &lt;cart&gt;.
       </description>
     </page>
 
@@ -1386,6 +1413,15 @@
         The product form's picker reads the same list (its own page-data key), and `product.set.categories` writes the
         links. A name typed into that picker is created by the product's own save, not here, so the catalogue gains a
         row only where one was needed. Deleting a category keeps the products and leaves their links as orphans.
+      </description>
+    </page>
+
+    <page name="combo" path="/combos" guard="AdminOnly" status="new">
+      <description>
+        Admin-only management for reusable combo templates: name, active state, ordered listing components with
+        quantities, references to existing Extra presets, and an optional cover image. In POS search, active combos
+        match their own name and component listing/product names; a selected combo expands into regular cart rows.
+        Preset Extras retain transaction-wide behavior and are not linked to their component lines.
       </description>
     </page>
 
