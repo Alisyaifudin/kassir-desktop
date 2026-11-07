@@ -60,5 +60,11 @@ describe("the page cache rollout", () => {
     // `printers` is a read-once `Effect` that nothing invalidates: a seeded
     // hardware list would never show a printer plugged in since the last visit.
     expect(optionsIn("src/pages/Setting/Printer/data.ts")).toContain('skip: ["printers"]');
+
+    // The graph is a read-once snapshot over mutable records; each visit must
+    // ask the Rust cache for its current staleness instead of trusting a seed.
+    const network = readFileSync("src/pages/Analytics/Network/data.ts", "utf8");
+    expect(optionsIn("src/pages/Analytics/Network/data.ts")).toContain("cache: CACHE");
+    expect(network).toContain('skip: ["snapshot"]');
   });
 });

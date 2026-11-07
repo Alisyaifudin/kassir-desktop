@@ -67,7 +67,7 @@ test("cashflow keeps presets and gains a hand-picked range", async ({ page }) =>
 });
 
 test("payments shows full method names and no bucket width", async ({ page }) => {
-  await page.goto("/e2e.html#/analytics/pembayaran");
+  await page.goto("/e2e.html#/analytics/payments");
   await expect(page.getByRole("heading", { name: "Komposisi pembayaran" })).toBeVisible();
   await page.waitForTimeout(700);
   await expect(page.getByRole("group", { name: "Lebar titik" })).toHaveCount(0);
@@ -88,7 +88,7 @@ test("payments shows full method names and no bucket width", async ({ page }) =>
 });
 
 test("time is one week at a time, with a remembered hour window", async ({ page }) => {
-  await page.goto("/e2e.html#/analytics/waktu");
+  await page.goto("/e2e.html#/analytics/time");
   await page.waitForTimeout(900);
   await expect(page.getByRole("group", { name: "Periode" })).toHaveCount(0);
   await expect(page.getByRole("group", { name: "Lebar titik" })).toHaveCount(0);

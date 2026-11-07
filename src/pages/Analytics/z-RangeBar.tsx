@@ -13,7 +13,7 @@ import { DAY_MS, INTERVALS, PRESETS, useRange, weekRange } from "./use-range";
  * `date` pages keep the presets and add a hand-picked range; `week` pages (only
  * Waktu) move a single week at a time, because an hour-of-day histogram read
  * across 30 days mixes paydays with Mondays. `product` is a `date` page that also
- * asks about today — a best seller is a same-day question. The bucket width only
+ * asks about today — a best seller or a same-day product network is a real question. The bucket width only
  * exists where the page plots a time series.
  */
 export function RangeBar({

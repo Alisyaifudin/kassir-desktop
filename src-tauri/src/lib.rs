@@ -4,6 +4,7 @@ mod auth;
 mod backup;
 mod database;
 mod export;
+mod graph;
 mod printer;
 mod receipt;
 mod sync;
@@ -49,6 +50,9 @@ pub fn run() {
             printer::print_receipt,
             export::export_file,
             backup::backup_data,
+            graph::product_graph_build,
+            graph::product_graph_status,
+            graph::product_graph_load,
             sync::sync_pull,
             sync::sync_push,
             sync::sync_product_pull,

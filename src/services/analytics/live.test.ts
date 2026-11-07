@@ -4,7 +4,7 @@ import { Temporal } from "temporal-polyfill";
 import { makeTestDatabase } from "../db/test-support";
 import { tz } from "~/lib/constants";
 import { AnalyticsLive } from "./live";
-import { AnalyticsService } from ".";
+import { AnalyticsService, pairLift } from ".";
 
 /**
  * The analytics reads, over a hand-built week. Everything here shares the three
@@ -238,6 +238,157 @@ describe("AnalyticsService", () => {
       productId: "p1",
     });
     expect(rows[1]!.at).toBe(at(0, 10));
+  });
+
+  test("a pair that met once is not an edge", async () => {
+    const { analyticsLayer } = setup();
+    const { records, pairs } = await run(analyticsLayer, (a) =>
+      a.get.productPairs(FROM, TO, "incoming"),
+    );
+
+    // The seed's only shared basket is r1 (Kopi + Gula). One observation is a
+    // coincidence, so there is no network — but the period still knows it looked
+    // at two records (r1 and r5), which is a different sentence on the page than
+    // "nothing sold".
+    expect(pairs).toEqual([]);
+    expect(records).toBe(2);
+  });
+
+  test("pairs count records, and only the records a sale is", async () => {
+    const { analyticsLayer, db } = setup();
+    // Every way a count can go wrong, in one fixture. Against the seed's r1
+    // (Kopi + Gula, incoming):
+    //   r6  Kopi entered as two lot portions + Gula + Teh
+    //   r7  Kopi + Gula
+    //   r8  Gula + Teh
+    //   r9  a purchase of the same three products
+    //   r10 deleted after the fact
+    //   r11 a hand-typed adjustment (flag bit 0)
+    //   r12 Kopi plus a manual line with no product to link
+    db.exec(`
+      INSERT INTO products (product_id, product_name, product_note, product_updated_at)
+        VALUES ('p3', 'Teh', '', 1);
+
+      INSERT INTO records (
+        record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
+        record_cashier, record_mode, record_pay, record_note, record_fix,
+        record_customer_name, record_customer_phone, record_sub_total, record_total,
+        record_updated_at, record_sync_at, record_deleted_at, record_flag
+      ) VALUES
+        ('r6',  ${at(0, 14)}, ${at(0, 14)}, 0, NULL, 'Ali', 'incoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 14)}, NULL, NULL, 0),
+        ('r7',  ${at(0, 15)}, ${at(0, 15)}, 0, NULL, 'Ali', 'incoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 15)}, NULL, NULL, 0),
+        ('r8',  ${at(0, 16)}, ${at(0, 16)}, 0, NULL, 'Ali', 'incoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 16)}, NULL, NULL, 0),
+        ('r9',  ${at(0, 17)}, ${at(0, 17)}, 0, NULL, 'Ali', 'outcoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 17)}, NULL, NULL, 0),
+        ('r10', ${at(0, 18)}, ${at(0, 18)}, 0, NULL, 'Ali', 'incoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 18)}, NULL, ${at(0, 19)}, 0),
+        ('r11', ${at(0, 20)}, ${at(0, 20)}, 0, NULL, 'Ali', 'incoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 20)}, NULL, NULL, 1),
+        ('r12', ${at(0, 21)}, ${at(0, 21)}, 0, NULL, 'Ali', 'incoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 21)}, NULL, NULL, 0);
+
+      INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES
+        -- one line, two lots: two rows, one product in the basket
+        ('l10', 'g10', 'r6', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l11', 'g11', 'r6', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 30000, 50000),
+        ('l12', 'g12', 'r6', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l13', 'g13', 'r6', NULL, 'p3', 'Teh', 'retail', 1, 10000, 1, 0, 10000),
+        ('l14', 'g14', 'r7', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l15', 'g15', 'r7', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l16', 'g16', 'r8', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l17', 'g17', 'r8', NULL, 'p3', 'Teh', 'retail', 1, 10000, 1, 0, 10000),
+        ('l18', 'g18', 'r9', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l19', 'g19', 'r9', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l20', 'g20', 'r10', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l21', 'g21', 'r10', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l22', 'g22', 'r11', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l23', 'g23', 'r11', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l24', 'g24', 'r12', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l25', 'g25', 'r12', NULL, NULL, 'Jasa', 'manual', 1, 5000, 1, 0, 5000);
+    `);
+
+    const { records, pairs } = await run(analyticsLayer, (a) =>
+      a.get.productPairs(FROM, TO, "incoming"),
+    );
+
+    // Six records hold a catalogued product: r1, r5, r6, r7, r8 and r12. r9 is a
+    // purchase, r10 is deleted, r11 is an adjustment, and the seed's r3 has no
+    // lines at all.
+    expect(records).toBe(6);
+
+    // Kopi × Gula: r1, r6, r7. Four if the two lot portions of Kopi were counted
+    // as two baskets, five if the purchase or the deleted/adjusted records leaked
+    // in. Gula × Teh: r6, r8. Kopi × Teh met once and is not an edge.
+    expect(pairs).toEqual([
+      { a: "p1", b: "p2", co: 3, basketsA: 5, basketsB: 4, lift: 0.9 },
+      { a: "p2", b: "p3", co: 2, basketsA: 4, basketsB: 2, lift: 1.5 },
+    ]);
+
+    // The point of carrying both numbers: Kopi × Gula is the busier pair and the
+    // weaker one. Kopi is in five of six baskets, so sharing three of them says
+    // almost nothing (0.9 — less than chance); Gula and Teh are rarer and always
+    // together (1.5). Ranking by count alone would put the first one on top.
+    expect(pairs[0]!.lift).toBeLessThan(pairs[1]!.lift);
+  });
+
+  test("pairs are counted per direction", async () => {
+    const { analyticsLayer, db } = setup();
+    // The seed's r1 holds Kopi + Gula on the sales side. These two are the same
+    // pair on the purchase side, twice — the same shape as r1, pointing the other
+    // way, and it must not touch the sales network.
+    db.exec(`
+      INSERT INTO records (
+        record_id, record_created_at, record_paid_at, record_rounding, record_credit_at,
+        record_cashier, record_mode, record_pay, record_note, record_fix,
+        record_customer_name, record_customer_phone, record_sub_total, record_total,
+        record_updated_at, record_sync_at, record_deleted_at, record_flag
+      ) VALUES
+        ('r9',  ${at(0, 17)}, ${at(0, 17)}, 0, NULL, 'Ali', 'outcoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 17)}, NULL, NULL, 0),
+        ('r13', ${at(0, 18)}, ${at(0, 18)}, 0, NULL, 'Ali', 'outcoming', 0, '', 0,
+          '', '', 0, 0, ${at(0, 18)}, NULL, NULL, 0);
+
+      INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES
+        ('l18', 'g18', 'r9',  NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l19', 'g19', 'r9',  NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000),
+        ('l20', 'g20', 'r13', NULL, 'p1', 'Kopi', 'retail', 1, 50000, 1, 0, 50000),
+        ('l21', 'g21', 'r13', NULL, 'p2', 'Gula', 'retail', 1, 20000, 1, 0, 20000);
+    `);
+
+    const sales = await run(analyticsLayer, (a) => a.get.productPairs(FROM, TO, "incoming"));
+    const purchases = await run(analyticsLayer, (a) =>
+      a.get.productPairs(FROM, TO, "outcoming"),
+    );
+
+    // Sales: r1 and r5, still no repeating pair — the two purchases added nothing.
+    expect(sales).toEqual({ records: 2, pairs: [] });
+    // Purchases: two records holding the same two products, so the pair is real
+    // in exactly the direction its own count earns (2/2 × 2/2 = 1).
+    expect(purchases).toEqual({
+      records: 2,
+      pairs: [{ a: "p1", b: "p2", co: 2, basketsA: 2, basketsB: 2, lift: 1 }],
+    });
+  });
+
+  test("lift never returns a value the canvas cannot scale", () => {
+    expect(pairLift(3, 5, 4, 6)).toBeCloseTo(0.9);
+    // A quiet week, and a product the period never saw, are both "no relationship"
+    // rather than NaN/Infinity — a NaN scaled canvas draws nothing at all.
+    expect(pairLift(0, 0, 4, 6)).toBe(0);
+    expect(pairLift(2, 4, 2, 0)).toBe(0);
   });
 
   test("payments group tendered money by method kind", async () => {

@@ -1,4 +1,12 @@
-import { Clock, CreditCard, LineChart, Package, TrendingUp, type LucideIcon } from "lucide-react";
+import {
+  Clock,
+  CreditCard,
+  LineChart,
+  Network,
+  Package,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react";
 import { NavLink, useLocation } from "~/services/route/react";
 import { cn } from "~/lib/utils";
 import { rangeQuery } from "./use-range";
@@ -6,15 +14,16 @@ import { rangeQuery } from "./use-range";
 type Leaf = { to: string; label: string; icon: LucideIcon; end?: boolean };
 
 /**
- * The five faces of the analysis, in the order a shopkeeper asks the questions:
- * what came in, what it earned, what sold, when it was busy, how it was paid.
+ * The six faces of the analysis, in the order a shopkeeper asks the questions:
+ * what came in, what it earned, what sold, when it was busy, how it was paid, what travels together.
  */
 const LEAVES: Leaf[] = [
   { to: "/analytics", label: "Arus kas", icon: LineChart, end: true },
-  { to: "/analytics/laba", label: "Laba", icon: TrendingUp },
-  { to: "/analytics/produk", label: "Produk", icon: Package },
-  { to: "/analytics/waktu", label: "Waktu", icon: Clock },
-  { to: "/analytics/pembayaran", label: "Pembayaran", icon: CreditCard },
+  { to: "/analytics/profit", label: "Laba", icon: TrendingUp },
+  { to: "/analytics/products", label: "Produk", icon: Package },
+  { to: "/analytics/time", label: "Waktu", icon: Clock },
+  { to: "/analytics/payments", label: "Pembayaran", icon: CreditCard },
+  { to: "/network", label: "Jaringan", icon: Network },
 ];
 
 export function Rail() {

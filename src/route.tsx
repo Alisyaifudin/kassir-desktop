@@ -16,7 +16,7 @@ import { extraRoute } from "./pages/Extra/index.tsx";
 import { categoryRoute } from "./pages/Category/index.tsx";
 import { comboRoute } from "./pages/Combo/index.tsx";
 import { transactionRoute } from "./pages/Transaction/index.tsx";
-import { analyticsRoute } from "./pages/Analytics/index.tsx";
+import { analyticsRoute, networkRoute } from "./pages/Analytics/index.tsx";
 import { devPageDataRoute } from "./pages/Dev/PageData/index.tsx";
 import { devPageCacheRoute } from "./pages/Dev/PageCache/index.tsx";
 
@@ -47,6 +47,7 @@ export const router = createHashRouter([
           comboRoute,
           transactionRoute,
           analyticsRoute,
+          networkRoute,
           homeRoute,
           debtRoute,
           posRoute,

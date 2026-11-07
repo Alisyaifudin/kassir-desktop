@@ -1471,15 +1471,26 @@
         A rail of five questions over one period. The period and bucket width live in the URL (useRange: presets
         7/30/90 days, this month, this year; a hand-picked range clears the preset) and in the header, so switching
         pages never resets what you were looking at. The bodies are the lazy chart chunk; the rail and range bar are
-        static.
+        static. URLs are English; the visible labels stay Indonesian.
       </description>
       <subpages>
         <subpage path="/analytics/">Arus Kas (Cashflow): money in vs out per bucket, with totals.</subpage>
-        <subpage path="/analytics/laba">Laba (Profit): margin over the period — the stored cost where it is believable, and `min(10% of the line, Rp5.000)` per line where it is not (migration-54's repair plus an operator-set estimate, edited under the chart). The stat says how many lines were costed and how many were estimated.</subpage>
-        <subpage path="/analytics/produk">Products: per-product qty/revenue/margin, sortable and paginated, expandable to the individual lines.</subpage>
-        <subpage path="/analytics/waktu">Time: sales per weekday and per hour, one week at a time.</subpage>
-        <subpage path="/analytics/pembayaran">Payments: what was tendered per method kind, plus the unpaid part of the period.</subpage>
+        <subpage path="/analytics/profit">Laba (Profit): margin over the period — the stored cost where it is believable, and `min(10% of the line, Rp5.000)` per line where it is not (migration-54's repair plus an operator-set estimate, edited under the chart). The stat says how many lines were costed and how many were estimated.</subpage>
+        <subpage path="/analytics/products">Products: per-product qty/revenue/margin, sortable and paginated, expandable to the individual lines.</subpage>
+        <subpage path="/analytics/time">Time: sales per weekday and per hour, one week at a time.</subpage>
+        <subpage path="/analytics/payments">Payments: what was tendered per method kind, plus the unpaid part of the period.</subpage>
       </subpages>
+    </page>
+
+    <page name="network" path="/network" status="new">
+      <description>
+        Jaringan (Product network): a co-occurrence graph of products, built on demand from the shared analytics scope.
+        A Rust command aggregates pairs per record in seven-day windows, computes lift, lays the graph out
+        deterministically, and publishes a compact .kgr snapshot under app-data (separate from data.db and store.json).
+        The layout shell is Analytics' (rail, range bar, `today` preset; body overflow hidden), with a Buat ulang
+        button, a staged progress bar, pan/zoom canvas, viewport culling, mode (Jual/Beli), count-vs-lift edges,
+        per-node top-k and a product cap.
+      </description>
     </page>
 
     <page name="setting" path="/setting" status="migrated">

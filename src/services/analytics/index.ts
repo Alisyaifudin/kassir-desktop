@@ -116,6 +116,54 @@ export type ProductInstance = {
 export type PaymentStat = { kind: MethodKind; total: number; count: number };
 
 /**
+ * Two products that keep turning up in the same record — an edge of the
+ * co-occurrence network at `/network`.
+ */
+export type ProductPair = {
+  /** The two `product_id`s, ordered `a < b` so a pair has exactly one row. */
+  a: string;
+  b: string;
+  /** Records holding both — a record is one observation, however many lines. */
+  co: number;
+  /** Records holding `a`; the first denominator of `lift`. */
+  basketsA: number;
+  /** Records holding `b`; the second denominator of `lift`. */
+  basketsB: number;
+  /** `pairLift(co, basketsA, basketsB, records)`, carried so the page never recomputes it. */
+  lift: number;
+};
+
+/**
+ * One period's product network.
+ *
+ * `records` is the number of records holding at least one catalogued product: the
+ * `N` of every lift in `pairs`. It rides along rather than being derived from
+ * `pairs`, so a period whose pairs were all filtered away still knows how much
+ * evidence it had — what the page needs to say "nothing repeated" instead of
+ * "nothing sold".
+ */
+export type ProductPairs = { records: number; pairs: ProductPair[] };
+
+/**
+ * How much more often two products share a record than independence predicts.
+ *
+ * `1` is no relationship, above `1` is a real pairing, below `1` is two products
+ * that avoid each other. It is the only figure on this screen that does not
+ * restate popularity: a pair of best sellers scores near `1` no matter how often
+ * it repeats, while two mid-volume products that always travel together score
+ * high. Counting alone would rank `Indomie × Air` above `Kopi × Gula` in every
+ * window simply because both sell every day.
+ *
+ * Both denominators are guarded: a week with no records, or a product the period
+ * never saw, must yield `0` rather than `Infinity` or `NaN` — a canvas scaled by
+ * `NaN` draws nothing at all and looks like a broken query.
+ */
+export function pairLift(co: number, basketsA: number, basketsB: number, records: number): number {
+  if (basketsA <= 0 || basketsB <= 0 || records <= 0) return 0;
+  return (co * records) / (basketsA * basketsB);
+}
+
+/**
  * Read-only aggregates over saved records, for `/analytics`.
  *
  * Every query shares three rules:
@@ -162,6 +210,20 @@ export class AnalyticsService extends Context.Tag("AnalyticsService")<
       ) => Effect.Effect<ProductInstance[], AnalyticsError>;
       /** What was actually tendered, grouped by method kind. */
       payments: (from: number, to: number) => Effect.Effect<PaymentStat[], AnalyticsError>;
+      /**
+       * Every pair of products that shared at least two records in the period.
+       *
+       * This is the *definition* of the network, and the reference implementation
+       * of it: the Rust builder (`src-tauri/src/graph.rs`) aggregates the same
+       * rows into the same pairs, and the fixture in `live.test.ts` is what both
+       * are held to. No screen calls this — the canvas reads the built snapshot —
+       * so it stays the oracle the fast path cannot drift from.
+       */
+      productPairs: (
+        from: number,
+        to: number,
+        mode: RecordMode,
+      ) => Effect.Effect<ProductPairs, AnalyticsError>;
     };
   }
 >() {}

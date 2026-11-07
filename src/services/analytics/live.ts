@@ -11,22 +11,44 @@ import {
   type PaymentStat,
   type ProductGroup,
   type ProductInstance,
+  type ProductPair,
+  type ProductPairs,
   type WeekdayStat,
+  pairLift,
 } from ".";
 import { DatabaseService, type DbError } from "../db";
 import { tz, type MethodKind } from "~/lib/constants";
 import type { RecordMode } from "../record";
+// The scope predicate is a file, not a constant: the Rust graph builder
+// (`src-tauri/src/graph.rs`) reads the same one with `include_str!`.
+import SCOPE_FILE from "./scope.sql?raw";
 
-/** The effective date of a record — the day it belongs to, as everywhere else. */
+/**
+ * The effective date of a record — the day it belongs to, as everywhere else.
+ *
+ * The same expression `scope.sql` carries. It is repeated here because the date
+ * bucketing needs it standalone (`date((EFF + offset) / 1000, 'unixepoch')`),
+ * and the two are kept in step by hand; change one, change both.
+ */
 const EFF = "COALESCE(record_paid_at, record_credit_at, record_created_at)";
 const EFF_R = "COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at)";
 
 /**
- * Every query is over the same set: live records, no hand-typed adjustments (see
- * FLAGS.md), inside `[from, to)` on the effective date.
+ * `scope.sql`, with its alias substituted and its comments removed.
+ *
+ * Stripping is not cosmetic. The fragment is spliced in directly after a
+ * `WHERE`, so a leading `--` would comment out the clause it belongs to.
  */
-const SCOPE = `r.record_deleted_at IS NULL AND (r.record_flag & 1) = 0 AND ${EFF_R} >= $1 AND ${EFF_R} < $2`;
-const SCOPE_PLAIN = `record_deleted_at IS NULL AND (record_flag & 1) = 0 AND ${EFF} >= $1 AND ${EFF} < $2`;
+function scope(alias: "" | "r."): string {
+  return SCOPE_FILE.replace(/--[^\n]*/g, " ")
+    .replace(/\{r\}/g, alias)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Every query is over the same set — see `scope.sql` for the three rules. */
+const SCOPE = scope("r.");
+const SCOPE_PLAIN = scope("");
 
 type DailyRow = {
   day: string;
@@ -189,6 +211,75 @@ const INSTANCES = `
   ORDER BY at DESC
   LIMIT $5`;
 
+type ProductPairRow = {
+  a: string;
+  b: string;
+  co: number;
+  baskets_a: number;
+  baskets_b: number;
+};
+
+/**
+ * The denominator of every lift in the period: records that hold at least one
+ * catalogued product.
+ *
+ * Counted as its own statement rather than read off the pair rows so an empty
+ * network still knows its `N` — "no pair repeated" and "nothing sold" are
+ * different sentences on the page, and only this number can tell them apart.
+ */
+const PAIR_TOTALS = `
+  SELECT COUNT(DISTINCT l.record_id) AS n
+  FROM record_listings l
+  JOIN records r ON r.record_id = l.record_id
+  WHERE ${SCOPE} AND r.record_mode = $3 AND l.product_id IS NOT NULL`;
+
+/**
+ * Every pair of products that shared at least two records in the period.
+ *
+ * The subtlety is the grain. `record_listings` holds one row per *lot portion*,
+ * so a line split across two lots appears twice in one record; `basket` collapses
+ * that to one row per (record, product) before anything is counted, which is what
+ * keeps `co` a count of records rather than of stock movements. A pair is stored
+ * once (`a < b`), so `co(a,b)` and `co(b,a)` cannot both exist.
+ *
+ * `HAVING COUNT(*) >= 2` is the noise floor. A pair that met once is a
+ * coincidence, and on a real history the once-only pairs are the large majority
+ * of the rows — the network is unreadable long before it is unaffordable.
+ *
+ * `$1`/`$2` belong to the scope predicate, so they must be written before `$3`;
+ * see the note on placeholder order above `marginsSql`.
+ */
+const PAIRS = `
+  WITH lines AS (
+    SELECT l.record_id, l.product_id
+    FROM record_listings l
+    JOIN records r ON r.record_id = l.record_id
+    WHERE ${SCOPE} AND r.record_mode = $3 AND l.product_id IS NOT NULL
+  ),
+  basket AS (
+    SELECT DISTINCT record_id, product_id FROM lines
+  ),
+  per_product AS (
+    SELECT product_id, COUNT(*) AS baskets FROM basket GROUP BY product_id
+  ),
+  pairs AS (
+    SELECT a.product_id AS a, b.product_id AS b, COUNT(*) AS co
+    FROM basket a
+    JOIN basket b ON b.record_id = a.record_id AND b.product_id > a.product_id
+    GROUP BY a.product_id, b.product_id
+    HAVING COUNT(*) >= 2
+  )
+  SELECT
+    p.a,
+    p.b,
+    p.co,
+    pa.baskets AS baskets_a,
+    pb.baskets AS baskets_b
+  FROM pairs p
+  JOIN per_product pa ON pa.product_id = p.a
+  JOIN per_product pb ON pb.product_id = p.b
+  ORDER BY p.co DESC, p.a, p.b`;
+
 type PaymentRow = { kind: MethodKind; total: number; count: number };
 
 const PAYMENTS = `
@@ -328,6 +419,33 @@ export const AnalyticsLive = Layer.effect(
                 productId: row.product_id,
               }),
             );
+          });
+        },
+        productPairs(from, to, mode) {
+          return Effect.gen(function* () {
+            const total = yield* db
+              .selectMany<{ n: number }>(PAIR_TOTALS, [from, to, mode])
+              .pipe(Effect.mapError(failure));
+            const records = total[0]?.n ?? 0;
+
+            const rows = yield* db
+              .selectMany<ProductPairRow>(PAIRS, [from, to, mode])
+              .pipe(Effect.mapError(failure));
+
+            const pairs: ProductPairs = {
+              records,
+              pairs: rows.map(
+                (row): ProductPair => ({
+                  a: row.a,
+                  b: row.b,
+                  co: row.co,
+                  basketsA: row.baskets_a,
+                  basketsB: row.baskets_b,
+                  lift: pairLift(row.co, row.baskets_a, row.baskets_b, records),
+                }),
+              ),
+            };
+            return pairs;
           });
         },
         payments(from, to) {
