@@ -22,7 +22,10 @@ import {
 
 export function ProductTable({ items, start }: { items: Product[]; start: number }) {
   return (
-    <Table className="text-base">
+    // The scroll box, not the table, is what the padding lands on: the add
+    // button floats 64–112 px above the foot of the page, so without this the
+    // last row's open-link sat underneath it at the very bottom of the list.
+    <Table className="text-base" parentClass="pb-16">
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">#</TableHead>
