@@ -334,14 +334,14 @@ export function ComboForm({
           ) : null}
           <div className="flex min-h-[76px] items-stretch">
             <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-2">
-              <span className="truncate text-4xl font-bold leading-none tabular-nums sm:text-6xl">
+              <span className="truncate text-5xl font-bold leading-none tabular-nums sm:text-6xl">
                 {grand === null ? "—" : rupiah(grand)}
               </span>
             </div>
             <Button
               type="submit"
               disabled={saving || components.length === 0 || missingListing || missingExtra || invalidQuantity}
-              className="h-auto min-w-28 rounded-none px-6 text-xl sm:min-w-40 sm:px-10 sm:text-2xl"
+              className="h-auto min-w-28 rounded-none px-6 text-base sm:min-w-40 sm:px-10 sm:text-2xl"
               title={components.length === 0 ? "Tambahkan minimal satu listing untuk menyimpan." : undefined}
             >
               Simpan
