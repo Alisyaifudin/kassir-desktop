@@ -372,7 +372,7 @@ export function Methods({
         onKeyDown={handleKeyDown}
         onClickCapture={onActivate}
         onFocusCapture={onActivate}
-        className="flex min-w-0 flex-col outline-none"
+        className="flex min-w-0 flex-col  outline-none"
       >
         <div className="grid grid-cols-12 border-b">
           <Cell
