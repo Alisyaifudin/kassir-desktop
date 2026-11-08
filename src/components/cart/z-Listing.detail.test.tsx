@@ -130,7 +130,7 @@ function Harness({ writes }: { writes: Line[][] }) {
 async function openSheet() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899123" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));

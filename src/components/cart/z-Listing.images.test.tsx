@@ -124,7 +124,7 @@ function Harness({ writes }: { writes: Line[][] }) {
 async function openGallery() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899123" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -159,7 +159,7 @@ describe("the card's photo", () => {
   test("clicking the photo does not move the cart's cursor", async () => {
     const writes: Line[][] = [];
     render(<Harness writes={writes} />);
-    const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+    const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
     fireEvent.change(search, { target: { value: "899123" } });
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -177,7 +177,7 @@ describe("the card's photo", () => {
   test("the arrows reach the photo and Enter opens the gallery", async () => {
     const writes: Line[][] = [];
     render(<Harness writes={writes} />);
-    const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+    const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
     fireEvent.change(search, { target: { value: "899123" } });
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(writes).toHaveLength(1));

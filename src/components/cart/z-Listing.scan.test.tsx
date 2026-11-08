@@ -96,7 +96,7 @@ function Harness({ writes }: { writes: Line[][] }) {
 function renderGrid() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
   return { writes, search };
 }
 

@@ -62,7 +62,7 @@ function Harness({ writes, fix = 0 }: { writes: Line[][]; fix?: number }) {
 async function renderWithLine(fix = 0) {
   const writes: Line[][] = [];
   render(<Harness writes={writes} fix={fix} />);
-  const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899123" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -171,7 +171,7 @@ describe("arrow keys inside an editor", () => {
       );
     }
     render(<ExitHarness />);
-    const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+    const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
     fireEvent.change(search, { target: { value: "899123" } });
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(writes).toHaveLength(1));

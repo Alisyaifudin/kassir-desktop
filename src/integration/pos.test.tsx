@@ -141,7 +141,7 @@ describe("putting goods in the cart", () => {
       target: { value: "tidak-ada-barang-ini" },
     });
 
-    expect(await screen.findByText("Tidak ada listing.")).toBeDefined();
+    expect(await screen.findByText("Tidak ada hasil.")).toBeDefined();
     expect(grand()).toBe("Rp0");
     expect(lines()).toHaveLength(0);
   });
