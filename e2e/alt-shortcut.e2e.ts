@@ -39,7 +39,7 @@ async function openToko(page: Page) {
 
 /** The goods search bar, which is the field a cashier's cursor is usually in. */
 function search(page: Page) {
-  return page.getByPlaceholder(/Cari barang untuk dijual/i);
+  return page.getByPlaceholder(/Cari barang/i);
 }
 
 test("Alt+digit still navigates", async ({ page }) => {

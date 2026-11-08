@@ -84,5 +84,5 @@ test("shows no results for an unknown query", async ({ page }) => {
   await openPos(page);
 
   await page.getByPlaceholder(/Cari barang/i).fill("tidak-ada-barang-ini");
-  await expect(page.getByText("Tidak ada listing.")).toBeVisible();
+  await expect(page.getByText("Tidak ada hasil.")).toBeVisible();
 });
