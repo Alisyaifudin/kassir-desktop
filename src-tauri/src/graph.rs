@@ -715,7 +715,7 @@ pub async fn product_graph_build<R: Runtime>(
             current_record = Some(record_id);
             current_basket.push(product_id);
             done += 1;
-            if done % 256 == 0 || done == selected_rows {
+            if done.is_multiple_of(256) || done == selected_rows {
                 let fraction = if selected_rows == 0 {
                     1.0
                 } else {
