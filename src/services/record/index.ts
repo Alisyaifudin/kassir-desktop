@@ -366,6 +366,30 @@ export class RecordService extends Context.Tag("RecordService")<
       creditAt: (id: string, creditAt: number) => Effect.Effect<void, RecordError>;
       note: (id: string, note: string) => Effect.Effect<void, RecordError>;
       /**
+       * Rewrites one line's recorded cost — the escape hatch for a `modal` that
+       * was entered with the wrong figure (a purchase booked at 2.327.000 for a
+       * 100.000 card, inherited by every sale that drew from its lot, which then
+       * read as a loss of 2,2 juta a line).
+       *
+       * `listingId` is the line as the page shows it (its group id). A sale can
+       * be several rows, one per lot it drew from; the figure is a cost per
+       * listing unit, so every portion of the line takes it.
+       *
+       * It rewrites the listing's own snapshot and nothing else: the stock lot
+       * and its `product_events` keep their capital, so today's stock value and
+       * every future sale are untouched. The record's margin is repaired, the lot
+       * is not — that is a different repair, in the stock journal.
+       *
+       * `reason` is appended to the record's note. A financial figure rewritten
+       * in place has to say who rewrote it and why; afterwards nothing on the
+       * record would distinguish a corrected cost from an original one.
+       */
+      lineCapital: (
+        id: string,
+        listingId: string,
+        input: { capital: number; reason: string; by: string },
+      ) => Effect.Effect<void, RecordError>;
+      /**
        * Replaces the payments applied to the record: every `record_methods` row
        * is rewritten from `payments`, so a method can be re-filed, an amount
        * restated, or the split itself added to and trimmed in one save.

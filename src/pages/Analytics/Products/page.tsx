@@ -15,17 +15,6 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Pencil } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  type TooltipProps,
-  type YAxisTickContentProps,
-} from "recharts";
 import { Loader, useQuery } from "~/components/Loader";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -52,70 +41,21 @@ import { service } from "~/services";
 import type { ProductGroup, ProductInstance } from "~/services/analytics";
 import type { RecordMode } from "~/services/record";
 import { useRange } from "../use-range";
-import {
-  ChartEmpty,
-  ChartFrame,
-  COLORS,
-  RADIUS_START,
-  RANK_MARGIN,
-  TOOLTIP_STYLE,
-  chartGeometry,
-  money,
-  moneyTick,
-} from "../z-Chart";
+import { money } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
-import { ChartSkeleton } from "../z-Loading";
-
-type Metric = "revenue" | "qty" | "margin";
-
-const METRICS: { key: Metric; label: string }[] = [
-  { key: "revenue", label: "Omzet" },
-  { key: "qty", label: "Qty" },
-  { key: "margin", label: "Laba" },
-];
+import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
+import { Stat } from "../z-Stat";
 
 const PAGE_SIZES = [25, 50, 100];
 
 /**
- * One tooltip formatter per metric, resolved once.
- *
- * Recharts compares the props it is handed, so a formatter built inside the JSX
- * is a new function on every render — see the note in `z-Chart` on the update
- * loop that identity churn used to cause.
- */
-const TOOLTIP_OF: Record<Metric, TooltipProps["formatter"]> = {
-  revenue: (value) => money(Number(value)),
-  qty: (value) => Number(value).toLocaleString("id-ID"),
-  margin: (value) => money(Number(value)),
-};
-
-/** Category labels down the side of the ranking, truncated to fit the gutter. */
-function ProductTick(props: YAxisTickContentProps) {
-  const label = String((props.payload as { value?: unknown } | undefined)?.value ?? "");
-  return (
-    <text
-      x={props.x}
-      y={props.y}
-      dx={-12}
-      dy={5}
-      textAnchor="end"
-      fill="var(--muted-foreground)"
-      fontSize={chartGeometry.tick.fontSize}
-    >
-      {label.length > 18 ? `${label.slice(0, 17)}…` : label}
-    </text>
-  );
-}
-
-/**
- * Every product that moved in the period, not a top-N: the chart shows the
- * leaders, the table below holds all of them with sorting, search, pagination,
- * and an accordion of the individual record lines behind each product.
+ * Every product that moved in the period: the totals band above, then the table
+ * with all of them — sorting, search, pagination, and an accordion of the
+ * individual record lines behind each product.
  */
 export default function Page() {
   const { from, to } = useRange();
   const [mode, setMode] = useState<RecordMode>("incoming");
-  const [metric, setMetric] = useState<Metric>("revenue");
   const res = useQuery(
     () => Stream.fromEffect(service.analytics.get.productGroups(from, to, mode)),
     [from, to, mode],
@@ -123,31 +63,78 @@ export default function Page() {
 
   return (
     <AnalyticsErrorBoundary fallback={AnalyticsErrorFallback}>
-      <Loader res={res} fallback={<ChartSkeleton />}>
-        {({ data }) => (
-          <Body
-            groups={data}
-            from={from}
-            to={to}
-            mode={mode}
-            onMode={setMode}
-            metric={metric}
-            onMetric={setMetric}
-          />
-        )}
+      <Loader
+        res={res}
+        fallback={
+          <div className="flex flex-col gap-3">
+            <SummarySkeleton />
+            <ChartSkeleton />
+          </div>
+        }
+      >
+        {({ data }) => <Body groups={data} from={from} to={to} mode={mode} onMode={setMode} />}
       </Loader>
     </AnalyticsErrorBoundary>
   );
 }
 
 /**
- * The period's products, in the two views that read them.
+ * What the period adds up to, read off the same rows the table holds — no extra
+ * query, and it moves with the Masuk/Keluar switch because the rows do.
  *
- * The controls, the ranking and the table are three components rather than one
- * because they change for different reasons: picking `Laba` must not re-render a
- * table of five thousand rows, and typing in the table's search box must not
- * re-render a chart. `groups` is the same array for all of them, so the memoised
- * halves only re-render when the period or the metric actually moves.
+ * `laba` is only the margin of lines that carried a stored cost, so the hint
+ * names both counts: a product whose modal was never recorded contributes
+ * omzet and nothing else, and silently folding that into the total would read
+ * as a shop with a finer margin than it has.
+ */
+const Totals = memo(function Totals({ groups }: { groups: ProductGroup[] }) {
+  const totals = useMemo(() => {
+    let omzet = 0;
+    let laba = 0;
+    let costed = 0;
+    let lines = 0;
+    for (const row of groups) {
+      omzet += row.revenue;
+      laba += row.margin;
+      costed += row.costed;
+      lines += row.lines;
+    }
+    return { omzet, laba, costed, lines };
+  }, [groups]);
+
+  const uncosted = totals.lines - totals.costed;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <Stat label="Total omzet" value={money(totals.omzet)} hint={`dari ${totals.lines} baris`} />
+      <Stat
+        label="Total laba"
+        value={totals.costed === 0 ? "—" : money(totals.laba)}
+        hint={
+          totals.costed === 0
+            ? "belum ada baris bermodal"
+            : uncosted === 0
+              ? `${totals.costed} baris bermodal`
+              : `${totals.costed} baris bermodal · ${uncosted} tanpa modal tepercaya`
+        }
+      />
+      <Stat
+        label="Produk"
+        value={groups.length.toLocaleString("id-ID")}
+        hint="barang berbeda pada periode ini"
+      />
+    </div>
+  );
+});
+
+/**
+ * The period's products, in the one view that reads them: the totals band and
+ * the table.
+ *
+ * The transaction-type switch and the table are separate components because they
+ * change for different reasons: flipping the switch re-renders the shell, while
+ * typing in the table's search box must not — `ProductsTable` is memoised on the
+ * period, the mode and the group list, which are the only things it reads.
  */
 function Body({
   groups,
@@ -155,123 +142,53 @@ function Body({
   to,
   mode,
   onMode,
-  metric,
-  onMetric,
 }: {
   groups: ProductGroup[];
   from: number;
   to: number;
   mode: RecordMode;
   onMode: (mode: RecordMode) => void;
-  metric: Metric;
-  onMetric: (metric: Metric) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1" role="group" aria-label="Jenis transaksi">
-          <Button
-            size="sm"
-            variant={mode === "incoming" ? "default" : "ghost"}
-            aria-pressed={mode === "incoming"}
-            onClick={() => onMode("incoming")}
-          >
-            {MODE_NAMES.incoming}
-          </Button>
-          <Button
-            size="sm"
-            variant={mode === "outcoming" ? "default" : "ghost"}
-            aria-pressed={mode === "outcoming"}
-            onClick={() => onMode("outcoming")}
-          >
-            {MODE_NAMES.outcoming}
-          </Button>
-        </div>
-        <div
-          className="flex items-center gap-0.5 rounded-md border bg-muted p-0.5"
-          role="group"
-          aria-label="Ukuran peringkat"
+      <div className="flex items-center gap-1" role="group" aria-label="Jenis transaksi">
+        <Button
+          size="sm"
+          variant={mode === "incoming" ? "default" : "ghost"}
+          aria-pressed={mode === "incoming"}
+          onClick={() => onMode("incoming")}
         >
-          {METRICS.map((option) => (
-            <Button
-              key={option.key}
-              size="sm"
-              variant={metric === option.key ? "default" : "ghost"}
-              aria-pressed={metric === option.key}
-              className="rounded-sm"
-              onClick={() => onMetric(option.key)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
+          {MODE_NAMES.incoming}
+        </Button>
+        <Button
+          size="sm"
+          variant={mode === "outcoming" ? "default" : "ghost"}
+          aria-pressed={mode === "outcoming"}
+          onClick={() => onMode("outcoming")}
+        >
+          {MODE_NAMES.outcoming}
+        </Button>
       </div>
 
       {groups.length === 0 ? (
-        <ChartFrame title="Produk teratas">
-          <ChartEmpty>Belum ada barang pada periode ini.</ChartEmpty>
-        </ChartFrame>
+        <p className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">
+          Belum ada barang pada periode ini.
+        </p>
       ) : (
         <>
-          <TopChart groups={groups} metric={metric} />
+          <Totals groups={groups} />
+          <p className="text-sm text-muted-foreground">
+            Laba hanya dijumlah dari baris yang modalnya tercatat dan lebih rendah dari harga
+            jualnya. Baris dengan modal nol, atau modal yang tidak lebih rendah dari harga jualnya —
+            tanda modal yang salah catat — tidak ikut dijumlah dan labanya ditandai —, supaya
+            angkanya tidak terbaca sebagai kerugian.
+          </p>
           <ProductsTable groups={groups} from={from} to={to} mode={mode} />
         </>
       )}
     </div>
   );
 }
-
-/** The leaders of the period, ranked by whichever figure the operator picked. */
-const TopChart = memo(function TopChart({
-  groups,
-  metric,
-}: {
-  groups: ProductGroup[];
-  metric: Metric;
-}) {
-  const geo = chartGeometry;
-  const top = useMemo(
-    () => [...groups].sort((a, b) => b[metric] - a[metric]).slice(0, 8),
-    [groups, metric],
-  );
-  const fill = metric === "margin" ? COLORS.laba : metric === "qty" ? COLORS.net : COLORS.omzet;
-
-  return (
-    <ChartFrame
-      title="Produk teratas"
-      hint={metric === "qty" ? "jumlah terjual" : metric === "margin" ? "laba kotor" : "omzet"}
-      label="Grafik produk teratas"
-      chartClassName="h-[420px]"
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={top}
-          layout="vertical"
-          margin={RANK_MARGIN}
-          barCategoryGap="26%"
-        >
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis
-            type="number"
-            tick={geo.tick}
-            tickFormatter={metric === "qty" ? undefined : moneyTick}
-            minTickGap={28}
-            tickMargin={8}
-          />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={geo.yWidth + 140}
-            interval={0}
-            tick={ProductTick}
-          />
-          <Tooltip {...TOOLTIP_STYLE} formatter={TOOLTIP_OF[metric]} />
-          <Bar dataKey={metric} name="Nilai" fill={fill} radius={RADIUS_START} />
-        </BarChart>
-      </ResponsiveContainer>
-    </ChartFrame>
-  );
-});
 
 /**
  * All of the period's products: the search box, the sortable table, and the
@@ -345,9 +262,7 @@ const ProductsTable = memo(function ProductsTable({
         accessorKey: "lines",
         header: "Baris",
         cell: ({ getValue }) => (
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {getValue<number>()}
-          </span>
+          <span className="text-sm text-muted-foreground tabular-nums">{getValue<number>()}</span>
         ),
       },
     ],
@@ -405,11 +320,7 @@ const ProductsTable = memo(function ProductsTable({
                   <TableHead
                     key={header.id}
                     aria-sort={
-                      sorted === "asc"
-                        ? "ascending"
-                        : sorted === "desc"
-                          ? "descending"
-                          : "none"
+                      sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"
                     }
                     className={cn("whitespace-nowrap", ALIGN[header.column.id])}
                   >
@@ -502,6 +413,21 @@ const ProductsTable = memo(function ProductsTable({
     </section>
   );
 });
+
+/**
+ * Whether a line's stored cost can be read as one: above zero, and below what
+ * the line sold for.
+ *
+ * The same rule the analytics service applies (`believable` in `live.ts`), and
+ * it has to be applied in both places: a sale of "Kartu Elektronik Mandiri"
+ * carries a `modal` of 2.327.000 against a 100.000 price — a purchase entered
+ * with the wrong figure, inherited by every sale that drew from that lot — and
+ * subtracting it reads as a 2,2 juta loss per card. The line is not a loss; its
+ * cost just cannot be believed, so it is left out of the margin instead.
+ */
+function believable(line: ProductInstance): boolean {
+  return line.capital > 0 && line.capital < line.price;
+}
 
 /** Column alignment, keyed by column id — money and counts sit right. */
 const ALIGN: Record<string, string> = {
@@ -623,10 +549,15 @@ function InstanceList({ lines, total }: { lines: ProductInstance[]; total: numbe
             </span>
             <span className="text-right tabular-nums">{money(line.total)}</span>
             <span className="text-right tabular-nums">
-              {line.capital > 0 ? (
+              {believable(line) ? (
                 money(line.total - line.capital * line.qty)
               ) : (
-                <span className="text-muted-foreground">—</span>
+                <span
+                  className="text-muted-foreground"
+                  title="Modal baris ini tidak tercatat, atau tidak lebih rendah dari harga jualnya — tidak bisa dipercaya sebagai modal"
+                >
+                  —
+                </span>
               )}
             </span>
             <span className="text-center">

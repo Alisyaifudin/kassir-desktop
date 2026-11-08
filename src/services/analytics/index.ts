@@ -52,7 +52,9 @@ export function normalizeMarginEstimate(estimate: Partial<MarginEstimate>): Marg
   const percent = Number(estimate.percent);
   const raw = Number(estimate.raw);
   return {
-    percent: Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : DEFAULT_MARGIN_ESTIMATE.percent,
+    percent: Number.isFinite(percent)
+      ? Math.min(Math.max(percent, 0), 100)
+      : DEFAULT_MARGIN_ESTIMATE.percent,
     raw: Number.isFinite(raw) ? Math.max(raw, 0) : DEFAULT_MARGIN_ESTIMATE.raw,
   };
 }
@@ -89,8 +91,12 @@ export type ProductGroup = {
   productId: string | null;
   qty: number;
   revenue: number;
-  /** Only from lines with a stored cost; compare with `costed` before showing. */
+  /**
+   * Only from lines whose stored cost is believable — above zero and below what
+   * the line sold for; compare with `costed` before showing.
+   */
   margin: number;
+  /** How many of this product's lines carry a believable stored cost. */
   costed: number;
   /** How many record lines make up this product in the period. */
   lines: number;

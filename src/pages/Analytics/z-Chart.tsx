@@ -82,14 +82,12 @@ export function moneyTooltip(value: unknown): string {
   return money(Number(value));
 }
 
-/** Plot margins: the default, and the ranked chart's wider label gutter. */
+/** Plot margins: one default for every chart on these pages. */
 export const CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 } as const;
-export const RANK_MARGIN = { top: 8, right: 20, left: 4, bottom: 8 } as const;
 
 /** Corner radii. Arrays compare by identity, so they live out here too. */
 export const RADIUS_TOP: [number, number, number, number] = [3, 3, 0, 0];
 export const RADIUS_BOTTOM: [number, number, number, number] = [0, 0, 3, 3];
-export const RADIUS_START: [number, number, number, number] = [0, 3, 3, 0];
 
 /** Axis geometry. SVG attributes cannot read CSS variables, so these stay concrete. */
 export const chartGeometry = {

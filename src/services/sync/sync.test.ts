@@ -290,6 +290,7 @@ function shaOf(imageId: string, version: number): string {
 
 /** Every synced table, children before parents, so a fresh test starts empty. */
 const TRUNCATE = [
+  "DELETE FROM combo_discounts",
   "DELETE FROM combo_extras",
   "DELETE FROM combo_listings",
   "DELETE FROM combos",
@@ -485,8 +486,12 @@ function insertChild(
   values: Record<string, unknown>,
 ): void {
   const child = childOfKey(key);
-  const columns = [child.parent, ...child.columns];
-  const bindings = [parentId, ...child.columns.map((column) => values[column] ?? null)];
+  // A `via: "listing"` child names its link row itself; only a direct child
+  // inherits the aggregate key from the helper.
+  const columns = child.via === "parent" ? [child.parent, ...child.columns] : [...child.columns];
+  const bindings = child.via === "parent"
+    ? [parentId, ...child.columns.map((column) => values[column] ?? null)]
+    : child.columns.map((column) => values[column] ?? null);
   db.query(
     `INSERT INTO ${child.table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
   ).run(...(bindings as (string | number | null)[]));
@@ -602,6 +607,15 @@ function comboChildren(): WireChildren {
       combo_extra_id: "ce_01",
       extra_id: "ex_remote",
       combo_extra_order: 0,
+    }),
+  ];
+  children["combo_discounts"] = [
+    wireChild("combo_discounts", {
+      combo_discount_id: "cd_01",
+      combo_listing_id: "cl_01",
+      combo_discount_value: 10,
+      combo_discount_kind: "percent",
+      combo_discount_order: 0,
     }),
   ];
   return children;
@@ -1609,9 +1623,12 @@ describe("combo aggregate", () => {
     expect(second.db.query("SELECT combo_extra_id FROM combo_extras").all()).toEqual([
       { combo_extra_id: "ce_01" },
     ]);
+    expect(second.db.query("SELECT combo_discount_id FROM combo_discounts").all()).toEqual([
+      { combo_discount_id: "cd_01" },
+    ]);
   });
 
-  test("a newer combo replaces both child sets wholesale", async () => {
+  test("a newer combo replaces every child set wholesale", async () => {
     const server = new FakeServer();
     const device = setup(server);
     insertRow(device.db, "combo", comboHeader("cb_01", 1_000) as Record<string, unknown>);
@@ -1622,6 +1639,7 @@ describe("combo aggregate", () => {
 
     const fewer = comboChildren();
     fewer["combo_extras"] = [];
+    fewer["combo_discounts"] = [];
     server.push(
       `${JSON.stringify({ e: "combo", r: comboHeader("cb_01", 2_000, "Kopi Susu Besar"), ch: fewer })}\n`,
     );
@@ -1632,6 +1650,7 @@ describe("combo aggregate", () => {
       { combo_name: "Kopi Susu Besar" },
     ]);
     expect(device.db.query("SELECT combo_extra_id FROM combo_extras").all()).toEqual([]);
+    expect(device.db.query("SELECT combo_discount_id FROM combo_discounts").all()).toEqual([]);
   });
 
   test("a dangling listing reference is stored, not rejected", async () => {

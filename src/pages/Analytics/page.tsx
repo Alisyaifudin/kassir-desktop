@@ -12,12 +12,12 @@ import { AnalyticsBodyLoading } from "./z-Loading";
  */
 export default function Page() {
   const path = useLocation().pathname.replace(/\/$/, "");
-  // Waktu reads one week at a time; Pembayaran and Jaringan have no time series,
-  // so the bucket width would be a control with nothing behind it. Produk and
-  // Jaringan include the `today` preset for same-day product questions.
+  // Waktu reads one week at a time; Produk, Pembayaran and Jaringan have no time
+  // series, so the bucket width would be a control with nothing behind it.
+  // Jaringan and Produk still include the `today` preset for same-day questions.
   const week = path.endsWith("/time");
   const network = path.endsWith("/network");
-  const noSeries = week || network || path.endsWith("/payments");
+  const noSeries = week || network || path.endsWith("/payments") || path.endsWith("/products");
   const mode = week ? "week" : path.endsWith("/products") || network ? "product" : "date";
 
   return (

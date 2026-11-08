@@ -61,8 +61,8 @@ type CellDef = {
   textSeed?: boolean;
 };
 
-/** Which optional columns the grid has. A sale has a stage toggle; a purchase does not. */
-export type ListingLayout = { stageToggle: boolean };
+/** Which optional header cells the grid has. */
+export type ListingLayout = { stageToggle: boolean; manual?: boolean };
 
 /** The sale screen: search, `+manual`, and the `Tambahan` stage toggle. */
 export const SALE_LISTING_LAYOUT: ListingLayout = { stageToggle: true };
@@ -70,7 +70,19 @@ export const SALE_LISTING_LAYOUT: ListingLayout = { stageToggle: true };
 /** The purchase screen: search and `+manual` only. */
 export const PURCHASE_LISTING_LAYOUT: ListingLayout = { stageToggle: false };
 
+/** Combo templates have the POS stage toggle but no manual-line action. */
+export const COMBO_LISTING_LAYOUT: ListingLayout = { stageToggle: true, manual: false };
+
 function headerCells(layout: ListingLayout): CellDef[] {
+  if (layout.stageToggle && layout.manual === false) {
+    return [
+      { field: "search", start: 0, end: 9, selectable: true, editable: true },
+      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+    ];
+  }
+  if (!layout.stageToggle && layout.manual === false) {
+    return [{ field: "search", start: 0, end: 11, selectable: true, editable: true }];
+  }
   if (layout.stageToggle) {
     return [
       { field: "search", start: 0, end: 7, selectable: true, editable: true },

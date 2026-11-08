@@ -98,6 +98,13 @@ export type ChildDef = {
    * a `via: "listing"` child, the link row it hangs off (`record_listing_id`).
    */
   parent: string;
+  /**
+   * How a `via: "listing"` child finds its aggregate: the link table and the
+   * column on it that names the aggregate root. A combo discount hangs off
+   * `combo_listings.combo_listing_id`, whose own parent is `combo_id`; a record
+   * discount does the same through `record_listings`.
+   */
+  link?: { table: string; parent: string };
 };
 
 /** One group's contract: its entities, its limits, its aggregate children. */
@@ -217,10 +224,11 @@ const RECORD_CHILDREN: readonly ChildDef[] = [
     // A discount hangs off a listing, and the listing hangs off the record.
     via: "listing",
     parent: "record_listing_id",
+    link: { table: "record_listings", parent: "record_id" },
   },
 ];
 
-/** The combo aggregate: one header plus its two ordered child sets. */
+/** The combo aggregate: one header plus its ordered child sets. */
 const COMBO_CHILDREN: readonly ChildDef[] = [
   {
     key: "combo_listings",
@@ -239,6 +247,23 @@ const COMBO_CHILDREN: readonly ChildDef[] = [
     nullable: [],
     via: "parent",
     parent: "combo_id",
+  },
+  {
+    key: "combo_discounts",
+    table: "combo_discounts",
+    pk: "combo_discount_id",
+    columns: [
+      "combo_discount_id",
+      "combo_listing_id",
+      "combo_discount_value",
+      "combo_discount_kind",
+      "combo_discount_order",
+    ],
+    nullable: [],
+    // A discount hangs off a component listing, which hangs off the combo.
+    via: "listing",
+    parent: "combo_listing_id",
+    link: { table: "combo_listings", parent: "combo_id" },
   },
 ];
 

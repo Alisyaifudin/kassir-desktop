@@ -23,25 +23,33 @@ No sync code is in scope; future sync intent is documented in
 
 ## Direction contract
 
-**THESIS.** The combo route is a working catalogue editor, not a new POS or a new visual
-world: keep the saved definitions visible beside the editor so an owner can move between
-combos without losing context.
+**THESIS.** `/combos` is a scannable catalogue, not a split-pane editor: keep its search,
+filters and view controls together, then let a dedicated create/edit route own the full
+combo form.
 
 **OWN-WORLD.** Inherit Kassir's authenticated shell, Noto Sans, neutral surfaces,
 hairline separators, existing form controls and focus blue. No new palette, texture,
 illustration or motion; the optional cover is real user content.
 
-**STORY.** The admin scans saved combo names and active states, selects one, edits its
-ordered listing quantities and referenced extras, optionally replaces the cover, and
-saves. The POS will then surface active, valid combos among listing search results.
+**STORY.** The admin searches and filters saved combo definitions by availability and
+contents, sorts them, and chooses cards or a table. Opening a row enters its edit route;
+the plus action starts a new definition. The POS consumes active, valid combos among
+listing search results.
 
-**FIRST VIEWPORT.** Page heading and concise explanation above a responsive master-detail
-workspace. The combo list is the narrow left column; the editor is the wider right column
-with name/status first, listing rows, Extra rows, cover, then save/delete actions. Below
-large-screen widths the list and editor stack in the same reading order.
+**FIRST VIEWPORT.** `/combos` keeps the Product catalogue rhythm. Create/edit routes use
+the POS shell: a top bar with Back, title and combo settings dialog; a main 12-column work
+grid that switches between Listing and Extra stages; and a fixed lower strip with only Grand
+total and Simpan. Listing rows use the shared `listing-grid.ts` cell geometry, keyboard
+selection/editing and row reordering; catalog matches use POS's queried, virtualized card
+grid. No payment, change, rounding or method controls appear; stage content owns the only
+scroll region.
 
-**FORM.** Local extension of the existing product/category/extra management screens; no
-concept-seed roll by design. The established catalog-editor pattern is the only form
-needed; no new visual identity or raster asset is introduced.
+**FORM.** Reuse POS's grid conventions rather than inline controls: quantity edits live in
+the selected `Cell`, keyboard arrows navigate the 12-column model, and the grip reorders
+rows. Listing search calls the listing service after the POS debounce and only renders the
+matching virtualized card grid. Active state and cover are grouped in a settings dialog
+opened from the top bar. Grand total remains listing subtotal plus ordered Extras using POS
+running-percent/flat-value arithmetic; there are no payment or rounding inputs. Simpan
+commits the existing ComboInput. No concept-seed roll or new visual identity.
 
 **FINISH.** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.

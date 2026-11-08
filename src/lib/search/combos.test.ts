@@ -38,8 +38,8 @@ const combo: Combo = {
   active: true,
   cover: null,
   components: [
-    { id: "cl1", listingId: "l1", quantity: 1, order: 0 },
-    { id: "cl2", listingId: "l2", quantity: 1, order: 1 },
+    { id: "cl1", listingId: "l1", quantity: 1, order: 0, discounts: [] },
+    { id: "cl2", listingId: "l2", quantity: 1, order: 1, discounts: [] },
   ],
   extras: [{ id: "ce1", extraId: "e1", order: 0 }],
   updatedAt: 1,

@@ -162,6 +162,7 @@ describe("cart flush", () => {
               price: 2500,
               cover: null,
               quantity: 2,
+              discounts: [{ value: 10, kind: "percent" }],
             },
           ],
           extras: [{ name: "Diskon combo", kind: "number", value: -1000, flag: 0 }],
@@ -175,7 +176,59 @@ describe("cart flush", () => {
     expect(state.written[0]?.some((statement) => statement.sql.includes("INSERT INTO tx_listings"))).toBe(true);
     expect(state.written[0]?.some((statement) => statement.sql.includes("INSERT INTO tx_extras"))).toBe(true);
     expect(draft.listings.map((line) => [line.name, line.qty])).toEqual([["Mangkok 1 pcs", 2]]);
+    expect(
+      draft.listings[0]?.discounts
+        .filter((discount) => discount.value !== 0)
+        .map((discount) => [discount.kind, discount.value, discount.eff]),
+    ).toEqual([["percent", 10, 500]]);
+    // The cart editor keeps its blank trailing row.
+    expect(draft.listings[0]?.discounts.at(-1)?.value).toBe(0);
     expect(draft.extras.map((extra) => [extra.name, extra.value])).toEqual([["Diskon combo", -1000]]);
+  });
+
+  test("a combo also expands into a purchase cart", async () => {
+    const { db, layer } = setup();
+    db.query(
+      `INSERT INTO products (product_id, product_name, product_note, product_updated_at, product_sync_at, product_deleted_at, product_flag)
+       VALUES ('p1', 'Mangkok', '', 1, NULL, NULL, 0)`,
+    ).run();
+    db.query(
+      `INSERT INTO listings (listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind, listing_code, listing_updated_at, listing_sync_at, listing_deleted_at)
+       VALUES ('l1', 'p1', 'Mangkok 1 pcs', 2500, 1, '', NULL, 1, NULL, NULL)`,
+    ).run();
+
+    const draft = await run(layer, (tx) =>
+      Effect.gen(function* () {
+        const id = yield* tx.add.new("outcoming");
+        yield* tx.add.combo(id, {
+          components: [
+            {
+              listingId: "l1",
+              productId: "p1",
+              name: "Mangkok 1 pcs",
+              code: null,
+              kind: "",
+              unit: 1,
+              price: 2500,
+              cover: null,
+              quantity: 3,
+              discounts: [{ value: 10, kind: "percent" }],
+            },
+          ],
+          extras: [],
+        });
+        yield* tx.flush();
+        return yield* tx.get.byId(id);
+      }),
+    );
+
+    expect(draft.mode).toBe("outcoming");
+    expect(draft.listings.map((line) => [line.name, line.qty])).toEqual([["Mangkok 1 pcs", 3]]);
+    expect(
+      draft.listings[0]?.discounts
+        .filter((discount) => discount.value !== 0)
+        .map((discount) => [discount.kind, discount.value, discount.eff]),
+    ).toEqual([["percent", 10, 750]]);
   });
 
   test("an extra's dual flag survives the write and the reload", async () => {

@@ -23,6 +23,14 @@ side channel (§8.7.1)
 > changes; a client that does not implement the side channel keeps showing
 > placeholders and loses nothing. The server half is implemented; the desktop
 > half is an open item (§15.6).
+>
+> **Combo component discounts.** The `combo` aggregate gained a third child set,
+> `ch.combo_discounts` (§8.9): an ordered per-component discount stack, the same
+> shape a sale line carries. It is a child of a child — a rule names its
+> component (`combo_listing_id`), which names the combo — so nothing else about
+> the wire, the merge rule or the group list changes; a rule whose component is
+> not in the same aggregate is dropped rather than stored (§8.9). Desktop
+> migration 59 and server migration 0022 add the table.
 
 This is the consolidated reference for **all** of Kassir Sync v2. It combines
 the shared protocol with the nine group contracts, the cross-group rules, the
@@ -334,7 +342,7 @@ between groups: `money_bookmark` says nothing about the product log.
 | `social` | `social` | `social_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
 | `extra` | `extra` | `extra_group_change_log` | plain LWW | 5000 / 20000 | 1000 / 1 MB |
 | `product` | `product`, `category`, `product_category`, `product_name`, `property`, `listing`, `image`, `product_event` | `product_group_change_log` | catalog LWW; event append-only | 5000 / 20000 | 1000 / 1 MB |
-| `combo` | `combo` aggregate (header + `combo_listings`, `combo_extras`) | `combo_group_change_log` | full LWW aggregate | 1000 / 5000 | 1000 frames / 8 MB |
+| `combo` | `combo` aggregate (header + `combo_listings`, `combo_extras`, `combo_discounts`) | `combo_group_change_log` | full LWW aggregate | 1000 / 5000 | 1000 frames / 8 MB |
 | `record` | `record` aggregate (header + five child tables) | `record_group_change_log` | full LWW aggregate | 1000 / 5000 | 1000 frames / 8 MB |
 
 `limit` is `default / maximum` entries. The record group additionally has an
@@ -975,7 +983,7 @@ The decision depends on the entity's merge kind:
 | money ledger | `money` | new → `applied`; immutable field differs → `stale`; identical → `noop`; newer `money_updated_at` → `applied` (note + deleted flag); else `stale` |
 | append-only | `product_event` | new id → `applied`; existing id → `noop` (payload not compared) |
 | aggregate LWW | `record` | new → `applied`; identical aggregate → `noop`; newer `record_updated_at` → `applied` (header + all five children); tie/older → `stale` |
-| aggregate LWW | `combo` | new → `applied`; identical aggregate → `noop`; newer `combo_updated_at` → `applied` (header + both children); tie/older → `stale` |
+| aggregate LWW | `combo` | new → `applied`; identical aggregate → `noop`; newer `combo_updated_at` → `applied` (header + every child set); tie/older → `stale` |
 
 A `noop` or `stale` frame writes nothing and spends no `seq`.
 
@@ -1624,7 +1632,7 @@ Recommended push order:
 | --- | --- |
 | `money` | every `pocket` before the `money` rows that reference it |
 | `product` | `product` → `category` → `product_category` → `product_name` → `property` → `listing` → `image` → `product_event` |
-| `combo` | `combo_listings` and `combo_extras` travel inside the header aggregate; no standalone `combo_id` in a child |
+| `combo` | `combo_listings`, `combo_extras` and `combo_discounts` travel inside the header aggregate; no standalone `combo_id` in a child |
 | `record` | no dependency order inside the group; each frame is a complete aggregate |
 | all others | no dependency order |
 
@@ -2530,11 +2538,12 @@ record dirty, then re-push.
 
 ### 8.9 `combo` — catalogue template aggregate
 
-A combo is a named template with ordered listing components, ordered Extra
-presets, an active flag and an optional cover reference. It is catalogue data,
-not a sale: selecting one expands its current references into ordinary cart
-rows, and a committed record keeps frozen sale snapshots. The full group
-contract is `docs/SYNC-V2-COMBO.md`.
+A combo is a named template with ordered listing components — each carrying
+its own ordered discount stack — ordered Extra presets, an active flag and an
+optional cover reference. It is catalogue data, not a sale: selecting one
+expands its current references into ordinary cart rows, and a committed record
+keeps frozen sale snapshots. The full group contract is
+`docs/SYNC-V2-COMBO.md`.
 
 Header (`combos`, 7 columns):
 
@@ -2548,12 +2557,23 @@ combo_updated_at   INTEGER NOT NULL
 combo_deleted_at   INTEGER?
 ```
 
-Children (`ch` keys, parent `combo_id` inherited and never on the wire):
+Children (`ch` keys; the aggregate key `combo_id` is inherited and never on the
+wire, and `combo_discounts` names its component instead):
 
 ```
-combo_listings: combo_listing_id TEXT PK, listing_id TEXT, combo_listing_qty INTEGER, combo_listing_order INTEGER
-combo_extras:   combo_extra_id   TEXT PK, extra_id   TEXT, combo_extra_order   INTEGER
+combo_listings:  combo_listing_id  TEXT PK, listing_id TEXT, combo_listing_qty INTEGER, combo_listing_order INTEGER
+combo_extras:    combo_extra_id    TEXT PK, extra_id   TEXT, combo_extra_order   INTEGER
+combo_discounts: combo_discount_id TEXT PK, combo_listing_id TEXT, combo_discount_value REAL,
+                 combo_discount_kind TEXT (number | percent | pcs), combo_discount_order INTEGER
 ```
+
+`combo_discounts` is the one child set that hangs off another child: a rule
+names its component (`combo_listing_id`), never the combo, exactly as a record's
+`discounts` name their `record_listing_id`. The derived rupiah is not stored —
+it belongs to the price and quantity at expansion time. A rule whose component
+is not in the same aggregate is dropped rather than stored, because the
+component set is replaced wholesale; the kind, the value bound and the percent
+bound are `bad_frame` errors.
 
 Merge is full last-writer-wins on `combo_updated_at` over the whole aggregate;
 children are compared as a set keyed by primary key and replaced wholesale when
@@ -2582,7 +2602,7 @@ entity/aggregate:
 | `social` | `social_bookmark` | `social_sync_at` |
 | `extra` | `extra_bookmark` | `extra_sync_at` |
 | `product` | `product_bookmark` | `product_sync_at`, `category_sync_at`, `product_category_sync_at`, `product_name_sync_at`, `property_sync_at`, `listing_sync_at`, `image_sync_at`, `product_event_sync_at` |
-| `combo` | `combo_bookmark` | `combo_sync_at` only; both child tables have none |
+| `combo` | `combo_bookmark` | `combo_sync_at` only; the three child tables have none |
 | `record` | `record_bookmark` | `record_sync_at` only; the five child tables have none |
 
 The entity map:
@@ -2607,6 +2627,7 @@ The entity map:
 | `combo` | combo | aggregate header | `combo_updated_at` | `combo_sync_at` |
 | `combo_listings` | combo | child of the aggregate | none | none |
 | `combo_extras` | combo | child of the aggregate | none | none |
+| `combo_discounts` | combo | child of the aggregate | none | none |
 | `record` | record | aggregate header | `record_updated_at` | `record_sync_at` |
 | `record_listings` | record | child of the aggregate | none | none |
 | `record_methods` | record | child of the aggregate | none | none |
@@ -3563,7 +3584,7 @@ Every synced table belongs to exactly one of the nine v2 groups:
 | social | `social` |
 | extra | `extra` |
 | product | `product`, `product_name`, `property`, `listing`, `image`, `product_event` |
-| combo | `combo` (with `combo_listings`, `combo_extras` inside the aggregate) |
+| combo | `combo` (with `combo_listings`, `combo_extras`, `combo_discounts` inside the aggregate) |
 | record | `record` (with its five child sets inside the aggregate) |
 
 A group's pull emits only that group's entities, and its push rejects a frame
@@ -4018,6 +4039,7 @@ drop the batch.
 | `combo` | `combos` | `combo_id` | 7: id, name, active, cover_name?, cover_mime?, updated_at, deleted_at |
 | `combo_listings` | `combo_listings` | `combo_listing_id` | 5 inside the aggregate: id, listing_id, qty, order |
 | `combo_extras` | `combo_extras` | `combo_extra_id` | 4 inside the aggregate: id, extra_id, order |
+| `combo_discounts` | `combo_discounts` | `combo_discount_id` | 5 inside the aggregate: id, combo_listing_id, value, kind, order |
 | `record` | `records` | `record_id` | 20: see §8.8 |
 | `record_listings` | `record_listings` | `record_listing_id` | 11: see §8.8 |
 | `record_methods` | `record_methods` | `record_method_id` | 3: id, method_id, pay |

@@ -282,6 +282,9 @@ export function Cell({
   function handleEditKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (onEditKeyDown?.(event) === true) return;
     if (event.key === "Enter") {
+      // A cell editor can live inside a form (the combo editor). Enter commits
+      // this cell; it must not also submit the page.
+      event.preventDefault();
       onCommit(draft);
       onEditingDone();
       return;

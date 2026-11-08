@@ -6,11 +6,22 @@ export type ComboMime = "image/png" | "image/jpeg" | "image/webp";
 
 export type ComboCover = { name: string; mime: ComboMime };
 
+export type ComboDiscountKind = "number" | "percent" | "pcs";
+
+/** One row of a component's discount stack; `eff` is derived when the combo is expanded. */
+export type ComboDiscount = {
+  id: string;
+  value: number;
+  kind: ComboDiscountKind;
+  order: number;
+};
+
 export type ComboComponent = {
   id: string;
   listingId: string;
   quantity: number;
   order: number;
+  discounts: ComboDiscount[];
 };
 
 export type ComboExtra = {
@@ -31,11 +42,13 @@ export type Combo = {
   syncAt: number | null;
 };
 
+export type ComboDiscountInput = { value: number; kind: ComboDiscountKind };
+
 export type ComboInput = {
   name: string;
   active: boolean;
   cover: ComboCover | null;
-  components: { listingId: string; quantity: number }[];
+  components: { listingId: string; quantity: number; discounts: ComboDiscountInput[] }[];
   extraIds: string[];
 };
 

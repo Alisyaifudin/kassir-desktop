@@ -264,7 +264,7 @@ function ComboCell({
           <PackageOpen className="size-8 text-muted-foreground/40" />
         )}
         <span className="absolute left-2 top-2 rounded-md border bg-background/95 px-2 py-0.5 text-xs font-medium">
-          Paket
+          Kombo
         </span>
       </span>
       <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-2 py-2">

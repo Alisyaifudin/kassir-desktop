@@ -1,22 +1,33 @@
 import { useMemo, useState } from "react";
-import { Either } from "effect";
 import { Network, RefreshCw } from "lucide-react";
 import { readSnapshot, buildSnapshot, pageData } from "./data";
 import { NetworkCanvas } from "./z-Canvas";
 import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Slider } from "~/components/ui/slider";
 import { Skeleton } from "~/components/ui/skeleton";
 import { MODE_NAMES } from "~/lib/constants";
 import { formatDate, formatTime } from "~/lib/date";
 import { cn } from "~/lib/utils";
 import type {
+  ProductGraph,
   ProductGraphMetric,
   ProductGraphMode,
   ProductGraphProgress,
   ProductGraphStatus,
 } from "~/lib/product-graph";
 import { ProductGraphError } from "~/lib/product-graph";
-import { useRange } from "../use-range";
+import { DAY_MS, useRange } from "../use-range";
+
+/** A file opened from the saved list: the graph it holds and the row it came from. */
+type OpenedSnapshot = { file: string; graph: ProductGraph };
 
 const DEFAULT_NODE_LIMIT = 300;
 const MIN_NODE_LIMIT = 100;
@@ -64,6 +75,8 @@ function Workspace({
   const [neighborLimit, setNeighborLimit] = useState(4);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProductGraphProgress | null>(null);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [opened, setOpened] = useState<OpenedSnapshot | null>(null);
   const frame = pageData.useFrame(["snapshot"]);
   const refresh = pageData.useRefresh();
   const build = pageData.useMutation<void, ProductGraphStatus, ProductGraphError>(
@@ -72,67 +85,91 @@ function Workspace({
   );
   const snapshotState = pageData.use("snapshot");
   const snapshot = snapshotState.type === "success" ? snapshotState.data : null;
-  const selectedIndex = snapshot?.graph?.nodes.findIndex((node) => node.id === selectedId) ?? -1;
+  // The canvas shows the period's snapshot or the file that was opened — and
+  // the selection is an index into whichever one is drawn, so both go through
+  // `shown` rather than through the page's data.
+  const shown = opened?.graph ?? snapshot?.graph ?? null;
+  const selectedIndex = shown?.nodes.findIndex((node) => node.id === selectedId) ?? -1;
   const selected = selectedIndex >= 0 ? selectedIndex : null;
   const onSelect = (index: number | null) => {
-    setSelectedId(index === null ? null : (snapshot?.graph?.nodes[index]?.id ?? null));
+    setSelectedId(index === null ? null : (shown?.nodes[index]?.id ?? null));
   };
 
   const buildAgain = async () => {
+    // The dialog is a settings sheet, not a console: the progress card floats
+    // over the canvas, so the sheet gets out of the way the moment a build
+    // starts — and the card goes away with the build. A rebuild is about the
+    // period, so it also leaves any saved file that was open.
+    setControlsOpen(false);
+    setOpened(null);
     setProgress({ stage: "prepare", percent: 0, done: 0, total: 1 });
-    const result = await build.mutate(undefined);
-    if (Either.isLeft(result)) setProgress(null);
-    else setProgress({ stage: "complete", percent: 100, done: 1, total: 1 });
+    await build.mutate(undefined);
+    setProgress(null);
   };
+
+  // The controls are behind the FAB now, so what the network is built from has
+  // to stay readable without opening it.
+  const summary = [
+    MODE_NAMES[mode],
+    metric === "count" ? "Jumlah bersama" : "Di atas peluang",
+    `${neighborLimit} pasangan`,
+    `${nodeLimit} produk`,
+  ].join(" · ");
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <div className="flex-none border-b pb-2">
-        <h1 className="mb-2 text-base font-semibold">Jaringan produk</h1>
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-          <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Jenis transaksi</span>
-              <div className="flex items-center gap-1" role="group" aria-label="Jenis transaksi">
-                {(["incoming", "outcoming"] as const).map((option) => (
-                  <Button
-                    key={option}
-                    type="button"
-                    size="sm"
-                    variant={mode === option ? "default" : "ghost"}
-                    aria-pressed={mode === option}
-                    onClick={() => onMode(option)}
-                  >
-                    {MODE_NAMES[option]}
-                  </Button>
-                ))}
-              </div>
-            </div>
+      <div className="flex flex-none flex-col gap-2 border-b p-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h1 className="text-base font-semibold">Jaringan produk</h1>
+          <p className="text-xs text-muted-foreground">{summary}</p>
+        </div>
+        {build.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {build.error.message}
+          </p>
+        ) : null}
+        {frame.error ? (
+          <div
+            className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 px-3 py-2"
+            role="alert"
+          >
+            <p className="text-sm text-destructive">{frame.error.message}</p>
+            <Button type="button" size="sm" variant="outline" onClick={() => refresh("snapshot")}>
+              Coba lagi
+            </Button>
+          </div>
+        ) : null}
+      </div>
 
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Ketebalan garis</span>
-              <div className="flex items-center gap-1" role="group" aria-label="Ukuran hubungan">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={metric === "count" ? "default" : "ghost"}
-                  aria-pressed={metric === "count"}
-                  onClick={() => setMetric("count")}
-                >
-                  Jumlah bersama
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={metric === "lift" ? "default" : "ghost"}
-                  aria-pressed={metric === "lift"}
-                  onClick={() => setMetric("lift")}
-                >
-                  Di atas peluang
-                </Button>
-              </div>
-            </div>
-
+      <Dialog open={controlsOpen} onOpenChange={setControlsOpen}>
+        {/* Above the fullscreen canvas (z-60): the sheet has to be usable from
+            inside it, scrim included. */}
+        <DialogContent className="z-[70] max-w-md" overlayClassName="z-[70]">
+          <DialogHeader>
+            <DialogTitle>Kendali jaringan</DialogTitle>
+            <DialogDescription>
+              Jenis transaksi, ketebalan garis, dan berapa banyak produk yang dibaca.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <Segmented
+              label="Jenis transaksi"
+              value={mode}
+              options={[
+                { key: "incoming", label: MODE_NAMES.incoming },
+                { key: "outcoming", label: MODE_NAMES.outcoming },
+              ]}
+              onChange={onMode}
+            />
+            <Segmented
+              label="Ketebalan garis"
+              value={metric}
+              options={[
+                { key: "count", label: "Jumlah bersama" },
+                { key: "lift", label: "Di atas peluang" },
+              ]}
+              onChange={setMetric}
+            />
             <SliderControl
               label="Pasangan per produk"
               value={neighborLimit}
@@ -150,91 +187,181 @@ function Workspace({
               onChange={onNodeLimit}
             />
           </div>
-          <Button type="button" onClick={() => void buildAgain()} disabled={build.pending}>
-            <RefreshCw
-              aria-hidden="true"
-              className={cn("size-5", build.pending && "animate-spin")}
-            />
-            Buat ulang
-          </Button>
-        </div>
-        {progress ? <BuildProgress progress={progress} /> : null}
-        {build.error ? (
-          <p className="mt-2 text-sm text-destructive" role="alert">
-            {build.error.message}
-          </p>
-        ) : null}
-        {frame.error ? (
-          <div
-            className="mt-2 flex items-center justify-between gap-3 rounded-md border border-destructive/40 px-3 py-2"
-            role="alert"
-          >
-            <p className="text-sm text-destructive">{frame.error.message}</p>
-            <Button type="button" size="sm" variant="outline" onClick={() => refresh("snapshot")}>
-              Coba lagi
+          <DialogFooter>
+            <Button type="button" onClick={() => void buildAgain()} disabled={build.pending}>
+              <RefreshCw
+                aria-hidden="true"
+                className={cn("size-5", build.pending && "animate-spin")}
+              />
+              Buat ulang
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="relative min-h-0 flex-1 pt-2">
+        {/* Centered on the canvas rather than in the header: a build is a fact
+            about the picture, it lasts seconds, and nothing else on the page
+            should reflow while it happens. `pointer-events-none` keeps the
+            graph usable — the card reports, it does not block. */}
+        {progress ? (
+          <div className="pointer-events-none absolute inset-0 z-[80] flex items-center justify-center p-4">
+            <div
+              className="w-full max-w-sm rounded-lg border bg-background/95 p-4 shadow-lg"
+              role="status"
+              aria-live="polite"
+            >
+              <BuildProgress progress={progress} />
+            </div>
           </div>
         ) : null}
-      </div>
-
-      <div className="min-h-0 flex-1 pt-2">
-        <pageData.Gate keys={["snapshot"]} pulse={<GraphLoading />} error={null}>
-          {({ snapshot: data }) => {
-            const matchesRequest =
-              data.status.from === from &&
-              data.status.to === to &&
-              data.status.mode === mode &&
-              data.status.nodeLimit === nodeLimit;
-            if (!matchesRequest) return <GraphLoading />;
-            return data.graph ? (
-              <div className="flex h-full min-h-0 flex-col">
-                <div className="flex flex-none flex-wrap items-center justify-between gap-2 pb-2 text-xs">
-                  <p className="text-muted-foreground">
-                    {data.status.records.toLocaleString("id-ID")} transaksi ·{" "}
-                    {data.status.nodes.toLocaleString("id-ID")} produk ·{" "}
-                    {data.status.edges.toLocaleString("id-ID")} hubungan
-                    <span className="mx-2" aria-hidden="true">
-                      ·
-                    </span>
-                    Dibuat {formatDate(data.status.builtAt)} {formatTime(data.status.builtAt)}
-                  </p>
-                  {data.status.stale ? (
-                    <p className="font-medium text-destructive" role="status">
-                      Ada transaksi baru. Buat ulang untuk memperbarui jaringan.
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border">
-                  {data.graph.nodes.length === 0 ? (
-                    <div className="flex h-full min-h-[300px] items-center justify-center px-4 text-center">
-                      <div>
-                        <h2 className="text-base font-semibold">
-                          Belum ada produk pada periode ini
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Jaringan akan muncul setelah ada transaksi dengan produk yang tercatat.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <NetworkCanvas
-                      key={`${data.status.from}:${data.status.to}:${data.status.mode}:${data.status.builtAt}`}
-                      graph={data.graph}
-                      metric={metric}
-                      neighborLimit={neighborLimit}
-                      selected={selected}
-                      onSelect={onSelect}
-                    />
-                  )}
-                </div>
-              </div>
-            ) : (
-              <UnbuiltGraph records={data.status.records} />
-            );
-          }}
-        </pageData.Gate>
+        {opened ? (
+          <GraphPane
+            graph={opened.graph}
+            stale={false}
+            savedFile={opened.file}
+            onExitSaved={() => setOpened(null)}
+            metric={metric}
+            neighborLimit={neighborLimit}
+            selected={selected}
+            onSelect={onSelect}
+            onControls={() => setControlsOpen(true)}
+            onOpenSaved={setOpened}
+          />
+        ) : (
+          <pageData.Gate keys={["snapshot"]} pulse={<GraphLoading />} error={null}>
+            {({ snapshot: data }) => {
+              const matchesRequest =
+                data.status.from === from &&
+                data.status.to === to &&
+                data.status.mode === mode &&
+                data.status.nodeLimit === nodeLimit;
+              if (!matchesRequest) return <GraphLoading />;
+              if (!data.graph) {
+                return (
+                  <UnbuiltGraph
+                    records={data.status.records}
+                    building={build.pending}
+                    onBuild={() => void buildAgain()}
+                  />
+                );
+              }
+              return (
+                <GraphPane
+                  graph={data.graph}
+                  stale={data.status.stale}
+                  metric={metric}
+                  neighborLimit={neighborLimit}
+                  selected={selected}
+                  onSelect={onSelect}
+                  onControls={() => setControlsOpen(true)}
+                  onOpenSaved={setOpened}
+                />
+              );
+            }}
+          </pageData.Gate>
+        )}
       </div>
     </section>
+  );
+}
+
+/**
+ * The canvas and the one line that says what is drawn on it.
+ *
+ * Two sources reach it — the period's own snapshot, and a file opened from the
+ * saved list — and the whole difference is `savedFile`: a saved graph has no
+ * live period to be stale against, and it needs the way back.
+ */
+function GraphPane({
+  graph,
+  stale,
+  savedFile,
+  onExitSaved,
+  metric,
+  neighborLimit,
+  selected,
+  onSelect,
+  onControls,
+  onOpenSaved,
+}: {
+  graph: ProductGraph;
+  /** The period's data moved on since this snapshot was built. */
+  stale: boolean;
+  /** Set when the graph came off the saved list, so the line can say so. */
+  savedFile?: string;
+  onExitSaved?: () => void;
+  metric: ProductGraphMetric;
+  neighborLimit: number;
+  selected: number | null;
+  onSelect: (index: number | null) => void;
+  onControls: () => void;
+  onOpenSaved: (saved: OpenedSnapshot) => void;
+}) {
+  const edges = graph.directedEdges / 2;
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-none flex-wrap items-center justify-between gap-2 pb-2 text-xs">
+        {savedFile && onExitSaved ? (
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-active/10 px-2 py-0.5 text-xs font-medium text-active">
+              Tersimpan
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+              {formatDate(graph.from)} – {formatDate(graph.to - DAY_MS)} ·{" "}
+              {MODE_NAMES[graph.mode]} · {graph.nodeLimit.toLocaleString("id-ID")} produk teratas
+              <span aria-hidden="true"> · </span>
+              Dibuat {formatDate(graph.builtAt)} {formatTime(graph.builtAt)}
+            </span>
+          </p>
+        ) : (
+          <p className="text-muted-foreground tabular-nums">
+            {graph.records.toLocaleString("id-ID")} transaksi ·{" "}
+            {graph.nodes.length.toLocaleString("id-ID")} produk ·{" "}
+            {edges.toLocaleString("id-ID")} hubungan
+            <span className="mx-2" aria-hidden="true">
+              ·
+            </span>
+            Dibuat {formatDate(graph.builtAt)} {formatTime(graph.builtAt)}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {stale ? (
+            <p className="font-medium text-destructive" role="status">
+              Ada transaksi baru. Buat ulang untuk memperbarui jaringan.
+            </p>
+          ) : null}
+          {savedFile && onExitSaved ? (
+            <Button type="button" size="sm" variant="outline" onClick={onExitSaved}>
+              Kembali ke periode ini
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border">
+        {graph.nodes.length === 0 ? (
+          <div className="flex h-full min-h-[300px] items-center justify-center px-4 text-center">
+            <div>
+              <h2 className="text-base font-semibold">Belum ada produk pada periode ini</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Jaringan akan muncul setelah ada transaksi dengan produk yang tercatat.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <NetworkCanvas
+            key={`${savedFile ?? "live"}:${graph.from}:${graph.to}:${graph.mode}:${graph.builtAt}`}
+            graph={graph}
+            metric={metric}
+            neighborLimit={neighborLimit}
+            selected={selected}
+            onSelect={onSelect}
+            onControls={onControls}
+            onOpenSaved={onOpenSaved}
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -254,7 +381,7 @@ function SliderControl({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="flex w-40 flex-col gap-1">
+    <label className="flex w-full flex-col gap-1">
       <span className="flex justify-between gap-2 text-xs font-medium">
         <span className="text-muted-foreground">{label}</span>
         <span className="tabular-nums">{value}</span>
@@ -273,6 +400,38 @@ function SliderControl({
   );
 }
 
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { key: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-1" role="group" aria-label={label}>
+        {options.map((option) => (
+          <Button
+            key={option.key}
+            type="button"
+            size="sm"
+            variant={value === option.key ? "default" : "ghost"}
+            aria-pressed={value === option.key}
+            onClick={() => onChange(option.key)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BuildProgress({ progress }: { progress: ProductGraphProgress }) {
   const captions: Record<ProductGraphProgress["stage"], string> = {
     prepare: "Menyiapkan data",
@@ -284,12 +443,13 @@ function BuildProgress({ progress }: { progress: ProductGraphProgress }) {
     complete: "Jaringan siap",
   };
   return (
-    <div className="mt-2 flex items-center gap-3" role="status" aria-live="polite">
-      <span className="w-52 shrink-0 text-xs text-muted-foreground">
-        {captions[progress.stage]}
-      </span>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-sm font-medium">{captions[progress.stage]}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{progress.percent}%</span>
+      </div>
       <div
-        className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-muted"
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
         aria-label="Kemajuan pembuatan jaringan"
         aria-valuemin={0}
@@ -301,9 +461,6 @@ function BuildProgress({ progress }: { progress: ProductGraphProgress }) {
           style={{ width: `${progress.percent}%` }}
         />
       </div>
-      <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
-        {progress.percent}%
-      </span>
     </div>
   );
 }
@@ -323,7 +480,15 @@ function GraphLoading() {
   );
 }
 
-function UnbuiltGraph({ records }: { records: number }) {
+function UnbuiltGraph({
+  records,
+  building,
+  onBuild,
+}: {
+  records: number;
+  building: boolean;
+  onBuild: () => void;
+}) {
   return (
     <div className="flex h-full min-h-[300px] items-center justify-center rounded-md border bg-muted/20 px-4">
       <div className="flex max-w-md flex-col items-center gap-3 text-center">
@@ -335,6 +500,10 @@ function UnbuiltGraph({ records }: { records: number }) {
             ? ` Ada ${records.toLocaleString("id-ID")} transaksi berisi produk pada periode ini.`
             : " Belum ada transaksi berisi produk pada periode ini."}
         </p>
+        <Button type="button" onClick={onBuild} disabled={building}>
+          <RefreshCw aria-hidden="true" className={cn("size-5", building && "animate-spin")} />
+          Buat jaringan
+        </Button>
       </div>
     </div>
   );

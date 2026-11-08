@@ -35,6 +35,9 @@ const CHUNK_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 const MIN_NODES: u32 = 100;
 const NOISE_FLOOR: u32 = 2;
 const CACHE_DIR: &str = "product-graphs";
+/// Every published snapshot starts with this, so the cache directory can be
+/// listed without a manifest: the header inside each file carries the rest.
+const FILE_PREFIX: &str = "product-network-";
 const FAILED: &str = "Jaringan produk gagal dibuat. Coba lagi.";
 const NOT_READY: &str = "Database belum siap. Jalankan ulang aplikasi.";
 
@@ -190,7 +193,7 @@ fn cache_prefix(from: i64, to: i64, mode: u8, node_limit: u32) -> String {
         hash ^= u64::from(byte);
         hash = hash.wrapping_mul(0x100000001b3);
     }
-    format!("product-network-{hash:016x}-")
+    format!("{FILE_PREFIX}{hash:016x}-")
 }
 
 fn next_snapshot_path(dir: &Path, prefix: &str, built_at: i64) -> Result<PathBuf, String> {
@@ -271,6 +274,27 @@ fn parse_header(bytes: &[u8; HEADER_BYTES]) -> Result<Header, String> {
     })
 }
 
+/// The exact byte count a snapshot with this header occupies on disk.
+///
+/// One definition, because both callers must reject a truncated file: the one
+/// that loads the latest snapshot, and the one that offers every saved snapshot
+/// to the app. A half-written file is not a saved network.
+fn expected_len(header: &Header) -> u64 {
+    HEADER_BYTES as u64
+        + u64::from(header.nodes) * NODE_BYTES as u64
+        + (u64::from(header.nodes) + 1) * 4
+        + u64::from(header.edges) * 2 * EDGE_BYTES as u64
+        + u64::from(header.blob_bytes)
+}
+
+fn mode_name(code: u8) -> &'static str {
+    if code == 0 {
+        "incoming"
+    } else {
+        "outcoming"
+    }
+}
+
 fn latest_snapshot(
     dir: &Path,
     from: i64,
@@ -298,12 +322,7 @@ fn latest_snapshot(
                 .metadata()
                 .map_err(|error| public_error("stat snapshot", error))?
                 .len();
-            let expected = HEADER_BYTES as u64
-                + u64::from(header.nodes) * NODE_BYTES as u64
-                + (u64::from(header.nodes) + 1) * 4
-                + u64::from(header.edges) * 2 * EDGE_BYTES as u64
-                + u64::from(header.blob_bytes);
-            if len != expected
+            if len != expected_len(&header)
                 || header.nodes > MAX_NODES
                 || header.edges > MAX_NODES * MAX_NODES / 2
             {
@@ -417,6 +436,133 @@ pub async fn product_graph_load<R: Runtime>(
     else {
         return Err("Jaringan belum dibuat.".to_string());
     };
+    let bytes = fs::read(path).map_err(|error| public_error("read snapshot", error))?;
+    Ok(Response::new(bytes))
+}
+
+/// One row of the "Jaringan tersimpan" list: the header of a published `.kgr`
+/// plus the file it lives in.
+///
+/// The file name is the id. Publish chose it, it is unique in the cache
+/// directory, and it is the only handle that survives the next rebuild of the
+/// same range.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphSaved {
+    pub file: String,
+    pub from: i64,
+    pub to: i64,
+    pub mode: String,
+    pub node_limit: u32,
+    pub records: u64,
+    pub nodes: u32,
+    pub edges: u32,
+    pub built_at: i64,
+    pub bytes: u64,
+}
+
+/// A saved snapshot is addressed by its bare file name, never by a path.
+///
+/// Anything with a separator, a parent hop or the wrong prefix is refused: the
+/// only files this module may remove are the ones publish itself wrote into the
+/// cache directory.
+fn saved_name(file: &str) -> Result<&str, String> {
+    let bare = Path::new(file)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name == file);
+    if !bare || !file.starts_with(FILE_PREFIX) || !file.ends_with(".kgr") {
+        return Err("Nama berkas jaringan tidak dikenal.".to_string());
+    }
+    Ok(file)
+}
+
+/// Every snapshot on disk, newest first.
+///
+/// Read from the files themselves rather than a manifest: a manifest would be a
+/// second thing to keep true, and a stale row in it would offer a network the
+/// app can no longer open. A file whose header or length does not check out is
+/// skipped silently — it is a remnant of an interrupted write, not a network.
+#[command]
+pub async fn product_graph_saved<R: Runtime>(app: AppHandle<R>) -> Result<Vec<GraphSaved>, String> {
+    let dir = cache_dir(&app)?;
+    let entries = fs::read_dir(&dir).map_err(|error| public_error("list cache", error))?;
+    let mut found = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| public_error("read cache entry", error))?;
+        let path = entry.path();
+        let Some(file) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !file.starts_with(FILE_PREFIX) || !file.ends_with(".kgr") {
+            continue;
+        }
+        let Ok(mut handle) = fs::File::open(&path) else {
+            continue;
+        };
+        let mut bytes = [0_u8; HEADER_BYTES];
+        if handle.read_exact(&mut bytes).is_err() {
+            continue;
+        }
+        let Ok(header) = parse_header(&bytes) else {
+            continue;
+        };
+        let Ok(metadata) = handle.metadata() else {
+            continue;
+        };
+        if metadata.len() != expected_len(&header)
+            || header.nodes > MAX_NODES
+            || header.edges > MAX_NODES * MAX_NODES / 2
+        {
+            continue;
+        }
+        found.push(GraphSaved {
+            file: file.to_string(),
+            from: header.from,
+            to: header.to,
+            mode: mode_name(header.mode).to_string(),
+            node_limit: header.node_limit,
+            records: header.records,
+            nodes: header.nodes,
+            edges: header.edges,
+            built_at: header.built_at,
+            bytes: metadata.len(),
+        });
+    }
+    found.sort_by(|a, b| {
+        b.built_at
+            .cmp(&a.built_at)
+            .then_with(|| b.file.cmp(&a.file))
+    });
+    Ok(found)
+}
+
+/// Drop one saved snapshot for good. Missing is the state the caller asked for.
+#[command]
+pub async fn product_graph_delete<R: Runtime>(
+    app: AppHandle<R>,
+    file: String,
+) -> Result<(), String> {
+    let name = saved_name(&file)?;
+    let path = cache_dir(&app)?.join(name);
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(public_error("remove snapshot", error)),
+    }
+}
+
+/// Open one saved snapshot by the row the list showed, not by its range.
+///
+/// The bytes go back untouched: `decodeProductGraph` in the browser is the one
+/// validator, and it rejects a file whose index does not match its contents.
+#[command]
+pub async fn product_graph_open<R: Runtime>(
+    app: AppHandle<R>,
+    file: String,
+) -> Result<Response, String> {
+    let name = saved_name(&file)?;
+    let path = cache_dir(&app)?.join(name);
     let bytes = fs::read(path).map_err(|error| public_error("read snapshot", error))?;
     Ok(Response::new(bytes))
 }
@@ -1068,5 +1214,24 @@ mod tests {
             |_, _| {}
         )
         .is_empty());
+    }
+
+    #[test]
+    fn a_saved_snapshot_is_addressed_by_its_bare_file_name() {
+        assert!(saved_name("product-network-0123456789abcdef-1700000000000-0.kgr").is_ok());
+        for refused in [
+            // A partially written file is not a published snapshot.
+            "product-network-0123456789abcdef-1700000000000-0.kgr.part",
+            // Nothing that can walk out of the cache directory, by hop or by prefix.
+            "../product-network-0123456789abcdef-1700000000000-0.kgr",
+            "/tmp/product-network-0123456789abcdef-1700000000000-0.kgr",
+            "sub/product-network-0123456789abcdef-1700000000000-0.kgr",
+            // Not one of ours.
+            "data.db",
+            "product-network-0123456789abcdef-1700000000000-0",
+            "",
+        ] {
+            assert!(saved_name(refused).is_err(), "accepted {refused}");
+        }
     }
 }

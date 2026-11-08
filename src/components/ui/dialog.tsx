@@ -30,14 +30,20 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
 	/** Hide the built-in corner close button (e.g. a dialog with fixed exits). */
 	showCloseButton?: boolean;
+	/**
+	 * Classes for the scrim, which is a sibling of the content and not a child —
+	 * so a dialog lifted above a higher layer (the fullscreen network canvas)
+	 * has to lift its ground with it, or it dims a pane nobody can see.
+	 */
+	overlayClassName?: string;
 };
 
 const DialogContent = React.forwardRef<
 	React.ElementRef<typeof DialogPrimitive.Content>,
 	DialogContentProps
->(({ className, children, showCloseButton = true, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, overlayClassName, ...props }, ref) => (
 	<DialogPortal>
-		<DialogOverlay />
+		<DialogOverlay className={overlayClassName} />
 		<DialogPrimitive.Content
 			ref={ref}
 			className={cn(

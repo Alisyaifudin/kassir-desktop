@@ -219,6 +219,30 @@ describe("AnalyticsService", () => {
     });
   });
 
+  test("product groups leave out a cost that cannot be believed", async () => {
+    const { analyticsLayer, db } = setup();
+    // The shape behind a `-4.454.000` row: a sale whose inherited `modal` is
+    // larger than its price by an order of magnitude (a purchase entered with
+    // the wrong figure, carried into every sale that drew from the lot). The
+    // profit page already refused to read it as a cost; the groups must agree,
+    // or one page reports a loss the other does not recognise.
+    db.exec(`
+      INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES ('l6', 'g6', 'r1', NULL, 'p2', 'Gula', 'retail', 1, 100000, 1, 2327000, 100000);
+    `);
+
+    const stats = await run(analyticsLayer, (a) => a.get.productGroups(FROM, TO, "incoming"));
+    const sugar = stats.find((row) => row.productId === "p2");
+
+    // Counted, never subtracted: the line is revenue, and its margin is 0 with
+    // `costed` 0 so the page can print a dash instead of a phantom loss.
+    expect(sugar).toMatchObject({ revenue: 120000, margin: 0, costed: 0, lines: 2 });
+  });
+
   test("product instances carry the record and its effective time", async () => {
     const { analyticsLayer } = setup();
     const rows = await run(analyticsLayer, (a) =>
@@ -369,9 +393,7 @@ describe("AnalyticsService", () => {
     `);
 
     const sales = await run(analyticsLayer, (a) => a.get.productPairs(FROM, TO, "incoming"));
-    const purchases = await run(analyticsLayer, (a) =>
-      a.get.productPairs(FROM, TO, "outcoming"),
-    );
+    const purchases = await run(analyticsLayer, (a) => a.get.productPairs(FROM, TO, "outcoming"));
 
     // Sales: r1 and r5, still no repeating pair — the two purchases added nothing.
     expect(sales).toEqual({ records: 2, pairs: [] });

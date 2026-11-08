@@ -227,7 +227,7 @@ function Body({
   onSubmit: () => boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className="flex min-w-0 flex-col">
       <Methods
         draft={draft}
         catalog={catalog}

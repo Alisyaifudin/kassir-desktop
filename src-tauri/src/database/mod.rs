@@ -350,5 +350,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/51-60/migration-58.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 59,
+            description: "combo_discounts",
+            sql: include_str!("../../src/database/51-60/migration-59.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

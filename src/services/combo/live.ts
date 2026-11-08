@@ -1,8 +1,19 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
-import { ComboError, ComboService, type Combo, type ComboComponent, type ComboCover, type ComboExtra, type ComboInput } from ".";
+import {
+  ComboError,
+  ComboService,
+  type Combo,
+  type ComboComponent,
+  type ComboCover,
+  type ComboDiscount,
+  type ComboDiscountKind,
+  type ComboExtra,
+  type ComboInput,
+} from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
 import { generateId } from "~/lib/random";
 import { image } from "~/lib/image";
+import { discountsEatLine, recalcDiscounts } from "~/lib/purchase";
 import { log } from "~/lib/log";
 
 type ComboRow = {
@@ -29,6 +40,16 @@ type ExtraRow = {
   extra_id: string;
   combo_extra_order: number;
 };
+
+type DiscountRow = {
+  combo_discount_id: string;
+  combo_listing_id: string;
+  combo_discount_value: number;
+  combo_discount_kind: ComboDiscountKind;
+  combo_discount_order: number;
+};
+
+const DISCOUNT_KINDS: readonly ComboDiscountKind[] = ["number", "percent", "pcs"];
 
 const SELECT_COMBOS = `
   SELECT combo_id, combo_name, combo_active, combo_cover_name, combo_cover_mime,
@@ -62,12 +83,34 @@ function rowToCombo(
 }
 
 function componentStatement(comboId: string, input: ComboInput["components"]): Statement[] {
-  return input.map((component, order) => ({
-    sql: `INSERT INTO combo_listings (
-        combo_listing_id, combo_id, listing_id, combo_listing_qty, combo_listing_order
-      ) VALUES ($1, $2, $3, $4, $5)`,
-    bindings: [generateId(), comboId, component.listingId, component.quantity, order],
-  }));
+  const statements: Statement[] = [];
+  input.forEach((component, order) => {
+    const comboListingId = generateId();
+    statements.push({
+      sql: `INSERT INTO combo_listings (
+          combo_listing_id, combo_id, listing_id, combo_listing_qty, combo_listing_order
+        ) VALUES ($1, $2, $3, $4, $5)`,
+      bindings: [comboListingId, comboId, component.listingId, component.quantity, order],
+    });
+    component.discounts.forEach((discount, discountOrder) => {
+      // A zero row is the editor's blank line, not a rule the template carries.
+      if (discount.value === 0) return;
+      statements.push({
+        sql: `INSERT INTO combo_discounts (
+            combo_discount_id, combo_listing_id, combo_discount_value,
+            combo_discount_kind, combo_discount_order
+          ) VALUES ($1, $2, $3, $4, $5)`,
+        bindings: [
+          generateId(),
+          comboListingId,
+          discount.value,
+          discount.kind,
+          discountOrder,
+        ],
+      });
+    });
+  });
+  return statements;
 }
 
 function extraStatement(comboId: string, ids: string[]): Statement[] {
@@ -107,6 +150,30 @@ export const ComboLive = Layer.effect(
             ids,
           )
           .pipe(Effect.mapError(dbError));
+        const componentIds = components.map((row) => row.combo_listing_id);
+        const discounts = componentIds.length === 0
+          ? []
+          : yield* db
+              .selectMany<DiscountRow>(
+                `SELECT combo_discount_id, combo_listing_id, combo_discount_value,
+                        combo_discount_kind, combo_discount_order
+                 FROM combo_discounts
+                 WHERE combo_listing_id IN (${componentIds.map(() => "?").join(", ")})
+                 ORDER BY combo_discount_order, combo_discount_id`,
+                componentIds,
+              )
+              .pipe(Effect.mapError(dbError));
+        const discountsByComponent = new Map<string, ComboDiscount[]>();
+        for (const row of discounts) {
+          const list = discountsByComponent.get(row.combo_listing_id) ?? [];
+          list.push({
+            id: row.combo_discount_id,
+            value: row.combo_discount_value,
+            kind: row.combo_discount_kind,
+            order: row.combo_discount_order,
+          });
+          discountsByComponent.set(row.combo_listing_id, list);
+        }
         const componentsByCombo = new Map<string, ComboComponent[]>();
         for (const row of components) {
           const list = componentsByCombo.get(row.combo_id) ?? [];
@@ -115,6 +182,7 @@ export const ComboLive = Layer.effect(
             listingId: row.listing_id,
             quantity: row.combo_listing_qty,
             order: row.combo_listing_order,
+            discounts: discountsByComponent.get(row.combo_listing_id) ?? [],
           });
           componentsByCombo.set(row.combo_id, list);
         }
@@ -159,6 +227,19 @@ export const ComboLive = Layer.effect(
         if (new Set(input.components.map((component) => component.listingId)).size !== input.components.length) {
           return yield* Effect.fail(new ComboError({ message: "Listing yang sama tidak boleh ditambahkan dua kali." }));
         }
+        for (const component of input.components) {
+          for (const discount of component.discounts) {
+            if (!DISCOUNT_KINDS.includes(discount.kind)) {
+              return yield* Effect.fail(new ComboError({ message: "Jenis diskon combo tidak dikenal." }));
+            }
+            if (!Number.isFinite(discount.value) || discount.value < 0) {
+              return yield* Effect.fail(new ComboError({ message: "Nilai diskon combo tidak valid." }));
+            }
+            if (discount.kind === "percent" && discount.value > 100) {
+              return yield* Effect.fail(new ComboError({ message: "Diskon persen maksimal 100%." }));
+            }
+          }
+        }
         if (new Set(input.extraIds).size !== input.extraIds.length) {
           return yield* Effect.fail(new ComboError({ message: "Tambahan yang sama tidak boleh dipilih dua kali." }));
         }
@@ -177,8 +258,8 @@ export const ComboLive = Layer.effect(
         const listingIds = input.components.map((component) => component.listingId);
         const listingMarks = listingIds.map(() => "?").join(", ");
         const liveListings = yield* db
-          .selectMany<{ listing_id: string }>(
-            `SELECT l.listing_id
+          .selectMany<{ listing_id: string; listing_price: number }>(
+            `SELECT l.listing_id, l.listing_price
              FROM listings l JOIN products p ON p.product_id = l.product_id
              WHERE l.listing_deleted_at IS NULL AND p.product_deleted_at IS NULL
                AND (p.product_flag & 1) = 0 AND l.listing_id IN (${listingMarks})`,
@@ -189,6 +270,20 @@ export const ComboLive = Layer.effect(
           return yield* Effect.fail(
             new ComboError({ message: "Satu atau lebih listing combo sudah tidak tersedia." }),
           );
+        }
+        const priceById = new Map(liveListings.map((row) => [row.listing_id, row.listing_price]));
+        for (const component of input.components) {
+          const price = priceById.get(component.listingId) ?? 0;
+          const discounts = recalcDiscounts(
+            price,
+            component.quantity,
+            component.discounts.map((discount) => ({ ...discount, eff: 0, total: 0 })),
+          );
+          if (discountsEatLine({ price, qty: component.quantity, discounts })) {
+            return yield* Effect.fail(
+              new ComboError({ message: "Diskon melebihi harga listing combo." }),
+            );
+          }
         }
         if (input.extraIds.length > 0) {
           const marks = input.extraIds.map(() => "?").join(", ");

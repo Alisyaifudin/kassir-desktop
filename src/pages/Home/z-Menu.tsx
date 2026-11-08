@@ -89,12 +89,12 @@ const DESTINATIONS: Destination[] = [
     description: "Kelompok produk",
   },
   {
-    label: "Combo",
+    label: "Kombo",
     path: "/combos",
     icon: PackageOpen,
     admin: true,
     hue: 185,
-    description: "Paket listing dan tambahan",
+    description: "Paket produk dan tambahan",
   },
   {
     label: "Biaya Lainnya",

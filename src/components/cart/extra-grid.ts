@@ -44,7 +44,7 @@ type ExtraCellDef = {
  * the `dual` column — the last one sale-only, because only a sale books the
  * extras-only twin a `dual` charge produces.
  */
-export type ExtraLayout = { stageToggle: boolean; subtotalRow: boolean; dual: boolean };
+export type ExtraLayout = { stageToggle: boolean; subtotalRow: boolean; dual: boolean; manual?: boolean };
 
 /** The sale screen: search, `+manual`, a toggle back to the goods; no subtotal row. */
 export const SALE_EXTRA_LAYOUT: ExtraLayout = {
@@ -60,7 +60,24 @@ export const PURCHASE_EXTRA_LAYOUT: ExtraLayout = {
   dual: false,
 };
 
+/** Combo templates use the stage switch without a manual-extra action. */
+export const COMBO_EXTRA_LAYOUT: ExtraLayout = {
+  stageToggle: true,
+  subtotalRow: false,
+  dual: false,
+  manual: false,
+};
+
 function headerCells(layout: ExtraLayout): ExtraCellDef[] {
+  if (layout.stageToggle && layout.manual === false) {
+    return [
+      { field: "search", start: 0, end: 9, selectable: true, editable: true },
+      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+    ];
+  }
+  if (!layout.stageToggle && layout.manual === false) {
+    return [{ field: "search", start: 0, end: 11, selectable: true, editable: true }];
+  }
   if (layout.stageToggle) {
     return [
       { field: "search", start: 0, end: 7, selectable: true, editable: true },

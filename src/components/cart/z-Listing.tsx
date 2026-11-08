@@ -247,7 +247,10 @@ export function Listing({
   // digit a keystroke stands for, and a shadowed name here would compare that.
   const typedText = input.trim();
   const ids = useMemo(() => lines.map((line) => line.id), [lines]);
-  const searchCombosEnabled = mode === "sale" && onPickCombo !== undefined;
+  // A combo is a cart shortcut on both screens: Pos sells its bundle, Restock
+  // buys the same component listings. A screen without a picker (a read-only
+  // cart) simply omits the callback.
+  const searchCombosEnabled = onPickCombo !== undefined;
   const results = useQuery(
     () =>
       Stream.fromEffect(
@@ -1174,7 +1177,7 @@ export function Listing({
             type="search"
             className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
             placeholder={
-              mode === "sale" ? "Cari barang atau combo untuk dijual..." : "Cari barang untuk dibeli..."
+              mode === "sale" ? "Cari barang atau kombo untuk dijual..." : "Cari barang untuk dibeli..."
             }
             aria-autocomplete="list"
             value={input}

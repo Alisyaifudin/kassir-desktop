@@ -23,12 +23,18 @@ export function Ledger({
   record,
   identity,
   shelf,
+  editableCapital = false,
 }: {
   record: RecordFull;
   /** `<Identity>` for this face: the page's corrections, the pane's close. */
   identity: ReactNode;
   /** The band that closes the ledger, in the same scroll. */
   shelf: ReactNode;
+  /**
+   * Whether a line's recorded cost can be rewritten here. A slot the page fills
+   * and the pane leaves: the preview reads, the page corrects.
+   */
+  editableCapital?: boolean;
 }) {
   const empty = record.listings.length === 0 && record.extras.length === 0;
 
@@ -42,7 +48,7 @@ export function Ledger({
           </p>
         ) : null}
         <Show when={record.listings.length > 0}>
-          <Listings record={record} />
+          <Listings record={record} editableCapital={editableCapital} />
         </Show>
         <Show when={record.extras.length > 0}>
           <ExtrasTable record={record} parentClass="max-h-none overflow-visible" />

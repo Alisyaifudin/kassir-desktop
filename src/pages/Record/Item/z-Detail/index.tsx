@@ -26,6 +26,10 @@ export function Detail({ record }: { record: RecordFull }) {
         </Identity>
       }
       shelf={<Shelf record={record} />}
+      // The full page is where a record is corrected, so it is where a wrong
+      // `modal` gets its escape hatch; the pane that previews records passes
+      // nothing and only reads.
+      editableCapital
     />
   );
 }

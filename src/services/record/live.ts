@@ -602,16 +602,14 @@ export const RecordLive = Layer.effect(
       return db.selectMany<DebtRow>(SELECT_DEBT).pipe(
         Effect.mapError(dbErrorToRecordError),
         Effect.map((rows) =>
-          rows.map(
-            (row): DebtRecord => ({
-              id: row.record_id,
-              paidAt: row.record_credit_at,
-              creditAt: row.record_credit_at,
-              note: row.record_note,
-              fix: row.record_fix,
-              total: row.record_total,
-            }),
-          ),
+          rows.map((row): DebtRecord => ({
+            id: row.record_id,
+            paidAt: row.record_credit_at,
+            creditAt: row.record_credit_at,
+            note: row.record_note,
+            fix: row.record_fix,
+            total: row.record_total,
+          })),
         ),
       );
     }
@@ -901,17 +899,15 @@ export const RecordLive = Layer.effect(
               .pipe(Effect.mapError(dbErrorToRecordError));
 
             return {
-              entries: rows.map(
-                (row): ListingHistoryEntry => ({
-                  recordId: row.record_id,
-                  paidAt: row.record_paid_at,
-                  mode: row.record_mode,
-                  id: row.record_listing_id,
-                  name: row.record_listing_name,
-                  qty: row.record_listing_qty,
-                  price: row.record_listing_price,
-                }),
-              ),
+              entries: rows.map((row): ListingHistoryEntry => ({
+                recordId: row.record_id,
+                paidAt: row.record_paid_at,
+                mode: row.record_mode,
+                id: row.record_listing_id,
+                name: row.record_listing_name,
+                qty: row.record_listing_qty,
+                price: row.record_listing_price,
+              })),
               total: rows.length === 0 ? 0 : rows[0].total_count,
             };
           });
@@ -1704,6 +1700,75 @@ export const RecordLive = Layer.effect(
           return Effect.gen(function* () {
             const now = Date.now();
             yield* commit([
+              {
+                sql: `UPDATE records SET
+                    record_note = $1, record_updated_at = max($2, record_updated_at + 1), record_sync_at = NULL
+                  WHERE record_id = $3`,
+                bindings: [note, now, id],
+              },
+            ]);
+            yield* bumpRevision();
+          });
+        },
+        lineCapital(id, listingId, input) {
+          return Effect.gen(function* () {
+            const reason = input.reason.trim();
+            if (!Number.isFinite(input.capital) || input.capital < 0) {
+              return yield* Effect.fail(new RecordError({ message: "Modal tidak valid" }));
+            }
+            // The note is the only trace of this write, so a blank reason would
+            // leave a cost that changed with nobody's name on it.
+            if (reason === "") {
+              return yield* Effect.fail(new RecordError({ message: "Alasan wajib diisi" }));
+            }
+            const record = yield* readRecord(id);
+            // `listingId` is the line's group id: one sale of one product can be
+            // several rows, one per lot it drew from. The entered figure is a
+            // cost per listing unit, which is what every portion stores, so all
+            // of them take it and the line's cost becomes exactly what was typed.
+            const portions = yield* db
+              .selectMany<{ capital: number; qty: number; name: string }>(
+                `SELECT record_listing_capital AS capital, record_listing_qty AS qty,
+                        record_listing_name AS name
+                 FROM record_listings
+                 WHERE record_listing_group_id = $1 AND record_id = $2`,
+                [listingId, id],
+              )
+              .pipe(Effect.mapError(dbErrorToRecordError));
+            const first = portions[0];
+            if (first === undefined) {
+              return yield* Effect.fail(
+                new RecordError({ message: "Baris itu bukan bagian dari catatan ini" }),
+              );
+            }
+            // A restatement of the same figure would still bump the revision and
+            // re-read the page for nothing, and would add a note line saying
+            // nothing changed.
+            if (portions.every((portion) => portion.capital === input.capital)) return;
+
+            // The line's cost as the page reads it: qty-weighted, because a
+            // portion is as many listing units as it took from its lot.
+            const qty = portions.reduce((sum, portion) => sum + portion.qty, 0);
+            const from =
+              qty > 0
+                ? portions.reduce((sum, portion) => sum + portion.capital * portion.qty, 0) / qty
+                : first.capital;
+
+            const money = (value: number) => value.toLocaleString("id-ID");
+            const entry = `Perbaikan modal ${first.name}: ${money(from)} → ${money(
+              input.capital,
+            )} — ${reason} (${input.by.trim() || "admin"})`;
+            const note =
+              record.record_note.trim() === ""
+                ? entry
+                : `${record.record_note.trimEnd()}\n${entry}`;
+            const now = Date.now();
+            yield* commit([
+              {
+                sql: `UPDATE record_listings SET record_listing_capital = $1
+                      WHERE record_listing_group_id = $2 AND record_id = $3`,
+                bindings: [input.capital, listingId, id],
+              },
               {
                 sql: `UPDATE records SET
                     record_note = $1, record_updated_at = max($2, record_updated_at + 1), record_sync_at = NULL

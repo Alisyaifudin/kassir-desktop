@@ -1259,9 +1259,6 @@ export const TransactionLive = Layer.effect(
             if (draft === undefined) {
               return yield* Effect.fail(new TransactionError({ message: "Transaksi tidak ditemukan." }));
             }
-            if (draft.mode !== "incoming") {
-              return yield* Effect.fail(new TransactionError({ message: "Combo hanya bisa ditambahkan ke transaksi penjualan." }));
-            }
             if (input.components.length === 0) {
               return yield* Effect.fail(new TransactionError({ message: "Combo tidak memiliki listing yang tersedia." }));
             }
@@ -1274,23 +1271,38 @@ export const TransactionLive = Layer.effect(
               const existing = listings.find((line) => line.listingId === component.listingId);
               if (existing !== undefined) {
                 const qty = existing.qty + component.quantity;
-                const discounts = recalcDiscounts(
-                  existing.price,
-                  qty,
-                  existing.discounts.map((discount) => ({
+                // The template's rules are merged by (kind, value): selecting the
+                // same combo twice must not stack a second 10% on the line, while
+                // a rule the line did not have yet still lands.
+                const known = new Set(existing.discounts.map((discount) => `${discount.kind}:${discount.value}`));
+                const merged = [
+                  ...existing.discounts.map((discount) => ({
                     id: discount.id,
                     value: discount.value,
                     kind: discount.kind,
                     eff: 0,
                     total: 0,
                   })),
-                );
+                  ...component.discounts
+                    .filter((discount) => !known.has(`${discount.kind}:${discount.value}`))
+                    .map((discount) => ({
+                      id: generateId(),
+                      value: discount.value,
+                      kind: discount.kind,
+                      eff: 0,
+                      total: 0,
+                    })),
+                ];
+                const discounts = recalcDiscounts(existing.price, qty, [
+                  ...merged.filter((discount) => discount.value !== 0),
+                  // The cart's discount editor always keeps one blank trailing row.
+                  { id: generateId(), value: 0, kind: "percent" as const, eff: 0, total: 0 },
+                ]);
                 listings = [
                   { ...existing, qty, discounts, cover: component.cover, productId: component.productId },
                   ...listings.filter((line) => line.id !== existing.id),
                 ];
               } else {
-                const discount = { id: generateId(), value: 0, kind: "percent" as const };
                 listings = [
                   {
                     id: generateId(),
@@ -1302,7 +1314,15 @@ export const TransactionLive = Layer.effect(
                     price: component.price,
                     qty: component.quantity,
                     discounts: recalcDiscounts(component.price, component.quantity, [
-                      { ...discount, eff: 0, total: 0 },
+                      ...component.discounts.map((discount) => ({
+                        id: generateId(),
+                        value: discount.value,
+                        kind: discount.kind,
+                        eff: 0,
+                        total: 0,
+                      })),
+                      // The cart's discount editor always keeps one blank trailing row.
+                      { id: generateId(), value: 0, kind: "percent" as const, eff: 0, total: 0 },
                     ]),
                     base: {
                       name: component.name,

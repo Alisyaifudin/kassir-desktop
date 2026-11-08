@@ -13,6 +13,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import {
+  COMBO_EXTRA_LAYOUT,
   PURCHASE_EXTRA_LAYOUT,
   SALE_EXTRA_LAYOUT,
   extraCellAt,
@@ -30,6 +31,14 @@ const SUBTOTAL: ExtraRowRef = { kind: "subtotal" };
 const ROW = (extraId: string): ExtraRowRef => ({ kind: "extra", extraId });
 
 describe("extras grid geometry", () => {
+  test("combo header uses the stage toggle without reserving a manual cell", () => {
+    expect(extraCellsForRow(HEADER, COMBO_EXTRA_LAYOUT)).toEqual([
+      { field: "search", start: 0, end: 9, selectable: true, editable: true },
+      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+    ]);
+    expect(extraCellAt(HEADER, 10, COMBO_EXTRA_LAYOUT).field).toBe("toggle");
+  });
+
   test("a sale's header ends in the stage toggle, a purchase's does not", () => {
     expect(extraCellsForRow(HEADER, SALE_EXTRA_LAYOUT).map((cell) => cell.field)).toEqual([
       "search",

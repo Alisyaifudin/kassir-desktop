@@ -12,6 +12,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import {
+  COMBO_LISTING_LAYOUT,
   PURCHASE_LISTING_LAYOUT,
   SALE_LISTING_LAYOUT,
   cellAt,
@@ -37,6 +38,14 @@ const TOP_CELLS_OF = (cardId: string) => cellsForRow(TOP(cardId), SALE_LISTING_L
 const BOTTOM_CELLS_OF = (cardId: string) => cellsForRow(BOTTOM(cardId), SALE_LISTING_LAYOUT);
 
 describe("listing grid geometry", () => {
+  test("combo header uses the stage toggle without reserving a manual cell", () => {
+    expect(cellsForRow(HEADER, COMBO_LISTING_LAYOUT)).toEqual([
+      { field: "search", start: 0, end: 9, selectable: true, editable: true },
+      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+    ]);
+    expect(cellAt(HEADER, 10, COMBO_LISTING_LAYOUT).field).toBe("toggle");
+  });
+
   test("a sale's header ends in the stage toggle, a purchase's does not", () => {
     const sale = cellsForRow(HEADER, SALE_LISTING_LAYOUT).map((cell) => cell.field);
     const purchase = cellsForRow(HEADER, PURCHASE_LISTING_LAYOUT).map((cell) => cell.field);

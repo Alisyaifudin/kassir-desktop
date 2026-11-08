@@ -84,7 +84,7 @@ function Harness({ writes }: { writes: Line[][] }) {
 async function renderWithLine() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899123" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -144,7 +144,7 @@ describe("the results pane waits for the results", () => {
   test("a scan of an exact code adds it without the pane ever showing", async () => {
     const writes: Line[][] = [];
     render(<Harness writes={writes} />);
-    const search = screen.getByPlaceholderText("Cari barang untuk dijual...") as HTMLInputElement;
+    const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
 
     // One burst, as a barcode gun types it: the code and its Enter, no pause.
     fireEvent.change(search, { target: { value: "899123" } });

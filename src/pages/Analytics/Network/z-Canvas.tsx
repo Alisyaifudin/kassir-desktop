@@ -1,15 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { LocateFixed, Minus, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Layers,
+  LocateFixed,
+  Maximize2,
+  Minimize2,
+  Minus,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Link } from "~/services/route/react";
 import { rupiah } from "~/components/cart/util-rupiah";
+import { cn } from "~/lib/utils";
+import { SavedDrawer } from "./z-Saved";
 import {
   neighbors,
   type ProductGraph,
   type ProductGraphMetric,
   type ProductGraphNeighbor,
 } from "~/lib/product-graph";
-
 type Point = { index: number; x: number; y: number; radius: number };
 type Transform = { x: number; y: number; scale: number };
 type Edge = { a: number; b: number; count: number; lift: number };
@@ -34,12 +46,17 @@ export function NetworkCanvas({
   neighborLimit,
   selected,
   onSelect,
+  onControls,
+  onOpenSaved,
 }: {
   graph: ProductGraph;
   metric: ProductGraphMetric;
   neighborLimit: number;
   selected: number | null;
   onSelect: (index: number | null) => void;
+  onControls: () => void;
+  /** A row of the saved list was opened; the page owns what the canvas shows. */
+  onOpenSaved: (saved: { file: string; graph: ProductGraph }) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,6 +70,36 @@ export function NetworkCanvas({
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [visibleCount, setVisibleCount] = useState(0);
   const [zoomPercent, setZoomPercent] = useState(100);
+  // The canvas owns the whole pane, so the things that used to be chrome around
+  // it are states of the canvas itself: a panel that slides over the right edge,
+  // the saved snapshots sliding over the left, and a mode where the canvas
+  // covers the app window.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  // One drawer at a time: half a canvas with two panels sliding over it is a
+  // canvas nobody can see.
+  const toggleSaved = () => {
+    const next = !savedOpen;
+    setSavedOpen(next);
+    if (next) setPanelOpen(false);
+  };
+  const togglePanel = () => {
+    const next = !panelOpen;
+    setPanelOpen(next);
+    if (next) setSavedOpen(false);
+  };
+
+  // Picking a node opens the panel: with the panel docked out of the way, a
+  // click that only painted a highlight would read as nothing happening.
+  const select = useCallback(
+    (index: number | null) => {
+      onSelect(index);
+      if (index !== null) setPanelOpen(true);
+    },
+    [onSelect],
+  );
 
   const maxRevenue = useMemo(
     () => Math.max(1, ...graph.nodes.map((node) => node.revenue)),
@@ -322,7 +369,7 @@ export function NetworkCanvas({
       drag.current = null;
       if (!active.moved) {
         const point = localPoint(event);
-        onSelect(nearest(point.x, point.y));
+        select(nearest(point.x, point.y));
       }
       requestDraw();
     };
@@ -342,7 +389,10 @@ export function NetworkCanvas({
     };
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onSelect(null);
+        // Esc peels one layer at a time: the drawers, then the fullscreen canvas.
+        // The window listener in the component body closes those; deselecting
+        // under them would clear a selection the user is still looking at.
+        if (!panelOpen && !savedOpen && !expanded) onSelect(null);
         return;
       }
       const pan: Record<string, [number, number]> = {
@@ -396,6 +446,7 @@ export function NetworkCanvas({
     };
   }, [
     edges,
+    expanded,
     focus,
     graph,
     grid,
@@ -405,6 +456,9 @@ export function NetworkCanvas({
     maxRevenue,
     metric,
     onSelect,
+    panelOpen,
+    savedOpen,
+    select,
     selected,
     topByNode,
   ]);
@@ -430,8 +484,38 @@ export function NetworkCanvas({
 
   const fit = () => fitRef.current();
 
+  // Esc peels one layer at a time: the drawer on top, then the fullscreen canvas.
+  useEffect(() => {
+    if (!panelOpen && !savedOpen && !expanded) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (savedOpen) setSavedOpen(false);
+      else if (panelOpen) setPanelOpen(false);
+      else setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded, panelOpen, savedOpen]);
+
+  // Arrows and +/- belong to the canvas, so entering fullscreen hands it the
+  // keyboard instead of leaving focus on the button that opened it — and either
+  // way the graph is re-fitted, because a view framed for a small pane is not a
+  // view of a full window. The first render is the layout effect's own fit.
+  const wasExpanded = useRef(expanded);
+  useEffect(() => {
+    if (wasExpanded.current === expanded) return;
+    wasExpanded.current = expanded;
+    if (expanded) canvasRef.current?.focus();
+    fitRef.current();
+  }, [expanded]);
+
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1">
+    <div
+      className={cn(
+        "relative flex h-full min-h-0 min-w-0 flex-1 bg-background",
+        expanded && "fixed inset-0 z-[60]",
+      )}
+    >
       <div ref={hostRef} className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         <canvas
           ref={canvasRef}
@@ -476,8 +560,56 @@ export function NetworkCanvas({
           >
             <LocateFixed aria-hidden="true" className="size-5" />
           </Button>
+          <span className="mx-1 h-5 border-l" aria-hidden="true" />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label="Jaringan tersimpan"
+            aria-pressed={savedOpen}
+            onClick={toggleSaved}
+          >
+            <Layers aria-hidden="true" className="size-5" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label="Kendali jaringan"
+            onClick={onControls}
+          >
+            <SlidersHorizontal aria-hidden="true" className="size-5" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={expanded ? "Keluar dari layar penuh" : "Tampilkan grafik layar penuh"}
+            aria-pressed={expanded}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? (
+              <Minimize2 aria-hidden="true" className="size-5" />
+            ) : (
+              <Maximize2 aria-hidden="true" className="size-5" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={panelOpen ? "Sembunyikan panel produk" : "Tampilkan panel produk"}
+            aria-pressed={panelOpen}
+            onClick={togglePanel}
+          >
+            {panelOpen ? (
+              <PanelRightClose aria-hidden="true" className="size-5" />
+            ) : (
+              <PanelRightOpen aria-hidden="true" className="size-5" />
+            )}
+          </Button>
         </div>
-        <p className="absolute bottom-3 right-3 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground">
+        <p className="absolute top-2 left-2 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground">
           {visibleCount} dari {graph.nodes.length} produk terlihat
         </p>
         {hoveredNode && hovered !== null ? (
@@ -500,91 +632,106 @@ export function NetworkCanvas({
           </div>
         ) : null}
       </div>
-      <aside className="flex w-[260px] max-w-[40%] shrink-0 flex-col gap-3 overflow-hidden border-l bg-background p-3">
-        {selectedNode ? (
-          <>
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold">{selectedNode.name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {graph.mode === "incoming" ? "Omzet" : "Pembelian"} {rupiah(selectedNode.revenue)}{" "}
-                  · {selectedNode.baskets.toLocaleString("id-ID")} transaksi · kelompok{" "}
-                  {selectedNode.community + 1}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onSelect(null)}
-                className="shrink-0 rounded-sm px-1 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                Lepas
-              </button>
-            </div>
-            <LinkProduct id={selectedNode.id} name={selectedNode.name} />
-            <div className="border-t pt-3">
-              <h3 className="mb-2 text-sm font-semibold">Pasangan terkuat</h3>
-              {topPartners.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Belum ada pasangan yang berulang.</p>
-              ) : (
-                <ul className="flex flex-col gap-1">
-                  {topPartners.slice(0, 7).map((neighbor) => {
-                    const node = graph.nodes[neighbor.other];
-                    if (!node) return null;
-                    return (
-                      <li key={node.id}>
-                        <button
-                          type="button"
-                          onClick={() => onSelect(neighbor.other)}
-                          className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        >
-                          <span className="min-w-0 truncate text-sm">{node.name}</span>
-                          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                            {metric === "count"
-                              ? `${neighbor.count.toLocaleString("id-ID")}×`
-                              : `${neighbor.lift.toLocaleString("id-ID", { maximumFractionDigits: 2 })}×`}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <h2 className="text-base font-semibold">Produk utama</h2>
+      {savedOpen ? (
+        <SavedDrawer
+          currentBuiltAt={graph.builtAt}
+          onOpen={onOpenSaved}
+          onClose={() => setSavedOpen(false)}
+        />
+      ) : null}
+      {panelOpen ? (
+        <aside
+          aria-label="Panel produk"
+          className="absolute inset-y-0 right-0 z-20 flex w-[280px] max-w-[85%] flex-col gap-3 overflow-y-auto border-l bg-background p-3 shadow-lg duration-200 animate-in slide-in-from-right motion-reduce:animate-none"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold">
+                {selectedNode ? selectedNode.name : "Produk utama"}
+              </h2>
               <p className="text-xs text-muted-foreground">
-                Pilih titik untuk melihat pasangannya. Warna menandai kelompok produk.
+                {selectedNode
+                  ? `${graph.mode === "incoming" ? "Omzet" : "Pembelian"} ${rupiah(selectedNode.revenue)} · ${selectedNode.baskets.toLocaleString("id-ID")} transaksi · kelompok ${selectedNode.community + 1}`
+                  : "Pilih titik untuk melihat pasangannya. Warna menandai kelompok produk."}
               </p>
             </div>
-            <ul className="flex flex-col gap-1">
-              {topProducts.map(({ node, index }) => (
-                <li key={node.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(index)}
-                    className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  >
-                    <span className="min-w-0 truncate text-sm">{node.name}</span>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {node.baskets.toLocaleString("id-ID")}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-auto border-t pt-3 text-xs text-muted-foreground">
-              Ketebalan garis menunjukkan{" "}
-              {metric === "count"
-                ? "jumlah transaksi bersama"
-                : "kekuatan hubungan dibanding peluang"}
-              .
-            </p>
-          </>
-        )}
-      </aside>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Sembunyikan panel produk"
+              onClick={() => setPanelOpen(false)}
+            >
+              <X aria-hidden="true" className="size-5" />
+            </Button>
+          </div>
+          {selectedNode ? (
+            <>
+              <LinkProduct id={selectedNode.id} name={selectedNode.name} />
+              <div className="border-t pt-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Pasangan terkuat</h3>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => select(null)}>
+                    Lepas
+                  </Button>
+                </div>
+                {topPartners.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Belum ada pasangan yang berulang.</p>
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {topPartners.slice(0, 7).map((neighbor) => {
+                      const node = graph.nodes[neighbor.other];
+                      if (!node) return null;
+                      return (
+                        <li key={node.id}>
+                          <button
+                            type="button"
+                            onClick={() => select(neighbor.other)}
+                            className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                          >
+                            <span className="min-w-0 truncate text-sm">{node.name}</span>
+                            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                              {metric === "count"
+                                ? `${neighbor.count.toLocaleString("id-ID")}×`
+                                : `${neighbor.lift.toLocaleString("id-ID", { maximumFractionDigits: 2 })}×`}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <ul className="flex flex-col gap-1">
+                {topProducts.map(({ node, index }) => (
+                  <li key={node.id}>
+                    <button
+                      type="button"
+                      onClick={() => select(index)}
+                      className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      <span className="min-w-0 truncate text-sm">{node.name}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {node.baskets.toLocaleString("id-ID")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-auto border-t pt-3 text-xs text-muted-foreground">
+                Ketebalan garis menunjukkan{" "}
+                {metric === "count"
+                  ? "jumlah transaksi bersama"
+                  : "kekuatan hubungan dibanding peluang"}
+                .
+              </p>
+            </>
+          )}
+        </aside>
+      ) : null}
     </div>
   );
 }

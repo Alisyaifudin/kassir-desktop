@@ -879,7 +879,7 @@
         <method name="get.daily(from, to)">Per local day, per direction, with the unpaid part of the day.</method>
         <method name="get.margins(from, to, estimate?)">Per day: `margin` from lines whose stored cost is a cost (above zero, below the line's price) with `costed` behind it, plus `estimatedMargin` = Σ min(line total × estimate.percent, estimate.raw) over every other line, with `estimated` behind it. Defaults to DEFAULT_MARGIN_ESTIMATE (10%, Rp5.000).</method>
         <method name="get.hours(from, to) / get.weekdays(from, to)">Sales per local hour, and per ISO weekday (1 = Monday).</method>
-        <method name="get.productGroups(from, to, mode)">Every product that moved, with qty, revenue, margin, costed lines.</method>
+        <method name="get.productGroups(from, to, mode)">Every product that moved, with qty, revenue, margin, costed lines. `margin` uses the same believable-cost rule as `get.margins` — a stored cost above zero and below the line's price — so the two pages never disagree about whether a line's cost can be read as one; the rest of the lines count towards `lines` only.</method>
         <method name="get.productInstances(from, to, mode, key, limit)">The lines behind one group, newest first.</method>
         <method name="get.payments(from, to)">What was actually tendered, grouped by method kind.</method>
       </interface>
@@ -1134,7 +1134,8 @@
         <method name="add.adjustment(input) => id">A hand-typed extras-only record (RECORD_FLAG_ADJUSTMENT); no stock moves.</method>
         <method name="add.external(input)">Import a record made elsewhere under a new id, moving stock by the same rules as a live record.</method>
         <method name="add.draft(input) => id">Commit a live cart: header, lines, discounts, extras, payments, stock movement and the tx_* delete, in one transaction; with `mirror`, the DUAL_FLAG twin is written in the same commit. See &lt;database&gt; / record_commit.</method>
-        <method name="set.paidAt / set.creditAt / set.note / set.mode / set.payment / set.toCredit / set.payCredit" />
+        <method name="set.paidAt / set.creditAt / set.note / set.mode / set.payment / set.toCredit / set.payCredit / set.lineCapital" />
+        <note>set.lineCapital is the escape hatch for a `modal` entered with the wrong figure: a sale carries a copy of its lot's cost, so one bad purchase line makes every later sale of that product read as a huge loss. It rewrites `record_listings.record_listing_capital` for every portion of the line (the figure is a cost per listing unit), bumps record_updated_at, clears record_sync_at, and appends `Perbaikan modal &lt;name&gt;: &lt;old&gt; → &lt;new&gt; — &lt;reason&gt; (&lt;admin&gt;)` to record_note. It never touches product_events or stocks: the lot is a separate repair with a wider blast radius. Refuses a blank reason, a negative/non-finite figure, and a line outside the record; restating the same figure writes nothing. Admin-only in the UI (the pencil beside the Modal column on the record page's ledger).</note>
         <note>set.mode does not rewrite the record in place: it soft-deletes the original, re-points every child at a copy and flips the stock journal, returning the new id — the page follows it instead of sitting on a tombstone.</note>
         <note>set.payment rewrites every record_methods row from the submitted list (re-file a method, restate an amount, add or trim a split) and re-caches record_pay; the totals never move. The sum must cover the grand total (an underpayment is a credit), and an outstanding credit refuses it — its money arrives with set.payCredit. set.mode flips sale ↔ purchase and revisits the stock rules, striking the old movement from the journal first.</note>
         <method name="delete.byId(id)">Soft-delete and reverse the stock movement. A paired record takes its twin with it, so voiding a sale never leaves the extras-only outcoming half behind.</method>
@@ -1391,7 +1392,7 @@
       </description>
       <subpages>
         <subpage path="/records/search">Comprehensive search across listing lines by name, mode and date range, with a capped page and the total match count.</subpage>
-        <subpage path="/records/:recordId">One record in full, with Detail | Resi tabs in the URL. Detail shows the ledger (identity band, goods, charges, parties, totals, methods, images) and, admin only, the shelf actions: edit note, move the date, change mode, edit split payments, toggle credit, delete. Resi is the receipt it prints (laid out and rendered by the Rust print_receipt command).</subpage>
+        <subpage path="/records/:recordId">One record in full, with Detail | Resi tabs in the URL. Detail shows the ledger (identity band, goods, charges, parties, totals, methods, images) and, admin only, the shelf actions: edit note, move the date, change mode, edit split payments, toggle credit, delete. The goods table shows each line's Modal on a purchase — and, for an admin, on a sale too, with a pencil that opens the escape hatch for a wrong recorded cost (`set.lineCapital`: warning, new figure, required reason, appended to the note). Resi is the receipt it prints (laid out and rendered by the Rust print_receipt command).</subpage>
       </subpages>
       <note>The record list does not filter RECORD_FLAG_ADJUSTMENT yet, so a dual charge's extras-only twin shows as a goods-less outcoming row — see &lt;open_questions&gt;.</note>
     </page>
@@ -1476,7 +1477,7 @@
       <subpages>
         <subpage path="/analytics/">Arus Kas (Cashflow): money in vs out per bucket, with totals.</subpage>
         <subpage path="/analytics/profit">Laba (Profit): margin over the period — the stored cost where it is believable, and `min(10% of the line, Rp5.000)` per line where it is not (migration-54's repair plus an operator-set estimate, edited under the chart). The stat says how many lines were costed and how many were estimated.</subpage>
-        <subpage path="/analytics/products">Products: per-product qty/revenue/margin, sortable and paginated, expandable to the individual lines.</subpage>
+        <subpage path="/analytics/products">Products: a totals band (total omzet, total laba, product count) then per-product qty/revenue/margin in a sortable, paginated table that expands to the individual lines, split by transaction kind. The totals are summed from the same rows as the table, so they follow the Masuk/Keluar switch; `total laba` counts only lines whose stored cost is believable (above zero, below the line's price) and its hint names how many lines are not, so a bad `modal` reads as a dash instead of a phantom loss. No chart, so no bucket width.</subpage>
         <subpage path="/analytics/time">Time: sales per weekday and per hour, one week at a time.</subpage>
         <subpage path="/analytics/payments">Payments: what was tendered per method kind, plus the unpaid part of the period.</subpage>
       </subpages>

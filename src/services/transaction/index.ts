@@ -108,6 +108,9 @@ export type DraftImage = {
   mime: DraftImageMime;
 };
 
+/** One discount rule carried by a combo component into the sale line. */
+export type ComboCartDiscount = { value: number; kind: "number" | "percent" | "pcs" };
+
 /** A live listing snapshot and quantity to expand into an ordinary sale line. */
 export type ComboCartComponent = {
   listingId: string;
@@ -119,6 +122,8 @@ export type ComboCartComponent = {
   price: number;
   cover: { name: string; mime: DraftImageMime } | null;
   quantity: number;
+  /** The template's per-listing discount stack, copied into the cart line. */
+  discounts: ComboCartDiscount[];
 };
 
 /** The live Extra values copied into the cart when a combo is selected. */
@@ -207,8 +212,8 @@ export class TransactionService extends Context.Tag("TransactionService")<
       fromRecord: (recordId: string) => Effect.Effect<string, TransactionError>;
       /**
        * Expands one combo selection into listing snapshots and transaction-wide
-       * Extra snapshots in one draft update. The rows are intentionally not
-       * linked back to the template after they enter the cart.
+       * Extra snapshots in one draft update. Allowed on a sale or a purchase; the
+       * rows are intentionally not linked back to the template.
        */
       combo: (draftId: string, input: ComboCartInput) => Effect.Effect<void, TransactionError>;
     };

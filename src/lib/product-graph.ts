@@ -31,6 +31,23 @@ export type ProductGraphProgress = {
   total: number;
 };
 
+/**
+ * One published snapshot as it sits on disk. `file` is the row's id: it is the
+ * name publish chose, and the only handle that survives the next rebuild.
+ */
+export type ProductGraphSaved = {
+  file: string;
+  from: number;
+  to: number;
+  mode: ProductGraphMode;
+  nodeLimit: number;
+  records: number;
+  nodes: number;
+  edges: number;
+  builtAt: number;
+  bytes: number;
+};
+
 export type ProductGraphNode = {
   id: string;
   name: string;
@@ -121,6 +138,25 @@ export async function loadProductGraphSnapshot(
   const status = await getProductGraphStatus(from, to, mode, nodeLimit);
   const graph = status.exists ? await loadProductGraph(from, to, mode, nodeLimit) : null;
   return { status, graph };
+}
+
+/** Every snapshot on disk, newest first — the file itself is the source. */
+export async function listProductGraphs(): Promise<ProductGraphSaved[]> {
+  return invoke<ProductGraphSaved[]>("product_graph_saved");
+}
+
+/** Drop one saved snapshot for good. `file` is the row's id, never a path. */
+export async function deleteProductGraph(file: string): Promise<void> {
+  await invoke("product_graph_delete", { file });
+}
+
+/**
+ * Open one saved snapshot by the row the list showed — the same decoder, so a
+ * file that was tampered with or half written is refused here, not drawn.
+ */
+export async function openProductGraph(file: string): Promise<ProductGraph> {
+  const buffer = await invoke<ArrayBuffer>("product_graph_open", { file });
+  return decodeProductGraph(buffer);
 }
 
 /** Parse and validate the versioned on-disk format before exposing typed views. */

@@ -9,6 +9,7 @@ import {
 } from "~/lib/purchase";
 import { Draft, STAGES, type Stage } from "./Draft";
 import { Bottom } from "./z-Bottom";
+import { useAddCombo } from "~/pages/cart/use-add-combo";
 import { useCartQuery } from "~/pages/cart/use-cart-query";
 import { useCartScreen } from "~/components/cart/use-cart-screen";
 import { useSubmitCart } from "~/components/cart/use-submit-cart";
@@ -131,6 +132,7 @@ function Screen({
     },
   });
   const { active, lines, extras, hardIssue, submitting, complete, setComplete } = cart;
+  const addCombo = useAddCombo(active?.id ?? null);
   const methodsRes = pageData.use("methods");
   // The tender as the completion dialog will print it: one row per method that
   // actually took money, named from the catalog the payment grid already read.
@@ -228,6 +230,7 @@ function Screen({
           grand={grand}
           lines={lines}
           onLines={cart.setLines}
+          onPickCombo={addCombo}
           issues={cart.issues}
           extras={extras}
           onExtras={cart.setExtras}

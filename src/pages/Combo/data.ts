@@ -3,7 +3,7 @@ import type { Combo, ComboError } from "~/services/combo";
 import type { Extra, ExtraError } from "~/services/extra";
 import type { Listing, ListingError } from "~/services/listing";
 
-type ComboData = {
+export type ComboData = {
   combos: Combo[];
   listings: Listing[];
   extras: Extra[];

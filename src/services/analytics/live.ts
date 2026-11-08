@@ -86,8 +86,19 @@ type MarginRow = {
  * copied the selling price into the cost column (migration-54 repairs what it
  * can from the purchase side and the page estimates the rest) — reading it as a
  * cost is what made every bar read zero or negative.
+ *
+ * Written as a function of the two column references so every caller can name
+ * them in its own scope: the margin query aliases them inside a CTE, the product
+ * groups read them off `record_listings l`. The two must agree — one page saying
+ * a line's cost is believable while another says it is not is the bug that made
+ * a product read `-4.454.000` on the products table and nothing at all on the
+ * profit page.
  */
-const COSTED = "capital > 0 AND capital < price";
+function believable(capital: string, price: string): string {
+  return `${capital} > 0 AND ${capital} < ${price}`;
+}
+
+const COSTED = believable("capital", "price");
 
 /**
  * `$3` is the percent and `$4` the per-line ceiling of the estimate the page
@@ -168,10 +179,10 @@ const GROUPS = `
     MAX(l.product_id) AS product_id,
     COALESCE(SUM(l.record_listing_qty), 0) AS qty,
     COALESCE(SUM(l.record_listing_total), 0) AS revenue,
-    COALESCE(SUM(CASE WHEN l.record_listing_capital > 0
+    COALESCE(SUM(CASE WHEN ${believable("l.record_listing_capital", "l.record_listing_price")}
       THEN l.record_listing_total - l.record_listing_capital * l.record_listing_qty
       ELSE 0 END), 0) AS margin,
-    SUM(CASE WHEN l.record_listing_capital > 0 THEN 1 ELSE 0 END) AS costed,
+    SUM(CASE WHEN ${believable("l.record_listing_capital", "l.record_listing_price")} THEN 1 ELSE 0 END) AS costed,
     COUNT(*) AS lines
   FROM record_listings l
   JOIN records r ON r.record_id = l.record_id
@@ -321,16 +332,14 @@ export const AnalyticsLive = Layer.effect(
             const rows = yield* db
               .selectMany<DailyRow>(dailySql(offsetMs(from)), [from, to])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): DailyStat => ({
-                day: row.day,
-                mode: row.mode,
-                count: row.count,
-                total: row.total,
-                unpaid: row.unpaid,
-                creditCount: row.credit_count,
-              }),
-            );
+            return rows.map((row): DailyStat => ({
+              day: row.day,
+              mode: row.mode,
+              count: row.count,
+              total: row.total,
+              unpaid: row.unpaid,
+              creditCount: row.credit_count,
+            }));
           });
         },
         margins(from, to, estimate = DEFAULT_MARGIN_ESTIMATE) {
@@ -339,15 +348,13 @@ export const AnalyticsLive = Layer.effect(
             const rows = yield* db
               .selectMany<MarginRow>(marginsSql(offsetMs(from)), [from, to, percent, raw])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): MarginStat => ({
-                day: row.day,
-                margin: row.margin,
-                costed: row.costed,
-                estimatedMargin: row.estimated_margin,
-                estimated: row.estimated,
-              }),
-            );
+            return rows.map((row): MarginStat => ({
+              day: row.day,
+              margin: row.margin,
+              costed: row.costed,
+              estimatedMargin: row.estimated_margin,
+              estimated: row.estimated,
+            }));
           });
         },
         hours(from, to) {
@@ -355,9 +362,11 @@ export const AnalyticsLive = Layer.effect(
             const rows = yield* db
               .selectMany<HourRow>(hoursSql(offsetMs(from)), [from, to])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): HourStat => ({ hour: row.hour, count: row.count, total: row.total }),
-            );
+            return rows.map((row): HourStat => ({
+              hour: row.hour,
+              count: row.count,
+              total: row.total,
+            }));
           });
         },
         weekdays(from, to) {
@@ -365,14 +374,12 @@ export const AnalyticsLive = Layer.effect(
             const rows = yield* db
               .selectMany<WeekdayRow>(weekdaysSql(offsetMs(from)), [from, to])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): WeekdayStat => ({
-                // SQLite is 0=Sunday; the page reads Monday-first.
-                weekday: ((row.weekday + 6) % 7) + 1,
-                count: row.count,
-                total: row.total,
-              }),
-            );
+            return rows.map((row): WeekdayStat => ({
+              // SQLite is 0=Sunday; the page reads Monday-first.
+              weekday: ((row.weekday + 6) % 7) + 1,
+              count: row.count,
+              total: row.total,
+            }));
           });
         },
         productGroups(from, to, mode) {
@@ -380,18 +387,16 @@ export const AnalyticsLive = Layer.effect(
             const rows = yield* db
               .selectMany<ProductGroupRow>(GROUPS, [from, to, mode])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): ProductGroup => ({
-                key: row.key,
-                name: row.name,
-                productId: row.product_id,
-                qty: row.qty,
-                revenue: row.revenue,
-                margin: row.margin,
-                costed: row.costed,
-                lines: row.lines,
-              }),
-            );
+            return rows.map((row): ProductGroup => ({
+              key: row.key,
+              name: row.name,
+              productId: row.product_id,
+              qty: row.qty,
+              revenue: row.revenue,
+              margin: row.margin,
+              costed: row.costed,
+              lines: row.lines,
+            }));
           });
         },
         productInstances(from, to, mode, key, limit) {
@@ -405,20 +410,18 @@ export const AnalyticsLive = Layer.effect(
                 Math.max(1, Math.trunc(limit)),
               ])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): ProductInstance => ({
-                recordId: row.record_id,
-                at: row.at,
-                name: row.name,
-                qty: row.qty,
-                unit: row.unit,
-                price: row.price,
-                total: row.total,
-                capital: row.capital,
-                kind: row.kind,
-                productId: row.product_id,
-              }),
-            );
+            return rows.map((row): ProductInstance => ({
+              recordId: row.record_id,
+              at: row.at,
+              name: row.name,
+              qty: row.qty,
+              unit: row.unit,
+              price: row.price,
+              total: row.total,
+              capital: row.capital,
+              kind: row.kind,
+              productId: row.product_id,
+            }));
           });
         },
         productPairs(from, to, mode) {
@@ -434,16 +437,14 @@ export const AnalyticsLive = Layer.effect(
 
             const pairs: ProductPairs = {
               records,
-              pairs: rows.map(
-                (row): ProductPair => ({
-                  a: row.a,
-                  b: row.b,
-                  co: row.co,
-                  basketsA: row.baskets_a,
-                  basketsB: row.baskets_b,
-                  lift: pairLift(row.co, row.baskets_a, row.baskets_b, records),
-                }),
-              ),
+              pairs: rows.map((row): ProductPair => ({
+                a: row.a,
+                b: row.b,
+                co: row.co,
+                basketsA: row.baskets_a,
+                basketsB: row.baskets_b,
+                lift: pairLift(row.co, row.baskets_a, row.baskets_b, records),
+              })),
             };
             return pairs;
           });
@@ -453,9 +454,11 @@ export const AnalyticsLive = Layer.effect(
             const rows = yield* db
               .selectMany<PaymentRow>(PAYMENTS, [from, to])
               .pipe(Effect.mapError(failure));
-            return rows.map(
-              (row): PaymentStat => ({ kind: row.kind, total: row.total, count: row.count }),
-            );
+            return rows.map((row): PaymentStat => ({
+              kind: row.kind,
+              total: row.total,
+              count: row.count,
+            }));
           });
         },
       },

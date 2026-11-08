@@ -17,7 +17,7 @@ const routeTitles: Record<string, string> = {
   "/social": "Kontak",
   "/products": "Produk",
   "/categories": "Kategori",
-  "/combos": "Combo",
+  "/combos": "Kombo",
   "/debt": "Utang",
   "/extras": "Biaya Lainnya",
   "/records": "Riwayat",

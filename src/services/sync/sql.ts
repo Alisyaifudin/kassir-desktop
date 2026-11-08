@@ -227,9 +227,9 @@ function deleteChildrenStatement(
   clock: number,
 ): Statement {
   const scope =
-    child.via === "parent"
+    child.via === "parent" || child.link === undefined
       ? `${child.parent} = $1`
-      : `${child.parent} IN (SELECT record_listing_id FROM record_listings WHERE record_id = $1)`;
+      : `${child.parent} IN (SELECT ${child.parent} FROM ${child.link.table} WHERE ${child.link.parent} = $1)`;
   const clockCol = def.updatedAt ?? def.pk;
   return {
     sql: `DELETE FROM ${child.table} WHERE ${scope}
@@ -293,15 +293,20 @@ function childDeletionOrder(children: readonly ChildDef[]): ChildDef[] {
  * §7.3 tolerates the reference; the honest local reading is to keep the rest of
  * the aggregate and drop the unattachable row rather than fail the page.
  */
-function sanitizeChildren(children: WireChildren): WireChildren {
-  const discounts = children["discounts"] ?? [];
-  if (discounts.length === 0) return children;
-  const listings = new Set(
-    (children["record_listings"] ?? []).map((row) => String(row["record_listing_id"])),
-  );
-  const kept = discounts.filter((row) => listings.has(String(row["record_listing_id"])));
-  if (kept.length === discounts.length) return children;
-  return { ...children, discounts: kept };
+function sanitizeChildren(children: WireChildren, group: EntityDef["group"]): WireChildren {
+  const childDefs = childrenOf(group);
+  let next = children;
+  for (const child of childDefs) {
+    if (child.via !== "listing") continue;
+    const link = childDefs.find((candidate) => candidate.pk === child.parent);
+    if (link === undefined) continue;
+    const rows = next[child.key] ?? [];
+    if (rows.length === 0) continue;
+    const links = new Set((next[link.key] ?? []).map((row) => String(row[child.parent])));
+    const kept = rows.filter((row) => links.has(String(row[child.parent])));
+    if (kept.length !== rows.length) next = { ...next, [child.key]: kept };
+  }
+  return next;
 }
 
 /**
@@ -319,7 +324,7 @@ export function upsertAggregateStatements(
 ): Statement[] {
   const id = String(header[def.pk]);
   const clock = Number(header[def.updatedAt ?? def.pk]);
-  const incoming = sanitizeChildren(children);
+  const incoming = sanitizeChildren(children, def.group);
   const childDefs = childrenOf(def.group);
   const statements: Statement[] = [upsertIfNewerStatement(def, header, seq)];
   for (const child of childDeletionOrder(childDefs)) {
@@ -346,7 +351,7 @@ export function forceAggregateStatements(
 ): Statement[] {
   const id = String(header[def.pk]);
   const clock = Number(header[def.updatedAt ?? def.pk]);
-  const incoming = sanitizeChildren(children);
+  const incoming = sanitizeChildren(children, def.group);
   const childDefs = childrenOf(def.group);
   const statements: Statement[] = [forceUpsertStatement(def, header, seq, since)];
   for (const child of childDeletionOrder(childDefs)) {
@@ -380,10 +385,10 @@ export function selectUnsyncedAggregateSql(def: EntityDef, limit: number): strin
 
 /** Reads one aggregate's child sets, in canonical order. */
 export function selectChildrenSql(child: ChildDef): string {
-  if (child.via === "listing") {
+  if (child.via === "listing" && child.link !== undefined) {
     return `SELECT d.${child.columns.join(", d.")} FROM ${child.table} d
-      JOIN record_listings l ON l.record_listing_id = d.${child.parent}
-      WHERE l.record_id = $1
+      JOIN ${child.link.table} l ON l.${child.parent} = d.${child.parent}
+      WHERE l.${child.link.parent} = $1
       ORDER BY d.${child.pk}`;
   }
   return `SELECT ${child.columns.join(", ")} FROM ${child.table}
@@ -394,11 +399,11 @@ export function selectChildrenSql(child: ChildDef): string {
 /** Reads many aggregates' children at once, for a pull page's local comparison. */
 export function selectChildrenByRecordsSql(child: ChildDef, count: number): string {
   const list = Array.from({ length: count }, (_, index) => `$${index + 1}`).join(", ");
-  if (child.via === "listing") {
-    return `SELECT l.record_id AS parent_key, d.${child.columns.join(", d.")} FROM ${child.table} d
-      JOIN record_listings l ON l.record_listing_id = d.${child.parent}
-      WHERE l.record_id IN (${list})
-      ORDER BY l.record_id, d.${child.pk}`;
+  if (child.via === "listing" && child.link !== undefined) {
+    return `SELECT l.${child.link.parent} AS parent_key, d.${child.columns.join(", d.")} FROM ${child.table} d
+      JOIN ${child.link.table} l ON l.${child.parent} = d.${child.parent}
+      WHERE l.${child.link.parent} IN (${list})
+      ORDER BY l.${child.link.parent}, d.${child.pk}`;
   }
   return `SELECT ${child.parent} AS parent_key, ${child.columns.join(", ")} FROM ${child.table}
     WHERE ${child.parent} IN (${list})
@@ -410,9 +415,9 @@ export function deleteAggregateStatements(def: EntityDef, id: string): Statement
   const statements: Statement[] = [];
   for (const child of childDeletionOrder(childrenOf(def.group))) {
     const scope =
-      child.via === "parent"
+      child.via === "parent" || child.link === undefined
         ? `${child.parent} = $1`
-        : `${child.parent} IN (SELECT record_listing_id FROM record_listings WHERE record_id = $1)`;
+        : `${child.parent} IN (SELECT ${child.parent} FROM ${child.link.table} WHERE ${child.link.parent} = $1)`;
     statements.push({ sql: `DELETE FROM ${child.table} WHERE ${scope}`, bindings: [id] });
   }
   statements.push({ sql: `DELETE FROM ${def.table} WHERE ${def.pk} = $1`, bindings: [id] });

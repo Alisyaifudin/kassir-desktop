@@ -39,8 +39,8 @@ const input: ComboInput = {
   active: true,
   cover: null,
   components: [
-    { listingId: "l1", quantity: 1 },
-    { listingId: "l2", quantity: 2 },
+    { listingId: "l1", quantity: 1, discounts: [] },
+    { listingId: "l2", quantity: 2, discounts: [{ value: 10, kind: "percent" }] },
   ],
   extraIds: ["e1"],
 };
@@ -58,8 +58,13 @@ describe("combo catalog", () => {
       name: "Paket hemat",
       active: true,
       components: [
-        { listingId: "l1", quantity: 1, order: 0 },
-        { listingId: "l2", quantity: 2, order: 1 },
+        { listingId: "l1", quantity: 1, order: 0, discounts: [] },
+        {
+          listingId: "l2",
+          quantity: 2,
+          order: 1,
+          discounts: [{ value: 10, kind: "percent", order: 0 }],
+        },
       ],
       extras: [{ extraId: "e1", order: 0 }],
     });
@@ -74,7 +79,7 @@ describe("combo catalog", () => {
           ...input,
           name: "Paket sisir",
           active: false,
-          components: [{ listingId: "l2", quantity: 3 }],
+          components: [{ listingId: "l2", quantity: 3, discounts: [{ value: 250, kind: "number" }] }],
           extraIds: [],
         });
         const updated = (yield* service.get.all()).find((item) => item.id === id);
@@ -85,7 +90,9 @@ describe("combo catalog", () => {
     expect(result.updated).toMatchObject({
       name: "Paket sisir",
       active: false,
-      components: [{ listingId: "l2", quantity: 3 }],
+      components: [
+        { listingId: "l2", quantity: 3, discounts: [{ value: 250, kind: "number", order: 0 }] },
+      ],
       extras: [],
     });
     expect(result.afterDelete).toEqual([]);
@@ -95,7 +102,9 @@ describe("combo catalog", () => {
     const layer = setup();
     const error = await run(layer, (service) =>
       Effect.gen(function* () {
-        return yield* Effect.flip(service.add({ ...input, components: [{ listingId: "missing", quantity: 1 }] }));
+        return yield* Effect.flip(
+          service.add({ ...input, components: [{ listingId: "missing", quantity: 1, discounts: [] }] }),
+        );
       }),
     );
     expect(error._tag).toBe("ComboError");
