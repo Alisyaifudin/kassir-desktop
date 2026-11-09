@@ -207,7 +207,7 @@ function Body({
           onActivate={() => {}}
           onSubmit={onSubmit}
         />
-        <div className="mt-3 flex items-center justify-between border-t pt-2 ">
+        <div className="flex items-center justify-between border-t pt-2 ">
           <span className="text-2xl">
             Dibayar:{" "}
             <span className="font-bold text-2xl tabular-nums">{rupiah(paid, draft.fix)}</span>
