@@ -54,12 +54,13 @@ import { SearchResults, type SearchHit } from "~/components/cart/z-SearchResults
 import {
   cellAt,
   columnIn,
+  horizontalNeighbour,
   partOf,
   rowsFor,
   sameRow,
-  selectableCells,
   startOf,
   type Field,
+  type ImageSide,
   type RowRef,
   type Selection,
   PURCHASE_LISTING_LAYOUT,
@@ -412,6 +413,25 @@ export function Listing({
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
 
+  // Which half of the card the cursor came from when it stepped onto the photo.
+  //
+  // The photo is one box standing beside both rows, so the way back out of it to
+  // the right is the row the operator was in: left out of the handle must return
+  // to the handle, not climb to the number above it. Tracked here, off the
+  // selection, rather than in each mover — the photo is reached from the number
+  // and the handle (and, in principle, from a row above or below), and a mover
+  // that forgot to record the side would send the cursor to the wrong half.
+  // Anything that is not a card row leaves the default: the top row.
+  const imageFrom = useRef<ImageSide>("top");
+  const previousRow = useRef<RowRef>(selection.row);
+  useEffect(() => {
+    if (active.field === "image") {
+      const previous = previousRow.current;
+      imageFrom.current = previous.kind === "card" ? previous.part : "top";
+    }
+    previousRow.current = selection.row;
+  }, [selection, active.field]);
+
   const dialogOpen = discountFor !== null || detailFor !== null || imagesFor !== null;
 
   // A dialog traps focus while it is open; take it back for the grid once they
@@ -526,17 +546,17 @@ export function Listing({
         }
       }
     }
-    const flat = rows.flatMap((row) => selectableCells(row, layout).map((cell) => ({ row, cell })));
-    const index = flat.findIndex(
-      (entry) => sameRow(entry.row, selection.row) && entry.cell.field === active.field,
-    );
-    const next = flat[index + delta] ?? (wrap ? flat[delta < 0 ? flat.length - 1 : 0] : undefined);
+    // The geometry of the walk — the photo's three neighbours included — is
+    // `horizontalNeighbour`'s; this only applies the step it chose.
+    const next = horizontalNeighbour(rows, selection, layout, delta, {
+      wrap,
+      imageFrom: imageFrom.current,
+    });
     if (next === undefined) return;
     setSelection({
       row: next.row,
-      col: next.cell.start,
-      qtySub:
-        next.cell.field === "qty" ? (delta > 0 ? "left" : "right") : undefined,
+      col: next.col,
+      qtySub: next.cell.field === "qty" ? (delta > 0 ? "left" : "right") : undefined,
     });
     setEditing(false);
   }

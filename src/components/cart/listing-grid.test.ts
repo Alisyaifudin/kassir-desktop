@@ -18,10 +18,12 @@ import {
   cellAt,
   cellsForRow,
   columnIn,
+  horizontalNeighbour,
   rowsFor,
   sameRow,
   selectableCells,
   startOf,
+  type ImageSide,
   type RowRef,
 } from "./listing-grid";
 
@@ -154,5 +156,80 @@ describe("listing grid geometry", () => {
     for (const cell of [...TOP_CELLS_OF("a"), ...BOTTOM_CELLS_OF("a")]) {
       if (cell.field === "no" || cell.field === "grip") expect(cell.editable).toBe(false);
     }
+  });
+});
+
+/**
+ * The photo's three neighbours.
+ *
+ * The photo is one box at column `-1` standing beside *both* rows of its card,
+ * and the row-major walk only knows two of its neighbours: it would take a
+ * handle-left up to the `x` of the row above, stepping over the box that is
+ * visibly right there, and it would always hand the photo back to the number.
+ * These pin the exception — and that a card without a photo keeps the plain
+ * reading order, since it has no box to step onto.
+ */
+describe("the photo's three neighbours", () => {
+  // `a` has a cover, `b` does not: only `a`'s top row carries the photo cell.
+  const ROWS = rowsFor(["a", "b"], (id) => id === "a");
+  const step = (
+    row: RowRef,
+    col: number,
+    delta: number,
+    options: { imageFrom?: ImageSide; wrap?: boolean } = {},
+  ) => horizontalNeighbour(ROWS, { row, col }, SALE_LISTING_LAYOUT, delta, options);
+
+  test("left out of the handle lands on the photo, not on the row above", () => {
+    const next = step(BOTTOM("a"), 0, -1);
+
+    expect(next?.cell.field).toBe("image");
+    expect(next?.col).toBe(-1);
+    expect(next?.row).toEqual(TOP_WITH_IMAGE("a"));
+  });
+
+  test("left out of the number lands on the photo as well", () => {
+    expect(step(TOP_WITH_IMAGE("a"), 0, -1)?.cell.field).toBe("image");
+  });
+
+  test("right out of the photo returns to the half it was entered from", () => {
+    // Entered along the top (the default, and where the number sits): the number.
+    const fromTop = step(TOP_WITH_IMAGE("a"), -1, 1);
+    expect(fromTop?.cell.field).toBe("no");
+    expect(fromTop?.col).toBe(0);
+
+    // Entered by stepping left out of the handle: the handle, on the bottom row.
+    const fromBottom = step(TOP_WITH_IMAGE("a"), -1, 1, { imageFrom: "bottom" });
+    expect(fromBottom?.cell.field).toBe("grip");
+    expect(fromBottom?.col).toBe(0);
+    expect(fromBottom?.row).toEqual(BOTTOM("a"));
+  });
+
+  test("left out of the photo steps up to the row above", () => {
+    // The photo is the leftmost cell of its card, so the step leaves the card the
+    // way it came in: here, back up into the header's last cell.
+    const next = step(TOP_WITH_IMAGE("a"), -1, -1);
+
+    expect(next?.row).toEqual(HEADER);
+    expect(next?.cell.field).toBe("toggle");
+  });
+
+  test("a card without a photo keeps the plain reading order", () => {
+    const next = step(BOTTOM("b"), 0, -1);
+
+    expect(next?.row).toEqual(TOP("b"));
+    expect(next?.cell.field).toBe("x");
+  });
+
+  test("the photo does not disturb the rest of either row", () => {
+    expect(step(TOP_WITH_IMAGE("a"), 0, 1)?.cell.field).toBe("name");
+    expect(step(BOTTOM("a"), 0, 1)?.cell.field).toBe("code");
+    expect(step(BOTTOM("a"), 0, -1)?.cell.field).toBe("image");
+  });
+
+  test("an arrow that ran out of an editor still wraps the ends of the grid", () => {
+    const next = step(HEADER, 0, -1, { wrap: true });
+
+    expect(next?.row).toEqual(BOTTOM("b"));
+    expect(next?.cell.field).toBe("diskon");
   });
 });

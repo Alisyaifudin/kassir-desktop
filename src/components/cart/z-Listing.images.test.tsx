@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, mock, test } from "bun:test";
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { Effect } from "effect";
 import type { Listing } from "~/services/listing";
@@ -256,5 +256,89 @@ describe("the card without a photo", () => {
 
     fireEvent.click(screen.getByTestId("cart-line-thumb-empty"));
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+/** One line taken from the search, with the photo its card draws. */
+async function addCoverLine() {
+  const writes: Line[][] = [];
+  render(<Harness writes={writes} />);
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+  fireEvent.change(search, { target: { value: "899123" } });
+  fireEvent.keyDown(search, { key: "Enter" });
+  await waitFor(() => expect(writes).toHaveLength(1));
+  const line = writes[0]?.[0];
+  if (line === undefined) throw new Error("no line");
+  return line;
+}
+
+function shown(): string[] {
+  return [...document.querySelectorAll('[aria-selected="true"]')].map((cell) => cell.id);
+}
+
+/** Let the card's photo finish loading: its url arrives a tick after the frame. */
+async function settledThumb(): Promise<void> {
+  await act(async () => {});
+}
+
+/**
+ * Walking in and out of the photo with the arrow keys.
+ *
+ * The photo is one box standing beside both rows of its card, and the walk is
+ * otherwise row-major — which used to take a handle-left up to the `x` of the row
+ * above, stepping over the box that is visibly right there, and always handed the
+ * photo back to the number on the way right.
+ */
+describe("walking in and out of the photo", () => {
+  /** Down into the goods, left onto the number, down onto the handle. */
+  function ontoTheHandle(lineId: string) {
+    const grid = screen.getByRole("grid", { name: "Barang yang dijual" });
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    expect(shown()).toEqual([`cell-${lineId}-grip`]);
+    return grid;
+  }
+
+  test("left out of the handle lands on the photo, and right comes back to the handle", async () => {
+    const line = await addCoverLine();
+    const grid = ontoTheHandle(line.id);
+
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(shown()).toEqual([`cell-${line.id}-image`]);
+
+    // Back where it came from: the handle, not the number above it.
+    fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(shown()).toEqual([`cell-${line.id}-grip`]);
+    await settledThumb();
+  });
+
+  test("a photo entered from the top hands back to the number", async () => {
+    const line = await addCoverLine();
+    const grid = screen.getByRole("grid", { name: "Barang yang dijual" });
+
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(shown()).toEqual([`cell-${line.id}-no`]);
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(shown()).toEqual([`cell-${line.id}-image`]);
+
+    fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(shown()).toEqual([`cell-${line.id}-no`]);
+    await settledThumb();
+  });
+
+  test("one more left out of the photo steps up to the row above", async () => {
+    const line = await addCoverLine();
+
+    fireEvent.keyDown(ontoTheHandle(line.id), { key: "ArrowLeft" });
+    fireEvent.keyDown(screen.getByRole("grid", { name: "Barang yang dijual" }), {
+      key: "ArrowLeft",
+    });
+
+    // The photo is the leftmost cell of its card, so the step leaves the card the
+    // way it came in: up into the header's last cell.
+    expect(shown()).toEqual(["cell-header-toggle"]);
+    await settledThumb();
   });
 });
