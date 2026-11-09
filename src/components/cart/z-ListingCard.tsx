@@ -126,6 +126,10 @@ export const ListingCard = memo(function ListingCard({
   });
   const grandTotal = lineGrandTotal(line);
   const discountTotal = lineDiscountTotal(line);
+  // A line has a sheet when the catalogue still knows it — by the product it was
+  // taken from, or, on a cart copied out of a saved record, by its listing alone.
+  // Only `+manual` has neither, and that is the one case with nothing to show.
+  const hasDetail = line.productId != null || line.listingId != null;
 
   return (
     <motion.div
@@ -171,16 +175,16 @@ export const ListingCard = memo(function ListingCard({
               onClick={() => {
                 onSelect("no");
                 // A hand-typed line has no catalogue row to open.
-                if (line.productId != null) onDetail();
+                if (hasDetail) onDetail();
               }}
               title={
-                line.productId == null
-                  ? "Baris manual: tidak ada detail produk"
-                  : "Klik untuk melihat detail produk"
+                hasDetail
+                  ? "Klik untuk melihat detail produk"
+                  : "Baris manual: tidak ada detail produk"
               }
               className={cn(
                 "col-span-1 flex items-center justify-center border-r text-base text-muted-foreground tabular-nums select-none",
-                line.productId != null && "cursor-pointer hover:bg-accent",
+                hasDetail && "cursor-pointer hover:bg-accent",
                 selected === "no" && SELECTED_RING,
               )}
             >

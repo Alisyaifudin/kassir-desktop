@@ -885,6 +885,26 @@ export const ProductLive = Layer.effect(
       );
     }
 
+    /**
+     * The product a listing belongs to. A cart line names the listing it sells
+     * from and nothing more, so the detail sheet asks by listing — one in-memory
+     * lookup over the states `byId` already reads, with no second query.
+     */
+    function byListing(listingId: string): Effect.Effect<ProductFull, ProductError | NotFound> {
+      return ensureLoaded().pipe(
+        Effect.zipRight(SubscriptionRef.get(productsRef)),
+        Effect.flatMap((states) => {
+          const state = states.find((candidate) =>
+            candidate.listings.some((listing) => listing.id === listingId),
+          );
+          if (state === undefined) {
+            return Effect.fail(new NotFound({ message: "Produk tidak ditemukan" }));
+          }
+          return Effect.succeed(toProductFull(state));
+        }),
+      );
+    }
+
     return {
       get: {
         all() {
@@ -894,6 +914,7 @@ export const ProductLive = Layer.effect(
           );
         },
         byId,
+        byListing,
         byCode(value) {
           return ensureLoaded().pipe(
             Effect.zipRight(SubscriptionRef.get(productsRef)),

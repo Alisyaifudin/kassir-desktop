@@ -661,6 +661,59 @@ describe("listing codes and kinds", () => {
 // The service owns that shape: the form hands over the ids it wants and
 // `set.categories` works out which rows to insert and which to tombstone.
 
+describe("reading a product by one of its listings", () => {
+  /**
+   * The cart line names the listing it sells from. A sheet opened on a cart that
+   * was copied back out of a saved record has nothing else to go on — the product
+   * id is UI state the copy never stored — so the product is found through the
+   * listing, when the operator opens the sheet.
+   */
+  test("finds the product a listing belongs to", async () => {
+    const { layer } = setup();
+
+    const found = await run(layer, (product) =>
+      Effect.gen(function* () {
+        yield* product.add(input("Teh"));
+        const id = yield* product.add(input("Kopi"));
+        const listingId = (yield* product.get.byId(id)).listings[0].id;
+        return yield* product.get.byListing(listingId);
+      }),
+    );
+
+    expect(found.name).toBe("Kopi");
+    expect(found.listings).toHaveLength(1);
+  });
+
+  test("a listing nobody owns is not found", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        yield* product.add(input("Kopi"));
+        return yield* Effect.either(product.get.byListing("nope"));
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+    if (outcome._tag === "Left") expect(outcome.left._tag).toBe("NotFound");
+  });
+
+  test("a removed listing takes its product with it", async () => {
+    const { layer } = setup();
+
+    const outcome = await run(layer, (product) =>
+      Effect.gen(function* () {
+        const id = yield* product.add(input("Kopi"));
+        const listingId = (yield* product.get.byId(id)).listings[0].id;
+        yield* product.set.listing.remove(id, listingId);
+        return yield* Effect.either(product.get.byListing(listingId));
+      }),
+    );
+
+    expect(outcome._tag).toBe("Left");
+  });
+});
+
 describe("categories on a product", () => {
   function seedCategory(db: ReturnType<typeof makeTestDatabase>["db"], id: string, name: string) {
     db.query(

@@ -200,6 +200,13 @@ export class ProductService extends Context.Tag("ProductService")<
     get: {
       all: () => Effect.Effect<Product[], ProductError>;
       byId: (id: string) => Effect.Effect<ProductFull, ProductError | NotFound>;
+      /**
+       * The product a listing belongs to. The cart line carries the listing it
+       * sells from (and, for a line that was never restored from the catalogue,
+       * only that), so the number cell's sheet asks by listing — when the sheet
+       * opens, not while the cart is being filled.
+       */
+      byListing: (listingId: string) => Effect.Effect<ProductFull, ProductError | NotFound>;
       byCode: (value: string) => Effect.Effect<Product[], ProductError>;
       unsync: () => Effect.Effect<Product[], ProductError>;
       performance: (

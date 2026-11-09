@@ -33,7 +33,12 @@ import { service } from "~/services";
  * for one product, once, and shows what came back.
  *
  * `listingId` is the listing the cart line holds, marked in the list — "this is
- * the one I am selling" is the first thing the sheet is asked.
+ * the one I am selling" is the first thing the sheet is asked. It is also how the
+ * product is found when the line never learned which product it belongs to: a
+ * cart copied back out of a saved record carries its listing and its snapshot
+ * prices, but no product id (that is UI state, not a column). So the sheet reads
+ * by listing in that case — one in-memory lookup, and only because the operator
+ * asked for the sheet.
  */
 export function ProductDetailDialog({
   open,
@@ -50,13 +55,20 @@ export function ProductDetailDialog({
   // the cart behind it, and Esc belongs to the dialog.
   useInertApp(open);
   // One read of one product. `byId` rather than the catalogue stream: the sheet
-  // is a peek, and the link is where the live screen lives.
+  // is a peek, and the link is where the live screen lives — and `byListing` for
+  // a line that only knows its listing, which is what a copied cart holds. Either
+  // way the read happens when the sheet opens: nothing is fetched while the cart
+  // is being filled.
   const res = useQuery(
     () =>
       Stream.fromEffect(
-        productId === null ? Effect.sync(() => null) : service.product.get.byId(productId),
+        productId !== null
+          ? service.product.get.byId(productId)
+          : listingId !== null
+            ? service.product.get.byListing(listingId)
+            : Effect.sync(() => null),
       ),
-    [productId],
+    [productId, listingId],
   );
   const product = res.type === "success" ? res.data : null;
   // `useQuery` re-runs the moment `productId` changes, but one render still sees
@@ -109,11 +121,7 @@ export function ProductDetailDialog({
               Detail produk tidak bisa dimuat. Produk mungkin sudah dihapus.
             </p>
           ) : shown === null ? (
-            <div className="flex flex-col gap-2">
-              <SkeletonText className="w-40" />
-              <SkeletonText className="w-full" />
-              <SkeletonText className="w-2/3" />
-            </div>
+            <SheetSkeleton />
           ) : (
             <div className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
               <div className="flex min-w-0 flex-col gap-6">
@@ -266,6 +274,74 @@ function Cover({ image }: { image: ProductImage | null }) {
         <Package className="size-4 text-muted-foreground/40" />
       )}
     </span>
+  );
+}
+
+/**
+ * What the sheet draws before its one read answers.
+ *
+ * It is not a corner case: a cart copied out of a saved record carries its
+ * listing and its prices but no product id, so the product is only read once the
+ * operator clicks the number cell — the sheet is a skeleton first, every time,
+ * on exactly the carts this used to draw nothing for. So it stands in the
+ * shipped layout: the same two columns, the same section names, the same card
+ * frames with the row count a real one starts with. Nothing moves when the read
+ * lands, and the headings already say what is on the way.
+ */
+function SheetSkeleton() {
+  return (
+    <div className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="flex min-w-0 flex-col gap-6">
+        <SheetSection title="Listing">
+          <div className="flex flex-col divide-y rounded-md border">
+            {[0, 1].map((row) => (
+              <div key={row} className="flex flex-col gap-1.5 px-3 py-2.5">
+                <SkeletonText className="w-32" />
+                <div className="flex items-center justify-between gap-3">
+                  <SkeletonText className="w-20" />
+                  <SkeletonText className="w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </SheetSection>
+        <SheetSection title="Catatan">
+          <SkeletonText className="w-full" />
+        </SheetSection>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-6">
+        <SheetSection title="Properti">
+          <div className="flex flex-col divide-y rounded-md border text-sm">
+            {[0, 1, 2].map((row) => (
+              <div
+                key={row}
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 px-3 py-2"
+              >
+                <SkeletonText className="w-12" />
+                <SkeletonText className="w-16" />
+              </div>
+            ))}
+          </div>
+        </SheetSection>
+        <SheetSection title="Stok">
+          <div className="flex flex-col divide-y rounded-md border text-sm">
+            {[0, 1].map((row) => (
+              <div key={row} className="flex flex-col gap-0.5 px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <SkeletonText className="w-10" />
+                  <SkeletonText className="w-14" />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <SkeletonText className="w-16" />
+                  <SkeletonText className="w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </SheetSection>
+      </div>
+    </div>
   );
 }
 

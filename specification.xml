@@ -1105,7 +1105,11 @@
       <error name="ProductError" tag="ProductError">Plus ProductDuplicateCode, carrying the code that was already taken.</error>
       <state>One SubscriptionRef of the whole read model; a write re-hydrates the touched rows, and get.changes / changesFull / unsync read from it.</state>
       <interface>
-        <method name="get.all / get.byId / get.byCode / get.unsync / get.performance(id, range) / get.changes / get.changesFull" />
+        <method name="get.all / get.byId / get.byListing / get.byCode / get.unsync / get.performance(id, range) / get.changes / get.changesFull">
+          `get.byListing(listingId)` finds the product a listing belongs to: the cart line names the listing it sells from,
+          and a line copied back out of a saved record carries nothing else (the product id is UI state, never a column), so
+          the cart's detail sheet asks this when it opens. An in-memory lookup over the same ref `get.byId` reads.
+        </method>
         <method name="add(input) => id">One transaction: the product, at least one listing, optional codes, one stock lot and the category links. Values are validated here (no negative price or cost basis from any writer).</method>
         <method name="set.categories(id, categoryIds)">Make the live links exactly this list: insert the new ones, tombstone the dropped ones, one transaction. A list that changes nothing writes nothing (no clock bump, so nothing re-enters the push queue).</method>
         <method name="set.info / set.publish(id, published) / set.listing.{add, update, remove} / set.property.{add, update, remove} / set.productName.{add, update, remove} / set.image.{add, commit, remove, reorder}" />

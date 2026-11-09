@@ -211,9 +211,11 @@ export function Listing({
   const [discountFor, setDiscountFor] = useState<string | null>(null);
   // The product whose detail sheet is up, with the listing the card holds: the
   // sheet marks that one in the list. Captured on open so deleting the line
-  // underneath does not empty a sheet the operator is still reading.
+  // underneath does not empty a sheet the operator is still reading. Either id
+  // can be missing — a copied cart names only its listing — and the sheet reads
+  // whichever one it got.
   const [detailFor, setDetailFor] = useState<{
-    productId: string;
+    productId: string | null;
     listingId: string | null;
   } | null>(null);
   // The photos of the product behind a card, opened from the card's photo with
@@ -928,12 +930,24 @@ export function Listing({
     }
   }
 
-  /** The number cell: the product behind this line, read-only. */
+  /**
+   * The number cell: the product behind this line, read-only.
+   *
+   * The line only has to know which *listing* it holds. A cart copied back out of
+   * a saved record is rebuilt from `record_listings` — listing, name, price,
+   * discounts — and carries no product id, because that is UI state with no
+   * column behind it. Opening used to demand a product id and so did nothing at
+   * all on such a cart. The sheet reads the product from the listing when it
+   * opens (see `ProductDetailDialog`), so the fetch is paid for by the click, not
+   * by the copy. Only a hand-typed line — no listing either — has no sheet.
+   */
   function openDetail(cardId: string) {
     const line = latest.current.lines.find((candidate) => candidate.id === cardId);
-    // A hand-typed line has no catalogue row behind it.
-    if (line === undefined || line.productId == null) return;
-    setDetailFor({ productId: line.productId, listingId: line.listingId ?? null });
+    if (line === undefined) return;
+    const productId = line.productId ?? null;
+    const listingId = line.listingId ?? null;
+    if (productId === null && listingId === null) return;
+    setDetailFor({ productId, listingId });
   }
 
   /**
