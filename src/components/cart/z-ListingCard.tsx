@@ -558,7 +558,7 @@ function QtyCell({
               setQty(line.qty - 1);
             }}
             className={cn(
-              "flex size-7 rounded-none shrink-0 items-center justify-center text-muted-foreground hover:bg-accent",
+              "flex h-7 w-5 rounded-none shrink-0 items-center justify-center text-muted-foreground hover:bg-accent",
               selected && selectedSub === "left" && SELECTED_RING,
             )}
           >
@@ -586,7 +586,7 @@ function QtyCell({
               setQty(line.qty + 1);
             }}
             className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-none text-muted-foreground hover:bg-accent",
+              "flex h-7 w-5 shrink-0 items-center justify-center rounded-none text-muted-foreground hover:bg-accent",
               selected && selectedSub === "right" && SELECTED_RING,
             )}
           >
