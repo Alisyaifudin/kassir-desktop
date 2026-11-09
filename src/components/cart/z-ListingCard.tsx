@@ -19,6 +19,7 @@ import type { Mime } from "~/services/listing";
 import { cn } from "~/lib/utils";
 import { lineDiscountTotal, lineGrandTotal } from "~/lib/purchase";
 import { rupiah } from "~/components/cart/util-rupiah";
+import { listingInitials } from "~/components/cart/listing-initials";
 import type { Line } from "~/components/cart/types";
 import {
   Cell,
@@ -165,7 +166,12 @@ export const ListingCard = memo(function ListingCard({
             cover={cover}
             onView={onViewImages}
           />
-        ) : null}
+        ) : (
+          // No photo: the box is still drawn, with the goods' own initial in it,
+          // so every line's number column starts at the same place whether the
+          // catalogue had a picture or not.
+          <LineThumbEmpty name={line.name} />
+        )}
         <div className="min-w-0 flex-1">
           <div role="row" className="grid grid-cols-12 items-stretch">
             <div
@@ -430,6 +436,30 @@ function LineThumb({
         className="absolute inset-0 flex items-center justify-center bg-foreground/40 opacity-0 transition-opacity group-hover:opacity-100"
       >
         <ZoomIn className="size-5 text-background" />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The same box as `LineThumb`, for a line whose product has no photo: a letter
+ * or two from the goods' name where the picture would be (`listingInitials`).
+ *
+ * Decoration, not a cell — there is no gallery behind it, so it is hidden from
+ * the grid's model (`listing-grid.ts` gives a photo cell only to a card with a
+ * cover) and from assistive tech, which hears the line's name anyway. It keeps
+ * the box, though: the left column of every card is one width, so a cart of
+ * coverless goods still reads as a column rather than a ragged edge.
+ */
+function LineThumbEmpty({ name }: { name: string }) {
+  return (
+    <div
+      data-testid="cart-line-thumb-empty"
+      aria-hidden
+      className="flex w-16 shrink-0 items-center justify-center self-stretch overflow-hidden border-r bg-muted/40"
+    >
+      <span className="text-base font-semibold tracking-wide text-muted-foreground select-none">
+        {listingInitials(name)}
       </span>
     </div>
   );

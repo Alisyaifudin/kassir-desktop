@@ -13,6 +13,10 @@ import type { Line } from "./types";
  * A cart line carries one photo — the cover the search grid showed — so the sheet
  * has to ask for the rest. This is the seam between the two: the click, the read,
  * and the gallery arriving on the frame the card was already drawing.
+ *
+ * The box is drawn either way. Without a photo it holds the goods' own initial
+ * (see `listingInitials`) rather than a grey square, and there is no gallery to
+ * open — a line whose product has no picture is not a line with a missing cell.
  */
 mock.module("~/lib/image", () => ({
   image: {
@@ -36,6 +40,21 @@ const listing: Listing = {
   cover,
   stock: 10,
   productName: "Kopi Susu",
+  altNames: [],
+};
+
+/** The same catalogue with nothing to show for it: no cover on the product. */
+const plain: Listing = {
+  id: "l2",
+  productId: "p2",
+  name: "Teh Manis",
+  price: 5_000,
+  unit: 1,
+  kind: "retail",
+  code: "899124",
+  cover: null,
+  stock: 4,
+  productName: "Teh Manis",
   altNames: [],
 };
 
@@ -86,8 +105,10 @@ mock.module("~/services", () => ({
   service: {
     listing: {
       get: {
-        search: () => Effect.succeed([listing]),
-        all: () => Effect.succeed([listing]),
+        // Both goods, whatever was asked: the pick goes by the exact code the
+        // search bar was given (see `bestResult`).
+        search: () => Effect.succeed([listing, plain]),
+        all: () => Effect.succeed([listing, plain]),
       },
     },
     product: { get: { byId: () => Effect.succeed(product) } },
@@ -202,4 +223,38 @@ describe("the card's photo", () => {
   function selectedCells(): string[] {
     return [...document.querySelectorAll('[aria-selected="true"]')].map((cell) => cell.id);
   }
+});
+
+/** One coverless line, taken from the search like any other. */
+async function addPlainLine() {
+  const writes: Line[][] = [];
+  render(<Harness writes={writes} />);
+  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+  fireEvent.change(search, { target: { value: "899124" } });
+  fireEvent.keyDown(search, { key: "Enter" });
+  await waitFor(() => expect(writes).toHaveLength(1));
+  const line = writes[0]?.[0];
+  if (line === undefined) throw new Error("no line");
+  return line;
+}
+
+describe("the card without a photo", () => {
+  test("keeps the box and puts the goods' initial in it", async () => {
+    await addPlainLine();
+
+    // `Teh Manis` has no picture in the catalogue, and still gets the column
+    // every other line has — `TM`, not a grey square.
+    expect(screen.getByTestId("cart-line-thumb-empty").textContent).toBe("TM");
+  });
+
+  test("has no gallery to open, so it is not a cell either", async () => {
+    const line = await addPlainLine();
+
+    // No photo title to click, and no photo cell for the arrows to land on.
+    expect(screen.queryByTitle("Lihat gambar produk (Enter)")).toBeNull();
+    expect(document.getElementById(`cell-${line.id}-image`)).toBeNull();
+
+    fireEvent.click(screen.getByTestId("cart-line-thumb-empty"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });
