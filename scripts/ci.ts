@@ -24,9 +24,9 @@
  * fails in CI. Anything you cannot run here must not be a gate there.
  *
  * Usage
- *   bun scripts/ci.ts            # everything except e2e  (~2-3 min warm)
+ *   bun scripts/ci.ts            # everything except e2e  (~2-3 min warm) ← not the mirror
  *   bun scripts/ci.ts --fast     # rustfmt + typecheck + lint  (~18 s) ← pre-commit
- *   bun scripts/ci.ts --full     # everything, e2e included  (~4 min)
+ *   bun scripts/ci.ts --full     # everything, e2e included  (~4 min) ← pre-push, what CI runs
  *   bun scripts/ci.ts --only=lint,typecheck   # just these gates
  *   bun scripts/ci.ts --list     # the mapping, gate → workflow step
  *
@@ -169,9 +169,9 @@ if (has("--help") || has("-h")) {
     [
       "bun scripts/ci.ts [--fast|--full] [--verbose] [--list]",
       "",
-      "  (default)   every gate except e2e — the pre-push set",
+      "  (default)   every gate except e2e — the quick set, NOT the mirror",
       "  --fast      rustfmt + typecheck + lint only — the pre-commit set",
-      "  --full      every gate, e2e included — what CI actually runs",
+      "  --full      every gate, e2e included — the pre-push set, and what CI runs",
       "  --only=a,b  run exactly these gates (implied: no tier filtering)",
       "  --verbose   print each gate's output, even when the gate passes",
       "  --list      print gate → workflow-step mapping and exit",
@@ -295,7 +295,7 @@ console.log(
       `${selected.length} gate${selected.length === 1 ? "" : "s"}`,
   ),
 );
-console.log(dim(`mirrors .github/workflows/windows-release.yml · bun scripts/ci.ts --full to include e2e`));
+console.log(dim(`mirrors .github/workflows/windows-release.yml` + (tier === "full" ? "" : " — PARTIAL: this run skips gates the workflow runs")));
 console.log();
 
 for (const [index, row] of phases.entries()) {
@@ -381,25 +381,29 @@ if (advisory.length > 0) {
 }
 
 if (skipped.length > 0) {
+  // Loud on purpose. The quiet version of this line shipped three pushes that
+  // read "all 7 gates green" and went red on GitHub, because the reader (and the
+  // agent summarising it) took the headline and dropped the footnote. A skipped
+  // gate the workflow runs is not a smaller result — it is a different claim.
+  console.log(
+    yellow(`NOT RUN: ${skipped.map((g) => g.id).join(", ")}`) +
+      dim(` — the workflow runs ${skipped.length === 1 ? "it" : "them"} on every push to master`),
+  );
   console.log(
     dim(
-      `not run here: ${skipped.map((g) => g.id).join(", ")} — ` +
-        (tier === "full"
-          ? "none"
-          : tier === "fast"
-            ? "the pre-push set is `bun scripts/ci.ts`; CI also runs these"
-            : "run `bun scripts/ci.ts --full` before a release push"),
+      only
+        ? `   you asked for these gates only. \`bun scripts/ci.ts --full\` is the one that matches CI.`
+        : tier === "fast"
+          ? `   this is the pre-commit set. \`bun scripts/ci.ts --full\` is the one that matches CI.`
+          : `   this is the ${tier} tier, not the mirror. \`bun scripts/ci.ts --full\` is the one that matches CI.`,
     ),
   );
 }
 
 console.log(
-  green(`\nall ${results.length} selected gates green in ${secs(total)}`) +
-    dim(
-      // "safe to push" is a claim about the workflow, and it is only honest when
-      // the selection was the workflow's own blocking set.
-      skipped.length === 0
-        ? " · safe to push"
-        : " · these gates only — the rest are unverified",
-    ),
+  skipped.length === 0
+    ? green(`\nall ${results.length} gates green in ${secs(total)}`) +
+        dim(" · this is the whole workflow — safe to push")
+    : yellow(`\n${results.length} of ${GATES.length} gates green in ${secs(total)}`) +
+        red(` · ${skipped.map((g) => g.id).join(", ")} unverified — green here is NOT green on GitHub`),
 );

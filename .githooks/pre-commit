@@ -3,8 +3,8 @@
 # The cheap half of the CI mirror. ~18 s, and it catches the three failures that
 # do not need a compiler at full speed: rustfmt, tsc, eslint.
 #
-# WIP commits: `git commit --no-verify`. pre-push runs the full blocking set, so
-# skipping here does not skip the gate — it only defers it.
+# WIP commits: `git commit --no-verify`. pre-push runs the whole workflow — e2e
+# included — so skipping here does not skip the gate, it only defers it.
 #
 # Installed by `bun install` (package.json "prepare") via core.hooksPath.
 

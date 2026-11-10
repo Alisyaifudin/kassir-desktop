@@ -1,15 +1,20 @@
 #!/bin/sh
 #
-# The last gate before code leaves the machine. Runs every *blocking* gate the
-# `Publish Windows App` workflow runs, in the same order and with the same flags.
+# The last gate before code leaves the machine. Runs *every* gate the `Publish
+# Windows App` workflow runs, in the same order and with the same flags — e2e
+# included.
 #
-# e2e is deliberately not here: it is the last phase, it needs a browser, and the
-# 20-run history that motivated this hook has zero e2e failures (the harness is
-# solid; the Rust job was the recurring one). Run `bun scripts/ci.ts --full`
-# yourself before a release push — that is the one job you cannot cheaply undo.
+# e2e used to be excluded here, on the reasoning that the 20-run failure history
+# had no e2e failures in it. 2026-11-10 falsified that: three pushes went out
+# with a locally green "all 7 gates" report, and the run went red on a stale
+# Playwright selector (`/Sinkronisasi berjalan manual/`, copy rewritten two
+# commits earlier). Nothing in tsc, eslint, cargo or `bun test` can read a
+# selector — only a browser driving the real app can. A gate that is not in this
+# hook is a gate that only fails in CI, which is the entire reason the hook
+# exists.
 #
-# If a gate here is red, CI will be red. That is the whole point: ~2 minutes now
-# beats a 10-minute Windows build and a red master.
+# It costs ~4 minutes instead of ~1. If that is too much for a WIP branch, push
+# with `git push --no-verify` — and then do not call the result verified.
 
 set -e
 
@@ -18,4 +23,4 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 0
 fi
 
-exec bun scripts/ci.ts
+exec bun scripts/ci.ts --full
