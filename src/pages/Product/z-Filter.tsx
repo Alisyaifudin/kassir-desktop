@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -129,6 +130,10 @@ export function Filter({
       >
         <DialogHeader>
           <DialogTitle className="text-2xl">Filter</DialogTitle>
+          <DialogDescription>
+            Saring katalog per jenis, kategori, status, stok, dan margin. Setiap pilihan langsung
+            berlaku.
+          </DialogDescription>
         </DialogHeader>
 
         {/* The `kind` labels the catalog actually uses. Absent until they arrive,
