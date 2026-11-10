@@ -3052,6 +3052,21 @@ Pull before push. A small backlog is what makes "resend the whole batch" cheap.
 Triggers overlap: the app starts while the timer fires while a sale completes.
 They must not start competing cycles — see §9.11.
 
+**What the desktop client wires today** (Settings → Sinkronisasi → Sinkronisasi
+Otomatis, stored as one `sync.auto` object in `store.json`):
+
+| trigger | how | notes |
+| --- | --- | --- |
+| app start | the master switch, armed once from `main.tsx` | forks a cycle; boot never waits for it |
+| timer | `everyMinutes` ∈ {1, 2, 5, 10} | measured from the **end** of the previous cycle; a tick that lands while any run is in flight is skipped, not queued |
+| local edit | `editGroups` (any subset of the nine groups) | each domain service announces a commit on a `PubSub` (`SyncTrigger`); the scheduler debounces 1.5 s of quiet, then starts one cycle |
+| manual button | Sinkronisasi / Sinkronisasi Ulang | never automatic: `reset` re-uploads the whole local dataset |
+
+A device with no token configured is skipped in silence rather than failing at
+every interval, and a local edit starts a full cycle over all nine groups — the
+edit trigger decides *when*, never *where*. Pulls cannot feed back into the bus:
+a merged page is applied by `sync_merge` in Rust, not by a domain service.
+
 ### 9.11 Cycle serialisation
 
 A group has exactly one bookmark, so **one cycle per group at a time** is part

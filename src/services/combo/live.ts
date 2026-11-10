@@ -15,6 +15,7 @@ import { generateId } from "~/lib/random";
 import { image } from "~/lib/image";
 import { discountsEatLine, recalcDiscounts } from "~/lib/purchase";
 import { log } from "~/lib/log";
+import { notifySync } from "../sync/trigger";
 
 type ComboRow = {
   combo_id: string;
@@ -62,11 +63,7 @@ function dbError(error: DbError): ComboError {
   return new ComboError({ message: error.message });
 }
 
-function rowToCombo(
-  row: ComboRow,
-  components: ComboComponent[],
-  extras: ComboExtra[],
-): Combo {
+function rowToCombo(row: ComboRow, components: ComboComponent[], extras: ComboExtra[]): Combo {
   return {
     id: row.combo_id,
     name: row.combo_name,
@@ -100,13 +97,7 @@ function componentStatement(comboId: string, input: ComboInput["components"]): S
             combo_discount_id, combo_listing_id, combo_discount_value,
             combo_discount_kind, combo_discount_order
           ) VALUES ($1, $2, $3, $4, $5)`,
-        bindings: [
-          generateId(),
-          comboListingId,
-          discount.value,
-          discount.kind,
-          discountOrder,
-        ],
+        bindings: [generateId(), comboListingId, discount.value, discount.kind, discountOrder],
       });
     });
   });
@@ -151,18 +142,19 @@ export const ComboLive = Layer.effect(
           )
           .pipe(Effect.mapError(dbError));
         const componentIds = components.map((row) => row.combo_listing_id);
-        const discounts = componentIds.length === 0
-          ? []
-          : yield* db
-              .selectMany<DiscountRow>(
-                `SELECT combo_discount_id, combo_listing_id, combo_discount_value,
+        const discounts =
+          componentIds.length === 0
+            ? []
+            : yield* db
+                .selectMany<DiscountRow>(
+                  `SELECT combo_discount_id, combo_listing_id, combo_discount_value,
                         combo_discount_kind, combo_discount_order
                  FROM combo_discounts
                  WHERE combo_listing_id IN (${componentIds.map(() => "?").join(", ")})
                  ORDER BY combo_discount_order, combo_discount_id`,
-                componentIds,
-              )
-              .pipe(Effect.mapError(dbError));
+                  componentIds,
+                )
+                .pipe(Effect.mapError(dbError));
         const discountsByComponent = new Map<string, ComboDiscount[]>();
         for (const row of discounts) {
           const list = discountsByComponent.get(row.combo_listing_id) ?? [];
@@ -189,11 +181,19 @@ export const ComboLive = Layer.effect(
         const extrasByCombo = new Map<string, ComboExtra[]>();
         for (const row of extras) {
           const list = extrasByCombo.get(row.combo_id) ?? [];
-          list.push({ id: row.combo_extra_id, extraId: row.extra_id, order: row.combo_extra_order });
+          list.push({
+            id: row.combo_extra_id,
+            extraId: row.extra_id,
+            order: row.combo_extra_order,
+          });
           extrasByCombo.set(row.combo_id, list);
         }
         return rows.map((row) =>
-          rowToCombo(row, componentsByCombo.get(row.combo_id) ?? [], extrasByCombo.get(row.combo_id) ?? []),
+          rowToCombo(
+            row,
+            componentsByCombo.get(row.combo_id) ?? [],
+            extrasByCombo.get(row.combo_id) ?? [],
+          ),
         );
       });
     }
@@ -211,37 +211,62 @@ export const ComboLive = Layer.effect(
     }
 
     function commit(statements: Statement[]) {
-      return db.transaction(statements).pipe(Effect.mapError(dbError));
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(dbError), Effect.zipRight(notifySync("combo")));
     }
 
-    function validate(input: ComboInput, exceptId: string | null): Effect.Effect<string, ComboError> {
+    function validate(
+      input: ComboInput,
+      exceptId: string | null,
+    ): Effect.Effect<string, ComboError> {
       return Effect.gen(function* () {
         const name = input.name.trim();
-        if (name === "") return yield* Effect.fail(new ComboError({ message: "Nama combo harus diisi." }));
+        if (name === "")
+          return yield* Effect.fail(new ComboError({ message: "Nama combo harus diisi." }));
         if (input.components.length === 0) {
           return yield* Effect.fail(new ComboError({ message: "Tambahkan minimal satu listing." }));
         }
-        if (input.components.some((component) => !Number.isInteger(component.quantity) || component.quantity < 1)) {
-          return yield* Effect.fail(new ComboError({ message: "Jumlah listing harus bilangan bulat minimal 1." }));
+        if (
+          input.components.some(
+            (component) => !Number.isInteger(component.quantity) || component.quantity < 1,
+          )
+        ) {
+          return yield* Effect.fail(
+            new ComboError({ message: "Jumlah listing harus bilangan bulat minimal 1." }),
+          );
         }
-        if (new Set(input.components.map((component) => component.listingId)).size !== input.components.length) {
-          return yield* Effect.fail(new ComboError({ message: "Listing yang sama tidak boleh ditambahkan dua kali." }));
+        if (
+          new Set(input.components.map((component) => component.listingId)).size !==
+          input.components.length
+        ) {
+          return yield* Effect.fail(
+            new ComboError({ message: "Listing yang sama tidak boleh ditambahkan dua kali." }),
+          );
         }
         for (const component of input.components) {
           for (const discount of component.discounts) {
             if (!DISCOUNT_KINDS.includes(discount.kind)) {
-              return yield* Effect.fail(new ComboError({ message: "Jenis diskon combo tidak dikenal." }));
+              return yield* Effect.fail(
+                new ComboError({ message: "Jenis diskon combo tidak dikenal." }),
+              );
             }
             if (!Number.isFinite(discount.value) || discount.value < 0) {
-              return yield* Effect.fail(new ComboError({ message: "Nilai diskon combo tidak valid." }));
+              return yield* Effect.fail(
+                new ComboError({ message: "Nilai diskon combo tidak valid." }),
+              );
             }
             if (discount.kind === "percent" && discount.value > 100) {
-              return yield* Effect.fail(new ComboError({ message: "Diskon persen maksimal 100%." }));
+              return yield* Effect.fail(
+                new ComboError({ message: "Diskon persen maksimal 100%." }),
+              );
             }
           }
         }
         if (new Set(input.extraIds).size !== input.extraIds.length) {
-          return yield* Effect.fail(new ComboError({ message: "Tambahan yang sama tidak boleh dipilih dua kali." }));
+          return yield* Effect.fail(
+            new ComboError({ message: "Tambahan yang sama tidak boleh dipilih dua kali." }),
+          );
         }
         const duplicate = yield* db
           .selectMany<{ combo_id: string }>(
@@ -295,7 +320,9 @@ export const ComboLive = Layer.effect(
             .pipe(Effect.mapError(dbError));
           if (liveExtras.length !== input.extraIds.length) {
             return yield* Effect.fail(
-              new ComboError({ message: "Satu atau lebih biaya atau potongan sudah tidak tersedia." }),
+              new ComboError({
+                message: "Satu atau lebih biaya atau potongan sudah tidak tersedia.",
+              }),
             );
           }
         }
@@ -345,7 +372,9 @@ export const ComboLive = Layer.effect(
           return Effect.gen(function* () {
             yield* ensureLoaded();
             const name = yield* validate(input, id);
-            const previous = (yield* SubscriptionRef.get(combosRef)).find((combo) => combo.id === id);
+            const previous = (yield* SubscriptionRef.get(combosRef)).find(
+              (combo) => combo.id === id,
+            );
             if (previous === undefined) {
               return yield* Effect.fail(new ComboError({ message: "Combo tidak ditemukan." }));
             }
@@ -394,11 +423,13 @@ export const ComboLive = Layer.effect(
             ]);
             yield* hydrate();
             if (previous.cover !== null && previous.cover.name !== input.cover?.name) {
-              yield* image.del(previous.cover.name).pipe(
-                Effect.catchAll((error) =>
-                  Effect.sync(() => log.error(`combo cover delete failed: ${error.e.message}`)),
-                ),
-              );
+              yield* image
+                .del(previous.cover.name)
+                .pipe(
+                  Effect.catchAll((error) =>
+                    Effect.sync(() => log.error(`combo cover delete failed: ${error.e.message}`)),
+                  ),
+                );
             }
           });
         },
@@ -407,7 +438,9 @@ export const ComboLive = Layer.effect(
         byId(id) {
           return Effect.gen(function* () {
             yield* ensureLoaded();
-            const previous = (yield* SubscriptionRef.get(combosRef)).find((combo) => combo.id === id);
+            const previous = (yield* SubscriptionRef.get(combosRef)).find(
+              (combo) => combo.id === id,
+            );
             if (previous === undefined) {
               return yield* Effect.fail(new ComboError({ message: "Combo tidak ditemukan." }));
             }
@@ -426,11 +459,13 @@ export const ComboLive = Layer.effect(
             ]);
             yield* hydrate();
             if (previous.cover !== null) {
-              yield* image.del(previous.cover.name).pipe(
-                Effect.catchAll((error) =>
-                  Effect.sync(() => log.error(`combo cover delete failed: ${error.e.message}`)),
-                ),
-              );
+              yield* image
+                .del(previous.cover.name)
+                .pipe(
+                  Effect.catchAll((error) =>
+                    Effect.sync(() => log.error(`combo cover delete failed: ${error.e.message}`)),
+                  ),
+                );
             }
           });
         },

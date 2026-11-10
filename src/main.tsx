@@ -31,6 +31,15 @@ async function boot() {
     log.error(formatError(error));
   }
 
+  // Auto-sync arming is the one boot step that is *not* awaited: it reads the
+  // schedule out of the store and forks the timers, and a slow disk must never
+  // hold the first paint (a sync is a background task anyway). Its refusal is a
+  // log line, not a blocked app — Settings reports the same failure where it can
+  // be retried.
+  void Effect.runPromise(service.sync.auto.arm()).catch((error: unknown) => {
+    log.error(formatError(error));
+  });
+
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <RouterProvider router={router} />,
   );

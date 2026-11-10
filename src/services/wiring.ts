@@ -37,6 +37,7 @@ import { SocialService } from "./social";
 import { SocialLive } from "./social/live";
 import { SyncService } from "./sync";
 import { SyncLive } from "./sync/live";
+import { SyncTriggerLive } from "./sync/trigger";
 import { SyncTransportLive } from "./sync/transport";
 import { StoreService } from "./store";
 import { StoreLive } from "./store/live";
@@ -96,6 +97,7 @@ export function buildAppLive(hidden: HiddenLive) {
   const syncLive = SyncLive.pipe(
     Layer.provide(hidden),
     Layer.provide(SyncTransportLive),
+    Layer.provide(SyncTriggerLive),
     Layer.provide(
       Layer.mergeAll(
         productLive,

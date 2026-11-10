@@ -2,6 +2,7 @@ import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import { CustomerError, CustomerService, type Customer, type CustomerInput } from ".";
 import { type Binding, type DbError, DatabaseService } from "../db";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type CustomerRow = {
   customer_id: string;
@@ -51,12 +52,10 @@ export const CustomerLive = Layer.effect(
     let loaded = false;
 
     function loadAll(): Effect.Effect<CustomerState[], CustomerError> {
-      return db
-        .selectMany<CustomerRow>(SELECT_ALL)
-        .pipe(
-          Effect.mapError(dbErrorToCustomerError),
-          Effect.map((rows) => sortByName(rows.map(rowToCustomerState))),
-        );
+      return db.selectMany<CustomerRow>(SELECT_ALL).pipe(
+        Effect.mapError(dbErrorToCustomerError),
+        Effect.map((rows) => sortByName(rows.map(rowToCustomerState))),
+      );
     }
 
     function hydrate(): Effect.Effect<void, CustomerError> {
@@ -75,7 +74,11 @@ export const CustomerLive = Layer.effect(
     }
 
     function mutate(query: string, bindings: Binding[]): Effect.Effect<void, CustomerError> {
-      return db.execute(query, bindings).pipe(Effect.mapError(dbErrorToCustomerError));
+      // Every customer write goes through here — the one place the auto-sync
+      // triggers can hear about it (`notifySync`).
+      return db
+        .execute(query, bindings)
+        .pipe(Effect.mapError(dbErrorToCustomerError), Effect.zipRight(notifySync("customer")));
     }
 
     return {

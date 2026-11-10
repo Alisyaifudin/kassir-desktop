@@ -9,7 +9,7 @@
  * statement that would not run in the app fails here.
  */
 import { describe, expect, test } from "bun:test";
-import { Effect, Fiber, Layer, Option, Stream } from "effect";
+import { Context, Effect, Fiber, Layer, Option, PubSub, Stream } from "effect";
 import { makeTestDatabase } from "../db/test-support";
 import { CustomerService } from "../customer";
 import { CustomerLive } from "../customer/live";
@@ -23,7 +23,14 @@ import { RecordLive } from "../record/live";
 import { SocialLive } from "../social/live";
 import { makeTestStore } from "../store/test-support";
 import { SupplierLive } from "../supplier/live";
-import { SYNC_GROUPS, SyncService, type SyncReport, type SyncState } from ".";
+import {
+  SYNC_GROUPS,
+  SyncService,
+  type AutoSyncState,
+  type SyncGroup,
+  type SyncReport,
+  type SyncState,
+} from ".";
 import { SyncLive } from "./live";
 import { decide, decideAggregate, sameAggregate } from "./merge";
 import { parsePullFrame } from "./frames";
@@ -37,6 +44,7 @@ import {
   type WireRow,
 } from "./schema";
 import { SyncTransportService, TransportError, type SyncTransport } from "./transport";
+import { SyncTriggerService, triggerOf } from "./trigger";
 import type { LineStream } from "./stream";
 
 // ============================================================================
@@ -113,7 +121,10 @@ class FakeServer {
       if (decision === "stale") {
         return { s: "stale", seq: this.seqOf(entity, id), row: stored, ch: storedChildren };
       }
-      return { s: "applied", seq: this.store({ entity, row, children: ch ?? emptyChildren(group) }) };
+      return {
+        s: "applied",
+        seq: this.store({ entity, row, children: ch ?? emptyChildren(group) }),
+      };
     }
 
     const decision = decide(def, stored, row);
@@ -344,9 +355,7 @@ function setup(
     },
     pull(_endpoint, input) {
       try {
-        return lineStream(
-          server.pull(input.group, input.after, input.limit, input.count === true),
-        );
+        return lineStream(server.pull(input.group, input.after, input.limit, input.count === true));
       } catch (error) {
         return failedStream(error);
       }
@@ -438,12 +447,17 @@ function setup(
   const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
   const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
   const transportLayer = Layer.succeed(SyncTransportService, transport);
+  // The local-write bus, held here so a test can publish a write and assert the
+  // cycle it started (``auto` sync`, below).
+  const bus = Effect.runSync(PubSub.unbounded<SyncGroup>());
+  const triggerLayer = Layer.succeed(SyncTriggerService, triggerOf(bus));
   const appLayer = SyncLive.pipe(
     Layer.provide(
       Layer.mergeAll(
         dbLayer,
         storeLayer,
         transportLayer,
+        triggerLayer,
         moneyLayer,
         customerLayer,
         supplierLayer,
@@ -458,7 +472,7 @@ function setup(
     ),
   );
 
-  return { db, dbLayer, entries, storeLayer, server, merges, layer: appLayer };
+  return { db, dbLayer, entries, storeLayer, server, merges, bus, layer: appLayer };
 }
 
 function runSync(
@@ -480,7 +494,10 @@ function insertRow(db: Db, entity: string, values: Record<string, unknown>): voi
   const def = TABLES[entity];
   if (def === undefined) throw new Error(`unknown entity ${entity}`);
   const columns = [...def.columns, def.syncAt];
-  const bindings = [...def.columns.map((column) => values[column] ?? null), values["syncAt"] ?? null];
+  const bindings = [
+    ...def.columns.map((column) => values[column] ?? null),
+    values["syncAt"] ?? null,
+  ];
   db.query(
     `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
   ).run(...(bindings as (string | number | null)[]));
@@ -496,19 +513,15 @@ function childOfKey(key: string) {
 }
 
 /** Inserts an aggregate child; the parent key is inherited, never a wire column. */
-function insertChild(
-  db: Db,
-  key: string,
-  parentId: string,
-  values: Record<string, unknown>,
-): void {
+function insertChild(db: Db, key: string, parentId: string, values: Record<string, unknown>): void {
   const child = childOfKey(key);
   // A `via: "listing"` child names its link row itself; only a direct child
   // inherits the aggregate key from the helper.
   const columns = child.via === "parent" ? [child.parent, ...child.columns] : [...child.columns];
-  const bindings = child.via === "parent"
-    ? [parentId, ...child.columns.map((column) => values[column] ?? null)]
-    : child.columns.map((column) => values[column] ?? null);
+  const bindings =
+    child.via === "parent"
+      ? [parentId, ...child.columns.map((column) => values[column] ?? null)]
+      : child.columns.map((column) => values[column] ?? null);
   db.query(
     `INSERT INTO ${child.table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
   ).run(...(bindings as (string | number | null)[]));
@@ -693,7 +706,16 @@ describe("the merge rules", () => {
       record_listings: [...(ch["record_listings"] ?? [])].reverse(),
       record_methods: [...(ch["record_methods"] ?? [])].reverse(),
     };
-    expect(sameAggregate(def, children, recordHeader("r_01", 10), ch, recordHeader("r_01", 10), reversed)).toBe(true);
+    expect(
+      sameAggregate(
+        def,
+        children,
+        recordHeader("r_01", 10),
+        ch,
+        recordHeader("r_01", 10),
+        reversed,
+      ),
+    ).toBe(true);
     expect(
       decideAggregate(def, children, recordHeader("r_01", 10), ch, recordHeader("r_01", 11), ch),
     ).toBe("applied");
@@ -724,9 +746,7 @@ describe("frame parsing", () => {
         r: { money_id: "m_01" },
       }),
     ).toBeNull();
-    expect(
-      parsePullFrame("customer", { t: "row", s: 2, e: "nope", r: {} }),
-    ).toBeNull();
+    expect(parsePullFrame("customer", { t: "row", s: 2, e: "nope", r: {} })).toBeNull();
   });
 
   test("a record sent as a bare row is a protocol error, not a silent skip", () => {
@@ -871,9 +891,9 @@ describe("sync cycle", () => {
     const second = setup(server);
     await runSync(second.layer);
 
-    expect(second.db.query("SELECT category_name, category_sync_at FROM categories").all()).toEqual([
-      { category_name: "Minuman", category_sync_at: 2 },
-    ]);
+    expect(second.db.query("SELECT category_name, category_sync_at FROM categories").all()).toEqual(
+      [{ category_name: "Minuman", category_sync_at: 2 }],
+    );
     expect(
       second.db
         .query("SELECT product_id, category_id, product_category_sync_at FROM product_category")
@@ -971,10 +991,7 @@ describe("sync cycle", () => {
 
     // Only the product and its link go up; the category waits for a full cycle.
     await runProductSync(first.layer, "P1");
-    expect(server.changes.map((change) => change.entity)).toEqual([
-      "product",
-      "product_category",
-    ]);
+    expect(server.changes.map((change) => change.entity)).toEqual(["product", "product_category"]);
 
     // The other till pulls the scope without ever seeing a category.
     const second = setup(server);
@@ -982,9 +999,7 @@ describe("sync cycle", () => {
     expect(pulled.pulled).toBe(2);
     expect(second.db.query("SELECT COUNT(*) AS n FROM categories").get()).toEqual({ n: 0 });
     expect(
-      second.db
-        .query("SELECT category_id, product_category_sync_at FROM product_category")
-        .all(),
+      second.db.query("SELECT category_id, product_category_sync_at FROM product_category").all(),
     ).toEqual([{ category_id: "C1", product_category_sync_at: 2 }]);
 
     // The full cycle finally supplies the category: the stored link was already
@@ -994,9 +1009,7 @@ describe("sync cycle", () => {
     expect(second.db.query("SELECT category_name FROM categories").all()).toEqual([
       { category_name: "Minuman" },
     ]);
-    expect(
-      second.db.query("SELECT COUNT(*) AS n FROM product_category").get(),
-    ).toEqual({ n: 1 });
+    expect(second.db.query("SELECT COUNT(*) AS n FROM product_category").get()).toEqual({ n: 1 });
   });
 
   test("two tills ticking the same box keep both link rows", async () => {
@@ -1133,9 +1146,7 @@ describe("sync cycle", () => {
       first.db.query("SELECT property_key FROM properties ORDER BY property_id").all(),
     ).toEqual([{ property_key: "origin" }, { property_key: "origin" }]);
     expect(
-      first.db
-        .query("SELECT product_name_value FROM product_names ORDER BY product_name_id")
-        .all(),
+      first.db.query("SELECT product_name_value FROM product_names ORDER BY product_name_id").all(),
     ).toEqual([{ product_name_value: "Kopi Susu" }, { product_name_value: "Kopi Susu" }]);
   });
 
@@ -1179,23 +1190,26 @@ describe("sync cycle", () => {
       syncAt: 500,
     });
     device.server.push(
-      `${JSON.stringify({ e: "pocket", r: wireRow("pocket", {
-        pocket_id: "p_02",
-        pocket_name: "Bank",
-        pocket_type: "absolute",
-        pocket_ordering: 2,
-        pocket_updated_at: 1_000,
-        pocket_deleted_at: null,
-      }) })}\n`,
+      `${JSON.stringify({
+        e: "pocket",
+        r: wireRow("pocket", {
+          pocket_id: "p_02",
+          pocket_name: "Bank",
+          pocket_type: "absolute",
+          pocket_ordering: 2,
+          pocket_updated_at: 1_000,
+          pocket_deleted_at: null,
+        }),
+      })}\n`,
     );
 
     await runSync(device.layer);
 
     // Nothing was deleted; the refused row was kept and re-uploaded, and the
     // server's own pocket was pulled.
-    const names = device.db
-      .query("SELECT pocket_name FROM pockets ORDER BY pocket_name")
-      .all() as { pocket_name: string }[];
+    const names = device.db.query("SELECT pocket_name FROM pockets ORDER BY pocket_name").all() as {
+      pocket_name: string;
+    }[];
     expect(names.map((row) => row.pocket_name)).toEqual(["Bank", "Kas"]);
     // The table is authoritative now; the legacy store key is never read again.
     expect(
@@ -1206,9 +1220,7 @@ describe("sync cycle", () => {
   test("a 410 re-seeds from the floor, never from zero", async () => {
     const device = setup();
     // Two server changes, then the floor moves past the device's bookmark.
-    device.server.push(
-      `${JSON.stringify({ e: "customer", r: customer("c_01", "Ani", 1_000) })}\n`,
-    );
+    device.server.push(`${JSON.stringify({ e: "customer", r: customer("c_01", "Ani", 1_000) })}\n`);
     device.server.push(
       `${JSON.stringify({ e: "customer", r: customer("c_02", "Budi", 1_000) })}\n`,
     );
@@ -1267,20 +1279,24 @@ describe("sync cycle", () => {
 
     await runSync(device.layer);
     expect(device.db.query("SELECT money_id FROM money").all()).toEqual([]);
-    const parked = device.db
-      .query("SELECT money_id, seq FROM sync_parked_money")
-      .all() as { money_id: string; seq: number }[];
+    const parked = device.db.query("SELECT money_id, seq FROM sync_parked_money").all() as {
+      money_id: string;
+      seq: number;
+    }[];
     expect(parked).toEqual([{ money_id: "m_09", seq: 1 }]);
 
     device.server.push(
-      `${JSON.stringify({ e: "pocket", r: wireRow("pocket", {
-        pocket_id: "p_01",
-        pocket_name: "Kas",
-        pocket_type: "absolute",
-        pocket_ordering: 1,
-        pocket_updated_at: 1_000,
-        pocket_deleted_at: null,
-      }) })}\n`,
+      `${JSON.stringify({
+        e: "pocket",
+        r: wireRow("pocket", {
+          pocket_id: "p_01",
+          pocket_name: "Kas",
+          pocket_type: "absolute",
+          pocket_ordering: 1,
+          pocket_updated_at: 1_000,
+          pocket_deleted_at: null,
+        }),
+      })}\n`,
     );
     await runSync(device.layer);
 
@@ -1424,9 +1440,9 @@ describe("product stock projection", () => {
       .flat()
       .map((statement) => statement.sql);
     expect(sql.some((text) => text.includes("INSERT INTO stocks"))).toBe(false);
-    expect(
-      second.db.query("SELECT stock_value, stock_capital FROM stocks").all(),
-    ).toEqual([{ stock_value: 10, stock_capital: 5_000 }]);
+    expect(second.db.query("SELECT stock_value, stock_capital FROM stocks").all()).toEqual([
+      { stock_value: 10, stock_capital: 5_000 },
+    ]);
   });
 
   test("an event that carries no cost does not erase the lot's cost", async () => {
@@ -1730,20 +1746,16 @@ describe("local state", () => {
     // applied. The ack is skipped, the row stays dirty, and the next run pushes
     // the newer version.
     let edited = false;
-    const device = setup(
-      new FakeServer(),
-      {},
-      () => {
-        // Every push is answered by a fresh local edit, so every ack is stale by
-        // the time it is applied and the row never takes a marker.
-        edited = true;
-        device.db
-          .query(
-            "UPDATE customers SET customer_name = 'Budi', customer_updated_at = max(?, customer_updated_at + 1), customer_sync_at = NULL WHERE customer_id = 'c_01'",
-          )
-          .run(Date.now());
-      },
-    );
+    const device = setup(new FakeServer(), {}, () => {
+      // Every push is answered by a fresh local edit, so every ack is stale by
+      // the time it is applied and the row never takes a marker.
+      edited = true;
+      device.db
+        .query(
+          "UPDATE customers SET customer_name = 'Budi', customer_updated_at = max(?, customer_updated_at + 1), customer_sync_at = NULL WHERE customer_id = 'c_01'",
+        )
+        .run(Date.now());
+    });
     insertRow(device.db, "customer", {
       customer_id: "c_01",
       customer_name: "Ani",
@@ -1754,8 +1766,14 @@ describe("local state", () => {
     await runSync(device.layer);
 
     const row = device.db
-      .query("SELECT customer_name, customer_updated_at, customer_sync_at FROM customers WHERE customer_id = 'c_01'")
-      .get() as { customer_name: string; customer_updated_at: number; customer_sync_at: number | null };
+      .query(
+        "SELECT customer_name, customer_updated_at, customer_sync_at FROM customers WHERE customer_id = 'c_01'",
+      )
+      .get() as {
+      customer_name: string;
+      customer_updated_at: number;
+      customer_sync_at: number | null;
+    };
     // The local edit survived, and it is still owed to the server: no ack was
     // applied to a row that changed after it was sent.
     expect(edited).toBe(true);
@@ -2203,7 +2221,9 @@ describe("one-product sync", () => {
     for (const table of ["products", "listings", "product_events"]) {
       expect(
         first.db
-          .query(`SELECT COUNT(*) AS n FROM ${table} WHERE product_id = 'P1' AND ${table.slice(0, -1)}_sync_at IS NULL`)
+          .query(
+            `SELECT COUNT(*) AS n FROM ${table} WHERE product_id = 'P1' AND ${table.slice(0, -1)}_sync_at IS NULL`,
+          )
           .get(),
       ).toEqual({ n: 0 });
     }
@@ -2277,4 +2297,183 @@ describe("one-product sync", () => {
       reader.db.query("SELECT product_name FROM products WHERE product_id = 'P1'").get(),
     ).toEqual({ product_name: "Server Name" });
   });
+});
+
+// ============================================================================
+// Automatic sync (§9.10)
+//
+// The scheduler lives inside the service, so these drive it the way the app does
+// — `arm` once at boot, then let the triggers arrive — and assert on the runs it
+// produced rather than on the fibers it forked. Everything happens inside **one**
+// provided effect: a layer is built per `runPromise`, so a scenario spread across
+// several calls would get a fresh service each time and no scheduler at all.
+// ============================================================================
+
+type Sync = Context.Tag.Service<typeof SyncService>;
+
+/** The run state as a subscriber sees it (a `SubscriptionRef` replays the current value). */
+function readState(sync: Sync): Effect.Effect<SyncState> {
+  return Stream.runHead(sync.state).pipe(Effect.map((head) => Option.getOrThrow(head)));
+}
+
+/** Polls the state until `done` holds, or dies after `timeoutMs`. */
+function until(
+  sync: Sync,
+  done: (state: SyncState) => boolean,
+  timeoutMs = 8_000,
+): Effect.Effect<SyncState> {
+  return Effect.gen(function* () {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const state = yield* readState(sync);
+      if (done(state)) return state;
+      yield* Effect.sleep("50 millis");
+    }
+    return yield* Effect.die(new Error("auto sync: timed out waiting for a state"));
+  });
+}
+
+/** Polls the schedule until `done` holds — for a deadline a fiber sets, not a state. */
+function untilAuto(
+  sync: Sync,
+  done: (state: AutoSyncState) => boolean,
+  timeoutMs = 8_000,
+): Effect.Effect<AutoSyncState> {
+  return Effect.gen(function* () {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const state = yield* sync.auto.get();
+      if (done(state)) return state;
+      yield* Effect.sleep("50 millis");
+    }
+    return yield* Effect.die(new Error("auto sync: timed out waiting for a schedule"));
+  });
+}
+
+describe("automatic sync", () => {
+  test("the master switch runs a cycle on open and schedules the next one", async () => {
+    const device = setup(new FakeServer(), {
+      "sync.auto": { enabled: true, interval: true, everyMinutes: 5, editGroups: [] },
+    });
+
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        // A till that was closed overnight: the switch alone has to catch it up.
+        yield* sync.auto.arm();
+        const finished = yield* until(sync, (state) => state.status === "done");
+        // The timer arms its deadline from the end of that cycle, which is a
+        // quarter-second poll after the state said "done".
+        const auto = yield* untilAuto(sync, (state) => state.nextAt !== null);
+        return { finished, auto };
+      }).pipe(Effect.provide(device.layer)),
+    );
+
+    expect(outcome.finished.report).not.toBeNull();
+    expect(outcome.auto.auto.enabled).toBe(true);
+    // The deadline is one interval from the end of that cycle, not from boot: a
+    // slow connection must not make the next run arrive early.
+    expect(outcome.auto.nextAt).not.toBeNull();
+    const wait = outcome.auto.nextAt! - outcome.finished.finishedAt!;
+    expect(wait).toBeGreaterThan(4 * 60_000);
+    expect(wait).toBeLessThanOrEqual(5 * 60_000 + 2_000);
+  }, 15_000);
+
+  test("a write in an enabled group starts a cycle", async () => {
+    const device = setup(new FakeServer(), {
+      "sync.auto": { enabled: true, interval: false, everyMinutes: 5, editGroups: ["customer"] },
+    });
+
+    const runs = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        yield* sync.auto.arm();
+        const first = yield* until(sync, (state) => state.status === "done");
+        // Exactly what `customer/live.ts` does after a commit.
+        yield* PubSub.publish(device.bus, "customer");
+        const second = yield* until(
+          sync,
+          (state) => state.status === "done" && (state.startedAt ?? 0) > (first.startedAt ?? 0),
+        );
+        return { first, second };
+      }).pipe(Effect.provide(device.layer)),
+    );
+
+    expect(runs.second.startedAt!).toBeGreaterThan(runs.first.startedAt!);
+  }, 15_000);
+
+  test("a write in a group that is switched off starts nothing", async () => {
+    const device = setup(new FakeServer(), {
+      "sync.auto": { enabled: true, interval: false, everyMinutes: 5, editGroups: [] },
+    });
+
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        yield* sync.auto.arm();
+        const first = yield* until(sync, (state) => state.status === "done");
+        yield* PubSub.publish(device.bus, "customer");
+        // Longer than the debounce window, so a cycle would already be running.
+        yield* Effect.sleep("2500 millis");
+        return { first, after: yield* readState(sync) };
+      }).pipe(Effect.provide(device.layer)),
+    );
+
+    expect(outcome.after.status).toBe("done");
+    expect(outcome.after.startedAt).toBe(outcome.first.startedAt);
+  }, 15_000);
+
+  test("nothing runs automatically without a token", async () => {
+    const server = new FakeServer();
+    const device = setup(server, {
+      "sync.token": "",
+      "sync.auto": { enabled: true, interval: false, everyMinutes: 5, editGroups: ["customer"] },
+    });
+
+    const state = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        yield* sync.auto.arm();
+        yield* PubSub.publish(device.bus, "customer");
+        yield* Effect.sleep("2500 millis");
+        return yield* readState(sync);
+      }).pipe(Effect.provide(device.layer)),
+    );
+
+    // Silent, not a red pill every interval: an unconfigured till is Settings'
+    // problem, and that screen already says so next to the buttons.
+    expect(state.status).toBe("idle");
+    expect(state.finishedAt).toBeNull();
+    expect(server.pulls).toHaveLength(0);
+  }, 15_000);
+
+  test("the switch saves to the store and re-arms the timer", async () => {
+    const device = setup(new FakeServer(), {});
+
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const sync = yield* SyncService;
+        yield* sync.auto.arm();
+        const before = yield* sync.auto.get();
+        // What the panel does when a dot is picked.
+        const after = yield* sync.auto.set({ enabled: true, everyMinutes: 1 });
+        // Switching it on runs a cycle immediately, and the interval only starts
+        // once that run is done — so the deadline is what has to be waited for.
+        const stored = yield* untilAuto(sync, (state) => state.nextAt !== null);
+        return { before, after, stored };
+      }).pipe(Effect.provide(device.layer)),
+    );
+
+    // Off by default: the schedule is opt-in.
+    expect(outcome.before.auto.enabled).toBe(false);
+    expect(outcome.after.auto).toEqual({
+      enabled: true,
+      interval: true,
+      everyMinutes: 1,
+      editGroups: SYNC_GROUPS.slice(),
+    });
+    // Written through, so a restart resumes the same schedule.
+    expect(device.entries.get("sync.auto")).toEqual(outcome.stored.auto);
+    expect(outcome.stored.nextAt).not.toBeNull();
+  }, 15_000);
 });

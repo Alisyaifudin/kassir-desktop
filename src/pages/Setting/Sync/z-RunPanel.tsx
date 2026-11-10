@@ -69,11 +69,12 @@ export function RunPanel({ configured }: { configured: boolean }) {
       ) : null}
       <TextError>{state.error}</TextError>
       <p className="text-xs text-muted-foreground">
-        Sinkronisasi berjalan manual: unduh perubahan, simpan sekaligus, lalu unggah — untuk kas,
-        pelanggan, pemasok, metode pembayaran, media sosial, biaya tambahan, produk dan stok,
-        paket combo, serta catatan transaksi. Sinkronisasi Ulang mengosongkan posisi unduh dan mengirim ulang seluruh
-        data lokal — gunakan hanya bila data terlihat tidak cocok dengan server, atau sekali setelah
-        pembaruan ke sinkronisasi baru.
+        Satu putaran penuh: unduh perubahan, simpan sekaligus, lalu unggah — untuk kas, pelanggan,
+        pemasok, metode pembayaran, media sosial, biaya tambahan, produk dan stok, paket combo,
+        serta catatan transaksi. Sinkronisasi Ulang mengosongkan posisi unduh dan mengirim ulang
+        seluruh data lokal — gunakan hanya bila data terlihat tidak cocok dengan server, atau sekali
+        setelah pembaruan ke sinkronisasi baru. Untuk sinkronisasi berkala, atur di panel
+        Sinkronisasi Otomatis di bawah.
       </p>
     </div>
   );

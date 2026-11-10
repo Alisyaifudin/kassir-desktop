@@ -381,6 +381,123 @@ export type SyncReport = {
 
 export type SyncMode = "sync" | "reset";
 
+/**
+ * The intervals the Sinkronisasi Otomatis panel offers, in the order it draws
+ * them.
+ *
+ * A short list rather than a free number: "every 7 minutes" is a choice nobody
+ * can reason about, and the four stops cover the two real postures — a busy shop
+ * (1–2) and a quiet one (5–10). The slider is drawn with one dot per stop, so the
+ * list is also what the control can express.
+ */
+export const AUTO_INTERVALS = [1, 2, 5, 10] as const;
+
+export type AutoInterval = (typeof AUTO_INTERVALS)[number];
+
+/**
+ * When the app syncs without being asked (`SYNC-V2.md` §9.10).
+ *
+ * Two kinds of trigger, and they answer different questions: `everyMinutes` is
+ * "how fresh do I want this till", `editGroups` is "this edit should leave now".
+ * Both are gated by `enabled`, and both go through the same single-flight gate,
+ * so a burst of edits is one extra cycle (§9.11), not one per edit.
+ */
+export type AutoSync = {
+  /** The master switch: a cycle when the app opens, plus everything below. */
+  enabled: boolean;
+  /**
+   * Whether the timer runs at all.
+   *
+   * A flag of its own rather than `everyMinutes: 0`: a shop that turns the timer
+   * off for an afternoon should find its interval where it left it, not reset to
+   * the default.
+   */
+  interval: boolean;
+  /** Minutes between cycles. */
+  everyMinutes: AutoInterval;
+  /**
+   * Groups whose local writes start a cycle. Order follows `SYNC_GROUPS`, and a
+   * name this build does not know is dropped.
+   *
+   * Empty is off, not "everything": a shop that wants the timer only says so by
+   * turning every row off.
+   */
+  editGroups: SyncGroup[];
+};
+
+/**
+ * The switch is off by default, and the sub-switches are set up ready for it: an
+ * operator who turns on "Sinkronkan otomatis" gets a working configuration on
+ * that one click instead of a page of things to arrange first.
+ */
+export const AUTO_DEFAULT: AutoSync = {
+  enabled: false,
+  interval: true,
+  everyMinutes: 5,
+  editGroups: [...SYNC_GROUPS],
+};
+
+/** The stored value, or the defaults when there is none to trust. */
+function parseInterval(value: unknown): AutoInterval {
+  // Zero and negatives are not stops: they are a file that says nothing useful
+  // (`0` was "off" before `interval` existed), so they get the default rather
+  // than being snapped up to one minute.
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return AUTO_DEFAULT.everyMinutes;
+  }
+  // Snap to the nearest stop rather than reject: a build that grows a new stop
+  // and one that does not must still agree on something runnable.
+  return AUTO_INTERVALS.reduce((best: AutoInterval, stop) =>
+    Math.abs(stop - value) < Math.abs(best - value) ? stop : best,
+  );
+}
+
+/**
+ * A stored `AutoSync`, clamped to something the scheduler can run.
+ *
+ * Same posture as `normalizeMarginEstimate`: anything the store may hold — a
+ * partial object from an older build, a string, a group name from a build with
+ * more groups — costs the operator their setting at worst, never the app its
+ * scheduler. A missing or malformed `editGroups` means "all", because that is
+ * what `AUTO_DEFAULT` says and a switch that silently moved would be worse.
+ */
+export function normalizeAuto(value: unknown): AutoSync {
+  if (typeof value !== "object" || value === null) return AUTO_DEFAULT;
+  const stored = value as {
+    enabled?: unknown;
+    interval?: unknown;
+    everyMinutes?: unknown;
+    editGroups?: unknown;
+  };
+  const groups: readonly unknown[] = Array.isArray(stored.editGroups)
+    ? stored.editGroups
+    : AUTO_DEFAULT.editGroups;
+  // A value written before `interval` existed carried `everyMinutes: 0` for off.
+  const legacyOff = stored.interval === undefined && stored.everyMinutes === 0;
+  return {
+    enabled: stored.enabled === true,
+    interval: stored.interval === undefined ? !legacyOff : stored.interval !== false,
+    everyMinutes: parseInterval(stored.everyMinutes),
+    // Filtered through `SYNC_GROUPS` so the order is canonical and a name from
+    // another build cannot reach the scheduler.
+    editGroups: SYNC_GROUPS.filter((group) => groups.includes(group)),
+  };
+}
+
+/**
+ * What the Sinkronisasi Otomatis panel draws: the stored configuration and when
+ * the next timer cycle is due.
+ *
+ * `nextAt` is the service's, not the panel's: a countdown has to survive leaving
+ * the screen, and one computed in a component would restart at every mount.
+ * `null` when no cycle is scheduled — switched off, interval off, or a run is
+ * already in flight and the wait for it is what comes next.
+ */
+export type AutoSyncState = { auto: AutoSync; nextAt: number | null };
+
+/** The value a fresh subscription sees, before the store has been read. */
+export const AUTO_IDLE: AutoSyncState = { auto: AUTO_DEFAULT, nextAt: null };
+
 export class SyncService extends Context.Tag("SyncService")<
   SyncService,
   {
@@ -451,5 +568,26 @@ export class SyncService extends Context.Tag("SyncService")<
      * spinner and the toast. A `busy` `SyncError` means another sync was active.
      */
     syncProduct: (productId: string) => Effect.Effect<OneProductReport, SyncError>;
+    /**
+     * When this device syncs on its own (§9.10).
+     *
+     * `get`/`changes` are the panel's read side; `set` takes a patch and applies
+     * it immediately — the switches save on click, like the Perbesaran row, so
+     * there is no form to lose half of.
+     */
+    auto: {
+      get: () => Effect.Effect<AutoSyncState>;
+      set: (patch: Partial<AutoSync>) => Effect.Effect<AutoSyncState, SyncError>;
+      changes: Stream.Stream<AutoSyncState>;
+      /**
+       * Starts the timers. Idempotent, and the app calls it once at boot.
+       *
+       * Separate from layer construction because that must stay synchronous
+       * (`Effect.runSync`) while this reads the store — and because "arm the
+       * scheduler" is a decision the boot sequence makes, not a side effect of
+       * asking for the service.
+       */
+      arm: () => Effect.Effect<void>;
+    };
   }
 >() {}

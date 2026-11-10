@@ -23,12 +23,8 @@ import { type DbError, type Statement, DatabaseService } from "../db";
 import { NotFound } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
 import { validateProductInput } from "./validate-input";
-import {
-  adjustStatements,
-  consumeStatements,
-  receiveStatements,
-  type StockLot,
-} from "./stock-sql";
+import { notifySync } from "../sync/trigger";
+import { adjustStatements, consumeStatements, receiveStatements, type StockLot } from "./stock-sql";
 
 type ProductRow = {
   product_id: string;
@@ -323,16 +319,7 @@ function listingInsert(
         listing_id, product_id, listing_name, listing_price, listing_unit, listing_kind,
         listing_code, listing_updated_at, listing_sync_at, listing_deleted_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NULL)`,
-    bindings: [
-      listingId,
-      productId,
-      input.name,
-      input.price,
-      input.unit,
-      input.kind,
-      code,
-      now,
-    ],
+    bindings: [listingId, productId, input.name, input.price, input.unit, input.kind, code, now],
   };
 }
 
@@ -562,10 +549,7 @@ export const ProductLive = Layer.effect(
             ids,
           ),
           db.selectMany<ImageRow>(`${SELECT_IMAGES} AND product_id IN (${inList})`, ids),
-          db.selectMany<StockRow>(
-            `${SELECT_STOCKS} WHERE product_id IN (${inList})`,
-            ids,
-          ),
+          db.selectMany<StockRow>(`${SELECT_STOCKS} WHERE product_id IN (${inList})`, ids),
           db.selectMany<ProductCategoryRow>(
             `${SELECT_PRODUCT_CATEGORIES} AND product_id IN (${inList})`,
             ids,
@@ -691,10 +675,7 @@ export const ProductLive = Layer.effect(
 
     function sameProductName(a: ProductName, b: ProductName): boolean {
       return (
-        a.id === b.id &&
-        a.value === b.value &&
-        a.updatedAt === b.updatedAt &&
-        a.syncAt === b.syncAt
+        a.id === b.id && a.value === b.value && a.updatedAt === b.updatedAt && a.syncAt === b.syncAt
       );
     }
 
@@ -824,7 +805,13 @@ export const ProductLive = Layer.effect(
     }
 
     function commit(statements: Statement[]): Effect.Effect<void, ProductError> {
-      return db.transaction(statements).pipe(Effect.mapError(dbErrorToProductError));
+      // Every mutation of this service goes through here, so this is also the one
+      // place the auto-sync triggers can hear about it (`notifySync`) — a screen
+      // added later cannot forget to announce its write. The announcement waits
+      // for the commit: a failed write must not start a cycle about itself.
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(dbErrorToProductError), Effect.zipRight(notifySync("product")));
     }
 
     /**
@@ -841,16 +828,17 @@ export const ProductLive = Layer.effect(
       query: string,
       bindings: (string | number | null)[],
     ): Effect.Effect<boolean, ProductError> {
-      return db
-        .selectMany<{ id: string }>(query, bindings)
-        .pipe(
-          Effect.mapError(dbErrorToProductError),
-          Effect.map((rows) => rows.length > 0),
-        );
+      return db.selectMany<{ id: string }>(query, bindings).pipe(
+        Effect.mapError(dbErrorToProductError),
+        Effect.map((rows) => rows.length > 0),
+      );
     }
 
     /** Is `code` on another live listing? `exceptId` is the row being edited. */
-    function codeTaken(code: string, exceptId: string | null): Effect.Effect<boolean, ProductError> {
+    function codeTaken(
+      code: string,
+      exceptId: string | null,
+    ): Effect.Effect<boolean, ProductError> {
       return taken(SELECT_LISTING_BY_CODE, [code, exceptId]);
     }
 
@@ -923,8 +911,7 @@ export const ProductLive = Layer.effect(
                 .filter((state) =>
                   state.listings.some(
                     (listing) =>
-                      listing.code !== null &&
-                      listing.code.toLowerCase() === value.toLowerCase(),
+                      listing.code !== null && listing.code.toLowerCase() === value.toLowerCase(),
                   ),
                 )
                 .map(toProduct),
@@ -952,17 +939,11 @@ export const ProductLive = Layer.effect(
           });
         },
         changes: Stream.unwrap(
-          ensureLoaded().pipe(
-            Effect.as(
-              productsRef.changes.pipe(Stream.map(toProducts)),
-            ),
-          ),
+          ensureLoaded().pipe(Effect.as(productsRef.changes.pipe(Stream.map(toProducts)))),
         ),
         changesFull: Stream.unwrap(
           ensureLoaded().pipe(
-            Effect.as(
-              productsRef.changes.pipe(Stream.map((states) => states.map(toProductFull))),
-            ),
+            Effect.as(productsRef.changes.pipe(Stream.map((states) => states.map(toProductFull)))),
           ),
         ),
       },
@@ -1015,7 +996,7 @@ export const ProductLive = Layer.effect(
             statements.push(categoryLinkInsert(productId, categoryId, now));
           }
 
-          yield* db.transaction(statements).pipe(Effect.mapError(dbErrorToProductError));
+          yield* commit(statements);
           yield* hydrateMany([productId]);
           return productId;
         });
@@ -1149,9 +1130,7 @@ export const ProductLive = Layer.effect(
 
               const propertyId = generateId();
               const now = Date.now();
-              yield* commit([
-                propertyInsert(productId, propertyId, input, now),
-              ]);
+              yield* commit([propertyInsert(productId, propertyId, input, now)]);
               yield* hydrateMany([productId]);
               return propertyId;
             });
@@ -1204,9 +1183,7 @@ export const ProductLive = Layer.effect(
 
               const productNameId = generateId();
               const now = Date.now();
-              yield* commit([
-                productNameInsert(productId, productNameId, input, now),
-              ]);
+              yield* commit([productNameInsert(productId, productNameId, input, now)]);
               yield* hydrateMany([productId]);
               return productNameId;
             });

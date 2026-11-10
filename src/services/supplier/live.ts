@@ -2,6 +2,7 @@ import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import { SupplierError, SupplierService, type Supplier, type SupplierInput } from ".";
 import { type Binding, type DbError, DatabaseService } from "../db";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type SupplierRow = {
   supplier_id: string;
@@ -51,12 +52,10 @@ export const SupplierLive = Layer.effect(
     let loaded = false;
 
     function loadAll(): Effect.Effect<SupplierState[], SupplierError> {
-      return db
-        .selectMany<SupplierRow>(SELECT_ALL)
-        .pipe(
-          Effect.mapError(dbErrorToSupplierError),
-          Effect.map((rows) => sortByName(rows.map(rowToSupplierState))),
-        );
+      return db.selectMany<SupplierRow>(SELECT_ALL).pipe(
+        Effect.mapError(dbErrorToSupplierError),
+        Effect.map((rows) => sortByName(rows.map(rowToSupplierState))),
+      );
     }
 
     function hydrate(): Effect.Effect<void, SupplierError> {
@@ -75,7 +74,11 @@ export const SupplierLive = Layer.effect(
     }
 
     function mutate(query: string, bindings: Binding[]): Effect.Effect<void, SupplierError> {
-      return db.execute(query, bindings).pipe(Effect.mapError(dbErrorToSupplierError));
+      // Every supplier write goes through here — the one place the auto-sync
+      // triggers can hear about it (`notifySync`).
+      return db
+        .execute(query, bindings)
+        .pipe(Effect.mapError(dbErrorToSupplierError), Effect.zipRight(notifySync("supplier")));
     }
 
     return {
@@ -89,9 +92,7 @@ export const SupplierLive = Layer.effect(
         unsync() {
           return ensureLoaded().pipe(
             Effect.zipRight(SubscriptionRef.get(suppliersRef)),
-            Effect.map((suppliers) =>
-              suppliers.filter((s) => s.syncAt === null).map(toSupplier),
-            ),
+            Effect.map((suppliers) => suppliers.filter((s) => s.syncAt === null).map(toSupplier)),
           );
         },
         // Hydrates on first subscribe (so `useStream` stays in `init` until the

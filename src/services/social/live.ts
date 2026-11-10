@@ -2,6 +2,7 @@ import { Effect, Layer, Stream, SubscriptionRef } from "effect";
 import { SocialError, SocialService, type Social, type SocialInput } from ".";
 import { DatabaseService, type DbError } from "../db";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type SocialRow = {
   social_id: string;
@@ -46,9 +47,10 @@ export const SocialLive = Layer.effect(
     let loaded = false;
 
     function load(): Effect.Effect<Social[], SocialError> {
-      return db
-        .selectMany<SocialRow>(SELECT_SOCIALS)
-        .pipe(Effect.mapError(dbErrorToSocialError), Effect.map((rows) => rows.map(rowToSocial)));
+      return db.selectMany<SocialRow>(SELECT_SOCIALS).pipe(
+        Effect.mapError(dbErrorToSocialError),
+        Effect.map((rows) => rows.map(rowToSocial)),
+      );
     }
 
     function hydrate(): Effect.Effect<void, SocialError> {
@@ -67,7 +69,9 @@ export const SocialLive = Layer.effect(
     }
 
     function commit(statements: { sql: string; bindings: (string | number | null)[] }[]) {
-      return db.transaction(statements).pipe(Effect.mapError(dbErrorToSocialError));
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(dbErrorToSocialError), Effect.zipRight(notifySync("social")));
     }
 
     return {

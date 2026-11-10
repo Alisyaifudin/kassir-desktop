@@ -3,6 +3,7 @@ import { ExtraError, ExtraService, type Extra, type ExtraInput } from ".";
 import type { ValueKind } from "~/lib/constants";
 import { DatabaseService, type DbError } from "../db";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type ExtraRow = {
   extra_id: string;
@@ -62,9 +63,10 @@ export const ExtraLive = Layer.effect(
     let loaded = false;
 
     function load(): Effect.Effect<Extra[], ExtraError> {
-      return db
-        .selectMany<ExtraRow>(SELECT_EXTRAS)
-        .pipe(Effect.mapError(dbErrorToExtraError), Effect.map((rows) => rows.map(rowToExtra)));
+      return db.selectMany<ExtraRow>(SELECT_EXTRAS).pipe(
+        Effect.mapError(dbErrorToExtraError),
+        Effect.map((rows) => rows.map(rowToExtra)),
+      );
     }
 
     function hydrate(): Effect.Effect<void, ExtraError> {
@@ -101,7 +103,9 @@ export const ExtraLive = Layer.effect(
     }
 
     function commit(statements: { sql: string; bindings: (string | number | null)[] }[]) {
-      return db.transaction(statements).pipe(Effect.mapError(dbErrorToExtraError));
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(dbErrorToExtraError), Effect.zipRight(notifySync("extra")));
     }
 
     return {

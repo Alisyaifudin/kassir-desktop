@@ -11,6 +11,7 @@ import {
 import { DatabaseService, type DbError, type Statement } from "../db";
 import { DuplicateError } from "~/lib/effect-error";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type SummaryRow = {
   pocket_id: string;
@@ -99,8 +100,7 @@ const SELECT_DUPLICATE = `
 const SELECT_POCKET_OF_ENTRY =
   "SELECT pocket_id FROM money WHERE money_id = $1 AND money_deleted_at IS NULL";
 
-const COUNT_POCKETS =
-  "SELECT COUNT(*) AS count FROM pockets WHERE pocket_deleted_at IS NULL";
+const COUNT_POCKETS = "SELECT COUNT(*) AS count FROM pockets WHERE pocket_deleted_at IS NULL";
 
 function dbErrorToMoneyError(error: DbError): MoneyError {
   return new MoneyError({ message: error.message });
@@ -162,9 +162,10 @@ export const MoneyLive = Layer.effect(
     let loaded = false;
 
     function load(): Effect.Effect<PocketSummary[], MoneyError> {
-      return db
-        .selectMany<SummaryRow>(SELECT_SUMMARY)
-        .pipe(Effect.mapError(dbErrorToMoneyError), Effect.map((rows) => rows.map(rowToSummary)));
+      return db.selectMany<SummaryRow>(SELECT_SUMMARY).pipe(
+        Effect.mapError(dbErrorToMoneyError),
+        Effect.map((rows) => rows.map(rowToSummary)),
+      );
     }
 
     function hydrate(): Effect.Effect<void, MoneyError> {
@@ -183,7 +184,9 @@ export const MoneyLive = Layer.effect(
     }
 
     function commit(statements: Statement[]): Effect.Effect<void, MoneyError> {
-      return db.transaction(statements).pipe(Effect.mapError(dbErrorToMoneyError));
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(dbErrorToMoneyError), Effect.zipRight(notifySync("money")));
     }
 
     function bumpRevision(): Effect.Effect<void> {
@@ -250,12 +253,10 @@ export const MoneyLive = Layer.effect(
           return Effect.gen(function* () {
             const id = generateId();
             const now = Date.now();
-            const count = yield* db
-              .selectMany<{ count: number }>(COUNT_POCKETS)
-              .pipe(
-                Effect.mapError(dbErrorToMoneyError),
-                Effect.map((rows) => rows[0]?.count ?? 0),
-              );
+            const count = yield* db.selectMany<{ count: number }>(COUNT_POCKETS).pipe(
+              Effect.mapError(dbErrorToMoneyError),
+              Effect.map((rows) => rows[0]?.count ?? 0),
+            );
             yield* commit([
               {
                 sql: `INSERT INTO pockets (
@@ -266,7 +267,15 @@ export const MoneyLive = Layer.effect(
               },
             ]);
             yield* notePocket({
-              pocket: { id, name, type, ordering: count, updatedAt: now, syncAt: null, deletedAt: null },
+              pocket: {
+                id,
+                name,
+                type,
+                ordering: count,
+                updatedAt: now,
+                syncAt: null,
+                deletedAt: null,
+              },
               latest: null,
             });
             return id;
@@ -368,9 +377,10 @@ export const MoneyLive = Layer.effect(
       entries: {
         get: {
           byRange(pocketId, start, end) {
-            return db
-              .selectMany<EntryRow>(SELECT_ENTRIES_BY_RANGE, [pocketId, start, end])
-              .pipe(Effect.mapError(dbErrorToMoneyError), Effect.map((rows) => rows.map(rowToEntry)));
+            return db.selectMany<EntryRow>(SELECT_ENTRIES_BY_RANGE, [pocketId, start, end]).pipe(
+              Effect.mapError(dbErrorToMoneyError),
+              Effect.map((rows) => rows.map(rowToEntry)),
+            );
           },
           all(pocketId) {
             return db.selectMany<EntryRow>(SELECT_ENTRIES, [pocketId]).pipe(

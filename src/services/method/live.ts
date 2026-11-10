@@ -11,6 +11,7 @@ import { DEFAULTABLE_KINDS, type DefaultableKind, type MethodKind } from "~/lib/
 import { DatabaseService } from "../db";
 import { StoreService } from "../store";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type MethodRow = {
   method_id: string;
@@ -57,9 +58,10 @@ export const MethodLive = Layer.effect(
     }
 
     function loadMethods(): Effect.Effect<Method[], MethodError> {
-      return db
-        .selectMany<MethodRow>(SELECT_METHODS)
-        .pipe(Effect.mapError(toMethodError), Effect.map((rows) => rows.map(rowToMethod)));
+      return db.selectMany<MethodRow>(SELECT_METHODS).pipe(
+        Effect.mapError(toMethodError),
+        Effect.map((rows) => rows.map(rowToMethod)),
+      );
     }
 
     function loadDefaults(): Effect.Effect<MethodDefaults, MethodError> {
@@ -117,7 +119,11 @@ export const MethodLive = Layer.effect(
     }
 
     function commit(statements: { sql: string; bindings: (string | number | null)[] }[]) {
-      return db.transaction(statements).pipe(Effect.mapError(toMethodError));
+      // The one place a local method write passes — see `notifySync` in
+      // `../sync/trigger` for why the announcement lives here.
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(toMethodError), Effect.zipRight(notifySync("method")));
     }
 
     const snapshots = Stream.unwrap(ensureLoaded().pipe(Effect.as(ref.changes)));
@@ -166,9 +172,8 @@ export const MethodLive = Layer.effect(
         },
         default(kind, id) {
           return Effect.gen(function* () {
-            yield* (id === null
-              ? store.remove(DEFAULT_KEY(kind))
-              : store.set(DEFAULT_KEY(kind), id)
+            yield* (
+              id === null ? store.remove(DEFAULT_KEY(kind)) : store.set(DEFAULT_KEY(kind), id)
             ).pipe(Effect.mapError(toMethodError));
             yield* SubscriptionRef.update(ref, (catalog) => {
               const defaults = { ...catalog.defaults };

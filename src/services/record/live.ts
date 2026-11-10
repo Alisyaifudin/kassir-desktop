@@ -41,6 +41,7 @@ import { generateId } from "~/lib/random";
 import { roundMoney } from "~/lib/purchase";
 import { allocateCapital } from "./capital";
 import { validateRecordLine } from "./validate-line";
+import { notifySync } from "../sync/trigger";
 
 type SummaryRow = {
   mode: RecordMode;
@@ -855,7 +856,16 @@ export const RecordLive = Layer.effect(
     }
 
     function commit(statements: Statement[]): Effect.Effect<void, RecordError> {
-      return db.transaction(statements).pipe(Effect.mapError(dbErrorToRecordError));
+      // A record commit writes `product_events` too (the stock movement of every
+      // line), and that table belongs to the **product** group — so one sale is an
+      // announcement for both groups. Saying only "record" would make a sale
+      // invisible to a till whose product trigger is the one that is on.
+      return db
+        .transaction(statements)
+        .pipe(
+          Effect.mapError(dbErrorToRecordError),
+          Effect.zipRight(Effect.zipRight(notifySync("record"), notifySync("product"))),
+        );
     }
 
     function refreshProducts(): Effect.Effect<void, RecordError> {

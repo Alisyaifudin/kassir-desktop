@@ -8,6 +8,7 @@ import {
 } from ".";
 import { DatabaseService, type DbError } from "../db";
 import { generateId } from "~/lib/random";
+import { notifySync } from "../sync/trigger";
 
 type CategoryRow = {
   category_id: string;
@@ -75,12 +76,10 @@ export const CategoryLive = Layer.effect(
     let loaded = false;
 
     function load(): Effect.Effect<Category[], CategoryError> {
-      return db
-        .selectMany<CategoryRow>(SELECT_CATEGORIES)
-        .pipe(
-          Effect.mapError(dbErrorToCategoryError),
-          Effect.map((rows) => rows.map(rowToCategory)),
-        );
+      return db.selectMany<CategoryRow>(SELECT_CATEGORIES).pipe(
+        Effect.mapError(dbErrorToCategoryError),
+        Effect.map((rows) => rows.map(rowToCategory)),
+      );
     }
 
     function hydrate(): Effect.Effect<void, CategoryError> {
@@ -129,16 +128,19 @@ export const CategoryLive = Layer.effect(
       name: string,
       exceptId: string | null,
     ): Effect.Effect<boolean, CategoryError> {
-      return db
-        .selectMany<{ category_id: string }>(SELECT_CATEGORY_BY_NAME, [name, exceptId])
-        .pipe(
-          Effect.mapError(dbErrorToCategoryError),
-          Effect.map((rows) => rows.length > 0),
-        );
+      return db.selectMany<{ category_id: string }>(SELECT_CATEGORY_BY_NAME, [name, exceptId]).pipe(
+        Effect.mapError(dbErrorToCategoryError),
+        Effect.map((rows) => rows.length > 0),
+      );
     }
 
     function commit(statements: { sql: string; bindings: (string | number | null)[] }[]) {
-      return db.transaction(statements).pipe(Effect.mapError(dbErrorToCategoryError));
+      // Categories travel in the **product** group (they are part of the same
+      // catalogue page), so a rename here is a product edit as far as sync is
+      // concerned.
+      return db
+        .transaction(statements)
+        .pipe(Effect.mapError(dbErrorToCategoryError), Effect.zipRight(notifySync("product")));
     }
 
     return {
@@ -155,17 +157,15 @@ export const CategoryLive = Layer.effect(
 
           const id = generateId();
           const now = Date.now();
-          yield* db
-            .transaction([
-              {
-                sql: `INSERT INTO categories (
+          yield* commit([
+            {
+              sql: `INSERT INTO categories (
                     category_id, category_name, category_updated_at, category_sync_at,
                     category_deleted_at
                   ) VALUES ($1, $2, $3, NULL, NULL)`,
-                bindings: [id, input.name, now],
-              },
-            ])
-            .pipe(Effect.mapError(dbErrorToCategoryError));
+              bindings: [id, input.name, now],
+            },
+          ]);
           yield* refreshCategory(id);
           return id;
         });
@@ -177,18 +177,16 @@ export const CategoryLive = Layer.effect(
             if (taken) return yield* Effect.fail(new CategoryDuplicateName({ value: name }));
 
             const now = Date.now();
-            yield* db
-              .transaction([
-                {
-                  sql: `UPDATE categories SET
+            yield* commit([
+              {
+                sql: `UPDATE categories SET
                       category_name = $1,
                       category_updated_at = max($2, category_updated_at + 1),
                       category_sync_at = NULL
                     WHERE category_id = $3`,
-                  bindings: [name, now, id],
-                },
-              ])
-              .pipe(Effect.mapError(dbErrorToCategoryError));
+                bindings: [name, now, id],
+              },
+            ]);
             yield* refreshCategory(id);
           });
         },

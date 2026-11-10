@@ -37,7 +37,7 @@
  * streaming commands stop their socket in Rust (`sync_cancel`), so the HTTP
  * request really stops rather than draining in the background.
  */
-import { Effect, Fiber, Layer, Ref, SubscriptionRef } from "effect";
+import { Effect, Fiber, Layer, Ref, Stream, SubscriptionRef } from "effect";
 import { log } from "~/lib/log";
 import { DatabaseService } from "../db";
 import { CategoryService } from "../category";
@@ -58,7 +58,10 @@ import {
   SYNC_LOG_LIMIT,
   SyncError,
   SyncService,
+  AUTO_IDLE,
   idleTransfer,
+  normalizeAuto,
+  type AutoSyncState,
   type GroupReport,
   type GroupState,
   type GroupTransfer,
@@ -68,6 +71,7 @@ import {
   type SyncLogEntry,
   type SyncMode,
   type SyncReport,
+  type SyncStart,
   type SyncState,
   type SyncStatus,
   type TransferSide,
@@ -81,17 +85,14 @@ import {
   type PullPage,
 } from "./merge";
 import { countImageBlobs, fetchImageBlobs, uploadImageBlobs, type BlobTick } from "./blob";
-import {
-  countComboCoverBlobs,
-  fetchComboCoverBlobs,
-  uploadComboCoverBlobs,
-} from "./combo-cover";
+import { countComboCoverBlobs, fetchComboCoverBlobs, uploadComboCoverBlobs } from "./combo-cover";
 import { syncOneProduct } from "./one-product";
 import { pullPageWithRetry, toSyncError } from "./pull";
 import { countUnsynced, push } from "./push";
 import { GROUPS, type WireRow } from "./schema";
 import { bookmarkStatement, forgetUploadedBlobsStatement, markAllUnsyncedStatements } from "./sql";
 import { SyncTransportService, type Endpoint } from "./transport";
+import { SyncTriggerService } from "./trigger";
 
 /**
  * A group's bookmark (§2.2). One row per group — never one per table — and the
@@ -117,6 +118,24 @@ const KEY_TOKEN = "sync.token";
  * sync token, and the value Settings shows when someone has to report a problem.
  */
 const KEY_DEVICE_ID = "sync.device_id";
+
+/**
+ * When this device syncs on its own (§9.10), as one stored object.
+ *
+ * One key rather than three: the switches are one policy, and a partially
+ * written policy is a state the scheduler would have to interpret.
+ */
+const AUTO_KEY = "sync.auto";
+
+/**
+ * How long a burst of local writes must be quiet before it starts a cycle.
+ *
+ * One save in the UI is often several commits, and the operator is still on the
+ * form between them; waiting for the quiet means the cycle carries the finished
+ * edit instead of its first half. Longer than a save, far shorter than the
+ * shortest interval.
+ */
+const AUTO_DEBOUNCE_MS = 1_500;
 
 /**
  * How often a running state may be painted.
@@ -291,6 +310,9 @@ export const SyncLive = Layer.effect(
     const db = yield* DatabaseService;
     const store = yield* StoreService;
     const transport = yield* SyncTransportService;
+    // The bus the domain services announce local writes on. A dependency rather
+    // than an optional read: the scheduler is useless without it, so a missing
+    // bus should fail the build instead of silently disabling a feature.
     const money = yield* MoneyService;
     const customer = yield* CustomerService;
     const supplier = yield* SupplierService;
@@ -301,6 +323,7 @@ export const SyncLive = Layer.effect(
     const combo = yield* ComboService;
     const product = yield* ProductService;
     const record = yield* RecordService;
+    const trigger = yield* SyncTriggerService;
 
     const stateRef = yield* SubscriptionRef.make<SyncState>(SYNC_IDLE);
     /**
@@ -819,12 +842,10 @@ export const SyncLive = Layer.effect(
                      AND (p.product_deleted_at IS NOT NULL OR g.category_deleted_at IS NOT NULL)) AS total`
             : null;
       if (query === null) return Effect.succeed(0);
-      return db
-        .selectMany<{ total: number }>(query)
-        .pipe(
-          Effect.map((rows) => rows[0]?.total ?? 0),
-          Effect.orElseSucceed(() => 0),
-        );
+      return db.selectMany<{ total: number }>(query).pipe(
+        Effect.map((rows) => rows[0]?.total ?? 0),
+        Effect.orElseSucceed(() => 0),
+      );
     }
 
     /**
@@ -856,7 +877,10 @@ export const SyncLive = Layer.effect(
      * and being clamped upward it could never come back down — a denominator that
      * grew the longer the sync ran.
      */
-    function groupCycle(group: SyncGroup, endpoint: Endpoint): Effect.Effect<GroupReport, SyncError> {
+    function groupCycle(
+      group: SyncGroup,
+      endpoint: Endpoint,
+    ): Effect.Effect<GroupReport, SyncError> {
       return Effect.gen(function* () {
         let parked = yield* readParked(group);
         let pulled = 0;
@@ -994,7 +1018,7 @@ export const SyncLive = Layer.effect(
                     },
                   ]);
                 };
-                const report = yield* (movesImages
+                const report = yield* movesImages
                   ? fetchImageBlobs({
                       db,
                       transport,
@@ -1008,7 +1032,7 @@ export const SyncLive = Layer.effect(
                       endpoint,
                       ...(passes === undefined ? {} : { maxPasses: passes }),
                       onProgress,
-                    }));
+                    });
                 moved.imagesDown += passBytes;
                 imagesDown += report.fetched + report.adopted;
               });
@@ -1294,9 +1318,9 @@ export const SyncLive = Layer.effect(
               },
             ]);
           };
-          const uploads = yield* (movesImages
+          const uploads = yield* movesImages
             ? uploadImageBlobs({ db, transport, endpoint, onProgress })
-            : uploadComboCoverBlobs({ db, transport, endpoint, onProgress }));
+            : uploadComboCoverBlobs({ db, transport, endpoint, onProgress });
           imagesUp += uploads.uploaded;
           moved.imagesUp += passBytes;
         }
@@ -1432,9 +1456,7 @@ export const SyncLive = Layer.effect(
             // The failure is a line in the log as well as the bar's caption: the
             // log is what an operator reads after the fact, and a group that
             // stopped says where.
-            pushLog([
-              { kind: "note", at: Date.now(), group, text: error.message, level: "error" },
-            ]);
+            pushLog([{ kind: "note", at: Date.now(), group, text: error.message, level: "error" }]);
             publishGroupNow(group, {
               phase: "failed",
               message: error.message,
@@ -1578,6 +1600,201 @@ export const SyncLive = Layer.effect(
       );
     }
 
+    /**
+     * Starts the loop as a background task — the one door every trigger uses:
+     * the button, the auto-sync timer and the edit triggers all end up here, so
+     * they share one gate and one `rerun` flag (§9.11).
+     */
+    function startRun(mode: SyncMode): Effect.Effect<SyncStart> {
+      return Effect.gen(function* () {
+        // A scoped product sync is foreground and has no loop to consume
+        // `rerun`; refuse a full run rather than queue a phantom extra pass.
+        if (yield* Ref.get(scopedBusy)) return "already-running" as const;
+
+        // Atomic claim: two callers that both saw "not busy" must not both fork.
+        const free = yield* Ref.modify(busy, (current): readonly [boolean, boolean] =>
+          current ? [false, current] : [true, true],
+        );
+        if (!free) {
+          // One cycle per group at a time: coalesce the request into one more
+          // pass of the running loop (§9.11).
+          yield* Ref.set(rerun, true);
+          return "already-running" as const;
+        }
+
+        // A daemon, not a child of the caller: the run must outlive the fiber
+        // that asked for it (a screen that unmounts, a dialog that closes).
+        yield* loop(mode).pipe(Effect.ensuring(Ref.set(busy, false)), Effect.forkDaemon);
+        return "started" as const;
+      }).pipe(
+        // Between the claim and the fork there is no fiber to inherit the
+        // release, so an interrupt here would leave the gate shut for the rest
+        // of the session — every later `start` answering `already-running`.
+        Effect.onInterrupt(() => Ref.set(busy, false)),
+      );
+    }
+
+    // ------------------------------------------------------------------------
+    // Automatic sync (§9.10)
+    // ------------------------------------------------------------------------
+
+    /** The stored configuration, plus when the next timer cycle is due. */
+    const autoRef = yield* SubscriptionRef.make<AutoSyncState>(AUTO_IDLE);
+    /**
+     * Whether the store has been read yet.
+     *
+     * A lazy flag rather than a read at build time, for the same reason every
+     * service here hydrates lazily: layer construction must stay synchronous
+     * (`makeService` runs it with `Effect.runSync`) and reading the store is an
+     * async command.
+     */
+    let autoLoaded = false;
+    /** The timer fiber, so a settings change can interrupt and replace it. */
+    const timerFiber = yield* Ref.make<Fiber.RuntimeFiber<void> | null>(null);
+    /** `arm` is called once; a second call (HMR, a remount) must be a no-op. */
+    const armed = yield* Ref.make(false);
+
+    function autoEnsure(): Effect.Effect<AutoSyncState> {
+      return Effect.gen(function* () {
+        if (autoLoaded) return yield* SubscriptionRef.get(autoRef);
+        const stored = yield* read<unknown>(AUTO_KEY, null);
+        const next: AutoSyncState = { auto: normalizeAuto(stored), nextAt: null };
+        autoLoaded = true;
+        yield* SubscriptionRef.set(autoRef, next);
+        return next;
+      });
+    }
+
+    /**
+     * Whether a cycle is worth starting at all.
+     *
+     * A till with no token can only fail, and an auto-run that fails is a red
+     * pill at every interval — so an unconfigured device is skipped in silence
+     * instead. The Sinkronisasi screen already says, next to the buttons, that
+     * nothing runs until a server and token are saved.
+     */
+    function autoReady(): Effect.Effect<boolean> {
+      return getConfig().pipe(
+        Effect.map((config) => config.baseUrl.trim() !== "" && config.token.trim() !== ""),
+        Effect.orElseSucceed(() => false),
+      );
+    }
+
+    /** Waits until nothing holds either gate, so the timer counts from the end of a run. */
+    function waitSettled(): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        while ((yield* Ref.get(busy)) || (yield* Ref.get(scopedBusy))) {
+          yield* Effect.sleep("250 millis");
+        }
+      });
+    }
+
+    /**
+     * The timer: sleep the configured interval, run a cycle, wait for it, repeat.
+     *
+     * The interval is measured from the **end** of the previous cycle, not from a
+     * clock edge: a one-minute interval over a slow connection would otherwise
+     * queue a run behind every run and the till would sync continuously. A tick
+     * that lands while any run is in flight is skipped for the same reason — the
+     * timer's job is "nothing on this device is older than N minutes", and a run
+     * already in flight is doing that job.
+     *
+     * Parks (returns) as soon as the configuration says there is no interval; a
+     * settings change forks a fresh loop through `armTimer`.
+     */
+    function timerLoop(): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        while (true) {
+          const { auto } = yield* SubscriptionRef.get(autoRef);
+          if (!auto.enabled || !auto.interval) return;
+
+          // Count from the end of whatever is running now — the cycle the master
+          // switch started at boot, usually. Setting the deadline first would mean
+          // a boot-time run eats into the interval and a tick immediately after it
+          // finds the gate busy and skips.
+          yield* waitSettled();
+
+          const wait = auto.everyMinutes * 60_000;
+          yield* SubscriptionRef.update(autoRef, (state) => ({
+            ...state,
+            nextAt: Date.now() + wait,
+          }));
+          yield* Effect.sleep(wait);
+          yield* SubscriptionRef.update(autoRef, (state) => ({ ...state, nextAt: null }));
+
+          // Re-read: a `set` during the sleep replaces this fiber, but a racing
+          // one can land between the sleep and here.
+          const now = yield* SubscriptionRef.get(autoRef);
+          if (!now.auto.enabled || !now.auto.interval) return;
+
+          if (yield* Ref.get(busy)) continue;
+          if (!(yield* autoReady())) continue;
+
+          yield* startRun("sync");
+          yield* waitSettled();
+        }
+      });
+    }
+
+    /** Replaces the timer fiber, so an interval change applies now, not next cycle. */
+    function armTimer(): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        const current = yield* Ref.get(timerFiber);
+        if (current !== null) yield* Fiber.interrupt(current);
+        // The deadline belongs to the fiber that was just interrupted: leaving it
+        // behind would let the panel count down to a cycle that is not scheduled.
+        yield* SubscriptionRef.update(autoRef, (state) => ({ ...state, nextAt: null }));
+        const next = yield* timerLoop().pipe(Effect.forkDaemon);
+        yield* Ref.set(timerFiber, next);
+      });
+    }
+
+    /**
+     * The edit triggers: a local write of an enabled group starts a cycle.
+     *
+     * Debounced rather than throttled: one save in the UI is often three commits
+     * (a product, its images, its stock), and the last one is the one that makes
+     * the edit complete. 1,5 s of quiet is longer than a save sequence and far
+     * shorter than the shortest interval, so the two kinds of trigger cannot pile
+     * up.
+     *
+     * `startRun` is asked without checking the gate first: unlike a timer tick, a
+     * local edit must reach the server, and the gate's `rerun` flag is exactly
+     * what makes a burst cost one extra pass.
+     */
+    function listenTriggers(): Effect.Effect<void> {
+      return Stream.runForEach(
+        trigger.changes.pipe(
+          Stream.filterEffect((group) =>
+            SubscriptionRef.get(autoRef).pipe(
+              Effect.map(({ auto }) => auto.enabled && auto.editGroups.includes(group)),
+            ),
+          ),
+          Stream.debounce(AUTO_DEBOUNCE_MS),
+        ),
+        () =>
+          Effect.gen(function* () {
+            if (!(yield* autoReady())) return;
+            yield* startRun("sync");
+          }),
+      );
+    }
+
+    /**
+     * The "on open" half of the master switch: one cycle now, if it is on.
+     *
+     * Forked, not awaited — boot must not wait for a sync before the window
+     * paints, and the run is a background task anyway.
+     */
+    function kickoff(): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        const { auto } = yield* autoEnsure();
+        if (!auto.enabled) return;
+        if (!(yield* autoReady())) return;
+        yield* startRun("sync");
+      });
+    }
+
     return {
       config: {
         get: () => getConfig(),
@@ -1593,39 +1810,76 @@ export const SyncLive = Layer.effect(
       check: (config) => checkHealth(config),
       cursor: (group: SyncGroup = "money") => readBookmark(group),
       run: (mode) => loop(mode),
-      start: (mode) =>
-        Effect.gen(function* () {
-          // A scoped product sync is foreground and has no loop to consume
-          // `rerun`; refuse a full run rather than queue a phantom extra pass.
-          if (yield* Ref.get(scopedBusy)) return "already-running" as const;
+      start: startRun,
+      /**
+       * Automatic sync: the stored configuration, and the two fibers that act on
+       * it.
+       *
+       * `set` applies to memory first (the switches must not feel like they moved
+       * back while the disk write lands) and re-arms only what the patch actually
+       * changed: touching an edit-group switch must not push the next timer cycle
+       * out by a whole interval.
+       */
+      auto: {
+        get: () => autoEnsure(),
+        changes: Stream.unwrap(autoEnsure().pipe(Effect.as(autoRef.changes))),
+        set: (patch) =>
+          Effect.gen(function* () {
+            const before = yield* autoEnsure();
+            const auto = normalizeAuto({ ...before.auto, ...patch });
+            const next: AutoSyncState = { auto, nextAt: before.nextAt };
+            autoLoaded = true;
+            yield* SubscriptionRef.set(autoRef, next);
 
-          // Atomic claim: two callers that both saw "not busy" must not both fork.
-          const free = yield* Ref.modify(busy, (current): readonly [boolean, boolean] =>
-            current ? [false, current] : [true, true],
-          );
-          if (!free) {
-            // One cycle per group at a time: coalesce the request into one more
-            // pass of the running loop (§9.11).
-            yield* Ref.set(rerun, true);
-            return "already-running" as const;
-          }
+            const timingChanged =
+              auto.enabled !== before.auto.enabled ||
+              auto.interval !== before.auto.interval ||
+              auto.everyMinutes !== before.auto.everyMinutes;
+            if (timingChanged) {
+              // Switching it on is the operator asking for it now, not in five
+              // minutes — and it is the cheapest way to learn the token works.
+              // Before the timer, so the first interval starts from the end of
+              // that cycle rather than racing it.
+              if (auto.enabled && !before.auto.enabled) yield* kickoff();
+              // No timer to interrupt when it was never armed: Settings works
+              // before boot finished arming, and a switch flipped first still
+              // has to take effect now.
+              const isArmed = yield* Ref.get(armed);
+              if (isArmed) yield* armTimer();
+            }
 
-          // A daemon, not a child of the caller: the run must outlive the fiber
-          // that asked for it (a screen that unmounts, a dialog that closes).
-          yield* loop(mode).pipe(Effect.ensuring(Ref.set(busy, false)), Effect.forkDaemon);
-          return "started" as const;
-        }).pipe(
-          // Between the claim and the fork there is no fiber to inherit the
-          // release, so an interrupt here would leave the gate shut for the rest
-          // of the session — every later `start` answering `already-running`.
-          Effect.onInterrupt(() => Ref.set(busy, false)),
-        ),
+            // Disk last: a refusal is reported to the panel, but the session keeps
+            // the choice (same posture as the view and theme preferences).
+            yield* write(AUTO_KEY, auto);
+            return yield* SubscriptionRef.get(autoRef);
+          }),
+        arm: () =>
+          Effect.gen(function* () {
+            const first = yield* Ref.modify(armed, (value): readonly [boolean, boolean] =>
+              value ? [false, value] : [true, true],
+            );
+            if (!first) return;
+
+            // The store first: the listener and the timer both decide from it.
+            yield* autoEnsure();
+            // The listener runs even while the switch is off — enabled is read per
+            // event, so turning it on later must not need a reload.
+            yield* listenTriggers().pipe(Effect.forkDaemon, Effect.asVoid);
+            // The on-open cycle first: the timer's first interval is then measured
+            // from the end of that cycle, not from a launch it races.
+            yield* kickoff();
+            yield* armTimer();
+          }),
+      },
       syncProduct: (productId) =>
         Effect.gen(function* () {
           const id = productId.trim();
           if (id === "") {
             return yield* Effect.fail(
-              new SyncError({ message: "Produk tidak dikenal untuk sinkronisasi", code: "bad_request" }),
+              new SyncError({
+                message: "Produk tidak dikenal untuk sinkronisasi",
+                code: "bad_request",
+              }),
             );
           }
 
