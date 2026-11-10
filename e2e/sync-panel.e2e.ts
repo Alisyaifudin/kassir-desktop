@@ -41,9 +41,12 @@ test("Sinkronisasi boots idle: one action, no bar, no error", async ({ page }) =
   await expect(sync).toBeDisabled();
   await expect(reset).toBeDisabled();
 
-  // Idle: the status sentence, and the nine groups the run will visit.
+  // Idle: the status sentence, and the nine groups the run will visit. The
+  // paragraph opens a full cycle's summary — since the scheduler landed it says
+  // "Satu putaran penuh", and the automatic panel below says the same words, so
+  // the anchor carries the download half to stay one element.
   await expect(page.getByText("Siap", { exact: true })).toBeVisible();
-  const intro = page.getByText(/Sinkronisasi berjalan manual/);
+  const intro = page.getByText(/Satu putaran penuh: unduh perubahan/);
   for (const group of GROUPS) await expect(intro).toContainText(group);
 
   // Nothing is running, so the one bar has nothing to show.
