@@ -1054,7 +1054,7 @@ export function Listing({
     // A locked card owns the up and down keys: they move the card through the
     // list instead of moving the cursor. Esc — or a click anywhere — lets it go.
     if (locked !== null) {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" || event.key === "Enter") {
         event.preventDefault();
         setLocked(null);
         return;
