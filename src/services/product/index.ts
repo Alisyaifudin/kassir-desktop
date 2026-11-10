@@ -106,6 +106,19 @@ export type Product = {
   /** Alternative names (`product_names`), used by search only. */
   altNames: string[];
   listings: Listing[];
+  /**
+   * The ids of the live categories this product is filed under, in link order.
+   *
+   * Ids only: the names come from `CategoryService`, which is its own read (the
+   * picker needs the whole catalogue anyway, and a rename must reach every screen
+   * without re-reading every product). A link whose category row this device has
+   * not received yet is still listed here, so a save cannot silently drop it —
+   * see `set.categories`.
+   *
+   * On the list as well as the detail: the products screen filters by category
+   * and its search matches the names, and the read already loads every link.
+   */
+  categoryIds: string[];
   stock: number;
   capital: number;
   /**
@@ -132,16 +145,6 @@ export type ProductFull = Product & {
   properties: Property[];
   productNames: ProductName[];
   images: ProductImage[];
-  /**
-   * The ids of the live categories this product is filed under, in link order.
-   *
-   * Ids only: the names come from `CategoryService`, which is its own read (the
-   * picker needs the whole catalogue anyway, and a rename must reach every screen
-   * without re-reading every product). A link whose category row this device has
-   * not received yet is still listed here, so a save cannot silently drop it —
-   * see `set.categories`.
-   */
-  categoryIds: string[];
 };
 
 export type ProductSale = {

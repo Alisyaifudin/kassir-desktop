@@ -2,7 +2,7 @@ import type { Product } from "~/services/product";
 import { isPublished } from "~/services/product";
 import { getProductKind } from "~/lib/constants";
 import { LOW_STOCK_THRESHOLD, type ListState, type SortBy } from "./use-list-state";
-import { getIndex, search } from "./search";
+import { getIndex, search, type CategoryName } from "./search";
 
 export type StockStatus = "in" | "low" | "out";
 
@@ -58,13 +58,24 @@ function bySort(products: Product[], sort: SortBy, dir: ListState["dir"]): Produ
   return dir === "desc" ? sorted.reverse() : sorted;
 }
 
-export function filterProducts(products: Product[], state: ListState): Product[] {
+export function filterProducts(
+  products: Product[],
+  state: ListState,
+  categories: readonly CategoryName[] = [],
+): Product[] {
   const query = state.q.trim();
   let result = products;
 
   if (state.kinds.length > 0) {
     result = result.filter((product) =>
       product.listings.some((listing) => state.kinds.includes(listing.kind)),
+    );
+  }
+  if (state.categories.length > 0) {
+    // Any of the picked categories, like the kinds above: the badges are a
+    // widening filter, so `Minuman` + `Makanan` is "either shelf", not "both".
+    result = result.filter((product) =>
+      product.categoryIds.some((id) => state.categories.includes(id)),
     );
   }
   if (state.stock !== "all") {
@@ -84,7 +95,9 @@ export function filterProducts(products: Product[], state: ListState): Product[]
   if (query !== "") {
     const byId = new Map(result.map((product) => [product.id, product]));
     const matched: Product[] = [];
-    for (const hit of search(getIndex(products), query)) {
+    // The index needs the category names because it matches them: `minuman`
+    // reaches the drinks even though no product is called that.
+    for (const hit of search(getIndex(products, categories), query)) {
       const product = byId.get(hit.id);
       if (product !== undefined) matched.push(product);
     }
@@ -98,7 +111,7 @@ export function filterProducts(products: Product[], state: ListState): Product[]
 /**
  * Every `kind` label the catalog actually uses, sorted by display name.
  *
- * Read by the filter popover, which is the only consumer — a page must not
+ * Read by the filter dialog, which is the only consumer — a page must not
  * compute it "just in case" and hand it down.
  */
 export function availableKinds(products: Product[]): string[] {

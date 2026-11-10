@@ -273,6 +273,7 @@ function toProduct(state: ProductState): Product {
     flag: state.flag,
     altNames: state.productNames.map((name) => name.value),
     listings: state.listings,
+    categoryIds: state.links.map((link) => link.categoryId),
     stock,
     capital: stock > 0 ? capitalValue / stock : 0,
     maxCapital: stocked ?? anyLot,
@@ -289,7 +290,6 @@ function toProductFull(state: ProductState): ProductFull {
     properties: state.properties,
     productNames: state.productNames,
     images: [...state.images].sort((a, b) => a.order - b.order),
-    categoryIds: state.links.map((link) => link.categoryId),
   };
 }
 

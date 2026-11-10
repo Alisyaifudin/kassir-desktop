@@ -19,6 +19,8 @@ function product(
     capital?: number;
     maxCapital?: number;
     flag?: number;
+    /** The category ids the product is filed under. */
+    cats?: string[];
   } = {},
 ): Product {
   const id = options.id ?? name;
@@ -41,6 +43,7 @@ function product(
         syncAt: null,
       },
     ],
+    categoryIds: options.cats ?? [],
     stock: options.stock ?? 10,
     capital: options.capital ?? 0,
     maxCapital: options.maxCapital ?? 0,
@@ -53,6 +56,7 @@ function product(
 const base: ListState = {
   q: "",
   kinds: [],
+  categories: [],
   stock: "all",
   margin: "all",
   publish: "all",
@@ -154,5 +158,34 @@ describe("filterProducts", () => {
     expect(
       filterProducts(mixed, { ...base, publish: "published" }).map((item) => item.id),
     ).toEqual(["published"]);
+  });
+
+  test("categories narrow to any of the picked shelves", () => {
+    const mixed = [
+      product("Nasi Goreng", { id: "a", cats: ["c-makanan"] }),
+      product("Kopi", { id: "b", cats: ["c-minuman"] }),
+      product("Sabun", { id: "c" }),
+    ];
+    const ids = (categories: string[]) =>
+      filterProducts(mixed, { ...base, categories }).map((item) => item.id);
+
+    // No badge is no category filter, not "uncategorised".
+    expect(ids([])).toEqual(["b", "a", "c"]);
+    expect(ids(["c-makanan"])).toEqual(["a"]);
+    // Two badges widen the list: either shelf, not both.
+    expect(ids(["c-makanan", "c-minuman"])).toEqual(["b", "a"]);
+  });
+
+  test("a category name finds its products, and only with the catalogue", () => {
+    const mixed = [
+      product("Nasi Goreng", { id: "a", cats: ["c-makanan"] }),
+      product("Sabun", { id: "c" }),
+    ];
+    const categories = [{ id: "c-makanan", name: "Makanan" }];
+    const query = { ...base, q: "makanan", sort: "score" } as const;
+
+    expect(filterProducts(mixed, query, categories).map((item) => item.id)).toEqual(["a"]);
+    // The names come from the category read; without them there is no text to match.
+    expect(filterProducts(mixed, query)).toEqual([]);
   });
 });

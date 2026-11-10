@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Effect, Layer } from "effect";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { pageCache } from "~/components/page-data";
 import { offerService } from "./service-proxy";
@@ -105,5 +105,66 @@ describe("the product screen over the real services", () => {
     expect(await screen.findByText("Kopi Luwak")).toBeDefined();
     // The grid keeps the row and labels it, rather than hiding stock from the owner.
     expect(screen.getAllByText("Tidak terbit").length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The category filter and the one thing behind it the screen cannot fake: the
+ * names the search matches come from another service's read, so this pins the
+ * two keys together — a filter that reads the names, and an index that has them.
+ */
+describe("filtering by category", () => {
+  async function category(name: string): Promise<string> {
+    return act(async () => Effect.runPromise(service.category.add({ name })));
+  }
+
+  async function filed(productName: string, price: number, categoryId: string | null) {
+    const id = await act(async () => addProduct(productName, price));
+    if (categoryId !== null) {
+      await act(async () => Effect.runPromise(service.product.set.categories(id, [categoryId])));
+    }
+  }
+
+  test("the badge on the URL keeps only the products on that shelf", async () => {
+    const minuman = await category("Minuman Dingin");
+    await filed("Es Teh Manis", 5_000, minuman);
+    await filed("Sabun Cuci", 4_000, null);
+
+    renderPage(`/products?cats=${minuman}`);
+
+    expect(await screen.findByText("Es Teh Manis")).toBeDefined();
+    expect(screen.queryByText("Sabun Cuci")).toBeNull();
+  });
+
+  test("typing the category's name finds everything filed under it", async () => {
+    const sembako = await category("Sembako Kering");
+    await filed("Beras Pandan", 12_000, sembako);
+    await filed("Teh Botol", 4_000, null);
+
+    renderPage("/products?q=sembako");
+
+    expect(await screen.findByText("Beras Pandan")).toBeDefined();
+    expect(screen.queryByText("Teh Botol")).toBeNull();
+  });
+
+  test("the dialog's picker adds a badge, and the rows follow the pick", async () => {
+    const minuman = await category("Minuman Segar");
+    await filed("Air Mineral Botol", 3_000, minuman);
+    await filed("Sisir Plastik", 5_000, null);
+
+    renderPage();
+    await screen.findByText("Air Mineral Botol");
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter" }));
+    const field = await screen.findByRole("combobox", { name: "Pilih kategori" });
+    fireEvent.change(field, { target: { value: "minuman" } });
+    fireEvent.click(await screen.findByRole("option", { name: "Minuman Segar" }));
+
+    // The pick lands as a badge in the dialog and as a narrower list behind it.
+    expect(
+      await screen.findByRole("button", { name: "Lepas kategori Minuman Segar" }),
+    ).toBeDefined();
+    await waitFor(() => expect(screen.queryByText("Sisir Plastik")).toBeNull());
+    expect(screen.getByText("Air Mineral Botol")).toBeDefined();
   });
 });

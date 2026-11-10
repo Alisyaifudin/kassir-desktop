@@ -270,6 +270,10 @@ export function Combobox({
           if (rootRef.current?.contains(event.target as Node)) event.preventDefault();
         }}
         className="w-[var(--radix-popover-trigger-width)] min-w-0 overflow-hidden p-1"
+        // A handle for a host that portals its own layers *around* this one — a
+        // Dialog counts a press in here as an outside interaction and would close
+        // on the pick. See the filter dialog's `onInteractOutside`.
+        data-combobox-list=""
       >
         {createText === null ? null : (
           <button

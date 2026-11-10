@@ -6,8 +6,9 @@ import { ViewToggle } from "./z-ViewToggle";
 
 /**
  * Every control here is static — search, filter, sort, view — so the toolbar
- * never waits. The one thing inside it that is data (the `kind` labels the
- * catalog uses) is read by the filter dialog itself.
+ * never waits. The things inside it that are data (the `kind` labels the catalog
+ * uses, and the category list the picker offers) are read by the filter dialog
+ * itself, each on its own key.
  */
 export function Toolbar({
   state,

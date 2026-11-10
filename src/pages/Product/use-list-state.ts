@@ -25,6 +25,14 @@ export const LOW_STOCK_THRESHOLD = 5;
 export type ListState = {
   q: string;
   kinds: string[];
+  /**
+   * The ids of the categories the list is narrowed to.
+   *
+   * Ids, not names, for the same reason the product read carries ids: the URL is
+   * written by the picker from the category catalogue, and a rename must not
+   * leave a dead filter behind in a bookmarked link.
+   */
+  categories: string[];
   stock: StockFilter;
   margin: MarginFilter;
   publish: PublishFilter;
@@ -74,6 +82,7 @@ export function useListState() {
     return {
       q,
       kinds: (params.get("kinds") ?? "").split(",").filter(Boolean),
+      categories: (params.get("cats") ?? "").split(",").filter(Boolean),
       stock: oneOf(params.get("stock"), STOCK_FILTERS, "all"),
       margin: oneOf(params.get("margin"), MARGIN_FILTERS, "all"),
       publish: oneOf(params.get("publish"), PUBLISH_FILTERS, "all"),
@@ -114,6 +123,10 @@ export function useListState() {
           }
           if (patch.kinds !== undefined) {
             put("kinds", patch.kinds.join(","));
+            resetPage = true;
+          }
+          if (patch.categories !== undefined) {
+            put("cats", patch.categories.join(","));
             resetPage = true;
           }
           if (patch.stock !== undefined) {

@@ -53,30 +53,40 @@ export type Index<Entry> = { signature: string; entries: Entry[] };
  * product/listing streams re-emit a fresh array on every hydrate (including
  * stock and price changes), so the array is not a useful cache key. Editing a
  * name, code or alias changes the signature and rebuilds; a sale does not.
+ *
+ * `context` is the one input that is neither the items nor derivable from them:
+ * the product index needs the category *names* to search them, and those live in
+ * another service. It is threaded into both the signature and the entry, so a
+ * rename rebuilds the index even though no product row moved. Compared by
+ * identity, which is why callers pass the catalogue array the live store already
+ * holds instead of a fresh copy per call.
  */
-export function createIndexCache<Item, Entry>(
-  signatureOf: (items: Item[]) => string,
-  toEntry: (item: Item) => Entry,
+export function createIndexCache<Item, Entry, Context = undefined>(
+  signatureOf: (items: Item[], context?: Context) => string,
+  toEntry: (item: Item, context?: Context) => Entry,
 ) {
   let cache: Index<Entry> | null = null;
-  let signatures = new WeakMap<Item[], string>();
+  let signatures = new WeakMap<Item[], { context: Context | undefined; signature: string }>();
 
-  function signature(items: Item[]): string {
+  function signature(items: Item[], context?: Context): string {
     const cached = signatures.get(items);
-    if (cached !== undefined) return cached;
-    const next = signatureOf(items);
-    signatures.set(items, next);
+    if (cached !== undefined && Object.is(cached.context, context)) return cached.signature;
+    const next = signatureOf(items, context);
+    signatures.set(items, { context, signature: next });
     return next;
   }
 
-  function build(items: Item[]): Index<Entry> {
-    return { signature: signature(items), entries: items.map(toEntry) };
+  function build(items: Item[], context?: Context): Index<Entry> {
+    return {
+      signature: signature(items, context),
+      entries: items.map((item) => toEntry(item, context)),
+    };
   }
 
-  function get(items: Item[]): Index<Entry> {
-    const current = signature(items);
+  function get(items: Item[], context?: Context): Index<Entry> {
+    const current = signature(items, context);
     if (cache !== null && cache.signature === current) return cache;
-    cache = build(items);
+    cache = build(items, context);
     return cache;
   }
 

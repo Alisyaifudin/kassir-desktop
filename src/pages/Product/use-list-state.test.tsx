@@ -69,6 +69,7 @@ describe("useListState defaults", () => {
     expect(result.current.state).toEqual({
       q: "",
       kinds: [],
+      categories: [],
       stock: "all",
       margin: "all",
       publish: "all",
@@ -82,12 +83,13 @@ describe("useListState defaults", () => {
 
   test("every filter is read back from the URL", () => {
     const { result } = harness(
-      "/products?q=kopi&kinds=retail,grosir&stock=low&margin=profit&publish=unpublished&sort=price&dir=desc&view=table&page=3&size=50",
+      "/products?q=kopi&kinds=retail,grosir&cats=c-minuman,c-makanan&stock=low&margin=profit&publish=unpublished&sort=price&dir=desc&view=table&page=3&size=50",
     );
 
     expect(result.current.state).toEqual({
       q: "kopi",
       kinds: ["retail", "grosir"],
+      categories: ["c-minuman", "c-makanan"],
       stock: "low",
       margin: "profit",
       publish: "unpublished",
@@ -181,6 +183,7 @@ describe("writing the URL", () => {
     act(() =>
       result.current.set({
         kinds: ["retail"],
+        categories: ["c-minuman"],
         stock: "out",
         margin: "loss",
         publish: "published",
@@ -193,6 +196,7 @@ describe("writing the URL", () => {
     );
 
     expect(params().get("kinds")).toBe("retail");
+    expect(params().get("cats")).toBe("c-minuman");
     expect(params().get("stock")).toBe("out");
     expect(params().get("margin")).toBe("loss");
     expect(params().get("publish")).toBe("published");

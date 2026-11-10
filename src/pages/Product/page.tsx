@@ -6,6 +6,7 @@ import { Button } from "~/components/ui/button";
 import { useUser } from "~/hooks/use-user";
 import { service } from "~/services";
 import type { Product } from "~/services/product";
+import type { Category } from "~/services/category";
 import { pageData } from "./data";
 import { filterProducts } from "./use-filtered";
 import type { ListState, ListStatePatch } from "./use-list-state";
@@ -21,7 +22,9 @@ import { Toolbar } from "./z-Toolbar";
 export default function Page() {
   return (
     <ProductErrorBoundary fallback={ProductErrorFallback}>
-      <pageData.Provider sources={{ products: service.product.get.changes }}>
+      <pageData.Provider
+        sources={{ products: service.product.get.changes, categories: service.category.get.changes }}
+      >
         <List />
       </pageData.Provider>
     </ProductErrorBoundary>
@@ -43,11 +46,13 @@ function List() {
 
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-2 pt-2">
         <pageData.Gate
-          keys={["products"]}
+          keys={["products", "categories"]}
           pulse={<Loading view={state.view} />}
           error={(error) => <TextError>{`Produk bermasalah: ${error.message}`}</TextError>}
         >
-          {({ products }) => <Rows products={products} state={state} set={set} />}
+          {({ products, categories }) => (
+            <Rows products={products} categories={categories} state={state} set={set} />
+          )}
         </pageData.Gate>
       </div>
 
@@ -71,13 +76,19 @@ function List() {
  * The rows. Filtering and paging are a pure function of the catalog plus the URL
  * state, so they live here — in the component that renders them — and not in a
  * parent that would have to hold a `null` for "not loaded yet".
+ *
+ * They wait for the categories too, and that is the price of matching them: a
+ * query is scored against category names, so a row drawn before they arrive would
+ * answer a different question than the one on screen a frame later.
  */
 function Rows({
   products,
+  categories,
   state,
   set,
 }: {
   products: Product[];
+  categories: Category[];
   state: ListState;
   set: (patch: ListStatePatch) => void;
 }) {
@@ -85,10 +96,23 @@ function Rows({
   // so `state.q` arrives settled — a second `SEARCH_DELAY` would only make the
   // rows lag the bar by two pauses instead of one. The memo is keyed on what
   // filtering reads, not on `state`, which is a fresh object on every write.
+  const kindsKey = state.kinds.join(",");
+  const categoriesKey = state.categories.join(",");
   const filtered = useMemo(
-    () => filterProducts(products, state),
+    () => filterProducts(products, state, categories),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [products, state.q, state.kinds.join(","), state.stock, state.margin, state.publish, state.sort, state.dir],
+    [
+      products,
+      categories,
+      state.q,
+      kindsKey,
+      categoriesKey,
+      state.stock,
+      state.margin,
+      state.publish,
+      state.sort,
+      state.dir,
+    ],
   );
   const totalPage = Math.max(1, Math.ceil(filtered.length / state.size));
   const page = Math.min(state.page, totalPage);
@@ -98,7 +122,9 @@ function Rows({
     return (
       <Empty
         total={products.length}
-        onReset={() => set({ q: "", kinds: [], stock: "all", margin: "all", publish: "all" })}
+        onReset={() =>
+          set({ q: "", kinds: [], categories: [], stock: "all", margin: "all", publish: "all" })
+        }
       />
     );
   }

@@ -35,6 +35,7 @@ function product(options: Partial<Product> = {}): Product {
         syncAt: null,
       },
     ],
+    categoryIds: [],
     stock: 12,
     capital: 567,
     maxCapital: 900,

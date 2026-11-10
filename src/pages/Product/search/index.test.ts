@@ -8,13 +8,20 @@
  */
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Product } from "~/services/product";
-import { buildIndex, getIndex, resetIndex, search } from "./index";
+import { buildIndex, getIndex, resetIndex, search, type CategoryName } from "./index";
 import { norm } from "~/lib/search/normalize";
 import { TEXT, gradeCode, gradeText } from "~/lib/search/quality";
 
 function product(
   name: string,
-  options: { id?: string; code?: string | null; alt?: string[]; listing?: string } = {},
+  options: {
+    id?: string;
+    code?: string | null;
+    alt?: string[];
+    listing?: string;
+    /** The category ids the product is filed under. */
+    cats?: string[];
+  } = {},
 ): Product {
   const id = options.id ?? name;
   return {
@@ -36,6 +43,7 @@ function product(
         syncAt: null,
       },
     ],
+    categoryIds: options.cats ?? [],
     stock: 0,
     capital: 0,
     maxCapital: 0,
@@ -56,6 +64,15 @@ function grade(name: string, query: string): number {
 
 function rank(products: Product[], query: string): string[] {
   return search(buildIndex(products), query).map((hit) => hit.id);
+}
+
+/** Rank with a category catalogue, which the index matches by name. */
+function rankWith(
+  products: Product[],
+  query: string,
+  categories: CategoryName[],
+): string[] {
+  return search(buildIndex(products, categories), query).map((hit) => hit.id);
 }
 
 describe("text ladder", () => {
@@ -152,6 +169,43 @@ describe("search ranking", () => {
   });
 });
 
+describe("category field", () => {
+  const categories = [
+    { id: "c-minuman", name: "Minuman" },
+    { id: "c-makanan", name: "Makanan" },
+  ];
+
+  test("a category name reaches everything filed under it", () => {
+    const products = [
+      product("Aqua", { id: "air", cats: ["c-minuman"] }),
+      product("Indomie", { id: "mie", cats: ["c-makanan"] }),
+    ];
+
+    expect(rankWith(products, "minuman", categories)).toEqual(["air"]);
+    expect(rankWith(products, "makanan", categories)).toEqual(["mie"]);
+  });
+
+  test("a name that says the same word outranks the shelf", () => {
+    // The category is shared by the whole aisle, so it may lift a product into the
+    // results but never above one actually called that.
+    const products = [
+      product("Aqua", { id: "shelf", cats: ["c-minuman"] }),
+      product("Minuman", { id: "named" }),
+    ];
+
+    expect(rankWith(products, "minuman", categories)).toEqual(["named", "shelf"]);
+  });
+
+  test("a category the catalogue cannot name indexes nothing", () => {
+    // A link this device has not received yet: there is no text to match, and an
+    // id must never become searchable text of its own.
+    const products = [product("Aqua", { id: "air", cats: ["c-minuman"] })];
+
+    expect(rankWith(products, "minuman", [])).toEqual([]);
+    expect(rankWith(products, "c-minuman", categories)).toEqual([]);
+  });
+});
+
 describe("index cache", () => {
   beforeEach(() => resetIndex());
 
@@ -189,5 +243,16 @@ describe("index cache", () => {
 
     const second = getIndex(base);
     expect(getIndex([product("X", { id: "x", code: "111", alt: ["Y"] })])).not.toBe(second);
+  });
+
+  test("rebuilds when a category is renamed, though no product row moved", () => {
+    const products = [product("Aqua", { id: "air", cats: ["c-minuman"] })];
+    const first = getIndex(products, [{ id: "c-minuman", name: "Minuman" }]);
+
+    // Same names in a fresh array: the signature matches, so the index is kept.
+    expect(getIndex(products, [{ id: "c-minuman", name: "Minuman" }])).toBe(first);
+
+    const renamed = getIndex(products, [{ id: "c-minuman", name: "Minuman Dingin" }]);
+    expect(renamed).not.toBe(first);
   });
 });
