@@ -2,8 +2,16 @@ import { SlidersHorizontal } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Label } from "~/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { getProductKind } from "~/lib/constants";
 import { pageData } from "./data";
 import { availableKinds } from "./use-filtered";
@@ -34,6 +42,38 @@ const PUBLISH_LABELS: Record<PublishFilter, string> = {
   unpublished: "Belum terbit",
 };
 
+/**
+ * One row of the filter: a label plus a horizontal set of segmented tabs. The
+ * value is applied as soon as it is picked, so there is nothing to submit —
+ * Radix Tabs is used purely as a single-choice control here, no panels.
+ */
+function Choice<T extends string>({
+  label,
+  value,
+  labels,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  labels: Record<T, string>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-medium">{label}</span>
+      <Tabs value={value} onValueChange={(next) => onChange(next as T)}>
+        <TabsList className="h-fit w-full">
+          {(Object.keys(labels) as T[]).map((option) => (
+            <TabsTrigger key={option} value={option} className="flex-1 py-2 text-sm">
+              {labels[option]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    </div>
+  );
+}
+
 export function Filter({
   state,
   set,
@@ -55,8 +95,8 @@ export function Filter({
   };
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Dialog>
+      <DialogTrigger asChild>
         <Button type="button" variant="outline" className="gap-2 text-base">
           <SlidersHorizontal className="size-5" />
           Filter
@@ -66,9 +106,13 @@ export function Filter({
             </span>
           ) : null}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="flex w-72 flex-col gap-4">
-        {/* The only data in this popover: which labels the catalog actually
+      </DialogTrigger>
+      <DialogContent className="flex max-w-sm flex-col gap-4">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">Filter</DialogTitle>
+        </DialogHeader>
+
+        {/* The only data in this dialog: which labels the catalog actually
             uses. Absent until they arrive, exactly as it always was — the rest
             of the filter works without them. */}
         <pageData.Gate keys={["products"]} delay={0} pulse={null} error={null}>
@@ -94,61 +138,44 @@ export function Filter({
           }}
         </pageData.Gate>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Status</span>
-          <RadioGroup
-            value={state.publish}
-            onValueChange={(value) => set({ publish: value as PublishFilter })}
-            className="flex flex-col gap-2"
-          >
-            {(Object.keys(PUBLISH_LABELS) as PublishFilter[]).map((value) => (
-              <Label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
-                <RadioGroupItem value={value} /> {PUBLISH_LABELS[value]}
-              </Label>
-            ))}
-          </RadioGroup>
-        </div>
+        <Choice
+          label="Status"
+          value={state.publish}
+          labels={PUBLISH_LABELS}
+          onChange={(publish) => set({ publish })}
+        />
 
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Stok</span>
-          <RadioGroup
-            value={state.stock}
-            onValueChange={(value) => set({ stock: value as StockFilter })}
-            className="flex flex-col gap-2"
-          >
-            {(Object.keys(STOCK_LABELS) as StockFilter[]).map((value) => (
-              <Label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
-                <RadioGroupItem value={value} /> {STOCK_LABELS[value]}
-              </Label>
-            ))}
-          </RadioGroup>
-        </div>
+        <Choice
+          label="Stok"
+          value={state.stock}
+          labels={STOCK_LABELS}
+          onChange={(stock) => set({ stock })}
+        />
 
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Margin</span>
-          <RadioGroup
-            value={state.margin}
-            onValueChange={(value) => set({ margin: value as MarginFilter })}
-            className="flex flex-col gap-2"
-          >
-            {(Object.keys(MARGIN_LABELS) as MarginFilter[]).map((value) => (
-              <Label key={value} className="flex cursor-pointer items-center gap-2 text-sm">
-                <RadioGroupItem value={value} /> {MARGIN_LABELS[value]}
-              </Label>
-            ))}
-          </RadioGroup>
-        </div>
+        <Choice
+          label="Margin"
+          value={state.margin}
+          labels={MARGIN_LABELS}
+          onChange={(margin) => set({ margin })}
+        />
 
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-11 text-sm"
-          disabled={activeCount === 0}
-          onClick={() => set({ kinds: [], stock: "all", margin: "all", publish: "all" })}
-        >
-          Reset
-        </Button>
-      </PopoverContent>
-    </Popover>
+        <DialogFooter className="gap-2 sm:space-x-0">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 text-sm"
+            disabled={activeCount === 0}
+            onClick={() => set({ kinds: [], stock: "all", margin: "all", publish: "all" })}
+          >
+            Reset
+          </Button>
+          <DialogClose asChild>
+            <Button type="button" className="h-11 text-sm">
+              Selesai
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
