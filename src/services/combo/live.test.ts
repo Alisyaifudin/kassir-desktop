@@ -31,7 +31,7 @@ function setup() {
     `INSERT INTO extras (extra_id, extra_name, extra_value, extra_kind, extra_flag, extra_updated_at, extra_sync_at, extra_deleted_at)
      VALUES ('e1', 'Diskon combo', -1000, 'number', 0, 1, NULL, NULL)`,
   ).run();
-  return ComboLive.pipe(Layer.provide(layer));
+  return { db, layer: ComboLive.pipe(Layer.provide(layer)) };
 }
 
 const input: ComboInput = {
@@ -47,7 +47,7 @@ const input: ComboInput = {
 
 describe("combo catalog", () => {
   test("writes and reads ordered listing and Extra references", async () => {
-    const layer = setup();
+    const { layer } = setup();
     const combo = await run(layer, (service) =>
       Effect.gen(function* () {
         const id = yield* service.add(input);
@@ -71,7 +71,7 @@ describe("combo catalog", () => {
   });
 
   test("updates the whole template and soft-deletes it", async () => {
-    const layer = setup();
+    const { layer } = setup();
     const result = await run(layer, (service) =>
       Effect.gen(function* () {
         const id = yield* service.add(input);
@@ -99,7 +99,7 @@ describe("combo catalog", () => {
   });
 
   test("rejects missing or unpublished listing references instead of saving a broken combo", async () => {
-    const layer = setup();
+    const { layer } = setup();
     const error = await run(layer, (service) =>
       Effect.gen(function* () {
         return yield* Effect.flip(
@@ -111,7 +111,7 @@ describe("combo catalog", () => {
   });
 
   test("rejects duplicate names case-insensitively", async () => {
-    const layer = setup();
+    const { layer } = setup();
     const error = await run(layer, (service) =>
       Effect.gen(function* () {
         yield* service.add(input);
@@ -120,5 +120,71 @@ describe("combo catalog", () => {
     );
     expect(error._tag).toBe("ComboError");
     if (error._tag === "ComboError") expect(error.message).toBe("Nama combo sudah digunakan.");
+  });
+
+  test("keeps the cover byte bookkeeping in step with the header clock", async () => {
+    const { db, layer } = setup();
+    const read = () =>
+      db
+        .query(
+          `SELECT combo_updated_at, combo_cover_blob_version, combo_cover_blob_sha256,
+                  combo_cover_blob_sync_at
+             FROM combos LIMIT 1`,
+        )
+        .get() as {
+        combo_updated_at: number;
+        combo_cover_blob_version: number | null;
+        combo_cover_blob_sha256: string | null;
+        combo_cover_blob_sync_at: number | null;
+      };
+
+    const id = await run(layer, (service) =>
+      service.add({ ...input, cover: { name: "cover-1.png", mime: "image/png" } }),
+    );
+    const created = read();
+    expect(created.combo_cover_blob_version).toBe(created.combo_updated_at);
+    expect(created.combo_cover_blob_sha256).toBeNull();
+    expect(created.combo_cover_blob_sync_at).toBeNull();
+
+    // Pretend the bytes were uploaded at this clock.
+    db.query(
+      `UPDATE combos SET combo_cover_blob_sha256 = 'abc', combo_cover_blob_sync_at = 1`,
+    ).run();
+
+    // A save that keeps the cover carries the claim to the new clock.
+    await run(layer, (service) =>
+      service.set.info(id, {
+        ...input,
+        name: "Paket hemat baru",
+        cover: { name: "cover-1.png", mime: "image/png" },
+      }),
+    );
+    const carried = read();
+    expect(carried.combo_updated_at).toBeGreaterThan(created.combo_updated_at);
+    expect(carried.combo_cover_blob_version).toBe(carried.combo_updated_at);
+    expect(carried.combo_cover_blob_sha256).toBe("abc");
+    expect(carried.combo_cover_blob_sync_at).toBe(1);
+
+    // A new cover is new bytes: the claim resets and owes an upload.
+    await run(layer, (service) =>
+      service.set.info(id, {
+        ...input,
+        name: "Paket hemat baru",
+        cover: { name: "cover-2.png", mime: "image/png" },
+      }),
+    );
+    const replaced = read();
+    expect(replaced.combo_cover_blob_version).toBe(replaced.combo_updated_at);
+    expect(replaced.combo_cover_blob_sha256).toBeNull();
+    expect(replaced.combo_cover_blob_sync_at).toBeNull();
+
+    // Clearing the cover clears the byte bookkeeping.
+    await run(layer, (service) =>
+      service.set.info(id, { ...input, name: "Paket hemat baru", cover: null }),
+    );
+    const cleared = read();
+    expect(cleared.combo_cover_blob_version).toBeNull();
+    expect(cleared.combo_cover_blob_sha256).toBeNull();
+    expect(cleared.combo_cover_blob_sync_at).toBeNull();
   });
 });

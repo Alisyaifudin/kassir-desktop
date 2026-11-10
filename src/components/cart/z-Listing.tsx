@@ -43,7 +43,8 @@ import {
 import { rupiah } from "~/components/cart/util-rupiah";
 import type { Combo } from "~/services/combo";
 import type { Listing } from "~/services/listing";
-import { searchCombos } from "~/lib/search/combos";
+import { getComboIndex, searchCombos } from "~/lib/search/combos";
+import { getListingIndex, searchListings } from "~/lib/search/listings";
 import { norm } from "~/lib/search/normalize";
 import { ListingCard } from "~/components/cart/z-ListingCard";
 import type { LineIssue } from "~/components/cart/code-issues";
@@ -67,7 +68,13 @@ import {
   SALE_LISTING_LAYOUT,
   type ListingLayout,
 } from "~/components/cart/listing-grid";
-import { SELECTED_RING, caretAtValueEnd, caretAtValueStart, typedCharacter, typedDigit } from "~/components/cart/z-Cell";
+import {
+  SELECTED_RING,
+  caretAtValueEnd,
+  caretAtValueStart,
+  typedCharacter,
+  typedDigit,
+} from "~/components/cart/z-Cell";
 import { Show } from "../Show";
 
 const HEADER: RowRef = { kind: "header" };
@@ -258,10 +265,15 @@ export function Listing({
     () =>
       Stream.fromEffect(
         Effect.gen(function* () {
-          const listingMatches = yield* service.listing.get.search(query);
-          const hits: SearchHit[] = listingMatches.map((listing) => ({ kind: "listing", listing }));
-          if (!searchCombosEnabled || query.trim() === "") return hits;
+          if (!searchCombosEnabled || query.trim() === "") {
+            const listingMatches = yield* service.listing.get.search(query);
+            return listingMatches.map((listing): SearchHit => ({ kind: "listing", listing }));
+          }
 
+          // Both units are scored from one catalogue read and one shared ladder,
+          // so the answers interleave by relevance instead of being concatenated.
+          // The listing index is the same cached one the service searches (keyed
+          // by text signature), so this costs no extra pass over the catalogue.
           const [catalog, combos, extras] = yield* Effect.all([
             service.listing.get.all(),
             service.combo.get.all(),
@@ -269,24 +281,45 @@ export function Listing({
           ]);
           const extraById = new Map(extras.map((extra) => [extra.id, extra]));
           const catalogById = new Map(catalog.map((listing) => [listing.id, listing]));
-          const comboMatches = searchCombos(combos, query, catalog, new Set(extraById.keys()));
-          hits.push(
-            ...comboMatches.map((combo) => ({
-              kind: "combo" as const,
-              combo,
-              components: combo.components.flatMap((component) => {
-                const listing = catalogById.get(component.listingId);
-                return listing === undefined ? [] : [listing];
-              }),
-              extraNames: combo.extras.flatMap((extra) => {
-                const preset = extraById.get(extra.extraId);
-                if (preset === undefined) return [];
-                const value = preset.kind === "percent" ? `${preset.value}%` : rupiah(preset.value);
-                return [`${preset.name} ${value}`];
-              }),
-            })),
-          );
-          return hits;
+          const scored: { hit: SearchHit; score: number }[] = [];
+
+          for (const hit of searchListings(getListingIndex(catalog), query)) {
+            const listing = catalogById.get(hit.id);
+            if (listing === undefined) continue;
+            scored.push({ hit: { kind: "listing", listing }, score: hit.score });
+          }
+
+          const comboById = new Map(combos.map((combo) => [combo.id, combo]));
+          for (const hit of searchCombos(
+            getComboIndex(combos, { listings: catalog, extras }),
+            query,
+          )) {
+            const combo = comboById.get(hit.id);
+            if (combo === undefined) continue;
+            scored.push({
+              score: hit.score,
+              hit: {
+                kind: "combo",
+                combo,
+                components: combo.components.flatMap((component) => {
+                  const listing = catalogById.get(component.listingId);
+                  return listing === undefined ? [] : [listing];
+                }),
+                extraNames: combo.extras.flatMap((extra) => {
+                  const preset = extraById.get(extra.extraId);
+                  if (preset === undefined) return [];
+                  const value =
+                    preset.kind === "percent" ? `${preset.value}%` : rupiah(preset.value);
+                  return [`${preset.name} ${value}`];
+                }),
+              },
+            });
+          }
+
+          // Highest first. Listing answers were pushed first and the sort is
+          // stable, so an exact tie leaves the goods ahead of the bundle that
+          // expands into them.
+          return scored.sort((left, right) => right.score - left.score).map(({ hit }) => hit);
         }),
       ),
     [query, mode, searchCombosEnabled],
@@ -821,7 +854,9 @@ export function Listing({
       (hit) => hit.kind === "listing" && hit.listing.code?.toLowerCase() === code,
     );
     if (exactCode !== undefined) return exactCode;
-    const exactCombo = hits.find((hit) => hit.kind === "combo" && norm(hit.combo.name) === norm(query));
+    const exactCombo = hits.find(
+      (hit) => hit.kind === "combo" && norm(hit.combo.name) === norm(query),
+    );
     return exactCombo ?? hits[0];
   }
 
@@ -1211,7 +1246,9 @@ export function Listing({
             type="search"
             className="min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:italic focus-visible:ring-0"
             placeholder={
-              mode === "sale" ? "Cari barang atau kombo untuk dijual..." : "Cari barang untuk dibeli..."
+              mode === "sale"
+                ? "Cari barang atau kombo untuk dijual..."
+                : "Cari barang untuk dibeli..."
             }
             aria-autocomplete="list"
             value={input}

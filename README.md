@@ -101,7 +101,8 @@ One rule per merge kind, applied in three places (client pull, server apply, cli
 `stale` ack), so both sides always agree:
 
 - **plain LWW** — `pocket`, `customer`, `supplier`, `method`, `social`, `extra` and the
-  five catalog entities: newer `*_updated_at` wins; a tie keeps the stored copy.
+  seven catalog entities (`product`, `category`, `product_category`, `product_name`,
+  `property`, `listing`, `image`): newer `*_updated_at` wins; a tie keeps the stored copy.
 - **`money`** — insert, note edit and soft delete only. `timestamp`, `money_value` and
   `pocket_id` are **immutable**: an amount that has been recorded is a fact, so a later
   push can never rewrite the ledger. A copy that disagrees on any of the three loses

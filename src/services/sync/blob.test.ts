@@ -149,6 +149,14 @@ function harness(script: Script = {}, productId?: string) {
         Promise.resolve({ sha256: input.sha256, byteSize: 128, mime: "image/png" })
       );
     },
+    // The combo-cover channel is `combo-cover.test.ts`'s business; this fake only
+    // has to satisfy the shared transport type.
+    comboCoverManifest() {
+      return Promise.resolve({ blobs: [], more: false, next: null });
+    },
+    comboCoverPut() {
+      throw new Error("comboCoverPut is not part of the image byte channel");
+    },
   };
 
   const deps = {

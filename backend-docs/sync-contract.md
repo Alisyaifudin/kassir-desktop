@@ -1,6 +1,14 @@
 # Kassir Sync — Client Contract (kassir-desktop side)
 
-**Version:** 1.1 · **Status:** implemented in `src/services/sync/` (v1 behaviour)
+**Version:** 1.1 · **Status:** superseded for v2
+
+> **This file describes the retired v1 protocol.** The live contract is
+> [`../SYNC-V2.md`](../SYNC-V2.md) (server mirror:
+> `kassir-server/backend/docs/SYNC-V2.md`), and the shipped client implements it
+> in `src/services/sync/`. The v2 protocol adds the `category`/
+> `product_category` and `combo` groups and the image/combo-cover byte side
+> channel, none of which this mirror mentions. Keep this file for history; do
+> not treat it as the sync set.
 
 The canonical protocol lives in `kassir-backend/docs/SYNC-CONTRACT.md`. This
 file is the client-side mirror: what `kassir-desktop` MUST do, MUST store, and
@@ -23,17 +31,16 @@ The implementation is `src/services/sync/` (see `specification.xml` →
 
 ## 2. Sync set
 
-Exactly the entities in backend contract §2.1, in the fixed order:
-
-```
-pocket → money → product → product_name → property → listing → image
-→ customer → supplier → extra → method → social → product_event → record
-```
+**Superseded.** The v2 groups and their order are in `SYNC-V2.md` §1: money,
+customer, supplier, method, social, extra, product, combo, record. The product
+group carries `product`, `category`, `product_category`, `product_name`,
+`property`, `listing`, `image` and `product_event`; the combo group carries the
+`combo` aggregate (`combo_listings`, `combo_extras`, `combo_discounts`).
 
 Never synced (do not build reads for them): `cashiers`, `stocks`, all `tx_*`,
-enum tables, `versions`, `graves*`, `<name>_old` residue. Image **bytes**
-(`AppData/images/`) do not sync in v1 — rows only; a restored device shows
-placeholders.
+enum tables, `versions`, `graves*`, `<name>_old` residue. Image **and combo
+cover bytes** (`AppData/images/`) are not rows; they travel over the
+content-addressed side channel described in `SYNC-V2.md` §8.7.1.
 
 ## 2.1 Credentials
 

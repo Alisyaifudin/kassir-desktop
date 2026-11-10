@@ -4,7 +4,7 @@
 product, combo, record
 **Status:** server and desktop implement every group, including the combo and
 record aggregates; the image-byte side channel is implemented for product
-images, with combo cover bytes still local-only
+images and combo covers
 **Date:** 2026-11-03
 **Revision:** the same contract plus the gaps closed in §0.6; retention is now
 implemented (§15.1); image **bytes** now have a documented, server-implemented
@@ -2582,9 +2582,12 @@ compared. `listing_id` and `extra_id` are opaque cross-group references: the
 page that carries a combo may arrive before the product or extra page, and a
 reference may be tombstoned, so neither side enforces a foreign key.
 
-Cover **bytes** do not sync in this group yet; the row carries the name and MIME
-so a device can show a placeholder until the file is available. Push bounds:
-1000 frames / 8 MB; pull: 1000 default / 5000 maximum, 8 MB page budget.
+Cover **bytes** sync over the same content-addressed side channel as product
+images (§8.7.1), under `/v2/combo/cover/blob/{combo_id}` and
+`/v2/combo/cover/manifest`: the blob at the header's own `combo_updated_at` is
+the one served, and an unchanged cover's claim follows the clock when a save
+bumps it. A device that has not received the file shows its placeholder. Push
+bounds: 1000 frames / 8 MB; pull: 1000 default / 5000 maximum, 8 MB page budget.
 
 ## 9. Client state and cycles
 

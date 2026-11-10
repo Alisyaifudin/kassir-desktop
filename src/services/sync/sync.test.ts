@@ -390,6 +390,23 @@ function setup(
     blobGet(_endpoint, input) {
       return Promise.resolve({ sha256: input.sha256, byteSize: 1, mime: "image/png" });
     },
+    // The combo-cover channel mirrors the image one; these group tests do not
+    // move bytes, so an empty manifest and a digest answer are enough.
+    comboCoverManifest() {
+      return Promise.resolve({ blobs: [], more: false, next: null });
+    },
+    comboCoverPut(_endpoint, input) {
+      return Promise.resolve({
+        status: 201,
+        comboId: input.comboId,
+        version: input.version,
+        sha256: shaOf(input.comboId, input.version),
+        byteSize: 1,
+        mime: input.mime,
+        deduped: false,
+        current: true,
+      });
+    },
     // One transaction, like `sync_merge` in Rust: a page either lands whole or
     // not at all.
     merge(statements) {

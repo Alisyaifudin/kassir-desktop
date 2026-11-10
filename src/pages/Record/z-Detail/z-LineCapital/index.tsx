@@ -88,7 +88,7 @@ function CapitalDialog({
           <Pencil className="size-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-xl" showCloseButton={!loading}>
+      <DialogContent className="max-w-xl overflow-auto max-h-[90dvh]" showCloseButton={!loading}>
         <DialogHeader>
           <DialogTitle className="text-2xl">Ubah modal tercatat?</DialogTitle>
           <DialogDescription>

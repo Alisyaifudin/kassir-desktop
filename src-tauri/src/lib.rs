@@ -67,6 +67,10 @@ pub fn run() {
             sync_blob::sync_blob_manifest,
             sync_blob::sync_blob_put,
             sync_blob::sync_blob_get,
+            // The combo group's cover-byte side channel: the row travels in the
+            // change log, its bytes do not (`SYNC-V2.md` §8.7.1).
+            sync_blob::sync_combo_cover_manifest,
+            sync_blob::sync_combo_cover_put,
             sync_merge::sync_merge,
         ]);
 

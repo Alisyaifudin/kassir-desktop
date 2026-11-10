@@ -109,6 +109,35 @@ export type BlobGet = {
   mime: string;
 };
 
+/** One combo-cover manifest entry: the bytes the server serves for one `combo_id`. */
+export type ComboCoverRef = {
+  comboId: string;
+  version: number;
+  sha256: string;
+  byteSize: number;
+  mime: string;
+};
+
+/** One page of `GET /v2/combo/cover/manifest`, paged by `combo_id`. */
+export type ComboCoverManifest = {
+  blobs: ComboCoverRef[];
+  more: boolean;
+  /** The `combo_id` to continue from; `null` when the page is the last one. */
+  next: string | null;
+};
+
+/** What `PUT /v2/combo/cover/blob/:combo_id` stored, or already had. */
+export type ComboCoverPut = {
+  status: number;
+  comboId: string;
+  version: number;
+  sha256: string;
+  byteSize: number;
+  mime: string;
+  deduped: boolean;
+  current: boolean;
+};
+
 /** The slice of the Rust sync API the pull/push loops depend on. */
 export type SyncTransport = {
   /**
@@ -182,6 +211,29 @@ export type SyncTransport = {
     endpoint: Endpoint,
     input: { sha256: string; fileName: string },
   ) => Promise<BlobGet>;
+
+  // --------------------------------------------------------------------------
+  // The combo-cover side channel
+  //
+  // The combo group's twin of the image channel above: the same three routes,
+  // under `/v2/combo/cover/`, sharing the same content-addressed download. The
+  // combo ROW (with `combo_cover_name`/`combo_cover_mime`) travels in the change
+  // log; only the bytes use these calls.
+  // --------------------------------------------------------------------------
+
+  /** `GET /v2/combo/cover/manifest` — which hash is current for each combo cover. */
+  comboCoverManifest: (
+    endpoint: Endpoint,
+    input: { after: string | null; limit: number },
+  ) => Promise<ComboCoverManifest>;
+  /**
+   * `PUT /v2/combo/cover/blob/:combo_id?version=…` — one combo's cover bytes,
+   * read from `AppData/images/<fileName>` and sent as a raw body.
+   */
+  comboCoverPut: (
+    endpoint: Endpoint,
+    input: { comboId: string; version: number; fileName: string; mime: string },
+  ) => Promise<ComboCoverPut>;
 };
 
 async function command<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -304,6 +356,26 @@ export const tauriTransport: SyncTransport = {
       sha256: input.sha256,
       fileName: input.fileName,
       client: identify(endpoint, nextRequestId("blob-get")),
+    });
+  },
+  comboCoverManifest(endpoint, input) {
+    return command("sync_combo_cover_manifest", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      after: input.after,
+      limit: input.limit,
+      client: identify(endpoint, nextRequestId("combo-cover-manifest")),
+    });
+  },
+  comboCoverPut(endpoint, input) {
+    return command("sync_combo_cover_put", {
+      baseUrl: endpoint.baseUrl,
+      token: endpoint.token,
+      comboId: input.comboId,
+      version: input.version,
+      fileName: input.fileName,
+      mime: input.mime,
+      client: identify(endpoint, nextRequestId("combo-cover-put")),
     });
   },
 };

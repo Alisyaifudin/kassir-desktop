@@ -221,6 +221,8 @@ function Workspace({
             stale={false}
             savedFile={opened.file}
             onExitSaved={() => setOpened(null)}
+            building={build.pending}
+            onBuild={() => void buildAgain()}
             metric={metric}
             neighborLimit={neighborLimit}
             selected={selected}
@@ -250,6 +252,8 @@ function Workspace({
                 <GraphPane
                   graph={data.graph}
                   stale={data.status.stale}
+                  building={build.pending}
+                  onBuild={() => void buildAgain()}
                   metric={metric}
                   neighborLimit={neighborLimit}
                   selected={selected}
@@ -278,6 +282,8 @@ function GraphPane({
   stale,
   savedFile,
   onExitSaved,
+  building,
+  onBuild,
   metric,
   neighborLimit,
   selected,
@@ -291,6 +297,8 @@ function GraphPane({
   /** Set when the graph came off the saved list, so the line can say so. */
   savedFile?: string;
   onExitSaved?: () => void;
+  building: boolean;
+  onBuild: () => void;
   metric: ProductGraphMetric;
   neighborLimit: number;
   selected: number | null;
@@ -308,8 +316,8 @@ function GraphPane({
               Tersimpan
             </span>
             <span className="text-muted-foreground tabular-nums">
-              {formatDate(graph.from)} – {formatDate(graph.to - DAY_MS)} ·{" "}
-              {MODE_NAMES[graph.mode]} · {graph.nodeLimit.toLocaleString("id-ID")} produk teratas
+              {formatDate(graph.from)} – {formatDate(graph.to - DAY_MS)} · {MODE_NAMES[graph.mode]}{" "}
+              · {graph.nodeLimit.toLocaleString("id-ID")} produk teratas
               <span aria-hidden="true"> · </span>
               Dibuat {formatDate(graph.builtAt)} {formatTime(graph.builtAt)}
             </span>
@@ -317,8 +325,8 @@ function GraphPane({
         ) : (
           <p className="text-muted-foreground tabular-nums">
             {graph.records.toLocaleString("id-ID")} transaksi ·{" "}
-            {graph.nodes.length.toLocaleString("id-ID")} produk ·{" "}
-            {edges.toLocaleString("id-ID")} hubungan
+            {graph.nodes.length.toLocaleString("id-ID")} produk · {edges.toLocaleString("id-ID")}{" "}
+            hubungan
             <span className="mx-2" aria-hidden="true">
               ·
             </span>
@@ -327,9 +335,24 @@ function GraphPane({
         )}
         <div className="flex flex-wrap items-center gap-2">
           {stale ? (
-            <p className="font-medium text-destructive" role="status">
-              Ada transaksi baru. Buat ulang untuk memperbarui jaringan.
-            </p>
+            <>
+              <p className="font-medium text-destructive" role="status">
+                Ada transaksi baru di periode ini.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onBuild}
+                disabled={building}
+              >
+                <RefreshCw
+                  aria-hidden="true"
+                  className={cn("size-4", building && "animate-spin")}
+                />
+                Buat ulang
+              </Button>
+            </>
           ) : null}
           {savedFile && onExitSaved ? (
             <Button type="button" size="sm" variant="outline" onClick={onExitSaved}>

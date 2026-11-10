@@ -176,6 +176,76 @@ pub struct BlobGet {
     mime: String,
 }
 
+// ---------------------------------------------------------------------------
+// Combo covers (the combo group's byte channel)
+// ---------------------------------------------------------------------------
+
+/// One entry of `GET /v2/combo/cover/manifest` — the server's snake_case body.
+#[derive(Debug, Deserialize)]
+struct WireComboBlob {
+    combo_id: String,
+    version: i64,
+    sha256: String,
+    byte_size: i64,
+    mime: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WireComboManifest {
+    #[serde(default)]
+    blobs: Vec<WireComboBlob>,
+    #[serde(default)]
+    more: bool,
+    #[serde(default)]
+    next: Option<String>,
+}
+
+/// The manifest as the frontend receives it (`camelCase`, like every IPC value).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComboCoverRef {
+    combo_id: String,
+    version: i64,
+    sha256: String,
+    byte_size: i64,
+    mime: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComboCoverManifest {
+    blobs: Vec<ComboCoverRef>,
+    more: bool,
+    next: Option<String>,
+}
+
+/// The `201`/`200` body of a combo-cover upload, as the server documents it.
+#[derive(Debug, Deserialize)]
+struct WireComboPut {
+    combo_id: String,
+    version: i64,
+    sha256: String,
+    byte_size: i64,
+    mime: String,
+    #[serde(default)]
+    deduped: bool,
+    #[serde(default)]
+    current: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComboCoverPut {
+    status: u16,
+    combo_id: String,
+    version: i64,
+    sha256: String,
+    byte_size: i64,
+    mime: String,
+    deduped: bool,
+    current: bool,
+}
+
 // ============================================================================
 // Commands
 // ============================================================================
@@ -440,6 +510,166 @@ pub async fn sync_blob_get(
             Err(error)
         }
     }
+}
+
+/// `GET /v2/combo/cover/manifest?after=&limit=` — which hash is current for each
+/// live combo whose cover blob version equals its `combo_updated_at`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn sync_combo_cover_manifest(
+    state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
+    base_url: String,
+    token: String,
+    after: Option<String>,
+    limit: u32,
+    client: ClientIdentity,
+) -> Result<ComboCoverManifest, SyncFailure> {
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    let mut url = format!(
+        "{}/v2/combo/cover/manifest?limit={}",
+        trim_base(&base_url),
+        limit.max(1)
+    );
+    if let Some(after) = after.filter(|value| !value.is_empty()) {
+        url.push_str("&after=");
+        url.push_str(&encode_query(&after));
+    }
+
+    let resp = identify(
+        http.get(url)
+            .bearer_auth(&token)
+            .header(reqwest::header::ACCEPT, "application/json"),
+        &who,
+    )
+    .send()
+    .await
+    .map_err(transport)?;
+
+    if !resp.status().is_success() {
+        return Err(failure(resp).await);
+    }
+    let text = resp
+        .text()
+        .await
+        .map_err(|error| internal(format!("Manifest sampul combo tidak dapat dibaca: {error}")))?;
+    let body: WireComboManifest = serde_json::from_str(&text)
+        .map_err(|error| internal(format!("Manifest sampul combo tidak dapat dibaca: {error}")))?;
+
+    Ok(ComboCoverManifest {
+        blobs: body
+            .blobs
+            .into_iter()
+            .map(|blob| ComboCoverRef {
+                combo_id: blob.combo_id,
+                version: blob.version,
+                sha256: blob.sha256,
+                byte_size: blob.byte_size,
+                mime: blob.mime,
+            })
+            .collect(),
+        more: body.more,
+        next: body.next,
+    })
+}
+
+/// `PUT /v2/combo/cover/blob/{combo_id}?version={combo_updated_at}` — upload one
+/// combo's cover bytes, read from `AppData/images/<file_name>`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn sync_combo_cover_put(
+    state: tauri::State<'_, SyncState>,
+    app: tauri::AppHandle,
+    base_url: String,
+    token: String,
+    combo_id: String,
+    version: i64,
+    file_name: String,
+    mime: String,
+    client: ClientIdentity,
+) -> Result<ComboCoverPut, SyncFailure> {
+    if !path_safe(&combo_id, 100) {
+        return Err(bad_request("Id combo tidak valid"));
+    }
+    if !BLOB_MIMES.contains(&mime.as_str()) {
+        return Err(unsupported(
+            "Tipe gambar tidak didukung. Gunakan png, jpeg atau webp.",
+        ));
+    }
+    let name =
+        safe_file_name(&file_name).ok_or_else(|| bad_request("Nama berkas gambar tidak valid"))?;
+    let path = images_dir(&app)?.join(&name);
+
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            log::info!("sync: no local cover file {} ({error})", path.display());
+            return Err(local_missing(&name));
+        }
+    };
+    if bytes.is_empty() {
+        return Err(local_missing(&name));
+    }
+    if bytes.len() as u64 > BLOB_MAX_BYTES {
+        return Err(SyncFailure {
+            status: 413,
+            code: "payload_too_large".to_string(),
+            message: format!(
+                "Gambar {} lebih dari {} MB sehingga tidak dapat diunggah",
+                name,
+                BLOB_MAX_BYTES / (1024 * 1024)
+            ),
+            floor: None,
+        });
+    }
+
+    let url = format!(
+        "{}/v2/combo/cover/blob/{}?version={}",
+        trim_base(&base_url),
+        combo_id,
+        version
+    );
+    let http = state.client();
+    let who = RequestIdentity::new(&app, &client);
+    let resp = identify(
+        http.put(url)
+            .bearer_auth(&token)
+            .header(reqwest::header::CONTENT_TYPE, mime)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .header(reqwest::header::ACCEPT_ENCODING, "identity"),
+        &who,
+    )
+    .body(bytes)
+    .send()
+    .await
+    .map_err(transport)?;
+
+    let status = resp.status().as_u16();
+    if !resp.status().is_success() {
+        return Err(failure(resp).await);
+    }
+    let text = resp.text().await.map_err(|error| {
+        internal(format!(
+            "Jawaban unggah sampul combo tidak dapat dibaca: {error}"
+        ))
+    })?;
+    let body: WireComboPut = serde_json::from_str(&text).map_err(|error| {
+        internal(format!(
+            "Jawaban unggah sampul combo tidak dapat dibaca: {error}"
+        ))
+    })?;
+
+    Ok(ComboCoverPut {
+        status,
+        combo_id: body.combo_id,
+        version: body.version,
+        sha256: body.sha256,
+        byte_size: body.byte_size,
+        mime: body.mime,
+        deduped: body.deduped,
+        current: body.current,
+    })
 }
 
 // ============================================================================

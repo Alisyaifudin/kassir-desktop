@@ -356,5 +356,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/51-60/migration-59.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 60,
+            description: "combo_cover_blob_columns",
+            sql: include_str!("../../src/database/51-60/migration-60.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

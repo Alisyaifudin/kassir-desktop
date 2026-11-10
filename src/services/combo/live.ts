@@ -317,9 +317,20 @@ export const ComboLive = Layer.effect(
             {
               sql: `INSERT INTO combos (
                   combo_id, combo_name, combo_active, combo_cover_name, combo_cover_mime,
-                  combo_updated_at, combo_sync_at, combo_deleted_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)`,
-              bindings: [id, name, input.active ? 1 : 0, input.cover?.name ?? null, input.cover?.mime ?? null, now],
+                  combo_updated_at, combo_sync_at, combo_deleted_at,
+                  combo_cover_blob_version, combo_cover_blob_sha256, combo_cover_blob_sync_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $7, NULL, NULL)`,
+              bindings: [
+                id,
+                name,
+                input.active ? 1 : 0,
+                input.cover?.name ?? null,
+                input.cover?.mime ?? null,
+                now,
+                // A new cover file was just written under this clock, so it owes
+                // an upload (`sync_at` NULL). No cover means nothing to move.
+                input.cover === null ? null : now,
+              ],
             },
             ...componentStatement(id, input.components),
             ...extraStatement(id, input.extraIds),
@@ -339,13 +350,42 @@ export const ComboLive = Layer.effect(
               return yield* Effect.fail(new ComboError({ message: "Combo tidak ditemukan." }));
             }
             const now = Date.now();
+            const nextClock = Math.max(now, previous.updatedAt + 1);
+            // The cover file is identified by its name, so an unchanged name is
+            // unchanged bytes: the byte claim follows the new header clock and
+            // nothing is re-uploaded. A new name (or a cleared cover) resets the
+            // trio — the new file owes an upload, a cleared one owes nothing.
+            const coverUnchanged =
+              previous.cover !== null && previous.cover.name === input.cover?.name;
+            // `$6` is always referenced so the binding count matches the SQL: a
+            // cleared cover sets the version to NULL, a kept or new one to the
+            // clock the file now belongs to. The id is `$7` (it appears last, in
+            // the WHERE) because the driver binds `$n` in first-appearance order,
+            // not by number.
+            const coverColumns =
+              input.cover === null
+                ? `combo_cover_blob_version = $6, combo_cover_blob_sha256 = NULL,
+                   combo_cover_blob_sync_at = NULL`
+                : coverUnchanged
+                  ? `combo_cover_blob_version = $6`
+                  : `combo_cover_blob_version = $6, combo_cover_blob_sha256 = NULL,
+                     combo_cover_blob_sync_at = NULL`;
             yield* commit([
               {
                 sql: `UPDATE combos SET
                     combo_name = $1, combo_active = $2, combo_cover_name = $3, combo_cover_mime = $4,
-                    combo_updated_at = max($5, combo_updated_at + 1), combo_sync_at = NULL
-                  WHERE combo_id = $6 AND combo_deleted_at IS NULL`,
-                bindings: [name, input.active ? 1 : 0, input.cover?.name ?? null, input.cover?.mime ?? null, now, id],
+                    combo_updated_at = max($5, combo_updated_at + 1), combo_sync_at = NULL,
+                    ${coverColumns}
+                  WHERE combo_id = $7 AND combo_deleted_at IS NULL`,
+                bindings: [
+                  name,
+                  input.active ? 1 : 0,
+                  input.cover?.name ?? null,
+                  input.cover?.mime ?? null,
+                  now,
+                  input.cover === null ? null : nextClock,
+                  id,
+                ],
               },
               { sql: `DELETE FROM combo_listings WHERE combo_id = $1`, bindings: [id] },
               ...componentStatement(id, input.components),
@@ -376,6 +416,8 @@ export const ComboLive = Layer.effect(
               {
                 sql: `UPDATE combos SET
                     combo_cover_name = NULL, combo_cover_mime = NULL,
+                    combo_cover_blob_version = NULL, combo_cover_blob_sha256 = NULL,
+                    combo_cover_blob_sync_at = NULL,
                     combo_deleted_at = max($1, combo_updated_at + 1),
                     combo_updated_at = max($1, combo_updated_at + 1), combo_sync_at = NULL
                   WHERE combo_id = $2 AND combo_deleted_at IS NULL`,

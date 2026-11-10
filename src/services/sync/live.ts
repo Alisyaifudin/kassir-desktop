@@ -81,6 +81,11 @@ import {
   type PullPage,
 } from "./merge";
 import { countImageBlobs, fetchImageBlobs, uploadImageBlobs, type BlobTick } from "./blob";
+import {
+  countComboCoverBlobs,
+  fetchComboCoverBlobs,
+  uploadComboCoverBlobs,
+} from "./combo-cover";
 import { syncOneProduct } from "./one-product";
 import { pullPageWithRetry, toSyncError } from "./pull";
 import { countUnsynced, push } from "./push";
@@ -860,7 +865,13 @@ export const SyncLive = Layer.effect(
         // bookmark. Only the product group moves them, and both passes are bounded.
         let imagesUp = 0;
         let imagesDown = 0;
-        const movesBytes = group === "product";
+        // Two groups move bytes: the product gallery (`image` rows) and the combo
+        // group's cover (`combos.combo_cover_name`). Both use the same
+        // content-addressed channel; the row half is different, the byte half is
+        // the same shape (see `blob.ts` / `combo-cover.ts`).
+        const movesImages = group === "product";
+        const movesCovers = group === "combo";
+        const movesBytes = movesImages || movesCovers;
         /** The wire name of this group's aggregate entity, for the log (`record`). */
         const aggregateEntity =
           GROUPS[group].entities.find((entity) => entity.kind === "aggregate")?.entity ?? null;
@@ -954,41 +965,50 @@ export const SyncLive = Layer.effect(
                 // Bytes are cumulative across the call's passes, so the add-up
                 // happens once it returns.
                 let passBytes = 0;
-                const report = yield* fetchImageBlobs({
-                  db,
-                  transport,
-                  endpoint,
-                  ...(passes === undefined ? {} : { maxPasses: passes }),
-                  onProgress: (tick: BlobTick) => {
-                    passBytes = tick.bytes;
-                    // What is left of *this* pass, stated by the manifest before the
-                    // first file moved. The only byte total in the whole cycle that
-                    // is known rather than guessed.
-                    const left =
-                      tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
-                    publishGroup(group, {
-                      phase: settling ? "settle" : "pull",
-                      progress: at(imagesDown + tick.done, false),
-                      message: `Mengunduh gambar ${tick.done}/${tick.total}…`,
-                      transfer: {
-                        down: side(moved.rowsDown + moved.imagesDown + tick.bytes, left),
-                        up: transfer().up,
-                      },
-                    });
-                    pushLog([
-                      {
-                        kind: "image",
-                        at: Date.now(),
-                        group,
-                        direction: "down",
-                        name: tick.name,
-                        done: tick.done,
-                        total: tick.total,
-                        outcome: tick.outcome,
-                      },
-                    ]);
-                  },
-                });
+                const onProgress = (tick: BlobTick): void => {
+                  passBytes = tick.bytes;
+                  // What is left of *this* pass, stated by the manifest before the
+                  // first file moved. The only byte total in the whole cycle that
+                  // is known rather than guessed.
+                  const left =
+                    tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
+                  publishGroup(group, {
+                    phase: settling ? "settle" : "pull",
+                    progress: at(imagesDown + tick.done, false),
+                    message: `${movesCovers ? "Mengunduh sampul combo" : "Mengunduh gambar"} ${tick.done}/${tick.total}…`,
+                    transfer: {
+                      down: side(moved.rowsDown + moved.imagesDown + tick.bytes, left),
+                      up: transfer().up,
+                    },
+                  });
+                  pushLog([
+                    {
+                      kind: "image",
+                      at: Date.now(),
+                      group,
+                      direction: "down",
+                      name: tick.name,
+                      done: tick.done,
+                      total: tick.total,
+                      outcome: tick.outcome,
+                    },
+                  ]);
+                };
+                const report = yield* (movesImages
+                  ? fetchImageBlobs({
+                      db,
+                      transport,
+                      endpoint,
+                      ...(passes === undefined ? {} : { maxPasses: passes }),
+                      onProgress,
+                    })
+                  : fetchComboCoverBlobs({
+                      db,
+                      transport,
+                      endpoint,
+                      ...(passes === undefined ? {} : { maxPasses: passes }),
+                      onProgress,
+                    }));
                 moved.imagesDown += passBytes;
                 imagesDown += report.fetched + report.adopted;
               });
@@ -1047,7 +1067,11 @@ export const SyncLive = Layer.effect(
                 pullChanges = page.count ?? (target === null ? 0 : Math.max(0, target - startAt));
                 // The byte channel's whole backlog: this run drains it, so the bar
                 // is sized to the files that will cross, not to one pass of twenty.
-                const images = movesBytes ? yield* countImageBlobs(db) : { up: 0, down: 0 };
+                const images = movesImages
+                  ? yield* countImageBlobs(db)
+                  : movesCovers
+                    ? yield* countComboCoverBlobs(db)
+                    : { up: 0, down: 0 };
                 plan = planCycle({ pullChanges, pushRows, images });
               }
 
@@ -1227,7 +1251,7 @@ export const SyncLive = Layer.effect(
         // came from a schema migration) has never been folded, and its own rows no
         // longer come back through the closing pull to be folded there. So the fold
         // for what this push uploaded happens here, in its own transaction.
-        if (movesBytes && pushed.appliedJournal.length > 0) {
+        if (movesImages && pushed.appliedJournal.length > 0) {
           yield* mergeExecutor(yield* stockFoldStatements(db, pushed.appliedJournal), "product");
           yield* refreshGroup(group);
         }
@@ -1239,42 +1263,40 @@ export const SyncLive = Layer.effect(
         // no longer the local clock.
         if (movesBytes) {
           let passBytes = 0;
-          const uploads = yield* uploadImageBlobs({
-            db,
-            transport,
-            endpoint,
-            onProgress: (tick: BlobTick) => {
-              passBytes = tick.bytes;
-              // The files this pass is going to send, sized from disk before the
-              // first one left — a real total, unlike a projection from average row
-              // sizes.
-              const left = tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
-              publishGroup(group, {
-                phase: "push",
-                progress: staged(
-                  "push",
-                  pushedRows * PLAN_UNITS.row + (imagesUp + tick.done) * PLAN_UNITS.image,
-                ),
-                message: `Mengunggah gambar ${tick.done}/${tick.total}…`,
-                transfer: {
-                  down: transfer().down,
-                  up: side(moved.rowsUp + moved.imagesUp + tick.bytes, left),
-                },
-              });
-              pushLog([
-                {
-                  kind: "image",
-                  at: Date.now(),
-                  group,
-                  direction: "up",
-                  name: tick.name,
-                  done: tick.done,
-                  total: tick.total,
-                  outcome: tick.outcome,
-                },
-              ]);
-            },
-          });
+          const onProgress = (tick: BlobTick): void => {
+            passBytes = tick.bytes;
+            // The files this pass is going to send, sized from disk before the
+            // first one left — a real total, unlike a projection from average row
+            // sizes.
+            const left = tick.bytesTotal === null ? 0 : Math.max(0, tick.bytesTotal - tick.bytes);
+            publishGroup(group, {
+              phase: "push",
+              progress: staged(
+                "push",
+                pushedRows * PLAN_UNITS.row + (imagesUp + tick.done) * PLAN_UNITS.image,
+              ),
+              message: `${movesCovers ? "Mengunggah sampul combo" : "Mengunggah gambar"} ${tick.done}/${tick.total}…`,
+              transfer: {
+                down: transfer().down,
+                up: side(moved.rowsUp + moved.imagesUp + tick.bytes, left),
+              },
+            });
+            pushLog([
+              {
+                kind: "image",
+                at: Date.now(),
+                group,
+                direction: "up",
+                name: tick.name,
+                done: tick.done,
+                total: tick.total,
+                outcome: tick.outcome,
+              },
+            ]);
+          };
+          const uploads = yield* (movesImages
+            ? uploadImageBlobs({ db, transport, endpoint, onProgress })
+            : uploadComboCoverBlobs({ db, transport, endpoint, onProgress }));
           imagesUp += uploads.uploaded;
           moved.imagesUp += passBytes;
         }
@@ -1305,14 +1327,18 @@ export const SyncLive = Layer.effect(
         // than assumed: the drain stops early when a pass resolves nothing (a
         // tombstoned row, a file the server refuses), and a run that leaves
         // pictures behind must say so instead of calling itself finished.
-        const imagesOwed = movesBytes ? (yield* countImageBlobs(db)).up : 0;
+        const imagesOwed = movesImages
+          ? (yield* countImageBlobs(db)).up
+          : movesCovers
+            ? (yield* countComboCoverBlobs(db)).up
+            : 0;
         if (imagesOwed > 0) {
           pushLog([
             {
               kind: "note",
               at: Date.now(),
               group,
-              text: `${imagesOwed} gambar belum terkirim, dicoba lagi nanti`,
+              text: `${imagesOwed} ${movesCovers ? "sampul combo" : "gambar"} belum terkirim, dicoba lagi nanti`,
               level: "info",
             },
           ]);
