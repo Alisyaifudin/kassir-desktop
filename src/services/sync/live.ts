@@ -451,7 +451,15 @@ export const SyncLive = Layer.effect(
 
     /** Reads a store key, treating "absent" as the default. */
     function read<T>(key: string, fallback: T): Effect.Effect<T> {
-      return store.get<T>(key).pipe(Effect.orElseSucceed(() => fallback));
+      return store.get<T>(key).pipe(
+        // "Absent" is the normal first-run path; a storage failure is not — it
+        // silently reverts config, device id and auto-sync state, so it is
+        // recorded even though the fallback still applies.
+        Effect.tapErrorTag("StoreError", (error) =>
+          Effect.sync(() => log.error(`sync: gagal membaca ${key} dari store: ${error.message}`)),
+        ),
+        Effect.orElseSucceed(() => fallback),
+      );
     }
 
     function write(key: string, value: unknown): Effect.Effect<void, SyncError> {
@@ -487,9 +495,14 @@ export const SyncLive = Layer.effect(
         const legacy = numeric(yield* read<unknown>(legacyBookmarkKey(group), 0)) ?? 0;
         if (legacy > 0) {
           const statement = bookmarkStatement(group, legacy);
-          yield* db
-            .execute(statement.sql, statement.bindings ?? [])
-            .pipe(Effect.orElseSucceed(() => undefined));
+          yield* db.execute(statement.sql, statement.bindings ?? []).pipe(
+            Effect.tapErrorTag("DbError", (error) =>
+              Effect.sync(() =>
+                log.error(`sync: gagal memindahkan bookmark legacy ${group}: ${error.detail}`),
+              ),
+            ),
+            Effect.orElseSucceed(() => undefined),
+          );
         }
         return legacy;
       });
@@ -501,6 +514,11 @@ export const SyncLive = Layer.effect(
         .selectMany<{ seq: number }>("SELECT seq FROM sync_bookmark WHERE group_name = $1", [group])
         .pipe(
           Effect.map((rows) => rows.length > 0),
+          Effect.tapErrorTag("DbError", (error) =>
+            Effect.sync(() =>
+              log.error(`sync: gagal memeriksa baris bookmark ${group}: ${error.detail}`),
+            ),
+          ),
           Effect.orElseSucceed(() => false),
         );
     }
@@ -520,15 +538,26 @@ export const SyncLive = Layer.effect(
           .selectMany<{ seq: number; row_json: string }>(
             "SELECT seq, row_json FROM sync_parked_money ORDER BY money_id",
           )
-          .pipe(Effect.orElseSucceed(() => []));
+          .pipe(
+            // An empty list here reads as "parked money drained" — real ledger
+            // rows would vanish from the panel with no trace, so the failure is
+            // recorded even though the legacy path still applies.
+            Effect.tapErrorTag("DbError", (error) =>
+              Effect.sync(() =>
+                log.error(`sync: gagal membaca uang tertahan: ${error.detail}`),
+              ),
+            ),
+            Effect.orElseSucceed(() => []),
+          );
         if (durable) {
           const out: ParkedMoney[] = [];
           for (const row of rows) {
             try {
               out.push({ seq: row.seq, row: JSON.parse(row.row_json) as WireRow });
-            } catch {
+            } catch (cause) {
               // A corrupt row is dropped; the page that parked it is re-pulled
               // only if the bookmark never advanced past it.
+              log.error(new Error(`sync: baris uang tertahan rusak (seq ${row.seq}): ${String(cause)}`));
             }
           }
           return out;
@@ -586,7 +615,12 @@ export const SyncLive = Layer.effect(
         const stored = yield* read<unknown>(KEY_DEVICE_ID, "");
         if (typeof stored === "string" && stored !== "") return stored;
         const minted = crypto.randomUUID();
-        yield* write(KEY_DEVICE_ID, minted).pipe(Effect.orElseSucceed(() => undefined));
+        yield* write(KEY_DEVICE_ID, minted).pipe(
+          Effect.tapErrorTag("SyncError", (error) =>
+            Effect.sync(() => log.error(`sync: gagal menyimpan device id: ${error.message}`)),
+          ),
+          Effect.orElseSucceed(() => undefined),
+        );
         return minted;
       });
     }
@@ -637,8 +671,9 @@ export const SyncLive = Layer.effect(
           let host = "";
           try {
             host = new URL(baseUrl).hostname;
-          } catch {
+          } catch (cause) {
             host = "";
+            log.error(new Error(`sync: baseUrl bukan URL valid (${baseUrl}): ${String(cause)}`));
           }
           if (!isLocalHost(host)) {
             return yield* Effect.fail(
@@ -696,6 +731,11 @@ export const SyncLive = Layer.effect(
           protocol = (JSON.parse(health.message) as { protocol?: unknown }).protocol;
         } catch {
           protocol = undefined;
+          log.error(
+            new Error(
+              `sync: health check bukan JSON (protokol tidak terbaca): ${health.message.slice(0, 200)}`,
+            ),
+          );
         }
         if (typeof protocol === "number" && protocol !== 2) {
           return yield* Effect.fail(
@@ -747,9 +787,25 @@ export const SyncLive = Layer.effect(
         // The pre-table store keys must not resurrect a cursor the table just
         // reset; the table is authoritative from here on.
         for (const group of SYNC_GROUPS) {
-          yield* store.remove(legacyBookmarkKey(group)).pipe(Effect.orElseSucceed(() => undefined));
+          yield* store.remove(legacyBookmarkKey(group)).pipe(
+            // A stale legacy key that survives a reset can resurrect an old
+            // cursor the table just cleared, so the failure must be on record.
+            Effect.tapErrorTag("StoreError", (error) =>
+              Effect.sync(() =>
+                log.error(`sync: gagal menghapus bookmark legacy ${group}: ${error.message}`),
+              ),
+            ),
+            Effect.orElseSucceed(() => undefined),
+          );
         }
-        yield* store.remove(LEGACY_PARKED_KEY).pipe(Effect.orElseSucceed(() => undefined));
+        yield* store.remove(LEGACY_PARKED_KEY).pipe(
+          Effect.tapErrorTag("StoreError", (error) =>
+            Effect.sync(() =>
+              log.error(`sync: gagal menghapus key uang tertahan legacy: ${error.message}`),
+            ),
+          ),
+          Effect.orElseSucceed(() => undefined),
+        );
         // `stocks` is a projection of the journal this reset is re-seeding, so it is
         // re-folded from it: Sinkronisasi Ulang is the operator's repair path, and a
         // catalogue whose cached costs came from somewhere else is exactly what they
@@ -758,7 +814,16 @@ export const SyncLive = Layer.effect(
           .selectMany<{ product_id: string }>(
             "SELECT DISTINCT product_id FROM product_events WHERE stock_id IS NOT NULL",
           )
-          .pipe(Effect.orElseSucceed(() => []));
+          .pipe(
+            // An empty list silently skips the stock re-fold — the repair path
+            // this whole reset exists for — so the failure is recorded.
+            Effect.tapErrorTag("DbError", (error) =>
+              Effect.sync(() =>
+                log.error(`sync: gagal membaca produk untuk re-fold stok: ${error.detail}`),
+              ),
+            ),
+            Effect.orElseSucceed(() => []),
+          );
         yield* mergeExecutor(
           yield* stockFoldStatements(
             db,
@@ -844,6 +909,11 @@ export const SyncLive = Layer.effect(
       if (query === null) return Effect.succeed(0);
       return db.selectMany<{ total: number }>(query).pipe(
         Effect.map((rows) => rows[0]?.total ?? 0),
+        Effect.tapErrorTag("DbError", (error) =>
+          Effect.sync(() =>
+            log.error(`sync: gagal menghitung baris yatim: ${error.detail}`),
+          ),
+        ),
         Effect.orElseSucceed(() => 0),
       );
     }
@@ -1560,6 +1630,9 @@ export const SyncLive = Layer.effect(
                 finishedAt: Date.now(),
               }),
             );
+            // The run is forked as a daemon, so this re-fail would otherwise
+            // die unobserved — the app log is the only durable record of it.
+            log.error(new Error(`sync: run gagal: ${error.message}`));
             return yield* Effect.fail(error);
           }),
         ),
@@ -1676,6 +1749,11 @@ export const SyncLive = Layer.effect(
     function autoReady(): Effect.Effect<boolean> {
       return getConfig().pipe(
         Effect.map((config) => config.baseUrl.trim() !== "" && config.token.trim() !== ""),
+        Effect.tapErrorTag("SyncError", (error) =>
+          Effect.sync(() =>
+            log.error(`sync: auto-sync dilewati, gagal membaca konfigurasi: ${error.message}`),
+          ),
+        ),
         Effect.orElseSucceed(() => false),
       );
     }
@@ -1744,7 +1822,15 @@ export const SyncLive = Layer.effect(
         // The deadline belongs to the fiber that was just interrupted: leaving it
         // behind would let the panel count down to a cycle that is not scheduled.
         yield* SubscriptionRef.update(autoRef, (state) => ({ ...state, nextAt: null }));
-        const next = yield* timerLoop().pipe(Effect.forkDaemon);
+        const next = yield* timerLoop().pipe(
+          // The loop has no typed error channel, so a defect here would kill the
+          // auto-sync timer for the rest of the session with no trace. Recorded,
+          // though the fiber still dies — restarting it is a deliberate no.
+          Effect.tapErrorCause((cause) =>
+            Effect.sync(() => log.error(new Error(`sync: timer auto-sync mati: ${String(cause)}`))),
+          ),
+          Effect.forkDaemon,
+        );
         yield* Ref.set(timerFiber, next);
       });
     }
@@ -1864,7 +1950,17 @@ export const SyncLive = Layer.effect(
             yield* autoEnsure();
             // The listener runs even while the switch is off — enabled is read per
             // event, so turning it on later must not need a reload.
-            yield* listenTriggers().pipe(Effect.forkDaemon, Effect.asVoid);
+            yield* listenTriggers().pipe(
+              // Same as the timer: a defect here silently stops edit-triggered
+              // sync for the session. Recorded before the fiber dies.
+              Effect.tapErrorCause((cause) =>
+                Effect.sync(() =>
+                  log.error(new Error(`sync: listener trigger edit mati: ${String(cause)}`)),
+                ),
+              ),
+              Effect.forkDaemon,
+              Effect.asVoid,
+            );
             // The on-open cycle first: the timer's first interval is then measured
             // from the end of that cycle, not from a launch it races.
             yield* kickoff();

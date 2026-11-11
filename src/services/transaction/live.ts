@@ -1194,9 +1194,18 @@ export const TransactionLive = Layer.effect(
           if (Either.isLeft(removed)) {
             // Do not leave a second copy of the sale behind: undo the restore,
             // then report the delete failure.
-            yield* db
-              .execute("DELETE FROM tx_records WHERE tx_record_id = $1", [draft.id])
-              .pipe(Effect.catchAll(() => Effect.void));
+            yield* db.execute("DELETE FROM tx_records WHERE tx_record_id = $1", [draft.id]).pipe(
+              // The rollback DELETE failing leaves the restored draft's rows on
+              // disk while the ref forgets it — a duplicate draft resurrects on
+              // the next hydrate, and this log line is the only explanation.
+              Effect.catchAll((error) =>
+                Effect.sync(() =>
+                  log.error(
+                    `tx: gagal menghapus draft yang dikembalikan (rollback unsubmit): ${error.detail}`,
+                  ),
+                ),
+              ),
+            );
             yield* SubscriptionRef.update(draftsRef, (list) =>
               list.filter((candidate) => candidate.id !== draft.id),
             );
@@ -1371,13 +1380,14 @@ export const TransactionLive = Layer.effect(
             );
             // The cascade drops the rows; the files are ours to remove.
             for (const img of target?.images ?? []) {
-              yield* image
-                .del(img.name)
-                .pipe(
-                  Effect.catchAll((error) =>
-                    Effect.logError(`tx image delete failed: ${error.e.message}`),
-                  ),
-                );
+              yield* image.del(img.name).pipe(
+                // Effect.logError only writes to the webview console; the app
+                // log file never sees it. The DB row is already gone (cascade),
+                // so the file becomes an orphan on disk with no other record.
+                Effect.catchAll((error) =>
+                  Effect.sync(() => log.error(`tx: gagal menghapus berkas gambar: ${error.e.message}`)),
+                ),
+              );
             }
           });
         },
@@ -1480,13 +1490,13 @@ export const TransactionLive = Layer.effect(
               images: draft.images.filter((img) => img.id !== imageId),
             }));
             if (target !== undefined) {
-              yield* image
-                .del(target.name)
-                .pipe(
-                  Effect.catchAll((error) =>
-                    Effect.logError(`tx image delete failed: ${error.e.message}`),
-                  ),
-                );
+              yield* image.del(target.name).pipe(
+                // See byId above: the file is orphaned on disk with no other
+                // record than this log line.
+                Effect.catchAll((error) =>
+                  Effect.sync(() => log.error(`tx: gagal menghapus berkas gambar: ${error.e.message}`)),
+                ),
+              );
             }
           });
         },

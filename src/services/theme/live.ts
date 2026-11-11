@@ -8,6 +8,7 @@ import {
   type ThemePreference,
 } from ".";
 import { THEME_KEY, paint } from "./paint";
+import { log } from "~/lib/log";
 
 export const ThemeLive = Layer.effect(
   ThemeService,
@@ -19,7 +20,13 @@ export const ThemeLive = Layer.effect(
     const initialPreference = yield* storage.get<unknown>(THEME_KEY).pipe(
       Effect.map(parsePreference),
       Effect.catchTag("NotFound", () => Effect.succeed(DEFAULT_PREFERENCE)),
-      Effect.catchTag("LocalStorageError", () => Effect.succeed(DEFAULT_PREFERENCE)),
+      // The layer build has no error channel for this read, so a failing store
+      // would revert the theme with no way to ever surface it — recorded.
+      Effect.catchTag("LocalStorageError", (error) =>
+        Effect.sync(() =>
+          log.error(`theme: gagal membaca preferensi tema: ${error.message}`),
+        ).pipe(Effect.as(DEFAULT_PREFERENCE)),
+      ),
     );
 
     const preferenceRef = yield* SubscriptionRef.make<ThemePreference>(initialPreference);

@@ -164,6 +164,9 @@ function pullPageWithRetry(
       Effect.catchAll((error) => {
         if (remaining <= 1 || !isRetryable(error)) return Effect.fail(error);
         const wait = backoffMs(MAX_ATTEMPTS - remaining);
+        // The intermediate failure is invisible if the retry succeeds — say it,
+        // like `push.ts` does, so a flaky server leaves a trace.
+        log.info(`sync: unduh halaman produk gagal, dicoba lagi (${error.message})`);
         return Effect.sleep(`${wait} millis`).pipe(Effect.flatMap(() => attempt(remaining - 1)));
       }),
     );

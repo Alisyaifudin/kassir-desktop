@@ -42,6 +42,7 @@ import { roundMoney } from "~/lib/purchase";
 import { allocateCapital } from "./capital";
 import { validateRecordLine } from "./validate-line";
 import { notifySync } from "../sync/trigger";
+import { log } from "~/lib/log";
 
 type SummaryRow = {
   mode: RecordMode;
@@ -1660,8 +1661,13 @@ export const RecordLive = Layer.effect(
             // moved anything else, and a full catalogue read here would put an
             // O(catalogue) scan between `Bayar` and its success dialog.
             yield* refreshProductsFor(lotsByProduct.keys()).pipe(
+              // Effect.logError only writes to the webview console — the app
+              // log file (Setting → Log) never sees it, and a stale catalogue
+              // after a committed sale is otherwise unexplainable.
               Effect.catchAll((error) =>
-                Effect.logError(`product refresh after submit failed: ${error.message}`),
+                Effect.sync(() =>
+                  log.error(`record: gagal refresh produk setelah submit: ${error.message}`),
+                ),
               ),
             );
             return recordId;

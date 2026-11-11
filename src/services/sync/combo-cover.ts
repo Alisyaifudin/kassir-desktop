@@ -133,6 +133,13 @@ export function countComboCoverBlobs(
       .selectMany<{ total: number }>(`SELECT COUNT(*) AS total FROM combos WHERE ${where}`)
       .pipe(
         Effect.map((rows) => rows[0]?.total ?? 0),
+        // A zero here plans a zero-work cycle and reads as "nothing owed" —
+        // covers silently stop flowing with no explanation, so it is recorded.
+        Effect.tapErrorTag("DbError", (error) =>
+          Effect.sync(() =>
+            log.error(`sync: gagal menghitung sampul combo yang tertunggak: ${error.detail}`),
+          ),
+        ),
         Effect.orElseSucceed(() => 0),
       );
   return Effect.all(
@@ -209,9 +216,19 @@ export function uploadComboCoverBlobs(deps: ComboCoverDeps): Effect.Effect<Uploa
 
       let passTotal: number | null = 0;
       for (const row of rows) {
-        const size = yield* image
-          .size(row.combo_cover_name)
-          .pipe(Effect.orElseSucceed(() => null));
+        const size = yield* image.size(row.combo_cover_name).pipe(
+          // A missing file is the expected `local_missing` case, but a failed
+          // stat is indistinguishable from it here — recorded so a disk problem
+          // does not hide behind "file not found".
+          Effect.tapErrorTag("IOError", (error) =>
+            Effect.sync(() =>
+              log.info(
+                `sync: gagal membaca ukuran sampul ${row.combo_cover_name}: ${error.e.message}`,
+              ),
+            ),
+          ),
+          Effect.orElseSucceed(() => null),
+        );
         if (size === null) {
           passTotal = null;
           break;

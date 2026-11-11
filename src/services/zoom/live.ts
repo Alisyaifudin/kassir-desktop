@@ -3,6 +3,7 @@ import { Effect, Layer, SubscriptionRef } from "effect";
 import { formatError } from "~/lib/utils";
 import { DEFAULT_ZOOM, ZOOM_LEVELS, ZoomError, ZoomService, iconScaleOf, type Zoom } from ".";
 import { LocalStorageService } from "../local-storage";
+import { log } from "~/lib/log";
 
 /** localStorage key. One flat number on purpose: it is read before the app renders. */
 const ZOOM_KEY = "zoom";
@@ -21,7 +22,13 @@ export const ZoomLive = Layer.effect(
     const initialZoom = yield* storage.get<unknown>(ZOOM_KEY).pipe(
       Effect.map(parseZoom),
       Effect.catchTag("NotFound", () => Effect.succeed(DEFAULT_ZOOM)),
-      Effect.catchTag("LocalStorageError", () => Effect.succeed(DEFAULT_ZOOM)),
+      // Same reporting rule as `applyToWebview` below: a zoom the operator set
+      // that silently reverts to 100% is a real failure, not a first run.
+      Effect.catchTag("LocalStorageError", (error) =>
+        Effect.sync(() =>
+          log.error(`zoom: gagal membaca level zoom tersimpan: ${error.message}`),
+        ).pipe(Effect.as(DEFAULT_ZOOM)),
+      ),
     );
 
     const zoomRef = yield* SubscriptionRef.make<Zoom>(initialZoom);

@@ -2,6 +2,7 @@ import { Effect, Layer, Ref } from "effect";
 import { ConfigError, ConfigService, type ProductView } from ".";
 import { DEFAULT_MARGIN_ESTIMATE, normalizeMarginEstimate, type MarginEstimate } from "../analytics";
 import { LocalStorageService } from "../local-storage";
+import { log } from "~/lib/log";
 
 const PRODUCT_VIEW_KEY = "product-view";
 const DEFAULT_PRODUCT_VIEW: ProductView = "grid";
@@ -37,7 +38,13 @@ export const ConfigLive = Layer.effect(
     const initialView = yield* storage.get<unknown>(PRODUCT_VIEW_KEY).pipe(
       Effect.map(parseProductView),
       Effect.catchTag("NotFound", () => Effect.succeed(DEFAULT_PRODUCT_VIEW)),
-      Effect.catchTag("LocalStorageError", () => Effect.succeed(DEFAULT_PRODUCT_VIEW)),
+      // A failing store silently reverts the operator's view to the default;
+      // the fallback still applies, but the failure is recorded.
+      Effect.catchTag("LocalStorageError", (error) =>
+        Effect.sync(() => log.error(`config: gagal membaca tampilan produk: ${error.message}`)).pipe(
+          Effect.as(DEFAULT_PRODUCT_VIEW),
+        ),
+      ),
     );
 
     // Same reason, one step stronger: the Profit page's query takes these two
@@ -46,7 +53,13 @@ export const ConfigLive = Layer.effect(
     const initialEstimate = yield* storage.get<unknown>(MARGIN_ESTIMATE_KEY).pipe(
       Effect.map(parseMarginEstimate),
       Effect.catchTag("NotFound", () => Effect.succeed(DEFAULT_MARGIN_ESTIMATE)),
-      Effect.catchTag("LocalStorageError", () => Effect.succeed(DEFAULT_MARGIN_ESTIMATE)),
+      // The default estimate feeds the Profit page's arithmetic, so a silent
+      // revert distorts it with no record — logged.
+      Effect.catchTag("LocalStorageError", (error) =>
+        Effect.sync(() =>
+          log.error(`config: gagal membaca estimasi margin: ${error.message}`),
+        ).pipe(Effect.as(DEFAULT_MARGIN_ESTIMATE)),
+      ),
     );
 
     const viewRef = yield* Ref.make<ProductView>(initialView);

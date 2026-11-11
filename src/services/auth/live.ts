@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthError, AuthService, type User } from ".";
 import { CashierService } from "../cashier";
 import { LocalStorageService } from "../local-storage";
+import { log } from "~/lib/log";
 
 const USER_KEY = "user";
 
@@ -37,7 +38,13 @@ export const AuthLive = Layer.effect(
       return storage.get<unknown>(USER_KEY).pipe(
         Effect.map(parseUser),
         Effect.catchTag("NotFound", () => Effect.succeed(null)),
-        Effect.catchTag("LocalStorageError", () => Effect.succeed(null)),
+        // A failing store reads as "signed out" — indistinguishable from a
+        // fresh install — so the failure is recorded before the fallback.
+        Effect.catchTag("LocalStorageError", (error) =>
+          Effect.sync(() => log.error(`auth: gagal membaca sesi tersimpan: ${error.message}`)).pipe(
+            Effect.as(null),
+          ),
+        ),
       );
     }
 
@@ -59,9 +66,15 @@ export const AuthLive = Layer.effect(
             user = stored;
           } else {
             // Session points at a cashier that no longer exists — drop it.
-            yield* storage
-              .remove(USER_KEY)
-              .pipe(Effect.catchTag("LocalStorageError", () => Effect.void));
+            yield* storage.remove(USER_KEY).pipe(
+              // If the pointer cannot be deleted, hydration keeps re-evaluating
+              // a session pointing at a missing cashier — record it.
+              Effect.catchTag("LocalStorageError", (error) =>
+                Effect.sync(() =>
+                  log.error(`auth: gagal menghapus sesi kedaluwarsa: ${error.message}`),
+                ),
+              ),
+            );
           }
         }
 

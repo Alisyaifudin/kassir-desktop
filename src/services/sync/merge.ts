@@ -277,8 +277,14 @@ function logCapitalDrift(
         ),
       );
     }),
-    // A diagnostic must never fail a page.
-    Effect.catchAllCause(() => Effect.void),
+    // A diagnostic must never fail a page — but a diagnostic that itself fails
+    // must not vanish either: the drift report it would have printed is the
+    // only record that the fold skipped products.
+    Effect.catchAllCause((cause) =>
+      Effect.sync(() =>
+        log.error(new Error(`sync: diag modal gagal dijalankan: ${String(cause)}`)),
+      ),
+    ),
   );
 }
 
@@ -312,7 +318,19 @@ function productsWithUnfoldedLots(
               AND NOT EXISTS (SELECT 1 FROM stocks s WHERE s.stock_id = e.stock_id)`,
           slice,
         )
-        .pipe(Effect.orElseSucceed(() => []));
+        .pipe(
+          // An empty list silently skips the stock fold for these products and
+          // the stale aggregate survives with no trace, so the failure is
+          // recorded even though the fallback still applies.
+          Effect.tapErrorTag("DbError", (error) =>
+            Effect.sync(() =>
+              log.error(
+                `sync: gagal mencari lot yang belum di-fold (${slice.length} produk): ${error.detail}`,
+              ),
+            ),
+          ),
+          Effect.orElseSucceed(() => []),
+        );
       for (const row of rows) out.push(row.product_id);
     }
     return out;

@@ -49,7 +49,10 @@ export function paint(preference: ThemePreference): void {
 export function readPreference(): ThemePreference {
   try {
     return parsePreference(JSON.parse(localStorage.getItem(THEME_KEY) ?? "null"));
-  } catch {
+  } catch (error) {
+    // The boot script runs before the app (and the Tauri log plugin) exist, so
+    // the webview console is the only sink available this early.
+    console.error("theme: gagal membaca preferensi tersimpan", error);
     return DEFAULT_PREFERENCE;
   }
 }

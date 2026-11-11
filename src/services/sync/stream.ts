@@ -29,6 +29,7 @@
  * Rust side sends nothing after a failure.
  */
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { log } from "~/lib/log";
 
 /**
  * The first bytes of the body, as the socket delivered them.
@@ -143,6 +144,7 @@ export function openLineStream(
     try {
       event = JSON.parse(raw) as LineStreamEvent;
     } catch {
+      log.error(new Error(`sync: event channel bukan JSON: ${raw.slice(0, 120)}`));
       return;
     }
     if (event.type === "head") head = { hex: event.hex, bytes: event.bytes };
@@ -165,8 +167,9 @@ export function openLineStream(
     summary,
     cancel: () => {
       queue.close();
-      void invoke("sync_cancel", { id: requestId }).catch(() => {
+      void invoke("sync_cancel", { id: requestId }).catch((cause) => {
         // Cancelling is best effort: the command may already be finishing.
+        log.error(new Error(`sync: gagal membatalkan stream ${requestId}: ${String(cause)}`));
       });
     },
   };
